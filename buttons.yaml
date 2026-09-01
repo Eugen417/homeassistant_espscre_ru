@@ -115,7 +115,7 @@ logger:
 # Credentials are loaded from secrets.yaml — copy secrets.yaml.example to secrets.yaml and fill in your values.
 api:
   encryption:
-    key: !secret smartdisplay_api_key
+    key: !secret api_encryption_key
 
 ota:
   - platform: esphome
@@ -126,7 +126,7 @@ wifi:
   password: !secret wifi_password
   ap:
     ssid: "Smartdisplay Fallback Hotspot"
-    password: !secret wifi_ap_password
+    password: !secret ap_password
 
 captive_portal:
 

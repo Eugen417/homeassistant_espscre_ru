@@ -23,9 +23,8 @@
 # 1) Edit the TILE1..TILE6 blocks below.
 # 2) If you change icons, update the FONT GLYPHS block in the substitutions below.
 #    Each glyph must appear exactly once — same icon on multiple tiles is fine, just list it once.
-# 3) Provide background images (see ORIENTATION section for which file each preset uses):
-#    - images/smartdisplay_background.png    (0° and 180°)
-#    - images/smartdisplay_background_90.png (90° and 270°)
+# 3) The background is a gradient (BG_TOP_COLOR / BG_BOTTOM_COLOR), not an image.
+#    The only asset this config needs is fonts/materialdesignicons-webfont.ttf.
 #
 # Tile configuration model
 # - TILE*_TYPE defines the entity kind: light | fan | switch | scene | script | cover
@@ -43,8 +42,17 @@
 # - In auto mode, values and long-press behavior are derived from TILE*_TYPE:
 #   light -> brightness, fan -> percentage/preset, scene/script -> text
 #
+# Secrets
+# This config is kept byte-identical in two places:
+#   - this repository (flash with `esphome upload home-like.yaml`)
+#   - /config/esphome/smartdisplay.yaml on Home Assistant (flash from the
+#     ESPHome dashboard)
+# Both read the same secret names, and the repo's secrets.yaml is a copy of the
+# one in /config/esphome/. That way either route produces the same api key and
+# OTA password, so the two never fight over the device.
+#
 # What you must adapt before flashing
-# 1) Secrets: api.encryption.key, ota.password, WiFi credentials (prefer secrets.yaml)
+# 1) Secrets: api_encryption_key, ota_password, WiFi credentials (see secrets.yaml)
 # 2) Pins, touch calibration and transform if your CYD variant differs
 # 3) TILE*_ENTITY / TILE*_STATE_ENTITY: Home Assistant entity IDs you want to control/mirror
 # 4) Orientation + touch calibration:
@@ -700,7 +708,7 @@ logger:
 # Credentials are loaded from secrets.yaml — copy secrets.yaml.example to secrets.yaml and fill in your values.
 api:
   encryption:
-    key: !secret smartdisplay_api_key
+    key: !secret api_encryption_key
 
 ota:
   - platform: esphome
@@ -711,7 +719,7 @@ wifi:
   password: !secret wifi_password
   ap:
     ssid: "Smartdisplay Fallback Hotspot"
-    password: !secret wifi_ap_password
+    password: !secret ap_password
 
 captive_portal:
 
