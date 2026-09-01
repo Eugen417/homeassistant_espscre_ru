@@ -20,8 +20,8 @@ The wallpaper, the room name and the clock sit on the page itself and stay put.
 All tiles live inside one transparent container (`tile_scroll`) that scrolls
 vertically, so the grid can be taller than the screen.
 
-- The grid is **2 columns x 5 rows = 10 tile slots**. Rows 1-3 are visible at
-  rest; dragging up reveals rows 4 and 5.
+- The grid is **2 columns x 5 rows = 10 tiles**. Rows 1-3 are visible at rest;
+  dragging up reveals rows 4 and 5.
 - `GRID_ROW*_Y` are **relative to the scroll container**, not to the page.
   `SCROLL_Y` / `SCROLL_H` define where the container sits and how tall the
   viewport is. Both are set per orientation preset.
@@ -97,8 +97,9 @@ gives it the right color without touching any color key.
 
 ## Per-tile substitutions
 
-Each configured tile has the same set of keys, just with a different number
-(TILE1 … TILE8). Slots 9 and 10 are free — see [Adding a tile](#adding-a-tile).
+Each tile has the same set of keys, just with a different number
+(TILE1 … TILE10). All ten slots are in use — see [Adding a tile](#adding-a-tile)
+if you want to extend the grid further.
 
 ### Basic settings
 
@@ -222,8 +223,8 @@ Every tap publishes a short-lived state to `sensor.smartdisplay_action`:
 
 | Event | Trigger |
 |-------|---------|
-| `tile1_press` … `tile8_press` | Short tap on tile 1–8 |
-| `tile1_long_press` … `tile8_long_press` | Long press on tile 1–8 |
+| `tile1_press` … `tile10_press` | Short tap on tile 1–10 |
+| `tile1_long_press` … `tile10_long_press` | Long press on tile 1–10 |
 
 The state resets to `""` after 500ms. In HA automations, trigger on `state` → `to: "tile1_press"` etc.
 
@@ -524,9 +525,10 @@ TILE1_LONGPRESS_ACTION_SERVICE: "light.toggle"  # must set toggle explicitly, de
 
 ## Adding a tile
 
-Slots 9 and 10 are free: `GRID_ROW5_Y` is already defined in every orientation
-preset. A tile is not a single block — it is six places in `home-like.yaml`.
-Copy tile 7 (a plain light) or tile 8 (a service call) and change the number:
+All ten slots are filled. To grow the grid, add a `GRID_ROW6_Y` to every
+orientation preset first. A tile is not a single block — it is six places in
+`home-like.yaml`. Copy tile 9 (a light with a slider) or tile 10 (a service
+call) and change the number:
 
 1. **Substitutions** — a `TILE9_*` block. Copy an existing one wholesale.
 2. **Font glyph** — add `MDI_GLYPH_9` and list it under `materialdesign_icons`.

@@ -9,7 +9,7 @@
 # - Built-in XPT2046 touchscreen
 #
 # What this config does
-# - Renders a wallpaper background + a 2x3 grid of “tiles” (LVGL).
+# - Renders a gradient background + a scrollable 2x5 grid of “tiles” (LVGL).
 # - Each tile shows: icon (MDI font), title, and a value line.
 # - Tile taps publish a short-lived text_sensor event (smartdisplay_action)
 #   so you can build Home Assistant automations on top.
@@ -20,7 +20,7 @@
 # The layout is inspired by common modern smart home UIs.
 #
 # How to customize
-# 1) Edit the TILE1..TILE6 blocks below.
+# 1) Edit the TILE1..TILE10 blocks below.
 # 2) If you change icons, update the FONT GLYPHS block in the substitutions below.
 #    Each glyph must appear exactly once — same icon on multiple tiles is fine, just list it once.
 # 3) The background is a gradient (BG_TOP_COLOR / BG_BOTTOM_COLOR), not an image.
@@ -108,13 +108,15 @@ substitutions:
   # (unused glyphs add a few bytes to the font but cause no errors).
   # ============================================================
   MDI_GLYPH_1: "\U000F001B"
-  MDI_GLYPH_2: "\U000F04B9"
+  MDI_GLYPH_2: "\U000F0387"                        # mdi:music
   MDI_GLYPH_3: "\U000F02E3"
   MDI_GLYPH_4: "\U000F059C"
   MDI_GLYPH_5: "\U000F0425"
   MDI_GLYPH_6: "\U000F070D"
   MDI_GLYPH_7: "\U000F06B5"                        # mdi:lamp
   MDI_GLYPH_8: "\U000F06EE"                        # mdi:mailbox
+  MDI_GLYPH_9: "\U000F04B9"                        # mdi:sofa
+  MDI_GLYPH_10: "\U000F002A"                       # mdi:alarm-light
 
   # ============================================================
   # TILE 1
@@ -170,16 +172,16 @@ substitutions:
   # ============================================================
 
   # --- basic settings ---
-  TILE2_ENTITY: "light.woonkamer_2"                       # main Home Assistant entity for this tile
-  TILE2_STATE_ENTITY: "light.woonkamer_2"                 # entity used for active/inactive state styling
-  TILE2_TITLE: "Woonkamer"                              # tile title shown in the UI
-  TILE2_ICON: "\U000F04B9"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
-  TILE2_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
+  TILE2_ENTITY: "script.ambient_morning"                       # main Home Assistant entity for this tile
+  TILE2_STATE_ENTITY: "script.ambient_morning"                 # entity used for active/inactive state styling
+  TILE2_TITLE: "Ambient"                              # tile title shown in the UI
+  TILE2_ICON: "\U000F0387"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
+  TILE2_TYPE: "script"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE2_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
-  TILE2_LONGPRESS: "slider"                        # long press mode: none | slider | action
-  TILE2_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE2_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE2_LABEL_ON: "Aan"                             # text shown for text-mode tiles when entity is on
+  TILE2_LONGPRESS: "none"                        # long press mode: none | slider | action
+  TILE2_VALUE_MODE: "text"                         # value mode: auto | brightness | percentage | preset | text
+  TILE2_LABEL_OFF: "Start"                           # text shown when entity is off
+  TILE2_LABEL_ON: "Start"                             # text shown for text-mode tiles when entity is on
   TILE2_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -496,11 +498,91 @@ substitutions:
   TILE8_LONGPRESS_ACTION_SERVICE: ""               # service to call (default: activate/turn_on)
 
   # ============================================================
-  # TILE 9 / TILE 10  —  nog vrij
-  # Rij 5 van het raster (GRID_ROW5_Y) is al gedefinieerd en leeg.
-  # Zie TILE_CONFIGURATION.md, sectie "Een tegel toevoegen" voor de
-  # zes plekken die je per extra tegel moet invullen.
+  # TILE 9  —  Woonkamer
+  # Verhuisd van tegel 2 naar rij 5 om plaats te maken voor Ambient.
+  # Kleurenlamp (color_temp / rgb / xy), dus de kleurknop in de
+  # slider-overlay verschijnt vanzelf.
   # ============================================================
+
+  # --- basic settings ---
+  TILE9_ENTITY: "light.woonkamer_2"                # main Home Assistant entity for this tile
+  TILE9_STATE_ENTITY: "light.woonkamer_2"          # entity used for active/inactive state styling
+  TILE9_TITLE: "Woonkamer"                         # tile title shown in the UI
+  TILE9_ICON: "\U000F04B9"                         # mdi:sofa — also listed in MDI_GLYPH_9 above
+  TILE9_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
+  TILE9_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset
+  TILE9_LONGPRESS: "slider"                        # long press mode: none | slider | action | vacuum
+  TILE9_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
+  TILE9_LABEL_OFF: "Uit"                           # text shown when entity is off
+  TILE9_LABEL_ON: "Aan"                            # text shown for text-mode tiles when entity is on
+  TILE9_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
+
+  # --- colors ---
+  TILE9_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"      # light -> ACCENT_LIGHT (amber)
+  TILE9_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
+  TILE9_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
+  TILE9_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"      # icon color when inactive
+  TILE9_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE9_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
+  TILE9_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
+  TILE9_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
+  TILE9_VALUE_ACTIVE_COLOR: "0x7A7A7C"             # value color when active
+  TILE9_VALUE_DISABLED_COLOR: "0xD9D9D9"           # value color when inactive
+
+  # --- advanced settings ---
+  TILE9_TAP_SERVICE: ""                            # optional service override, e.g. light.toggle
+  TILE9_TAP_PARAM_KEY: ""                          # optional extra service parameter key
+  TILE9_TAP_PARAM_VAL: ""                          # optional extra service parameter value
+  # if LONGPRESS = slider:
+  TILE9_LONGPRESS_SLIDER: "auto"                   # auto = brightness voor een light
+  TILE9_LONGPRESS_OFF_VALUE: "0"                   # initial slider value when entity is off
+  # if LONGPRESS = action:
+  TILE9_LONGPRESS_ACTION: ""                       # entity_id to fire on long press
+  TILE9_LONGPRESS_ACTION_TYPE: ""                  # entity type (empty = same as TILE*_TYPE)
+  TILE9_LONGPRESS_ACTION_SERVICE: ""               # service to call (default: activate/turn_on)
+
+  # ============================================================
+  # TILE 10  —  Alarm aan/uit
+  # input_boolean.alarm_engaged. Een input_boolean reageert niet op
+  # switch.toggle, vandaar de expliciete TAP_SERVICE.
+  # ============================================================
+
+  # --- basic settings ---
+  TILE10_ENTITY: "input_boolean.alarm_engaged"     # main Home Assistant entity for this tile
+  TILE10_STATE_ENTITY: "input_boolean.alarm_engaged"  # entity used for active/inactive state styling
+  TILE10_TITLE: "Alarm"                            # tile title shown in the UI
+  TILE10_ICON: "\U000F002A"                        # mdi:alarm-light — also listed in MDI_GLYPH_10 above
+  TILE10_TYPE: "switch"                            # generiek aan/uit-type; de service hieronder doet het echte werk
+  TILE10_TAP_ACTION: "toggle"                      # tap action: auto | toggle | activate | fan_toggle_preset
+  TILE10_LONGPRESS: "none"                         # long press stuurt alleen het event naar HA
+  TILE10_VALUE_MODE: "text"                        # toont LABEL_ON / LABEL_OFF
+  TILE10_LABEL_OFF: "Uit"                          # text shown when entity is off
+  TILE10_LABEL_ON: "Aan"                           # text shown when entity is on
+  TILE10_ACTIVE_STATE: ""                          # input_boolean gebruikt gewoon on/off
+
+  # --- colors ---
+  TILE10_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"     # input_boolean -> ACCENT_DEVICE (cyaan)
+  TILE10_CIRCLE_DISABLED_COLOR: "0x7B7B6F"         # icon circle color when inactive
+  TILE10_ICON_ACTIVE_COLOR: "0xFFFFFF"             # icon color when active
+  TILE10_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"     # icon color when inactive
+  TILE10_BG_ACTIVE_COLOR: "0xFFFFFF"               # tile background color when active
+  TILE10_BG_DISABLED_COLOR: "0x939391"             # tile background color when inactive
+  TILE10_TITLE_ACTIVE_COLOR: "0x000000"            # title color when active
+  TILE10_TITLE_DISABLED_COLOR: "0xFFFFFF"          # title color when inactive
+  TILE10_VALUE_ACTIVE_COLOR: "0x7A7A7C"            # value color when active
+  TILE10_VALUE_DISABLED_COLOR: "0xD9D9D9"          # value color when inactive
+
+  # --- advanced settings ---
+  TILE10_TAP_SERVICE: "input_boolean.toggle"       # switch.toggle werkt niet op een input_boolean
+  TILE10_TAP_PARAM_KEY: ""                         # optional extra service parameter key
+  TILE10_TAP_PARAM_VAL: ""                         # optional extra service parameter value
+  # if LONGPRESS = slider:
+  TILE10_LONGPRESS_SLIDER: "auto"                  # niet in gebruik (LONGPRESS = none)
+  TILE10_LONGPRESS_OFF_VALUE: "0"                  # niet in gebruik
+  # if LONGPRESS = action:
+  TILE10_LONGPRESS_ACTION: ""                      # entity_id to fire on long press
+  TILE10_LONGPRESS_ACTION_TYPE: ""                 # entity type (empty = same as TILE*_TYPE)
+  TILE10_LONGPRESS_ACTION_SERVICE: ""              # service to call (default: activate/turn_on)
 
 
   # ============================================================
@@ -922,6 +1004,8 @@ font:
       - "${MDI_GLYPH_6}"
       - "${MDI_GLYPH_7}"
       - "${MDI_GLYPH_8}"
+      - "${MDI_GLYPH_9}"
+      - "${MDI_GLYPH_10}"
       - "\U000F012C" # check
 
 # Geheugen zichtbaar maken: dit bord heeft geen PSRAM, dus de vrije heap
@@ -1025,6 +1109,14 @@ sensor:
   - platform: homeassistant
     id: tile7_brightness
     entity_id: ${TILE7_ENTITY}
+    attribute: brightness
+    on_value: { then: [ script.execute: ui_refresh ] }
+
+  # Tegel 9 (Woonkamer) is een kleurenlamp: brightness + supported_color_modes.
+  # Geen percentage / cover / climate — die leest deze tegel nooit.
+  - platform: homeassistant
+    id: tile9_brightness
+    entity_id: ${TILE9_ENTITY}
     attribute: brightness
     on_value: { then: [ script.execute: ui_refresh ] }
 
@@ -1234,6 +1326,23 @@ text_sensor:
   - platform: homeassistant
     id: ha_state_tile8
     entity_id: ${TILE8_STATE_ENTITY}
+    on_value: { then: [ script.execute: ui_refresh ] }
+
+  - platform: homeassistant
+    id: ha_state_tile9
+    entity_id: ${TILE9_STATE_ENTITY}
+    on_value: { then: [ script.execute: ui_refresh ] }
+
+  - platform: homeassistant
+    id: ha_state_tile10
+    entity_id: ${TILE10_STATE_ENTITY}
+    on_value: { then: [ script.execute: ui_refresh ] }
+
+  # Woonkamer meldt color_temp/rgb/xy, dus hier verschijnt de kleurknop wel.
+  - platform: homeassistant
+    id: tile9_supported_color_modes
+    entity_id: ${TILE9_ENTITY}
+    attribute: supported_color_modes
     on_value: { then: [ script.execute: ui_refresh ] }
 
   # Gebruikt door de slider-overlay om te bepalen of de kleurknop nodig is.
@@ -2619,6 +2728,189 @@ lvgl:
                               tap_action: "activate"
                               service: "${TILE8_LONGPRESS_ACTION_SERVICE}"
                               entity_id: "${TILE8_LONGPRESS_ACTION}"
+                              param_key: ""
+                              param_val: ""
+                              was_on: false
+
+              # ---------- TILE 9 — Woonkamer (verhuisd van tegel 2) ----------
+              - obj:
+                  id: tile9
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile9_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: 36
+                        height: 36
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile9_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text_color: 0xFFFFFF
+                              text: "${TILE9_ICON}"
+                              clickable: false
+                    - label:
+                        id: t9_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "${TILE9_TITLE}"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t9_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+                  on_short_click:
+                    - script.execute: { id: tile9_ack, is_long: false }
+                    - script.execute: { id: publish_action, action: "tile9_press" }
+                    - script.execute:
+                        id: do_tile_action
+                        tile_type: "${TILE9_TYPE}"
+                        tap_action: "${TILE9_TAP_ACTION}"
+                        service: "${TILE9_TAP_SERVICE}"
+                        entity_id: "${TILE9_ENTITY}"
+                        param_key: "${TILE9_TAP_PARAM_KEY}"
+                        param_val: "${TILE9_TAP_PARAM_VAL}"
+                        was_on: !lambda "return std::string(id(ha_state_tile9).state.c_str()) == \"on\";"
+                  on_long_press:
+                    - script.execute: { id: tile9_ack, is_long: true }
+                    - script.execute: { id: publish_action, action: "tile9_long_press" }
+                    - if:
+                        condition:
+                          lambda: "return std::string(\"${TILE9_LONGPRESS}\") == \"action\";"
+                        then:
+                          - script.execute:
+                              id: do_tile_action
+                              tile_type: !lambda |-
+                                std::string t = "${TILE9_LONGPRESS_ACTION_TYPE}";
+                                return t.empty() ? std::string("${TILE9_TYPE}") : t;
+                              tap_action: "activate"
+                              service: "${TILE9_LONGPRESS_ACTION_SERVICE}"
+                              entity_id: "${TILE9_LONGPRESS_ACTION}"
+                              param_key: ""
+                              param_val: ""
+                              was_on: false
+                        else:
+                          - if:
+                              condition:
+                                lambda: "return std::string(\"${TILE9_LONGPRESS}\") == \"slider\";"
+                              then:
+                                - script.execute:
+                                    id: open_value_overlay
+                                    title: "${TILE9_TITLE}"
+                                    entity: "${TILE9_ENTITY}"
+                                    tile_type: "${TILE9_TYPE}"
+                                    longpress_mode: "${TILE9_LONGPRESS_SLIDER}"
+                                    was_on: !lambda "return std::string(id(ha_state_tile9).state.c_str()) == \"on\";"
+                                    off_value: !lambda "return atoi(\"${TILE9_LONGPRESS_OFF_VALUE}\");"
+                                    brightness_value: !lambda "return id(tile9_brightness).state;"
+                                    percentage_value: !lambda "return NAN;"
+                                    position_value: !lambda "return NAN;"
+                                    icon_text: "${TILE9_ICON}"
+                                    slider_bg_color: ${TILE9_BG_DISABLED_COLOR}
+                                    slider_fill_color: ${TILE9_CIRCLE_ACTIVE_COLOR}
+                                    slider_icon_color: ${TILE9_ICON_ACTIVE_COLOR}
+                                    label_off: "${TILE9_LABEL_OFF}"
+                                    label_on: "${TILE9_LABEL_ON}"
+                                    supported_color_modes: !lambda "return std::string(id(tile9_supported_color_modes).state.c_str());"
+                                    climate_current_temperature: !lambda "return NAN;"
+                                    climate_target_temperature: !lambda "return NAN;"
+                                    climate_humidity: !lambda "return NAN;"
+                                    climate_mode: ""
+                                    climate_supported_modes: ""
+                                    climate_min_temp: "5.0"
+                                    climate_max_temp: "30.0"
+                                    climate_step: "0.5"
+
+              # ---------- TILE 10 — Alarm aan/uit ----------
+              - obj:
+                  id: tile10
+                  x: ${GRID_COL2_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile10_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: 36
+                        height: 36
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile10_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text_color: 0xFFFFFF
+                              text: "${TILE10_ICON}"
+                              clickable: false
+                    - label:
+                        id: t10_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "${TILE10_TITLE}"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t10_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+                  on_short_click:
+                    - script.execute: { id: tile10_ack, is_long: false }
+                    - script.execute: { id: publish_action, action: "tile10_press" }
+                    - script.execute:
+                        id: do_tile_action
+                        tile_type: "${TILE10_TYPE}"
+                        tap_action: "${TILE10_TAP_ACTION}"
+                        service: "${TILE10_TAP_SERVICE}"
+                        entity_id: "${TILE10_ENTITY}"
+                        param_key: "${TILE10_TAP_PARAM_KEY}"
+                        param_val: "${TILE10_TAP_PARAM_VAL}"
+                        was_on: !lambda "return std::string(id(ha_state_tile10).state.c_str()) == \"on\";"
+                  on_long_press:
+                    - script.execute: { id: tile10_ack, is_long: true }
+                    - script.execute: { id: publish_action, action: "tile10_long_press" }
+                    - if:
+                        condition:
+                          lambda: "return std::string(\"${TILE10_LONGPRESS}\") == \"action\";"
+                        then:
+                          - script.execute:
+                              id: do_tile_action
+                              tile_type: !lambda |-
+                                std::string t = "${TILE10_LONGPRESS_ACTION_TYPE}";
+                                return t.empty() ? std::string("${TILE10_TYPE}") : t;
+                              tap_action: "activate"
+                              service: "${TILE10_LONGPRESS_ACTION_SERVICE}"
+                              entity_id: "${TILE10_LONGPRESS_ACTION}"
                               param_key: ""
                               param_val: ""
                               was_on: false
@@ -4269,6 +4561,42 @@ script:
             - delay: 90ms
       - lvgl.widget.update: { id: tile8, bg_opa: 95% }
 
+  # Korte bevestigingspuls na het loslaten. Draait parallel, dus vertraagt
+  # de Home Assistant-actie of het openen van een overlay niet.
+  - id: tile9_ack
+    mode: restart
+    parameters:
+      is_long: bool
+    then:
+      - if:
+          condition:
+            lambda: 'return is_long;'
+          then:
+            - lvgl.widget.update: { id: tile9, bg_opa: 20% }
+            - delay: 170ms
+          else:
+            - lvgl.widget.update: { id: tile9, bg_opa: 40% }
+            - delay: 90ms
+      - lvgl.widget.update: { id: tile9, bg_opa: 95% }
+
+  # Korte bevestigingspuls na het loslaten. Draait parallel, dus vertraagt
+  # de Home Assistant-actie of het openen van een overlay niet.
+  - id: tile10_ack
+    mode: restart
+    parameters:
+      is_long: bool
+    then:
+      - if:
+          condition:
+            lambda: 'return is_long;'
+          then:
+            - lvgl.widget.update: { id: tile10, bg_opa: 20% }
+            - delay: 170ms
+          else:
+            - lvgl.widget.update: { id: tile10, bg_opa: 40% }
+            - delay: 90ms
+      - lvgl.widget.update: { id: tile10, bg_opa: 95% }
+
   - id: wake_display
     mode: restart
     then:
@@ -5405,6 +5733,8 @@ script:
           // Tegel 7/8 hebben geen cover_state-sensor, dus geen cover-tak nodig.
           bool t7_on = is_active("${TILE7_TYPE}", std::string(id(ha_state_tile7).state.c_str()), "${TILE7_ACTIVE_STATE}");
           bool t8_on = is_active("${TILE8_TYPE}", std::string(id(ha_state_tile8).state.c_str()), "${TILE8_ACTIVE_STATE}");
+          bool t9_on = is_active("${TILE9_TYPE}", std::string(id(ha_state_tile9).state.c_str()), "${TILE9_ACTIVE_STATE}");
+          bool t10_on = is_active("${TILE10_TYPE}", std::string(id(ha_state_tile10).state.c_str()), "${TILE10_ACTIVE_STATE}");
 
           set_value_auto(id(t1_value), t1_on, "${TILE1_TYPE}", "${TILE1_VALUE_MODE}",
                          id(tile1_brightness).state, id(tile1_percentage).state, std::string(id(tile1_preset).state.c_str()),
@@ -5446,6 +5776,17 @@ script:
                          NAN, NAN, std::string(),
                          NAN, NAN, NAN,
                          "${TILE8_LABEL_ON}", "${TILE8_LABEL_OFF}");
+
+          // Tegel 9: kleurenlamp (brightness). Tegel 10: puur tekst (Aan/Uit).
+          set_value_auto(id(t9_value), t9_on, "${TILE9_TYPE}", "${TILE9_VALUE_MODE}",
+                         id(tile9_brightness).state, NAN, std::string(),
+                         NAN, NAN, NAN,
+                         "${TILE9_LABEL_ON}", "${TILE9_LABEL_OFF}");
+
+          set_value_auto(id(t10_value), t10_on, "${TILE10_TYPE}", "${TILE10_VALUE_MODE}",
+                         NAN, NAN, std::string(),
+                         NAN, NAN, NAN,
+                         "${TILE10_LABEL_ON}", "${TILE10_LABEL_OFF}");
 
           if (id(active_control_kind) == "climate_temperature" && !lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) {
             auto label_for_climate_mode = [](std::string mode) {
@@ -5634,5 +5975,21 @@ script:
                     ${TILE8_BG_ACTIVE_COLOR}, ${TILE8_BG_DISABLED_COLOR},
                     ${TILE8_TITLE_ACTIVE_COLOR}, ${TILE8_TITLE_DISABLED_COLOR},
                     ${TILE8_VALUE_ACTIVE_COLOR}, ${TILE8_VALUE_DISABLED_COLOR});
+
+          apply_tile(t9_on, "${TILE9_ENTITY}",
+                    id(tile9), id(tile9_icon_circle), id(t9_title), id(t9_value), id(tile9_icon_lbl),
+                    ${TILE9_CIRCLE_ACTIVE_COLOR}, ${TILE9_CIRCLE_DISABLED_COLOR},
+                    ${TILE9_ICON_ACTIVE_COLOR}, ${TILE9_ICON_DISABLED_COLOR},
+                    ${TILE9_BG_ACTIVE_COLOR}, ${TILE9_BG_DISABLED_COLOR},
+                    ${TILE9_TITLE_ACTIVE_COLOR}, ${TILE9_TITLE_DISABLED_COLOR},
+                    ${TILE9_VALUE_ACTIVE_COLOR}, ${TILE9_VALUE_DISABLED_COLOR});
+
+          apply_tile(t10_on, "${TILE10_ENTITY}",
+                    id(tile10), id(tile10_icon_circle), id(t10_title), id(t10_value), id(tile10_icon_lbl),
+                    ${TILE10_CIRCLE_ACTIVE_COLOR}, ${TILE10_CIRCLE_DISABLED_COLOR},
+                    ${TILE10_ICON_ACTIVE_COLOR}, ${TILE10_ICON_DISABLED_COLOR},
+                    ${TILE10_BG_ACTIVE_COLOR}, ${TILE10_BG_DISABLED_COLOR},
+                    ${TILE10_TITLE_ACTIVE_COLOR}, ${TILE10_TITLE_DISABLED_COLOR},
+                    ${TILE10_VALUE_ACTIVE_COLOR}, ${TILE10_VALUE_DISABLED_COLOR});
 
       - component.update: my_display
