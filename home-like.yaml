@@ -70,6 +70,29 @@ substitutions:
   NIGHT_DIM_BRIGHTNESS: "10"                       # backlight brightness in percent at night
 
   # ============================================================
+  # ACCENTKLEUREN — automatisch bepaald uit het Home Assistant-domein
+  #
+  # Het domein is het stuk voor de punt in het entity_id:
+  #   script.goede_morgen  -> "script"  -> ACCENT_ACTION
+  #   light.woonkamer_2    -> "light"   -> ACCENT_LIGHT
+  #   vacuum.s8            -> "vacuum"  -> ACCENT_DEVICE
+  #
+  # Dat is Home Assistant's eigen indeling, dus een tegel krijgt vanzelf de
+  # juiste kleur zodra je er een entity in zet — je hoeft per tegel geen
+  # kleuren meer te kiezen. Het onderscheid dat telt: een script/scene vuur
+  # je af, een apparaat zet je aan of uit. Die twee horen niet hetzelfde
+  # te zijn.
+  #
+  # Zet TILE*_CIRCLE_ACTIVE_COLOR / TILE*_ICON_DISABLED_COLOR op
+  # ${ACCENT_AUTO} om dit te gebruiken, of op een echte hexwaarde om die
+  # ene tegel handmatig te kleuren (zie tegel 8 — rood zodra er post ligt).
+  # ============================================================
+  ACCENT_AUTO: "0x1000000"                         # sentinel: bewust buiten het 24-bits kleurbereik
+  ACCENT_ACTION: "0x8B5CF6"                        # script / scene / button / input_button / automation
+  ACCENT_LIGHT: "0xFEC600"                         # light
+  ACCENT_DEVICE: "0x00C5EC"                        # switch, fan, cover, climate, vacuum, media_player, rest
+
+  # ============================================================
   # FONT GLYPHS
   # List every unique MDI icon used across your tiles — each value must appear exactly once.
   # Reusing the same icon on multiple tiles is fine: just list that glyph once here.
@@ -103,10 +126,10 @@ substitutions:
   TILE1_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
-  TILE1_CIRCLE_ACTIVE_COLOR: "0x00C5EC"            # icon circle color when active
+  TILE1_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
   TILE1_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE1_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE1_ICON_DISABLED_COLOR: "0x00C5EC"            # icon color when inactive
+  TILE1_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
   TILE1_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
   TILE1_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
   TILE1_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
@@ -152,10 +175,10 @@ substitutions:
   TILE2_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
-  TILE2_CIRCLE_ACTIVE_COLOR: "0xFEC600"            # icon circle color when active
+  TILE2_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
   TILE2_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE2_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE2_ICON_DISABLED_COLOR: "0xFEC600"            # icon color when inactive
+  TILE2_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
   TILE2_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
   TILE2_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
   TILE2_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
@@ -201,10 +224,10 @@ substitutions:
   TILE3_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
-  TILE3_CIRCLE_ACTIVE_COLOR: "0xFEC600"            # icon circle color when active
+  TILE3_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
   TILE3_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE3_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE3_ICON_DISABLED_COLOR: "0xFEC600"            # icon color when inactive
+  TILE3_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
   TILE3_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
   TILE3_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
   TILE3_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
@@ -250,10 +273,10 @@ substitutions:
   TILE4_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
-  TILE4_CIRCLE_ACTIVE_COLOR: "0xFEC600"            # icon circle color when active
+  TILE4_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
   TILE4_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE4_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE4_ICON_DISABLED_COLOR: "0xFEC600"            # icon color when inactive
+  TILE4_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
   TILE4_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
   TILE4_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
   TILE4_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
@@ -299,10 +322,10 @@ substitutions:
   TILE5_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
-  TILE5_CIRCLE_ACTIVE_COLOR: "0xFEC600"            # icon circle color when active
+  TILE5_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
   TILE5_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE5_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE5_ICON_DISABLED_COLOR: "0xFEC600"            # icon color when inactive
+  TILE5_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
   TILE5_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
   TILE5_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
   TILE5_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
@@ -348,10 +371,10 @@ substitutions:
   TILE6_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
-  TILE6_CIRCLE_ACTIVE_COLOR: "0x00C5EC"            # icon circle color when active
+  TILE6_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
   TILE6_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE6_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE6_ICON_DISABLED_COLOR: "0x00C5EC"            # icon color when inactive
+  TILE6_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
   TILE6_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
   TILE6_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
   TILE6_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
@@ -397,10 +420,10 @@ substitutions:
   TILE7_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
-  TILE7_CIRCLE_ACTIVE_COLOR: "0xFEC600"            # icon circle color when active
+  TILE7_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
   TILE7_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE7_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE7_ICON_DISABLED_COLOR: "0xFEC600"            # icon color when inactive
+  TILE7_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
   TILE7_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
   TILE7_BG_DISABLED_COLOR: "0x939391"              # tile background color when inactive
   TILE7_TITLE_ACTIVE_COLOR: "0x000000"             # title color when active
@@ -5042,6 +5065,23 @@ script:
       climate_step: string
     then:
       - lambda: |-
+          // Accentkleur uit het Home Assistant-domein: het stuk voor de punt in
+          // het entity_id. script/scene/button vuur je af (ACCENT_ACTION), een
+          // light is een light (ACCENT_LIGHT), de rest is apparaat.
+          // LET OP: deze helper staat twee keer in dit bestand — hier en in
+          // open_value_overlay. Pas ze samen aan.
+          auto accent_for = [](const std::string& entity_id) -> uint32_t {
+            std::string d = entity_id.substr(0, entity_id.find('.'));
+            if (d == "script" || d == "scene" || d == "button" ||
+                d == "input_button" || d == "automation") return ${ACCENT_ACTION};
+            if (d == "light") return ${ACCENT_LIGHT};
+            return ${ACCENT_DEVICE};
+          };
+
+          // De sliderkleur komt van de tegel, dus die kan ook ${ACCENT_AUTO} zijn.
+          uint32_t fill_color = (slider_fill_color == ${ACCENT_AUTO})
+                                  ? accent_for(entity) : slider_fill_color;
+
           std::string mode = longpress_mode;
           auto contains_mode = [](const std::string& modes, const std::string& needle) {
             return modes.find(needle) != std::string::npos;
@@ -5179,13 +5219,13 @@ script:
           }
 
           if (tile_type == "cover") {
-            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(slider_fill_color), LV_PART_MAIN);
+            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(fill_color), LV_PART_MAIN);
             lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(slider_bg_color), LV_PART_INDICATOR);            
             lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
           }
           else{
             lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(slider_bg_color), LV_PART_MAIN);
-            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(slider_fill_color), LV_PART_INDICATOR);            
+            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(fill_color), LV_PART_INDICATOR);            
             lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
           }
           lv_obj_set_style_radius(id(overlay_slider), 28, LV_PART_MAIN);
@@ -5480,7 +5520,21 @@ script:
             set_lbl(id(lbl_time), std::string(buf));
           }
 
+          // Accentkleur uit het Home Assistant-domein: het stuk voor de punt in
+          // het entity_id. script/scene/button vuur je af (ACCENT_ACTION), een
+          // light is een light (ACCENT_LIGHT), de rest is apparaat.
+          // LET OP: deze helper staat twee keer in dit bestand — hier en in
+          // open_value_overlay. Pas ze samen aan.
+          auto accent_for = [](const std::string& entity_id) -> uint32_t {
+            std::string d = entity_id.substr(0, entity_id.find('.'));
+            if (d == "script" || d == "scene" || d == "button" ||
+                d == "input_button" || d == "automation") return ${ACCENT_ACTION};
+            if (d == "light") return ${ACCENT_LIGHT};
+            return ${ACCENT_DEVICE};
+          };
+
           auto apply_tile = [&](bool active,
+                                const std::string& entity_id,
                                 lv_obj_t* tile,
                                 lv_obj_t* circle,
                                 lv_obj_t* title,
@@ -5497,6 +5551,11 @@ script:
                                 uint32_t value_active,
                                 uint32_t value_disabled)
           {
+            // ${ACCENT_AUTO} = "bepaal zelf"; een echte hexwaarde wint altijd.
+            uint32_t accent = accent_for(entity_id);
+            if (circle_active == ${ACCENT_AUTO}) circle_active = accent;
+            if (icon_disabled == ${ACCENT_AUTO}) icon_disabled = accent;
+
             lv_obj_set_style_bg_color(tile, lv_color_hex(active ? bg_active : bg_disabled), 0);
             lv_obj_set_style_bg_color(circle, lv_color_hex(active ? circle_active : circle_disabled), 0);
             lv_obj_set_style_text_color(icon_lbl, lv_color_hex(active ? icon_active : icon_disabled), 0);
@@ -5504,7 +5563,7 @@ script:
             lv_obj_set_style_text_color(value, lv_color_hex(active ? value_active : value_disabled), 0);
           };
 
-          apply_tile(t1_on,
+          apply_tile(t1_on, "${TILE1_ENTITY}",
                     id(tile1), id(tile1_icon_circle), id(t1_title), id(t1_value), id(tile1_icon_lbl),
                     ${TILE1_CIRCLE_ACTIVE_COLOR}, ${TILE1_CIRCLE_DISABLED_COLOR},
                     ${TILE1_ICON_ACTIVE_COLOR}, ${TILE1_ICON_DISABLED_COLOR},
@@ -5512,7 +5571,7 @@ script:
                     ${TILE1_TITLE_ACTIVE_COLOR}, ${TILE1_TITLE_DISABLED_COLOR},
                     ${TILE1_VALUE_ACTIVE_COLOR}, ${TILE1_VALUE_DISABLED_COLOR});
 
-          apply_tile(t2_on,
+          apply_tile(t2_on, "${TILE2_ENTITY}",
                     id(tile2), id(tile2_icon_circle), id(t2_title), id(t2_value), id(tile2_icon_lbl),
                     ${TILE2_CIRCLE_ACTIVE_COLOR}, ${TILE2_CIRCLE_DISABLED_COLOR},
                     ${TILE2_ICON_ACTIVE_COLOR}, ${TILE2_ICON_DISABLED_COLOR},
@@ -5520,7 +5579,7 @@ script:
                     ${TILE2_TITLE_ACTIVE_COLOR}, ${TILE2_TITLE_DISABLED_COLOR},
                     ${TILE2_VALUE_ACTIVE_COLOR}, ${TILE2_VALUE_DISABLED_COLOR});
 
-          apply_tile(t3_on,
+          apply_tile(t3_on, "${TILE3_ENTITY}",
                     id(tile3), id(tile3_icon_circle), id(t3_title), id(t3_value), id(tile3_icon_lbl),
                     ${TILE3_CIRCLE_ACTIVE_COLOR}, ${TILE3_CIRCLE_DISABLED_COLOR},
                     ${TILE3_ICON_ACTIVE_COLOR}, ${TILE3_ICON_DISABLED_COLOR},
@@ -5528,7 +5587,7 @@ script:
                     ${TILE3_TITLE_ACTIVE_COLOR}, ${TILE3_TITLE_DISABLED_COLOR},
                     ${TILE3_VALUE_ACTIVE_COLOR}, ${TILE3_VALUE_DISABLED_COLOR});
 
-          apply_tile(t4_on,
+          apply_tile(t4_on, "${TILE4_ENTITY}",
                     id(tile4), id(tile4_icon_circle), id(t4_title), id(t4_value), id(tile4_icon_lbl),
                     ${TILE4_CIRCLE_ACTIVE_COLOR}, ${TILE4_CIRCLE_DISABLED_COLOR},
                     ${TILE4_ICON_ACTIVE_COLOR}, ${TILE4_ICON_DISABLED_COLOR},
@@ -5536,7 +5595,7 @@ script:
                     ${TILE4_TITLE_ACTIVE_COLOR}, ${TILE4_TITLE_DISABLED_COLOR},
                     ${TILE4_VALUE_ACTIVE_COLOR}, ${TILE4_VALUE_DISABLED_COLOR});
 
-          apply_tile(t5_on,
+          apply_tile(t5_on, "${TILE5_ENTITY}",
                     id(tile5), id(tile5_icon_circle), id(t5_title), id(t5_value), id(tile5_icon_lbl),
                     ${TILE5_CIRCLE_ACTIVE_COLOR}, ${TILE5_CIRCLE_DISABLED_COLOR},
                     ${TILE5_ICON_ACTIVE_COLOR}, ${TILE5_ICON_DISABLED_COLOR},
@@ -5544,7 +5603,7 @@ script:
                     ${TILE5_TITLE_ACTIVE_COLOR}, ${TILE5_TITLE_DISABLED_COLOR},
                     ${TILE5_VALUE_ACTIVE_COLOR}, ${TILE5_VALUE_DISABLED_COLOR});
 
-          apply_tile(t6_on,
+          apply_tile(t6_on, "${TILE6_ENTITY}",
                     id(tile6), id(tile6_icon_circle), id(t6_title), id(t6_value), id(tile6_icon_lbl),
                     ${TILE6_CIRCLE_ACTIVE_COLOR}, ${TILE6_CIRCLE_DISABLED_COLOR},
                     ${TILE6_ICON_ACTIVE_COLOR}, ${TILE6_ICON_DISABLED_COLOR},
@@ -5552,7 +5611,7 @@ script:
                     ${TILE6_TITLE_ACTIVE_COLOR}, ${TILE6_TITLE_DISABLED_COLOR},
                     ${TILE6_VALUE_ACTIVE_COLOR}, ${TILE6_VALUE_DISABLED_COLOR});
 
-          apply_tile(t7_on,
+          apply_tile(t7_on, "${TILE7_ENTITY}",
                     id(tile7), id(tile7_icon_circle), id(t7_title), id(t7_value), id(tile7_icon_lbl),
                     ${TILE7_CIRCLE_ACTIVE_COLOR}, ${TILE7_CIRCLE_DISABLED_COLOR},
                     ${TILE7_ICON_ACTIVE_COLOR}, ${TILE7_ICON_DISABLED_COLOR},
@@ -5560,7 +5619,7 @@ script:
                     ${TILE7_TITLE_ACTIVE_COLOR}, ${TILE7_TITLE_DISABLED_COLOR},
                     ${TILE7_VALUE_ACTIVE_COLOR}, ${TILE7_VALUE_DISABLED_COLOR});
 
-          apply_tile(t8_on,
+          apply_tile(t8_on, "${TILE8_ENTITY}",
                     id(tile8), id(tile8_icon_circle), id(t8_title), id(t8_value), id(tile8_icon_lbl),
                     ${TILE8_CIRCLE_ACTIVE_COLOR}, ${TILE8_CIRCLE_DISABLED_COLOR},
                     ${TILE8_ICON_ACTIVE_COLOR}, ${TILE8_ICON_DISABLED_COLOR},

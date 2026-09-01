@@ -40,6 +40,35 @@ image blit from every redraw, which is what makes scrolling usable on this
 board. The same gradient is reused as the backdrop of the slider, color and
 thermostat overlays through the `style_bg_grad` style.
 
+## Accent colors are automatic
+
+A tile's accent color is derived from the **Home Assistant domain** — the part
+of the entity id before the dot:
+
+| Entity | Domain | Accent |
+|--------|--------|--------|
+| `script.goede_morgen` | `script` | `ACCENT_ACTION` (violet) |
+| `scene.avondlicht` | `scene` | `ACCENT_ACTION` (violet) |
+| `light.woonkamer_2` | `light` | `ACCENT_LIGHT` (amber) |
+| `vacuum.s8` | `vacuum` | `ACCENT_DEVICE` (cyan) |
+| `climate.airco` | `climate` | `ACCENT_DEVICE` (cyan) |
+
+The distinction that matters: a script or scene is something you *fire*, a
+device is something you switch *on and off*. Those should not look the same.
+
+Two of the ten per-tile color keys participate: `TILE*_CIRCLE_ACTIVE_COLOR`
+and `TILE*_ICON_DISABLED_COLOR`. Set them to `${ACCENT_AUTO}` to let the domain
+decide — that is the default for every tile — or to a real hex value to
+override that one tile. Tile 8 does exactly that: the mailbox turns red when
+there is post, regardless of its domain.
+
+Because the color follows the entity, dropping a different entity into a tile
+gives it the right color without touching any color key.
+
+> The domain lookup lives in a small `accent_for` lambda that appears **twice**
+> in `home-like.yaml`: once in `ui_refresh` (for the tiles) and once in
+> `open_value_overlay` (for the slider fill). Keep the two copies in sync.
+
 ---
 
 ## Global settings
@@ -59,6 +88,10 @@ thermostat overlays through the `style_bg_grad` style.
 | `NIGHT_DIM_BRIGHTNESS` | `"18"` | Backlight brightness (%) during night hours. |
 | `BG_TOP_COLOR` | `"0xAEC4D9"` | Top color of the background gradient. |
 | `BG_BOTTOM_COLOR` | `"0xD6BB9E"` | Bottom color of the background gradient. |
+| `ACCENT_AUTO` | `"0x1000000"` | Sentinel meaning "derive this color from the entity domain". Deliberately outside the 24-bit color range. |
+| `ACCENT_ACTION` | `"0x8B5CF6"` | Accent for `script`, `scene`, `button`, `input_button`, `automation`. |
+| `ACCENT_LIGHT` | `"0xFEC600"` | Accent for `light`. |
+| `ACCENT_DEVICE` | `"0x00C5EC"` | Accent for everything else (switch, fan, cover, climate, vacuum, media_player, …). |
 
 ---
 
@@ -89,10 +122,10 @@ All colors are 24-bit hex in the format `"0xRRGGBB"`.
 
 | Key | Description |
 |-----|-------------|
-| `TILE*_CIRCLE_ACTIVE_COLOR` | Icon circle background when active. |
+| `TILE*_CIRCLE_ACTIVE_COLOR` | Icon circle background when active. `${ACCENT_AUTO}` = derive from the entity domain. |
 | `TILE*_CIRCLE_DISABLED_COLOR` | Icon circle background when inactive. |
 | `TILE*_ICON_ACTIVE_COLOR` | Icon glyph color when active. |
-| `TILE*_ICON_DISABLED_COLOR` | Icon glyph color when inactive. |
+| `TILE*_ICON_DISABLED_COLOR` | Icon glyph color when inactive. `${ACCENT_AUTO}` = derive from the entity domain. |
 | `TILE*_BG_ACTIVE_COLOR` | Tile background when active. |
 | `TILE*_BG_DISABLED_COLOR` | Tile background when inactive. |
 | `TILE*_TITLE_ACTIVE_COLOR` | Title text color when active. |
