@@ -59,6 +59,7 @@
 ############################################################
 
 substitutions:
+  SCREEN_FIRMWARE_VERSION: "0.2.1"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
@@ -781,7 +782,7 @@ esphome:
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
-    version: "0.2.1"
+    version: "${SCREEN_FIRMWARE_VERSION}"
   includes:
     - <esphome/components/smart_display/cyd_ui.h>
     - <esphome/components/smart_display/light_controls.h>
@@ -1466,7 +1467,7 @@ text_sensor:
   - platform: template
     name: "Schermfirmware"
     entity_category: diagnostic
-    lambda: 'return {"0.2.0"};'
+    lambda: 'return {"${SCREEN_FIRMWARE_VERSION}"};'
     update_interval: 60s
   - platform: template
     id: smartdisplay_action
