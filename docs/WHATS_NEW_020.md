@@ -93,3 +93,8 @@ De vacuumkaart heeft een robotweergave, status, schoonmaak-/pauzeknop, dockknop 
 zuigkrachtkeuze. Knoppen veranderen direct bij indrukken en worden tijdelijk
 gedimd na een opdracht. Een ontvangen HA-statuswijziging is terugkoppeling, geen
 garantie dat een fysieke schoonmaaktaak voltooid is.
+
+De eerste volledige build op de geteste Raspberry duurde ongeveer 16 minuten.
+Laat het firmwarevenster rustig doorwerken; de app blijft bereikbaar. De
+OTA-upload zelf duurde circa 9 seconden. Dit is een gemeten voorbeeld, geen
+vaste tijd voor ieder systeem.
