@@ -112,7 +112,8 @@ Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.
 - Climate, vacuum en cover: tik om de bedieningskaart te openen.
 - Fan lang indrukken: snelheid als het apparaat percentages ondersteunt.
 - Scene/script: tik om uit te voeren; button/input_button: tik om in te drukken.
-- Sensor/binary_sensor/input_select: toont de waarde, voert geen actie uit.
+- Sensor: tik voor de historiekaart; stel bij de tegel 1, 6 of 24 uur in.
+- Binary sensor: status bekijken. Select/input_select: open het keuzemenu.
 
 Vanaf firmware 0.2.7 passen twintig tegels op maximaal vier pagina’s. Oudere
 firmware houdt de limiet van tien totdat je bijwerkt. Via **Algemene instellingen

@@ -121,3 +121,7 @@ De app accepteert uitsluitend het lichte palet uit `TILE_BACKGROUNDS`. Een oude
 editor die `background` weglaat behoudt de opgeslagen kleur voor dezelfde entity;
 expliciet `auto` herstelt de standaard. Geen gewijzigde voorkeurstructuur of
 sleutels, geen nieuwe firmwareflash nodig voor latere kleurkeuzes.
+
+Een oude apprelease van vóór 0.2.10 kent dit optieveld niet. Bij terugrollen van
+de app herstel je daarom de bijbehorende gegevensback-up; wis of negeer geen
+onbekende opties om een oud opslagbestand toch te openen.
