@@ -91,3 +91,13 @@ De ingebouwde CLI bewaart opnieuw te downloaden caches onder `/data/build` en
 `/data/platformio`. Alleen deze mappen zijn uitgesloten van appback-ups via
 `backup_exclude`. `/data/screens.json` en eigen ESPHome-configuraties blijven
 back-upgegevens; sluit nooit `/data` als geheel uit.
+
+### Compatibiliteit 0.2.7
+
+Twintig runtime-tegels vereisen firmware 0.2.7+. De manager controleert die versie
+voor opslaan en verzenden van grotere indelingen. Bestaande indelingen blijven
+behouden bij oudere firmware. Oude appversies ondersteunen niet meer dan tien;
+breng de indeling eerst terug tot tien of herstel hun gegevensback-up bij rollback.
+`settings.swipe_pages` is additief in opslagversie 1. Op de draad staat het buiten
+het ongewijzigde elfvelden-settingsobject. De bestaande preferences blijven gelijk;
+alleen swipe gebruikt een nieuwe eigen uint32-key `0x53575031`, standaard uit.

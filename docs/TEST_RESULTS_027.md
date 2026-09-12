@@ -21,3 +21,25 @@ Controles tot nu toe: 46 Python-tests, acht C++-tests en alle vier ESPHome-build
 (Easy/manual, Guition/CYD) geslaagd. Test twintig entities/21 berichten, overflow,
 firmwaregate, oude instellingen op de draad en contact consumeren geslaagd.
 Fysieke swipeacceptatie en live HA-update volgen hieronder.
+
+## Live acceptatie
+
+- Add-on bijgewerkt op HA naar 0.2.7; firmware via OTA geïnstalleerd.
+- Tijdelijk twintig echte entiteiten ingesteld; tien extra sensoren hadden tap=none.
+  Swipe aan en standby tijdelijk 600 seconden voor de test.
+- Eigenaar bevestigt: “swipe enzo werkt goed”. Guition fysiek getest; CYD is niet
+  aangesloten en blijft voor swipe opt-in.
+- De aangepaste ui_self_test doorloopt alle beschikbare pagina's: tien controles
+  met count=20 en vijftig overlaywissels PASS. Guition vrije heap circa 6,52 MB
+  inclusief PSRAM; renderframes lopen door. Tijdens de stresstest enkele
+  ui_refresh-meldingen rond 56–58 ms (boven de algemene 50 ms-waarschuwingsgrens).
+- Definitieve vier firmwarebuilds opnieuw geslaagd na uitbreiding van de diagnose.
+  Statische RAM-buildcijfers: Guition 91.564 bytes, CYD 88.436 bytes. Dit zijn geen
+  runtime-heapmetingen voor de niet-aangesloten CYD.
+- Na test de tijdelijke sensoren verwijderd: oorspronkelijke tien tegels exact
+  behouden, standby terug naar de gekozen 60 seconden, swipe blijft aan.
+
+Bij downgraden van de add-on naar een versie met maximaal tien tegels eerst de
+indeling terugbrengen tot tien of de bijbehorende oudere gegevensback-up herstellen.
+Swipe werkt volgens de native LVGL-gebaarafhandeling:
+https://lvgl.io/docs/open/9.0/overview/indev

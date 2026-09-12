@@ -4524,7 +4524,8 @@ script:
           then:
             - lambda: |-
                 id(last_touch_ms) = millis();
-                id(tile_page) = 1;
+                static unsigned test_page=0;
+                id(tile_page) = runtime_tiles::enabled ? test_page++ % std::max(1,(int(runtime_tiles::model.count)+5)/6) : 1;
             - script.execute: show_tile_page
             - delay: 150ms
             - lambda: |-
@@ -4535,7 +4536,7 @@ script:
                                      id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
                 bool ok = true;
                 for (int i = 0; i < 10; ++i) {
-                  bool visible = i < count && (paginated ? i >= 6 : i < 6);
+                  bool visible = runtime_tiles::enabled ? i<6 && i+id(tile_page)*6<count : i < count && (paginated ? i >= 6 : i < 6);
                   ok = ok && (lv_obj_has_flag(tiles[i], LV_OBJ_FLAG_HIDDEN) != visible);
                 }
                 for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})

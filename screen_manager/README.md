@@ -1,6 +1,6 @@
 # ESP Screen Manager
 
-Zoek je Home Assistant-entiteiten, orden maximaal tien tegels en stuur wijzigingen
+Zoek je Home Assistant-entiteiten, orden maximaal twintig tegels en stuur wijzigingen
 naar een CYD- of Guition-scherm zonder opnieuw flashen. Met installatiehulp,
 unieke apparaat-YAML en ondersteuning voor meerdere schermen.
 

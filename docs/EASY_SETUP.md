@@ -108,7 +108,7 @@ je later opnieuw meten. Voor diagnose en de oudere handmatige installatie:
 ## 5. Kies en wijzig je tegels
 
 Selecteer je scherm, vul de titel in en zoek entiteiten. De kiezer heeft
-domeinfilters met gekleurde iconen. Je kunt maximaal tien tegels toevoegen.
+domeinfilters met gekleurde iconen. Je kunt maximaal twintig tegels toevoegen.
 Het schermvoorbeeld toont hun plaats: twee kolommen, zes tegels per pagina.
 Sleep een tegel naar een andere tegel om te ordenen. Klik op een tegel voor
 een eigen naam, de pijltjes voor volgorde en **Bediening & weergave instellen**:
@@ -124,6 +124,11 @@ Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.
 - Fan lang indrukken: snelheid als het apparaat percentages ondersteunt.
 - Scene/script: tik om uit te voeren; button/input_button: tik om in te drukken.
 - Sensor/binary_sensor/input_select: toont de waarde, voert geen actie uit.
+
+Vanaf firmware 0.2.7 passen twintig tegels op maximaal vier pagina’s. Oudere
+firmware houdt de limiet van tien totdat je bijwerkt. Via **Algemene instellingen
+→ Vegen tussen pagina’s** kun je horizontaal swipen inschakelen. Sliders bedienen
+alleen hun waarde; detailmenu’s en standby wisselen niet van pagina.
 
 Er staan zes tegels op een pagina. Bij maximaal zes verdwijnen Vorige/Volgende.
 De standby-tijd is standaard tien minuten. Bij offline apparaten blokkeert het

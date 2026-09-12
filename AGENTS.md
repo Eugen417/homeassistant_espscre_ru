@@ -5,7 +5,7 @@ plus remote ESPHome-pakketten. Geen token of blueprint nodig. Tegels staan in de
 permanente add-ondata; wifi/API/OTA blijven in de eigen ESPHome-YAML. Lees
 docs/RELEASING.md voordat je updates publiceert. Main distribueert beide borden.
 Genereer packages met tools/generate_packages.py; bewerk ze niet handmatig.
-Runtime-modus ondersteunt alle kaarten op alle tien posities. De positiebeperkingen
+Runtime-modus ondersteunt alle kaarten op alle twintig posities. De positiebeperkingen
 hieronder gelden uitsluitend voor de oude handmatige profielen.
 Behoud gegevensschema, protocolcompatibiliteit, unieke sleutels en CYD-preferences.
 Test updates met bestaande gegevens. Publiceer geen onbekende opslagversie zonder
