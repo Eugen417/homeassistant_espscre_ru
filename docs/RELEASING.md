@@ -56,3 +56,17 @@ Een tijdelijke ontwikkelserver ondersteunt `SCREEN_DEV=1`, `HA_API` (eindigt op
 `/api`), `HA_TOKEN_FILE` en `SCREEN_DATA`. Hij bindt alleen op localhost. Zet een
 token nooit in broncode, URL's of Git. Productie gebruikt Supervisor en accepteert
 alleen het Ingress-proxyadres; er is geen extra publieke poort.
+
+
+### Instellingencompatibiliteit 0.1.2
+
+`settings` is een optioneel object binnen een schermindeling en binnen het bestaande
+`v: 1, op: layout`-bericht. Een ontbrekend object behoudt eerder gedrag. Oude
+firmware negeert dit extra veld en blijft tegels ontvangen. De beheerpagina meldt
+dat nieuwe firmware nodig is. Een oude browser die alleen tegels opslaat, wist
+opgeslagen instellingen niet. Onbekende instellingen worden geweigerd.
+
+Firmware gebruikt een afzonderlijke preferences-key `0x53435231` met een vaste
+versie-1 structuur (elf int32-velden en een uint32-versie). Wijzig key, structuur
+of versie niet zonder migratie. Alleen gewijzigde instellingen worden opgeslagen;
+periodieke herhaling veroorzaakt geen flashwrites en geen nieuwe idle-timer.

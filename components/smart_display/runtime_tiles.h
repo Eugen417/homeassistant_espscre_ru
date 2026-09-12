@@ -1,5 +1,7 @@
 #pragma once
 #include "runtime_model.h"
+#include "screen_settings.h"
+#include "esphome/core/preferences.h"
 #include "cyd_ui.h"
 #include "light_controls.h"
 #include "esphome/components/json/json_util.h"
@@ -14,7 +16,30 @@ inline bool enabled = false;
 inline Model model;
 inline int active_index = -1;
 inline uint32_t last_received = 0;
-inline std::function<void()> layout_changed, refresh, dismiss;
+inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
+inline esphome::ESPPreferenceObject settings_preference;
+inline void load_settings() {
+  settings_preference = esphome::global_preferences->make_preference<screen_settings::Settings>(0x53435231);
+  screen_settings::Settings saved;
+  if (settings_preference.load(&saved) && saved.valid()) screen_settings::current = saved;
+}
+inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
+  // Require the complete known schema; validate before touching any runtime state.
+  if (obj.size() != 11) return false;
+  const char *flags[] = {"standby_enabled", "night_enabled", "show_clock", "clock_24h", "home_on_standby"};
+  int32_t *flag_values[] = {&s.standby_enabled, &s.night_enabled, &s.show_clock, &s.clock_24h, &s.home_on_standby};
+  for (int i = 0; i < 5; ++i) {
+    if (!obj[flags[i]].is<bool>()) return false;
+    *flag_values[i] = obj[flags[i]].as<bool>();
+  }
+  const char *numbers[] = {"standby_seconds", "brightness", "standby_brightness", "night_start", "night_end", "night_brightness"};
+  int32_t *values[] = {&s.standby_seconds, &s.brightness, &s.standby_brightness, &s.night_start, &s.night_end, &s.night_brightness};
+  for (int i = 0; i < 6; ++i) {
+    if (!obj[numbers[i]].is<int>() || obj[numbers[i]].is<bool>()) return false;
+    *values[i] = obj[numbers[i]].as<int>();
+  }
+  return s.valid();
+}
 inline std::function<void(Tile &)> detail, detail_update;
 struct Widgets { lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; };
 inline std::array<Widgets, MAX_TILES> widgets;
@@ -48,6 +73,11 @@ inline std::string receive(const std::string &payload) {
     auto op = string(root["op"]);
     if (op == "layout") {
       if (!root["entities"].is<JsonArray>() || !root["title"].is<const char *>()) return false;
+      auto settings = screen_settings::current;
+      if (!root["settings"].isNull() && (!root["settings"].is<JsonObject>() ||
+          !parse_settings(root["settings"].as<JsonObject>(), settings))) {
+        result = "Fout: scherminstellingen"; return false;
+      }
       std::vector<std::string> entities;
       for (JsonVariant entity : root["entities"].as<JsonArray>()) {
         if (!entity.is<const char *>() || entities.size() == MAX_TILES) return false;
@@ -55,6 +85,11 @@ inline std::string receive(const std::string &payload) {
       }
       bool changed = false;
       if (!model.set_layout(entities, string(root["title"], 96), changed)) return false;
+      if (!(settings == screen_settings::current)) {
+        screen_settings::current = settings;
+        settings_preference.save(&settings);  // ESPHome batches flash writes; no write on keepalive.
+        if (settings_changed) settings_changed();
+      }
       if (changed) { active_index = -1; for (auto &w : widgets) w.cached_active = -1; if (dismiss) dismiss(); }
       last_received = esphome::millis();
       if (layout_changed) layout_changed();

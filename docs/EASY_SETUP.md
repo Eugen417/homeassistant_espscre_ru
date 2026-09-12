@@ -162,3 +162,45 @@ een los openbaar portal.
 Gebruikte HA-mechanismen: [Ingress](https://developers.home-assistant.io/docs/apps/presentation/),
 [interne HA-API](https://developers.home-assistant.io/docs/apps/communication/) en
 [ESPHome-pakketten](https://esphome.io/components/packages/).
+
+
+## Scherminstellingen aanpassen (vanaf 0.1.2)
+
+Update ESP Screen Manager naar 0.1.2 en installeer één keer de nieuwe firmware
+via je **bestaande** ESPHome-apparaat → Install → Wirelessly. Behoud de eigen YAML
+met wifi en sleutels. Open daarna het scherm in ESP Screen Manager en klap
+**Scherminstellingen** open. Klik na aanpassen op **Opslaan & naar scherm**.
+Hierna vragen wijzigingen aan deze instellingen geen nieuwe firmwareflash.
+
+| Instelling | Mogelijkheden | Standaard |
+|---|---|---|
+| Automatisch standby | Aan/uit | Aan |
+| Standby na | 1–1440 minuten na de laatste aanraking | 10 minuten |
+| Helderheid normaal | 5–100% | 100% |
+| Helderheid standby | 0–100%, maximaal normale helderheid | 20% |
+| Nachtstand | Aan/uit; geldt tijdens standby | Aan |
+| Begin/einde nacht | Uur en minuut, ook over middernacht | 22:00–07:00 |
+| Helderheid nacht | 0–100%, maximaal normale helderheid | 10% |
+| Klok tonen | Aan/uit | Aan |
+| Tijdnotatie | 24 of 12 uur, zonder AM/PM | 24 uur |
+| Terug naar pagina 1 | Bij standby; anders huidige pagina onthouden | Uit |
+
+Nachturen gebruiken de tijdzone van het ESPHome-apparaat en de tijd uit HA.
+Zonder geldige tijd gebruikt het scherm de gewone standbyhelderheid; gelijke
+begin- en eindtijd schakelen het nachtvenster uit. Op 0% gaat alleen de
+achtergrondverlichting uit: dit is geen deep sleep en geen schermbeveiliging.
+De eerste tik wekt het scherm zonder een apparaat te bedienen.
+
+De add-on bewaart alles per scherm in zijn permanente gegevens. Het scherm bewaart
+de laatst ontvangen instellingen ook in preferences; ESPHome bundelt die
+schrijfacties (normaal maximaal een minuut). Trek daarom niet direct na opslaan
+de voeding los. Bestaande CYD-kalibratie, tegels, API- en OTA-sleutels blijven staan.
+Een offline scherm krijgt wijzigingen zodra het terugkomt. Gewone HA-statusupdates
+wekken het scherm niet en veranderen de standbytimer niet.
+
+Bij oudere firmware toont de beheerpagina dat eerst een update nodig is.
+De tegels blijven bruikbaar. Handmatige YAML-profielen blijven hun substitutions
+gebruiken; voor beheer via deze app gebruik je het Easy Setup-pakket.
+
+De gemelde Guition-paneelstrepen worden apart onderzocht. Deze instellingenupdate
+wijzigt geen displaytimings of driver en is geen bewezen oplossing voor die strepen.

@@ -10,6 +10,38 @@ REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement'.split())
 
+# Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
+SETTING_RULES = {
+    'standby_enabled': (True, None, None),
+    'standby_seconds': (600, 60, 86400),
+    'brightness': (100, 5, 100),
+    'standby_brightness': (20, 0, 100),
+    'night_enabled': (True, None, None),
+    'night_start': (1320, 0, 1439),
+    'night_end': (420, 0, 1439),
+    'night_brightness': (10, 0, 100),
+    'show_clock': (True, None, None),
+    'clock_24h': (True, None, None),
+    'home_on_standby': (False, None, None),
+}
+
+def validate_settings(data):
+    if not isinstance(data, dict) or set(data) - SETTING_RULES.keys():
+        raise ValueError('Onbekende scherminstellingen; vernieuw de beheerpagina.')
+    clean = {}
+    for key, (default, minimum, maximum) in SETTING_RULES.items():
+        value = data.get(key, default)
+        if minimum is None:
+            valid = type(value) is bool
+        else:
+            valid = type(value) is int and minimum <= value <= maximum
+        if not valid:
+            raise ValueError(f'Ongeldige waarde voor {key}.')
+        clean[key] = value
+    if max(clean['standby_brightness'], clean['night_brightness']) > clean['brightness']:
+        raise ValueError('Helderheid in standby en nacht mag niet hoger zijn dan normaal.')
+    return clean
+
 def entity_id(value):
     return isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value) and value.split('.')[0] in DOMAINS
 
@@ -35,7 +67,10 @@ def validate_layout(data):
             raise ValueError('Een tegelnaam mag maximaal 80 bytes bevatten.')
         seen.add(tile['entity'])
         clean.append({'entity': tile['entity'], 'name': name.strip()})
-    return {'title': title.strip(), 'tiles': clean}
+    result = {'title': title.strip(), 'tiles': clean}
+    if 'settings' in data:
+        result['settings'] = validate_settings(data['settings'])
+    return result
 
 def state_message(index, tile, states):
     state = states.get(tile['entity'], {})

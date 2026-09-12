@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'screen_manager/app'))
-from core import discover, installation_yaml, packets, state_message, validate_layout
+from core import discover, installation_yaml, packets, state_message, validate_layout, validate_settings
 
 class ProtocolTests(unittest.TestCase):
     def test_unicode_chunks_and_limits(self):
@@ -23,6 +23,22 @@ class ProtocolTests(unittest.TestCase):
         for tiles in [[{'entity':'lock.front'}],[{'entity':'light.a'}]*2,[{'entity':f'light.a{i}'} for i in range(11)],[{'entity':'light.a;restart'}]]:
             with self.assertRaises(ValueError): validate_layout({'title':'Thuis','tiles':tiles})
         self.assertEqual(validate_layout({'title':'Thuis','tiles':[]})['tiles'],[])
+
+    def test_settings_defaults_ranges_and_old_layout(self):
+        self.assertNotIn('settings', validate_layout({'title':'Thuis','tiles':[]}))
+        defaults = validate_settings({})
+        self.assertEqual(defaults['standby_seconds'], 600)
+        self.assertEqual(defaults['night_start'], 22*60)
+        for patch in [{'standby_seconds':True}, {'brightness':0}, {'night_start':1440},
+                      {'show_clock':1}, {'standby_seconds':600.5}, {'new_unknown':1},
+                      {'brightness':10,'standby_brightness':20}]:
+            with self.assertRaises(ValueError): validate_settings(patch)
+        for bad in [None, [], 'wrong']:
+            with self.assertRaises(ValueError): validate_settings(bad)
+        settings = validate_settings({'brightness':40,'standby_brightness':0,'night_brightness':0})
+        self.assertEqual(settings['brightness'],40)
+        message={'v':1,'op':'layout','title':'Thuis','entities':[], 'settings':settings}
+        self.assertTrue(all(len(p)<=255 for p in packets(message)))
 
     def test_message_has_only_bounded_display_attributes(self):
         state={'state':'on','attributes':{'friendly_name':'é'*90,'access_token':'private','hs_color':[float('nan'),300], 'brightness':float('inf')}}
@@ -86,6 +102,31 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             original=path.read_text();path.write_text('{"version":99,"screens":{}}')
             with self.assertRaises(ValueError): self.setup_manager(path)
             self.assertIn('99',path.read_text(),'unknown schema must never be overwritten')
+
+    async def test_settings_survive_update_and_old_client_save(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path=Path(temp)/'screens.json'; m=self.setup_manager(path)
+            legacy={'title':'Thuis','tiles':[{'entity':'light.a','name':'Mijn lamp'}]}
+            path.write_text(json.dumps({'version':1,'screens':{'text.screen':legacy}}))
+            m=self.setup_manager(path)
+            self.assertEqual(m.layouts['text.screen'],legacy)
+            settings=validate_settings({'brightness':55,'standby_seconds':1200})
+            m.save('text.screen',{**legacy,'settings':settings})
+            fresh=self.setup_manager(path)
+            self.assertEqual(fresh.layouts['text.screen']['settings'],settings)
+            fresh.save('text.screen',{**legacy,'title':'Andere titel'})
+            saved=fresh.layouts['text.screen']
+            self.assertEqual(saved['settings'],settings)
+            self.assertEqual(saved['tiles'],legacy['tiles'])
+            before=path.read_bytes()
+            with self.assertRaises(ValueError): fresh.save('text.screen',{**saved,'settings':{'brightness':0}})
+            self.assertEqual(path.read_bytes(),before)
+            await fresh.sync_one('text.screen',saved)
+            self.assertEqual(fresh.ha.messages[0][1]['settings'],settings)
+            await fresh.sync_one('text.screen',saved)
+            self.assertEqual(len(fresh.ha.messages),2)
+            await fresh.sync_one('text.screen',saved,True)
+            self.assertEqual(fresh.ha.messages[2][1]['settings'],settings)
 
     async def test_reorder_aborts_old_batch(self):
         with tempfile.TemporaryDirectory() as temp:

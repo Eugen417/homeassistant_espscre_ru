@@ -130,6 +130,9 @@ class Manager:
         if inbox not in {s['id'] for s in self.inventory()[0]}:
             raise ValueError('Dit is geen gekoppeld ESP-scherm. Vernieuw het overzicht.')
         layout = validate_layout(data)
+        # A still-open older UI may save tiles without the new optional settings.
+        if 'settings' not in layout and 'settings' in self.layouts.get(inbox, {}):
+            layout['settings'] = self.layouts[inbox]['settings'].copy()
         known = {e['id'] for e in self.inventory()[1]}
         if any(t['entity'] not in known for t in layout['tiles']):
             raise ValueError('Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.')
@@ -149,6 +152,8 @@ class Manager:
 
     async def sync_one(self, inbox, layout, force=False):
         messages = [{'v': 1, 'op': 'layout', 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
+        if 'settings' in layout:
+            messages[0]['settings'] = layout['settings']
         messages += [state_message(i, tile, self.ha.states) for i, tile in enumerate(layout['tiles'])]
         previous = self.sent.get(inbox, [])
         force = force or not previous or messages[0] != previous[0]

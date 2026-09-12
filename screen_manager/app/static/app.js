@@ -65,6 +65,99 @@ function select(id) {
   renderScreens();
   renderTiles();
   renderResults();
+  renderSettings();
+}
+const settingDefinitions = [
+  ["standby_enabled", "Automatisch standby", "check", true],
+  ["standby_seconds", "Standby na", "minutes", 600, 1, 1440],
+  ["brightness", "Helderheid normaal", "range", 100, 5, 100],
+  ["standby_brightness", "Helderheid in standby", "range", 20, 0, 100],
+  ["night_enabled", "Nachtstand gebruiken", "check", true],
+  ["night_brightness", "Helderheid in nachtstand", "range", 10, 0, 100],
+  ["night_start", "Nachtstand vanaf", "time", 1320],
+  ["night_end", "Nachtstand tot", "time", 420],
+  ["show_clock", "Klok tonen", "check", true],
+  ["clock_24h", "24-uursklok (uit = 12 uur)", "check", true],
+  ["home_on_standby", "Na standby terug naar pagina 1", "check", false],
+];
+function renderSettings() {
+  const values = {
+    ...Object.fromEntries(
+      settingDefinitions.map(([key, , , value]) => [key, value]),
+    ),
+    ...layout.settings,
+  };
+  const container = $("#settings-fields");
+  container.replaceChildren();
+  for (const [key, title, kind, , min, max] of settingDefinitions) {
+    const label = node(
+      "label",
+      undefined,
+      `setting ${kind === "check" ? "setting-check" : ""}`,
+    );
+    const caption = node("span", title),
+      input = node("input"),
+      output = node("output");
+    input.id = `setting-${key}`;
+    input.type =
+      kind === "check" ? "checkbox" : kind === "minutes" ? "number" : kind;
+    input.setAttribute("aria-label", title);
+    input.required = kind === "minutes" || kind === "time";
+    if (kind === "check") input.checked = values[key];
+    else if (kind === "time")
+      input.value = `${String(Math.floor(values[key] / 60)).padStart(2, "0")}:${String(values[key] % 60).padStart(2, "0")}`;
+    else {
+      input.min = min;
+      input.max = max;
+      input.step = 1;
+      input.value = kind === "minutes" ? values[key] / 60 : values[key];
+    }
+    const updateOutput = () =>
+      (output.textContent =
+        kind === "range"
+          ? `${input.value}%`
+          : kind === "minutes"
+            ? "minuten"
+            : "");
+    updateOutput();
+    input.oninput = () => {
+      if (!input.checkValidity() || input.value === "") return;
+      let value = kind === "check" ? input.checked : Number(input.value);
+      if (kind === "time") {
+        const [h, m] = input.value.split(":").map(Number);
+        value = h * 60 + m;
+      }
+      if (kind === "minutes") value *= 60;
+      layout.settings = { ...values, ...layout.settings, [key]: value };
+      // A lower normal brightness also lowers any higher standby levels.
+      if (key === "brightness")
+        for (const dim of ["standby_brightness", "night_brightness"]) {
+          layout.settings[dim] = Math.min(layout.settings[dim], value);
+          const other = $(`#setting-${dim}`);
+          other.value = layout.settings[dim];
+          other.parentElement.querySelector("output").textContent =
+            `${other.value}%`;
+        }
+      updateOutput();
+      markDirty();
+    };
+    label.append(caption, input, output);
+    container.append(label);
+  }
+  renderSettingsSupport();
+}
+function renderSettingsSupport() {
+  const version =
+    inventory.screens.find((s) => s.id === selected)?.firmware || "";
+  const parts = /^([0-9]+)\.([0-9]+)\.([0-9]+)$/.exec(version);
+  const supported =
+    parts &&
+    (Number(parts[1]) > 0 ||
+      Number(parts[2]) > 1 ||
+      (Number(parts[2]) === 1 && Number(parts[3]) >= 2));
+  $("#settings-support").textContent = supported
+    ? "Opslaan stuurt je instellingen direct naar dit scherm. Ze blijven ook na een herstart bewaard."
+    : "Eenmalig firmware 0.1.2 of nieuwer installeren via ESPHome. Je kunt de instellingen alvast bewaren; oudere firmware gebruikt ze nog niet.";
 }
 function renderScreens() {
   $("#screens").replaceChildren();
@@ -220,6 +313,7 @@ async function refresh() {
       : "Verbinding met Home Assistant herstellen…";
     $("#connection").classList.toggle("online", inventory.connected);
     renderScreens();
+    if (selected) renderSettingsSupport();
     if (!selected && inventory.screens.length) select(inventory.screens[0].id);
   } catch {
     $("#connection").textContent =
@@ -228,6 +322,9 @@ async function refresh() {
 }
 $("#save").onclick = async () => {
   if (busy) return;
+  for (const input of document.querySelectorAll("#settings-fields input")) {
+    if (!input.reportValidity()) return;
+  }
   busy = true;
   $("#save").disabled = true;
   try {

@@ -582,7 +582,7 @@ esphome:
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
-    version: "0.1.0"
+    version: "0.1.2"
   platformio_options:
     build_flags:
       - -DLV_USE_SNAPSHOT=1
@@ -603,8 +603,19 @@ esphome:
           lv_obj_set_style_pad_row(id(vacuum_speeds), 4, 0);
           lv_obj_set_style_pad_column(id(vacuum_speeds), 4, 0);
       - lambda: |-
+          auto &settings = screen_settings::current;
+          settings.standby_enabled = std::string("${AUTO_DIM}") == "true";
+          settings.standby_seconds = atoi("${AUTO_DIM_TIMEOUT}");
+          settings.brightness = atoi("${MAX_BRIGHTNESS}");
+          settings.standby_brightness = atoi("${DIM_BRIGHTNESS}");
+          settings.night_enabled = std::string("${NIGHT_MODE}") == "true";
+          settings.night_start = atoi("${NIGHT_START_HOUR}") * 60;
+          settings.night_end = atoi("${NIGHT_END_HOUR}") * 60;
+          settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
+          runtime_tiles::load_settings();
+          runtime_tiles::settings_changed = []() { id(apply_screen_settings).execute(); };
           runtime_tiles::dismiss = []() {
             id(active_entity).clear();
             lv_obj_add_flag(id(brightness_overlay), LV_OBJ_FLAG_HIDDEN);
@@ -678,7 +689,7 @@ esphome:
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
       - light.turn_on:
           id: back_light
-          brightness: !lambda "return atoi(\"${MAX_BRIGHTNESS}\") / 100.0f;"
+          brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
       - script.execute: show_tile_page
       - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
       - if:
@@ -748,6 +759,12 @@ api:
     - action: ui_state
       then:
         - lambda: |-
+            const auto &cfg = screen_settings::current;
+            ESP_LOGI("ui_diag", "settings standby=%d timeout=%d brightness=%d dim=%d night=%d start=%d end=%d night_dim=%d clock=%d clock24=%d home=%d idle_ms=%u dimmed=%d",
+              cfg.standby_enabled, cfg.standby_seconds, cfg.brightness, cfg.standby_brightness,
+              cfg.night_enabled, cfg.night_start, cfg.night_end, cfg.night_brightness,
+              cfg.show_clock, cfg.clock_24h, cfg.home_on_standby,
+              (unsigned)(millis() - id(last_touch_ms)), id(display_dimmed));
             lv_area_t nav, grid;
             lv_obj_update_layout(id(home_page)->obj);
             lv_obj_get_coords(id(page_next), &nav);
@@ -788,9 +805,9 @@ interval:
       - if:
           condition:
             lambda: |-
-              if (std::string("${AUTO_DIM}") != "true") return false;
+              if (!screen_settings::current.standby_enabled) return false;
               if (id(display_dimmed) || id(touch_down) || id(calibration_active)) return false;
-              return (millis() - id(last_touch_ms)) > (atoi("${AUTO_DIM_TIMEOUT}") * 1000UL);
+              return (millis() - id(last_touch_ms)) > (screen_settings::current.standby_seconds * 1000UL);
           then:
             - script.execute: dim_display
 
@@ -801,32 +818,14 @@ time:
     update_interval: 60s
     on_time_sync:
       then:
+        - script.execute: apply_screen_settings
         - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
     on_time:
       - seconds: 0
         minutes: /1
         then:
+          - script.execute: apply_screen_settings
           - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
-
-      - seconds: 0
-        minutes: 0
-        hours: ${NIGHT_START_HOUR}
-        then:
-          - if:
-              condition:
-                lambda: 'return id(display_dimmed);'
-              then:
-                - script.execute: dim_display
-
-      - seconds: 0
-        minutes: 0
-        hours: ${NIGHT_END_HOUR}
-        then:
-          - if:
-              condition:
-                lambda: 'return id(display_dimmed);'
-              then:
-                - script.execute: dim_display
 
 globals:
   - id: rendered_frames
@@ -1312,7 +1311,7 @@ text_sensor:
   - platform: template
     name: "Schermfirmware"
     entity_category: diagnostic
-    lambda: 'return {"0.1.0"};'
+    lambda: 'return {"0.1.2"};'
     update_interval: 60s
   - platform: template
     id: smartdisplay_action
@@ -4448,6 +4447,25 @@ script:
             lv_obj_add_state(id(page_next), LV_STATE_DISABLED);
           }
 
+  # Runtime changes do not count as touches and do not reset the idle timer.
+  - id: apply_screen_settings
+    mode: restart
+    then:
+      - lambda: |-
+          const auto &settings = screen_settings::current;
+          if (id(display_dimmed) && !settings.standby_enabled) {
+            id(display_dimmed) = false;
+          }
+          auto now = id(homeassistant_time).now();
+          const int minute = now.is_valid() ? now.hour * 60 + now.minute : -1;
+          const int level = id(display_dimmed) ? settings.dim_level(minute) : settings.brightness;
+          id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();
+          if (id(display_dimmed)) lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
+          if (settings.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
+          if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
+
   - id: wake_display
     mode: restart
     then:
@@ -4459,7 +4477,7 @@ script:
           # Bijna instant omhoog. De ESPHome-standaard is 1s, en dat voelt traag
           # als je het scherm aanraakt en op licht staat te wachten.
           transition_length: 80ms
-          brightness: !lambda "return atoi(\"${MAX_BRIGHTNESS}\") / 100.0f;"
+          brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
       - lvgl.widget.hide: dim_wake_overlay
       - lvgl.widget.hide: color_detail_overlay
       - lvgl.widget.hide: climate_detail_overlay
@@ -4471,41 +4489,14 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return std::string("${AUTO_DIM}") == "true";'
+            lambda: 'return screen_settings::current.standby_enabled;'
           then:
             - lambda: |-
-                int dim_value = atoi("${DIM_BRIGHTNESS}");
-                int max_value = atoi("${MAX_BRIGHTNESS}");
-
-                if (std::string("${NIGHT_MODE}") == "true") {
-                  auto now = id(homeassistant_time).now();
-                  // Vóór de eerste tijd-sync (zie time: hierboven) is now()
-                  // epoch 0 — dan geen nachtmodus-beslissing nemen op basis
-                  // van een ongeldig uur, gewoon normale DIM_BRIGHTNESS.
-                  if (now.is_valid()) {
-                    int hour = now.hour;
-                    int start_hour = atoi("${NIGHT_START_HOUR}");
-                    int end_hour = atoi("${NIGHT_END_HOUR}");
-                    bool is_night = false;
-                    if (start_hour < end_hour) {
-                      is_night = (hour >= start_hour && hour < end_hour);
-                    } else {
-                      is_night = (hour >= start_hour || hour < end_hour);
-                    }
-                    if (is_night) {
-                      dim_value = atoi("${NIGHT_DIM_BRIGHTNESS}");
-                    }
-                  }
-                }
-
-                // Rustig omlaag faden is prettig; omhoog moet juist snel.
-                id(back_light).turn_on().set_transition_length(900).set_brightness(dim_value / 100.0f).perform();
-
-                // Always mark as dimmed to stop the interval from re-firing
                 id(display_dimmed) = true;
-                // Only show the touch-blocking overlay when brightness actually changes
-                if (dim_value < max_value) {
-                  lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
+                id(apply_screen_settings).execute();
+                if (screen_settings::current.home_on_standby) {
+                  id(tile_page) = 0;
+                  id(show_tile_page).execute();
                 }
 
             # Terug naar het basisscherm bij standby. Bewust via de ESPHome
@@ -5394,7 +5385,9 @@ script:
           if (runtime_tiles::enabled) {
             runtime_tiles::render(id(lbl_room));
             auto now = id(homeassistant_time).now();
-            if (now.is_valid()) runtime_tiles::label(id(lbl_time), now.strftime("%H:%M"));
+            if (screen_settings::current.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
+            if (now.is_valid()) runtime_tiles::label(id(lbl_time), now.strftime(screen_settings::current.clock_24h ? "%H:%M" : "%I:%M"));
             return;
           }
           auto set_lbl = [](lv_obj_t* lbl, const std::string& s) {
