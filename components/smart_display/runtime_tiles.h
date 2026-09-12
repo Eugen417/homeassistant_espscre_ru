@@ -150,6 +150,7 @@ inline std::string receive(const std::string &payload) {
     if (std::isfinite(kelvin)) tile.kelvin = std::lround(std::clamp(kelvin, 1000.0f, 15000.0f));
     tile.min_kelvin = std::clamp(number(a["min_color_temp_kelvin"], 0), 0.0f, 15000.0f);
     tile.max_kelvin = std::clamp(number(a["max_color_temp_kelvin"], 0), 0.0f, 15000.0f);
+    tile.fan_speed = string(a["fan_speed"], 48);
     tile.fan_speed_count = 0;
     if (a["fan_speed_list"].is<JsonArray>()) for (JsonVariant speed : a["fan_speed_list"].as<JsonArray>()) {
       if (tile.fan_speed_count == 4) break;
@@ -193,6 +194,9 @@ namespace runtime_tiles {
 inline lv_obj_t *detail_root=nullptr;
 inline unsigned detail_index=0;
 inline const lv_font_t *detail_font=nullptr;
+inline lv_obj_t *detail_actions[16]{};
+inline unsigned detail_action_count=0;
+inline lv_obj_t *detail_status=nullptr;
 inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int y,int width) {
   auto *label=lv_label_create(parent);lv_label_set_text(label,text.c_str());lv_obj_set_pos(label,x,y);lv_obj_set_width(label,width);
   lv_obj_set_style_text_font(label,detail_font,0);lv_obj_set_style_text_color(label,lv_color_hex(light_theme?0x202020:0xFFFFFF),0);
@@ -208,6 +212,9 @@ inline int slider_value(const Tile &t){
   if(d=="number"||d=="input_number") {char *end;float state=strtof(t.state.c_str(),&end);if(end!=t.state.c_str() && t.maximum>t.minimum)value=(state-t.minimum)/(t.maximum-t.minimum);}
   return std::clamp((int)std::lround(value*1000),0,1000);
 }
+inline lv_obj_t *captured_slider=nullptr;
+inline bool slider_changed=false;
+inline void slider_event(lv_event_t *e);
 inline void commit_slider(unsigned i,int raw){
   if(i>=model.count || !fresh())return;auto &t=model.tiles[i];if(!t.available() || t.loading(esphome::millis()))return;
   float value=std::clamp(raw,0,1000)/1000.0f;auto d=t.domain();
@@ -220,10 +227,20 @@ inline void commit_slider(unsigned i,int raw){
     value=std::clamp(t.minimum+std::round(value*(t.maximum-t.minimum)/t.step)*t.step,t.minimum,t.maximum);
     action(d+".set_value",t.entity,"value",std::to_string(value)); }
 }
-inline void detail_button(const char *text,int x,int y,int width,int height,int command){
+inline void slider_event(lv_event_t *e){
+  auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
+  if(code==LV_EVENT_PRESSED){captured_slider=slider;slider_changed=false;}
+  if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider)slider_changed=true;
+  if(code==LV_EVENT_PRESS_LOST && captured_slider==slider){captured_slider=nullptr;slider_changed=false;}
+  if(code==LV_EVENT_RELEASED && captured_slider==slider){
+    unsigned index=(uintptr_t)lv_event_get_user_data(e);bool changed=slider_changed;captured_slider=nullptr;slider_changed=false;
+    if(changed && cyd::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
+  }
+}
+inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height,int command){
   auto *button=lv_obj_create(detail_root);lv_obj_remove_style_all(button);lv_obj_set_pos(button,x,y);lv_obj_set_size(button,width,height);
   lv_obj_set_style_bg_color(button,lv_color_hex(light_theme?(command==0?0x009FE3:0xD9E6F0):0x34495E),0);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);lv_obj_set_style_radius(button,12,0);lv_obj_add_flag(button,LV_OBJ_FLAG_CLICKABLE);
-  auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);if(command==0)lv_obj_set_style_text_color(label,lv_color_hex(0xFFFFFF),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
+  auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);if(command==0)lv_obj_set_style_text_color(label,lv_color_hex(0xFFFFFF),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(button,[](lv_event_t *e){
     int cmd=(intptr_t)lv_event_get_user_data(e);if(cmd==-1){hide_detail();return;}
     if(!fresh()||detail_index>=model.count || !cyd::touch_guard.accept(esphome::millis(),300+cmd))return;
@@ -235,27 +252,69 @@ inline void detail_button(const char *text,int x,int y,int width,int height,int 
     if(cmd==22)action("media_player.media_next_track",t.entity);
     if(cmd>=30 && cmd<38 && cmd-30<(int)t.option_count)action(t.domain()+".select_option",t.entity,"option",t.options[cmd-30]);
   },LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)command);
+  lv_obj_set_style_bg_color(button,lv_color_hex(0x0075B0),LV_STATE_PRESSED);
+  lv_obj_set_style_transform_width(button,-2,LV_STATE_PRESSED);lv_obj_set_style_transform_height(button,-2,LV_STATE_PRESSED);
+  lv_obj_set_style_opa(button,LV_OPA_50,LV_STATE_DISABLED);
+  if(command>=0 && detail_action_count<16)detail_actions[detail_action_count++]=button;
+  return button;
 }
 inline void show_detail(unsigned index){
   if(index>=model.count)return;detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[index].title,LV_PART_MAIN);
   if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
-  lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
+  detail_action_count=0;detail_status=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,lv_color_hex(light_theme?0xEFEFEF:0x202A38),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
   auto *heading=detail_label(detail_root,t.name,pad,large?24:12,width-80);if(watch_font){lv_obj_set_style_text_font(heading,watch_font,0);lv_obj_set_height(heading,lv_font_get_line_height(watch_font));}
   detail_button("X",width-58,8,48,40,-1);
   std::string state=t.state=="docked"?"In dock":t.state=="cleaning"?"Bezig met schoonmaken":t.state=="paused"?"Gepauzeerd":t.state;
-  detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
+  detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
   auto d=t.domain();
   if(d=="vacuum"){
-    std::string summary=std::isfinite(t.battery)?"Accu "+std::to_string((int)t.battery)+"%":"Robotstofzuiger";
-    detail_label(detail_root,summary,pad,top,width-2*pad);top+=large?42:25;
-    const char *names[]={"Start","Pauze","Naar dock","Zoeken"};
-    for(int i=0;i<4;++i)detail_button(names[i],pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,i);
-    top+=2*(bh+gap);
-    for(unsigned i=0;i<t.fan_speed_count;++i)detail_button(t.fan_speeds[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(large?42:24),cw,large?36:22,10+i);
+    // Native shapes keep the robot crisp without image buffers or extra layers.
+    auto shape=[&](lv_obj_t *parent,int x,int y,int w,int h,uint32_t color,int radius){
+      auto *o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
+      lv_obj_set_style_radius(o,radius,0);lv_obj_set_style_bg_color(o,lv_color_hex(color),0);lv_obj_set_style_bg_opa(o,LV_OPA_COVER,0);
+      lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);return o;
+    };
+    uint32_t surface=light_theme?0xFFFFFF:0x2B3B4D, muted=light_theme?0xEAF5FC:0x344D63;
+    if(large){
+      auto *hero=shape(detail_root,pad,100,width-2*pad,148,surface,24);
+      shape(hero,18,14,120,120,muted,60);
+      auto *robot=shape(hero,35,27,86,86,0xFFFFFF,43);
+      lv_obj_set_style_border_width(robot,2,0);lv_obj_set_style_border_color(robot,lv_color_hex(0xCEDDE6),0);
+      shape(robot,27,10,30,30,0xE3EBEF,15);shape(robot,35,18,14,14,0xA8BCC8,7);
+      shape(robot,29,59,26,5,0x00A6ED,3);
+      detail_label(hero,t.state=="cleaning"?"Aan het werk":"Klaar voor je huis",154,24,260);
+      auto *badge=shape(hero,154,59,240,32,muted,16);
+      auto *status=detail_label(badge,t.loading(esphome::millis())?"Opdracht verstuurd...":state,12,5,218);
+      lv_obj_set_style_text_color(status,lv_color_hex(light_theme?0x087BA8:0xFFFFFF),0);
+      detail_label(hero,std::isfinite(t.battery)?"Batterij  "+std::to_string((int)t.battery)+"%":"Verbonden via Home Assistant",154,107,260);
+      detail_button(t.state=="cleaning"?"Pauzeer schoonmaken":"Start schoonmaken",pad,260,width-2*pad,58,t.state=="cleaning"?1:0);
+      detail_button("Terug naar dock",pad,330,cw,48,2);
+      detail_button("Vind mijn robot",pad+cw+gap,330,cw,48,3);
+      detail_label(detail_root,"Zuigkracht",pad,394,width-2*pad);
+      top=424;
+    }else{
+      auto *robot=shape(detail_root,pad,64,46,46,muted,23);
+      shape(robot,16,8,14,14,0xA8BCC8,7);shape(robot,15,32,16,3,0x00A6ED,2);
+      detail_label(detail_root,std::isfinite(t.battery)?"Batterij "+std::to_string((int)t.battery)+"%":"Robotstofzuiger",pad+58,66,width-2*pad-58);
+      detail_label(detail_root,"Kies een actie",pad+58,87,width-2*pad-58);
+      detail_button(t.state=="cleaning"?"Pauzeren":"Schoonmaken",pad,120,cw,38,t.state=="cleaning"?1:0);
+      detail_button("Naar dock",pad+cw+gap,120,cw,38,2);
+      detail_label(detail_root,"Zuigkracht",pad,168,width-2*pad);top=194;
+    }
+    if(!t.fan_speed_count)detail_label(detail_root,"Automatische zuigkracht",pad,top,width-2*pad);
+    int count=std::max(1,(int)t.fan_speed_count),sw=(width-2*pad-gap*(count-1))/count;
+    for(unsigned i=0;i<t.fan_speed_count;++i){
+      std::string name=t.fan_speeds[i];
+      if(name=="quiet")name="Stil";else if(name=="balanced")name="Normaal";else if(name=="turbo")name="Turbo";else if(name=="max")name="Max";
+      auto *button=detail_button(name.c_str(),pad+i*(sw+gap),top,sw,large?36:30,10+i);
+      bool selected=t.fan_speed==t.fan_speeds[i];
+      lv_obj_set_style_bg_color(button,lv_color_hex(selected?0x009FE3:surface),0);
+      if(selected)lv_obj_set_style_text_color(lv_obj_get_child(button,0),lv_color_hex(0xFFFFFF),0);
+    }
   }else if(d=="sensor"){
     float minimum=INFINITY,maximum=-INFINITY;for(float value:t.history)if(t.has_history&&std::isfinite(value)){minimum=std::min(minimum,value);maximum=std::max(maximum,value);}
     if(!std::isfinite(minimum)){detail_label(detail_root,"Geen numerieke HA-historie",pad,top,width-2*pad);return;}
@@ -263,7 +322,8 @@ inline void show_detail(unsigned index){
     int chart_y=top+(large?46:28),chart_h=height-chart_y-30,bar_w=(width-pad*2)/24;
     for(unsigned i=0;i<24;++i){if(!std::isfinite(t.history[i]))continue;int h=maximum>minimum?8+(chart_h-8)*(t.history[i]-minimum)/(maximum-minimum):chart_h/2;
       auto *bar=lv_obj_create(detail_root);lv_obj_remove_style_all(bar);lv_obj_set_pos(bar,pad+i*bar_w,chart_y+chart_h-h);lv_obj_set_size(bar,std::max(2,bar_w-2),h);lv_obj_set_style_bg_color(bar,lv_color_hex(0x16A5E6),0);lv_obj_set_style_bg_opa(bar,LV_OPA_COVER,0);}
-    detail_label(detail_root,"Eerder                                      Nu",pad,height-24,width-2*pad);
+    detail_label(detail_root,std::to_string(t.history_hours)+" uur geleden",pad,height-24,(width-2*pad)/2);
+    auto *now=detail_label(detail_root,"Nu",width/2,height-24,width/2-pad);lv_obj_set_style_text_align(now,LV_TEXT_ALIGN_RIGHT,0);
   }else if(d=="select"||d=="input_select"){
     for(unsigned i=0;i<t.option_count;++i)detail_button(t.options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
   }else if(d=="number"||d=="input_number"||d=="media_player"){
@@ -274,7 +334,7 @@ inline void show_detail(unsigned index){
     }
     detail_label(detail_root,d=="media_player"?"Volume":"Waarde",pad,top,width-2*pad);
     auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
-    lv_obj_add_event_cb(slider,[](lv_event_t *e){if(cyd::touch_guard.accept(esphome::millis(),399))commit_slider(detail_index,lv_slider_get_value(lv_event_get_target_obj(e)));},LV_EVENT_RELEASED,nullptr);
+    lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   }else if(d=="weather"){
     char text[80];snprintf(text,sizeof(text),"%.1f %s",t.current,t.unit.c_str());auto *value=detail_label(detail_root,text,pad,top,width-2*pad);if(watch_font){lv_obj_set_style_text_font(value,watch_font,0);lv_obj_set_height(value,lv_font_get_line_height(watch_font));}
   }
@@ -335,10 +395,11 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_set_height(value,lv_font_get_line_height(w.value_font));
   lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);lv_label_set_long_mode(value,LV_LABEL_LONG_DOT);
   w.progress=lv_obj_create(tile);lv_obj_remove_style_all(w.progress);lv_obj_set_size(w.progress,0,3);lv_obj_align(w.progress,LV_ALIGN_BOTTOM_LEFT,0,0);lv_obj_set_style_bg_color(w.progress,lv_color_hex(0x00A6ED),0);lv_obj_set_style_bg_opa(w.progress,LV_OPA_COVER,0);
-  w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,lv_obj_get_width(tile)-24,lv_obj_get_height(tile)>80?10:4);lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,-1);lv_slider_set_range(w.slider,0,1000);
-  lv_obj_set_style_bg_color(w.slider,lv_color_hex(0x111111),LV_PART_KNOB);lv_obj_set_style_pad_all(w.slider,3,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
+  w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,lv_obj_get_width(tile)-24,lv_obj_get_height(tile)>80?28:10);lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,-1);lv_slider_set_range(w.slider,0,1000);
+  lv_obj_set_style_bg_color(w.slider,lv_color_hex(0x111111),LV_PART_KNOB);lv_obj_set_style_pad_hor(w.slider,lv_obj_get_height(tile)>80?-10:0,LV_PART_KNOB);lv_obj_set_style_pad_ver(w.slider,lv_obj_get_height(tile)>80?-5:1,LV_PART_KNOB);lv_obj_set_style_radius(w.slider,14,LV_PART_MAIN);lv_obj_set_style_radius(w.slider,14,LV_PART_INDICATOR);lv_obj_set_style_radius(w.slider,3,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
+  lv_obj_set_style_opa(w.slider,LV_OPA_TRANSP,LV_PART_KNOB);
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
-  lv_obj_add_event_cb(w.slider,[](lv_event_t *e){auto &w=*static_cast<Widgets*>(lv_event_get_user_data(e));if(!fresh() || !cyd::touch_guard.accept(esphome::millis(),200+w.index))return;commit_slider(w.index,lv_slider_get_value(w.slider));},LV_EVENT_RELEASED,&w);
+  lv_obj_add_event_cb(w.slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   lv_obj_add_event_cb(tile, event, LV_EVENT_SHORT_CLICKED, &widgets[index]);
   lv_obj_add_event_cb(tile, event, LV_EVENT_LONG_PRESSED, &widgets[index]);
 }
@@ -375,6 +436,9 @@ inline void render(lv_obj_t *room) {
     if(watch)lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(w.circle,LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_x(w.title,watch?0:w.title_x);
     bool mini=t.inline_control=="slider" && !watch && t.available();
+    bool large_tile=lv_obj_get_height(w.tile)>80;
+    lv_obj_set_y(w.title,mini?0:w.title_y);
+    if(mini){lv_obj_set_y(w.value,large_tile?24:14);lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);lv_obj_set_x(w.title,0);lv_obj_set_x(w.value,0);}
     if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
     else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
     bool on = fresh() && t.active();
@@ -392,6 +456,12 @@ inline void render(lv_obj_t *room) {
   }
 }
 inline void tick() {
+  if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
+    auto &t=model.tiles[detail_index];bool waiting=t.loading(esphome::millis())&&!t.local_feedback;
+    for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
+    if(waiting && detail_status)lv_label_set_text(detail_status,t.confirmed?"Bevestigd door Home Assistant":"Opdracht verstuurd...");
+    else if(detail_status){std::string state=t.state=="docked"?"In dock":t.state=="cleaning"?"Bezig met schoonmaken":t.state=="paused"?"Gepauzeerd":t.state;lv_label_set_text(detail_status,(state+(t.unit.empty()?"":" "+t.unit)).c_str());}
+  }
   if(!enabled)return;
   bool redraw=false;
   for(auto &t:model.tiles)if(t.pending){redraw=true;if(!t.loading(esphome::millis()))t.pending=false;}

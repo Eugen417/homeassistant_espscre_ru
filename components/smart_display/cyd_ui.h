@@ -27,7 +27,12 @@ class TouchGuard {
     if (std::abs(x - start_x_) > 18 || std::abs(y - start_y_) > 18) moved_ = true;
   }
   bool accept(uint32_t now, int tile) {
-    if (accepted_ || moved_ || now - started_ < 60) return false;
+    return !moved_ && accept_slider(now, tile);
+  }
+  // Only for a slider which captured this contact and did not lose the press.
+  // Consume the gesture so its parent can never also turn it into a tile tap.
+  bool accept_slider(uint32_t now, int tile) {
+    if (accepted_ || now - started_ < 60) return false;
     if (has_previous_ && tile == previous_tile_ && now - previous_ < 600) return false;
     accepted_ = true;
     has_previous_ = true;

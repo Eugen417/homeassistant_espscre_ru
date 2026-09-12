@@ -781,7 +781,7 @@ esphome:
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
-    version: "0.2.0"
+    version: "0.2.1"
   includes:
     - <esphome/components/smart_display/cyd_ui.h>
     - <esphome/components/smart_display/light_controls.h>

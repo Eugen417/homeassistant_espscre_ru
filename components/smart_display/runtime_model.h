@@ -23,6 +23,7 @@ struct Tile {
   std::string entity, name, state, unit, modes, hvac_modes;
   std::array<std::string, 4> fan_speeds;
   unsigned fan_speed_count = 0;
+  std::string fan_speed;
   float brightness = NAN, percentage = NAN, position = NAN;
   float current = NAN, target = NAN, humidity = NAN, minimum = 7, maximum = 35, step = 0.5f;
   int hue = 0, kelvin = 3000, min_kelvin = 0, max_kelvin = 0;

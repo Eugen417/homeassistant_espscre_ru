@@ -69,3 +69,27 @@ staat in permanente appdata. Een browser sluiten stopt de build niet.
 De bestaande ESPHome Device Builder mag blijven staan, maar is voor deze route
 niet nodig. Werk niet gelijktijdig vanuit twee builders aan hetzelfde profiel.
 Bestaande eigen YAML blijft leidend; een nieuwe YAML aanmaken is geen updateroute.
+
+## Verfijningen in 0.2.1
+
+Bovenaan je geselecteerde scherm staan **Tegels instellen**, **Algemene
+instellingen** en **Inspector**. Open bij een tegel **Bediening & weergave
+instellen**. Kies bijvoorbeeld **Kleine slider op deze tegel? → Ja, direct
+bedienen**, de klikactie of een grote waarde. Grote waarde en kleine slider zijn
+alternatieven; de keuzelijsten werken elkaar direct bij. Klik daarna op
+**Opslaan & naar scherm**. Hiervoor hoef je niet opnieuw te flashen.
+
+**Inspecteer deze tegel** toont de actuele HA-status, ondersteunde eigenschappen
+en ingestelde weergave. De algemene Inspector toont het hele scherm. Deze knoppen
+bedienen geen apparaten.
+
+Firmware 0.2.1 corrigeert het afwijzen van schuifgebaren in de kleine slider.
+Alleen een door de slider vastgehouden aanraking mag schuiven; verloren contacten,
+ruis en dubbele acties blijven geblokkeerd. De kleine slider heeft alleen een
+gekleurde vulling; de grote sliders behouden hun zwarte handvat. Geschiedenis
+vermeldt de periode expliciet, bijvoorbeeld **24 uur geleden → Nu**.
+
+De vacuumkaart heeft een robotweergave, status, schoonmaak-/pauzeknop, dockknop en
+zuigkrachtkeuze. Knoppen veranderen direct bij indrukken en worden tijdelijk
+gedimd na een opdracht. Een ontvangen HA-statuswijziging is terugkoppeling, geen
+garantie dat een fysieke schoonmaaktaak voltooid is.

@@ -60,15 +60,22 @@
               maxlength="60"
               placeholder="Bijvoorbeeld: Woonkamer"
           /></label>
-          <div class="columns">
+          <nav class="editor-nav" aria-label="Scherm beheren">
+            <button id="nav-tiles" class="quiet">Tegels instellen</button>
+            <button id="nav-settings" class="quiet">
+              Algemene instellingen
+            </button>
+            <button id="nav-inspector" class="quiet">Inspector</button>
+          </nav>
+          <div class="columns" id="tile-section">
             <div class="tile-editor">
               <div class="section-title">
                 <h3>Je tegels</h3>
                 <span id="count">0 / 10</span>
               </div>
               <p class="hint">
-                Sleep om te ordenen of gebruik de pijltjes. Zes tegels per
-                pagina.
+                Klik op een tegel om bediening en weergave te kiezen. Sleep om
+                te ordenen. Zes tegels per pagina.
               </p>
               <ol id="tiles"></ol>
               <p id="no-tiles" class="hint">
@@ -87,7 +94,7 @@
               <div id="results" aria-live="polite"></div>
             </div>
           </div>
-          <details class="screen-settings" open>
+          <details class="screen-settings" id="general-settings" open>
             <summary>
               Scherminstellingen
               <span class="hint">Helderheid, rustmomenten en weergave</span>
@@ -100,7 +107,7 @@
               Gelijke begin- en eindtijd schakelen het nachtvenster uit.
             </p>
           </details>
-          <details class="screen-settings">
+          <details class="screen-settings" id="inspector-section">
             <summary>
               Inspector
               <span class="hint"
@@ -108,6 +115,7 @@
               >
             </summary>
             <button id="inspect" class="quiet">Lees actuele gegevens</button>
+            <div id="inspection-summary"></div>
             <pre id="inspection">Selecteer een scherm en lees de gegevens.</pre>
           </details>
           <footer class="savebar">

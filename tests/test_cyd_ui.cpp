@@ -27,6 +27,12 @@ int main() {
   moving.update(50, 80);
   moving.update(50, 50);
   assert(!moving.accept(1200, 2)); // excursion stays cancelled, even on return
+  assert(moving.accept_slider(1200, 202)); // captured drag is a valid slider gesture
+  assert(!moving.accept(1201, 2)); // no parent action after slider release
+  assert(!moving.accept_slider(1202, 202)); // one send per contact
+  moving.begin(1250);
+  assert(!moving.accept_slider(1260, 202)); // noise remains rejected
+  assert(!moving.accept_slider(1350, 202)); // same-control bounce remains rejected
   cyd::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days

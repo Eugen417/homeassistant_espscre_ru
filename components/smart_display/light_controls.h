@@ -71,7 +71,7 @@ inline void preview(Row &row) {
   int value = lv_slider_get_value(row.slider);
   if (row.index == 0) {
     lv_label_set_text_fmt(row.value, "%d°", value);
-    lv_obj_set_style_bg_color(row.slider, lv_color_hsv_to_rgb(value % 360, 100, 100), LV_PART_KNOB);
+    lv_obj_set_style_bg_color(row.slider, lv_color_hex(0x111111), LV_PART_KNOB);
   } else if (row.index == 1) {
     lv_label_set_text_fmt(row.value, "%d K", value);
   } else lv_label_set_text_fmt(row.value, "%d %%", value);

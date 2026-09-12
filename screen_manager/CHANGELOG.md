@@ -1,3 +1,11 @@
+## 0.2.1
+
+- Algemene instellingen en Inspector direct bovenaan bereikbaar.
+- Tegel selecteren: klikactie, grote waarde, kleine slider (ja/nee) en historieperiode.
+- Inspectie per tegel met actuele HA-status en eigenschappen.
+- Firmware: schuifgebaren correct verwerken, brede mini-slider zonder handvat, concrete historie-as.
+- Nieuwe vacuumkaart met robotweergave, actieve zuigkracht en druk-/opdrachtfeedback.
+
 # 0.2.0
 
 - ESPHome CLI in de app: bestaande profielen controleren, bouwen en via USB/OTA installeren.

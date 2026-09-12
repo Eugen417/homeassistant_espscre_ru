@@ -6,7 +6,8 @@ let inventory = { screens: [], entities: [] },
   dirty = false,
   filter = "",
   dragIndex = -1,
-  busy = false;
+  busy = false,
+  selectedTile = null;
 const node = (tag, text, cls) => {
   const n = document.createElement(tag);
   if (text !== undefined) n.textContent = text;
@@ -256,7 +257,22 @@ function renderTiles() {
       actions.append(b);
     }
     const options = node("details", undefined, "tile-options");
-    options.append(node("summary", "Tegelinstellingen"));
+    options.append(node("summary", "Bediening & weergave instellen"));
+    options.open = selectedTile === tile.entity;
+    options.ontoggle = () => {
+      li.classList.toggle("selected-tile", options.open);
+      if (options.open) {
+        selectedTile = tile.entity;
+        document.querySelectorAll(".tile-options").forEach((other) => {
+          if (other !== options) other.open = false;
+        });
+      }
+    };
+    li.onclick = (e) => {
+      if (!e.target.closest("input, select, button, summary, .tile-options"))
+        options.open = !options.open;
+    };
+    const controls = {};
     const domain = tile.entity.split(".")[0];
     const fields = [
       [
@@ -295,10 +311,10 @@ function renderTiles() {
     )
       fields.push([
         "inline",
-        "Op de tegel",
+        "Kleine slider op deze tegel?",
         [
-          ["none", "Geen extra bediening"],
-          ["slider", "Mini-schuif"],
+          ["none", "Nee"],
+          ["slider", "Ja, direct bedienen"],
         ],
       ]);
     if (domain === "sensor")
@@ -328,6 +344,7 @@ function renderTiles() {
             : key === "history_hours"
               ? 24
               : "none");
+      controls[key] = input;
       input.onchange = () => {
         tile.options = {
           ...tile.options,
@@ -337,11 +354,18 @@ function renderTiles() {
           tile.options.inline = "none";
         if (key === "inline" && input.value === "slider")
           tile.options.display = "standard";
+        for (const [field, control] of Object.entries(controls)) {
+          if (tile.options[field] !== undefined)
+            control.value = tile.options[field];
+        }
         markDirty();
       };
       label.append(input);
       options.append(label);
     }
+    const inspectTile = node("button", "Inspecteer deze tegel", "quiet");
+    inspectTile.onclick = () => inspect(tile.entity);
+    options.append(inspectTile);
     content.append(options);
     li.append(node("span", "⠿", "grip"), content, actions);
     $("#tiles").append(li);
@@ -430,7 +454,7 @@ $("#save").onclick = async () => {
   } catch (e) {
     toast(e.message);
   } finally {
-    busy = false;
+    ((busy = false), (selectedTile = null));
     $("#save").disabled = false;
   }
 };
@@ -625,17 +649,50 @@ $("#create-profile").onclick = async () => {
     toast(e.message);
   }
 };
-$("#inspect").onclick = async () => {
+function openSection(id) {
+  const section = $(id);
+  if (section.tagName === "DETAILS") section.open = true;
+  section.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+$("#nav-tiles").onclick = () => openSection("#tile-section");
+$("#nav-settings").onclick = () => openSection("#general-settings");
+$("#nav-inspector").onclick = () => inspect();
+async function inspect(entity) {
   if (!selected) return;
+  openSection("#inspector-section");
+  $("#inspection-summary").textContent = "Actuele HA-status ophalen...";
   try {
+    const data = await (
+      await api(`screens/${encodeURIComponent(selected)}/inspect`)
+    ).json();
+    const tiles = entity
+      ? data.tiles.filter((t) => t.entity === entity)
+      : data.tiles;
+    $("#inspection-summary").replaceChildren();
+    for (const tile of tiles) {
+      const card = node("article", undefined, "inspection-tile");
+      card.append(
+        node("strong", tile.entity),
+        node("p", `Status: ${tile.state}`),
+      );
+      const options =
+        layout.tiles.find((t) => t.entity === tile.entity)?.options || {};
+      card.append(
+        node(
+          "small",
+          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${options.display === "watch" ? "grote waarde" : "standaard"}`,
+        ),
+      );
+      $("#inspection-summary").append(card);
+    }
     $("#inspection").textContent = JSON.stringify(
-      await (
-        await api(`screens/${encodeURIComponent(selected)}/inspect`)
-      ).json(),
+      entity ? tiles[0] : data,
       null,
       2,
     );
   } catch (e) {
+    $("#inspection-summary").textContent = e.message;
     toast(e.message);
   }
-};
+}
+$("#inspect").onclick = () => inspect();

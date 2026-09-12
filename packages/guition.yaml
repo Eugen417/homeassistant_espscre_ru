@@ -586,7 +586,7 @@ esphome:
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
-    version: "0.2.0"
+    version: "0.2.1"
   platformio_options:
     build_flags:
       - -DLV_USE_SNAPSHOT=1
