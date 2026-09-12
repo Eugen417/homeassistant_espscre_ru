@@ -48,6 +48,11 @@ en een unieke apparaatnaam zoals `scherm-keuken`. Klik **Maak installatie-YAML**
 ESPHome te plakken, of **Download bestand**. Op een HTTP-verbinding kan Chrome
 downloads blokkeren; de kopieeroptie blijft bruikbaar.
 
+Bij **Bewaar profiel in ESP Screens** controleert de wizard automatisch de bestaande
+ESPHome `secrets.yaml`. Zijn `wifi_ssid` en `wifi_password` aanwezig, dan hoef je
+geen wifi in te vullen. Alleen bij een eerste installatie zonder secretsbestand
+vraagt hij die gegevens één keer. Bestaande secrets worden niet overschreven.
+
 Dit bestand bevat unieke API- en OTA-sleutels. Bewaar het. Maak voor ieder nieuw
 scherm een nieuw bestand. Download voor een bestaand scherm niet telkens een nieuw
 bestand: daarmee zou je nieuwe sleutels genereren.

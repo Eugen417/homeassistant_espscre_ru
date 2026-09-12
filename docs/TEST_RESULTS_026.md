@@ -14,3 +14,8 @@ behoud van bestaande secrets, geen secretwaarden in status/profiel, eerste
 installatie en ongeldige YAML. JavaScript-syntax en Git-diff gecontroleerd.
 Browserpreview: bij bestaande wifi alleen bevestiging zichtbaar, geen wifi-invoer;
 profiel aanmaken beschikbaar. Test gebruikt geen echte wifiwaarden.
+
+Alle acht C++-regressies geslaagd; firmware is niet gewijzigd. De HA-add-on is
+met back-up bijgewerkt van 0.2.4 naar 0.2.6. De echte firmware-status-API meldt
+wifi state=ready en geen ontbrekende sleutels. Indelingen en instellingen voor/na
+exact gelijk. Geen nieuw fysiek apparaat aangemaakt of geflasht tijdens deze test.
