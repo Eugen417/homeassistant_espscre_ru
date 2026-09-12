@@ -1,3 +1,7 @@
+## 0.2.2
+
+- Firmware: terug naar pagina 1 bij standby sluit nu ook runtime-detailkaarten, waaronder vacuum, historie en media. Installeer hiervoor de nieuwe schermfirmware via Firmware & USB.
+
 ## 0.2.1
 
 - Algemene instellingen en Inspector direct bovenaan bereikbaar.

@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.1"
+  SCREEN_FIRMWARE_VERSION: "0.2.2"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "guition-new"
@@ -769,6 +769,8 @@ api:
               cfg.night_enabled, cfg.night_start, cfg.night_end, cfg.night_brightness,
               cfg.show_clock, cfg.clock_24h, cfg.home_on_standby,
               (unsigned)(millis() - id(last_touch_ms)), id(display_dimmed));
+            ESP_LOGI("ui_diag", "navigation page=%d runtime_detail=%d", id(tile_page),
+              runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
             lv_area_t nav, grid;
             lv_obj_update_layout(id(home_page)->obj);
             lv_obj_get_coords(id(page_next), &nav);
@@ -4502,6 +4504,9 @@ script:
                 id(display_dimmed) = true;
                 id(apply_screen_settings).execute();
                 if (screen_settings::current.home_on_standby) {
+                  // Runtime detail cards live above the tile grid, so paging alone cannot close them.
+                  runtime_tiles::hide_detail();
+                  id(active_entity).clear();
                   id(tile_page) = 0;
                   id(show_tile_page).execute();
                 }
