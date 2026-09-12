@@ -49,6 +49,44 @@ De voorbeeldconfig vult ook de overige velden in. Laat die staan tenzij je
 ze bewust gebruikt. `STATE_ENTITY` kan bij een scène/script een echte lamp of
 schakelaar volgen; een scène heeft zelf geen betrouwbare aan/uitstatus.
 
+## Kleur, wittemperatuur en helderheid
+
+Een RGB-/kleurenlamp met `LONGPRESS: "slider"` opent direct de lampkaart.
+Deze bevat maximaal drie horizontale schuiven:
+
+- **Kleur:** een doorlopende regenboog (0–360° hue, 100% verzadiging).
+- **Wittemperatuur:** warm naar koel, binnen de minimum-/maximum-Kelvinwaarden
+  die de lamp in Home Assistant meldt.
+- **Helderheid:** 1–100%; aan/uit blijft via de tegel beschikbaar.
+
+De kleur- en witschuif verschijnen alleen als `supported_color_modes` deze
+ondersteunt. Een uitsluitend dimbare lamp houdt de gewone helderheidskaart.
+Er zijn geen extra tegelinstellingen nodig. Gebruik voor een lamp dezelfde
+`ENTITY` en `STATE_ENTITY`. De kleurkaart volgt `hs_color`, `color_temp_kelvin`,
+`min_color_temp_kelvin` en `max_color_temp_kelvin` van de bediende entiteit.
+Ontbreekt het temperatuurbereik, dan wacht de witschuif op HA-gegevens.
+
+De kaart neemt bij openen de laatst ontvangen lampwaarden over. Slepen toont
+lokaal de gekozen waarde; pas loslaten verstuurt één opdracht. Kleur kiest de
+kleurmodus, wittemperatuur kiest de witmodus. Helderheid verandert de kleurmodus
+niet. De regenboog regelt hue; pastel/verzadiging is geen aparte regelaar.
+De hue-lijst wordt via ESPHome `data_template` naar HA gestuurd; zie de
+[officiële API-documentatie](https://esphome.io/components/api/#homeassistantaction-action).
+
+De gedeelde implementatie staat in `light_controls.h`. Beide schermprofielen
+gebruiken deze; de Guition heeft grotere regelaars, de CYD een compacte kaart.
+`diagnostics/run_ui_test.py` controleert ook de schuifevents met vervangen
+callbacks: geen echte HA-acties. Voor een veilige 40-secondenvoorbeeldkaart:
+
+```sh
+python diagnostics/control_ui.py light_controls_preview --host guition-wallbox.local --name guition-wallbox
+```
+
+Gebruik voor CYD de eigen host en naam. Tijdens deze voorbeeldkaart worden
+lichtopdrachten onderdrukt en verdwijnt de kaart vanzelf. Test vervolgens de
+werkelijke lamp: lang indrukken, kleur kiezen, wit kiezen, helderheid aanpassen,
+sluiten en heropenen. Controleer de fysieke lamp en de waarden in HA.
+
 ## Voorbeelden
 
 Wijzig deze sleutels in de bestaande map; plak niet nogmaals `substitutions:`.

@@ -24,6 +24,7 @@ async def main():
         failures = []
         passes = []
         frames = []
+        slider_pass = []
         def log(msg):
             text = msg.message.decode(errors='replace') if isinstance(msg.message, bytes) else msg.message
             if any(tag in text for tag in ('ui_test', 'UI_TEST', '[health', 'took a long')):
@@ -32,6 +33,7 @@ async def main():
                 passes.append(text)
                 match = re.search(r'frames=(\d+)', text)
                 if match: frames.append(int(match[1]))
+            if 'Light sliders: PASS' in text: slider_pass.append(text)
             if 'FAIL' in text: failures.append(text)
             if 'UI_TEST COMPLETE' in text: done.set()
         client.subscribe_logs(log, log_level=LogLevel.LOG_LEVEL_DEBUG, dump_config=False)
@@ -39,6 +41,7 @@ async def main():
         await asyncio.wait_for(done.wait(), timeout=45)
         assert len(passes) == 10, f'Expected 10 page checks, got {len(passes)}'
         assert not failures, failures
+        assert slider_pass, "Missing light slider event/capability check"
         assert len(frames) == 10 and frames[-1] - frames[0] >= 40, f'Render callbacks stalled: {frames}' 
         print('PASS: 10 page checks and 50 overlay render cycles completed', flush=True)
     finally:

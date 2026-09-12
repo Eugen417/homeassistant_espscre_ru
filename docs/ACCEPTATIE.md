@@ -52,7 +52,11 @@ python -m unittest discover -s tests -p 'test_*.py'
 c++ -std=c++17 -Wall -Wextra -pedantic tests/test_cyd_ui.cpp -o /tmp/test_cyd_ui
 /tmp/test_cyd_ui
 c++ -std=c++17 -Wall -Wextra -pedantic tests/test_touch_filter.cpp -o /tmp/test_touch_filter
+c++ -std=c++17 -Wall -Wextra -pedantic tests/test_light_controls.cpp -o /tmp/test_light_controls
+/tmp/test_light_controls
 /tmp/test_touch_filter
+c++ -std=c++17 -Wall -Wextra -pedantic tests/test_light_controls.cpp -o /tmp/test_light_controls
+/tmp/test_light_controls
 python -m esphome config device.yaml
 python -m esphome compile device.yaml
 ```
@@ -79,3 +83,16 @@ Lokale profielbestanden veilig bewaard:
 Geef de eigenaar de drie lokale YAML-bestanden en de meetbestanden via een
 passend privé-kanaal. Gebruik voor een andere eigenaar de schone repository
 of starter-ZIP, zodat die eigen sleutels en eigen paneelkalibratie krijgt.
+
+## Lichtkaart
+
+- RGB+wit-lamp: drie schuiven; RGB-only: kleur en helderheid; wit-only:
+  wittemperatuur en helderheid. Een gewone dimmer behoudt de helderheidskaart.
+- Sleep langzaam over de regenboog, laat los en controleer de fysieke lamp.
+  Herhaal voor wittemperatuur en helderheid. Helderheid behoudt de kleurmodus.
+- Heropen de kaart en controleer de ontvangen waarden. Test twee lampen met
+  verschillende temperatuurbereiken; er mag geen waarde van de andere lamp lekken.
+- Firmware-renderdiagnose bevat `Light sliders: PASS`: twintig preview-events
+  per schuif, precies één commit bij loslaten, geen dubbele commit, geen commit
+  na een afgebroken aanraking en vier capabilitycombinaties. Dit gebeurt met
+  vervangen callbacks en bedient geen echte lampen.
