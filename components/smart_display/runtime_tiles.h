@@ -222,8 +222,8 @@ inline void commit_slider(unsigned i,int raw){
 }
 inline void detail_button(const char *text,int x,int y,int width,int height,int command){
   auto *button=lv_obj_create(detail_root);lv_obj_remove_style_all(button);lv_obj_set_pos(button,x,y);lv_obj_set_size(button,width,height);
-  lv_obj_set_style_bg_color(button,lv_color_hex(light_theme?0xE7EFF5:0x34495E),0);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);lv_obj_set_style_radius(button,12,0);lv_obj_add_flag(button,LV_OBJ_FLAG_CLICKABLE);
-  auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_bg_color(button,lv_color_hex(light_theme?(command==0?0x009FE3:0xD9E6F0):0x34495E),0);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);lv_obj_set_style_radius(button,12,0);lv_obj_add_flag(button,LV_OBJ_FLAG_CLICKABLE);
+  auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);if(command==0)lv_obj_set_style_text_color(label,lv_color_hex(0xFFFFFF),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(button,[](lv_event_t *e){
     int cmd=(intptr_t)lv_event_get_user_data(e);if(cmd==-1){hide_detail();return;}
     if(!fresh()||detail_index>=model.count || !cyd::touch_guard.accept(esphome::millis(),300+cmd))return;
@@ -244,9 +244,10 @@ inline void show_detail(unsigned index){
   lv_obj_set_style_bg_color(detail_root,lv_color_hex(light_theme?0xEFEFEF:0x202A38),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
-  detail_label(detail_root,t.name,pad,large?24:12,width-80);
+  auto *heading=detail_label(detail_root,t.name,pad,large?24:12,width-80);if(watch_font){lv_obj_set_style_text_font(heading,watch_font,0);lv_obj_set_height(heading,lv_font_get_line_height(watch_font));}
   detail_button("X",width-58,8,48,40,-1);
-  detail_label(detail_root,t.state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
+  std::string state=t.state=="docked"?"In dock":t.state=="cleaning"?"Bezig met schoonmaken":t.state=="paused"?"Gepauzeerd":t.state;
+  detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
   auto d=t.domain();
   if(d=="vacuum"){
     std::string summary=std::isfinite(t.battery)?"Accu "+std::to_string((int)t.battery)+"%":"Robotstofzuiger";
@@ -258,7 +259,7 @@ inline void show_detail(unsigned index){
   }else if(d=="sensor"){
     float minimum=INFINITY,maximum=-INFINITY;for(float value:t.history)if(t.has_history&&std::isfinite(value)){minimum=std::min(minimum,value);maximum=std::max(maximum,value);}
     if(!std::isfinite(minimum)){detail_label(detail_root,"Geen numerieke HA-historie",pad,top,width-2*pad);return;}
-    char text[100];snprintf(text,sizeof(text),"%u uur · %.2f - %.2f %s",t.history_hours,minimum,maximum,t.unit.c_str());detail_label(detail_root,text,pad,top,width-2*pad);
+    char text[100];snprintf(text,sizeof(text),"%u uur / %.2f - %.2f %s",t.history_hours,minimum,maximum,t.unit.c_str());detail_label(detail_root,text,pad,top,width-2*pad);
     int chart_y=top+(large?46:28),chart_h=height-chart_y-30,bar_w=(width-pad*2)/24;
     for(unsigned i=0;i<24;++i){if(!std::isfinite(t.history[i]))continue;int h=maximum>minimum?8+(chart_h-8)*(t.history[i]-minimum)/(maximum-minimum):chart_h/2;
       auto *bar=lv_obj_create(detail_root);lv_obj_remove_style_all(bar);lv_obj_set_pos(bar,pad+i*bar_w,chart_y+chart_h-h);lv_obj_set_size(bar,std::max(2,bar_w-2),h);lv_obj_set_style_bg_color(bar,lv_color_hex(0x16A5E6),0);lv_obj_set_style_bg_opa(bar,LV_OPA_COVER,0);}
@@ -275,7 +276,7 @@ inline void show_detail(unsigned index){
     auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
     lv_obj_add_event_cb(slider,[](lv_event_t *e){if(cyd::touch_guard.accept(esphome::millis(),399))commit_slider(detail_index,lv_slider_get_value(lv_event_get_target_obj(e)));},LV_EVENT_RELEASED,nullptr);
   }else if(d=="weather"){
-    char text[80];snprintf(text,sizeof(text),"%.1f %s",t.current,t.unit.c_str());auto *value=detail_label(detail_root,text,pad,top,width-2*pad);if(watch_font)lv_obj_set_style_text_font(value,watch_font,0);
+    char text[80];snprintf(text,sizeof(text),"%.1f %s",t.current,t.unit.c_str());auto *value=detail_label(detail_root,text,pad,top,width-2*pad);if(watch_font){lv_obj_set_style_text_font(value,watch_font,0);lv_obj_set_height(value,lv_font_get_line_height(watch_font));}
   }
 }
 }
@@ -362,7 +363,7 @@ inline void render(lv_obj_t *room) {
     else if (!t.unit.empty()) value += " " + t.unit;
     bool pending=t.loading(esphome::millis());
     if(t.domain()=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;}
-    if(t.domain()=="vacuum" && std::isfinite(t.battery))value += " · "+std::to_string((int)t.battery)+"%";
+    if(t.domain()=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
     label(w.value, pending ? "Bezig..." : value);
     lv_obj_set_width(w.progress,pending ? (esphome::millis()/120%5+1)*(lv_obj_get_width(w.tile)-24)/5 : 0);
     lv_obj_set_style_text_opa(w.icon,pending ? LV_OPA_40 : LV_OPA_COVER,0);

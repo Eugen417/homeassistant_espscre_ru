@@ -3684,7 +3684,7 @@ lvgl:
                     arc_width: 30
                     arc_rounded: true
                   knob:
-                    bg_color: 0xFFFFFF
+                    bg_color: 0x111111
                     bg_opa: COVER
                     border_width: 0
                     shadow_width: 0
