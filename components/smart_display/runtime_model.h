@@ -19,6 +19,9 @@ inline bool valid_entity(const std::string &entity) {
     if (domain == allowed) return true;
   return false;
 }
+inline std::string state_revision(const std::string &state, const std::string &attributes) {
+  return state + "\n" + attributes;
+}
 struct Tile {
   std::string entity, name, state, unit, modes, hvac_modes;
   std::array<std::string, 4> fan_speeds;
@@ -40,7 +43,8 @@ struct Tile {
   std::string revision, pending_revision;
   uint32_t pending_since = 0;
   bool pending = false, confirmed = false, local_feedback = false;
-  bool loading(uint32_t now) const { return pending && (now-pending_since < 1000 || (!confirmed && !local_feedback && now-pending_since < 6000)); }
+  bool is_switch() const { return domain()=="switch" || domain()=="input_boolean"; }
+  bool loading(uint32_t now) const { return pending && (now-pending_since < (is_switch()?150u:1000u) || (!confirmed && !local_feedback && now-pending_since < 6000)); }
   bool awaiting_action(uint32_t now) const { return loading(now) && !local_feedback; }
   void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; }
   void observe(const std::string &next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }

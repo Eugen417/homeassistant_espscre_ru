@@ -23,6 +23,7 @@ inline esphome::ESPPreferenceObject swipe_preference;
 inline Model model;
 inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
+inline const lv_font_t *mini_icon_font = nullptr;
 inline void tick();
 inline void refresh_detail(unsigned index);
 inline int active_index = -1;
@@ -60,7 +61,7 @@ inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
   return s.valid();
 }
 inline std::function<void(Tile &)> detail, detail_update;
-struct Widgets { lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}; int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}; };
+struct Widgets { lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}; int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{}; };
 inline std::array<Widgets, 10> widgets;
 inline bool fresh() { return model.ready() && esphome::millis() - last_received < 95000; }
 inline float number(JsonVariant value, float fallback = NAN) {
@@ -134,8 +135,13 @@ inline std::string receive(const std::string &payload) {
     if (!model.accepts(index, entity)) { result = "Fout: verouderde tegel"; return false; }
     Tile &tile = model.tiles[index];
     auto a = root["a"].as<JsonObject>();
-    std::string revision = string(root["state"]); serializeJson(a, revision);
+    // ArduinoJson clears its destination string: serialize attributes first, then add state.
+    std::string attributes; serializeJson(a, attributes);
+    std::string revision = state_revision(string(root["state"]), attributes);
+    bool was_confirmed=tile.confirmed;
     tile.observe(revision);
+    if(tile.pending && !tile.local_feedback && !was_confirmed && tile.confirmed)
+      ESP_LOGI("runtime_action","HA state received entity=%s elapsed=%u ms",entity.c_str(),(unsigned)(esphome::millis()-tile.pending_since));
     auto options = root["o"];
     tile.background = tile_palette::color(string(options["background"],16));
     tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
@@ -208,6 +214,8 @@ inline void action(const std::string &service, const std::string &entity, const 
   if(!key.empty()) {esphome::api::HomeassistantServiceMap param;param.key=esphome::StringRef(key);param.value=esphome::StringRef(value);request.data.push_back(param);}
   for(auto &tile:model.tiles) if(tile.entity==entity)tile.begin(esphome::millis());
   esphome::api::global_api_server->send_homeassistant_action(request);
+  ESP_LOGI("runtime_action","Sent service=%s entity=%s",service.c_str(),entity.c_str());
+  if(refresh)refresh();
 }
 inline void setting_event(const std::string &key, int value) {
   if(inbox.empty())return;
@@ -227,12 +235,15 @@ inline lv_obj_t *detail_actions[16]{};
 inline unsigned detail_action_count=0;
 inline lv_obj_t *detail_status=nullptr;
 inline lv_obj_t *detail_badge_status=nullptr;
+inline lv_obj_t *detail_switch=nullptr;
 inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int y,int width) {
   auto *label=lv_label_create(parent);lv_label_set_text(label,text.c_str());lv_obj_set_pos(label,x,y);lv_obj_set_width(label,width);
   lv_obj_set_style_text_font(label,detail_font,0);lv_obj_set_style_text_color(label,lv_color_hex(light_theme?0x202020:0xFFFFFF),0);
   lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);lv_obj_set_height(label,lv_font_get_line_height(detail_font));return label;
 }
 inline std::string detail_state(const Tile &t){
+  if(t.state=="on")return "Aan";
+  if(t.state=="off")return "Uit";
   if(t.state=="docked")return "In dock";
   if(t.state=="cleaning")return "Bezig met schoonmaken";
   if(t.state=="paused")return "Gepauzeerd";
@@ -304,7 +315,7 @@ inline void show_detail(unsigned index){
   if(index>=model.count)return;detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
   if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
-  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
+  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,lv_color_hex(light_theme?0xE7E7E7:0x202A38),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
@@ -313,7 +324,28 @@ inline void show_detail(unsigned index){
   std::string state=detail_state(t);
   detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
   auto d=t.domain();
-  if(d=="vacuum"){
+  if(t.is_switch()){
+    detail_label(detail_root,"Tik om te schakelen",pad,top,width-2*pad);
+    detail_switch=lv_switch_create(detail_root);
+    lv_obj_set_size(detail_switch,large?240:140,large?112:64);
+    lv_obj_set_pos(detail_switch,(width-(large?240:140))/2,top+(large?65:30));
+    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xB0B0B0),LV_PART_MAIN);
+    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xFFB900),LV_PART_INDICATOR|LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xFFFFFF),LV_PART_KNOB);
+    lv_obj_set_style_opa(detail_switch,LV_OPA_50,LV_STATE_DISABLED);
+    if(t.state=="on")lv_obj_add_state(detail_switch,LV_STATE_CHECKED);
+    lv_obj_add_event_cb(detail_switch,[](lv_event_t *e){
+      if(detail_index>=model.count)return;
+      auto &tile=model.tiles[detail_index];auto *control=lv_event_get_target_obj(e);
+      bool allowed=fresh() && tile.available() && !tile.awaiting_action(esphome::millis()) &&
+        cyd::touch_guard.accept(esphome::millis(),350);
+      bool requested_on=lv_obj_has_state(control,LV_STATE_CHECKED);
+      // Only HA's reported state is authoritative, including a refused/failed command.
+      if(tile.state=="on")lv_obj_add_state(control,LV_STATE_CHECKED);else lv_obj_remove_state(control,LV_STATE_CHECKED);
+      if(allowed)action(tile.domain()+(requested_on?".turn_on":".turn_off"),tile.entity);
+    },LV_EVENT_VALUE_CHANGED,nullptr);
+    detail_actions[detail_action_count++]=detail_switch;
+  }else if(d=="vacuum"){
     // Native shapes keep the robot crisp without image buffers or extra layers.
     auto shape=[&](lv_obj_t *parent,int x,int y,int w,int h,uint32_t color,int radius){
       auto *o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
@@ -422,7 +454,7 @@ inline void event(lv_event_t *event) {
       active_index = w.index;
       tile.begin(esphome::millis(),true);
       if (detail) detail(tile);
-    } else { active_index=w.index;tile.begin(esphome::millis(),true);show_detail(w.index); }
+    } else { active_index=w.index;show_detail(w.index); }
     return;
   }
   if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") action(d + ".toggle", tile.entity);
@@ -432,9 +464,11 @@ inline void event(lv_event_t *event) {
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
   // Compact cards need room for two text lines and a separate dimmer track.
   if(lv_obj_get_height(tile)<=80){lv_obj_set_style_pad_top(tile,4,0);lv_obj_set_style_pad_bottom(tile,4,0);}
+  lv_obj_set_style_border_width(tile,1,0);
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
+  w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   // Fixed one-line boxes prevent wrapped names from overlapping the state on both boards.
   lv_obj_set_height(title,lv_font_get_line_height(lv_obj_get_style_text_font(title,LV_PART_MAIN)));
   lv_obj_set_height(value,lv_font_get_line_height(w.value_font));
@@ -505,22 +539,32 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_width(w.progress,pending ? (esphome::millis()/120%5+1)*(lv_obj_get_width(w.tile)-24)/5 : 0);
     lv_obj_set_style_text_opa(w.icon,pending ? LV_OPA_40 : LV_OPA_COVER,0);
     bool watch=t.display=="watch";
-    lv_obj_set_style_text_font(w.value,watch && watch_font ? watch_font : w.value_font,0);
-    lv_obj_set_height(w.value,lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN)));
-    lv_obj_set_pos(w.value,watch?0:w.value_x,watch?(lv_obj_get_height(w.tile)>80?42:19):w.value_y);
-    if(watch)lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(w.circle,LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_x(w.title,watch?0:w.title_x);
     bool mini=t.inline_control=="slider" && !watch && t.available();
     bool large_tile=lv_obj_get_height(w.tile)>80;
-    lv_obj_set_y(w.title,mini?0:w.title_y);
-    if(mini){lv_obj_set_y(w.value,large_tile?24:lv_obj_get_height(w.title)+1);lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);lv_obj_set_x(w.title,0);lv_obj_set_x(w.value,0);}
-    // Labels default to content-sized widths. Explicit bounds are necessary for
-    // LVGL ellipsis, and must expand again when the icon is hidden for a slider.
+    lv_obj_set_style_text_font(w.value,watch && watch_font ? watch_font : w.value_font,0);
+    lv_obj_set_height(w.value,lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN)));
     lv_obj_update_layout(w.tile);
-    int content_width=lv_obj_get_content_width(w.tile);
-    lv_obj_set_width(w.title,std::max(1,content_width-(int)lv_obj_get_x(w.title)));
-    lv_obj_set_width(w.value,std::max(1,content_width-(int)lv_obj_get_x(w.value)));
-    lv_obj_set_size(w.slider,content_width,large_tile?28:8);
+    int content_width=lv_obj_get_content_width(w.tile),content_height=lv_obj_get_content_height(w.tile);
+    int title_height=lv_obj_get_height(w.title),value_height=lv_obj_get_height(w.value);
+    int line_gap=large_tile?2:1,text_height=title_height+line_gap+value_height;
+    int slider_height=large_tile?28:8;
+    int header_height=mini?content_height-slider_height-(large_tile?6:3):content_height;
+    int text_y=std::max(0,(header_height-text_height)/2);
+    int circle_size=mini?(large_tile?36:24):(large_tile?54:36);
+    lv_obj_set_size(w.circle,circle_size,circle_size);
+    lv_obj_set_style_text_font(w.icon,mini && mini_icon_font ? mini_icon_font : w.icon_font,0);
+    lv_obj_center(w.icon);
+    if(watch)lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(w.circle,LV_OBJ_FLAG_HIDDEN);
+    int text_x=watch?0:mini?circle_size+(large_tile?8:6):w.title_x;
+    lv_obj_set_pos(w.title,text_x,watch?0:(mini || !large_tile)?text_y:w.title_y);
+    lv_obj_set_pos(w.value,watch?0:mini?text_x:w.value_x,
+      watch?(large_tile?42:19):(mini || !large_tile)?text_y+title_height+line_gap:w.value_y);
+    lv_obj_set_pos(w.circle,0,(mini || !large_tile)?std::max(0,(header_height-circle_size)/2):12);
+    // Use the requested coordinates: LVGL getters still return the previous
+    // layout until its next pass when a slot changes from watch/slider to normal.
+    lv_obj_set_width(w.title,std::max(1,content_width-text_x));
+    lv_obj_set_width(w.value,std::max(1,content_width-(watch?0:mini?text_x:w.value_x)));
+    lv_obj_set_size(w.slider,content_width,slider_height);
     lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);
     if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
     else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
@@ -530,7 +574,7 @@ inline void render(lv_obj_t *room) {
     if (w.cached_active == palette_state) continue;
     w.cached_active = palette_state;
     uint32_t accent = domain_accent(t);
-    auto color=lv_color_hex(accent);
+    auto color=lv_color_hex(t.is_switch() && !on ? 0x9E9E9E : accent);
     if(t.domain()=="light" && on && t.has_hs_color)
       color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
     bool dark_text=light_theme || t.background!=0;
@@ -564,6 +608,20 @@ inline bool check_tile_geometry() {
     if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
       lv_obj_get_coords(w.slider,&track);
       fits=fits && value.y2<track.y1 && track.y2<=content.y2;
+    }
+    if(!lv_obj_has_flag(w.circle,LV_OBJ_FLAG_HIDDEN)){
+      lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
+      bool mini=!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+      fits=fits && circle.x1>=content.x1 && circle.x2<title.x1 && circle.y1>=content.y1;
+      if(mini)fits=fits && circle.y2<track.y1;
+      else fits=fits && circle.y2<=content.y2;
+      if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,circle.x1,circle.y1,circle.x2,circle.y2,title.x1,content.x1,content.y1,content.x2,content.y2);
+      if(mini || lv_obj_get_height(w.tile)<=80){
+        int header_bottom=mini?track.y1-(lv_obj_get_height(w.tile)>80?6:3)-1:content.y2;
+        int center_twice=content.y1+header_bottom;
+        fits=fits && std::abs(circle.y1+circle.y2-center_twice)<=2 &&
+          std::abs(title.y1+value.y2-center_twice)<=2;
+      }
     }
     if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
     if(w.index<model.count && model.tiles[w.index].background){
@@ -603,6 +661,10 @@ inline void tick() {
     std::string status=waiting?(t.confirmed?"Bevestigd door Home Assistant":"Opdracht verstuurd..."):detail_state(t);
     if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));
     if(detail_badge_status)label(detail_badge_status,status);
+    if(detail_switch && !lv_obj_has_state(detail_switch,LV_STATE_PRESSED)){
+      if(t.state=="on")lv_obj_add_state(detail_switch,LV_STATE_CHECKED);
+      else lv_obj_remove_state(detail_switch,LV_STATE_CHECKED);
+    }
   }
   if(!enabled)return;
   bool redraw=false;

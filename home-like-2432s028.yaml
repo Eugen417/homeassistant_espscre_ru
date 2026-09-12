@@ -58,7 +58,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.10"
+  SCREEN_FIRMWARE_VERSION: "0.2.12"
   DYNAMIC_TILES: "false"
   DASHBOARD_INBOX_INTERNAL: "true"
   DEVICE_NAME: "cyd-new"
@@ -779,6 +779,9 @@ esphome:
   project:
     name: maxgramser.esp_screen
     version: "${SCREEN_FIRMWARE_VERSION}"
+  platformio_options:
+    build_flags:
+      - -DLV_USE_SWITCH=1
   includes:
     - cyd_ui.h
     - light_controls.h
@@ -807,6 +810,7 @@ esphome:
           settings.night_end = atoi("${NIGHT_END_HOUR}") * 60;
           settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
           runtime_tiles::watch_font = id(headline)->get_lv_font();
+          runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
           runtime_tiles::load_settings();
@@ -1228,6 +1232,26 @@ font:
   - file: 'fonts/materialdesignicons-webfont.ttf'
     id: materialdesign_icons
     size: 28
+    glyphs:
+      - "\U000F0335"
+      - "\U000F0210"
+      - "\U000F111C"
+      - "\U000F029A"
+      - "${MDI_GLYPH_1}"
+      - "${MDI_GLYPH_2}"
+      - "${MDI_GLYPH_3}"
+      - "${MDI_GLYPH_4}"
+      - "${MDI_GLYPH_5}"
+      - "${MDI_GLYPH_6}"
+      - "${MDI_GLYPH_7}"
+      - "${MDI_GLYPH_8}"
+      - "${MDI_GLYPH_9}"
+      - "${MDI_GLYPH_10}"
+      - "\U000F012C" # check
+
+  - file: 'fonts/materialdesignicons-webfont.ttf'
+    id: materialdesign_icons_mini
+    size: 18
     glyphs:
       - "\U000F0335"
       - "\U000F0210"

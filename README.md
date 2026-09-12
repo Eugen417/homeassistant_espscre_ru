@@ -44,6 +44,12 @@ De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
 Functies hangen af van de mogelijkheden die Home Assistant voor een entiteit
 meldt. De app moet blijven draaien om de schermen van actuele gegevens te voorzien.
 
+Vanaf firmware **0.2.12** toont lang indrukken op een switch een grote
+schakelaar. Een korte tik schakelt direct; de uitstand krijgt een grijs icoon.
+De feedback stopt zodra Home Assistant de gewijzigde stand meldt, met een
+minimum van 150 ms voor switches. Tegels met een mini-slider behouden hun
+icoon; op CYD staan het icoon en tekstblok verticaal gecentreerd.
+
 ## Installeren vanuit Home Assistant
 
 ### Heb ik ESPHome nodig?
