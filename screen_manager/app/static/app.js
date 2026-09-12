@@ -53,6 +53,7 @@ function select(id) {
   )
     return;
   selected = id;
+  selectedTile = null;
   const screen = inventory.screens.find((s) => s.id === id);
   if (!screen) return;
   layout = structuredClone(screen.layout);
@@ -193,13 +194,83 @@ function move(from, to) {
   markDirty();
   renderTiles();
 }
+const domains = {
+  light: ["Licht", "☀", "#ad7600", "#fff3d3"],
+  climate: ["Klimaat", "❄", "#c86620", "#ffebdc"],
+  vacuum: ["Stofzuiger", "◉", "#008577", "#def3ed"],
+  fan: ["Ventilator", "✣", "#008aab", "#def5fa"],
+  cover: ["Zonwering", "▤", "#8053af", "#eee5f8"],
+  media_player: ["Media", "▶", "#007cad", "#def2fc"],
+  sensor: ["Sensor", "⌁", "#3476b1", "#e5effa"],
+  binary_sensor: ["Status", "◈", "#ad7600", "#fff3d3"],
+  switch: ["Schakelaar", "⏻", "#ad7600", "#fff3d3"],
+  input_boolean: ["Schakelaar", "⏻", "#ad7600", "#fff3d3"],
+  scene: ["Scène", "✦", "#8053af", "#eee5f8"],
+  script: ["Script", "▷", "#8053af", "#eee5f8"],
+  weather: ["Weer", "☁", "#007cad", "#def2fc"],
+  number: ["Waarde", "±", "#008577", "#def3ed"],
+  input_number: ["Waarde", "±", "#008577", "#def3ed"],
+  select: ["Keuze", "≡", "#5862af", "#eaecfa"],
+  input_select: ["Keuze", "≡", "#5862af", "#eaecfa"],
+  button: ["Actie", "↗", "#5862af", "#eaecfa"],
+};
+function domainBadge(id) {
+  const [title, symbol, color, background] = domains[id.split(".")[0]] || ["Entiteit", "◇", "#637184", "#edf0f4"];
+  const badge = node("span", symbol, "domain-icon");
+  badge.title = title;
+  badge.setAttribute("aria-label", title);
+  badge.style.color = color;
+  badge.style.background = background;
+  return badge;
+}
+function renderPreview() {
+  const root = $("#layout-preview");
+  root.replaceChildren();
+  const pages = Math.max(1, Math.ceil(layout.tiles.length / 6));
+  for (let page = 0; page < pages; page++) {
+    const frame = node("section", undefined, "screen-preview");
+    frame.append(node("small", `Pagina ${page + 1} · ${$("#title").value || "Thuis"}`, "preview-heading"));
+    const grid = node("div", undefined, "preview-grid");
+    for (let slot = page * 6; slot < Math.min(page * 6 + 6, 10); slot++) {
+      const tile = layout.tiles[slot];
+      const card = node("button", undefined, "preview-tile");
+      if (tile) {
+        const name = tile.name || inventory.entities.find(e => e.id === tile.entity)?.name || tile.entity;
+        card.append(domainBadge(tile.entity), node("strong", name));
+        card.draggable = true;
+        card.ondragstart = (e) => { dragIndex = slot; e.dataTransfer.setData("text/plain", String(slot)); };
+        card.ondragend = () => { dragIndex = -1; };
+        card.ondragover = (e) => { if (dragIndex >= 0) e.preventDefault(); };
+        card.ondrop = (e) => { e.preventDefault(); if (dragIndex >= 0) move(dragIndex, slot); };
+        card.classList.toggle("chosen", selectedTile === tile.entity);
+        card.setAttribute("aria-label", `Tegel ${slot + 1}: ${name}, instellen`);
+        card.onclick = () => {
+          selectedTile = tile.entity;
+          renderTiles();
+          document.querySelectorAll("#tiles > .tile")[slot]?.scrollIntoView({behavior: "smooth", block: "center"});
+        };
+        if (tile.options?.inline === "slider") card.append(node("span", "", "preview-slider"));
+        if (tile.options?.display === "watch") card.append(node("small", "Grote waarde"));
+      } else {
+        card.classList.add("vacant");
+        card.append(node("span", "+"), node("small", "Tegel toevoegen"));
+        card.onclick = () => { $("#search").focus(); $("#search").scrollIntoView({behavior:"smooth", block:"center"}); };
+      }
+      grid.append(card);
+    }
+    frame.append(grid);
+    root.append(frame);
+  }
+}
 function renderTiles() {
+  renderPreview();
   $("#tiles").replaceChildren();
   $("#count").textContent = `${layout.tiles.length} / 10`;
   $("#no-tiles").hidden = layout.tiles.length > 0;
   layout.tiles.forEach((tile, i) => {
     if (i === 6) $("#tiles").append(node("li", "Pagina 2", "page-break"));
     const li = node("li", undefined, "tile");
+    li.classList.toggle("selected-tile", selectedTile === tile.entity);
     li.draggable = true;
     li.ondragstart = (e) => {
       if (e.target.closest("input, select, button")) {
@@ -231,6 +302,7 @@ function renderTiles() {
     input.oninput = () => {
       tile.name = input.value;
       markDirty();
+      renderPreview();
     };
     content.append(input, node("small", tile.entity));
     const actions = node("div", undefined, "tile-actions");
@@ -263,6 +335,7 @@ function renderTiles() {
       li.classList.toggle("selected-tile", options.open);
       if (options.open) {
         selectedTile = tile.entity;
+        renderPreview();
         document.querySelectorAll(".tile-options").forEach((other) => {
           if (other !== options) other.open = false;
         });
@@ -359,6 +432,7 @@ function renderTiles() {
             control.value = tile.options[field];
         }
         markDirty();
+        renderPreview();
       };
       label.append(input);
       options.append(label);
@@ -367,7 +441,7 @@ function renderTiles() {
     inspectTile.onclick = () => inspect(tile.entity);
     options.append(inspectTile);
     content.append(options);
-    li.append(node("span", "⠿", "grip"), content, actions);
+    li.append(domainBadge(tile.entity), content, actions);
     $("#tiles").append(li);
   });
 }
@@ -377,7 +451,8 @@ function renderResults() {
   const chosen = new Set(layout.tiles.map((t) => t.entity));
   const matches = inventory.entities.filter(
     (e) =>
-      (!filter || e.id.startsWith(filter + ".")) &&
+      (!filter || e.id.startsWith(filter + ".") ||
+        ({switch:"input_boolean", number:"input_number", select:"input_select"}[filter] === e.id.split(".")[0])) &&
       `${e.name} ${e.id} ${e.device} ${e.area}`
         .toLocaleLowerCase()
         .includes(query),
@@ -387,17 +462,20 @@ function renderResults() {
     const b = node("button", undefined, "result"),
       description = node("span");
     description.append(
-      node("span", entity.name),
+      node("strong", entity.name),
+      node("small", domains[entity.id.split(".")[0]]?.[0] || entity.id.split(".")[0], "domain-label"),
       node("small", [entity.area, entity.device].filter(Boolean).join(" · ")),
       node("small", entity.id),
     );
     b.append(
+      domainBadge(entity.id),
       description,
       node("span", chosen.has(entity.id) ? "✓" : "+", "plus"),
     );
     b.disabled = chosen.has(entity.id) || layout.tiles.length >= 10;
     b.onclick = () => {
       layout.tiles.push({ entity: entity.id, name: "" });
+      selectedTile = entity.id;
       markDirty();
       renderTiles();
       renderResults();
@@ -458,13 +536,19 @@ $("#save").onclick = async () => {
     $("#save").disabled = false;
   }
 };
-$("#title").oninput = markDirty;
+$("#title").oninput = () => { markDirty(); renderPreview(); };
 $("#search").oninput = renderResults;
 $("#refresh").onclick = refresh;
 for (const [value, label] of [
   ["", "Alles"],
   ["light", "Lampen"],
   ["climate", "Klimaat"],
+  ["switch", "Schakelaars"],
+  ["binary_sensor", "Status"],
+  ["button", "Acties"],
+  ["script", "Scripts"],
+  ["fan", "Ventilatoren"],
+  ["cover", "Zonwering"],
   ["scene", "Scènes"],
   ["vacuum", "Vacuum"],
   ["sensor", "Sensoren"],
@@ -474,6 +558,7 @@ for (const [value, label] of [
   ["select", "Keuzelijsten"],
 ]) {
   const b = node("button", label, value === "" ? "active" : "");
+  if (value) b.prepend(domainBadge(value + "."));
   b.onclick = () => {
     filter = value;
     $("#filters")

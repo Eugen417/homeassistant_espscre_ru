@@ -694,3 +694,29 @@ pre {
 #tile-section {
   scroll-margin-top: 16px;
 }
+
+/* The picker shares the screen's two-column, six-tile page structure. */
+.domain-icon { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; flex: 0 0 36px; border-radius: 50%; font-size: 22px; font-weight: 500; }
+.tile { grid-template-columns: 36px minmax(0, 1fr) auto; }
+.result { border: 1px solid var(--line); border-radius: 14px; background: white; margin-bottom: 8px; padding: 12px; }
+.result > span:nth-child(2) { flex: 1; min-width: 0; }
+.result strong { display: block; }
+.result .domain-label { display: inline-block; margin: 3px 0; color: var(--muted); }
+.filters button { display: inline-flex; align-items: center; gap: 5px; }
+.filters .domain-icon { width: 20px; height: 20px; flex-basis: 20px; font-size: 15px; }
+.screen-preview { background: #e7e7e7; border: 1px solid #d9dde2; border-radius: 22px; padding: 14px; margin-top: 14px; }
+.preview-heading { display: block; color: #49515a; margin: 0 2px 12px; }
+.preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.preview-tile { background: white; color: #25282c; border: 1px solid #ddd; border-radius: 15px; padding: 12px; min-height: 90px; text-align: left; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.preview-tile strong { flex: 1; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+.preview-tile .domain-icon { width: 30px; height: 30px; flex-basis: 30px; font-size: 20px; }
+.preview-tile.chosen { outline: 2px solid var(--accent); outline-offset: 1px; }
+.preview-tile.vacant { background: #f4f4f4; border-style: dashed; color: #727982; justify-content: center; }
+.preview-slider { height: 13px; flex-basis: 100%; border-radius: 10px; background: linear-gradient(to right, #ffbf38 60%, #fff1d3 60%); }
+.preview-tile small { flex-basis: 100%; }
+.result:hover:not(:disabled), .preview-tile:hover { border-color: #9eb6cf; box-shadow: 0 2px 7px #253f5010; }
+
+#tiles > .tile:not(.selected-tile), #tiles > .page-break { display: none; }
+#tiles > .selected-tile { background: #f8fafc; border-color: #aac4df; }
+.picker { position: sticky; top: 16px; }
+@media (max-width: 800px) { .picker { position: static; } }
