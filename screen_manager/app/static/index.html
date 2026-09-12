@@ -202,9 +202,12 @@
           /><small
             >Kleine letters, cijfers en streepjes. Elk scherm een andere
             naam.</small
-          ></label
-        ><label
-          >Wifi-naam (alleen bij eerste installatie)<input
+          ></label>
+        <p id="wifi-status" role="status"></p>
+        <fieldset id="wifi-fields" hidden disabled>
+          <legend>Wifi voor je eerste ESPHome-apparaat</legend>
+        <label
+          >Wifi-naam<input
             name="wifi_ssid"
             autocomplete="off"
         /></label>
@@ -214,6 +217,7 @@
             type="password"
             autocomplete="new-password"
         /></label>
+        </fieldset>
         <button type="button" id="create-profile">
           Bewaar profiel in ESP Screens
         </button>

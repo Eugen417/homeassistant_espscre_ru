@@ -569,8 +569,33 @@ for (const [value, label] of [
   };
   $("#filters").append(b);
 }
-$("#new-screen").onclick = $("#start").onclick = () =>
+async function checkWifiSecrets() {
+  const fields = $("#wifi-fields"), status = $("#wifi-status");
+  fields.hidden = true;
+  fields.disabled = true;
+  $("#create-profile").disabled = true;
+  status.textContent = "ESPHome wifi-instellingen controleren…";
+  try {
+    const {wifi} = await (await api("firmware")).json();
+    if (wifi?.state === "ready") {
+      status.textContent = "✓ Bestaande ESPHome-wifi gevonden. Dit scherm gebruikt automatisch wifi_ssid en wifi_password uit je secrets.yaml.";
+      $("#create-profile").disabled = false;
+    } else if (wifi?.state === "new") {
+      status.textContent = "Nog geen ESPHome-secrets gevonden. Vul wifi één keer in; volgende schermen gebruiken deze gegevens automatisch.";
+      fields.hidden = false;
+      fields.disabled = false;
+      $("#create-profile").disabled = false;
+    } else {
+      status.textContent = "Controleer wifi_ssid en wifi_password in ESPHome secrets.yaml. Je bestaande bestand blijft behouden. Sluit en open deze wizard opnieuw na aanpassen.";
+    }
+  } catch {
+    status.textContent = "ESPHome-secrets konden niet worden gecontroleerd. Sluit en open de wizard opnieuw om het nogmaals te proberen.";
+  }
+}
+$("#new-screen").onclick = $("#start").onclick = () => {
   $("#installer").showModal();
+  checkWifiSecrets();
+};
 $("#close-install").onclick = () => $("#installer").close();
 let generatedName = "";
 $("#install-form").onsubmit = async (e) => {

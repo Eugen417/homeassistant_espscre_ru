@@ -36,16 +36,36 @@ class Firmware:
             raise ValueError('Profiel bestaat niet in de ESPHome-map.')
         return p
 
+    def wifi_status(self):
+        # Return availability only; never send secret values to the browser.
+        path = self.root / 'secrets.yaml'
+        if not path.exists():
+            return {'state': 'new', 'missing': ['wifi_ssid', 'wifi_password']}
+        try:
+            values = yaml.safe_load(path.read_text())
+            if not isinstance(values, dict):
+                return {'state': 'invalid'}
+            missing = [key for key in ('wifi_ssid', 'wifi_password')
+                       if not isinstance(values.get(key), str)]
+            if isinstance(values.get('wifi_ssid'), str) and not values['wifi_ssid'].strip():
+                missing.append('wifi_ssid')
+            return {'state': 'missing' if missing else 'ready', 'missing': missing}
+        except (OSError, yaml.YAMLError, UnicodeError):
+            return {'state': 'invalid'}
+
     def status(self):
         return {'available': bool(shutil.which('esphome')), 'profiles': self.profiles(),
-                'ports': self.ports(), 'job': self.job, 'logs': list(self.logs)}
+                'ports': self.ports(), 'job': self.job, 'logs': list(self.logs), 'wifi': self.wifi_status()}
 
     def create(self, data):
         content = installation_yaml(data)
         self.root.mkdir(parents=True,exist_ok=True)
         # Existing wifi secrets remain untouched. New owners can supply them once.
         secret_path = self.root / 'secrets.yaml'
-        if not secret_path.exists():
+        wifi = self.wifi_status()
+        if wifi['state'] in ('missing', 'invalid'):
+            raise ValueError('Controleer wifi_ssid en wifi_password in ESPHome secrets.yaml. Bestaande secrets blijven behouden.')
+        if wifi['state'] == 'new':
             ssid, password = data.get('wifi_ssid'), data.get('wifi_password')
             if not isinstance(ssid,str) or not ssid.strip() or not isinstance(password,str):
                 raise ValueError('Vul wifi in voor deze eerste installatie.')
