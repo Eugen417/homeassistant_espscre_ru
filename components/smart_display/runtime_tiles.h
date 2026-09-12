@@ -1,5 +1,6 @@
 #pragma once
 #include "runtime_model.h"
+#include "tile_palette.h"
 #include "screen_settings.h"
 #include "esphome/core/preferences.h"
 #include "cyd_ui.h"
@@ -136,6 +137,7 @@ inline std::string receive(const std::string &payload) {
     std::string revision = string(root["state"]); serializeJson(a, revision);
     tile.observe(revision);
     auto options = root["o"];
+    tile.background = tile_palette::color(string(options["background"],16));
     tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
     tile.display = string(options["display"]); if (tile.display.empty()) tile.display="standard";
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
@@ -531,19 +533,20 @@ inline void render(lv_obj_t *room) {
     auto color=lv_color_hex(accent);
     if(t.domain()=="light" && on && t.has_hs_color)
       color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
-    auto circle_color=available?lv_color_mix(color,lv_color_hex(light_theme?0xFFFFFF:0x263B50),light_theme?38:65):lv_color_hex(light_theme?0xF0F0F0:0x263B50);
+    bool dark_text=light_theme || t.background!=0;
+    auto circle_color=available?lv_color_mix(color,lv_color_hex(dark_text?0xFFFFFF:0x263B50),dark_text?38:65):lv_color_hex(dark_text?0xF0F0F0:0x263B50);
     // Darken the foreground slightly: very pale bulbs still need a visible icon.
-    auto icon_color=available?lv_color_mix(color,lv_color_hex(light_theme?0x333333:0xFFFFFF),light_theme?205:185):lv_color_hex(0x9E9E9E);
+    auto icon_color=available?lv_color_mix(color,lv_color_hex(dark_text?0x333333:0xFFFFFF),dark_text?205:185):lv_color_hex(0x9E9E9E);
     lv_obj_set_style_bg_color(w.slider,color,LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(w.slider,lv_color_mix(color,lv_color_hex(light_theme?0xFFFFFF:0x263B50),30),LV_PART_MAIN);
-    lv_obj_set_style_bg_color(w.tile, lv_color_hex(light_theme ? 0xFFFFFF : (on ? 0xF5F1E8 : 0x526C85)), 0);
+    lv_obj_set_style_bg_color(w.slider,lv_color_mix(color,lv_color_hex(dark_text?0xFFFFFF:0x263B50),30),LV_PART_MAIN);
+    lv_obj_set_style_bg_color(w.tile, lv_color_hex(t.background ? t.background : (light_theme ? 0xFFFFFF : (on ? 0xF5F1E8 : 0x526C85))), 0);
     lv_obj_set_style_border_width(w.tile, 1, 0);
     lv_obj_set_style_border_opa(w.tile, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(w.tile, lv_color_hex(light_theme ? 0xDDDDDD : (on ? 0xF5F1E8 : 0x9CB3C8)), 0);
+    lv_obj_set_style_border_color(w.tile, t.background ? lv_color_mix(lv_color_hex(t.background),lv_color_hex(0x000000),220) : lv_color_hex(light_theme ? 0xDDDDDD : (on ? 0xF5F1E8 : 0x9CB3C8)), 0);
     lv_obj_set_style_bg_color(w.circle,circle_color,0);
     lv_obj_set_style_text_color(w.icon,icon_color,0);
-    lv_obj_set_style_text_color(w.title, lv_color_hex(light_theme ? 0x1B1B1B : (on ? 0x172232 : 0xF3F5F7)), 0);
-    lv_obj_set_style_text_color(w.value, lv_color_hex(light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8)), 0);
+    lv_obj_set_style_text_color(w.title, lv_color_hex(dark_text ? 0x1B1B1B : (on ? 0x172232 : 0xF3F5F7)), 0);
+    lv_obj_set_style_text_color(w.value, lv_color_hex(t.background ? 0x46525E : (light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8))), 0);
   }
 }
 
@@ -563,6 +566,12 @@ inline bool check_tile_geometry() {
       fits=fits && value.y2<track.y1 && track.y2<=content.y2;
     }
     if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
+    if(w.index<model.count && model.tiles[w.index].background){
+      bool palette_ok=lv_color_eq(lv_obj_get_style_bg_color(w.tile,LV_PART_MAIN),lv_color_hex(model.tiles[w.index].background)) &&
+        lv_color_eq(lv_obj_get_style_text_color(w.title,LV_PART_MAIN),lv_color_hex(0x1B1B1B));
+      if(!palette_ok)ESP_LOGE("ui_test","Tile palette FAIL slot=%u",(unsigned)w.index);
+      fits=fits && palette_ok;
+    }
     ok=ok && fits;
   }
   return ok;

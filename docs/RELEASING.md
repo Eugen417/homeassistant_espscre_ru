@@ -111,3 +111,13 @@ De firmware bewaart de hoek als afzonderlijke uint32 op key `0x524F5431`; de
 bestaande Settings-structuur en CYD-kalibratie blijven ongewijzigd. Alleen de
 Guition activeert de rotatiecallback. De diagnostische entity `Guition schermtype`
 maakt deze capability herkenbaar, ook als het scherm offline of hernoemd is.
+
+### Compatibiliteit 0.2.10
+
+`tiles[].options.background` is een optionele paletnaam binnen opslagversie 1.
+Op de draad staat dit in het bestaande `o`-object. Oudere firmware negeert het
+veld; nieuwe firmware valt bij onbekende namen terug op de normale kleuren.
+De app accepteert uitsluitend het lichte palet uit `TILE_BACKGROUNDS`. Een oude
+editor die `background` weglaat behoudt de opgeslagen kleur voor dezelfde entity;
+expliciet `auto` herstelt de standaard. Geen gewijzigde voorkeurstructuur of
+sleutels, geen nieuwe firmwareflash nodig voor latere kleurkeuzes.

@@ -12,7 +12,7 @@ import math
 from firmware import Firmware
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import discover, installation_yaml, packets, state_message, validate_layout, validate_settings
+from core import TILE_BACKGROUNDS, discover, installation_yaml, packets, state_message, validate_layout, validate_settings
 
 LOG = logging.getLogger('screen_manager')
 
@@ -191,6 +191,9 @@ class Manager:
             raise ValueError('Rotatie vereist een Guition met firmware 0.2.9 of nieuwer.')
         old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
         for tile in layout['tiles']:
+            old_options=old_tiles.get(tile['entity'],{}).get('options',{})
+            if 'options' in tile and 'background' not in tile['options'] and 'background' in old_options:
+                tile['options']['background']=old_options['background']
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
                 tile['options'] = old_tiles[tile['entity']]['options'].copy()
         known = {e['id'] for e in self.inventory()[1]}
@@ -320,7 +323,7 @@ def create_app(manager, development=False):
         for screen in screens:
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
-        return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities})
+        return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities, 'backgrounds': TILE_BACKGROUNDS})
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})

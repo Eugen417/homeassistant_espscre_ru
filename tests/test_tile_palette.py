@@ -1,0 +1,39 @@
+import re
+import tempfile
+import unittest
+from pathlib import Path
+import test_portal
+from core import TILE_BACKGROUNDS, validate_layout
+
+def luminance(color):
+    rgb=[int(color[i:i+2],16)/255 for i in (1,3,5)]
+    linear=[v/12.92 if v<=0.04045 else ((v+0.055)/1.055)**2.4 for v in rgb]
+    return sum(v*w for v,w in zip(linear,(.2126,.7152,.0722)))
+
+class PaletteTests(unittest.IsolatedAsyncioTestCase):
+    def test_palette_matches_firmware_and_has_readable_text(self):
+        header=(Path(__file__).resolve().parents[1]/'components/smart_display/tile_palette.h').read_text()
+        native=dict(re.findall(r'name=="(\w+)"\)return 0x([A-F0-9]+)',header))
+        expected={k:v['color'][1:] for k,v in TILE_BACKGROUNDS.items() if v['color']}
+        self.assertEqual(native,expected)
+        for color in expected.values():
+            for foreground,minimum in (('#1B1B1B',7),('#46525E',4.5)):
+                self.assertGreaterEqual((luminance('#'+color)+.05)/(luminance(foreground)+.05),minimum)
+
+    async def test_old_editor_preserves_color_and_explicit_auto_clears(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m=test_portal.ManagerTests().setup_manager(Path(tmp)/'screens.json')
+            layout={'title':'Thuis','tiles':[{'entity':'light.a','options':{'background':'red','inline':'slider'}}]}
+            m.save('text.screen',layout)
+            m.save('text.screen',{'title':'Nieuw','tiles':[{'entity':'light.a','options':{'inline':'none'}}]})
+            fresh=test_portal.ManagerTests().setup_manager(m.path)
+            tile=fresh.layouts['text.screen']['tiles'][0]
+            self.assertEqual(tile['options'],{'background':'red','inline':'none'})
+            await fresh.sync_one('text.screen',fresh.layouts['text.screen'])
+            self.assertEqual(fresh.ha.messages[1][1]['o']['background'],'red')
+            fresh.save('text.screen',{'title':'Nieuw','tiles':[{'entity':'light.a','options':{'background':'auto'}}]})
+            self.assertEqual(fresh.layouts['text.screen']['tiles'][0]['options']['background'],'auto')
+
+    def test_unapproved_colors_rejected(self):
+        for value in ('#000000','url(test)','unknown',None,{},42):
+            with self.assertRaises(ValueError):validate_layout({'title':'Thuis','tiles':[{'entity':'light.a','options':{'background':value}}]})

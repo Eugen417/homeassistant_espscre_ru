@@ -1,12 +1,6 @@
-# Installeren vanuit ESP Screens (vanaf 0.2.0)
+# Installeren en beheren vanuit ESP Screens
 
-De makkelijkste route is nu één app: **ESP Screen Manager**. Deze kan zelf
-ESPHome-profielen bewaren, bouwen en via USB of OTA installeren. Zie de
-[complete stappen voor deze route](WHATS_NEW_020.md#firmware-zonder-een-tweede-beheerpagina).
-De instructies hieronder blijven bruikbaar als je ESPHome Device Builder wilt
-blijven gebruiken. Beide routes behouden dezelfde eigen YAML en secrets.
-
-# Een nieuw scherm, van USB naar dagelijks gebruik
+Een nieuw scherm, van USB naar dagelijks gebruik
 
 Met **ESP Screen Manager** kies je je tegels in Home Assistant. Je zoekt op
 naam, apparaat, ruimte of entity-ID, zet ze in de gewenste volgorde en klikt
@@ -14,7 +8,8 @@ op **Opslaan & naar scherm**. Daarna blijft de status automatisch actueel.
 Je hoeft voor andere tegels **niet opnieuw te flashen**.
 
 Dit werkt met Home Assistant OS op een 64-bits Raspberry Pi of een amd64-machine,
-ESPHome Device Builder en een van deze exacte schermvarianten:
+en een van deze exacte schermvarianten. De ESPHome-CLI zit in ESP Screen Manager;
+ESPHome Device Builder is optioneel:
 
 | Keuze | Hardware |
 | --- | --- |
@@ -25,63 +20,55 @@ Andere schermen met ongeveer dezelfde naam kunnen andere pinnen hebben. Gebruik
 het bordprofiel dat bij de hardware hoort. Gebruik een USB-kabel die data ondersteunt.
 De wallbox-relais worden niet gebruikt.
 
-## 1. Installeer de twee apps
+## 1. Installeer ESP Screen Manager
 
 1. Open **Instellingen → Apps → Installeer een app** (in oudere HA-versies:
    **Instellingen → Add-ons → Add-onwinkel**).
-2. Installeer **ESPHome Device Builder**, start deze en zet hem in de zijbalk.
-   Gebruik ESPHome **2026.6.2 of nieuwer**. De release is met 2026.6.2 getest.
-3. Open in de appwinkel het menu rechtsboven → **Repositories**. Voeg toe:
+2. Open het menu rechtsboven → **Repositories** en voeg toe:
    `https://github.com/MaxGramser/homeassistant_espscreen`.
-4. Zoek **ESP Screen Manager**, installeer en start deze. Zet **Starten bij
-   opstarten** en **Tonen in zijbalk** aan. Open de webinterface.
+3. Installeer en start **ESP Screen Manager**. Zet **Starten bij opstarten**
+   en **Tonen in zijbalk** aan. Open de webinterface **ESP Screens**.
 
-De beheerpagina draait binnen Home Assistant en gebruikt je HA-aanmelding.
-Je hoeft geen extra gebruiker, MQTT, blueprint of long-lived token in te stellen.
-Installeer voor normaal gebruik de GitHub-versie: een handmatig gekopieerde lokale
-test-add-on ontvangt geen updates uit GitHub.
+Deze app bevat de geteste ESPHome 2026.6.2-CLI en draait binnen je HA-aanmelding.
+Een tweede ESPHome-beheerpagina, MQTT, blueprint of long-lived token is niet nodig.
+Gebruik de GitHub-versie voor updates; een lokale test-add-on is een andere app.
 
-## 2. Download je eigen installatie-YAML
+## 2. Maak en bewaar je eigen apparaatprofiel
 
-Klik in ESP Screens op **Nieuw scherm**. Kies CYD of Guition, een herkenbare naam
-en een unieke apparaatnaam zoals `scherm-keuken`. Klik **Maak installatie-YAML**. Gebruik **Kopieer YAML** om de tekst meteen in
-ESPHome te plakken, of **Download bestand**. Op een HTTP-verbinding kan Chrome
-downloads blokkeren; de kopieeroptie blijft bruikbaar.
+Klik **Nieuw scherm**. Kies CYD of Guition, een herkenbare naam en een unieke
+apparaatnaam, bijvoorbeeld `scherm-keuken`. Klik **Bewaar profiel in ESP Screens**.
 
-Bij **Bewaar profiel in ESP Screens** controleert de wizard automatisch de bestaande
-ESPHome `secrets.yaml`. Zijn `wifi_ssid` en `wifi_password` aanwezig, dan hoef je
-geen wifi in te vullen. Alleen bij een eerste installatie zonder secretsbestand
-vraagt hij die gegevens één keer. Bestaande secrets worden niet overschreven.
+De wizard controleert de bestaande ESPHome `secrets.yaml`. Met `wifi_ssid` en
+`wifi_password` aanwezig hoef je geen wifi in te vullen. Alleen als er nog geen
+secretsbestand is, vraagt de wizard je 2,4GHz-wifi eenmalig. Een bestaand bestand
+met ontbrekende of ongeldige wifi-sleutels moet je eerst herstellen; het wordt
+niet stilzwijgend overschreven.
 
-Dit bestand bevat unieke API- en OTA-sleutels. Bewaar het. Maak voor ieder nieuw
-scherm een nieuw bestand. Download voor een bestaand scherm niet telkens een nieuw
-bestand: daarmee zou je nieuwe sleutels genereren.
+Je apparaat-YAML bevat unieke API- en OTA-sleutels. Bewaar dit profiel en gebruik
+het opnieuw bij updates. Voor een bestaand scherm telkens een nieuw profiel
+maken genereert nieuwe sleutels en is niet de updateroute.
 
-Open **ESPHome Device Builder → Secrets** en vul eenmaal je 2,4GHz-wifi in:
-
-```yaml
-wifi_ssid: "Jouw wifi"
-wifi_password: "Jouw wifiwachtwoord"
-```
-
-Andere bestaande secrets mogen blijven staan. Gebruik geen gedeelde API-sleutel
-voor alle nieuwe schermen; de gedownloade YAML bevat al een eigen sleutel.
+Wil je ESPHome Device Builder gebruiken, kies dan **Maak installatie-YAML** en
+kopieer/download die YAML naar een eigen apparaat daar. Beide routes gebruiken
+dezelfde firmwarepakketten. Wifi blijft in ESPHome `secrets.yaml`; API- en
+OTA-sleutels staan in het eigen apparaatprofiel.
 
 ## 3. Eerste flash via USB op de Raspberry
 
-1. Klik in ESPHome op **New device**, gebruik dezelfde unieke naam en sla de
-   directe installatie over. Kies zo nodig ESP32 als tijdelijke wizardkeuze.
-2. Klik **Edit** bij het nieuwe apparaat. Vervang de **hele inhoud** door je
-   gedownloade YAML en sla op. Het pakket levert zelf de juiste hardwareconfiguratie.
-3. Sluit het scherm met USB aan op de Raspberry waarop Home Assistant draait.
-4. Klik **Install → Plug into the computer running ESPHome Device Builder**.
-   Kies de USB-seriële poort van dit scherm. Bij meerdere schermen: sluit ze voor
-   de eerste installatie één voor één aan.
-5. Wacht op een geslaagde build én upload. De eerste build kan op een Raspberry
-   lang duren. Laat deze afronden. Het scherm maakt daarna verbinding met wifi.
+1. Sluit het scherm met een **USB-datakabel** aan op de machine waarop Home
+   Assistant draait. Bij meerdere borden: identificeer eerst de juiste poort,
+   of sluit ze voor de eerste installatie één voor één aan.
+2. Open **Firmware & USB** in ESP Screens en kies het zojuist bewaarde profiel.
+3. Kies bij **Installeren naar** de USB-poort van dit scherm.
+4. Klik **Bouwen & installeren** en wacht op een geslaagde build én upload.
+   De eerste build kan op een Raspberry meerdere minuten duren.
+5. Het scherm herstart en verbindt met wifi. Latere firmware-updates kunnen via
+   **Wifi / OTA** in dezelfde pagina, met het bestaande profiel.
 
-Een browseroptie **Plug into this computer** bedoelt de computer waarop je browser
-draait, niet de Raspberry. Kies die alleen wanneer het scherm aan die computer zit.
+Een USB-kabel aan je laptop is niet zichtbaar als USB-poort van de Raspberry.
+Gebruik voor die route de ESPHome-CLI op de laptop met je eigen profiel, of de
+browserinstallatie van ESPHome Device Builder. De stappen hierboven gebruiken
+uitsluitend ESP Screens op de HA-machine.
 
 **CYD:** bij de eerste start verschijnt de kalibratie. Tik het zichtbare kruisje
 drie keer rustig aan, houd elke tik kort vast en volg steeds het volgende kruisje.
@@ -112,7 +99,9 @@ domeinfilters met gekleurde iconen. Je kunt maximaal twintig tegels toevoegen.
 Het schermvoorbeeld toont hun plaats: twee kolommen, zes tegels per pagina.
 Sleep een tegel naar een andere tegel om te ordenen. Klik op een tegel voor
 een eigen naam, de pijltjes voor volgorde en **Bediening & weergave instellen**:
-klikgedrag, een mini-slider of een grote waarde waar ondersteund. Een lege
+klikgedrag, een mini-slider of een grote waarde waar ondersteund. Kies bij
+**Pastel achtergrond** een eigen kleur met donkere tekst; **Standaard** herstelt
+de normale weergave. Hiervoor is firmware 0.2.10+ nodig. Een lege
 tegel brengt je naar de zoekbalk; toevoegen vult de eerstvolgende vrije positie.
 Het voorbeeld toont de indeling, geen live sensorwaarden.
 Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.
@@ -144,7 +133,7 @@ zodra het scherm terugkomt. De app moet blijven draaien voor actuele tegeldata.
 | --- | --- | --- |
 | Andere entiteiten, namen of volgorde | Opslaan in ESP Screens | Wifi, sleutels, kalibratie |
 | Nieuwe beheerpagina/appversie | Appwinkel → ESP Screen Manager → Update | Alle indelingen in `/data/screens.json` |
-| Nieuwe schermfunctie/kaart | ESPHome → bestaand apparaat → Install → Wirelessly | Eigen YAML, sleutels en CYD-kalibratie; app stuurt tegels opnieuw |
+| Nieuwe schermfunctie/kaart | Firmware & USB → bestaand profiel → Wifi / OTA | Eigen YAML, sleutels en CYD-kalibratie; app stuurt tegels opnieuw |
 
 De eigen YAML verwijst naar de firmwarepakketten in `main`. Bij een nieuwe build
 haalt ESPHome de nieuwste gepubliceerde pakket- en componentcode op. Je vervangt
@@ -152,7 +141,7 @@ je eigen YAML dus niet door een nieuw downloadbestand. Wifi, naam en sleutels
 staan buiten het gedeelde pakket en blijven gelijk.
 
 Maak vóór updates een Home Assistant-back-up inclusief ESP Screen Manager en
-ESPHome Device Builder. **Verwijderen/herinstalleren** van een app is niet hetzelfde
+de eigen ESPHome-configuraties. **Verwijderen/herinstalleren** van een app is niet hetzelfde
 als updaten; daarmee kun je de gegevensmap wissen. Houd de apparaatnaam en de
 entity-ID van **Tegelinstellingen** gelijk, zodat de bestaande indeling gekoppeld blijft.
 
@@ -207,7 +196,9 @@ Hierna vragen wijzigingen aan deze instellingen geen nieuwe firmwareflash.
 | Helderheid nacht | 0–100%, maximaal normale helderheid | 10% |
 | Klok tonen | Aan/uit | Aan |
 | Tijdnotatie | 24 of 12 uur, zonder AM/PM | 24 uur |
-| Terug naar pagina 1 | Bij standby; anders huidige pagina onthouden | Uit |
+| Terug naar pagina 1 | Sluit ook detailmenu’s bij standby | Uit |
+| Vegen tussen pagina’s | Native horizontale swipe, firmware 0.2.7+ | Uit |
+| Guition draaien | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
 
 Nachturen gebruiken de tijdzone van het ESPHome-apparaat en de tijd uit HA.
 Zonder geldige tijd gebruikt het scherm de gewone standbyhelderheid; gelijke
@@ -226,5 +217,6 @@ Bij oudere firmware toont de beheerpagina dat eerst een update nodig is.
 De tegels blijven bruikbaar. Handmatige YAML-profielen blijven hun substitutions
 gebruiken; voor beheer via deze app gebruik je het Easy Setup-pakket.
 
-De gemelde Guition-paneelstrepen worden apart onderzocht. Deze instellingenupdate
-wijzigt geen displaytimings of driver en is geen bewezen oplossing voor die strepen.
+De huidige Guition gebruikt de native ST7701S-configuratie; zie
+[de hardwarevergelijking](GUITION_FACTORY_REFERENCE.md). Instellingen en
+tegelkleuren veranderen geen paneeltimings. Controleer beeld en touch fysiek.

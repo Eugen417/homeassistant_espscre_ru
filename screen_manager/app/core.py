@@ -10,6 +10,20 @@ REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level media_title options min max step temperature_unit supported_features'.split())
 
+
+TILE_BACKGROUNDS = {
+    'auto': {'label': 'Standaard', 'color': None},
+    'red': {'label': 'Rood', 'color': '#FADADD'},
+    'orange': {'label': 'Oranje', 'color': '#FFE1C6'},
+    'yellow': {'label': 'Geel', 'color': '#FFF0C2'},
+    'green': {'label': 'Groen', 'color': '#D9EEDC'},
+    'mint': {'label': 'Mint', 'color': '#D5F0EA'},
+    'blue': {'label': 'Blauw', 'color': '#D9EAFB'},
+    'purple': {'label': 'Paars', 'color': '#E9DDF5'},
+    'pink': {'label': 'Roze', 'color': '#F7DDEC'},
+    'gray': {'label': 'Grijs', 'color': '#E5E7EB'},
+}
+
 # Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
 SETTING_RULES = {
     'standby_enabled': (True, None, None),
@@ -72,8 +86,10 @@ def validate_layout(data):
         item = {'entity': tile['entity'], 'name': name.strip()}
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background'}:
                 raise ValueError('Onbekende tegelinstellingen.')
+            if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
+                raise ValueError('Kies een pastel achtergrondkleur uit het palet.')
             choices = {'tap': ('auto', 'detail', 'toggle', 'none'), 'display': ('standard', 'watch'), 'inline': ('none', 'slider')}
             domain = tile['entity'].split('.')[0]
             for key, allowed in choices.items():

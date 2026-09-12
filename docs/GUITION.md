@@ -39,15 +39,16 @@ alleen zichtbaar voor de Guition nadat zijn nieuwe firmware door HA is ontdekt.
 De CYD blijft op zijn bestaande oriëntatie met zijn eigen kalibratie.
 
 Zes tegels van **218 × 108 pixels** per pagina, 12px tussenruimte en een
-aparte navigatiestrook. Vanaf zeven tegels verschijnt pagina twee; tot zes
-verdwijnt de navigatie. Grotere letters, iconen, dimmers en kleurkeuzes; de
-climatekaart heeft een grotere temperatuurweergave. Een egaal blauwgrijze
-achtergrond, duidelijk omlijnde blauwe uitgeschakelde tegels en lichte actieve tegels maken
-de status herkenbaar. Standby begint na tien minuten zonder aanraking.
+aparte navigatiestrook. In ESP Screen Manager passen twintig tegels op maximaal
+vier pagina’s; tot zes verdwijnt de navigatie. De huidige interface heeft een
+lichtgrijze achtergrond, witte kaarten en gekleurde domeiniconen. Vanaf 0.2.10 kun
+je per tegel een pastel achtergrond kiezen met donkere tekst. Standby begint
+standaard na tien minuten zonder aanraking en is instelbaar in de beheerpagina.
 
 De bestaande tegelacties, climatebediening en vacuumkaart zijn behouden.
-De vacuumkaart blijft gekoppeld aan tegel 6. Posities 8/10 zijn eenvoudige
-actietegels; zie [TEGELS.md](TEGELS.md) voor de ondersteunde bindingen.
+Alle kaarttypen zijn beschikbaar op alle twintig runtime-posities. Alleen in
+het oude handmatige profiel blijft de vacuumkaart op tegel 6 en hebben posities
+8/10 beperkingen; zie [TEGELS.md](TEGELS.md).
 
 ## Nieuwe installatie
 

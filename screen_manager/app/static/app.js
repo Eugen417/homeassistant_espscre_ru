@@ -249,6 +249,8 @@ function renderPreview() {
       const card = node("button", undefined, "preview-tile");
       if (tile) {
         const name = tile.name || inventory.entities.find(e => e.id === tile.entity)?.name || tile.entity;
+        const background=inventory.backgrounds?.[tile.options?.background]?.color;
+        if(background)card.style.backgroundColor=background;
         card.append(domainBadge(tile.entity), node("strong", name));
         card.draggable = true;
         card.ondragstart = (e) => { dragIndex = slot; e.dataTransfer.setData("text/plain", String(slot)); };
@@ -358,6 +360,27 @@ function renderTiles() {
       if (!e.target.closest("input, select, button, summary, .tile-options"))
         options.open = !options.open;
     };
+    const palette = node("fieldset", undefined, "tile-palette");
+    palette.append(node("legend", "Pastel achtergrond"));
+    const swatches = node("div", undefined, "palette-swatches");
+    for(const [key, choice] of Object.entries(inventory.backgrounds || {})) {
+      const button=node("button", undefined, "palette-choice");
+      button.type="button";
+      button.setAttribute("aria-label", `Achtergrond: ${choice.label}`);
+      button.setAttribute("aria-pressed", String((tile.options?.background || "auto") === key));
+      const sample=node("span", undefined, "palette-sample");
+      if(choice.color)sample.style.backgroundColor=choice.color;
+      else sample.classList.add("palette-auto");
+      button.append(sample,node("span",choice.label));
+      button.onclick=()=>{
+        tile.options={...tile.options,background:key};
+        for(const other of swatches.children)other.setAttribute("aria-pressed",String(other===button));
+        markDirty();renderPreview();
+      };
+      swatches.append(button);
+    }
+    palette.append(swatches,node("small", "Donkere tekst blijft leesbaar. Kies Standaard voor de normale kleuren. Vereist schermfirmware 0.2.10+."));
+    options.append(palette);
     const controls = {};
     const domain = tile.entity.split(".")[0];
     const fields = [
@@ -803,7 +826,7 @@ async function inspect(entity) {
       card.append(
         node(
           "small",
-          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${options.display === "watch" ? "grote waarde" : "standaard"}`,
+          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${options.display === "watch" ? "grote waarde" : "standaard"} · Achtergrond: ${inventory.backgrounds?.[options.background || "auto"]?.label || "Standaard"}`,
         ),
       );
       $("#inspection-summary").append(card);

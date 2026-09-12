@@ -1,17 +1,132 @@
 # Home Assistant ESP Screens
 
-**Nieuw scherm installeren? Begin met [Easy Setup](docs/EASY_SETUP.md).**
-Installeer ESP Screen Manager in Home Assistant, download de YAML voor CYD of
-Guition, bouw en flash vanuit dezelfde app via USB op je Raspberry en kies je tegels in de beheerpagina.
-Zoeken op entiteit/apparaat/ruimte, slepen, opslaan — zonder opnieuw flashen.
+Een Home Assistant-bedieningsscherm dat je zelf indeelt. **ESP Screen Manager**
+beheert je tegels én bouwt en installeert de ESPHome-firmware vanuit Home Assistant.
+Geen blueprint, MQTT of long-lived token nodig voor normaal gebruik.
 
-Updates van de app behouden je indelingen. Nieuwe firmware installeer je via
-ESPHome OTA met behoud van je eigen naam, wifi en sleutels.
-Zie [de nieuwe kaarten, inspector en firmwarepagina](docs/WHATS_NEW_020.md) en
-[updates publiceren](docs/RELEASING.md).
+**Nieuw scherm? Volg de [complete installatiehandleiding](docs/EASY_SETUP.md).**
+Voor elke nieuwe gebruiker en elk nieuw apparaat maak je een eigen profiel.
 
-De handleiding hieronder blijft beschikbaar voor handmatige installatie via een
-computer. Voor de handmatige Guition-route: [Guition](docs/GUITION.md).
+## Ondersteunde schermen
+
+| Scherm | Resolutie | Display / touch |
+| --- | --- | --- |
+| CYD ESP32-2432S028 | 320 × 240 | ILI9341 / resistieve XPT2046 |
+| Guition ESP32-S3-4848S040, 4 inch | 480 × 480 | ST7701S RGB / capacitieve GT911 |
+
+Gebruik deze exacte bordvarianten: gelijkende productnamen kunnen andere
+controllers of aansluitingen hebben. Wallbox-relais worden niet aangestuurd.
+De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
+
+## Wat je kunt instellen
+
+- **Tot twintig tegels**, verdeeld over maximaal vier vaste pagina's met zes
+  tegels. Zoek op entiteit, apparaat of ruimte en sleep om te ordenen.
+- **Instellingen per tegel:** eigen naam, klikgedrag, een kleine slider waar
+  ondersteund, of een grote waarde voor bijvoorbeeld temperatuur en verbruik.
+- **Pastel achtergronden per tegel:** kies rood voor een alles-uit-script,
+  groen voor alles-aan, of een andere kleur. Titel en status blijven donker en
+  leesbaar. De kleur verschijnt ook in het schermvoorbeeld; **Standaard** herstelt
+  de normale kleuren. Vereist firmware 0.2.10 of nieuwer.
+- **Lampbediening:** helderheid, regenboogkleur en wittemperatuur volgens de
+  mogelijkheden van de lamp. Open de detailbediening met een lange aanraking.
+- **Meer kaarten:** climate, vacuum, fan, cover, media player, sensoren,
+  select/input_select, number/input_number, schakelaars, scènes, scripts en
+  buttons. Een sensor kan een historiekaart voor 1, 6 of 24 uur openen.
+- **Scherminstellingen:** standby-tijd, normale en gedimde helderheid,
+  nachturen, klok, terug naar de hoofdpagina en optioneel swipen tussen pagina's.
+- **Guition-rotatie:** 0°, 90°, 180° of 270°, direct vanuit de beheerpagina.
+  De native LVGL-rotatie draait beeld en touch samen. De CYD behoudt zijn vaste
+  oriëntatie en eigen kalibratie.
+- **Inspector:** controleer entiteiten, status en configuratie in ESP Screens.
+  Actiefeedback laat zien dat een opdracht onderweg is.
+
+Functies hangen af van de mogelijkheden die Home Assistant voor een entiteit
+meldt. De app moet blijven draaien om de schermen van actuele gegevens te voorzien.
+
+## Installeren vanuit Home Assistant
+
+Voor Home Assistant OS met Apps/Add-ons op **aarch64 of amd64**:
+
+1. Open de appwinkel en voeg deze repository toe:
+   `https://github.com/MaxGramser/homeassistant_espscreen`.
+2. Installeer **ESP Screen Manager**, start de app en open **ESP Screens**.
+   ESPHome Device Builder is optioneel: de ESPHome-CLI zit al in deze app.
+3. Kies **Nieuw scherm**, selecteer CYD of Guition en geef een unieke naam.
+   Gebruik **Bewaar profiel in ESP Screens**. Bestaande `wifi_ssid` en
+   `wifi_password` in ESPHome `secrets.yaml` worden hergebruikt; bij een verse
+   installatie vraagt de wizard de wifi eenmalig. API- en OTA-sleutels worden
+   uniek aangemaakt en in je eigen apparaat-YAML bewaard.
+4. Sluit het scherm met een USB-datakabel aan op de **Home Assistant-machine**.
+   Open **Firmware & USB**, kies het eigen profiel en de juiste USB-poort en
+   start **Bouwen & installeren**. Een eerste build kan meerdere minuten duren.
+5. **CYD:** doorloop de kalibratie op het scherm. **Guition:** gebruikt GT911
+   zonder resistieve kalibratie. Koppel daarna het ontdekte ESPHome-apparaat in
+   **Instellingen → Apparaten & diensten**. Gebruik bij een sleutelvraag de
+   `api.encryption.key` uit je eigen YAML. Geef het apparaat toestemming om
+   Home Assistant-acties uit te voeren.
+6. Selecteer het scherm in ESP Screens, kies je tegels en klik
+   **Opslaan & naar scherm**. Test vervolgens de fysieke bediening.
+
+Je kunt later vanuit **Firmware & USB → Wifi / OTA** nieuwe firmware installeren.
+Gebruik voor een bestaand scherm altijd het bestaande profiel; opnieuw een
+installatieprofiel aanmaken genereert nieuwe sleutels.
+
+## Tegels en kleuren aanpassen
+
+Open **Tegels instellen**, klik een tegel in het schermvoorbeeld en open
+**Bediening & weergave instellen**. Kies bij **Pastel achtergrond** een kleur,
+zoals rood of groen. Pas eventueel de naam, klikactie, mini-slider of grote
+waarde aan. Klik **Opslaan & naar scherm** om de wijzigingen toe te passen.
+Dit vereist na de eerste ondersteunende firmware-update geen nieuwe flash.
+
+Een kleur is een vaste keuze voor die tegel: hij blijft dus bijvoorbeeld rood
+wanneer je het alles-uit-script gebruikt. De entiteitsstatus en actiefeedback
+blijven afzonderlijk zichtbaar.
+
+## Updates en behoud van je instellingen
+
+| Wijziging | Actie |
+| --- | --- |
+| Tegels, namen, kleuren, volgorde of scherminstellingen | Opslaan in ESP Screens; geen firmwareflash |
+| Nieuwe versie van de beheerpagina | ESP Screen Manager updaten in de HA-appwinkel |
+| Nieuwe functie op het fysieke scherm | Bestaand profiel bijwerken via Firmware & USB → Wifi / OTA |
+
+De eigen YAML en wifi/API/OTA-instellingen blijven in de ESPHome-configmap.
+Tegelindelingen en opties staan in de permanente appdata. CYD-kalibratie en
+schermvoorkeuren blijven op het apparaat opgeslagen. Updates vervangen deze
+gebruikersgegevens niet. Maak wel normale Home Assistant-back-ups en bewaar je
+apparaatprofielen; een app verwijderen of flashgeheugen wissen is geen update.
+
+Zie [releasegeschiedenis](screen_manager/CHANGELOG.md) en
+[releases en protocolcompatibiliteit](docs/RELEASING.md).
+
+## Handleidingen en hulp bij installatie
+
+- [Complete installatie vanuit ESP Screens](docs/EASY_SETUP.md)
+- [Guition-hardware, montage en rotatie](docs/GUITION.md)
+- [CYD-kalibratie en USB-diagnose](docs/CALIBREREN.md)
+- [Fysieke acceptatietest](docs/ACCEPTATIE.md)
+- [Instructies voor developers en LLM's](AGENTS.md)
+
+Geef een developer of LLM een schone kopie van deze repository en bijvoorbeeld:
+
+> Lees AGENTS.md, README.md en docs/EASY_SETUP.md. Help me dit CYD- of
+> Guition-scherm via USB op mijn Home Assistant te installeren. Identificeer
+> het bord en gebruik mijn bestaande profiel als dat er al is. Begeleid
+> kalibratie, HA-koppeling, tegelkeuze en fysieke tests. Houd sleutels lokaal
+> en geef aan welke controles werkelijk zijn uitgevoerd.
+
+Een build bewijst niet dat fysieke touch of het paneelbeeld goed is. De eigenaar
+moet het beeld controleren en de gevraagde tikken uitvoeren.
+
+<details>
+<summary>Oudere handmatige CYD-installatie via een computer</summary>
+
+Onderstaande route gebruikt het oudere handmatige profiel met maximaal tien
+tegels. De positiebeperkingen hiervan gelden niet voor de twintig runtime-tegels
+van ESP Screen Manager. Gebruik voor nieuwe installaties bij voorkeur de route
+hierboven; de handmatige instructies blijven beschikbaar voor onderhoud.
 
 # CYD Home Assistant-bedieningsscherm
 
@@ -234,3 +349,5 @@ Project-, ESPHome-driver- en fontlicenties staan respectievelijk in `LICENSE`,
 `components/xpt2046/LICENSE` en `fonts/`. Historische borddiagnose staat in
 [CYD_STABILITY.md](CYD_STABILITY.md); volg voor een **nieuwe** installatie de
 handleidingen hierboven.
+
+</details>
