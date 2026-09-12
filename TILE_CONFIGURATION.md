@@ -1,4 +1,12 @@
+> Nieuwe ESP32-2432S028-installatie: begin bij [README.md](README.md) en
+> [de actuele tegelhandleiding](docs/TEGELS.md). Hieronder staat ook legacygedrag.
+
 # Tile Configuration Reference
+
+For the ESP32-2432S028 profile, use `home-like-2432s028.yaml` and
+[CYD_STABILITY.md](CYD_STABILITY.md). That profile uses fixed pages instead of
+scrolling, hides pagination when `TILE_COUNT <= 6`, and dims after ten minutes.
+The scrolling description below applies to `home-like.yaml`.
 
 This document explains every substitution in `home-like.yaml` and provides copy-paste examples for all supported entity types.
 

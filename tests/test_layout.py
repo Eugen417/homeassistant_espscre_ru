@@ -1,0 +1,59 @@
+"""Regression checks for the 320x240 page geometry and event guards."""
+from pathlib import Path
+import re
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+SOURCE = (ROOT / 'home-like-2432s028.yaml').read_text()
+VALUES = dict(re.findall(r'^  (\w+): "([^"]*)"', SOURCE, re.M))
+
+class LayoutTests(unittest.TestCase):
+    def test_visible_rows_fit_viewport_and_leave_navigation_clear(self):
+        v = lambda k: int(VALUES[k])
+        rectangles = []
+        for row in range(1, 4):
+            for col in range(1, 3):
+                x, y = v(f'GRID_COL{col}_X'), v('SCROLL_Y') + v(f'GRID_ROW{row}_Y')
+                w, h = v('TILE_W'), v('TILE_H')
+                self.assertGreaterEqual(x, 0)
+                self.assertLessEqual(x + w, v('DISPLAY_W'))
+                self.assertLessEqual(y + h, v('SCROLL_Y') + v('SCROLL_H'))
+                self.assertLessEqual(y + h, v('DISPLAY_H') - 34)
+                for xx, yy, ww, hh in rectangles:
+                    self.assertFalse(x < xx + ww and x + w > xx and y < yy + hh and y + h > yy)
+                rectangles.append((x, y, w, h))
+
+    def test_each_tile_filters_both_events_before_side_effects(self):
+        for n in range(1, 11):
+            start = SOURCE.index(f'                  id: tile{n}\n')
+            next_obj = re.search(r'^              - obj:', SOURCE[start:], re.M)
+            end = start + next_obj.start() if next_obj else len(SOURCE)
+            block = SOURCE[start:end]
+            for event in ('short_click', 'long_press'):
+                match = re.search(r'on_' + event + r':\s+- if:\s+condition:\s+lambda: (.*?)\n', block)
+                self.assertIsNotNone(match, (n, event))
+                self.assertIn(f'cyd::touch_guard.accept(millis(), {n})', match[1])
+
+    def test_navigation_is_above_grid_but_below_modal_overlays(self):
+        grid = SOURCE.index('            id: tile_scroll')
+        nav = SOURCE.index('            id: page_prev')
+        modal = SOURCE.index('            id: brightness_overlay')
+        self.assertLess(grid, nav)
+        self.assertLess(nav, modal)
+
+    def test_pagination_is_conditional_and_excess_tiles_are_hidden(self):
+        block = SOURCE.split('  - id: show_tile_page\n', 1)[1].split('  - id: wake_display', 1)[0]
+        self.assertIn('const bool paginated = count > 6;', block)
+        self.assertIn('i < count &&', block)
+        self.assertIn('if (!paginated) id(tile_page) = 0;', block)
+        self.assertIn('id(page_prev), id(page_next), id(page_number)', block)
+        self.assertIn('else lv_obj_add_flag(control, LV_OBJ_FLAG_HIDDEN);', block)
+
+    def test_self_test_cannot_call_a_home_assistant_action(self):
+        block = SOURCE.split('  - id: ui_self_test\n', 1)[1].split('  - id: show_tile_page', 1)[0]
+        self.assertNotIn('homeassistant.action:', block)
+        self.assertNotIn('do_tile_action', block)
+        self.assertNotIn('climate_target_commit', block)
+
+if __name__ == '__main__':
+    unittest.main()

@@ -1,0 +1,13 @@
+# Identiteit: startpunt voor een NIEUW paneel, geen gemeten kalibratie.
+# tools/calibrate.py schrijft een gemeten versie van dit bestand.
+substitutions:
+  TOUCH_CAL_X_MIN: "280"
+  TOUCH_CAL_X_MAX: "3860"
+  TOUCH_CAL_Y_MIN: "340"
+  TOUCH_CAL_Y_MAX: "3860"
+  TOUCH_AFFINE_XX: "1.000000000"
+  TOUCH_AFFINE_XY: "0.000000000"
+  TOUCH_AFFINE_XC: "0.000000000"
+  TOUCH_AFFINE_YX: "0.000000000"
+  TOUCH_AFFINE_YY: "1.000000000"
+  TOUCH_AFFINE_YC: "0.000000000"

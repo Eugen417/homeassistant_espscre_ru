@@ -10,3 +10,25 @@ testdevice.yaml
 
 # Handmatige backups van de config
 *.yaml.bak*
+
+# Local rollback binaries and diagnostic captures
+/diagnostics/*.bin
+/diagnostics/*.log
+
+# Python caches from local ESPHome components
+__pycache__/
+*.pyc
+
+# Per-owner onboarding files and share bundles
+/device.yaml
+/calibration.yaml
+/calibration.proposed.yaml
+/measurements*.json
+/dist/
+/.venv/
+
+# Local editor state and measurement/temporary outputs
+/.idea/
+/calibration*.yaml.bak-*
+/calibration*.yaml.tmp-*
+/.DS_Store
