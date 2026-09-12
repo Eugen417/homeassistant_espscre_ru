@@ -102,9 +102,15 @@ je later opnieuw meten. Voor diagnose en de oudere handmatige installatie:
 
 ## 5. Kies en wijzig je tegels
 
-Selecteer je scherm, vul de titel in en zoek entiteiten. Je kunt maximaal tien
-tegels toevoegen. Sleep om te ordenen of gebruik de pijltjes. Je kunt iedere tegel
-een korte eigen naam geven. Klik **Opslaan & naar scherm**.
+Selecteer je scherm, vul de titel in en zoek entiteiten. De kiezer heeft
+domeinfilters met gekleurde iconen. Je kunt maximaal tien tegels toevoegen.
+Het schermvoorbeeld toont hun plaats: twee kolommen, zes tegels per pagina.
+Sleep een tegel naar een andere tegel om te ordenen. Klik op een tegel voor
+een eigen naam, de pijltjes voor volgorde en **Bediening & weergave instellen**:
+klikgedrag, een mini-slider of een grote waarde waar ondersteund. Een lege
+tegel brengt je naar de zoekbalk; toevoegen vult de eerstvolgende vrije positie.
+Het voorbeeld toont de indeling, geen live sensorwaarden.
+Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.
 
 - Lamp, switch, input_boolean en fan: tik om aan/uit te zetten.
 - Lamp lang indrukken: helderheid, regenboogkleur en wittemperatuur, voor zover

@@ -17,3 +17,12 @@ Controles:
   domeiniconen, klik naar de juiste lampinstellingen en mini-slider-keuze getest.
 - Schermvoorbeeld en geselecteerde instellingen visueel gecontroleerd in de
   browser. De previewserver schrijft niet naar Home Assistant.
+- Alle acht C++-regressieprogramma's geslaagd. Firmwarebronnen zijn niet gewijzigd;
+  daarvoor zijn de geslaagde 0.2.3-builds nog van toepassing.
+- Toevoegen getest na verwijderen van positie tien in de testkopie: vrije positie
+  zichtbaar, zoeken op entity-ID, toevoegen en automatisch openen van instellingen.
+- Bestaande HA-add-on via Supervisor bijgewerkt van 0.2.1 naar 0.2.4 met back-up.
+  Inventaris voor/na vergeleken: alle schermindelingen en instellingen exact gelijk;
+  Home Assistant verbonden. Geen echte apparaat-acties uitgevoerd.
+- Productie-Ingress in de ingelogde HA-browser herladen: nieuw schermvoorbeeld
+  met pagina 1/2 zichtbaar; woonkamertegel opent de juiste mini-slider-instelling.
