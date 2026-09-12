@@ -91,3 +91,9 @@ plus vijftig overlaywisselingen slagen zonder HA-acties. De schermopname toont d
 nieuwe lichte kaarten met de bestaande HA-indeling. Lange namen kregen daarna
 vaste regelhoogtes met afkapping, zodat titel en status niet overlappen.
 Een interne schermopname bewijst geen storingsvrije fysieke paneeluitvoer.
+
+De definitieve lichte versie (config_hash 0x0a70a194) is via OTA geïnstalleerd.
+Beide Easy Setup- en beide handmatige profielen bouwen succesvol. De eigenaar
+bevestigt vervolgens: ‘Stijl goed, geen banden zichtbaar’. Dit is fysieke
+acceptatie van het huidige beeld, geen duurtest na langdurige standby en geen
+bewijs dat alleen een driverwijziging de oorzaak heeft opgelost.
