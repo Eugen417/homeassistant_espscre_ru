@@ -64,6 +64,10 @@ fysiek tikken; een agent kan dat niet vervangen door softwarecoördinaten.
   binaries, logs, buildcache of lokale apparaatprofielen.
 - Geen automatische firmware-upload naar een willekeurige aangesloten poort.
   Bij meerdere borden eerst de bedoelde poort vaststellen.
+- Profielen met dezelfde `DEVICE_NAME` (Easy Setup en handmatig) delen
+  `.esphome/build/<naam>`. Compileer of upload ze nooit gelijktijdig; controleer
+  in het uploadlog het pad van `firmware.bin` en daarna de compileertijd via
+  `device_info`. Een verkeerd profiel haalt het scherm uit ESP Screen Manager.
 
 Historische diagnose is achtergrond, geen bewijs dat een nieuw paneel goed
 werkt. Maak tijdens onboarding geen claims over niet-uitgevoerde fysieke tests.

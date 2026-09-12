@@ -44,6 +44,10 @@ vier pagina’s; tot zes verdwijnt de navigatie. De huidige interface heeft een
 lichtgrijze achtergrond, witte kaarten en gekleurde domeiniconen. Vanaf 0.2.10 kun
 je per tegel een pastel achtergrond kiezen met donkere tekst. Standby begint
 standaard na tien minuten zonder aanraking en is instelbaar in de beheerpagina.
+Vanaf 0.2.13 dimt de backlight via de LEDC-hardwarefader (`backlight_fade.h`,
+1,5 s naar standby, 80 ms wakker): de volledige LVGL-herteken bij standby
+onderbreekt de overgang dan niet meer. ESPHome's lichtstatus wordt na de fade
+gesynchroniseerd, zodat de entity in HA en latere overgangen kloppen.
 
 De bestaande tegelacties, climatebediening en vacuumkaart zijn behouden.
 Alle kaarttypen zijn beschikbaar op alle twintig runtime-posities. Alleen in

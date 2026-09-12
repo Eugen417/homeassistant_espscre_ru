@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.12"
+  SCREEN_FIRMWARE_VERSION: "0.2.13"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "guition-new"
@@ -596,6 +596,7 @@ esphome:
     - <esphome/components/smart_display/cyd_ui.h>
     - <esphome/components/smart_display/light_controls.h>
     - <esphome/components/smart_display/guition_diagnostics.h>
+    - <esphome/components/smart_display/backlight_fade.h>
   name: ${DEVICE_NAME}
   friendly_name: ${DEVICE_FRIENDLY_NAME}
   on_boot:
@@ -620,6 +621,8 @@ esphome:
           settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
           runtime_tiles::light_theme = true;
           runtime_tiles::watch_font = id(headline)->get_lv_font();
+          runtime_tiles::watch_value_font = id(watch_value)->get_lv_font();
+          runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
@@ -998,6 +1001,16 @@ font:
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
              'ä','ö','ü','Ä','Ö','Ü','ß','/']
 
+  - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-500.ttf"
+    id: watch_value
+    size: 38
+    bpp: 4
+    glyphs: ['<','>','—','&','@','!',',','.','?','"','%','(',')','+','-','_',':','°',
+             '0','1','2','3','4','5','6','7','8','9',
+             'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+             ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
+             'ä','ö','ü','Ä','Ö','Ü','ß','/']
+
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-700.ttf"
     id: label
     size: 18
@@ -1053,6 +1066,26 @@ font:
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
     id: materialdesign_icons_mini
     size: 26
+    glyphs:
+      - "\U000F0335"
+      - "\U000F0210"
+      - "\U000F111C"
+      - "\U000F029A"
+      - "${MDI_GLYPH_1}"
+      - "${MDI_GLYPH_2}"
+      - "${MDI_GLYPH_3}"
+      - "${MDI_GLYPH_4}"
+      - "${MDI_GLYPH_5}"
+      - "${MDI_GLYPH_6}"
+      - "${MDI_GLYPH_7}"
+      - "${MDI_GLYPH_8}"
+      - "${MDI_GLYPH_9}"
+      - "${MDI_GLYPH_10}"
+      - "\U000F012C" # check
+
+  - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
+    id: watch_icon
+    size: 18
     glyphs:
       - "\U000F0335"
       - "\U000F0210"
@@ -4520,7 +4553,8 @@ script:
           auto now = id(homeassistant_time).now();
           const int minute = now.is_valid() ? now.hour * 60 + now.minute : -1;
           const int level = id(display_dimmed) ? settings.dim_level(minute) : settings.brightness;
-          id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();
+          // Standby dims slowly; the tile redraws below no longer interrupt the hardware fade.
+          id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
           if (id(display_dimmed)) { lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN); lv_obj_move_foreground(id(dim_wake_overlay)); }
           else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
           if (settings.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
@@ -4533,17 +4567,29 @@ script:
       - lambda: |-
           id(last_touch_ms) = millis();
           id(display_dimmed) = false;
-      - light.turn_on:
-          id: back_light
-          # Bijna instant omhoog. De ESPHome-standaard is 1s, en dat voelt traag
-          # als je het scherm aanraakt en op licht staat te wachten.
-          transition_length: 80ms
-          brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
+          // Bijna instant omhoog. De ESPHome-standaard is 1s, en dat voelt traag
+          // als je het scherm aanraakt en op licht staat te wachten.
+          id(set_backlight).execute(screen_settings::current.brightness, 80);
       - lvgl.widget.hide: dim_wake_overlay
       - lvgl.widget.hide: color_detail_overlay
       - lvgl.widget.hide: climate_detail_overlay
       - lvgl.widget.hide: climate_mode_overlay
       - lvgl.widget.hide: vacuum_overlay
+
+  # One owner for the backlight level: the LEDC fader steps the duty itself, so
+  # LVGL redraws cannot make the transition stutter. A new call interrupts the
+  # running fade from its current duty; afterwards ESPHome's light state is synced.
+  - id: set_backlight
+    mode: restart
+    parameters:
+      level: int
+      ms: int
+    then:
+      - lambda: |-
+          if (!backlight_fade::start(*id(gpio_backlight_pwm), *id(back_light), level / 100.0f, ms))
+            id(back_light).turn_on().set_transition_length(ms).set_brightness(level / 100.0f).perform();
+      - delay: !lambda "return ms + 40;"
+      - lambda: backlight_fade::sync(*id(gpio_backlight_pwm), *id(back_light), level / 100.0f);
 
   - id: dim_display
     mode: restart

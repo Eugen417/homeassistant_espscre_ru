@@ -23,7 +23,9 @@
    `python3 tools/generate_packages.py`; bewerk `packages/*.yaml` nooit rechtstreeks.
 2. Draai alle Python-tests met aiohttp geïnstalleerd, alle `tests/*.cpp`, de
    generator met `--check`, en compileer beide Easy Setup-profielen plus de
-   bestaande handmatige profielen. Controleer dat er geen secrets in Git staan.
+   bestaande handmatige profielen. Doe dat na elkaar: profielen met dezelfde
+   `DEVICE_NAME` delen één build-map, en een parallelle build laat een upload
+   het verkeerde `firmware.bin` kiezen. Controleer dat er geen secrets in Git staan.
 3. Test appstart, opslaan, opnieuw starten/updaten met bestaande indelingen,
    opnieuw verbinden met HA en een ESP-herstart. Test een nieuwe kaart op echte
    hardware. Een goede build vervangt fysieke touchacceptatie niet.

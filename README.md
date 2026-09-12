@@ -24,6 +24,8 @@ De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
   tegels. Zoek op entiteit, apparaat of ruimte en sleep om te ordenen.
 - **Instellingen per tegel:** eigen naam, klikgedrag, een kleine slider waar
   ondersteund, of een grote waarde voor bijvoorbeeld temperatuur en verbruik.
+  De grote waarde toont vanaf firmware 0.2.13 een klein domeinicoon naast de
+  titel; een te lang getal wordt met puntjes afgekort, de eenheid blijft staan.
 - **Pastel achtergronden per tegel:** kies rood voor een alles-uit-script,
   groen voor alles-aan, of een andere kleur. Titel en status blijven donker en
   leesbaar. De kleur verschijnt ook in het schermvoorbeeld; **Standaard** herstelt
