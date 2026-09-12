@@ -23,6 +23,10 @@ int main() {
   assert(!m.accepts(0, "light.a"));
   assert(m.set_layout({}, "Leeg", changed)); assert(changed && m.ready() && m.count == 0);
   std::vector<std::string> many;
-  for (int i = 0; i < 11; ++i) many.push_back("light.a" + std::to_string(i));
+  for (int i = 0; i < 21; ++i) many.push_back("light.a" + std::to_string(i));
   assert(!m.set_layout(many, "Te veel", changed)); assert(m.count == 0);
+  many.pop_back(); assert(m.set_layout(many,"Twintig",changed));
+  assert(m.count==20 && m.accepts(19,"light.a19"));
+  for(size_t i=0;i<m.count;++i){m.tiles[i].received=true;m.tiles[i].state="off";}
+  assert(m.ready());
 }

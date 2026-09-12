@@ -6,7 +6,7 @@
 #include <cstdint>
 
 namespace runtime_tiles {
-constexpr size_t MAX_TILES = 10;
+constexpr size_t MAX_TILES = 20;
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
   auto dot = entity.find('.');

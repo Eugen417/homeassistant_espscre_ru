@@ -26,6 +26,7 @@ class TouchGuard {
     // A contact that jumps to another target must never become a tile tap.
     if (std::abs(x - start_x_) > 18 || std::abs(y - start_y_) > 18) moved_ = true;
   }
+  void consume() { accepted_ = true; moved_ = true; }
   bool accept(uint32_t now, int tile) {
     return !moved_ && accept_slider(now, tile);
   }

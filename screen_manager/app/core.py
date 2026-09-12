@@ -23,6 +23,7 @@ SETTING_RULES = {
     'show_clock': (True, None, None),
     'clock_24h': (True, None, None),
     'home_on_standby': (False, None, None),
+    'swipe_pages': (False, None, None),
 }
 
 def validate_settings(data):
@@ -54,8 +55,8 @@ def validate_layout(data):
     title, tiles = data.get('title'), data.get('tiles')
     if not isinstance(title, str) or not title.strip() or len(title.encode()) > 96:
         raise ValueError('Geef het scherm een titel van maximaal 96 bytes.')
-    if not isinstance(tiles, list) or len(tiles) > 10:
-        raise ValueError('Kies maximaal 10 tegels.')
+    if not isinstance(tiles, list) or len(tiles) > 20:
+        raise ValueError('Kies maximaal 20 tegels.')
     clean, seen = [], set()
     for tile in tiles:
         if not isinstance(tile, dict) or not entity_id(tile.get('entity')):

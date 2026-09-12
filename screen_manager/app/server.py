@@ -165,13 +165,25 @@ class Manager:
     def inventory(self):
         return discover(self.ha.registry, self.ha.states, self.ha.devices, self.ha.areas)
 
+    def supports_twenty(self, inbox):
+        screen=next((s for s in self.inventory()[0] if s['id']==inbox), {})
+        try:
+            version=tuple(int(part) for part in screen.get('firmware','').split('.'))
+            return len(version)==3 and version >= (0,2,7)
+        except (ValueError, TypeError):
+            return False
+
     def save(self, inbox, data):
         if inbox not in {s['id'] for s in self.inventory()[0]}:
             raise ValueError('Dit is geen gekoppeld ESP-scherm. Vernieuw het overzicht.')
         layout = validate_layout(data)
+        if len(layout["tiles"])>10 and not self.supports_twenty(inbox):
+            raise ValueError("Installeer eerst schermfirmware 0.2.7 of nieuwer voor meer dan tien tegels.")
         # A still-open older UI may save tiles without the new optional settings.
         if 'settings' not in layout and 'settings' in self.layouts.get(inbox, {}):
             layout['settings'] = self.layouts[inbox]['settings'].copy()
+        if 'settings' in layout and 'swipe_pages' not in data.get('settings',{}):
+            layout['settings']['swipe_pages']=self.layouts.get(inbox,{}).get('settings',{}).get('swipe_pages',False)
         old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
         for tile in layout['tiles']:
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
@@ -194,9 +206,13 @@ class Manager:
         self.ha.changed.set()
 
     async def sync_one(self, inbox, layout, force=False):
+        if len(layout["tiles"])>10 and not self.supports_twenty(inbox):
+            self.status[inbox]="Indeling bewaard; firmware 0.2.7+ nodig voor meer dan tien tegels"
+            return
         messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
         if 'settings' in layout:
-            messages[0]['settings'] = layout['settings']
+            messages[0]['settings'] = {k:v for k,v in layout['settings'].items() if k!='swipe_pages'}
+            messages[0]['swipe_pages'] = layout['settings'].get('swipe_pages',False)
         for i,tile in enumerate(layout['tiles']):
             message=state_message(i,tile,self.ha.states)
             if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):

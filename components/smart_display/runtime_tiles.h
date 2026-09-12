@@ -14,6 +14,8 @@
 namespace runtime_tiles {
 inline bool enabled = false;
 inline bool light_theme = false;
+inline bool swipe_pages = false;
+inline esphome::ESPPreferenceObject swipe_preference;
 inline Model model;
 inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
@@ -25,6 +27,9 @@ inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
 inline esphome::ESPPreferenceObject settings_preference;
 inline void load_settings() {
   settings_preference = esphome::global_preferences->make_preference<screen_settings::Settings>(0x53435231);
+  swipe_preference = esphome::global_preferences->make_preference<uint32_t>(0x53575031);
+  uint32_t swipe_saved=0;
+  if(swipe_preference.load(&swipe_saved))swipe_pages=swipe_saved==1;
   screen_settings::Settings saved;
   if (settings_preference.load(&saved) && saved.valid()) screen_settings::current = saved;
 }
@@ -47,7 +52,7 @@ inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
 }
 inline std::function<void(Tile &)> detail, detail_update;
 struct Widgets { lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}; int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}; };
-inline std::array<Widgets, MAX_TILES> widgets;
+inline std::array<Widgets, 10> widgets;
 inline bool fresh() { return model.ready() && esphome::millis() - last_received < 95000; }
 inline float number(JsonVariant value, float fallback = NAN) {
   if (!value.is<float>() && !value.is<int>()) return fallback;
@@ -88,9 +93,13 @@ inline std::string receive(const std::string &payload) {
         if (!entity.is<const char *>() || entities.size() == MAX_TILES) return false;
         entities.push_back(entity.as<std::string>());
       }
+      if(!root["swipe_pages"].isNull() && !root["swipe_pages"].is<bool>())return false;
       inbox = string(root["inbox"], 160);
       bool changed = false;
       if (!model.set_layout(entities, string(root["title"], 96), changed)) return false;
+      if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
+        swipe_pages=root["swipe_pages"].as<bool>();uint32_t saved=swipe_pages?1:0;swipe_preference.save(&saved);
+      }
       if (!(settings == screen_settings::current)) {
         screen_settings::current = settings;
         settings_preference.save(&settings);  // ESPHome batches flash writes; no write on keepalive.
@@ -160,7 +169,7 @@ inline std::string receive(const std::string &payload) {
       tile.fan_speeds[tile.fan_speed_count++] = string(speed, 48);
     }
     tile.received = true;
-    widgets[index].cached_active=-1;
+    for(auto &w:widgets)if(w.index==index)w.cached_active=-1;
     last_received = esphome::millis();
     if (refresh) refresh();
     if (active_index == static_cast<int>(index) && detail_update) detail_update(tile);
@@ -247,7 +256,9 @@ inline void slider_event(lv_event_t *e){
   if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider)slider_changed=true;
   if(code==LV_EVENT_PRESS_LOST && captured_slider==slider){captured_slider=nullptr;slider_changed=false;}
   if(code==LV_EVENT_RELEASED && captured_slider==slider){
-    unsigned index=(uintptr_t)lv_event_get_user_data(e);bool changed=slider_changed;captured_slider=nullptr;slider_changed=false;
+    unsigned index=(uintptr_t)lv_event_get_user_data(e);
+    for(auto &w:widgets)if(w.slider==slider){index=w.index;break;}
+    bool changed=slider_changed;captured_slider=nullptr;slider_changed=false;
     if(changed && cyd::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
   }
 }
@@ -274,7 +285,7 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
 }
 inline void show_detail(unsigned index){
   if(index>=model.count)return;detail_index=index;auto &t=model.tiles[index];
-  if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[index].title,LV_PART_MAIN);
+  if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
   if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
   detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,lv_color_hex(light_theme?0xE7E7E7:0x202A38),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
@@ -414,6 +425,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_set_style_bg_color(w.slider,lv_color_hex(0x111111),LV_PART_KNOB);lv_obj_set_style_pad_hor(w.slider,lv_obj_get_height(tile)>80?-10:0,LV_PART_KNOB);lv_obj_set_style_pad_ver(w.slider,lv_obj_get_height(tile)>80?-5:1,LV_PART_KNOB);lv_obj_set_style_radius(w.slider,14,LV_PART_MAIN);lv_obj_set_style_radius(w.slider,14,LV_PART_INDICATOR);lv_obj_set_style_radius(w.slider,3,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
   lv_obj_set_style_opa(w.slider,LV_OPA_TRANSP,LV_PART_KNOB);
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+  lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(w.slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   lv_obj_add_event_cb(tile, event, LV_EVENT_SHORT_CLICKED, &widgets[index]);
   lv_obj_add_event_cb(tile, event, LV_EVENT_LONG_PRESSED, &widgets[index]);
@@ -452,8 +464,10 @@ inline uint32_t domain_accent(const Tile &t) {
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !fresh() ? "HA niet verbonden" : model.title);
-  for (size_t i = 0; i < model.count; ++i) {
-    const auto &t = model.tiles[i]; auto &w = widgets[i];
+  for (size_t slot = 0; slot < 6; ++slot) {
+    auto &w=widgets[slot];
+    if(!w.tile || w.index>=model.count)continue;
+    const auto &t = model.tiles[w.index];
     label(w.title, t.name.empty() ? t.entity : t.name);
     label(w.icon, icon_for(t));
     std::string value = t.state;
@@ -508,6 +522,26 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_style_text_color(w.value, lv_color_hex(light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8)), 0);
   }
 }
+
+inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
+  int pages=std::max(1,(int(model.count)+5)/6);
+  page=std::clamp(page,0,pages-1);
+  for(size_t slot=0;slot<widgets.size();++slot){
+    auto &w=widgets[slot];if(!w.tile)continue;
+    if(slot<6){w.index=page*6+slot;w.cached_active=-1;}
+    if(slot<6 && w.index<model.count)lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
+  }
+  for(auto *control:{previous,next,number}){
+    if(pages>1)lv_obj_remove_flag(control,LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(control,LV_OBJ_FLAG_HIDDEN);
+  }
+  if(page==0)lv_obj_add_state(previous,LV_STATE_DISABLED);else lv_obj_remove_state(previous,LV_STATE_DISABLED);
+  if(page==pages-1)lv_obj_add_state(next,LV_STATE_DISABLED);else lv_obj_remove_state(next,LV_STATE_DISABLED);
+  std::string caption=std::to_string(page+1)+" / "+std::to_string(pages);lv_label_set_text(number,caption.c_str());
+  if(refresh)refresh();
+}
+
 inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
     auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());

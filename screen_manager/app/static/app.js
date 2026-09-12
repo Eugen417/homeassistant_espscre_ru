@@ -81,6 +81,7 @@ const settingDefinitions = [
   ["show_clock", "Klok tonen", "check", true],
   ["clock_24h", "24-uursklok (uit = 12 uur)", "check", true],
   ["home_on_standby", "Na standby terug naar pagina 1", "check", false],
+  ["swipe_pages", "Vegen tussen pagina’s (firmware 0.2.7+)", "check", false],
 ];
 function renderSettings() {
   const values = {
@@ -223,6 +224,12 @@ function domainBadge(id) {
   badge.style.background = background;
   return badge;
 }
+function tileLimit() {
+  const version=inventory.screens.find(s=>s.id===selected)?.firmware || "";
+  const match=/^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if(!match)return 10;
+  return Number(match[1])>0 || Number(match[2])>2 || Number(match[2])===2 && Number(match[3])>=7 ? 20 : 10;
+}
 function renderPreview() {
   const root = $("#layout-preview");
   root.replaceChildren();
@@ -231,7 +238,7 @@ function renderPreview() {
     const frame = node("section", undefined, "screen-preview");
     frame.append(node("small", `Pagina ${page + 1} · ${$("#title").value || "Thuis"}`, "preview-heading"));
     const grid = node("div", undefined, "preview-grid");
-    for (let slot = page * 6; slot < Math.min(page * 6 + 6, 10); slot++) {
+    for (let slot = page * 6; slot < Math.min(page * 6 + 6, tileLimit()); slot++) {
       const tile = layout.tiles[slot];
       const card = node("button", undefined, "preview-tile");
       if (tile) {
@@ -265,7 +272,7 @@ function renderPreview() {
 function renderTiles() {
   renderPreview();
   $("#tiles").replaceChildren();
-  $("#count").textContent = `${layout.tiles.length} / 10`;
+  $("#count").textContent = `${layout.tiles.length} / ${tileLimit()}${tileLimit()===10?" · update firmware voor 20":""}`;
   $("#no-tiles").hidden = layout.tiles.length > 0;
   layout.tiles.forEach((tile, i) => {
     if (i === 6) $("#tiles").append(node("li", "Pagina 2", "page-break"));
@@ -472,7 +479,7 @@ function renderResults() {
       description,
       node("span", chosen.has(entity.id) ? "✓" : "+", "plus"),
     );
-    b.disabled = chosen.has(entity.id) || layout.tiles.length >= 10;
+    b.disabled = chosen.has(entity.id) || layout.tiles.length >= tileLimit();
     b.onclick = () => {
       layout.tiles.push({ entity: entity.id, name: "" });
       selectedTile = entity.id;

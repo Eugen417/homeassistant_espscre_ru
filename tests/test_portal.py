@@ -20,7 +20,7 @@ class ProtocolTests(unittest.TestCase):
         with self.assertRaises(ValueError): packets({'huge':'x'*4096})
 
     def test_layout_rejects_duplicates_unsupported_and_overflow(self):
-        for tiles in [[{'entity':'lock.front'}],[{'entity':'light.a'}]*2,[{'entity':f'light.a{i}'} for i in range(11)],[{'entity':'light.a;restart'}]]:
+        for tiles in [[{'entity':'lock.front'}],[{'entity':'light.a'}]*2,[{'entity':f'light.a{i}'} for i in range(21)],[{'entity':'light.a;restart'}]]:
             with self.assertRaises(ValueError): validate_layout({'title':'Thuis','tiles':tiles})
         self.assertEqual(validate_layout({'title':'Thuis','tiles':[]})['tiles'],[])
 
@@ -122,11 +122,11 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError): fresh.save('text.screen',{**saved,'settings':{'brightness':0}})
             self.assertEqual(path.read_bytes(),before)
             await fresh.sync_one('text.screen',saved)
-            self.assertEqual(fresh.ha.messages[0][1]['settings'],settings)
+            self.assertEqual(fresh.ha.messages[0][1]['settings'],{k:v for k,v in settings.items() if k!='swipe_pages'})
             await fresh.sync_one('text.screen',saved)
             self.assertEqual(len(fresh.ha.messages),2)
             await fresh.sync_one('text.screen',saved,True)
-            self.assertEqual(fresh.ha.messages[2][1]['settings'],settings)
+            self.assertEqual(fresh.ha.messages[2][1]['settings'],{k:v for k,v in settings.items() if k!='swipe_pages'})
 
     async def test_reorder_aborts_old_batch(self):
         with tempfile.TemporaryDirectory() as temp:

@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.5"
+  SCREEN_FIRMWARE_VERSION: "0.2.7"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "guition-new"
@@ -633,6 +633,17 @@ esphome:
             lv_obj_add_flag(id(vacuum_overlay), LV_OBJ_FLAG_HIDDEN);
           };
           runtime_tiles::layout_changed = []() { id(show_tile_page).execute(); };
+          lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *event) {
+            if(!runtime_tiles::enabled || !runtime_tiles::swipe_pages || id(display_dimmed) || id(calibration_active) ||
+               !id(active_entity).empty() || (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root,LV_OBJ_FLAG_HIDDEN)))return;
+            auto *input=lv_indev_active();if(!input)return;
+            auto direction=lv_indev_get_gesture_dir(input);
+            if(direction!=LV_DIR_LEFT && direction!=LV_DIR_RIGHT)return;
+            cyd::touch_guard.consume();
+            lv_indev_wait_release(input);
+            id(tile_page)+=direction==LV_DIR_LEFT?1:-1;
+            id(show_tile_page).execute();
+          }, LV_EVENT_GESTURE, nullptr);
           runtime_tiles::refresh = []() { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); };
           runtime_tiles::bind(0, id(tile1), id(t1_title), id(t1_value), id(tile1_icon_circle), id(tile1_icon_lbl));
           runtime_tiles::bind(1, id(tile2), id(t2_title), id(t2_value), id(tile2_icon_circle), id(tile2_icon_lbl));
@@ -3033,7 +3044,7 @@ lvgl:
                   condition:
                     lambda: 'return cyd::touch_guard.accept(millis(), 11);'
                   then:
-                    - lambda: 'id(tile_page) = 0;'
+                    - lambda: 'id(tile_page) = std::max(0, id(tile_page) - 1);'
                     - script.execute: show_tile_page
             widgets:
               - label:
@@ -3067,7 +3078,7 @@ lvgl:
                   condition:
                     lambda: 'return cyd::touch_guard.accept(millis(), 12);'
                   then:
-                    - lambda: 'id(tile_page) = 1;'
+                    - lambda: 'id(tile_page) += 1;'
                     - script.execute: show_tile_page
             widgets:
               - label:
@@ -4428,6 +4439,10 @@ script:
   - id: show_tile_page
     then:
       - lambda: |-
+          if(runtime_tiles::enabled){
+            runtime_tiles::show_page(id(tile_page),id(page_prev),id(page_next),id(page_number));
+            return;
+          }
           lv_obj_t* tiles[] = {id(tile1), id(tile2), id(tile3), id(tile4), id(tile5),
                                id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
           const int rows[] = {${GRID_ROW1_Y}, ${GRID_ROW2_Y}, ${GRID_ROW3_Y}};
