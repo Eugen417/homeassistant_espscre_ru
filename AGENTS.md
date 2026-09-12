@@ -1,3 +1,11 @@
+## Guition-branch
+
+De Guition 4848S040 heeft een apart profiel `guition-4848s040.yaml` met
+480×480, ST7701S RGB en GT911. Lees docs/GUITION.md. Gebruik de eigen lokale
+`guition-device.yaml`; neem geen CYD-layout of XPT2046-kalibratie over.
+Controleer touch met tools/verify_gt911.py en houd de CYD-regressies groen.
+Configureer geen wallbox-relais als onderdeel van displayondersteuning.
+
 # Werkinstructies voor LLM's en developers
 
 Dit project bedient een ESP32-2432S028 met ILI9341 + XPT2046 (320×240,

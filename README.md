@@ -1,3 +1,6 @@
+> **Guition ESP32-S3 4-inch / 480×480:** gebruik [de Guition-handleiding](docs/GUITION.md)
+> en `guition-device.yaml`. De handleiding hieronder betreft het 2,8-inch CYD.
+
 # CYD Home Assistant-bedieningsscherm
 
 Van een nieuwe **ESP32-2432S028 met ILI9341 + XPT2046** naar een gekalibreerd

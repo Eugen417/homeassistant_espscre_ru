@@ -32,3 +32,7 @@ __pycache__/
 /calibration*.yaml.bak-*
 /calibration*.yaml.tmp-*
 /.DS_Store
+
+/guition-device.yaml
+
+/diagnostics/*.png
