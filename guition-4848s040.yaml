@@ -576,6 +576,7 @@ esphome:
       - -DLV_USE_SNAPSHOT=1
   includes:
     - cyd_ui.h
+    - light_controls.h
     - guition_diagnostics.h
   name: ${DEVICE_NAME}
   friendly_name: ${DEVICE_FRIENDLY_NAME}
@@ -589,6 +590,13 @@ esphome:
           lv_obj_set_style_pad_column(id(vacuum_actions), 4, 0);
           lv_obj_set_style_pad_row(id(vacuum_speeds), 4, 0);
           lv_obj_set_style_pad_column(id(vacuum_speeds), 4, 0);
+      - lambda: |-
+          static const char *entities[] = {"${TILE1_ENTITY}", "${TILE2_ENTITY}", "${TILE3_ENTITY}", "${TILE4_ENTITY}", "${TILE5_ENTITY}", "${TILE6_ENTITY}", "${TILE7_ENTITY}", "${TILE9_ENTITY}"};
+          light_controls::subscribe(entities, 8);
+          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"));
+          light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
+          light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
+          light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
       - light.turn_on:
           id: back_light
           brightness: !lambda "return atoi(\"${MAX_BRIGHTNESS}\") / 100.0f;"
@@ -668,6 +676,9 @@ api:
             ESP_LOGI("ui_diag", "home=%d calibration=%d grid=%d,%d,%d,%d next=%d,%d,%d,%d",
                 lv_screen_active() == id(home_page)->obj, lv_screen_active() == id(touch_cal_page)->obj,
                 grid.x1, grid.y1, grid.x2, grid.y2, nav.x1, nav.y1, nav.x2, nav.y2);
+    - action: light_controls_preview
+      then:
+        - script.execute: light_controls_preview
     - action: ui_self_test
       then:
         - script.execute: ui_self_test
@@ -3338,7 +3349,6 @@ lvgl:
                   scrollable: false
                   on_click:
                     - lvgl.widget.hide: color_detail_overlay
-                    - lvgl.widget.show: brightness_overlay
                   widgets:
                     - label:
                         align: CENTER
@@ -3349,6 +3359,9 @@ lvgl:
 
               - label:
                   id: color_detail_title
+                  width: 310
+                  long_mode: DOT
+                  text_align: CENTER
                   align: TOP_MID
                   y: 32
                   text: "Light Color"
@@ -3375,334 +3388,6 @@ lvgl:
                         text: "\U000F012C"
                         text_font: materialdesign_icons
                         text_color: 0xFFFFFF
-                        clickable: false
-
-              - obj:
-                  id: color_mode_tabs
-                  align: TOP_MID
-                  y: 116
-                  width: 285
-                  height: 56
-                  radius: 21
-                  bg_color: 0x3C3C40
-                  bg_opa: COVER
-                  border_width: 0
-                  scrollable: false
-                  pad_left: 0
-                  pad_right: 0
-                  pad_top: 0
-                  pad_bottom: 0
-                  widgets:
-                    - obj:
-                        id: color_tab_indicator
-                        x: 3
-                        y: 4
-                        width: 140
-                        height: 48
-                        radius: 18
-                        bg_color: 0x8E8E93
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: false
-                        scrollable: false
-                    - obj:
-                        x: 0
-                        y: 0
-                        width: 142
-                        height: 56
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: true
-                        scrollable: false
-                        pad_left: 0
-                        pad_right: 0
-                        pad_top: 0
-                        pad_bottom: 0
-                        on_click:
-                          - script.execute:
-                              id: show_color_detail_tab
-                              tab: 0
-                        widgets:
-                          - label:
-                              id: color_tab_label
-                              align: CENTER
-                              text: "Color"
-                              text_font: sublabel_big
-                              text_color: 0xFFFFFF
-                              clickable: false
-                    - obj:
-                        x: 142
-                        y: 0
-                        width: 142
-                        height: 56
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: true
-                        scrollable: false
-                        pad_left: 0
-                        pad_right: 0
-                        pad_top: 0
-                        pad_bottom: 0
-                        on_click:
-                          - script.execute:
-                              id: show_color_detail_tab
-                              tab: 1
-                        widgets:
-                          - label:
-                              id: temp_tab_label
-                              align: CENTER
-                              text: "Temp."
-                              text_font: sublabel_big
-                              text_color: 0xFFFFFF
-                              clickable: false
-
-              - obj:
-                  id: color_palette_card
-                  align: TOP_MID
-                  y: 196
-                  width: 429
-                  height: 96
-                  bg_opa: TRANSP
-                  border_width: 0
-                  scrollable: false
-                  pad_left: 0
-                  pad_right: 0
-                  pad_top: 0
-                  pad_bottom: 0
-                  widgets:
-                    - obj:
-                        id: color_preset_red
-                        x: 21
-                        y: 16
-                        width: 45
-                        height: 45
-                        radius: 999
-                        bg_color: 0xFF3B30
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        on_click:
-                          - script.execute: { id: set_light_color_name, color: "red" }
-                    - obj:
-                        id: color_preset_orange
-                        x: 92
-                        y: 16
-                        width: 45
-                        height: 45
-                        radius: 999
-                        bg_color: 0xFF9F0A
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        on_click:
-                          - script.execute: { id: set_light_color_name, color: "orange" }
-                    - obj:
-                        id: color_preset_yellow
-                        x: 162
-                        y: 16
-                        width: 45
-                        height: 45
-                        radius: 999
-                        bg_color: 0xFFD60A
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        on_click:
-                          - script.execute: { id: set_light_color_name, color: "yellow" }
-                    - obj:
-                        id: color_preset_green
-                        x: 232
-                        y: 16
-                        width: 45
-                        height: 45
-                        radius: 999
-                        bg_color: 0x30D158
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        on_click:
-                          - script.execute: { id: set_light_color_name, color: "green" }
-                    - obj:
-                        id: color_preset_blue
-                        x: 303
-                        y: 16
-                        width: 45
-                        height: 45
-                        radius: 999
-                        bg_color: 0x0A84FF
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        on_click:
-                          - script.execute: { id: set_light_color_name, color: "blue" }
-                    - obj:
-                        id: color_preset_purple
-                        x: 374
-                        y: 16
-                        width: 45
-                        height: 45
-                        radius: 999
-                        bg_color: 0xBF5AF2
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        on_click:
-                          - script.execute: { id: set_light_color_name, color: "purple" }
-
-              - obj:
-                  id: temp_palette_card
-                  align: TOP_MID
-                  y: 196
-                  width: 429
-                  height: 96
-                  bg_opa: TRANSP
-                  border_width: 0
-                  scrollable: false
-                  hidden: true
-                  pad_left: 0
-                  pad_right: 0
-                  pad_top: 0
-                  pad_bottom: 0
-                  widgets:
-                    - obj:
-                        id: temp_preset_2700
-                        x: 36
-                        y: 16
-                        width: 93
-                        height: 60
-                        radius: 22
-                        bg_color: 0xFFD4A3
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        scrollable: false
-                        scrollbar_mode: 'OFF'
-                        pad_left: 0
-                        pad_right: 0
-                        pad_top: 0
-                        pad_bottom: 0
-                        on_click:
-                          - script.execute: { id: set_light_color_temperature, kelvin: 2700 }
-                        widgets:
-                          - label:
-                              align: CENTER
-                              text: "2700K"
-                              text_font: sublabel_big
-                              text_color: 0x3A2A18
-                              clickable: false
-                    - obj:
-                        id: temp_preset_4000
-                        x: 168
-                        y: 16
-                        width: 93
-                        height: 60
-                        radius: 22
-                        bg_color: 0xFFE8C8
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        scrollable: false
-                        scrollbar_mode: 'OFF'
-                        pad_left: 0
-                        pad_right: 0
-                        pad_top: 0
-                        pad_bottom: 0
-                        on_click:
-                          - script.execute: { id: set_light_color_temperature, kelvin: 4000 }
-                        widgets:
-                          - label:
-                              align: CENTER
-                              text: "4000K"
-                              text_font: sublabel_big
-                              text_color: 0x3A2A18
-                              clickable: false
-                    - obj:
-                        id: temp_preset_6500
-                        x: 300
-                        y: 16
-                        width: 93
-                        height: 60
-                        radius: 22
-                        bg_color: 0xEAF4FF
-                        bg_opa: COVER
-                        border_width: 0
-                        clickable: true
-                        scrollable: false
-                        scrollbar_mode: 'OFF'
-                        pad_left: 0
-                        pad_right: 0
-                        pad_top: 0
-                        pad_bottom: 0
-                        on_click:
-                          - script.execute: { id: set_light_color_temperature, kelvin: 6500 }
-                        widgets:
-                          - label:
-                              align: CENTER
-                              text: "6500K"
-                              text_font: sublabel_big
-                              text_color: 0x1E2A36
-                              clickable: false
-
-              - obj:
-                  id: color_brightness_card
-                  align: TOP_MID
-                  y: 330
-                  width: 282
-                  height: 92
-                  bg_opa: TRANSP
-                  border_width: 0
-                  scrollable: false
-                  pad_left: 0
-                  pad_right: 0
-                  pad_top: 0
-                  pad_bottom: 0
-                  widgets:
-                    - label:
-                        x: 20
-                        y: 12
-                        text: "Brightness"
-                        text_font: sublabel
-                        text_color: 0xD1D1D6
-                        hidden: true
-                        clickable: false
-                    - slider:
-                        id: color_brightness_slider
-                        x: 0
-                        y: 0
-                        width: 282
-                        height: 92
-                        min_value: 1
-                        max_value: 100
-                        value: 100
-                        bg_color: 0x293F50
-                        bg_opa: COVER
-                        radius: 34
-                        border_width: 0
-                        indicator:
-                          bg_color: 0xFEC600
-                          bg_opa: COVER
-                          radius: 34
-                        knob:
-                          bg_opa: 0%
-                          border_width: 0
-                          shadow_width: 0
-                          pad_all: 15
-                        on_value:
-                          - script.execute:
-                              id: color_brightness_preview
-                              value: !lambda "return x;"
-                        on_release:
-                          - script.execute:
-                              id: color_brightness_commit
-                              value: !lambda "return lv_slider_get_value(id(color_brightness_slider));"
-                    - label:
-                        id: color_brightness_value
-                        align: RIGHT_MID
-                        x: -20
-                        text: "100 %"
-                        text_font: sublabel_big
-                        text_color: 0xFFFFFF
-                        hidden: true
                         clickable: false
 
         # ---------- CLIMATE DETAIL OVERLAY ----------
@@ -4580,6 +4265,7 @@ script:
     mode: single
     then:
       - logger.log: "UI_TEST START: page/overlay render stress, no HA actions"
+      - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
       - lambda: 'id(calibration_active) = false;'
       - lvgl.page.show: home_page
       - script.execute: wake_display
@@ -4909,129 +4595,36 @@ script:
                   entity_id: !lambda "return id(active_entity);"
                   hvac_mode: !lambda "return id(active_climate_mode);"
 
+  # Isolated 40-second preview; every light commit is suppressed in the helper.
+  - id: light_controls_preview
+    mode: single
+    then:
+      - script.execute: wake_display
+      - lambda: |-
+          light_controls::demo = true;
+          light_controls::fallback.minimum = 2000;
+          light_controls::fallback.maximum = 6500;
+          light_controls::fallback.kelvin = 3000;
+          light_controls::fallback.hue = 200;
+          light_controls::open("diagnostic", true, true, 75);
+          lv_label_set_text(id(color_detail_title), "Voorbeeld lamp");
+      - lvgl.widget.hide: color_close_button
+      - lvgl.widget.hide: color_done_button
+      - lvgl.widget.show: color_detail_overlay
+      - delay: 40s
+      - lvgl.widget.hide: color_detail_overlay
+      - lvgl.widget.show: color_close_button
+      - lvgl.widget.show: color_done_button
+      - lambda: 'light_controls::demo = false; light_controls::fallback = light_controls::State{};'
+
   - id: open_color_detail
     mode: restart
     then:
       - lambda: |-
           lv_label_set_text(id(color_detail_title), id(active_title).c_str());
-
-          char buf[12];
-          snprintf(buf, sizeof(buf), "%d %%", id(active_brightness_pct));
-          lv_label_set_text(id(color_brightness_value), buf);
-          lv_slider_set_value(id(color_brightness_slider), id(active_brightness_pct), LV_ANIM_OFF);
-
-          bool show_tabs = id(active_supports_color) && id(active_supports_temperature);
-          if (show_tabs) {
-            lv_obj_clear_flag(id(color_mode_tabs), LV_OBJ_FLAG_HIDDEN);
-          } else {
-            lv_obj_add_flag(id(color_mode_tabs), LV_OBJ_FLAG_HIDDEN);
-          }
-
-          if (atoi("${DISPLAY_W}") < atoi("${DISPLAY_H}")) {
-            int palette_y = show_tabs ? 192 : 152;
-            lv_obj_set_size(id(color_palette_card), 225, 172);
-            lv_obj_set_y(id(color_palette_card), palette_y);
-            lv_obj_set_pos(id(color_preset_red), 20, 8);
-            lv_obj_set_pos(id(color_preset_orange), 90, 8);
-            lv_obj_set_pos(id(color_preset_yellow), 160, 8);
-            lv_obj_set_pos(id(color_preset_green), 20, 104);
-            lv_obj_set_pos(id(color_preset_blue), 90, 104);
-            lv_obj_set_pos(id(color_preset_purple), 160, 104);
-
-            lv_obj_set_size(id(temp_palette_card), 225, 252);
-            lv_obj_set_y(id(temp_palette_card), palette_y);
-            lv_obj_set_pos(id(temp_preset_2700), 66, 8);
-            lv_obj_set_pos(id(temp_preset_4000), 66, 96);
-            lv_obj_set_pos(id(temp_preset_6500), 66, 184);
-
-            lv_obj_set_y(id(color_brightness_card), 512);
-          } else {
-            int palette_y = show_tabs ? 196 : 156;
-            lv_obj_set_size(id(color_palette_card), 429, 96);
-            lv_obj_set_y(id(color_palette_card), palette_y);
-            lv_obj_set_pos(id(color_preset_red), 21, 16);
-            lv_obj_set_pos(id(color_preset_orange), 92, 16);
-            lv_obj_set_pos(id(color_preset_yellow), 162, 16);
-            lv_obj_set_pos(id(color_preset_green), 232, 16);
-            lv_obj_set_pos(id(color_preset_blue), 303, 16);
-            lv_obj_set_pos(id(color_preset_purple), 374, 16);
-
-            lv_obj_set_size(id(temp_palette_card), 429, 96);
-            lv_obj_set_y(id(temp_palette_card), palette_y);
-            lv_obj_set_pos(id(temp_preset_2700), 36, 16);
-            lv_obj_set_pos(id(temp_preset_4000), 168, 16);
-            lv_obj_set_pos(id(temp_preset_6500), 300, 16);
-
-            lv_obj_set_y(id(color_brightness_card), 330);
-          }
-
-          id(active_color_detail_tab) = id(active_supports_color) ? 0 : 1;
+          light_controls::open(id(active_entity), id(active_supports_color), id(active_supports_temperature), id(active_brightness_pct));
       - lvgl.widget.hide: brightness_overlay
       - lvgl.widget.show: color_detail_overlay
-      - script.execute:
-          id: show_color_detail_tab
-          tab: !lambda "return id(active_color_detail_tab);"
-
-  - id: show_color_detail_tab
-    mode: restart
-    parameters:
-      tab: int
-    then:
-      - lambda: |-
-          if (tab == 0 && !id(active_supports_color) && id(active_supports_temperature)) {
-            tab = 1;
-          } else if (tab == 1 && !id(active_supports_temperature) && id(active_supports_color)) {
-            tab = 0;
-          }
-          id(active_color_detail_tab) = tab;
-
-          bool show_tabs = id(active_supports_color) && id(active_supports_temperature);
-          if (show_tabs) {
-            lv_obj_clear_flag(id(color_mode_tabs), LV_OBJ_FLAG_HIDDEN);
-          } else {
-            lv_obj_add_flag(id(color_mode_tabs), LV_OBJ_FLAG_HIDDEN);
-          }
-
-          if (tab == 0 && id(active_supports_color)) {
-            lv_obj_clear_flag(id(color_palette_card), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(id(temp_palette_card), LV_OBJ_FLAG_HIDDEN);
-            if (show_tabs) lv_obj_set_x(id(color_tab_indicator), 3);
-          } else if (tab == 1 && id(active_supports_temperature)) {
-            lv_obj_add_flag(id(color_palette_card), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_clear_flag(id(temp_palette_card), LV_OBJ_FLAG_HIDDEN);
-            if (show_tabs) lv_obj_set_x(id(color_tab_indicator), 142);
-          } else {
-            lv_obj_add_flag(id(color_palette_card), LV_OBJ_FLAG_HIDDEN);
-            lv_obj_add_flag(id(temp_palette_card), LV_OBJ_FLAG_HIDDEN);
-          }
-
-          lv_obj_set_style_text_color(
-            id(color_tab_label),
-            id(active_supports_color) ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x8E8E93),
-            0
-          );
-          lv_obj_set_style_text_color(
-            id(temp_tab_label),
-            id(active_supports_temperature) ? lv_color_hex(0xFFFFFF) : lv_color_hex(0x8E8E93),
-            0
-          );
-          if (tab == 0 && id(active_supports_color)) {
-            lv_obj_set_style_text_color(id(color_tab_label), lv_color_hex(0xFFFFFF), 0);
-            lv_obj_set_style_text_color(id(temp_tab_label), lv_color_hex(0xD1D1D6), 0);
-          } else if (tab == 1 && id(active_supports_temperature)) {
-            lv_obj_set_style_text_color(id(color_tab_label), lv_color_hex(0xD1D1D6), 0);
-            lv_obj_set_style_text_color(id(temp_tab_label), lv_color_hex(0xFFFFFF), 0);
-          }
-
-  - id: color_brightness_preview
-    parameters:
-      value: int
-    then:
-      - lambda: |-
-          id(active_brightness_pct) = value;
-          char buf[12];
-          snprintf(buf, sizeof(buf), "%d %%", value);
-          lv_label_set_text(id(color_brightness_value), buf);
 
   - id: color_brightness_commit
     parameters:
@@ -5040,7 +4633,7 @@ script:
       - lambda: 'id(active_brightness_pct) = value;'
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true" && id(active_entity).rfind("light.", 0) == 0;'
           then:
             - homeassistant.action:
                 action: light.turn_on
@@ -5048,37 +4641,36 @@ script:
                   entity_id: !lambda "return id(active_entity);"
                   brightness_pct: !lambda "return value;"
 
-  - id: set_light_color_name
-    mode: queued
+  - id: set_light_hue
     parameters:
-      color: string
+      value: int
     then:
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true" && id(active_supports_color) && id(active_entity).rfind("light.", 0) == 0;'
           then:
             - homeassistant.action:
                 action: light.turn_on
                 data:
                   entity_id: !lambda "return id(active_entity);"
-                  color_name: !lambda "return color;"
-                  brightness_pct: !lambda "return id(active_brightness_pct);"
+                data_template:
+                  hs_color: "{{ [hue | int, 100] }}"
+                variables:
+                  hue: !lambda "return light_controls::clamp(value, 0, 360);"
 
   - id: set_light_color_temperature
-    mode: queued
     parameters:
       kelvin: int
     then:
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true" && id(active_supports_temperature) && id(active_entity).rfind("light.", 0) == 0 && light_controls::active->temperature_ready();'
           then:
             - homeassistant.action:
                 action: light.turn_on
                 data:
                   entity_id: !lambda "return id(active_entity);"
-                  color_temp_kelvin: !lambda "return kelvin;"
-                  brightness_pct: !lambda "return id(active_brightness_pct);"
+                  color_temp_kelvin: !lambda "return light_controls::clamp(kelvin, light_controls::active->minimum, light_controls::active->maximum);"
 
   - id: slider_preview
     parameters:
@@ -5689,7 +5281,13 @@ script:
           condition:
             lambda: 'return id(active_control_kind) != "climate_temperature";'
           then:
-            - lvgl.widget.show: brightness_overlay
+            - if:
+                condition:
+                  lambda: 'return id(active_supports_color) || id(active_supports_temperature);'
+                then:
+                  - script.execute: open_color_detail
+                else:
+                  - lvgl.widget.show: brightness_overlay
 
   # UI refresh (values + time + styles) + render
   - id: ui_refresh

@@ -6,7 +6,7 @@ capabilities bepalen welke schuiven verschijnen.
 
 ## Uitgevoerd
 
-- 23 Python-regressietests op de Guition-branch geslaagd.
+- 23 Python-regressietests op de Guition-branch en 17 op CYD-main geslaagd.
 - C++-tests voor touchguard, touchfilter en nieuwe lichtwaardenparser geslaagd.
 - Beide persoonlijke profielen volledig gebouwd met ESPHome 2026.6.2.
 - Guition: RAM statisch 74.380 bytes; firmware 1.349.559 bytes.
@@ -31,5 +31,8 @@ Dit is een lokale toolchainreparatie, geen wijziging van bord/flashinstellingen.
 
 Een succesvolle build is geen fysieke CYD-test: alleen de Guition was aangesloten.
 Schuifevents in de firmwaretest zijn synthetisch; menselijke touchbediening en
-werkelijke HA-lampacties moeten apart worden gecontroleerd. De eigenaar vond de
-voorbeeldkaart er goed uitzien; de HA-koppeling ontbrak op dat moment nog.
+werkelijke HA-lampacties zijn apart gecontroleerd: de bestaande lokale API-sleutel
+is met expliciete toestemming gebruikt voor de Guition-koppeling. HA toont het
+apparaat verbonden; toestemming voor HA-acties stond al aan. Daarna bevestigde
+de eigenaar na kleur-, wittemperatuur- en helderheidstest: “yes! het werkt top!”.
+Deze fysieke bevestiging geldt voor de Guition, niet voor de niet-aangesloten CYD.
