@@ -122,11 +122,11 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError): fresh.save('text.screen',{**saved,'settings':{'brightness':0}})
             self.assertEqual(path.read_bytes(),before)
             await fresh.sync_one('text.screen',saved)
-            self.assertEqual(fresh.ha.messages[0][1]['settings'],{k:v for k,v in settings.items() if k!='swipe_pages'})
+            self.assertEqual(fresh.ha.messages[0][1]['settings'],{k:v for k,v in settings.items() if k not in ('swipe_pages','rotation')})
             await fresh.sync_one('text.screen',saved)
             self.assertEqual(len(fresh.ha.messages),2)
             await fresh.sync_one('text.screen',saved,True)
-            self.assertEqual(fresh.ha.messages[2][1]['settings'],{k:v for k,v in settings.items() if k!='swipe_pages'})
+            self.assertEqual(fresh.ha.messages[2][1]['settings'],{k:v for k,v in settings.items() if k not in ('swipe_pages','rotation')})
 
     async def test_reorder_aborts_old_batch(self):
         with tempfile.TemporaryDirectory() as temp:

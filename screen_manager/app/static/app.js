@@ -81,6 +81,7 @@ const settingDefinitions = [
   ["show_clock", "Klok tonen", "check", true],
   ["clock_24h", "24-uursklok (uit = 12 uur)", "check", true],
   ["home_on_standby", "Na standby terug naar pagina 1", "check", false],
+  ["rotation", "Scherm draaien (met de klok mee)", "rotation", 0],
   ["swipe_pages", "Vegen tussen pagina’s (firmware 0.2.7+)", "check", false],
 ];
 function renderSettings() {
@@ -93,20 +94,25 @@ function renderSettings() {
   const container = $("#settings-fields");
   container.replaceChildren();
   for (const [key, title, kind, , min, max] of settingDefinitions) {
+    if(key === "rotation" && inventory.screens.find(s => s.id === selected)?.board !== "guition") continue;
     const label = node(
       "label",
       undefined,
       `setting ${kind === "check" ? "setting-check" : ""}`,
     );
     const caption = node("span", title),
-      input = node("input"),
+      input = node(kind === "rotation" ? "select" : "input"),
       output = node("output");
     input.id = `setting-${key}`;
-    input.type =
+    if(kind !== "rotation") input.type =
       kind === "check" ? "checkbox" : kind === "minutes" ? "number" : kind;
     input.setAttribute("aria-label", title);
     input.required = kind === "minutes" || kind === "time";
-    if (kind === "check") input.checked = values[key];
+    if(kind === "rotation") {
+      for(const angle of [0,90,180,270]) { const option=node("option", `${angle}°`); option.value=angle; input.append(option); }
+      input.value=values[key];
+    }
+    else if (kind === "check") input.checked = values[key];
     else if (kind === "time")
       input.value = `${String(Math.floor(values[key] / 60)).padStart(2, "0")}:${String(values[key] % 60).padStart(2, "0")}`;
     else {

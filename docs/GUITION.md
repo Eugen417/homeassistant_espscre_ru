@@ -24,6 +24,20 @@ geen `calibration.yaml` of XPT2046-correctie over.
 
 ## Interface
 
+### Montage en schermrotatie (runtime 0.2.9+)
+
+Installeer Guition-firmware 0.2.9 en ESP Screen Manager 0.2.9. Open het scherm
+in de beheerpagina, ga naar **Scherminstellingen** en kies bij **Scherm draaien**
+0°, 90°, 180° of 270°, met de klok mee. Klik op opslaan. Een firmwareflash is
+daarna niet meer nodig om de hoek te wijzigen. De instelling blijft in de appdata
+en op het scherm bewaard na een herstart.
+
+Dit gebruikt de native ESPHome/LVGL-rotatie voor beeld én touch, zonder wijzigingen
+aan de paneelinitialisatie of GT911-spiegeling. Controleer na montage de vier
+hoeken en de navigatie fysiek; een renderproef test geen aanrakingen. De optie is
+alleen zichtbaar voor de Guition nadat zijn nieuwe firmware door HA is ontdekt.
+De CYD blijft op zijn bestaande oriëntatie met zijn eigen kalibratie.
+
 Zes tegels van **218 × 108 pixels** per pagina, 12px tussenruimte en een
 aparte navigatiestrook. Vanaf zeven tegels verschijnt pagina twee; tot zes
 verdwijnt de navigatie. Grotere letters, iconen, dimmers en kleurkeuzes; de

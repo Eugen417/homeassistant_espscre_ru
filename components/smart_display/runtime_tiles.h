@@ -15,6 +15,9 @@ namespace runtime_tiles {
 inline bool enabled = false;
 inline bool light_theme = false;
 inline bool swipe_pages = false;
+inline uint32_t rotation = 0;
+inline bool rotation_supported = false;
+inline esphome::ESPPreferenceObject rotation_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
 inline Model model;
 inline std::string inbox;
@@ -30,6 +33,11 @@ inline void load_settings() {
   swipe_preference = esphome::global_preferences->make_preference<uint32_t>(0x53575031);
   uint32_t swipe_saved=0;
   if(swipe_preference.load(&swipe_saved))swipe_pages=swipe_saved==1;
+  if(rotation_supported){
+    rotation_preference=esphome::global_preferences->make_preference<uint32_t>(0x524F5431);
+    uint32_t saved=0;
+    if(rotation_preference.load(&saved) && saved<=270 && saved%90==0)rotation=saved;
+  }
   screen_settings::Settings saved;
   if (settings_preference.load(&saved) && saved.valid()) screen_settings::current = saved;
 }
@@ -94,17 +102,24 @@ inline std::string receive(const std::string &payload) {
         entities.push_back(entity.as<std::string>());
       }
       if(!root["swipe_pages"].isNull() && !root["swipe_pages"].is<bool>())return false;
+      if(!root["rotation"].isNull() && (!root["rotation"].is<unsigned>() ||
+          root["rotation"].as<unsigned>()>270 || root["rotation"].as<unsigned>()%90!=0))return false;
       inbox = string(root["inbox"], 160);
       bool changed = false;
       if (!model.set_layout(entities, string(root["title"], 96), changed)) return false;
       if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
         swipe_pages=root["swipe_pages"].as<bool>();uint32_t saved=swipe_pages?1:0;swipe_preference.save(&saved);
       }
+      bool rotation_changed=false;
+      if(rotation_supported && root["rotation"].is<unsigned>() && rotation!=root["rotation"].as<unsigned>()){
+        rotation=root["rotation"].as<unsigned>();rotation_preference.save(&rotation);rotation_changed=true;
+      }
       if (!(settings == screen_settings::current)) {
         screen_settings::current = settings;
         settings_preference.save(&settings);  // ESPHome batches flash writes; no write on keepalive.
-        if (settings_changed) settings_changed();
+        rotation_changed=true;
       }
+      if(rotation_changed && settings_changed)settings_changed();
       if (changed) { active_index = -1; for (auto &w : widgets) w.cached_active = -1; if (dismiss) dismiss(); }
       last_received = esphome::millis();
       if (layout_changed) layout_changed();

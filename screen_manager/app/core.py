@@ -24,6 +24,7 @@ SETTING_RULES = {
     'clock_24h': (True, None, None),
     'home_on_standby': (False, None, None),
     'swipe_pages': (False, None, None),
+    'rotation': (0, 0, 270),
 }
 
 def validate_settings(data):
@@ -36,6 +37,7 @@ def validate_settings(data):
             valid = type(value) is bool
         else:
             valid = type(value) is int and minimum <= value <= maximum
+        if key == "rotation": valid = valid and value in (0, 90, 180, 270)
         if not valid:
             raise ValueError(f'Ongeldige waarde voor {key}.')
         clean[key] = value
@@ -129,6 +131,8 @@ def discover(registry, states, devices, areas):
     area_map = {a['area_id']: a['name'] for a in areas}
     versions = {item.get('device_id'): states.get(item['entity_id'], {}).get('state', 'onbekend') for item in registry
                 if item.get('platform') == 'esphome' and item.get('original_name') == 'Schermfirmware'}
+    boards = {item.get("device_id"): "guition" for item in registry
+              if item.get("platform") == "esphome" and item.get("original_name") == "Guition schermtype"}
     screens, entities = [], []
     for item in registry:
         eid = item['entity_id']
@@ -138,6 +142,7 @@ def discover(registry, states, devices, areas):
         if item.get('platform') == 'esphome' and eid.startswith('text.') and item.get('original_name') == 'Tegelinstellingen' and not item.get('disabled_by'):
             screens.append({'id': eid, 'name': device.get('name_by_user') or device.get('name') or eid,
                             'firmware': versions.get(item.get('device_id'), 'onbekend'),
+                            'board': boards.get(item.get('device_id'), 'unknown'),
                             'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
                             'status': state.get('state', 'Niet verbonden')})
         if not entity_id(eid) or item.get('disabled_by'):

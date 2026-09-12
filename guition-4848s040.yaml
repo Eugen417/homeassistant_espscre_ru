@@ -1,7 +1,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.8"
+  SCREEN_FIRMWARE_VERSION: "0.2.9"
   DYNAMIC_TILES: "false"
   DASHBOARD_INBOX_INTERNAL: "true"
   DEVICE_NAME: "guition-wallbox"
@@ -617,6 +617,7 @@ esphome:
           runtime_tiles::watch_font = id(headline)->get_lv_font();
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
+          runtime_tiles::rotation_supported = true;
           runtime_tiles::load_settings();
           runtime_tiles::settings_changed = []() { id(apply_screen_settings).execute(); };
           runtime_tiles::dismiss = []() {
@@ -778,6 +779,7 @@ api:
               (unsigned)(millis() - id(last_touch_ms)), id(display_dimmed));
             ESP_LOGI("ui_diag", "navigation page=%d runtime_detail=%d", id(tile_page),
               runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
+            ESP_LOGI("ui_diag", "rotation=%u actual=%u", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());
             lv_area_t nav, grid;
             lv_obj_update_layout(id(home_page)->obj);
             lv_obj_get_coords(id(page_next), &nav);
@@ -1335,6 +1337,11 @@ binary_sensor:
 # ----------------------------------------------------------
 text_sensor:
   - platform: template
+    name: "Guition schermtype"
+    entity_category: diagnostic
+    update_interval: never
+    lambda: 'return {"guition"};'
+  - platform: template
     name: "Schermfirmware"
     entity_category: diagnostic
     lambda: 'return {"${SCREEN_FIRMWARE_VERSION}"};'
@@ -1683,6 +1690,7 @@ display:
 
 
 lvgl:
+  id: screen_lvgl
   on_draw_start:
     - lambda: 'id(rendered_frames)++;'
   displays:
@@ -4546,6 +4554,11 @@ script:
     then:
       - lambda: |-
           const auto &settings = screen_settings::current;
+          if(runtime_tiles::enabled && static_cast<unsigned>(id(screen_lvgl).get_rotation())!=runtime_tiles::rotation){
+            cyd::touch_guard.consume();
+            if(lv_indev_get_act())lv_indev_wait_release(lv_indev_get_act());
+            id(screen_lvgl).set_rotation(static_cast<esphome::display::DisplayRotation>(runtime_tiles::rotation));
+          }
           if (id(display_dimmed) && !settings.standby_enabled) {
             id(display_dimmed) = false;
           }

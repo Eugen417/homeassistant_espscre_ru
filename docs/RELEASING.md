@@ -101,3 +101,13 @@ breng de indeling eerst terug tot tien of herstel hun gegevensback-up bij rollba
 `settings.swipe_pages` is additief in opslagversie 1. Op de draad staat het buiten
 het ongewijzigde elfvelden-settingsobject. De bestaande preferences blijven gelijk;
 alleen swipe gebruikt een nieuwe eigen uint32-key `0x53575031`, standaard uit.
+
+### Compatibiliteit 0.2.9
+
+Guition-rotatie is additief als `settings.rotation` in appdata, uitsluitend
+0/90/180/270. Oude beheerpagina's die het veld weglaten behouden de opgeslagen
+hoek. Op de draad staat `rotation` naast het ongewijzigde elfvelden-settingsobject.
+De firmware bewaart de hoek als afzonderlijke uint32 op key `0x524F5431`; de
+bestaande Settings-structuur en CYD-kalibratie blijven ongewijzigd. Alleen de
+Guition activeert de rotatiecallback. De diagnostische entity `Guition schermtype`
+maakt deze capability herkenbaar, ook als het scherm offline of hernoemd is.

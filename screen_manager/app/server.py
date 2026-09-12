@@ -184,6 +184,11 @@ class Manager:
             layout['settings'] = self.layouts[inbox]['settings'].copy()
         if 'settings' in layout and 'swipe_pages' not in data.get('settings',{}):
             layout['settings']['swipe_pages']=self.layouts.get(inbox,{}).get('settings',{}).get('swipe_pages',False)
+        if 'settings' in layout and 'rotation' not in data.get('settings',{}):
+            layout['settings']['rotation']=self.layouts.get(inbox,{}).get('settings',{}).get('rotation',0)
+        screen=next(s for s in self.inventory()[0] if s['id']==inbox)
+        if layout.get('settings',{}).get('rotation',0) and screen.get('board')!='guition':
+            raise ValueError('Rotatie vereist een Guition met firmware 0.2.9 of nieuwer.')
         old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
         for tile in layout['tiles']:
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
@@ -211,8 +216,10 @@ class Manager:
             return
         messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
         if 'settings' in layout:
-            messages[0]['settings'] = {k:v for k,v in layout['settings'].items() if k!='swipe_pages'}
+            messages[0]['settings'] = {k:v for k,v in layout['settings'].items() if k not in ('swipe_pages','rotation')}
             messages[0]['swipe_pages'] = layout['settings'].get('swipe_pages',False)
+            if next((s.get('board') for s in self.inventory()[0] if s['id']==inbox),None)=='guition':
+                messages[0]['rotation'] = layout['settings'].get('rotation',0)
         for i,tile in enumerate(layout['tiles']):
             message=state_message(i,tile,self.ha.states)
             if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
