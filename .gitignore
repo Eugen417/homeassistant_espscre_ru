@@ -36,3 +36,7 @@ __pycache__/
 /guition-device.yaml
 
 /diagnostics/*.png
+/.venv-portal/
+/easy-guition-device.yaml
+/easy-cyd-test.yaml
+/portal-test-data/

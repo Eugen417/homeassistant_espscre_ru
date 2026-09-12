@@ -1,5 +1,16 @@
-> **Guition ESP32-S3 4-inch / 480×480:** gebruik [de Guition-handleiding](docs/GUITION.md)
-> en `guition-device.yaml`. De handleiding hieronder betreft het 2,8-inch CYD.
+# Home Assistant ESP Screens
+
+**Nieuw scherm installeren? Begin met [Easy Setup](docs/EASY_SETUP.md).**
+Installeer ESP Screen Manager in Home Assistant, download de YAML voor CYD of
+Guition, flash eenmaal via USB op je Raspberry en kies je tegels in de beheerpagina.
+Zoeken op entiteit/apparaat/ruimte, slepen, opslaan — zonder opnieuw flashen.
+
+Updates van de app behouden je indelingen. Nieuwe firmware installeer je via
+ESPHome OTA met behoud van je eigen naam, wifi en sleutels.
+Zie [updates publiceren](docs/RELEASING.md).
+
+De handleiding hieronder blijft beschikbaar voor handmatige installatie via een
+computer. Voor de handmatige Guition-route: [Guition](docs/GUITION.md).
 
 # CYD Home Assistant-bedieningsscherm
 
@@ -8,7 +19,7 @@ Home Assistant-scherm, via USB. Met lichtbediening, scènes/scripts, climate,
 vacuum, maximaal tien tegels en vaste pagina's. Bij maximaal zes tegels
 verdwijnt de paginering. Standby begint standaard na tien minuten.
 
-**Nieuw hier? Begin hieronder.** Je hoeft geen Home Assistant-token te maken
+**Handmatige installatie via de computer:** je hoeft geen Home Assistant-token te maken
 of een ESPHome-add-on te installeren om via de computer te flashen.
 
 ## Met een LLM of developer werken

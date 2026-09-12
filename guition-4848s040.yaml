@@ -1,6 +1,8 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
+  DYNAMIC_TILES: "false"
+  DASHBOARD_INBOX_INTERNAL: "true"
   DEVICE_NAME: "guition-wallbox"
   DEVICE_FRIENDLY_NAME: "Guition Wallbox"
   CALIBRATION_ON_BOOT: "false"
@@ -570,7 +572,17 @@ substitutions:
 # Source: https://github.com/Templarian/MaterialDesign-Webfont
 # ============================================================
 
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [smart_display]
+
 esphome:
+  min_version: 2026.6.2
+  project:
+    name: maxgramser.esp_screen
+    version: "0.1.0"
   platformio_options:
     build_flags:
       - -DLV_USE_SNAPSHOT=1
@@ -591,8 +603,75 @@ esphome:
           lv_obj_set_style_pad_row(id(vacuum_speeds), 4, 0);
           lv_obj_set_style_pad_column(id(vacuum_speeds), 4, 0);
       - lambda: |-
+          runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
+          if (!runtime_tiles::enabled) return;
+          runtime_tiles::dismiss = []() {
+            id(active_entity).clear();
+            lv_obj_add_flag(id(brightness_overlay), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(color_detail_overlay), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(climate_mode_overlay), LV_OBJ_FLAG_HIDDEN);
+            lv_obj_add_flag(id(vacuum_overlay), LV_OBJ_FLAG_HIDDEN);
+          };
+          runtime_tiles::layout_changed = []() { id(show_tile_page).execute(); };
+          runtime_tiles::refresh = []() { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); };
+          runtime_tiles::bind(0, id(tile1), id(t1_title), id(t1_value), id(tile1_icon_circle), id(tile1_icon_lbl));
+          runtime_tiles::bind(1, id(tile2), id(t2_title), id(t2_value), id(tile2_icon_circle), id(tile2_icon_lbl));
+          runtime_tiles::bind(2, id(tile3), id(t3_title), id(t3_value), id(tile3_icon_circle), id(tile3_icon_lbl));
+          runtime_tiles::bind(3, id(tile4), id(t4_title), id(t4_value), id(tile4_icon_circle), id(tile4_icon_lbl));
+          runtime_tiles::bind(4, id(tile5), id(t5_title), id(t5_value), id(tile5_icon_circle), id(tile5_icon_lbl));
+          runtime_tiles::bind(5, id(tile6), id(t6_title), id(t6_value), id(tile6_icon_circle), id(tile6_icon_lbl));
+          runtime_tiles::bind(6, id(tile7), id(t7_title), id(t7_value), id(tile7_icon_circle), id(tile7_icon_lbl));
+          runtime_tiles::bind(7, id(tile8), id(t8_title), id(t8_value), id(tile8_icon_circle), id(tile8_icon_lbl));
+          runtime_tiles::bind(8, id(tile9), id(t9_title), id(t9_value), id(tile9_icon_circle), id(tile9_icon_lbl));
+          runtime_tiles::bind(9, id(tile10), id(t10_title), id(t10_value), id(tile10_icon_circle), id(tile10_icon_lbl));
+          runtime_tiles::detail = [](runtime_tiles::Tile &t) {
+            if (t.domain() == "vacuum") {
+              lv_obj_t *buttons[] = {id(vacspd_quiet), id(vacspd_balanced), id(vacspd_turbo), id(vacspd_max)};
+              for (unsigned i = 0; i < 4; ++i) {
+                if (i < t.fan_speed_count) {
+                  lv_obj_clear_flag(buttons[i], LV_OBJ_FLAG_HIDDEN);
+                  lv_label_set_text(lv_obj_get_child(buttons[i], 0), t.fan_speeds[i].c_str());
+                } else lv_obj_add_flag(buttons[i], LV_OBJ_FLAG_HIDDEN);
+              }
+              id(open_vacuum_overlay).execute(t.name, t.entity);
+              return;
+            }
+            light_controls::fallback = light_controls::State{};
+            light_controls::fallback.hue = t.hue;
+            light_controls::fallback.kelvin = t.kelvin;
+            light_controls::fallback.minimum = t.min_kelvin;
+            light_controls::fallback.maximum = t.max_kelvin;
+            id(open_value_overlay).execute(t.name, t.entity, t.domain(), "auto", t.active(), 0,
+              t.brightness, t.percentage, t.position, runtime_tiles::icon_for(t),
+              0x565C66, 0xE4B23C, 0xFFFFFF, "Uit", "Aan", t.modes,
+              t.current, t.target, t.humidity, t.state, t.hvac_modes,
+              std::to_string(t.minimum), std::to_string(t.maximum), std::to_string(t.step));
+          };
+          runtime_tiles::detail_update = [](runtime_tiles::Tile &t) {
+            if (id(active_entity) != t.entity || id(touch_down)) return;
+            if (t.domain() == "climate" && !lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) {
+              if (id(climate_edit_pending) && millis() - id(climate_edit_ms) < 3000) return;
+              id(climate_edit_pending) = false;
+              id(active_climate_mode) = t.state;
+              id(active_climate_supported_modes) = t.hvac_modes;
+              lv_label_set_text(id(climate_mode_label), t.state.c_str());
+              char buf[72];
+              if (std::isfinite(t.current)) snprintf(buf, sizeof(buf), "Nu: %.1f°", t.current);
+              else snprintf(buf, sizeof(buf), "Nu: --");
+              lv_label_set_text(id(climate_current_label), buf);
+              if (std::isfinite(t.target)) {
+                int target = cyd::quantize_temperature(lround(t.target * 10), id(active_climate_min_x10), id(active_climate_max_x10), id(active_climate_step_x10));
+                id(active_climate_target_x10) = target;
+                snprintf(buf, sizeof(buf), "%.1f°", target / 10.0f);
+                lv_label_set_text(id(climate_target_label), buf);
+                lv_arc_set_value(id(climate_arc), target);
+              }
+            }
+          };
+      - lambda: |-
           static const char *entities[] = {"${TILE1_ENTITY}", "${TILE2_ENTITY}", "${TILE3_ENTITY}", "${TILE4_ENTITY}", "${TILE5_ENTITY}", "${TILE6_ENTITY}", "${TILE7_ENTITY}", "${TILE9_ENTITY}"};
-          light_controls::subscribe(entities, 8);
+          if (!runtime_tiles::enabled) light_controls::subscribe(entities, 8);
           light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"));
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
@@ -935,6 +1014,10 @@ font:
     id: materialdesign_icons
     size: 42
     glyphs:
+      - "\U000F0335"
+      - "\U000F0210"
+      - "\U000F111C"
+      - "\U000F029A"
       - "${MDI_GLYPH_1}"
       - "${MDI_GLYPH_2}"
       - "${MDI_GLYPH_3}"
@@ -1226,6 +1309,11 @@ binary_sensor:
 # - Used by the UI to display fan presets when applicable
 # ----------------------------------------------------------
 text_sensor:
+  - platform: template
+    name: "Schermfirmware"
+    entity_category: diagnostic
+    lambda: 'return {"0.1.0"};'
+    update_interval: 60s
   - platform: template
     id: smartdisplay_action
     name: "SmartDisplay Action"
@@ -1741,7 +1829,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 1);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 1);'
                         then:
                           - script.execute: { id: publish_action, action: "tile1_press" }
                           - script.execute:
@@ -1759,7 +1847,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 1);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 1);'
                         then:
                           - script.execute: { id: publish_action, action: "tile1_long_press" }
                           - if:
@@ -1876,7 +1964,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 2);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 2);'
                         then:
                           - script.execute: { id: publish_action, action: "tile2_press" }
                           - script.execute:
@@ -1894,7 +1982,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 2);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 2);'
                         then:
                           - script.execute: { id: publish_action, action: "tile2_long_press" }
                           - if:
@@ -2011,7 +2099,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 3);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 3);'
                         then:
                           - script.execute: { id: publish_action, action: "tile3_press" }
                           - script.execute:
@@ -2029,7 +2117,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 3);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 3);'
                         then:
                           - script.execute: { id: publish_action, action: "tile3_long_press" }
                           - if:
@@ -2146,7 +2234,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 4);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 4);'
                         then:
                           - script.execute: { id: publish_action, action: "tile4_press" }
                           - script.execute:
@@ -2164,7 +2252,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 4);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 4);'
                         then:
                           - script.execute: { id: publish_action, action: "tile4_long_press" }
                           - if:
@@ -2281,7 +2369,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 5);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 5);'
                         then:
                           - script.execute: { id: publish_action, action: "tile5_press" }
                           - script.execute:
@@ -2299,7 +2387,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 5);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 5);'
                         then:
                           - script.execute: { id: publish_action, action: "tile5_long_press" }
                           - if:
@@ -2416,7 +2504,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 6);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 6);'
                         then:
                           - script.execute: { id: publish_action, action: "tile6_press" }
                           - script.execute:
@@ -2434,7 +2522,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 6);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 6);'
                         then:
                           - script.execute: { id: publish_action, action: "tile6_long_press" }
                           - if:
@@ -2554,7 +2642,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 7);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 7);'
                         then:
                           - script.execute: { id: publish_action, action: "tile7_press" }
                           - script.execute:
@@ -2569,7 +2657,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 7);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 7);'
                         then:
                           - script.execute: { id: publish_action, action: "tile7_long_press" }
                           - if:
@@ -2677,7 +2765,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 8);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 8);'
                         then:
                           - script.execute: { id: publish_action, action: "tile8_press" }
                           - script.execute:
@@ -2692,7 +2780,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 8);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 8);'
                         then:
                           - script.execute: { id: publish_action, action: "tile8_long_press" }
                           # Slider-modus kan hier niet zonder eerst de bijbehorende
@@ -2766,7 +2854,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 9);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 9);'
                         then:
                           - script.execute: { id: publish_action, action: "tile9_press" }
                           - script.execute:
@@ -2781,7 +2869,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 9);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 9);'
                         then:
                           - script.execute: { id: publish_action, action: "tile9_long_press" }
                           - if:
@@ -2884,7 +2972,7 @@ lvgl:
                   on_short_click:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 10);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 10);'
                         then:
                           - script.execute: { id: publish_action, action: "tile10_press" }
                           - script.execute:
@@ -2899,7 +2987,7 @@ lvgl:
                   on_long_press:
                     - if:
                         condition:
-                          lambda: 'return cyd::touch_guard.accept(millis(), 10);'
+                          lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 10);'
                         then:
                           - script.execute: { id: publish_action, action: "tile10_long_press" }
                           - if:
@@ -4028,7 +4116,9 @@ lvgl:
                         scrollable: false
                         pad_all: 0
                         on_click:
-                          - script.execute: { id: vacuum_fan_speed, speed: "quiet" }
+                          - script.execute:
+                              id: vacuum_fan_speed
+                              speed: !lambda 'return runtime_tiles::enabled ? runtime_tiles::vacuum_option(0) : "quiet";'
                         widgets:
                           - label:
                               align: CENTER
@@ -4048,7 +4138,9 @@ lvgl:
                         scrollable: false
                         pad_all: 0
                         on_click:
-                          - script.execute: { id: vacuum_fan_speed, speed: "balanced" }
+                          - script.execute:
+                              id: vacuum_fan_speed
+                              speed: !lambda 'return runtime_tiles::enabled ? runtime_tiles::vacuum_option(1) : "balanced";'
                         widgets:
                           - label:
                               align: CENTER
@@ -4068,7 +4160,9 @@ lvgl:
                         scrollable: false
                         pad_all: 0
                         on_click:
-                          - script.execute: { id: vacuum_fan_speed, speed: "turbo" }
+                          - script.execute:
+                              id: vacuum_fan_speed
+                              speed: !lambda 'return runtime_tiles::enabled ? runtime_tiles::vacuum_option(2) : "turbo";'
                         widgets:
                           - label:
                               align: CENTER
@@ -4088,7 +4182,9 @@ lvgl:
                         scrollable: false
                         pad_all: 0
                         on_click:
-                          - script.execute: { id: vacuum_fan_speed, speed: "max" }
+                          - script.execute:
+                              id: vacuum_fan_speed
+                              speed: !lambda 'return runtime_tiles::enabled ? runtime_tiles::vacuum_option(3) : "max";'
                         widgets:
                           - label:
                               align: CENTER
@@ -4279,7 +4375,7 @@ script:
             - delay: 150ms
             - lambda: |-
                 lv_obj_update_layout(id(tile_scroll));
-                const int count = std::clamp(atoi("${TILE_COUNT}"), 1, 10);
+                const int count = runtime_tiles::enabled ? runtime_tiles::model.count : std::clamp(atoi("${TILE_COUNT}"), 1, 10);
                 const bool paginated = count > 6;
                 lv_obj_t* tiles[] = {id(tile1), id(tile2), id(tile3), id(tile4), id(tile5),
                                      id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
@@ -4327,7 +4423,7 @@ script:
           lv_obj_t* tiles[] = {id(tile1), id(tile2), id(tile3), id(tile4), id(tile5),
                                id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
           const int rows[] = {${GRID_ROW1_Y}, ${GRID_ROW2_Y}, ${GRID_ROW3_Y}};
-          const int count = std::clamp(atoi("${TILE_COUNT}"), 1, 10);
+          const int count = runtime_tiles::enabled ? runtime_tiles::model.count : std::clamp(atoi("${TILE_COUNT}"), 1, 10);
           const bool paginated = count > 6;
           if (!paginated) id(tile_page) = 0;
           for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)}) {
@@ -4465,7 +4561,7 @@ script:
           value: !lambda "return value;"
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true";'
           then:
             - homeassistant.action:
                 action: climate.set_temperature
@@ -4510,7 +4606,7 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true";'
           then:
             - homeassistant.action:
                 action: !lambda "return service;"
@@ -4525,7 +4621,7 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true";'
           then:
             - homeassistant.action:
                 action: vacuum.set_fan_speed
@@ -4587,7 +4683,7 @@ script:
       - lvgl.widget.hide: climate_mode_overlay
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true";'
           then:
             - homeassistant.action:
                 action: climate.set_hvac_mode
@@ -4633,7 +4729,7 @@ script:
       - lambda: 'id(active_brightness_pct) = value;'
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true" && id(active_entity).rfind("light.", 0) == 0;'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && id(active_entity).rfind("light.", 0) == 0;'
           then:
             - homeassistant.action:
                 action: light.turn_on
@@ -4647,7 +4743,7 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true" && id(active_supports_color) && id(active_entity).rfind("light.", 0) == 0;'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && id(active_supports_color) && id(active_entity).rfind("light.", 0) == 0;'
           then:
             - homeassistant.action:
                 action: light.turn_on
@@ -4664,7 +4760,7 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return std::string("${DIRECT_ACTIONS}") == "true" && id(active_supports_temperature) && id(active_entity).rfind("light.", 0) == 0 && light_controls::active->temperature_ready();'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && id(active_supports_temperature) && id(active_entity).rfind("light.", 0) == 0 && light_controls::active->temperature_ready();'
           then:
             - homeassistant.action:
                 action: light.turn_on
@@ -5295,6 +5391,12 @@ script:
     then:
       - delay: 100ms
       - lambda: |-
+          if (runtime_tiles::enabled) {
+            runtime_tiles::render(id(lbl_room));
+            auto now = id(homeassistant_time).now();
+            if (now.is_valid()) runtime_tiles::label(id(lbl_time), now.strftime("%H:%M"));
+            return;
+          }
           auto set_lbl = [](lv_obj_t* lbl, const std::string& s) {
             if (lbl && s != lv_label_get_text(lbl)) lv_label_set_text(lbl, s.c_str());
           };
@@ -5732,3 +5834,10 @@ script:
                     ${TILE10_BG_ACTIVE_COLOR}, ${TILE10_BG_DISABLED_COLOR},
                     ${TILE10_TITLE_ACTIVE_COLOR}, ${TILE10_TITLE_DISABLED_COLOR},
                     ${TILE10_VALUE_ACTIVE_COLOR}, ${TILE10_VALUE_DISABLED_COLOR});
+
+# HA blueprint transport; never publishes the JSON command as an HA state.
+text:
+  - platform: smart_display
+    id: dashboard_inbox
+    name: "Tegelinstellingen"
+    internal: ${DASHBOARD_INBOX_INTERNAL}

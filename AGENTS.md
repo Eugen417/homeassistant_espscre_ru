@@ -1,3 +1,16 @@
+## Easy Setup en releases
+
+De voorkeursroute voor nieuwe gebruikers is docs/EASY_SETUP.md: ESP Screen Manager
+plus remote ESPHome-pakketten. Geen token of blueprint nodig. Tegels staan in de
+permanente add-ondata; wifi/API/OTA blijven in de eigen ESPHome-YAML. Lees
+docs/RELEASING.md voordat je updates publiceert. Main distribueert beide borden.
+Genereer packages met tools/generate_packages.py; bewerk ze niet handmatig.
+Runtime-modus ondersteunt alle kaarten op alle tien posities. De positiebeperkingen
+hieronder gelden uitsluitend voor de oude handmatige profielen.
+Behoud gegevensschema, protocolcompatibiliteit, unieke sleutels en CYD-preferences.
+Test updates met bestaande gegevens. Publiceer geen onbekende opslagversie zonder
+migratie. Productie-Ingress heeft geen long-lived token of publieke poort nodig.
+
 ## Guition-branch
 
 De Guition 4848S040 heeft een apart profiel `guition-4848s040.yaml` met

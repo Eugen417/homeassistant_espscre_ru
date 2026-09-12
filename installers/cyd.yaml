@@ -1,0 +1,9 @@
+# Handmatig alternatief: voeg dit blok toe aan de ESPHome-wizardconfiguratie.
+# Verwijder het oude esp32:-blok; behoud je eigen esphome:, api:, ota: en wifi:.
+# De makkelijke route genereert een compleet eigen bestand: ESP Screen Manager.
+packages:
+  scherm:
+    url: https://github.com/MaxGramser/homeassistant_espscreen
+    ref: main
+    files: [packages/cyd.yaml]
+    refresh: 0s

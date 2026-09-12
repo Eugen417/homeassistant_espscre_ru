@@ -7,7 +7,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ['.gitignore', 'README.md', 'AGENTS.md', 'requirements.txt', 'device.example.yaml',
          'calibration.example.yaml', 'secrets.yaml.example', 'cyd_ui.h', 'light_controls.h', 'LICENSE',
-         'guition_diagnostics.h', 'guition-4848s040.yaml', 'guition-device.example.yaml', 'TILE_CONFIGURATION.md', 'CYD_STABILITY.md', 'TEST_RESULTS.md']
+         'guition_diagnostics.h', 'guition-4848s040.yaml', 'guition-device.example.yaml', 'TILE_CONFIGURATION.md', 'CYD_STABILITY.md', 'TEST_RESULTS.md', 'repository.yaml']
 FOLDERS = ['docs', 'tools', 'tests', 'components', 'diagnostics', 'fonts']
 SUFFIXES = {'.py', '.cpp', '.h', '.md', '.ttf', '.txt'}
 
@@ -28,6 +28,11 @@ def export(root, output):
     for folder in FOLDERS:
         for path in (root / folder).rglob('*'):
             if path.is_file() and '__pycache__' not in path.parts and (path.suffix in SUFFIXES or path.name == 'LICENSE'):
+                paths.append(path)
+    # Dedicated distribution directories only; never recursively include owner YAML.
+    for folder in ['screen_manager', 'packages', 'installers']:
+        for path in (root / folder).rglob('*'):
+            if path.is_file() and '__pycache__' not in path.parts and (path.suffix in SUFFIXES | {'.yaml', '.html', '.js', '.css'} or path.name == 'Dockerfile'):
                 paths.append(path)
     for path in paths:
         if path.is_symlink() or not path.resolve().is_relative_to(root):
