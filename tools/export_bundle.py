@@ -6,7 +6,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 FILES = ['.gitignore', 'README.md', 'AGENTS.md', 'requirements.txt', 'device.example.yaml',
-         'calibration.example.yaml', 'secrets.yaml.example', 'cyd_ui.h', 'LICENSE',
+         'calibration.example.yaml', 'secrets.yaml.example', 'cyd_ui.h', 'light_controls.h', 'LICENSE',
          'guition_diagnostics.h', 'guition-4848s040.yaml', 'guition-device.example.yaml', 'TILE_CONFIGURATION.md', 'CYD_STABILITY.md', 'TEST_RESULTS.md']
 FOLDERS = ['docs', 'tools', 'tests', 'components', 'diagnostics', 'fonts']
 SUFFIXES = {'.py', '.cpp', '.h', '.md', '.ttf', '.txt'}
