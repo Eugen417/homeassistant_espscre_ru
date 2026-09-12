@@ -1,21 +1,227 @@
 <!doctype html>
-<html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ESP Screens</title><link rel="stylesheet" href="static/style.css"><script src="static/app.js" defer></script></head>
-<body>
-<header><div class="brand"><span class="mark">▦</span><div><strong>ESP Screens</strong><small>Je huis. Jouw bediening.</small></div></div><button id="new-screen">＋ Nieuw scherm</button></header>
-<main>
-<div class="intro"><div><p class="eyebrow">HOME ASSISTANT</p><h1>Een plek voor je favorieten.</h1><p>Kies wat je wilt bedienen. Je scherm verandert met je mee.</p></div><span id="connection" role="status" class="badge">Verbinden…</span></div>
-<div class="workspace">
-<aside><h2>Mijn schermen</h2><div id="screens"></div><p class="hint">Nieuw scherm gekoppeld? Het verschijnt hier automatisch binnen 30 seconden.</p><button class="quiet" id="refresh">↻ Vernieuwen</button></aside>
-<section id="empty" class="empty"><span class="empty-icon">▦</span><h2>Begin met een scherm</h2><p>Sluit een CYD of Guition aan. We maken de installatie-YAML voor je en helpen je met de eerste flash.</p><button id="start">Nieuw scherm installeren</button></section>
-<section id="editor" hidden>
-<div class="editor-head"><div><p class="eyebrow" id="screen-name"></p><h2>Maak het jouw scherm</h2></div><span id="delivery" class="badge"></span></div>
-<label>Naam bovenaan het scherm<input id="title" maxlength="60" placeholder="Bijvoorbeeld: Woonkamer"></label>
-<div class="columns"><div class="tile-editor"><div class="section-title"><h3>Je tegels</h3><span id="count">0 / 10</span></div><p class="hint">Sleep om te ordenen of gebruik de pijltjes. Zes tegels per pagina.</p><ol id="tiles"></ol><p id="no-tiles" class="hint">Voeg rechts je eerste lamp, scène of apparaat toe.</p></div>
-<div class="picker"><label for="search">Voeg een entiteit toe</label><input id="search" type="search" placeholder="Zoek op naam, apparaat of ruimte…" autocomplete="off"><div class="filters" id="filters"></div><div id="results" aria-live="polite"></div></div></div>
-<footer class="savebar"><div><strong id="dirty">Alles opgeslagen</strong><small id="save-detail">Aanpassen kan zonder opnieuw flashen.</small></div><button id="save">Opslaan & naar scherm</button></footer>
-</section></div>
-<p class="firmware-link"><a href="/5c53de3b_esphome" target="_top">Firmware bijwerken in ESPHome ↗</a><small>Open je bestaande apparaat → Install → Wirelessly. Je tegels en sleutels blijven behouden.</small></p><details class="help"><summary>Hoe werkt het dagelijks?</summary><p>Zoek een entiteit, voeg deze toe en klik op <b>Opslaan & naar scherm</b>. De app houdt de status bij. Voor een kleurenlamp: houd de tegel ingedrukt voor kleur, temperatuur en helderheid. Climate, vacuum en cover openen hun kaart direct. Sensoren tonen alleen hun waarde.</p><p>Alleen nieuwe firmware vraagt om een installatie via ESPHome Device Builder. Je tegels blijven in deze app bewaard. Een offline scherm krijgt de wijzigingen zodra het terug is.</p></details>
-</main>
-<dialog id="installer"><form id="install-form"><div class="dialog-head"><div><p class="eyebrow">NIEUW SCHERM</p><h2>Van USB naar aan de muur.</h2></div><button type="button" class="quiet" id="close-install" aria-label="Sluiten">✕</button></div><p>Kies je scherm. Elk bestand krijgt eigen sleutels voor een veilige koppeling en draadloze updates.</p><fieldset><legend>Welk scherm heb je?</legend><label class="board"><input type="radio" name="board" value="cyd" checked><span><b>CYD · 2,8 inch</b><small>ESP32-2432S028 · 320 × 240</small></span></label><label class="board"><input type="radio" name="board" value="guition"><span><b>Guition · 4 inch</b><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span></label></fieldset><label>Herkenbare naam<input name="friendly_name" required maxlength="60" placeholder="Scherm woonkamer"></label><label>Unieke apparaatnaam<input name="name" required pattern="[a-z][a-z0-9-]{0,29}" maxlength="30" placeholder="scherm-woonkamer"><small>Kleine letters, cijfers en streepjes. Elk scherm een andere naam.</small></label><button type="submit" id="download">Maak installatie-YAML</button><p id="install-status" role="status"></p><div id="yaml-result" hidden><label>Je eigen ESPHome-YAML<textarea id="yaml-output" readonly rows="9" spellcheck="false"></textarea></label><div class="yaml-actions"><button type="button" id="copy-yaml">Kopieer YAML</button><button type="button" class="quiet" id="download-yaml">Download bestand</button></div></div><ol class="steps"><li><b>Open ESPHome Device Builder.</b> Voeg een nieuw apparaat toe, sla de eerste installatie over en vervang de inhoud via Edit door het gedownloade bestand.</li><li><b>Vul wifi eenmalig in bij Secrets.</b> Gebruik <code>wifi_ssid</code> en <code>wifi_password</code>.</li><li><b>Sluit USB aan op je Home Assistant Raspberry.</b> Klik Install → Plug into the computer running ESPHome Device Builder en kies de USB-poort.</li><li><b>Koppel in Instellingen → Apparaten & diensten → ESPHome.</b> Gebruik de <code>api.encryption.key</code> uit je bestand en sta Home Assistant-acties toe bij Configureren.</li><li><b>Open deze pagina en kies je tegels.</b> CYD toont bij de eerste start een kalibratie: tik ieder kruisje drie keer. Guition hoeft niet gekalibreerd.</li></ol><p class="hint">Bewaar je YAML met sleutels. Gebruik later Install → Wirelessly voor firmware-updates. Tegels wijzigen doe je hier.</p></form></dialog>
-<div id="toast" role="status" hidden></div>
-</body></html>
+<html lang="nl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>ESP Screens</title>
+    <link rel="stylesheet" href="static/style.css" />
+    <script src="static/app.js" defer></script>
+  </head>
+  <body>
+    <header>
+      <div class="brand">
+        <span class="mark">▦</span>
+        <div>
+          <strong>ESP Screens</strong><small>Je huis. Jouw bediening.</small>
+        </div>
+      </div>
+      <button id="new-screen">＋ Nieuw scherm</button>
+    </header>
+    <main>
+      <div class="intro">
+        <div>
+          <p class="eyebrow">HOME ASSISTANT</p>
+          <h1>Een plek voor je favorieten.</h1>
+          <p>Kies wat je wilt bedienen. Je scherm verandert met je mee.</p>
+        </div>
+        <span id="connection" role="status" class="badge">Verbinden…</span>
+      </div>
+      <div class="workspace">
+        <aside>
+          <h2>Mijn schermen</h2>
+          <div id="screens"></div>
+          <p class="hint">
+            Nieuw scherm gekoppeld? Het verschijnt hier automatisch binnen 30
+            seconden.
+          </p>
+          <button class="quiet" id="refresh">↻ Vernieuwen</button>
+        </aside>
+        <section id="empty" class="empty">
+          <span class="empty-icon">▦</span>
+          <h2>Begin met een scherm</h2>
+          <p>
+            Sluit een CYD of Guition aan. We maken de installatie-YAML voor je
+            en helpen je met de eerste flash.
+          </p>
+          <button id="start">Nieuw scherm installeren</button>
+        </section>
+        <section id="editor" hidden>
+          <div class="editor-head">
+            <div>
+              <p class="eyebrow" id="screen-name"></p>
+              <h2>Maak het jouw scherm</h2>
+            </div>
+            <span id="delivery" class="badge"></span>
+          </div>
+          <label
+            >Naam bovenaan het scherm<input
+              id="title"
+              maxlength="60"
+              placeholder="Bijvoorbeeld: Woonkamer"
+          /></label>
+          <div class="columns">
+            <div class="tile-editor">
+              <div class="section-title">
+                <h3>Je tegels</h3>
+                <span id="count">0 / 10</span>
+              </div>
+              <p class="hint">
+                Sleep om te ordenen of gebruik de pijltjes. Zes tegels per
+                pagina.
+              </p>
+              <ol id="tiles"></ol>
+              <p id="no-tiles" class="hint">
+                Voeg rechts je eerste lamp, scène of apparaat toe.
+              </p>
+            </div>
+            <div class="picker">
+              <label for="search">Voeg een entiteit toe</label
+              ><input
+                id="search"
+                type="search"
+                placeholder="Zoek op naam, apparaat of ruimte…"
+                autocomplete="off"
+              />
+              <div class="filters" id="filters"></div>
+              <div id="results" aria-live="polite"></div>
+            </div>
+          </div>
+          <footer class="savebar">
+            <div>
+              <strong id="dirty">Alles opgeslagen</strong
+              ><small id="save-detail"
+                >Aanpassen kan zonder opnieuw flashen.</small
+              >
+            </div>
+            <button id="save">Opslaan & naar scherm</button>
+          </footer>
+        </section>
+      </div>
+      <p class="firmware-link">
+        <a href="/5c53de3b_esphome" target="_top"
+          >Firmware bijwerken in ESPHome ↗</a
+        ><small
+          >Open je bestaande apparaat → Install → Wirelessly. Je tegels en
+          sleutels blijven behouden.</small
+        >
+      </p>
+      <details class="help">
+        <summary>Hoe werkt het dagelijks?</summary>
+        <p>
+          Zoek een entiteit, voeg deze toe en klik op
+          <b>Opslaan & naar scherm</b>. De app houdt de status bij. Voor een
+          kleurenlamp: houd de tegel ingedrukt voor kleur, temperatuur en
+          helderheid. Climate, vacuum en cover openen hun kaart direct. Sensoren
+          tonen alleen hun waarde.
+        </p>
+        <p>
+          Alleen nieuwe firmware vraagt om een installatie via ESPHome Device
+          Builder. Je tegels blijven in deze app bewaard. Een offline scherm
+          krijgt de wijzigingen zodra het terug is.
+        </p>
+      </details>
+    </main>
+    <dialog id="installer">
+      <form id="install-form">
+        <div class="dialog-head">
+          <div>
+            <p class="eyebrow">NIEUW SCHERM</p>
+            <h2>Van USB naar aan de muur.</h2>
+          </div>
+          <button
+            type="button"
+            class="quiet"
+            id="close-install"
+            aria-label="Sluiten"
+          >
+            ✕
+          </button>
+        </div>
+        <p>
+          Kies je scherm. Elk bestand krijgt eigen sleutels voor een veilige
+          koppeling en draadloze updates.
+        </p>
+        <fieldset>
+          <legend>Welk scherm heb je?</legend>
+          <label class="board"
+            ><input type="radio" name="board" value="cyd" checked /><span
+              ><b>CYD · 2,8 inch</b
+              ><small>ESP32-2432S028 · 320 × 240</small></span
+            ></label
+          ><label class="board"
+            ><input type="radio" name="board" value="guition" /><span
+              ><b>Guition · 4 inch</b
+              ><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span
+            ></label
+          >
+        </fieldset>
+        <label
+          >Herkenbare naam<input
+            name="friendly_name"
+            required
+            maxlength="60"
+            placeholder="Scherm woonkamer" /></label
+        ><label
+          >Unieke apparaatnaam<input
+            name="name"
+            required
+            pattern="[a-z][a-z0-9-]{0,29}"
+            maxlength="30"
+            placeholder="scherm-woonkamer"
+          /><small
+            >Kleine letters, cijfers en streepjes. Elk scherm een andere
+            naam.</small
+          ></label
+        ><button type="submit" id="download">Maak installatie-YAML</button>
+        <p id="install-status" role="status"></p>
+        <div id="yaml-result" hidden>
+          <label
+            >Je eigen ESPHome-YAML<textarea
+              id="yaml-output"
+              readonly
+              rows="9"
+              spellcheck="false"
+            ></textarea>
+          </label>
+          <div class="yaml-actions">
+            <button type="button" id="copy-yaml">Kopieer YAML</button
+            ><button type="button" class="quiet" id="download-yaml">
+              Download bestand
+            </button>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>
+            <b>Open ESPHome Device Builder.</b> Voeg een nieuw apparaat toe, sla
+            de eerste installatie over en vervang de inhoud via Edit door het
+            gedownloade bestand.
+          </li>
+          <li>
+            <b>Vul wifi eenmalig in bij Secrets.</b> Gebruik
+            <code>wifi_ssid</code> en <code>wifi_password</code>.
+          </li>
+          <li>
+            <b>Sluit USB aan op je Home Assistant Raspberry.</b> Klik Install →
+            Plug into the computer running ESPHome Device Builder en kies de
+            USB-poort.
+          </li>
+          <li>
+            <b>Koppel in Instellingen → Apparaten & diensten → ESPHome.</b>
+            Gebruik de <code>api.encryption.key</code> uit je bestand en sta
+            Home Assistant-acties toe bij Configureren.
+          </li>
+          <li>
+            <b>Open deze pagina en kies je tegels.</b> CYD toont bij de eerste
+            start een kalibratie: tik ieder kruisje drie keer. Guition hoeft
+            niet gekalibreerd.
+          </li>
+        </ol>
+        <p class="hint">
+          Bewaar je YAML met sleutels. Gebruik later Install → Wirelessly voor
+          firmware-updates. Tegels wijzigen doe je hier.
+        </p>
+      </form>
+    </dialog>
+    <div id="toast" role="status" hidden></div>
+  </body>
+</html>

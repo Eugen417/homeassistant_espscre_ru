@@ -206,7 +206,9 @@ def create_app(manager, development=False):
             raise web.HTTPForbidden(text='Vernieuw deze pagina en probeer opnieuw.')
         try:
             response = await handler(request)
-        except (ValueError, TypeError, KeyError):
+        except ValueError as error:
+            return web.json_response({'error': str(error)}, status=400)
+        except (TypeError, KeyError):
             return web.json_response({'error': 'Ongeldige invoer. Controleer naam, bord en gekozen tegels.'}, status=400)
         response.headers['Cache-Control'] = 'no-store'
         response.headers['X-Content-Type-Options'] = 'nosniff'

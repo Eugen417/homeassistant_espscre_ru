@@ -1,3 +1,8 @@
+# 0.1.1
+
+- Duidelijke foutmelding bij een ongeldige naam, te veel tegels of dubbele entiteiten.
+- Updatepad met behoud van bestaande schermindelingen.
+
 # 0.1.0
 
 - Eerste ESP Screen Manager met Home Assistant Ingress.
