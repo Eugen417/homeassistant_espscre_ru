@@ -202,6 +202,16 @@ inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int
   lv_obj_set_style_text_font(label,detail_font,0);lv_obj_set_style_text_color(label,lv_color_hex(light_theme?0x202020:0xFFFFFF),0);
   lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);lv_obj_set_height(label,lv_font_get_line_height(detail_font));return label;
 }
+inline std::string detail_state(const Tile &t){
+  if(t.state=="docked")return "In dock";
+  if(t.state=="cleaning")return "Bezig met schoonmaken";
+  if(t.state=="paused")return "Gepauzeerd";
+  if(t.state=="returning")return "Onderweg naar dock";
+  if(t.state=="idle")return "Klaar";
+  if(t.state=="error")return "Controleer de robot in HA";
+  if(!t.available())return "Niet beschikbaar";
+  return t.state;
+}
 inline void hide_detail(){if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
 inline int slider_value(const Tile &t){
   auto d=t.domain();float value=0;
@@ -268,7 +278,7 @@ inline void show_detail(unsigned index){
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
   auto *heading=detail_label(detail_root,t.name,pad,large?24:12,width-80);if(watch_font){lv_obj_set_style_text_font(heading,watch_font,0);lv_obj_set_height(heading,lv_font_get_line_height(watch_font));}
   detail_button("X",width-58,8,48,40,-1);
-  std::string state=t.state=="docked"?"In dock":t.state=="cleaning"?"Bezig met schoonmaken":t.state=="paused"?"Gepauzeerd":t.state;
+  std::string state=detail_state(t);
   detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
   auto d=t.domain();
   if(d=="vacuum"){
@@ -286,7 +296,7 @@ inline void show_detail(unsigned index){
       lv_obj_set_style_border_width(robot,2,0);lv_obj_set_style_border_color(robot,lv_color_hex(0xCEDDE6),0);
       shape(robot,27,10,30,30,0xE3EBEF,15);shape(robot,35,18,14,14,0xA8BCC8,7);
       shape(robot,29,59,26,5,0x00A6ED,3);
-      detail_label(hero,t.state=="cleaning"?"Aan het werk":"Klaar voor je huis",154,24,260);
+      detail_label(hero,t.state=="cleaning"?"Aan het werk":t.state=="returning"?"Even opladen":t.state=="paused"?"Even pauze":"Klaar voor je huis",154,24,260);
       auto *badge=shape(hero,154,59,240,32,muted,16);
       auto *status=detail_label(badge,t.loading(esphome::millis())?"Opdracht verstuurd...":state,12,5,218);
       lv_obj_set_style_text_color(status,lv_color_hex(light_theme?0x087BA8:0xFFFFFF),0);
@@ -460,7 +470,7 @@ inline void tick() {
     auto &t=model.tiles[detail_index];bool waiting=t.loading(esphome::millis())&&!t.local_feedback;
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
     if(waiting && detail_status)lv_label_set_text(detail_status,t.confirmed?"Bevestigd door Home Assistant":"Opdracht verstuurd...");
-    else if(detail_status){std::string state=t.state=="docked"?"In dock":t.state=="cleaning"?"Bezig met schoonmaken":t.state=="paused"?"Gepauzeerd":t.state;lv_label_set_text(detail_status,(state+(t.unit.empty()?"":" "+t.unit)).c_str());}
+    else if(detail_status){std::string state=detail_state(t);lv_label_set_text(detail_status,(state+(t.unit.empty()?"":" "+t.unit)).c_str());}
   }
   if(!enabled)return;
   bool redraw=false;

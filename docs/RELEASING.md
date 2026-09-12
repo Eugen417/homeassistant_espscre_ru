@@ -86,3 +86,8 @@ naar `/homeassistant` en vraagt UART/USB voor de door de gebruiker gekozen poort
 Config/secrets blijven in de eigen HA-configmap; builds in `/data`. App-updates
 vervangen deze mappen niet. Native getalinstellingen melden wijzigingen via
 `esphome.screen_setting`; de manager valideert inbox, sleutel en waarde.
+
+De ingebouwde CLI bewaart opnieuw te downloaden caches onder `/data/build` en
+`/data/platformio`. Alleen deze mappen zijn uitgesloten van appback-ups via
+`backup_exclude`. `/data/screens.json` en eigen ESPHome-configuraties blijven
+back-upgegevens; sluit nooit `/data` als geheel uit.

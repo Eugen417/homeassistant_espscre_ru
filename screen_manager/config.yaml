@@ -20,3 +20,7 @@ map:
   - homeassistant_config:rw
 uart: true
 usb: true
+# Reproducible compiler/download caches; retain screens.json and user configuration.
+backup_exclude:
+  - '*/build/'
+  - '*/platformio/'
