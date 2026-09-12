@@ -413,6 +413,8 @@ inline void event(lv_event_t *event) {
   if (d == "button" || d == "input_button") action(d + ".press", tile.entity);
 }
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
+  // Compact cards need room for two text lines and a separate dimmer track.
+  if(lv_obj_get_height(tile)<=80){lv_obj_set_style_pad_top(tile,4,0);lv_obj_set_style_pad_bottom(tile,4,0);}
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
@@ -489,13 +491,20 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_style_text_font(w.value,watch && watch_font ? watch_font : w.value_font,0);
     lv_obj_set_height(w.value,lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN)));
     lv_obj_set_pos(w.value,watch?0:w.value_x,watch?(lv_obj_get_height(w.tile)>80?42:19):w.value_y);
-    lv_obj_set_width(w.value,watch?lv_obj_get_width(w.tile)-24:lv_obj_get_width(w.title));
     if(watch)lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(w.circle,LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_x(w.title,watch?0:w.title_x);
     bool mini=t.inline_control=="slider" && !watch && t.available();
     bool large_tile=lv_obj_get_height(w.tile)>80;
     lv_obj_set_y(w.title,mini?0:w.title_y);
-    if(mini){lv_obj_set_y(w.value,large_tile?24:14);lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);lv_obj_set_x(w.title,0);lv_obj_set_x(w.value,0);}
+    if(mini){lv_obj_set_y(w.value,large_tile?24:lv_obj_get_height(w.title)+1);lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);lv_obj_set_x(w.title,0);lv_obj_set_x(w.value,0);}
+    // Labels default to content-sized widths. Explicit bounds are necessary for
+    // LVGL ellipsis, and must expand again when the icon is hidden for a slider.
+    lv_obj_update_layout(w.tile);
+    int content_width=lv_obj_get_content_width(w.tile);
+    lv_obj_set_width(w.title,std::max(1,content_width-(int)lv_obj_get_x(w.title)));
+    lv_obj_set_width(w.value,std::max(1,content_width-(int)lv_obj_get_x(w.value)));
+    lv_obj_set_size(w.slider,content_width,large_tile?28:8);
+    lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);
     if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
     else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
     bool on = fresh() && t.active();
@@ -521,6 +530,27 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_style_text_color(w.title, lv_color_hex(light_theme ? 0x1B1B1B : (on ? 0x172232 : 0xF3F5F7)), 0);
     lv_obj_set_style_text_color(w.value, lv_color_hex(light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8)), 0);
   }
+}
+
+// Inspect actual LVGL coordinates, including padding and the loaded font metrics.
+inline bool check_tile_geometry() {
+  bool ok=true;
+  for(auto &w:widgets){
+    if(!w.tile || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
+    lv_obj_update_layout(w.tile);
+    lv_area_t title,value,track,content;
+    lv_obj_get_content_coords(w.tile,&content);
+    lv_obj_get_coords(w.title,&title);lv_obj_get_coords(w.value,&value);
+    bool fits=title.x1>=content.x1 && title.x2<=content.x2 &&
+      value.x1>=content.x1 && value.x2<=content.x2 && title.y2<value.y1 && value.y2<=content.y2;
+    if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
+      lv_obj_get_coords(w.slider,&track);
+      fits=fits && value.y2<track.y1 && track.y2<=content.y2;
+    }
+    if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
+    ok=ok && fits;
+  }
+  return ok;
 }
 
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {

@@ -59,7 +59,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.7"
+  SCREEN_FIRMWARE_VERSION: "0.2.8"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
@@ -4545,6 +4545,7 @@ script:
                 lv_obj_get_coords(id(page_next), &nav);
                 lv_obj_get_coords(id(tile_scroll), &grid);
                 ok = ok && (!paginated || grid.y2 < nav.y1);
+                if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
                 ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), grid.y2, nav.y1);
                 id(tile_page) = 0;
             - script.execute: show_tile_page
