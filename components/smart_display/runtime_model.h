@@ -41,6 +41,7 @@ struct Tile {
   uint32_t pending_since = 0;
   bool pending = false, confirmed = false, local_feedback = false;
   bool loading(uint32_t now) const { return pending && (now-pending_since < 1000 || (!confirmed && !local_feedback && now-pending_since < 6000)); }
+  bool awaiting_action(uint32_t now) const { return loading(now) && !local_feedback; }
   void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; }
   void observe(const std::string &next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }
   std::string domain() const { return entity.substr(0, entity.find('.')); }

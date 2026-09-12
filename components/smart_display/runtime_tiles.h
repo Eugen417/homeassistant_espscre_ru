@@ -200,6 +200,7 @@ inline const lv_font_t *detail_font=nullptr;
 inline lv_obj_t *detail_actions[16]{};
 inline unsigned detail_action_count=0;
 inline lv_obj_t *detail_status=nullptr;
+inline lv_obj_t *detail_badge_status=nullptr;
 inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int y,int width) {
   auto *label=lv_label_create(parent);lv_label_set_text(label,text.c_str());lv_obj_set_pos(label,x,y);lv_obj_set_width(label,width);
   lv_obj_set_style_text_font(label,detail_font,0);lv_obj_set_style_text_color(label,lv_color_hex(light_theme?0x202020:0xFFFFFF),0);
@@ -275,7 +276,7 @@ inline void show_detail(unsigned index){
   if(index>=model.count)return;detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[index].title,LV_PART_MAIN);
   if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
-  detail_action_count=0;detail_status=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
+  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,lv_color_hex(light_theme?0xE7E7E7:0x202A38),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
@@ -301,7 +302,8 @@ inline void show_detail(unsigned index){
       shape(robot,29,59,26,5,0x00A6ED,3);
       detail_label(hero,t.state=="cleaning"?"Aan het werk":t.state=="returning"?"Even opladen":t.state=="paused"?"Even pauze":"Klaar voor je huis",154,24,260);
       auto *badge=shape(hero,154,59,240,32,muted,16);
-      auto *status=detail_label(badge,t.loading(esphome::millis())?"Opdracht verstuurd...":state,12,5,218);
+      auto *status=detail_label(badge,t.awaiting_action(esphome::millis())?"Opdracht verstuurd...":state,12,5,218);
+      detail_badge_status=status;
       lv_obj_set_style_text_color(status,lv_color_hex(light_theme?0x087BA8:0xFFFFFF),0);
       detail_label(hero,std::isfinite(t.battery)?"Batterij  "+std::to_string((int)t.battery)+"%":"Verbonden via Home Assistant",154,107,260);
       detail_button(t.state=="cleaning"?"Pauzeer schoonmaken":"Start schoonmaken",pad,260,width-2*pad,58,t.state=="cleaning"?1:0);
@@ -508,10 +510,11 @@ inline void render(lv_obj_t *room) {
 }
 inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
-    auto &t=model.tiles[detail_index];bool waiting=t.loading(esphome::millis())&&!t.local_feedback;
+    auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
-    if(waiting && detail_status)lv_label_set_text(detail_status,t.confirmed?"Bevestigd door Home Assistant":"Opdracht verstuurd...");
-    else if(detail_status){std::string state=detail_state(t);lv_label_set_text(detail_status,(state+(t.unit.empty()?"":" "+t.unit)).c_str());}
+    std::string status=waiting?(t.confirmed?"Bevestigd door Home Assistant":"Opdracht verstuurd..."):detail_state(t);
+    if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));
+    if(detail_badge_status)label(detail_badge_status,status);
   }
   if(!enabled)return;
   bool redraw=false;
