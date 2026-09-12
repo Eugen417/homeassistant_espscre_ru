@@ -46,6 +46,32 @@ meldt. De app moet blijven draaien om de schermen van actuele gegevens te voorzi
 
 ## Installeren vanuit Home Assistant
 
+### Heb ik ESPHome nodig?
+
+**Je hoeft de aparte ESPHome Device Builder-app niet te installeren.**
+ESP Screen Manager bevat de ESPHome-CLI al en kan zelf firmware bouwen,
+via USB installeren en later draadloos via OTA bijwerken.
+
+**Je moet het geflashte scherm wel koppelen via de ESPHome-integratie in HA.**
+Die koppeling staat onder **Instellingen → Apparaten & diensten**, niet in de
+appwinkel. Voeg daar het ontdekte apparaat toe. Verschijnt het niet automatisch,
+kies dan **Integratie toevoegen → ESPHome** en vul het IP-adres van het scherm in.
+Gebruik bij een sleutelvraag de `api.encryption.key` uit je eigen apparaat-YAML
+en geef het apparaat toestemming om Home Assistant-acties uit te voeren.
+
+| Onderdeel | Nodig? | Waarvoor? |
+| --- | --- | --- |
+| ESP Screen Manager-app | Ja, voor deze installatieroute | Firmware installeren, tegels beheren en actuele gegevens naar het scherm sturen |
+| ESPHome Device Builder-app | Nee, optioneel | Alternatieve editor en firmware-installatie; dezelfde CLI zit al in ESP Screens |
+| ESPHome-integratie in HA | Ja, koppel ieder scherm | De verbinding tussen Home Assistant en het fysieke scherm |
+
+Een verse installatie zonder ESPHome Device Builder werkt dus ook. Als er nog
+geen ESPHome `secrets.yaml` bestaat, vraagt onze wizard de wifi eenmalig en
+bewaart die lokaal. Bestaande wifi-secrets worden hergebruikt. API- en OTA-sleutels
+worden per nieuw scherm aangemaakt en blijven in het eigen apparaatprofiel.
+
+### Stap voor stap
+
 Voor Home Assistant OS met Apps/Add-ons op **aarch64 of amd64**:
 
 1. Open de appwinkel en voeg deze repository toe:
