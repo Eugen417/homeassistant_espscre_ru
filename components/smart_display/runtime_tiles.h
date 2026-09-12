@@ -13,6 +13,7 @@
 
 namespace runtime_tiles {
 inline bool enabled = false;
+inline bool light_theme = false;
 inline Model model;
 inline int active_index = -1;
 inline uint32_t last_received = 0;
@@ -210,11 +211,14 @@ inline void render(lv_obj_t *room) {
     if (w.cached_active == static_cast<int>(on)) continue;
     w.cached_active = on;
     uint32_t accent = t.domain() == "light" ? 0xE4B23C : t.domain() == "climate" ? 0xF18750 : 0x548BD4;
-    lv_obj_set_style_bg_color(w.tile, lv_color_hex(on ? 0xF5F1E8 : 0x202A38), 0);
-    lv_obj_set_style_bg_color(w.circle, lv_color_hex(on ? accent : 0x303A48), 0);
-    lv_obj_set_style_text_color(w.icon, lv_color_hex(on ? 0xFFFFFF : accent), 0);
-    lv_obj_set_style_text_color(w.title, lv_color_hex(on ? 0x172232 : 0xF3F5F7), 0);
-    lv_obj_set_style_text_color(w.value, lv_color_hex(on ? 0x46525E : 0xAFBAC8), 0);
+    lv_obj_set_style_bg_color(w.tile, lv_color_hex(light_theme ? 0xFFFFFF : (on ? 0xF5F1E8 : 0x526C85)), 0);
+    lv_obj_set_style_border_width(w.tile, 1, 0);
+    lv_obj_set_style_border_opa(w.tile, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(w.tile, lv_color_hex(light_theme ? 0xDDDDDD : (on ? 0xF5F1E8 : 0x9CB3C8)), 0);
+    lv_obj_set_style_bg_color(w.circle, lv_color_hex(light_theme ? (on ? 0xD5EEFC : 0xF0F0F0) : (on ? accent : 0x263B50)), 0);
+    lv_obj_set_style_text_color(w.icon, lv_color_hex(light_theme ? (on ? 0x009FE3 : 0x9E9E9E) : (on ? 0x172232 : 0xF3F5F7)), 0);
+    lv_obj_set_style_text_color(w.title, lv_color_hex(light_theme ? 0x1B1B1B : (on ? 0x172232 : 0xF3F5F7)), 0);
+    lv_obj_set_style_text_color(w.value, lv_color_hex(light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8)), 0);
   }
 }
 inline std::string vacuum_option(unsigned index) {

@@ -777,7 +777,7 @@ esphome:
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
-    version: "0.1.2"
+    version: "0.1.3"
   includes:
     - cyd_ui.h
     - light_controls.h
@@ -1498,7 +1498,7 @@ text_sensor:
   - platform: template
     name: "Schermfirmware"
     entity_category: diagnostic
-    lambda: 'return {"0.1.2"};'
+    lambda: 'return {"0.1.3"};'
     update_interval: 60s
   - platform: template
     id: smartdisplay_action

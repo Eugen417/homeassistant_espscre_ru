@@ -6,8 +6,10 @@ ST7701S RGB-display en **GT911 capacitieve touch**, ESP32-S3, 16 MB flash en
 altijd de elektronica. Dit profiel configureert geen relais.
 
 Hardwarebron: [ESPHome Guition-bordbeschrijving](https://devices.esphome.io/devices/guition-esp32-s3-4848s040/)
-en het ingebouwde [MIPI RGB-model](https://esphome.io/components/display/mipi_rgb/).
-De daadwerkelijk geïnstalleerde ESPHome 2026.6.2 bevat dit model.
+en de ingebouwde [ST7701S-driver](https://esphome.io/components/display/st7701s/).
+De paneelconfiguratie volgt de originele, fysiek schoon bevonden fabrikantdemo;
+zie [de vergelijking](GUITION_FACTORY_REFERENCE.md). Er is geen lokale RGB-driver
+of periodiek herstel-script nodig. De GT911 gebruikt ongemirrorde coördinaten.
 
 ## Bestanden
 
@@ -25,8 +27,8 @@ geen `calibration.yaml` of XPT2046-correctie over.
 Zes tegels van **218 × 108 pixels** per pagina, 12px tussenruimte en een
 aparte navigatiestrook. Vanaf zeven tegels verschijnt pagina twee; tot zes
 verdwijnt de navigatie. Grotere letters, iconen, dimmers en kleurkeuzes; de
-climatekaart heeft een grotere temperatuurweergave. Een donkerblauwe
-achtergrond, gedempte uitgeschakelde tegels en lichte actieve tegels maken
+climatekaart heeft een grotere temperatuurweergave. Een egaal blauwgrijze
+achtergrond, duidelijk omlijnde blauwe uitgeschakelde tegels en lichte actieve tegels maken
 de status herkenbaar. Standby begint na tien minuten zonder aanraking.
 
 De bestaande tegelacties, climatebediening en vacuumkaart zijn behouden.

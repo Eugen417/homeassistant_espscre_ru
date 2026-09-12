@@ -13,14 +13,20 @@ VALUES=dict(re.findall(r'^  (\w+): "([^"]*)"',SOURCE,re.M))
 
 class GuitionTests(unittest.TestCase):
     def test_hardware_is_s3_rgb_with_capacitive_touch(self):
-        self.assertIn('model: GUITION-4848S040',SOURCE)
+        self.assertIn('platform: st7701s',SOURCE)
+        self.assertNotIn('platform: mipi_rgb',SOURCE)
         self.assertIn('platform: gt911',SOURCE)
         self.assertIn('mode: octal',SOURCE)
         self.assertNotIn('platform: xpt2046',SOURCE)
         self.assertNotIn('set_raw_correction',SOURCE)
-        self.assertEqual(VALUES['TOUCH_MIRROR_X'],'true')
-        self.assertEqual(VALUES['TOUCH_MIRROR_Y'],'true')
+        self.assertEqual(VALUES['TOUCH_MIRROR_X'],'false')
+        self.assertEqual(VALUES['TOUCH_MIRROR_Y'],'false')
         self.assertIn('pclk_frequency: 16MHz',SOURCE)
+        self.assertIn('hsync_back_porch: 50',SOURCE)
+        self.assertIn('vsync_back_porch: 20',SOURCE)
+        self.assertIn('spi_mode: MODE0',SOURCE)
+        self.assertIn('[0x3A, 0x60]',SOURCE)
+        self.assertNotIn('CONFIG_LCD_RGB_RESTART_IN_VSYNC',SOURCE)
         self.assertIn('execute_from_psram: true',SOURCE)
         self.assertNotIn('id: output_red',SOURCE)
         self.assertEqual(VALUES['DISPLAY_W'],'480')
@@ -46,7 +52,7 @@ class GuitionTests(unittest.TestCase):
     def test_all_tiles_guard_events_and_clip_long_titles(self):
         for i in range(1,11):
             self.assertEqual(SOURCE.count(f'cyd::touch_guard.accept(millis(), {i})'),2)
-            self.assertRegex(SOURCE,rf'id: t{i}_title\n\s+width: 130\n\s+long_mode: DOT')
+            self.assertRegex(SOURCE,rf'id: t{i}_title\n\s+height: 24\n\s+width: 130\n\s+long_mode: DOT')
         self.assertEqual(VALUES['AUTO_DIM_TIMEOUT'],'600')
 
     def test_gt911_verification_accepts_pixels_and_rejects_wrong_orientation(self):

@@ -84,15 +84,15 @@ substitutions:
 
   # --- colors ---
   TILE1_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
-  TILE1_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE1_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE1_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE1_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
-  TILE1_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE1_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE1_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE1_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE1_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE1_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE1_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE1_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE1_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE1_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE1_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE1_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE1_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE1_TAP_SERVICE: ""                            # optional service override, e.g. light.toggle
@@ -133,15 +133,15 @@ substitutions:
 
   # --- colors ---
   TILE2_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
-  TILE2_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE2_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE2_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE2_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
-  TILE2_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE2_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE2_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE2_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE2_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE2_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE2_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE2_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE2_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE2_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE2_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE2_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE2_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE2_TAP_SERVICE: ""                            # optional service override, e.g. light.toggle
@@ -182,15 +182,15 @@ substitutions:
 
   # --- colors ---
   TILE3_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
-  TILE3_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE3_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE3_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE3_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
-  TILE3_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE3_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE3_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE3_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE3_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE3_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE3_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE3_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE3_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE3_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE3_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE3_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE3_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE3_TAP_SERVICE: ""                            # optional service override, e.g. light.toggle
@@ -231,15 +231,15 @@ substitutions:
 
   # --- colors ---
   TILE4_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
-  TILE4_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE4_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE4_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE4_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
-  TILE4_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE4_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE4_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE4_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE4_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE4_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE4_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE4_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE4_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE4_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE4_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE4_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE4_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE4_TAP_SERVICE: ""                            # optional service override, e.g. light.toggle
@@ -280,15 +280,15 @@ substitutions:
 
   # --- colors ---
   TILE5_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
-  TILE5_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE5_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE5_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE5_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
-  TILE5_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE5_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE5_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE5_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE5_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE5_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE5_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE5_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE5_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE5_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE5_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE5_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE5_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE5_TAP_SERVICE: "climate.toggle"                            # optional service override, e.g. light.toggle
@@ -329,15 +329,15 @@ substitutions:
 
   # --- colors ---
   TILE6_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
-  TILE6_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE6_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE6_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE6_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
-  TILE6_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE6_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE6_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE6_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE6_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE6_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE6_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE6_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE6_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE6_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE6_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE6_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE6_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE6_TAP_SERVICE: "vacuum.start"                  # optional service override, e.g. fan.toggle
@@ -378,15 +378,15 @@ substitutions:
 
   # --- colors ---
   TILE7_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"            # icon circle color when active
-  TILE7_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE7_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE7_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE7_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"            # icon color when inactive
-  TILE7_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE7_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE7_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE7_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE7_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE7_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE7_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE7_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE7_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE7_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE7_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE7_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE7_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE7_TAP_SERVICE: ""                            # optional service override, e.g. light.toggle
@@ -422,15 +422,15 @@ substitutions:
 
   # --- colors ---
   TILE8_CIRCLE_ACTIVE_COLOR: "0xE5484D"            # rood zodra er post ligt
-  TILE8_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE8_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE8_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE8_ICON_DISABLED_COLOR: "0xE5484D"            # icon color when inactive
-  TILE8_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE8_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE8_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE8_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE8_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE8_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE8_ICON_DISABLED_COLOR: "0x9E9E9E"            # icon color when inactive
+  TILE8_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE8_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE8_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE8_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE8_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE8_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE8_TAP_SERVICE: ""  # zet de input_select op een vaste optie
@@ -466,15 +466,15 @@ substitutions:
 
   # --- colors ---
   TILE9_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"      # light -> ACCENT_LIGHT (amber)
-  TILE9_CIRCLE_DISABLED_COLOR: "0x1B2D3C"          # icon circle color when inactive
+  TILE9_CIRCLE_DISABLED_COLOR: "0xF0F0F0"          # icon circle color when inactive
   TILE9_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
-  TILE9_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"      # icon color when inactive
-  TILE9_BG_ACTIVE_COLOR: "0xF5F3EB"                # tile background color when active
-  TILE9_BG_DISABLED_COLOR: "0x293F50"              # tile background color when inactive
-  TILE9_TITLE_ACTIVE_COLOR: "0x142334"             # title color when active
-  TILE9_TITLE_DISABLED_COLOR: "0xFFFFFF"           # title color when inactive
-  TILE9_VALUE_ACTIVE_COLOR: "0x526477"             # value color when active
-  TILE9_VALUE_DISABLED_COLOR: "0xB9CDDB"           # value color when inactive
+  TILE9_ICON_DISABLED_COLOR: "0x9E9E9E"      # icon color when inactive
+  TILE9_BG_ACTIVE_COLOR: "0xFFFFFF"                # tile background color when active
+  TILE9_BG_DISABLED_COLOR: "0xFFFFFF"              # tile background color when inactive
+  TILE9_TITLE_ACTIVE_COLOR: "0x1B1B1B"             # title color when active
+  TILE9_TITLE_DISABLED_COLOR: "0x1B1B1B"           # title color when inactive
+  TILE9_VALUE_ACTIVE_COLOR: "0x616161"             # value color when active
+  TILE9_VALUE_DISABLED_COLOR: "0x616161"           # value color when inactive
 
   # --- advanced settings ---
   TILE9_TAP_SERVICE: ""                            # optional service override, e.g. light.toggle
@@ -509,15 +509,15 @@ substitutions:
 
   # --- colors ---
   TILE10_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"     # input_boolean -> ACCENT_DEVICE (cyaan)
-  TILE10_CIRCLE_DISABLED_COLOR: "0x1B2D3C"         # icon circle color when inactive
+  TILE10_CIRCLE_DISABLED_COLOR: "0xF0F0F0"         # icon circle color when inactive
   TILE10_ICON_ACTIVE_COLOR: "0xFFFFFF"             # icon color when active
-  TILE10_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"     # icon color when inactive
-  TILE10_BG_ACTIVE_COLOR: "0xF5F3EB"               # tile background color when active
-  TILE10_BG_DISABLED_COLOR: "0x293F50"             # tile background color when inactive
-  TILE10_TITLE_ACTIVE_COLOR: "0x142334"            # title color when active
-  TILE10_TITLE_DISABLED_COLOR: "0xFFFFFF"          # title color when inactive
-  TILE10_VALUE_ACTIVE_COLOR: "0x526477"            # value color when active
-  TILE10_VALUE_DISABLED_COLOR: "0xB9CDDB"          # value color when inactive
+  TILE10_ICON_DISABLED_COLOR: "0x9E9E9E"     # icon color when inactive
+  TILE10_BG_ACTIVE_COLOR: "0xFFFFFF"               # tile background color when active
+  TILE10_BG_DISABLED_COLOR: "0xFFFFFF"             # tile background color when inactive
+  TILE10_TITLE_ACTIVE_COLOR: "0x1B1B1B"            # title color when active
+  TILE10_TITLE_DISABLED_COLOR: "0x1B1B1B"          # title color when inactive
+  TILE10_VALUE_ACTIVE_COLOR: "0x616161"            # value color when active
+  TILE10_VALUE_DISABLED_COLOR: "0x616161"          # value color when inactive
 
   # --- advanced settings ---
   TILE10_TAP_SERVICE: ""       # switch.toggle werkt niet op een input_boolean
@@ -538,8 +538,8 @@ substitutions:
   DISPLAY_H: "480"
   LVGL_ROTATION: "0"
   TOUCH_SWAP_XY: "false"
-  TOUCH_MIRROR_X: "true"
-  TOUCH_MIRROR_Y: "true"
+  TOUCH_MIRROR_X: "false"
+  TOUCH_MIRROR_Y: "false"
   GRID_COL1_X: "16"
   GRID_COL2_X: "246"
   GRID_ROW1_Y: "0"
@@ -555,8 +555,8 @@ substitutions:
   OVERLAY_SLIDER_W: "144"
   OVERLAY_SLIDER_H: "300"
   OVERLAY_ICON_Y: "148"
-  BG_TOP_COLOR: "0x111D2B"
-  BG_BOTTOM_COLOR: "0x28485A"
+  BG_TOP_COLOR: "0xF7F7F7"
+  BG_BOTTOM_COLOR: "0xF7F7F7"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "12"
   TILE_TITLE_X: "64"
@@ -586,7 +586,7 @@ esphome:
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
-    version: "0.1.2"
+    version: "0.1.3"
   platformio_options:
     build_flags:
       - -DLV_USE_SNAPSHOT=1
@@ -616,6 +616,7 @@ esphome:
           settings.night_start = atoi("${NIGHT_START_HOUR}") * 60;
           settings.night_end = atoi("${NIGHT_END_HOUR}") * 60;
           settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
+          runtime_tiles::light_theme = true;
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
           runtime_tiles::load_settings();
@@ -659,7 +660,7 @@ esphome:
             light_controls::fallback.maximum = t.max_kelvin;
             id(open_value_overlay).execute(t.name, t.entity, t.domain(), "auto", t.active(), 0,
               t.brightness, t.percentage, t.position, runtime_tiles::icon_for(t),
-              0x565C66, 0xE4B23C, 0xFFFFFF, "Uit", "Aan", t.modes,
+              0xD5EEFC, 0x00A6ED, 0x1B1B1B, "Uit", "Aan", t.modes,
               t.current, t.target, t.humidity, t.state, t.hvac_modes,
               std::to_string(t.minimum), std::to_string(t.maximum), std::to_string(t.step));
           };
@@ -687,7 +688,7 @@ esphome:
       - lambda: |-
           static const char *entities[] = {"${TILE1_ENTITY}", "${TILE2_ENTITY}", "${TILE3_ENTITY}", "${TILE4_ENTITY}", "${TILE5_ENTITY}", "${TILE6_ENTITY}", "${TILE7_ENTITY}", "${TILE9_ENTITY}"};
           if (!runtime_tiles::enabled) light_controls::subscribe(entities, 8);
-          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"));
+          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"), true);
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
@@ -718,10 +719,6 @@ esp32:
     version: recommended
     advanced:
       execute_from_psram: true
-    sdkconfig_options:
-      CONFIG_ESP32S3_DATA_CACHE_64KB: "y"
-      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
-      CONFIG_LCD_RGB_RESTART_IN_VSYNC: "y"
 
 psram:
   mode: octal
@@ -1264,7 +1261,7 @@ text_sensor:
   - platform: template
     name: "Schermfirmware"
     entity_category: diagnostic
-    lambda: 'return {"0.1.2"};'
+    lambda: 'return {"0.1.3"};'
     update_interval: 60s
   - platform: template
     id: smartdisplay_action
@@ -1541,13 +1538,50 @@ touchscreen:
         id(touch_down) = false;
 
 
+# Native ESPHome driver with the working manufacturer's LVGL demo timings.
+# See docs/GUITION_FACTORY_REFERENCE.md; no custom RGB component is required.
 display:
-  - platform: mipi_rgb
+  - platform: st7701s
     id: my_display
-    model: GUITION-4848S040
-    # 16MHz reduces visible low-refresh flicker on this physical 480x480 panel.
-    pclk_frequency: 16MHz
+    dimensions: {width: 480, height: 480}
     spi_id: lcd
+    spi_mode: MODE0
+    data_rate: 2MHz
+    color_order: RGB
+    invert_colors: false
+    cs_pin: 39
+    de_pin: 18
+    hsync_pin: 16
+    vsync_pin: 17
+    pclk_pin: 21
+    pclk_frequency: 16MHz
+    pclk_inverted: false
+    hsync_front_porch: 10
+    hsync_pulse_width: 8
+    hsync_back_porch: 50
+    vsync_front_porch: 10
+    vsync_pulse_width: 8
+    vsync_back_porch: 20
+    transform:
+      mirror_x: false
+      mirror_y: false
+    init_sequence:
+      - 1
+      # Manufacturer's 16-bit bus configuration and normal scan direction.
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x10]
+      - [0xCD, 0x00]
+      - [0xC7, 0x00]
+      # Return to the standard register bank before pixel format / sleep-out.
+      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x00]
+      - [0x3A, 0x60]
+      - [0x36, 0x00]
+      - [0x20]
+      - [0x11]
+      - delay 120ms
+    data_pins:
+      red: [11, 12, 13, 14, 0]
+      green: [8, 20, 3, 46, 9, 10]
+      blue: [4, 5, 6, 7, 15]
     update_interval: never
     auto_clear_enabled: false
 
@@ -1602,7 +1636,9 @@ lvgl:
       bg_color: 0xFFFFFF
       bg_opa: COVER
       radius: 22
-      border_width: 0
+      border_width: 1
+      border_color: 0xDDDDDD
+      border_opa: COVER
       pad_left: 12
       pad_right: 12
       pad_top: 12
@@ -1611,10 +1647,12 @@ lvgl:
       shadow_opa: 40%
 
     - id: style_tile_disabled
-      bg_color: 0x293F50
+      bg_color: 0xFFFFFF
       bg_opa: COVER
       radius: 22
-      border_width: 0
+      border_width: 1
+      border_color: 0xDDDDDD
+      border_opa: COVER
       pad_left: 12
       pad_right: 12
       pad_top: 12
@@ -1623,25 +1661,25 @@ lvgl:
       shadow_opa: 25%
 
     - id: style_icon_circle
-      bg_color: 0xFEC600
+      bg_color: 0xD5EEFC
       bg_opa: COVER
       radius: 999
       border_width: 0
 
     - id: style_icon_circle_disabled
-      bg_color: 0x7B7B6F
+      bg_color: 0xEEEEEE
       bg_opa: COVER
       radius: 999
       border_width: 0
 
     - id: style_room
       text_font: headline
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_time
       text_font: time_label
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_title
@@ -1656,17 +1694,17 @@ lvgl:
 
     - id: style_value_big
       text_font: sublabel_big
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 80%
 
     - id: style_title_disabled
       text_font: label
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_value_disabled
       text_font: sublabel
-      text_color: 0xD9D9D9
+      text_color: 0x1B1B1B
       text_opa: 100%
 
   pages:
@@ -1737,11 +1775,12 @@ lvgl:
                               id: tile1_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE1_ICON}"
                               clickable: false
                     - label:
                         id: t1_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -1751,6 +1790,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t1_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -1872,11 +1912,12 @@ lvgl:
                               id: tile2_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE2_ICON}"
                               clickable: false
                     - label:
                         id: t2_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -1886,6 +1927,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t2_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2007,11 +2049,12 @@ lvgl:
                               id: tile3_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE3_ICON}"
                               clickable: false
                     - label:
                         id: t3_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2021,6 +2064,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t3_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2142,11 +2186,12 @@ lvgl:
                               id: tile4_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE4_ICON}"
                               clickable: false
                     - label:
                         id: t4_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2156,6 +2201,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t4_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2277,11 +2323,12 @@ lvgl:
                               id: tile5_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE5_ICON}"
                               clickable: false
                     - label:
                         id: t5_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2291,6 +2338,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t5_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2412,11 +2460,12 @@ lvgl:
                               id: tile6_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE6_ICON}"
                               clickable: false
                     - label:
                         id: t6_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2426,6 +2475,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t6_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2550,11 +2600,12 @@ lvgl:
                               id: tile7_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE7_ICON}"
                               clickable: false
                     - label:
                         id: t7_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2564,6 +2615,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t7_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2673,11 +2725,12 @@ lvgl:
                               id: tile8_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE8_ICON}"
                               clickable: false
                     - label:
                         id: t8_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2687,6 +2740,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t8_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2762,11 +2816,12 @@ lvgl:
                               id: tile9_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE9_ICON}"
                               clickable: false
                     - label:
                         id: t9_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2776,6 +2831,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t9_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2880,11 +2936,12 @@ lvgl:
                               id: tile10_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               text: "${TILE10_ICON}"
                               clickable: false
                     - label:
                         id: t10_title
+                        height: 24
                         width: 130
                         long_mode: DOT
                         x: ${TILE_TITLE_X}
@@ -2894,6 +2951,7 @@ lvgl:
                         clickable: false
                     - label:
                         id: t10_value
+                        height: 22
                         width: 130
                         long_mode: DOT
                         x: ${TILE_VALUE_X}
@@ -2948,7 +3006,7 @@ lvgl:
             height: 44
             pad_all: 0
             radius: 12
-            bg_color: 0x3C3C40
+            bg_color: 0xEEEEEE
             bg_opa: COVER
             border_width: 0
             scrollable: false
@@ -2964,7 +3022,7 @@ lvgl:
                   align: CENTER
                   text: "< Vorige"
                   text_font: sublabel
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
         - label:
             id: page_number
@@ -2972,7 +3030,7 @@ lvgl:
             y: -18
             text: "1 / 2"
             text_font: sublabel
-            text_color: 0xFFFFFF
+            text_color: 0x1B1B1B
         - obj:
             id: page_next
             align: BOTTOM_RIGHT
@@ -2982,7 +3040,7 @@ lvgl:
             height: 44
             pad_all: 0
             radius: 12
-            bg_color: 0x3C3C40
+            bg_color: 0xEEEEEE
             bg_opa: COVER
             border_width: 0
             scrollable: false
@@ -2998,7 +3056,7 @@ lvgl:
                   align: CENTER
                   text: "Volgende >"
                   text_font: sublabel
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
         - obj:
@@ -3035,7 +3093,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  bg_color: 0x000000
+                  bg_color: 0xFFFFFF
                   bg_opa: 18%
                   border_width: 0
                   clickable: false
@@ -3066,7 +3124,7 @@ lvgl:
                   value: 100
                   adv_hittest: false
 
-                  bg_color: 0x293F50
+                  bg_color: 0xFFFFFF
                   bg_opa: 100%
                   radius: 42
                   # Enige widget met ZOWEL radius ALS een kind (overlay_icon).
@@ -3079,7 +3137,7 @@ lvgl:
                   border_width: 0
 
                   indicator:
-                    bg_color: 0xFEC600
+                    bg_color: 0xD5EEFC
                     bg_opa: 100%
                     radius: 42
 
@@ -3111,7 +3169,7 @@ lvgl:
                   align: CENTER
                   y: ${OVERLAY_ICON_Y}
                   text_font: materialdesign_icons
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   text: "${TILE1_ICON}"
                   clickable: false
 
@@ -3320,7 +3378,7 @@ lvgl:
             y: 0
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
-            bg_color: 0x171719
+            bg_color: 0xF7F7F7
             bg_opa: COVER
             hidden: true
             scrollable: false
@@ -3346,7 +3404,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  bg_color: 0x000000
+                  bg_color: 0xFFFFFF
                   bg_opa: 72%
                   border_width: 0
                   clickable: false
@@ -3360,7 +3418,7 @@ lvgl:
                   width: 54
                   height: 54
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3374,7 +3432,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - label:
@@ -3407,7 +3465,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
         # ---------- CLIMATE DETAIL OVERLAY ----------
@@ -3417,7 +3475,7 @@ lvgl:
             y: 0
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
-            bg_color: 0x171719
+            bg_color: 0xF7F7F7
             bg_opa: COVER
             hidden: true
             scrollable: false
@@ -3443,7 +3501,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  bg_color: 0x000000
+                  bg_color: 0xFFFFFF
                   bg_opa: 62%
                   border_width: 0
                   clickable: false
@@ -3459,7 +3517,7 @@ lvgl:
                   width: 66
                   height: 66
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3473,7 +3531,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -3484,7 +3542,7 @@ lvgl:
                   width: 66
                   height: 66
                   radius: 999
-                  bg_color: 0xFEC600
+                  bg_color: 0xD5EEFC
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -3496,7 +3554,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - label:
@@ -3512,7 +3570,7 @@ lvgl:
                   y: 84
                   text: "Current: --"
                   text_font: sublabel_big
-                  text_color: 0xD1E8FF
+                  text_color: 0x1B1B1B
                   text_opa: 85%
                   clickable: false
 
@@ -3534,12 +3592,12 @@ lvgl:
                   adjustable: true
                   arc_width: 30
                   arc_rounded: true
-                  arc_color: 0x4B4B4F
+                  arc_color: 0xE5E5E5
                   arc_opa: 80%
                   bg_opa: TRANSP
                   border_width: 0
                   indicator:
-                    arc_color: 0xFEC600
+                    arc_color: 0x00A6ED
                     arc_opa: COVER
                     arc_width: 30
                     arc_rounded: true
@@ -3563,7 +3621,7 @@ lvgl:
                   y: -32
                   text: "SET TO"
                   text_font: sublabel_big
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   text_opa: 68%
                   clickable: false
 
@@ -3573,7 +3631,7 @@ lvgl:
                   y: 40
                   text: "20.0°"
                   text_font: climate_number
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               - obj:
@@ -3584,7 +3642,7 @@ lvgl:
                   width: 72
                   height: 72
                   radius: 22
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3600,7 +3658,7 @@ lvgl:
                         align: CENTER
                         text: "-"
                         text_font: headline
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -3611,7 +3669,7 @@ lvgl:
                   width: 72
                   height: 72
                   radius: 22
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3627,7 +3685,7 @@ lvgl:
                         align: CENTER
                         text: "+"
                         text_font: headline
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -3637,7 +3695,7 @@ lvgl:
                   width: 189
                   height: 68
                   radius: 26
-                  bg_color: 0x2C2C30
+                  bg_color: 0xF0F0F0
                   bg_opa: 82%
                   border_width: 0
                   clickable: true
@@ -3650,7 +3708,7 @@ lvgl:
                         align: CENTER
                         text: "Auto"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
         # ---------- CLIMATE MODE PICKER ----------
         # Vervangt het doorcyclen van modi. Cyclen stuurt bij elke tik een
@@ -3664,7 +3722,7 @@ lvgl:
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
             hidden: true
-            bg_color: 0x000000
+            bg_color: 0xFFFFFF
             bg_opa: 90%
             border_width: 0
             clickable: true
@@ -3676,7 +3734,7 @@ lvgl:
                   y: 32
                   text: "Mode"
                   text_font: sublabel_big
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               # Flex zorgt dat niet-ondersteunde modi geen gat achterlaten:
@@ -3703,7 +3761,7 @@ lvgl:
                         width: 198
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3716,14 +3774,14 @@ lvgl:
                               align: CENTER
                               text: "Off"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat
                         width: 198
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3736,14 +3794,14 @@ lvgl:
                               align: CENTER
                               text: "Heat"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_cool
                         width: 198
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3756,14 +3814,14 @@ lvgl:
                               align: CENTER
                               text: "Cool"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat_cool
                         width: 198
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3776,14 +3834,14 @@ lvgl:
                               align: CENTER
                               text: "Heat/Cool"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_auto
                         width: 198
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3796,14 +3854,14 @@ lvgl:
                               align: CENTER
                               text: "Auto"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_dry
                         width: 198
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3816,14 +3874,14 @@ lvgl:
                               align: CENTER
                               text: "Dry"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_fan_only
                         width: 198
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3836,7 +3894,7 @@ lvgl:
                               align: CENTER
                               text: "Fan"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
 
               - obj:
@@ -3847,7 +3905,7 @@ lvgl:
                   width: 54
                   height: 54
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3861,7 +3919,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -3872,7 +3930,7 @@ lvgl:
                   width: 54
                   height: 54
                   radius: 999
-                  bg_color: 0xFEC600
+                  bg_color: 0xD5EEFC
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -3884,7 +3942,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
         # ---------- VACUUM CONTROL ----------
@@ -3897,7 +3955,7 @@ lvgl:
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
             hidden: true
-            bg_color: 0x000000
+            bg_color: 0xFFFFFF
             bg_opa: 90%
             border_width: 0
             clickable: true
@@ -3910,7 +3968,7 @@ lvgl:
                   y: 32
                   text: "Vacuum"
                   text_font: sublabel_big
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               - obj:
@@ -3935,7 +3993,7 @@ lvgl:
                         width: 108
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3948,14 +4006,14 @@ lvgl:
                               align: CENTER
                               text: "Start"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vac_pause
                         width: 108
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3968,14 +4026,14 @@ lvgl:
                               align: CENTER
                               text: "Pause"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vac_return_to_base
                         width: 108
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -3988,14 +4046,14 @@ lvgl:
                               align: CENTER
                               text: "Dock"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vac_stop
                         width: 108
                         height: 76
                         radius: 28
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4008,7 +4066,7 @@ lvgl:
                               align: CENTER
                               text: "Stop"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
 
               - label:
@@ -4016,7 +4074,7 @@ lvgl:
                   y: 276
                   text: "Suction"
                   text_font: sublabel
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               - obj:
@@ -4041,7 +4099,7 @@ lvgl:
                         width: 108
                         height: 44
                         radius: 28
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4056,14 +4114,14 @@ lvgl:
                               align: CENTER
                               text: "Quiet"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vacspd_balanced
                         width: 108
                         height: 44
                         radius: 28
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4078,14 +4136,14 @@ lvgl:
                               align: CENTER
                               text: "Balanced"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vacspd_turbo
                         width: 108
                         height: 44
                         radius: 28
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4100,14 +4158,14 @@ lvgl:
                               align: CENTER
                               text: "Turbo"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vacspd_max
                         width: 108
                         height: 44
                         radius: 28
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4122,7 +4180,7 @@ lvgl:
                               align: CENTER
                               text: "Max"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
 
               - obj:
@@ -4133,7 +4191,7 @@ lvgl:
                   width: 54
                   height: 54
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -4147,7 +4205,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -4158,7 +4216,7 @@ lvgl:
                   width: 54
                   height: 54
                   radius: 999
-                  bg_color: 0xFEC600
+                  bg_color: 0xD5EEFC
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -4170,7 +4228,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
         # ---------- DIM / WAKE OVERLAY ----------
@@ -4190,7 +4248,7 @@ lvgl:
               - script.execute: wake_display
 
     - id: touch_cal_page
-      bg_color: 0x111D2B
+      bg_color: 0xF7F7F7
       bg_opa: COVER
       pad_all: 0
       border_width: 0
@@ -4201,7 +4259,7 @@ lvgl:
             y: 110
             text: "GT911 touchcontrole"
             text_font: headline
-            text_color: 0xFFFFFF
+            text_color: 0x1B1B1B
         - obj:
             x: 12
             y: 12
@@ -4216,7 +4274,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
         - obj:
             x: 443
             y: 12
@@ -4231,7 +4289,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
         - obj:
             x: 443
             y: 443
@@ -4246,7 +4304,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
         - obj:
             x: 12
             y: 443
@@ -4261,7 +4319,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
         - obj:
             x: 228
             y: 228
@@ -4276,7 +4334,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
 
 script:
   - id: capture_ui_snapshot
@@ -4575,7 +4633,7 @@ script:
             else        lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
             bool selected = (current == std::string(m));
             lv_obj_set_style_bg_color(btn,
-              lv_color_hex(selected ? 0xFF9F0A : 0x2C2C30), LV_PART_MAIN);
+              lv_color_hex(selected ? 0xD5EEFC : 0xF0F0F0), LV_PART_MAIN);
           };
           apply(id(cmode_off), "off");
           apply(id(cmode_heat), "heat");
