@@ -721,7 +721,7 @@ pre {
 .picker { position: sticky; top: 16px; }
 @media (max-width: 800px) { .picker { position: static; } }
 
-.tile-palette { margin: 12px 0; padding: 12px; border: 1px solid #d8dfe5; border-radius: 12px; }
+.tile-palette { display: block; min-width: 0; margin: 12px 0; padding: 12px; border: 1px solid #d8dfe5; border-radius: 12px; }
 .tile-palette legend { font-weight: 650; padding: 0 5px; }
 .palette-swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(66px, 1fr)); gap: 8px; margin-bottom: 10px; }
 .palette-choice { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 6px; color: #1b1b1b; background: white; border: 2px solid transparent; border-radius: 10px; font-size: 12px; }
