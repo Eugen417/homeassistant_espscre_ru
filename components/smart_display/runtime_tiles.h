@@ -145,6 +145,9 @@ inline std::string receive(const std::string &payload) {
     tile.modes = list(a["supported_color_modes"]);
     tile.hvac_modes = list(a["hvac_modes"]);
     float hue = number(a["hs_color"][0]);
+    float saturation = number(a["hs_color"][1]);
+    tile.has_hs_color = std::isfinite(hue) && std::isfinite(saturation);
+    tile.saturation = tile.has_hs_color ? std::lround(std::clamp(saturation, 0.0f, 100.0f)) : 0;
     if (std::isfinite(hue)) tile.hue = std::lround(std::clamp(hue, 0.0f, 360.0f));
     float kelvin = number(a["color_temp_kelvin"]);
     if (std::isfinite(kelvin)) tile.kelvin = std::lround(std::clamp(kelvin, 1000.0f, 15000.0f));
@@ -273,7 +276,7 @@ inline void show_detail(unsigned index){
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[index].title,LV_PART_MAIN);
   if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
   detail_action_count=0;detail_status=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
-  lv_obj_set_style_bg_color(detail_root,lv_color_hex(light_theme?0xEFEFEF:0x202A38),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
+  lv_obj_set_style_bg_color(detail_root,lv_color_hex(light_theme?0xE7E7E7:0x202A38),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
   auto *heading=detail_label(detail_root,t.name,pad,large?24:12,width-80);if(watch_font){lv_obj_set_style_text_font(heading,watch_font,0);lv_obj_set_height(heading,lv_font_get_line_height(watch_font));}
@@ -416,6 +419,34 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
 inline void label(lv_obj_t *obj, const std::string &text) {
   if (text != lv_label_get_text(obj)) lv_label_set_text(obj, text.c_str());
 }
+// HA's default domain/state palette. Pastel circles also identify inactive domains.
+// Custom Lovelace card/theme CSS is not an entity attribute and is not imported.
+inline uint32_t domain_accent(const Tile &t) {
+  auto d=t.domain();
+  if(d=="light" || d=="switch" || d=="input_boolean" || d=="binary_sensor")return 0xFFC107;
+  if(d=="climate"){
+    if(t.state=="cool")return 0x2196F3;
+    if(t.state=="fan_only")return 0x00BCD4;
+    if(t.state=="auto")return 0x4CAF50;
+    if(t.state=="heat_cool")return 0xFFC107;
+    return t.state=="heat"?0xFF6F22:0xFF9800;
+  }
+  if(d=="vacuum")return t.state=="error"?0xF44336:0x009688;
+  if(d=="fan")return 0x00BCD4;
+  if(d=="cover")return 0x926BC7;
+  if(d=="media_player")return 0x03A9F4;
+  if(d=="scene" || d=="script")return 0x926BC7;
+  if(d=="select" || d=="input_select")return 0x3F51B5;
+  if(d=="number" || d=="input_number")return 0x009688;
+  if(d=="weather")return t.state=="sunny"?0xFFC107:t.state=="clear-night"?0x6E41AB:0x03A9F4;
+  if(d=="sensor"){
+    if(t.unit=="lx")return 0xFFC107;
+    if(t.unit=="°C" || t.unit=="°F")return 0xFF6F22;
+    if(t.unit=="kWh" || t.unit=="Wh")return 0x926BC7;
+    if(t.unit=="%")return 0x009688;
+  }
+  return 0x2196F3;
+}
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !fresh() ? "HA niet verbonden" : model.title);
@@ -452,15 +483,25 @@ inline void render(lv_obj_t *room) {
     if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
     else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
     bool on = fresh() && t.active();
-    if (w.cached_active == static_cast<int>(on)) continue;
-    w.cached_active = on;
-    uint32_t accent = t.domain() == "light" ? 0xE4B23C : t.domain() == "climate" ? 0xF18750 : 0x548BD4;
+    bool available=fresh() && t.available();
+    int palette_state=(available?2:0)|(on?1:0);
+    if (w.cached_active == palette_state) continue;
+    w.cached_active = palette_state;
+    uint32_t accent = domain_accent(t);
+    auto color=lv_color_hex(accent);
+    if(t.domain()=="light" && on && t.has_hs_color)
+      color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
+    auto circle_color=available?lv_color_mix(color,lv_color_hex(light_theme?0xFFFFFF:0x263B50),light_theme?38:65):lv_color_hex(light_theme?0xF0F0F0:0x263B50);
+    // Darken the foreground slightly: very pale bulbs still need a visible icon.
+    auto icon_color=available?lv_color_mix(color,lv_color_hex(light_theme?0x333333:0xFFFFFF),light_theme?205:185):lv_color_hex(0x9E9E9E);
+    lv_obj_set_style_bg_color(w.slider,color,LV_PART_INDICATOR);
+    lv_obj_set_style_bg_color(w.slider,lv_color_mix(color,lv_color_hex(light_theme?0xFFFFFF:0x263B50),30),LV_PART_MAIN);
     lv_obj_set_style_bg_color(w.tile, lv_color_hex(light_theme ? 0xFFFFFF : (on ? 0xF5F1E8 : 0x526C85)), 0);
     lv_obj_set_style_border_width(w.tile, 1, 0);
     lv_obj_set_style_border_opa(w.tile, LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(w.tile, lv_color_hex(light_theme ? 0xDDDDDD : (on ? 0xF5F1E8 : 0x9CB3C8)), 0);
-    lv_obj_set_style_bg_color(w.circle, lv_color_hex(light_theme ? (on ? (t.domain()=="light" ? 0xFFF1D2 : t.domain()=="climate" ? 0xFFE8D5 : 0xD5EEFC) : 0xF0F0F0) : (on ? accent : 0x263B50)), 0);
-    lv_obj_set_style_text_color(w.icon, lv_color_hex(light_theme ? (on ? (t.domain()=="light" ? 0xFFB900 : t.domain()=="climate" ? 0xED8A3B : 0x009FE3) : 0x9E9E9E) : (on ? 0x172232 : 0xF3F5F7)), 0);
+    lv_obj_set_style_bg_color(w.circle,circle_color,0);
+    lv_obj_set_style_text_color(w.icon,icon_color,0);
     lv_obj_set_style_text_color(w.title, lv_color_hex(light_theme ? 0x1B1B1B : (on ? 0x172232 : 0xF3F5F7)), 0);
     lv_obj_set_style_text_color(w.value, lv_color_hex(light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8)), 0);
   }

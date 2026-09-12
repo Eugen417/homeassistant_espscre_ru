@@ -28,6 +28,8 @@ struct Tile {
   float current = NAN, target = NAN, humidity = NAN, minimum = 7, maximum = 35, step = 0.5f;
   int hue = 0, kelvin = 3000, min_kelvin = 0, max_kelvin = 0;
   bool received = false;
+  bool has_hs_color = false;
+  int saturation = 0;
   std::string tap = "auto", display = "standard", inline_control = "none", media_title;
   std::array<std::string, 8> options;
   unsigned option_count = 0, history_hours = 24;

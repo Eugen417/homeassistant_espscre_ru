@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.2"
+  SCREEN_FIRMWARE_VERSION: "0.2.3"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "guition-new"
@@ -556,8 +556,8 @@ substitutions:
   OVERLAY_SLIDER_W: "144"
   OVERLAY_SLIDER_H: "300"
   OVERLAY_ICON_Y: "148"
-  BG_TOP_COLOR: "0xECECEC"
-  BG_BOTTOM_COLOR: "0xECECEC"
+  BG_TOP_COLOR: "0xE7E7E7"
+  BG_BOTTOM_COLOR: "0xE7E7E7"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "12"
   TILE_TITLE_X: "64"
