@@ -201,7 +201,7 @@ function renderTiles() {
     const li = node("li", undefined, "tile");
     li.draggable = true;
     li.ondragstart = (e) => {
-      if (e.target instanceof HTMLInputElement) {
+      if (e.target.closest("input, select, button")) {
         e.preventDefault();
         return;
       }
@@ -255,6 +255,94 @@ function renderTiles() {
       b.onclick = action;
       actions.append(b);
     }
+    const options = node("details", undefined, "tile-options");
+    options.append(node("summary", "Tegelinstellingen"));
+    const domain = tile.entity.split(".")[0];
+    const fields = [
+      [
+        "tap",
+        "Bij aantikken",
+        [
+          ["auto", "Automatisch"],
+          ["detail", "Bediening openen"],
+          ["none", "Alleen bekijken"],
+        ],
+      ],
+      [
+        "display",
+        "Weergave",
+        [
+          ["standard", "Naam en status"],
+          ["watch", "Grote waarde"],
+        ],
+      ],
+    ];
+    if (
+      ["light", "switch", "input_boolean", "fan", "media_player"].includes(
+        domain,
+      )
+    )
+      fields[0][2].push(["toggle", "Aan / uit"]);
+    if (
+      [
+        "light",
+        "fan",
+        "cover",
+        "number",
+        "input_number",
+        "media_player",
+      ].includes(domain)
+    )
+      fields.push([
+        "inline",
+        "Op de tegel",
+        [
+          ["none", "Geen extra bediening"],
+          ["slider", "Mini-schuif"],
+        ],
+      ]);
+    if (domain === "sensor")
+      fields.push([
+        "history_hours",
+        "Geschiedenis",
+        [
+          [1, "1 uur"],
+          [6, "6 uur"],
+          [24, "24 uur"],
+        ],
+      ]);
+    for (const [key, title, choices] of fields) {
+      const label = node("label", title),
+        input = node("select");
+      for (const [value, text] of choices) {
+        const option = node("option", text);
+        option.value = value;
+        input.append(option);
+      }
+      input.value =
+        tile.options?.[key] ??
+        (key === "tap"
+          ? "auto"
+          : key === "display"
+            ? "standard"
+            : key === "history_hours"
+              ? 24
+              : "none");
+      input.onchange = () => {
+        tile.options = {
+          ...tile.options,
+          [key]: key === "history_hours" ? Number(input.value) : input.value,
+        };
+        if (key === "display" && input.value === "watch")
+          tile.options.inline = "none";
+        if (key === "inline" && input.value === "slider")
+          tile.options.display = "standard";
+        markDirty();
+      };
+      label.append(input);
+      options.append(label);
+    }
+    content.append(options);
     li.append(node("span", "⠿", "grip"), content, actions);
     $("#tiles").append(li);
   });
@@ -356,6 +444,10 @@ for (const [value, label] of [
   ["scene", "Scènes"],
   ["vacuum", "Vacuum"],
   ["sensor", "Sensoren"],
+  ["media_player", "Media"],
+  ["weather", "Weer"],
+  ["number", "Waarden"],
+  ["select", "Keuzelijsten"],
 ]) {
   const b = node("button", label, value === "" ? "active" : "");
   b.onclick = () => {
@@ -430,3 +522,120 @@ window.addEventListener("beforeunload", (e) => {
 });
 refresh();
 setInterval(refresh, 10000);
+
+// Shared firmware workspace; always select a concrete profile and upload target.
+let firmwarePoll;
+async function firmwareRefresh(initial = false) {
+  try {
+    const data = await (await api("firmware")).json();
+    if (initial) {
+      $("#firmware-file").replaceChildren(
+        ...data.profiles.map((p) => {
+          const o = node("option", p.file);
+          o.value = p.file;
+          return o;
+        }),
+      );
+      $("#firmware-port").replaceChildren(
+        ...[["ota", "Wifi / OTA"], ...data.ports.map((p) => [p, p])].map(
+          ([value, text]) => {
+            const o = node("option", text);
+            o.value = value;
+            return o;
+          },
+        ),
+      );
+    }
+    const running = data.job?.state === "running";
+    for (const id of ["validate", "build", "install"])
+      $("#firmware-" + id).disabled =
+        running || !data.available || !data.profiles.length;
+    $("#firmware-status").textContent = !data.available
+      ? "ESPHome CLI ontbreekt. Werk de app bij naar 0.2.0."
+      : data.job
+        ? `${data.job.file} · ${data.job.action} · ${data.job.state}`
+        : "Kies het bedoelde profiel en een USB-poort of IP-adres.";
+    $("#firmware-log").textContent = data.logs.join("\n");
+  } catch (e) {
+    toast(e.message);
+  }
+}
+$("#open-firmware").onclick = () => {
+  $("#firmware-dialog").showModal();
+  firmwareRefresh(true);
+  clearInterval(firmwarePoll);
+  firmwarePoll = setInterval(() => firmwareRefresh(), 3000);
+};
+$("#close-firmware").onclick = () => {
+  $("#firmware-dialog").close();
+  clearInterval(firmwarePoll);
+};
+$("#firmware-dialog").addEventListener("close", () =>
+  clearInterval(firmwarePoll),
+);
+$("#firmware-port").onchange = () =>
+  ($("#firmware-host-label").hidden = $("#firmware-port").value !== "ota");
+$("#firmware-file").onchange = () => {
+  $("#firmware-host").placeholder = $("#firmware-file").value.replace(
+    /\.yaml$/,
+    ".local",
+  );
+};
+for (const action of ["validate", "build", "install"])
+  $("#firmware-" + action).onclick = async () => {
+    try {
+      await api("firmware/jobs", {
+        method: "POST",
+        body: JSON.stringify({
+          file: $("#firmware-file").value,
+          action:
+            action === "validate"
+              ? "validate"
+              : action === "build"
+                ? "build"
+                : "install",
+          target:
+            $("#firmware-port").value === "ota"
+              ? $("#firmware-host").value.trim()
+              : $("#firmware-port").value,
+        }),
+      });
+      await firmwareRefresh();
+    } catch (e) {
+      toast(e.message);
+    }
+  };
+$("#create-profile").onclick = async () => {
+  const form = $("#install-form");
+  if (!form.reportValidity()) return;
+  try {
+    const data = await (
+      await api("firmware/profiles", {
+        method: "POST",
+        body: JSON.stringify(Object.fromEntries(new FormData(form))),
+      })
+    ).json();
+    generatedName = data.file.replace(/\.yaml$/, " ").trim();
+    $("#yaml-output").value = data.yaml;
+    $("#yaml-result").hidden = false;
+    $("#install-status").textContent =
+      `${data.file} bewaard. Open Firmware & USB om te installeren.`;
+    form.elements.wifi_password.value = "";
+  } catch (e) {
+    toast(e.message);
+  }
+};
+$("#inspect").onclick = async () => {
+  if (!selected) return;
+  try {
+    $("#inspection").textContent = JSON.stringify(
+      await (
+        await api(`screens/${encodeURIComponent(selected)}/inspect`)
+      ).json(),
+      null,
+      2,
+    );
+  } catch (e) {
+    toast(e.message);
+  }
+};

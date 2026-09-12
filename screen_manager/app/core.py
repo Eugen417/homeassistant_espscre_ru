@@ -5,10 +5,10 @@ import math
 import re
 import secrets
 
-DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select button input_button'.split())
+DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button'.split())
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
-ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement'.split())
+ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level media_title options min max step temperature_unit supported_features'.split())
 
 # Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
 SETTING_RULES = {
@@ -66,7 +66,26 @@ def validate_layout(data):
         if not isinstance(name, str) or len(name.encode()) > 80:
             raise ValueError('Een tegelnaam mag maximaal 80 bytes bevatten.')
         seen.add(tile['entity'])
-        clean.append({'entity': tile['entity'], 'name': name.strip()})
+        item = {'entity': tile['entity'], 'name': name.strip()}
+        if 'options' in tile:
+            options = tile['options']
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours'}:
+                raise ValueError('Onbekende tegelinstellingen.')
+            choices = {'tap': ('auto', 'detail', 'toggle', 'none'), 'display': ('standard', 'watch'), 'inline': ('none', 'slider')}
+            domain = tile['entity'].split('.')[0]
+            for key, allowed in choices.items():
+                if key in options and options[key] not in allowed:
+                    raise ValueError('Ongeldige tegelinstelling: ' + key)
+            if options.get('tap') == 'toggle' and domain not in {'light','switch','input_boolean','fan','media_player'}:
+                raise ValueError('Deze entiteit ondersteunt geen aan/uit-actie.')
+            if options.get('inline') == 'slider' and domain not in {'light','fan','cover','number','input_number','media_player'}:
+                raise ValueError('Deze entiteit ondersteunt geen mini-schuif.')
+            if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in (1,6,24)):
+                raise ValueError('Geschiedenis: kies 1, 6 of 24 uur.')
+            if options.get('display') == 'watch' and options.get('inline') == 'slider':
+                raise ValueError('Kies grote waarde of mini-schuif.')
+            item['options'] = dict(options)
+        clean.append(item)
     result = {'title': title.strip(), 'tiles': clean}
     if 'settings' in data:
         result['settings'] = validate_settings(data['settings'])
@@ -92,7 +111,8 @@ def state_message(index, tile, states):
                             if isinstance(v, str) or isinstance(v, (float, int)) and math.isfinite(v) and abs(v) <= 1000000]
     return {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
             'name': short(tile['name'] or attrs.get('friendly_name') or tile['entity'], 80),
-            'state': short(state.get('state', 'unavailable'), 160), 'a': bounded}
+            'state': short(state.get('state', 'unavailable'), 160), 'a': bounded,
+            **({'o': tile['options']} if 'options' in tile else {})}
 
 def packets(message, token=None):
     raw = json.dumps(message, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()

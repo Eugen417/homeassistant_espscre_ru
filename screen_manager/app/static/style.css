@@ -616,3 +616,42 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.tile-options {
+  margin-top: 10px;
+  font-size: 13px;
+}
+.tile-options label {
+  display: block;
+  margin: 8px 0;
+}
+select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #d8dfe5;
+  border-radius: 9px;
+  background: white;
+  color: #152331;
+  font: inherit;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 340px;
+  overflow: auto;
+  background: #f0f3f6;
+  border-radius: 12px;
+  padding: 16px;
+  font-size: 12px;
+}
+#firmware-dialog {
+  max-width: 780px;
+  width: 90vw;
+}
+.tile-actions {
+  align-self: start;
+}
+.tile .tile-options input,
+.tile .tile-options select {
+  cursor: auto;
+}

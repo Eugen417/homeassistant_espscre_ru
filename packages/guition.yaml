@@ -555,8 +555,8 @@ substitutions:
   OVERLAY_SLIDER_W: "144"
   OVERLAY_SLIDER_H: "300"
   OVERLAY_ICON_Y: "148"
-  BG_TOP_COLOR: "0xF7F7F7"
-  BG_BOTTOM_COLOR: "0xF7F7F7"
+  BG_TOP_COLOR: "0xECECEC"
+  BG_BOTTOM_COLOR: "0xECECEC"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "12"
   TILE_TITLE_X: "64"
@@ -586,7 +586,7 @@ esphome:
   min_version: 2026.6.2
   project:
     name: maxgramser.esp_screen
-    version: "0.1.3"
+    version: "0.2.0"
   platformio_options:
     build_flags:
       - -DLV_USE_SNAPSHOT=1
@@ -617,11 +617,13 @@ esphome:
           settings.night_end = atoi("${NIGHT_END_HOUR}") * 60;
           settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
           runtime_tiles::light_theme = true;
+          runtime_tiles::watch_font = id(headline)->get_lv_font();
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
           runtime_tiles::load_settings();
           runtime_tiles::settings_changed = []() { id(apply_screen_settings).execute(); };
           runtime_tiles::dismiss = []() {
+            runtime_tiles::hide_detail();
             id(active_entity).clear();
             lv_obj_add_flag(id(brightness_overlay), LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(id(color_detail_overlay), LV_OBJ_FLAG_HIDDEN);
@@ -773,6 +775,16 @@ api:
             ESP_LOGI("ui_diag", "home=%d calibration=%d grid=%d,%d,%d,%d next=%d,%d,%d,%d",
                 lv_screen_active() == id(home_page)->obj, lv_screen_active() == id(touch_cal_page)->obj,
                 grid.x1, grid.y1, grid.x2, grid.y2, nav.x1, nav.y1, nav.x2, nav.y2);
+    - action: preview_runtime_card
+      variables:
+        index: int
+      then:
+        - lambda: |-
+            if (index < 0) { runtime_tiles::hide_detail(); return; }
+            if (runtime_tiles::enabled && index < (int)runtime_tiles::model.count) {
+              runtime_tiles::active_index = index;
+              runtime_tiles::show_detail(index);
+            }
     - action: light_controls_preview
       then:
         - script.execute: light_controls_preview
@@ -783,6 +795,9 @@ api:
 captive_portal:
 
 interval:
+  - interval: 250ms
+    then:
+      - lambda: runtime_tiles::tick();
   - interval: 1s
     then:
       - if:
@@ -1261,7 +1276,7 @@ text_sensor:
   - platform: template
     name: "Schermfirmware"
     entity_category: diagnostic
-    lambda: 'return {"0.1.3"};'
+    lambda: 'return {"0.2.0"};'
     update_interval: 60s
   - platform: template
     id: smartdisplay_action
@@ -4451,7 +4466,7 @@ script:
           const int minute = now.is_valid() ? now.hour * 60 + now.minute : -1;
           const int level = id(display_dimmed) ? settings.dim_level(minute) : settings.brightness;
           id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();
-          if (id(display_dimmed)) lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
+          if (id(display_dimmed)) { lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN); lv_obj_move_foreground(id(dim_wake_overlay)); }
           else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
           if (settings.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
           else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
@@ -5825,3 +5840,81 @@ text:
     id: dashboard_inbox
     name: "Tegelinstellingen"
     internal: ${DASHBOARD_INBOX_INTERNAL}
+
+number:
+  - platform: template
+    id: setting_brightness
+    name: "Helderheid normaal"
+    entity_category: config
+    min_value: 5
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    update_interval: 2s
+    lambda: return screen_settings::current.brightness;
+    set_action:
+      - lambda: |-
+          auto &s = screen_settings::current;
+          s.brightness = (int)x;
+          s.standby_brightness = std::min(s.standby_brightness,s.brightness);
+          s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
+          runtime_tiles::setting_event("brightness",s.brightness);
+          id(apply_screen_settings).execute();
+  - platform: template
+    id: setting_standby_brightness
+    name: "Helderheid standby"
+    entity_category: config
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    update_interval: 2s
+    lambda: return screen_settings::current.standby_brightness;
+    set_action:
+      - lambda: |-
+          auto &s = screen_settings::current;
+          s.standby_brightness = (int)x;
+          s.standby_brightness = std::min(s.standby_brightness,s.brightness);
+          s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
+          runtime_tiles::setting_event("standby_brightness",s.standby_brightness);
+          id(apply_screen_settings).execute();
+  - platform: template
+    id: setting_night_brightness
+    name: "Helderheid nacht"
+    entity_category: config
+    min_value: 0
+    max_value: 100
+    step: 1
+    unit_of_measurement: "%"
+    update_interval: 2s
+    lambda: return screen_settings::current.night_brightness;
+    set_action:
+      - lambda: |-
+          auto &s = screen_settings::current;
+          s.night_brightness = (int)x;
+          s.standby_brightness = std::min(s.standby_brightness,s.brightness);
+          s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
+          runtime_tiles::setting_event("night_brightness",s.night_brightness);
+          id(apply_screen_settings).execute();
+  - platform: template
+    id: setting_standby_seconds
+    name: "Standby na"
+    entity_category: config
+    min_value: 60
+    max_value: 86400
+    step: 60
+    unit_of_measurement: "s"
+    update_interval: 2s
+    lambda: return screen_settings::current.standby_seconds;
+    set_action:
+      - lambda: |-
+          auto &s = screen_settings::current;
+          s.standby_seconds = (int)x;
+          s.standby_brightness = std::min(s.standby_brightness,s.brightness);
+          s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
+          runtime_tiles::setting_event("standby_seconds",s.standby_seconds);
+          id(apply_screen_settings).execute();

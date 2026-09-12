@@ -1,3 +1,11 @@
+# Installeren vanuit ESP Screens (vanaf 0.2.0)
+
+De makkelijkste route is nu één app: **ESP Screen Manager**. Deze kan zelf
+ESPHome-profielen bewaren, bouwen en via USB of OTA installeren. Zie de
+[complete stappen voor deze route](WHATS_NEW_020.md#firmware-zonder-een-tweede-beheerpagina).
+De instructies hieronder blijven bruikbaar als je ESPHome Device Builder wilt
+blijven gebruiken. Beide routes behouden dezelfde eigen YAML en secrets.
+
 # Een nieuw scherm, van USB naar dagelijks gebruik
 
 Met **ESP Screen Manager** kies je je tegels in Home Assistant. Je zoekt op

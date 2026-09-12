@@ -15,7 +15,7 @@ inline bool valid_entity(const std::string &entity) {
     if (i != dot && !(entity[i] >= 'a' && entity[i] <= 'z') &&
         !(entity[i] >= '0' && entity[i] <= '9') && entity[i] != '_') return false;
   std::string domain = entity.substr(0, dot);
-  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "button", "input_button"})
+  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button"})
     if (domain == allowed) return true;
   return false;
 }
@@ -27,6 +27,19 @@ struct Tile {
   float current = NAN, target = NAN, humidity = NAN, minimum = 7, maximum = 35, step = 0.5f;
   int hue = 0, kelvin = 3000, min_kelvin = 0, max_kelvin = 0;
   bool received = false;
+  std::string tap = "auto", display = "standard", inline_control = "none", media_title;
+  std::array<std::string, 8> options;
+  unsigned option_count = 0, history_hours = 24;
+  std::array<float,24> history{};
+  bool has_history = false;
+  float battery = NAN, volume = NAN;
+  uint32_t supported = 0;
+  std::string revision, pending_revision;
+  uint32_t pending_since = 0;
+  bool pending = false, confirmed = false, local_feedback = false;
+  bool loading(uint32_t now) const { return pending && (now-pending_since < 1000 || (!confirmed && !local_feedback && now-pending_since < 6000)); }
+  void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; }
+  void observe(const std::string &next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }
   std::string domain() const { return entity.substr(0, entity.find('.')); }
   bool available() const { return received && state != "unknown" && state != "unavailable" && !state.empty(); }
   bool active() const { return state == "on" || state == "cleaning" || (domain() == "climate" && available() && state != "off"); }

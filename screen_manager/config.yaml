@@ -1,5 +1,5 @@
 name: ESP Screen Manager
-version: "0.1.2"
+version: "0.2.0"
 slug: esp_screen_manager
 description: Kies tegels voor je CYD en Guition touchscreen, zonder opnieuw flashen.
 url: https://github.com/MaxGramser/homeassistant_espscreen
@@ -15,3 +15,8 @@ panel_title: ESP Screens
 panel_admin: true
 options: {}
 schema: {}
+
+map:
+  - homeassistant_config:rw
+uart: true
+usb: true

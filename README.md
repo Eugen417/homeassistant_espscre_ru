@@ -2,12 +2,13 @@
 
 **Nieuw scherm installeren? Begin met [Easy Setup](docs/EASY_SETUP.md).**
 Installeer ESP Screen Manager in Home Assistant, download de YAML voor CYD of
-Guition, flash eenmaal via USB op je Raspberry en kies je tegels in de beheerpagina.
+Guition, bouw en flash vanuit dezelfde app via USB op je Raspberry en kies je tegels in de beheerpagina.
 Zoeken op entiteit/apparaat/ruimte, slepen, opslaan — zonder opnieuw flashen.
 
 Updates van de app behouden je indelingen. Nieuwe firmware installeer je via
 ESPHome OTA met behoud van je eigen naam, wifi en sleutels.
-Zie [updates publiceren](docs/RELEASING.md).
+Zie [de nieuwe kaarten, inspector en firmwarepagina](docs/WHATS_NEW_020.md) en
+[updates publiceren](docs/RELEASING.md).
 
 De handleiding hieronder blijft beschikbaar voor handmatige installatie via een
 computer. Voor de handmatige Guition-route: [Guition](docs/GUITION.md).

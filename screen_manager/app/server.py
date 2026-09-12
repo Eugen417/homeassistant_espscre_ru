@@ -7,9 +7,12 @@ import os
 from pathlib import Path
 import secrets
 import time
+from datetime import datetime, timedelta, timezone
+import math
+from firmware import Firmware
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import discover, installation_yaml, packets, state_message, validate_layout
+from core import discover, installation_yaml, packets, state_message, validate_layout, validate_settings
 
 LOG = logging.getLogger('screen_manager')
 
@@ -23,6 +26,7 @@ class HomeAssistant:
         self.registry, self.devices, self.areas = [], [], []
         self.online = False
         self.changed = asyncio.Event()
+        self.setting_events = []
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -52,6 +56,9 @@ class HomeAssistant:
             elif data.get('type') == 'event':
                 event = data.get('event', {})
                 body = event.get('data', {})
+                if event.get('event_type') == 'esphome.screen_setting':
+                    self.setting_events.append(body)
+                    self.changed.set()
                 if event.get('event_type') == 'state_changed':
                     eid = body.get('entity_id')
                     if body.get('new_state'):
@@ -79,6 +86,7 @@ class HomeAssistant:
                         raise ConnectionError('Home Assistant-authenticatie mislukt.')
                     reader = asyncio.create_task(self.read())
                     await self.request('subscribe_events', event_type='state_changed')
+                    await self.request('subscribe_events', event_type='esphome.screen_setting')
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
                     self.online = True
@@ -112,10 +120,41 @@ class HomeAssistant:
             await self.request('call_service', domain='text', service='set_value',
                                service_data={'entity_id': inbox, 'value': packet})
 
+    async def history(self, entity, hours):
+        start = (datetime.now(timezone.utc)-timedelta(hours=hours)).isoformat()
+        async with self.session.get(self.base+'/history/period/'+start,
+                params={'filter_entity_id':entity,'minimal_response':'','no_attributes':''},
+                headers={'Authorization':'Bearer '+self.token}) as response:
+            response.raise_for_status()
+            raw = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                raw.extend(chunk)
+                if len(raw)>2*1024*1024: raise ValueError('Geschiedenis te groot.')
+            rows=json.loads(raw)
+        samples=[]; events=[]
+        begin=datetime.fromisoformat(start).timestamp(); span=hours*3600
+        for row in rows[0] if rows else []:
+            try:
+                timestamp=datetime.fromisoformat(row.get('last_changed',row.get('last_updated','')).replace('Z','+00:00')).timestamp()
+            except (ValueError,TypeError): continue
+            try:
+                value=float(row['state']); value=round(value,3) if math.isfinite(value) else None
+            except (ValueError,TypeError,KeyError): value=None
+            events.append((timestamp,value))
+        events.sort(key=lambda pair:pair[0]);position=0;value=None
+        for bucket in range(24):
+            boundary=begin+(bucket+1)*span/24
+            while position<len(events) and events[position][0]<=boundary:
+                value=events[position][1];position+=1
+            samples.append(value)
+        return samples
+
 class Manager:
     def __init__(self, ha, path):
         self.ha, self.path = ha, Path(path)
         self.layouts, self.sent, self.status, self.last = {}, {}, {}, {}
+        self.histories = {}
+        self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
@@ -133,6 +172,10 @@ class Manager:
         # A still-open older UI may save tiles without the new optional settings.
         if 'settings' not in layout and 'settings' in self.layouts.get(inbox, {}):
             layout['settings'] = self.layouts[inbox]['settings'].copy()
+        old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
+        for tile in layout['tiles']:
+            if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
+                tile['options'] = old_tiles[tile['entity']]['options'].copy()
         known = {e['id'] for e in self.inventory()[1]}
         if any(t['entity'] not in known for t in layout['tiles']):
             raise ValueError('Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.')
@@ -151,10 +194,21 @@ class Manager:
         self.ha.changed.set()
 
     async def sync_one(self, inbox, layout, force=False):
-        messages = [{'v': 1, 'op': 'layout', 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
+        messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
         if 'settings' in layout:
             messages[0]['settings'] = layout['settings']
-        messages += [state_message(i, tile, self.ha.states) for i, tile in enumerate(layout['tiles'])]
+        for i,tile in enumerate(layout['tiles']):
+            message=state_message(i,tile,self.ha.states)
+            if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
+                hours=tile.get('options',{}).get('history_hours',24)
+                key=(tile['entity'],hours)
+                cached=self.histories.get(key)
+                if not cached or time.monotonic()-cached[0]>300:
+                    try: values=await self.ha.history(*key)
+                    except Exception: values=[]
+                    cached=(time.monotonic(),values);self.histories[key]=cached
+                message['history']={'hours':hours,'values':cached[1]}
+            messages.append(message)
         previous = self.sent.get(inbox, [])
         force = force or not previous or messages[0] != previous[0]
         for i, message in enumerate(messages):
@@ -179,6 +233,19 @@ class Manager:
             if not self.ha.online:
                 self.sent.clear()
                 continue
+            for event in getattr(self.ha,'setting_events',[])[:]:
+                try:
+                    inbox,key,value=event.get('inbox'),event.get('key'),event.get('value')
+                    if inbox in self.layouts:
+                        layout=dict(self.layouts[inbox]); settings=validate_settings(layout.get('settings',{}))
+                        if key not in settings: continue
+                        settings[key] = value=='1' if type(settings[key]) is bool else int(value)
+                        if key=='brightness':
+                            settings['standby_brightness']=min(settings['standby_brightness'],settings[key])
+                            settings['night_brightness']=min(settings['night_brightness'],settings[key])
+                        layout['settings']=validate_settings(settings);self.save(inbox,layout)
+                except (ValueError,TypeError): pass
+            if hasattr(self.ha,'setting_events'): self.ha.setting_events.clear()
             for screen in self.inventory()[0]:
                 inbox = screen['id']
                 if not screen['online']:
@@ -238,6 +305,28 @@ def create_app(manager, development=False):
         data = await request.json()
         content = installation_yaml(data)
         return web.Response(text=content, content_type='text/yaml', headers={'Content-Disposition': f'attachment; filename="{data["name"]}.yaml"'})
+    async def inspector(request):
+        inbox=request.match_info['inbox']
+        if inbox not in {s['id'] for s in manager.inventory()[0]}: raise ValueError('Onbekend scherm.')
+        layout=manager.layouts.get(inbox,{'tiles':[]})
+        return web.json_response({'screen':next(s for s in manager.inventory()[0] if s['id']==inbox),
+            'delivery':manager.status.get(inbox), 'layout':layout,
+            'tiles':[{'entity':t['entity'],'state':manager.ha.states.get(t['entity'],{}).get('state'),
+                      'attributes':state_message(i,t,manager.ha.states)['a'],
+                      'options':t.get('options',{})} for i,t in enumerate(layout['tiles'])]})
+    async def firmware_status(request): return web.json_response(manager.firmware.status())
+    async def firmware_start(request): return web.json_response(manager.firmware.start(await request.json()))
+    async def firmware_create(request): return web.json_response(manager.firmware.create(await request.json()))
+    async def shutdown(app):
+        task=manager.firmware.task
+        if task and not task.done():
+            task.cancel()
+            with contextlib.suppress(asyncio.CancelledError): await task
+    app.on_cleanup.append(shutdown)
+    app.router.add_get('/api/screens/{inbox}/inspect', inspector)
+    app.router.add_get('/api/firmware', firmware_status)
+    app.router.add_post('/api/firmware/jobs', firmware_start)
+    app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_put('/api/screens/{inbox}', save)

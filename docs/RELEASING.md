@@ -70,3 +70,19 @@ Firmware gebruikt een afzonderlijke preferences-key `0x53435231` met een vaste
 versie-1 structuur (elf int32-velden en een uint32-versie). Wijzig key, structuur
 of versie niet zonder migratie. Alleen gewijzigde instellingen worden opgeslagen;
 periodieke herhaling veroorzaakt geen flashwrites en geen nieuwe idle-timer.
+
+### Compatibiliteit 0.2.0
+
+Opslagversie en tegelprotocol blijven 1. Optionele `tiles[].options`, `o` in
+statusberichten, `history` en `inbox` in het layoutbericht zijn additief. Een
+oudere browser die opties niet meestuurt behoudt de bestaande opties voor dezelfde
+entiteit. Oudere firmware negeert extra velden. Nieuwe entiteitsdomeinen vereisen
+wel firmware 0.2.0; bij terugrollen naar een oudere app eerst de gegevensback-up
+herstellen, omdat die app nieuwe domeinen nog niet kan laden. Geen oude opslag
+stilzwijgend overschrijven. Bestaande preference-keys blijven ongewijzigd.
+
+De app gebruikt nu de officiële ESPHome-container, mapped `homeassistant_config`
+naar `/homeassistant` en vraagt UART/USB voor de door de gebruiker gekozen poort.
+Config/secrets blijven in de eigen HA-configmap; builds in `/data`. App-updates
+vervangen deze mappen niet. Native getalinstellingen melden wijzigingen via
+`esphome.screen_setting`; de manager valideert inbox, sleutel en waarde.

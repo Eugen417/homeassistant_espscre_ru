@@ -135,11 +135,11 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
     lv_obj_set_style_bg_opa(row.slider, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_bg_opa(row.slider, LV_OPA_TRANSP, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_KNOB);
-    lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_bg_color(row.slider, lv_color_hex(0x111111), LV_PART_KNOB);
     lv_obj_set_style_radius(row.slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
     lv_obj_set_style_pad_all(row.slider, large ? 5 : 6, LV_PART_KNOB);
     lv_obj_set_style_border_width(row.slider, 2, LV_PART_KNOB);
-    lv_obj_set_style_border_color(row.slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
+    lv_obj_set_style_border_color(row.slider, lv_color_hex(0x111111), LV_PART_KNOB);
     lv_slider_set_range(row.slider, i == 0 ? 0 : i == 1 ? 2000 : 1, i == 0 ? 360 : i == 1 ? 6500 : 100);
     lv_obj_add_event_cb(row.slider, event, LV_EVENT_ALL, &row);
     preview(row);

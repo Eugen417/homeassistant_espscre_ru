@@ -1,3 +1,13 @@
+# 0.2.0
+
+- ESPHome CLI in de app: bestaande profielen controleren, bouwen en via USB/OTA installeren.
+- Nieuwe profielen met unieke sleutels; bestaande YAML, secrets en appdata blijven behouden.
+- Tegelopties: klikgedrag, grote waarde, mini-schuif en sensorgeschiedenis.
+- Media-, weather-, number- en select-kaarten en vernieuwde vacuumkaart op beide borden.
+- Actiefeedback, vaste tekstregels en zwarte sliderknoppen.
+- Inspector en helderheid/standby als instellingen bij het HA-apparaat.
+- Native Guition ST7701S-configuratie en lichte kaartstijl. Duuracceptatie van het fysieke beeld blijft apart van firmwaretests.
+
 # 0.1.2
 
 - Per scherm standbyduur, normale/standby/nachthelderheid en nachturen instellen.
