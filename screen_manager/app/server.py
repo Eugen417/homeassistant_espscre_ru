@@ -84,6 +84,15 @@ class HomeAssistant:
                     self.registry_changed.set()
         raise ConnectionError('Home Assistant-verbinding verbroken.')
 
+    def describe_close(self, connected):
+        """Why and after how long the websocket ended; helps explain unexpected reconnects in the log."""
+        if connected is None:
+            return ''
+        ws = self.ws
+        reason = ws.exception() if ws is not None else None
+        return ' na %d s, close-code %s%s' % (time.monotonic() - connected, ws.close_code if ws is not None else None,
+                                            f', {type(reason).__name__}' if reason else '')
+
     async def registries(self):
         self.registry, self.devices, self.areas = await asyncio.gather(
             self.request('config/entity_registry/list'), self.request('config/device_registry/list'), self.request('config/area_registry/list'))
@@ -92,7 +101,7 @@ class HomeAssistant:
         url = ('ws://supervisor/core/websocket' if self.base == 'http://supervisor/core/api'
                else self.base.replace('http://', 'ws://').replace('https://', 'wss://') + '/websocket')
         while True:
-            reader = None
+            reader, connected = None, None
             try:
                 async with self.session.ws_connect(url, heartbeat=30, max_msg_size=16*1024*1024) as ws:
                     self.ws = ws
@@ -113,6 +122,7 @@ class HomeAssistant:
                         self.time_zone = timezone.utc
                     self.online = True
                     self.changed.set()
+                    connected = time.monotonic()
                     LOG.info('Home Assistant verbonden')
                     # Refresh the registry when HA reports a change (debounced), with a slow
                     # fallback; a full fetch is about 1 MB of JSON and used to run every 30 s.
@@ -134,10 +144,12 @@ class HomeAssistant:
                         fetched = time.monotonic()
                         self.changed.set()
             except (ConnectionError, TimeoutError, OSError, ValueError) as error:
-                LOG.warning('Home Assistant tijdelijk niet beschikbaar (%s)', type(error).__name__)
+                LOG.warning('Home Assistant tijdelijk niet beschikbaar (%s)%s', type(error).__name__, self.describe_close(connected))
             except Exception as error:
-                LOG.warning('Verbinding opnieuw starten (%s)', type(error).__name__)
+                LOG.warning('Verbinding opnieuw starten (%s)%s', type(error).__name__, self.describe_close(connected))
             finally:
+                if self.online:
+                    LOG.info('Home Assistant-verbinding gesloten%s', self.describe_close(connected))
                 self.online = False
                 self.ws = None
                 if reader:
@@ -196,6 +208,7 @@ class Manager:
         self.layouts, self.sent, self.status, self.last = {}, {}, {}, {}
         self.histories = {}
         self.forecasts = {}
+        self.listeners = set()  # asyncio.Event per open /api/events stream
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
         self.updates = Updater(self, self.path.parent / 'updates.json')
         if self.path.exists():
@@ -270,6 +283,11 @@ class Manager:
         self.sent.pop(inbox, None)
         self.status[inbox] = 'Opgeslagen; wacht op synchronisatie'
         self.ha.changed.set()
+        self.notify()
+
+    def notify(self):
+        for listener in self.listeners:
+            listener.set()
 
     def watched_entities(self):
         """Entities whose state changes matter: tiles on any layout plus the screens' own diagnostics."""
@@ -333,6 +351,7 @@ class Manager:
             await asyncio.sleep(0.25)
             if not self.ha.online:
                 self.sent.clear()
+                self.notify()
                 continue
             for event in getattr(self.ha,'setting_events',[])[:]:
                 try:
@@ -369,6 +388,7 @@ class Manager:
                     self.status[inbox] = 'Verzenden mislukt; automatisch opnieuw proberen'
                     LOG.warning('Schermsynchronisatie opnieuw proberen (%s)', type(error).__name__)
                     await asyncio.sleep(1)
+            self.notify()
 
 def create_app(manager, development=False):
     csrf = secrets.token_urlsafe(32)
@@ -385,6 +405,8 @@ def create_app(manager, development=False):
             return web.json_response({'error': str(error)}, status=400)
         except (TypeError, KeyError):
             return web.json_response({'error': 'Ongeldige invoer. Controleer naam, bord en gekozen tegels.'}, status=400)
+        if response.prepared:
+            return response  # streamed (SSE) responses set their headers before prepare()
         response.headers['Cache-Control'] = 'no-store'
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'"
@@ -395,14 +417,18 @@ def create_app(manager, development=False):
 
     async def index(request):
         return web.FileResponse(static / 'index.html')
-    async def inventory(request):
+    def light_payload():
+        """Screens and update status: everything that changes while the page is open."""
         screens, entities = manager.inventory()
         profiles = manager.firmware.profile_names()
         for screen in screens:
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
             screen['update'] = manager.updates.state_for(screen, profiles)
-        payload = {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'updates': manager.updates.summary(screens, profiles)}
+        return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
+                'updates': manager.updates.summary(screens, profiles)}, entities
+    async def inventory(request):
+        payload, entities = light_payload()
         if request.query.get('light') != '1':
             # The page polls the light form; entities, backgrounds and icons (~100 KB) only on demand.
             payload['entities'] = entities
@@ -410,6 +436,30 @@ def create_app(manager, development=False):
             payload['icons'] = tile_icons.editor()
             payload['builtin'] = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         return web.json_response(payload)
+    async def events(request):
+        """Server-sent events: pushes the light inventory whenever it changes, so the page need not poll."""
+        response = web.StreamResponse(headers={'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store',
+                                               'X-Accel-Buffering': 'no', 'X-Content-Type-Options': 'nosniff'})
+        await response.prepare(request)
+        wake, sent = asyncio.Event(), None
+        manager.listeners.add(wake)
+        try:
+            while True:
+                # Sync results are pushed at once; updater phases are picked up by the 3 s check.
+                with contextlib.suppress(TimeoutError):
+                    await asyncio.wait_for(wake.wait(), 3)
+                wake.clear()
+                body = json.dumps(light_payload()[0], ensure_ascii=False)
+                if body != sent:
+                    await response.write(f'data: {body}\n\n'.encode())
+                    sent = body
+                else:
+                    await response.write(b': keepalive\n\n')
+        except (ConnectionResetError, asyncio.CancelledError):
+            pass
+        finally:
+            manager.listeners.discard(wake)
+        return response
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})
@@ -452,6 +502,7 @@ def create_app(manager, development=False):
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
+    app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
     app.router.add_post('/api/install', download)
     app.router.add_static('/static/', static)

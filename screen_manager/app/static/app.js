@@ -1017,18 +1017,37 @@ window.addEventListener("beforeunload", (e) => {
 });
 refresh();
 // Poll only while the tab is visible; a hidden tab would otherwise keep the add-on busy.
-let pollTimer, lastFull = Date.now();
+// Live updates arrive over server-sent events; polling is the fallback while the stream is down,
+// plus a full catalogue refresh every 5 minutes.
+let pollTimer, lastFull = Date.now(), live = false, stream;
+function applyLive(data) {
+  inventory = { ...inventory, ...data };
+  $("#connection").textContent = inventory.connected ? "● Home Assistant verbonden" : "Verbinding met Home Assistant herstellen…";
+  $("#connection").classList.toggle("online", inventory.connected);
+  renderScreens();
+  if (selected) renderSettingsSupport();
+  if (!selected && inventory.screens.length) select(inventory.screens[0].id);
+}
+function listen() {
+  if (stream || typeof EventSource === "undefined") return;
+  stream = new EventSource("api/events");
+  stream.onopen = () => { live = true; poll(); };
+  stream.onmessage = (e) => { if (!document.hidden) applyLive(JSON.parse(e.data)); };
+  stream.onerror = () => { live = false; poll(); };
+}
 function poll() {
   clearTimeout(pollTimer);
+  const wait = live ? 60000 : inventory.updates?.busy ? 3000 : 10000;
   pollTimer = setTimeout(async () => {
     if (!document.hidden) {
       const full = Date.now() - lastFull >= 300000;
       if (full) lastFull = Date.now();
-      await refresh(full);
+      if (full || !live) await refresh(full);
     }
     poll();
-  }, inventory.updates?.busy ? 3000 : 10000);
+  }, wait);
 }
+listen();
 poll();
 document.addEventListener("visibilitychange", async () => {
   if (document.hidden) return;

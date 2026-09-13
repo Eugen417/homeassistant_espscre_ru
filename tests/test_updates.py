@@ -231,6 +231,16 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
                 self.assertTrue(inventory['screens'][0]['update']['available'])
                 self.assertIn('entities', inventory)
                 light = await (await client.get('/api/inventory?light=1')).json()
+                async with client.get('/api/events') as stream:
+                    self.assertEqual(stream.headers['Content-Type'], 'text/event-stream')
+                    line = await asyncio.wait_for(stream.content.readline(), 5)
+                    pushed = json.loads(line.decode().removeprefix('data: '))
+                    self.assertEqual([x['id'] for x in pushed['screens']], [x['id'] for x in light['screens']])
+                    self.assertEqual(len(m.listeners), 1)
+                for _ in range(50):  # the stream notices the closed client at its next write
+                    if not m.listeners: break
+                    await asyncio.sleep(0.1)
+                self.assertEqual(len(m.listeners), 0)
                 self.assertNotIn('entities', light)
                 self.assertNotIn('icons', light)
                 self.assertEqual([x['id'] for x in light['screens']], [x['id'] for x in inventory['screens']])
