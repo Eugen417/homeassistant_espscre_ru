@@ -177,6 +177,20 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.26 / firmware 0.2.22
+
+Opslagversie en tegelprotocol blijven 1. Het layoutbericht krijgt het additieve veld
+`keepalive` (seconden, 5–3600): het interval waarin de app de hele indeling herhaalt
+(`KEEPALIVE_SECONDS` in `server.py`, 120 s sinds 0.2.20). De firmware leidt daar zijn
+bewaking van de gegevensstroom uit af (twee rondes plus 60 s) en meldt daarna
+"ESP Screens niet actief"; "HA niet verbonden" komt nu van ESPHome's eigen
+API-verbindingsstatus (`api_is_connected()`), niet meer uit de leeftijd van het laatste
+bericht. Zonder het veld rekent firmware 0.2.22 met 120 s; firmware tot 0.2.21 negeert
+het veld en houdt zijn vaste 95 s, wat met een keepalive van 120 s de bekende
+"HA niet verbonden"-flikkering geeft. Verander `KEEPALIVE_SECONDS` daarom alleen samen
+met een firmwareflash van bestaande schermen, of houd hem onder 40 s. Geen gewijzigde
+preferences of sleutels.
+
 ### Compatibiliteit 0.2.24 / firmware 0.2.20
 
 Alleen intern: `Tile::forecast` en `Tile::hours` zijn vectoren (voorheen vaste arrays in

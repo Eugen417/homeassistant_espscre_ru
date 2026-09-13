@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'screen_manager/app'))
+from server import KEEPALIVE_SECONDS
 from core import validate_layout, state_message, packets
 from firmware import Firmware
 from test_portal import ManagerTests
@@ -101,6 +102,7 @@ class SpecialTileSync(unittest.IsolatedAsyncioTestCase):
    await m.sync_one('text.screen',m.layouts['text.screen'])
    sent=[message for _,message in m.ha.messages]
    self.assertEqual(sent[0]['entities'],['screen.clock','sun.sun'])
+   self.assertEqual(sent[0]['keepalive'],KEEPALIVE_SECONDS,'the screen sizes its feed watchdog from the declared cadence')
    self.assertEqual((sent[1]['state'],sent[1]['name']),('ok','Klok'))
    self.assertEqual(sent[2]['x'],{'rise':'05:15','set':'17:50'},'fake HA has no time zone: UTC')
    m.ha.states['sensor.screen_firmware']={'state':'0.2.13'};m.ha.messages.clear()

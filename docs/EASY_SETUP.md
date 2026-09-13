@@ -137,8 +137,10 @@ alleen hun waarde; detailmenu’s en standby wisselen niet van pagina.
 
 Er staan zes tegels op een pagina. Bij maximaal zes verdwijnen Vorige/Volgende.
 De standby-tijd is standaard tien minuten. Bij offline apparaten blokkeert het
-scherm acties. Als de app/HA langer dan circa 95 seconden geen updates geeft,
-wordt de bediening geblokkeerd totdat de gegevens opnieuw ontvangen zijn.
+scherm acties. Valt de verbinding met Home Assistant weg, dan meldt het scherm
+direct "HA niet verbonden"; stuurt de app twee rondes (circa vijf minuten) niets,
+dan "ESP Screens niet actief". In beide gevallen is de bediening geblokkeerd
+totdat de gegevens opnieuw ontvangen zijn.
 
 Je mag indelingen opslaan terwijl een scherm offline is. De app verstuurt ze
 zodra het scherm terugkomt. De app moet blijven draaien voor actuele tegeldata.

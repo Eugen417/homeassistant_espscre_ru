@@ -1,3 +1,7 @@
+## 0.2.26 (firmware 0.2.22)
+
+- **"HA niet verbonden" om de twee minuten opgelost**: sinds 0.2.20 herhaalt de app de indeling elke 120 s, maar de firmware verwachtte binnen 95 s een bericht (gemaakt voor de oude 25 s). Op een rustig scherm stonden alle tegels daardoor 25 tot 45 s per ronde op "Niet beschikbaar". De firmware gebruikt nu ESPHome's eigen API-verbindingsstatus voor "HA niet verbonden" (direct bij wegvallen en terugkeren van Home Assistant) en bewaakt de gegevensstroom apart met het interval dat de app zelf declareert: het layoutbericht bevat `keepalive` (seconden). Pas na twee gemiste rondes plus marge meldt het scherm "ESP Screens niet actief". Zonder het veld (oudere app) rekent de firmware met 120 s. Firmware 0.2.22 voor beide borden; firmware tot 0.2.21 negeert het veld en houdt zijn 95 s.
+
 ## 0.2.25 (firmware 0.2.21)
 
 - **− / + in één beweging**: snel drie keer tikken telt drie stappen (van 20 naar 17); de touch-guard hield een tweede tik op dezelfde knop binnen 600 ms tegen. De − / + knoppen gebruiken nu een eigen korte guard (150 ms, alleen tegen stuiteren) en stappen ook door zolang je ze vasthoudt (drie per seconde). Na 700 ms rust gaat nog steeds één opdracht naar Home Assistant.

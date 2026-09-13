@@ -21,6 +21,8 @@ LOG = logging.getLogger('screen_manager')
 
 REGISTRY_EVENTS = ('entity_registry_updated', 'device_registry_updated', 'area_registry_updated')
 SCREEN_ENTITY_NAMES = {'Tegelinstellingen', 'Schermfirmware', 'Guition schermtype', 'Apparaatnaam', 'IP-adres'}
+# Full repeat of a screen's layout and states. Every layout message declares it, so the
+# firmware sizes its feed watchdog from this one constant (firmware 0.2.22+).
 KEEPALIVE_SECONDS = 120
 
 class HomeAssistant:
@@ -312,7 +314,8 @@ class Manager:
         if needed:
             self.status[inbox]=f"Indeling bewaard; firmware {needed}+ nodig voor deze tegels"
             return
-        messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
+        messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']],
+                     'keepalive': KEEPALIVE_SECONDS}]
         if 'settings' in layout:
             messages[0]['settings'] = {k:v for k,v in layout['settings'].items() if k not in ('swipe_pages','rotation')}
             messages[0]['swipe_pages'] = layout['settings'].get('swipe_pages',False)

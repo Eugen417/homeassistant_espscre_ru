@@ -10,6 +10,7 @@
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
 #include "esphome/core/hal.h"
+#include "esphome/core/util.h"
 #include "esphome/core/time.h"
 #include "lvgl.h"
 #include <functional>
@@ -42,6 +43,9 @@ inline std::string timer_text(const Tile &t);
 inline std::string last_run_text(uint32_t epoch);
 inline int active_index = -1;
 inline uint32_t last_received = 0;
+// Seconds between the manager's full repeats; every layout message declares it (app
+// 0.2.26+). Older managers get the 120 s that app 0.2.20 introduced.
+inline uint32_t keepalive_seconds = 120;
 inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
 inline esphome::ESPPreferenceObject settings_preference;
 inline void load_settings() {
@@ -98,7 +102,13 @@ inline bool has_icon_glyph(uint32_t codepoint) {
   for (auto &w : widgets) if (w.icon_font) { lv_font_glyph_dsc_t dsc; return lv_font_get_glyph_dsc(w.icon_font, &dsc, codepoint, 0); }
   return false;
 }
-inline bool fresh() { return model.ready() && esphome::millis() - last_received < 95000; }
+// Home Assistant's API link as ESPHome itself tracks it: gone the moment the socket drops,
+// back the moment HA reconnects, no guessing from message age.
+inline bool ha_connected() { return esphome::api_is_connected(); }
+// The manager repeats the whole layout every keepalive; one missed round plus its 20 s
+// loop slack and the sending itself are tolerated before the feed counts as gone.
+inline bool feed_alive() { return esphome::millis() - last_received < keepalive_seconds * 2000 + 60000; }
+inline bool fresh() { return model.ready() && ha_connected() && feed_alive(); }
 inline float number(JsonVariant value, float fallback = NAN) {
   if (!value.is<float>() && !value.is<int>()) return fallback;
   float n = value.as<float>();
@@ -141,6 +151,8 @@ inline std::string receive(const std::string &payload) {
       if(!root["swipe_pages"].isNull() && !root["swipe_pages"].is<bool>())return false;
       if(!root["rotation"].isNull() && (!root["rotation"].is<unsigned>() ||
           root["rotation"].as<unsigned>()>270 || root["rotation"].as<unsigned>()%90!=0))return false;
+      if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
+          root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
       inbox = string(root["inbox"], 160);
       bool changed = false;
       if (!model.set_layout(entities, string(root["title"], 96), changed)) return false;
@@ -158,6 +170,7 @@ inline std::string receive(const std::string &payload) {
       }
       if(rotation_changed && settings_changed)settings_changed();
       if (changed) { active_index = -1; for (auto &w : widgets) w.cached_active = -1; if (dismiss) dismiss(); }
+      if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
       last_received = esphome::millis();
       if (layout_changed) layout_changed();
       if (refresh) refresh();
@@ -1255,7 +1268,7 @@ inline void set_busy(Widgets &w,bool busy,bool large){
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room;
-  label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !fresh() ? "HA niet verbonden" : model.title);
+  label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !ha_connected() ? "HA niet verbonden" : !feed_alive() ? "ESP Screens niet actief" : model.title);
   for (size_t slot = 0; slot < 6; ++slot) {
     auto &w=widgets[slot];
     if(!w.tile || w.index>=model.count)continue;
@@ -1549,6 +1562,7 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
 }
 
 inline uint32_t last_live_second=0;
+inline bool was_fresh=false;
 inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
     auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());
@@ -1563,6 +1577,9 @@ inline void tick() {
   }
   if(!enabled)return;
   bool redraw=false;
+  // HA dropping or returning and the feed timing out change every card at once.
+  bool now_fresh=fresh();
+  if(now_fresh!=was_fresh){was_fresh=now_fresh;redraw=true;}
   for(auto &t:model.tiles)if(t.pending && !t.loading(esphome::millis())){t.pending=false;redraw=true;}
   // A -/+ edit goes out as one call once the finger rests; a value HA never reports is dropped after a while.
   for(size_t i=0;i<model.count;++i){
