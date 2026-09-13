@@ -53,3 +53,14 @@
   CYD 10/10 (`count=7`, ~52,5 kB vrij). Beide handmatige profielen compileren.
   De skeletonwissel en de CYD-kleuren zijn door de eigenaar visueel te
   beoordelen; er is geen langdurige stabiliteitsproef uitgevoerd.
+
+## App 0.2.14 (zelfde firmware)
+
+Tegelinstellingen openen nu in een sheet boven de mockup (mobiel: onderaan)
+met knoppen voor naam, weergave, breedte, tikgedrag, slider, geschiedenis en
+kleur; elke keuze werkt live door in de mockup erachter. Het kruisje op een
+kaart verwijdert direct, met **Ongedaan maken** in de melding; de tegellijst
+onder de mockup is vervallen. In de browser met de gemockte inventory
+gecontroleerd: sheet-layout, weergave "Grote waarde" direct zichtbaar in de
+mockup, verwijderen en ongedaan maken herstellen de volgorde, het kruisje
+start geen sleep. 55 Python-tests geslaagd; geen firmwarewijziging.

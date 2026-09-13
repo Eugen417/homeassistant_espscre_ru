@@ -544,6 +544,9 @@ dialog label {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 16px;
   padding: 14px 22px;
   background: var(--ink);
   color: white;
@@ -842,3 +845,29 @@ pre {
 .palette-sample { width: 36px; height: 28px; border-radius: 7px; border: 1px solid #0002; }
 .palette-auto { background: linear-gradient(135deg, #fff 50%, #e5e7eb 50%); }
 .tile-palette small { color: #52616e; }
+
+/* Tile settings sheet and in-preview removal. */
+#toast button { background: transparent; color: #9fc4ff; padding: 0; font-weight: 650; }
+.preview-tile { position: relative; }
+.preview-remove { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; padding: 0; border-radius: 50%; background: #ffffffd9; color: var(--muted); border: 1px solid var(--line); font-size: 11px; line-height: 1; display: grid; place-items: center; opacity: 0; transition: opacity 0.15s; }
+.preview-tile:hover .preview-remove, .preview-tile:focus-within .preview-remove { opacity: 1; }
+.preview-remove:hover { color: #b3261e; border-color: #e7b4b0; background: white; }
+@media (hover: none) { .preview-remove { opacity: 1; } }
+.tile-sheet { padding: 0; width: min(560px, calc(100% - 28px)); overflow: hidden; }
+.sheet-head { display: flex; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); }
+.sheet-head > div { flex: 1; min-width: 0; }
+.sheet-head strong { display: block; font-size: 16px; }
+.sheet-head small { color: var(--muted); overflow-wrap: anywhere; }
+.sheet-close { font-size: 15px; }
+.sheet-body { padding: 16px 20px; display: grid; gap: 14px; max-height: 58vh; overflow: auto; }
+.sheet-field { display: grid; gap: 7px; font-size: 12px; font-weight: 650; color: var(--muted); }
+.sheet-field input { font-weight: 400; font-size: 14px; }
+.segmented { display: flex; flex-wrap: wrap; gap: 6px; }
+.segmented button { background: #f3f5f8; color: var(--ink); border: 1px solid transparent; border-radius: 10px; padding: 8px 12px; font-size: 13px; font-weight: 500; }
+.segmented button[aria-pressed="true"] { background: var(--soft); color: var(--accent); border-color: #c9dafa; font-weight: 650; }
+.sheet-foot { display: flex; gap: 10px; align-items: center; padding: 14px 20px; border-top: 1px solid var(--line); background: #fafbfc; }
+.sheet-foot .danger { color: #b3261e; margin-right: auto; }
+@media (max-width: 620px) {
+  .tile-sheet { width: 100%; max-width: 100%; margin: auto 0 0; border-radius: 20px 20px 0 0; max-height: 90vh; }
+  .sheet-body { max-height: 52vh; }
+}

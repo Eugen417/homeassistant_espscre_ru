@@ -13,11 +13,18 @@ const node = (tag, text, cls) => {
   if (cls) n.className = cls;
   return n;
 };
-function toast(message) {
-  $("#toast").textContent = message;
-  $("#toast").hidden = false;
+function toast(message, action) {
+  const t = $("#toast");
+  t.replaceChildren(node("span", message));
+  if (action) {
+    const b = node("button", action.label);
+    b.type = "button";
+    b.onclick = () => { action.run(); t.hidden = true; };
+    t.append(b);
+  }
+  t.hidden = false;
   clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => ($("#toast").hidden = true), 5000);
+  toast.timer = setTimeout(() => (t.hidden = true), action ? 8000 : 5000);
 }
 async function api(path, options = {}) {
   const response = await fetch(`api/${path}`, {
@@ -53,6 +60,7 @@ function select(id) {
     return;
   selected = id;
   selectedTile = null;
+  if ($("#tile-sheet").open) $("#tile-sheet").close();
   const screen = inventory.screens.find((s) => s.id === id);
   if (!screen) return;
   layout = structuredClone(screen.layout);
@@ -284,7 +292,9 @@ function renderPreview() {
       if (place.page !== page) return;
       // Keep the grid honest: an empty right column before a wide tile is a real gap on the screen.
       for (; filled < place.slot; filled++) grid.append(node("span", "", "preview-gap"));
-      const card = node("button", undefined, "preview-tile");
+      const card = node("div", undefined, "preview-tile");
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
       const name = tile.name || entityName(tile.entity);
       const background=inventory.backgrounds?.[tile.options?.background]?.color;
       if(background)card.style.backgroundColor=background;
@@ -294,11 +304,14 @@ function renderPreview() {
       enableDrag(card, { kind: "tile", index });
       card.classList.toggle("chosen", selectedTile === tile.entity);
       card.setAttribute("aria-label", `Tegel ${index + 1}: ${name}, instellen`);
-      card.onclick = () => {
-        selectedTile = tile.entity;
-        renderTiles();
-        document.querySelectorAll("#tiles > .tile")[index]?.scrollIntoView({behavior: "smooth", block: "center"});
-      };
+      card.onclick = () => openTileSheet(index);
+      card.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTileSheet(index); } };
+      const remove = node("button", "✕", "preview-remove");
+      remove.type = "button";
+      remove.title = "Tegel verwijderen";
+      remove.setAttribute("aria-label", `${name} verwijderen`);
+      remove.onclick = (e) => { e.stopPropagation(); removeTile(index); };
+      card.append(remove);
       if (tile.options?.inline === "slider") card.append(node("span", "", "preview-slider"));
       const display = tile.options?.display;
       if (display && display !== "standard") card.append(node("small", displayNames[display] || display));
@@ -318,193 +331,140 @@ function renderPreview() {
 }
 function renderTiles() {
   renderPreview();
-  $("#tiles").replaceChildren();
   $("#count").textContent = `${layout.tiles.length} / ${tileLimit()}${tileLimit()===10?" · update firmware voor 20":""}`;
   $("#no-tiles").hidden = layout.tiles.length > 0;
-  const { placement } = packTiles(layout.tiles);
-  layout.tiles.forEach((tile, i) => {
-    if (i > 0 && placement[i].page !== placement[i - 1].page) $("#tiles").append(node("li", `Pagina ${placement[i].page + 1}`, "page-break"));
-    const li = node("li", undefined, "tile");
-    li.classList.toggle("selected-tile", selectedTile === tile.entity);
-    const content = node("div"),
-      input = node("input");
-    input.value = tile.name;
-    input.placeholder = entityName(tile.entity);
-    input.maxLength = 60;
-    input.setAttribute("aria-label", `Naam voor tegel ${i + 1}`);
-    input.oninput = () => {
-      tile.name = input.value;
+  if (sheetIndex >= 0) renderTileSheet();
+}
+function removeTile(index) {
+  const [tile] = layout.tiles.splice(index, 1);
+  if (!tile) return;
+  if (sheetIndex >= 0) closeTileSheet();
+  markDirty();
+  renderTiles();
+  renderResults();
+  toast(`${tile.name || entityName(tile.entity)} verwijderd`, {
+    label: "Ongedaan maken",
+    run: () => { layout.tiles.splice(Math.min(index, layout.tiles.length), 0, tile); markDirty(); renderTiles(); renderResults(); },
+  });
+}
+// Tile settings open in a sheet above the mockup; every change applies live,
+// so the card behind it shows the result while you pick.
+let sheetIndex = -1;
+function openTileSheet(index) {
+  sheetIndex = index;
+  selectedTile = layout.tiles[index].entity;
+  renderTileSheet();
+  renderPreview();
+  const sheet = $("#tile-sheet");
+  if (!sheet.open) sheet.showModal();
+}
+function closeTileSheet() {
+  sheetIndex = -1;
+  selectedTile = null;
+  const sheet = $("#tile-sheet");
+  if (sheet.open) sheet.close();
+  renderPreview();
+}
+$("#tile-sheet").addEventListener("close", () => { if (sheetIndex >= 0) { sheetIndex = -1; selectedTile = null; renderPreview(); } });
+function field(title, control) {
+  const label = node("label", undefined, "sheet-field");
+  label.append(node("span", title), control);
+  return label;
+}
+function segmented(choices, value, onChange) {
+  const group = node("div", undefined, "segmented");
+  for (const [key, text] of choices) {
+    const b = node("button", text);
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(String(key) === String(value)));
+    b.onclick = () => { for (const other of group.children) other.setAttribute("aria-pressed", String(other === b)); onChange(key); };
+    group.append(b);
+  }
+  return group;
+}
+function renderTileSheet() {
+  const sheet = $("#tile-sheet"), tile = layout.tiles[sheetIndex];
+  if (!tile) return;
+  sheet.replaceChildren();
+  const domain = tile.entity.split(".")[0], name = entityName(tile.entity);
+  const head = node("div", undefined, "sheet-head"), titles = node("div");
+  titles.append(node("strong", name), node("small", tile.entity));
+  const close = node("button", "✕", "quiet sheet-close");
+  close.type = "button";
+  close.setAttribute("aria-label", "Sluiten");
+  close.onclick = closeTileSheet;
+  head.append(domainBadge(tile.entity), titles, close);
+  const body = node("div", undefined, "sheet-body");
+  const nameInput = node("input");
+  nameInput.value = tile.name;
+  nameInput.placeholder = name;
+  nameInput.maxLength = 60;
+  nameInput.oninput = () => { tile.name = nameInput.value; markDirty(); renderPreview(); };
+  body.append(field("Naam op het scherm", nameInput));
+  const displays = domain === "screen"
+    ? [["digital", "Digitale klok"], ["analog", "Analoge klok"]]
+    : [["standard", "Naam en status"], ["watch", "Grote waarde"]];
+  if (domain === "weather") displays.push(["forecast", "Weersvoorspelling"]);
+  if (domain === "sensor") displays.push(["graph", "Grafiek"]);
+  if (domain === "sun") displays.push(["sunpath", "Zonnebaan"]);
+  const current = (key, fallback) => tile.options?.[key] ?? fallback;
+  const set = (key, value) => {
+    tile.options = { ...tile.options, [key]: value };
+    if (key === "display" && value === "watch") tile.options.inline = "none";
+    if (key === "display" && ["forecast", "sunpath"].includes(value)) tile.options.size = "wide";
+    if (key === "inline" && value === "slider") tile.options.display = "standard";
+    markDirty();
+    renderTiles();
+  };
+  body.append(field("Weergave", segmented(displays, current("display", domain === "screen" ? "digital" : "standard"), (v) => set("display", v))));
+  body.append(field("Breedte", segmented([["single", "Normaal"], ["wide", "Dubbelbreed"]], current("size", "single"), (v) => set("size", v))));
+  if (domain !== "screen") {
+    const taps = [["auto", "Automatisch"], ["detail", "Bediening openen"], ["none", "Alleen bekijken"]];
+    if (["light", "switch", "input_boolean", "fan", "media_player"].includes(domain)) taps.push(["toggle", "Aan / uit"]);
+    body.append(field("Bij aantikken", segmented(taps, current("tap", "auto"), (v) => set("tap", v))));
+  }
+  if (["light", "fan", "cover", "number", "input_number", "media_player"].includes(domain))
+    body.append(field("Kleine slider op de tegel", segmented([["none", "Nee"], ["slider", "Ja, direct bedienen"]], current("inline", "none"), (v) => set("inline", v))));
+  if (domain === "sensor")
+    body.append(field("Geschiedenis", segmented([[1, "1 uur"], [6, "6 uur"], [24, "24 uur"]], current("history_hours", 24), (v) => set("history_hours", Number(v)))));
+  const palette = node("div", undefined, "sheet-field");
+  palette.append(node("span", "Pastel achtergrond"));
+  const swatches = node("div", undefined, "palette-swatches");
+  for (const [key, choice] of Object.entries(inventory.backgrounds || {})) {
+    const button = node("button", undefined, "palette-choice");
+    button.type = "button";
+    button.setAttribute("aria-label", `Achtergrond: ${choice.label}`);
+    button.setAttribute("aria-pressed", String((tile.options?.background || "auto") === key));
+    const sample = node("span", undefined, "palette-sample");
+    if (choice.color) sample.style.backgroundColor = choice.color;
+    else sample.classList.add("palette-auto");
+    button.append(sample, node("span", choice.label));
+    button.onclick = () => {
+      tile.options = { ...tile.options, background: key };
+      for (const other of swatches.children) other.setAttribute("aria-pressed", String(other === button));
       markDirty();
       renderPreview();
     };
-    content.append(input, node("small", tile.entity));
-    const actions = node("div", undefined, "tile-actions");
-    for (const [label, title, action, disabled] of [
-      ["↑", "Omhoog", () => move(i, i - 1), i === 0],
-      ["↓", "Omlaag", () => move(i, i + 1), i === layout.tiles.length - 1],
-      [
-        "✕",
-        "Verwijderen",
-        () => {
-          layout.tiles.splice(i, 1);
-          markDirty();
-          renderTiles();
-          renderResults();
-        },
-        false,
-      ],
-    ]) {
-      const b = node("button", label);
-      b.title = title;
-      b.setAttribute("aria-label", title);
-      b.disabled = disabled;
-      b.onclick = action;
-      actions.append(b);
-    }
-    const options = node("details", undefined, "tile-options");
-    options.append(node("summary", "Bediening & weergave instellen"));
-    options.open = selectedTile === tile.entity;
-    options.ontoggle = () => {
-      li.classList.toggle("selected-tile", options.open);
-      if (options.open) {
-        selectedTile = tile.entity;
-        renderPreview();
-        document.querySelectorAll(".tile-options").forEach((other) => {
-          if (other !== options) other.open = false;
-        });
-      }
-    };
-    li.onclick = (e) => {
-      if (!e.target.closest("input, select, button, summary, .tile-options"))
-        options.open = !options.open;
-    };
-    const palette = node("fieldset", undefined, "tile-palette");
-    palette.append(node("legend", "Pastel achtergrond"));
-    const swatches = node("div", undefined, "palette-swatches");
-    for(const [key, choice] of Object.entries(inventory.backgrounds || {})) {
-      const button=node("button", undefined, "palette-choice");
-      button.type="button";
-      button.setAttribute("aria-label", `Achtergrond: ${choice.label}`);
-      button.setAttribute("aria-pressed", String((tile.options?.background || "auto") === key));
-      const sample=node("span", undefined, "palette-sample");
-      if(choice.color)sample.style.backgroundColor=choice.color;
-      else sample.classList.add("palette-auto");
-      button.append(sample,node("span",choice.label));
-      button.onclick=()=>{
-        tile.options={...tile.options,background:key};
-        for(const other of swatches.children)other.setAttribute("aria-pressed",String(other===button));
-        markDirty();renderPreview();
-      };
-      swatches.append(button);
-    }
-    palette.append(swatches,node("small", "Donkere tekst blijft leesbaar. Kies Standaard voor de normale kleuren. Vereist schermfirmware 0.2.10+."));
-    options.append(palette);
-    const controls = {};
-    const domain = tile.entity.split(".")[0];
-    const displays = domain === "screen"
-      ? [["digital", "Digitale klok"], ["analog", "Analoge klok"]]
-      : [["standard", "Naam en status"], ["watch", "Grote waarde"]];
-    if (domain === "weather") displays.push(["forecast", "Weersvoorspelling (dubbelbreed)"]);
-    if (domain === "sensor") displays.push(["graph", "Grafiek van de geschiedenis"]);
-    if (domain === "sun") displays.push(["sunpath", "Zonnebaan (dubbelbreed)"]);
-    const fields = [
-      [
-        "tap",
-        "Bij aantikken",
-        [
-          ["auto", "Automatisch"],
-          ["detail", "Bediening openen"],
-          ["none", "Alleen bekijken"],
-        ],
-      ],
-      ["display", "Weergave", displays],
-      ["size", "Breedte (firmware 0.2.14+)", [["single", "Normaal"], ["wide", "Dubbelbreed"]]],
-    ];
-    if (domain === "screen") fields.shift();
-    if (
-      ["light", "switch", "input_boolean", "fan", "media_player"].includes(
-        domain,
-      )
-    )
-      fields[0][2].push(["toggle", "Aan / uit"]);
-    if (
-      [
-        "light",
-        "fan",
-        "cover",
-        "number",
-        "input_number",
-        "media_player",
-      ].includes(domain)
-    )
-      fields.push([
-        "inline",
-        "Kleine slider op deze tegel?",
-        [
-          ["none", "Nee"],
-          ["slider", "Ja, direct bedienen"],
-        ],
-      ]);
-    if (domain === "sensor")
-      fields.push([
-        "history_hours",
-        "Geschiedenis",
-        [
-          [1, "1 uur"],
-          [6, "6 uur"],
-          [24, "24 uur"],
-        ],
-      ]);
-    for (const [key, title, choices] of fields) {
-      const label = node("label", title),
-        input = node("select");
-      for (const [value, text] of choices) {
-        const option = node("option", text);
-        option.value = value;
-        input.append(option);
-      }
-      input.value =
-        tile.options?.[key] ??
-        (key === "tap"
-          ? "auto"
-          : key === "display"
-            ? (domain === "screen" ? "digital" : "standard")
-            : key === "history_hours"
-              ? 24
-              : key === "size"
-                ? "single"
-                : "none");
-      controls[key] = input;
-      input.onchange = () => {
-        tile.options = {
-          ...tile.options,
-          [key]: key === "history_hours" ? Number(input.value) : input.value,
-        };
-        if (key === "display" && input.value === "watch")
-          tile.options.inline = "none";
-        if (key === "display" && ["forecast", "sunpath"].includes(input.value))
-          tile.options.size = "wide";
-        if (key === "inline" && input.value === "slider")
-          tile.options.display = "standard";
-        for (const [field, control] of Object.entries(controls)) {
-          if (tile.options[field] !== undefined)
-            control.value = tile.options[field];
-        }
-        markDirty();
-        renderPreview();
-      };
-      label.append(input);
-      options.append(label);
-    }
-    if (domain !== "screen") {
-      const inspectTile = node("button", "Inspecteer deze tegel", "quiet");
-      inspectTile.onclick = () => inspect(tile.entity);
-      options.append(inspectTile);
-    }
-    content.append(options);
-    li.append(domainBadge(tile.entity), content, actions);
-    $("#tiles").append(li);
-  });
+    swatches.append(button);
+  }
+  palette.append(swatches);
+  body.append(palette);
+  const foot = node("div", undefined, "sheet-foot");
+  const remove = node("button", "Verwijderen", "quiet danger");
+  remove.type = "button";
+  remove.onclick = () => removeTile(sheetIndex);
+  foot.append(remove);
+  if (domain !== "screen") {
+    const inspectButton = node("button", "Inspecteer", "quiet");
+    inspectButton.type = "button";
+    inspectButton.onclick = () => { const entity = tile.entity; closeTileSheet(); inspect(entity); };
+    foot.append(inspectButton);
+  }
+  const done = node("button", "Klaar");
+  done.type = "button";
+  done.onclick = closeTileSheet;
+  foot.append(done);
+  sheet.append(head, body, foot);
 }
 function addTile(id, at) {
   if (layout.tiles.some((t) => t.entity === id) || layout.tiles.length >= tileLimit()) return;
@@ -520,7 +480,7 @@ function addTile(id, at) {
 const drag = { active: false, source: null, element: null, ghost: null, target: null, timer: 0, start: null, offset: null, pointerId: null, suppressUntil: 0, last: null, scroller: 0 };
 function enableDrag(element, source) {
   element.addEventListener("pointerdown", (e) => {
-    if (e.button !== 0 || element.disabled) return;
+    if (e.button !== 0 || element.disabled || e.target.closest(".preview-remove")) return;
     Object.assign(drag, { source, element, start: { x: e.clientX, y: e.clientY }, pointerId: e.pointerId, active: false });
     clearTimeout(drag.timer);
     if (e.pointerType === "touch") drag.timer = setTimeout(() => beginDrag(e), 260);

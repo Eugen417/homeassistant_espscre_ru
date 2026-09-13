@@ -1,3 +1,9 @@
+## 0.2.14 (firmware 0.2.15 blijft actueel)
+
+- Tegelinstellingen openen in een paneel bóven de schermmockup (op mobiel een sheet onderaan): naam, weergave, breedte, tikgedrag, slider, geschiedenis en kleur als knoppen, direct zichtbaar in de mockup erachter. Geen springende pagina meer.
+- Verwijderen kan direct in de mockup met het kruisje op een tegel; de melding onderaan heeft **Ongedaan maken**.
+- De tegellijst onder de mockup is vervallen; ordenen doe je door te slepen.
+
 ## 0.2.13 (firmware 0.2.15)
 
 - Editor: sleep tegels in de schermmockup om te ordenen en sleep entiteiten rechtstreeks uit de lijst naar een plek in de mockup — met muis én touch (even vasthouden). De opslaan-balk blijft altijd in beeld.
