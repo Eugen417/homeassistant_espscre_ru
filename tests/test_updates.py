@@ -1,0 +1,210 @@
+"""Firmware update offers, profile matching and the one-at-a-time update round."""
+import asyncio
+from datetime import datetime, timezone
+import importlib.util
+import json
+from pathlib import Path
+import re
+import sys
+import tempfile
+import unittest
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+from core import FIRMWARE_VERSION, discover
+from firmware import Firmware
+import updates
+from updates import Updater, parse_version
+
+HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
+
+
+class VersionSourceTests(unittest.TestCase):
+    def test_app_target_matches_shipped_firmware(self):
+        for name in ('packages/cyd.yaml', 'packages/guition.yaml', 'home-like-2432s028.yaml', 'guition-4848s040.yaml'):
+            text = (ROOT / name).read_text()
+            self.assertIn(f'SCREEN_FIRMWARE_VERSION: "{FIRMWARE_VERSION}"', text, name)
+            self.assertIn('name: "Apparaatnaam"', text, name)
+            self.assertIn('platform: wifi_info', text, name)
+        self.assertEqual(parse_version(FIRMWARE_VERSION), tuple(int(p) for p in FIRMWARE_VERSION.split('.')))
+        self.assertIsNone(parse_version('onbekend'))
+        self.assertIsNone(parse_version('1.2'))
+
+    def test_discovery_reports_node_and_address(self):
+        registry = [{'entity_id': 'text.screen', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd1'},
+                    {'entity_id': 'text.node', 'platform': 'esphome', 'original_name': 'Apparaatnaam', 'device_id': 'd1'},
+                    {'entity_id': 'text.ip', 'platform': 'esphome', 'original_name': 'IP-adres', 'device_id': 'd1'},
+                    {'entity_id': 'text.fw', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd1'}]
+        states = {'text.screen': {'state': 'Ready'}, 'text.node': {'state': 'woonkamer'},
+                  'text.ip': {'state': '192.168.1.50'}, 'text.fw': {'state': '0.2.16'}}
+        screens, _ = discover(registry, states, [{'id': 'd1', 'name': 'Woonkamer'}], [])
+        self.assertEqual(screens[0]['node'], 'woonkamer')
+        self.assertEqual(screens[0]['ip'], '192.168.1.50')
+        self.assertEqual(screens[0]['device'], 'Woonkamer')
+        states['text.ip']['state'] = 'unavailable'
+        states['text.node']['state'] = '../evil'
+        screens, _ = discover(registry, states, [{'id': 'd1', 'name': 'Woonkamer'}], [])
+        self.assertIsNone(screens[0]['ip'])
+        self.assertIsNone(screens[0]['node'])
+
+
+class ProfileNameTests(unittest.TestCase):
+    def test_profiles_are_read_without_resolving_secrets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Firmware(tmp, tmp)
+            (Path(tmp) / 'secrets.yaml').write_text('wifi_ssid: example-net\nwifi_password: example-pw\n')
+            f.create({'board': 'cyd', 'name': 'woonkamer', 'friendly_name': 'Woonkamer'})
+            (Path(tmp) / 'manual.yaml').write_text('substitutions:\n  DEVICE_NAME: "keuken"\n  DEVICE_FRIENDLY_NAME: "Keuken"\n'
+                                                   'esphome:\n  name: ${DEVICE_NAME}\n  friendly_name: ${DEVICE_FRIENDLY_NAME}\n'
+                                                   'packages:\n  a: !include other.yaml\napi:\n  encryption:\n    key: !secret api\n')
+            (Path(tmp) / 'broken.yaml').write_text('esphome: [\n')
+            names = f.profile_names()
+            self.assertEqual(names['woonkamer.yaml'], {'node': 'woonkamer', 'friendly': 'Woonkamer'})
+            self.assertEqual(names['manual.yaml'], {'node': 'keuken', 'friendly': 'Keuken'})
+            self.assertNotIn('broken.yaml', names)
+            self.assertNotIn('secrets.yaml', names)
+
+
+class FakeFirmware:
+    """Stands in for the ESPHome CLI: records jobs and flips the screen to the target version."""
+    def __init__(self, ha, outcome='success'):
+        self.ha, self.outcome, self.calls, self.task, self.job = ha, outcome, [], None, None
+        self.names = {'woonkamer.yaml': {'node': 'woonkamer', 'friendly': 'Woonkamer'},
+                      'keuken.yaml': {'node': 'keuken', 'friendly': 'Keuken'}}
+
+    def profile_names(self): return self.names
+
+    def start(self, data):
+        if self.task and not self.task.done(): raise ValueError('Er loopt al een build of installatie.')
+        self.calls.append(data)
+        self.job = {'state': 'running', **data}
+        self.task = asyncio.create_task(self.run(data))
+        return self.job
+
+    async def run(self, data):
+        await asyncio.sleep(0)
+        if self.outcome == 'success':
+            for entity, node in (('text.fw1', 'woonkamer'), ('text.fw2', 'keuken')):
+                if data['file'] == node + '.yaml': self.ha.states[entity] = {'state': FIRMWARE_VERSION}
+        self.job['state'] = self.outcome
+
+
+@unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
+class UpdaterTests(unittest.IsolatedAsyncioTestCase):
+    def setup_manager(self, path, outcome='success'):
+        from server import Manager
+        class HA:
+            online = True
+            time_zone = timezone.utc
+            registry = [{'entity_id': 'text.screen1', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd1'},
+                        {'entity_id': 'text.node1', 'platform': 'esphome', 'original_name': 'Apparaatnaam', 'device_id': 'd1'},
+                        {'entity_id': 'text.ip1', 'platform': 'esphome', 'original_name': 'IP-adres', 'device_id': 'd1'},
+                        {'entity_id': 'text.fw1', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd1'},
+                        {'entity_id': 'text.screen2', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd2'},
+                        {'entity_id': 'text.fw2', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd2'}]
+            devices = [{'id': 'd1', 'name': 'Woonkamer'}, {'id': 'd2', 'name': 'Keuken'}]
+            areas = []
+            states = {'text.screen1': {'state': 'Ready'}, 'text.node1': {'state': 'woonkamer'}, 'text.ip1': {'state': '10.0.0.5'},
+                      'text.fw1': {'state': '0.2.16'}, 'text.screen2': {'state': 'Ready'}, 'text.fw2': {'state': '0.2.16'}}
+            changed = asyncio.Event()
+            def __init__(self): self.messages, self.calls = [], []
+            async def send(self, inbox, message): self.messages.append((inbox, message))
+            async def request(self, kind, **data): self.calls.append((kind, data))
+        manager = Manager(HA(), Path(path) / 'screens.json')
+        manager.firmware = FakeFirmware(manager.ha, outcome)
+        for attr in ('verify_timeout', 'settle_seconds', 'pause_seconds', 'poll_seconds'):
+            setattr(manager.updates, attr, 0.01 if attr == 'verify_timeout' else 0)
+        return manager
+
+    async def test_offer_matching_and_manual_address(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.setup_manager(tmp)
+            first, second = m.inventory()[0]
+            self.assertEqual(m.updates.state_for(first)['profile'], 'woonkamer.yaml')
+            self.assertEqual(m.updates.state_for(first)['host'], '10.0.0.5')
+            self.assertTrue(m.updates.state_for(first)['available'])
+            # Older firmware: no node name, so the friendly name decides; no address yet.
+            self.assertEqual(m.updates.state_for(second)['profile'], 'keuken.yaml')
+            self.assertIsNone(m.updates.state_for(second)['host'])
+            self.assertEqual(m.updates.pending(), ['text.screen1'])
+            with self.assertRaisesRegex(ValueError, 'IP-adres'): m.updates.start('text.screen2')
+            with self.assertRaises(ValueError): m.updates.start('text.screen2', host='bad host!')
+            m.updates.start('text.screen2', host='10.0.0.6')
+            await m.updates.task
+            self.assertEqual(m.firmware.calls, [{'file': 'keuken.yaml', 'action': 'install', 'target': '10.0.0.6'}])
+            self.assertEqual(m.updates.results['text.screen2']['state'], 'success')
+            self.assertEqual(json.loads((Path(tmp) / 'updates.json').read_text())['hosts'], {'text.screen2': '10.0.0.6'})
+            with self.assertRaisesRegex(ValueError, 'nieuwste'): m.updates.start('text.screen2')
+            m.ha.states['text.fw1'] = {'state': FIRMWARE_VERSION}
+            self.assertEqual(m.updates.pending(), [])
+
+    async def test_round_stops_after_failure_and_notifies(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.setup_manager(tmp, outcome='failed')
+            m.updates.hosts['text.screen2'] = '10.0.0.6'
+            self.assertEqual(m.updates.start_all(), ['text.screen1', 'text.screen2'])
+            with self.assertRaises(ValueError): m.updates.start_all()
+            await m.updates.task
+            self.assertEqual(len(m.firmware.calls), 1, 'a failed screen must end the round')
+            self.assertEqual(m.updates.results['text.screen1']['state'], 'failed')
+            self.assertNotIn('text.screen2', m.updates.results)
+            self.assertEqual(m.ha.calls, [], 'manual rounds do not notify')
+            await m.updates.run_round(['text.screen1'], automatic=True)
+            self.assertEqual(m.ha.calls[0][1]['domain'], 'persistent_notification')
+            self.assertIn('Woonkamer', m.ha.calls[0][1]['service_data']['message'])
+
+    async def test_screen_that_never_returns_fails(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.setup_manager(tmp)
+            m.firmware.outcome = 'success'
+            original = m.firmware.run
+            async def silent(data):
+                await asyncio.sleep(0); m.firmware.job['state'] = 'success'
+            m.firmware.run = silent
+            m.updates.start('text.screen1')
+            await m.updates.task
+            self.assertEqual(m.updates.results['text.screen1']['state'], 'failed')
+            self.assertIn(FIRMWARE_VERSION, m.updates.results['text.screen1']['message'])
+            m.firmware.run = original
+
+    async def test_nightly_window_and_persistence(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.setup_manager(tmp)
+            night, day = datetime(2026, 9, 14, 3, 30, tzinfo=timezone.utc), datetime(2026, 9, 14, 14, 0, tzinfo=timezone.utc)
+            self.assertFalse(m.updates.due(night))
+            m.updates.set_auto(True)
+            self.assertTrue(m.updates.due(night))
+            self.assertFalse(m.updates.due(day))
+            m.updates.last_round = '2026-09-14'
+            self.assertFalse(m.updates.due(night))
+            self.assertTrue(m.updates.due(datetime(2026, 9, 15, 4, 0, tzinfo=timezone.utc)))
+            m.updates.save()
+            again = self.setup_manager(tmp)
+            self.assertTrue(again.updates.auto)
+            self.assertEqual(again.updates.last_round, '2026-09-14')
+            (Path(tmp) / 'updates.json').write_text('{"version": 9}')
+            with self.assertRaises(ValueError): self.setup_manager(tmp)
+            with self.assertRaises(ValueError): m.updates.set_auto('yes')
+
+    async def test_http_endpoints(self):
+        from server import create_app
+        from aiohttp.test_utils import TestClient, TestServer
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.setup_manager(tmp)
+            async with TestClient(TestServer(create_app(m, True))) as client:
+                inventory = await (await client.get('/api/inventory')).json()
+                self.assertEqual(inventory['updates']['target'], FIRMWARE_VERSION)
+                self.assertTrue(inventory['screens'][0]['update']['available'])
+                headers = {'X-Screen-CSRF': inventory['csrf']}
+                self.assertEqual((await client.put('/api/updates', headers=headers, json={'auto': True})).status, 200)
+                self.assertTrue(m.updates.auto)
+                response = await client.post('/api/screens/text.screen2/update', headers=headers, json={})
+                self.assertEqual(response.status, 400)
+                response = await client.post('/api/screens/text.screen1/update', headers=headers, json={})
+                self.assertEqual(response.status, 200)
+                self.assertEqual((await response.json())['state'], 'running')
+                await m.updates.task
+                self.assertEqual(m.updates.results['text.screen1']['state'], 'success')
+
+
+if __name__ == '__main__': unittest.main()

@@ -137,7 +137,7 @@ zodra het scherm terugkomt. De app moet blijven draaien voor actuele tegeldata.
 | --- | --- | --- |
 | Andere entiteiten, namen of volgorde | Opslaan in ESP Screens | Wifi, sleutels, kalibratie |
 | Nieuwe beheerpagina/appversie | Appwinkel → ESP Screen Manager → Update | Alle indelingen in `/data/screens.json` |
-| Nieuwe schermfunctie/kaart | Firmware & USB → bestaand profiel → Wifi / OTA | Eigen YAML, sleutels en CYD-kalibratie; app stuurt tegels opnieuw |
+| Nieuwe schermfunctie/kaart | Knop **Bijwerken** bij het scherm, of vinkje **Elke nacht automatisch bijwerken** (handmatig: Firmware & USB → Wifi / OTA) | Eigen YAML, sleutels en CYD-kalibratie; app stuurt tegels opnieuw |
 
 De eigen YAML verwijst naar de firmwarepakketten in `main`. Bij een nieuwe build
 haalt ESPHome de nieuwste gepubliceerde pakket- en componentcode op. Je vervangt

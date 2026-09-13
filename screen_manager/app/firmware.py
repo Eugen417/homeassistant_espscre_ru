@@ -12,6 +12,10 @@ import time
 import yaml
 from core import installation_yaml
 
+class LenientLoader(yaml.SafeLoader):
+    """Reads profile metadata without resolving !secret or !include."""
+LenientLoader.add_multi_constructor('!', lambda loader, suffix, node: None)
+
 class Firmware:
     def __init__(self, root, data):
         self.root, self.data = Path(root).resolve(), Path(data)
@@ -24,6 +28,25 @@ class Firmware:
         if not self.root.exists(): return []
         return [{'file': p.name} for p in sorted(self.root.glob('*.yaml'))
                 if p.name != 'secrets.yaml' and p.is_file() and not p.is_symlink()]
+
+    def profile_names(self):
+        """{file: {'node': esphome name, 'friendly': friendly name}} for every readable profile."""
+        found = {}
+        for entry in self.profiles():
+            try:
+                data = yaml.load((self.root / entry['file']).read_text(), Loader=LenientLoader)
+            except (OSError, yaml.YAMLError, UnicodeError):
+                continue
+            block = data.get('esphome') if isinstance(data, dict) else None
+            if not isinstance(block, dict):
+                continue
+            substitutions = data.get('substitutions') if isinstance(data.get('substitutions'), dict) else {}
+            def resolve(value):
+                if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
+                    value = substitutions.get(value[2:-1])
+                return value if isinstance(value, str) else None
+            found[entry['file']] = {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name'))}
+        return found
 
     def ports(self):
         return sorted(set(glob.glob('/dev/serial/by-id/*') or glob.glob('/dev/ttyUSB*') + glob.glob('/dev/ttyACM*')))

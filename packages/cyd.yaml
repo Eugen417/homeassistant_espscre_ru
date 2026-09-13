@@ -59,7 +59,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.16"
+  SCREEN_FIRMWARE_VERSION: "0.2.17"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
@@ -1602,6 +1602,16 @@ text_sensor:
     entity_category: diagnostic
     lambda: 'return {"${SCREEN_FIRMWARE_VERSION}"};'
     update_interval: 60s
+  # ESP Screen Manager matches the screen to its YAML profile and OTA address.
+  - platform: template
+    name: "Apparaatnaam"
+    entity_category: diagnostic
+    lambda: 'return {"${DEVICE_NAME}"};'
+    update_interval: 60s
+  - platform: wifi_info
+    ip_address:
+      name: "IP-adres"
+      entity_category: diagnostic
   - platform: template
     id: smartdisplay_action
     name: "SmartDisplay Action"

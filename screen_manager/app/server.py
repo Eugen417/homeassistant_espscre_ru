@@ -1,4 +1,4 @@
-"""HA Ingress app. The only HA write is text.set_value on discovered inboxes."""
+"""HA Ingress app. HA writes: text.set_value on discovered inboxes and one persistent notification when a nightly update stops."""
 import asyncio
 import contextlib
 import json
@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timedelta, timezone
 import math
 from firmware import Firmware
+from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
 from core import BUILTIN, TILE_BACKGROUNDS, discover, extras, installation_yaml, min_firmware, packets, state_message, validate_layout, validate_settings
@@ -169,6 +170,7 @@ class Manager:
         self.histories = {}
         self.forecasts = {}
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
+        self.updates = Updater(self, self.path.parent / 'updates.json')
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
@@ -356,11 +358,21 @@ def create_app(manager, development=False):
         for screen in screens:
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
+            screen['update'] = manager.updates.state_for(screen)
         builtin = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
-        return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities, 'backgrounds': TILE_BACKGROUNDS, 'builtin': builtin})
+        return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities,
+                                  'backgrounds': TILE_BACKGROUNDS, 'builtin': builtin, 'updates': manager.updates.summary()})
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})
+    async def update_screen(request):
+        data = await request.json() if request.can_read_body else {}
+        return web.json_response(manager.updates.start(request.match_info['inbox'], data.get('host')))
+    async def update_all(request):
+        return web.json_response({'started': manager.updates.start_all()})
+    async def update_settings(request):
+        manager.updates.set_auto((await request.json()).get('auto'))
+        return web.json_response(manager.updates.summary())
     async def download(request):
         data = await request.json()
         content = installation_yaml(data)
@@ -378,12 +390,15 @@ def create_app(manager, development=False):
     async def firmware_start(request): return web.json_response(manager.firmware.start(await request.json()))
     async def firmware_create(request): return web.json_response(manager.firmware.create(await request.json()))
     async def shutdown(app):
-        task=manager.firmware.task
-        if task and not task.done():
-            task.cancel()
-            with contextlib.suppress(asyncio.CancelledError): await task
+        for task in (manager.updates.task, manager.firmware.task):
+            if task and not task.done():
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError): await task
     app.on_cleanup.append(shutdown)
     app.router.add_get('/api/screens/{inbox}/inspect', inspector)
+    app.router.add_post('/api/screens/{inbox}/update', update_screen)
+    app.router.add_post('/api/updates/run', update_all)
+    app.router.add_put('/api/updates', update_settings)
     app.router.add_get('/api/firmware', firmware_status)
     app.router.add_post('/api/firmware/jobs', firmware_start)
     app.router.add_post('/api/firmware/profiles', firmware_create)
@@ -408,7 +423,7 @@ async def main():
         await runner.setup()
         await web.TCPSite(runner, '127.0.0.1' if development else '0.0.0.0', 8099).start()
         try:
-            await asyncio.gather(ha.run(), manager.run())
+            await asyncio.gather(ha.run(), manager.run(), manager.updates.run())
         finally:
             await runner.cleanup()
 

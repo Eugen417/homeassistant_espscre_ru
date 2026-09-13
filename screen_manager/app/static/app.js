@@ -175,14 +175,107 @@ function renderSettingsSupport() {
     ? "Opslaan stuurt je instellingen direct naar dit scherm. Ze blijven ook na een herstart bewaard."
     : "Eenmalig firmware 0.1.2 of nieuwer installeren via ESPHome. Je kunt de instellingen alvast bewaren; oudere firmware gebruikt ze nog niet.";
 }
+const updating = new Set();
+const PHASES = {
+  install: "Bouwen en installeren…",
+  verify: "Wachten tot het scherm terug is…",
+  settle: "Controleren of het stabiel blijft…",
+};
+async function startUpdate(screen, host) {
+  updating.add(screen.id);
+  renderScreens();
+  try {
+    await api(`screens/${encodeURIComponent(screen.id)}/update`, {
+      method: "POST",
+      body: JSON.stringify(host ? { host } : {}),
+    });
+    await refresh();
+  } catch (e) {
+    updating.delete(screen.id);
+    renderScreens();
+    toast(e.message);
+  }
+}
+function renderUpdate(screen) {
+  const u = screen.update || {};
+  const row = node("div", undefined, "screen-update");
+  const running = u.state === "running" || updating.has(screen.id);
+  if (running) {
+    row.append(
+      node("span", undefined, "spin"),
+      node("small", PHASES[u.phase] || "Update starten…"),
+    );
+  } else if (u.state === "queued") {
+    row.append(node("small", "In de wachtrij voor de update"));
+  } else if (u.available && screen.online) {
+    row.append(node("span", `Update ${u.target}`, "badge update"));
+    const button = node("button", "Bijwerken", "mini");
+    button.type = "button";
+    if (u.host && u.profile) {
+      button.onclick = (e) => {
+        e.stopPropagation();
+        startUpdate(screen);
+      };
+    } else if (!u.profile) {
+      button.disabled = true;
+      button.title = "Geen ESPHome-profiel met deze apparaatnaam gevonden.";
+    } else {
+      button.onclick = (e) => {
+        e.stopPropagation();
+        const form = node("form", undefined, "screen-host");
+        const input = node("input");
+        input.placeholder = "IP-adres, bijv. 192.168.1.50";
+        input.required = true;
+        input.pattern = "[A-Za-z0-9][A-Za-z0-9.\\-]*";
+        const go = node("button", "Start", "mini");
+        const cancel = node("button", "✕", "quiet");
+        cancel.type = "button";
+        cancel.setAttribute("aria-label", "Annuleren");
+        cancel.onclick = () => {
+          form.remove();
+          renderScreens();
+        };
+        form.append(input, go, cancel);
+        form.onsubmit = (ev) => {
+          ev.preventDefault();
+          form.remove();
+          startUpdate(screen, input.value.trim());
+        };
+        row.replaceChildren(
+          node("small", "Eenmalig het IP-adres; nieuwe firmware meldt het zelf."),
+          form,
+        );
+        input.focus();
+      };
+    }
+    row.append(button);
+  } else if (u.result && Date.now() / 1000 - u.result.time < 86400) {
+    row.append(
+      node(
+        "small",
+        u.result.message,
+        u.result.state === "failed" ? "failed" : "",
+      ),
+    );
+  } else return null;
+  return row;
+}
 function renderScreens() {
+  // Keep an open address form alive across the periodic refresh.
+  if ($("#screens .screen-host")) {
+    renderUpdates();
+    return;
+  }
   $("#screens").replaceChildren();
   for (const screen of inventory.screens) {
-    const b = node(
-      "button",
+    if (screen.update?.state === "running") updating.delete(screen.id);
+    const item = node(
+      "div",
       undefined,
       `screen ${screen.id === selected ? "selected" : ""}`,
     );
+    const b = node("button", undefined, "screen-main");
+    b.type = "button";
     b.append(
       node("strong", screen.name),
       node(
@@ -191,7 +284,10 @@ function renderScreens() {
       ),
     );
     b.onclick = () => select(screen.id);
-    $("#screens").append(b);
+    item.append(b);
+    const update = renderUpdate(screen);
+    if (update) item.append(update);
+    $("#screens").append(item);
   }
   const screen = inventory.screens.find((s) => s.id === selected);
   if (screen) {
@@ -200,7 +296,47 @@ function renderScreens() {
       : "Offline · wijzigingen worden bewaard";
     $("#delivery").classList.toggle("online", screen.online);
   }
+  renderUpdates();
 }
+function renderUpdates() {
+  const u = inventory.updates;
+  $("#updates").hidden = !u || !inventory.screens.length;
+  if (!u) return;
+  const outdated = inventory.screens.filter((s) => s.update?.available).length;
+  $("#updates-hint").textContent = u.busy
+    ? `Bezig met bijwerken naar firmware ${u.target}…`
+    : outdated
+      ? `Firmware ${u.target} is beschikbaar voor ${outdated} scherm${outdated === 1 ? "" : "en"}.`
+      : `Alle schermen hebben firmware ${u.target}.`;
+  $("#update-all").hidden = !u.pending || !!u.busy || u.pending < 2;
+  $("#update-all").textContent = `Alle ${u.pending} schermen bijwerken`;
+  if (document.activeElement !== $("#auto-update"))
+    $("#auto-update").checked = u.auto;
+}
+$("#update-all").onclick = async () => {
+  try {
+    await api("updates/run", { method: "POST" });
+    await refresh();
+  } catch (e) {
+    toast(e.message);
+  }
+};
+$("#auto-update").onchange = async () => {
+  try {
+    await api("updates", {
+      method: "PUT",
+      body: JSON.stringify({ auto: $("#auto-update").checked }),
+    });
+    toast(
+      $("#auto-update").checked
+        ? "Schermen worden voortaan 's nachts bijgewerkt."
+        : "Automatisch bijwerken staat uit.",
+    );
+  } catch (e) {
+    $("#auto-update").checked = !$("#auto-update").checked;
+    toast(e.message);
+  }
+};
 function move(from, to) {
   if (to < 0 || to >= layout.tiles.length) return;
   const [tile] = layout.tiles.splice(from, 1);
@@ -767,7 +903,12 @@ window.addEventListener("beforeunload", (e) => {
   }
 });
 refresh();
-setInterval(refresh, 10000);
+(function poll() {
+  setTimeout(async () => {
+    await refresh();
+    poll();
+  }, inventory.updates?.busy ? 3000 : 10000);
+})();
 
 // Shared firmware workspace; always select a concrete profile and upload target.
 let firmwarePoll;

@@ -13,6 +13,8 @@ NEW_DOMAINS = frozenset('sun timer person screen'.split())
 WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
+# Firmware shipped with this app release; screens below it get an update offer.
+FIRMWARE_VERSION = '0.2.17'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level media_title options min max step temperature_unit supported_features next_rising next_setting finishes_at duration remaining'.split())
 
 
@@ -229,6 +231,16 @@ def discover(registry, states, devices, areas):
                 if item.get('platform') == 'esphome' and item.get('original_name') == 'Schermfirmware'}
     boards = {item.get("device_id"): "guition" for item in registry
               if item.get("platform") == "esphome" and item.get("original_name") == "Guition schermtype"}
+    def diagnostic(name, pattern):
+        found = {}
+        for item in registry:
+            if item.get('platform') == 'esphome' and item.get('original_name') == name:
+                value = states.get(item['entity_id'], {}).get('state', '')
+                if isinstance(value, str) and re.fullmatch(pattern, value):
+                    found[item.get('device_id')] = value
+        return found
+    nodes = diagnostic('Apparaatnaam', r'[a-z0-9][a-z0-9-]{0,30}')
+    addresses = diagnostic('IP-adres', r'\d{1,3}(\.\d{1,3}){3}')
     screens, entities = [], []
     for item in registry:
         eid = item['entity_id']
@@ -239,6 +251,8 @@ def discover(registry, states, devices, areas):
             screens.append({'id': eid, 'name': device.get('name_by_user') or device.get('name') or eid,
                             'firmware': versions.get(item.get('device_id'), 'onbekend'),
                             'board': boards.get(item.get('device_id'), 'unknown'),
+                            'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
+                            'device': device.get('name') or '',
                             'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
                             'status': state.get('state', 'Niet verbonden')})
         if not entity_id(eid) or item.get('disabled_by'):

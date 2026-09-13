@@ -74,6 +74,20 @@
             seconden.
           </p>
           <button class="quiet" id="refresh">↻ Vernieuwen</button>
+          <div class="updates" id="updates">
+            <h2>Firmware-updates</h2>
+            <p class="hint" id="updates-hint"></p>
+            <button id="update-all" hidden>Alle schermen bijwerken</button>
+            <label class="check">
+              <input type="checkbox" id="auto-update" />
+              <span
+                >Elke nacht automatisch bijwerken<small
+                  >Tussen 03:00 en 06:00, één scherm tegelijk. Stopt bij een
+                  fout en meldt dat in Home Assistant.</small
+                ></span
+              >
+            </label>
+          </div>
         </aside>
         <section id="empty" class="empty">
           <span class="empty-icon">▦</span>

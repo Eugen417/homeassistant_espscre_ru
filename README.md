@@ -136,7 +136,15 @@ blijven afzonderlijk zichtbaar.
 | --- | --- |
 | Tegels, namen, kleuren, volgorde of scherminstellingen | Opslaan in ESP Screens; geen firmwareflash |
 | Nieuwe versie van de beheerpagina | ESP Screen Manager updaten in de HA-appwinkel |
-| Nieuwe functie op het fysieke scherm | Bestaand profiel bijwerken via Firmware & USB → Wifi / OTA |
+| Nieuwe functie op het fysieke scherm | Knop **Bijwerken** bij het scherm (badge *Update x.y.z*), of het vinkje **Elke nacht automatisch bijwerken** |
+
+Elke appversie hoort bij één firmwareversie. Na een app-update toont de lijst
+per scherm of er nieuwere firmware is. **Bijwerken** bouwt het eigen profiel
+met de ingebouwde CLI, installeert draadloos en wacht tot het scherm terug is.
+Met het vinkje gebeurt dat 's nachts vanzelf, één scherm tegelijk; een
+mislukking stopt de ronde en geeft een melding in Home Assistant. Firmware
+0.2.17+ meldt daarvoor zelf apparaatnaam en IP-adres; een ouder scherm vraagt
+eenmalig het IP-adres. Handmatig kan nog steeds via Firmware & USB → Wifi / OTA.
 
 De eigen YAML en wifi/API/OTA-instellingen blijven in de ESPHome-configmap.
 Tegelindelingen en opties staan in de permanente appdata. CYD-kalibratie en

@@ -140,6 +140,26 @@ pressed-feedback op de PRESSED-state blijven gelijk. De analoge klok wijzigt
 alleen de tekening (streepjes, cijfers, kalenderblok op enkele tegels); er is
 geen nieuw veld voor nodig. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.16 / firmware 0.2.17
+
+`FIRMWARE_VERSION` in `screen_manager/app/core.py` is de firmware die bij deze
+app hoort; `tests/test_updates.py` eist dat hij gelijk is aan
+`SCREEN_FIRMWARE_VERSION` in beide bordprofielen en pakketten. Verhoog ze samen.
+Een scherm met een lagere `Schermfirmware` krijgt een update-aanbod; een build
+haalt `main`, dus publiceer firmware en app in dezelfde commit.
+
+Firmware 0.2.17 voegt de diagnostische text sensors `Apparaatnaam`
+(`${DEVICE_NAME}`) en `IP-adres` (`wifi_info`) toe. De app koppelt een scherm
+via `Apparaatnaam` aan het profiel met dezelfde `esphome.name`; oudere firmware
+valt terug op één profiel met gelijke `friendly_name` en een handmatig ingevuld
+adres. Hernoem deze sensors niet zonder `core.discover` aan te passen.
+
+Updatestatus staat in `/data/updates.json` (`version: 1`: `auto`, `hosts`,
+`results`, `last_round`), los van `screens.json`. Onbekende versies worden
+geweigerd. De ronde draait één scherm tegelijk, wacht op `Schermfirmware >=`
+doelversie en één minuut stabiliteit, en stopt bij de eerste fout. Alleen de
+nachtelijke ronde schrijft een `persistent_notification` in HA.
+
 ### Compatibiliteit 0.2.12 / firmware 0.2.14
 
 Opslagversie en tegelprotocol blijven 1. Additief: `tiles[].options.size`

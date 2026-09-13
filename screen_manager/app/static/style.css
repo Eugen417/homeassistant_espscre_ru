@@ -165,19 +165,98 @@ aside h2 {
   margin-bottom: 18px;
 }
 .screen {
-  text-align: left;
-  background: transparent;
-  color: var(--ink);
   border: 1px solid transparent;
-  padding: 14px;
+  border-radius: 14px;
 }
 .screen.selected {
   background: white;
   border-color: var(--line);
   box-shadow: 0 3px 10px #202c3c05;
 }
-.screen small {
+.screen-main {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  padding: 14px;
+}
+.screen-main small {
   margin-top: 3px;
+}
+.screen-update {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 0 14px 12px;
+}
+.screen-update small.failed {
+  color: #b23b3b;
+}
+.badge.update {
+  background: #fff4e0;
+  color: #8a5a10;
+  border-color: #f4e3c2;
+  padding: 4px 9px;
+}
+.mini {
+  padding: 5px 11px;
+  font-size: 12px;
+  border-radius: 20px;
+}
+.screen-host {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+.screen-host input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  font-size: 12px;
+}
+.spin {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  border: 2px solid var(--line);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.updates {
+  margin-top: 22px;
+}
+.updates h2 {
+  margin-bottom: 4px;
+}
+.updates .hint {
+  margin: 0 0 10px;
+}
+.updates #update-all {
+  width: 100%;
+  margin-bottom: 12px;
+}
+.check {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  cursor: pointer;
+}
+.check input {
+  margin-top: 3px;
+}
+.check small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
 }
 .quiet {
   background: transparent;
