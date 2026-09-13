@@ -42,6 +42,17 @@ class TouchGuard {
   bool accept(uint32_t now, int tile) {
     return !moved_ && accept_slider(now, tile);
   }
+  // For -/+ keys: every clean tap counts, even the third within a second, so a
+  // setpoint moves several steps in one go. Only bounce (same key within `gap`) is dropped.
+  bool accept_repeat(uint32_t now, int tile, uint32_t gap = 150) {
+    if (moved_ || accepted_ || now - started_ < 40) return false;
+    if (has_previous_ && tile == previous_tile_ && now - previous_ < gap) return false;
+    accepted_ = true;
+    has_previous_ = true;
+    previous_tile_ = tile;
+    previous_ = now;
+    return true;
+  }
   // Only for a slider which captured this contact and did not lose the press.
   // Consume the gesture so its parent can never also turn it into a tile tap.
   bool accept_slider(uint32_t now, int tile) {

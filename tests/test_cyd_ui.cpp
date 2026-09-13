@@ -14,6 +14,13 @@ int main() {
   assert(quantize_temperature(-1, 160, 300, 5) == 160);
   assert(quantize_temperature(999, 160, 299, 5) == 299);
   assert(quantize_temperature(201, 160, 300, 0) == 201);
+  // -/+ keys: quick successive taps on the same key all count; bounce within 150 ms does not.
+  cyd::TouchGuard r;
+  r.begin(1000); assert(r.accept_repeat(1060, 7)); assert(!r.accept_repeat(1070, 7));  // one contact, one step
+  r.begin(1200); assert(r.accept_repeat(1260, 7));                                      // 200 ms later: accepted
+  r.begin(1300); assert(!r.accept_repeat(1340, 7));                                     // 80 ms after the last: bounce
+  r.begin(1300); r.update(40, 0); assert(!r.accept_repeat(1500, 7));                   // a swipe is never a step
+  r.begin(1600); assert(r.accept_repeat(1660, 8));                                      // the other key right away
   cyd::TouchGuard g;
   g.begin(100);
   assert(!g.accept(120, 1)); // resistive noise pulse

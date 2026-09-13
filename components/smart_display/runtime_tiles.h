@@ -1086,6 +1086,8 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       lv_obj_set_style_radius(w.pill,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_opa(w.pill,LV_OPA_COVER,0);
       panel_key(w,0,w.pill,m,m.pill_key,m.key_h+2,true);panel_icon(w,0,icon_font);lv_label_set_text(w.key_icons[0],tile_controls::glyph::MINUS);
       panel_key(w,1,w.pill,m,m.pill_key,m.key_h+2,true);panel_icon(w,1,icon_font);lv_label_set_text(w.key_icons[1],tile_controls::glyph::PLUS);
+      // Holding -/+ keeps stepping (LVGL repeats while pressed); one call goes out after the finger rests.
+      for(unsigned n=0;n<2;++n)lv_obj_add_event_cb(w.keys[n],control_event,LV_EVENT_LONG_PRESSED_REPEAT,(void*)(uintptr_t)((&w-widgets.data())*16+n));
       lv_obj_set_pos(w.keys[0],0,0);lv_obj_set_pos(w.keys[1],m.pill_w-m.pill_key,0);
       w.pill_value=lv_label_create(w.pill);lv_obj_remove_flag(w.pill_value,LV_OBJ_FLAG_CLICKABLE);
       lv_obj_set_style_text_font(w.pill_value,text_font,0);lv_obj_set_style_text_align(w.pill_value,LV_TEXT_ALIGN_CENTER,0);
@@ -1207,12 +1209,16 @@ inline void control_event(lv_event_t *e) {
   if(!enabled || !fresh() || w.index>=model.count || !w.keys[n])return;
   if(lv_obj_has_state(w.keys[n],LV_STATE_DISABLED))return;
   uint32_t now=esphome::millis();
-  if(!cyd::touch_guard.accept(now,400+slot*16+n))return;
   auto &t=model.tiles[w.index];
-  if(!t.available())return;
   int command=w.key_commands[n];
-  if(command==tile_controls::STEP_DOWN || command==tile_controls::STEP_UP){
-    // Local at once; tick() sends the last value after a short pause.
+  bool step=command==tile_controls::STEP_DOWN || command==tile_controls::STEP_UP;
+  bool held=lv_event_get_code(e)==LV_EVENT_LONG_PRESSED_REPEAT;
+  if(held){ if(!step || now-t.edit_since<300)return; }  // three steps a second while holding
+  else if(step){ if(!cyd::touch_guard.accept_repeat(now,400+slot*16+n))return; }
+  else if(!cyd::touch_guard.accept(now,400+slot*16+n))return;
+  if(!t.available())return;
+  if(step){
+    // Local at once, tap after tap; tick() sends the last value after a short pause.
     float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
     t.edit_value=tile_controls::step_value(current,tile_controls::edit_step(t),t.minimum,t.maximum,command==tile_controls::STEP_UP?1:-1);
     t.edit_since=now;t.edit_sent=false;

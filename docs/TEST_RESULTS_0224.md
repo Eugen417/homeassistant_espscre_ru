@@ -27,3 +27,11 @@ greep op de mini-slider, CYD-kaarten in het lichte palet, wifi zonder modem-slaa
 - Guition en CYD `ui_self_test` met `send_layout.py --controls` (18 tegels): 10/10 PASS,
   geen geometrie-, paneel- of paletfouten.
 - Nog fysiek te bekijken door Max: greep op de mini-slider, CYD-lichtkaart in het lichte palet.
+
+## Aanvulling 0.2.25 / firmware 0.2.21
+
+- − / + accepteert snelle opeenvolgende tikken (eigen guard van 150 ms) en stapt door bij
+  vasthouden; `tests/test_cyd_ui.cpp` dekt `accept_repeat`. Python 82 OK, C++ 11 PASS.
+- Beide borden via OTA op 0.2.21; `ui_self_test` met de 18-tegels demo 10/10 PASS
+  (Guition heap 6,35 MB, CYD 37–38 KB vrij). Fysiek: drie keer tikken van 20 naar 17 en
+  vasthouden te controleren door Max.
