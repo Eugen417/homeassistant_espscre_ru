@@ -3,6 +3,7 @@ import asyncio
 from datetime import datetime, timezone
 import importlib.util
 import json
+import os
 from pathlib import Path
 import re
 import sys
@@ -12,6 +13,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 from core import FIRMWARE_VERSION, discover
+import firmware
 from firmware import Firmware
 import updates
 from updates import Updater, parse_version
@@ -63,6 +65,31 @@ class ProfileNameTests(unittest.TestCase):
             self.assertEqual(names['manual.yaml'], {'node': 'keuken', 'friendly': 'Keuken'})
             self.assertNotIn('broken.yaml', names)
             self.assertNotIn('secrets.yaml', names)
+
+    def test_profiles_are_parsed_only_when_changed(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            f = Firmware(tmp, tmp)
+            a, b = Path(tmp) / 'a.yaml', Path(tmp) / 'b.yaml'
+            a.write_text('esphome:\n  name: a\n  friendly_name: A\n')
+            b.write_text('esphome:\n  name: b\n  friendly_name: B\n')
+            parsed = []
+            original = firmware.profile_meta
+            firmware.profile_meta = lambda text: parsed.append(text) or original(text)
+            try:
+                self.assertEqual(set(f.profile_names()), {'a.yaml', 'b.yaml'})
+                self.assertEqual(len(parsed), 2)
+                self.assertEqual(set(f.profile_names()), {'a.yaml', 'b.yaml'})
+                self.assertEqual(len(parsed), 2, 'unchanged files must not be parsed again')
+                b.write_text('esphome:\n  name: b2\n  friendly_name: B2\n')
+                os.utime(b, ns=(b.stat().st_atime_ns, b.stat().st_mtime_ns + 1_000_000))
+                names = f.profile_names()
+                self.assertEqual(len(parsed), 3, 'only the changed file is parsed')
+                self.assertEqual(names['b.yaml'], {'node': 'b2', 'friendly': 'B2'})
+                a.unlink()
+                self.assertEqual(set(f.profile_names()), {'b.yaml'})
+                self.assertEqual(len(parsed), 3)
+            finally:
+                firmware.profile_meta = original
 
 
 class FakeFirmware:

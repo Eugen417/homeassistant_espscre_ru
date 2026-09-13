@@ -57,9 +57,10 @@ class Updater:
     def screen(self, inbox):
         return next((s for s in self.manager.inventory()[0] if s['id'] == inbox), None)
 
-    def resolve(self, screen):
+    def resolve(self, screen, profiles=None):
         """Profile file and OTA address for a screen; None when the add-on cannot tell."""
-        profiles = self.manager.firmware.profile_names()
+        if profiles is None:
+            profiles = self.manager.firmware.profile_names()
         profile = next((f for f, p in profiles.items() if screen.get('node') and p['node'] == screen['node']), None)
         if profile is None and screen.get('device'):
             # Screens on firmware before 0.2.17 do not report their node name yet.
@@ -67,9 +68,9 @@ class Updater:
             profile = matches[0] if len(matches) == 1 else None
         return profile, screen.get('ip') or self.hosts.get(screen['id'])
 
-    def state_for(self, screen):
+    def state_for(self, screen, profiles=None):
         version = parse_version(screen.get('firmware'))
-        profile, host = self.resolve(screen)
+        profile, host = self.resolve(screen, profiles)
         if screen['id'] == self.current:
             state = 'running'
         elif screen['id'] in self.queue:
@@ -80,13 +81,19 @@ class Updater:
                 'profile': profile, 'host': host, 'state': state, 'phase': self.phase if state == 'running' else None,
                 'result': self.results.get(screen['id'])}
 
-    def summary(self):
+    def summary(self, screens=None, profiles=None):
         return {'auto': self.auto, 'target': FIRMWARE_VERSION, 'busy': self.current,
-                'pending': len(self.pending()), 'last_round': self.last_round}
+                'pending': len(self.pending(screens, profiles)), 'last_round': self.last_round}
 
-    def pending(self):
-        return [s['id'] for s in self.manager.inventory()[0]
-                if s['online'] and self.state_for(s)['available'] and all(self.resolve(s))]
+    def pending(self, screens=None, profiles=None):
+        # Callers that already hold the inventory and profile list pass them in; the inventory
+        # handler otherwise re-reads every ESPHome profile several times per request.
+        if screens is None:
+            screens = self.manager.inventory()[0]
+        if profiles is None:
+            profiles = self.manager.firmware.profile_names()
+        return [s['id'] for s in screens
+                if s['online'] and self.state_for(s, profiles)['available'] and all(self.resolve(s, profiles))]
 
     def set_auto(self, enabled):
         if not isinstance(enabled, bool):

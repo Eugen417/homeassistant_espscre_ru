@@ -12,9 +12,23 @@ import time
 import yaml
 from core import installation_yaml
 
-class LenientLoader(yaml.SafeLoader):
+# libyaml parses a 300 KB profile roughly ten times faster than the pure-Python loader.
+class LenientLoader(yaml.CSafeLoader if getattr(yaml, '__with_libyaml__', False) else yaml.SafeLoader):
     """Reads profile metadata without resolving !secret or !include."""
 LenientLoader.add_multi_constructor('!', lambda loader, suffix, node: None)
+
+def profile_meta(text):
+    """{'node', 'friendly'} from profile YAML, or None when it has no esphome block."""
+    data = yaml.load(text, Loader=LenientLoader)
+    block = data.get('esphome') if isinstance(data, dict) else None
+    if not isinstance(block, dict):
+        return None
+    substitutions = data.get('substitutions') if isinstance(data.get('substitutions'), dict) else {}
+    def resolve(value):
+        if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
+            value = substitutions.get(value[2:-1])
+        return value if isinstance(value, str) else None
+    return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name'))}
 
 class Firmware:
     def __init__(self, root, data):
@@ -23,6 +37,7 @@ class Firmware:
         self.task = None
         self.logs = deque(maxlen=300)
         self.process = None
+        self._names = {}  # file -> (stat signature, meta or None); parsed only when the file changes
 
     def profiles(self):
         if not self.root.exists(): return []
@@ -30,22 +45,28 @@ class Firmware:
                 if p.name != 'secrets.yaml' and p.is_file() and not p.is_symlink()]
 
     def profile_names(self):
-        """{file: {'node': esphome name, 'friendly': friendly name}} for every readable profile."""
-        found = {}
+        """{file: {'node': esphome name, 'friendly': friendly name}} for every readable profile.
+
+        Parsing is cached per file on inode, mtime and size, so a request only pays for changed
+        profiles. The dict is rebuilt from the current directory listing, so deleted files drop out.
+        """
+        found, cache = {}, {}
         for entry in self.profiles():
+            path = self.root / entry['file']
             try:
-                data = yaml.load((self.root / entry['file']).read_text(), Loader=LenientLoader)
+                st = path.stat()
+                key = (st.st_ino, st.st_mtime_ns, st.st_size)
+                cached = self._names.get(entry['file'])
+                if cached and cached[0] == key:
+                    meta = cached[1]
+                else:
+                    meta = profile_meta(path.read_text())
             except (OSError, yaml.YAMLError, UnicodeError):
                 continue
-            block = data.get('esphome') if isinstance(data, dict) else None
-            if not isinstance(block, dict):
-                continue
-            substitutions = data.get('substitutions') if isinstance(data.get('substitutions'), dict) else {}
-            def resolve(value):
-                if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
-                    value = substitutions.get(value[2:-1])
-                return value if isinstance(value, str) else None
-            found[entry['file']] = {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name'))}
+            cache[entry['file']] = (key, meta)
+            if meta:
+                found[entry['file']] = meta
+        self._names = cache
         return found
 
     def ports(self):

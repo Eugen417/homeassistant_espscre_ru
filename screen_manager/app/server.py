@@ -182,8 +182,9 @@ class Manager:
     def inventory(self):
         return discover(self.ha.registry, self.ha.states, self.ha.devices, self.ha.areas)
 
-    def firmware_version(self, inbox):
-        screen=next((s for s in self.inventory()[0] if s['id']==inbox), {})
+    def firmware_version(self, inbox, screen=None):
+        if screen is None:
+            screen=next((s for s in self.inventory()[0] if s['id']==inbox), {})
         try:
             version=tuple(int(part) for part in screen.get('firmware','').split('.'))
             return version if len(version)==3 else None
@@ -194,18 +195,20 @@ class Manager:
         version=self.firmware_version(inbox)
         return bool(version) and version >= (0,2,7)
 
-    def needs_firmware(self, inbox, layout):
+    def needs_firmware(self, inbox, layout, screen=None):
         """Version string the screen must run first, or None when the layout can be sent."""
         needed=min_firmware(layout)
-        if needed and not ((self.firmware_version(inbox) or (0,0,0)) >= needed):
+        if needed and not ((self.firmware_version(inbox, screen) or (0,0,0)) >= needed):
             return '.'.join(str(part) for part in needed)
         return None
 
     def save(self, inbox, data):
-        if inbox not in {s['id'] for s in self.inventory()[0]}:
+        screens, entities = self.inventory()
+        screen=next((s for s in screens if s['id']==inbox), None)
+        if screen is None:
             raise ValueError('Dit is geen gekoppeld ESP-scherm. Vernieuw het overzicht.')
         layout = validate_layout(data)
-        needed = self.needs_firmware(inbox, layout)
+        needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             raise ValueError(f"Installeer eerst schermfirmware {needed} of nieuwer voor deze tegels.")
         # A still-open older UI may save tiles without the new optional settings.
@@ -215,7 +218,6 @@ class Manager:
             layout['settings']['swipe_pages']=self.layouts.get(inbox,{}).get('settings',{}).get('swipe_pages',False)
         if 'settings' in layout and 'rotation' not in data.get('settings',{}):
             layout['settings']['rotation']=self.layouts.get(inbox,{}).get('settings',{}).get('rotation',0)
-        screen=next(s for s in self.inventory()[0] if s['id']==inbox)
         if layout.get('settings',{}).get('rotation',0) and screen.get('board')!='guition':
             raise ValueError('Rotatie vereist een Guition met firmware 0.2.9 of nieuwer.')
         old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
@@ -226,7 +228,7 @@ class Manager:
                     tile['options'][key]=old_options[key]
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
                 tile['options'] = old_tiles[tile['entity']]['options'].copy()
-        known = {e['id'] for e in self.inventory()[1]} | set(BUILTIN)
+        known = {e['id'] for e in entities} | set(BUILTIN)
         if any(t['entity'] not in known for t in layout['tiles']):
             raise ValueError('Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.')
         updated = {**self.layouts, inbox: layout}
@@ -251,8 +253,10 @@ class Manager:
             entry=(time.monotonic(),value);store[key]=entry
         return entry[1]
 
-    async def sync_one(self, inbox, layout, force=False):
-        needed = self.needs_firmware(inbox, layout)
+    async def sync_one(self, inbox, layout, force=False, screen=None):
+        if screen is None:
+            screen=next((s for s in self.inventory()[0] if s['id']==inbox), {})
+        needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             self.status[inbox]=f"Indeling bewaard; firmware {needed}+ nodig voor deze tegels"
             return
@@ -260,7 +264,7 @@ class Manager:
         if 'settings' in layout:
             messages[0]['settings'] = {k:v for k,v in layout['settings'].items() if k not in ('swipe_pages','rotation')}
             messages[0]['swipe_pages'] = layout['settings'].get('swipe_pages',False)
-            if next((s.get('board') for s in self.inventory()[0] if s['id']==inbox),None)=='guition':
+            if screen.get('board')=='guition':
                 messages[0]['rotation'] = layout['settings'].get('rotation',0)
         for i,tile in enumerate(layout['tiles']):
             forecast=None
@@ -321,7 +325,7 @@ class Manager:
                     force = time.monotonic() - self.last.get(inbox, 0) >= 25
                     # last records full keepalive, not unrelated HA state events.
                     before = self.last.get(inbox, 0)
-                    await self.sync_one(inbox, self.layouts[inbox], force)
+                    await self.sync_one(inbox, self.layouts[inbox], force, screen)
                     if not force:
                         self.last[inbox] = before
                 except Exception as error:
@@ -357,13 +361,14 @@ def create_app(manager, development=False):
         return web.FileResponse(static / 'index.html')
     async def inventory(request):
         screens, entities = manager.inventory()
+        profiles = manager.firmware.profile_names()
         for screen in screens:
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
-            screen['update'] = manager.updates.state_for(screen)
+            screen['update'] = manager.updates.state_for(screen, profiles)
         builtin = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities,
-                                  'backgrounds': TILE_BACKGROUNDS, 'icons': tile_icons.editor(), 'builtin': builtin, 'updates': manager.updates.summary()})
+                                  'backgrounds': TILE_BACKGROUNDS, 'icons': tile_icons.editor(), 'builtin': builtin, 'updates': manager.updates.summary(screens, profiles)})
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})

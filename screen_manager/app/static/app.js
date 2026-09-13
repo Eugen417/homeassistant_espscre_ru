@@ -1014,12 +1014,21 @@ window.addEventListener("beforeunload", (e) => {
   }
 });
 refresh();
-(function poll() {
-  setTimeout(async () => {
-    await refresh();
+// Poll only while the tab is visible; a hidden tab would otherwise keep the add-on busy.
+let pollTimer;
+function poll() {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(async () => {
+    if (!document.hidden) await refresh();
     poll();
   }, inventory.updates?.busy ? 3000 : 10000);
-})();
+}
+poll();
+document.addEventListener("visibilitychange", async () => {
+  if (document.hidden) return;
+  await refresh();
+  poll();
+});
 
 // Shared firmware workspace; always select a concrete profile and upload target.
 let firmwarePoll;
