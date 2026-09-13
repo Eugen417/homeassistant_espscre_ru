@@ -12,7 +12,8 @@ import math
 from firmware import Firmware
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import TILE_BACKGROUNDS, discover, installation_yaml, packets, state_message, validate_layout, validate_settings
+from core import BUILTIN, TILE_BACKGROUNDS, discover, extras, installation_yaml, min_firmware, packets, state_message, validate_layout, validate_settings
+from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
 
@@ -27,6 +28,7 @@ class HomeAssistant:
         self.online = False
         self.changed = asyncio.Event()
         self.setting_events = []
+        self.time_zone = None
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -89,6 +91,10 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
+                    try:
+                        self.time_zone = ZoneInfo((await self.request('get_config')).get('time_zone') or 'UTC')
+                    except Exception:
+                        self.time_zone = timezone.utc
                     self.online = True
                     self.changed.set()
                     LOG.info('Home Assistant verbonden')
@@ -119,6 +125,13 @@ class HomeAssistant:
         for packet in packets(message):
             await self.request('call_service', domain='text', service='set_value',
                                service_data={'entity_id': inbox, 'value': packet})
+
+    async def forecast(self, entity):
+        # Forecasts left the weather attributes in HA 2024.4; ask the service instead.
+        result = await self.request('call_service', domain='weather', service='get_forecasts',
+                                    service_data={'type': 'daily'}, target={'entity_id': entity}, return_response=True)
+        forecast = ((result or {}).get('response') or {}).get(entity, {}).get('forecast', [])
+        return forecast if isinstance(forecast, list) else []
 
     async def history(self, entity, hours):
         start = (datetime.now(timezone.utc)-timedelta(hours=hours)).isoformat()
@@ -154,6 +167,7 @@ class Manager:
         self.ha, self.path = ha, Path(path)
         self.layouts, self.sent, self.status, self.last = {}, {}, {}, {}
         self.histories = {}
+        self.forecasts = {}
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
         if self.path.exists():
             raw = json.loads(self.path.read_text())
@@ -165,20 +179,32 @@ class Manager:
     def inventory(self):
         return discover(self.ha.registry, self.ha.states, self.ha.devices, self.ha.areas)
 
-    def supports_twenty(self, inbox):
+    def firmware_version(self, inbox):
         screen=next((s for s in self.inventory()[0] if s['id']==inbox), {})
         try:
             version=tuple(int(part) for part in screen.get('firmware','').split('.'))
-            return len(version)==3 and version >= (0,2,7)
+            return version if len(version)==3 else None
         except (ValueError, TypeError):
-            return False
+            return None
+
+    def supports_twenty(self, inbox):
+        version=self.firmware_version(inbox)
+        return bool(version) and version >= (0,2,7)
+
+    def needs_firmware(self, inbox, layout):
+        """Version string the screen must run first, or None when the layout can be sent."""
+        needed=min_firmware(layout)
+        if needed and not ((self.firmware_version(inbox) or (0,0,0)) >= needed):
+            return '.'.join(str(part) for part in needed)
+        return None
 
     def save(self, inbox, data):
         if inbox not in {s['id'] for s in self.inventory()[0]}:
             raise ValueError('Dit is geen gekoppeld ESP-scherm. Vernieuw het overzicht.')
         layout = validate_layout(data)
-        if len(layout["tiles"])>10 and not self.supports_twenty(inbox):
-            raise ValueError("Installeer eerst schermfirmware 0.2.7 of nieuwer voor meer dan tien tegels.")
+        needed = self.needs_firmware(inbox, layout)
+        if needed:
+            raise ValueError(f"Installeer eerst schermfirmware {needed} of nieuwer voor deze tegels.")
         # A still-open older UI may save tiles without the new optional settings.
         if 'settings' not in layout and 'settings' in self.layouts.get(inbox, {}):
             layout['settings'] = self.layouts[inbox]['settings'].copy()
@@ -196,7 +222,7 @@ class Manager:
                 tile['options']['background']=old_options['background']
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
                 tile['options'] = old_tiles[tile['entity']]['options'].copy()
-        known = {e['id'] for e in self.inventory()[1]}
+        known = {e['id'] for e in self.inventory()[1]} | set(BUILTIN)
         if any(t['entity'] not in known for t in layout['tiles']):
             raise ValueError('Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.')
         updated = {**self.layouts, inbox: layout}
@@ -213,9 +239,18 @@ class Manager:
         self.status[inbox] = 'Opgeslagen; wacht op synchronisatie'
         self.ha.changed.set()
 
+    async def cached(self, store, key, ttl, fetch):
+        entry=store.get(key)
+        if not entry or time.monotonic()-entry[0]>ttl:
+            try: value=await fetch()
+            except Exception: value=[]
+            entry=(time.monotonic(),value);store[key]=entry
+        return entry[1]
+
     async def sync_one(self, inbox, layout, force=False):
-        if len(layout["tiles"])>10 and not self.supports_twenty(inbox):
-            self.status[inbox]="Indeling bewaard; firmware 0.2.7+ nodig voor meer dan tien tegels"
+        needed = self.needs_firmware(inbox, layout)
+        if needed:
+            self.status[inbox]=f"Indeling bewaard; firmware {needed}+ nodig voor deze tegels"
             return
         messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
         if 'settings' in layout:
@@ -224,16 +259,14 @@ class Manager:
             if next((s.get('board') for s in self.inventory()[0] if s['id']==inbox),None)=='guition':
                 messages[0]['rotation'] = layout['settings'].get('rotation',0)
         for i,tile in enumerate(layout['tiles']):
-            message=state_message(i,tile,self.ha.states)
+            forecast=None
+            if tile['entity'].startswith('weather.') and hasattr(self.ha,'forecast'):
+                forecast=await self.cached(self.forecasts, tile['entity'], 1800, lambda: self.ha.forecast(tile['entity']))
+            message=state_message(i,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None)))
             if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
                 hours=tile.get('options',{}).get('history_hours',24)
                 key=(tile['entity'],hours)
-                cached=self.histories.get(key)
-                if not cached or time.monotonic()-cached[0]>300:
-                    try: values=await self.ha.history(*key)
-                    except Exception: values=[]
-                    cached=(time.monotonic(),values);self.histories[key]=cached
-                message['history']={'hours':hours,'values':cached[1]}
+                message['history']={'hours':hours,'values':await self.cached(self.histories, key, 300, lambda: self.ha.history(*key))}
             messages.append(message)
         previous = self.sent.get(inbox, [])
         force = force or not previous or messages[0] != previous[0]
@@ -323,7 +356,8 @@ def create_app(manager, development=False):
         for screen in screens:
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
-        return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities, 'backgrounds': TILE_BACKGROUNDS})
+        builtin = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
+        return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities, 'backgrounds': TILE_BACKGROUNDS, 'builtin': builtin})
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})

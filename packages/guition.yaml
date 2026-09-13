@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.13"
+  SCREEN_FIRMWARE_VERSION: "0.2.14"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "guition-new"
@@ -623,6 +623,8 @@ esphome:
           runtime_tiles::watch_font = id(headline)->get_lv_font();
           runtime_tiles::watch_value_font = id(watch_value)->get_lv_font();
           runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
+          runtime_tiles::clock_font = id(clock_digits)->get_lv_font();
+          runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
@@ -1011,6 +1013,13 @@ font:
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
              'ä','ö','ü','Ä','Ö','Ü','ß','/']
 
+  # Clock card digits only; the date line reuses the tile title font.
+  - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-500.ttf"
+    id: clock_digits
+    size: 48
+    bpp: 4
+    glyphs: [':','-','0','1','2','3','4','5','6','7','8','9']
+
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-700.ttf"
     id: label
     size: 18
@@ -1062,6 +1071,24 @@ font:
       - "${MDI_GLYPH_9}"
       - "${MDI_GLYPH_10}"
       - "\U000F012C" # check
+      - "\U000F0599" # weather-sunny
+      - "\U000F0594" # weather-night
+      - "\U000F0590" # weather-cloudy
+      - "\U000F0595" # weather-partly-cloudy
+      - "\U000F0597" # weather-rainy
+      - "\U000F0596" # weather-pouring
+      - "\U000F0598" # weather-snowy
+      - "\U000F067F" # weather-snowy-rainy
+      - "\U000F0591" # weather-fog
+      - "\U000F0592" # weather-hail
+      - "\U000F0593" # weather-lightning
+      - "\U000F067E" # weather-lightning-rainy
+      - "\U000F059D" # weather-windy
+      - "\U000F05D6" # alert-circle-outline
+      - "\U000F059B" # weather-sunset-down
+      - "\U000F0150" # clock-outline
+      - "\U000F051B" # timer-outline
+      - "\U000F0004" # account
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
     id: materialdesign_icons_mini
@@ -1082,6 +1109,24 @@ font:
       - "${MDI_GLYPH_9}"
       - "${MDI_GLYPH_10}"
       - "\U000F012C" # check
+      - "\U000F0599" # weather-sunny
+      - "\U000F0594" # weather-night
+      - "\U000F0590" # weather-cloudy
+      - "\U000F0595" # weather-partly-cloudy
+      - "\U000F0597" # weather-rainy
+      - "\U000F0596" # weather-pouring
+      - "\U000F0598" # weather-snowy
+      - "\U000F067F" # weather-snowy-rainy
+      - "\U000F0591" # weather-fog
+      - "\U000F0592" # weather-hail
+      - "\U000F0593" # weather-lightning
+      - "\U000F067E" # weather-lightning-rainy
+      - "\U000F059D" # weather-windy
+      - "\U000F05D6" # alert-circle-outline
+      - "\U000F059B" # weather-sunset-down
+      - "\U000F0150" # clock-outline
+      - "\U000F051B" # timer-outline
+      - "\U000F0004" # account
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
     id: watch_icon
@@ -1102,6 +1147,24 @@ font:
       - "${MDI_GLYPH_9}"
       - "${MDI_GLYPH_10}"
       - "\U000F012C" # check
+      - "\U000F0599" # weather-sunny
+      - "\U000F0594" # weather-night
+      - "\U000F0590" # weather-cloudy
+      - "\U000F0595" # weather-partly-cloudy
+      - "\U000F0597" # weather-rainy
+      - "\U000F0596" # weather-pouring
+      - "\U000F0598" # weather-snowy
+      - "\U000F067F" # weather-snowy-rainy
+      - "\U000F0591" # weather-fog
+      - "\U000F0592" # weather-hail
+      - "\U000F0593" # weather-lightning
+      - "\U000F067E" # weather-lightning-rainy
+      - "\U000F059D" # weather-windy
+      - "\U000F05D6" # alert-circle-outline
+      - "\U000F059B" # weather-sunset-down
+      - "\U000F0150" # clock-outline
+      - "\U000F051B" # timer-outline
+      - "\U000F0004" # account
 
 # Geheugen zichtbaar maken: dit bord heeft geen PSRAM, dus de vrije heap
 # bepaalt hoeveel UI erbij kan. Verschijnt ook als entity in Home Assistant.
@@ -1812,6 +1875,14 @@ lvgl:
             y: ${HEADER_Y}
             text: "${ROOM_NAME}"
             styles: style_room
+
+        # Enables LVGL's line widget for the runtime clock hands and sparklines.
+        - line:
+            id: runtime_line_enable
+            hidden: true
+            points:
+              - 0, 0
+              - 1, 1
 
         - label:
             id: lbl_time
@@ -4453,18 +4524,19 @@ script:
             - lambda: |-
                 id(last_touch_ms) = millis();
                 static unsigned test_page=0;
-                id(tile_page) = runtime_tiles::enabled ? test_page++ % std::max(1,(int(runtime_tiles::model.count)+5)/6) : 1;
+                id(tile_page) = runtime_tiles::enabled ? test_page++ % runtime_tiles::page_count() : 1;
             - script.execute: show_tile_page
             - delay: 150ms
             - lambda: |-
                 lv_obj_update_layout(id(tile_scroll));
                 const int count = runtime_tiles::enabled ? runtime_tiles::model.count : std::clamp(atoi("${TILE_COUNT}"), 1, 10);
-                const bool paginated = count > 6;
+                // Wide cards take two slots, so visibility follows the runtime packing.
+                const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
                 lv_obj_t* tiles[] = {id(tile1), id(tile2), id(tile3), id(tile4), id(tile5),
                                      id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
                 bool ok = guition::check_geometry(id(home_page)->obj);
                 for (int i = 0; i < 10; ++i) {
-                  bool visible = runtime_tiles::enabled ? i<6 && i+id(tile_page)*6<count : i < count && (paginated ? i >= 6 : i < 6);
+                  bool visible = runtime_tiles::enabled ? i<6 && runtime_tiles::widgets[i].index<runtime_tiles::model.count : i < count && (paginated ? i >= 6 : i < 6);
                   ok = ok && (lv_obj_has_flag(tiles[i], LV_OBJ_FLAG_HIDDEN) != visible);
                 }
                 for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})

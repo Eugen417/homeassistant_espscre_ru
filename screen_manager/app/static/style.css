@@ -711,6 +711,8 @@ pre {
 .preview-tile strong { flex: 1; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
 .preview-tile .domain-icon { width: 30px; height: 30px; flex-basis: 30px; font-size: 20px; }
 .preview-tile.chosen { outline: 2px solid var(--accent); outline-offset: 1px; }
+.preview-tile.wide { grid-column: span 2; }
+.preview-gap { min-height: 90px; border: 1px dashed #d0d4d9; border-radius: 15px; }
 .preview-tile.vacant { background: #f4f4f4; border-style: dashed; color: #727982; justify-content: center; }
 .preview-slider { height: 13px; flex-basis: 100%; border-radius: 10px; background: linear-gradient(to right, #ffbf38 60%, #fff1d3 60%); }
 .preview-tile small { flex-basis: 100%; }

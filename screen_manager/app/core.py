@@ -1,14 +1,19 @@
 """Pure validation, firmware generation and bounded display protocol."""
 import base64
+from datetime import datetime, timezone
 import json
 import math
 import re
 import secrets
 
-DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button'.split())
+DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen'.split())
+# Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
+BUILTIN = {'screen.clock': 'Klok'}
+NEW_DOMAINS = frozenset('sun timer person screen'.split())
+WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
-ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level media_title options min max step temperature_unit supported_features'.split())
+ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level media_title options min max step temperature_unit supported_features next_rising next_setting finishes_at duration remaining'.split())
 
 
 TILE_BACKGROUNDS = {
@@ -23,6 +28,9 @@ TILE_BACKGROUNDS = {
     'pink': {'label': 'Roze', 'color': '#F7DDEC'},
     'gray': {'label': 'Grijs', 'color': '#E5E7EB'},
 }
+
+# Display modes per domain; everything else offers standard and watch (large value).
+DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog')}
 
 # Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
 SETTING_RULES = {
@@ -60,7 +68,17 @@ def validate_settings(data):
     return clean
 
 def entity_id(value):
-    return isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value) and value.split('.')[0] in DOMAINS
+    if not (isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value)):
+        return False
+    return value in BUILTIN if value.startswith('screen.') else value.split('.')[0] in DOMAINS
+
+def min_firmware(layout):
+    """Oldest firmware that still accepts this layout; None when any version works."""
+    if any(t['entity'].split('.')[0] in NEW_DOMAINS for t in layout['tiles']):
+        return (0, 2, 14)
+    if len(layout['tiles']) > 10:
+        return (0, 2, 7)
+    return None
 
 def short(value, limit):
     return str(value).encode('utf-8')[:limit].decode('utf-8', errors='ignore')
@@ -86,15 +104,19 @@ def validate_layout(data):
         item = {'entity': tile['entity'], 'name': name.strip()}
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size'}:
                 raise ValueError('Onbekende tegelinstellingen.')
             if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
                 raise ValueError('Kies een pastel achtergrondkleur uit het palet.')
-            choices = {'tap': ('auto', 'detail', 'toggle', 'none'), 'display': ('standard', 'watch'), 'inline': ('none', 'slider')}
             domain = tile['entity'].split('.')[0]
+            displays = DISPLAYS.get(domain, ('standard', 'watch'))
+            choices = {'tap': ('auto', 'detail', 'toggle', 'none'), 'display': displays, 'inline': ('none', 'slider'), 'size': ('single', 'wide')}
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError('Ongeldige tegelinstelling: ' + key)
+            # The five-day strip only fits a double-width card.
+            if options.get('display') == 'forecast':
+                options = {**options, 'size': 'wide'}
             if options.get('tap') == 'toggle' and domain not in {'light','switch','input_boolean','fan','media_player'}:
                 raise ValueError('Deze entiteit ondersteunt geen aan/uit-actie.')
             if options.get('inline') == 'slider' and domain not in {'light','fan','cover','number','input_number','media_player'}:
@@ -110,7 +132,59 @@ def validate_layout(data):
         result['settings'] = validate_settings(data['settings'])
     return result
 
-def state_message(index, tile, states):
+def local_clock(value, tz):
+    """HH:MM in the home's time zone for an ISO timestamp; '' when unusable."""
+    try:
+        moment = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return ''
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return moment.astimezone(tz or timezone.utc).strftime('%H:%M')
+
+def extras(tile, states, forecast=None, tz=None):
+    """Small, pre-computed values the firmware cannot derive itself (time zones, forecasts)."""
+    domain = tile['entity'].split('.')[0]
+    attrs = states.get(tile['entity'], {}).get('attributes', {})
+    if domain == 'weather' and forecast:
+        days = []
+        for entry in forecast[:5]:
+            if not isinstance(entry, dict):
+                continue
+            try:
+                day = datetime.fromisoformat(str(entry.get('datetime')).replace('Z', '+00:00')).astimezone(tz or timezone.utc)
+            except (ValueError, TypeError):
+                continue
+            item = {'d': WEEKDAYS[day.weekday()], 'c': short(entry.get('condition') or '', 20)}
+            for key, name in (('h', 'temperature'), ('l', 'templow')):
+                value = entry.get(name)
+                if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
+                    item[key] = round(value, 1)
+            days.append(item)
+        return {'days': days} if days else None
+    if domain == 'sun':
+        rise, down = local_clock(attrs.get('next_rising'), tz), local_clock(attrs.get('next_setting'), tz)
+        return {'rise': rise, 'set': down} if rise or down else None
+    if domain == 'timer':
+        result = {}
+        try:
+            end = datetime.fromisoformat(str(attrs.get('finishes_at')).replace('Z', '+00:00'))
+            result['end'] = int(end.timestamp())
+        except (ValueError, TypeError):
+            pass
+        for key, name in (('dur', 'duration'), ('rem', 'remaining')):
+            if isinstance(attrs.get(name), str):
+                result[key] = short(attrs[name], 16)
+        return result or None
+    return None
+
+def state_message(index, tile, states, extra=None):
+    if tile['entity'] in BUILTIN:
+        message = {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
+                   'name': short(tile['name'] or BUILTIN[tile['entity']], 80), 'state': 'ok', 'a': {}}
+        if 'options' in tile:
+            message['o'] = tile['options']
+        return message
     state = states.get(tile['entity'], {})
     attrs = state.get('attributes', {})
     bounded = {}
@@ -131,7 +205,7 @@ def state_message(index, tile, states):
     return {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
             'name': short(tile['name'] or attrs.get('friendly_name') or tile['entity'], 80),
             'state': short(state.get('state', 'unavailable'), 160), 'a': bounded,
-            **({'o': tile['options']} if 'options' in tile else {})}
+            **({'o': tile['options']} if 'options' in tile else {}), **({'x': extra} if extra else {})}
 
 def packets(message, token=None):
     raw = json.dumps(message, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()

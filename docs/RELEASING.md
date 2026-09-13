@@ -127,3 +127,17 @@ sleutels, geen nieuwe firmwareflash nodig voor latere kleurkeuzes.
 Een oude apprelease van vóór 0.2.10 kent dit optieveld niet. Bij terugrollen van
 de app herstel je daarom de bijbehorende gegevensback-up; wis of negeer geen
 onbekende opties om een oud opslagbestand toch te openen.
+
+### Compatibiliteit 0.2.12 / firmware 0.2.14
+
+Opslagversie en tegelprotocol blijven 1. Additief: `tiles[].options.size`
+(`single`/`wide`), nieuwe `display`-waarden (`forecast` voor weer, `graph` voor
+sensoren, `digital`/`analog` voor `screen.clock`), de ingebouwde entity
+`screen.clock` en de HA-domeinen `sun`, `timer` en `person`. Statusberichten
+krijgen een optioneel object `x` met door de manager berekende waarden
+(voorspellingsdagen, zontijden in de HA-tijdzone, timer-eindtijd als epoch).
+Oudere firmware negeert `size`, nieuwe displays en `x`, maar weigert onbekende
+domeinen in de hele indeling; de manager stuurt zo'n indeling daarom pas na
+firmware 0.2.14 (`min_firmware`) en bewaart haar ondertussen. Voorspellingen
+komen via `weather.get_forecasts` met `return_response`; zonder antwoord blijft
+de weerkaart de gewone kaart. Geen gewijzigde preferences of sleutels.

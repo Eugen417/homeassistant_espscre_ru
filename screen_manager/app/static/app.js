@@ -220,7 +220,31 @@ const domains = {
   select: ["Keuze", "≡", "#5862af", "#eaecfa"],
   input_select: ["Keuze", "≡", "#5862af", "#eaecfa"],
   button: ["Actie", "↗", "#5862af", "#eaecfa"],
+  screen: ["Klok", "◷", "#25282c", "#e9ecf1"],
+  sun: ["Zon", "☼", "#c86620", "#ffebdc"],
+  timer: ["Kookwekker", "⏱", "#008577", "#def3ed"],
+  person: ["Persoon", "☺", "#2f7d32", "#e1f2e2"],
 };
+const displayNames = { standard: "standaard", watch: "grote waarde", forecast: "weersvoorspelling", graph: "grafiek", digital: "digitale klok", analog: "analoge klok" };
+// Same packing as the firmware: wide tiles start in the left column and take a whole row.
+function packTiles(tiles) {
+  let position = 0;
+  const placement = tiles.map((tile) => {
+    const wide = tile.options?.size === "wide";
+    if (wide && position % 2 === 1) position++;
+    const slot = { page: Math.floor(position / 6), slot: position % 6, wide };
+    position += wide ? 2 : 1;
+    return slot;
+  });
+  return { placement, pages: Math.max(1, Math.ceil(position / 6)) };
+}
+function supportsFirmware(major, minor, patch) {
+  const version = inventory.screens.find((s) => s.id === selected)?.firmware || "";
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(version);
+  if (!match) return false;
+  const [a, b, c] = match.slice(1).map(Number);
+  return a > major || (a === major && (b > minor || (b === minor && c >= patch)));
+}
 function domainBadge(id) {
   const [title, symbol, color, background] = domains[id.split(".")[0]] || ["Entiteit", "◇", "#637184", "#edf0f4"];
   const badge = node("span", symbol, "domain-icon");
@@ -236,43 +260,54 @@ function tileLimit() {
   if(!match)return 10;
   return Number(match[1])>0 || Number(match[2])>2 || Number(match[2])===2 && Number(match[3])>=7 ? 20 : 10;
 }
+function entityName(id) {
+  return inventory.entities.find((e) => e.id === id)?.name || inventory.builtin?.find((e) => e.id === id)?.name || id;
+}
 function renderPreview() {
   const root = $("#layout-preview");
   root.replaceChildren();
-  const pages = Math.max(1, Math.ceil(layout.tiles.length / 6));
+  const { placement, pages } = packTiles(layout.tiles);
   for (let page = 0; page < pages; page++) {
     const frame = node("section", undefined, "screen-preview");
     frame.append(node("small", `Pagina ${page + 1} · ${$("#title").value || "Thuis"}`, "preview-heading"));
     const grid = node("div", undefined, "preview-grid");
-    for (let slot = page * 6; slot < Math.min(page * 6 + 6, tileLimit()); slot++) {
-      const tile = layout.tiles[slot];
+    let filled = 0;
+    layout.tiles.forEach((tile, index) => {
+      const place = placement[index];
+      if (place.page !== page) return;
+      // Keep the grid honest: an empty right column before a wide tile is a real gap on the screen.
+      for (; filled < place.slot; filled++) grid.append(node("span", "", "preview-gap"));
       const card = node("button", undefined, "preview-tile");
-      if (tile) {
-        const name = tile.name || inventory.entities.find(e => e.id === tile.entity)?.name || tile.entity;
-        const background=inventory.backgrounds?.[tile.options?.background]?.color;
-        if(background)card.style.backgroundColor=background;
-        card.append(domainBadge(tile.entity), node("strong", name));
-        card.draggable = true;
-        card.ondragstart = (e) => { dragIndex = slot; e.dataTransfer.setData("text/plain", String(slot)); };
-        card.ondragend = () => { dragIndex = -1; };
-        card.ondragover = (e) => { if (dragIndex >= 0) e.preventDefault(); };
-        card.ondrop = (e) => { e.preventDefault(); if (dragIndex >= 0) move(dragIndex, slot); };
-        card.classList.toggle("chosen", selectedTile === tile.entity);
-        card.setAttribute("aria-label", `Tegel ${slot + 1}: ${name}, instellen`);
-        card.onclick = () => {
-          selectedTile = tile.entity;
-          renderTiles();
-          document.querySelectorAll("#tiles > .tile")[slot]?.scrollIntoView({behavior: "smooth", block: "center"});
-        };
-        if (tile.options?.inline === "slider") card.append(node("span", "", "preview-slider"));
-        if (tile.options?.display === "watch") card.append(node("small", "Grote waarde"));
-      } else {
-        card.classList.add("vacant");
+      const name = tile.name || entityName(tile.entity);
+      const background=inventory.backgrounds?.[tile.options?.background]?.color;
+      if(background)card.style.backgroundColor=background;
+      if (place.wide) card.classList.add("wide");
+      card.append(domainBadge(tile.entity), node("strong", name));
+      card.draggable = true;
+      card.ondragstart = (e) => { dragIndex = index; e.dataTransfer.setData("text/plain", String(index)); };
+      card.ondragend = () => { dragIndex = -1; };
+      card.ondragover = (e) => { if (dragIndex >= 0) e.preventDefault(); };
+      card.ondrop = (e) => { e.preventDefault(); if (dragIndex >= 0) move(dragIndex, index); };
+      card.classList.toggle("chosen", selectedTile === tile.entity);
+      card.setAttribute("aria-label", `Tegel ${index + 1}: ${name}, instellen`);
+      card.onclick = () => {
+        selectedTile = tile.entity;
+        renderTiles();
+        document.querySelectorAll("#tiles > .tile")[index]?.scrollIntoView({behavior: "smooth", block: "center"});
+      };
+      if (tile.options?.inline === "slider") card.append(node("span", "", "preview-slider"));
+      const display = tile.options?.display;
+      if (display && display !== "standard") card.append(node("small", displayNames[display] || display));
+      grid.append(card);
+      filled += place.wide ? 2 : 1;
+    });
+    if (layout.tiles.length < tileLimit())
+      for (; filled < 6; filled++) {
+        const card = node("button", undefined, "preview-tile vacant");
         card.append(node("span", "+"), node("small", "Tegel toevoegen"));
         card.onclick = () => { $("#search").focus(); $("#search").scrollIntoView({behavior:"smooth", block:"center"}); };
+        grid.append(card);
       }
-      grid.append(card);
-    }
     frame.append(grid);
     root.append(frame);
   }
@@ -282,8 +317,9 @@ function renderTiles() {
   $("#tiles").replaceChildren();
   $("#count").textContent = `${layout.tiles.length} / ${tileLimit()}${tileLimit()===10?" · update firmware voor 20":""}`;
   $("#no-tiles").hidden = layout.tiles.length > 0;
+  const { placement } = packTiles(layout.tiles);
   layout.tiles.forEach((tile, i) => {
-    if (i === 6) $("#tiles").append(node("li", "Pagina 2", "page-break"));
+    if (i > 0 && placement[i].page !== placement[i - 1].page) $("#tiles").append(node("li", `Pagina ${placement[i].page + 1}`, "page-break"));
     const li = node("li", undefined, "tile");
     li.classList.toggle("selected-tile", selectedTile === tile.entity);
     li.draggable = true;
@@ -310,8 +346,7 @@ function renderTiles() {
     const content = node("div"),
       input = node("input");
     input.value = tile.name;
-    input.placeholder =
-      inventory.entities.find((e) => e.id === tile.entity)?.name || tile.entity;
+    input.placeholder = entityName(tile.entity);
     input.maxLength = 60;
     input.setAttribute("aria-label", `Naam voor tegel ${i + 1}`);
     input.oninput = () => {
@@ -383,6 +418,11 @@ function renderTiles() {
     options.append(palette);
     const controls = {};
     const domain = tile.entity.split(".")[0];
+    const displays = domain === "screen"
+      ? [["digital", "Digitale klok"], ["analog", "Analoge klok"]]
+      : [["standard", "Naam en status"], ["watch", "Grote waarde"]];
+    if (domain === "weather") displays.push(["forecast", "Weersvoorspelling (dubbelbreed)"]);
+    if (domain === "sensor") displays.push(["graph", "Grafiek van de geschiedenis"]);
     const fields = [
       [
         "tap",
@@ -393,15 +433,10 @@ function renderTiles() {
           ["none", "Alleen bekijken"],
         ],
       ],
-      [
-        "display",
-        "Weergave",
-        [
-          ["standard", "Naam en status"],
-          ["watch", "Grote waarde"],
-        ],
-      ],
+      ["display", "Weergave", displays],
+      ["size", "Breedte (firmware 0.2.14+)", [["single", "Normaal"], ["wide", "Dubbelbreed"]]],
     ];
+    if (domain === "screen") fields.shift();
     if (
       ["light", "switch", "input_boolean", "fan", "media_player"].includes(
         domain,
@@ -449,10 +484,12 @@ function renderTiles() {
         (key === "tap"
           ? "auto"
           : key === "display"
-            ? "standard"
+            ? (domain === "screen" ? "digital" : "standard")
             : key === "history_hours"
               ? 24
-              : "none");
+              : key === "size"
+                ? "single"
+                : "none");
       controls[key] = input;
       input.onchange = () => {
         tile.options = {
@@ -461,6 +498,8 @@ function renderTiles() {
         };
         if (key === "display" && input.value === "watch")
           tile.options.inline = "none";
+        if (key === "display" && input.value === "forecast")
+          tile.options.size = "wide";
         if (key === "inline" && input.value === "slider")
           tile.options.display = "standard";
         for (const [field, control] of Object.entries(controls)) {
@@ -473,9 +512,11 @@ function renderTiles() {
       label.append(input);
       options.append(label);
     }
-    const inspectTile = node("button", "Inspecteer deze tegel", "quiet");
-    inspectTile.onclick = () => inspect(tile.entity);
-    options.append(inspectTile);
+    if (domain !== "screen") {
+      const inspectTile = node("button", "Inspecteer deze tegel", "quiet");
+      inspectTile.onclick = () => inspect(tile.entity);
+      options.append(inspectTile);
+    }
     content.append(options);
     li.append(domainBadge(tile.entity), content, actions);
     $("#tiles").append(li);
@@ -485,10 +526,10 @@ function renderResults() {
   if (!layout) return;
   const query = $("#search").value.toLocaleLowerCase();
   const chosen = new Set(layout.tiles.map((t) => t.entity));
-  const matches = inventory.entities.filter(
+  const matches = [...(inventory.builtin || []), ...inventory.entities].filter(
     (e) =>
       (!filter || e.id.startsWith(filter + ".") ||
-        ({switch:"input_boolean", number:"input_number", select:"input_select"}[filter] === e.id.split(".")[0])) &&
+        ({switch:"input_boolean", number:"input_number", select:"input_select", weather:"sun"}[filter] === e.id.split(".")[0])) &&
       `${e.name} ${e.id} ${e.device} ${e.area}`
         .toLocaleLowerCase()
         .includes(query),
@@ -592,6 +633,9 @@ for (const [value, label] of [
   ["weather", "Weer"],
   ["number", "Waarden"],
   ["select", "Keuzelijsten"],
+  ["person", "Personen"],
+  ["timer", "Kookwekkers"],
+  ["screen", "Klok"],
 ]) {
   const b = node("button", label, value === "" ? "active" : "");
   if (value) b.prepend(domainBadge(value + "."));
@@ -826,7 +870,7 @@ async function inspect(entity) {
       card.append(
         node(
           "small",
-          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${options.display === "watch" ? "grote waarde" : "standaard"} · Achtergrond: ${inventory.backgrounds?.[options.background || "auto"]?.label || "Standaard"}`,
+          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${displayNames[options.display || "standard"] || options.display} · Breedte: ${options.size === "wide" ? "dubbel" : "normaal"} · Achtergrond: ${inventory.backgrounds?.[options.background || "auto"]?.label || "Standaard"}`,
         ),
       );
       $("#inspection-summary").append(card);

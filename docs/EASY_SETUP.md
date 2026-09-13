@@ -99,7 +99,9 @@ domeinfilters met gekleurde iconen. Je kunt maximaal twintig tegels toevoegen.
 Het schermvoorbeeld toont hun plaats: twee kolommen, zes tegels per pagina.
 Sleep een tegel naar een andere tegel om te ordenen. Klik op een tegel voor
 een eigen naam, de pijltjes voor volgorde en **Bediening & weergave instellen**:
-klikgedrag, een mini-slider of een grote waarde waar ondersteund. Kies bij
+klikgedrag, een mini-slider, een grote waarde, een grafiek (sensoren), een
+weersvoorspelling (weer) of de breedte **Dubbelbreed**. De ingebouwde **Klok**
+staat bovenaan de kiezer; zon, kookwekkers en personen vind je via de filters. Kies bij
 **Pastel achtergrond** een eigen kleur met donkere tekst; **Standaard** herstelt
 de normale weergave. Hiervoor is firmware 0.2.10+ nodig. Een lege
 tegel brengt je naar de zoekbalk; toevoegen vult de eerstvolgende vrije positie.

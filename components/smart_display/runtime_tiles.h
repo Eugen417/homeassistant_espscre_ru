@@ -8,6 +8,7 @@
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
 #include "esphome/core/hal.h"
+#include "esphome/core/time.h"
 #include "lvgl.h"
 #include <functional>
 #include <algorithm>
@@ -25,8 +26,15 @@ inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
 inline const lv_font_t *mini_icon_font = nullptr;
 inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
+// Big digits for the clock card; the board profile sets it with the local time source.
+inline const lv_font_t *clock_font = nullptr;
+inline std::function<esphome::ESPTime()> now_time;
+inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
 inline void tick();
 inline void refresh_detail(unsigned index);
+inline const char *weather_icon(const std::string &condition);
+inline const char *weather_text(const std::string &condition);
+inline std::string timer_text(const Tile &t);
 inline int active_index = -1;
 inline uint32_t last_received = 0;
 inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
@@ -62,7 +70,12 @@ inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
   return s.valid();
 }
 inline std::function<void(Tile &)> detail, detail_update;
-struct Widgets { lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}, *unit{}; int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{}; };
+struct Widgets {
+  lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}, *unit{};
+  int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
+  // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
+  bool wide=false; int base_width=0; lv_obj_t *extra{}; std::string extra_mode; std::array<lv_obj_t *, 20> parts{}; lv_point_precise_t *points{};
+};
 inline std::array<Widgets, 10> widgets;
 inline bool fresh() { return model.ready() && esphome::millis() - last_received < 95000; }
 inline float number(JsonVariant value, float fallback = NAN) {
@@ -148,6 +161,21 @@ inline std::string receive(const std::string &payload) {
     tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
     tile.display = string(options["display"]); if (tile.display.empty()) tile.display="standard";
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
+    // Width arrives with the state, after the layout: re-pack the pages when it changes.
+    bool was_wide = tile.wide;
+    tile.wide = string(options["size"]) == "wide";
+    bool repack = was_wide != tile.wide;
+    // Pre-computed extras: the manager converts time zones and fetches forecasts.
+    auto extra = root["x"];
+    tile.forecast_count = 0;
+    if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
+      if (tile.forecast_count == tile.forecast.size()) break;
+      auto &f = tile.forecast[tile.forecast_count++];
+      f.day = string(day["d"], 3); f.condition = string(day["c"], 20); f.high = number(day["h"]); f.low = number(day["l"]);
+    }
+    tile.sunrise = string(extra["rise"], 5); tile.sunset = string(extra["set"], 5);
+    tile.timer_end = extra["end"].is<unsigned>() ? extra["end"].as<uint32_t>() : 0;
+    tile.duration = string(extra["dur"], 16); tile.remaining = string(extra["rem"], 16);
     tile.has_history=false;
     if (root["history"]["values"].is<JsonArray>()) {
       tile.history.fill(NAN);unsigned j=0;
@@ -195,6 +223,7 @@ inline std::string receive(const std::string &payload) {
     tile.received = true;
     for(auto &w:widgets)if(w.index==index)w.cached_active=-1;
     last_received = esphome::millis();
+    if (repack && layout_changed) layout_changed();
     if (refresh) refresh();
     if (active_index == static_cast<int>(index) && detail_update) detail_update(tile);
     refresh_detail(index);
@@ -243,6 +272,9 @@ inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int
   lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);lv_obj_set_height(label,lv_font_get_line_height(detail_font));return label;
 }
 inline std::string detail_state(const Tile &t){
+  if(t.domain()=="person")return t.state=="home"?"Thuis":t.state=="not_home"?"Niet thuis":t.state;
+  if(t.domain()=="sun")return t.state=="above_horizon"?"Boven de horizon":"Onder de horizon";
+  if(t.domain()=="timer")return timer_text(t);
   if(t.state=="on")return "Aan";
   if(t.state=="off")return "Uit";
   if(t.state=="docked")return "In dock";
@@ -305,6 +337,8 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
     if(cmd==21)action("media_player.media_previous_track",t.entity);
     if(cmd==22)action("media_player.media_next_track",t.entity);
     if(cmd>=30 && cmd<38 && cmd-30<(int)t.option_count)action(t.domain()+".select_option",t.entity,"option",t.options[cmd-30]);
+    if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
+    if(cmd==41)action("timer.cancel",t.entity);
   },LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)command);
   lv_obj_set_style_bg_color(button,lv_color_hex(0x0075B0),LV_STATE_PRESSED);
   lv_obj_set_style_transform_width(button,-2,LV_STATE_PRESSED);lv_obj_set_style_transform_height(button,-2,LV_STATE_PRESSED);
@@ -412,7 +446,20 @@ inline void show_detail(unsigned index){
     auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
     lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   }else if(d=="weather"){
-    char text[80];snprintf(text,sizeof(text),"%.1f %s",t.current,t.unit.c_str());auto *value=detail_label(detail_root,text,pad,top,width-2*pad);if(watch_font){lv_obj_set_style_text_font(value,watch_font,0);lv_obj_set_height(value,lv_font_get_line_height(watch_font));}
+    char text[80];snprintf(text,sizeof(text),"%.1f %s  %s",t.current,t.unit.c_str(),weather_text(t.state));auto *value=detail_label(detail_root,text,pad,top,width-2*pad);if(watch_font){lv_obj_set_style_text_font(value,watch_font,0);lv_obj_set_height(value,lv_font_get_line_height(watch_font));}
+    int y=top+(large?60:30),step=lv_font_get_line_height(detail_font)+(large?10:4);
+    for(unsigned i=0;i<t.forecast_count;++i){
+      const auto &f=t.forecast[i];char line[96];
+      snprintf(line,sizeof(line),"%s   %s   %s%.0f / %.0f %s",f.day.c_str(),weather_text(f.condition),std::isfinite(f.high)?"":"-",std::isfinite(f.high)?f.high:0.0f,std::isfinite(f.low)?f.low:0.0f,t.unit.c_str());
+      detail_label(detail_root,line,pad,y,width-2*pad);y+=step;
+    }
+  }else if(d=="timer"){
+    detail_label(detail_root,t.state=="active"?"Loopt":t.state=="paused"?"Gepauzeerd":"Staat stil",pad,top,width-2*pad);
+    detail_button(t.state=="active"?"Pauzeer":"Start",pad,top+(large?50:30),cw,bh,40);
+    detail_button("Annuleer",pad+cw+gap,top+(large?50:30),cw,bh,41);
+  }else if(d=="sun"){
+    detail_label(detail_root,"Zonsopgang "+t.sunrise,pad,top,width-2*pad);
+    detail_label(detail_root,"Zonsondergang "+t.sunset,pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
   }
 }
 }
@@ -423,6 +470,41 @@ inline void refresh_detail(unsigned index){
   auto *input=lv_indev_get_next(nullptr);if(input && lv_indev_get_state(input)==LV_INDEV_STATE_PRESSED)return;
   show_detail(index);
 }
+// Home Assistant weather conditions mapped to Material Design Icons glyphs.
+inline const char *weather_icon(const std::string &condition) {
+  if (condition == "sunny") return "\U000F0599";
+  if (condition == "clear-night") return "\U000F0594";
+  if (condition == "cloudy") return "\U000F0590";
+  if (condition == "partlycloudy") return "\U000F0595";
+  if (condition == "rainy") return "\U000F0597";
+  if (condition == "pouring") return "\U000F0596";
+  if (condition == "snowy") return "\U000F0598";
+  if (condition == "snowy-rainy") return "\U000F067F";
+  if (condition == "fog") return "\U000F0591";
+  if (condition == "hail") return "\U000F0592";
+  if (condition == "lightning") return "\U000F0593";
+  if (condition == "lightning-rainy") return "\U000F067E";
+  if (condition == "windy" || condition == "windy-variant") return "\U000F059D";
+  if (condition == "exceptional") return "\U000F05D6";
+  return "\U000F0595";
+}
+inline const char *weather_text(const std::string &condition) {
+  if (condition == "sunny") return "Zonnig";
+  if (condition == "clear-night") return "Heldere nacht";
+  if (condition == "cloudy") return "Bewolkt";
+  if (condition == "partlycloudy") return "Half bewolkt";
+  if (condition == "rainy") return "Regen";
+  if (condition == "pouring") return "Stortregen";
+  if (condition == "snowy") return "Sneeuw";
+  if (condition == "snowy-rainy") return "Natte sneeuw";
+  if (condition == "fog") return "Mist";
+  if (condition == "hail") return "Hagel";
+  if (condition == "lightning") return "Onweer";
+  if (condition == "lightning-rainy") return "Onweer en regen";
+  if (condition == "windy" || condition == "windy-variant") return "Winderig";
+  if (condition == "exceptional") return "Bijzonder weer";
+  return condition.c_str();
+}
 inline const char *icon_for(const Tile &tile) {
   auto d = tile.domain();
   if (d == "light") return "\U000F0335";
@@ -431,9 +513,37 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "fan") return "\U000F0210";
   if (d == "cover") return "\U000F111C";
   if (d == "scene" || d == "script") return "\U000F04B9";
-  if (d == "weather") return "\U000F029A";
+  if (d == "weather") return tile.available() ? weather_icon(tile.state) : "\U000F0595";
   if (d == "sensor" || d == "binary_sensor") return "\U000F029A";
+  if (d == "sun") return tile.state == "above_horizon" ? "\U000F059B" : "\U000F059C";
+  if (d == "timer") return "\U000F051B";
+  if (d == "person") return "\U000F0004";
+  if (d == "screen") return "\U000F0150";
   return "\U000F0425";
+}
+// HA duration strings ("0:05:00") to seconds; 0 when unusable.
+inline uint32_t duration_seconds(const std::string &text) {
+  unsigned h = 0, m = 0, s = 0;
+  if (sscanf(text.c_str(), "%u:%u:%u", &h, &m, &s) == 3) return h * 3600 + m * 60 + s;
+  if (sscanf(text.c_str(), "%u:%u", &m, &s) == 2) return m * 60 + s;
+  return 0;
+}
+inline std::string countdown(uint32_t seconds) {
+  char b[16];
+  if (seconds >= 3600) snprintf(b, sizeof(b), "%u:%02u:%02u", seconds / 3600, seconds / 60 % 60, seconds % 60);
+  else snprintf(b, sizeof(b), "%u:%02u", seconds / 60, seconds % 60);
+  return b;
+}
+inline std::string timer_text(const Tile &t) {
+  if (t.state == "active") { uint32_t now = now_epoch(); return countdown(t.timer_end > now && now ? t.timer_end - now : 0); }
+  if (t.state == "paused") return "Pauze " + countdown(duration_seconds(t.remaining));
+  return t.duration.empty() ? "Uit" : countdown(duration_seconds(t.duration));
+}
+inline std::string date_text(const esphome::ESPTime &now) {
+  static const char *days[] = {"zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"};
+  static const char *months[] = {"januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"};
+  if (!now.is_valid() || now.day_of_week < 1 || now.day_of_week > 7 || now.month < 1 || now.month > 12) return "";
+  return std::string(days[now.day_of_week - 1]) + " " + std::to_string(now.day_of_month) + " " + months[now.month - 1];
 }
 inline void event(lv_event_t *event) {
   auto &w = *static_cast<Widgets *>(lv_event_get_user_data(event));
@@ -449,7 +559,10 @@ inline void event(lv_event_t *event) {
   if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="detail")open=true;
   if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="toggle")open=false;
   if(d=="media_player" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("media_player.toggle",tile.entity);return;}
-  if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }
+  if(tile.builtin())return;
+  // A short tap runs or pauses the kitchen timer; holding opens the card with a cancel button.
+  if(d=="timer" && !open){action(tile.state=="active"?"timer.pause":"timer.start",tile.entity);return;}
+  if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum" || d=="sun" || d=="person" || d=="timer") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }
   if (open) {
     if (d == "light" || d == "climate" || d == "vacuum" || d == "fan" || d == "cover") {
       active_index = w.index;
@@ -470,6 +583,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
+  w.base_width=lv_obj_get_width(tile);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   w.unit=lv_label_create(tile);lv_obj_set_style_text_font(w.unit,w.value_font,0);lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
   // Fixed one-line boxes prevent wrapped names from overlapping the state on both boards.
@@ -509,6 +623,10 @@ inline uint32_t domain_accent(const Tile &t) {
   if(d=="select" || d=="input_select")return 0x3F51B5;
   if(d=="number" || d=="input_number")return 0x009688;
   if(d=="weather")return t.state=="sunny"?0xFFC107:t.state=="clear-night"?0x6E41AB:0x03A9F4;
+  if(d=="sun")return t.state=="above_horizon"?0xFF9800:0x6E41AB;
+  if(d=="timer")return t.state=="active"?0x009688:t.state=="paused"?0xFF9800:0x9E9E9E;
+  if(d=="person")return t.state=="home"?0x4CAF50:0x9E9E9E;
+  if(d=="screen")return 0x2196F3;
   if(d=="sensor"){
     if(t.unit=="lx")return 0xFFC107;
     if(t.unit=="°C" || t.unit=="°F")return 0xFF6F22;
@@ -517,6 +635,114 @@ inline uint32_t domain_accent(const Tile &t) {
   }
   return 0x2196F3;
 }
+// Custom cards draw into a transparent `extra` container; parts are rebuilt only
+// when a slot changes mode, so paging keeps RAM use flat on the CYD.
+inline void end_extra(Widgets &w) {
+  if(!w.extra)return;
+  lv_obj_add_flag(w.extra,LV_OBJ_FLAG_HIDDEN);
+  if(!w.extra_mode.empty()){lv_obj_clean(w.extra);w.parts.fill(nullptr);w.extra_mode.clear();delete[] w.points;w.points=nullptr;}
+}
+inline void begin_extra(Widgets &w,const char *mode,int width,int height) {
+  if(!w.extra){w.extra=lv_obj_create(w.tile);lv_obj_remove_style_all(w.extra);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_SCROLLABLE);}
+  if(w.extra_mode!=mode){end_extra(w);w.extra_mode=mode;w.points=new lv_point_precise_t[28];w.cached_active=-1;}
+  lv_obj_set_pos(w.extra,0,0);lv_obj_set_size(w.extra,width,height);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_HIDDEN);
+}
+inline lv_obj_t *part_label(Widgets &w,unsigned i,const lv_font_t *font,int x,int y,int width,lv_text_align_t align,const std::string &text) {
+  auto *&p=w.parts[i];
+  if(!p){p=lv_label_create(w.extra);lv_label_set_long_mode(p,LV_LABEL_LONG_CLIP);lv_obj_remove_flag(p,LV_OBJ_FLAG_CLICKABLE);}
+  lv_obj_set_style_text_font(p,font,0);lv_obj_set_style_text_align(p,align,0);
+  lv_obj_set_pos(p,x,y);lv_obj_set_size(p,std::max(1,width),lv_font_get_line_height(font));label(p,text);return p;
+}
+inline lv_obj_t *part_dot(Widgets &w,unsigned i,int x,int y,int size) {
+  auto *&p=w.parts[i];
+  if(!p){p=lv_obj_create(w.extra);lv_obj_remove_style_all(p);lv_obj_set_style_bg_opa(p,LV_OPA_COVER,0);lv_obj_set_style_radius(p,LV_RADIUS_CIRCLE,0);lv_obj_remove_flag(p,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(p,LV_OBJ_FLAG_SCROLLABLE);}
+  lv_obj_set_pos(p,x,y);lv_obj_set_size(p,size,size);return p;
+}
+// Points are relative to (x,y): the line object then covers only its own rectangle.
+inline lv_obj_t *part_line(Widgets &w,unsigned i,lv_point_precise_t *points,unsigned count,int width,int x=0,int y=0) {
+  auto *&p=w.parts[i];
+  if(!p){p=lv_line_create(w.extra);lv_obj_remove_flag(p,LV_OBJ_FLAG_CLICKABLE);lv_obj_set_style_line_rounded(p,true,0);}
+  lv_obj_set_style_line_width(p,width,0);lv_line_set_points(p,points,count);lv_obj_set_pos(p,x,y);return p;
+}
+inline std::string time_text(esphome::ESPTime now) {
+  return now.is_valid() ? now.strftime(screen_settings::current.clock_24h ? "%H:%M" : "%I:%M") : "--:--";
+}
+// Digital: big time over the date. Analog: dotted dial with hour and minute hands;
+// a wide card adds the digital time next to the dial.
+inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int height) {
+  bool analog=t.display=="analog";
+  begin_extra(w,analog?"analog":"digital",width,height);
+  auto now=now_time?now_time():esphome::ESPTime{};
+  const lv_font_t *big=clock_font?clock_font:watch_value_font?watch_value_font:w.value_font;
+  const lv_font_t *small=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
+  // The date line only appears when both lines fit the card height.
+  bool with_date=lv_font_get_line_height(big)+2+lv_font_get_line_height(small)<=height;
+  int text_h=lv_font_get_line_height(big)+(with_date?2+lv_font_get_line_height(small):0);
+  if(!analog){
+    int y=std::max(0,(height-text_h)/2);
+    part_label(w,15,big,0,y,width,LV_TEXT_ALIGN_CENTER,time_text(now));
+    part_label(w,16,small,0,with_date?y+lv_font_get_line_height(big)+2:y,width,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
+    return;
+  }
+  int dial=std::min(height,width),cx=dial/2,cy=height/2,dot=large?4:2,radius=dial/2-dot;
+  for(int i=0;i<12;++i){
+    float a=i*3.14159265f/6;int size=i%3==0?dot+(large?2:1):dot;
+    part_dot(w,i,cx+std::lround(radius*sinf(a))-size/2,cy-std::lround(radius*cosf(a))-size/2,size);
+  }
+  float hour=((now.is_valid()?now.hour%12:0)+(now.is_valid()?now.minute:0)/60.0f)*3.14159265f/6, minute=(now.is_valid()?now.minute:0)*3.14159265f/30;
+  w.points[0]={(lv_value_precise_t)cx,(lv_value_precise_t)cy};w.points[1]={(lv_value_precise_t)(cx+radius*0.52f*sinf(hour)),(lv_value_precise_t)(cy-radius*0.52f*cosf(hour))};
+  w.points[2]={(lv_value_precise_t)cx,(lv_value_precise_t)cy};w.points[3]={(lv_value_precise_t)(cx+radius*0.82f*sinf(minute)),(lv_value_precise_t)(cy-radius*0.82f*cosf(minute))};
+  part_line(w,12,w.points,2,large?5:3);part_line(w,13,w.points+2,2,large?3:2);
+  int center=large?8:4;part_dot(w,14,cx-center/2,cy-center/2,center);
+  if(w.wide){
+    int x=dial+(large?16:8),y=std::max(0,(height-text_h)/2);
+    part_label(w,15,big,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
+    part_label(w,16,small,x,with_date?y+lv_font_get_line_height(big)+2:y,width-x,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
+  }
+}
+// Current conditions on the left, five day columns on the right (wide cards only).
+inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int height) {
+  begin_extra(w,"forecast",width,height);
+  const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
+  const lv_font_t *temp_font=watch_value_font?watch_value_font:w.value_font,*day_icon=mini_icon_font?mini_icon_font:w.icon_font;
+  int left=large?150:96,icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
+  int block=std::max(icon_h,temp_h)+2+text_h,y=std::max(0,(height-block)/2);
+  char b[24];snprintf(b,sizeof(b),"%.0f°",t.current);
+  auto *icon=part_label(w,0,w.icon_font,0,y+(std::max(icon_h,temp_h)-icon_h)/2,icon_h+4,LV_TEXT_ALIGN_LEFT,icon_for(t));
+  lv_obj_set_width(icon,lv_font_get_line_height(w.icon_font)+4);
+  part_label(w,1,temp_font,icon_h+6,y+(std::max(icon_h,temp_h)-temp_h)/2,left-icon_h-6,LV_TEXT_ALIGN_LEFT,std::isfinite(t.current)?b:"");
+  part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
+  int column=(width-left)/5,day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
+  for(unsigned k=0;k<5;++k){
+    int x=left+k*column;bool has=k<t.forecast_count;const auto &f=t.forecast[k];
+    char temps[24];if(has && std::isfinite(f.high))snprintf(temps,sizeof(temps),std::isfinite(f.low)?"%.0f/%.0f":"%.0f",f.high,f.low);else temps[0]=0;
+    if(large){
+      int rows=day_h+icon_col+text_h,top=std::max(0,(height-rows)/2);
+      part_label(w,3+k*3,title_font,x,top,column,LV_TEXT_ALIGN_CENTER,has?f.day:"");
+      part_label(w,4+k*3,day_icon,x,top+day_h,column,LV_TEXT_ALIGN_CENTER,has?weather_icon(f.condition):"");
+      part_label(w,5+k*3,w.value_font,x,top+day_h+icon_col,column,LV_TEXT_ALIGN_CENTER,temps);
+    }else{
+      // Two rows on the CYD: day beside its icon, then the high/low pair.
+      int rows=std::max(day_h,icon_col)+text_h,top=std::max(0,(height-rows)/2),day_w=column-icon_col-2;
+      part_label(w,3+k*3,title_font,x,top+(std::max(day_h,icon_col)-day_h)/2,day_w,LV_TEXT_ALIGN_RIGHT,has?f.day:"");
+      part_label(w,4+k*3,day_icon,x+day_w+2,top,icon_col,LV_TEXT_ALIGN_LEFT,has?weather_icon(f.condition):"");
+      part_label(w,5+k*3,w.value_font,x,top+std::max(day_h,icon_col),column,LV_TEXT_ALIGN_CENTER,temps);
+    }
+  }
+}
+// Sparkline of the manager's 24 history samples in the given rectangle.
+inline void render_graph(Widgets &w,const Tile &t,bool large,int x,int y,int width,int height) {
+  begin_extra(w,"graph",x+width,y+height);
+  float minimum=INFINITY,maximum=-INFINITY;for(float v:t.history)if(std::isfinite(v)){minimum=std::min(minimum,v);maximum=std::max(maximum,v);}
+  unsigned n=0;int stroke=large?3:2;
+  for(unsigned i=0;i<24;++i){
+    if(!std::isfinite(t.history[i]))continue;
+    float level=maximum>minimum?(t.history[i]-minimum)/(maximum-minimum):0.5f;
+    w.points[n++]={(lv_value_precise_t)(stroke/2+i*(width-stroke-1)/23),(lv_value_precise_t)(height-stroke/2-1-level*(height-stroke-2))};
+  }
+  if(n==1){w.points[1]=w.points[0];w.points[1].x=(lv_value_precise_t)(width-1);n=2;}
+  part_line(w,0,w.points,n,stroke,x,y);
+}
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !fresh() ? "HA niet verbonden" : model.title);
@@ -524,64 +750,80 @@ inline void render(lv_obj_t *room) {
     auto &w=widgets[slot];
     if(!w.tile || w.index>=model.count)continue;
     const auto &t = model.tiles[w.index];
+    auto d=t.domain();
     label(w.title, t.name.empty() ? t.entity : t.name);
     label(w.icon, icon_for(t));
     bool watch=t.display=="watch";
     std::string unit=watch?t.unit:"";
     std::string value = t.state;
     if (!fresh() || !t.available()) value = "Niet beschikbaar";
-    else if (t.domain() == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
-    else if (t.domain() == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
+    else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
+    else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
+    else if (d == "person") value = t.state=="home"?"Thuis":t.state=="not_home"?"Weg":t.state;
+    else if (d == "sun") value = !t.sunrise.empty() && !t.sunset.empty() ? t.sunrise+" - "+t.sunset : t.state=="above_horizon"?"Boven de horizon":"Onder de horizon";
+    else if (d == "timer") value = timer_text(t);
     else if (value == "on") value = "Aan";
     else if (value == "off") value = "Uit";
     else if (value == "cleaning") value = "Bezig";
     else if (value == "docked") value = "In dock";
     else if (!t.unit.empty() && !watch) value += " " + t.unit;
     bool pending=t.loading(esphome::millis());
-    if(t.domain()=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
-    if(t.domain()=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
+    if(d=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
+    if(d=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
     label(w.value, pending ? "Bezig..." : value);
     lv_obj_set_width(w.progress,pending ? (esphome::millis()/120%5+1)*(lv_obj_get_width(w.tile)-24)/5 : 0);
     lv_obj_set_style_text_opa(w.icon,pending ? LV_OPA_40 : LV_OPA_COVER,0);
     bool mini=t.inline_control=="slider" && !watch && t.available();
     bool large_tile=lv_obj_get_height(w.tile)>80;
-    if(!large_tile){lv_obj_set_style_pad_top(w.tile,watch?2:4,0);lv_obj_set_style_pad_bottom(w.tile,watch?2:4,0);}
+    // Cards that replace the name/status layout entirely.
+    bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.forecast_count>0 && fresh() && t.available();
+    bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
+    bool custom=clock||forecast;
+    if(!large_tile){lv_obj_set_style_pad_top(w.tile,watch||custom||graph?2:4,0);lv_obj_set_style_pad_bottom(w.tile,watch||custom||graph?2:4,0);}
     lv_obj_set_style_text_font(w.value,watch && watch_value_font ? watch_value_font : w.value_font,0);
     lv_obj_set_height(w.value,lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN)));
     lv_obj_update_layout(w.tile);
     int content_width=lv_obj_get_content_width(w.tile),content_height=lv_obj_get_content_height(w.tile);
+    for(auto *o:{w.title,w.value,w.circle,w.unit}){if(custom)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(o,LV_OBJ_FLAG_HIDDEN);}
+    if(custom){
+      lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+      if(clock)render_clock(w,t,large_tile,content_width,content_height);else render_forecast(w,t,large_tile,content_width,content_height);
+    }else{
     int title_height=lv_obj_get_height(w.title),value_height=lv_obj_get_height(w.value);
     int line_gap=large_tile?2:1,text_height=title_height+line_gap+value_height;
     int slider_height=large_tile?28:8;
-    int header_height=mini?content_height-slider_height-(large_tile?6:3):content_height;
+    // A single-width graph takes the slider strip; a wide graph takes the right half.
+    bool graph_strip=graph && !w.wide, graph_side=graph && w.wide;
+    int chart_w=graph_side?content_width*55/100:0;
+    int header_height=(mini||graph_strip)?content_height-slider_height-(large_tile?6:3):content_height;
     int text_y=std::max(0,(header_height-text_height)/2);
-    int circle_size=watch?(large_tile?26:18):mini?(large_tile?36:24):(large_tile?54:36);
+    int circle_size=watch?(large_tile?26:18):(mini||graph_strip)?(large_tile?36:24):(large_tile?54:36);
     lv_obj_set_size(w.circle,circle_size,circle_size);
-    lv_obj_set_style_text_font(w.icon,watch && watch_icon_font ? watch_icon_font : mini && mini_icon_font ? mini_icon_font : w.icon_font,0);
+    lv_obj_set_style_text_font(w.icon,watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font,0);
     lv_obj_center(w.icon);
-    lv_obj_remove_flag(w.circle,LV_OBJ_FLAG_HIDDEN);
-    int text_x=watch?0:mini?circle_size+(large_tile?8:6):w.title_x;
-    lv_obj_set_pos(w.title,text_x,watch?0:(mini || !large_tile)?text_y:w.title_y);
-    lv_obj_set_pos(w.value,watch?0:mini?text_x:w.value_x,
-      watch?(large_tile?42:19):(mini || !large_tile)?text_y+title_height+line_gap:w.value_y);
-    lv_obj_set_pos(w.circle,0,(mini || !large_tile)?std::max(0,(header_height-circle_size)/2):12);
+    int text_x=watch?0:(mini||graph_strip)?circle_size+(large_tile?8:6):w.title_x;
+    lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y);
+    lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
+      watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y);
+    lv_obj_set_pos(w.circle,0,(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12);
     // Use the requested coordinates: LVGL getters still return the previous
     // layout until its next pass when a slot changes from watch/slider to normal.
-    lv_obj_set_width(w.title,std::max(1,content_width-text_x));
-    lv_obj_set_width(w.value,std::max(1,content_width-(watch?0:mini?text_x:w.value_x)));
+    int text_room=content_width-chart_w-(graph_side?(large_tile?10:6):0);
+    lv_obj_set_width(w.title,std::max(1,text_room-text_x));
+    lv_obj_set_width(w.value,std::max(1,text_room-(watch?0:(mini||graph_strip)?text_x:w.value_x)));
     if(watch){
       int gap=large_tile?6:2,header=std::max(circle_size,title_height);
       int group_y=std::max(0,(content_height-header-gap-value_height)/2);
       int value_y=group_y+header+gap;
       lv_obj_set_pos(w.circle,0,group_y+(header-circle_size)/2);
       lv_obj_set_pos(w.title,circle_size+(large_tile?6:4),group_y+(header-title_height)/2);
-      lv_obj_set_width(w.title,content_width-circle_size-(large_tile?6:4));
+      lv_obj_set_width(w.title,text_room-circle_size-(large_tile?6:4));
       label(w.unit,unit);
       lv_point_t size;lv_text_get_size(&size,unit.c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
-      int unit_width=unit.empty()?0:std::min((int)size.x,content_width-20);
-      int number_width=content_width-(unit_width?unit_width+(large_tile?6:3):0);
+      int unit_width=unit.empty()?0:std::min((int)size.x,text_room-20);
+      int number_width=text_room-(unit_width?unit_width+(large_tile?6:3):0);
       lv_obj_set_pos(w.value,0,value_y);lv_obj_set_width(w.value,number_width);
-      lv_obj_set_pos(w.unit,content_width-unit_width,value_y+value_height-lv_font_get_line_height(w.value_font));
+      lv_obj_set_pos(w.unit,text_room-unit_width,value_y+value_height-lv_font_get_line_height(w.value_font));
       lv_obj_set_size(w.unit,unit_width,lv_font_get_line_height(w.value_font));
       if(unit_width)lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_HIDDEN);else lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
     }else lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
@@ -589,14 +831,18 @@ inline void render(lv_obj_t *room) {
     lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);
     if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
     else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+    if(graph_strip)render_graph(w,t,large_tile,0,content_height-slider_height,content_width,slider_height);
+    else if(graph_side)render_graph(w,t,large_tile,content_width-chart_w,0,chart_w,content_height);
+    else end_extra(w);
+    }
     bool on = fresh() && t.active();
     bool available=fresh() && t.available();
     int palette_state=(available?2:0)|(on?1:0);
     if (w.cached_active == palette_state) continue;
     w.cached_active = palette_state;
     uint32_t accent = domain_accent(t);
-    auto color=lv_color_hex(t.is_switch() && !on ? 0x9E9E9E : accent);
-    if(t.domain()=="light" && on && t.has_hs_color)
+    auto color=lv_color_hex((t.is_switch()||d=="person"||d=="timer") && !on ? 0x9E9E9E : accent);
+    if(d=="light" && on && t.has_hs_color)
       color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
     bool dark_text=light_theme || t.background!=0;
     auto circle_color=available?lv_color_mix(color,lv_color_hex(dark_text?0xFFFFFF:0x263B50),dark_text?38:65):lv_color_hex(dark_text?0xF0F0F0:0x263B50);
@@ -610,9 +856,18 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_style_border_color(w.tile, t.background ? lv_color_mix(lv_color_hex(t.background),lv_color_hex(0x000000),220) : lv_color_hex(light_theme ? 0xDDDDDD : (on ? 0xF5F1E8 : 0x9CB3C8)), 0);
     lv_obj_set_style_bg_color(w.circle,circle_color,0);
     lv_obj_set_style_text_color(w.icon,icon_color,0);
+    auto title_color=lv_color_hex(dark_text ? 0x1B1B1B : (on ? 0x172232 : 0xF3F5F7));
+    auto value_color=lv_color_hex(t.background ? 0x46525E : (light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8)));
     lv_obj_set_style_text_color(w.unit,lv_color_hex(dark_text?0x46525E:(on?0x46525E:0xF0F4F8)),0);
-    lv_obj_set_style_text_color(w.title, lv_color_hex(dark_text ? 0x1B1B1B : (on ? 0x172232 : 0xF3F5F7)), 0);
-    lv_obj_set_style_text_color(w.value, lv_color_hex(t.background ? 0x46525E : (light_theme ? 0x616161 : (on ? 0x46525E : 0xF0F4F8))), 0);
+    lv_obj_set_style_text_color(w.title, title_color, 0);
+    lv_obj_set_style_text_color(w.value, value_color, 0);
+    // Custom parts follow the card palette: text like the title, lines/dots in the accent.
+    for(unsigned i=0;i<w.parts.size();++i){
+      auto *p=w.parts[i];if(!p)continue;
+      if(lv_obj_check_type(p,&lv_label_class))lv_obj_set_style_text_color(p,w.extra_mode=="forecast" && i>=2 && i%3==2 ? value_color : i==16 ? value_color : title_color,0);
+      else if(lv_obj_check_type(p,&lv_line_class))lv_obj_set_style_line_color(p,w.extra_mode=="graph"?color:i==13?icon_color:title_color,0);
+      else lv_obj_set_style_bg_color(p,i==14?icon_color:value_color,0);
+    }
   }
 }
 
@@ -625,32 +880,57 @@ inline bool check_tile_geometry() {
     lv_area_t title,value,track,content;
     lv_obj_get_content_coords(w.tile,&content);
     lv_obj_get_coords(w.title,&title);lv_obj_get_coords(w.value,&value);
-    bool fits=title.x1>=content.x1 && title.x2<=content.x2 &&
-      value.x1>=content.x1 && value.x2<=content.x2 && title.y2<value.y1 && value.y2<=content.y2;
-    if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
-      lv_obj_get_coords(w.slider,&track);
-      fits=fits && value.y2<track.y1 && track.y2<=content.y2;
+    bool custom=lv_obj_has_flag(w.title,LV_OBJ_FLAG_HIDDEN);
+    bool fits=true;
+    if(w.wide && widgets[1].tile){
+      // A wide card ends exactly where the right column ends.
+      lv_area_t left,right;lv_obj_get_coords(w.tile,&left);lv_obj_get_coords(widgets[1].tile,&right);
+      int expected=lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)+w.base_width;
+      fits=lv_obj_get_width(w.tile)==expected;
+      if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,lv_obj_get_width(w.tile),expected);
     }
-    if(!lv_obj_has_flag(w.circle,LV_OBJ_FLAG_HIDDEN)){
-      lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
-      bool mini=!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
-      fits=fits && circle.x1>=content.x1 && circle.x2<title.x1 && circle.y1>=content.y1;
-      if(mini)fits=fits && circle.y2<track.y1;
-      else fits=fits && circle.y2<=content.y2;
-      if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,circle.x1,circle.y1,circle.x2,circle.y2,title.x1,content.x1,content.y1,content.x2,content.y2);
-      bool watch=w.index<model.count && model.tiles[w.index].display=="watch";
-      if(!watch && (mini || lv_obj_get_height(w.tile)<=80)){
-        int header_bottom=mini?track.y1-(lv_obj_get_height(w.tile)>80?6:3)-1:content.y2;
-        int center_twice=content.y1+header_bottom;
-        fits=fits && std::abs(circle.y1+circle.y2-center_twice)<=2 &&
-          std::abs(title.y1+value.y2-center_twice)<=2;
+    if(!custom){
+      fits=fits && title.x1>=content.x1 && title.x2<=content.x2 &&
+        value.x1>=content.x1 && value.x2<=content.x2 && title.y2<value.y1 && value.y2<=content.y2;
+      if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
+        lv_obj_get_coords(w.slider,&track);
+        fits=fits && value.y2<track.y1 && track.y2<=content.y2;
+      }
+      if(!lv_obj_has_flag(w.circle,LV_OBJ_FLAG_HIDDEN)){
+        lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
+        bool mini=!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+        fits=fits && circle.x1>=content.x1 && circle.x2<title.x1 && circle.y1>=content.y1;
+        if(mini)fits=fits && circle.y2<track.y1;
+        else fits=fits && circle.y2<=content.y2;
+        if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,circle.x1,circle.y1,circle.x2,circle.y2,title.x1,content.x1,content.y1,content.x2,content.y2);
+        bool watch=w.index<model.count && model.tiles[w.index].display=="watch";
+        bool graph=w.extra_mode=="graph";
+        if(!watch && !graph && (mini || lv_obj_get_height(w.tile)<=80)){
+          int header_bottom=mini?track.y1-(lv_obj_get_height(w.tile)>80?6:3)-1:content.y2;
+          int center_twice=content.y1+header_bottom;
+          fits=fits && std::abs(circle.y1+circle.y2-center_twice)<=2 &&
+            std::abs(title.y1+value.y2-center_twice)<=2;
+        }
+      }
+      if(!lv_obj_has_flag(w.unit,LV_OBJ_FLAG_HIDDEN)){
+        lv_area_t unit;lv_obj_get_coords(w.unit,&unit);
+        fits=fits && value.x2<unit.x1 && unit.x2<=content.x2 && unit.y2<=content.y2 && unit.y1>title.y2;
       }
     }
-    if(!lv_obj_has_flag(w.unit,LV_OBJ_FLAG_HIDDEN)){
-      lv_area_t unit;lv_obj_get_coords(w.unit,&unit);
-      fits=fits && value.x2<unit.x1 && unit.x2<=content.x2 && unit.y2<=content.y2 && unit.y1>title.y2;
+    if(w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN)){
+      // Custom parts stay inside the card; a graph never runs into the text.
+      lv_area_t extra;lv_obj_get_coords(w.extra,&extra);
+      fits=fits && extra.x1>=content.x1 && extra.x2<=content.x2 && extra.y1>=content.y1 && extra.y2<=content.y2;
+      for(auto *p:w.parts){
+        if(!p || lv_obj_has_flag(p,LV_OBJ_FLAG_HIDDEN))continue;
+        lv_area_t part;lv_obj_get_coords(p,&part);
+        bool inside=part.x1>=content.x1 && part.x2<=content.x2 && part.y1>=content.y1 && part.y2<=content.y2;
+        if(!inside)ESP_LOGE("ui_test","Part bounds slot=%u mode=%s part=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),part.x1,part.y1,part.x2,part.y2,content.x1,content.y1,content.x2,content.y2);
+        fits=fits && inside;
+        if(w.extra_mode=="graph" && !custom)fits=fits && (w.wide?part.x1>value.x2:part.y1>value.y2);
+      }
     }
-    if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
+    if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u mode=%s wide=%d title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,w.extra_mode.c_str(),w.wide,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
     if(w.index<model.count && model.tiles[w.index].background){
       bool palette_ok=lv_color_eq(lv_obj_get_style_bg_color(w.tile,LV_PART_MAIN),lv_color_hex(model.tiles[w.index].background)) &&
         lv_color_eq(lv_obj_get_style_text_color(w.title,LV_PART_MAIN),lv_color_hex(0x1B1B1B));
@@ -662,14 +942,21 @@ inline bool check_tile_geometry() {
   return ok;
 }
 
+inline unsigned page_count() {
+  std::array<Placement,MAX_TILES> placement;
+  return pack(model.tiles,model.count,placement);
+}
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
-  int pages=std::max(1,(int(model.count)+5)/6);
+  std::array<Placement,MAX_TILES> placement;
+  int pages=pack(model.tiles,model.count,placement);
   page=std::clamp(page,0,pages-1);
+  int wide_width=widgets[0].tile && widgets[1].tile ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)+widgets[0].base_width : 2*widgets[0].base_width;
+  for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=MAX_TILES;widgets[slot].wide=false;widgets[slot].cached_active=-1;}
+  for(size_t i=0;i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;}
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
-    if(slot<6){w.index=page*6+slot;w.cached_active=-1;}
-    if(slot<6 && w.index<model.count)lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
-    else lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
+    if(slot<SLOTS_PER_PAGE && w.index<model.count){lv_obj_set_width(w.tile,w.wide?wide_width:w.base_width);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);}
+    else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);end_extra(w);}
   }
   for(auto *control:{previous,next,number}){
     if(pages>1)lv_obj_remove_flag(control,LV_OBJ_FLAG_HIDDEN);
@@ -681,6 +968,7 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   if(refresh)refresh();
 }
 
+inline uint32_t last_live_second=0;
 inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
     auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());
@@ -696,6 +984,16 @@ inline void tick() {
   if(!enabled)return;
   bool redraw=false;
   for(auto &t:model.tiles)if(t.pending){redraw=true;if(!t.loading(esphome::millis()))t.pending=false;}
+  // Clocks and running timers advance once per second without any HA traffic.
+  uint32_t second=esphome::millis()/1000;
+  if(second!=last_live_second){
+    last_live_second=second;
+    for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
+      auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
+      const auto &t=model.tiles[w.index];
+      if(t.builtin() || (t.domain()=="timer" && t.state=="active"))redraw=true;
+    }
+  }
   if(redraw && refresh)refresh();
 }
 inline std::string vacuum_option(unsigned index) {

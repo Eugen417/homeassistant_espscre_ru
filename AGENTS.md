@@ -60,6 +60,9 @@ fysiek tikken; een agent kan dat niet vervangen door softwarecoördinaten.
   Firmwaretests en hardwareacceptatie zijn verschillende controles.
 - `diagnostics/run_ui_test.py` rendert zonder HA-acties; raak tijdens die test
   het scherm niet aan. Gebruik `--name` voor de verwachte apparaatidentiteit.
+  `diagnostics/send_layout.py` zet een demo-indeling met alle kaarttypen op een
+  scherm via de API-inbox (geen HA-acties); de manager herstelt de echte
+  indeling binnen ~25 s. Guition: `capture_ui.py` bewaart de LVGL-render als PNG.
 - Deel via `tools/export_bundle.py` of Git. Stage geen secrets, metingen,
   binaries, logs, buildcache of lokale apparaatprofielen.
 - Geen automatische firmware-upload naar een willekeurige aangesloten poort.

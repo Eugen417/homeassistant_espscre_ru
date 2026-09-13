@@ -7,6 +7,7 @@
 
 namespace runtime_tiles {
 constexpr size_t MAX_TILES = 20;
+constexpr size_t SLOTS_PER_PAGE = 6;
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
   auto dot = entity.find('.');
@@ -15,13 +16,16 @@ inline bool valid_entity(const std::string &entity) {
     if (i != dot && !(entity[i] >= 'a' && entity[i] <= 'z') &&
         !(entity[i] >= '0' && entity[i] <= '9') && entity[i] != '_') return false;
   std::string domain = entity.substr(0, dot);
-  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button"})
+  // screen.* are built-in cards without a Home Assistant entity behind them.
+  if (domain == "screen") return entity == "screen.clock";
+  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person"})
     if (domain == allowed) return true;
   return false;
 }
 inline std::string state_revision(const std::string &state, const std::string &attributes) {
   return state + "\n" + attributes;
 }
+struct Forecast { std::string day, condition; float high = NAN, low = NAN; };
 struct Tile {
   std::string entity, name, state, unit, modes, hvac_modes;
   std::array<std::string, 4> fan_speeds;
@@ -34,10 +38,15 @@ struct Tile {
   bool has_hs_color = false;
   int saturation = 0;
   std::string tap = "auto", display = "standard", inline_control = "none", media_title;
+  bool wide = false;
   std::array<std::string, 8> options;
   unsigned option_count = 0, history_hours = 24;
   std::array<float,24> history{};
   bool has_history = false;
+  std::array<Forecast, 5> forecast;
+  unsigned forecast_count = 0;
+  std::string sunrise, sunset, duration, remaining;
+  uint32_t timer_end = 0;
   float battery = NAN, volume = NAN;
   uint32_t supported = 0, background = 0;
   std::string revision, pending_revision;
@@ -49,9 +58,27 @@ struct Tile {
   void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; }
   void observe(const std::string &next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }
   std::string domain() const { return entity.substr(0, entity.find('.')); }
-  bool available() const { return received && state != "unknown" && state != "unavailable" && !state.empty(); }
-  bool active() const { return state == "on" || state == "cleaning" || (domain() == "climate" && available() && state != "off"); }
+  bool builtin() const { return domain() == "screen"; }
+  bool available() const { return builtin() || (received && state != "unknown" && state != "unavailable" && !state.empty()); }
+  bool active() const {
+    return state == "on" || state == "cleaning" || state == "active" || (domain() == "person" && state == "home") ||
+           (domain() == "sun" && state == "above_horizon") || (domain() == "climate" && available() && state != "off");
+  }
 };
+// Slot position of a tile within the fixed two-column, three-row pages.
+struct Placement { uint8_t page = 0, slot = 0; };
+// Wide tiles start in the left column and take the whole row; a right-column
+// gap before them stays empty. Returns the page count (at least one).
+inline unsigned pack(const std::array<Tile, MAX_TILES> &tiles, size_t count, std::array<Placement, MAX_TILES> &out) {
+  unsigned position = 0;
+  for (size_t i = 0; i < count && i < MAX_TILES; ++i) {
+    if (tiles[i].wide && position % 2 == 1) ++position;
+    out[i] = {static_cast<uint8_t>(position / SLOTS_PER_PAGE), static_cast<uint8_t>(position % SLOTS_PER_PAGE)};
+    position += tiles[i].wide ? 2 : 1;
+  }
+  unsigned pages = (position + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE;
+  return pages ? pages : 1;
+}
 struct Model {
   std::array<Tile, MAX_TILES> tiles;
   size_t count = 0;
