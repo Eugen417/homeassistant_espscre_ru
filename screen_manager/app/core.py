@@ -30,7 +30,9 @@ TILE_BACKGROUNDS = {
 }
 
 # Display modes per domain; everything else offers standard and watch (large value).
-DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog')}
+DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath')}
+# Displays that only work on a double-width card.
+WIDE_ONLY = ('forecast', 'sunpath')
 
 # Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
 SETTING_RULES = {
@@ -114,8 +116,8 @@ def validate_layout(data):
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError('Ongeldige tegelinstelling: ' + key)
-            # The five-day strip only fits a double-width card.
-            if options.get('display') == 'forecast':
+            # The five-day strip and the sun path only fit a double-width card.
+            if options.get('display') in WIDE_ONLY:
                 options = {**options, 'size': 'wide'}
             if options.get('tap') == 'toggle' and domain not in {'light','switch','input_boolean','fan','media_player'}:
                 raise ValueError('Deze entiteit ondersteunt geen aan/uit-actie.')

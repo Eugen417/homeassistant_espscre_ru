@@ -5,7 +5,6 @@ let inventory = { screens: [], entities: [] },
   layout = null,
   dirty = false,
   filter = "",
-  dragIndex = -1,
   busy = false,
   selectedTile = null;
 const node = (tag, text, cls) => {
@@ -225,7 +224,15 @@ const domains = {
   timer: ["Kookwekker", "⏱", "#008577", "#def3ed"],
   person: ["Persoon", "☺", "#2f7d32", "#e1f2e2"],
 };
-const displayNames = { standard: "standaard", watch: "grote waarde", forecast: "weersvoorspelling", graph: "grafiek", digital: "digitale klok", analog: "analoge klok" };
+const displayNames = { standard: "standaard", watch: "grote waarde", forecast: "weersvoorspelling", graph: "grafiek", digital: "digitale klok", analog: "analoge klok", sunpath: "zonnebaan" };
+// New tiles start with the card that shows the entity best.
+function defaultOptions(id) {
+  const domain = id.split(".")[0];
+  if (domain === "sun") return { options: { display: "sunpath", size: "wide" } };
+  if (domain === "weather") return { options: { display: "forecast", size: "wide" } };
+  if (domain === "screen") return { options: { display: "digital", size: "wide" } };
+  return {};
+}
 // Same packing as the firmware: wide tiles start in the left column and take a whole row.
 function packTiles(tiles) {
   let position = 0;
@@ -283,11 +290,8 @@ function renderPreview() {
       if(background)card.style.backgroundColor=background;
       if (place.wide) card.classList.add("wide");
       card.append(domainBadge(tile.entity), node("strong", name));
-      card.draggable = true;
-      card.ondragstart = (e) => { dragIndex = index; e.dataTransfer.setData("text/plain", String(index)); };
-      card.ondragend = () => { dragIndex = -1; };
-      card.ondragover = (e) => { if (dragIndex >= 0) e.preventDefault(); };
-      card.ondrop = (e) => { e.preventDefault(); if (dragIndex >= 0) move(dragIndex, index); };
+      card.dataset.index = index;
+      enableDrag(card, { kind: "tile", index });
       card.classList.toggle("chosen", selectedTile === tile.entity);
       card.setAttribute("aria-label", `Tegel ${index + 1}: ${name}, instellen`);
       card.onclick = () => {
@@ -322,27 +326,6 @@ function renderTiles() {
     if (i > 0 && placement[i].page !== placement[i - 1].page) $("#tiles").append(node("li", `Pagina ${placement[i].page + 1}`, "page-break"));
     const li = node("li", undefined, "tile");
     li.classList.toggle("selected-tile", selectedTile === tile.entity);
-    li.draggable = true;
-    li.ondragstart = (e) => {
-      if (e.target.closest("input, select, button")) {
-        e.preventDefault();
-        return;
-      }
-      dragIndex = i;
-      e.dataTransfer.setData("text/plain", String(i));
-      li.classList.add("dragging");
-    };
-    li.ondragend = () => {
-      dragIndex = -1;
-      li.classList.remove("dragging");
-    };
-    li.ondragover = (e) => {
-      if (dragIndex >= 0) e.preventDefault();
-    };
-    li.ondrop = (e) => {
-      e.preventDefault();
-      if (dragIndex >= 0) move(dragIndex, i);
-    };
     const content = node("div"),
       input = node("input");
     input.value = tile.name;
@@ -423,6 +406,7 @@ function renderTiles() {
       : [["standard", "Naam en status"], ["watch", "Grote waarde"]];
     if (domain === "weather") displays.push(["forecast", "Weersvoorspelling (dubbelbreed)"]);
     if (domain === "sensor") displays.push(["graph", "Grafiek van de geschiedenis"]);
+    if (domain === "sun") displays.push(["sunpath", "Zonnebaan (dubbelbreed)"]);
     const fields = [
       [
         "tap",
@@ -498,7 +482,7 @@ function renderTiles() {
         };
         if (key === "display" && input.value === "watch")
           tile.options.inline = "none";
-        if (key === "display" && input.value === "forecast")
+        if (key === "display" && ["forecast", "sunpath"].includes(input.value))
           tile.options.size = "wide";
         if (key === "inline" && input.value === "slider")
           tile.options.display = "standard";
@@ -522,6 +506,97 @@ function renderTiles() {
     $("#tiles").append(li);
   });
 }
+function addTile(id, at) {
+  if (layout.tiles.some((t) => t.entity === id) || layout.tiles.length >= tileLimit()) return;
+  layout.tiles.splice(Math.min(at, layout.tiles.length), 0, { entity: id, name: "", ...defaultOptions(id) });
+  selectedTile = id;
+  markDirty();
+  renderTiles();
+  renderResults();
+}
+// Pointer-based drag & drop: works with mouse and touch, from the picker into
+// the mockup and between tiles. Touch starts after a short hold so the page
+// still scrolls; a finished drag never doubles as a click.
+const drag = { active: false, source: null, element: null, ghost: null, target: null, timer: 0, start: null, offset: null, pointerId: null, suppressUntil: 0, last: null, scroller: 0 };
+function enableDrag(element, source) {
+  element.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || element.disabled) return;
+    Object.assign(drag, { source, element, start: { x: e.clientX, y: e.clientY }, pointerId: e.pointerId, active: false });
+    clearTimeout(drag.timer);
+    if (e.pointerType === "touch") drag.timer = setTimeout(() => beginDrag(e), 260);
+  });
+  element.addEventListener("pointermove", (e) => {
+    if (!drag.start || drag.element !== element) return;
+    const distance = Math.hypot(e.clientX - drag.start.x, e.clientY - drag.start.y);
+    if (!drag.active) {
+      if (e.pointerType === "touch") { if (distance > 10) { clearTimeout(drag.timer); drag.start = null; } return; }
+      if (distance < 6) return;
+      beginDrag(e);
+    }
+    moveDrag(e);
+  });
+  const finish = (e) => {
+    if (drag.element !== element) return;
+    clearTimeout(drag.timer);
+    if (drag.active) endDrag(e.type === "pointerup");
+    drag.start = null;
+  };
+  element.addEventListener("pointerup", finish);
+  element.addEventListener("pointercancel", finish);
+}
+function beginDrag(e) {
+  if (drag.active || !drag.start) return;
+  drag.active = true;
+  try { drag.element.setPointerCapture(drag.pointerId); } catch {}
+  const rect = drag.element.getBoundingClientRect();
+  const ghost = drag.element.cloneNode(true);
+  ghost.classList.add("drag-ghost");
+  ghost.style.width = `${rect.width}px`;
+  drag.offset = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  document.body.append(ghost);
+  drag.ghost = ghost;
+  document.body.classList.add("dragging");
+  document.addEventListener("touchmove", blockScroll, { passive: false });
+  // Near the viewport edges the page scrolls along, so the mockup can be reached on small screens.
+  drag.scroller = setInterval(() => {
+    if (!drag.last) return;
+    const step = drag.last.y < 70 ? -12 : drag.last.y > innerHeight - 70 ? 12 : 0;
+    if (step) { window.scrollBy(0, step); setTarget(document.elementFromPoint(drag.last.x, drag.last.y)?.closest(".preview-tile, .preview-gap, .preview-grid") || null); }
+  }, 16);
+  moveDrag(e);
+}
+function blockScroll(e) { if (drag.active) e.preventDefault(); }
+function moveDrag(e) {
+  if (!drag.ghost) return;
+  drag.last = { x: e.clientX, y: e.clientY };
+  drag.ghost.style.transform = `translate(${e.clientX - drag.offset.x}px, ${e.clientY - drag.offset.y}px)`;
+  const under = document.elementFromPoint(e.clientX, e.clientY);
+  setTarget(under?.closest(".preview-tile, .preview-gap, .preview-grid") || null);
+}
+function setTarget(target) {
+  if (drag.target === target) return;
+  drag.target?.classList.remove("drop-target");
+  drag.target = target;
+  drag.target?.classList.add("drop-target");
+}
+function endDrag(drop) {
+  const { target, source } = drag;
+  setTarget(null);
+  drag.ghost?.remove();
+  drag.ghost = null;
+  drag.active = false;
+  drag.suppressUntil = Date.now() + 400;
+  clearInterval(drag.scroller);
+  drag.last = null;
+  document.body.classList.remove("dragging");
+  document.removeEventListener("touchmove", blockScroll);
+  try { drag.element.releasePointerCapture(drag.pointerId); } catch {}
+  if (!drop || !target) return;
+  const to = target.dataset.index !== undefined ? Number(target.dataset.index) : layout.tiles.length;
+  if (source.kind === "tile") { if (to !== source.index) move(source.index, to); }
+  else addTile(source.id, to);
+}
+window.addEventListener("click", (e) => { if (Date.now() < drag.suppressUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
 function renderResults() {
   if (!layout) return;
   const query = $("#search").value.toLocaleLowerCase();
@@ -550,13 +625,8 @@ function renderResults() {
       node("span", chosen.has(entity.id) ? "✓" : "+", "plus"),
     );
     b.disabled = chosen.has(entity.id) || layout.tiles.length >= tileLimit();
-    b.onclick = () => {
-      layout.tiles.push({ entity: entity.id, name: "" });
-      selectedTile = entity.id;
-      markDirty();
-      renderTiles();
-      renderResults();
-    };
+    b.onclick = () => addTile(entity.id, layout.tiles.length);
+    if (!b.disabled) enableDrag(b, { kind: "entity", id: entity.id });
     $("#results").append(b);
   }
   if (!matches.length)
@@ -845,6 +915,7 @@ function openSection(id) {
   section.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 $("#nav-tiles").onclick = () => openSection("#tile-section");
+$("#open-help").onclick = () => openSection("#help");
 $("#nav-settings").onclick = () => openSection("#general-settings");
 $("#nav-inspector").onclick = () => inspect();
 async function inspect(entity) {

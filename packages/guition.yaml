@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.14"
+  SCREEN_FIRMWARE_VERSION: "0.2.15"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "guition-new"
@@ -3160,19 +3160,22 @@ lvgl:
                                     was_on: false
 
         # ---------- VALUE SLIDER OVERLAY ----------
+        # ---------- PAGE NAVIGATION: one full-width bar ----------
         - obj:
             id: page_prev
             align: BOTTOM_LEFT
-            x: 14
-            y: -4
-            width: 150
+            x: 0
+            y: 0
+            width: 200
             height: 44
             pad_all: 0
-            radius: 12
-            bg_color: 0xEEEEEE
-            bg_opa: COVER
+            radius: 0
+            bg_opa: TRANSP
             border_width: 0
             scrollable: false
+            pressed:
+              bg_color: 0xE3E3E3
+              bg_opa: COVER
             on_short_click:
               - if:
                   condition:
@@ -3182,31 +3185,39 @@ lvgl:
                     - script.execute: show_tile_page
             widgets:
               - label:
-                  align: CENTER
-                  text: "< Vorige"
-                  text_font: sublabel
+                  align: LEFT_MID
+                  x: 24
+                  text: "<  Vorige"
+                  text_font: label
                   text_color: 0x1B1B1B
                   clickable: false
         - label:
             id: page_number
             align: BOTTOM_MID
-            y: -18
+            y: 0
+            width: 80
+            height: 44
+            pad_top: 12
+            border_width: 0
             text: "1 / 2"
+            text_align: CENTER
             text_font: sublabel
             text_color: 0x1B1B1B
         - obj:
             id: page_next
             align: BOTTOM_RIGHT
-            x: -14
-            y: -4
-            width: 150
+            x: 0
+            y: 0
+            width: 200
             height: 44
             pad_all: 0
-            radius: 12
-            bg_color: 0xEEEEEE
-            bg_opa: COVER
+            radius: 0
+            bg_opa: TRANSP
             border_width: 0
             scrollable: false
+            pressed:
+              bg_color: 0xE3E3E3
+              bg_opa: COVER
             on_short_click:
               - if:
                   condition:
@@ -3216,9 +3227,10 @@ lvgl:
                     - script.execute: show_tile_page
             widgets:
               - label:
-                  align: CENTER
-                  text: "Volgende >"
-                  text_font: sublabel
+                  align: RIGHT_MID
+                  x: -24
+                  text: "Volgende  >"
+                  text_font: label
                   text_color: 0x1B1B1B
                   clickable: false
 

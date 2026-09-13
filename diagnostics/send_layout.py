@@ -23,7 +23,7 @@ def demo_layout():
         {'entity': 'sensor.demo_temperatuur', 'name': 'Woonkamer', 'options': {'display': 'graph'}},
         {'entity': 'person.demo', 'name': 'Max', 'options': {}},
         {'entity': 'timer.demo', 'name': 'Eieren', 'options': {}},
-        {'entity': 'sun.sun', 'name': 'Zon', 'options': {}},
+        {'entity': 'sun.sun', 'name': 'Zon', 'options': {'display': 'sunpath'}},
         {'entity': 'sensor.demo_energie', 'name': 'Verbruik vandaag', 'options': {'display': 'graph', 'size': 'wide'}},
         {'entity': 'light.demo', 'name': 'Tafellamp', 'options': {'display': 'watch', 'size': 'wide'}},
         {'entity': 'weather.demo_standaard', 'name': 'Weer nu', 'options': {}},

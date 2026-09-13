@@ -38,9 +38,10 @@ De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
 - **Speciale kaarten (firmware 0.2.14+):** een **klok** (digitaal of analoog)
   als ingebouwde tegel, een **weersvoorspelling** met vijf dagen op een
   dubbelbrede kaart, een **grafiek** van de sensorgeschiedenis in de tegel,
-  **zonsopgang/-ondergang** (`sun.sun`), een **kookwekker** (`timer.*`, tikken
-  start of pauzeert) en **aanwezigheid** (`person.*`). Kies ze in de kiezer als
-  elke andere tegel; **Dubbelbreed** is een optie voor iedere tegel.
+  een **zonnebaan** (`sun.sun`: horizon met de zon tussen opkomst en
+  ondergang), een **kookwekker** (`timer.*`, tikken start of pauzeert) en
+  **aanwezigheid** (`person.*`). Kies ze in de kiezer als elke andere tegel of
+  sleep ze direct in de schermmockup; **Dubbelbreed** is een optie voor iedere tegel.
 - **Scherminstellingen:** standby-tijd, normale en gedimde helderheid,
   nachturen, klok, terug naar de hoofdpagina en optioneel swipen tussen pagina's.
 - **Guition-rotatie:** 0°, 90°, 180° of 270°, direct vanuit de beheerpagina.

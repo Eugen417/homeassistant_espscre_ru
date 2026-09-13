@@ -28,6 +28,7 @@ inline const lv_font_t *mini_icon_font = nullptr;
 inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
 // Big digits for the clock card; the board profile sets it with the local time source.
 inline const lv_font_t *clock_font = nullptr;
+inline lv_obj_t *room_label = nullptr;  // remembered by render() so page switches can render synchronously
 inline std::function<esphome::ESPTime()> now_time;
 inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
 inline void tick();
@@ -75,7 +76,10 @@ struct Widgets {
   int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
   // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
   bool wide=false; int base_width=0; lv_obj_t *extra{}; std::string extra_mode; std::array<lv_obj_t *, 20> parts{}; lv_point_precise_t *points{};
+  // Soft area under a polyline (graph, sun path), painted by the extra container's draw event.
+  const lv_point_precise_t *fill_points{}; unsigned fill_count=0; int fill_x=0, fill_y=0, fill_base=0; lv_color_t fill_color{}; lv_opa_t fill_opa=0;
 };
+constexpr unsigned POINT_BUFFER = 128;
 inline std::array<Widgets, 10> widgets;
 inline bool fresh() { return model.ready() && esphome::millis() - last_received < 95000; }
 inline float number(JsonVariant value, float fallback = NAN) {
@@ -640,12 +644,46 @@ inline uint32_t domain_accent(const Tile &t) {
 inline void end_extra(Widgets &w) {
   if(!w.extra)return;
   lv_obj_add_flag(w.extra,LV_OBJ_FLAG_HIDDEN);
+  w.fill_points=nullptr;w.fill_count=0;
   if(!w.extra_mode.empty()){lv_obj_clean(w.extra);w.parts.fill(nullptr);w.extra_mode.clear();delete[] w.points;w.points=nullptr;}
 }
+// Two triangles per segment between the polyline and its baseline. No canvas
+// buffer is needed, so the CYD can afford it as well.
+inline void extra_draw(lv_event_t *e) {
+  auto &w=*static_cast<Widgets *>(lv_event_get_user_data(e));
+  if(!w.fill_points || w.fill_count<2 || !w.fill_opa)return;
+  auto *layer=lv_event_get_layer(e);lv_area_t area;lv_obj_get_coords(w.extra,&area);
+  lv_draw_triangle_dsc_t dsc;lv_draw_triangle_dsc_init(&dsc);dsc.color=w.fill_color;dsc.opa=w.fill_opa;
+  const lv_value_precise_t ox=area.x1+w.fill_x, oy=area.y1+w.fill_y, base=oy+w.fill_base;
+  for(unsigned i=0;i+1<w.fill_count;++i){
+    const auto &a=w.fill_points[i],&b=w.fill_points[i+1];
+    dsc.p[0]={ox+a.x,oy+a.y};dsc.p[1]={ox+b.x,oy+b.y};dsc.p[2]={ox+b.x,base};lv_draw_triangle(layer,&dsc);
+    dsc.p[1]=dsc.p[2];dsc.p[2]={ox+a.x,base};lv_draw_triangle(layer,&dsc);
+  }
+}
 inline void begin_extra(Widgets &w,const char *mode,int width,int height) {
-  if(!w.extra){w.extra=lv_obj_create(w.tile);lv_obj_remove_style_all(w.extra);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_SCROLLABLE);}
-  if(w.extra_mode!=mode){end_extra(w);w.extra_mode=mode;w.points=new lv_point_precise_t[28];w.cached_active=-1;}
+  if(!w.extra){
+    w.extra=lv_obj_create(w.tile);lv_obj_remove_style_all(w.extra);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_event_cb(w.extra,extra_draw,LV_EVENT_DRAW_MAIN,&w);
+  }
+  if(w.extra_mode!=mode){end_extra(w);w.extra_mode=mode;w.points=new lv_point_precise_t[POINT_BUFFER];w.cached_active=-1;}
+  w.fill_points=nullptr;w.fill_count=0;
   lv_obj_set_pos(w.extra,0,0);lv_obj_set_size(w.extra,width,height);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_HIDDEN);
+}
+// Catmull-Rom curve through the samples: the trend reads smoothly without extra data.
+inline unsigned smooth(const lv_point_precise_t *in,unsigned n,lv_point_precise_t *out,unsigned capacity,int width,int height) {
+  if(n<2 || capacity<2){for(unsigned i=0;i<n && i<capacity;++i)out[i]=in[i];return n<capacity?n:capacity;}
+  const unsigned steps=4;unsigned count=0;
+  for(unsigned i=0;i+1<n;++i){
+    const auto &p0=in[i?i-1:0],&p1=in[i],&p2=in[i+1],&p3=in[i+2<n?i+2:n-1];
+    for(unsigned s=0;s<steps && count<capacity-1;++s){
+      float t=float(s)/steps,t2=t*t,t3=t2*t;
+      float x=0.5f*(2*p1.x+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3);
+      float y=0.5f*(2*p1.y+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3);
+      out[count++]={(lv_value_precise_t)std::clamp(x,0.0f,float(width-1)),(lv_value_precise_t)std::clamp(y,0.0f,float(height-1))};
+    }
+  }
+  out[count++]=in[n-1];return count;
 }
 inline lv_obj_t *part_label(Widgets &w,unsigned i,const lv_font_t *font,int x,int y,int width,lv_text_align_t align,const std::string &text) {
   auto *&p=w.parts[i];
@@ -730,21 +768,66 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
     }
   }
 }
-// Sparkline of the manager's 24 history samples in the given rectangle.
+// Smoothed trend of the manager's 24 history samples with a soft fill beneath.
 inline void render_graph(Widgets &w,const Tile &t,bool large,int x,int y,int width,int height) {
   begin_extra(w,"graph",x+width,y+height);
   float minimum=INFINITY,maximum=-INFINITY;for(float v:t.history)if(std::isfinite(v)){minimum=std::min(minimum,v);maximum=std::max(maximum,v);}
-  unsigned n=0;int stroke=large?3:2;
+  lv_point_precise_t raw[24];unsigned n=0;int stroke=large?3:2,top=stroke;
   for(unsigned i=0;i<24;++i){
     if(!std::isfinite(t.history[i]))continue;
     float level=maximum>minimum?(t.history[i]-minimum)/(maximum-minimum):0.5f;
-    w.points[n++]={(lv_value_precise_t)(stroke/2+i*(width-stroke-1)/23),(lv_value_precise_t)(height-stroke/2-1-level*(height-stroke-2))};
+    raw[n++]={(lv_value_precise_t)(stroke/2+i*(width-stroke-1)/23),(lv_value_precise_t)(height-stroke/2-1-level*(height-stroke-1-top))};
   }
-  if(n==1){w.points[1]=w.points[0];w.points[1].x=(lv_value_precise_t)(width-1);n=2;}
-  part_line(w,0,w.points,n,stroke,x,y);
+  if(n==1){raw[1]=raw[0];raw[1].x=(lv_value_precise_t)(width-1);n=2;}
+  unsigned count=smooth(raw,n,w.points,POINT_BUFFER,width,height);
+  part_line(w,0,w.points,count,stroke,x,y);
+  w.fill_points=w.points;w.fill_count=count;w.fill_x=x;w.fill_y=y;w.fill_base=height;w.fill_opa=LV_OPA_20;
+}
+// Sun path: horizon, an arc from sunrise to sunset and the sun at the current
+// position (or below the horizon at night). Wide cards only.
+inline int minutes_of(const std::string &clock) {
+  unsigned h=0,m=0;return sscanf(clock.c_str(),"%u:%u",&h,&m)==2 && h<24 && m<60 ? int(h*60+m) : -1;
+}
+inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int height) {
+  begin_extra(w,"sunpath",width,height);
+  const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
+  int title_h=lv_font_get_line_height(title_font),text_h=lv_font_get_line_height(w.value_font);
+  int horizon=height-text_h-(large?4:2),top=title_h+(large?4:2),x0=large?14:8,x1=width-x0;
+  part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?"Zon":t.name);
+  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,"op "+t.sunrise);
+  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,"onder "+t.sunset);
+  auto now=now_time?now_time():esphome::ESPTime{};
+  int rise=minutes_of(t.sunrise),set=minutes_of(t.sunset),minute=now.is_valid()?now.hour*60+now.minute:-1;
+  bool day=t.state=="above_horizon";float fraction=0.5f;
+  if(rise>=0 && set>=0 && minute>=0){
+    if(day){int span=(set-rise+1440)%1440;if(!span)span=1;fraction=std::clamp(float((minute-rise+1440)%1440)/span,0.0f,1.0f);}
+    else{int span=(rise-set+1440)%1440;if(!span)span=1;fraction=std::clamp(float((minute-set+1440)%1440)/span,0.0f,1.0f);}
+  }
+  const unsigned segments=40;float amplitude=day?float(horizon-top):float(height-text_h-horizon-(large?2:1));
+  auto *arc=w.points,*travelled=w.points+segments+1,*line=w.points+2*segments+3;
+  for(unsigned i=0;i<=segments;++i){
+    float a=3.14159265f*i/segments;
+    arc[i]={(lv_value_precise_t)(x0+(x1-x0)*float(i)/segments),(lv_value_precise_t)(day?horizon-sinf(a)*amplitude:horizon+sinf(a)*amplitude)};
+  }
+  unsigned filled=std::min(segments,unsigned(fraction*segments));
+  for(unsigned i=0;i<=filled;++i)travelled[i]=arc[i];
+  float sa=3.14159265f*fraction;
+  lv_point_precise_t sun={(lv_value_precise_t)(x0+(x1-x0)*fraction),(lv_value_precise_t)(day?horizon-sinf(sa)*amplitude:horizon+sinf(sa)*amplitude)};
+  travelled[filled+1]=sun;
+  line[0]={(lv_value_precise_t)0,(lv_value_precise_t)horizon};line[1]={(lv_value_precise_t)(width-1),(lv_value_precise_t)horizon};
+  bool dark_text=light_theme || t.background!=0;
+  uint32_t path=dark_text?0xCFD8DC:0x6B8299, accent=day?0xFF9800:0x5C6BC0, disc=day?0xFFB300:0xB0BEC5;
+  lv_obj_set_style_line_color(part_line(w,3,line,2,2),lv_color_hex(path),0);
+  lv_obj_set_style_line_color(part_line(w,4,arc,segments+1,large?2:1),lv_color_hex(path),0);
+  lv_obj_set_style_line_color(part_line(w,5,travelled,filled+2,large?4:3),lv_color_hex(accent),0);
+  int size=large?18:10,glow=size+(large?12:6);
+  auto *halo=part_dot(w,6,int(sun.x)-glow/2,int(sun.y)-glow/2,glow);lv_obj_set_style_bg_color(halo,lv_color_hex(disc),0);lv_obj_set_style_bg_opa(halo,LV_OPA_30,0);
+  lv_obj_set_style_bg_color(part_dot(w,7,int(sun.x)-size/2,int(sun.y)-size/2,size),lv_color_hex(disc),0);
+  if(day){w.fill_points=travelled;w.fill_count=filled+2;w.fill_x=0;w.fill_y=0;w.fill_base=horizon;w.fill_color=lv_color_hex(0xFFB300);w.fill_opa=LV_OPA_20;}
 }
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
+  room_label=room;
   label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !fresh() ? "HA niet verbonden" : model.title);
   for (size_t slot = 0; slot < 6; ++slot) {
     auto &w=widgets[slot];
@@ -777,8 +860,9 @@ inline void render(lv_obj_t *room) {
     bool large_tile=lv_obj_get_height(w.tile)>80;
     // Cards that replace the name/status layout entirely.
     bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.forecast_count>0 && fresh() && t.available();
+    bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.sunrise.empty() && !t.sunset.empty() && fresh() && t.available();
     bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
-    bool custom=clock||forecast;
+    bool custom=clock||forecast||sunpath;
     if(!large_tile){lv_obj_set_style_pad_top(w.tile,watch||custom||graph?2:4,0);lv_obj_set_style_pad_bottom(w.tile,watch||custom||graph?2:4,0);}
     lv_obj_set_style_text_font(w.value,watch && watch_value_font ? watch_value_font : w.value_font,0);
     lv_obj_set_height(w.value,lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN)));
@@ -787,7 +871,9 @@ inline void render(lv_obj_t *room) {
     for(auto *o:{w.title,w.value,w.circle,w.unit}){if(custom)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(o,LV_OBJ_FLAG_HIDDEN);}
     if(custom){
       lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
-      if(clock)render_clock(w,t,large_tile,content_width,content_height);else render_forecast(w,t,large_tile,content_width,content_height);
+      if(clock)render_clock(w,t,large_tile,content_width,content_height);
+      else if(sunpath)render_sunpath(w,t,large_tile,content_width,content_height);
+      else render_forecast(w,t,large_tile,content_width,content_height);
     }else{
     int title_height=lv_obj_get_height(w.title),value_height=lv_obj_get_height(w.value);
     int line_gap=large_tile?2:1,text_height=title_height+line_gap+value_height;
@@ -862,9 +948,13 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_style_text_color(w.title, title_color, 0);
     lv_obj_set_style_text_color(w.value, value_color, 0);
     // Custom parts follow the card palette: text like the title, lines/dots in the accent.
+    // The sun path sets its own colours on every render.
+    w.fill_color=color;
     for(unsigned i=0;i<w.parts.size();++i){
       auto *p=w.parts[i];if(!p)continue;
-      if(lv_obj_check_type(p,&lv_label_class))lv_obj_set_style_text_color(p,w.extra_mode=="forecast" && i>=2 && i%3==2 ? value_color : i==16 ? value_color : title_color,0);
+      bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : i==16;
+      if(lv_obj_check_type(p,&lv_label_class))lv_obj_set_style_text_color(p,muted?value_color:title_color,0);
+      else if(w.extra_mode=="sunpath")continue;
       else if(lv_obj_check_type(p,&lv_line_class))lv_obj_set_style_line_color(p,w.extra_mode=="graph"?color:i==13?icon_color:title_color,0);
       else lv_obj_set_style_bg_color(p,i==14?icon_color:value_color,0);
     }
@@ -946,7 +1036,15 @@ inline unsigned page_count() {
   std::array<Placement,MAX_TILES> placement;
   return pack(model.tiles,model.count,placement);
 }
-inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
+// Page switches feel immediate: the new page's card frames (right widths, no
+// contents, light skeleton style) appear in the very next frame, and a one-shot
+// LVGL timer fills them in right after. Keepalives and re-packing on the same
+// page apply directly. Nothing is allocated, so the CYD stays comfortable.
+inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
+inline int applied_page=-1,target_page=0;
+inline lv_timer_t *page_timer=nullptr;
+// Slot assignment plus card widths and visibility for a page; contents are untouched.
+inline int place_page(int page) {
   std::array<Placement,MAX_TILES> placement;
   int pages=pack(model.tiles,model.count,placement);
   page=std::clamp(page,0,pages-1);
@@ -958,14 +1056,41 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
     if(slot<SLOTS_PER_PAGE && w.index<model.count){lv_obj_set_width(w.tile,w.wide?wide_width:w.base_width);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);}
     else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);end_extra(w);}
   }
-  for(auto *control:{previous,next,number}){
+  for(auto *control:{nav_prev,nav_next,nav_number}){
     if(pages>1)lv_obj_remove_flag(control,LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(control,LV_OBJ_FLAG_HIDDEN);
   }
-  if(page==0)lv_obj_add_state(previous,LV_STATE_DISABLED);else lv_obj_remove_state(previous,LV_STATE_DISABLED);
-  if(page==pages-1)lv_obj_add_state(next,LV_STATE_DISABLED);else lv_obj_remove_state(next,LV_STATE_DISABLED);
-  std::string caption=std::to_string(page+1)+" / "+std::to_string(pages);lv_label_set_text(number,caption.c_str());
-  if(refresh)refresh();
+  if(page==0)lv_obj_add_state(nav_prev,LV_STATE_DISABLED);else lv_obj_remove_state(nav_prev,LV_STATE_DISABLED);
+  if(page==pages-1)lv_obj_add_state(nav_next,LV_STATE_DISABLED);else lv_obj_remove_state(nav_next,LV_STATE_DISABLED);
+  for(auto *control:{nav_prev,nav_next})if(lv_obj_get_child_count(control))
+    lv_obj_set_style_text_opa(lv_obj_get_child(control,0),lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER,0);
+  std::string caption=std::to_string(page+1)+" / "+std::to_string(pages);lv_label_set_text(nav_number,caption.c_str());
+  return page;
+}
+inline void apply_page(int page) {
+  applied_page=place_page(page);
+  if(room_label)render(room_label);else if(refresh)refresh();
+}
+inline void skeleton_page(int page) {
+  place_page(page);
+  uint32_t bg=light_theme?0xF4F5F7:0x4A6076, border=light_theme?0xE3E5E8:0x6F879C;
+  for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
+    auto &w=widgets[slot];if(!w.tile || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
+    for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_width(w.progress,0);
+    lv_obj_set_style_bg_color(w.tile,lv_color_hex(bg),0);
+    lv_obj_set_style_border_color(w.tile,lv_color_hex(border),0);
+  }
+}
+inline void page_timer_done(lv_timer_t *) { page_timer=nullptr; apply_page(target_page); }
+inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
+  nav_prev=previous;nav_next=next;nav_number=number;
+  page=std::clamp(page,0,int(page_count())-1);
+  target_page=page;
+  if(applied_page<0 || page==applied_page){if(page_timer){lv_timer_delete(page_timer);page_timer=nullptr;}apply_page(page);return;}
+  skeleton_page(page);
+  if(page_timer)lv_timer_reset(page_timer);
+  else{page_timer=lv_timer_create(page_timer_done,60,nullptr);lv_timer_set_repeat_count(page_timer,1);}
 }
 
 inline uint32_t last_live_second=0;
@@ -991,7 +1116,7 @@ inline void tick() {
     for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
-      if(t.builtin() || (t.domain()=="timer" && t.state=="active"))redraw=true;
+      if(t.builtin() || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))redraw=true;
     }
   }
   if(redraw && refresh)refresh();

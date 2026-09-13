@@ -12,11 +12,29 @@
       <div class="brand">
         <span class="mark">▦</span>
         <div>
-          <strong>ESP Screens</strong><small>Je huis. Jouw bediening.</small>
+          <strong>ESP Screens</strong
+          ><small>Tegels voor je CYD en Guition, zonder opnieuw flashen</small>
         </div>
       </div>
-      <button id="open-firmware" class="quiet">Firmware & USB</button>
-      <button id="new-screen">＋ Nieuw scherm</button>
+      <nav class="toolbar" aria-label="Acties">
+        <button id="new-screen" class="tool tool-primary">
+          <span class="tool-icon" aria-hidden="true">＋</span>
+          <span class="tool-text"
+            ><b>Nieuw scherm</b><small>Koppel een CYD of Guition</small></span
+          >
+        </button>
+        <button id="open-firmware" class="tool">
+          <span class="tool-icon" aria-hidden="true">⇪</span>
+          <span class="tool-text"
+            ><b>Firmware & USB</b
+            ><small>Bouwen en installeren via USB of wifi</small></span
+          >
+        </button>
+        <button id="open-help" class="tool">
+          <span class="tool-icon" aria-hidden="true">?</span>
+          <span class="tool-text"><b>Uitleg</b><small>Hoe werkt het</small></span>
+        </button>
+      </nav>
     </header>
     <main>
       <div class="intro">
@@ -27,6 +45,26 @@
         </div>
         <span id="connection" role="status" class="badge">Verbinden…</span>
       </div>
+      <ol class="howto" aria-label="Zo werkt het">
+        <li>
+          <b>1 · Koppelen</b><span
+            >Kies <b>Nieuw scherm</b> voor de installatie-YAML met eigen
+            sleutels. Eén keer via USB flashen, daarna gaat alles draadloos.</span
+          >
+        </li>
+        <li>
+          <b>2 · Tegels kiezen</b><span
+            >Sleep entiteiten uit de lijst rechts in de schermmockup, of tik
+            op +. Klik op een tegel voor weergave, breedte en kleur.</span
+          >
+        </li>
+        <li>
+          <b>3 · Opslaan</b><span
+            >Met <b>Opslaan & naar scherm</b> staat het direct op je scherm.
+            Nieuwe schermfuncties installeer je via <b>Firmware & USB</b>.</span
+          >
+        </li>
+      </ol>
       <div class="workspace">
         <aside>
           <h2>Mijn schermen</h2>
@@ -136,7 +174,7 @@
         <b>Firmware & USB</b> bovenaan. Je bestaande YAML en secrets blijven
         bewaard.
       </p>
-      <details class="help">
+      <details class="help" id="help">
         <summary>Hoe werkt het dagelijks?</summary>
         <p>
           Zoek een entiteit, voeg deze toe en klik op
@@ -147,9 +185,18 @@
           waarde, mini-schuif of klikgedrag.
         </p>
         <p>
-          Nieuwe firmware bouw en installeer je hier met de ingebouwde ESPHome
-          CLI. Je tegels blijven in deze app bewaard. Een offline scherm krijgt
-          de wijzigingen zodra het terug is.
+          Speciale kaarten: de <b>Klok</b> staat bovenaan de kiezer; een
+          weerentiteit toont de vijfdaagse voorspelling, <code>sun.sun</code>
+          de zonnebaan, een sensor een trendgrafiek, een <code>timer</code>
+          telt live af en een <code>person</code> toont thuis/weg. Zet een
+          tegel op <b>Dubbelbreed</b> voor meer ruimte.
+        </p>
+        <p>
+          Nieuwe firmware bouw en installeer je via <b>Firmware & USB</b> met
+          de ingebouwde ESPHome CLI: kies je eigen profiel, dan een USB-poort of
+          wifi, en klik op <b>Bouwen & installeren</b>. Je tegels blijven in
+          deze app bewaard; een offline scherm krijgt de wijzigingen zodra het
+          terug is.
         </p>
       </details>
     </main>
@@ -271,13 +318,19 @@
     </dialog>
     <dialog id="firmware-dialog">
       <div class="dialog-head">
-        <h2>Firmware & USB</h2>
-        <button id="close-firmware" class="quiet">Sluiten</button>
+        <div>
+          <p class="eyebrow">FIRMWARE & USB</p>
+          <h2>Schermfirmware bouwen en installeren</h2>
+        </div>
+        <button id="close-firmware" class="quiet" aria-label="Sluiten">✕</button>
       </div>
       <p>
-        De ingebouwde ESPHome CLI gebruikt je eigen YAML en secrets. Tegels
-        blijven in ESP Screens staan. Op de Raspberry kan de eerste build enkele
-        minuten duren.
+        De ingebouwde ESPHome CLI gebruikt je eigen profiel (YAML met sleutels)
+        en secrets. Kies het profiel van het scherm, dan een USB-poort (scherm
+        aan de Home Assistant-machine) of <b>Wifi / OTA</b> met de hostnaam.
+        <b>Controleren</b> valideert alleen, <b>Alleen bouwen</b> compileert,
+        <b>Bouwen & installeren</b> zet de firmware op het scherm. Je tegels
+        blijven in ESP Screens staan. De eerste build duurt enkele minuten.
       </p>
       <label>ESPHome-profiel<select id="firmware-file"></select></label>
       <label

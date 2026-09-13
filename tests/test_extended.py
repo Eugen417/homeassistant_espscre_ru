@@ -62,6 +62,7 @@ class SpecialTiles(unittest.TestCase):
   layout=validate_layout({'title':'T','tiles':[{'entity':'screen.clock','options':{'display':'analog','size':'wide'}},{'entity':'sun.sun'},{'entity':'timer.egg'},{'entity':'person.max'},
    {'entity':'weather.home','options':{'display':'forecast'}},{'entity':'sensor.t','options':{'display':'graph','size':'wide'}}]})
   self.assertEqual(layout['tiles'][4]['options'],{'display':'forecast','size':'wide'},'forecast forces a wide card')
+  self.assertEqual(validate_layout({'title':'T','tiles':[{'entity':'sun.sun','options':{'display':'sunpath'}}]})['tiles'][0]['options'],{'display':'sunpath','size':'wide'})
   self.assertEqual(layout['tiles'][0]['options']['display'],'analog')
   for tile in [{'entity':'screen.other'},{'entity':'light.a','options':{'size':'double'}},{'entity':'light.a','options':{'display':'graph'}},
                {'entity':'sensor.a','options':{'display':'forecast'}},{'entity':'screen.clock','options':{'display':'watch'}}]:

@@ -184,6 +184,98 @@ aside h2 {
   color: var(--muted);
   padding: 7px;
 }
+.toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.tool {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px 8px 9px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: white;
+  color: var(--ink);
+  text-align: left;
+}
+.tool:hover {
+  border-color: #b9cbec;
+  box-shadow: 0 3px 10px #202c3c0c;
+}
+.tool-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--soft);
+  color: var(--accent);
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+  font-weight: 700;
+  flex: none;
+}
+.tool-primary .tool-icon {
+  background: var(--accent);
+  color: white;
+}
+.tool-text b {
+  display: block;
+  font-size: 13px;
+}
+.tool-text small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.howto {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 26px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.howto li {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+.howto li > b {
+  display: block;
+  color: var(--ink);
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+.preview-tile,
+.result {
+  touch-action: pan-y;
+  cursor: grab;
+}
+.drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1000;
+  pointer-events: none;
+  opacity: 0.92;
+  box-shadow: 0 14px 32px #202c3c33;
+  background: white;
+  margin: 0;
+}
+.drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  background: var(--soft) !important;
+}
+body.dragging {
+  cursor: grabbing;
+  user-select: none;
+}
 #editor,
 .empty {
   background: white;
@@ -331,9 +423,15 @@ aside h2 {
   font-size: 22px;
 }
 .savebar {
-  margin-top: 25px;
-  padding-top: 20px;
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  margin: 25px -27px -27px;
+  padding: 16px 27px;
+  background: #ffffffee;
+  backdrop-filter: blur(6px);
   border-top: 1px solid var(--line);
+  border-radius: 0 0 18px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -475,9 +573,21 @@ dialog label {
     margin-bottom: 10px;
   }
 }
+@media (max-width: 1000px) {
+  .howto {
+    grid-template-columns: 1fr;
+  }
+}
 @media (max-width: 620px) {
   main {
     padding: 25px 16px;
+  }
+  .tool-text small {
+    display: none;
+  }
+  .savebar {
+    margin: 25px -18px -18px;
+    padding: 14px 18px;
   }
   .workspace {
     display: block;

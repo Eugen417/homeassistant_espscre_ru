@@ -59,7 +59,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.14"
+  SCREEN_FIRMWARE_VERSION: "0.2.15"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
@@ -644,8 +644,8 @@ substitutions:
   OVERLAY_SLIDER_W: "96"
   OVERLAY_SLIDER_H: "160"
   OVERLAY_ICON_Y: "74"
-  BG_TOP_COLOR: "0xAEC4D9"                          # achtergrond boven (zacht blauw)
-  BG_BOTTOM_COLOR: "0xD6BB9E"                       # achtergrond onder (warm zand)
+  BG_TOP_COLOR: "0xE7E7E7"                          # lichte achtergrond, gelijk aan de Guition
+  BG_BOTTOM_COLOR: "0xE7E7E7"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "0"
   TILE_TITLE_X: "48"
@@ -813,6 +813,7 @@ esphome:
           settings.night_start = atoi("${NIGHT_START_HOUR}") * 60;
           settings.night_end = atoi("${NIGHT_END_HOUR}") * 60;
           settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
+          runtime_tiles::light_theme = true;
           runtime_tiles::watch_font = id(headline)->get_lv_font();
           runtime_tiles::watch_value_font = id(watch_value)->get_lv_font();
           runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
@@ -902,7 +903,7 @@ esphome:
       - lambda: |-
           static const char *entities[] = {"${TILE1_ENTITY}", "${TILE2_ENTITY}", "${TILE3_ENTITY}", "${TILE4_ENTITY}", "${TILE5_ENTITY}", "${TILE6_ENTITY}", "${TILE7_ENTITY}", "${TILE9_ENTITY}"};
           if (!runtime_tiles::enabled) light_controls::subscribe(entities, 8);
-          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"));
+          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"), true);
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
@@ -1992,7 +1993,9 @@ lvgl:
       bg_color: 0xFFFFFF
       bg_opa: COVER
       radius: 18
-      border_width: 0
+      border_width: 1
+      border_color: 0xDDDDDD
+      border_opa: COVER
       pad_left: 8
       pad_right: 8
       pad_top: 8
@@ -2001,10 +2004,12 @@ lvgl:
       shadow_opa: 40%
 
     - id: style_tile_disabled
-      bg_color: 0x939391
+      bg_color: 0xFFFFFF
       bg_opa: COVER
       radius: 18
-      border_width: 0
+      border_width: 1
+      border_color: 0xDDDDDD
+      border_opa: COVER
       pad_left: 8
       pad_right: 8
       pad_top: 8
@@ -2013,25 +2018,25 @@ lvgl:
       shadow_opa: 25%
 
     - id: style_icon_circle
-      bg_color: 0xFEC600
+      bg_color: 0xD5EEFC
       bg_opa: COVER
       radius: 999
       border_width: 0
 
     - id: style_icon_circle_disabled
-      bg_color: 0x7B7B6F
+      bg_color: 0xEEEEEE
       bg_opa: COVER
       radius: 999
       border_width: 0
 
     - id: style_room
       text_font: headline
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_time
       text_font: time_label
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_title
@@ -2046,17 +2051,17 @@ lvgl:
 
     - id: style_value_big
       text_font: sublabel_big
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 80%
 
     - id: style_title_disabled
       text_font: label
-      text_color: 0xFFFFFF
+      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_value_disabled
       text_font: sublabel
-      text_color: 0xD9D9D9
+      text_color: 0x1B1B1B
       text_opa: 100%
 
   pages:
@@ -3297,19 +3302,22 @@ lvgl:
                                     was_on: false
 
         # ---------- VALUE SLIDER OVERLAY ----------
+        # ---------- PAGE NAVIGATION: one full-width bar ----------
         - obj:
             id: page_prev
             align: BOTTOM_LEFT
-            x: 9
-            y: -2
-            width: 100
+            x: 0
+            y: 0
+            width: 130
             height: 32
             pad_all: 0
-            radius: 8
-            bg_color: 0x3C3C40
-            bg_opa: COVER
+            radius: 0
+            bg_opa: TRANSP
             border_width: 0
             scrollable: false
+            pressed:
+              bg_color: 0xE3E3E3
+              bg_opa: COVER
             on_short_click:
               - if:
                   condition:
@@ -3319,31 +3327,39 @@ lvgl:
                     - script.execute: show_tile_page
             widgets:
               - label:
-                  align: CENTER
-                  text: "< Vorige"
-                  text_font: sublabel
-                  text_color: 0xFFFFFF
+                  align: LEFT_MID
+                  x: 12
+                  text: "<  Vorige"
+                  text_font: label
+                  text_color: 0x1B1B1B
                   clickable: false
         - label:
             id: page_number
             align: BOTTOM_MID
-            y: -9
+            y: 0
+            width: 60
+            height: 32
+            pad_top: 9
+            border_width: 0
             text: "1 / 2"
+            text_align: CENTER
             text_font: sublabel
-            text_color: 0xFFFFFF
+            text_color: 0x1B1B1B
         - obj:
             id: page_next
             align: BOTTOM_RIGHT
-            x: -9
-            y: -2
-            width: 100
+            x: 0
+            y: 0
+            width: 130
             height: 32
             pad_all: 0
-            radius: 8
-            bg_color: 0x3C3C40
-            bg_opa: COVER
+            radius: 0
+            bg_opa: TRANSP
             border_width: 0
             scrollable: false
+            pressed:
+              bg_color: 0xE3E3E3
+              bg_opa: COVER
             on_short_click:
               - if:
                   condition:
@@ -3353,10 +3369,11 @@ lvgl:
                     - script.execute: show_tile_page
             widgets:
               - label:
-                  align: CENTER
-                  text: "Volgende >"
-                  text_font: sublabel
-                  text_color: 0xFFFFFF
+                  align: RIGHT_MID
+                  x: -12
+                  text: "Volgende  >"
+                  text_font: label
+                  text_color: 0x1B1B1B
                   clickable: false
 
         - obj:
@@ -3393,7 +3410,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  bg_color: 0x000000
+                  bg_color: 0xFFFFFF
                   bg_opa: 18%
                   border_width: 0
                   clickable: false
@@ -3424,7 +3441,7 @@ lvgl:
                   value: 100
                   adv_hittest: false
 
-                  bg_color: 0x939391
+                  bg_color: 0xFFFFFF
                   bg_opa: 100%
                   radius: 28
                   # Enige widget met ZOWEL radius ALS een kind (overlay_icon).
@@ -3437,7 +3454,7 @@ lvgl:
                   border_width: 0
 
                   indicator:
-                    bg_color: 0xFEC600
+                    bg_color: 0xD5EEFC
                     bg_opa: 100%
                     radius: 28
 
@@ -3469,7 +3486,7 @@ lvgl:
                   align: CENTER
                   y: ${OVERLAY_ICON_Y}
                   text_font: materialdesign_icons
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   text: "${TILE1_ICON}"
                   clickable: false
 
@@ -3678,7 +3695,7 @@ lvgl:
             y: 0
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
-            bg_color: 0x171719
+            bg_color: 0xF7F7F7
             bg_opa: COVER
             hidden: true
             scrollable: false
@@ -3704,7 +3721,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  bg_color: 0x000000
+                  bg_color: 0xFFFFFF
                   bg_opa: 72%
                   border_width: 0
                   clickable: false
@@ -3718,7 +3735,7 @@ lvgl:
                   width: 36
                   height: 36
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3732,7 +3749,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - label:
@@ -3765,7 +3782,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
         # ---------- CLIMATE DETAIL OVERLAY ----------
@@ -3775,7 +3792,7 @@ lvgl:
             y: 0
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
-            bg_color: 0x171719
+            bg_color: 0xF7F7F7
             bg_opa: COVER
             hidden: true
             scrollable: false
@@ -3801,7 +3818,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  bg_color: 0x000000
+                  bg_color: 0xFFFFFF
                   bg_opa: 62%
                   border_width: 0
                   clickable: false
@@ -3817,7 +3834,7 @@ lvgl:
                   width: 44
                   height: 44
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3831,7 +3848,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -3842,7 +3859,7 @@ lvgl:
                   width: 44
                   height: 44
                   radius: 999
-                  bg_color: 0xFEC600
+                  bg_color: 0xD5EEFC
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -3854,7 +3871,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - label:
@@ -3870,7 +3887,7 @@ lvgl:
                   y: 42
                   text: "Current: --"
                   text_font: sublabel_big
-                  text_color: 0xD1E8FF
+                  text_color: 0x1B1B1B
                   text_opa: 85%
                   clickable: false
 
@@ -3921,7 +3938,7 @@ lvgl:
                   y: -16
                   text: "SET TO"
                   text_font: sublabel_big
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   text_opa: 68%
                   clickable: false
 
@@ -3931,7 +3948,7 @@ lvgl:
                   y: 20
                   text: "20.0°"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               - obj:
@@ -3942,7 +3959,7 @@ lvgl:
                   width: 48
                   height: 36
                   radius: 18
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3958,7 +3975,7 @@ lvgl:
                         align: CENTER
                         text: "-"
                         text_font: headline
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -3969,7 +3986,7 @@ lvgl:
                   width: 48
                   height: 36
                   radius: 18
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -3985,7 +4002,7 @@ lvgl:
                         align: CENTER
                         text: "+"
                         text_font: headline
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -3995,7 +4012,7 @@ lvgl:
                   width: 126
                   height: 34
                   radius: 17
-                  bg_color: 0x2C2C30
+                  bg_color: 0xF0F0F0
                   bg_opa: 82%
                   border_width: 0
                   clickable: true
@@ -4008,7 +4025,7 @@ lvgl:
                         align: CENTER
                         text: "Auto"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
         # ---------- CLIMATE MODE PICKER ----------
         # Vervangt het doorcyclen van modi. Cyclen stuurt bij elke tik een
@@ -4022,7 +4039,7 @@ lvgl:
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
             hidden: true
-            bg_color: 0x000000
+            bg_color: 0xFFFFFF
             bg_opa: 90%
             border_width: 0
             clickable: true
@@ -4034,7 +4051,7 @@ lvgl:
                   y: 16
                   text: "Mode"
                   text_font: sublabel_big
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               # Flex zorgt dat niet-ondersteunde modi geen gat achterlaten:
@@ -4061,7 +4078,7 @@ lvgl:
                         width: 132
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4074,14 +4091,14 @@ lvgl:
                               align: CENTER
                               text: "Off"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat
                         width: 132
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4094,14 +4111,14 @@ lvgl:
                               align: CENTER
                               text: "Heat"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_cool
                         width: 132
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4114,14 +4131,14 @@ lvgl:
                               align: CENTER
                               text: "Cool"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat_cool
                         width: 132
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4134,14 +4151,14 @@ lvgl:
                               align: CENTER
                               text: "Heat/Cool"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_auto
                         width: 132
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4154,14 +4171,14 @@ lvgl:
                               align: CENTER
                               text: "Auto"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_dry
                         width: 132
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4174,14 +4191,14 @@ lvgl:
                               align: CENTER
                               text: "Dry"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_fan_only
                         width: 132
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4194,7 +4211,7 @@ lvgl:
                               align: CENTER
                               text: "Fan"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
 
               - obj:
@@ -4205,7 +4222,7 @@ lvgl:
                   width: 36
                   height: 36
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -4219,7 +4236,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -4230,7 +4247,7 @@ lvgl:
                   width: 36
                   height: 36
                   radius: 999
-                  bg_color: 0xFEC600
+                  bg_color: 0xD5EEFC
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -4242,7 +4259,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
         # ---------- VACUUM CONTROL ----------
@@ -4255,7 +4272,7 @@ lvgl:
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
             hidden: true
-            bg_color: 0x000000
+            bg_color: 0xFFFFFF
             bg_opa: 90%
             border_width: 0
             clickable: true
@@ -4268,7 +4285,7 @@ lvgl:
                   y: 16
                   text: "Vacuum"
                   text_font: sublabel_big
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               - obj:
@@ -4293,7 +4310,7 @@ lvgl:
                         width: 72
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4306,14 +4323,14 @@ lvgl:
                               align: CENTER
                               text: "Start"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vac_pause
                         width: 72
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4326,14 +4343,14 @@ lvgl:
                               align: CENTER
                               text: "Pause"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vac_return_to_base
                         width: 72
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4346,14 +4363,14 @@ lvgl:
                               align: CENTER
                               text: "Dock"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vac_stop
                         width: 72
                         height: 38
                         radius: 19
-                        bg_color: 0x2C2C30
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4366,7 +4383,7 @@ lvgl:
                               align: CENTER
                               text: "Stop"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
 
               - label:
@@ -4374,7 +4391,7 @@ lvgl:
                   y: 138
                   text: "Suction"
                   text_font: sublabel
-                  text_color: 0xFFFFFF
+                  text_color: 0x1B1B1B
                   clickable: false
 
               - obj:
@@ -4399,7 +4416,7 @@ lvgl:
                         width: 72
                         height: 32
                         radius: 19
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4414,14 +4431,14 @@ lvgl:
                               align: CENTER
                               text: "Quiet"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vacspd_balanced
                         width: 72
                         height: 32
                         radius: 19
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4436,14 +4453,14 @@ lvgl:
                               align: CENTER
                               text: "Balanced"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vacspd_turbo
                         width: 72
                         height: 32
                         radius: 19
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4458,14 +4475,14 @@ lvgl:
                               align: CENTER
                               text: "Turbo"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: vacspd_max
                         width: 72
                         height: 32
                         radius: 19
-                        bg_color: 0x1F1F23
+                        bg_color: 0xF0F0F0
                         bg_opa: 92%
                         border_width: 0
                         clickable: true
@@ -4480,7 +4497,7 @@ lvgl:
                               align: CENTER
                               text: "Max"
                               text_font: sublabel_big
-                              text_color: 0xFFFFFF
+                              text_color: 0x1B1B1B
                               clickable: false
 
               - obj:
@@ -4491,7 +4508,7 @@ lvgl:
                   width: 36
                   height: 36
                   radius: 999
-                  bg_color: 0x3C3C40
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 1
                   border_color: 0xFFFFFF
@@ -4505,7 +4522,7 @@ lvgl:
                         align: CENTER
                         text: "x"
                         text_font: sublabel_big
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -4516,7 +4533,7 @@ lvgl:
                   width: 36
                   height: 36
                   radius: 999
-                  bg_color: 0xFEC600
+                  bg_color: 0xD5EEFC
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -4528,7 +4545,7 @@ lvgl:
                         align: CENTER
                         text: "\U000F012C"
                         text_font: materialdesign_icons
-                        text_color: 0xFFFFFF
+                        text_color: 0x1B1B1B
                         clickable: false
 
         # ---------- DIM / WAKE OVERLAY ----------
