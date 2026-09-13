@@ -161,7 +161,9 @@ inline std::string receive(const std::string &payload) {
     if(tile.pending && !tile.local_feedback && !was_confirmed && tile.confirmed)
       ESP_LOGI("runtime_action","HA state received entity=%s elapsed=%u ms",entity.c_str(),(unsigned)(esphome::millis()-tile.pending_since));
     auto options = root["o"];
-    tile.background = tile_palette::color(string(options["background"],16));
+    std::string background=string(options["background"],16);
+    tile.background = tile_palette::color(background);
+    tile.transparent = tile_palette::transparent(background);
     tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
     tile.display = string(options["display"]); if (tile.display.empty()) tile.display="standard";
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
@@ -543,11 +545,18 @@ inline std::string timer_text(const Tile &t) {
   if (t.state == "paused") return "Pauze " + countdown(duration_seconds(t.remaining));
   return t.duration.empty() ? "Uit" : countdown(duration_seconds(t.duration));
 }
-inline std::string date_text(const esphome::ESPTime &now) {
+inline std::string weekday_text(const esphome::ESPTime &now) {
   static const char *days[] = {"zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"};
+  return now.is_valid() && now.day_of_week >= 1 && now.day_of_week <= 7 ? days[now.day_of_week - 1] : "";
+}
+inline std::string month_short(const esphome::ESPTime &now) {
+  static const char *months[] = {"jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"};
+  return now.is_valid() && now.month >= 1 && now.month <= 12 ? months[now.month - 1] : "";
+}
+inline std::string date_text(const esphome::ESPTime &now) {
   static const char *months[] = {"januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"};
   if (!now.is_valid() || now.day_of_week < 1 || now.day_of_week > 7 || now.month < 1 || now.month > 12) return "";
-  return std::string(days[now.day_of_week - 1]) + " " + std::to_string(now.day_of_month) + " " + months[now.month - 1];
+  return weekday_text(now) + " " + std::to_string(now.day_of_month) + " " + months[now.month - 1];
 }
 inline void event(lv_event_t *event) {
   auto &w = *static_cast<Widgets *>(lv_event_get_user_data(event));
@@ -705,11 +714,14 @@ inline lv_obj_t *part_line(Widgets &w,unsigned i,lv_point_precise_t *points,unsi
 inline std::string time_text(esphome::ESPTime now) {
   return now.is_valid() ? now.strftime(screen_settings::current.clock_24h ? "%H:%M" : "%I:%M") : "--:--";
 }
-// Digital: big time over the date. Analog: dotted dial with hour and minute hands;
-// a wide card adds the digital time next to the dial.
+// Digital: big time over the date. Analog: index strokes (numerals at 12/3/6/9 on
+// large cards) with hour and minute hands. A single card adds a calendar block
+// beside the dial (weekday, big day number, short month); a wide card adds the
+// digital time and the date instead. Parts: 0-11 marks, 12-13 hands, 14 centre,
+// 15-17 text.
 inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int height) {
   bool analog=t.display=="analog";
-  begin_extra(w,analog?"analog":"digital",width,height);
+  begin_extra(w,analog?(w.wide?"analog":"calendar"):"digital",width,height);
   auto now=now_time?now_time():esphome::ESPTime{};
   const lv_font_t *big=clock_font?clock_font:watch_value_font?watch_value_font:w.value_font;
   const lv_font_t *small=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
@@ -722,21 +734,53 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
     part_label(w,16,small,0,with_date?y+lv_font_get_line_height(big)+2:y,width,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
     return;
   }
-  int dial=std::min(height,width),cx=dial/2,cy=height/2,dot=large?4:2,radius=dial/2-dot;
+  // The dial keeps the same size with or without a card behind it.
+  int dial=std::min(height,width),cx=dial/2,cy=height/2,outer=dial/2-1,radius=dial/2-(large?4:2);
   for(int i=0;i<12;++i){
-    float a=i*3.14159265f/6;int size=i%3==0?dot+(large?2:1):dot;
-    part_dot(w,i,cx+std::lround(radius*sinf(a))-size/2,cy-std::lround(radius*cosf(a))-size/2,size);
+    float a=i*3.14159265f/6;bool cardinal=i%3==0;
+    if(cardinal && large){
+      // Numerals replace the four cardinal strokes; the box is one line high and wide.
+      int box=lv_font_get_line_height(w.value_font)+4,ring=outer-11;
+      part_label(w,i,w.value_font,cx+std::lround(ring*sinf(a))-box/2,cy-std::lround(ring*cosf(a))-box/2,box,LV_TEXT_ALIGN_CENTER,i==0?"12":std::to_string(i));
+      continue;
+    }
+    int length=cardinal?(large?9:5):(large?5:3);
+    auto *p=w.points+4+2*i;
+    p[0]={(lv_value_precise_t)(cx+outer*sinf(a)),(lv_value_precise_t)(cy-outer*cosf(a))};
+    p[1]={(lv_value_precise_t)(cx+(outer-length)*sinf(a)),(lv_value_precise_t)(cy-(outer-length)*cosf(a))};
+    part_line(w,i,p,2,cardinal?(large?3:2):(large?2:1));
   }
   float hour=((now.is_valid()?now.hour%12:0)+(now.is_valid()?now.minute:0)/60.0f)*3.14159265f/6, minute=(now.is_valid()?now.minute:0)*3.14159265f/30;
   w.points[0]={(lv_value_precise_t)cx,(lv_value_precise_t)cy};w.points[1]={(lv_value_precise_t)(cx+radius*0.52f*sinf(hour)),(lv_value_precise_t)(cy-radius*0.52f*cosf(hour))};
   w.points[2]={(lv_value_precise_t)cx,(lv_value_precise_t)cy};w.points[3]={(lv_value_precise_t)(cx+radius*0.82f*sinf(minute)),(lv_value_precise_t)(cy-radius*0.82f*cosf(minute))};
   part_line(w,12,w.points,2,large?5:3);part_line(w,13,w.points+2,2,large?3:2);
   int center=large?8:4;part_dot(w,14,cx-center/2,cy-center/2,center);
+  std::string day=now.is_valid()?std::to_string(now.day_of_month):"--";
   if(w.wide){
     int x=dial+(large?16:8),y=std::max(0,(height-text_h)/2);
     part_label(w,15,big,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
     part_label(w,16,small,x,with_date?y+lv_font_get_line_height(big)+2:y,width-x,LV_TEXT_ALIGN_CENTER,with_date?date_text(now):"");
+    return;
   }
+  int x=dial+(large?10:6),room=std::max(1,width-x);
+  if(!large){
+    // Compact cards: "13 sep" in the large-value font beside the dial.
+    const lv_font_t *font=watch_value_font?watch_value_font:w.value_font;
+    part_label(w,16,font,x,std::max(0,int(height-lv_font_get_line_height(font))/2),room,LV_TEXT_ALIGN_CENTER,day+" "+month_short(now));
+    return;
+  }
+  // Calendar block: weekday over a big day number with the short month beside it.
+  int top=std::max(0,int(height-lv_font_get_line_height(w.value_font)-lv_font_get_line_height(big))/2);
+  part_label(w,15,w.value_font,x,top,room,LV_TEXT_ALIGN_CENTER,weekday_text(now));
+  std::string month=month_short(now);
+  lv_point_t day_size,month_size;
+  lv_text_get_size(&day_size,day.c_str(),big,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+  lv_text_get_size(&month_size,month.c_str(),small,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+  int gap=6,sx=x+std::max(0,int(room-(day_size.x+gap+month_size.x))/2),day_y=top+int(lv_font_get_line_height(w.value_font));
+  part_label(w,16,big,sx,day_y,std::min(room,(int)day_size.x+2),LV_TEXT_ALIGN_LEFT,day);
+  // Both baselines line up: LVGL measures base_line from the bottom of the line box.
+  int month_y=day_y+(big->line_height-big->base_line)-(small->line_height-small->base_line);
+  part_label(w,17,small,sx+day_size.x+gap,std::max(0,month_y),std::max(1,int(x+room-(sx+day_size.x+gap))),LV_TEXT_ALIGN_LEFT,month);
 }
 // Current conditions on the left, five day columns on the right (wide cards only).
 inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int height) {
@@ -938,7 +982,10 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_style_bg_color(w.slider,lv_color_mix(color,lv_color_hex(dark_text?0xFFFFFF:0x263B50),30),LV_PART_MAIN);
     lv_obj_set_style_bg_color(w.tile, lv_color_hex(t.background ? t.background : (light_theme ? 0xFFFFFF : (on ? 0xF5F1E8 : 0x526C85))), 0);
     lv_obj_set_style_border_width(w.tile, 1, 0);
-    lv_obj_set_style_border_opa(w.tile, LV_OPA_COVER, 0);
+    // "Achtergrond: geen" hides only the card; geometry and padding stay identical,
+    // and the pressed flash still shows because it lives on the PRESSED state.
+    lv_obj_set_style_bg_opa(w.tile, t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
+    lv_obj_set_style_border_opa(w.tile, t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
     lv_obj_set_style_border_color(w.tile, t.background ? lv_color_mix(lv_color_hex(t.background),lv_color_hex(0x000000),220) : lv_color_hex(light_theme ? 0xDDDDDD : (on ? 0xF5F1E8 : 0x9CB3C8)), 0);
     lv_obj_set_style_bg_color(w.circle,circle_color,0);
     lv_obj_set_style_text_color(w.icon,icon_color,0);
@@ -952,10 +999,10 @@ inline void render(lv_obj_t *room) {
     w.fill_color=color;
     for(unsigned i=0;i<w.parts.size();++i){
       auto *p=w.parts[i];if(!p)continue;
-      bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : i==16;
+      bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
       if(lv_obj_check_type(p,&lv_label_class))lv_obj_set_style_text_color(p,muted?value_color:title_color,0);
       else if(w.extra_mode=="sunpath")continue;
-      else if(lv_obj_check_type(p,&lv_line_class))lv_obj_set_style_line_color(p,w.extra_mode=="graph"?color:i==13?icon_color:title_color,0);
+      else if(lv_obj_check_type(p,&lv_line_class))lv_obj_set_style_line_color(p,w.extra_mode=="graph"?color:i<12?value_color:i==13?icon_color:title_color,0);
       else lv_obj_set_style_bg_color(p,i==14?icon_color:value_color,0);
     }
   }
@@ -1027,6 +1074,12 @@ inline bool check_tile_geometry() {
       if(!palette_ok)ESP_LOGE("ui_test","Tile palette FAIL slot=%u",(unsigned)w.index);
       fits=fits && palette_ok;
     }
+    if(w.index<model.count){
+      bool bare=model.tiles[w.index].transparent;
+      bool opa_ok=(lv_obj_get_style_bg_opa(w.tile,LV_PART_MAIN)==LV_OPA_TRANSP)==bare && (lv_obj_get_style_border_opa(w.tile,LV_PART_MAIN)==LV_OPA_TRANSP)==bare;
+      if(!opa_ok)ESP_LOGE("ui_test","Tile background FAIL slot=%u transparent=%d",(unsigned)w.index,bare);
+      fits=fits && opa_ok;
+    }
     ok=ok && fits;
   }
   return ok;
@@ -1078,6 +1131,10 @@ inline void skeleton_page(int page) {
     auto &w=widgets[slot];if(!w.tile || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
     for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
     lv_obj_set_width(w.progress,0);
+    // A card-less tile shows no skeleton frame either.
+    bool bare=w.index<model.count && model.tiles[w.index].transparent;
+    lv_obj_set_style_bg_opa(w.tile,bare?LV_OPA_TRANSP:LV_OPA_COVER,0);
+    lv_obj_set_style_border_opa(w.tile,bare?LV_OPA_TRANSP:LV_OPA_COVER,0);
     lv_obj_set_style_bg_color(w.tile,lv_color_hex(bg),0);
     lv_obj_set_style_border_color(w.tile,lv_color_hex(border),0);
   }

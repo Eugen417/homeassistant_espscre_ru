@@ -18,6 +18,8 @@ ATTRS = frozenset('brightness percentage current_position current_temperature te
 
 TILE_BACKGROUNDS = {
     'auto': {'label': 'Standaard', 'color': None},
+    # No card behind the tile: contents keep their size and place on the screen background.
+    'none': {'label': 'Geen', 'color': None},
     'red': {'label': 'Rood', 'color': '#FADADD'},
     'orange': {'label': 'Oranje', 'color': '#FFE1C6'},
     'yellow': {'label': 'Geel', 'color': '#FFF0C2'},
@@ -76,6 +78,8 @@ def entity_id(value):
 
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
+    if any(t.get('options', {}).get('background') == 'none' for t in layout['tiles']):
+        return (0, 2, 16)
     if any(t['entity'].split('.')[0] in NEW_DOMAINS for t in layout['tiles']):
         return (0, 2, 14)
     if len(layout['tiles']) > 10:

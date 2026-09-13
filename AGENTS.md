@@ -4,6 +4,8 @@ De voorkeursroute voor nieuwe gebruikers is docs/EASY_SETUP.md: ESP Screen Manag
 plus remote ESPHome-pakketten. Geen token of blueprint nodig. Tegels staan in de
 permanente add-ondata; wifi/API/OTA blijven in de eigen ESPHome-YAML. Lees
 docs/RELEASING.md voordat je updates publiceert. Main distribueert beide borden.
+Elke push naar GitHub is een release: verhoog dan ook altijd de add-onversie in
+screen_manager/config.yaml (met CHANGELOG-regel), anders ziet HA geen update.
 Genereer packages met tools/generate_packages.py; bewerk ze niet handmatig.
 Runtime-modus ondersteunt alle kaarten op alle twintig posities. De positiebeperkingen
 hieronder gelden uitsluitend voor de oude handmatige profielen.

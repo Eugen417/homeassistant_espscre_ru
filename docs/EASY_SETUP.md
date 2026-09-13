@@ -103,7 +103,8 @@ klikgedrag, een mini-slider, een grote waarde, een grafiek (sensoren), een
 weersvoorspelling (weer) of de breedte **Dubbelbreed**. De ingebouwde **Klok**
 staat bovenaan de kiezer; zon, kookwekkers en personen vind je via de filters. Kies bij
 **Pastel achtergrond** een eigen kleur met donkere tekst; **Standaard** herstelt
-de normale weergave. Hiervoor is firmware 0.2.10+ nodig. Een lege
+de normale weergave en **Geen** laat de kaart weg, zodat de inhoud even groot
+direct op de schermachtergrond staat (firmware 0.2.16+). Hiervoor is firmware 0.2.10+ nodig. Een lege
 tegel brengt je naar de zoekbalk; toevoegen vult de eerstvolgende vrije positie.
 Het voorbeeld toont de indeling, geen live sensorwaarden.
 Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.

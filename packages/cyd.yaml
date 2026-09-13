@@ -59,7 +59,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.15"
+  SCREEN_FIRMWARE_VERSION: "0.2.16"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"

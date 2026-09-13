@@ -34,6 +34,17 @@ class PaletteTests(unittest.IsolatedAsyncioTestCase):
             fresh.save('text.screen',{'title':'Nieuw','tiles':[{'entity':'light.a','options':{'background':'auto'}}]})
             self.assertEqual(fresh.layouts['text.screen']['tiles'][0]['options']['background'],'auto')
 
+    def test_none_hides_the_card_and_needs_firmware_0216(self):
+        from core import min_firmware
+        header=(Path(__file__).resolve().parents[1]/'components/smart_display/tile_palette.h').read_text()
+        self.assertIn('name=="none"',header)
+        self.assertIsNone(TILE_BACKGROUNDS['none']['color'])
+        for entity in ('screen.clock','light.a'):
+            layout=validate_layout({'title':'Thuis','tiles':[{'entity':entity,'options':{'background':'none'}}]})
+            self.assertEqual(layout['tiles'][0]['options']['background'],'none')
+            self.assertEqual(min_firmware(layout),(0,2,16))
+        self.assertEqual(min_firmware({'tiles':[{'entity':'light.a','options':{'background':'red'}}]}),None)
+
     def test_unapproved_colors_rejected(self):
         for value in ('#000000','url(test)','unknown',None,{},42):
             with self.assertRaises(ValueError):validate_layout({'title':'Thuis','tiles':[{'entity':'light.a','options':{'background':value}}]})

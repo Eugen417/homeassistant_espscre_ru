@@ -128,6 +128,18 @@ Een oude apprelease van vóór 0.2.10 kent dit optieveld niet. Bij terugrollen v
 de app herstel je daarom de bijbehorende gegevensback-up; wis of negeer geen
 onbekende opties om een oud opslagbestand toch te openen.
 
+### Compatibiliteit app 0.2.15 / firmware 0.2.16
+
+Opslagversie en tegelprotocol blijven 1. `tiles[].options.background` krijgt de
+extra paletnaam `none` ("Geen"): geen kaart achter de tegelinhoud. Oudere
+firmware kent de naam niet en valt terug op de normale kaart; omdat dat voor de
+gebruiker onzichtbaar misgaat, stuurt de manager zo'n indeling pas na firmware
+0.2.16 (`min_firmware`) en bewaart haar ondertussen. De firmware verbergt
+uitsluitend vulling en rand (`bg_opa`/`border_opa`); maten, padding en de
+pressed-feedback op de PRESSED-state blijven gelijk. De analoge klok wijzigt
+alleen de tekening (streepjes, cijfers, kalenderblok op enkele tegels); er is
+geen nieuw veld voor nodig. Geen gewijzigde preferences of sleutels.
+
 ### Compatibiliteit 0.2.12 / firmware 0.2.14
 
 Opslagversie en tegelprotocol blijven 1. Additief: `tiles[].options.size`

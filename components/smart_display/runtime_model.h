@@ -49,6 +49,7 @@ struct Tile {
   uint32_t timer_end = 0;
   float battery = NAN, volume = NAN;
   uint32_t supported = 0, background = 0;
+  bool transparent = false;  // "Achtergrond: geen": card fill and border hidden, contents unchanged.
   std::string revision, pending_revision;
   uint32_t pending_since = 0;
   bool pending = false, confirmed = false, local_feedback = false;

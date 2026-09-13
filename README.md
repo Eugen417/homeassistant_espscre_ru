@@ -29,7 +29,12 @@ De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
 - **Pastel achtergronden per tegel:** kies rood voor een alles-uit-script,
   groen voor alles-aan, of een andere kleur. Titel en status blijven donker en
   leesbaar. De kleur verschijnt ook in het schermvoorbeeld; **Standaard** herstelt
-  de normale kleuren. Vereist firmware 0.2.10 of nieuwer.
+  de normale kleuren. Vereist firmware 0.2.10 of nieuwer. **Geen** laat de kaart
+  helemaal weg: de inhoud staat dan even groot direct op de schermachtergrond
+  (firmware 0.2.16).
+- **Klok:** digitaal of analoog. De analoge klok heeft streepjes met 12, 3, 6 en 9
+  en toont op een enkele tegel een kalenderblok (weekdag, dag, maand) naast de
+  wijzerplaat; dubbelbreed staat de digitale tijd met datum ernaast.
 - **Lampbediening:** helderheid, regenboogkleur en wittemperatuur volgens de
   mogelijkheden van de lamp. Open de detailbediening met een lange aanraking.
 - **Meer kaarten:** climate, vacuum, fan, cover, media player, sensoren,
@@ -141,6 +146,11 @@ apparaatprofielen; een app verwijderen of flashgeheugen wissen is geen update.
 
 Zie [releasegeschiedenis](screen_manager/CHANGELOG.md) en
 [releases en protocolcompatibiliteit](docs/RELEASING.md).
+
+**Voor wie zelf publiceert:** elke push naar GitHub is een release. Verhoog dan
+altijd ook de add-onversie in `screen_manager/config.yaml` en zet de wijziging in
+de CHANGELOG, anders biedt de HA-appwinkel geen update aan. Een wijziging aan het
+scherm krijgt daarnaast een nieuwe `SCREEN_FIRMWARE_VERSION` in beide bordprofielen.
 
 ## Handleidingen en hulp bij installatie
 

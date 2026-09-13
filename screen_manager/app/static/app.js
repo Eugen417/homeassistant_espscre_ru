@@ -298,6 +298,8 @@ function renderPreview() {
       const name = tile.name || entityName(tile.entity);
       const background=inventory.backgrounds?.[tile.options?.background]?.color;
       if(background)card.style.backgroundColor=background;
+      // "Geen": no card on the screen; the mockup keeps a dashed outline as drop target.
+      if (tile.options?.background === "none") card.classList.add("bare");
       if (place.wide) card.classList.add("wide");
       card.append(domainBadge(tile.entity), node("strong", name));
       card.dataset.index = index;
@@ -437,7 +439,7 @@ function renderTileSheet() {
     button.setAttribute("aria-pressed", String((tile.options?.background || "auto") === key));
     const sample = node("span", undefined, "palette-sample");
     if (choice.color) sample.style.backgroundColor = choice.color;
-    else sample.classList.add("palette-auto");
+    else sample.classList.add(key === "none" ? "palette-none" : "palette-auto");
     button.append(sample, node("span", choice.label));
     button.onclick = () => {
       tile.options = { ...tile.options, background: key };

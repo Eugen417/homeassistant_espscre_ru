@@ -844,6 +844,8 @@ pre {
 .palette-choice:focus-visible { outline: 3px solid #1674ae; outline-offset: 2px; }
 .palette-sample { width: 36px; height: 28px; border-radius: 7px; border: 1px solid #0002; }
 .palette-auto { background: linear-gradient(135deg, #fff 50%, #e5e7eb 50%); }
+.palette-none { background: linear-gradient(135deg, transparent 46%, #8b95a1 46%, #8b95a1 54%, transparent 54%), #e7e7e7; border-style: dashed; }
+.preview-tile.bare { background: transparent; border: 1px dashed #c3c9d0; }
 .tile-palette small { color: #52616e; }
 
 /* Tile settings sheet and in-preview removal. */
