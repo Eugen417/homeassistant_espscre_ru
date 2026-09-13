@@ -251,7 +251,12 @@ aside h2 {
   cursor: pointer;
 }
 .check input {
-  margin-top: 3px;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--accent, #2e5bff);
 }
 .check small {
   display: block;

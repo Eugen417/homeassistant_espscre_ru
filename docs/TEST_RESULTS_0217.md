@@ -46,6 +46,20 @@
   gemeld IP vraagt eenmalig het adres en start daarna; scherm op 0.2.17 toont
   geen aanbod; het vinkje bewaart `auto` via `PUT /api/updates`.
 
+## App 0.2.17 (zelfde firmware)
+
+- Productie draaide nog de lokale app 0.2.12 uit `/addons`; de GitHub-app
+  `ec8ae0ed_esp_screen_manager` 0.2.16 is via de Supervisor-API geïnstalleerd,
+  de twee indelingen zijn via de ingress-API overgezet (7 en 5 tegels), de
+  lokale app is verwijderd. Voor de CYD ontbrak een profiel in de ESPHome-map
+  van HA; `cyd-2432s028.yaml` is aangemaakt met de paneelkalibratie en
+  `!secret`-sleutels (gelijk aan de sleutels in de firmware); `esphome config`
+  via de app slaagde. Beide schermen koppelen nu aan profiel én IP.
+- In de echte HA-pagina (Chrome, 1400 px) kreeg het checkboxje de algemene
+  `input`-stijl (100% breed, padding), waardoor de labeltekst naast de zijkolom
+  onder het editorpaneel viel. Fix: vaste 16 px, `flex: none`, geen padding.
+  Het blok *Firmware-updates* start nu verborgen tot de eerste inventory.
+
 ## Nog te doen in productie
 
 - Add-on bijwerken vanuit de HA-appwinkel (0.2.16) en beide schermen (nu al
