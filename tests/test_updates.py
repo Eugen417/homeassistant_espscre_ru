@@ -233,7 +233,7 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
                 light = await (await client.get('/api/inventory?light=1')).json()
                 async with client.get('/api/events') as stream:
                     self.assertEqual(stream.headers['Content-Type'], 'text/event-stream')
-                    line = await asyncio.wait_for(stream.content.readline(), 5)
+                    line = await asyncio.wait_for(stream.content.readline(), 1)  # first event is immediate
                     pushed = json.loads(line.decode().removeprefix('data: '))
                     self.assertEqual([x['id'] for x in pushed['screens']], [x['id'] for x in light['screens']])
                     self.assertEqual(len(m.listeners), 1)

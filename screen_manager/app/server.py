@@ -442,6 +442,7 @@ def create_app(manager, development=False):
                                                'X-Accel-Buffering': 'no', 'X-Content-Type-Options': 'nosniff'})
         await response.prepare(request)
         wake, sent = asyncio.Event(), None
+        wake.set()  # first event goes out right away
         manager.listeners.add(wake)
         try:
             while True:

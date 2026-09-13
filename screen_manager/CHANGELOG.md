@@ -1,3 +1,7 @@
+## 0.2.22 (firmware 0.2.18 blijft actueel)
+
+- De eventstream stuurt het eerste event direct bij openen in plaats van na 3 s. Gemeten op een Home Assistant Yellow na 0.2.21: `/api/inventory` 50 ms (was 7,2 s), lichte poll 2,6 KB, CPU in rust 0,5% van één core (was 8,7%). Alleen de app verandert.
+
 ## 0.2.21 (firmware 0.2.18 blijft actueel)
 
 - **Live updates zonder pollen**: de pagina luistert op `/api/events` (server-sent events). De add-on stuurt schermstatus en updatestatus zodra de synchronisatielus of een opslag iets verandert, en controleert elke 3 s op wijzigingen tijdens een firmware-update. Zolang de stream open is pollt de pagina niet meer; valt de stream weg, dan neemt de poll van 10 s het over. De volledige lijst met entiteiten, achtergronden en iconen wordt nog elke 5 minuten ververst.
