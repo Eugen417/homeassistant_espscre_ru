@@ -100,7 +100,15 @@ Het schermvoorbeeld toont hun plaats: twee kolommen, zes tegels per pagina.
 Sleep een tegel naar een andere tegel om te ordenen. Klik op een tegel voor
 een eigen naam, de pijltjes voor volgorde en **Bediening & weergave instellen**:
 klikgedrag, een mini-slider, een grote waarde, een grafiek (sensoren), een
-weersvoorspelling (weer) of de breedte **Dubbelbreed**. De ingebouwde **Klok**
+weersvoorspelling (weer) of de breedte **Dubbelbreed**. Een dubbelbrede tegel van
+een klimaat, schakelaar, lamp, ventilator, stofzuiger, zonwering, mediaspeler,
+getal, keuzelijst, kookwekker, scène, script of knop krijgt rechts **directe
+bediening** zoals de rijen in Home Assistant (bijvoorbeeld temperatuur − / +,
+open/stop/dicht, volume met dempen, een toggle); kies onder **Directe bediening
+op de tegel** welke set, of **Geen** (firmware 0.2.19+). **Bediening openen** op
+een weertegel toont de weerkaart met de komende uren en dagen (regen inbegrepen);
+op een klimaattegel de kaart met aan/uit-knop en de modus-, ventilator- en
+zwenkstanden. De ingebouwde **Klok**
 staat bovenaan de kiezer; zon, kookwekkers en personen vind je via de filters. Kies bij
 **Pastel achtergrond** een eigen kleur met donkere tekst; **Standaard** herstelt
 de normale weergave en **Geen** laat de kaart weg, zodat de inhoud even groot

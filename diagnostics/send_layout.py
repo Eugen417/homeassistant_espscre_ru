@@ -29,6 +29,52 @@ def demo_layout():
         {'entity': 'weather.demo_standaard', 'name': 'Weer nu', 'options': {}},
     ]})
 
+# Direct controls on wide cards (firmware 0.2.19+): one card per control set.
+def controls_layout():
+    return validate_layout({'title': 'Directe bediening', 'tiles': [
+        {'entity': 'cover.demo_gordijn', 'name': 'Gordijnen Raambekleding', 'options': {'size': 'wide', 'icon': 'curtains'}},
+        {'entity': 'climate.demo_airco', 'name': 'Airco', 'options': {'size': 'wide'}},
+        {'entity': 'media_player.demo_sonos', 'name': 'Sonos', 'options': {'size': 'wide', 'icon': 'speaker'}},
+        {'entity': 'climate.demo_cv', 'name': 'Verwarming', 'options': {'size': 'wide', 'controls': 'mode', 'icon': 'radiator'}},
+        {'entity': 'media_player.demo_radio', 'name': 'Sonos slaapkamer', 'options': {'size': 'wide', 'controls': 'playback', 'icon': 'radio'}},
+        {'entity': 'vacuum.demo_robot', 'name': 'Pippa', 'options': {'size': 'wide'}},
+        {'entity': 'switch.demo_bureau', 'name': 'Bureau', 'options': {'size': 'wide', 'background': 'blue', 'icon': 'power-socket-eu'}},
+        {'entity': 'light.demo_tafellamp', 'name': 'Tafellamp', 'options': {'size': 'wide', 'controls': 'brightness', 'icon': 'lamp'}},
+        {'entity': 'number.demo_doel', 'name': 'Doel luchtvochtigheid', 'options': {'size': 'wide', 'icon': 'water-percent'}},
+        {'entity': 'select.demo_stand', 'name': 'Verwarmingsstand', 'options': {'size': 'wide', 'icon': 'thermostat'}},
+        {'entity': 'timer.demo_eieren', 'name': 'Eieren', 'options': {'size': 'wide', 'icon': 'chef-hat'}},
+        {'entity': 'scene.demo_avond', 'name': 'Avond', 'options': {'size': 'wide', 'icon': 'sofa'}},
+        {'entity': 'fan.demo_ventilator', 'name': 'Ventilator', 'options': {'size': 'wide'}},
+        {'entity': 'cover.demo_rolluik', 'name': 'Rolluik', 'options': {'size': 'wide', 'controls': 'position', 'icon': 'window-shutter'}},
+        {'entity': 'light.demo_plafond', 'name': 'Plafondlamp', 'options': {'size': 'wide', 'icon': 'ceiling-light'}},
+        {'entity': 'weather.demo_buiten', 'name': 'Buiten', 'options': {'display': 'forecast'}},
+        {'entity': 'script.demo_tv', 'name': 'TV aanzetten', 'options': {'icon': 'television'}},
+        {'entity': 'scene.demo_ochtend', 'name': 'Ochtend', 'options': {'icon': 'weather-sunset-up'}},
+    ]})
+
+def controls_states(now):
+    end = now + timedelta(minutes=4, seconds=32)
+    return {
+        'cover.demo_gordijn': {'state': 'open', 'attributes': {'current_position': 80, 'device_class': 'curtain', 'supported_features': 15}},
+        'climate.demo_airco': {'state': 'cool', 'attributes': {'current_temperature': 21.5, 'temperature': 20, 'min_temp': 16, 'max_temp': 32, 'target_temp_step': 1.0, 'hvac_modes': ['off', 'heat_cool', 'cool', 'heat', 'fan_only', 'dry'], 'fan_modes': ['auto', 'low', 'medium', 'high'], 'fan_mode': 'low', 'swing_modes': ['off', 'both', 'vertical', 'horizontal'], 'swing_mode': 'off', 'supported_features': 425}},
+        'media_player.demo_sonos': {'state': 'playing', 'attributes': {'volume_level': 0.17, 'is_volume_muted': False, 'media_title': 'TV', 'supported_features': 8321599}},
+        'climate.demo_cv': {'state': 'heat', 'attributes': {'current_temperature': 19.5, 'temperature': 21, 'hvac_action': 'heating', 'hvac_modes': ['off', 'heat', 'auto']}},
+        'media_player.demo_radio': {'state': 'playing', 'attributes': {'volume_level': 0.15, 'media_title': 'NPO Radio 2', 'supported_features': 8321599}},
+        'vacuum.demo_robot': {'state': 'docked', 'attributes': {'battery_level': 100, 'fan_speed': 'max', 'fan_speed_list': ['quiet', 'balanced', 'turbo', 'max'], 'supported_features': 30524}},
+        'switch.demo_bureau': {'state': 'on', 'attributes': {}},
+        'light.demo_tafellamp': {'state': 'on', 'attributes': {'brightness': 163}},
+        'number.demo_doel': {'state': '55', 'attributes': {'min': 30, 'max': 70, 'step': 5, 'unit_of_measurement': '%'}},
+        'select.demo_stand': {'state': 'Comfort', 'attributes': {'options': ['Eco', 'Comfort', 'Boost']}},
+        'timer.demo_eieren': {'state': 'active', 'attributes': {'finishes_at': end.isoformat(), 'duration': '0:05:00', 'remaining': '0:05:00'}},
+        'scene.demo_avond': {'state': (now - timedelta(hours=3)).isoformat(), 'attributes': {}},
+        'fan.demo_ventilator': {'state': 'off', 'attributes': {'percentage': 0}},
+        'cover.demo_rolluik': {'state': 'open', 'attributes': {'current_position': 35, 'supported_features': 15}},
+        'light.demo_plafond': {'state': 'off', 'attributes': {}},
+        'weather.demo_buiten': {'state': 'rainy', 'attributes': {'temperature': 18.4, 'temperature_unit': '°C', 'humidity': 92, 'wind_speed': 12.2, 'wind_speed_unit': 'km/h', 'apparent_temperature': 17.1}},
+        'script.demo_tv': {'state': 'off', 'attributes': {'last_triggered': (now - timedelta(hours=2, minutes=8)).isoformat()}},
+        'scene.demo_ochtend': {'state': (now - timedelta(days=1, hours=5)).isoformat(), 'attributes': {}},
+    }
+
 def demo_states(now):
     end = now + timedelta(minutes=4, seconds=32)
     return {
@@ -44,12 +90,20 @@ def demo_states(now):
 
 def demo_forecast(now):
     conditions = ['sunny', 'partlycloudy', 'rainy', 'cloudy', 'lightning-rainy', 'snowy']
-    return [{'datetime': (now + timedelta(days=i)).isoformat(), 'condition': conditions[i], 'temperature': 21 - i, 'templow': 11 + i}
+    return [{'datetime': (now + timedelta(days=i)).isoformat(), 'condition': conditions[i], 'temperature': 21 - i, 'templow': 11 + i,
+             'precipitation': [0, 0, 4.2, 0.3, 11.5, 2][i], 'precipitation_probability': [5, 20, 80, 30, 95, 60][i]}
             for i in range(6)]
 
-def messages(inbox, rotate=0, digital=False, wide=False):
+def demo_hourly(now):
+    conditions = ['rainy', 'rainy', 'partlycloudy', 'partlycloudy', 'sunny', 'sunny', 'cloudy', 'lightning-rainy', 'rainy', 'cloudy']
+    start = now.replace(minute=0, second=0, microsecond=0)
+    return [{'datetime': (start + timedelta(hours=i)).isoformat(), 'condition': conditions[i], 'temperature': 18.4 + i * 0.6,
+             'precipitation': [0.4, 0.2, 0, 0, 0, 0, 0, 2.1, 1.0, 0][i], 'precipitation_probability': [70, 55, 10, 5, 0, 0, 15, 85, 60, 20][i]}
+            for i in range(10)]
+
+def messages(inbox, rotate=0, digital=False, wide=False, controls=False):
     now = datetime.now(timezone.utc)
-    layout, states = demo_layout(), demo_states(now)
+    layout, states = (controls_layout(), controls_states(now)) if controls else (demo_layout(), demo_states(now))
     if digital:
         layout['tiles'][0]['options'] = {'display': 'digital'}
     elif wide:
@@ -58,7 +112,8 @@ def messages(inbox, rotate=0, digital=False, wide=False):
     out = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
     for i, tile in enumerate(layout['tiles']):
         forecast = demo_forecast(now) if tile['entity'].startswith('weather.') else None
-        message = state_message(i, tile, states, extras(tile, states, forecast, None))
+        hourly = demo_hourly(now) if tile['entity'].startswith('weather.') else None
+        message = state_message(i, tile, states, extras(tile, states, forecast, None, hourly, now))
         if tile['entity'].startswith('sensor.'):
             message['history'] = {'hours': 24, 'values': [round(18 + 4 * ((k * 7) % 11) / 10, 2) if k % 5 else None for k in range(24)]}
         out.append(message)
@@ -72,6 +127,7 @@ async def main():
     p.add_argument('--rotate', type=int, default=0, help='Zet tegel N vooraan, zodat latere pagina\'s op pagina 1 komen')
     p.add_argument('--digital', action='store_true', help='Digitale klok op een enkele tegel in plaats van de analoge kalenderkaart zonder achtergrond')
     p.add_argument('--wide', action='store_true', help='Analoge klok dubbelbreed (wijzerplaat met digitale tijd en datum)')
+    p.add_argument('--controls', action='store_true', help='Dubbelbrede kaarten met directe bediening (firmware 0.2.19+), drie per pagina')
     args = p.parse_args()
     client = APIClient(args.host, 6053, noise_psk=yaml.safe_load(args.secrets.read_text())['api_encryption_key'],
                        client_info='Demo layout', expected_name=args.name)
@@ -86,7 +142,8 @@ async def main():
                 replies.append(update.state)
         client.subscribe_states(state)
         started = time.monotonic()
-        for message in messages(inbox.object_id if hasattr(inbox, 'object_id') else 'text.inbox', args.rotate % 9, args.digital, args.wide):
+        count = len(controls_layout()['tiles']) if args.controls else 9
+        for message in messages(inbox.object_id if hasattr(inbox, 'object_id') else 'text.inbox', args.rotate % count, args.digital, args.wide, args.controls):
             for packet in packets(message):
                 client.text_command(inbox.key, packet)
                 await asyncio.sleep(0.05)

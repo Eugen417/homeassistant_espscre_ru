@@ -3,6 +3,12 @@
 #include <limits>
 int main() {
   using cyd::quantize_temperature;
+  // Fan and swing mode chips read the n-th name of a JSON list attribute.
+  assert(cyd::list_item("[\"auto\",\"low\",\"high\"]", 0) == "auto");
+  assert(cyd::list_item("[\"auto\",\"low\",\"high\"]", 2) == "high");
+  assert(cyd::list_item("[\"auto\",\"low\",\"high\"]", 3).empty());
+  assert(cyd::list_item("", 0).empty());
+  assert(cyd::list_item("[\"broken", 0).empty());
   assert(quantize_temperature(223, 160, 300, 5) == 225);
   assert(quantize_temperature(221, 160, 300, 5) == 220);
   assert(quantize_temperature(-1, 160, 300, 5) == 160);

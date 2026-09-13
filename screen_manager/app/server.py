@@ -14,7 +14,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BUILTIN, TILE_BACKGROUNDS, discover, extras, installation_yaml, min_firmware, packets, state_message, validate_layout, validate_settings
+from core import BUILTIN, TILE_BACKGROUNDS, controls_catalogue, discover, extras, installation_yaml, min_firmware, packets, state_message, validate_layout, validate_settings
 from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
@@ -166,10 +166,10 @@ class HomeAssistant:
             await self.request('call_service', domain='text', service='set_value',
                                service_data={'entity_id': inbox, 'value': packet})
 
-    async def forecast(self, entity):
+    async def forecast(self, entity, kind='daily'):
         # Forecasts left the weather attributes in HA 2024.4; ask the service instead.
         result = await self.request('call_service', domain='weather', service='get_forecasts',
-                                    service_data={'type': 'daily'}, target={'entity_id': entity}, return_response=True)
+                                    service_data={'type': kind}, target={'entity_id': entity}, return_response=True)
         forecast = ((result or {}).get('response') or {}).get(entity, {}).get('forecast', [])
         return forecast if isinstance(forecast, list) else []
 
@@ -262,7 +262,7 @@ class Manager:
         old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
         for tile in layout['tiles']:
             old_options=old_tiles.get(tile['entity'],{}).get('options',{})
-            for key in ('background', 'icon'):
+            for key in ('background', 'icon', 'controls'):
                 if 'options' in tile and key not in tile['options'] and key in old_options:
                     tile['options'][key]=old_options[key]
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
@@ -319,10 +319,12 @@ class Manager:
             if screen.get('board')=='guition':
                 messages[0]['rotation'] = layout['settings'].get('rotation',0)
         for i,tile in enumerate(layout['tiles']):
-            forecast=None
+            forecast=hourly=None
             if tile['entity'].startswith('weather.') and hasattr(self.ha,'forecast'):
                 forecast=await self.cached(self.forecasts, tile['entity'], 1800, lambda: self.ha.forecast(tile['entity']))
-            message=state_message(i,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None)))
+                # Hourly forecasts feed the weather card's next-hours strip (0.2.23+); refreshed every half hour.
+                hourly=await self.cached(self.forecasts, (tile['entity'],'hourly'), 1800, lambda: self.ha.forecast(tile['entity'],'hourly'))
+            message=state_message(i,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly))
             if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
                 hours=tile.get('options',{}).get('history_hours',24)
                 key=(tile['entity'],hours)
@@ -433,6 +435,7 @@ def create_app(manager, development=False):
             # The page polls the light form; entities, backgrounds and icons (~100 KB) only on demand.
             payload['entities'] = entities
             payload['backgrounds'] = TILE_BACKGROUNDS
+            payload['controls'] = controls_catalogue()
             payload['icons'] = tile_icons.editor()
             payload['builtin'] = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         return web.json_response(payload)

@@ -369,6 +369,40 @@ const domains = {
   person: ["Persoon", "☺", "#2f7d32", "#e1f2e2"],
 };
 const displayNames = { standard: "standaard", watch: "grote waarde", forecast: "weersvoorspelling", graph: "grafiek", digital: "digitale klok", analog: "analoge klok", sunpath: "zonnebaan" };
+// Same rule as the add-on: only a wide card in the standard layout shows direct controls;
+// without a choice the domain's first control set applies.
+function effectiveControls(tile) {
+  const domain = tile.entity.split(".")[0], catalogue = inventory.controls?.[domain], o = tile.options || {};
+  if (!catalogue || o.size !== "wide" || (o.display || "standard") !== "standard" || o.inline === "slider") return null;
+  const choice = o.controls ?? catalogue.default;
+  return choice === "none" ? null : choice;
+}
+function controlsLabel(tile) {
+  const key = effectiveControls(tile);
+  if (!key) return "geen";
+  return inventory.controls?.[tile.entity.split(".")[0]]?.choices.find((c) => c.key === key)?.label.toLocaleLowerCase() || key;
+}
+// Miniature of the control set on the mockup card: the same shapes the screen draws.
+function controlsPreview(tile) {
+  const key = effectiveControls(tile), domain = tile.entity.split(".")[0], cp = inventory.icons?.controls || {};
+  if (!key) return null;
+  const box = node("span", undefined, "preview-controls");
+  const buttons = (...names) => { for (const name of names) box.append(node("span", cp[name] ? glyph(cp[name]) : "", "preview-key mdi")); };
+  const stepper = (text) => { const pill = node("span", undefined, "preview-stepper"); pill.append(node("span", cp.minus ? glyph(cp.minus) : "−", "mdi"), node("b", text), node("span", cp.plus ? glyph(cp.plus) : "+", "mdi")); box.append(pill); };
+  const slider = () => box.append(node("span", "", "preview-range"));
+  if (key === "toggle") box.append(node("span", "", "preview-toggle"));
+  else if (key === "setpoint") stepper("20°");
+  else if (key === "stepper") domain.endsWith("select") ? buttons("chevron-left", "chevron-right") : stepper("50");
+  else if (key === "mode") buttons("power", "fire", "snowflake");
+  else if (key === "volume") { slider(); buttons("volume-high"); }
+  else if (key === "playback") buttons("skip-previous", "play", "skip-next");
+  else if (key === "buttons" && domain === "cover") buttons("arrow-expand-horizontal", "stop", "arrow-collapse-horizontal");
+  else if (key === "buttons" && domain === "vacuum") buttons("play", "stop", "home-map-marker");
+  else if (key === "buttons" && domain === "timer") buttons("play", "close");
+  else if (key === "run") box.append(node("b", { scene: "Activeren", script: "Uitvoeren" }[domain] || "Indrukken", "preview-run"));
+  else slider();
+  return box;
+}
 // New tiles start with the card that shows the entity best.
 function defaultOptions(id) {
   const domain = id.split(".")[0];
@@ -474,6 +508,8 @@ function renderPreview() {
       remove.onclick = (e) => { e.stopPropagation(); removeTile(index); };
       card.append(remove);
       if (tile.options?.inline === "slider") card.append(node("span", "", "preview-slider"));
+      const controls = controlsPreview(tile);
+      if (controls) card.append(controls);
       const display = tile.options?.display;
       if (display && display !== "standard") card.append(node("small", displayNames[display] || display));
       grid.append(card);
@@ -659,17 +695,27 @@ function renderTileSheet() {
   const current = (key, fallback) => tile.options?.[key] ?? fallback;
   const set = (key, value) => {
     tile.options = { ...tile.options, [key]: value };
-    if (key === "display" && value === "watch") tile.options.inline = "none";
+    // Direct controls need the standard layout without a mini slider, and vice versa.
+    if (key === "display" && value === "watch") { tile.options.inline = "none"; if (inventory.controls?.[domain]) tile.options.controls = "none"; }
     if (key === "display" && ["forecast", "sunpath"].includes(value)) tile.options.size = "wide";
-    if (key === "inline" && value === "slider") tile.options.display = "standard";
+    if (key === "inline" && value === "slider") { tile.options.display = "standard"; if (inventory.controls?.[domain]) tile.options.controls = "none"; }
+    if (key === "controls" && value !== "none") { tile.options.display = "standard"; tile.options.inline = "none"; }
     markDirty();
     renderTiles();
   };
   body.append(field("Weergave", segmented(displays, current("display", domain === "screen" ? "digital" : "standard"), (v) => set("display", v))));
   body.append(field("Breedte", segmented([["single", "Normaal"], ["wide", "Dubbelbreed"]], current("size", "single"), (v) => set("size", v))));
+  const catalogue = inventory.controls?.[domain];
+  if (catalogue && current("size", "single") === "wide") {
+    const wrap = field("Directe bediening op de tegel", segmented(catalogue.choices.map((c) => [c.key, c.label]), current("controls", catalogue.default), (v) => set("controls", v)));
+    wrap.append(node("small", supportsFirmware(0, 2, 19)
+      ? "Rechts op de dubbelbrede tegel, zoals de rijen in Home Assistant. Tikken op de naam werkt zoals hieronder ingesteld."
+      : "Het scherm toont directe bediening vanaf firmware 0.2.19; tot die tijd blijft de tegel zoals hij was.", "field-hint"));
+    body.append(wrap);
+  }
   if (domain !== "screen") {
     const taps = [["auto", "Automatisch"], ["detail", "Bediening openen"], ["none", "Alleen bekijken"]];
-    if (["light", "switch", "input_boolean", "fan", "media_player"].includes(domain)) taps.push(["toggle", "Aan / uit"]);
+    if (["light", "switch", "input_boolean", "fan", "media_player", "climate"].includes(domain)) taps.push(["toggle", "Aan / uit"]);
     body.append(field("Bij aantikken", segmented(taps, current("tap", "auto"), (v) => set("tap", v))));
   }
   if (["light", "fan", "cover", "number", "input_number", "media_player"].includes(domain))
@@ -1190,7 +1236,7 @@ async function inspect(entity) {
       card.append(
         node(
           "small",
-          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${displayNames[options.display || "standard"] || options.display} · Breedte: ${options.size === "wide" ? "dubbel" : "normaal"} · Achtergrond: ${inventory.backgrounds?.[options.background || "auto"]?.label || "Standaard"}`,
+          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${displayNames[options.display || "standard"] || options.display} · Breedte: ${options.size === "wide" ? "dubbel" : "normaal"} · Bediening: ${controlsLabel({ entity: tile.entity, options })} · Achtergrond: ${inventory.backgrounds?.[options.background || "auto"]?.label || "Standaard"}`,
         ),
       );
       $("#inspection-summary").append(card);

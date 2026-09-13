@@ -912,6 +912,16 @@ pre {
 .preview-gap { min-height: 90px; border: 1px dashed #d0d4d9; border-radius: 15px; }
 .preview-tile.vacant { background: #f4f4f4; border-style: dashed; color: #727982; justify-content: center; }
 .preview-slider { height: 13px; flex-basis: 100%; border-radius: 10px; background: linear-gradient(to right, #ffbf38 60%, #fff1d3 60%); }
+/* Miniature direct controls on a wide mockup card, in the shapes the screen draws. */
+.preview-controls { display: flex; align-items: center; gap: 4px; flex: none; margin-right: 18px; color: #1b1b1b; }
+.preview-key { display: grid; place-items: center; width: 28px; height: 22px; border-radius: 7px; background: #eceef1; font-size: 14px; }
+.preview-stepper { display: flex; align-items: center; gap: 4px; height: 22px; padding: 0 7px; border-radius: 11px; background: #eceef1; font-size: 12px; }
+.preview-stepper b { font-size: 12px; font-weight: 600; }
+.preview-range { width: 60px; height: 20px; border-radius: 10px; background: linear-gradient(to right, #2196f3 35%, #d3e8fb 35%); }
+.preview-toggle { position: relative; width: 34px; height: 20px; border-radius: 10px; background: #2196f3; }
+.preview-toggle::after { content: ""; position: absolute; top: 3px; right: 3px; width: 14px; height: 14px; border-radius: 50%; background: white; }
+.preview-run { height: 22px; padding: 0 10px; border-radius: 11px; background: #eceef1; font-size: 12px; font-weight: 600; line-height: 22px; }
+.field-hint { font-weight: 400; }
 .preview-tile small { flex-basis: 100%; }
 .result:hover:not(:disabled), .preview-tile:hover { border-color: #9eb6cf; box-shadow: 0 2px 7px #253f5010; }
 

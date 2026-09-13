@@ -59,7 +59,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.18"
+  SCREEN_FIRMWARE_VERSION: "0.2.19"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
@@ -801,13 +801,13 @@ esphome:
           settings.night_start = atoi("${NIGHT_START_HOUR}") * 60;
           settings.night_end = atoi("${NIGHT_END_HOUR}") * 60;
           settings.night_brightness = atoi("${NIGHT_DIM_BRIGHTNESS}");
-          runtime_tiles::light_theme = true;
           runtime_tiles::watch_font = id(headline)->get_lv_font();
           runtime_tiles::watch_value_font = id(watch_value)->get_lv_font();
           runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
           runtime_tiles::clock_font = id(clock_digits)->get_lv_font();
           runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          runtime_tiles::control_font = id(sublabel_big)->get_lv_font();
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
           runtime_tiles::load_settings();
@@ -861,6 +861,8 @@ esphome:
             light_controls::fallback.kelvin = t.kelvin;
             light_controls::fallback.minimum = t.min_kelvin;
             light_controls::fallback.maximum = t.max_kelvin;
+            id(active_climate_fan_modes) = t.fan_modes; id(active_climate_fan_mode) = t.fan_mode;
+            id(active_climate_swing_modes) = t.swing_modes; id(active_climate_swing_mode) = t.swing_mode;
             id(open_value_overlay).execute(t.name, t.entity, t.domain(), "auto", t.active(), 0,
               t.brightness, t.percentage, t.position, runtime_tiles::icon_for(t),
               0x565C66, 0xE4B23C, 0xFFFFFF, "Uit", "Aan", t.modes,
@@ -874,7 +876,10 @@ esphome:
               id(climate_edit_pending) = false;
               id(active_climate_mode) = t.state;
               id(active_climate_supported_modes) = t.hvac_modes;
-              lv_label_set_text(id(climate_mode_label), t.state.c_str());
+              lv_label_set_text(id(climate_mode_label), tile_controls::climate_mode_text(t.state));
+              id(climate_power_refresh).execute();
+              id(active_climate_fan_modes) = t.fan_modes; id(active_climate_fan_mode) = t.fan_mode;
+              id(active_climate_swing_modes) = t.swing_modes; id(active_climate_swing_mode) = t.swing_mode;
               char buf[72];
               if (std::isfinite(t.current)) snprintf(buf, sizeof(buf), "Nu: %.1f°", t.current);
               else snprintf(buf, sizeof(buf), "Nu: --");
@@ -891,7 +896,7 @@ esphome:
       - lambda: |-
           static const char *entities[] = {"${TILE1_ENTITY}", "${TILE2_ENTITY}", "${TILE3_ENTITY}", "${TILE4_ENTITY}", "${TILE5_ENTITY}", "${TILE6_ENTITY}", "${TILE7_ENTITY}", "${TILE9_ENTITY}"};
           if (!runtime_tiles::enabled) light_controls::subscribe(entities, 8);
-          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"), true);
+          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"));
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
@@ -986,10 +991,31 @@ api:
         index: int
       then:
         - lambda: |-
-            if (index < 0) { runtime_tiles::hide_detail(); return; }
+            if (index < 0) { runtime_tiles::hide_detail(); if (runtime_tiles::dismiss) runtime_tiles::dismiss(); return; }
             if (runtime_tiles::enabled && index < (int)runtime_tiles::model.count) {
               runtime_tiles::active_index = index;
+              auto &tile = runtime_tiles::model.tiles[index];
+              auto domain = tile.domain();
+              // Lights, fans, covers and climate open the board's own card, like a long press does.
+              if ((domain == "light" || domain == "fan" || domain == "cover" || domain == "climate") && runtime_tiles::detail) {
+                tile.begin(millis(), true);
+                runtime_tiles::detail(tile);
+                return;
+              }
               runtime_tiles::show_detail(index);
+            }
+    # Diagnostics: the climate mode picker and the busy sheet of a tile, without touching the glass or HA.
+    - action: preview_climate_picker
+      then:
+        - script.execute: open_climate_mode_picker
+    - action: preview_busy
+      variables:
+        index: int
+      then:
+        - lambda: |-
+            if (runtime_tiles::enabled && index >= 0 && index < (int)runtime_tiles::model.count) {
+              runtime_tiles::model.tiles[index].begin(millis());
+              if (runtime_tiles::refresh) runtime_tiles::refresh();
             }
     - action: light_controls_preview
       then:
@@ -1160,6 +1186,27 @@ globals:
     type: std::string
     restore_value: no
 
+  - id: active_climate_power_on
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+  - id: active_climate_fan_modes
+    type: std::string
+    restore_value: no
+
+  - id: active_climate_fan_mode
+    type: std::string
+    restore_value: no
+
+  - id: active_climate_swing_modes
+    type: std::string
+    restore_value: no
+
+  - id: active_climate_swing_mode
+    type: std::string
+    restore_value: no
+
   - id: active_climate_supported_modes
     type: std::string
     restore_value: no
@@ -1179,7 +1226,7 @@ font:
              '0','1','2','3','4','5','6','7','8','9',
              'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-             'ä','ö','ü','Ä','Ö','Ü','ß','/']
+             'ä','ö','ü','Ä','Ö','Ü','ß','/','·']
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-500.ttf"
     id: watch_value
@@ -1189,7 +1236,7 @@ font:
              '0','1','2','3','4','5','6','7','8','9',
              'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-             'ä','ö','ü','Ä','Ö','Ü','ß','/']
+             'ä','ö','ü','Ä','Ö','Ü','ß','/','·']
 
   # Clock card digits only; the date line reuses the tile title font.
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-500.ttf"
@@ -1206,7 +1253,7 @@ font:
              '0','1','2','3','4','5','6','7','8','9',
              'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-             'ä','ö','ü','Ä','Ö','Ü','ß','/']
+             'ä','ö','ü','Ä','Ö','Ü','ß','/','·']
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-400.ttf"
     id: sublabel
@@ -1216,7 +1263,7 @@ font:
              '0','1','2','3','4','5','6','7','8','9',
              'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-             'ä','ö','ü','Ä','Ö','Ü','ß','/','…']
+             'ä','ö','ü','Ä','Ö','Ü','ß','/','…','·']
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-400.ttf"
     id: sublabel_big
@@ -1226,7 +1273,7 @@ font:
              '0','1','2','3','4','5','6','7','8','9',
              'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-             'ä','ö','ü','Ä','Ö','Ü','ß','/','…']
+             'ä','ö','ü','Ä','Ö','Ü','ß','/','…','·']
 
   # Material Design Icons (MDI) — included at fonts/materialdesignicons-webfont.ttf (Apache 2.0)
   # Source: https://github.com/Templarian/MaterialDesign-Webfont
@@ -1386,6 +1433,24 @@ font:
       - "\U000F00E2" # broom
       - "\U000F05D6" # alert-circle-outline
       - "\U000F012C" # check
+      - "\U000F03E4" # pause
+      - "\U000F04DB" # stop
+      - "\U000F04AD" # skip-next
+      - "\U000F04AE" # skip-previous
+      - "\U000F057E" # volume-high
+      - "\U000F0581" # volume-off
+      - "\U000F005D" # arrow-up
+      - "\U000F0045" # arrow-down
+      - "\U000F084E" # arrow-expand-horizontal
+      - "\U000F084C" # arrow-collapse-horizontal
+      - "\U000F05F8" # home-map-marker
+      - "\U000F0415" # plus
+      - "\U000F0374" # minus
+      - "\U000F0141" # chevron-left
+      - "\U000F0142" # chevron-right
+      - "\U000F0156" # close
+      - "\U000F1A79" # sun-snowflake-variant
+      - "\U000F1B17" # thermostat-auto
       - "\U000F0591" # weather-fog
       - "\U000F0592" # weather-hail
       - "\U000F0593" # weather-lightning
@@ -2129,6 +2194,14 @@ lvgl:
       scrollable: false
       scrollbar_mode: 'OFF'
       widgets:
+        # Never shown: it only makes ESPHome compile LVGL's spinner, which the busy sheet on a tile draws.
+        - spinner:
+            id: busy_spinner_seed
+            hidden: true
+            width: 2
+            height: 2
+            spin_time: 1s
+            arc_length: 60deg
         - label:
             id: lbl_room
             x: 11
@@ -3828,7 +3901,7 @@ lvgl:
                   width: 36
                   height: 36
                   radius: 999
-                  bg_color: 0xFF9F0A
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -3910,25 +3983,26 @@ lvgl:
                         clickable: false
 
               - obj:
-                  id: climate_done_button
+                  id: climate_power_button
                   align: TOP_RIGHT
                   x: -10
                   y: 9
                   width: 44
                   height: 44
                   radius: 999
-                  bg_color: 0xD5EEFC
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
                   scrollable: false
                   on_click:
-                    - lvgl.widget.hide: climate_detail_overlay
+                    - script.execute: climate_power_toggle
                   widgets:
                     - label:
+                        id: climate_power_icon
                         align: CENTER
-                        text: "\U000F012C"
-                        text_font: materialdesign_icons
+                        text: "\U000F0425"
+                        text_font: materialdesign_icons_mini
                         text_color: 0x1B1B1B
                         clickable: false
 
@@ -3943,7 +4017,7 @@ lvgl:
                   id: climate_current_label
                   align: TOP_MID
                   y: 42
-                  text: "Current: --"
+                  text: "Nu: --"
                   text_font: sublabel_big
                   text_color: 0x1B1B1B
                   text_opa: 85%
@@ -3994,7 +4068,7 @@ lvgl:
                   id: climate_set_label
                   align: CENTER
                   y: -16
-                  text: "SET TO"
+                  text: "Gewenst"
                   text_font: sublabel_big
                   text_color: 0x1B1B1B
                   text_opa: 68%
@@ -4097,8 +4171,8 @@ lvgl:
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
             hidden: true
-            bg_color: 0xFFFFFF
-            bg_opa: 90%
+            bg_color: 0xE7E7E7
+            bg_opa: COVER
             border_width: 0
             clickable: true
             scrollable: false
@@ -4107,7 +4181,7 @@ lvgl:
               - label:
                   align: TOP_MID
                   y: 16
-                  text: "Mode"
+                  text: "Modus"
                   text_font: sublabel_big
                   text_color: 0x1B1B1B
                   clickable: false
@@ -4117,15 +4191,18 @@ lvgl:
               - obj:
                   id: climate_mode_list
                   align: TOP_MID
-                  y: 50
+                  y: 44
                   width: 98%
                   height: 178
                   bg_opa: TRANSP
                   border_width: 0
                   scrollable: false
+                  clickable: false
                   pad_all: 3
                   layout:
                     type: FLEX
+                    pad_row: 3
+                    pad_column: 4
                     flex_flow: ROW_WRAP
                     flex_align_main: CENTER
                     flex_align_cross: CENTER
@@ -4133,12 +4210,13 @@ lvgl:
                   widgets:
                     - obj:
                         id: cmode_off
-                        width: 132
-                        height: 38
-                        radius: 19
-                        bg_color: 0xF0F0F0
-                        bg_opa: 92%
-                        border_width: 0
+                        width: 88
+                        height: 26
+                        radius: 13
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -4147,18 +4225,19 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Off"
+                              text: "Uit"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat
-                        width: 132
-                        height: 38
-                        radius: 19
-                        bg_color: 0xF0F0F0
-                        bg_opa: 92%
-                        border_width: 0
+                        width: 88
+                        height: 26
+                        radius: 13
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -4167,18 +4246,19 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Heat"
+                              text: "Verwarmen"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_cool
-                        width: 132
-                        height: 38
-                        radius: 19
-                        bg_color: 0xF0F0F0
-                        bg_opa: 92%
-                        border_width: 0
+                        width: 88
+                        height: 26
+                        radius: 13
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -4187,18 +4267,19 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Cool"
+                              text: "Koelen"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat_cool
-                        width: 132
-                        height: 38
-                        radius: 19
-                        bg_color: 0xF0F0F0
-                        bg_opa: 92%
-                        border_width: 0
+                        width: 88
+                        height: 26
+                        radius: 13
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -4207,18 +4288,19 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Heat/Cool"
+                              text: "Verw./koelen"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_auto
-                        width: 132
-                        height: 38
-                        radius: 19
-                        bg_color: 0xF0F0F0
-                        bg_opa: 92%
-                        border_width: 0
+                        width: 88
+                        height: 26
+                        radius: 13
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -4233,12 +4315,13 @@ lvgl:
                               clickable: false
                     - obj:
                         id: cmode_dry
-                        width: 132
-                        height: 38
-                        radius: 19
-                        bg_color: 0xF0F0F0
-                        bg_opa: 92%
-                        border_width: 0
+                        width: 88
+                        height: 26
+                        radius: 13
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -4247,18 +4330,19 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Dry"
+                              text: "Drogen"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_fan_only
-                        width: 132
-                        height: 38
-                        radius: 19
-                        bg_color: 0xF0F0F0
-                        bg_opa: 92%
-                        border_width: 0
+                        width: 88
+                        height: 26
+                        radius: 13
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -4267,11 +4351,205 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Fan"
+                              text: "Ventileren"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
 
+                    - label:
+                        id: cfan_title
+                        width: 100%
+                        height: 11
+                        text: "Ventilator"
+                        text_font: sublabel
+                        text_color: 0x6B6B6B
+                        text_align: CENTER
+                        clickable: false
+                    - obj:
+                        id: cfan_0
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_fan_mode, index: 0 }
+                        widgets:
+                          - label:
+                              id: cfan_0_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - obj:
+                        id: cfan_1
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_fan_mode, index: 1 }
+                        widgets:
+                          - label:
+                              id: cfan_1_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - obj:
+                        id: cfan_2
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_fan_mode, index: 2 }
+                        widgets:
+                          - label:
+                              id: cfan_2_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - obj:
+                        id: cfan_3
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_fan_mode, index: 3 }
+                        widgets:
+                          - label:
+                              id: cfan_3_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - label:
+                        id: cswing_title
+                        width: 100%
+                        height: 11
+                        text: "Zwenken"
+                        text_font: sublabel
+                        text_color: 0x6B6B6B
+                        text_align: CENTER
+                        clickable: false
+                    - obj:
+                        id: cswing_0
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_swing_mode, index: 0 }
+                        widgets:
+                          - label:
+                              id: cswing_0_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - obj:
+                        id: cswing_1
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_swing_mode, index: 1 }
+                        widgets:
+                          - label:
+                              id: cswing_1_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - obj:
+                        id: cswing_2
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_swing_mode, index: 2 }
+                        widgets:
+                          - label:
+                              id: cswing_2_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - obj:
+                        id: cswing_3
+                        width: 62
+                        height: 22
+                        radius: 11
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        clickable: true
+                        scrollable: false
+                        pad_all: 0
+                        on_click:
+                          - script.execute: { id: set_climate_swing_mode, index: 3 }
+                        widgets:
+                          - label:
+                              id: cswing_3_label
+                              align: CENTER
+                              text: "-"
+                              text_font: sublabel
+                              text_color: 0x1B1B1B
+                              clickable: false
               - obj:
                   id: climate_mode_overlay_x
                   align: TOP_LEFT
@@ -4280,11 +4558,11 @@ lvgl:
                   width: 36
                   height: 36
                   radius: 999
-                  bg_color: 0xEEEEEE
+                  bg_color: 0xFFFFFF
                   bg_opa: COVER
                   border_width: 1
-                  border_color: 0xFFFFFF
-                  border_opa: 20%
+                  border_color: 0xDDDDDD
+                  border_opa: COVER
                   clickable: true
                   scrollable: false
                   on_click:
@@ -4297,28 +4575,6 @@ lvgl:
                         text_color: 0x1B1B1B
                         clickable: false
 
-              - obj:
-                  id: climate_mode_overlay_ok
-                  align: TOP_RIGHT
-                  x: -10
-                  y: 9
-                  width: 36
-                  height: 36
-                  radius: 999
-                  bg_color: 0xD5EEFC
-                  bg_opa: COVER
-                  border_width: 0
-                  clickable: true
-                  scrollable: false
-                  on_click:
-                    - lvgl.widget.hide: climate_mode_overlay
-                  widgets:
-                    - label:
-                        align: CENTER
-                        text: "\U000F012C"
-                        text_font: materialdesign_icons
-                        text_color: 0x1B1B1B
-                        clickable: false
 
         # ---------- VACUUM CONTROL ----------
         # Een stofzuiger is geen schakelaar: start, pauze, stop en terug naar
@@ -4729,7 +4985,7 @@ script:
                 static unsigned test_page=0;
                 id(tile_page) = runtime_tiles::enabled ? test_page++ % runtime_tiles::page_count() : 1;
             - script.execute: show_tile_page
-            - delay: 150ms
+            - delay: 300ms
             - lambda: |-
                 lv_obj_update_layout(id(tile_scroll));
                 const int count = runtime_tiles::enabled ? runtime_tiles::model.count : std::clamp(atoi("${TILE_COUNT}"), 1, 10);
@@ -5003,8 +5259,8 @@ script:
             if (has(m)) lv_obj_clear_flag(btn, LV_OBJ_FLAG_HIDDEN);
             else        lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
             bool selected = (current == std::string(m));
-            lv_obj_set_style_bg_color(btn,
-              lv_color_hex(selected ? 0xFF9F0A : 0x2C2C30), LV_PART_MAIN);
+            lv_obj_set_style_bg_color(btn, lv_color_hex(selected ? 0x00A6ED : 0xFFFFFF), LV_PART_MAIN);
+            lv_obj_set_style_text_color(lv_obj_get_child(btn, 0), lv_color_hex(selected ? 0xFFFFFF : 0x1B1B1B), LV_PART_MAIN);
           };
           apply(id(cmode_off), "off");
           apply(id(cmode_heat), "heat");
@@ -5013,10 +5269,109 @@ script:
           apply(id(cmode_auto), "auto");
           apply(id(cmode_dry), "dry");
           apply(id(cmode_fan_only), "fan_only");
+          // Fan and swing rows: the entity's own mode names, at most four each, as Home Assistant reports them.
+          auto pretty = [](std::string raw) { if (!raw.empty() && raw[0] >= 'a' && raw[0] <= 'z') raw[0] = (char)(raw[0] - 'a' + 'A'); return raw; };
+          auto fill = [&](lv_obj_t *title, lv_obj_t *chips[4], const std::string &modes, const std::string &current_mode) {
+            unsigned shown = 0;
+            for (unsigned i = 0; i < 4; ++i) {
+              std::string raw = cyd::list_item(modes, i);
+              if (raw.empty()) { lv_obj_add_flag(chips[i], LV_OBJ_FLAG_HIDDEN); continue; }
+              lv_obj_clear_flag(chips[i], LV_OBJ_FLAG_HIDDEN); ++shown;
+              lv_label_set_text(lv_obj_get_child(chips[i], 0), pretty(raw).c_str());
+              lv_obj_set_style_bg_color(chips[i], lv_color_hex(raw == current_mode ? 0x00A6ED : 0xFFFFFF), LV_PART_MAIN);
+              lv_obj_set_style_text_color(lv_obj_get_child(chips[i], 0), lv_color_hex(raw == current_mode ? 0xFFFFFF : 0x1B1B1B), LV_PART_MAIN);
+            }
+            if (shown) lv_obj_clear_flag(title, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(title, LV_OBJ_FLAG_HIDDEN);
+          };
+          lv_obj_t *fan_chips[4] = {id(cfan_0), id(cfan_1), id(cfan_2), id(cfan_3)};
+          lv_obj_t *swing_chips[4] = {id(cswing_0), id(cswing_1), id(cswing_2), id(cswing_3)};
+          fill(id(cfan_title), fan_chips, id(active_climate_fan_modes), id(active_climate_fan_mode));
+          fill(id(cswing_title), swing_chips, id(active_climate_swing_modes), id(active_climate_swing_mode));
       - lvgl.widget.show: climate_mode_overlay
 
   # Zet precies een modus. Geen tussenstappen, dus geen ongewenste
   # commando's naar de warmtepomp onderweg.
+  # Fan and swing modes from the picker: one call with the entity's own mode name.
+  - id: set_climate_fan_mode
+    mode: restart
+    parameters:
+      index: int
+    then:
+      - lambda: |-
+          id(active_climate_fan_mode) = cyd::list_item(id(active_climate_fan_modes), index);
+          id(climate_edit_ms) = millis();
+          id(climate_edit_pending) = true;
+      - lvgl.widget.hide: climate_mode_overlay
+      - if:
+          condition:
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && !id(active_climate_fan_mode).empty();'
+          then:
+            - homeassistant.action:
+                action: climate.set_fan_mode
+                data:
+                  entity_id: !lambda "return id(active_entity);"
+                  fan_mode: !lambda "return id(active_climate_fan_mode);"
+  - id: set_climate_swing_mode
+    mode: restart
+    parameters:
+      index: int
+    then:
+      - lambda: |-
+          id(active_climate_swing_mode) = cyd::list_item(id(active_climate_swing_modes), index);
+          id(climate_edit_ms) = millis();
+          id(climate_edit_pending) = true;
+      - lvgl.widget.hide: climate_mode_overlay
+      - if:
+          condition:
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && !id(active_climate_swing_mode).empty();'
+          then:
+            - homeassistant.action:
+                action: climate.set_swing_mode
+                data:
+                  entity_id: !lambda "return id(active_entity);"
+                  swing_mode: !lambda "return id(active_climate_swing_mode);"
+
+  # Quick on/off in the climate card; climate.turn_on restores the last mode in Home Assistant.
+  - id: climate_power_toggle
+    mode: restart
+    then:
+      - lambda: |-
+          std::string mode = id(active_climate_mode);
+          for (char &c : mode) if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+          id(active_climate_power_on) = mode == "off" || mode.empty() || mode == "unknown";
+          id(climate_edit_ms) = millis();
+          id(climate_edit_pending) = true;
+          if (!id(active_climate_power_on)) { id(active_climate_mode) = "off"; lv_label_set_text(id(climate_mode_label), "Off"); }
+          id(climate_power_refresh).execute();
+      - if:
+          condition:
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && id(active_climate_power_on);'
+          then:
+            - homeassistant.action:
+                action: climate.turn_on
+                data:
+                  entity_id: !lambda "return id(active_entity);"
+      - if:
+          condition:
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && !id(active_climate_power_on);'
+          then:
+            - homeassistant.action:
+                action: climate.turn_off
+                data:
+                  entity_id: !lambda "return id(active_entity);"
+
+  # The power key lights up while the device runs in any mode.
+  - id: climate_power_refresh
+    mode: restart
+    then:
+      - lambda: |-
+          std::string mode = id(active_climate_mode);
+          for (char &c : mode) if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+          bool on = !(mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable");
+          if (id(climate_edit_pending)) on = id(active_climate_power_on);
+          lv_obj_set_style_bg_color(id(climate_power_button), lv_color_hex(on ? 0xD5EEFC : 0xEEEEEE), LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(climate_power_icon), lv_color_hex(on ? 0x0B6E99 : 0x8A8A8A), LV_PART_MAIN);
+
   - id: set_climate_mode
     mode: restart
     parameters:
@@ -5026,13 +5381,9 @@ script:
           id(climate_edit_ms) = millis();
           id(climate_edit_pending) = true;
           id(active_climate_mode) = mode;
-          if (mode == "off") lv_label_set_text(id(climate_mode_label), "Off");
-          if (mode == "heat") lv_label_set_text(id(climate_mode_label), "Heat");
-          if (mode == "cool") lv_label_set_text(id(climate_mode_label), "Cool");
-          if (mode == "heat_cool") lv_label_set_text(id(climate_mode_label), "Heat/Cool");
-          if (mode == "auto") lv_label_set_text(id(climate_mode_label), "Auto");
-          if (mode == "dry") lv_label_set_text(id(climate_mode_label), "Dry");
-          if (mode == "fan_only") lv_label_set_text(id(climate_mode_label), "Fan");
+          id(active_climate_power_on) = mode != "off";
+          id(climate_power_refresh).execute();
+          lv_label_set_text(id(climate_mode_label), tile_controls::climate_mode_text(mode));
       - lvgl.widget.hide: climate_mode_overlay
       - if:
           condition:
@@ -5604,18 +5955,19 @@ script:
 
             char current_buf[48];
             if (isnan(climate_current_temperature)) {
-              snprintf(current_buf, sizeof(current_buf), "Current: --");
+              snprintf(current_buf, sizeof(current_buf), "Nu: --");
             } else if (id(active_climate_humidity) >= 0) {
-              snprintf(current_buf, sizeof(current_buf), "Current: %.1f° - Humidity: %d %%", climate_current_temperature, id(active_climate_humidity));
+              snprintf(current_buf, sizeof(current_buf), "Nu: %.1f° · %d%%", climate_current_temperature, id(active_climate_humidity));
             } else {
-              snprintf(current_buf, sizeof(current_buf), "Current: %.1f°", climate_current_temperature);
+              snprintf(current_buf, sizeof(current_buf), "Nu: %.1f°", climate_current_temperature);
             }
             lv_label_set_text(id(climate_current_label), current_buf);
 
             char target_buf[16];
             snprintf(target_buf, sizeof(target_buf), "%.1f°", id(active_climate_target_x10) / 10.0f);
             lv_label_set_text(id(climate_target_label), target_buf);
-            lv_label_set_text(id(climate_mode_label), id(active_climate_mode).c_str());
+            lv_label_set_text(id(climate_mode_label), tile_controls::climate_mode_text(id(active_climate_mode)));
+            id(climate_power_refresh).execute();
 
             lv_arc_set_range(id(climate_arc), id(active_climate_min_x10), id(active_climate_max_x10));
             lv_arc_set_value(id(climate_arc), id(active_climate_target_x10));
@@ -6011,11 +6363,11 @@ script:
 
               char current_buf[48];
               if (isnan(current_temperature)) {
-                snprintf(current_buf, sizeof(current_buf), "Current: --");
+                snprintf(current_buf, sizeof(current_buf), "Nu: --");
               } else if (id(active_climate_humidity) >= 0) {
-                snprintf(current_buf, sizeof(current_buf), "Current: %.1f° - Humidity: %d %%", current_temperature, id(active_climate_humidity));
+                snprintf(current_buf, sizeof(current_buf), "Nu: %.1f° · %d%%", current_temperature, id(active_climate_humidity));
               } else {
-                snprintf(current_buf, sizeof(current_buf), "Current: %.1f°", current_temperature);
+                snprintf(current_buf, sizeof(current_buf), "Nu: %.1f°", current_temperature);
               }
               lv_label_set_text(id(climate_current_label), current_buf);
 

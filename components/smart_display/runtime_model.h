@@ -25,9 +25,10 @@ inline bool valid_entity(const std::string &entity) {
 inline std::string state_revision(const std::string &state, const std::string &attributes) {
   return state + "\n" + attributes;
 }
-struct Forecast { std::string day, condition; float high = NAN, low = NAN; };
+struct Forecast { std::string day, condition; float high = NAN, low = NAN, rain = NAN, mm = NAN; };
+struct Hour { std::string time, condition; float temp = NAN, rain = NAN, mm = NAN; };
 struct Tile {
-  std::string entity, name, state, unit, modes, hvac_modes;
+  std::string entity, name, state, unit, modes, hvac_modes, fan_modes, swing_modes, fan_mode, swing_mode;
   std::array<std::string, 4> fan_speeds;
   unsigned fan_speed_count = 0;
   std::string fan_speed;
@@ -39,12 +40,27 @@ struct Tile {
   int saturation = 0;
   std::string tap = "auto", display = "standard", inline_control = "none", media_title;
   bool wide = false;
+  // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.
+  std::string controls, device_class, hvac_action;
+  bool muted = false;
+  // A -/+ edit shows at once and is sent as one call after a short pause; the
+  // value stays until Home Assistant reports it (or a timeout clears it).
+  float edit_value = NAN; uint32_t edit_since = 0; bool edit_sent = false;
+  // Knob position a toggle shows while its command is under way.
+  bool optimistic_on = false;
   std::array<std::string, 8> options;
   unsigned option_count = 0, history_hours = 24;
   std::array<float,24> history{};
   bool has_history = false;
   std::array<Forecast, 5> forecast;
   unsigned forecast_count = 0;
+  // Weather card details (0.2.19+): the next hours, wind and feels-like temperature.
+  std::array<Hour, 8> hours;
+  unsigned hour_count = 0;
+  float wind = NAN, feels = NAN;
+  std::string wind_unit;
+  // When a scene, script or button last ran (unix time), pre-computed by the manager.
+  uint32_t last_run = 0;
   std::string sunrise, sunset, duration, remaining;
   uint32_t timer_end = 0;
   float battery = NAN, volume = NAN;

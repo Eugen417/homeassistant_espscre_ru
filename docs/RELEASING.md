@@ -177,6 +177,34 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.23 / firmware 0.2.19
+
+Opslagversie en tegelprotocol blijven 1. `tiles[].options.controls` is additief:
+`none` of een set uit `CONTROLS` in `core.py` per domein (climate `setpoint`/`mode`,
+switch/light/fan `toggle` plus `brightness`/`speed`, vacuum/cover/timer `buttons`,
+cover `position`, media_player `volume`/`playback`, number `stepper`/`slider`,
+select `stepper`, scene/script/button `run`). Op de draad stuurt de manager in
+`o.controls` alleen de set die de kaart werkelijk toont: uitsluitend dubbelbreed,
+weergave standaard en zonder mini-schuif; zonder keuze de eerste set van het
+domein, bij `none` niets. Statusberichten krijgen de attributen `device_class`,
+`hvac_action` en `is_volume_muted` (de enige boolean die meegaat). Oudere
+firmware negeert het veld en toont de gewone brede kaart, daarom geen
+`min_firmware`; het tegelpaneel meldt vanaf welke firmware het werkt. Een oude
+editor die `controls` weglaat behoudt de opgeslagen keuze (zoals `background`).
+De firmware bouwt het paneel lui per set (`layout_panel`), stuurt −/+ na 700 ms
+als één `set_temperature`/`set_value` en laat de lokale waarde staan tot HA hem
+meldt (of 10 s). De iconfonts krijgen 18 vaste bedieningsglyphs
+(`tile_icons.FIXED`). Geen gewijzigde preferences of sleutels.
+
+Ook additief in dezelfde release: `x.hours` (maximaal acht uren `t`, `c`, `h`,
+`p`, `r`) en `p`/`r` per dag in `x.days` voor de weerkaart; `x.last` (unix-tijd)
+voor scènes, scripts en knoppen; de attributen `humidity`, `wind_speed`,
+`wind_speed_unit`, `apparent_temperature`, `fan_modes`, `swing_modes`, `fan_mode`
+en `swing_mode`. `supported_features` mag boven de grens van een miljoen. Oudere
+firmware negeert al deze velden. De bezig-status gebruikt LVGL's spinner; beide
+bordprofielen bevatten daarvoor een verborgen `spinner` (`busy_spinner_seed`),
+anders compileert ESPHome `LV_USE_SPINNER` als 0.
+
 ### Compatibiliteit 0.2.12 / firmware 0.2.14
 
 Opslagversie en tegelprotocol blijven 1. Additief: `tiles[].options.size`

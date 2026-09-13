@@ -47,6 +47,17 @@ De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
   ondergang), een **kookwekker** (`timer.*`, tikken start of pauzeert) en
   **aanwezigheid** (`person.*`). Kies ze in de kiezer als elke andere tegel of
   sleep ze direct in de schermmockup; **Dubbelbreed** is een optie voor iedere tegel.
+- **Directe bediening op dubbelbrede tegels** (firmware 0.2.19+), zoals de rijen in
+  Home Assistant: temperatuur − / + of modusknoppen (klimaat), een toggle (schakelaar,
+  lamp, ventilator), start/stop/dock (stofzuiger), open/stop/dicht of een
+  positieschuif (zonwering), volume met dempen of vorige/play/volgende (media),
+  − / + of een schuif (getallen), vorige/volgende (keuzelijst), start/pauze en
+  annuleren (kookwekker) en één knop voor scènes, scripts en knoppen. Per tegel
+  instelbaar; **Geen** houdt de gewone kaart.
+- **Weerkaart** met actueel weer, de komende uren en dagen inclusief regenkans of
+  millimeters; **klimaatkaart** met aan/uit-knop, modus-, ventilator- en zwenkstanden.
+  Scènes, scripts en knoppen tonen wanneer ze voor het laatst liepen. Een tegel die op
+  Home Assistant wacht toont een klein spinnertje op een lichte laag.
 - **Scherminstellingen:** standby-tijd, normale en gedimde helderheid,
   nachturen, klok, terug naar de hoofdpagina en optioneel swipen tussen pagina's.
 - **Guition-rotatie:** 0°, 90°, 180° of 270°, direct vanuit de beheerpagina.

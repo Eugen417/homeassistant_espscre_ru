@@ -184,10 +184,29 @@ GROUPS = (
     )),
 )
 
-# Glyphs the firmware draws itself (weather conditions, sun, checkmark) that the picker does not offer.
+# Glyphs the firmware draws itself (weather conditions, sun, checkmark, direct controls) that the picker does not offer.
 FIXED = (
     ('alert-circle-outline', 'F05D6'),
     ('check', 'F012C'),
+    # Direct controls on wide cards (firmware 0.2.19+).
+    ('pause', 'F03E4'),
+    ('stop', 'F04DB'),
+    ('skip-next', 'F04AD'),
+    ('skip-previous', 'F04AE'),
+    ('volume-high', 'F057E'),
+    ('volume-off', 'F0581'),
+    ('arrow-up', 'F005D'),
+    ('arrow-down', 'F0045'),
+    ('arrow-expand-horizontal', 'F084E'),
+    ('arrow-collapse-horizontal', 'F084C'),
+    ('home-map-marker', 'F05F8'),
+    ('plus', 'F0415'),
+    ('minus', 'F0374'),
+    ('chevron-left', 'F0141'),
+    ('chevron-right', 'F0142'),
+    ('close', 'F0156'),
+    ('sun-snowflake-variant', 'F1A79'),
+    ('thermostat-auto', 'F1B17'),
     ('weather-fog', 'F0591'),
     ('weather-hail', 'F0592'),
     ('weather-lightning', 'F0593'),
@@ -206,6 +225,9 @@ DEFAULTS = {'light': 'lightbulb', 'climate': 'air-conditioner', 'vacuum': 'robot
             'cover': 'window-shutter', 'scene': 'sofa', 'script': 'sofa', 'sensor': 'gauge', 'binary_sensor': 'gauge',
             'timer': 'timer-outline', 'person': 'account', 'screen': 'clock-outline'}
 FALLBACK = 'power'
+CONTROL_GLYPHS = ('play', 'pause', 'stop', 'skip-next', 'skip-previous', 'volume-high', 'volume-off', 'arrow-up', 'arrow-down',
+                  'arrow-expand-horizontal', 'arrow-collapse-horizontal', 'home-map-marker', 'plus', 'minus', 'chevron-left',
+                  'chevron-right', 'close', 'power', 'fire', 'snowflake')
 WEATHER = {'sunny': 'weather-sunny', 'clear-night': 'weather-night', 'cloudy': 'weather-cloudy',
            'partlycloudy': 'weather-partly-cloudy', 'rainy': 'weather-rainy', 'pouring': 'weather-pouring',
            'snowy': 'weather-snowy', 'snowy-rainy': 'weather-snowy-rainy', 'fog': 'weather-fog', 'hail': 'weather-hail',
@@ -223,4 +245,6 @@ def editor():
                        for group, icons in GROUPS],
             'defaults': {domain: GLYPHS[name] for domain, name in DEFAULTS.items()}, 'fallback': GLYPHS[FALLBACK],
             'weather': {state: GLYPHS[name] for state, name in WEATHER.items()},
-            'sun': {'above_horizon': GLYPHS['weather-sunset-down'], 'below_horizon': GLYPHS['weather-sunset-up']}}
+            'sun': {'above_horizon': GLYPHS['weather-sunset-down'], 'below_horizon': GLYPHS['weather-sunset-up']},
+            # Glyphs of the direct controls on wide cards, so the mockup previews them.
+            'controls': {name: GLYPHS[name] for name in CONTROL_GLYPHS}}

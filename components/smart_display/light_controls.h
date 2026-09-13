@@ -100,7 +100,7 @@ inline lv_obj_t *plain(lv_obj_t *parent, int x, int y, int w, int h) {
   lv_obj_set_pos(obj, x, y); lv_obj_set_size(obj, w, h);
   return obj;
 }
-inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height, bool light_theme = false) {
+inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height) {
   if (ready) return;
   ready = true;
   bool large = width >= 480;
@@ -114,7 +114,7 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
     auto &row = rows[i]; row.index = i;
     row.box = plain(parent, margin, top + i * spacing, w, spacing - 2);
     lv_obj_set_style_text_font(row.box, font, 0);
-    lv_obj_set_style_text_color(row.box, lv_color_hex(light_theme ? 0x1B1B1B : 0xEEEEF2), 0);
+    lv_obj_set_style_text_color(row.box, lv_color_hex(0x1B1B1B), 0);
     auto *label = lv_label_create(row.box); lv_label_set_text(label, names[i]);
     lv_obj_set_pos(label, 2, 0);
     row.value = lv_label_create(row.box); lv_obj_align(row.value, LV_ALIGN_TOP_RIGHT, -2, 0);

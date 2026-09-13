@@ -1,6 +1,6 @@
 """Pure validation, firmware generation and bounded display protocol."""
 import base64
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import math
 import re
@@ -16,8 +16,10 @@ WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.18'
-ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level media_title options min max step temperature_unit supported_features next_rising next_setting finishes_at duration remaining'.split())
+FIRMWARE_VERSION = '0.2.19'
+ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
+# Attributes whose boolean value the screen needs; every other bool stays behind.
+BOOL_ATTRS = frozenset(['is_volume_muted'])
 
 
 TILE_BACKGROUNDS = {
@@ -39,6 +41,43 @@ TILE_BACKGROUNDS = {
 DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath')}
 # Displays that only work on a double-width card.
 WIDE_ONLY = ('forecast', 'sunpath')
+
+# Direct controls on the right half of a double-width card (firmware 0.2.19+), like
+# Home Assistant's own entity rows. The first choice is what a wide card shows
+# when the tile has no explicit choice; 'none' keeps the plain card.
+CONTROLS = {
+    'climate': (('setpoint', 'Temperatuur − / +'), ('mode', 'Uit, verwarmen, koelen')),
+    'switch': (('toggle', 'Aan/uit-schakelaar'),),
+    'input_boolean': (('toggle', 'Aan/uit-schakelaar'),),
+    'light': (('toggle', 'Aan/uit-schakelaar'), ('brightness', 'Helderheidsschuif')),
+    'fan': (('toggle', 'Aan/uit-schakelaar'), ('speed', 'Snelheidsschuif')),
+    'vacuum': (('buttons', 'Start, stop, naar dock'),),
+    'cover': (('buttons', 'Open, stop, dicht'), ('position', 'Positieschuif')),
+    'media_player': (('volume', 'Volume en dempen'), ('playback', 'Vorige, play/pauze, volgende')),
+    'number': (('stepper', 'Waarde − / +'), ('slider', 'Schuif')),
+    'input_number': (('stepper', 'Waarde − / +'), ('slider', 'Schuif')),
+    'select': (('stepper', 'Vorige / volgende keuze'),),
+    'input_select': (('stepper', 'Vorige / volgende keuze'),),
+    'timer': (('buttons', 'Start/pauze en annuleren'),),
+    'scene': (('run', 'Knop Activeren'),),
+    'script': (('run', 'Knop Uitvoeren'),),
+    'button': (('run', 'Knop Indrukken'),),
+    'input_button': (('run', 'Knop Indrukken'),),
+}
+
+def controls_catalogue():
+    """Editor choices per domain: the default first, then 'none'."""
+    return {domain: {'default': choices[0][0], 'choices': [{'key': key, 'label': label} for key, label in choices] + [{'key': 'none', 'label': 'Geen'}]}
+            for domain, choices in CONTROLS.items()}
+
+def resolve_controls(tile):
+    """Control set a card shows on the screen, or None: only wide cards in the standard layout have room for one."""
+    options = tile.get('options', {})
+    domain = tile['entity'].split('.')[0]
+    if domain not in CONTROLS or options.get('size') != 'wide' or options.get('display', 'standard') != 'standard' or options.get('inline') == 'slider':
+        return None
+    choice = options.get('controls', CONTROLS[domain][0][0])
+    return None if choice == 'none' else choice
 
 # Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
 SETTING_RULES = {
@@ -114,7 +153,7 @@ def validate_layout(data):
         item = {'entity': tile['entity'], 'name': name.strip()}
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls'}:
                 raise ValueError('Onbekende tegelinstellingen.')
             if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
                 raise ValueError('Kies een pastel achtergrondkleur uit het palet.')
@@ -129,7 +168,7 @@ def validate_layout(data):
             # The five-day strip and the sun path only fit a double-width card.
             if options.get('display') in WIDE_ONLY:
                 options = {**options, 'size': 'wide'}
-            if options.get('tap') == 'toggle' and domain not in {'light','switch','input_boolean','fan','media_player'}:
+            if options.get('tap') == 'toggle' and domain not in {'light','switch','input_boolean','fan','media_player','climate'}:
                 raise ValueError('Deze entiteit ondersteunt geen aan/uit-actie.')
             if options.get('inline') == 'slider' and domain not in {'light','fan','cover','number','input_number','media_player'}:
                 raise ValueError('Deze entiteit ondersteunt geen mini-schuif.')
@@ -137,6 +176,10 @@ def validate_layout(data):
                 raise ValueError('Geschiedenis: kies 1, 6 of 24 uur.')
             if options.get('display') == 'watch' and options.get('inline') == 'slider':
                 raise ValueError('Kies grote waarde of mini-schuif.')
+            if 'controls' in options:
+                allowed = ('none',) + tuple(key for key, _ in CONTROLS.get(domain, ()))
+                if not isinstance(options['controls'], str) or options['controls'] not in allowed:
+                    raise ValueError('Deze entiteit ondersteunt die directe bediening niet.')
             item['options'] = dict(options)
         clean.append(item)
     result = {'title': title.strip(), 'tiles': clean}
@@ -154,26 +197,71 @@ def local_clock(value, tz):
         moment = moment.replace(tzinfo=timezone.utc)
     return moment.astimezone(tz or timezone.utc).strftime('%H:%M')
 
-def extras(tile, states, forecast=None, tz=None):
+def forecast_number(entry, name):
+    value = entry.get(name)
+    return round(value, 1) if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) else None
+
+def forecast_time(entry, tz):
+    try:
+        return datetime.fromisoformat(str(entry.get('datetime')).replace('Z', '+00:00')).astimezone(tz or timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
+def epoch(value):
+    """Unix time of an ISO timestamp (a scene's state, a script's last_triggered); None when unusable."""
+    try:
+        moment = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except (ValueError, TypeError):
+        return None
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=timezone.utc)
+    return int(moment.timestamp())
+
+def extras(tile, states, forecast=None, tz=None, hourly=None, now=None):
     """Small, pre-computed values the firmware cannot derive itself (time zones, forecasts)."""
     domain = tile['entity'].split('.')[0]
     attrs = states.get(tile['entity'], {}).get('attributes', {})
-    if domain == 'weather' and forecast:
+    if domain == 'weather' and (forecast or hourly):
+        result = {}
         days = []
-        for entry in forecast[:5]:
-            if not isinstance(entry, dict):
+        for entry in forecast or []:
+            if not isinstance(entry, dict) or len(days) == 5:
                 continue
-            try:
-                day = datetime.fromisoformat(str(entry.get('datetime')).replace('Z', '+00:00')).astimezone(tz or timezone.utc)
-            except (ValueError, TypeError):
+            day = forecast_time(entry, tz)
+            if day is None:
                 continue
             item = {'d': WEEKDAYS[day.weekday()], 'c': short(entry.get('condition') or '', 20)}
-            for key, name in (('h', 'temperature'), ('l', 'templow')):
-                value = entry.get(name)
-                if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
-                    item[key] = round(value, 1)
+            # h/l: high and low; p: chance of rain in %; r: rain in the entity's unit (mm).
+            for key, name in (('h', 'temperature'), ('l', 'templow'), ('p', 'precipitation_probability'), ('r', 'precipitation')):
+                value = forecast_number(entry, name)
+                if value is not None:
+                    item[key] = value
             days.append(item)
-        return {'days': days} if days else None
+        if days:
+            result['days'] = days
+        # The next eight hours from now, for the weather card's hourly strip.
+        hours = []
+        # The running hour still counts: an entry stays until its hour has passed.
+        start = (now or datetime.now(timezone.utc)) - timedelta(minutes=59)
+        for entry in hourly or []:
+            if not isinstance(entry, dict) or len(hours) == 8:
+                continue
+            moment = forecast_time(entry, tz)
+            if moment is None or moment < start:
+                continue
+            item = {'t': moment.strftime('%H:%M'), 'c': short(entry.get('condition') or '', 20)}
+            for key, name in (('h', 'temperature'), ('p', 'precipitation_probability'), ('r', 'precipitation')):
+                value = forecast_number(entry, name)
+                if value is not None:
+                    item[key] = value
+            hours.append(item)
+        if hours:
+            result['hours'] = hours
+        return result or None
+    if domain in ('scene', 'script', 'button', 'input_button'):
+        # When it last ran: scripts report last_triggered; scenes and buttons carry the time as their state.
+        last = epoch(attrs.get('last_triggered') if domain == 'script' else states.get(tile['entity'], {}).get('state'))
+        return {'last': last} if last else None
     if domain == 'sun':
         rise, down = local_clock(attrs.get('next_rising'), tz), local_clock(attrs.get('next_setting'), tz)
         return {'rise': rise, 'set': down} if rise or down else None
@@ -196,11 +284,15 @@ def tile_icon(tile, attrs):
     return tile_icons.ICONS[choice][0] if choice in tile_icons.ICONS else tile_icons.ha_icon(attrs)
 
 def screen_options(tile, attrs):
-    """Stored options on the wire; `icon` travels as the resolved codepoint (firmware 0.2.18+, ignored before)."""
-    options = {k: v for k, v in tile.get('options', {}).items() if k != 'icon'}
+    """Stored options on the wire; `icon` travels as the resolved codepoint (firmware 0.2.18+, ignored before)
+    and `controls` only as the set the card really shows (firmware 0.2.19+, ignored before)."""
+    options = {k: v for k, v in tile.get('options', {}).items() if k not in ('icon', 'controls')}
     icon = tile_icon(tile, attrs)
     if icon:
         options['icon'] = icon
+    controls = resolve_controls(tile)
+    if controls:
+        options['controls'] = controls
     return options if options or 'options' in tile else None
 
 def state_message(index, tile, states, extra=None):
@@ -215,10 +307,15 @@ def state_message(index, tile, states, extra=None):
     bounded = {}
     for key in ATTRS:
         value = attrs.get(key)
-        if isinstance(value, bool) or value is None:
+        if isinstance(value, bool):
+            if key in BOOL_ATTRS:
+                bounded[key] = value
+            continue
+        if value is None:
             continue
         if isinstance(value, (int, float)):
-            if math.isfinite(value) and abs(value) <= 1000000:
+            # supported_features is a bit field (media players exceed 8 million); other numbers are display values.
+            if math.isfinite(value) and abs(value) <= (2**31 if key == 'supported_features' else 1000000):
                 bounded[key] = value
         elif isinstance(value, str):
             bounded[key] = short(value, 48)

@@ -2,8 +2,20 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <string>
 
 namespace cyd {
+// The n-th quoted item of a JSON list such as ["auto","low","high"]; empty when absent.
+inline std::string list_item(const std::string &json, unsigned index) {
+  size_t pos = 0; unsigned n = 0;
+  while ((pos = json.find('"', pos)) != std::string::npos) {
+    size_t end = json.find('"', pos + 1);
+    if (end == std::string::npos) return {};
+    if (n++ == index) return json.substr(pos + 1, end - pos - 1);
+    pos = end + 1;
+  }
+  return {};
+}
 // Work in tenths of a degree and always clamp AFTER rounding.
 inline int quantize_temperature(int value, int minimum, int maximum, int step) {
   step = std::max(1, step);
