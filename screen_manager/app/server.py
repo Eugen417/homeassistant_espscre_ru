@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timedelta, timezone
 import math
 from firmware import Firmware
+import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
@@ -220,8 +221,9 @@ class Manager:
         old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
         for tile in layout['tiles']:
             old_options=old_tiles.get(tile['entity'],{}).get('options',{})
-            if 'options' in tile and 'background' not in tile['options'] and 'background' in old_options:
-                tile['options']['background']=old_options['background']
+            for key in ('background', 'icon'):
+                if 'options' in tile and key not in tile['options'] and key in old_options:
+                    tile['options'][key]=old_options[key]
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
                 tile['options'] = old_tiles[tile['entity']]['options'].copy()
         known = {e['id'] for e in self.inventory()[1]} | set(BUILTIN)
@@ -361,7 +363,7 @@ def create_app(manager, development=False):
             screen['update'] = manager.updates.state_for(screen)
         builtin = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities,
-                                  'backgrounds': TILE_BACKGROUNDS, 'builtin': builtin, 'updates': manager.updates.summary()})
+                                  'backgrounds': TILE_BACKGROUNDS, 'icons': tile_icons.editor(), 'builtin': builtin, 'updates': manager.updates.summary()})
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})

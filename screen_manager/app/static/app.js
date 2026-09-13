@@ -405,6 +405,29 @@ function domainBadge(id) {
   badge.style.background = background;
   return badge;
 }
+// The screen draws Material Design Icons; static/tile-icons.woff holds the same glyphs.
+const glyph = (cp) => String.fromCodePoint(parseInt(cp, 16));
+let iconIndex = { source: null, byName: {} };
+function iconNamed(name) {
+  if (iconIndex.source !== inventory.icons)
+    iconIndex = { source: inventory.icons, byName: Object.fromEntries((inventory.icons?.groups || []).flatMap((g) => g.icons.map((i) => [i.name, i]))) };
+  return iconIndex.byName[name];
+}
+// What the firmware draws without a choice: Home Assistant's own icon, else the domain icon.
+function automaticIcon(id) {
+  const icons = inventory.icons, entity = inventory.entities.find((e) => e.id === id), domain = id.split(".")[0];
+  if (entity?.icon) return entity.icon;
+  if (domain === "weather") return icons.weather[entity?.state] || icons.weather.partlycloudy;
+  if (domain === "sun") return icons.sun[entity?.state] || icons.sun.below_horizon;
+  return icons.defaults[domain] || icons.fallback;
+}
+function tileBadge(tile) {
+  const badge = domainBadge(tile.entity);
+  if (!inventory.icons) return badge;
+  badge.textContent = glyph(iconNamed(tile.options?.icon)?.cp || automaticIcon(tile.entity));
+  badge.classList.add("mdi");
+  return badge;
+}
 function tileLimit() {
   const version=inventory.screens.find(s=>s.id===selected)?.firmware || "";
   const match=/^(\d+)\.(\d+)\.(\d+)$/.exec(version);
@@ -437,7 +460,7 @@ function renderPreview() {
       // "Geen": no card on the screen; the mockup keeps a dashed outline as drop target.
       if (tile.options?.background === "none") card.classList.add("bare");
       if (place.wide) card.classList.add("wide");
-      card.append(domainBadge(tile.entity), node("strong", name));
+      card.append(tileBadge(tile), node("strong", name));
       card.dataset.index = index;
       enableDrag(card, { kind: "tile", index });
       card.classList.toggle("chosen", selectedTile === tile.entity);
@@ -487,8 +510,9 @@ function removeTile(index) {
 }
 // Tile settings open in a sheet above the mockup; every change applies live,
 // so the card behind it shows the result while you pick.
-let sheetIndex = -1;
+let sheetIndex = -1, iconPickerOpen = false;
 function openTileSheet(index) {
+  if (index !== sheetIndex) iconPickerOpen = false;
   sheetIndex = index;
   selectedTile = layout.tiles[index].entity;
   renderTileSheet();
@@ -520,6 +544,89 @@ function segmented(choices, value, onChange) {
   }
   return group;
 }
+// A choice applies live like the palette: only pressed states, the summary and the
+// badges update, so search text and scroll position survive.
+function iconField(tile, onChange) {
+  const wrap = node("div", undefined, "sheet-field");
+  wrap.append(node("span", "Icoon"));
+  const fromHA = Boolean(inventory.entities.find((e) => e.id === tile.entity)?.icon);
+  const autoLabel = `Automatisch (${fromHA ? "uit Home Assistant" : "standaard"})`;
+  const summary = node("button", undefined, "icon-current");
+  summary.type = "button";
+  summary.setAttribute("aria-expanded", String(iconPickerOpen));
+  const current = node("span", undefined, "mdi"), text = node("span"), action = node("small", iconPickerOpen ? "Sluiten" : "Wijzigen");
+  summary.append(current, text, action);
+  const describe = () => {
+    const chosen = iconNamed(tile.options?.icon);
+    current.textContent = glyph(chosen?.cp || automaticIcon(tile.entity));
+    text.textContent = chosen?.label || autoLabel;
+  };
+  describe();
+  const panel = node("div", undefined, "icon-picker");
+  panel.hidden = !iconPickerOpen;
+  summary.onclick = () => {
+    iconPickerOpen = panel.hidden;
+    panel.hidden = !iconPickerOpen;
+    summary.setAttribute("aria-expanded", String(iconPickerOpen));
+    action.textContent = iconPickerOpen ? "Sluiten" : "Wijzigen";
+  };
+  const choice = (name, cp, label, cls = "") => {
+    const b = node("button", undefined, `icon-choice ${cls}`);
+    b.type = "button";
+    b.dataset.icon = name;
+    b.dataset.search = label.toLocaleLowerCase();
+    b.title = label;
+    b.setAttribute("aria-label", `Icoon: ${label}`);
+    b.setAttribute("aria-pressed", String((tile.options?.icon || "auto") === name));
+    b.append(node("span", glyph(cp), "mdi"));
+    b.onclick = () => {
+      tile.options = { ...tile.options, icon: name };
+      for (const other of panel.querySelectorAll(".icon-choice")) other.setAttribute("aria-pressed", String(other === b));
+      describe();
+      markDirty();
+      renderPreview();
+      onChange();
+    };
+    return b;
+  };
+  const search = node("input");
+  search.type = "search";
+  search.placeholder = "Zoek, bijvoorbeeld lamp, muziek of deur";
+  search.setAttribute("aria-label", "Zoek een icoon");
+  const auto = choice("auto", automaticIcon(tile.entity), autoLabel, "icon-auto");
+  auto.append(node("span", autoLabel));
+  const list = node("div", undefined, "icon-list"), empty = node("p", "Geen icoon gevonden.", "hint");
+  empty.hidden = true;
+  const sections = inventory.icons.groups.map((group) => {
+    const section = node("section"), grid = node("div", undefined, "icon-grid");
+    for (const icon of group.icons) {
+      const b = choice(icon.name, icon.cp, icon.label);
+      b.dataset.search += ` ${icon.name.replaceAll("-", " ")} ${group.label.toLocaleLowerCase()}`;
+      grid.append(b);
+    }
+    section.append(node("small", group.label), grid);
+    list.append(section);
+    return section;
+  });
+  search.oninput = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    let found = 0;
+    for (const section of sections) {
+      let visible = 0;
+      for (const b of section.querySelectorAll(".icon-choice")) {
+        b.hidden = !b.dataset.search.includes(query);
+        if (!b.hidden) visible++;
+      }
+      section.hidden = !visible;
+      found += visible;
+    }
+    empty.hidden = found > 0;
+  };
+  panel.append(search, auto, list, empty);
+  wrap.append(summary, panel);
+  if (!supportsFirmware(0, 2, 18)) wrap.append(node("small", "Het scherm toont een gekozen icoon vanaf firmware 0.2.18.", "icon-hint"));
+  return wrap;
+}
 function renderTileSheet() {
   const sheet = $("#tile-sheet"), tile = layout.tiles[sheetIndex];
   if (!tile) return;
@@ -531,7 +638,8 @@ function renderTileSheet() {
   close.type = "button";
   close.setAttribute("aria-label", "Sluiten");
   close.onclick = closeTileSheet;
-  head.append(domainBadge(tile.entity), titles, close);
+  let badge = tileBadge(tile);
+  head.append(badge, titles, close);
   const body = node("div", undefined, "sheet-body");
   const nameInput = node("input");
   nameInput.value = tile.name;
@@ -539,6 +647,9 @@ function renderTileSheet() {
   nameInput.maxLength = 60;
   nameInput.oninput = () => { tile.name = nameInput.value; markDirty(); renderPreview(); };
   body.append(field("Naam op het scherm", nameInput));
+  // The clock, forecast and sun path cards draw no tile icon.
+  if (inventory.icons && domain !== "screen" && !["forecast", "sunpath"].includes(tile.options?.display))
+    body.append(iconField(tile, () => { const next = tileBadge(tile); badge.replaceWith(next); badge = next; }));
   const displays = domain === "screen"
     ? [["digital", "Digitale klok"], ["analog", "Analoge klok"]]
     : [["standard", "Naam en status"], ["watch", "Grote waarde"]];

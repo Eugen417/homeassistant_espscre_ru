@@ -1,0 +1,93 @@
+import re
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+import test_portal
+import tile_icons
+from core import discover, packets, state_message, validate_layout
+
+HEADER = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+
+class IconSetTests(unittest.TestCase):
+    def test_set_is_complete_and_carried_by_every_icon_font(self):
+        self.assertEqual(len(tile_icons.ICONS), 150)
+        self.assertTrue(any(group == 'Media en muziek' and len(icons) >= 20 for group, icons in tile_icons.GROUPS))
+        self.assertEqual(len(set(tile_icons.GLYPHS.values())), len(tile_icons.GLYPHS))
+        for code in tile_icons.GLYPHS.values():
+            self.assertRegex(code, r'^F[0-9A-F]{4}$')
+        wanted = [f'\\U000{code}' for code in tile_icons.GLYPHS.values()]
+        for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
+            text = (ROOT / name).read_text()
+            fonts = re.findall(r'materialdesignicons-webfont\.ttf["\']\n    id: (\w+)\n    size: \d+\n    glyphs: (.*)\n', text)
+            self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini', 'watch_icon'], name)
+            self.assertTrue(fonts[0][1].startswith('&tile_icons') and all(g == '*tile_icons' for _, g in fonts[1:]), name)
+            block = text.split('glyphs: &tile_icons', 1)[1].split('\n\n', 1)[0]
+            self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', block), wanted, name)
+            self.assertNotIn('MDI_GLYPH', text, name)
+        self.assertTrue((ROOT / 'screen_manager/app/static/tile-icons.woff').exists())
+
+    def test_every_glyph_the_firmware_draws_is_in_the_set(self):
+        sources = [HEADER] + [(ROOT / name).read_text().split('glyphs: &tile_icons', 1)[0] for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml')]
+        used = {code.upper() for source in sources for code in re.findall(r'\\U000(F[0-9A-Fa-f]{4})', source)}
+        self.assertLessEqual(used, set(tile_icons.GLYPHS.values()))
+
+    def test_editor_predictions_mirror_the_firmware(self):
+        body = HEADER.split('inline const char *icon_for(const Tile &tile) {', 1)[1].split('\n}', 1)[0]
+        native = {}
+        for domains, code in re.findall(r'if \((d == "\w+"(?: \|\| d == "\w+")*)\) return "\\U000(F[0-9A-F]{4})";', body):
+            for domain in re.findall(r'"(\w+)"', domains):
+                native[domain] = code
+        self.assertEqual(native, {domain: tile_icons.GLYPHS[name] for domain, name in tile_icons.DEFAULTS.items()})
+        self.assertIn(f'return "\\U000{tile_icons.GLYPHS[tile_icons.FALLBACK]}";', body)
+        weather = HEADER.split('inline const char *weather_icon(const std::string &condition) {', 1)[1].split('\n}', 1)[0]
+        for state, name in tile_icons.WEATHER.items():
+            self.assertRegex(weather, rf'condition == "{re.escape(state)}"[^\n]*return "\\U000{tile_icons.GLYPHS[name]}";')
+        editor = tile_icons.editor()
+        self.assertEqual(sum(len(group['icons']) for group in editor['groups']), 150)
+        self.assertIn(f'"\\U000{editor["sun"]["above_horizon"]}" : "\\U000{editor["sun"]["below_horizon"]}"', HEADER)
+
+class IconOptionTests(unittest.IsolatedAsyncioTestCase):
+    def test_validation_accepts_the_set_and_auto_only(self):
+        for value in ('auto', 'lamp', 'spotify', 'speaker'):
+            layout = validate_layout({'title': 'Thuis', 'tiles': [{'entity': 'media_player.a', 'options': {'icon': value}}]})
+            self.assertEqual(layout['tiles'][0]['options']['icon'], value)
+        for value in ('mdi:lamp', 'F06B5', 'weather-fog', 'unknown', '', None, 42, ['lamp']):
+            with self.assertRaises(ValueError):
+                validate_layout({'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'icon': value}}]})
+
+    def test_wire_carries_the_codepoint_chosen_or_from_home_assistant(self):
+        states = {'light.a': {'state': 'on', 'attributes': {'icon': 'mdi:floor-lamp'}},
+                  'light.b': {'state': 'on', 'attributes': {'icon': 'mdi:not-in-the-set'}},
+                  'light.c': {'state': 'on', 'attributes': {}}}
+        chosen = state_message(0, {'entity': 'light.a', 'name': '', 'options': {'icon': 'lamp', 'tap': 'toggle'}}, states)
+        self.assertEqual(chosen['o'], {'tap': 'toggle', 'icon': 'F06B5'})
+        automatic = state_message(0, {'entity': 'light.a', 'name': '', 'options': {'icon': 'auto'}}, states)
+        self.assertEqual(automatic['o'], {'icon': 'F08DD'})
+        self.assertEqual(state_message(0, {'entity': 'light.a', 'name': ''}, states)['o'], {'icon': 'F08DD'})
+        self.assertNotIn('o', state_message(0, {'entity': 'light.b', 'name': ''}, states))
+        self.assertNotIn('o', state_message(0, {'entity': 'light.c', 'name': ''}, states))
+        self.assertEqual(state_message(0, {'entity': 'light.c', 'name': '', 'options': {'icon': 'auto'}}, states)['o'], {})
+        packets(chosen)
+
+    def test_discovery_reports_home_assistant_icons_the_screen_can_draw(self):
+        states = {'light.a': {'state': 'on', 'attributes': {'icon': 'mdi:chandelier'}}, 'light.b': {'state': 'off', 'attributes': {'icon': 'hass:x'}}}
+        _, entities = discover([{'entity_id': 'light.a'}], states, [], [])
+        self.assertEqual({e['id']: e['icon'] for e in entities}, {'light.a': 'F1793', 'light.b': None})
+
+    async def test_old_editor_preserves_icon_and_explicit_auto_clears(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = test_portal.ManagerTests().setup_manager(Path(tmp) / 'screens.json')
+            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'icon': 'spotify'}}]})
+            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'inline': 'none'}}]})
+            self.assertEqual(m.layouts['text.screen']['tiles'][0]['options'], {'inline': 'none', 'icon': 'spotify'})
+            await m.sync_one('text.screen', m.layouts['text.screen'])
+            self.assertEqual(m.ha.messages[1][1]['o']['icon'], 'F04C7')
+            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'icon': 'auto'}}]})
+            self.assertEqual(m.layouts['text.screen']['tiles'][0]['options']['icon'], 'auto')
+
+if __name__ == '__main__':
+    unittest.main()

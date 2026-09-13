@@ -160,6 +160,23 @@ geweigerd. De ronde draait één scherm tegelijk, wacht op `Schermfirmware >=`
 doelversie en één minuut stabiliteit, en stopt bij de eerste fout. Alleen de
 nachtelijke ronde schrijft een `persistent_notification` in HA.
 
+### Compatibiliteit 0.2.18 / firmware 0.2.18
+
+Opslagversie en tegelprotocol blijven 1. `tiles[].options.icon` is additief:
+`auto` of een naam uit `screen_manager/app/tile_icons.py`. Op de draad stuurt de
+manager in `o.icon` alleen de opgeloste codepoint in hex (`F06B5`): de gekozen
+naam, of bij `auto` het `mdi:`-icoon uit de HA-attributen als dat in de set zit.
+Oudere firmware negeert het veld; nieuwe firmware controleert of de glyph in de
+font zit en valt anders terug op het domeinicoon. Daarom geen `min_firmware`.
+Een oude editor die `icon` weglaat behoudt de opgeslagen keuze.
+
+`tile_icons.py` is de enige lijst. `tools/generate_icons.py` schrijft de glyphs
+als YAML-anker in de drie MDI-fonts van beide bordprofielen en bouwt
+`static/tile-icons.woff` voor de editor (met left bearing gelijk aan xMin, anders
+staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
+De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
+profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
+
 ### Compatibiliteit 0.2.12 / firmware 0.2.14
 
 Opslagversie en tegelprotocol blijven 1. Additief: `tiles[].options.size`

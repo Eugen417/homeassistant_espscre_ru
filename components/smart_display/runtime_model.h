@@ -50,6 +50,7 @@ struct Tile {
   float battery = NAN, volume = NAN;
   uint32_t supported = 0, background = 0;
   bool transparent = false;  // "Achtergrond: geen": card fill and border hidden, contents unchanged.
+  std::string icon;  // UTF-8 glyph of a chosen icon the icon fonts contain; empty keeps the domain icon.
   std::string revision, pending_revision;
   uint32_t pending_since = 0;
   bool pending = false, confirmed = false, local_feedback = false;

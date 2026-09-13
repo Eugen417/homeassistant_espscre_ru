@@ -1,6 +1,7 @@
 #pragma once
 #include "runtime_model.h"
 #include "tile_palette.h"
+#include "tile_icon.h"
 #include "screen_settings.h"
 #include "esphome/core/preferences.h"
 #include "cyd_ui.h"
@@ -81,6 +82,11 @@ struct Widgets {
 };
 constexpr unsigned POINT_BUFFER = 128;
 inline std::array<Widgets, 10> widgets;
+// All icon fonts carry the same generated glyph set, so the first bound one answers for all.
+inline bool has_icon_glyph(uint32_t codepoint) {
+  for (auto &w : widgets) if (w.icon_font) { lv_font_glyph_dsc_t dsc; return lv_font_get_glyph_dsc(w.icon_font, &dsc, codepoint, 0); }
+  return false;
+}
 inline bool fresh() { return model.ready() && esphome::millis() - last_received < 95000; }
 inline float number(JsonVariant value, float fallback = NAN) {
   if (!value.is<float>() && !value.is<int>()) return fallback;
@@ -164,6 +170,9 @@ inline std::string receive(const std::string &payload) {
     std::string background=string(options["background"],16);
     tile.background = tile_palette::color(background);
     tile.transparent = tile_palette::transparent(background);
+    // An icon these fonts lack (a newer set than this firmware) keeps the domain icon.
+    uint32_t icon = tile_icon::codepoint(string(options["icon"], 8));
+    tile.icon = icon && has_icon_glyph(icon) ? tile_icon::utf8(icon) : "";
     tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
     tile.display = string(options["display"]); if (tile.display.empty()) tile.display="standard";
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
@@ -512,6 +521,7 @@ inline const char *weather_text(const std::string &condition) {
   return condition.c_str();
 }
 inline const char *icon_for(const Tile &tile) {
+  if (!tile.icon.empty()) return tile.icon.c_str();
   auto d = tile.domain();
   if (d == "light") return "\U000F0335";
   if (d == "climate") return "\U000F001B";
@@ -790,7 +800,7 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   int left=large?150:96,icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
   int block=std::max(icon_h,temp_h)+2+text_h,y=std::max(0,(height-block)/2);
   char b[24];snprintf(b,sizeof(b),"%.0f°",t.current);
-  auto *icon=part_label(w,0,w.icon_font,0,y+(std::max(icon_h,temp_h)-icon_h)/2,icon_h+4,LV_TEXT_ALIGN_LEFT,icon_for(t));
+  auto *icon=part_label(w,0,w.icon_font,0,y+(std::max(icon_h,temp_h)-icon_h)/2,icon_h+4,LV_TEXT_ALIGN_LEFT,t.available()?weather_icon(t.state):"\U000F0595");
   lv_obj_set_width(icon,lv_font_get_line_height(w.icon_font)+4);
   part_label(w,1,temp_font,icon_h+6,y+(std::max(icon_h,temp_h)-temp_h)/2,left-icon_h-6,LV_TEXT_ALIGN_LEFT,std::isfinite(t.current)?b:"");
   part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));

@@ -20,12 +20,12 @@ def demo_layout():
     return validate_layout({'title': 'Demo kaarten', 'tiles': [
         {'entity': 'screen.clock', 'name': '', 'options': {'display': 'analog', 'background': 'none'}},
         {'entity': 'weather.demo', 'name': 'Buiten', 'options': {'display': 'forecast'}},
-        {'entity': 'sensor.demo_temperatuur', 'name': 'Woonkamer', 'options': {'display': 'graph'}},
+        {'entity': 'sensor.demo_temperatuur', 'name': 'Woonkamer', 'options': {'display': 'graph', 'icon': 'thermometer'}},
         {'entity': 'person.demo', 'name': 'Max', 'options': {}},
-        {'entity': 'timer.demo', 'name': 'Eieren', 'options': {}},
+        {'entity': 'timer.demo', 'name': 'Eieren', 'options': {'icon': 'chef-hat'}},
         {'entity': 'sun.sun', 'name': 'Zon', 'options': {'display': 'sunpath'}},
         {'entity': 'sensor.demo_energie', 'name': 'Verbruik vandaag', 'options': {'display': 'graph', 'size': 'wide'}},
-        {'entity': 'light.demo', 'name': 'Tafellamp', 'options': {'display': 'watch', 'size': 'wide'}},
+        {'entity': 'light.demo', 'name': 'Tafellamp', 'options': {'display': 'watch', 'size': 'wide', 'icon': 'lamp'}},
         {'entity': 'weather.demo_standaard', 'name': 'Weer nu', 'options': {}},
     ]})
 
@@ -36,7 +36,7 @@ def demo_states(now):
         'weather.demo_standaard': {'state': 'rainy', 'attributes': {'temperature': 12.0, 'temperature_unit': '°C'}},
         'sensor.demo_temperatuur': {'state': '21.5', 'attributes': {'unit_of_measurement': '°C'}},
         'sensor.demo_energie': {'state': '7.42', 'attributes': {'unit_of_measurement': 'kWh'}},
-        'person.demo': {'state': 'home', 'attributes': {}},
+        'person.demo': {'state': 'home', 'attributes': {'icon': 'mdi:account-child'}},
         'timer.demo': {'state': 'active', 'attributes': {'finishes_at': end.isoformat(), 'duration': '0:05:00', 'remaining': '0:05:00'}},
         'sun.sun': {'state': 'above_horizon', 'attributes': {'next_rising': (now + timedelta(hours=9)).isoformat(), 'next_setting': (now + timedelta(hours=2)).isoformat()}},
         'light.demo': {'state': 'on', 'attributes': {'brightness': 180}},

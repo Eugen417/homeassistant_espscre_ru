@@ -539,8 +539,9 @@ orientation preset first. A tile is not a single block — it is six places in
 call) and change the number:
 
 1. **Substitutions** — a `TILE9_*` block. Copy an existing one wholesale.
-2. **Font glyph** — add `MDI_GLYPH_9` and list it under `materialdesign_icons`.
-   A glyph that is not listed renders as blank space.
+2. **Icon** — pick `TILE9_ICON` from `screen_manager/app/tile_icons.py`; the
+   icon fonts contain exactly that set. A glyph outside it renders as blank
+   space; add it there and run `tools/generate_icons.py`.
 3. **Sensors** — under `sensor:` / `text_sensor:`. `ha_state_tile9` is the only
    required one. Add the rest only if the tile actually uses them:
    `tile9_brightness` (light), `tile9_percentage` + `tile9_preset` (fan),
@@ -567,4 +568,4 @@ PSRAM, so free heap is the real ceiling on how many tiles fit.
 3. Click the icon → copy the Unicode codepoint (e.g. `F0769`)
 4. Format it as `"\U000F0769"` (always 8 hex digits, padded with leading zeros)
 
-Make sure the glyph is listed in the `glyphs:` section of the MDI font definition in the YAML (search for `materialdesign_icons`). If you use an icon that is not listed there, it will show as a blank space.
+The icon fonts contain the tile icon set from `screen_manager/app/tile_icons.py` (150 icons plus the weather glyphs). An icon outside that set shows as a blank space: add it to that file and run `python3 tools/generate_icons.py` and `python3 tools/generate_packages.py`.

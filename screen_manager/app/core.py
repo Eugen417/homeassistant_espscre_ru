@@ -6,6 +6,8 @@ import math
 import re
 import secrets
 
+import tile_icons
+
 DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
 BUILTIN = {'screen.clock': 'Klok'}
@@ -14,7 +16,7 @@ WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.17'
+FIRMWARE_VERSION = '0.2.18'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level media_title options min max step temperature_unit supported_features next_rising next_setting finishes_at duration remaining'.split())
 
 
@@ -112,10 +114,12 @@ def validate_layout(data):
         item = {'entity': tile['entity'], 'name': name.strip()}
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon'}:
                 raise ValueError('Onbekende tegelinstellingen.')
             if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
                 raise ValueError('Kies een pastel achtergrondkleur uit het palet.')
+            if 'icon' in options and not (options['icon'] == 'auto' or isinstance(options['icon'], str) and options['icon'] in tile_icons.ICONS):
+                raise ValueError('Kies een icoon uit de lijst.')
             domain = tile['entity'].split('.')[0]
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
             choices = {'tap': ('auto', 'detail', 'toggle', 'none'), 'display': displays, 'inline': ('none', 'slider'), 'size': ('single', 'wide')}
@@ -186,6 +190,19 @@ def extras(tile, states, forecast=None, tz=None):
         return result or None
     return None
 
+def tile_icon(tile, attrs):
+    """Codepoint the screen shows: the chosen icon, else HA's own mdi icon; None keeps the firmware default."""
+    choice = tile.get('options', {}).get('icon', 'auto')
+    return tile_icons.ICONS[choice][0] if choice in tile_icons.ICONS else tile_icons.ha_icon(attrs)
+
+def screen_options(tile, attrs):
+    """Stored options on the wire; `icon` travels as the resolved codepoint (firmware 0.2.18+, ignored before)."""
+    options = {k: v for k, v in tile.get('options', {}).items() if k != 'icon'}
+    icon = tile_icon(tile, attrs)
+    if icon:
+        options['icon'] = icon
+    return options if options or 'options' in tile else None
+
 def state_message(index, tile, states, extra=None):
     if tile['entity'] in BUILTIN:
         message = {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
@@ -210,10 +227,11 @@ def state_message(index, tile, states, extra=None):
             limit = 2 if key == 'hs_color' else 4 if key == 'fan_speed_list' else 8
             bounded[key] = [short(v, 48) if isinstance(v, str) else v for v in value[:limit]
                             if isinstance(v, str) or isinstance(v, (float, int)) and math.isfinite(v) and abs(v) <= 1000000]
+    options = screen_options(tile, attrs)
     return {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
             'name': short(tile['name'] or attrs.get('friendly_name') or tile['entity'], 80),
             'state': short(state.get('state', 'unavailable'), 160), 'a': bounded,
-            **({'o': tile['options']} if 'options' in tile else {}), **({'x': extra} if extra else {})}
+            **({'o': options} if options is not None else {}), **({'x': extra} if extra else {})}
 
 def packets(message, token=None):
     raw = json.dumps(message, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()
@@ -259,12 +277,13 @@ def discover(registry, states, devices, areas):
             continue
         entities.append({'id': eid, 'name': state.get('attributes', {}).get('friendly_name') or item.get('name') or item.get('original_name') or eid,
                          'device': device.get('name_by_user') or device.get('name') or '', 'area': area,
-                         'state': state.get('state', 'unavailable')})
+                         'state': state.get('state', 'unavailable'), 'icon': tile_icons.ha_icon(state.get('attributes'))})
     # YAML entities may not have an entity-registry entry.
     registered = {e['id'] for e in entities}
     for eid, state in states.items():
         if entity_id(eid) and eid not in registered and not any(r['entity_id'] == eid for r in registry):
-            entities.append({'id': eid, 'name': state.get('attributes', {}).get('friendly_name', eid), 'device': '', 'area': '', 'state': state['state']})
+            entities.append({'id': eid, 'name': state.get('attributes', {}).get('friendly_name', eid), 'device': '', 'area': '', 'state': state['state'],
+                             'icon': tile_icons.ha_icon(state.get('attributes'))})
     return screens, sorted(entities, key=lambda e: e['name'].casefold())
 
 def installation_yaml(data):

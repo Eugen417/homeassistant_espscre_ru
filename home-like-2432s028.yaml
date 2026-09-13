@@ -21,8 +21,8 @@
 #
 # How to customize
 # 1) Create device.yaml with tools/new_device.py; edit its TILE1..TILE10 overrides.
-# 2) If you change icons, update the FONT GLYPHS block in the substitutions below.
-#    Each glyph must appear exactly once — same icon on multiple tiles is fine, just list it once.
+# 2) Icons come from the tile icon set in screen_manager/app/tile_icons.py; the
+#    icon fonts already contain all of them (tools/generate_icons.py).
 # 3) The background is a gradient (BG_TOP_COLOR / BG_BOTTOM_COLOR), not an image.
 #    Required fonts are bundled in fonts/ (Roboto and Material Design Icons).
 #
@@ -58,7 +58,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.17"
+  SCREEN_FIRMWARE_VERSION: "0.2.18"
   DYNAMIC_TILES: "false"
   DASHBOARD_INBOX_INTERNAL: "true"
   DEVICE_NAME: "cyd-new"
@@ -112,21 +112,9 @@ substitutions:
 
   # ============================================================
   # FONT GLYPHS
-  # List every unique MDI icon used across your tiles — each value must appear exactly once.
-  # Reusing the same icon on multiple tiles is fine: just list that glyph once here.
-  # If you use fewer than 6 unique icons, leave the extra slots with their default values
-  # (unused glyphs add a few bytes to the font but cause no errors).
+  # The icon fonts carry the full tile icon set from screen_manager/app/tile_icons.py
+  # (tools/generate_icons.py). Pick TILEn_ICON from that set; no glyph list to maintain.
   # ============================================================
-  MDI_GLYPH_1: "\U000F001B"
-  MDI_GLYPH_2: "\U000F0387"                        # mdi:music
-  MDI_GLYPH_3: "\U000F02E3"
-  MDI_GLYPH_4: "\U000F059C"
-  MDI_GLYPH_5: "\U000F0425"
-  MDI_GLYPH_6: "\U000F070D"
-  MDI_GLYPH_7: "\U000F06B5"                        # mdi:lamp
-  MDI_GLYPH_8: "\U000F06EE"                        # mdi:mailbox
-  MDI_GLYPH_9: "\U000F04B9"                        # mdi:sofa
-  MDI_GLYPH_10: "\U000F002A"                       # mdi:alarm-light
 
   # ============================================================
   # TILE 1
@@ -136,7 +124,7 @@ substitutions:
   TILE1_ENTITY: "light.voorbeeld_lamp"                    # main Home Assistant entity for this tile
   TILE1_STATE_ENTITY: "light.voorbeeld_lamp"              # entity used for active/inactive state styling
   TILE1_TITLE: "Lamp"                           # tile title shown in the UI
-  TILE1_ICON: "\U000F001B"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
+  TILE1_ICON: "\U000F001B"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE1_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE1_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE1_LONGPRESS: "slider"                        # long press mode: none | slider | action
@@ -185,7 +173,7 @@ substitutions:
   TILE2_ENTITY: "switch.voorbeeld_stekker"                       # main Home Assistant entity for this tile
   TILE2_STATE_ENTITY: "switch.voorbeeld_stekker"                 # entity used for active/inactive state styling
   TILE2_TITLE: "Stekker"                              # tile title shown in the UI
-  TILE2_ICON: "\U000F0387"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
+  TILE2_ICON: "\U000F0387"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE2_TYPE: "switch"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE2_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE2_LONGPRESS: "none"                        # long press mode: none | slider | action
@@ -234,7 +222,7 @@ substitutions:
   TILE3_ENTITY: "scene.voorbeeld_avond"                 # main Home Assistant entity for this tile
   TILE3_STATE_ENTITY: "scene.voorbeeld_avond"           # entity used for active/inactive state styling
   TILE3_TITLE: "Avond"                        # tile title shown in the UI
-  TILE3_ICON: "\U000F02E3"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
+  TILE3_ICON: "\U000F02E3"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE3_TYPE: "scene"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE3_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE3_LONGPRESS: "none"                        # long press mode: none | slider | action
@@ -283,7 +271,7 @@ substitutions:
   TILE4_ENTITY: "script.voorbeeld_uit"               # main Home Assistant entity for this tile
   TILE4_STATE_ENTITY: "script.voorbeeld_uit"         # entity used for active/inactive state styling
   TILE4_TITLE: "Alles uit"                           # tile title shown in the UI
-  TILE4_ICON: "\U000F059C"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
+  TILE4_ICON: "\U000F059C"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE4_TYPE: "script"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE4_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE4_LONGPRESS: "none"                        # long press mode: none | slider | action
@@ -332,7 +320,7 @@ substitutions:
   TILE5_ENTITY: "climate.voorbeeld_airco"                # main Home Assistant entity for this tile
   TILE5_STATE_ENTITY: "climate.voorbeeld_airco"          # entity used for active/inactive state styling
   TILE5_TITLE: "Airco"                             # tile title shown in the UI
-  TILE5_ICON: "\U000F0425"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
+  TILE5_ICON: "\U000F0425"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE5_TYPE: "climate"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE5_TAP_ACTION: "toggle"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE5_LONGPRESS: "slider"                        # long press mode: none | slider | action
@@ -381,7 +369,7 @@ substitutions:
   TILE6_ENTITY: "vacuum.voorbeeld_robot"                 # main Home Assistant entity for this tile
   TILE6_STATE_ENTITY: "vacuum.voorbeeld_robot"           # entity used for active/inactive state styling
   TILE6_TITLE: "Stofzuiger"                          # tile title shown in the UI
-  TILE6_ICON: "\U000F070D"                         # MDI glyph — also add to MDI_GLYPH_* list above if not already there
+  TILE6_ICON: "\U000F070D"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE6_TYPE: "vacuum"                                # tile type: light | fan | switch | scene | script | cover | climate
   TILE6_TAP_ACTION: "custom"            # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE6_LONGPRESS: "vacuum"                        # long press mode: none | slider | action
@@ -430,7 +418,7 @@ substitutions:
   TILE7_ENTITY: "light.ongebruikt_7"            # main Home Assistant entity for this tile
   TILE7_STATE_ENTITY: "light.ongebruikt_7"      # entity used for active/inactive state styling
   TILE7_TITLE: "Tegel 7"                         # tile title shown in the UI
-  TILE7_ICON: "\U000F06B5"                         # mdi:lamp — also listed in MDI_GLYPH_7 above
+  TILE7_ICON: "\U000F06B5"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE7_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE7_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset
   TILE7_LONGPRESS: "none"                        # long press mode: none | slider | action | vacuum
@@ -474,7 +462,7 @@ substitutions:
   TILE8_ENTITY: "light.ongebruikt_8"   # main Home Assistant entity for this tile
   TILE8_STATE_ENTITY: "light.ongebruikt_8"  # entity used for active/inactive state styling
   TILE8_TITLE: "Tegel 8"                        # tile title shown in the UI
-  TILE8_ICON: "\U000F06EE"                         # mdi:mailbox — also listed in MDI_GLYPH_8 above
+  TILE8_ICON: "\U000F06EE"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE8_TYPE: "light"                             # generiek type; het echte gedrag komt uit TAP_SERVICE hieronder
   TILE8_TAP_ACTION: "auto"                     # activate + TAP_SERVICE = losse service call
   TILE8_LONGPRESS: "none"                          # long press stuurt alleen het event naar HA
@@ -518,7 +506,7 @@ substitutions:
   TILE9_ENTITY: "light.ongebruikt_9"                # main Home Assistant entity for this tile
   TILE9_STATE_ENTITY: "light.ongebruikt_9"          # entity used for active/inactive state styling
   TILE9_TITLE: "Tegel 9"                         # tile title shown in the UI
-  TILE9_ICON: "\U000F04B9"                         # mdi:sofa — also listed in MDI_GLYPH_9 above
+  TILE9_ICON: "\U000F04B9"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE9_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE9_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset
   TILE9_LONGPRESS: "none"                        # long press mode: none | slider | action | vacuum
@@ -561,7 +549,7 @@ substitutions:
   TILE10_ENTITY: "light.ongebruikt_10"     # main Home Assistant entity for this tile
   TILE10_STATE_ENTITY: "light.ongebruikt_10"  # entity used for active/inactive state styling
   TILE10_TITLE: "Tegel 10"                            # tile title shown in the UI
-  TILE10_ICON: "\U000F002A"                        # mdi:alarm-light — also listed in MDI_GLYPH_10 above
+  TILE10_ICON: "\U000F002A"                        # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE10_TYPE: "light"                            # generiek aan/uit-type; de service hieronder doet het echte werk
   TILE10_TAP_ACTION: "auto"                      # tap action: auto | toggle | activate | fan_toggle_preset
   TILE10_LONGPRESS: "none"                         # long press stuurt alleen het event naar HA
@@ -1254,116 +1242,176 @@ font:
   - file: 'fonts/materialdesignicons-webfont.ttf'
     id: materialdesign_icons
     size: 28
-    glyphs:
-      - "\U000F0335"
-      - "\U000F0210"
-      - "\U000F111C"
-      - "\U000F029A"
-      - "${MDI_GLYPH_1}"
-      - "${MDI_GLYPH_2}"
-      - "${MDI_GLYPH_3}"
-      - "${MDI_GLYPH_4}"
-      - "${MDI_GLYPH_5}"
-      - "${MDI_GLYPH_6}"
-      - "${MDI_GLYPH_7}"
-      - "${MDI_GLYPH_8}"
-      - "${MDI_GLYPH_9}"
-      - "${MDI_GLYPH_10}"
-      - "\U000F012C" # check
+    glyphs: &tile_icons  # GENERATED by tools/generate_icons.py from screen_manager/app/tile_icons.py
+      - "\U000F0335" # lightbulb
+      - "\U000F1253" # lightbulb-group
+      - "\U000F0769" # ceiling-light
+      - "\U000F1793" # chandelier
+      - "\U000F06B5" # lamp
+      - "\U000F08DD" # floor-lamp
+      - "\U000F095F" # desk-lamp
+      - "\U000F091D" # wall-sconce-flat
+      - "\U000F179B" # light-recessed
+      - "\U000F04C9" # spotlight-beam
+      - "\U000F1051" # led-strip-variant
+      - "\U000F1054" # outdoor-lamp
+      - "\U000F02DC" # home
+      - "\U000F04B9" # sofa
+      - "\U000F02E3" # bed
+      - "\U000F0A70" # silverware-fork-knife
+      - "\U000F0B7C" # chef-hat
+      - "\U000F09A0" # shower
+      - "\U000F1818" # bathtub
+      - "\U000F09AB" # toilet
+      - "\U000F1239" # desk
+      - "\U000F06D9" # garage
+      - "\U000F0E2E" # fireplace
+      - "\U000F050F" # thermometer
+      - "\U000F0393" # thermostat
+      - "\U000F001B" # air-conditioner
+      - "\U000F0438" # radiator
+      - "\U000F1A43" # heat-pump
+      - "\U000F0238" # fire
+      - "\U000F0717" # snowflake
+      - "\U000F058E" # water-percent
+      - "\U000F0210" # fan
+      - "\U000F1797" # ceiling-fan
+      - "\U000F0D44" # air-purifier
+      - "\U000F07E4" # molecule-co2
       - "\U000F0599" # weather-sunny
-      - "\U000F0594" # weather-night
-      - "\U000F0590" # weather-cloudy
       - "\U000F0595" # weather-partly-cloudy
+      - "\U000F0590" # weather-cloudy
       - "\U000F0597" # weather-rainy
-      - "\U000F0596" # weather-pouring
       - "\U000F0598" # weather-snowy
-      - "\U000F067F" # weather-snowy-rainy
+      - "\U000F059D" # weather-windy
+      - "\U000F0594" # weather-night
+      - "\U000F059C" # weather-sunset-up
+      - "\U000F0387" # music-note
+      - "\U000F075A" # music
+      - "\U000F0CB8" # playlist-music
+      - "\U000F0025" # album
+      - "\U000F099A" # record-player
+      - "\U000F04C7" # spotify
+      - "\U000F0439" # radio
+      - "\U000F0994" # podcast
+      - "\U000F04C3" # speaker
+      - "\U000F0D38" # speaker-multiple
+      - "\U000F17DB" # soundbar
+      - "\U000F02CB" # headphones
+      - "\U000F067D" # piano
+      - "\U000F0771" # guitar-acoustic
+      - "\U000F0502" # television
+      - "\U000F042E" # projector
+      - "\U000F0FCE" # movie-open
+      - "\U000F0118" # cast
+      - "\U000F0297" # gamepad-variant
+      - "\U000F0EC5" # remote-tv
+      - "\U000F033E" # lock
+      - "\U000F0FC6" # lock-open-variant
+      - "\U000F068A" # shield-home
+      - "\U000F078F" # alarm-light
+      - "\U000F009A" # bell
+      - "\U000F12E6" # doorbell
+      - "\U000F07AE" # cctv
+      - "\U000F0D91" # motion-sensor
+      - "\U000F081B" # door-closed
+      - "\U000F081C" # door-open
+      - "\U000F11DB" # window-closed-variant
+      - "\U000F0392" # smoke-detector
+      - "\U000F1502" # water-alert
+      - "\U000F072A" # washing-machine
+      - "\U000F0917" # tumble-dryer
+      - "\U000F0AAC" # dishwasher
+      - "\U000F0290" # fridge
+      - "\U000F04DE" # stove
+      - "\U000F0C99" # microwave
+      - "\U000F0CD3" # toaster-oven
+      - "\U000F109F" # coffee-maker
+      - "\U000F05FA" # kettle
+      - "\U000F070D" # robot-vacuum
+      - "\U000F11F7" # robot-mower
+      - "\U000F042B" # printer-3d
+      - "\U000F06A5" # power-plug
+      - "\U000F07E7" # power-socket-eu
+      - "\U000F0322" # laptop
+      - "\U000F0469" # router-wireless
+      - "\U000F0241" # flash
+      - "\U000F0A72" # solar-power
+      - "\U000F0D9B" # solar-panel
+      - "\U000F1901" # home-battery
+      - "\U000F12A3" # battery-high
+      - "\U000F05F1" # ev-station
+      - "\U000F0B6C" # car-electric
+      - "\U000F1A57" # meter-electric
+      - "\U000F1A59" # meter-gas
+      - "\U000F058C" # water
+      - "\U000F0F92" # water-boiler
+      - "\U000F029A" # gauge
+      - "\U000F111C" # window-shutter
+      - "\U000F111E" # window-shutter-open
+      - "\U000F00AC" # blinds
+      - "\U000F1011" # blinds-open
+      - "\U000F1A6C" # roller-shade-closed
+      - "\U000F1846" # curtains
+      - "\U000F1847" # curtains-closed
+      - "\U000F1B88" # awning-outline
+      - "\U000F024A" # flower
+      - "\U000F0531" # tree
+      - "\U000F0E66" # sprout
+      - "\U000F1510" # grass
+      - "\U000F105F" # sprinkler
+      - "\U000F0606" # pool
+      - "\U000F0E45" # grill
+      - "\U000F06EE" # mailbox
+      - "\U000F0A79" # trash-can
+      - "\U000F044C" # recycle
+      - "\U000F0A43" # dog
+      - "\U000F011B" # cat
+      - "\U000F0004" # account
+      - "\U000F0849" # account-group
+      - "\U000F0A89" # account-child
+      - "\U000F0826" # home-account
+      - "\U000F04B2" # sleep
+      - "\U000F070E" # run
+      - "\U000F00D6" # briefcase
+      - "\U000F010B" # car
+      - "\U000F00A3" # bike
+      - "\U000F001D" # airplane
+      - "\U000F034E" # map-marker
+      - "\U000F0425" # power
+      - "\U000F0521" # toggle-switch
+      - "\U000F12A8" # gesture-tap-button
+      - "\U000F040A" # play
+      - "\U000F0BC2" # script-text
+      - "\U000F03D8" # palette
+      - "\U000F0020" # alarm
+      - "\U000F0150" # clock-outline
+      - "\U000F051B" # timer-outline
+      - "\U000F00ED" # calendar
+      - "\U000F009E" # bell-ring
+      - "\U000F02D1" # heart
+      - "\U000F002A" # alert-outline
+      - "\U000F0493" # cog
+      - "\U000F00E2" # broom
+      - "\U000F05D6" # alert-circle-outline
+      - "\U000F012C" # check
       - "\U000F0591" # weather-fog
       - "\U000F0592" # weather-hail
       - "\U000F0593" # weather-lightning
       - "\U000F067E" # weather-lightning-rainy
-      - "\U000F059D" # weather-windy
-      - "\U000F05D6" # alert-circle-outline
+      - "\U000F0596" # weather-pouring
+      - "\U000F067F" # weather-snowy-rainy
       - "\U000F059B" # weather-sunset-down
-      - "\U000F0150" # clock-outline
-      - "\U000F051B" # timer-outline
-      - "\U000F0004" # account
 
   - file: 'fonts/materialdesignicons-webfont.ttf'
     id: materialdesign_icons_mini
     size: 18
-    glyphs:
-      - "\U000F0335"
-      - "\U000F0210"
-      - "\U000F111C"
-      - "\U000F029A"
-      - "${MDI_GLYPH_1}"
-      - "${MDI_GLYPH_2}"
-      - "${MDI_GLYPH_3}"
-      - "${MDI_GLYPH_4}"
-      - "${MDI_GLYPH_5}"
-      - "${MDI_GLYPH_6}"
-      - "${MDI_GLYPH_7}"
-      - "${MDI_GLYPH_8}"
-      - "${MDI_GLYPH_9}"
-      - "${MDI_GLYPH_10}"
-      - "\U000F012C" # check
-      - "\U000F0599" # weather-sunny
-      - "\U000F0594" # weather-night
-      - "\U000F0590" # weather-cloudy
-      - "\U000F0595" # weather-partly-cloudy
-      - "\U000F0597" # weather-rainy
-      - "\U000F0596" # weather-pouring
-      - "\U000F0598" # weather-snowy
-      - "\U000F067F" # weather-snowy-rainy
-      - "\U000F0591" # weather-fog
-      - "\U000F0592" # weather-hail
-      - "\U000F0593" # weather-lightning
-      - "\U000F067E" # weather-lightning-rainy
-      - "\U000F059D" # weather-windy
-      - "\U000F05D6" # alert-circle-outline
-      - "\U000F059B" # weather-sunset-down
-      - "\U000F0150" # clock-outline
-      - "\U000F051B" # timer-outline
-      - "\U000F0004" # account
+    glyphs: *tile_icons
 
   - file: 'fonts/materialdesignicons-webfont.ttf'
     id: watch_icon
     size: 12
-    glyphs:
-      - "\U000F0335"
-      - "\U000F0210"
-      - "\U000F111C"
-      - "\U000F029A"
-      - "${MDI_GLYPH_1}"
-      - "${MDI_GLYPH_2}"
-      - "${MDI_GLYPH_3}"
-      - "${MDI_GLYPH_4}"
-      - "${MDI_GLYPH_5}"
-      - "${MDI_GLYPH_6}"
-      - "${MDI_GLYPH_7}"
-      - "${MDI_GLYPH_8}"
-      - "${MDI_GLYPH_9}"
-      - "${MDI_GLYPH_10}"
-      - "\U000F012C" # check
-      - "\U000F0599" # weather-sunny
-      - "\U000F0594" # weather-night
-      - "\U000F0590" # weather-cloudy
-      - "\U000F0595" # weather-partly-cloudy
-      - "\U000F0597" # weather-rainy
-      - "\U000F0596" # weather-pouring
-      - "\U000F0598" # weather-snowy
-      - "\U000F067F" # weather-snowy-rainy
-      - "\U000F0591" # weather-fog
-      - "\U000F0592" # weather-hail
-      - "\U000F0593" # weather-lightning
-      - "\U000F067E" # weather-lightning-rainy
-      - "\U000F059D" # weather-windy
-      - "\U000F05D6" # alert-circle-outline
-      - "\U000F059B" # weather-sunset-down
-      - "\U000F0150" # clock-outline
-      - "\U000F051B" # timer-outline
-      - "\U000F0004" # account
+    glyphs: *tile_icons
 
 # Geheugen zichtbaar maken: dit bord heeft geen PSRAM, dus de vrije heap
 # bepaalt hoeveel UI erbij kan. Verschijnt ook als entity in Home Assistant.

@@ -176,7 +176,8 @@ actie, terugmelding vanuit HA en lange druk. Controleer ook dat externe
 wijzigingen in HA op het scherm verschijnen. Voer daarna de
 [acceptatietest](ACCEPTATIE.md) uit.
 
-Extra iconen vereisen een glyph in de `materialdesign_icons`-fontlijst. De
-bundel bevat de fonts lokaal. De oudere uitgebreide
+De iconfonts bevatten de tegeliconenset uit `screen_manager/app/tile_icons.py`;
+kies `TILEn_ICON` daaruit. Een ander icoon voeg je daar toe en draai je
+`tools/generate_icons.py`. De bundel bevat de fonts lokaal. De oudere uitgebreide
 [TILE_CONFIGURATION.md](../TILE_CONFIGURATION.md) beschrijft ook het oude
 scrollprofiel; gebruik die niet als hardware-/layoutinstructie voor dit bord.
