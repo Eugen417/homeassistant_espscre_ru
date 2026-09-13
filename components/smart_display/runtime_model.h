@@ -52,11 +52,9 @@ struct Tile {
   unsigned option_count = 0, history_hours = 24;
   std::array<float,24> history{};
   bool has_history = false;
-  std::array<Forecast, 5> forecast;
-  unsigned forecast_count = 0;
-  // Weather card details (0.2.19+): the next hours, wind and feels-like temperature.
-  std::array<Hour, 8> hours;
-  unsigned hour_count = 0;
+  // Weather only: up to five days and eight hours; empty vectors cost nothing on the other tiles.
+  std::vector<Forecast> forecast;
+  std::vector<Hour> hours;
   float wind = NAN, feels = NAN;
   std::string wind_unit;
   // When a scene, script or button last ran (unix time), pre-computed by the manager.

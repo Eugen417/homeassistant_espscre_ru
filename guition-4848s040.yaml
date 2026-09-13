@@ -1,7 +1,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.19"
+  SCREEN_FIRMWARE_VERSION: "0.2.20"
   DYNAMIC_TILES: "false"
   DASHBOARD_INBOX_INTERNAL: "true"
   DEVICE_NAME: "guition-wallbox"
@@ -834,6 +834,8 @@ ota:
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
+  # Mains-powered panel: no modem sleep, so HA updates and OTA arrive without beacon latency.
+  power_save_mode: none
   ap:
     ssid: "Smartdisplay Fallback Hotspot"
     password: !secret ap_password

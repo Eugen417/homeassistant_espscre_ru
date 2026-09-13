@@ -94,6 +94,10 @@ je later opnieuw meten. Voor diagnose en de oudere handmatige installatie:
 
 ## 5. Kies en wijzig je tegels
 
+Tip: zet in je ESPHome-YAML onder `wifi:` de regel `power_save_mode: none` (nieuwe
+wizard-YAML's hebben hem al); het scherm hangt aan het lichtnet en reageert dan zonder
+wifi-slaapvertraging op Home Assistant.
+
 Selecteer je scherm, vul de titel in en zoek entiteiten. De kiezer heeft
 domeinfilters met gekleurde iconen. Je kunt maximaal twintig tegels toevoegen.
 Het schermvoorbeeld toont hun plaats: twee kolommen, zes tegels per pagina.

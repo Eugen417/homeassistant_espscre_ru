@@ -195,17 +195,17 @@ inline std::string receive(const std::string &payload) {
     bool repack = was_wide != tile.wide;
     // Pre-computed extras: the manager converts time zones and fetches forecasts.
     auto extra = root["x"];
-    tile.forecast_count = 0;
+    tile.forecast.clear();
     if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
-      if (tile.forecast_count == tile.forecast.size()) break;
-      auto &f = tile.forecast[tile.forecast_count++];
+      if (tile.forecast.size() == 5) break;
+      tile.forecast.emplace_back(); auto &f = tile.forecast.back();
       f.day = string(day["d"], 3); f.condition = string(day["c"], 20); f.high = number(day["h"]); f.low = number(day["l"]);
       f.rain = number(day["p"]); f.mm = number(day["r"]);
     }
-    tile.hour_count = 0;
+    tile.hours.clear();
     if (extra["hours"].is<JsonArray>()) for (JsonVariant hour : extra["hours"].as<JsonArray>()) {
-      if (tile.hour_count == tile.hours.size()) break;
-      auto &h = tile.hours[tile.hour_count++];
+      if (tile.hours.size() == 8) break;
+      tile.hours.emplace_back(); auto &h = tile.hours.back();
       h.time = string(hour["t"], 5); h.condition = string(hour["c"], 20); h.temp = number(hour["h"]); h.rain = number(hour["p"]); h.mm = number(hour["r"]);
     }
     tile.last_run = extra["last"].is<unsigned>() ? extra["last"].as<uint32_t>() : 0;
@@ -439,7 +439,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   int text_h=lv_font_get_line_height(detail_font),small_h=lv_font_get_line_height(small),mini_h=lv_font_get_line_height(mini),tiny_h=lv_font_get_line_height(tiny);
   int icon_h=lv_font_get_line_height(icon_font),big_h=lv_font_get_line_height(big),hero=std::max(icon_h,big_h);
   int card_pad=large?14:7,inner=width-2*pad-2*card_pad;
-  unsigned columns=std::min<unsigned>(t.hour_count,6);
+  unsigned columns=std::min<unsigned>(t.hours.size(),6);
   int hours_h=columns?small_h+mini_h+text_h+small_h+(large?16:6):0;
   int card_a_h=card_pad+hero+(columns?(large?14:8)+hours_h:0)+card_pad;
   int y=large?62:38;
@@ -470,15 +470,15 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   }
   y+=card_a_h+(large?12:6);
   // Coming days: a heading and a card with one row per day.
-  if(!t.forecast_count){detail_text(detail_root,"Geen dagvoorspelling van Home Assistant",pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
+  if(!t.forecast.size()){detail_text(detail_root,"Geen dagvoorspelling van Home Assistant",pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
   if(large){detail_text(detail_root,"Komende dagen",pad+4,y,width-2*pad,detail_font,LV_TEXT_ALIGN_LEFT,muted);y+=text_h+8;}
   int card_b_h=height-y-(large?10:4);
   auto *days=detail_card(pad,y,width-2*pad,card_b_h);
-  int row_pad=large?8:4,row=(card_b_h-2*row_pad)/(int)t.forecast_count;
+  int row_pad=large?8:4,row=(card_b_h-2*row_pad)/(int)t.forecast.size();
   int day_w=large?46:26,icon_x=card_pad+day_w,cond_x=icon_x+mini_h+(large?12:5);
   int high_w=large?52:30,low_w=large?46:28,rain_w=large?120:60,drop_w=tiny_h+(large?4:2);
   int temps_x=width-2*pad-card_pad-high_w-low_w,rain_x=temps_x-(large?14:6)-rain_w;
-  for(unsigned i=0;i<t.forecast_count;++i){
+  for(unsigned i=0;i<t.forecast.size();++i){
     const auto &f=t.forecast[i];int ry=row_pad+i*row,tcy=ry+(row-text_h)/2,scy=ry+(row-small_h)/2;
     detail_text(days,f.day,card_pad,tcy,day_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
     detail_text(days,weather_icon(f.condition),icon_x,ry+(row-mini_h)/2,mini_h+6,mini,LV_TEXT_ALIGN_LEFT,weather_accent(f.condition));
@@ -753,8 +753,12 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);lv_label_set_long_mode(value,LV_LABEL_LONG_DOT);
   w.progress=lv_obj_create(tile);lv_obj_remove_style_all(w.progress);lv_obj_set_size(w.progress,0,3);lv_obj_align(w.progress,LV_ALIGN_BOTTOM_LEFT,0,0);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
   w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,lv_obj_get_width(tile)-24,lv_obj_get_height(tile)>80?28:10);lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);lv_slider_set_range(w.slider,0,1000);
-  lv_obj_set_style_bg_color(w.slider,lv_color_hex(0x111111),LV_PART_KNOB);lv_obj_set_style_pad_hor(w.slider,lv_obj_get_height(tile)>80?-10:0,LV_PART_KNOB);lv_obj_set_style_pad_ver(w.slider,lv_obj_get_height(tile)>80?-5:1,LV_PART_KNOB);lv_obj_set_style_radius(w.slider,14,LV_PART_MAIN);lv_obj_set_style_radius(w.slider,14,LV_PART_INDICATOR);lv_obj_set_style_radius(w.slider,3,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
-  lv_obj_set_style_opa(w.slider,LV_OPA_TRANSP,LV_PART_KNOB);
+  // A short white bar inside the fill as handle, like the control sliders (invisible before 0.2.20).
+  int strip=lv_obj_get_height(tile)>80?28:10;
+  lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(w.slider,LV_OPA_COVER,LV_PART_KNOB);
+  lv_obj_set_style_pad_hor(w.slider,-(strip/2-(strip>20?3:2)),LV_PART_KNOB);lv_obj_set_style_pad_ver(w.slider,-(strip/4),LV_PART_KNOB);
+  lv_obj_set_style_border_width(w.slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(w.slider,0,LV_PART_KNOB);
+  lv_obj_set_style_radius(w.slider,14,LV_PART_MAIN);lv_obj_set_style_radius(w.slider,14,LV_PART_INDICATOR);lv_obj_set_style_radius(w.slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
   lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(w.slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
@@ -953,7 +957,7 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
   int column=(width-left)/5,day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
   for(unsigned k=0;k<5;++k){
-    int x=left+k*column;bool has=k<t.forecast_count;const auto &f=t.forecast[k];
+    int x=left+k*column;bool has=k<t.forecast.size();const auto &f=t.forecast[k];
     char temps[24];if(has && std::isfinite(f.high))snprintf(temps,sizeof(temps),std::isfinite(f.low)?"%.0f/%.0f":"%.0f",f.high,f.low);else temps[0]=0;
     if(large){
       int rows=day_h+icon_col+text_h,top=std::max(0,(height-rows)/2);
@@ -1279,7 +1283,7 @@ inline void render(lv_obj_t *room) {
     bool large_tile=lv_obj_get_height(w.tile)>80;
     set_busy(w,pending && !t.builtin(),large_tile);
     // Cards that replace the name/status layout entirely.
-    bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.forecast_count>0 && fresh() && t.available();
+    bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.forecast.size()>0 && fresh() && t.available();
     bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.sunrise.empty() && !t.sunset.empty() && fresh() && t.available();
     bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
     bool custom=clock||forecast||sunpath;

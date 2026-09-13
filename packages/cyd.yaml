@@ -59,7 +59,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.19"
+  SCREEN_FIRMWARE_VERSION: "0.2.20"
   DYNAMIC_TILES: "true"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
@@ -865,7 +865,7 @@ esphome:
             id(active_climate_swing_modes) = t.swing_modes; id(active_climate_swing_mode) = t.swing_mode;
             id(open_value_overlay).execute(t.name, t.entity, t.domain(), "auto", t.active(), 0,
               t.brightness, t.percentage, t.position, runtime_tiles::icon_for(t),
-              0x565C66, 0xE4B23C, 0xFFFFFF, "Uit", "Aan", t.modes,
+              0xD5EEFC, 0x00A6ED, 0x1B1B1B, "Uit", "Aan", t.modes,
               t.current, t.target, t.humidity, t.state, t.hvac_modes,
               std::to_string(t.minimum), std::to_string(t.maximum), std::to_string(t.step));
           };

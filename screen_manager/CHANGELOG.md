@@ -1,3 +1,9 @@
+## 0.2.24 (firmware 0.2.20)
+
+- **Lichter en zuiniger**: de dag- en uurvoorspelling zitten alleen nog in het geheugen van weertegels (was 832 bytes in elk van de twintig tegels, ruim 16 KB op de CYD zonder PSRAM). De mini-slider onderin een tegel (**Kleine slider**) heeft nu dezelfde zichtbare witte greep als de nieuwe schuiven. De licht-, ventilator- en zonweringkaart op de CYD gebruiken het lichte palet van de Guition (de laatste rest van het donkere thema).
+- **Wifi zonder modem-slaap** (`power_save_mode: none`) in de installatie-YAML van de wizard en de bordprofielen: statusupdates, tikacties en OTA wachten niet meer op een wifi-beacon. Bestaande schermen: voeg de regel zelf toe onder `wifi:` in je ESPHome-YAML.
+- Doorlichting van de rendering: LVGL 9.5 tekent partieel en slaat ongewijzigde posities en maten al over; de winst zat in de stijlzetters (0.2.23) en in niet meer herrenderen tijdens *bezig*. Een paginawissel tekent bewust twee keer (skelet, dan inhoud). Verder geen structurele last gevonden; zie docs/TEST_RESULTS_0224.md.
+
 ## 0.2.23 (firmware 0.2.19)
 
 - **Directe bediening op dubbelbrede tegels**, zoals de entiteitsrijen in Home Assistant: rechts op de kaart staan knoppen of een schuif, links blijven icoon, naam en status. Per domein kies je in het tegelpaneel onder **Directe bediening op de tegel** welke set de tegel toont:

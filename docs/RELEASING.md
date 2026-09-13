@@ -177,6 +177,13 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.24 / firmware 0.2.20
+
+Alleen intern: `Tile::forecast` en `Tile::hours` zijn vectoren (voorheen vaste arrays in
+elke tegel); protocol en opslag ongewijzigd. De wizard-YAML krijgt `power_save_mode: none`
+onder `wifi:`; de gedeelde pakketten bevatten geen wifi-blok, dus bestaande schermen
+veranderen pas als de gebruiker de regel zelf toevoegt.
+
 ### Compatibiliteit 0.2.23 / firmware 0.2.19
 
 Opslagversie en tegelprotocol blijven 1. `tiles[].options.controls` is additief:
