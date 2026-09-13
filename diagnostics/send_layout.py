@@ -2,7 +2,7 @@
 
 Uses the same message builder as ESP Screen Manager, but with synthetic states,
 so rendering can be checked without touching Home Assistant. The running
-manager restores the real layout on its next keepalive (about 25 seconds).
+manager restores the real layout on its next keepalive (about two minutes).
 """
 import argparse
 import asyncio

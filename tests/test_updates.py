@@ -213,6 +213,13 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError): self.setup_manager(tmp)
             with self.assertRaises(ValueError): m.updates.set_auto('yes')
 
+    async def test_manager_watches_only_layout_and_screen_entities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.setup_manager(tmp)
+            m.layouts['text.screen1'] = {'title': 'Thuis', 'tiles': [{'entity': 'light.lamp'}]}
+            watched = m.watched_entities()
+            self.assertEqual(watched, {'light.lamp', 'text.screen1', 'text.node1', 'text.ip1', 'text.fw1', 'text.screen2', 'text.fw2'})
+
     async def test_http_endpoints(self):
         from server import create_app
         from aiohttp.test_utils import TestClient, TestServer
@@ -222,6 +229,12 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
                 inventory = await (await client.get('/api/inventory')).json()
                 self.assertEqual(inventory['updates']['target'], FIRMWARE_VERSION)
                 self.assertTrue(inventory['screens'][0]['update']['available'])
+                self.assertIn('entities', inventory)
+                light = await (await client.get('/api/inventory?light=1')).json()
+                self.assertNotIn('entities', light)
+                self.assertNotIn('icons', light)
+                self.assertEqual([x['id'] for x in light['screens']], [x['id'] for x in inventory['screens']])
+                self.assertEqual(light['updates'], inventory['updates'])
                 headers = {'X-Screen-CSRF': inventory['csrf']}
                 self.assertEqual((await client.put('/api/updates', headers=headers, json={'auto': True})).status, 200)
                 self.assertTrue(m.updates.auto)

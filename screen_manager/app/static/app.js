@@ -851,9 +851,11 @@ function renderResults() {
       ),
     );
 }
-async function refresh() {
+async function refresh(full = true) {
   try {
-    inventory = await (await api("inventory")).json();
+    const data = await (await api(full ? "inventory" : "inventory?light=1")).json();
+    // A light poll carries only screens and update status; keep the catalogues we have.
+    inventory = full ? data : { ...inventory, ...data };
     $("#connection").textContent = inventory.connected
       ? "● Home Assistant verbonden"
       : "Verbinding met Home Assistant herstellen…";
@@ -1015,17 +1017,22 @@ window.addEventListener("beforeunload", (e) => {
 });
 refresh();
 // Poll only while the tab is visible; a hidden tab would otherwise keep the add-on busy.
-let pollTimer;
+let pollTimer, lastFull = Date.now();
 function poll() {
   clearTimeout(pollTimer);
   pollTimer = setTimeout(async () => {
-    if (!document.hidden) await refresh();
+    if (!document.hidden) {
+      const full = Date.now() - lastFull >= 300000;
+      if (full) lastFull = Date.now();
+      await refresh(full);
+    }
     poll();
   }, inventory.updates?.busy ? 3000 : 10000);
 }
 poll();
 document.addEventListener("visibilitychange", async () => {
   if (document.hidden) return;
+  lastFull = Date.now();
   await refresh();
   poll();
 });

@@ -19,7 +19,13 @@ from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
 
+REGISTRY_EVENTS = ('entity_registry_updated', 'device_registry_updated', 'area_registry_updated')
+SCREEN_ENTITY_NAMES = {'Tegelinstellingen', 'Schermfirmware', 'Guition schermtype', 'Apparaatnaam', 'IP-adres'}
+KEEPALIVE_SECONDS = 120
+
 class HomeAssistant:
+    registry_interval = 600
+
     def __init__(self, session, base, token):
         self.session, self.base, self.token = session, base.rstrip('/'), token
         self.ws = None
@@ -29,6 +35,9 @@ class HomeAssistant:
         self.registry, self.devices, self.areas = [], [], []
         self.online = False
         self.changed = asyncio.Event()
+        # Entity ids the manager cares about; None wakes it for every state change.
+        self.relevant = None
+        self.registry_changed = asyncio.Event()
         self.setting_events = []
         self.time_zone = None
 
@@ -63,13 +72,16 @@ class HomeAssistant:
                 if event.get('event_type') == 'esphome.screen_setting':
                     self.setting_events.append(body)
                     self.changed.set()
-                if event.get('event_type') == 'state_changed':
+                elif event.get('event_type') == 'state_changed':
                     eid = body.get('entity_id')
                     if body.get('new_state'):
                         self.states[eid] = body['new_state']
                     else:
                         self.states.pop(eid, None)
-                    self.changed.set()
+                    if self.relevant is None or eid in self.relevant:
+                        self.changed.set()
+                elif event.get('event_type') in REGISTRY_EVENTS:
+                    self.registry_changed.set()
         raise ConnectionError('Home Assistant-verbinding verbroken.')
 
     async def registries(self):
@@ -91,6 +103,8 @@ class HomeAssistant:
                     reader = asyncio.create_task(self.read())
                     await self.request('subscribe_events', event_type='state_changed')
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
+                    for event_type in REGISTRY_EVENTS:
+                        await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
                     try:
@@ -100,12 +114,24 @@ class HomeAssistant:
                     self.online = True
                     self.changed.set()
                     LOG.info('Home Assistant verbonden')
-                    # Refresh registry for newly paired screens and renamed entities.
+                    # Refresh the registry when HA reports a change (debounced), with a slow
+                    # fallback; a full fetch is about 1 MB of JSON and used to run every 30 s.
+                    fetched = time.monotonic()
                     while True:
-                        done, _ = await asyncio.wait([reader], timeout=30)
-                        if done:
+                        waiter = asyncio.ensure_future(self.registry_changed.wait())
+                        try:
+                            done, _ = await asyncio.wait([reader, waiter], timeout=30, return_when=asyncio.FIRST_COMPLETED)
+                        finally:
+                            waiter.cancel()
+                        if reader in done:
                             await reader
+                        if self.registry_changed.is_set():
+                            await asyncio.sleep(1)
+                            self.registry_changed.clear()
+                        elif time.monotonic() - fetched < self.registry_interval:
+                            continue
                         await self.registries()
+                        fetched = time.monotonic()
                         self.changed.set()
             except (ConnectionError, TimeoutError, OSError, ValueError) as error:
                 LOG.warning('Home Assistant tijdelijk niet beschikbaar (%s)', type(error).__name__)
@@ -245,6 +271,14 @@ class Manager:
         self.status[inbox] = 'Opgeslagen; wacht op synchronisatie'
         self.ha.changed.set()
 
+    def watched_entities(self):
+        """Entities whose state changes matter: tiles on any layout plus the screens' own diagnostics."""
+        watched = {tile['entity'] for layout in self.layouts.values() for tile in layout['tiles']}
+        for item in getattr(self.ha, 'registry', []):
+            if item.get('platform') == 'esphome' and item.get('original_name') in SCREEN_ENTITY_NAMES:
+                watched.add(item['entity_id'])
+        return watched
+
     async def cached(self, store, key, ttl, fetch):
         entry=store.get(key)
         if not entry or time.monotonic()-entry[0]>ttl:
@@ -313,7 +347,9 @@ class Manager:
                         layout['settings']=validate_settings(settings);self.save(inbox,layout)
                 except (ValueError,TypeError): pass
             if hasattr(self.ha,'setting_events'): self.ha.setting_events.clear()
-            for screen in self.inventory()[0]:
+            screens = self.inventory()[0]
+            self.ha.relevant = self.watched_entities()
+            for screen in screens:
                 inbox = screen['id']
                 if not screen['online']:
                     self.sent.pop(inbox, None)
@@ -322,7 +358,7 @@ class Manager:
                 if inbox not in self.layouts:
                     continue
                 try:
-                    force = time.monotonic() - self.last.get(inbox, 0) >= 25
+                    force = time.monotonic() - self.last.get(inbox, 0) >= KEEPALIVE_SECONDS
                     # last records full keepalive, not unrelated HA state events.
                     before = self.last.get(inbox, 0)
                     await self.sync_one(inbox, self.layouts[inbox], force, screen)
@@ -366,9 +402,14 @@ def create_app(manager, development=False):
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
             screen['update'] = manager.updates.state_for(screen, profiles)
-        builtin = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
-        return web.json_response({'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'entities': entities,
-                                  'backgrounds': TILE_BACKGROUNDS, 'icons': tile_icons.editor(), 'builtin': builtin, 'updates': manager.updates.summary(screens, profiles)})
+        payload = {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens, 'updates': manager.updates.summary(screens, profiles)}
+        if request.query.get('light') != '1':
+            # The page polls the light form; entities, backgrounds and icons (~100 KB) only on demand.
+            payload['entities'] = entities
+            payload['backgrounds'] = TILE_BACKGROUNDS
+            payload['icons'] = tile_icons.editor()
+            payload['builtin'] = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
+        return web.json_response(payload)
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})

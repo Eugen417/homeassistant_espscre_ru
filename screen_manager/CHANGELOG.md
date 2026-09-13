@@ -1,3 +1,11 @@
+## 0.2.20 (firmware 0.2.18 blijft actueel)
+
+- **Minder verbruik in rust**: de synchronisatielus wordt alleen nog wakker voor entiteiten die op een indeling staan of bij een scherm horen (Tegelinstellingen, Schermfirmware, Apparaatnaam, IP-adres, Guition schermtype), niet meer bij elke `state_changed` in Home Assistant.
+- De entity-, device- en area-registry (circa 1 MB JSON) wordt niet meer elke 30 s opgehaald, maar bij een `*_registry_updated`-event van Home Assistant (1 s gedebounced) en als vangnet elke 10 minuten.
+- De volledige keepalive naar de schermen loopt elke 2 minuten in plaats van elke 25 s. Een scherm dat offline en weer online komt krijgt de volledige indeling direct, zoals voorheen.
+- **Lichte poll**: de pagina haalt elke 10 s alleen nog schermen en updatestatus op (`/api/inventory?light=1`, enkele KB) en de volledige lijst met entiteiten, achtergronden en iconen bij openen, bij terugkeer naar het tabblad en elke 5 minuten.
+- Alleen de app verandert; firmware 0.2.18 blijft actueel.
+
 ## 0.2.19 (firmware 0.2.18 blijft actueel)
 
 - **Sneller overzicht**: `/api/inventory` las bij elke aanroep alle ESPHome-profielen opnieuw in (tot vier keer per verzoek), waardoor de add-on op een Pi seconden per verzoek blokkeerde. Profielen worden nu per bestand gecachet op inode, wijzigingstijd en grootte; alleen een gewijzigd profiel wordt opnieuw gelezen en verwijderde profielen verdwijnen direct. Het parsen zelf gebruikt libyaml wanneer die beschikbaar is (circa tien keer sneller).
