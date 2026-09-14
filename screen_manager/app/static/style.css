@@ -989,3 +989,145 @@ pre {
 .icon-choice.icon-auto .mdi { font-size: 22px; }
 .icon-picker .hint { margin: 0; }
 .icon-hint { font-weight: 400; }
+
+/* Nieuw scherm: profiel, wifi en de eerste flash in één venster. */
+.link {
+  background: none;
+  color: var(--accent);
+  padding: 0 0 0 8px;
+  font-weight: 600;
+  font-size: 12px;
+}
+.node-line code {
+  background: var(--soft);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+#installer .wifi {
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin: 0 0 16px;
+  padding: 12px 16px 2px;
+  border: 1px solid #f4e3c2;
+  background: #fff9ee;
+  border-radius: 12px;
+}
+#installer .wifi legend {
+  padding: 0 4px;
+  margin-bottom: 2px;
+}
+#installer .wifi .hint {
+  margin: 0 0 12px;
+}
+#installer select {
+  margin-top: 7px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border-color: #cdd5df;
+}
+.install-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+}
+#install-status {
+  color: #b23b3b;
+  font-size: 13px;
+}
+#install-note:empty {
+  display: none;
+}
+.progress-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  margin-top: 6px;
+}
+.progress-head .spin {
+  width: 17px;
+  height: 17px;
+  border-width: 3px;
+}
+.outcome {
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+}
+.outcome.ok {
+  color: #21704b;
+}
+.outcome.bad {
+  color: #b23b3b;
+}
+.key-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f7f9fc;
+  margin: 4px 0 16px;
+}
+.key-box span {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.key-box code {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+#install-log-wrap {
+  margin-top: 12px;
+}
+#install-log-wrap summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+#install-log {
+  max-height: 240px;
+  margin: 10px 0 0;
+}
+
+/* Profiles that Home Assistant does not list yet: pairing happens outside this page. */
+#pending:empty {
+  display: none;
+}
+.pending {
+  border: 1px dashed #b9cbec;
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  background: #f8fbff;
+}
+.pending strong {
+  display: block;
+  font-size: 14px;
+}
+.pending small {
+  margin: 3px 0 10px;
+  line-height: 1.4;
+}
+.pending-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pending-actions .quiet {
+  padding: 5px 9px;
+  font-size: 12px;
+}
+.steps .mini {
+  display: inline-block;
+  margin-top: 6px;
+}

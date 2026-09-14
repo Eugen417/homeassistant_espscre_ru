@@ -177,6 +177,20 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.27 (firmware 0.2.22 blijft)
+
+Alleen de app. `POST /api/install` (YAML-download) is verwijderd; `POST
+/api/firmware/profiles` schrijft het profiel, vult ontbrekende wifi-sleutels in
+`secrets.yaml` aan (alleen de ontbrekende regels, geverifieerd door het resultaat
+opnieuw te parsen; een ongeldig bestand blijft onaangeraakt) en start met `target`
+(een gemelde USB-poort) direct `install`. Poort en bouwslot worden vóór het
+schrijven gecontroleerd. Het antwoord bevat `api_key`; de pagina toont hem eenmalig
+voor de HA-koppeling. Het jobobject krijgt `stage` (`config`, `compile`, `upload`).
+`profile_meta` levert extra `screen` (profiel gebruikt het bordpakket van dit
+project) en `api_key`; `/api/inventory` krijgt de additieve lijst `pending` met
+zulke profielen zonder gekoppeld scherm. Opslag, protocol, preferences en sleutels
+ongewijzigd.
+
 ### Compatibiliteit 0.2.26 / firmware 0.2.22
 
 Opslagversie en tegelprotocol blijven 1. Het layoutbericht krijgt het additieve veld

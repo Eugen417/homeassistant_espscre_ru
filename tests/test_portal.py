@@ -154,9 +154,24 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(response.status,400)
                 response=await client.put('/api/screens/text.screen',headers=headers,json={'title':'Test','tiles':[]})
                 self.assertEqual(response.status,200)
-                response=await client.post('/api/install',headers=headers,json={'board':'guition','name':'screen-new','friendly_name':'Nieuw'})
+                from firmware import Firmware
+                m.firmware=Firmware(Path(temp)/'esphome',Path(temp))
+                profile={'board':'guition','name':'screen-new','friendly_name':'Nieuw','wifi_ssid':'net','wifi_password':'pw'}
+                # A refused USB target leaves no profile behind.
+                response=await client.post('/api/firmware/profiles',headers=headers,json={**profile,'target':'/dev/ttyUSB9'})
+                self.assertEqual(response.status,400)
+                self.assertFalse((Path(temp)/'esphome'/'screen-new.yaml').exists())
+                response=await client.post('/api/firmware/profiles',headers=headers,json=profile)
                 self.assertEqual(response.status,200)
                 self.assertEqual(response.headers['Cache-Control'],'no-store')
-                self.assertIn('packages/guition.yaml',await response.text())
+                result=await response.json()
+                self.assertEqual(result['file'],'screen-new.yaml')
+                self.assertEqual(len(base64.b64decode(result['api_key'])),32)
+                self.assertNotIn('job',result)
+                self.assertIn('packages/guition.yaml',(Path(temp)/'esphome'/'screen-new.yaml').read_text())
+                self.assertNotIn('pw',json.dumps((await (await client.get('/api/firmware')).json())['wifi']))
+                # Until Home Assistant lists the screen, the page shows the profile as "not yet in HA" with its key.
+                pending=(await (await client.get('/api/inventory?light=1')).json())['pending']
+                self.assertEqual([(p['file'],p['friendly'],p['installed'],p['api_key']==result['api_key']) for p in pending],[('screen-new.yaml','Nieuw',False,True)])
 
 if __name__=='__main__':unittest.main()

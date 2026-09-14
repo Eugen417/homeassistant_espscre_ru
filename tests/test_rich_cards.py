@@ -1,6 +1,6 @@
 """Weather card data (hours, rain) and last-run times for scenes, scripts and buttons."""
 import asyncio
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
 import tempfile
@@ -16,8 +16,10 @@ TZ = ZoneInfo('Europe/Amsterdam')
 NOW = datetime(2026, 9, 13, 11, 40, tzinfo=timezone.utc)
 
 
-def hourly():
-    return [{'datetime': f'2026-09-13T{h:02d}:00:00+00:00', 'condition': 'rainy' if h < 12 else 'partlycloudy', 'temperature': 18 + h / 10,
+def hourly(day=None):
+    # Whole hours from 08:00 on the given day (default: the fixed NOW day) into the next morning.
+    start = (day or NOW).replace(hour=0, minute=0, second=0, microsecond=0)
+    return [{'datetime': (start + timedelta(hours=h)).isoformat(), 'condition': 'rainy' if h < 12 else 'partlycloudy', 'temperature': 18 + h / 10,
              'precipitation': 0.2 if h < 12 else 0.0, 'precipitation_probability': 60 if h < 12 else 5} for h in range(8, 30)]
 
 
@@ -70,7 +72,8 @@ class HourlySync(unittest.IsolatedAsyncioTestCase):
             asked = []
             async def forecast(entity, kind='daily'):
                 asked.append(kind)
-                return daily() if kind == 'daily' else hourly()
+                # The manager reads the real clock, so the hourly strip is anchored to today.
+                return daily() if kind == 'daily' else hourly(datetime.now(timezone.utc))
             m.ha.forecast = forecast
             m.ha.registry.append({'entity_id': 'sensor.fw', 'platform': 'esphome', 'original_name': 'Schermfirmware'})
             m.ha.states['sensor.fw'] = {'state': '0.2.19'}

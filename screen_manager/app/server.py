@@ -14,7 +14,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BUILTIN, TILE_BACKGROUNDS, controls_catalogue, discover, extras, installation_yaml, min_firmware, packets, state_message, validate_layout, validate_settings
+from core import BUILTIN, TILE_BACKGROUNDS, controls_catalogue, discover, extras, min_firmware, packets, state_message, validate_layout, validate_settings
 from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
@@ -291,6 +291,19 @@ class Manager:
         for listener in self.listeners:
             listener.set()
 
+    def pending_profiles(self, screens, profiles):
+        """ESP Screens profiles without a paired screen: flashed but not yet added in Home Assistant, or not flashed yet.
+
+        Pairing happens in Home Assistant itself, outside this page; the sidebar shows these so nobody wonders
+        where the freshly flashed screen went."""
+        nodes = {s.get('node') for s in screens}
+        devices = {s.get('device') for s in screens}
+        installed = getattr(self.firmware, 'installed', set())
+        return [{'file': file, 'node': meta['node'], 'friendly': meta.get('friendly') or meta['node'] or file,
+                 'installed': file in installed, 'api_key': meta.get('api_key')}
+                for file, meta in profiles.items()
+                if meta.get('screen') and meta.get('node') not in nodes and (meta.get('friendly') or None) not in devices]
+
     def watched_entities(self):
         """Entities whose state changes matter: tiles on any layout plus the screens' own diagnostics."""
         watched = {tile['entity'] for layout in self.layouts.values() for tile in layout['tiles']}
@@ -431,6 +444,7 @@ def create_app(manager, development=False):
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
             screen['update'] = manager.updates.state_for(screen, profiles)
         return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
+                'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles)}, entities
     async def inventory(request):
         payload, entities = light_payload()
@@ -478,10 +492,6 @@ def create_app(manager, development=False):
     async def update_settings(request):
         manager.updates.set_auto((await request.json()).get('auto'))
         return web.json_response(manager.updates.summary())
-    async def download(request):
-        data = await request.json()
-        content = installation_yaml(data)
-        return web.Response(text=content, content_type='text/yaml', headers={'Content-Disposition': f'attachment; filename="{data["name"]}.yaml"'})
     async def inspector(request):
         inbox=request.match_info['inbox']
         if inbox not in {s['id'] for s in manager.inventory()[0]}: raise ValueError('Onbekend scherm.')
@@ -493,7 +503,9 @@ def create_app(manager, development=False):
                       'options':t.get('options',{})} for i,t in enumerate(layout['tiles'])]})
     async def firmware_status(request): return web.json_response(manager.firmware.status())
     async def firmware_start(request): return web.json_response(manager.firmware.start(await request.json()))
-    async def firmware_create(request): return web.json_response(manager.firmware.create(await request.json()))
+    async def firmware_create(request):
+        # Profile, missing wifi secrets and (with a USB port) the build and flash in one request.
+        return web.json_response(manager.firmware.install(await request.json()))
     async def shutdown(app):
         for task in (manager.updates.task, manager.firmware.task):
             if task and not task.done():
@@ -511,7 +523,6 @@ def create_app(manager, development=False):
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
-    app.router.add_post('/api/install', download)
     app.router.add_static('/static/', static)
     return app
 

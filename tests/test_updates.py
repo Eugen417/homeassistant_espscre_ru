@@ -61,8 +61,10 @@ class ProfileNameTests(unittest.TestCase):
                                                    'packages:\n  a: !include other.yaml\napi:\n  encryption:\n    key: !secret api\n')
             (Path(tmp) / 'broken.yaml').write_text('esphome: [\n')
             names = f.profile_names()
-            self.assertEqual(names['woonkamer.yaml'], {'node': 'woonkamer', 'friendly': 'Woonkamer'})
-            self.assertEqual(names['manual.yaml'], {'node': 'keuken', 'friendly': 'Keuken'})
+            self.assertEqual(names['woonkamer.yaml'], {'node': 'woonkamer', 'friendly': 'Woonkamer', 'screen': True, 'api_key': names['woonkamer.yaml']['api_key']})
+            self.assertEqual(len(names['woonkamer.yaml']['api_key']), 44)
+            # A manual profile (no board package from this repo, key behind !secret) is not an ESP Screens profile.
+            self.assertEqual(names['manual.yaml'], {'node': 'keuken', 'friendly': 'Keuken', 'screen': False, 'api_key': None})
             self.assertNotIn('broken.yaml', names)
             self.assertNotIn('secrets.yaml', names)
 
@@ -84,7 +86,7 @@ class ProfileNameTests(unittest.TestCase):
                 os.utime(b, ns=(b.stat().st_atime_ns, b.stat().st_mtime_ns + 1_000_000))
                 names = f.profile_names()
                 self.assertEqual(len(parsed), 3, 'only the changed file is parsed')
-                self.assertEqual(names['b.yaml'], {'node': 'b2', 'friendly': 'B2'})
+                self.assertEqual(names['b.yaml'], {'node': 'b2', 'friendly': 'B2', 'screen': False, 'api_key': None})
                 a.unlink()
                 self.assertEqual(set(f.profile_names()), {'b.yaml'})
                 self.assertEqual(len(parsed), 3)

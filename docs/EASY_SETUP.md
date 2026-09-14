@@ -33,42 +33,41 @@ Deze app bevat de geteste ESPHome 2026.6.2-CLI en draait binnen je HA-aanmelding
 Een tweede ESPHome-beheerpagina, MQTT, blueprint of long-lived token is niet nodig.
 Gebruik de GitHub-versie voor updates; een lokale test-add-on is een andere app.
 
-## 2. Maak en bewaar je eigen apparaatprofiel
-
-Klik **Nieuw scherm**. Kies CYD of Guition, een herkenbare naam en een unieke
-apparaatnaam, bijvoorbeeld `scherm-keuken`. Klik **Bewaar profiel in ESP Screens**.
-
-De wizard controleert de bestaande ESPHome `secrets.yaml`. Met `wifi_ssid` en
-`wifi_password` aanwezig hoef je geen wifi in te vullen. Alleen als er nog geen
-secretsbestand is, vraagt de wizard je 2,4GHz-wifi eenmalig. Een bestaand bestand
-met ontbrekende of ongeldige wifi-sleutels moet je eerst herstellen; het wordt
-niet stilzwijgend overschreven.
-
-Je apparaat-YAML bevat unieke API- en OTA-sleutels. Bewaar dit profiel en gebruik
-het opnieuw bij updates. Voor een bestaand scherm telkens een nieuw profiel
-maken genereert nieuwe sleutels en is niet de updateroute.
-
-Wil je ESPHome Device Builder gebruiken, kies dan **Maak installatie-YAML** en
-kopieer/download die YAML naar een eigen apparaat daar. Beide routes gebruiken
-dezelfde firmwarepakketten. Wifi blijft in ESPHome `secrets.yaml`; API- en
-OTA-sleutels staan in het eigen apparaatprofiel.
-
-## 3. Eerste flash via USB op de Raspberry
+## 2. Nieuw scherm: aansluiten en installeren
 
 1. Sluit het scherm met een **USB-datakabel** aan op de machine waarop Home
-   Assistant draait. Bij meerdere borden: identificeer eerst de juiste poort,
-   of sluit ze voor de eerste installatie één voor één aan.
-2. Open **Firmware & USB** in ESP Screens en kies het zojuist bewaarde profiel.
-3. Kies bij **Installeren naar** de USB-poort van dit scherm.
-4. Klik **Bouwen & installeren** en wacht op een geslaagde build én upload.
-   De eerste build kan op een Raspberry meerdere minuten duren.
-5. Het scherm herstart en verbindt met wifi. Latere firmware-updates kunnen via
-   **Wifi / OTA** in dezelfde pagina, met het bestaande profiel.
+   Assistant draait. Bij meerdere borden: sluit ze voor de eerste installatie
+   één voor één aan, of controleer welke poort bij dit scherm hoort.
+2. Klik **Nieuw scherm**. Kies CYD of Guition en geef het scherm een naam,
+   bijvoorbeeld `Keuken`. De apparaatnaam (`keuken`) volgt daaruit; met
+   **aanpassen** kies je een andere.
+3. Wifi: staan `wifi_ssid` en `wifi_password` al in de ESPHome `secrets.yaml`,
+   dan gebruikt het scherm die automatisch. Ontbreken ze, of bestaat het bestand
+   nog niet, dan vraagt het venster ze eenmalig en zet ESP Screens alleen de
+   ontbrekende regels in `secrets.yaml`; commentaar en andere secrets blijven
+   staan. Een `secrets.yaml` die geen geldige YAML is, herstel je eerst zelf.
+4. Kies bij **Installeren via** de USB-poort van dit scherm en klik
+   **Installeren**. ESP Screens bewaart het profiel (`keuken.yaml`, met unieke
+   API- en OTA-sleutels) in de ESPHome-map, bouwt de firmware en schrijft die
+   via USB. Het ESPHome-log en de fase (bouwen, schrijven) staan in hetzelfde
+   venster; een eerste build duurt op een Raspberry enkele minuten. Je mag het
+   venster sluiten: de installatie loopt door en staat bij heropenen weer klaar.
+5. Na **Klaar** toont het venster de API-sleutel met een kopieerknop en de
+   koppelstappen uit hoofdstuk 3. Mislukt de build, dan staat het log open en
+   kun je **Opnieuw proberen**.
 
-Een USB-kabel aan je laptop is niet zichtbaar als USB-poort van de Raspberry.
-Gebruik voor die route de ESPHome-CLI op de laptop met je eigen profiel, of de
-browserinstallatie van ESPHome Device Builder. De stappen hierboven gebruiken
-uitsluitend ESP Screens op de HA-machine.
+Elk scherm krijgt zijn eigen profiel: vier schermen betekent vier keer **Nieuw
+scherm** met vier verschillende namen. Het gedeelde bordpakket is voor alle
+schermen gelijk; het profiel bevat alleen naam, sleutels en de wifi-verwijzing.
+Bewaar dat profiel en gebruik het opnieuw bij updates. Voor een bestaand scherm
+opnieuw **Nieuw scherm** doorlopen maakt nieuwe sleutels aan en is niet de
+updateroute.
+
+Geen USB-poort in de lijst? Een kabel aan je laptop is niet zichtbaar voor de
+Raspberry. Kies dan **Later · alleen het profiel bewaren**: het profiel staat
+daarna in dezelfde map die ESPHome Device Builder gebruikt, dus je kunt het daar
+openen en vanuit je browser flashen (**Install → Plug into this computer**), of
+het later via **Firmware & USB** alsnog aan de HA-machine installeren.
 
 **CYD:** bij de eerste start verschijnt de kalibratie. Tik het zichtbare kruisje
 drie keer rustig aan, houd elke tik kort vast en volg steeds het volgende kruisje.
@@ -80,19 +79,26 @@ je later opnieuw meten. Voor diagnose en de oudere handmatige installatie:
 
 **Guition:** de GT911-touchmapping zit in het bordprofiel; er is geen ADC-kalibratie.
 
-## 4. Koppel het scherm aan Home Assistant
+## 3. Koppel het scherm aan Home Assistant
+
+Dit gebeurt in Home Assistant zelf, buiten ESP Screens. Zolang een profiel nog
+niet aan Home Assistant is toegevoegd, staat het links onder **Mijn schermen**
+als kaart *nog niet in Home Assistant*, met de knop **Open Apparaten & diensten**
+en **Kopieer API-sleutel**; het klaar-scherm van **Nieuw scherm** heeft dezelfde
+knop. De kaart verdwijnt zodra het scherm in de lijst staat.
 
 1. Open **Instellingen → Apparaten & diensten**. Voeg het ontdekte ESPHome-apparaat
    toe. Niet ontdekt? Voeg de integratie **ESPHome** handmatig toe met het IP-adres
-   uit de ESPHome-logs, poort 6053.
-2. Vraagt HA om een encryptiesleutel? Kopieer de waarde van **api → encryption → key**
-   uit je eigen YAML. Gebruik niet het OTA-wachtwoord.
+   van het scherm, poort 6053.
+2. Vraagt HA om een encryptiesleutel? Plak de API-sleutel die het venster na de
+   installatie toont (ook terug te vinden als **api → encryption → key** in het
+   profiel). Gebruik niet het OTA-wachtwoord.
 3. Open bij de ESPHome-integratie **Configureren** en zet **Allow the device to
    perform Home Assistant actions** aan. Zonder deze toestemming verschijnen
    waarden wel, maar kan het scherm lampen en apparaten niet bedienen.
 4. Open ESP Screens. Het scherm verschijnt binnen ongeveer 30 seconden.
 
-## 5. Kies en wijzig je tegels
+## 4. Kies en wijzig je tegels
 
 Tip: zet in je ESPHome-YAML onder `wifi:` de regel `power_save_mode: none` (nieuwe
 wizard-YAML's hebben hem al); het scherm hangt aan het lichtnet en reageert dan zonder
@@ -145,7 +151,7 @@ totdat de gegevens opnieuw ontvangen zijn.
 Je mag indelingen opslaan terwijl een scherm offline is. De app verstuurt ze
 zodra het scherm terugkomt. De app moet blijven draaien voor actuele tegeldata.
 
-## 6. Updates zonder je instellingen kwijt te raken
+## 5. Updates zonder je instellingen kwijt te raken
 
 | Wat verandert? | Wat doe je? | Wat blijft behouden? |
 | --- | --- | --- |

@@ -109,20 +109,19 @@ Voor Home Assistant OS met Apps/Add-ons op **aarch64 of amd64**:
    `https://github.com/MaxGramser/homeassistant_espscreen`.
 2. Installeer **ESP Screen Manager**, start de app en open **ESP Screens**.
    ESPHome Device Builder is optioneel: de ESPHome-CLI zit al in deze app.
-3. Kies **Nieuw scherm**, selecteer CYD of Guition en geef een unieke naam.
-   Gebruik **Bewaar profiel in ESP Screens**. Bestaande `wifi_ssid` en
-   `wifi_password` in ESPHome `secrets.yaml` worden hergebruikt; bij een verse
-   installatie vraagt de wizard de wifi eenmalig. API- en OTA-sleutels worden
-   uniek aangemaakt en in je eigen apparaat-YAML bewaard.
-4. Sluit het scherm met een USB-datakabel aan op de **Home Assistant-machine**.
-   Open **Firmware & USB**, kies het eigen profiel en de juiste USB-poort en
-   start **Bouwen & installeren**. Een eerste build kan meerdere minuten duren.
-5. **CYD:** doorloop de kalibratie op het scherm. **Guition:** gebruikt GT911
+3. Sluit het scherm met een USB-datakabel aan op de **Home Assistant-machine**
+   en kies **Nieuw scherm**: CYD of Guition, een naam, de USB-poort en
+   **Installeren**. Ontbreekt wifi in de ESPHome `secrets.yaml`, dan vraagt het
+   venster die eenmalig en zet ESP Screens alleen de ontbrekende regels erin.
+   Het profiel met unieke API- en OTA-sleutels komt in de ESPHome-map; de build
+   en de flash lopen in hetzelfde venster (een eerste build duurt op een
+   Raspberry enkele minuten). Elk scherm krijgt zijn eigen profiel.
+4. **CYD:** doorloop de kalibratie op het scherm. **Guition:** gebruikt GT911
    zonder resistieve kalibratie. Koppel daarna het ontdekte ESPHome-apparaat in
-   **Instellingen → Apparaten & diensten**. Gebruik bij een sleutelvraag de
-   `api.encryption.key` uit je eigen YAML. Geef het apparaat toestemming om
+   **Instellingen → Apparaten & diensten** met de API-sleutel die het venster
+   na de installatie toont (kopieerknop). Geef het apparaat toestemming om
    Home Assistant-acties uit te voeren.
-6. Selecteer het scherm in ESP Screens, kies je tegels en klik
+5. Selecteer het scherm in ESP Screens, kies je tegels en klik
    **Opslaan & naar scherm**. Test vervolgens de fysieke bediening.
 
 Je kunt later vanuit **Firmware & USB → Wifi / OTA** nieuwe firmware installeren.

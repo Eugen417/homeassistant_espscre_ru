@@ -20,7 +20,7 @@
         <button id="new-screen" class="tool tool-primary">
           <span class="tool-icon" aria-hidden="true">＋</span>
           <span class="tool-text"
-            ><b>Nieuw scherm</b><small>Koppel een CYD of Guition</small></span
+            ><b>Nieuw scherm</b><small>Aansluiten en installeren</small></span
           >
         </button>
         <button id="open-firmware" class="tool">
@@ -47,9 +47,10 @@
       </div>
       <ol class="howto" aria-label="Zo werkt het">
         <li>
-          <b>1 · Koppelen</b><span
-            >Kies <b>Nieuw scherm</b> voor de installatie-YAML met eigen
-            sleutels. Eén keer via USB flashen, daarna gaat alles draadloos.</span
+          <b>1 · Installeren</b><span
+            >Sluit het scherm via USB aan op de Home Assistant-machine en kies
+            <b>Nieuw scherm</b>: naam, wifi en klaar. Eén keer via USB, daarna
+            gaat alles draadloos.</span
           >
         </li>
         <li>
@@ -61,7 +62,8 @@
         <li>
           <b>3 · Opslaan</b><span
             >Met <b>Opslaan & naar scherm</b> staat het direct op je scherm.
-            Nieuwe schermfuncties installeer je via <b>Firmware & USB</b>.</span
+            Nieuwe schermfuncties komen met <b>Bijwerken</b> draadloos op je
+            scherm.</span
           >
         </li>
       </ol>
@@ -69,9 +71,10 @@
         <aside>
           <h2>Mijn schermen</h2>
           <div id="screens"></div>
+          <div id="pending"></div>
           <p class="hint">
-            Nieuw scherm gekoppeld? Het verschijnt hier automatisch binnen 30
-            seconden.
+            Nieuw scherm gekoppeld in Home Assistant? Het verschijnt hier
+            automatisch binnen 30 seconden.
           </p>
           <button class="quiet" id="refresh">↻ Vernieuwen</button>
           <div class="updates" id="updates" hidden>
@@ -93,8 +96,8 @@
           <span class="empty-icon">▦</span>
           <h2>Begin met een scherm</h2>
           <p>
-            Sluit een CYD of Guition aan. We maken de installatie-YAML voor je
-            en helpen je met de eerste flash.
+            Sluit een CYD of Guition via USB aan op je Home Assistant-machine.
+            Profiel, firmware en de eerste flash gebeuren in één venster.
           </p>
           <button id="start">Nieuw scherm installeren</button>
         </section>
@@ -184,8 +187,8 @@
         </section>
       </div>
       <p class="firmware-link">
-        Firmware bouwen en via USB of wifi installeren kan via
-        <b>Firmware & USB</b> bovenaan. Je bestaande YAML en secrets blijven
+        Een bestaand profiel opnieuw bouwen of via USB of wifi installeren kan
+        via <b>Firmware & USB</b> bovenaan. Je eigen YAML en secrets blijven
         bewaard.
       </p>
       <details class="help" id="help">
@@ -206,11 +209,13 @@
           tegel op <b>Dubbelbreed</b> voor meer ruimte.
         </p>
         <p>
-          Nieuwe firmware bouw en installeer je via <b>Firmware & USB</b> met
-          de ingebouwde ESPHome CLI: kies je eigen profiel, dan een USB-poort of
-          wifi, en klik op <b>Bouwen & installeren</b>. Je tegels blijven in
-          deze app bewaard; een offline scherm krijgt de wijzigingen zodra het
-          terug is.
+          Een nieuw scherm installeer je via <b>Nieuw scherm</b>: het profiel
+          met eigen sleutels, ontbrekende wifi in ESPHome secrets.yaml, de build
+          en de USB-flash gebeuren in één venster, met de API-sleutel voor de
+          koppeling aan het eind. Nieuwe firmware voor bestaande schermen komt
+          via <b>Bijwerken</b> in de lijst, of handmatig via
+          <b>Firmware & USB</b>. Je tegels blijven in deze app bewaard; een
+          offline scherm krijgt de wijzigingen zodra het terug is.
         </p>
       </details>
     </main>
@@ -219,7 +224,7 @@
         <div class="dialog-head">
           <div>
             <p class="eyebrow">NIEUW SCHERM</p>
-            <h2>Van USB naar aan de muur.</h2>
+            <h2 id="install-title">Aansluiten en installeren.</h2>
           </div>
           <button
             type="button"
@@ -230,104 +235,102 @@
             ✕
           </button>
         </div>
-        <p>
-          Kies je scherm. Elk bestand krijgt eigen sleutels voor een veilige
-          koppeling en draadloze updates.
-        </p>
-        <fieldset>
-          <legend>Welk scherm heb je?</legend>
-          <label class="board"
-            ><input type="radio" name="board" value="cyd" checked /><span
-              ><b>CYD · 2,8 inch</b
-              ><small>ESP32-2432S028 · 320 × 240</small></span
-            ></label
-          ><label class="board"
-            ><input type="radio" name="board" value="guition" /><span
-              ><b>Guition · 4 inch</b
-              ><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span
+        <div id="install-setup">
+          <p>
+            Sluit het scherm met een USB-datakabel aan op de machine waarop Home
+            Assistant draait. ESP Screens maakt een eigen profiel met unieke
+            sleutels, bouwt de firmware en zet die direct op het scherm.
+          </p>
+          <fieldset>
+            <legend>Welk scherm heb je?</legend>
+            <label class="board"
+              ><input type="radio" name="board" value="cyd" checked /><span
+                ><b>CYD · 2,8 inch</b
+                ><small>ESP32-2432S028 · 320 × 240</small></span
+              ></label
+            ><label class="board"
+              ><input type="radio" name="board" value="guition" /><span
+                ><b>Guition · 4 inch</b
+                ><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span
+              ></label
+            >
+          </fieldset>
+          <label
+            >Naam<input
+              name="friendly_name"
+              required
+              maxlength="60"
+              placeholder="Scherm woonkamer"
+              autocomplete="off" /><small class="node-line"
+              >Apparaatnaam <code id="node-preview">scherm</code
+              ><button type="button" class="link" id="edit-node">
+                aanpassen
+              </button></small
+            ><small
+              >Elk scherm krijgt een eigen profiel met eigen sleutels. Vier
+              schermen? Doorloop dit vier keer met een andere naam.</small
             ></label
           >
-        </fieldset>
-        <label
-          >Herkenbare naam<input
-            name="friendly_name"
-            required
-            maxlength="60"
-            placeholder="Scherm woonkamer" /></label
-        ><label
-          >Unieke apparaatnaam<input
-            name="name"
-            required
-            pattern="[a-z][a-z0-9-]{0,29}"
-            maxlength="30"
-            placeholder="scherm-woonkamer"
-          /><small
-            >Kleine letters, cijfers en streepjes. Elk scherm een andere
-            naam.</small
-          ></label>
-        <p id="wifi-status" role="status"></p>
-        <fieldset id="wifi-fields" hidden disabled>
-          <legend>Wifi voor je eerste ESPHome-apparaat</legend>
-        <label
-          >Wifi-naam<input
-            name="wifi_ssid"
-            autocomplete="off"
-        /></label>
-        <label
-          >Wifiwachtwoord<input
-            name="wifi_password"
-            type="password"
-            autocomplete="new-password"
-        /></label>
-        </fieldset>
-        <button type="button" id="create-profile">
-          Bewaar profiel in ESP Screens
-        </button>
-        <button type="submit" id="download">Maak installatie-YAML</button>
-        <p id="install-status" role="status"></p>
-        <div id="yaml-result" hidden>
+          <label id="node-label" hidden
+            >Apparaatnaam<input
+              name="name"
+              pattern="[a-z][a-z0-9-]{0,29}"
+              maxlength="30"
+              autocomplete="off" /><small
+              >Kleine letters, cijfers en streepjes. Elk scherm een andere
+              naam.</small
+            ></label
+          >
+          <fieldset id="wifi-fields" class="wifi" hidden disabled>
+            <legend>Wifi</legend>
+            <p class="hint" id="wifi-status"></p>
+            <label id="wifi-ssid-label"
+              >Wifi-naam (2,4 GHz)<input name="wifi_ssid" autocomplete="off"
+            /></label>
+            <label id="wifi-password-label"
+              >Wifiwachtwoord<input
+                name="wifi_password"
+                type="password"
+                autocomplete="new-password"
+            /></label>
+          </fieldset>
           <label
-            >Je eigen ESPHome-YAML<textarea
-              id="yaml-output"
-              readonly
-              rows="9"
-              spellcheck="false"
-            ></textarea>
-          </label>
-          <div class="yaml-actions">
-            <button type="button" id="copy-yaml">Kopieer YAML</button
-            ><button type="button" class="quiet" id="download-yaml">
-              Download bestand
+            >Installeren via<select name="target" id="install-target"></select
+            ><small id="target-hint"></small
+          ></label>
+          <p class="hint" id="install-note"></p>
+          <div class="install-actions">
+            <button type="submit" id="install-go">Installeren</button>
+            <span id="install-status" role="status"></span>
+          </div>
+        </div>
+        <div id="install-progress" hidden>
+          <div class="progress-head">
+            <span class="spin" id="progress-spin"></span>
+            <span class="outcome" id="progress-mark" hidden></span>
+            <strong id="progress-title"></strong>
+          </div>
+          <p id="progress-detail"></p>
+          <div id="install-result" hidden>
+            <div class="key-box">
+              <span>API-sleutel</span><code id="api-key"></code>
+              <button type="button" class="mini" id="copy-key">Kopieer</button>
+            </div>
+            <ol class="steps" id="install-steps"></ol>
+          </div>
+          <details id="install-log-wrap">
+            <summary>Log van ESPHome</summary>
+            <pre id="install-log"></pre>
+          </details>
+          <div class="install-actions">
+            <button type="button" id="install-retry" hidden>
+              Opnieuw proberen
+            </button>
+            <button type="button" class="quiet" id="install-close">
+              Sluiten
             </button>
           </div>
         </div>
-        <ol class="steps">
-          <li>
-            <b>Bewaar je profiel.</b> Bestaande wifi-secrets worden behouden;
-            bij een eerste installatie vul je wifi hierboven in.
-          </li>
-          <li>
-            <b>Open Firmware & USB.</b> Kies dit profiel, sluit het scherm op je
-            Raspberry aan en selecteer de juiste USB-poort. Kies Bouwen &
-            installeren.
-          </li>
-          <li>
-            <b>Koppel in HA → Apparaten & diensten → ESPHome.</b> Gebruik de
-            API-sleutel uit je eigen YAML en sta HA-acties toe.
-          </li>
-          <li>
-            <b>Kies hier je tegels.</b> CYD vraagt bij de eerste start om
-            kalibratie; Guition niet.
-          </li>
-          <li>
-            <b>Later updaten?</b> Kies hetzelfde profiel en het IP-adres van je
-            scherm in Firmware & USB.
-          </li>
-        </ol>
-        <p class="hint">
-          Bewaar je YAML met sleutels. Gebruik later Firmware & USB met het
-          IP-adres voor draadloze updates. Tegels wijzigen doe je hier.
-        </p>
       </form>
     </dialog>
     <dialog id="firmware-dialog">

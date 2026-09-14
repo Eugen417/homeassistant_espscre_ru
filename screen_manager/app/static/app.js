@@ -260,7 +260,62 @@ function renderUpdate(screen) {
   } else return null;
   return row;
 }
+function openIntegrations() {
+  // Pairing happens in Home Assistant itself. This page lives in HA's ingress iframe,
+  // so send the top window to Apparaten & diensten (same origin); elsewhere open a tab.
+  const path = "/config/integrations/dashboard";
+  try {
+    window.top.location.assign(path);
+  } catch {
+    window.open(path, "_blank");
+  }
+}
+async function copyText(text, element) {
+  try {
+    if (!navigator.clipboard || !window.isSecureContext) throw new Error();
+    await navigator.clipboard.writeText(text);
+    toast("API-sleutel gekopieerd.");
+  } catch {
+    if (element) {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    toast(document.execCommand("copy") ? "API-sleutel gekopieerd." : "De sleutel is geselecteerd. Kopieer met Ctrl+C of Command+C.");
+  }
+}
+// Profiles that Home Assistant does not list yet: the freshly flashed screen is not lost, it
+// still has to be added under Apparaten & diensten, outside this page.
+function renderPending() {
+  const box = $("#pending");
+  box.replaceChildren();
+  for (const p of inventory.pending || []) {
+    const card = node("div", undefined, "pending");
+    card.append(
+      node("strong", p.friendly),
+      node("small", p.installed
+        ? "Geïnstalleerd, maar nog niet in Home Assistant. Dat doe je buiten ESP Screens: voeg het ontdekte ESPHome-apparaat toe onder Instellingen → Apparaten & diensten, plak daar de API-sleutel en zet bij Configureren “Allow the device to perform Home Assistant actions” aan."
+        : `Nog niet in Home Assistant. Al geflasht? Voeg het ESPHome-apparaat toe onder Instellingen → Apparaten & diensten en sta daarna bij Configureren de Home Assistant-acties toe. Nog niet geflasht? Firmware & USB → ${p.file}.`),
+    );
+    const actions = node("div", undefined, "pending-actions");
+    const go = node("button", "Open Apparaten & diensten", "mini");
+    go.type = "button";
+    go.onclick = openIntegrations;
+    actions.append(go);
+    if (p.api_key) {
+      const copy = node("button", "Kopieer API-sleutel", "mini quiet");
+      copy.type = "button";
+      copy.onclick = () => copyText(p.api_key);
+      actions.append(copy);
+    }
+    card.append(actions);
+    box.append(card);
+  }
+}
 function renderScreens() {
+  renderPending();
   // Keep an open address form alive across the periodic refresh.
   if ($("#screens .screen-host")) {
     renderUpdates();
@@ -976,85 +1031,250 @@ for (const [value, label] of [
   };
   $("#filters").append(b);
 }
-async function checkWifiSecrets() {
-  const fields = $("#wifi-fields"), status = $("#wifi-status");
-  fields.hidden = true;
-  fields.disabled = true;
-  $("#create-profile").disabled = true;
-  status.textContent = "ESPHome wifi-instellingen controleren…";
+// ----- Nieuw scherm: profiel, wifi en de eerste flash in één venster -----
+const installer = {
+  poll: null, view: "setup", file: null, friendly: "", board: "cyd", target: "",
+  apiKey: null, nodeEdited: false, ports: null, jobState: null,
+};
+// ESPHome's node-name rule: lowercase ASCII, digits and dashes, starting with a letter.
+function slug(text) {
+  const clean = text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^[^a-z]+/, "").slice(0, 30).replace(/-+$/, "");
+  return clean || "scherm";
+}
+function portLabel(port) {
+  const id = port.replace(/^\/dev\/serial\/by-id\/usb-/, "").replace(/-if\d+(-port\d+)?$/, "").replace(/_/g, " ");
+  return `USB · ${id === port ? port.replace(/^\/dev\//, "") : id}`;
+}
+function syncNode() {
+  const form = $("#install-form");
+  if (!installer.nodeEdited) form.elements.name.value = slug(form.elements.friendly_name.value);
+  $("#node-preview").textContent = form.elements.name.value || "…";
+}
+function renderTargets(ports) {
+  const select = $("#install-target");
+  const key = ports.join("\n");
+  if (installer.ports === key) return;
+  installer.ports = key;
+  const current = select.value;
+  const later = node("option", "Later · alleen het profiel bewaren");
+  later.value = "";
+  select.replaceChildren(...ports.map((p) => { const o = node("option", portLabel(p)); o.value = p; return o; }), later);
+  select.value = ports.includes(current) ? current : ports[0] || "";
+  renderTargetHint();
+}
+function renderTargetHint() {
+  const select = $("#install-target");
+  const ports = select.options.length - 1;
+  $("#target-hint").textContent = !ports
+    ? "Geen USB-poort gevonden. Sluit het scherm met een datakabel aan op de Home Assistant-machine; de lijst ververst vanzelf."
+    : !select.value
+      ? "Het profiel komt in de ESPHome-map. Installeren kan later via Firmware & USB, of vanuit ESPHome Device Builder."
+      : ports > 1
+        ? "Meer dan één bord aangesloten: kies de poort van dit scherm."
+        : "Eén keer via USB; daarna gaat alles draadloos.";
+  $("#install-go").textContent = select.value ? "Installeren" : "Profiel bewaren";
+}
+function renderWifi(wifi) {
+  const fields = $("#wifi-fields");
+  const ask = wifi?.state === "new" || wifi?.state === "missing";
+  fields.hidden = !ask;
+  fields.disabled = !ask;
+  if (ask) {
+    const missing = wifi.missing || [];
+    $("#wifi-ssid-label").hidden = !missing.includes("wifi_ssid");
+    $("#wifi-password-label").hidden = !missing.includes("wifi_password");
+    $("#wifi-status").textContent = wifi.state === "new"
+      ? "Eén keer invullen: ESP Screens bewaart dit in ESPHome secrets.yaml, volgende schermen gebruiken het automatisch."
+      : "Je ESPHome secrets.yaml mist nog wifi-gegevens. ESP Screens vult alleen de ontbrekende regels aan.";
+  }
+  return wifi?.state === "ready"
+    ? "Wifi komt uit je ESPHome secrets.yaml."
+    : wifi?.state === "invalid"
+      ? "secrets.yaml in de ESPHome-map is geen geldige YAML. Herstel het bestand eerst; het wordt niet overschreven."
+      : "";
+}
+async function installerRefresh() {
+  let data;
   try {
-    const {wifi} = await (await api("firmware")).json();
-    if (wifi?.state === "ready") {
-      status.textContent = "✓ Bestaande ESPHome-wifi gevonden. Dit scherm gebruikt automatisch wifi_ssid en wifi_password uit je secrets.yaml.";
-      $("#create-profile").disabled = false;
-    } else if (wifi?.state === "new") {
-      status.textContent = "Nog geen ESPHome-secrets gevonden. Vul wifi één keer in; volgende schermen gebruiken deze gegevens automatisch.";
-      fields.hidden = false;
-      fields.disabled = false;
-      $("#create-profile").disabled = false;
-    } else {
-      status.textContent = "Controleer wifi_ssid en wifi_password in ESPHome secrets.yaml. Je bestaande bestand blijft behouden. Sluit en open deze wizard opnieuw na aanpassen.";
-    }
-  } catch {
-    status.textContent = "ESPHome-secrets konden niet worden gecontroleerd. Sluit en open de wizard opnieuw om het nogmaals te proberen.";
+    data = await (await api("firmware")).json();
+  } catch (e) {
+    $("#install-note").textContent = e.message;
+    return;
+  }
+  const job = data.job;
+  const ours = job && installer.file && job.file === installer.file;
+  if (ours) installer.jobState = job.state;
+  if (installer.view === "setup") {
+    if (ours && job.state === "running") return showProgress(job, data.logs);
+    renderTargets(data.ports || []);
+    const wifiNote = renderWifi(data.wifi);
+    const busy = job?.state === "running";
+    const flashing = !!$("#install-target").value;
+    $("#install-note").textContent = busy
+      ? `Er loopt al een build of installatie (${job.file}). Wacht tot die klaar is.`
+      : !data.available && flashing
+        ? "ESPHome CLI ontbreekt in deze installatie; alleen het profiel bewaren kan."
+        : wifiNote;
+    $("#install-go").disabled = data.wifi?.state === "invalid" || (flashing && (busy || !data.available));
+  } else if (installer.view === "progress" && ours) {
+    renderProgress(job, data.logs);
   }
 }
-$("#new-screen").onclick = $("#start").onclick = () => {
+function showProgress(job, logs) {
+  installer.view = "progress";
+  installer.jobState = job.state;
+  $("#install-setup").hidden = true;
+  $("#install-progress").hidden = false;
+  $("#install-log-wrap").hidden = false;
+  renderProgress(job, logs);
+}
+function outcome(ok) {
+  $("#progress-spin").hidden = true;
+  $("#progress-mark").hidden = false;
+  $("#progress-mark").textContent = ok ? "✓" : "✕";
+  $("#progress-mark").className = `outcome ${ok ? "ok" : "bad"}`;
+}
+function renderProgress(job, logs) {
+  const running = job.state === "running";
+  const ok = job.state === "success";
+  if (running) {
+    $("#progress-spin").hidden = false;
+    $("#progress-mark").hidden = true;
+  } else outcome(ok);
+  $("#install-title").textContent = running ? "Even geduld…" : ok ? "Klaar." : "Dat lukte niet.";
+  $("#progress-title").textContent = running
+    ? job.stage === "upload" ? `Firmware naar ${installer.friendly} schrijven…` : "Firmware bouwen…"
+    : ok ? `Firmware staat op ${installer.friendly}` : "Installeren mislukt";
+  $("#progress-detail").textContent = running
+    ? job.stage === "upload"
+      ? "Haal de USB-kabel nog niet los."
+      : "Een eerste build duurt op een Raspberry enkele minuten. Je mag dit venster sluiten: de installatie loopt door en je vindt hem terug onder Nieuw scherm."
+    : ok
+      ? `Het scherm start op en verbindt met je wifi.${installer.board === "cyd" ? " De CYD vraagt eerst om een touch-kalibratie: tik de kruisjes aan." : ""} Koppel het nu aan Home Assistant:`
+      : logs.filter((l) => /error/i.test(l)).pop() || logs.filter((l) => /failed|mislukt|fout/i.test(l)).pop() || "Bekijk het log hieronder.";
+  const pre = $("#install-log");
+  const stick = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
+  pre.textContent = logs.join("\n");
+  if (stick) pre.scrollTop = pre.scrollHeight;
+  if (!running && !ok) $("#install-log-wrap").open = true;
+  $("#install-result").hidden = !ok;
+  if (ok) renderSteps();
+  $("#install-retry").hidden = running || ok;
+  $("#install-close").textContent = ok ? "Klaar" : "Sluiten";
+  $("#install-close").classList.toggle("quiet", !ok);
+}
+function showSaved() {
+  installer.view = "done";
+  $("#install-setup").hidden = true;
+  $("#install-progress").hidden = false;
+  outcome(true);
+  $("#install-title").textContent = "Profiel bewaard.";
+  $("#progress-title").textContent = `${installer.file} staat in de ESPHome-map`;
+  $("#progress-detail").textContent =
+    "Installeren kan zodra het scherm aan de Home Assistant-machine hangt: Firmware & USB → dit profiel → USB-poort → Bouwen & installeren. Of open het profiel in ESPHome Device Builder (dezelfde map) en flash vanuit je browser. Bewaar de API-sleutel voor de koppeling:";
+  $("#install-result").hidden = false;
+  renderSteps();
+  $("#install-log-wrap").hidden = true;
+  $("#install-retry").hidden = true;
+  $("#install-close").textContent = "Klaar";
+  $("#install-close").classList.remove("quiet");
+}
+function renderSteps() {
+  $("#api-key").textContent = installer.apiKey || "";
+  const steps = [
+    ["Ga naar Home Assistant → Instellingen → Apparaten & diensten.", ` Dit gebeurt buiten ESP Screens. Home Assistant ontdekt ${installer.friendly} als ESPHome-apparaat; klik op Toevoegen. Niet ontdekt? Voeg ESPHome handmatig toe met het IP-adres van het scherm. `],
+    ["Plak de API-sleutel", " hierboven zodra Home Assistant om een encryptiesleutel vraagt."],
+    ["Sta HA-acties toe:", " ESPHome-integratie → Configureren → “Allow the device to perform Home Assistant actions”. Zonder dit ziet het scherm alles, maar bedient het niets."],
+    ["Kies je tegels.", " Terug in ESP Screens verschijnt het scherm binnen een halve minuut in de lijst links; tot die tijd staat het daar als “nog niet in Home Assistant”."],
+  ];
+  $("#install-steps").replaceChildren(...steps.map(([b, t], i) => {
+    const li = node("li");
+    li.append(node("b", b), t);
+    if (i === 0) {
+      const go = node("button", "Open Apparaten & diensten", "mini");
+      go.type = "button";
+      go.onclick = openIntegrations;
+      li.append(go);
+    }
+    return li;
+  }));
+}
+function resetInstaller() {
+  Object.assign(installer, { view: "setup", file: null, apiKey: null, nodeEdited: false, ports: null, jobState: null, target: "" });
+  const form = $("#install-form");
+  form.reset();
+  $("#node-label").hidden = true;
+  $("#install-setup").hidden = false;
+  $("#install-progress").hidden = true;
+  $("#install-result").hidden = true;
+  $("#install-log-wrap").open = false;
+  $("#install-log").textContent = "";
+  $("#install-title").textContent = "Aansluiten en installeren.";
+  $("#install-status").textContent = "";
+  $("#install-note").textContent = "";
+  $("#install-target").replaceChildren();
+  $("#target-hint").textContent = "";
+  $("#install-close").classList.add("quiet");
+  syncNode();
+}
+function openInstaller() {
+  if (installer.view !== "progress") resetInstaller();
   $("#installer").showModal();
-  checkWifiSecrets();
+  installerRefresh();
+  clearInterval(installer.poll);
+  installer.poll = setInterval(installerRefresh, 3000);
+}
+$("#new-screen").onclick = $("#start").onclick = openInstaller;
+$("#close-install").onclick = $("#install-close").onclick = () => $("#installer").close();
+$("#installer").addEventListener("close", () => {
+  clearInterval(installer.poll);
+  // A finished job is shown once; the next open starts a fresh form.
+  if (installer.view === "progress" && installer.jobState !== "running") installer.view = "done";
+});
+$("#install-target").onchange = () => { renderTargetHint(); installerRefresh(); };
+$("#install-form").elements.friendly_name.oninput = syncNode;
+$("#install-form").elements.name.oninput = () => { installer.nodeEdited = true; syncNode(); };
+$("#edit-node").onclick = () => {
+  installer.nodeEdited = true;
+  $("#node-label").hidden = false;
+  $("#install-form").elements.name.focus();
 };
-$("#close-install").onclick = () => $("#installer").close();
-let generatedName = "";
 $("#install-form").onsubmit = async (e) => {
   e.preventDefault();
-  $("#download").disabled = true;
+  const form = e.target;
+  syncNode();
+  if (!form.reportValidity()) return;
+  const data = Object.fromEntries(new FormData(form));
+  $("#install-go").disabled = true;
+  $("#install-status").textContent = "";
   try {
-    const data = Object.fromEntries(new FormData(e.target));
-    const response = await api("install", {
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-    $("#yaml-output").value = await response.text();
-    generatedName = data.name;
-    $("#yaml-result").hidden = false;
-    $("#install-status").textContent =
-      "Je YAML is klaar. Kopieer hem naar ESPHome en bewaar het bestand met sleutels.";
-  } catch (e) {
-    $("#install-status").textContent = e.message;
+    const result = await (await api("firmware/profiles", { method: "POST", body: JSON.stringify(data) })).json();
+    Object.assign(installer, { file: result.file, apiKey: result.api_key, friendly: data.friendly_name.trim(), board: data.board, target: data.target });
+    form.elements.wifi_password.value = "";
+    if (result.job) showProgress(result.job, []);
+    else showSaved();
+  } catch (err) {
+    $("#install-status").textContent = err.message;
   } finally {
-    $("#download").disabled = false;
+    $("#install-go").disabled = false;
   }
 };
-$("#copy-yaml").onclick = async () => {
+$("#install-retry").onclick = async () => {
   try {
-    if (navigator.clipboard && window.isSecureContext)
-      await navigator.clipboard.writeText($("#yaml-output").value);
-    else {
-      $("#yaml-output").select();
-      if (!document.execCommand("copy")) throw new Error();
-    }
-    $("#install-status").textContent =
-      "Gekopieerd. Plak dit bij Edit in ESPHome Device Builder.";
-  } catch {
-    $("#yaml-output").select();
-    $("#install-status").textContent =
-      "De tekst is geselecteerd. Kopieer met Ctrl+C of Command+C.";
+    const { ports } = await (await api("firmware")).json();
+    // The board may have been replugged; a single visible port is unambiguous.
+    if (!ports.includes(installer.target) && ports.length === 1) installer.target = ports[0];
+    const job = await (await api("firmware/jobs", {
+      method: "POST",
+      body: JSON.stringify({ file: installer.file, action: "install", target: installer.target }),
+    })).json();
+    showProgress(job, []);
+  } catch (err) {
+    toast(err.message);
   }
 };
-$("#download-yaml").onclick = () => {
-  const url = URL.createObjectURL(
-    new Blob([$("#yaml-output").value], { type: "text/plain" }),
-  );
-  const a = node("a");
-  a.href = url;
-  a.download = `${generatedName}.yaml`;
-  document.body.append(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
-  $("#install-status").textContent =
-    "Download gestart. Blokkeert je browser deze? Gebruik Kopieer YAML.";
-};
+$("#copy-key").onclick = () => copyText(installer.apiKey || "", $("#api-key"));
 window.addEventListener("beforeunload", (e) => {
   if (dirty) {
     e.preventDefault();
@@ -1184,26 +1404,6 @@ for (const action of ["validate", "build", "install"])
       toast(e.message);
     }
   };
-$("#create-profile").onclick = async () => {
-  const form = $("#install-form");
-  if (!form.reportValidity()) return;
-  try {
-    const data = await (
-      await api("firmware/profiles", {
-        method: "POST",
-        body: JSON.stringify(Object.fromEntries(new FormData(form))),
-      })
-    ).json();
-    generatedName = data.file.replace(/\.yaml$/, " ").trim();
-    $("#yaml-output").value = data.yaml;
-    $("#yaml-result").hidden = false;
-    $("#install-status").textContent =
-      `${data.file} bewaard. Open Firmware & USB om te installeren.`;
-    form.elements.wifi_password.value = "";
-  } catch (e) {
-    toast(e.message);
-  }
-};
 function openSection(id) {
   const section = $(id);
   if (section.tagName === "DETAILS") section.open = true;

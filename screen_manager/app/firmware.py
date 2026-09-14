@@ -10,7 +10,7 @@ import shutil
 import signal
 import time
 import yaml
-from core import installation_yaml
+from core import REPO, installation_yaml
 
 # libyaml parses a 300 KB profile roughly ten times faster than the pure-Python loader.
 class LenientLoader(yaml.CSafeLoader if getattr(yaml, '__with_libyaml__', False) else yaml.SafeLoader):
@@ -28,7 +28,14 @@ def profile_meta(text):
         if isinstance(value, str) and value.startswith('${') and value.endswith('}'):
             value = substitutions.get(value[2:-1])
         return value if isinstance(value, str) else None
-    return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name'))}
+    # 'screen': the profile pulls this project's board package, so it is one of ours (not any ESPHome device).
+    packages = data.get('packages') if isinstance(data.get('packages'), dict) else {}
+    ours = any(isinstance(entry, dict) and REPO in str(entry.get('url', '')) for entry in packages.values())
+    api = data.get('api') if isinstance(data.get('api'), dict) else {}
+    encryption = api.get('encryption') if isinstance(api.get('encryption'), dict) else {}
+    key = encryption.get('key')
+    return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name')),
+            'screen': ours, 'api_key': key if isinstance(key, str) else None}
 
 class Firmware:
     def __init__(self, root, data):
@@ -37,6 +44,7 @@ class Firmware:
         self.task = None
         self.logs = deque(maxlen=300)
         self.process = None
+        self.installed = set()  # profiles this process flashed successfully; the page nudges pairing for them
         self._names = {}  # file -> (stat signature, meta or None); parsed only when the file changes
 
     def profiles(self):
@@ -101,28 +109,74 @@ class Firmware:
         return {'available': bool(shutil.which('esphome')), 'profiles': self.profiles(),
                 'ports': self.ports(), 'job': self.job, 'logs': list(self.logs), 'wifi': self.wifi_status()}
 
+    def store_wifi(self, data):
+        """Put wifi_ssid/wifi_password in secrets.yaml when they are missing. Existing values and
+        every other secret stay as they are; the browser never sees stored values."""
+        wifi = self.wifi_status()
+        if wifi['state'] == 'ready':
+            return
+        if wifi['state'] == 'invalid':
+            raise ValueError('secrets.yaml in de ESPHome-map is geen geldige YAML. Herstel het bestand eerst; het wordt niet overschreven.')
+        values = {}
+        for key in wifi['missing']:
+            value = data.get(key)
+            if not isinstance(value, str) or (key == 'wifi_ssid' and not value.strip()):
+                raise ValueError('Vul de wifi-naam en het wachtwoord in; ze worden in ESPHome secrets.yaml bewaard.')
+            values[key] = value
+        path = self.root / 'secrets.yaml'
+        if wifi['state'] == 'new':
+            with path.open('x') as f:
+                os.chmod(path, 0o600)
+                yaml.safe_dump(values, f, width=4096)
+            return
+        # An existing file with missing keys: replace only that key's own line, or append it.
+        text = path.read_text()
+        for key, value in values.items():
+            line = yaml.safe_dump({key: value}, width=4096).strip()
+            pattern = re.compile(rf'^{key}\s*:.*$', re.M)
+            if pattern.search(text):
+                text = pattern.sub(lambda match: line, text, count=1)
+            else:
+                text = text + ('' if not text or text.endswith('\n') else '\n') + line + '\n'
+        check = yaml.safe_load(text)
+        if not isinstance(check, dict) or any(check.get(key) != value for key, value in values.items()):
+            raise ValueError('Wifi kon niet in secrets.yaml worden gezet. Vul wifi_ssid en wifi_password daar zelf in.')
+        path.write_text(text)
+
     def create(self, data):
+        """Write the device profile (unique API/OTA keys) and any missing wifi secrets."""
         content = installation_yaml(data)
         self.root.mkdir(parents=True,exist_ok=True)
-        # Existing wifi secrets remain untouched. New owners can supply them once.
-        secret_path = self.root / 'secrets.yaml'
-        wifi = self.wifi_status()
-        if wifi['state'] in ('missing', 'invalid'):
-            raise ValueError('Controleer wifi_ssid en wifi_password in ESPHome secrets.yaml. Bestaande secrets blijven behouden.')
-        if wifi['state'] == 'new':
-            ssid, password = data.get('wifi_ssid'), data.get('wifi_password')
-            if not isinstance(ssid,str) or not ssid.strip() or not isinstance(password,str):
-                raise ValueError('Vul wifi in voor deze eerste installatie.')
-            with secret_path.open('x') as f:
-                os.chmod(secret_path,0o600)
-                yaml.safe_dump({'wifi_ssid':ssid,'wifi_password':password}, f)
         profile = self.root / (data['name']+'.yaml')
+        if profile.exists() or profile.is_symlink():
+            raise ValueError('Deze naam bestaat al. Gebruik het bestaande profiel voor updates.')
+        self.store_wifi(data)
         try:
             with profile.open('x') as f:
                 os.chmod(profile,0o600);f.write(content)
         except FileExistsError:
             raise ValueError('Deze naam bestaat al. Gebruik het bestaande profiel voor updates.')
-        return {'file':profile.name, 'yaml':content}
+        key = yaml.load(content, Loader=LenientLoader)['api']['encryption']['key']
+        # The key is what Home Assistant asks for when pairing; the page shows it once.
+        return {'file': profile.name, 'node': data['name'], 'api_key': key}
+
+    def install(self, data):
+        """Profile plus, when a USB port is chosen, the build and flash in one go.
+
+        The port and the job slot are checked before anything is written, so a refused
+        install leaves no half-made profile behind."""
+        target = data.get('target') or ''
+        if target:
+            if not isinstance(target, str) or target not in self.ports():
+                raise ValueError('Kies de aangesloten USB-poort uit de lijst.')
+            if self.task and not self.task.done():
+                raise ValueError('Er loopt al een build of installatie. Wacht tot die klaar is.')
+            if not shutil.which('esphome'):
+                raise ValueError('ESPHome CLI ontbreekt in deze installatie.')
+        result = self.create(data)
+        if target:
+            result['job'] = self.start({'file': result['file'], 'action': 'install', 'target': target})
+        return result
 
     def redact(self, text):
         text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
@@ -171,6 +225,7 @@ class Firmware:
             for stage in stages:
                 cmd=['esphome']+(['--quiet'] if stage=='config' else [])+[stage,str(profile)]
                 if stage=='upload': cmd += ['--device',target]
+                self.job['stage']=stage
                 self.logs.append('ESPHome: '+stage)
                 self.process=await asyncio.create_subprocess_exec(*cmd,cwd=self.root,env=env,stdout=asyncio.subprocess.PIPE,stderr=asyncio.subprocess.STDOUT,limit=1024*1024,start_new_session=True)
                 async with asyncio.timeout(7200):
@@ -179,6 +234,7 @@ class Firmware:
                     code=await self.process.wait()
                 if code: raise RuntimeError('ESPHome '+stage+' mislukt; bekijk het log.')
             self.job['state']='success'; self.logs.append('Geslaagd: '+action)
+            if action=='install': self.installed.add(profile.name)
         except asyncio.CancelledError:
             self.job['state']='interrupted'
             raise
