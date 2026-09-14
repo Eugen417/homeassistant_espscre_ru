@@ -177,6 +177,15 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.34 / firmware 0.2.29
+
+Alleen firmware. LVGL 9.5.0's `send_event()` in `lv_indev.c` stuurt het invoerapparaat
+PRESSED, RELEASED, CLICKED, LONG_PRESSED en KEY, maar geen PRESSING; een
+`lv_indev_add_event_cb` krijgt dus geen positie-updates tijdens een druk. `cyd::EdgeSwipe`
+werkt daarom weer op de native touchpunten uit `on_touch`/`on_update`/`on_release`
+(`configure(width, height, band, travel)`, `begin(x, y, rotation)` met ESPHome's
+rotatiemapping, `update()`, `end()`), de indev-callback is weg. Verder ongewijzigd.
+
 ### Compatibiliteit 0.2.33 / firmware 0.2.28
 
 Alleen firmware. `TouchGuard::configure(0, ...)` schakelt de verplaatsingsgrens uit

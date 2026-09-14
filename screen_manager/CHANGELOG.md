@@ -1,3 +1,8 @@
+## 0.2.34 (firmware 0.2.29)
+
+- **Randveeg werkte in 0.2.32 en 0.2.33 helemaal niet, hersteld.** De veeg was daar op de pointer-events van LVGL gezet, maar de LVGL 9.5.0 die ESPHome meelevert stuurt het invoerapparaat wel PRESSED en RELEASED maar geen PRESSING, dus de veeg kreeg nooit positie-updates (live gezien op Studio 1: wel `GT911 press`, verder niets). De Guition volgt de veeg weer via ESPHome's touchscreen-triggers, zoals in 0.2.24 (dat werkte live zodra de kaartfix uit 0.2.32 erbij zat), met de eigen rotatiemapping gelijk aan die van ESPHome's LVGL-component, de 45°-regel, `end()` bij loslaten (een niet-afgemaakte veeg kan daardoor niet meer bij de volgende aanraking afgaan) en de logregels `randveeg genegeerd: …` en `randveeg niet gevuurd: …`.
+- Firmware 0.2.29 voor beide borden; de app biedt de update aan. Alleen de doelversie verandert in de app.
+
 ## 0.2.33 (firmware 0.2.28)
 
 - **Guition: loslaten binnen de tegel telt.** De verplaatsingsgrens voor een tik staat op de Guition uit (`TOUCH_MOVE_LIMIT_PX: "0"`); LVGL beslist, zoals iOS: laat je los binnen de tegel waarop je begon, dan is het een tik, verlaat je vinger de tegel, dan niet. Een stevige druk die een centimeter verschoof (73 px op Studio 1) werd anders nog geweigerd. De randveeg neemt zijn eigen tik weg en sliders vangen hun eigen sleep, dus de grens had daar geen taak meer. De CYD houdt zijn 56 px, omdat het resistieve paneel kan springen.

@@ -98,32 +98,39 @@ int main() {
   resistive.update(50, 180);                                                       // 70 px past the settled point: a swipe
   assert(!resistive.accept(1100, 1));
   assert(!resistive.accept_repeat(1100, 1));
-  // Edge swipe (0.2.24, LVGL pointer coordinates since 0.2.27): only a touch that starts in
-  // the side band flips a page, from the right edge leftwards "next", from the left edge
-  // rightwards "previous", once per touch, slow or fast, more sideways than vertical, never
-  // from the middle. The width follows the rotated screen.
+  // Edge swipe (0.2.24, back on the touchscreen triggers since 0.2.29): only a touch that
+  // starts in the side band flips a page, from the right edge leftwards "next", from the left
+  // edge rightwards "previous", once per touch, slow or fast, more sideways than vertical,
+  // never from the middle. Rotation follows ESPHome's pointer mapping; end() disarms.
   cyd::EdgeSwipe edge;
-  edge.configure(32, 40);
-  edge.begin(6, 240, 480);
+  edge.configure(480, 480, 32, 40);
+  edge.begin(6, 240);
   assert(edge.armed());
   assert(edge.update(30, 242) == 0);   // not far enough yet
   assert(edge.update(48, 245) == -1);  // 42 px inward from the left edge: previous page
   assert(edge.update(90, 245) == 0);   // once per touch
   assert(!edge.armed());
-  edge.begin(474, 100, 480);
+  edge.begin(474, 100);
   assert(edge.update(430, 104) == 1);  // from the right edge: next page
-  edge.begin(240, 240, 480);
+  edge.begin(240, 240);
   assert(!edge.armed());
   assert(edge.update(300, 240) == 0);  // started in the middle: never a page swipe
-  edge.begin(6, 240, 480);
+  edge.begin(6, 240);
   assert(edge.update(50, 300) == 0);   // steeper than 45 degrees: 44 px sideways against 60 down
   assert(edge.update(-10, 240) == 0);  // moving outward: nothing
   assert(edge.update(60, 270) == -1);  // 54 sideways against 30 down: a slanted thumb swipe counts
-  edge.begin(6, 240, 480);
+  edge.begin(6, 240);
   edge.update(20, 250);
   assert(edge.inward() == 14 && edge.sideways() == 10);  // what the log reports for a swipe that ended early
-  edge.begin(300, 240, 320);
-  assert(edge.update(250, 240) == 1);  // a 320 px wide (rotated or smaller) screen: right band from 288
+  edge.end();
+  assert(!edge.armed());
+  assert(edge.update(300, 250) == 0);  // the next touch's first update, before begin(): nothing
+  edge.begin(240, 6, 90);
+  assert(edge.update(240, 60) == -1);  // rotated 90: the user's left edge is the panel's top
+  edge.begin(240, 6, 270);
+  assert(edge.update(240, 60) == 1);   // rotated 270: that same edge is the user's right
+  edge.begin(6, 240, 180);
+  assert(edge.update(60, 240) == 1);   // upside down: the panel's left is the user's right
   cyd::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days

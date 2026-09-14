@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.28"
+  SCREEN_FIRMWARE_VERSION: "0.2.29"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -601,38 +601,7 @@ esphome:
     then:
       - lambda: |-
           cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
-          cyd::edge_swipe.configure(${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
-          // Edge swipe on LVGL's own pointer events: the point is already rotated, the callback
-          // runs inside LVGL, and lv_indev_wait_release keeps the tile under the finger quiet.
-          if (auto *pointer = lv_indev_get_next(nullptr)) {
-            lv_indev_add_event_cb(pointer, [](lv_event_t *e) {
-              auto *indev = static_cast<lv_indev_t *>(lv_event_get_current_target(e));
-              const auto code = lv_event_get_code(e);
-              lv_point_t p;
-              lv_indev_get_point(indev, &p);
-              if (code == LV_EVENT_PRESSED) {
-                cyd::edge_swipe.begin(p.x, p.y, lv_display_get_horizontal_resolution(lv_display_get_default()));
-                return;
-              }
-              if (code == LV_EVENT_RELEASED || code == LV_EVENT_PRESS_LOST) {
-                if (cyd::edge_swipe.armed() && cyd::edge_swipe.inward() > 0)
-                  ESP_LOGI("touch", "randveeg niet gevuurd: %d px naar binnen, %d px verticaal", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
-                return;
-              }
-              if (code != LV_EVENT_PRESSING) return;
-              const int step = cyd::edge_swipe.update(p.x, p.y);
-              if (!step) return;
-              const char *blocked = !runtime_tiles::enabled ? "geen runtime-tegels" : !runtime_tiles::swipe_pages ? "instelling uit"
-                : id(display_dimmed) ? "scherm gedimd" : id(calibration_active) ? "kalibratie" : !id(active_entity).empty() ? "kaart open"
-                : (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detailkaart open" : nullptr;
-              if (blocked) { ESP_LOGI("touch", "randveeg genegeerd: %s", blocked); return; }
-              cyd::touch_guard.consume();
-              lv_indev_wait_release(indev);
-              ESP_LOGI("touch", "randveeg: pagina %d -> %d", id(tile_page), id(tile_page) + step);
-              id(tile_page) += step;
-              id(show_tile_page).execute();
-            }, LV_EVENT_ALL, nullptr);
-          }
+          cyd::edge_swipe.configure(${DISPLAY_W}, ${DISPLAY_H}, ${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
           id(last_touch_ms) = millis();
           id(display_dimmed) = false;
           lv_obj_set_style_pad_row(id(vacuum_actions), 4, 0);
@@ -1833,6 +1802,7 @@ touchscreen:
         id(last_touch_ms) = millis();
         id(touch_down) = true;
         cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
+        cyd::edge_swipe.begin(touch.x, touch.y, static_cast<int>(id(screen_lvgl).get_rotation()));
         ESP_LOGI("touch", "GT911 press x=%u y=%u test=%d", touch.x, touch.y, id(calibration_active));
   on_update:
     - lambda: |-
@@ -1840,11 +1810,29 @@ touchscreen:
         // Only the contact that started the touch counts; the guard ignores other ids.
         for (const auto &point : touches) {
           cyd::touch_guard.update(point.x, point.y, point.id);
+          if (point.id != cyd::touch_guard.contact()) continue;
+          // Swiping in from a side edge flips the page ("Vegen tussen pagina's"); the tap
+          // under the finger is consumed and LVGL waits for the release. LVGL 9.5 sends no
+          // PRESSING to the input device, hence the touchscreen trigger.
+          const int step = cyd::edge_swipe.update(point.x, point.y);
+          if (!step) continue;
+          const char *blocked = !runtime_tiles::enabled ? "geen runtime-tegels" : !runtime_tiles::swipe_pages ? "instelling uit"
+            : id(display_dimmed) ? "scherm gedimd" : id(calibration_active) ? "kalibratie" : !id(active_entity).empty() ? "kaart open"
+            : (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detailkaart open" : nullptr;
+          if (blocked) { ESP_LOGI("touch", "randveeg genegeerd: %s", blocked); continue; }
+          cyd::touch_guard.consume();
+          for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
+          ESP_LOGI("touch", "randveeg: pagina %d -> %d", id(tile_page), id(tile_page) + step);
+          id(tile_page) += step;
+          id(show_tile_page).execute();
         }
   on_release:
     - lambda: |-
         id(last_touch_ms) = millis();
         id(touch_down) = false;
+        if (cyd::edge_swipe.armed() && cyd::edge_swipe.inward() > 0)
+          ESP_LOGI("touch", "randveeg niet gevuurd: %d px naar binnen, %d px verticaal", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
+        cyd::edge_swipe.end();
 
 
 # Native ESPHome driver with the working manufacturer's LVGL demo timings.
