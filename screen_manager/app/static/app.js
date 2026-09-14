@@ -1409,7 +1409,6 @@ function openSection(id) {
   section.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 $("#nav-tiles").onclick = () => openSection("#tile-section");
-$("#open-help").onclick = () => openSection("#help");
 $("#nav-settings").onclick = () => openSection("#general-settings");
 $("#nav-inspector").onclick = () => inspect();
 async function inspect(entity) {

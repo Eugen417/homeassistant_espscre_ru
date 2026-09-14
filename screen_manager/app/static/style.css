@@ -520,18 +520,6 @@ body.dragging {
   font-size: 60px;
   color: #9cafd0;
 }
-.help {
-  margin: 26px 0 0 238px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.help summary {
-  cursor: pointer;
-  font-weight: 600;
-}
-.help p {
-  margin-top: 15px;
-}
 dialog {
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -630,9 +618,6 @@ dialog label {
   .columns {
     grid-template-columns: 1fr;
   }
-  .help {
-    margin-left: 178px;
-  }
   .editor-head {
     display: block;
   }
@@ -676,9 +661,6 @@ dialog label {
   #editor {
     padding: 18px;
   }
-  .help {
-    margin-left: 0;
-  }
   .savebar {
     align-items: stretch;
     flex-direction: column;
@@ -714,26 +696,6 @@ textarea {
   display: flex;
   gap: 10px;
   margin-bottom: 20px;
-}
-
-.firmware-link {
-  margin: 26px 0 0 238px;
-  font-size: 13px;
-}
-.firmware-link a {
-  color: var(--accent);
-  text-decoration: none;
-  font-weight: 600;
-}
-@media (max-width: 1000px) {
-  .firmware-link {
-    margin-left: 178px;
-  }
-}
-@media (max-width: 620px) {
-  .firmware-link {
-    margin-left: 0;
-  }
 }
 
 .screen-settings {

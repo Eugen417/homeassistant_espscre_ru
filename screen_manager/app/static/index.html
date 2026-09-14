@@ -30,10 +30,6 @@
             ><small>Bouwen en installeren via USB of wifi</small></span
           >
         </button>
-        <button id="open-help" class="tool">
-          <span class="tool-icon" aria-hidden="true">?</span>
-          <span class="tool-text"><b>Uitleg</b><small>Hoe werkt het</small></span>
-        </button>
       </nav>
     </header>
     <main>
@@ -154,38 +150,6 @@
           </footer>
         </section>
       </div>
-      <p class="firmware-link">
-        Een bestaand profiel opnieuw bouwen of via USB of wifi installeren kan
-        via <b>Firmware & USB</b> bovenaan. Je eigen YAML en secrets blijven
-        bewaard.
-      </p>
-      <details class="help" id="help">
-        <summary>Hoe werkt het dagelijks?</summary>
-        <p>
-          Zoek een entiteit, voeg deze toe en klik op
-          <b>Opslaan & naar scherm</b>. De app houdt de status bij. Voor een
-          kleurenlamp: houd de tegel ingedrukt voor kleur, temperatuur en
-          helderheid. Climate, vacuum en cover openen hun kaart direct. Sensoren
-          openen hun HA-geschiedenis met één tik. Per tegel kies je een grote
-          waarde, mini-schuif of klikgedrag.
-        </p>
-        <p>
-          Speciale kaarten: de <b>Klok</b> staat bovenaan de kiezer; een
-          weerentiteit toont de vijfdaagse voorspelling, <code>sun.sun</code>
-          de zonnebaan, een sensor een trendgrafiek, een <code>timer</code>
-          telt live af en een <code>person</code> toont thuis/weg. Zet een
-          tegel op <b>Dubbelbreed</b> voor meer ruimte.
-        </p>
-        <p>
-          Een nieuw scherm installeer je via <b>Nieuw scherm</b>: het profiel
-          met eigen sleutels, ontbrekende wifi in ESPHome secrets.yaml, de build
-          en de USB-flash gebeuren in één venster, met de API-sleutel voor de
-          koppeling aan het eind. Nieuwe firmware voor bestaande schermen komt
-          via <b>Bijwerken</b> in de lijst, of handmatig via
-          <b>Firmware & USB</b>. Je tegels blijven in deze app bewaard; een
-          offline scherm krijgt de wijzigingen zodra het terug is.
-        </p>
-      </details>
     </main>
     <dialog id="installer">
       <form id="install-form">
