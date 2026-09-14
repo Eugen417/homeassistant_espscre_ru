@@ -16,7 +16,7 @@ WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.31'
+FIRMWARE_VERSION = '0.2.32'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
@@ -149,6 +149,59 @@ def entity_id(value):
         return False
     return value in BUILTIN if value.startswith('screen.') else value.split('.')[0] in DOMAINS
 
+# ----- Top bar (firmware 0.2.32+): the screen name on the left, up to six items on the right.
+# Without a `header` the screen keeps its name and the clock of `show_clock`. -----
+HEADER_MIN_FIRMWARE = (0, 2, 32)
+HEADER_MAX_ITEMS = 6
+# Items the screen draws on its own clock, without Home Assistant.
+HEADER_BUILTIN = {'clock': 'Tijd', 'analog': 'Analoge klok', 'date': 'Datum'}
+# Only shown, never controlled: the top bar takes these besides every tile domain.
+HEADER_ONLY_DOMAINS = frozenset('device_tracker zone lock alarm_control_panel counter event input_datetime input_text water_heater humidifier'.split())
+HEADER_CONTENTS = ('state', 'last_changed')
+HEADER_SHOWS = ('always', 'active')
+
+def header_entity(value):
+    return (isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value) is not None
+            and value.split('.')[0] in (DOMAINS - {'screen'}) | HEADER_ONLY_DOMAINS)
+
+def header_items(layout):
+    """Items the top bar shows: the stored ones, else what firmware before the top bar drew (the clock)."""
+    if 'header' in layout:
+        return layout['header']['items']
+    return [{'type': 'clock'}] if layout.get('settings', {}).get('show_clock', True) else []
+
+def validate_header(data):
+    if not isinstance(data, dict) or set(data) - {'items'} or not isinstance(data.get('items'), list):
+        raise ValueError('Ongeldige bovenbalk; vernieuw de beheerpagina.')
+    if len(data['items']) > HEADER_MAX_ITEMS:
+        raise ValueError(f'De bovenbalk heeft plaats voor maximaal {HEADER_MAX_ITEMS} onderdelen.')
+    items, seen = [], set()
+    for item in data['items']:
+        kind = item.get('type') if isinstance(item, dict) else None
+        if kind in HEADER_BUILTIN:
+            if set(item) != {'type'}:
+                raise ValueError('Ongeldige instelling in de bovenbalk.')
+            clean = {'type': kind}
+        elif kind == 'entity':
+            if set(item) - {'type', 'entity', 'content', 'icon', 'show'}:
+                raise ValueError('Onbekende instelling in de bovenbalk; vernieuw de beheerpagina.')
+            if not header_entity(item.get('entity')):
+                raise ValueError('Deze entiteit kan niet in de bovenbalk.')
+            clean = {'type': 'entity', 'entity': item['entity'], 'content': item.get('content', 'state'),
+                     'icon': item.get('icon', 'auto'), 'show': item.get('show', 'always')}
+            if clean['content'] not in HEADER_CONTENTS or clean['show'] not in HEADER_SHOWS:
+                raise ValueError('Ongeldige instelling in de bovenbalk.')
+            if not (clean['icon'] in ('auto', 'none') or isinstance(clean['icon'], str) and clean['icon'] in tile_icons.ICONS):
+                raise ValueError('Kies een icoon uit de lijst.')
+        else:
+            raise ValueError('Onbekend onderdeel in de bovenbalk; vernieuw de beheerpagina.')
+        key = json.dumps(clean, sort_keys=True)
+        if key in seen:
+            raise ValueError('Dit onderdeel staat al in de bovenbalk.')
+        seen.add(key)
+        items.append(clean)
+    return {'items': items}
+
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
     if any(t.get('options', {}).get('background') == 'none' for t in layout['tiles']):
@@ -238,6 +291,8 @@ def validate_layout(data):
         result['pages'] = data['pages']
     if 'settings' in data:
         result['settings'] = validate_settings(data['settings'])
+    if 'header' in data:
+        result['header'] = validate_header(data['header'])
     return result
 
 def local_clock(value, tz):
@@ -461,17 +516,22 @@ def discover(registry, states, devices, areas):
                             'device': device.get('name') or '',
                             'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
                             'status': state.get('state', 'Niet verbonden')})
-        if not entity_id(eid) or item.get('disabled_by'):
+        tile = entity_id(eid)
+        if not (tile or header_entity(eid)) or item.get('disabled_by'):
             continue
         entities.append({'id': eid, 'name': state.get('attributes', {}).get('friendly_name') or item.get('name') or item.get('original_name') or eid,
                          'device': device.get('name_by_user') or device.get('name') or '', 'area': area,
-                         'state': state.get('state', 'unavailable'), 'icon': tile_icons.ha_icon(state.get('attributes'))})
+                         'state': state.get('state', 'unavailable'), 'icon': tile_icons.ha_icon(state.get('attributes')),
+                         # Top-bar-only domains (a phone's tracker, a lock) stay out of the tile picker.
+                         **({} if tile else {'tile': False})})
     # YAML entities may not have an entity-registry entry.
     registered = {e['id'] for e in entities}
+    in_registry = {r['entity_id'] for r in registry}
     for eid, state in states.items():
-        if entity_id(eid) and eid not in registered and not any(r['entity_id'] == eid for r in registry):
+        tile = entity_id(eid)
+        if (tile or header_entity(eid)) and eid not in registered and eid not in in_registry:
             entities.append({'id': eid, 'name': state.get('attributes', {}).get('friendly_name', eid), 'device': '', 'area': '', 'state': state['state'],
-                             'icon': tile_icons.ha_icon(state.get('attributes'))})
+                             'icon': tile_icons.ha_icon(state.get('attributes')), **({} if tile else {'tile': False})})
     return screens, sorted(entities, key=lambda e: e['name'].casefold())
 
 def installation_yaml(data):

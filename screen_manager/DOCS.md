@@ -12,6 +12,11 @@ voor bestaande profielen: controleren, bouwen of opnieuw installeren via USB of
 het IP-adres (OTA). Bestaande ESPHome-profielen in de HA-configmap worden
 automatisch gevonden.
 
+Bovenaan de editor stel je per scherm de **Bovenbalk** in: links de naam, rechts
+tot zes onderdelen (tijd, analoge klok, datum of een entiteit met icoon, zoals
+temperatuur, een deur, het alarm of "laatst gewijzigd"). Sleep om te ordenen, tik
+om in te stellen; firmware 0.2.32 of nieuwer tekent ze.
+
 Na koppeling via de HA ESPHome-integratie kies je in ESP Screens de tegels.
 Onder **Tegelinstellingen** staan klikgedrag, grotere waarden en mini-schuiven.
 Onder **Scherminstellingen** staan helderheid en standby. **Inspector** helpt bij

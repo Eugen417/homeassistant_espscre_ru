@@ -1,5 +1,6 @@
 #pragma once
 #include "runtime_model.h"
+#include "header_bar.h"
 #include "tile_palette.h"
 #include "tile_icon.h"
 #include "screen_settings.h"
@@ -33,6 +34,12 @@ inline const lv_font_t *clock_font = nullptr;
 // Text in the -/+ pill and the run key of direct controls; the board profile sets it.
 inline const lv_font_t *control_font = nullptr;
 inline lv_obj_t *room_label = nullptr;  // remembered by render() so page switches can render synchronously
+// Top bar (0.2.32+): the profile's clock label only lends its place and margin; values use the
+// profile's text font, icons its small icon font. Set by the board profile at boot.
+inline header_bar::Bar header;
+inline lv_obj_t *time_label = nullptr;
+inline const lv_font_t *header_text_font = nullptr, *header_icon_font = nullptr;
+inline void render_header();
 inline std::function<esphome::ESPTime()> now_time;
 inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
 inline void tick();
@@ -194,6 +201,33 @@ inline std::string receive(const std::string &payload) {
       if (layout_changed) layout_changed();
       if (refresh) refresh();
       result = "Indeling ontvangen";
+      return true;
+    }
+    if (op == "header") {
+      // Validate every item before replacing the bar; an icon these fonts lack is left out.
+      if (!root["items"].is<JsonArray>()) return false;
+      header_bar::Bar next;
+      for (JsonVariant value : root["items"].as<JsonArray>()) {
+        if (next.count == header_bar::MAX_ITEMS || !value.is<JsonObject>()) return false;
+        header_bar::Item item;
+        item.kind = header_bar::kind(string(value["k"], 8));
+        if (item.kind == header_bar::Kind::none) return false;
+        uint32_t icon = tile_icon::codepoint(string(value["i"], 8));
+        item.icon = icon && has_icon_glyph(icon) ? icon : 0;
+        item.text = string(value["t"], header_bar::TEXT_BYTES);
+        item.epoch = value["e"].is<unsigned>() ? value["e"].as<uint32_t>() : 0;
+        item.has_color = header_bar::color(string(value["c"], 8), item.color);
+        if (item.kind == header_bar::Kind::ago && item.epoch <= 0) return false;
+        next.items[next.count++] = item;
+      }
+      next.received = true;
+      bool same = header.received && header.count == next.count;
+      for (size_t i = 0; same && i < next.count; ++i) same = header.items[i] == next.items[i];
+      header = next;
+      last_received = esphome::millis();
+      if (!same && refresh) refresh();
+      // The same status as a tile state, so a changing value never flips the inbox entity.
+      result = model.ready() ? "Gesynchroniseerd" : "Tegels laden";
       return true;
     }
     if (op != "state" || !root["i"].is<unsigned>() || !root["a"].is<JsonObject>()) return false;
@@ -1288,6 +1322,7 @@ inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room;
   label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !ha_connected() ? "HA niet verbonden" : !feed_alive() ? "ESP Screens niet actief" : model.title);
+  render_header();
   for (size_t slot = 0; slot < 6; ++slot) {
     auto &w=widgets[slot];
     if(!w.tile || w.index>=model.count)continue;
@@ -1425,6 +1460,190 @@ inline void render(lv_obj_t *room) {
       else lv_obj_set_style_bg_color(p,i==14?icon_color:value_color,0);
     }
   }
+}
+
+// ---- Top bar ----
+// Drawn in the board's pixels by the editor's rules (app.js barLayout): every value, the time too,
+// in one font on the name's baseline; icons and the dial centred on the height of the digits; the
+// gaps measured between glyph ink, so every icon sits equally close to its value.
+struct HeaderSlot { lv_obj_t *icon{}, *text{}; uint32_t icon_color = 0; };
+inline lv_obj_t *header_root = nullptr, *header_ring = nullptr;
+inline std::array<lv_obj_t *, 2> header_hands{};
+inline std::array<HeaderSlot, header_bar::MAX_ITEMS> header_slots{};
+inline lv_point_precise_t header_points[4]{};
+inline int header_dial_key = -1;
+constexpr uint32_t HEADER_INK = 0x46525E;
+inline void set_visible(lv_obj_t *obj, bool visible) {
+  if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) != visible) return;
+  if (visible) lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
+}
+// Ink edges of a text from its label's left edge, and its advance (what LVGL sizes a label by).
+struct TextInk { int left = 0, right = 0, advance = 0; };
+inline TextInk text_ink(const lv_font_t *font, const std::string &text) {
+  TextInk ink;
+  bool first = true;
+  size_t i = 0;
+  for (uint32_t cp = header_bar::next_codepoint(text, i); cp; cp = header_bar::next_codepoint(text, i)) {
+    lv_font_glyph_dsc_t g;
+    if (!lv_font_get_glyph_dsc(font, &g, cp, 0)) continue;
+    if (g.box_w > 0) {
+      if (first) { ink.left = ink.advance + g.ofs_x; first = false; }
+      ink.right = ink.advance + g.ofs_x + g.box_w;
+    }
+    ink.advance += g.adv_w;
+  }
+  return ink;
+}
+inline lv_obj_t *header_part(lv_obj_t *parent) {
+  auto *part = lv_label_create(parent);
+  lv_obj_remove_flag(part, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_style_text_color(part, lv_color_hex(HEADER_INK), 0);
+  return part;
+}
+// `live`: Home Assistant's values may show; without its link or the manager's feed only clocks stay.
+inline void draw_header(bool live) {
+  if (!room_label || !time_label || !header_text_font || !header_icon_font) return;
+  set_visible(time_label, false);
+  auto *page = lv_obj_get_parent(room_label);
+  if (!header_root) {
+    header_root = lv_obj_create(page);
+    lv_obj_remove_style_all(header_root);
+    lv_obj_remove_flag(header_root, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(header_root, LV_OBJ_FLAG_SCROLLABLE);
+    // The clock label's place in the drawing order: under the tiles, cards and overlays.
+    lv_obj_move_to_index(header_root, lv_obj_get_index(time_label));
+    for (auto &slot : header_slots) {
+      slot.icon = header_part(header_root);
+      slot.text = header_part(header_root);
+      lv_obj_set_style_text_font(slot.icon, header_icon_font, 0);
+      lv_obj_set_style_text_font(slot.text, header_text_font, 0);
+      slot.icon_color = HEADER_INK;
+    }
+    header_ring = lv_obj_create(header_root);
+    lv_obj_remove_style_all(header_ring);
+    lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_radius(header_ring, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_border_color(header_ring, lv_color_hex(HEADER_INK), 0);
+    lv_obj_set_style_border_opa(header_ring, LV_OPA_COVER, 0);
+    lv_obj_add_flag(header_ring, LV_OBJ_FLAG_HIDDEN);
+    for (auto *&hand : header_hands) {
+      hand = lv_line_create(header_root);
+      lv_obj_remove_flag(hand, LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_set_style_line_rounded(hand, true, 0);
+      lv_obj_set_style_line_color(hand, lv_color_hex(HEADER_INK), 0);
+      lv_obj_add_flag(hand, LV_OBJ_FLAG_HIDDEN);
+    }
+    // A long name ends in dots instead of running under the items.
+    lv_label_set_long_mode(room_label, LV_LABEL_LONG_DOT);
+  }
+  // Geometry from the profile's own widgets: the name's margin and baseline, the clock's right margin.
+  const lv_font_t *name_font = lv_obj_get_style_text_font(room_label, LV_PART_MAIN);
+  int page_w = lv_obj_get_width(page), left = lv_obj_get_x(room_label);
+  // int32_t is long on the ESP32 toolchain: keep the arithmetic in int.
+  int width = std::max(0, page_w + static_cast<int>(lv_obj_get_style_x(time_label, LV_PART_MAIN)) - left);
+  int baseline = lv_obj_get_y(room_label) + (name_font->line_height - name_font->base_line);
+  lv_obj_set_pos(header_root, 0, 0);
+  lv_obj_set_size(header_root, page_w, baseline + name_font->line_height);
+  lv_font_glyph_dsc_t zero, dial_glyph;
+  if (!lv_font_get_glyph_dsc(header_text_font, &zero, '0', 0) || !zero.box_h) return;
+  // Twice the digits' ink centre keeps the halves exact.
+  int middle2 = 2 * (baseline - zero.ofs_y) - zero.box_h;
+  auto gaps = header_bar::gaps(zero.box_h);
+  // The dial is as large as a round icon (clock-outline) of the icon font.
+  int dial = lv_font_get_glyph_dsc(header_icon_font, &dial_glyph, 0xF0150, 0) && dial_glyph.box_h ? dial_glyph.box_h : zero.box_h * 3 / 2;
+
+  // The manager's items; until it sends them, the clock of show_clock as before the top bar.
+  header_bar::Bar fallback;
+  if (!header.received && screen_settings::current.show_clock) { fallback.items[0].kind = header_bar::Kind::clock; fallback.count = 1; }
+  const header_bar::Bar &bar = header.received ? header : fallback;
+  auto now = now_time ? now_time() : esphome::ESPTime{};
+  struct Part { size_t item = 0; uint32_t icon = 0; int icon_left = 0, icon_w = 0, text_left = 0, text_w = 0, width = 0; bool dial = false; std::string text; };
+  std::array<Part, header_bar::MAX_ITEMS> parts;
+  std::array<int, header_bar::MAX_ITEMS> widths{};
+  size_t count = 0;
+  for (size_t i = 0; i < bar.count; ++i) {
+    const auto &item = bar.items[i];
+    using header_bar::Kind;
+    if ((item.kind == Kind::text || item.kind == Kind::ago) && !live) continue;
+    Part p;
+    p.item = i;
+    if (item.kind == Kind::analog) { p.dial = true; p.width = dial; }
+    else {
+      p.text = item.kind == Kind::clock ? (now.is_valid() ? now.strftime(screen_settings::current.clock_24h ? "%H:%M" : "%I:%M") : std::string("--:--"))
+             : item.kind == Kind::date ? (now.is_valid() ? header_bar::date_text(now.day_of_week, now.day_of_month, now.month) : std::string("—"))
+             : item.kind == Kind::ago ? header_bar::ago_text(item.epoch, now_epoch()) : item.text;
+      lv_font_glyph_dsc_t g;
+      if (item.icon && lv_font_get_glyph_dsc(header_icon_font, &g, item.icon, 0) && g.box_w) { p.icon = item.icon; p.icon_left = g.ofs_x; p.icon_w = g.box_w; }
+      auto ink = text_ink(header_text_font, p.text);
+      p.text_left = ink.left;
+      p.text_w = std::max(0, ink.right - ink.left);
+      p.width = p.icon_w + (p.icon && p.text_w ? gaps.icon : 0) + p.text_w;
+    }
+    if (!p.width) continue;
+    widths[count] = p.width;
+    parts[count++] = p;
+  }
+  lv_point_t name_size;
+  lv_text_get_size(&name_size, lv_label_get_text(room_label), name_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_EXPAND);
+  auto placement = header_bar::place(widths.data(), count, gaps, width, name_size.x);
+  lv_obj_set_width(room_label, std::max(1, std::min<int>(name_size.x, placement.name_room)));
+  lv_obj_set_height(room_label, lv_font_get_line_height(name_font));
+
+  std::array<bool, header_bar::MAX_ITEMS> icon_on{}, text_on{};
+  bool dial_on = false;
+  for (size_t k = placement.first; k < count; ++k) {
+    const auto &p = parts[k];
+    auto &slot = header_slots[k];
+    int x = left + placement.x[k];
+    if (p.dial) {
+      int top = (middle2 - dial) / 2, stroke = std::max(1, (dial + 5) / 10), hand = std::max(1, (dial * 75 + 500) / 1000);
+      lv_obj_set_pos(header_ring, x, top);
+      lv_obj_set_size(header_ring, dial, dial);
+      if (lv_obj_get_style_border_width(header_ring, LV_PART_MAIN) != stroke) lv_obj_set_style_border_width(header_ring, stroke, 0);
+      int minute = now.is_valid() ? now.hour * 60 + now.minute : 0;
+      int key = ((minute * 1024 + x) * 1024 + top) * 64 + dial;
+      if (key != header_dial_key) {
+        header_dial_key = key;
+        float centre = dial / 2.0f, hour_angle = (minute % 720) * 3.14159265f / 360, minute_angle = (minute % 60) * 3.14159265f / 30;
+        header_points[0] = header_points[2] = {(lv_value_precise_t)centre, (lv_value_precise_t)centre};
+        header_points[1] = {(lv_value_precise_t)(centre + 0.24f * dial * sinf(hour_angle)), (lv_value_precise_t)(centre - 0.24f * dial * cosf(hour_angle))};
+        header_points[3] = {(lv_value_precise_t)(centre + 0.34f * dial * sinf(minute_angle)), (lv_value_precise_t)(centre - 0.34f * dial * cosf(minute_angle))};
+        for (size_t h = 0; h < header_hands.size(); ++h) {
+          lv_line_set_points(header_hands[h], header_points + 2 * h, 2);
+          lv_obj_set_pos(header_hands[h], x, top);
+          set_line_width(header_hands[h], hand);
+        }
+      }
+      dial_on = true;
+      continue;
+    }
+    if (p.icon) {
+      lv_font_glyph_dsc_t g;
+      lv_font_get_glyph_dsc(header_icon_font, &g, p.icon, 0);
+      label(slot.icon, tile_icon::utf8(p.icon));
+      // LVGL draws a glyph's ink from (line_height - base_line) - box_h - ofs_y below the label top.
+      int ink_top = (middle2 - g.box_h) / 2;
+      lv_obj_set_pos(slot.icon, x - g.ofs_x, ink_top - ((header_icon_font->line_height - header_icon_font->base_line) - g.box_h - g.ofs_y));
+      const auto &item = bar.items[p.item];
+      uint32_t color = item.has_color ? item.color : HEADER_INK;
+      if (slot.icon_color != color) { lv_obj_set_style_text_color(slot.icon, lv_color_hex(color), 0); slot.icon_color = color; }
+      icon_on[k] = true;
+      x += p.icon_w + (p.text_w ? gaps.icon : 0);
+    }
+    if (p.text_w) {
+      label(slot.text, p.text);
+      lv_obj_set_pos(slot.text, x - p.text_left, baseline - (header_text_font->line_height - header_text_font->base_line));
+      text_on[k] = true;
+    }
+  }
+  for (size_t k = 0; k < header_slots.size(); ++k) { set_visible(header_slots[k].icon, icon_on[k]); set_visible(header_slots[k].text, text_on[k]); }
+  set_visible(header_ring, dial_on);
+  for (auto *hand : header_hands) set_visible(hand, dial_on);
+}
+inline void render_header() {
+  if (enabled) draw_header(ha_connected() && feed_alive());
 }
 
 // Inspect actual LVGL coordinates, including padding and the loaded font metrics.

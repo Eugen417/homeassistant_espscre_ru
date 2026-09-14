@@ -14,7 +14,8 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BUILTIN, TILE_BACKGROUNDS, alert_reference, alert_service, controls_catalogue, discover, extras, min_firmware, pack_slots, packets, state_message, validate_layout, validate_settings
+from core import BUILTIN, HEADER_MIN_FIRMWARE, TILE_BACKGROUNDS, alert_reference, alert_service, controls_catalogue, discover, extras, header_items, min_firmware, pack_slots, packets, state_message, validate_header, validate_layout, validate_settings
+import header_bar
 from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
@@ -42,6 +43,8 @@ class HomeAssistant:
         self.registry_changed = asyncio.Event()
         self.setting_events = []
         self.time_zone = None
+        # Home Assistant's unit system; a climate entity's temperature carries no unit of its own.
+        self.units = {}
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -119,7 +122,9 @@ class HomeAssistant:
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
                     try:
-                        self.time_zone = ZoneInfo((await self.request('get_config')).get('time_zone') or 'UTC')
+                        config = await self.request('get_config')
+                        self.units = config.get('unit_system') or {}
+                        self.time_zone = ZoneInfo(config.get('time_zone') or 'UTC')
                     except Exception:
                         self.time_zone = timezone.utc
                     self.online = True
@@ -213,6 +218,7 @@ class Manager:
         self.listeners = set()  # asyncio.Event per open /api/events stream
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
         self.updates = Updater(self, self.path.parent / 'updates.json')
+        self._registry_source, self._registry_index = None, {}
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
@@ -236,6 +242,19 @@ class Manager:
         version=self.firmware_version(inbox)
         return bool(version) and version >= (0,2,7)
 
+    def supports_header(self, inbox, screen=None):
+        return (self.firmware_version(inbox, screen) or (0, 0, 0)) >= HEADER_MIN_FIRMWARE
+
+    def registry_index(self):
+        """Entity registry by id (display precision, entity category); rebuilt only when HA delivers a new registry."""
+        registry = getattr(self.ha, 'registry', [])
+        if self._registry_source is not registry:
+            self._registry_source, self._registry_index = registry, {item['entity_id']: item for item in registry}
+        return self._registry_index
+
+    def header_message(self, layout):
+        return header_bar.message(layout, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}), getattr(self.ha, 'time_zone', None))
+
     def needs_firmware(self, inbox, layout, screen=None):
         """Version string the screen must run first, or None when the layout can be sent."""
         needed=min_firmware(layout)
@@ -252,9 +271,14 @@ class Manager:
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             raise ValueError(f"Installeer eerst schermfirmware {needed} of nieuwer voor deze tegels.")
-        # A still-open older UI may save tiles without the new optional settings.
+        # A still-open older UI may save tiles without the new optional settings or top bar.
         if 'settings' not in layout and 'settings' in self.layouts.get(inbox, {}):
             layout['settings'] = self.layouts[inbox]['settings'].copy()
+        if 'header' not in layout and 'header' in self.layouts.get(inbox, {}):
+            layout['header'] = self.layouts[inbox]['header']
+        # Firmware before the top bar only knows show_clock; it follows the clock item.
+        if 'header' in layout and 'settings' in layout:
+            layout['settings']['show_clock'] = any(item['type'] == 'clock' for item in layout['header']['items'])
         if 'settings' in layout and 'swipe_pages' not in data.get('settings',{}):
             layout['settings']['swipe_pages']=self.layouts.get(inbox,{}).get('settings',{}).get('swipe_pages',False)
         if 'settings' in layout and 'rotation' not in data.get('settings',{}):
@@ -278,6 +302,8 @@ class Manager:
         known = {e['id'] for e in entities} | set(BUILTIN)
         if any(t['entity'] not in known for t in layout['tiles']):
             raise ValueError('Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.')
+        if any(item['type'] == 'entity' and item['entity'] not in known and item['entity'] not in self.ha.states for item in header_items(layout)):
+            raise ValueError('Een entiteit in de bovenbalk bestaat niet meer. Kies een andere.')
         updated = {**self.layouts, inbox: layout}
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temp = self.path.with_suffix('.tmp')
@@ -313,6 +339,7 @@ class Manager:
     def watched_entities(self):
         """Entities whose state changes matter: tiles on any layout plus the screens' own diagnostics."""
         watched = {tile['entity'] for layout in self.layouts.values() for tile in layout['tiles']}
+        watched |= {item['entity'] for layout in self.layouts.values() for item in header_items(layout) if item['type'] == 'entity'}
         for item in getattr(self.ha, 'registry', []):
             if item.get('platform') == 'esphome' and item.get('original_name') in SCREEN_ENTITY_NAMES:
                 watched.add(item['entity_id'])
@@ -344,6 +371,9 @@ class Manager:
             messages[0]['swipe_pages'] = layout['settings'].get('swipe_pages',False)
             if screen.get('board')=='guition':
                 messages[0]['rotation'] = layout['settings'].get('rotation',0)
+        # The top bar right after the layout (firmware 0.2.32+; older firmware draws the clock of show_clock).
+        if self.supports_header(inbox, screen):
+            messages.append(self.header_message(layout))
         for i,tile in enumerate(layout['tiles']):
             forecast=hourly=None
             if tile['entity'].startswith('weather.') and hasattr(self.ha,'forecast'):
@@ -468,7 +498,15 @@ def create_app(manager, development=False):
             payload['icons'] = tile_icons.editor()
             payload['alerts'] = alert_reference()
             payload['builtin'] = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
+            payload['header'] = {**header_bar.catalogue(), 'suggestions': {
+                screen['id']: header_bar.suggestions(screen, entities, manager.ha.states, manager.registry_index()) for screen in payload['screens']}}
         return web.json_response(payload)
+    async def header_preview(request):
+        """The top bar as a screen would draw it right now, so the editor shows unsaved changes live."""
+        data = await request.json()
+        header = validate_header(data.get('header') if isinstance(data, dict) else None)
+        return web.json_response({'items': header_bar.preview(header, manager.ha.states, manager.registry_index(),
+                                                              getattr(manager.ha, 'units', {}), getattr(manager.ha, 'time_zone', None))})
     async def events(request):
         """Server-sent events: pushes the light inventory whenever it changes, so the page need not poll."""
         response = web.StreamResponse(headers={'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store',
@@ -534,6 +572,7 @@ def create_app(manager, development=False):
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
+    app.router.add_post('/api/header-preview', header_preview)
     app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
     app.router.add_static('/static/', static)

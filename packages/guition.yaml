@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.31"
+  SCREEN_FIRMWARE_VERSION: "0.2.32"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -648,6 +648,11 @@ esphome:
           runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::control_font = id(sublabel_big)->get_lv_font();
+          // Top bar (0.2.32+): values in the text font, icons in the small icon font; the clock
+          // label lends its margin and drawing order and stays hidden in runtime mode.
+          runtime_tiles::header_text_font = id(sublabel_big)->get_lv_font();
+          runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = std::string("${DYNAMIC_TILES}") == "true";
           if (!runtime_tiles::enabled) return;
           runtime_tiles::rotation_supported = true;
@@ -1144,7 +1149,7 @@ font:
              '0','1','2','3','4','5','6','7','8','9',
              'A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
              ' ','a','b','c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z',
-             'ä','ö','ü','Ä','Ö','Ü','ß','/','…','·']
+             'ä','ö','ü','Ä','Ö','Ü','ß','/','…','·',"'",'#','*','=',';','²','³','µ','é','è','ë','ê','ï','î','ó','ô','à','á','â','ç','ñ','ú','û','–']
 
   # Material Design Icons (MDI) — included at fonts/materialdesignicons-webfont.ttf (Apache 2.0)
   # Source: https://github.com/Templarian/MaterialDesign-Webfont
@@ -5147,8 +5152,11 @@ script:
           id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
           if (id(display_dimmed)) { lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN); lv_obj_move_foreground(id(dim_wake_overlay)); }
           else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
-          if (settings.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
-          else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
+          // Runtime mode draws the clock in the top bar; the manual profile keeps its own label.
+          if (!runtime_tiles::enabled) {
+            if (settings.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
+            else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
+          }
           if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
 
   - id: close_cards
@@ -6287,11 +6295,8 @@ script:
       - delay: 100ms
       - lambda: |-
           if (runtime_tiles::enabled) {
+            // The name and the top bar (clock included) draw together.
             runtime_tiles::render(id(lbl_room));
-            auto now = id(homeassistant_time).now();
-            if (screen_settings::current.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
-            else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
-            if (now.is_valid()) runtime_tiles::label(id(lbl_time), now.strftime(screen_settings::current.clock_24h ? "%H:%M" : "%I:%M"));
             return;
           }
           auto set_lbl = [](lv_obj_t* lbl, const std::string& s) {

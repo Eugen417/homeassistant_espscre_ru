@@ -58,8 +58,14 @@ De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
   millimeters; **klimaatkaart** met aan/uit-knop, modus-, ventilator- en zwenkstanden.
   Scènes, scripts en knoppen tonen wanneer ze voor het laatst liepen. Een tegel die op
   Home Assistant wacht toont een klein spinnertje op een lichte laag.
+- **Bovenbalk per scherm** (firmware 0.2.32+): links de naam, rechts tot zes
+  onderdelen naar keuze: de tijd, een analoge klok, de datum, of een entiteit uit
+  Home Assistant met icoon, zoals temperatuur, luchtvochtigheid, verbruik, een deur
+  (open/dicht), het alarm, wie er thuis is of wanneer iemand of iets het laatst
+  veranderde ("5 min geleden", "Gisteren"). Zie [Bovenbalk](#bovenbalk).
 - **Scherminstellingen:** standby-tijd, normale en gedimde helderheid,
-  nachturen, klok, terug naar de hoofdpagina en optioneel swipen tussen pagina's.
+  nachturen, 24- of 12-uursklok, terug naar de hoofdpagina en optioneel swipen
+  tussen pagina's.
 - **Guition-rotatie:** 0°, 90°, 180° of 270°, direct vanuit de beheerpagina.
   De native LVGL-rotatie draait beeld en touch samen. De CYD behoudt zijn vaste
   oriëntatie en eigen kalibratie.
@@ -169,8 +175,7 @@ installatieprofiel aanmaken genereert nieuwe sleutels.
 
 ## Tegels en kleuren aanpassen
 
-Open **Tegels instellen**, klik een tegel in het schermvoorbeeld en open
-**Bediening & weergave instellen**. Kies bij **Pastel achtergrond** een kleur,
+Klik een tegel in het schermvoorbeeld. Kies bij **Pastel achtergrond** een kleur,
 zoals rood of groen. Pas eventueel de naam, klikactie, mini-slider of grote
 waarde aan. Klik **Opslaan & naar scherm** om de wijzigingen toe te passen.
 Dit vereist na de eerste ondersteunende firmware-update geen nieuwe flash.
@@ -178,6 +183,32 @@ Dit vereist na de eerste ondersteunende firmware-update geen nieuwe flash.
 Een kleur is een vaste keuze voor die tegel: hij blijft dus bijvoorbeeld rood
 wanneer je het alles-uit-script gebruikt. De entiteitsstatus en actiefeedback
 blijven afzonderlijk zichtbaar.
+
+## Bovenbalk
+
+Bovenaan de editor staat per scherm de **Bovenbalk**: links de naam, rechts tot
+zes onderdelen. **＋ Toevoegen** biedt de tijd, een analoge klok en de datum (die
+tellen op het scherm zelf door, ook zonder Home Assistant), suggesties uit je eigen
+huis (temperatuur en verbruik uit de ruimte van het scherm, het weer, aantal thuis,
+zon op en onder) en een zoekveld voor elke entiteit, ook een telefoon
+(`device_tracker`), een slot, het alarmpaneel of `zone.home`. Sleep de onderdelen
+om de volgorde te wijzigen; tik erop om ze in te stellen:
+
+- **Wat laten zien:** de status zoals Home Assistant hem schrijft (21,3 °C, 65%,
+  1.249 W, Open/Dicht, Thuis/Weg, Afwezig), of **Laatst gewijzigd**: "Zojuist",
+  "5 min geleden", "Gisteren". Een tijdstempel-sensor telt ook vooruit ("Over 2 uur").
+- **Icoon:** automatisch zoals Home Assistant (een open deur krijgt een open
+  deur-icoon), een eigen icoon uit de lijst of geen icoon.
+- **Tonen:** altijd, of **alleen als actief**: het onderdeel verschijnt pas als het
+  aan, open, thuis of meer dan 0 is. Handig voor een open deur of een draaiende
+  wasmachine. Actieve onderdelen kleuren zoals in Home Assistant (open deur amber,
+  alarm ingeschakeld groen, alarm afgegaan rood).
+
+Het schermvoorbeeld tekent de balk met dezelfde letters en regels als het scherm:
+alle waarden op één lijn met de naam, iconen op cijferhoogte, gelijke afstanden.
+Past niet alles naast de naam, dan krijgt de naam puntjes en laat het scherm de
+voorste onderdelen weg; de editor markeert die met strepen. Oudere firmware toont
+tot de update alleen de naam en de tijd (als die in de balk staat).
 
 ## Updates en behoud van je instellingen
 

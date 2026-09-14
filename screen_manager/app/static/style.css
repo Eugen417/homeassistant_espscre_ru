@@ -792,19 +792,6 @@ pre {
   cursor: auto;
 }
 
-.editor-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin: 20px 0;
-  padding: 12px;
-  background: #eaf3fc;
-  border-radius: 14px;
-}
-.editor-nav button {
-  background: white;
-  border: 1px solid #c7d9ea;
-}
 .tile.selected-tile {
   border-color: #009fe3;
   background: #f0f9ff;
@@ -1157,3 +1144,61 @@ pre {
   .alerts td:first-child code { font-size: 14px; }
   .copy-line > pre { flex-basis: 100%; }
 }
+
+/* Top bar: the name on the left, up to six items on the right. */
+.topbar-editor { margin-top: 4px; padding: 16px 18px 12px; border: 1px solid var(--line); border-radius: 16px; background: #f7f9fc; scroll-margin-top: 16px; transition: box-shadow 0.3s; }
+.topbar-editor.flash { box-shadow: 0 0 0 3px #9dbcf5; }
+.topbar-editor h3 { margin: 0; }
+.topbar-fields { display: grid; grid-template-columns: minmax(180px, 2fr) 5fr; gap: 16px; margin-top: 10px; align-items: start; }
+.topbar-name { font-size: 13px; }
+.topbar-name input { margin-top: 6px; }
+.topbar-caption { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+.topbar-chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 46px; }
+.topbar-chip { position: relative; display: flex; align-items: center; gap: 8px; max-width: 260px; min-height: 46px; padding: 6px 30px 6px 8px; background: white; border: 1px solid #d5dce5; border-radius: 12px; cursor: grab; user-select: none; touch-action: pan-y; }
+.topbar-chip:hover { border-color: #9eb6cf; box-shadow: 0 2px 7px #253f5010; }
+.topbar-chip:focus-visible { outline: 3px solid #83b5ff; outline-offset: 2px; }
+.topbar-chip .chip-icon { display: grid; place-items: center; width: 30px; height: 30px; flex: none; border-radius: 9px; background: #f0f2f5; color: #46525e; font-size: 19px; }
+.chip-text { display: grid; min-width: 0; line-height: 1.25; }
+.chip-text strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-text small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip-remove { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); width: 22px; height: 22px; padding: 0; border-radius: 50%; background: transparent; color: var(--muted); font-size: 11px; line-height: 1; display: grid; place-items: center; opacity: 0; transition: opacity 0.15s; }
+.topbar-chip:hover .chip-remove, .topbar-chip:focus-within .chip-remove { opacity: 1; }
+.chip-remove:hover { color: #b3261e; background: #fdecea; }
+@media (hover: none) { .chip-remove { opacity: 1; } }
+.topbar-chip.is-hidden { background: #fbfcfd; border-style: dashed; }
+.topbar-chip.is-hidden .chip-icon, .topbar-chip.is-hidden strong { opacity: 0.55; }
+.topbar-chip.is-overflow { border-style: dashed; border-color: #e0b36a; background: repeating-linear-gradient(135deg, #fff 0 8px, #fff6e6 8px 16px); }
+.topbar-chip.is-overflow small { color: #9a6200; }
+.topbar-chip.dragging-chip { border: 2px dashed var(--accent); background: var(--soft); cursor: grabbing; }
+.topbar-chip.just-added { animation: chip-added 1.2s ease-out; }
+@keyframes chip-added { from { box-shadow: 0 0 0 4px #9dbcf5; } to { box-shadow: 0 0 0 0 #9dbcf500; } }
+.topbar-add { min-height: 46px; padding: 8px 14px; border: 1px dashed #b9c4d0; border-radius: 12px; background: transparent; color: var(--accent); font-size: 13px; }
+.topbar-add:hover:not(:disabled) { border-color: var(--accent); background: white; filter: none; }
+#topbar-hint { margin: 10px 0 0; }
+#topbar-hint.warn { color: #9a6200; }
+@media (max-width: 700px) { .topbar-fields { grid-template-columns: 1fr; } .topbar-chip { max-width: 100%; } }
+
+/* The bar on a mockup page: an SVG in the board's own pixels (Roboto and the tile icons, the same
+   placement rules as the firmware), scaled with the page. */
+@font-face { font-family: "Bar Roboto"; src: url("bar-roboto-400.woff") format("woff"); font-weight: 400; font-display: block; }
+@font-face { font-family: "Bar Roboto"; src: url("bar-roboto-500.woff") format("woff"); font-weight: 500; font-display: block; }
+.preview-bar-wrap { margin: -4px 0 6px; border-radius: 8px; cursor: pointer; }
+.preview-bar-wrap:hover { background: #dfe3e8; box-shadow: 0 0 0 5px #dfe3e8; }
+.preview-bar { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* Top bar sheet. */
+.topbar-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.topbar-option { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: white; color: var(--ink); border: 1px solid var(--line); border-radius: 12px; text-align: left; font-weight: 500; }
+.topbar-option:hover:not(:disabled) { border-color: #9eb6cf; filter: none; box-shadow: 0 2px 7px #253f5010; }
+.topbar-option .mdi { display: grid; place-items: center; width: 34px; height: 34px; flex: none; border-radius: 9px; background: #f0f2f5; color: #46525e; font-size: 21px; }
+.topbar-option > span:last-child { display: grid; min-width: 0; }
+.topbar-option strong { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-option small { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-results { display: grid; gap: 6px; max-height: 260px; overflow: auto; margin-top: 8px; }
+.topbar-results .topbar-option { width: 100%; }
+.topbar-results .hint { margin: 4px 0; }
+.topbar-live { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 12px; background: #e7e7e7; }
+.topbar-live small { color: #52606d; font-weight: 500; }
+.topbar-sample { display: block; height: auto; max-width: 60%; overflow: visible; }
+#topbar-sheet .sheet-head .domain-icon { background: #f0f2f5; color: #46525e; }
+.icon-choice.icon-none .mdi { width: 22px; height: 22px; border: 1.5px dashed #b9c4d0; border-radius: 6px; }

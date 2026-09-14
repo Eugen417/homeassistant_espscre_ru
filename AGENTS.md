@@ -65,6 +65,8 @@ fysiek tikken; een agent kan dat niet vervangen door softwarecoördinaten.
   `diagnostics/send_layout.py` zet een demo-indeling met alle kaarttypen op een
   scherm via de API-inbox (geen HA-acties); de manager herstelt de echte
   indeling binnen ~25 s. Guition: `capture_ui.py` bewaart de LVGL-render als PNG.
+  Zonder scherm: `tools/render_topbar.py` rendert de echte bovenbalkcode van beide
+  borden via ESPHome host + SDL2 naar `.esphome/render-topbar/out/sheet.png`.
 - Deel via `tools/export_bundle.py` of Git. Stage geen secrets, metingen,
   binaries, logs, buildcache of lokale apparaatprofielen.
 - Geen automatische firmware-upload naar een willekeurige aangesloten poort.

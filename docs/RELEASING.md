@@ -177,6 +177,41 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.38 / firmware 0.2.32
+
+Opslagversie en tegelprotocol blijven 1. Een indeling mag een optioneel object
+`header: {items: [...]}` hebben (maximaal zes): `{type: clock|analog|date}` of
+`{type: entity, entity, content: state|last_changed, icon: auto|none|<naam>, show:
+always|active}`. Zonder `header` geldt wat de firmware altijd deed (de klok van
+`show_clock`); een oude editor die `header` weglaat behoudt de opgeslagen balk. Bij
+opslaan volgt `settings.show_clock` de klok in de balk, zodat oudere firmware de tijd
+alleen toont als hij erin staat. Entiteiten in de balk mogen naast de tegeldomeinen
+ook `device_tracker`, `zone`, `lock`, `alarm_control_panel`, `counter`, `event`,
+`input_datetime`, `input_text`, `water_heater` en `humidifier` zijn; de inventaris
+markeert die met `tile: false` zodat de tegelkiezer ze overslaat.
+
+Op de draad stuurt de manager direct na het layoutbericht `{v:1, op: header, items}`
+met per onderdeel `k` (`clock`, `analog`, `date`, `text`, `ago`), `i` (codepoint),
+`t` (tekst, al in het Nederlands opgemaakt en beperkt tot de glyphs van
+`sublabel_big`), `e` (unix-tijd voor `ago`) en `c` (accentkleur). Onderdelen met
+`show: active` die niet actief zijn stuurt de manager niet. Alleen firmware 0.2.32+
+krijgt dit bericht (`HEADER_MIN_FIRMWARE`, op basis van `Schermfirmware`): oudere
+firmware zou `op: header` weigeren met "Fout: ongeldig bericht". Het bericht wordt
+apart vergeleken; een gewijzigde waarde verstuurt alleen de balk, niet de indeling.
+De firmware antwoordt met dezelfde status als een tegelstatus, dus de
+Tegelinstellingen-entiteit flipt niet bij iedere waarde.
+
+Firmware: `header_bar.h` (LVGL-vrij: parsen, "5 min geleden", datum, afstanden,
+plaatsing) en `runtime_tiles::draw_header()`. Het tijdlabel van het profiel blijft
+bestaan als referentie (rechtermarge, tekenvolgorde) maar is in runtime-modus
+verborgen. Waarden gebruiken `sublabel_big`, iconen `materialdesign_icons_mini`;
+`sublabel_big` kreeg `'`, `#`, `*`, `=`, `;`, `²`, `³`, `µ`, `–` en veelvoorkomende
+accenten; `tests/test_header_bar.py` houdt `header_bar.GLYPHS` gelijk aan die lijst.
+De editor (`barLayout` in `app.js`) en de firmware (`header_bar::gaps/place`) delen
+dezelfde gehele rekensommen; de test controleert dat. `tools/render_topbar.py`
+rendert de echte `draw_header()` op een Mac/Linux-machine (ESPHome host + SDL2) naar
+PNG, zonder scherm. Geen gewijzigde preferences of sleutels.
+
 ### Compatibiliteit 0.2.35 / firmware 0.2.30
 
 Alleen firmware (Guition). `on_boot` haalt `LV_OBJ_FLAG_CLICKABLE` van `home_page` en

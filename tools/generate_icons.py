@@ -1,11 +1,12 @@
-"""Write the tile icon set into both board profiles and build the editor's icon font.
+"""Write the tile icon set into both board profiles and build the editor's fonts.
 
 The list lives in screen_manager/app/tile_icons.py. Every Material Design Icons
 font of a board profile gets exactly those glyphs (the first font carries the
 list as a YAML anchor, the smaller sizes reuse it), and the editor gets a subset
-of the same TTF so its mockup shows the glyphs the screen draws. Run
-tools/generate_packages.py afterwards; --check changes nothing and fails when
-anything is out of date.
+of the same TTF so its mockup shows the glyphs the screen draws. The top bar
+mockup also gets Roboto 400/500 with the glyphs of header_bar.GLYPHS, so text
+widths in the editor match the screen. Run tools/generate_packages.py afterwards;
+--check changes nothing and fails when anything is out of date.
 """
 import argparse
 import io
@@ -18,11 +19,13 @@ from fontTools.ttLib import TTFont
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+import header_bar  # noqa: E402
 import tile_icons  # noqa: E402
 
 TTF = ROOT / 'fonts/materialdesignicons-webfont.ttf'
 PROFILES = [ROOT / 'home-like-2432s028.yaml', ROOT / 'guition-4848s040.yaml']
 WEB_FONT = ROOT / 'screen_manager/app/static/tile-icons.woff'
+BAR_FONTS = {weight: ROOT / f'screen_manager/app/static/bar-roboto-{weight}.woff' for weight in (400, 500)}
 NAME_TABLE = ROOT / 'components/smart_display/tile_icon_names.h'
 FONT_BLOCK = re.compile(r"(  - file: 'fonts/materialdesignicons-webfont\.ttf'\n    id: \w+\n    size: \d+\n)    glyphs:.*\n(?:      .*\n)*")
 
@@ -103,6 +106,21 @@ def web_font():
     font.save(buffer)
     return buffer.getvalue()
 
+def bar_font(weight):
+    """Roboto subset for the editor's top bar mockup: the glyphs and metrics the screens draw."""
+    font = TTFont(ROOT / f'fonts/Roboto-{weight}.ttf')
+    options = subset.Options()
+    options.flavor = 'woff'
+    options.layout_features = ['kern']
+    options.name_IDs = [0, 1, 2]
+    subsetter = subset.Subsetter(options)
+    subsetter.populate(unicodes=[ord(char) for char in header_bar.GLYPHS])
+    subsetter.subset(font)
+    buffer = io.BytesIO()
+    font.flavor = 'woff'
+    font.save(buffer)
+    return buffer.getvalue()
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--check', action='store_true')
@@ -120,9 +138,14 @@ def main():
         wanted = {int(code, 16) for code in tile_icons.GLYPHS.values()}
         if not WEB_FONT.exists() or set(TTFont(WEB_FONT).getBestCmap()) != wanted:
             raise SystemExit(f'Outdated: {WEB_FONT.name}')
+        for weight, path in BAR_FONTS.items():
+            if not path.exists() or set(TTFont(path).getBestCmap()) != {ord(char) for char in header_bar.GLYPHS}:
+                raise SystemExit(f'Outdated: {path.name}')
     else:
         NAME_TABLE.write_text(name_table())
         WEB_FONT.write_bytes(web_font())
+        for weight, path in BAR_FONTS.items():
+            path.write_bytes(bar_font(weight))
     print(f'{len(tile_icons.ICONS)} pickable icons, {len(tile_icons.GLYPHS)} glyphs: ' + ('verified' if args.check else 'generated'))
 
 if __name__ == '__main__':

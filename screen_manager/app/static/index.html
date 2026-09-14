@@ -85,19 +85,30 @@
             </div>
             <span id="delivery" class="badge"></span>
           </div>
-          <label
-            >Naam bovenaan het scherm<input
-              id="title"
-              maxlength="60"
-              placeholder="Bijvoorbeeld: Woonkamer"
-          /></label>
-          <nav class="editor-nav" aria-label="Scherm beheren">
-            <button id="nav-tiles" class="quiet">Tegels instellen</button>
-            <button id="nav-settings" class="quiet">
-              Algemene instellingen
-            </button>
-            <button id="nav-inspector" class="quiet">Inspector</button>
-          </nav>
+          <section class="topbar-editor" id="topbar" aria-labelledby="topbar-title">
+            <div class="section-title">
+              <h3 id="topbar-title">Bovenbalk</h3>
+              <span id="topbar-count"></span>
+            </div>
+            <div class="topbar-fields">
+              <label class="topbar-name"
+                >Links: naam<input
+                  id="title"
+                  maxlength="60"
+                  placeholder="Bijvoorbeeld: Woonkamer"
+              /></label>
+              <div class="topbar-right">
+                <span class="topbar-caption" id="topbar-caption">Rechts: tijd, sensoren of een klok</span>
+                <div
+                  id="topbar-chips"
+                  class="topbar-chips"
+                  role="list"
+                  aria-labelledby="topbar-caption"
+                ></div>
+              </div>
+            </div>
+            <p class="hint" id="topbar-hint"></p>
+          </section>
           <div class="columns" id="tile-section">
             <div class="tile-editor">
               <div class="section-title">
@@ -311,6 +322,7 @@
       <pre id="firmware-log"></pre>
     </dialog>
     <dialog id="tile-sheet" class="tile-sheet" aria-label="Tegel instellen"></dialog>
+    <dialog id="topbar-sheet" class="tile-sheet" aria-label="Bovenbalk"></dialog>
     <dialog id="alerts-dialog" class="alerts" aria-label="Alerts">
       <div class="dialog-head">
         <div>

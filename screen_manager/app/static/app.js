@@ -74,9 +74,11 @@ function select(id) {
   $("#dirty").textContent = "Alles opgeslagen";
   $("#save-detail").textContent = "Aanpassen kan zonder opnieuw flashen.";
   renderScreens();
+  renderTopbar();
   renderTiles();
   renderResults();
   renderSettings();
+  loadTopbarPreview(0);
 }
 const settingDefinitions = [
   ["standby_enabled", "Automatisch standby", "check", true],
@@ -87,7 +89,7 @@ const settingDefinitions = [
   ["night_brightness", "Helderheid in nachtstand", "range", 10, 0, 100],
   ["night_start", "Nachtstand vanaf", "time", 1320],
   ["night_end", "Nachtstand tot", "time", 420],
-  ["show_clock", "Klok tonen", "check", true],
+  // Whether the clock shows is up to the top bar now; the add-on keeps show_clock in step for older firmware.
   ["clock_24h", "24-uursklok (uit = 12 uur)", "check", true],
   ["home_on_standby", "Na standby terug naar pagina 1", "check", false],
   ["rotation", "Scherm draaien (met de klok mee)", "rotation", 0],
@@ -623,13 +625,13 @@ function renderPreview(preview) {
   const moving = preview?.moving || null;
   const bySlot = new Map(entries.map((e) => [e.slot, e]));
   const covered = new Set(entries.filter((e) => isWide(e.tile)).map((e) => e.slot + 1));
-  const pages = pageCount(entries), title = $("#title").value || "Thuis";
+  const pages = pageCount(entries);
   // While dragging, one more page waits below the last one.
   const shown = drag.active && pages < MAX_PAGES ? pages + 1 : pages;
   for (let page = 0; page < shown; page++) {
     const frame = node("section", undefined, "screen-preview");
     const heading = node("div", undefined, "preview-heading");
-    heading.append(node("small", `Pagina ${page + 1} · ${title}`));
+    heading.append(node("small", `Pagina ${page + 1}`));
     if (page >= pages) {
       frame.classList.add("new-page");
       heading.replaceChildren(node("small", `Pagina ${page + 1} · sleep hierheen voor een nieuwe pagina`));
@@ -642,6 +644,7 @@ function renderPreview(preview) {
       heading.append(drop);
     }
     frame.append(heading);
+    if (page < pages) frame.append(topbarBar());
     const grid = node("div", undefined, "preview-grid");
     for (let cell = 0; cell < SLOTS_PER_PAGE; cell++) {
       const slot = page * SLOTS_PER_PAGE + cell;
@@ -652,6 +655,7 @@ function renderPreview(preview) {
     frame.append(grid);
     root.append(frame);
   }
+  fitTopbars();
 }
 // A card on the mockup. A placeholder is the tile being dragged, drawn where it will land.
 function tileCard(tile, slot, placeholder) {
@@ -775,19 +779,29 @@ function segmented(choices, value, onChange) {
 // A choice applies live like the palette: only pressed states, the summary and the
 // badges update, so search text and scroll position survive.
 function iconField(tile, onChange) {
+  const fromHA = Boolean(inventory.entities.find((e) => e.id === tile.entity)?.icon);
+  return iconPicker({
+    selected: tile.options?.icon || "auto",
+    automatic: automaticIcon(tile.entity),
+    autoLabel: `Automatisch (${fromHA ? "uit Home Assistant" : "standaard"})`,
+    onPick: (name) => { tile.options = { ...tile.options, icon: name }; markDirty(); renderPreview(); onChange(); },
+    note: supportsFirmware(0, 2, 18) ? "" : "Het scherm toont een gekozen icoon vanaf firmware 0.2.18.",
+  });
+}
+// The icon choice for tiles and top bar items: automatic, optionally none, or one from the set.
+function iconPicker({ selected, automatic, autoLabel, allowNone = false, onPick, note = "" }) {
   const wrap = node("div", undefined, "sheet-field");
   wrap.append(node("span", "Icoon"));
-  const fromHA = Boolean(inventory.entities.find((e) => e.id === tile.entity)?.icon);
-  const autoLabel = `Automatisch (${fromHA ? "uit Home Assistant" : "standaard"})`;
+  let picked = selected;
   const summary = node("button", undefined, "icon-current");
   summary.type = "button";
   summary.setAttribute("aria-expanded", String(iconPickerOpen));
   const current = node("span", undefined, "mdi"), text = node("span"), action = node("small", iconPickerOpen ? "Sluiten" : "Wijzigen");
   summary.append(current, text, action);
   const describe = () => {
-    const chosen = iconNamed(tile.options?.icon);
-    current.textContent = glyph(chosen?.cp || automaticIcon(tile.entity));
-    text.textContent = chosen?.label || autoLabel;
+    const chosen = iconNamed(picked);
+    current.textContent = picked === "none" ? "" : glyph(chosen?.cp || automatic);
+    text.textContent = picked === "none" ? "Geen icoon" : chosen?.label || autoLabel;
   };
   describe();
   const panel = node("div", undefined, "icon-picker");
@@ -805,15 +819,13 @@ function iconField(tile, onChange) {
     b.dataset.search = label.toLocaleLowerCase();
     b.title = label;
     b.setAttribute("aria-label", `Icoon: ${label}`);
-    b.setAttribute("aria-pressed", String((tile.options?.icon || "auto") === name));
-    b.append(node("span", glyph(cp), "mdi"));
+    b.setAttribute("aria-pressed", String(picked === name));
+    b.append(node("span", cp ? glyph(cp) : "", "mdi"));
     b.onclick = () => {
-      tile.options = { ...tile.options, icon: name };
+      picked = name;
       for (const other of panel.querySelectorAll(".icon-choice")) other.setAttribute("aria-pressed", String(other === b));
       describe();
-      markDirty();
-      renderPreview();
-      onChange();
+      onPick(name);
     };
     return b;
   };
@@ -821,8 +833,10 @@ function iconField(tile, onChange) {
   search.type = "search";
   search.placeholder = "Zoek, bijvoorbeeld lamp, muziek of deur";
   search.setAttribute("aria-label", "Zoek een icoon");
-  const auto = choice("auto", automaticIcon(tile.entity), autoLabel, "icon-auto");
+  const auto = choice("auto", automatic, autoLabel, "icon-auto");
   auto.append(node("span", autoLabel));
+  const none = allowNone ? choice("none", "", "Geen icoon", "icon-auto icon-none") : null;
+  none?.append(node("span", "Geen icoon, alleen tekst"));
   const list = node("div", undefined, "icon-list"), empty = node("p", "Geen icoon gevonden.", "hint");
   empty.hidden = true;
   const sections = inventory.icons.groups.map((group) => {
@@ -850,9 +864,9 @@ function iconField(tile, onChange) {
     }
     empty.hidden = found > 0;
   };
-  panel.append(search, auto, list, empty);
+  panel.append(search, auto, ...(none ? [none] : []), list, empty);
   wrap.append(summary, panel);
-  if (!supportsFirmware(0, 2, 18)) wrap.append(node("small", "Het scherm toont een gekozen icoon vanaf firmware 0.2.18.", "icon-hint"));
+  if (note) wrap.append(node("small", note, "icon-hint"));
   return wrap;
 }
 function renderTileSheet() {
@@ -960,6 +974,541 @@ function renderTileSheet() {
   done.onclick = closeTileSheet;
   foot.append(done);
   sheet.append(head, body, foot);
+}
+// ---- Top bar ----
+// The name on the left; on the right up to six items: the time, an analog clock, the date, or an
+// entity's state or last change. The add-on formats entity text (POST header-preview) exactly as the
+// screen gets it; the screen and this mockup tick clocks and "5 min geleden" themselves.
+const MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
+const WEEKDAYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+const BUILTIN_ICONS = { clock: "clock-outline", analog: "clock-outline", date: "calendar" };
+let topbarPreviews = new Map(), topbarTimer = 0, topbarSheetIndex = null, topbarOverflow = new Set(), topbarAdded = null;
+const itemKey = (item) => JSON.stringify(item);
+// Without a stored top bar the screen shows what it always did: the clock of show_clock.
+const topbarItems = () => layout.header?.items ?? ((layout.settings?.show_clock ?? true) ? [{ type: "clock" }] : []);
+const topbarMax = () => inventory.header?.max_items || 6;
+function setTopbarItems(items) {
+  layout.header = { items };
+  markDirty();
+  renderTopbar();
+  renderBars();
+  loadTopbarPreview();
+}
+// A caption over a group of buttons; unlike a label it never forwards a click to the first one.
+function group(title, content) {
+  const wrap = node("div", undefined, "sheet-field");
+  wrap.append(node("span", title), content);
+  return wrap;
+}
+// Only the bars of the mockup pages, so tiles, focus and a running drag stay untouched.
+function renderBars() {
+  const bars = document.querySelectorAll("#layout-preview .preview-bar-wrap");
+  if (!bars.length) return renderPreview();
+  for (const bar of bars) bar.replaceWith(topbarBar());
+  fitTopbars();
+}
+// Entity text as the screen will show it, for the items not previewed yet.
+function loadTopbarPreview(delay = 150) {
+  clearTimeout(topbarTimer);
+  topbarTimer = setTimeout(async () => {
+    const items = topbarItems();
+    if (!items.some((item) => item.type === "entity")) return;
+    try {
+      const data = await (await api("header-preview", { method: "POST", body: JSON.stringify({ header: { items } }) })).json();
+      items.forEach((item, i) => topbarPreviews.set(itemKey(item), data.items[i]));
+      if (!layout) return;
+      renderTopbar();
+      renderBars();
+      if (topbarSheetIndex !== null && $("#topbar-sheet").open) renderTopbarLive();
+    } catch {
+      // Keep the last preview; the next edit or refresh tries again.
+    }
+  }, delay);
+}
+function clockText(now = new Date()) {
+  let hours = now.getHours();
+  // The screen formats with %I:%M when the 24-hour clock is off.
+  if (!(layout.settings?.clock_24h ?? true)) hours = hours % 12 || 12;
+  return `${String(hours).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+}
+const dateText = (now = new Date()) => `${WEEKDAYS[now.getDay()]} ${now.getDate()} ${MONTHS[now.getMonth()]}`;
+// Same wording and thresholds as header_bar::ago_text() in the firmware.
+function agoText(then, now = Math.floor(Date.now() / 1000)) {
+  const seconds = now - then, span = Math.abs(seconds), per = (unit) => Math.floor(span / unit);
+  if (seconds < 0) {
+    if (span < 3600) return `Over ${Math.max(1, per(60))} min`;
+    if (span < 86400) return `Over ${per(3600)} uur`;
+    if (span < 172800) return "Morgen";
+    return `Over ${per(86400)} dagen`;
+  }
+  if (span < 60) return "Zojuist";
+  if (span < 3600) return `${per(60)} min geleden`;
+  if (span < 86400) return `${per(3600)} uur geleden`;
+  if (span < 172800) return "Gisteren";
+  if (span < 604800) return `${per(86400)} dagen geleden`;
+  if (span < 2592000) return per(604800) === 1 ? "1 week geleden" : `${per(604800)} weken geleden`;
+  if (span < 31536000) return per(2592000) === 1 ? "1 maand geleden" : `${per(2592000)} maanden geleden`;
+  return `${per(31536000)} jaar geleden`;
+}
+function topbarLabel(item) {
+  if (item.type === "entity") return entityName(item.entity);
+  return inventory.header?.builtin.find((b) => b.type === item.type)?.label || item.type;
+}
+// What the item shows right now: { icon, text, color, shown }. Entities wait for the add-on's preview.
+function topbarView(item) {
+  if (item.type === "clock") return { text: clockText(), shown: true };
+  if (item.type === "date") return { text: dateText(), shown: true };
+  if (item.type === "analog") return { analog: true, shown: true };
+  const p = topbarPreviews.get(itemKey(item));
+  if (!p) return { icon: item.icon === "none" ? null : iconNamed(item.icon)?.cp || automaticIcon(item.entity), text: "…", shown: true, loading: true };
+  return { icon: p.i || null, text: p.k === "ago" ? agoText(p.e) : p.t, color: p.c ? `#${p.c}` : null, shown: p.shown };
+}
+// ---- The bar as the screen draws it ----
+// One rule set with header_bar.h in the firmware, in screen pixels of the board: every value (the
+// time too) in the same 400 Roboto on the name's baseline; icons and the dial centred on the
+// height of the digits; the gaps measured between what you see (glyph ink), not between boxes, so
+// an icon with side bearings sits exactly as close to its value as one without.
+const BAR_METRICS = {
+  guition: { width: 448, top: 36, name: 27, text: 21, icon: 26 },
+  cyd: { width: 298, top: 24, name: 18, text: 14, icon: 18 },
+};
+// Screens without the Guition type sensor are CYDs, as the rotation setting assumes too.
+const barMetrics = () => BAR_METRICS[inventory.screens.find((s) => s.id === selected)?.board === "guition" ? "guition" : "cyd"];
+const measure = document.createElement("canvas").getContext("2d");
+const inkCache = new Map();
+// Ink box of a string relative to its origin on the baseline: left/right, and top (negative, up)/bottom.
+function inkOf(text, font) {
+  const key = `${font}|${text}`;
+  if (!inkCache.has(key)) {
+    measure.font = font;
+    const m = measure.measureText(text);
+    inkCache.set(key, { left: -m.actualBoundingBoxLeft, right: m.actualBoundingBoxRight, top: -m.actualBoundingBoxAscent, bottom: m.actualBoundingBoxDescent, advance: m.width });
+  }
+  return inkCache.get(key);
+}
+const barFonts = (m) => ({ name: `500 ${m.name}px "Bar Roboto"`, text: `400 ${m.text}px "Bar Roboto"`, icon: `${m.icon}px "Tile Icons"` });
+// The fonts load on first use; measurements before that are wrong, so draw again once they are in.
+Promise.all([document.fonts.load('500 27px "Bar Roboto"', "Studio 0"), document.fonts.load('400 21px "Bar Roboto"', "Weg 0"), document.fonts.load('26px "Tile Icons"', String.fromCodePoint(0xf0150))])
+  .then(() => { inkCache.clear(); if (layout) { renderTopbar(); renderBars(); } })
+  .catch(() => {});
+// Same integer arithmetic as header_bar::gaps() in the firmware, from the digit height in pixels.
+function barGaps(cap) {
+  return { icon: Math.max(2, Math.floor((cap * 4 + 5) / 10)), item: Math.max(6, Math.floor((cap * 125 + 50) / 100)), name: Math.max(8, Math.floor((cap * 16 + 5) / 10)) };
+}
+// The parts per item with their ink widths, the placement, and which items fall off.
+function barLayout(items = topbarItems(), metrics = barMetrics(), nameText = $("#title").value || "Thuis") {
+  const fonts = barFonts(metrics);
+  // The firmware reads the digit height as a whole number of pixels (the glyph box of "0").
+  const zero = inkOf("0", fonts.text), cap = Math.round(zero.bottom - zero.top), gaps = barGaps(cap);
+  const dialInk = inkOf(String.fromCodePoint(0xf0150), fonts.icon), dial = Math.round(dialInk.bottom - dialInk.top);
+  const parts = items.map((item, index) => {
+    const view = topbarView(item);
+    const part = { index, item, view, shown: view.shown, width: 0 };
+    if (view.analog) { part.dial = dial; part.width = dial; return part; }
+    if (view.icon) { part.icon = { glyph: glyph(view.icon), ink: inkOf(glyph(view.icon), fonts.icon) }; part.width += part.icon.ink.right - part.icon.ink.left; }
+    if (view.text) {
+      part.text = { value: view.text, ink: inkOf(view.text, fonts.text) };
+      part.width += (part.icon ? gaps.icon : 0) + part.text.ink.right - part.text.ink.left;
+    }
+    return part;
+  });
+  const shown = parts.filter((p) => p.shown);
+  const natural = inkOf(nameText, fonts.name).advance;
+  const minName = Math.min(natural, Math.floor((metrics.width * 35) / 100));
+  const total = (list) => list.reduce((sum, p) => sum + p.width, 0) + Math.max(0, list.length - 1) * gaps.item;
+  let first = 0;
+  while (first < shown.length && total(shown.slice(first)) + gaps.name + minName > metrics.width) first++;
+  const placed = shown.slice(first), dropped = new Set(shown.slice(0, first).map((p) => p.index));
+  let x = metrics.width - total(placed);
+  for (const p of placed) { p.x = x; x += p.width + gaps.item; }
+  const nameRoom = placed.length ? placed[0].x - gaps.name : metrics.width;
+  return { metrics, fonts, cap, zero, gaps, parts, placed, dropped, nameText, natural, nameRoom };
+}
+// LVGL's LV_LABEL_LONG_DOT: the longest start that fits with "..." after it.
+function dotted(text, font, room) {
+  if (inkOf(text, font).advance <= room) return text;
+  const chars = [...text];
+  while (chars.length && inkOf(chars.join("") + "...", font).advance > room) chars.pop();
+  return chars.join("") + "...";
+}
+// `font` goes through CSSOM: the add-on's CSP blocks style attributes.
+const svgNode = (tag, attrs = {}) => {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "font") el.style.font = v;
+    else el.setAttribute(k, v);
+  }
+  return el;
+};
+// Draws placed parts into an SVG group; `baseline` is the text baseline in screen pixels.
+function drawParts(group, lay, parts, baseline) {
+  const capMiddle = baseline + (lay.zero.top + lay.zero.bottom) / 2;
+  for (const p of parts) {
+    const color = p.view.color || "#46525e";
+    if (p.dial) {
+      const d = p.dial, stroke = Math.max(1, Math.round(d / 10)), hand = Math.max(1, Math.round(d * 0.075));
+      const cx = p.x + d / 2, now = new Date();
+      group.append(svgNode("circle", { cx, cy: capMiddle, r: d / 2 - stroke / 2, fill: "none", stroke: color, "stroke-width": stroke }));
+      for (const [angle, length] of [[(now.getHours() % 12 + now.getMinutes() / 60) * 30, d * 0.24], [now.getMinutes() * 6, d * 0.34]]) {
+        const rad = (angle * Math.PI) / 180;
+        group.append(svgNode("line", { x1: cx, y1: capMiddle, x2: cx + length * Math.sin(rad), y2: capMiddle - length * Math.cos(rad), stroke: color, "stroke-width": hand, "stroke-linecap": "round" }));
+      }
+      continue;
+    }
+    let x = p.x;
+    if (p.icon) {
+      const ink = p.icon.ink, icon = svgNode("text", { x: x - ink.left, y: capMiddle - (ink.top + ink.bottom) / 2, fill: color, font: lay.fonts.icon });
+      icon.textContent = p.icon.glyph;
+      group.append(icon);
+      x += ink.right - ink.left + (p.text ? lay.gaps.icon : 0);
+    }
+    if (p.text) {
+      const text = svgNode("text", { x: x - p.text.ink.left, y: baseline, fill: "#46525e", font: lay.fonts.text });
+      text.textContent = p.text.value;
+      group.append(text);
+    }
+  }
+}
+// The bar at the top of a mockup page, scaled with the page: name left, items right.
+function topbarBar() {
+  const lay = barLayout(), m = lay.metrics;
+  const height = m.top + Math.round(m.name * 0.45);
+  const svg = svgNode("svg", { viewBox: `0 0 ${m.width} ${height}`, class: "preview-bar", role: "img" });
+  const name = svgNode("text", { x: 0, y: m.top, fill: "#1b1b1b", font: lay.fonts.name });
+  name.textContent = dotted(lay.nameText, lay.fonts.name, Math.min(lay.natural, lay.nameRoom));
+  svg.append(name);
+  const group = svgNode("g");
+  drawParts(group, lay, lay.placed, m.top);
+  svg.append(group);
+  svg.setAttribute("aria-label", `Bovenbalk: ${lay.nameText}`);
+  const wrap = node("div", undefined, "preview-bar-wrap");
+  wrap.title = "Bovenbalk aanpassen";
+  wrap.append(svg);
+  wrap.onclick = () => { $("#topbar").scrollIntoView({ behavior: "smooth", block: "center" }); $("#topbar").classList.add("flash"); setTimeout(() => $("#topbar").classList.remove("flash"), 900); };
+  return wrap;
+}
+// Which items the screen leaves out for lack of room; the chips mark them.
+function fitTopbars() {
+  const dropped = barLayout().dropped;
+  const before = [...topbarOverflow].join();
+  topbarOverflow = dropped;
+  if ([...dropped].join() !== before) renderTopbar();
+}
+// One item on its own, drawn exactly as in the bar (the sheet's "zo staat het op het scherm").
+function itemSample(item) {
+  const lay = barLayout([item]), m = lay.metrics, part = lay.parts[0];
+  part.x = 0;
+  const top = Math.round(m.text * 1.05), height = Math.round(m.text * 1.4);
+  const svg = svgNode("svg", { viewBox: `-2 0 ${Math.max(1, part.width) + 4} ${height}`, class: "topbar-sample", role: "img" });
+  svg.style.width = `${(Math.max(1, part.width) + 4) * (26 / m.icon)}px`;
+  const group = svgNode("g");
+  drawParts(group, lay, [part], top);
+  svg.append(group);
+  return svg;
+}
+function renderTopbar() {
+  if (!layout) return;
+  const items = topbarItems(), chips = $("#topbar-chips");
+  chips.replaceChildren();
+  items.forEach((item, index) => chips.append(topbarChip(item, index)));
+  const add = node("button", "＋ Toevoegen", "topbar-add");
+  add.type = "button";
+  add.disabled = items.length >= topbarMax();
+  add.title = add.disabled ? `Maximaal ${topbarMax()} onderdelen` : "Tijd, datum, analoge klok of een entiteit toevoegen";
+  add.onclick = () => openTopbarSheet(-1);
+  chips.append(add);
+  $("#topbar-count").textContent = `${items.length} / ${topbarMax()}`;
+  const needed = inventory.header?.min_firmware || "0.2.32";
+  const [major, minor, patch] = needed.split(".").map(Number);
+  const hint = $("#topbar-hint");
+  hint.textContent = supportsFirmware(major, minor, patch)
+    ? topbarOverflow.size ? "Niet alles past naast de naam: het scherm laat de gestreepte onderdelen weg. Haal er een weg of kies een kortere naam." : "Sleep om de volgorde te wijzigen; tik op een onderdeel om het in te stellen."
+    : `Sensoren, datum en de analoge klok verschijnen vanaf firmware ${needed}; tot die update toont dit scherm de naam en, als de tijd erin staat, de klok.`;
+  hint.classList.toggle("warn", topbarOverflow.size > 0 && supportsFirmware(major, minor, patch));
+}
+function topbarChip(item, index) {
+  const view = topbarView(item);
+  const chip = node("div", undefined, "topbar-chip");
+  chip.setAttribute("role", "listitem");
+  chip.tabIndex = 0;
+  chip.dataset.index = index;
+  chip.classList.toggle("is-hidden", !view.shown);
+  chip.classList.toggle("is-overflow", topbarOverflow.has(index));
+  chip.classList.toggle("just-added", topbarAdded?.key === itemKey(item) && Date.now() - topbarAdded.time < 1200);
+  chip.classList.toggle("dragging-chip", chipDrag.active && chipDrag.index === index);
+  const icon = node("span", "", "mdi chip-icon");
+  const cp = view.analog || item.type !== "entity" ? iconNamed(BUILTIN_ICONS[item.type])?.cp : view.icon;
+  if (cp) icon.textContent = glyph(cp);
+  if (view.color) icon.style.color = view.color;
+  const texts = node("span", undefined, "chip-text");
+  const detail = !view.shown ? "Verborgen: nu niet actief" : topbarOverflow.has(index) ? "Past niet naast de naam" : view.analog ? "Wijzerplaat" : view.text;
+  texts.append(node("strong", topbarLabel(item)), node("small", detail));
+  const remove = node("button", "✕", "chip-remove");
+  remove.type = "button";
+  remove.setAttribute("aria-label", `${topbarLabel(item)} uit de bovenbalk halen`);
+  remove.onclick = (e) => { e.stopPropagation(); removeTopbarItem(index); };
+  chip.append(icon, texts, remove);
+  chip.setAttribute("aria-label", `${topbarLabel(item)}, plek ${index + 1}. Enter: instellen, pijltjes: verplaatsen`);
+  chip.onclick = () => openTopbarSheet(index);
+  chip.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTopbarSheet(index); return; }
+    const step = { ArrowLeft: -1, ArrowRight: 1 }[e.key];
+    if (step && moveTopbarItem(index, index + step)) $(`#topbar-chips [data-index="${index + step}"]`)?.focus();
+  };
+  enableChipDrag(chip, index);
+  return chip;
+}
+function moveTopbarItem(from, to) {
+  const items = [...topbarItems()];
+  if (to < 0 || to >= items.length || from === to) return false;
+  items.splice(to, 0, ...items.splice(from, 1));
+  setTopbarItems(items);
+  return true;
+}
+function removeTopbarItem(index) {
+  const items = [...topbarItems()];
+  const [item] = items.splice(index, 1);
+  if (!item) return;
+  if ($("#topbar-sheet").open) $("#topbar-sheet").close();
+  setTopbarItems(items);
+  toast(`${topbarLabel(item)} uit de bovenbalk gehaald`, {
+    label: "Ongedaan maken",
+    run: () => { const back = [...topbarItems()]; back.splice(Math.min(index, back.length), 0, item); setTopbarItems(back); },
+  });
+}
+function addTopbarItem(item) {
+  const items = topbarItems();
+  if (items.length >= topbarMax()) return toast(`De bovenbalk heeft plaats voor ${topbarMax()} onderdelen.`);
+  if (items.some((other) => itemKey(other) === itemKey(item))) return toast("Dit staat al in de bovenbalk.");
+  // The new chip lights up briefly so the eye finds it.
+  topbarAdded = { key: itemKey(item), time: Date.now() };
+  setTopbarItems([...items, item]);
+  $("#topbar-sheet").close();
+}
+// Pointer drag between chips, mouse and touch (touch after a short hold, so the page still scrolls).
+// The order updates while dragging, the screen mockup follows, and a finished drag is not a click.
+const chipDrag = { index: -1, start: null, timer: 0, active: false, pointerId: null, moved: false };
+function enableChipDrag(chip, index) {
+  chip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0 || e.target.closest(".chip-remove")) return;
+    if (e.pointerType !== "touch") e.preventDefault();
+    Object.assign(chipDrag, { index, start: { x: e.clientX, y: e.clientY }, pointerId: e.pointerId, active: false, moved: false });
+    clearTimeout(chipDrag.timer);
+    if (e.pointerType === "touch") chipDrag.timer = setTimeout(() => beginChipDrag(), 260);
+    document.addEventListener("pointermove", moveChipDrag);
+    document.addEventListener("pointerup", endChipDrag);
+    document.addEventListener("pointercancel", endChipDrag);
+  });
+}
+function beginChipDrag() {
+  chipDrag.active = true;
+  document.body.classList.add("dragging");
+  document.addEventListener("touchmove", blockChipScroll, { passive: false });
+  $(`#topbar-chips [data-index="${chipDrag.index}"]`)?.classList.add("dragging-chip");
+}
+function blockChipScroll(e) { if (chipDrag.active) e.preventDefault(); }
+function moveChipDrag(e) {
+  if (e.pointerId !== chipDrag.pointerId || !chipDrag.start) return;
+  if (!chipDrag.active) {
+    const distance = Math.hypot(e.clientX - chipDrag.start.x, e.clientY - chipDrag.start.y);
+    if (e.pointerType === "touch") { if (distance > 10) { clearTimeout(chipDrag.timer); chipDrag.start = null; } return; }
+    if (distance < 6) return;
+    beginChipDrag();
+  }
+  // The target is the chip under the pointer's row whose middle the pointer passed.
+  const chips = [...document.querySelectorAll("#topbar-chips .topbar-chip")];
+  let target = chipDrag.index;
+  chips.forEach((chip, i) => {
+    const r = chip.getBoundingClientRect();
+    if (e.clientY >= r.top - 6 && e.clientY <= r.bottom + 6) {
+      if (i < chipDrag.index && e.clientX < r.left + r.width / 2) target = Math.min(target, i);
+      if (i > chipDrag.index && e.clientX > r.left + r.width / 2) target = Math.max(target, i);
+    }
+  });
+  if (target !== chipDrag.index) {
+    const items = [...topbarItems()];
+    items.splice(target, 0, ...items.splice(chipDrag.index, 1));
+    layout.header = { items };
+    chipDrag.index = target;
+    chipDrag.moved = true;
+    renderTopbar();
+    renderBars();
+  }
+}
+function endChipDrag(e) {
+  if (e.pointerId !== chipDrag.pointerId) return;
+  clearTimeout(chipDrag.timer);
+  document.removeEventListener("pointermove", moveChipDrag);
+  document.removeEventListener("pointerup", endChipDrag);
+  document.removeEventListener("pointercancel", endChipDrag);
+  document.removeEventListener("touchmove", blockChipScroll);
+  document.body.classList.remove("dragging");
+  if (chipDrag.active) {
+    drag.suppressUntil = Date.now() + 400;
+    if (chipDrag.moved) markDirty();
+    renderTopbar();
+  }
+  Object.assign(chipDrag, { index: -1, start: null, active: false, pointerId: null, moved: false });
+}
+// One sheet for adding (index -1) and for one item's settings.
+function openTopbarSheet(index) {
+  if (index !== topbarSheetIndex) iconPickerOpen = false;
+  topbarSheetIndex = index;
+  renderTopbarSheet();
+  if (!$("#topbar-sheet").open) $("#topbar-sheet").showModal();
+}
+$("#topbar-sheet").addEventListener("close", () => { topbarSheetIndex = null; });
+function sheetHead(badge, title, subtitle) {
+  const head = node("div", undefined, "sheet-head"), titles = node("div");
+  titles.append(node("strong", title), node("small", subtitle));
+  const close = node("button", "✕", "quiet sheet-close");
+  close.type = "button";
+  close.setAttribute("aria-label", "Sluiten");
+  close.onclick = () => $("#topbar-sheet").close();
+  head.append(badge, titles, close);
+  return head;
+}
+function optionButton(cp, title, detail, onClick, disabled = false) {
+  const b = node("button", undefined, "topbar-option");
+  b.type = "button";
+  b.disabled = disabled;
+  const texts = node("span");
+  texts.append(node("strong", title), node("small", detail));
+  b.append(node("span", cp ? glyph(cp) : "", "mdi"), texts);
+  b.onclick = onClick;
+  return b;
+}
+function renderTopbarSheet() {
+  const sheet = $("#topbar-sheet");
+  sheet.replaceChildren();
+  if (topbarSheetIndex === -1) return renderTopbarAdd(sheet);
+  const item = topbarItems()[topbarSheetIndex];
+  if (!item) return sheet.close();
+  const badge = node("span", "", "domain-icon mdi");
+  const body = node("div", undefined, "sheet-body");
+  if (item.type === "entity") {
+    const view = topbarView(item);
+    badge.textContent = view.icon ? glyph(view.icon) : "";
+    sheet.append(sheetHead(badge, entityName(item.entity), item.entity));
+    const live = node("div", undefined, "topbar-live");
+    live.id = "topbar-live";
+    body.append(live);
+    // Choices apply live; an icon pick keeps the open picker (search, scroll) and only refreshes the samples.
+    const update = (patch) => {
+      const items = [...topbarItems()];
+      items[topbarSheetIndex] = { ...items[topbarSheetIndex], ...patch };
+      setTopbarItems(items);
+      renderTopbarLive();
+      const next = topbarView(items[topbarSheetIndex]);
+      badge.textContent = next.icon ? glyph(next.icon) : "";
+    };
+    const content = segmented(inventory.header.contents.map((c) => [c.key, c.label]), item.content, (v) => update({ content: v }));
+    const contentField = group("Wat laten zien", content);
+    contentField.append(node("small", "Laatst gewijzigd telt op het scherm zelf door: “Zojuist”, “5 min geleden”, “Gisteren”.", "field-hint"));
+    body.append(contentField);
+    body.append(iconPicker({
+      selected: item.icon,
+      automatic: topbarPreviews.get(itemKey(item))?.auto_icon || automaticIcon(item.entity),
+      autoLabel: "Automatisch (zoals Home Assistant)",
+      allowNone: true,
+      onPick: (name) => update({ icon: name }),
+    }));
+    const shows = segmented(inventory.header.shows.map((s) => [s.key, s.label]), item.show, (v) => update({ show: v }));
+    const showField = group("Tonen", shows);
+    showField.append(node("small", "Alleen als actief verbergt het onderdeel zolang het uit, dicht, weg of 0 is. Handig voor een open deur, een draaiende wasmachine of wie er thuis is.", "field-hint"));
+    body.append(showField);
+  } else {
+    badge.textContent = glyph(iconNamed(BUILTIN_ICONS[item.type])?.cp || "");
+    sheet.append(sheetHead(badge, topbarLabel(item), "Van het scherm zelf, werkt ook zonder Home Assistant"));
+    const live = node("div", undefined, "topbar-live");
+    live.id = "topbar-live";
+    body.append(live);
+    if (item.type !== "date") {
+      const format = segmented([["24", "24 uur"], ["12", "12 uur"]], (layout.settings?.clock_24h ?? true) ? "24" : "12", (v) => {
+        layout.settings = { ...Object.fromEntries(settingDefinitions.map(([key, , , value]) => [key, value])), ...layout.settings, clock_24h: v === "24" };
+        markDirty();
+        renderSettings();
+        renderTopbar();
+        renderBars();
+        renderTopbarLive();
+      });
+      const formatField = group("Notatie", format);
+      formatField.append(node("small", "Geldt voor elke klok op dit scherm, ook de kloktegels.", "field-hint"));
+      body.append(formatField);
+    }
+  }
+  const foot = node("div", undefined, "sheet-foot");
+  const remove = node("button", "Weghalen", "quiet danger");
+  remove.type = "button";
+  remove.onclick = () => removeTopbarItem(topbarSheetIndex);
+  const left = node("button", "← Naar links", "quiet"), right = node("button", "Naar rechts →", "quiet");
+  left.type = right.type = "button";
+  left.disabled = topbarSheetIndex === 0;
+  right.disabled = topbarSheetIndex >= topbarItems().length - 1;
+  left.onclick = () => { if (moveTopbarItem(topbarSheetIndex, topbarSheetIndex - 1)) { topbarSheetIndex--; renderTopbarSheet(); } };
+  right.onclick = () => { if (moveTopbarItem(topbarSheetIndex, topbarSheetIndex + 1)) { topbarSheetIndex++; renderTopbarSheet(); } };
+  const done = node("button", "Klaar");
+  done.type = "button";
+  done.onclick = () => sheet.close();
+  foot.append(remove, left, right, done);
+  sheet.append(body, foot);
+  renderTopbarLive();
+}
+// "Op het scherm": the item as the bar draws it, updated while choosing.
+function renderTopbarLive() {
+  const live = $("#topbar-live"), item = topbarItems()[topbarSheetIndex];
+  if (!live || !item) return;
+  const view = topbarView(item);
+  const note = !view.shown ? "Nu verborgen: niet actief" : topbarOverflow.has(topbarSheetIndex) ? "Past nu niet naast de naam" : "Zo staat het op het scherm";
+  live.replaceChildren(node("small", note), itemSample(item));
+}
+function renderTopbarAdd(sheet) {
+  const badge = node("span", "＋", "domain-icon");
+  sheet.append(sheetHead(badge, "Toevoegen aan de bovenbalk", `${topbarItems().length} van ${topbarMax()} plekken gebruikt`));
+  const body = node("div", undefined, "sheet-body");
+  const taken = new Set(topbarItems().map(itemKey));
+  const own = node("div", undefined, "topbar-options");
+  const samples = { clock: clockText(), analog: "Kleine wijzerplaat met de tijd", date: dateText() };
+  for (const builtin of inventory.header?.builtin || []) {
+    const item = { type: builtin.type };
+    own.append(optionButton(iconNamed(BUILTIN_ICONS[builtin.type])?.cp, builtin.label, taken.has(itemKey(item)) ? "Staat er al in" : samples[builtin.type], () => addTopbarItem(item), taken.has(itemKey(item))));
+  }
+  body.append(group("Van het scherm zelf", own));
+  const suggested = inventory.header?.suggestions?.[selected] || [];
+  if (suggested.length) {
+    const list = node("div", undefined, "topbar-options");
+    for (const s of suggested) {
+      const exists = taken.has(itemKey(s.item));
+      list.append(optionButton(s.icon || automaticIcon(s.item.entity), s.label, exists ? "Staat er al in" : [s.name, s.area].filter(Boolean).join(" · "), () => addTopbarItem(s.item), exists));
+    }
+    body.append(group("Suggesties uit Home Assistant", list));
+  }
+  const search = node("input");
+  search.type = "search";
+  search.placeholder = "Zoek op naam, ruimte of entiteit, bijv. temperatuur of deur";
+  const results = node("div", undefined, "topbar-results");
+  const renderMatches = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    const matches = inventory.entities.filter((e) => `${e.name} ${e.id} ${e.area} ${e.device}`.toLocaleLowerCase().includes(query));
+    results.replaceChildren(...matches.slice(0, 40).map((e) => {
+      const item = { type: "entity", entity: e.id, content: "state", icon: "auto", show: "always" };
+      return optionButton(automaticIcon(e.id), e.name, [e.area, e.id].filter(Boolean).join(" · "), () => addTopbarItem(item), taken.has(itemKey(item)));
+    }));
+    if (!matches.length) results.append(node("p", "Geen entiteiten gevonden.", "hint"));
+    else if (matches.length > 40) results.append(node("p", `${matches.length} resultaten. Typ verder om te verfijnen.`, "hint"));
+  };
+  search.oninput = renderMatches;
+  search.setAttribute("aria-label", "Zoek een entiteit voor de bovenbalk");
+  const searchField = group("Een entiteit", search);
+  searchField.append(results);
+  body.append(searchField);
+  renderMatches();
+  const foot = node("div", undefined, "sheet-foot");
+  const cancel = node("button", "Annuleren", "quiet");
+  cancel.type = "button";
+  cancel.onclick = () => sheet.close();
+  foot.append(cancel);
+  sheet.append(body, foot);
 }
 // A click in the picker: the marked empty cell, else the first free cell.
 function addTile(id) {
@@ -1481,6 +2030,13 @@ function poll() {
 }
 listen();
 poll();
+// The mockup's clocks tick and entity values in the top bar follow Home Assistant while the page is open.
+setInterval(() => {
+  if (!layout || document.hidden || drag.active || chipDrag.active) return;
+  loadTopbarPreview(0);
+  renderTopbar();
+  renderBars();
+}, 30000);
 document.addEventListener("visibilitychange", async () => {
   if (document.hidden) return;
   lastFull = Date.now();
@@ -1575,9 +2131,6 @@ function openSection(id) {
   if (section.tagName === "DETAILS") section.open = true;
   section.scrollIntoView({ behavior: "smooth", block: "start" });
 }
-$("#nav-tiles").onclick = () => openSection("#tile-section");
-$("#nav-settings").onclick = () => openSection("#general-settings");
-$("#nav-inspector").onclick = () => inspect();
 async function inspect(entity) {
   if (!selected) return;
   openSection("#inspector-section");
