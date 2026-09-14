@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.29"
+  SCREEN_FIRMWARE_VERSION: "0.2.30"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -602,6 +602,11 @@ esphome:
       - lambda: |-
           cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
           cyd::edge_swipe.configure(${DISPLAY_W}, ${DISPLAY_H}, ${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
+          // The page and the tile container take no presses: the theme's pressed style would
+          // otherwise repaint nearly the whole screen twice per touch in the empty edge band,
+          // starving the touch polling for the whole length of a quick swipe.
+          lv_obj_remove_flag(id(home_page)->obj, LV_OBJ_FLAG_CLICKABLE);
+          lv_obj_remove_flag(id(tile_scroll), LV_OBJ_FLAG_CLICKABLE);
           id(last_touch_ms) = millis();
           id(display_dimmed) = false;
           lv_obj_set_style_pad_row(id(vacuum_actions), 4, 0);
@@ -1803,12 +1808,15 @@ touchscreen:
         id(touch_down) = true;
         cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
         cyd::edge_swipe.begin(touch.x, touch.y, static_cast<int>(id(screen_lvgl).get_rotation()));
-        ESP_LOGI("touch", "GT911 press x=%u y=%u test=%d", touch.x, touch.y, id(calibration_active));
+        ESP_LOGI("touch", "GT911 press x=%u y=%u id=%u test=%d", touch.x, touch.y, (unsigned) touch.id, id(calibration_active));
   on_update:
     - lambda: |-
         id(last_touch_ms) = millis();
         // Only the contact that started the touch counts; the guard ignores other ids.
         for (const auto &point : touches) {
+          // Trace every sample of an edge touch: the log then shows how often the panel delivers.
+          if (cyd::edge_swipe.armed())
+            ESP_LOGI("touch", "veeg id=%u st=%u x=%u y=%u", (unsigned) point.id, (unsigned) point.state, point.x, point.y);
           cyd::touch_guard.update(point.x, point.y, point.id);
           if (point.id != cyd::touch_guard.contact()) continue;
           // Swiping in from a side edge flips the page ("Vegen tussen pagina's"); the tap

@@ -1,3 +1,9 @@
+## 0.2.35 (firmware 0.2.30)
+
+- **Snelle randveeg pakt nu ook in één keer (Guition).** Op 0.2.29 wisselde de veeg wel, maar ongeveer de helft van de snelle vegen eindigde met `randveeg niet gevuurd: 5 px naar binnen` terwijl de vinger duidelijk verder ging; elke aanraking duurde in de firmware bijna exact 160 ms en leverde maar één meting op. Een druk in de lege rand landde op de achtergrondcontainer en de pagina, en het thema geeft elk object een ingedrukte-stijl (45% dekking): bijna het hele scherm werd bij indrukken en loslaten opnieuw getekend, wat de touch-polling precies zo lang blokkeerde als een flick duurt. De pagina en de tegelcontainer nemen nu geen drukken meer aan (`LV_OBJ_FLAG_CLICKABLE` uit), dus geen hertekening en de metingen komen elke 20 ms door.
+- Zolang een randveeg gewapend is, logt de firmware elke meting (`veeg id=0 st=2 x=.. y=..`) en de eerste druk meldt zijn contact-id, zodat de bemonstering uit het log te lezen is.
+- Firmware 0.2.30 voor beide borden; de app biedt de update aan. Alleen de doelversie verandert in de app.
+
 ## 0.2.34 (firmware 0.2.29)
 
 - **Randveeg werkte in 0.2.32 en 0.2.33 helemaal niet, hersteld.** De veeg was daar op de pointer-events van LVGL gezet, maar de LVGL 9.5.0 die ESPHome meelevert stuurt het invoerapparaat wel PRESSED en RELEASED maar geen PRESSING, dus de veeg kreeg nooit positie-updates (live gezien op Studio 1: wel `GT911 press`, verder niets). De Guition volgt de veeg weer via ESPHome's touchscreen-triggers, zoals in 0.2.24 (dat werkte live zodra de kaartfix uit 0.2.32 erbij zat), met de eigen rotatiemapping gelijk aan die van ESPHome's LVGL-component, de 45°-regel, `end()` bij loslaten (een niet-afgemaakte veeg kan daardoor niet meer bij de volgende aanraking afgaan) en de logregels `randveeg genegeerd: …` en `randveeg niet gevuurd: …`.

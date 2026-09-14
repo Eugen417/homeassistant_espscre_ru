@@ -177,6 +177,14 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.35 / firmware 0.2.30
+
+Alleen firmware (Guition). `on_boot` haalt `LV_OBJ_FLAG_CLICKABLE` van `home_page` en
+`tile_scroll`: een druk buiten de tegels heeft geen LVGL-object meer (geen pressed-stijl,
+geen hertekening, geen events); de randveeg loopt via de touchscreen-triggers en heeft dat
+niet nodig, `lv_indev_wait_release` werkt ook zonder actief object. Trace-regels `veeg …`
+op INFO alleen zolang `edge_swipe.armed()`. Verder ongewijzigd.
+
 ### Compatibiliteit 0.2.34 / firmware 0.2.29
 
 Alleen firmware. LVGL 9.5.0's `send_event()` in `lv_indev.c` stuurt het invoerapparaat
