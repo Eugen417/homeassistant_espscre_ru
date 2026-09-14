@@ -45,37 +45,11 @@
         </div>
         <span id="connection" role="status" class="badge">Verbinden…</span>
       </div>
-      <ol class="howto" aria-label="Zo werkt het">
-        <li>
-          <b>1 · Installeren</b><span
-            >Sluit het scherm via USB aan op de Home Assistant-machine en kies
-            <b>Nieuw scherm</b>: naam, wifi en klaar. Eén keer via USB, daarna
-            gaat alles draadloos.</span
-          >
-        </li>
-        <li>
-          <b>2 · Tegels kiezen</b><span
-            >Sleep entiteiten uit de lijst rechts in de schermmockup, of tik
-            op +. Klik op een tegel voor weergave, breedte, bediening en kleur.</span
-          >
-        </li>
-        <li>
-          <b>3 · Opslaan</b><span
-            >Met <b>Opslaan & naar scherm</b> staat het direct op je scherm.
-            Nieuwe schermfuncties komen met <b>Bijwerken</b> draadloos op je
-            scherm.</span
-          >
-        </li>
-      </ol>
       <div class="workspace">
         <aside>
           <h2>Mijn schermen</h2>
           <div id="screens"></div>
           <div id="pending"></div>
-          <p class="hint">
-            Nieuw scherm gekoppeld in Home Assistant? Het verschijnt hier
-            automatisch binnen 30 seconden.
-          </p>
           <button class="quiet" id="refresh">↻ Vernieuwen</button>
           <div class="updates" id="updates" hidden>
             <h2>Firmware-updates</h2>
@@ -128,12 +102,6 @@
                 <h3>Je tegels</h3>
                 <span id="count">0 / 10</span>
               </div>
-              <p class="hint">
-                Klik op een tegel voor naam, weergave, breedte, directe
-                bediening en kleur; het kruisje verwijdert. Sleep om te ordenen of sleep entiteiten uit
-                de lijst hierheen. Zes vakjes per pagina; een dubbelbrede tegel
-                telt voor twee en begint altijd links.
-              </p>
               <div id="layout-preview" aria-label="Schermindeling"></div>
               <p id="no-tiles" class="hint">
                 Voeg je eerste lamp, scène of apparaat toe via de kiezer.

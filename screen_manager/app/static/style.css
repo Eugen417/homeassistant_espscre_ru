@@ -315,29 +315,6 @@ aside h2 {
   color: var(--muted);
   font-size: 11px;
 }
-.howto {
-  list-style: none;
-  padding: 0;
-  margin: 0 0 26px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-.howto li {
-  background: white;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 12px 14px;
-  font-size: 12px;
-  color: var(--muted);
-  line-height: 1.45;
-}
-.howto li > b {
-  display: block;
-  color: var(--ink);
-  font-size: 13px;
-  margin-bottom: 4px;
-}
 .preview-tile,
 .result {
   touch-action: pan-y;
@@ -661,11 +638,6 @@ dialog label {
   }
   .editor-head .badge {
     margin-bottom: 10px;
-  }
-}
-@media (max-width: 1000px) {
-  .howto {
-    grid-template-columns: 1fr;
   }
 }
 @media (max-width: 620px) {
