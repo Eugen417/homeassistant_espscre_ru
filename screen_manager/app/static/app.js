@@ -272,11 +272,11 @@ function openIntegrations() {
     window.open(path, "_blank");
   }
 }
-async function copyText(text, element) {
+async function copyText(text, element, what = "API-sleutel") {
   try {
     if (!navigator.clipboard || !window.isSecureContext) throw new Error();
     await navigator.clipboard.writeText(text);
-    toast("API-sleutel gekopieerd.");
+    toast(`${what} gekopieerd.`);
   } catch {
     if (element) {
       const range = document.createRange();
@@ -285,7 +285,7 @@ async function copyText(text, element) {
       selection.removeAllRanges();
       selection.addRange(range);
     }
-    toast(document.execCommand("copy") ? "API-sleutel gekopieerd." : "De sleutel is geselecteerd. Kopieer met Ctrl+C of Command+C.");
+    toast(document.execCommand("copy") ? `${what} gekopieerd.` : `${what} is geselecteerd. Kopieer met Ctrl+C of Command+C.`);
   }
 }
 // Profiles that Home Assistant does not list yet: the freshly flashed screen is not lost, it
@@ -1128,6 +1128,7 @@ async function refresh(full = true) {
     renderScreens();
     if (selected) renderSettingsSupport();
     if (!selected && inventory.screens.length) select(inventory.screens[0].id);
+    if ($("#alerts-dialog").open) renderAlertScreens();
   } catch {
     $("#connection").textContent =
       "Beheerpagina niet bereikbaar · opnieuw proberen…";
@@ -1616,3 +1617,222 @@ async function inspect(entity) {
   }
 }
 $("#inspect").onclick = () => inspect();
+
+// ----- Alerts: the cheatsheet for esphome.<node>_show_alert, built from the inventory -----
+const versionAtLeast = (version, minimum) => {
+  const parse = (v) => (/^(\d+)\.(\d+)\.(\d+)$/.exec(v || "") || []).slice(1).map(Number);
+  const [a, b] = [parse(version), parse(minimum)];
+  if (a.length !== 3 || b.length !== 3) return false;
+  for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
+  return true;
+};
+const yamlString = (text) => `"${String(text).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+function copyChip(text, what) {
+  const b = node("button", "Kopieer", "mini");
+  b.type = "button";
+  b.onclick = () => copyText(text, undefined, what);
+  return b;
+}
+function alertExampleYaml(action) {
+  const fields = inventory.alerts?.fields || [];
+  const lines = fields.map((f) => `  ${f.name}: ${f.type === "string" ? (/^[a-z][a-z0-9-]*$/.test(f.example) ? f.example : yamlString(f.example)) : f.example === true ? "true" : f.example === false ? "false" : f.example}`);
+  return `action: ${action || "esphome.<apparaatnaam>_show_alert"}\ndata:\n${lines.join("\n")}`;
+}
+function alertWaitYaml(action) {
+  return [
+    `# Deurbel: toon de alert en wacht tot iemand op de knop drukt.`,
+    `actions:`,
+    `  - action: ${action || "esphome.<apparaatnaam>_show_alert"}`,
+    `    data:`,
+    `      title: "Iemand belt aan"`,
+    `      subtitle: "Deur 3, achterkant"`,
+    `      icon: doorbell`,
+    `      color: orange`,
+    `      button_text: "Ik kom"`,
+    `      timeout: 0`,
+    `      flash: true`,
+    `  - wait_for_trigger:`,
+    `      - trigger: event`,
+    `        event_type: ${inventory.alerts?.event || "esphome.screen_alert"}`,
+    `        event_data:`,
+    `          action: ok`,
+    `    timeout: "00:05:00"`,
+    `  - if:`,
+    `      - condition: template`,
+    `        value_template: "{{ wait.trigger is not none }}"`,
+    `    then:`,
+    `      - action: notify.notify`,
+    `        data:`,
+    `          message: "Iemand komt naar de deur."`,
+  ].join("\n");
+}
+function renderAlertScreens() {
+  const alerts = inventory.alerts, list = $("#alerts-screen-list");
+  if (!alerts) return;
+  $("#alerts-min-firmware").textContent = alerts.min_firmware;
+  list.replaceChildren();
+  if (!inventory.screens.length) {
+    list.append(node("p", "Nog geen scherm gekoppeld. Installeer er een via Nieuw scherm; de actie verschijnt zodra Home Assistant het scherm ziet.", "hint"));
+  }
+  for (const screen of inventory.screens) {
+    const row = node("div", undefined, "alert-screen");
+    const head = node("div", undefined, "alert-screen-head");
+    head.append(node("strong", screen.name));
+    const ready = versionAtLeast(screen.firmware, alerts.min_firmware) && screen.alert_action;
+    const badge = node("span", ready ? `● firmware ${screen.firmware}` : screen.alert_action ? `Update nodig · firmware ${screen.firmware || "onbekend"}` : "Apparaatnaam onbekend · werk het scherm bij", `badge ${ready ? "online" : "update"}`);
+    head.append(badge);
+    row.append(head);
+    for (const [label, action] of [["Alert tonen", screen.alert_action], ["Alert sluiten", screen.dismiss_action]]) {
+      const line = node("div", undefined, "copy-line");
+      line.append(node("span", label, "copy-label"), node("code", action || "esphome.<apparaatnaam>_show_alert"));
+      if (action) line.append(copyChip(action, "Actienaam"));
+      row.append(line);
+    }
+    list.append(row);
+  }
+  const select = $("#alerts-example-screen"), current = select.value;
+  select.replaceChildren();
+  for (const screen of inventory.screens.filter((s) => s.alert_action)) {
+    const option = node("option", screen.name);
+    option.value = screen.alert_action;
+    select.append(option);
+  }
+  if (!select.options.length) {
+    const option = node("option", "een scherm (nog niet gekoppeld)");
+    option.value = "";
+    select.append(option);
+  }
+  if ([...select.options].some((o) => o.value === current)) select.value = current;
+  renderAlertExamples();
+}
+function renderAlertExamples() {
+  const action = $("#alerts-example-screen").value;
+  $("#alerts-example").textContent = alertExampleYaml(action);
+  $("#alerts-wait-example").textContent = alertWaitYaml(action);
+}
+function alertIconCard(icon, label) {
+  const b = node("button", undefined, "alert-icon");
+  b.type = "button";
+  b.title = `${icon.name} kopiëren`;
+  b.append(node("span", glyph(icon.cp), "mdi"), node("code", icon.name));
+  if (label) b.append(node("small", label));
+  b.onclick = () => copyText(icon.name, undefined, "Icoonnaam");
+  return b;
+}
+function renderAlertIcons() {
+  const alerts = inventory.alerts, icons = inventory.icons;
+  if (!alerts || !icons) return;
+  const suggested = $("#alerts-suggested");
+  suggested.replaceChildren();
+  for (const icon of alerts.suggested_icons) {
+    const chip = node("button", undefined, "chip");
+    chip.type = "button";
+    chip.append(node("span", glyph(icon.cp), "mdi"), node("code", icon.name));
+    chip.onclick = () => copyText(icon.name, undefined, "Icoonnaam");
+    suggested.append(chip);
+  }
+  const query = $("#alerts-icon-search").value.trim().toLowerCase();
+  const groups = $("#alerts-icon-groups");
+  groups.replaceChildren();
+  const all = [...icons.groups, { label: "Ook beschikbaar: bedienings- en weericonen", icons: alerts.extra_icons }];
+  let shown = 0;
+  for (const group of all) {
+    const matches = group.icons.filter((i) => !query || i.name.includes(query) || (i.label || "").toLowerCase().includes(query));
+    if (!matches.length) continue;
+    shown += matches.length;
+    const block = node("div", undefined, "alert-icon-group");
+    block.append(node("p", `${group.label} · ${matches.length}`, "alerts-subhead"));
+    const grid = node("div", undefined, "alert-icon-grid");
+    for (const icon of matches) grid.append(alertIconCard(icon, icon.label));
+    block.append(grid);
+    groups.append(block);
+  }
+  if (!shown) groups.append(node("p", `Geen icoon voor "${query}". Onbekende namen tonen de waarschuwingsdriehoek (${alerts.fallback_icon}).`, "hint"));
+}
+function renderAlertColors() {
+  const alerts = inventory.alerts, swatches = $("#alerts-swatches");
+  if (!alerts) return;
+  swatches.replaceChildren();
+  const white = node("button", undefined, "swatch");
+  white.type = "button";
+  const blank = node("i");
+  blank.style.background = "#FFFFFF";
+  white.append(blank, node("span", undefined));
+  white.lastChild.append(node("code", "leeg"), node("small", "Wit (standaard)"));
+  white.onclick = () => copyText("", undefined, "Lege kleur");
+  swatches.append(white);
+  for (const colour of alerts.colors) {
+    const b = node("button", undefined, "swatch");
+    b.type = "button";
+    const dot = node("i");
+    dot.style.background = colour.color;
+    const text = node("span");
+    text.append(node("code", colour.name), node("small", `${colour.label} · ${colour.color}`));
+    b.append(dot, text);
+    b.onclick = () => copyText(colour.name, undefined, "Kleurnaam");
+    swatches.append(b);
+  }
+}
+function renderAlertTables() {
+  const alerts = inventory.alerts;
+  if (!alerts) return;
+  const types = { string: "tekst", int: "getal", bool: "aan / uit" };
+  const table = $("#alerts-field-table");
+  table.replaceChildren();
+  const head = node("tr");
+  for (const title of ["Veld", "Type", "Wat het doet", "Voorbeeld", "Limiet"]) head.append(node("th", title));
+  table.append(head);
+  for (const field of alerts.fields) {
+    const row = node("tr");
+    const name = node("td");
+    name.append(node("code", field.name), node("small", field.label));
+    const example = node("td");
+    example.append(node("code", typeof field.example === "string" ? field.example : String(field.example)));
+    const limit = alerts.limits.cyd[field.name];
+    const cells = [name, node("td", types[field.type] || field.type), node("td", field.help), example,
+                   node("td", limit ? `CYD ${limit} · Guition ${alerts.limits.guition[field.name]} bytes` : field.type === "int" ? "0 tot 86400 s" : "—")];
+    cells.forEach((cell, index) => cell.dataset.label = ["Veld", "Type", "Wat het doet", "Voorbeeld", "Limiet"][index]);
+    row.append(...cells);
+    table.append(row);
+  }
+  const endings = $("#alerts-ending-table");
+  endings.replaceChildren();
+  const endHead = node("tr");
+  for (const title of ["action", "Wanneer"]) endHead.append(node("th", title));
+  endings.append(endHead);
+  for (const ending of alerts.endings) {
+    const row = node("tr"), cell = node("td"), when = node("td", ending.label);
+    cell.append(node("code", ending.action));
+    cell.dataset.label = "action";
+    when.dataset.label = "Wanneer";
+    row.append(cell, when);
+    endings.append(row);
+  }
+  $("#alerts-event-name").textContent = alerts.event;
+  const doorbell = alerts.suggested_icons.find((i) => i.name === "doorbell");
+  if (doorbell) $("#alert-mock-icon").textContent = glyph(doorbell.cp);
+  const orange = alerts.colors.find((c) => c.name === "orange");
+  if (orange) $("#alert-mock").querySelector(".alert-mock-card").style.background = orange.color;
+}
+function renderAlerts() {
+  if (!inventory.alerts) {
+    toast("De cheatsheet laadt nog; probeer het zo opnieuw.");
+    return false;
+  }
+  renderAlertTables();
+  renderAlertScreens();
+  renderAlertIcons();
+  renderAlertColors();
+  return true;
+}
+$("#open-alerts").onclick = () => {
+  if (renderAlerts()) $("#alerts-dialog").showModal();
+};
+$("#close-alerts").onclick = () => $("#alerts-dialog").close();
+$("#alerts-example-screen").onchange = renderAlertExamples;
+$("#alerts-example-copy").onclick = () => copyText($("#alerts-example").textContent, $("#alerts-example"), "YAML");
+$("#alerts-wait-copy").onclick = () => copyText($("#alerts-wait-example").textContent, $("#alerts-wait-example"), "YAML");
+$("#alerts-icon-search").oninput = renderAlertIcons;
+for (const b of document.querySelectorAll("#alerts-dialog [data-jump]")) {
+  b.onclick = () => document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });
+}

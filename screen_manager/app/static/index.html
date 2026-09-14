@@ -30,6 +30,13 @@
             ><small>Bouwen en installeren via USB of wifi</small></span
           >
         </button>
+        <button id="open-alerts" class="tool">
+          <span class="tool-icon" aria-hidden="true">!</span>
+          <span class="tool-text"
+            ><b>Alerts</b
+            ><small>Meldingen over het hele scherm, vanuit een automatisering</small></span
+          >
+        </button>
       </nav>
     </header>
     <main>
@@ -304,6 +311,157 @@
       <pre id="firmware-log"></pre>
     </dialog>
     <dialog id="tile-sheet" class="tile-sheet" aria-label="Tegel instellen"></dialog>
+    <dialog id="alerts-dialog" class="alerts" aria-label="Alerts">
+      <div class="dialog-head">
+        <div>
+          <p class="eyebrow">ALERTS · CHEATSHEET</p>
+          <h2>Een melding over het hele scherm, vanuit een automatisering.</h2>
+        </div>
+        <button id="close-alerts" class="quiet" aria-label="Sluiten">✕</button>
+      </div>
+      <p>
+        Elk scherm heeft de actie <code>show_alert</code>. Die legt een kaart over alles
+        heen, wekt het scherm en houdt de backlight op de normale helderheid tot iemand op
+        de knop tikt of de timeout verstrijkt. Home Assistant toont bij ESPHome-acties
+        zelf geen uitleg of keuzelijsten; alles wat je kunt invullen staat hier.
+      </p>
+      <div class="alert-hero">
+        <div class="alert-mock" id="alert-mock" aria-hidden="true">
+          <div class="alert-mock-card">
+            <span class="mdi alert-mock-icon" id="alert-mock-icon"></span>
+            <strong id="alert-mock-title">Iemand belt aan</strong>
+            <span id="alert-mock-subtitle">Deur 3, achterkant</span>
+            <button type="button" id="alert-mock-button" tabindex="-1">Ik kom</button>
+          </div>
+        </div>
+        <nav class="alerts-nav" aria-label="Onderdelen">
+          <button type="button" data-jump="alerts-screens">Jouw schermen</button>
+          <button type="button" data-jump="alerts-howto">In een automatisering</button>
+          <button type="button" data-jump="alerts-fields">De velden</button>
+          <button type="button" data-jump="alerts-icons">Iconen</button>
+          <button type="button" data-jump="alerts-colors">Kleuren</button>
+          <button type="button" data-jump="alerts-behaviour">Gedrag</button>
+          <button type="button" data-jump="alerts-events">Events</button>
+          <button type="button" data-jump="alerts-tips">Tips</button>
+        </nav>
+      </div>
+      <section id="alerts-screens">
+        <h3>Jouw schermen</h3>
+        <p>
+          Elke scherm heeft zijn eigen actie, met de apparaatnaam erin. Vanaf firmware
+          <code id="alerts-min-firmware">0.2.31</code>; een ouder scherm werk je bij onder
+          Firmware-updates.
+        </p>
+        <div id="alerts-screen-list"></div>
+      </section>
+      <section id="alerts-howto">
+        <h3>In een automatisering</h3>
+        <ol class="steps">
+          <li><b>Actie toevoegen</b> en zoek op <b>ESPHome</b>. Kies de actie van je scherm:
+            Home Assistant noemt hem "Performs the action show_alert of the node
+            <i>apparaatnaam</i>".</li>
+          <li><b>Vul de velden in.</b> Home Assistant vraagt alle zeven; laat wat je niet
+            gebruikt leeg (<code>""</code>, <code>0</code>, uit).</li>
+          <li>Liever YAML? Kies <b>Bewerken in YAML</b> bij de actie en plak het voorbeeld
+            hieronder.</li>
+        </ol>
+        <div class="alert-example">
+          <label
+            >Voorbeeld voor<select id="alerts-example-screen"></select
+          ></label>
+          <div class="copy-line">
+            <pre id="alerts-example"></pre>
+            <button type="button" class="mini" id="alerts-example-copy">Kopieer YAML</button>
+          </div>
+        </div>
+      </section>
+      <section id="alerts-fields">
+        <h3>De velden</h3>
+        <p>
+          Teksten zijn vrij; de limiet is in bytes en een letter met accent telt voor twee.
+          Wat niet past krijgt puntjes (titel) of valt weg (subtitle).
+        </p>
+        <div class="table-scroll"><table id="alerts-field-table"></table></div>
+      </section>
+      <section id="alerts-icons">
+        <h3>Iconen</h3>
+        <p>
+          Vul de naam in bij <code>icon</code>, bijvoorbeeld <code>doorbell</code>.
+          <code>mdi:doorbell</code> en de hex-codepoint (<code>F12E6</code>) mogen ook.
+          Alleen deze iconen zitten in de firmware; een andere naam geeft de
+          waarschuwingsdriehoek. Tik op een icoon om de naam te kopiëren.
+        </p>
+        <p class="alerts-subhead">Handig voor meldingen</p>
+        <div class="chips" id="alerts-suggested"></div>
+        <label class="alerts-search"
+          >Zoek een icoon<input
+            id="alerts-icon-search"
+            type="search"
+            placeholder="Zoek op naam of omschrijving…"
+            autocomplete="off"
+        /></label>
+        <div id="alerts-icon-groups"></div>
+      </section>
+      <section id="alerts-colors">
+        <h3>Kleuren</h3>
+        <p>
+          Vul de naam in bij <code>color</code>. Dit zijn de pasteltinten van de tegels,
+          met donkere tekst. Leeg of onbekend geeft de witte kaart. Tik om te kopiëren.
+        </p>
+        <div class="swatches" id="alerts-swatches"></div>
+      </section>
+      <section id="alerts-behaviour">
+        <h3>Gedrag</h3>
+        <ul class="alerts-list">
+          <li><b>Wekken.</b> Een alert maakt een gedimd of donker scherm meteen wakker en
+            komt boven elke pagina, elke open lichtkaart en de standby-laag.</li>
+          <li><b>Aan tot de knop.</b> Zolang de kaart staat blijft de backlight op de
+            normale helderheid. Standby en de nachturen wachten. Na de knop start de gewone
+            standby-tijd opnieuw.</li>
+          <li><b>Timeout.</b> <code>timeout: 0</code> wacht op de knop, hoe lang ook. Met
+            <code>timeout: 60</code> verdwijnt de kaart na een minuut, maar de knop sluit
+            hem eerder.</li>
+          <li><b>Knipperen.</b> <code>flash: true</code> knippert de backlight vier keer
+            bij binnenkomst (ongeveer een seconde) en laat het scherm daarna aan.</li>
+          <li><b>Vervangen.</b> Een nieuwe alert vervangt de huidige; er is geen stapel.
+            De vervangen alert meldt zich als <code>replaced</code>.</li>
+          <li><b>Op afstand sluiten.</b> <code>dismiss_alert</code> haalt de kaart weg,
+            bijvoorbeeld als de deur al open is. Zonder alert doet die actie niets.</li>
+          <li><b>Tikken naast de kaart</b> doet niets; alleen de knop sluit. Zo drukt een
+            wek-tik de alert nooit per ongeluk weg.</li>
+        </ul>
+      </section>
+      <section id="alerts-events">
+        <h3>Events</h3>
+        <p>
+          Elk einde vuurt het event <code id="alerts-event-name">esphome.screen_alert</code>
+          met <code>action</code>, <code>title</code>, <code>screen</code> (de apparaatnaam)
+          en het <code>device_id</code> dat Home Assistant toevoegt. Te zien onder
+          Ontwikkelhulpmiddelen → Events.
+        </p>
+        <div class="table-scroll"><table id="alerts-ending-table"></table></div>
+        <p class="alerts-subhead">Wachten tot iemand op de knop drukt</p>
+        <div class="copy-line">
+          <pre id="alerts-wait-example"></pre>
+          <button type="button" class="mini" id="alerts-wait-copy">Kopieer YAML</button>
+        </div>
+      </section>
+      <section id="alerts-tips">
+        <h3>Tips</h3>
+        <ul class="alerts-list">
+          <li>Gebruik een <b>kleur per soort melding</b>: oranje voor de deur, rood voor
+            rook of water, groen voor "klaar". De tekst blijft altijd donker en leesbaar.</li>
+          <li>Houd de titel <b>kort</b>; de CYD toont ongeveer veertig tekens op één regel.
+            Zet details in de subtitle.</li>
+          <li>Een <b>eigen knoptekst</b> maakt de melding een vraag: "Ik kom", "Gezien",
+            "Uitzetten". Het event zegt dan wie reageerde.</li>
+          <li>Een alert die zichzelf oplost (de deur gaat open, de was is eruit gehaald)
+            sluit je in dezelfde automatisering met <code>dismiss_alert</code>.</li>
+          <li>Meerdere schermen? Roep de actie van elk scherm aan; ze werken los van
+            elkaar en melden zich elk met hun eigen <code>screen</code>.</li>
+        </ul>
+      </section>
+    </dialog>
     <div id="toast" role="status" hidden></div>
   </body>
 </html>

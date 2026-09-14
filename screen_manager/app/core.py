@@ -392,6 +392,44 @@ def packets(message, token=None):
     chunks = [encoded[i:i+200] for i in range(0, len(encoded), 200)]
     return [f'{token}|{i}|{int(i == len(chunks)-1)}|{part}' for i, part in enumerate(chunks)]
 
+# ----- Alerts (firmware 0.2.31+): the reference the cheatsheet shows. tests/test_alerts_reference.py
+# keeps every value here equal to what the board profiles compile. -----
+ALERT_MIN_FIRMWARE = '0.2.31'
+ALERT_EVENT = 'esphome.screen_alert'
+ALERT_ENDINGS = (('ok', 'De knop is ingedrukt'), ('timeout', 'De timeout is verstreken'),
+                 ('replaced', 'Een nieuwe alert kwam eroverheen'), ('remote', 'dismiss_alert vanuit Home Assistant'))
+ALERT_FALLBACK_ICON = 'alert-outline'
+# (field, ESPHome type, label, explanation, example) in the order Home Assistant shows them.
+ALERT_FIELDS = (
+    ('title', 'string', 'Titel', 'Eén regel bovenaan de kaart; wat niet past krijgt puntjes. Leeg wordt "Melding".', 'Iemand belt aan'),
+    ('subtitle', 'string', 'Subtitle', 'Toelichting onder de titel, over meerdere regels; een regeleinde mag. Leeg mag.', 'Deur 3, achterkant'),
+    ('icon', 'string', 'Icoon', 'Een naam uit de lijst, ook als mdi:naam of als hex-codepoint (F12E6). Onbekend of leeg geeft de waarschuwingsdriehoek.', 'doorbell'),
+    ('color', 'string', 'Kleur', 'Een van de negen pastelkleuren van de tegels. Leeg geeft de witte kaart.', 'orange'),
+    ('button_text', 'string', 'Knoptekst', 'De tekst op de knop. Leeg is "Oké".', 'Ik kom'),
+    ('timeout', 'int', 'Timeout', 'Seconden waarna de kaart vanzelf verdwijnt. 0 wacht op de knop, hoe lang dat ook duurt. De knop sluit altijd direct, ook met een timeout.', 0),
+    ('flash', 'bool', 'Knipperen', 'Aan laat de backlight vier keer knipperen als de alert binnenkomt; daarna blijft het scherm gewoon aan.', True),
+)
+# Bytes per field the firmware keeps (the profiles' ALERT_*_MAX); a Dutch letter with accent takes two.
+ALERT_LIMITS = {'cyd': {'title': 48, 'subtitle': 160, 'button_text': 12}, 'guition': {'title': 64, 'subtitle': 240, 'button_text': 16}}
+ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alarm-light', 'lock', 'lock-open-variant', 'door-open',
+                         'window-closed-variant', 'motion-sensor', 'cctv', 'smoke-detector', 'water-alert', 'fire', 'mailbox', 'car',
+                         'account', 'account-group', 'washing-machine', 'robot-vacuum', 'timer-outline', 'check')
+
+def alert_service(node, action='show_alert'):
+    """Home Assistant registers a device's actions as esphome.<node>_<action>, dashes as underscores."""
+    return f"esphome.{node.replace('-', '_')}_{action}" if isinstance(node, str) and node else None
+
+def alert_reference():
+    """Everything the Alerts cheatsheet shows besides the screens themselves."""
+    return {'min_firmware': ALERT_MIN_FIRMWARE, 'event': ALERT_EVENT,
+            'endings': [{'action': action, 'label': label} for action, label in ALERT_ENDINGS],
+            'fallback_icon': ALERT_FALLBACK_ICON, 'fallback_cp': tile_icons.GLYPHS[ALERT_FALLBACK_ICON],
+            'fields': [{'name': name, 'type': kind, 'label': label, 'help': help_, 'example': example} for name, kind, label, help_, example in ALERT_FIELDS],
+            'limits': ALERT_LIMITS,
+            'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in TILE_BACKGROUNDS.items() if item['color']],
+            'suggested_icons': [{'name': name, 'cp': tile_icons.GLYPHS[name]} for name in ALERT_SUGGESTED_ICONS],
+            'extra_icons': [{'name': name, 'cp': cp} for name, cp in tile_icons.FIXED]}
+
 def discover(registry, states, devices, areas):
     device_map = {d['id']: d for d in devices}
     area_map = {a['area_id']: a['name'] for a in areas}

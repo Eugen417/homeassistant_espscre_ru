@@ -107,7 +107,8 @@ data:
   nachtstand wachten zolang de kaart staat.
 - **`flash`**: `true` laat de backlight vier keer knipperen bij binnenkomst.
 
-Home Assistant vraagt alle zeven velden; laat een veld leeg (`""`, `0`, `false`) als je het
+In ESP Screens opent de knop **Alerts** een cheatsheet met per scherm de exacte actienaam,
+een voorbeeld om te plakken, alle velden, iconen en kleuren. Home Assistant vraagt alle zeven velden; laat een veld leeg (`""`, `0`, `false`) als je het
 niet gebruikt. Een nieuwe alert vervangt de huidige. Elk einde meldt zich als event
 **`esphome.screen_alert`** met `action` (`ok`, `timeout`, `replaced` of `remote`), `title`,
 `screen` en het `device_id` dat Home Assistant toevoegt, zodat een automatisering op Oké

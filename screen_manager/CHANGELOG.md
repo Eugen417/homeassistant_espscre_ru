@@ -1,3 +1,8 @@
+## 0.2.37 (firmware 0.2.31)
+
+- **Cheatsheet Alerts in ESP Screens.** De knop **Alerts** bovenaan opent een naslagpagina met alles over `show_alert`: per scherm de exacte actienaam (`esphome.<apparaatnaam>_show_alert`) met kopieerknop en of de firmware het al kan, een kant-en-klaar YAML-voorbeeld per scherm, alle zeven velden met uitleg, voorbeelden en de tekstlimieten per bord, alle iconen met glyph en naam (zoeken, tikken kopieert de naam), de kleuren als stalen, het gedrag (timeout, knop, knipperen, standby, vervangen) en het event `esphome.screen_alert` met een voorbeeldautomatisering die op de knop wacht. Home Assistant toont bij ESPHome-acties zelf geen uitleg of keuzelijsten; deze pagina vult dat gat.
+- Geen nieuwe firmware; de doelversie blijft 0.2.31.
+
 ## 0.2.36 (firmware 0.2.31)
 
 - **Alert vanuit een automatisering.** Elk scherm heeft nu de actie `esphome.<scherm>_show_alert` met `title`, `subtitle`, `icon`, `color`, `button_text`, `timeout` en `flash`. De kaart ligt op LVGL's toplaag over alles heen (pagina's, kaarten, de standby-laag), wekt het scherm en houdt de backlight op de normale helderheid tot iemand op de knop tikt (`button_text`, standaard Oké), of tot `timeout` seconden (0 is tot de knop; de knop sluit ook een alert met timeout direct). `flash: true` laat de backlight vier keer knipperen bij binnenkomst. Iconen zijn de namen uit de tegelkiezer (ook als `mdi:naam`, of als hex-codepoint van een meegecompileerd glyph); onbekend wordt `alert-outline`. Kleuren zijn de pasteltinten van de tegels; leeg is de witte kaart. Een nieuwe alert vervangt de huidige. Oké, timeout, vervangen en `dismiss_alert` melden zich als event `esphome.screen_alert` met `action`, `title` en `screen`.

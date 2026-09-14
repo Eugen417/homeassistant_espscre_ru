@@ -14,7 +14,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BUILTIN, TILE_BACKGROUNDS, controls_catalogue, discover, extras, min_firmware, pack_slots, packets, state_message, validate_layout, validate_settings
+from core import BUILTIN, TILE_BACKGROUNDS, alert_reference, alert_service, controls_catalogue, discover, extras, min_firmware, pack_slots, packets, state_message, validate_layout, validate_settings
 from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
@@ -453,6 +453,8 @@ def create_app(manager, development=False):
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
             screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
             screen['update'] = manager.updates.state_for(screen, profiles)
+            screen['alert_action'] = alert_service(screen.get('node'))
+            screen['dismiss_action'] = alert_service(screen.get('node'), 'dismiss_alert')
         return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
                 'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles)}, entities
@@ -464,6 +466,7 @@ def create_app(manager, development=False):
             payload['backgrounds'] = TILE_BACKGROUNDS
             payload['controls'] = controls_catalogue()
             payload['icons'] = tile_icons.editor()
+            payload['alerts'] = alert_reference()
             payload['builtin'] = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         return web.json_response(payload)
     async def events(request):
