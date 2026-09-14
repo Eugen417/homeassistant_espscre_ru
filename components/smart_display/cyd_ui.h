@@ -128,46 +128,41 @@ class TouchGuard {
 };
 inline TouchGuard touch_guard;
 
-// Page navigation by swiping in from a side edge (Guition, firmware 0.2.24+). A touch that
-// starts within `band` pixels of the left or right edge of the screen as the user sees it
-// and travels `travel` pixels inward, clearly more sideways than up or down, flips one
+// Page navigation by swiping in from a side edge (Guition, firmware 0.2.24+). Fed from
+// LVGL's own pointer events (PRESSED/PRESSING), so the coordinates are already rotated the
+// way the user sees the screen. A touch that starts within `band` pixels of the left or
+// right edge and travels `travel` pixels inward, more sideways than up or down, flips one
 // page: from the right edge leftwards is "next", from the left edge rightwards "previous".
 // No speed requirement; a touch that starts in the middle never counts, so tapping and
 // dragging on tiles cannot change the page by accident.
 class EdgeSwipe {
  public:
-  void configure(int width, int height, int band, int travel) {
-    width_ = width; height_ = height; band_ = band; travel_ = travel;
-  }
-  // Native touch coordinates plus the LVGL rotation in degrees (0, 90, 180, 270), mapped
-  // the way ESPHome's LVGL component rotates its pointer input.
-  void begin(int x, int y, int rotation = 0) {
-    rotation_ = rotation;
-    rotate(x, y);
+  void configure(int band, int travel) { band_ = band; travel_ = travel; }
+  // `width` is the screen width as the user sees it (LVGL's horizontal resolution).
+  void begin(int x, int y, int width) {
     start_x_ = x; start_y_ = y;
-    const int width = (rotation == 90 || rotation == 270) ? height_ : width_;
     from_ = x < band_ ? 1 : x >= width - band_ ? -1 : 0;  // 1: left edge, -1: right edge
     done_ = false;
+    inward_ = sideways_ = 0;
   }
   bool armed() const { return from_ != 0 && !done_; }
   // +1 next page, -1 previous page, 0 nothing; fires at most once per touch.
   int update(int x, int y) {
     if (!armed()) return 0;
-    rotate(x, y);
     const int dx = x - start_x_, dy = y - start_y_;
     const int inward = from_ == 1 ? dx : -dx;
-    if (inward < travel_ || std::abs(dx) < 2 * std::abs(dy)) return 0;
+    inward_ = std::max(inward_, inward);
+    sideways_ = std::max(sideways_, std::abs(dy));
+    if (inward < travel_ || std::abs(dx) < std::abs(dy)) return 0;
     done_ = true;
     return from_ == 1 ? -1 : 1;
   }
+  // How far the finger got, for the log when an edge touch ends without a page flip.
+  int inward() const { return inward_; }
+  int sideways() const { return sideways_; }
  private:
-  void rotate(int &x, int &y) const {
-    if (rotation_ == 90) { const int tmp = y; y = width_ - x - 1; x = tmp; }
-    else if (rotation_ == 180) { x = width_ - x - 1; y = height_ - y - 1; }
-    else if (rotation_ == 270) { const int tmp = x; x = height_ - y - 1; y = tmp; }
-  }
-  int width_{480}, height_{480}, band_{32}, travel_{40}, rotation_{0};
-  int start_x_{0}, start_y_{0}, from_{0};
+  int band_{32}, travel_{40};
+  int start_x_{0}, start_y_{0}, from_{0}, inward_{0}, sideways_{0};
   bool done_{true};
 };
 inline EdgeSwipe edge_swipe;

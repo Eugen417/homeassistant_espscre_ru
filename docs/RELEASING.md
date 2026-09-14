@@ -177,6 +177,17 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.32 / firmware 0.2.27
+
+Alleen firmware. `cyd::EdgeSwipe` werkt op LVGL-pointercoördinaten: `configure(band, travel)`,
+`begin(x, y, width)` met `lv_display_get_horizontal_resolution()`, `update()` met de 45°-regel,
+plus `inward()`/`sideways()` voor het log. De Guition registreert één `lv_indev_add_event_cb`
+(PRESSED/PRESSING/RELEASED) in `on_boot`; de touchscreen-triggers voeden alleen nog de
+`TouchGuard`. Beide bordprofielen krijgen het script `close_cards` (roept
+`runtime_tiles::dismiss()` aan, anders overlays verbergen en `active_entity` wissen); de
+kruisjes en achtergrondtikken van de kaarten en `wake_display` gebruiken het. Protocol, opslag,
+preferences en sleutels ongewijzigd.
+
 ### Compatibiliteit 0.2.31 / firmware 0.2.26
 
 Opslagversie en tegelprotocol blijven 1. `tiles[].slot` is additief: de absolute plek

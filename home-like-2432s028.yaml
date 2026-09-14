@@ -58,7 +58,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.26"
+  SCREEN_FIRMWARE_VERSION: "0.2.27"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -3608,7 +3608,7 @@ lvgl:
                   scrollable: false
                   clickable: true
                   on_click:
-                    - lvgl.widget.hide: brightness_overlay
+                    - script.execute: close_cards
 
               - obj:
                   id: brightness_overlay_dim
@@ -3949,7 +3949,7 @@ lvgl:
                   clickable: true
                   scrollable: false
                   on_click:
-                    - lvgl.widget.hide: color_detail_overlay
+                    - script.execute: close_cards
                   widgets:
                     - label:
                         align: CENTER
@@ -3982,7 +3982,7 @@ lvgl:
                   clickable: true
                   scrollable: false
                   on_click:
-                    - lvgl.widget.hide: color_detail_overlay
+                    - script.execute: close_cards
                   widgets:
                     - label:
                         align: CENTER
@@ -4048,7 +4048,7 @@ lvgl:
                   clickable: true
                   scrollable: false
                   on_click:
-                    - lvgl.widget.hide: climate_detail_overlay
+                    - script.execute: close_cards
                   widgets:
                     - label:
                         align: CENTER
@@ -4905,7 +4905,7 @@ lvgl:
                   clickable: true
                   scrollable: false
                   on_click:
-                    - lvgl.widget.hide: vacuum_overlay
+                    - script.execute: close_cards
                   widgets:
                     - label:
                         align: CENTER
@@ -4928,7 +4928,7 @@ lvgl:
                   clickable: true
                   scrollable: false
                   on_click:
-                    - lvgl.widget.hide: vacuum_overlay
+                    - script.execute: close_cards
                   widgets:
                     - label:
                         align: CENTER
@@ -5156,6 +5156,19 @@ script:
           else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
           if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
 
+  - id: close_cards
+    then:
+      - lambda: |-
+          // Runtime cards and the legacy overlays close through one path; the swipe guard
+          // reads active_entity, so a hidden card must never leave it behind.
+          if (runtime_tiles::dismiss) { runtime_tiles::dismiss(); return; }
+          id(active_entity).clear();
+      - lvgl.widget.hide: brightness_overlay
+      - lvgl.widget.hide: color_detail_overlay
+      - lvgl.widget.hide: climate_detail_overlay
+      - lvgl.widget.hide: climate_mode_overlay
+      - lvgl.widget.hide: vacuum_overlay
+
   - id: wake_display
     mode: restart
     then:
@@ -5169,10 +5182,7 @@ script:
           transition_length: 80ms
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
       - lvgl.widget.hide: dim_wake_overlay
-      - lvgl.widget.hide: color_detail_overlay
-      - lvgl.widget.hide: climate_detail_overlay
-      - lvgl.widget.hide: climate_mode_overlay
-      - lvgl.widget.hide: vacuum_overlay
+      - script.execute: close_cards
 
   - id: dim_display
     mode: restart
