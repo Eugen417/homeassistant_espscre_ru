@@ -55,7 +55,7 @@ class Updater:
         return bool(self.task and not self.task.done())
 
     def screen(self, inbox):
-        return next((s for s in self.manager.inventory()[0] if s['id'] == inbox), None)
+        return self.manager.screen(inbox)
 
     def resolve(self, screen, profiles=None):
         """Profile file and OTA address for a screen; None when the add-on cannot tell."""
@@ -89,7 +89,7 @@ class Updater:
         # Callers that already hold the inventory and profile list pass them in; the inventory
         # handler otherwise re-reads every ESPHome profile several times per request.
         if screens is None:
-            screens = self.manager.inventory()[0]
+            screens = self.manager.screens()
         if profiles is None:
             profiles = self.manager.firmware.profile_names()
         return [s['id'] for s in screens

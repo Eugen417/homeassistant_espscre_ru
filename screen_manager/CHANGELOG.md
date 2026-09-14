@@ -1,3 +1,14 @@
+## 0.2.39 (firmware 0.2.33)
+
+Zuiniger in dagelijks gebruik, ook met tientallen schermen. Niets verandert aan wat je ziet of instelt.
+
+- **Alleen doorrekenen wat veranderde.** Bij een statuswijziging bouwt de app alleen de tegels (en de bovenbalk) opnieuw waar die entiteit op staat; de andere berichten blijven zoals ze verstuurd zijn. De schermlijst wordt niet meer bij elke wijziging uit het hele Home Assistant-register opgebouwd, maar bewaard tot het register of een schermdiagnose verandert. De live-stream van de beheerpagina volgt dezelfde regel.
+- **Historie gebundeld, buiten de lus.** De 24 staafjes van sensortegels komen uit één `recorder/statistics_during_period`-vraag voor alle sensoren tegelijk (uurgemiddelden voor 24 uur, 5-minuutgemiddelden voor 1 en 6 uur), in een achtergrondtaak die elke vijf minuten ververst. Sensoren zonder statistiek (geen state class) houden de oude REST-historie, ook op de achtergrond. De verzendlus wacht nergens meer op de database; een gewijzigde grafiek stuurt alleen die tegel.
+- **Keepalive als ping.** Schermen met firmware 0.2.33 krijgen elke twee minuten alleen een klein bericht met de revisie van hun indeling. Komt die niet overeen (herstart, demo-indeling, verloren bericht), dan meldt het scherm `Indeling opnieuw nodig` en stuurt de app alles opnieuw; als vangnet gaat eens per uur toch alles. De inbox-status wisselt niet meer per ronde tussen "Indeling ontvangen" en "Gesynchroniseerd". Oudere firmware houdt de volledige herhaling per twee minuten.
+- **Eén actie per bericht.** Firmware 0.2.33 heeft de actie `esphome.<apparaatnaam>_screen_message` die een heel bericht in één keer aanneemt; de app gebruikt die zodra het scherm die firmware meldt. De base64-blokjes van 200 tekens in de tekstentiteit blijven de terugval voor oudere firmware.
+- **Rustige diagnostiek.** De diagnostische sensor `Uptime` (elke 15 s een nieuwe waarde) is vervangen door `Opgestart`, een tijdstempel met één waarde per opstart; Home Assistant ruimt de oude entiteit zelf op. De heap-sensoren melden per vijf minuten in plaats van per 30 s, en de vier instellingsgetallen (helderheid, standby) publiceren alleen nog een gewijzigde waarde. Dat scheelt tot honderdduizenden recorder-rijen per dag bij dertig schermen.
+- Firmware 0.2.33 voor beide borden; de app biedt de update aan. Alles werkt ook met de vorige firmware, alleen zonder ping en actie.
+
 ## 0.2.38 (firmware 0.2.32)
 
 - **Bovenbalk per scherm.** Bovenaan elk scherm staat links de naam en rechts wat jij kiest, tot zes onderdelen: de **tijd**, een **analoge klok**, de **datum**, of een **entiteit met icoon** uit Home Assistant, zoals temperatuur, luchtvochtigheid, verbruik, een deur of raam (open/dicht), het alarmpaneel, een slot, wie er thuis is (`zone.home`) of een telefoon (`device_tracker`). Zonder aanpassing blijft het zoals het was: naam en tijd.

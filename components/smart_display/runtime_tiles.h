@@ -53,6 +53,9 @@ inline uint32_t last_received = 0;
 // Seconds between the manager's full repeats; every layout message declares it (app
 // 0.2.26+). Older managers get the 120 s that app 0.2.20 introduced.
 inline uint32_t keepalive_seconds = 120;
+// Revision of the layout the manager sent last (app 0.2.39+). A keepalive ping carries the
+// manager's revision; a mismatch (a restart, a demo layout) asks for the whole layout again.
+inline std::string layout_rev;
 inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
 inline esphome::ESPPreferenceObject settings_preference;
 inline void load_settings() {
@@ -177,7 +180,7 @@ inline std::string receive(const std::string &payload) {
         }
       }
       inbox = string(root["inbox"], 160);
-      bool changed = false, moved = false;
+      bool changed = false, moved = false, was_configured = model.configured;
       if (!model.set_layout(entities, string(root["title"], 96), changed, positions, moved)) return false;
       // Empty pages the user keeps on purpose; absent on older managers.
       model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, MAX_PAGES)) : 1;
@@ -197,10 +200,23 @@ inline std::string receive(const std::string &payload) {
       if (changed) { active_index = -1; for (auto &w : widgets) w.cached_active = -1; if (dismiss) dismiss(); }
       if (moved) ESP_LOGI("runtime", "tegels verplaatst: pagina's opnieuw ingedeeld");
       if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
+      layout_rev = string(root["rev"], 16);
       last_received = esphome::millis();
       if (layout_changed) layout_changed();
       if (refresh) refresh();
-      result = "Indeling ontvangen";
+      // A repeat of the same layout keeps the inbox state as it is: no new recorder row.
+      result = changed || moved || !was_configured ? "Indeling ontvangen" : model.ready() ? "Gesynchroniseerd" : "Tegels laden";
+      return true;
+    }
+    if (op == "ping") {
+      // Keepalive without content (app 0.2.39+): only the revision of the layout the manager holds.
+      if (!root["rev"].is<const char *>()) return false;
+      if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
+          root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
+      if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
+      last_received = esphome::millis();
+      if (!model.configured || layout_rev != string(root["rev"], 16)) { result = "Indeling opnieuw nodig"; return true; }
+      result = model.ready() ? "Gesynchroniseerd" : "Tegels laden";
       return true;
     }
     if (op == "header") {

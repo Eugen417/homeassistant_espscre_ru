@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.32"
+  SCREEN_FIRMWARE_VERSION: "0.2.33"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -882,6 +882,13 @@ api:
         - script.execute:
             id: alert_dismiss
             reason: "remote"
+    # ESP Screen Manager 0.2.39+ hands a whole tile message over in one call instead of
+    # base64 chunks in the text inbox; the inbox keeps showing the result.
+    - action: screen_message
+      variables:
+        message: string
+      then:
+        - lambda: 'id(dashboard_inbox).publish_state(runtime_tiles::receive(message));'
 
 captive_portal:
 
@@ -1348,7 +1355,8 @@ font:
 # Geheugen zichtbaar maken: dit bord heeft geen PSRAM, dus de vrije heap
 # bepaalt hoeveel UI erbij kan. Verschijnt ook als entity in Home Assistant.
 debug:
-  update_interval: 30s
+  # Heap figures every five minutes: enough to spot a leak, few recorder rows.
+  update_interval: 300s
 
 sensor:
   - platform: debug
@@ -1367,10 +1375,13 @@ sensor:
     name: "Wifi Signal"
     update_interval: 600s
 
+  # When the screen booted, as a timestamp: one value per boot instead of a new recorder
+  # row every 15 s. A new entity on purpose: Home Assistant keeps the old Uptime's unit
+  # "s" in its registry and would refuse a timestamp under that name.
   - platform: uptime
-    name: "Uptime"
-    id: uptime_s
-    update_interval: 15s
+    type: timestamp
+    name: "Opgestart"
+    id: boot_time
 
   - platform: template
     update_interval: never
@@ -5157,6 +5168,11 @@ script:
             if (settings.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
             else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
           }
+          // The four setting entities only publish a changed value (HA keeps identical states anyway).
+          if (id(setting_brightness).state != settings.brightness) id(setting_brightness).publish_state(settings.brightness);
+          if (id(setting_standby_brightness).state != settings.standby_brightness) id(setting_standby_brightness).publish_state(settings.standby_brightness);
+          if (id(setting_night_brightness).state != settings.night_brightness) id(setting_night_brightness).publish_state(settings.night_brightness);
+          if (id(setting_standby_seconds).state != settings.standby_seconds) id(setting_standby_seconds).publish_state(settings.standby_seconds);
           if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
 
   - id: close_cards
@@ -6753,7 +6769,7 @@ number:
     max_value: 100
     step: 1
     unit_of_measurement: "%"
-    update_interval: 2s
+    update_interval: never
     lambda: return screen_settings::current.brightness;
     set_action:
       - lambda: |-
@@ -6772,7 +6788,7 @@ number:
     max_value: 100
     step: 1
     unit_of_measurement: "%"
-    update_interval: 2s
+    update_interval: never
     lambda: return screen_settings::current.standby_brightness;
     set_action:
       - lambda: |-
@@ -6791,7 +6807,7 @@ number:
     max_value: 100
     step: 1
     unit_of_measurement: "%"
-    update_interval: 2s
+    update_interval: never
     lambda: return screen_settings::current.night_brightness;
     set_action:
       - lambda: |-
@@ -6810,7 +6826,7 @@ number:
     max_value: 86400
     step: 60
     unit_of_measurement: "s"
-    update_interval: 2s
+    update_interval: never
     lambda: return screen_settings::current.standby_seconds;
     set_action:
       - lambda: |-

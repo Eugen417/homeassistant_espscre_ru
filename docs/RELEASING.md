@@ -371,3 +371,54 @@ domeinen in de hele indeling; de manager stuurt zo'n indeling daarom pas na
 firmware 0.2.14 (`min_firmware`) en bewaart haar ondertussen. Voorspellingen
 komen via `weather.get_forecasts` met `return_response`; zonder antwoord blijft
 de weerkaart de gewone kaart. Geen gewijzigde preferences of sleutels.
+
+### Compatibiliteit 0.2.39 / firmware 0.2.33
+
+Opslagversie en tegelprotocol blijven 1; geen nieuwe velden in `screens.json`, geen
+gewijzigde preferences of sleutels. Alles is additief en per scherm gekoppeld aan de
+gemelde `Schermfirmware`:
+
+- **Transport.** Firmware 0.2.33 heeft de API-actie `screen_message` (één string
+  `message`, het complete JSON-bericht, maximaal 4096 bytes). De manager roept
+  `esphome.<apparaatnaam>_screen_message` aan zodra het scherm 0.2.33+ meldt
+  (`TRANSPORT_MIN_FIRMWARE` in `core.py`, `Manager.transport`); daaronder blijven de
+  base64-blokjes in de tekstentiteit `Tegelinstellingen`. De actie publiceert het
+  resultaat op dezelfde inbox-entiteit, dus de status op de beheerpagina blijft gelijk.
+  Het API-frame van ESPHome op de ESP32 is 32 KiB; `receive()` weigert boven 4096.
+- **Keepalive.** Het layoutbericht krijgt `rev` (twaalf hex-tekens, `core.revision`
+  van het layoutbericht zonder `rev`); oudere firmware negeert het veld. Firmware
+  0.2.33 bewaart de revisie en beantwoordt `{v:1, op:"ping", rev, keepalive}` met
+  `Gesynchroniseerd`/`Tegels laden` (revisie gelijk) of `Indeling opnieuw nodig`
+  (anders, of na een herstart). Een ping ververst het feed-venster (`last_received`)
+  net als een layout. De manager pingt elke `KEEPALIVE_SECONDS` (120 s) en herhaalt
+  alles pas na `FULL_REPEAT_SECONDS` (3600 s), of direct wanneer de inbox een status
+  uit `RESEND_STATES` meldt (`Klaar voor tegelconfiguratie`, `Indeling opnieuw
+  nodig`, `Tegels laden`), met een guard van 120 s na de laatste volledige verzending.
+  Firmware onder 0.2.33 krijgt elke 120 s de volledige herhaling zoals voorheen.
+  Een herhaald, ongewijzigd layoutbericht antwoordt nu `Gesynchroniseerd` in plaats
+  van `Indeling ontvangen`; `diagnostics/send_layout.py` accepteert beide.
+- **Incrementeel.** `HomeAssistant.dirty` verzamelt de gewijzigde entity-id's;
+  `Manager.sync_one(..., dirty=...)` bouwt alleen die tegels en, als een van hen in
+  de bovenbalk staat, de balk. `dirty=None` (eerste ronde, nieuw register, offline
+  geweest) bouwt alles en stuurt de verschillen; `force=True` stuurt alles. `sent`
+  bewaart per scherm `{'layout','header','states','rev'}`. `Manager.screens()`
+  vervangt `inventory()[0]` in de lus en de updater: alleen de ESPHome-schermentiteiten
+  worden gelezen, gecachet op register-identiteit plus de status van die entiteiten.
+  `inventory()` (volledig) blijft voor de editor en `save()`.
+- **Historie.** `Manager.history_loop` (eigen taak in `main()`) haalt per venster
+  (1/6/24 uur) één `recorder/statistics_during_period` op (`hour` voor 24 uur,
+  `5minute` daaronder, `types: [mean, state]`; `mean`, anders `state`), valt per
+  sensor zonder rijen terug op `GET /history/period`, en markeert gewijzigde
+  entiteiten dirty. Het `history`-veld in het statusbericht is ongewijzigd (24
+  waarden, `None` tot de eerste). Een sensortegel gaat de eerste keer zonder
+  `history` de deur uit en krijgt hem seconden later; firmware toont dan de grafiek.
+- **Diagnostiek (firmware).** De sensor `Uptime` (seconden, elke 15 s) is weg;
+  ervoor in de plaats `Opgestart` (`platform: uptime`, `type: timestamp`, device
+  class timestamp, één waarde per opstart; `time:` is al aanwezig). Bewust een nieuwe
+  entiteit: het entity-register van Home Assistant houdt bij de oude de eenheid `s`
+  vast en weigert dan een tijdstempel ("has a unit of measurement ... non-numeric
+  device class: timestamp", gezien op 2026-09-14). De ESPHome-integratie verwijdert
+  de oude `sensor.<scherm>_uptime` zelf zodra het scherm met de nieuwe firmware
+  verbindt. Verder `debug: update_interval` 300 s en de vier template-numbers op
+  `update_interval: never`, gepubliceerd vanuit `apply_screen_settings` als de waarde
+  afwijkt van hun laatste state (dus ook eenmaal na opstarten).

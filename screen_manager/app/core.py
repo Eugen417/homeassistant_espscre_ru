@@ -1,6 +1,7 @@
 """Pure validation, firmware generation and bounded display protocol."""
 import base64
 from datetime import datetime, timedelta, timezone
+import hashlib
 import json
 import math
 import re
@@ -16,7 +17,7 @@ WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.32'
+FIRMWARE_VERSION = '0.2.33'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
@@ -109,6 +110,9 @@ def resolve_controls(tile):
     choice = options.get('controls', CONTROLS[domain][0][0])
     return None if choice == 'none' else choice
 
+# Diagnostic entities every ESP Screens firmware exposes; the manager watches them for screens.
+SCREEN_ENTITY_NAMES = frozenset({'Tegelinstellingen', 'Schermfirmware', 'Guition schermtype', 'Apparaatnaam', 'IP-adres'})
+
 # Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
 SETTING_RULES = {
     'standby_enabled': (True, None, None),
@@ -152,6 +156,11 @@ def entity_id(value):
 # ----- Top bar (firmware 0.2.32+): the screen name on the left, up to six items on the right.
 # Without a `header` the screen keeps its name and the clock of `show_clock`. -----
 HEADER_MIN_FIRMWARE = (0, 2, 32)
+# Firmware 0.2.33+ takes a whole message in one API action (esphome.<node>_screen_message)
+# and answers a keepalive ping with its layout revision; older firmware gets base64
+# chunks in the text inbox and a full repeat every keepalive.
+TRANSPORT_MIN_FIRMWARE = (0, 2, 33)
+MESSAGE_ACTION = 'screen_message'
 HEADER_MAX_ITEMS = 6
 # Items the screen draws on its own clock, without Home Assistant.
 HEADER_BUILTIN = {'clock': 'Tijd', 'analog': 'Analoge klok', 'date': 'Datum'}
@@ -438,14 +447,27 @@ def state_message(index, tile, states, extra=None):
             'state': short(state.get('state', 'unavailable'), 160), 'a': bounded,
             **({'o': options} if options is not None else {}), **({'x': extra} if extra else {})}
 
-def packets(message, token=None):
-    raw = json.dumps(message, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()
-    if len(raw) > 4096:
+def encode(message):
+    """The message as the firmware parses it: compact JSON, at most 4096 bytes."""
+    raw = json.dumps(message, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
+    if len(raw.encode()) > 4096:
         raise ValueError('Het schermbericht is te groot.')
-    encoded = base64.b64encode(raw).decode('ascii')
+    return raw
+
+def revision(message):
+    """Short fingerprint of a layout message; the screen echoes it back on every ping."""
+    return hashlib.sha256(json.dumps(message, sort_keys=True, separators=(',', ':')).encode()).hexdigest()[:12]
+
+def packets(message, token=None):
+    """The message as base64 chunks for the 255-character text inbox (firmware before 0.2.33)."""
+    encoded = base64.b64encode(encode(message).encode()).decode('ascii')
     token = token or secrets.token_hex(8)
     chunks = [encoded[i:i+200] for i in range(0, len(encoded), 200)]
     return [f'{token}|{i}|{int(i == len(chunks)-1)}|{part}' for i, part in enumerate(chunks)]
+
+def message_action(node):
+    """Home Assistant action that hands a screen one whole message, or None without a node name."""
+    return alert_service(node, MESSAGE_ACTION)
 
 # ----- Alerts (firmware 0.2.31+): the reference the cheatsheet shows. tests/test_alerts_reference.py
 # keeps every value here equal to what the board profiles compile. -----
@@ -485,7 +507,12 @@ def alert_reference():
             'suggested_icons': [{'name': name, 'cp': tile_icons.GLYPHS[name]} for name in ALERT_SUGGESTED_ICONS],
             'extra_icons': [{'name': name, 'cp': cp} for name, cp in tile_icons.FIXED]}
 
-def discover(registry, states, devices, areas):
+def screen_items(registry):
+    """The ESPHome entities that describe a screen; the subset `discover_screens` needs."""
+    return [item for item in registry if item.get('platform') == 'esphome' and item.get('original_name') in SCREEN_ENTITY_NAMES]
+
+def discover_screens(registry, states, devices, areas):
+    """Paired screens: every enabled ESPHome inbox with the diagnostics of its device."""
     device_map = {d['id']: d for d in devices}
     area_map = {a['area_id']: a['name'] for a in areas}
     versions = {item.get('device_id'): states.get(item['entity_id'], {}).get('state', 'onbekend') for item in registry
@@ -502,23 +529,37 @@ def discover(registry, states, devices, areas):
         return found
     nodes = diagnostic('Apparaatnaam', r'[a-z0-9][a-z0-9-]{0,30}')
     addresses = diagnostic('IP-adres', r'\d{1,3}(\.\d{1,3}){3}')
-    screens, entities = [], []
+    screens = []
     for item in registry:
         eid = item['entity_id']
+        if not (item.get('platform') == 'esphome' and eid.startswith('text.') and item.get('original_name') == 'Tegelinstellingen' and not item.get('disabled_by')):
+            continue
         device = device_map.get(item.get('device_id'), {})
         state = states.get(eid, {})
         area = area_map.get(item.get('area_id') or device.get('area_id'), '')
-        if item.get('platform') == 'esphome' and eid.startswith('text.') and item.get('original_name') == 'Tegelinstellingen' and not item.get('disabled_by'):
-            screens.append({'id': eid, 'name': device.get('name_by_user') or device.get('name') or eid,
-                            'firmware': versions.get(item.get('device_id'), 'onbekend'),
-                            'board': boards.get(item.get('device_id'), 'unknown'),
-                            'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
-                            'device': device.get('name') or '',
-                            'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
-                            'status': state.get('state', 'Niet verbonden')})
+        screens.append({'id': eid, 'name': device.get('name_by_user') or device.get('name') or eid,
+                        'firmware': versions.get(item.get('device_id'), 'onbekend'),
+                        'board': boards.get(item.get('device_id'), 'unknown'),
+                        'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
+                        'device': device.get('name') or '',
+                        'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
+                        'status': state.get('state', 'Niet verbonden')})
+    return screens
+
+def discover(registry, states, devices, areas):
+    """(screens, entities): the paired screens and every entity a tile or the top bar can show."""
+    device_map = {d['id']: d for d in devices}
+    area_map = {a['area_id']: a['name'] for a in areas}
+    screens = discover_screens(registry, states, devices, areas)
+    entities = []
+    for item in registry:
+        eid = item['entity_id']
         tile = entity_id(eid)
         if not (tile or header_entity(eid)) or item.get('disabled_by'):
             continue
+        device = device_map.get(item.get('device_id'), {})
+        state = states.get(eid, {})
+        area = area_map.get(item.get('area_id') or device.get('area_id'), '')
         entities.append({'id': eid, 'name': state.get('attributes', {}).get('friendly_name') or item.get('name') or item.get('original_name') or eid,
                          'device': device.get('name_by_user') or device.get('name') or '', 'area': area,
                          'state': state.get('state', 'unavailable'), 'icon': tile_icons.ha_icon(state.get('attributes')),

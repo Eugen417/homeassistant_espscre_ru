@@ -244,7 +244,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                 self.states = {'text.screen': state('Ready'), 'sensor.fw': state(firmware), 'light.a': state('on'),
                                'sensor.t': state('21.34', unit_of_measurement='°C', device_class='temperature'),
                                'binary_sensor.deur': state('off', device_class='door')}
-            async def send(self, inbox, message):
+            async def send(self, inbox, message, action=None):
                 self.messages.append(message)
         return Manager(HA(), path)
 

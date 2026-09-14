@@ -232,6 +232,16 @@ schermvoorkeuren blijven op het apparaat opgeslagen. Updates vervangen deze
 gebruikersgegevens niet. Maak wel normale Home Assistant-back-ups en bewaar je
 apparaatprofielen; een app verwijderen of flashgeheugen wissen is geen update.
 
+**Zuinig, ook met veel schermen (0.2.39 / firmware 0.2.33).** De app stuurt een
+scherm alleen de tegel die veranderde, als één actie
+(`esphome.<apparaatnaam>_screen_message`) in plaats van blokjes in een tekstveld.
+Elke twee minuten volgt een kleine ping met de revisie van de indeling; meldt het
+scherm dat die niet klopt (na een herstart bijvoorbeeld), dan komt alles opnieuw.
+Grafieken van sensortegels komen uit de statistieken van Home Assistant, in één
+vraag voor alle schermen. Oudere firmware blijft werken via het tekstveld en de
+volledige herhaling per twee minuten. De diagnostische sensor `Uptime` is
+vervangen door het tijdstempel `Opgestart`.
+
 Zie [releasegeschiedenis](screen_manager/CHANGELOG.md) en
 [releases en protocolcompatibiliteit](docs/RELEASING.md).
 

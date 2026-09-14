@@ -81,7 +81,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             states={'text.screen':{'state':'Ready'},'light.a':{'state':'on','attributes':{'friendly_name':'Lamp'}}}
             changed=asyncio.Event()
             def __init__(self): self.messages=[]
-            async def send(self,inbox,message): self.messages.append((inbox,message))
+            async def send(self,inbox,message,action=None): self.messages.append((inbox,message))
         return Manager(HA(),path)
 
     async def test_update_restart_preserves_layout(self):
@@ -136,7 +136,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             m=self.setup_manager(Path(temp)/'screens.json');layout={'title':'Thuis','tiles':[{'entity':'light.a','name':''}]}
             m.save('text.screen',layout)
             original=m.ha.send
-            async def interrupt(inbox,message):
+            async def interrupt(inbox,message,action=None):
                 await original(inbox,message)
                 m.save(inbox,{'title':'Leeg','tiles':[]})
             m.ha.send=interrupt

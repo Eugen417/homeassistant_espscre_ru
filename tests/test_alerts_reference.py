@@ -82,7 +82,7 @@ class InventoryTests(unittest.IsolatedAsyncioTestCase):
             states = {'text.studio_1_tegelinstellingen': {'state': 'Ready'}, 'sensor.studio_1_apparaatnaam': {'state': 'studio-1'},
                       'sensor.studio_1_schermfirmware': {'state': '0.2.31'}, 'text.oud_tegelinstellingen': {'state': 'Ready'}}
             changed = asyncio.Event()
-            async def send(self, inbox, message): pass
+            async def send(self, inbox, message, action=None): pass
         with tempfile.TemporaryDirectory() as temp:
             manager = Manager(HA(), Path(temp) / 'screens.json')
             async with TestClient(TestServer(create_app(manager, True))) as client:

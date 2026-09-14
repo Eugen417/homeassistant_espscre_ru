@@ -137,7 +137,7 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
                       'text.fw1': {'state': '0.2.16'}, 'text.screen2': {'state': 'Ready'}, 'text.fw2': {'state': '0.2.16'}}
             changed = asyncio.Event()
             def __init__(self): self.messages, self.calls = [], []
-            async def send(self, inbox, message): self.messages.append((inbox, message))
+            async def send(self, inbox, message, action=None): self.messages.append((inbox, message))
             async def request(self, kind, **data): self.calls.append((kind, data))
         manager = Manager(HA(), Path(path) / 'screens.json')
         manager.firmware = FakeFirmware(manager.ha, outcome)
