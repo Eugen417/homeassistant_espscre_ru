@@ -185,6 +185,9 @@ aside h2 {
 .screen-main small {
   margin-top: 3px;
 }
+.screen-main .dot.online {
+  color: #2e9d62;
+}
 .screen-update {
   display: flex;
   align-items: center;

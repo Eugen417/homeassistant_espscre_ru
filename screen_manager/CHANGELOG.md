@@ -1,3 +1,8 @@
+## 0.2.30 (firmware 0.2.25)
+
+- **Groen bolletje voor online schermen**: in de lijst met schermen is het bolletje voor **Online** nu groen, zodat je in één oogopslag ziet welke schermen bereikbaar zijn. **Offline** blijft een grijs open rondje.
+- Firmware 0.2.25 voor beide borden; de app biedt de update aan. Inhoudelijk verandert er in de firmware niets, alleen het versienummer.
+
 ## 0.2.29 (firmware 0.2.24)
 
 - **Vegen vanaf de zijrand op de Guition**: met **Vegen tussen pagina's** aan wissel je van pagina door vanaf de linker- of rechterrand naar binnen te vegen, zoals terug-vegen op een telefoon. Vanaf rechts naar links is volgende, vanaf links naar rechts vorige. Langzaam of snel maakt niet uit: de veeg begint in een band van 32 px (circa 5 mm) langs de rand en telt na 40 px (circa 6 mm) naar binnen, duidelijk meer zijwaarts dan omhoog of omlaag (`EDGE_SWIPE_BAND_PX`, `EDGE_SWIPE_TRAVEL_PX`). Werkt in alle vier de rotaties. Een veeg die midden op het scherm begint doet niets meer, zodat tikken en slepen op tegels nooit per ongeluk van pagina wisselen; de tegel onder een randveeg krijgt geen tik. Het log meldt `randveeg: pagina 0 -> 1`.

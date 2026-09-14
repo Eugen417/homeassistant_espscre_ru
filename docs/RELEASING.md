@@ -177,6 +177,12 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.30 / firmware 0.2.25
+
+Alleen de editor: het statusbolletje in de schermlijst is een eigen `span.dot`
+(groen met `.online`). Firmware krijgt alleen een nieuw versienummer; protocol,
+opslag, preferences en sleutels ongewijzigd.
+
 ### Compatibiliteit 0.2.29 / firmware 0.2.24
 
 Alleen firmware (Guition). `cyd::EdgeSwipe` (in `cyd_ui.h`, getest in

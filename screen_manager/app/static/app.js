@@ -331,13 +331,12 @@ function renderScreens() {
     );
     const b = node("button", undefined, "screen-main");
     b.type = "button";
-    b.append(
-      node("strong", screen.name),
-      node(
-        "small",
-        `${screen.online ? "● Online" : "○ Offline"}${screen.area ? " · " + screen.area : ""} · firmware ${screen.firmware || "onbekend"}`,
-      ),
+    const meta = node("small");
+    meta.append(
+      node("span", screen.online ? "●" : "○", `dot ${screen.online ? "online" : ""}`),
+      ` ${screen.online ? "Online" : "Offline"}${screen.area ? " · " + screen.area : ""} · firmware ${screen.firmware || "onbekend"}`,
     );
+    b.append(node("strong", screen.name), meta);
     b.onclick = () => select(screen.id);
     item.append(b);
     const update = renderUpdate(screen);
