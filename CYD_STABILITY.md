@@ -18,8 +18,12 @@ De wifi-, API- en OTA-geheimen blijven in `secrets.yaml`.
   bestaande licht-, climate- of vacuumkaart, of de ingestelde lange actie.
 - Standby begint na tien minuten zonder aanraking (`AUTO_DIM_TIMEOUT: "600"`).
 - De eerste tik op het gedimde scherm maakt het scherm wakker.
-- Contacten korter dan 60 ms worden genegeerd. Eén aanraking kan maximaal
-  één tegelactie geven; een verplaatsing groter dan 18 pixels annuleert de tik; dezelfde tegel wordt 600 ms tegen contactdender beschermd.
+- Contacten korter dan `TOUCH_MIN_PRESS_MS` (60 ms op de CYD, 20 ms op de
+  Guition) worden genegeerd. Eén aanraking kan maximaal één tegelactie geven;
+  een verplaatsing groter dan `TOUCH_MOVE_LIMIT_PX` (circa 1 cm: 56 px CYD,
+  67 px Guition) ten opzichte van het gesettelde eerste contactpunt annuleert de
+  tik; alleen het eerste contact telt; dezelfde tegel wordt 600 ms tegen
+  contactdender beschermd. Een geweigerde tik staat met reden in het log (tag `touch`).
 - De thermostaat verstuurt de afgeronde, begrensde temperatuur die hij toont.
   Een lokale temperatuur- of moduskeuze krijgt drie seconden om met HA te
   synchroniseren. Een ingedrukte bediening voorkomt automatisch dimmen.

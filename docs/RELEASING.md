@@ -177,6 +177,16 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.28 / firmware 0.2.23
+
+Alleen firmware. `cyd::TouchGuard` krijgt `configure(move_limit_px, min_press_ms)`
+(aangeroepen in `on_boot` uit de substituties `TOUCH_MOVE_LIMIT_PX` en
+`TOUCH_MIN_PRESS_MS`; zonder aanroep gelden de oude 18 px en 60 ms), volgt alleen
+het contact-id waarmee de aanraking begon, meet de verplaatsing als afstand tot een
+over vier metingen gesetteld referentiepunt en meldt via `reason()` waarom een tik
+is geweigerd; `runtime_tiles::allowed()` logt dat op INFO met tag `touch`.
+Protocol, opslag, preferences en sleutels ongewijzigd.
+
 ### Compatibiliteit 0.2.27 (firmware 0.2.22 blijft)
 
 Alleen de app. `POST /api/install` (YAML-download) is verwijderd; `POST

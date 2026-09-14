@@ -37,7 +37,8 @@ int main() {
   moving.update(52, 48);
   assert(moving.accept(180, 1)); // small resistive jitter remains usable
   moving.begin(1000, 50, 50);
-  moving.update(50, 80);
+  moving.update(51, 50); moving.update(50, 51); moving.update(50, 50);             // reference settled
+  moving.update(50, 80);                                                           // 30 px beyond the default 18 px
   moving.update(50, 50);
   assert(!moving.accept(1200, 2)); // excursion stays cancelled, even on return
   assert(moving.accept_slider(1200, 202)); // captured drag is a valid slider gesture
@@ -46,6 +47,45 @@ int main() {
   moving.begin(1250);
   assert(!moving.accept_slider(1260, 202)); // noise remains rejected
   assert(!moving.accept_slider(1350, 202)); // same-control bounce remains rejected
+  // Per-board limits (0.2.23): a centimetre of drift on the Guition is still a tap, and the
+  // reference settles over the first samples, so the landing wobble does not count.
+  cyd::TouchGuard wide;
+  wide.configure(67, 20);
+  assert(wide.move_limit() == 67 && wide.min_press() == 20);
+  wide.begin(100, 200, 200, 3);
+  wide.update(206, 203, 3); wide.update(210, 205, 3); wide.update(212, 206, 3);   // finger flattens
+  wide.update(262, 206, 3);                                                        // 55 px from the settled point
+  assert(wide.distance() > 45 && wide.distance() <= 67);
+  assert(wide.accept(180, 1)); // under one centimetre: still a tap
+  wide.begin(1000, 200, 200, 3);
+  wide.update(275, 200, 3); wide.update(300, 200, 3); wide.update(340, 200, 3);     // a real swipe: the reference
+  wide.update(380, 200, 3);                                                        // settles, the finger keeps going
+  assert(!wide.accept(1100, 1));
+  assert(wide.reason().rfind("verplaatst", 0) == 0);
+  wide.begin(2000, 200, 200, 3);
+  wide.update(400, 400, 5);                                                        // a second finger elsewhere
+  assert(wide.accept(2050, 1)); // ignored: only contact 3 is followed; 50 ms is long enough here
+  wide.begin(3000, 200, 200, 3);
+  assert(!wide.accept(3010, 2)); // 10 ms is below the capacitive minimum
+  assert(wide.reason().rfind("te kort", 0) == 0);
+  wide.begin(3100, 200, 200, 3);
+  assert(wide.accept(3160, 2));
+  assert(wide.reason().empty());
+  assert(!wide.accept(3170, 2));
+  assert(wide.reason() == "al verwerkt in dit contact");
+  wide.begin(3200, 200, 200, 3);
+  assert(!wide.accept(3260, 2)); // same tile within 600 ms
+  assert(wide.reason() == "dezelfde knop binnen de dendertijd");
+  cyd::TouchGuard resistive;
+  resistive.configure(56, 60);
+  resistive.begin(100, 50, 50);
+  resistive.update(80, 50); resistive.update(50, 50);                              // the CYD's jump of 30 px is fine now
+  assert(resistive.accept(180, 1));
+  resistive.begin(1000, 50, 50);
+  resistive.update(50, 120); resistive.update(50, 130); resistive.update(50, 140);
+  resistive.update(50, 180);                                                       // 70 px past the settled point: a swipe
+  assert(!resistive.accept(1100, 1));
+  assert(!resistive.accept_repeat(1100, 1));
   cyd::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days

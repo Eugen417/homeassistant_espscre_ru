@@ -109,6 +109,13 @@ inline bool ha_connected() { return esphome::api_is_connected(); }
 // loop slack and the sending itself are tolerated before the feed counts as gone.
 inline bool feed_alive() { return esphome::millis() - last_received < keepalive_seconds * 2000 + 60000; }
 inline bool fresh() { return model.ready() && ha_connected() && feed_alive(); }
+// A dropped tap is logged with its reason, so a missed touch can be read from the ESPHome log
+// instead of guessed: moved too far, too short, already used by this contact, or bounce.
+inline bool allowed(uint32_t now, int tile, const std::string &what) {
+  if (cyd::touch_guard.accept(now, tile)) return true;
+  ESP_LOGI("touch", "tik op %s genegeerd: %s", what.c_str(), cyd::touch_guard.reason().c_str());
+  return false;
+}
 inline float number(JsonVariant value, float fallback = NAN) {
   if (!value.is<float>() && !value.is<int>()) return fallback;
   float n = value.as<float>();
@@ -388,7 +395,7 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
   auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);if(command==0)lv_obj_set_style_text_color(label,lv_color_hex(0xFFFFFF),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(button,[](lv_event_t *e){
     int cmd=(intptr_t)lv_event_get_user_data(e);if(cmd==-1){hide_detail();return;}
-    if(!fresh()||detail_index>=model.count || !cyd::touch_guard.accept(esphome::millis(),300+cmd))return;
+    if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"kaartknop "+model.tiles[detail_index].entity))return;
     auto &t=model.tiles[detail_index];if(!t.available()||t.loading(esphome::millis()))return;
     if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
     if(cmd>=10 && cmd<14 && cmd-10<(int)t.fan_speed_count)action("vacuum.set_fan_speed",t.entity,"fan_speed",t.fan_speeds[cmd-10]);
@@ -723,7 +730,7 @@ inline void event(lv_event_t *event) {
   if (!enabled || !fresh() || w.index >= model.count) return;
   auto code = lv_event_get_code(event);
   if (code != LV_EVENT_SHORT_CLICKED && code != LV_EVENT_LONG_PRESSED) return;
-  if (!cyd::touch_guard.accept(esphome::millis(), 100 + w.index)) return;
+  if (!allowed(esphome::millis(), 100 + w.index, model.tiles[w.index].entity)) return;
   auto &tile = model.tiles[w.index];
   auto d = tile.domain();
   // Scenes/scripts often have timestamps or 'off'; unavailable devices never act.
@@ -1227,8 +1234,8 @@ inline void control_event(lv_event_t *e) {
   bool step=command==tile_controls::STEP_DOWN || command==tile_controls::STEP_UP;
   bool held=lv_event_get_code(e)==LV_EVENT_LONG_PRESSED_REPEAT;
   if(held){ if(!step || now-t.edit_since<300)return; }  // three steps a second while holding
-  else if(step){ if(!cyd::touch_guard.accept_repeat(now,400+slot*16+n))return; }
-  else if(!cyd::touch_guard.accept(now,400+slot*16+n))return;
+  else if(step){ if(!cyd::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tik op bediening %u genegeerd: %s",(unsigned)slot,cyd::touch_guard.reason().c_str());return;} }
+  else if(!allowed(now,400+slot*16+n,"bediening "+std::to_string(slot)))return;
   if(!t.available())return;
   if(step){
     // Local at once, tap after tap; tick() sends the last value after a short pause.

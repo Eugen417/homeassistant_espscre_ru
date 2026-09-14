@@ -1,7 +1,11 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.22"
+  SCREEN_FIRMWARE_VERSION: "0.2.23"
+  # A tap survives a finger that drifts up to this far (480 px over 72 mm: 1 cm); further is a swipe.
+  TOUCH_MOVE_LIMIT_PX: "67"
+  # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
+  TOUCH_MIN_PRESS_MS: "20"
   DYNAMIC_TILES: "false"
   DASHBOARD_INBOX_INTERNAL: "true"
   DEVICE_NAME: "guition-wallbox"
@@ -587,6 +591,7 @@ esphome:
     priority: -100
     then:
       - lambda: |-
+          cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
           id(last_touch_ms) = millis();
           id(display_dimmed) = false;
           lv_obj_set_style_pad_row(id(vacuum_actions), 4, 0);
@@ -1870,13 +1875,14 @@ touchscreen:
     - lambda: |-
         id(last_touch_ms) = millis();
         id(touch_down) = true;
-        cyd::touch_guard.begin(millis(), touch.x, touch.y);
+        cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
         ESP_LOGI("touch", "GT911 press x=%u y=%u test=%d", touch.x, touch.y, id(calibration_active));
   on_update:
     - lambda: |-
         id(last_touch_ms) = millis();
+        // Only the contact that started the touch counts; the guard ignores other ids.
         for (const auto &point : touches) {
-          cyd::touch_guard.update(point.x, point.y);
+          cyd::touch_guard.update(point.x, point.y, point.id);
         }
   on_release:
     - lambda: |-

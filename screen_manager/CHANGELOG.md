@@ -1,3 +1,11 @@
+## 0.2.28 (firmware 0.2.23)
+
+- **Tikken die niet doorkwamen**: de firmware gooide een tik weg zodra de vinger tijdens het drukken meer dan 18 px (nog geen 3 mm) van het eerste contactpunt afweek, ver onder LVGL's eigen veegdrempel en ook met "Vegen tussen pagina's" uit. Een vinger die platter wordt of iets rolt haalde dat al. Nu geldt per bord een grens van ongeveer één centimeter (`TOUCH_MOVE_LIMIT_PX`: Guition 67 px, CYD 56 px), gemeten als afstand tot een referentiepunt dat over de eerste vier metingen (circa 60 ms) settelt in plaats van tot het allereerste punt. Eindigt de vinger op een andere tegel, dan vangt LVGL dat nog steeds op (press lost).
+- Alleen het contact dat de aanraking begon telt: een tweede vinger of een duim aan de rand geldt niet meer als verplaatsing (`touch.id` van de touchscreen-component).
+- De minimale contactduur is per bord (`TOUCH_MIN_PRESS_MS`): 60 ms op de resistieve CYD (contactdender), 20 ms op de capacitieve Guition, waar een lichte snelle tik anders verloren ging.
+- Elke geweigerde tik staat nu in het ESPHome-log (tag `touch`, niveau INFO) met de reden: `verplaatst 73 px (grens 67)`, `te kort (12 ms, minimaal 20)`, `al verwerkt in dit contact` of `dezelfde knop binnen de dendertijd`, zodat een gemiste aanraking uit het log te lezen is.
+- Firmware 0.2.23 voor beide borden; de app biedt de update aan. Alleen firmware verandert; de app-kant is ongewijzigd behalve de doelversie.
+
 ## 0.2.27 (firmware 0.2.22 blijft actueel)
 
 - **Nieuw scherm in één venster**: bord, naam, USB-poort, **Installeren**. Het venster maakt het profiel met unieke API- en OTA-sleutels in de ESPHome-map, bouwt de firmware en schrijft die via USB, met het ESPHome-log en de fase (bouwen, schrijven) in hetzelfde venster. Na afloop staat de API-sleutel klaar met een kopieerknop plus de koppelstappen voor Home Assistant; mislukt de build, dan staat het log open en is er **Opnieuw proberen**. De apparaatnaam volgt uit de naam (`Keuken` → `keuken`) en is aan te passen. Zonder aangesloten scherm kun je alleen het profiel bewaren; het staat dan in dezelfde map als ESPHome Device Builder. Elk scherm krijgt zijn eigen profiel; het venster zegt dat nu ook.
