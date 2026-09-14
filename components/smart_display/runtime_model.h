@@ -1,4 +1,5 @@
 #pragma once
+#include <algorithm>
 #include <array>
 #include <string>
 #include <vector>
@@ -8,6 +9,9 @@
 namespace runtime_tiles {
 constexpr size_t MAX_TILES = 20;
 constexpr size_t SLOTS_PER_PAGE = 6;
+// Explicit grid positions (0.2.26+) address at most eight pages of six slots.
+constexpr size_t MAX_PAGES = 8;
+constexpr size_t MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
   auto dot = entity.find('.');
@@ -95,19 +99,46 @@ inline unsigned pack(const std::array<Tile, MAX_TILES> &tiles, size_t count, std
   unsigned pages = (position + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE;
   return pages ? pages : 1;
 }
+// Grid position per tile: the explicit slots when the manager sent them (a wide
+// card always starts in the left column), else the in-order packing. Returns the
+// page count (at least one); an empty page between two used ones stays a page.
+struct Model;
+inline unsigned place(const Model &m, std::array<Placement, MAX_TILES> &out);
 struct Model {
   std::array<Tile, MAX_TILES> tiles;
+  // Absolute grid slot per tile when the manager sent `slots` (0.2.26+): gaps stay
+  // empty and a tile keeps its place. Without them the tiles pack in order.
+  std::array<uint8_t, MAX_TILES> slots{};
+  bool explicit_slots = false;
+  // Pages the manager wants shown even when the last ones are still empty (0.2.26+).
+  uint8_t pages = 1;
   size_t count = 0;
   std::string title = "Kies tegels in HA";
   bool configured = false;
   bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed) {
+    bool moved = false;
+    return set_layout(entities, name, changed, {}, moved);
+  }
+  // `changed`: the tiles differ, states restart. `moved`: same tiles on other
+  // positions, the pages re-place without touching states or an open card.
+  bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed,
+                  const std::vector<uint8_t> &positions, bool &moved) {
     if (entities.size() > MAX_TILES || name.size() > 96) return false;
     for (size_t i = 0; i < entities.size(); ++i) {
       if (!valid_entity(entities[i])) return false;
       for (size_t j = 0; j < i; ++j) if (entities[i] == entities[j]) return false;
     }
+    if (!positions.empty()) {
+      if (positions.size() != entities.size()) return false;
+      for (size_t i = 0; i < positions.size(); ++i) {
+        if (positions[i] >= MAX_SLOTS) return false;
+        for (size_t j = 0; j < i; ++j) if (positions[i] == positions[j]) return false;
+      }
+    }
     changed = !configured || count != entities.size();
     for (size_t i = 0; i < entities.size(); ++i) if (tiles[i].entity != entities[i]) changed = true;
+    moved = !changed && (explicit_slots != !positions.empty());
+    for (size_t i = 0; i < positions.size() && !changed; ++i) if (slots[i] != positions[i]) moved = true;
     // A title-only update must not interrupt an open control card.
     title = name.empty() ? "Thuis" : name;
     if (changed) {
@@ -115,6 +146,9 @@ struct Model {
       count = entities.size();
       for (size_t i = 0; i < count; ++i) tiles[i].entity = entities[i];
     }
+    explicit_slots = !positions.empty();
+    slots.fill(0);
+    for (size_t i = 0; i < positions.size(); ++i) slots[i] = positions[i];
     configured = true;
     return true;
   }
@@ -127,4 +161,16 @@ struct Model {
     return configured && index < count && tiles[index].entity == entity;
   }
 };
+inline unsigned place(const Model &m, std::array<Placement, MAX_TILES> &out) {
+  if (!m.explicit_slots) return pack(m.tiles, m.count, out);
+  unsigned last = 0;
+  for (size_t i = 0; i < m.count && i < MAX_TILES; ++i) {
+    unsigned slot = m.slots[i];
+    if (m.tiles[i].wide) slot &= ~1u;
+    out[i] = {static_cast<uint8_t>(slot / SLOTS_PER_PAGE), static_cast<uint8_t>(slot % SLOTS_PER_PAGE)};
+    last = std::max(last, slot + (m.tiles[i].wide ? 2u : 1u));
+  }
+  unsigned pages = (last + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE;
+  return std::max({pages, 1u, std::min<unsigned>(m.pages, MAX_PAGES)});
+}
 }  // namespace runtime_tiles

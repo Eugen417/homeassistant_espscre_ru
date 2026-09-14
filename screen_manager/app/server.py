@@ -14,7 +14,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BUILTIN, TILE_BACKGROUNDS, controls_catalogue, discover, extras, min_firmware, packets, state_message, validate_layout, validate_settings
+from core import BUILTIN, TILE_BACKGROUNDS, controls_catalogue, discover, extras, min_firmware, pack_slots, packets, state_message, validate_layout, validate_settings
 from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
@@ -269,6 +269,12 @@ class Manager:
                     tile['options'][key]=old_options[key]
             if 'options' not in tile and 'options' in old_tiles.get(tile['entity'],{}):
                 tile['options'] = old_tiles[tile['entity']]['options'].copy()
+        # Restored options can widen a tile: an editor without positions packs again with
+        # the real widths, and explicit positions are checked once more for overlap.
+        if not any(isinstance(t, dict) and 'slot' in t for t in data.get('tiles', [])):
+            for tile, slot in zip(layout['tiles'], pack_slots(layout['tiles'])):
+                tile['slot'] = slot
+        layout = validate_layout(layout)
         known = {e['id'] for e in entities} | set(BUILTIN)
         if any(t['entity'] not in known for t in layout['tiles']):
             raise ValueError('Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.')
@@ -327,8 +333,12 @@ class Manager:
         if needed:
             self.status[inbox]=f"Indeling bewaard; firmware {needed}+ nodig voor deze tegels"
             return
-        messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']],
-                     'keepalive': KEEPALIVE_SECONDS}]
+        tiles = layout['tiles']
+        # Grid positions (firmware 0.2.26+; older firmware ignores them and packs the entities in order).
+        messages = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in tiles],
+                     'slots': [t['slot'] for t in tiles], 'keepalive': KEEPALIVE_SECONDS}]
+        if 'pages' in layout:
+            messages[0]['pages'] = layout['pages']
         if 'settings' in layout:
             messages[0]['settings'] = {k:v for k,v in layout['settings'].items() if k not in ('swipe_pages','rotation')}
             messages[0]['swipe_pages'] = layout['settings'].get('swipe_pages',False)

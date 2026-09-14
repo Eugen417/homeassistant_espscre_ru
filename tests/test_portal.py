@@ -90,7 +90,9 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             layout={'title':'Mijn huis','tiles':[{'entity':'light.a','name':'Eigen naam'}]}
             m.save('text.screen',layout)
             fresh=self.setup_manager(path)
-            self.assertEqual(fresh.layouts['text.screen'],layout)
+            # Stored layouts always carry a grid position; a save without one packs in order.
+            self.assertEqual(fresh.layouts['text.screen'],{**layout,'tiles':[{**layout['tiles'][0],'slot':0}]})
+            layout=fresh.layouts['text.screen']
             await fresh.sync_one('text.screen',layout)
             self.assertEqual(len(fresh.ha.messages),2)
             await fresh.sync_one('text.screen',layout)
@@ -109,7 +111,8 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             legacy={'title':'Thuis','tiles':[{'entity':'light.a','name':'Mijn lamp'}]}
             path.write_text(json.dumps({'version':1,'screens':{'text.screen':legacy}}))
             m=self.setup_manager(path)
-            self.assertEqual(m.layouts['text.screen'],legacy)
+            stored={**legacy,'tiles':[{**legacy['tiles'][0],'slot':0}]}
+            self.assertEqual(m.layouts['text.screen'],stored)
             settings=validate_settings({'brightness':55,'standby_seconds':1200})
             m.save('text.screen',{**legacy,'settings':settings})
             fresh=self.setup_manager(path)
@@ -117,7 +120,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             fresh.save('text.screen',{**legacy,'title':'Andere titel'})
             saved=fresh.layouts['text.screen']
             self.assertEqual(saved['settings'],settings)
-            self.assertEqual(saved['tiles'],legacy['tiles'])
+            self.assertEqual(saved['tiles'],stored['tiles'])
             before=path.read_bytes()
             with self.assertRaises(ValueError): fresh.save('text.screen',{**saved,'settings':{'brightness':0}})
             self.assertEqual(path.read_bytes(),before)
@@ -137,7 +140,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                 await original(inbox,message)
                 m.save(inbox,{'title':'Leeg','tiles':[]})
             m.ha.send=interrupt
-            await m.sync_one('text.screen',layout)
+            await m.sync_one('text.screen',m.layouts['text.screen'])
             self.assertEqual(len(m.ha.messages),1)
             self.assertNotIn('text.screen',m.sent)
 

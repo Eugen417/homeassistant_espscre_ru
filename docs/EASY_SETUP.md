@@ -106,9 +106,17 @@ wifi-slaapvertraging op Home Assistant.
 
 Selecteer je scherm, vul de titel in en zoek entiteiten. De kiezer heeft
 domeinfilters met gekleurde iconen. Je kunt maximaal twintig tegels toevoegen.
-Het schermvoorbeeld toont hun plaats: twee kolommen, zes tegels per pagina.
-Sleep een tegel naar een andere tegel om te ordenen. Klik op een tegel voor
-een eigen naam, de pijltjes voor volgorde en **Bediening & weergave instellen**:
+Het schermvoorbeeld toont hun plaats: twee kolommen, zes plekken per pagina,
+maximaal acht pagina's. Elke tegel heeft een vaste plek die alleen verandert als
+jij hem versleept; lege plekken blijven leeg, waar je ze ook laat. Sleep een tegel
+op een lege plek en hij staat daar; sleep hem op een andere tegel en die twee
+wisselen (de ander neemt de vrijgekomen plek, of anders de dichtstbijzijnde vrije
+plek); de rest blijft staan. Tijdens het slepen zie je in het voorbeeld al waar
+alles komt; onder de laatste pagina staat dan een lege pagina klaar. **Pagina
+toevoegen** maakt een lege pagina die bewaard blijft; een lege pagina heeft
+**Pagina weghalen**. Klik op een lege plek om de volgende tegel uit de kiezer
+daar te zetten. Met de pijltjestoetsen verplaats je een gefocuste tegel.
+Klik op een tegel voor een eigen naam en **Bediening & weergave instellen**:
 klikgedrag, een mini-slider, een grote waarde, een grafiek (sensoren), een
 weersvoorspelling (weer) of de breedte **Dubbelbreed**. Een dubbelbrede tegel van
 een klimaat, schakelaar, lamp, ventilator, stofzuiger, zonwering, mediaspeler,
@@ -122,8 +130,10 @@ zwenkstanden. De ingebouwde **Klok**
 staat bovenaan de kiezer; zon, kookwekkers en personen vind je via de filters. Kies bij
 **Pastel achtergrond** een eigen kleur met donkere tekst; **Standaard** herstelt
 de normale weergave en **Geen** laat de kaart weg, zodat de inhoud even groot
-direct op de schermachtergrond staat (firmware 0.2.16+). Hiervoor is firmware 0.2.10+ nodig. Een lege
-tegel brengt je naar de zoekbalk; toevoegen vult de eerstvolgende vrije positie.
+direct op de schermachtergrond staat (firmware 0.2.16+). Hiervoor is firmware 0.2.10+ nodig.
+Toevoegen zonder gekozen plek vult de eerste vrije plek. Vaste plekken en lege
+plekken werken op het scherm vanaf firmware 0.2.26; oudere firmware schuift de
+tegels aan tot de eerste vrije plek, de editor meldt dat onder het voorbeeld.
 Het voorbeeld toont de indeling, geen live sensorwaarden.
 Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.
 

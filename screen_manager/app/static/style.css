@@ -331,14 +331,16 @@ aside h2 {
   background: white;
   margin: 0;
 }
-.drop-target {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  background: var(--soft) !important;
-}
 body.dragging {
   cursor: grabbing;
   user-select: none;
+  -webkit-user-select: none;
+}
+/* Dragging a card must never start a text selection; the search box stays editable. */
+.tile-editor,
+.picker #results {
+  user-select: none;
+  -webkit-user-select: none;
 }
 #editor,
 .empty {
@@ -839,15 +841,28 @@ pre {
 .filters button { display: inline-flex; align-items: center; gap: 5px; }
 .filters .domain-icon { width: 20px; height: 20px; flex-basis: 20px; font-size: 15px; }
 .screen-preview { background: #e7e7e7; border: 1px solid #d9dde2; border-radius: 22px; padding: 14px; margin-top: 14px; }
-.preview-heading { display: block; color: #49515a; margin: 0 2px 12px; }
+.preview-heading { display: flex; align-items: center; gap: 8px; color: #49515a; margin: 0 2px 12px; }
+.preview-heading .page-note { color: var(--muted); }
+.preview-heading .mini { margin-left: auto; padding: 3px 10px; border-radius: 8px; font-size: 12px; font-weight: 600; background: white; color: var(--ink); border: 1px solid var(--line); }
 .preview-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
 .preview-tile { background: white; color: #25282c; border: 1px solid #ddd; border-radius: 15px; padding: 12px; min-height: 90px; text-align: left; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .preview-tile strong { flex: 1; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
 .preview-tile .domain-icon { width: 30px; height: 30px; flex-basis: 30px; font-size: 20px; }
 .preview-tile.chosen { outline: 2px solid var(--accent); outline-offset: 1px; }
 .preview-tile.wide { grid-column: span 2; }
-.preview-gap { min-height: 90px; border: 1px dashed #d0d4d9; border-radius: 15px; }
-.preview-tile.vacant { background: #f4f4f4; border-style: dashed; color: #727982; justify-content: center; }
+/* Empty cells are real places on the screen: a drop target, and a click marks where the next tile goes. */
+.preview-cell { min-height: 90px; padding: 8px; border: 1px dashed #cfd4da; border-radius: 15px; background: transparent; color: #a3abb5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-weight: 500; cursor: pointer; }
+.preview-cell span { font-size: 20px; line-height: 1; }
+.preview-cell small { font-size: 11px; }
+.preview-cell:hover, .preview-cell:focus-visible { border-color: #9eb6cf; color: #4b5563; background: #fbfcfd; }
+.preview-cell.insert-here { border: 2px dashed var(--accent); color: var(--accent); background: var(--soft); }
+/* The dragged tile, drawn where it will land; the drop confirms exactly this. */
+.preview-tile.placeholder { opacity: 0.6; border: 2px dashed var(--accent); background: var(--soft); box-shadow: none; cursor: default; }
+.preview-tile.placeholder .preview-remove { display: none; }
+.screen-preview.new-page { background: transparent; border: 2px dashed #cfd4da; }
+.add-page { margin-top: 12px; width: 100%; border: 1px dashed #cfd4da; background: transparent; color: var(--muted); }
+.add-page:hover:not(:disabled) { border-color: #9eb6cf; color: var(--ink); background: #fbfcfd; }
+.screen-preview.new-page .preview-cell { border-color: #e3e7ec; }
 .preview-slider { height: 13px; flex-basis: 100%; border-radius: 10px; background: linear-gradient(to right, #ffbf38 60%, #fff1d3 60%); }
 /* Miniature direct controls on a wide mockup card, in the shapes the screen draws. */
 .preview-controls { display: flex; align-items: center; gap: 4px; flex: none; margin-right: 18px; color: #1b1b1b; }

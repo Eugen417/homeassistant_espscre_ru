@@ -160,9 +160,20 @@ inline std::string receive(const std::string &payload) {
           root["rotation"].as<unsigned>()>270 || root["rotation"].as<unsigned>()%90!=0))return false;
       if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
           root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
+      // Explicit grid positions (0.2.26+), one absolute slot per entity; absent on older managers.
+      std::vector<uint8_t> positions;
+      if (!root["slots"].isNull()) {
+        if (!root["slots"].is<JsonArray>()) return false;
+        for (JsonVariant slot : root["slots"].as<JsonArray>()) {
+          if (!slot.is<unsigned>() || slot.as<unsigned>() >= MAX_SLOTS || positions.size() == MAX_TILES) return false;
+          positions.push_back(static_cast<uint8_t>(slot.as<unsigned>()));
+        }
+      }
       inbox = string(root["inbox"], 160);
-      bool changed = false;
-      if (!model.set_layout(entities, string(root["title"], 96), changed)) return false;
+      bool changed = false, moved = false;
+      if (!model.set_layout(entities, string(root["title"], 96), changed, positions, moved)) return false;
+      // Empty pages the user keeps on purpose; absent on older managers.
+      model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, MAX_PAGES)) : 1;
       if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
         swipe_pages=root["swipe_pages"].as<bool>();uint32_t saved=swipe_pages?1:0;swipe_preference.save(&saved);
       }
@@ -177,6 +188,7 @@ inline std::string receive(const std::string &payload) {
       }
       if(rotation_changed && settings_changed)settings_changed();
       if (changed) { active_index = -1; for (auto &w : widgets) w.cached_active = -1; if (dismiss) dismiss(); }
+      if (moved) ESP_LOGI("runtime", "tegels verplaatst: pagina's opnieuw ingedeeld");
       if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
       last_received = esphome::millis();
       if (layout_changed) layout_changed();
@@ -1506,7 +1518,7 @@ inline bool check_tile_geometry() {
 
 inline unsigned page_count() {
   std::array<Placement,MAX_TILES> placement;
-  return pack(model.tiles,model.count,placement);
+  return place(model,placement);
 }
 // Page switches feel immediate: the new page's card frames (right widths, no
 // contents, light skeleton style) appear in the very next frame, and a one-shot
@@ -1518,7 +1530,7 @@ inline lv_timer_t *page_timer=nullptr;
 // Slot assignment plus card widths and visibility for a page; contents are untouched.
 inline int place_page(int page) {
   std::array<Placement,MAX_TILES> placement;
-  int pages=pack(model.tiles,model.count,placement);
+  int pages=place(model,placement);
   page=std::clamp(page,0,pages-1);
   int wide_width=widgets[0].tile && widgets[1].tile ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)+widgets[0].base_width : 2*widgets[0].base_width;
   for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=MAX_TILES;widgets[slot].wide=false;widgets[slot].cached_active=-1;}

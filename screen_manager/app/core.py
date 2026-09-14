@@ -16,7 +16,7 @@ WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.25'
+FIRMWARE_VERSION = '0.2.26'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
@@ -41,6 +41,36 @@ TILE_BACKGROUNDS = {
 DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath')}
 # Displays that only work on a double-width card.
 WIDE_ONLY = ('forecast', 'sunpath')
+
+# Grid positions: two columns, three rows per page, at most eight pages. A tile's
+# `slot` is its absolute cell (page * 6 + row * 2 + column); a wide tile starts in
+# the left column and also covers the cell to its right. Empty cells are allowed.
+SLOTS_PER_PAGE = 6
+MAX_PAGES = 8
+MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE
+
+def is_wide(tile):
+    return tile.get('options', {}).get('size') == 'wide'
+
+def footprint(slot, wide):
+    return (slot, slot + 1) if wide else (slot,)
+
+def pack_slots(tiles):
+    """In-order packing, the rule before explicit positions and what firmware without
+    `slots` still does: fill left to right, a wide card starts a new row."""
+    position, slots = 0, []
+    for tile in tiles:
+        wide = is_wide(tile)
+        if wide and position % 2:
+            position += 1
+        slots.append(position)
+        position += 2 if wide else 1
+    return slots
+
+def has_gaps(tiles):
+    """True when the stored positions differ from the in-order packing, so firmware
+    before 0.2.26 (which ignores `slots`) would show another arrangement."""
+    return [t.get('slot') for t in tiles] != pack_slots(tiles)
 
 # Direct controls on the right half of a double-width card (firmware 0.2.19+), like
 # Home Assistant's own entity rows. The first choice is what a wide card shows
@@ -182,7 +212,30 @@ def validate_layout(data):
                     raise ValueError('Deze entiteit ondersteunt die directe bediening niet.')
             item['options'] = dict(options)
         clean.append(item)
+    # Positions: every tile or none (an older editor sends none and keeps its order).
+    given = [tile.get('slot') for tile in tiles]
+    if any(slot is not None for slot in given):
+        occupied = set()
+        for item, slot in zip(clean, given):
+            if type(slot) is not int or not 0 <= slot < MAX_SLOTS:
+                raise ValueError('Ongeldige tegelpositie; vernieuw de beheerpagina.')
+            if is_wide(item) and slot % 2:
+                raise ValueError('Een dubbelbrede tegel begint in de linkerkolom.')
+            for cell in footprint(slot, is_wide(item)):
+                if cell in occupied:
+                    raise ValueError('Twee tegels staan op dezelfde plek.')
+                occupied.add(cell)
+            item['slot'] = slot
+        clean.sort(key=lambda item: item['slot'])
+    else:
+        for item, slot in zip(clean, pack_slots(clean)):
+            item['slot'] = slot
     result = {'title': title.strip(), 'tiles': clean}
+    # Pages kept on purpose, empty ones included; the screen shows at least what the tiles need.
+    if 'pages' in data:
+        if type(data['pages']) is not int or not 1 <= data['pages'] <= MAX_PAGES:
+            raise ValueError(f'Een scherm heeft 1 tot {MAX_PAGES} pagina\'s.')
+        result['pages'] = data['pages']
     if 'settings' in data:
         result['settings'] = validate_settings(data['settings'])
     return result

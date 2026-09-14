@@ -57,3 +57,47 @@ static void test_domains_and_packing() {
   assert(pack(m.tiles, 4, p) == 2 && p[3].page == 1 && p[3].slot == 0);
 }
 struct RunExtra { RunExtra() { test_domains_and_packing(); } } run_extra;
+// Explicit grid positions (0.2.26+): gaps stay empty, a wide card starts in the left column.
+static void test_explicit_slots() {
+  using namespace runtime_tiles;
+  Model m; bool changed = false, moved = false;
+  std::array<Placement, MAX_TILES> p;
+  // Validation: one slot per entity, inside eight pages, no duplicates.
+  assert(!m.set_layout({"light.a", "light.b"}, "Thuis", changed, {0}, moved));
+  assert(!m.set_layout({"light.a", "light.b"}, "Thuis", changed, {0, 48}, moved));
+  assert(!m.set_layout({"light.a", "light.b"}, "Thuis", changed, {3, 3}, moved));
+  assert(!m.configured);
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {0, 5, 7}, moved));
+  assert(changed && !moved && m.explicit_slots);
+  assert(place(m, p) == 2 && p[0].page == 0 && p[0].slot == 0 && p[1].slot == 5 && p[2].page == 1 && p[2].slot == 1);
+  // Same tiles elsewhere: states survive, only the pages re-place.
+  for (size_t i = 0; i < m.count; ++i) { m.tiles[i].received = true; m.tiles[i].state = "on"; }
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {2, 5, 7}, moved));
+  assert(!changed && moved && m.ready() && m.tiles[0].state == "on");
+  assert(place(m, p) == 2 && p[0].slot == 2);
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {2, 5, 7}, moved));
+  assert(!changed && !moved);
+  // A wide card on an odd slot snaps to its row start; the page count follows its footprint.
+  m.tiles[2].wide = true;
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {2, 5, 11}, moved));
+  assert(!changed && moved && place(m, p) == 2 && p[2].page == 1 && p[2].slot == 4);
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {2, 5, 12}, moved));
+  assert(place(m, p) == 3 && p[2].page == 2 && p[2].slot == 0);
+  // An empty page between two used pages stays a page; the last slot of page eight is allowed.
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {0, 1, 46}, moved));
+  assert(place(m, p) == 8 && p[2].page == 7 && p[2].slot == 4);
+  // Pages kept on purpose extend the count, never shrink it.
+  m.pages = 3; assert(place(m, p) == 8);
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {0, 1, 2}, moved));
+  assert(place(m, p) == 3); m.pages = 1; assert(place(m, p) == 1); m.pages = 200; assert(place(m, p) == MAX_PAGES); m.pages = 1;
+  // Without slots (older manager) the in-order packing returns.
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {}, moved));
+  assert(!changed && moved && !m.explicit_slots);
+  assert(place(m, p) == 1 && p[0].slot == 0 && p[1].slot == 1 && p[2].slot == 2);
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Thuis", changed, {}, moved));
+  assert(!changed && !moved);
+  // Changing the tiles resets everything, including the positions.
+  assert(m.set_layout({"light.a", "light.z"}, "Thuis", changed, {1, 6}, moved));
+  assert(changed && !moved && !m.ready() && place(m, p) == 2 && p[0].slot == 1 && p[1].page == 1);
+}
+struct RunSlots { RunSlots() { test_explicit_slots(); } } run_slots;

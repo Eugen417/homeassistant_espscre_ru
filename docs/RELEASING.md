@@ -177,6 +177,28 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.31 / firmware 0.2.26
+
+Opslagversie en tegelprotocol blijven 1. `tiles[].slot` is additief: de absolute plek
+van een tegel (pagina × 6 + rij × 2 + kolom, 0–47, `MAX_SLOTS` in `core.py`); een
+dubbelbrede tegel staat op een even plek en bedekt ook de plek rechts ervan. Lege plekken
+zijn toegestaan. `validate_layout` eist plekken voor alle tegels of voor geen: zonder
+plekken (oude editor, oude opslag) krijgt de indeling de plekken van de oude
+volgorde-packing (`pack_slots`, hetzelfde als `pack()` in de firmware), zodat er op
+het scherm niets verandert; met plekken worden overlap, oneven dubbelbreed en bereik
+geweigerd en de tegels op plek gesorteerd. `save()` herhaalt de packing na het
+terugzetten van opgeslagen opties (die kunnen een tegel verbreden). `pages` (1–8) is
+een optioneel, additief veld: pagina's die de gebruiker leeg wil houden.
+
+Op de draad krijgt het layoutbericht `slots` (één plek per entity, in dezelfde
+volgorde) en `pages`. Firmware 0.2.26 (`Model::set_layout` met posities, `place()`
+naast het oude `pack()`, `MAX_PAGES` 8) tekent de tegels op die plekken; een wijziging
+van alleen plekken (`moved`) herplaatst de pagina's zonder tegelstatussen te wissen.
+Oudere firmware negeert beide velden en pakt de entities in volgorde; omdat de
+entities op plek gesorteerd zijn is dat de oude weergave zonder gaten, daarom geen
+`min_firmware`. De editor meldt het (`has_gaps`/`hasGaps`) bij firmware < 0.2.26. Geen
+gewijzigde preferences of sleutels.
+
 ### Compatibiliteit 0.2.30 / firmware 0.2.25
 
 Alleen de editor: het statusbolletje in de schermlijst is een eigen `span.dot`

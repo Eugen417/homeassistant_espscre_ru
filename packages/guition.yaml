@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.25"
+  SCREEN_FIRMWARE_VERSION: "0.2.26"
   # A tap survives a finger that drifts up to this far (480 px over 72 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "67"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.

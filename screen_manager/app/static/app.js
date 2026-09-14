@@ -64,6 +64,8 @@ function select(id) {
   const screen = inventory.screens.find((s) => s.id === id);
   if (!screen) return;
   layout = structuredClone(screen.layout);
+  normalize();
+  insertAt = -1;
   dirty = false;
   $("#title").value = layout.title;
   $("#screen-name").textContent = screen.name;
@@ -391,13 +393,6 @@ $("#auto-update").onchange = async () => {
     toast(e.message);
   }
 };
-function move(from, to) {
-  if (to < 0 || to >= layout.tiles.length) return;
-  const [tile] = layout.tiles.splice(from, 1);
-  layout.tiles.splice(to, 0, tile);
-  markDirty();
-  renderTiles();
-}
 const domains = {
   light: ["Licht", "☀", "#ad7600", "#fff3d3"],
   climate: ["Klimaat", "❄", "#c86620", "#ffebdc"],
@@ -465,17 +460,111 @@ function defaultOptions(id) {
   if (domain === "screen") return { options: { display: "digital", size: "wide" } };
   return {};
 }
-// Same packing as the firmware: wide tiles start in the left column and take a whole row.
-function packTiles(tiles) {
+// ---- Grid positions ----
+// Two columns, three rows per page, at most eight pages. A tile's `slot` is its absolute
+// cell (page * 6 + row * 2 + column); a wide tile starts in the left column and also covers
+// the cell to its right. Empty cells are allowed and stay exactly where they are.
+const SLOTS_PER_PAGE = 6, MAX_PAGES = 8, MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
+const isWide = (tile) => tile.options?.size === "wide";
+const cellsOf = (slot, wide) => (wide ? [slot, slot + 1] : [slot]);
+const rowStart = (slot) => slot - (slot % 2);
+const pageOf = (slot) => Math.floor(slot / SLOTS_PER_PAGE);
+const liveEntries = () => layout.tiles.map((tile) => ({ tile, slot: tile.slot }));
+// In-order packing: the rule before positions existed, and what firmware below 0.2.26 still draws.
+function packSlots(tiles) {
   let position = 0;
-  const placement = tiles.map((tile) => {
-    const wide = tile.options?.size === "wide";
+  return tiles.map((tile) => {
+    const wide = isWide(tile);
     if (wide && position % 2 === 1) position++;
-    const slot = { page: Math.floor(position / 6), slot: position % 6, wide };
+    const slot = position;
     position += wide ? 2 : 1;
     return slot;
   });
-  return { placement, pages: Math.max(1, Math.ceil(position / 6)) };
+}
+function hasGaps(tiles) {
+  const packed = packSlots(tiles);
+  return tiles.some((tile, i) => tile.slot !== packed[i]);
+}
+// Every tile gets a position (older layouts pack in order), the list stays in reading
+// order and the open settings sheet keeps following its tile.
+function normalize() {
+  if (layout.tiles.some((t) => !Number.isInteger(t.slot))) { const packed = packSlots(layout.tiles); layout.tiles.forEach((t, i) => (t.slot = packed[i])); }
+  layout.tiles.sort((a, b) => a.slot - b.slot);
+  if (sheetIndex >= 0) sheetIndex = layout.tiles.findIndex((t) => t.entity === selectedTile);
+}
+function occupied(entries) {
+  const taken = new Set();
+  for (const { tile, slot } of entries) for (const cell of cellsOf(slot, isWide(tile))) taken.add(cell);
+  return taken;
+}
+const fits = (taken, slot, wide) => Number.isInteger(slot) && slot >= 0 && slot + (wide ? 1 : 0) < MAX_SLOTS && !(wide && slot % 2) && cellsOf(slot, wide).every((c) => !taken.has(c));
+function firstFree(taken, wide) {
+  for (let slot = 0; slot < MAX_SLOTS; slot++) if (fits(taken, slot, wide)) return slot;
+  return -1;
+}
+// The free position closest to `origin`; on a tie the later one, so a nudged tile moves down, not up.
+function nearestFree(taken, wide, origin) {
+  let best = -1;
+  for (let slot = 0; slot < MAX_SLOTS; slot++) if (fits(taken, slot, wide) && (best < 0 || Math.abs(slot - origin) <= Math.abs(best - origin))) best = slot;
+  return best;
+}
+// The arrangement after putting `moving` (a tile on the grid, or a new one) at `target`:
+// it lands exactly there; tiles in its way take the cells it left (a swap) or else the
+// nearest free cell; everything else stays put. Null when the target is off the grid.
+function arrange(tiles, moving, target) {
+  const wide = isWide(moving);
+  if (wide) target = rowStart(target);
+  if (!fits(new Set(), target, wide)) return null;
+  const footprint = cellsOf(target, wide);
+  const vacated = tiles.includes(moving) ? cellsOf(moving.slot, wide) : [];
+  const result = [{ tile: moving, slot: target }], displaced = [];
+  for (const tile of tiles) {
+    if (tile === moving) continue;
+    if (cellsOf(tile.slot, isWide(tile)).some((c) => footprint.includes(c))) displaced.push(tile);
+    else result.push({ tile, slot: tile.slot });
+  }
+  for (const tile of displaced) {
+    const w = isWide(tile), taken = occupied(result);
+    let slot = vacated.map((c) => (w ? rowStart(c) : c)).find((c) => fits(taken, c, w));
+    if (slot === undefined) slot = nearestFree(taken, w, tile.slot);
+    if (slot < 0) return null;
+    result.push({ tile, slot });
+  }
+  return result.sort((a, b) => a.slot - b.slot);
+}
+// Apply an arrangement; a new tile joins the layout. True when anything changed.
+function commit(result) {
+  const before = layout.tiles.map((t) => `${t.entity}@${t.slot}`).join();
+  for (const { tile, slot } of result) { tile.slot = slot; if (!layout.tiles.includes(tile)) layout.tiles.push(tile); }
+  normalize();
+  const changed = layout.tiles.map((t) => `${t.entity}@${t.slot}`).join() !== before;
+  if (changed) { markDirty(); renderTiles(); renderResults(); }
+  return changed;
+}
+function placeTile(tile, target) {
+  const result = arrange(layout.tiles, tile, target);
+  return result ? commit(result) : false;
+}
+// Pages the tiles need, or more when the user keeps empty pages on purpose (`layout.pages`).
+function pageCount(entries) {
+  const last = Math.max(0, ...entries.map(({ tile, slot }) => slot + (isWide(tile) ? 2 : 1)));
+  return Math.min(MAX_PAGES, Math.max(1, Math.ceil(last / SLOTS_PER_PAGE), layout.pages || 1));
+}
+function addPage() {
+  layout.pages = Math.min(MAX_PAGES, pageCount(liveEntries()) + 1);
+  markDirty();
+  renderTiles();
+  document.querySelector("#layout-preview .screen-preview:last-child")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+// An empty page goes; the pages after it move up.
+function removePage(page) {
+  for (const tile of layout.tiles) if (pageOf(tile.slot) > page) tile.slot -= SLOTS_PER_PAGE;
+  layout.pages = Math.max(1, pageCount(liveEntries()) - 1);
+  markDirty();
+  renderTiles();
+}
+function focusSlot(slot) {
+  document.querySelector(`#layout-preview [data-slot="${slot}"]`)?.focus();
 }
 function supportsFirmware(major, minor, patch) {
   const version = inventory.screens.find((s) => s.id === selected)?.firmware || "";
@@ -525,65 +614,114 @@ function tileLimit() {
 function entityName(id) {
   return inventory.entities.find((e) => e.id === id)?.name || inventory.builtin?.find((e) => e.id === id)?.name || id;
 }
-function renderPreview() {
+let insertAt = -1;  // empty cell chosen as the place for the next tile from the picker
+function renderPreview(preview) {
   const root = $("#layout-preview");
   root.replaceChildren();
-  const { placement, pages } = packTiles(layout.tiles);
-  for (let page = 0; page < pages; page++) {
+  // While dragging, the mockup already shows the arrangement after the drop.
+  const entries = preview?.result || liveEntries();
+  const moving = preview?.moving || null;
+  const bySlot = new Map(entries.map((e) => [e.slot, e]));
+  const covered = new Set(entries.filter((e) => isWide(e.tile)).map((e) => e.slot + 1));
+  const pages = pageCount(entries), title = $("#title").value || "Thuis";
+  // While dragging, one more page waits below the last one.
+  const shown = drag.active && pages < MAX_PAGES ? pages + 1 : pages;
+  for (let page = 0; page < shown; page++) {
     const frame = node("section", undefined, "screen-preview");
-    frame.append(node("small", `Pagina ${page + 1} · ${$("#title").value || "Thuis"}`, "preview-heading"));
+    const heading = node("div", undefined, "preview-heading");
+    heading.append(node("small", `Pagina ${page + 1} · ${title}`));
+    if (page >= pages) {
+      frame.classList.add("new-page");
+      heading.replaceChildren(node("small", `Pagina ${page + 1} · sleep hierheen voor een nieuwe pagina`));
+    } else if (pages > 1 && !entries.some((e) => pageOf(e.slot) === page)) {
+      heading.append(node("small", "leeg", "page-note"));
+      const drop = node("button", "Pagina weghalen", "mini");
+      drop.type = "button";
+      drop.title = "De pagina's erna schuiven een plek op";
+      drop.onclick = () => removePage(page);
+      heading.append(drop);
+    }
+    frame.append(heading);
     const grid = node("div", undefined, "preview-grid");
-    let filled = 0;
-    layout.tiles.forEach((tile, index) => {
-      const place = placement[index];
-      if (place.page !== page) return;
-      // Keep the grid honest: an empty right column before a wide tile is a real gap on the screen.
-      for (; filled < place.slot; filled++) grid.append(node("span", "", "preview-gap"));
-      const card = node("div", undefined, "preview-tile");
-      card.tabIndex = 0;
-      card.setAttribute("role", "button");
-      const name = tile.name || entityName(tile.entity);
-      const background=inventory.backgrounds?.[tile.options?.background]?.color;
-      if(background)card.style.backgroundColor=background;
-      // "Geen": no card on the screen; the mockup keeps a dashed outline as drop target.
-      if (tile.options?.background === "none") card.classList.add("bare");
-      if (place.wide) card.classList.add("wide");
-      card.append(tileBadge(tile), node("strong", name));
-      card.dataset.index = index;
-      enableDrag(card, { kind: "tile", index });
-      card.classList.toggle("chosen", selectedTile === tile.entity);
-      card.setAttribute("aria-label", `Tegel ${index + 1}: ${name}, instellen`);
-      card.onclick = () => openTileSheet(index);
-      card.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTileSheet(index); } };
-      const remove = node("button", "✕", "preview-remove");
-      remove.type = "button";
-      remove.title = "Tegel verwijderen";
-      remove.setAttribute("aria-label", `${name} verwijderen`);
-      remove.onclick = (e) => { e.stopPropagation(); removeTile(index); };
-      card.append(remove);
-      if (tile.options?.inline === "slider") card.append(node("span", "", "preview-slider"));
-      const controls = controlsPreview(tile);
-      if (controls) card.append(controls);
-      const display = tile.options?.display;
-      if (display && display !== "standard") card.append(node("small", displayNames[display] || display));
-      grid.append(card);
-      filled += place.wide ? 2 : 1;
-    });
-    if (layout.tiles.length < tileLimit())
-      for (; filled < 6; filled++) {
-        const card = node("button", undefined, "preview-tile vacant");
-        card.append(node("span", "+"), node("small", "Tegel toevoegen"));
-        card.onclick = () => { $("#search").focus(); $("#search").scrollIntoView({behavior:"smooth", block:"center"}); };
-        grid.append(card);
-      }
+    for (let cell = 0; cell < SLOTS_PER_PAGE; cell++) {
+      const slot = page * SLOTS_PER_PAGE + cell;
+      if (covered.has(slot)) continue;
+      const entry = bySlot.get(slot);
+      grid.append(entry ? tileCard(entry.tile, slot, entry.tile === moving) : emptyCell(slot));
+    }
     frame.append(grid);
     root.append(frame);
   }
 }
+// A card on the mockup. A placeholder is the tile being dragged, drawn where it will land.
+function tileCard(tile, slot, placeholder) {
+  const index = layout.tiles.indexOf(tile);
+  const card = node("div", undefined, "preview-tile");
+  card.dataset.slot = slot;
+  const name = tile.name || entityName(tile.entity);
+  const background = inventory.backgrounds?.[tile.options?.background]?.color;
+  if (background) card.style.backgroundColor = background;
+  // "Geen": no card on the screen; the mockup keeps a dashed outline.
+  if (tile.options?.background === "none") card.classList.add("bare");
+  if (isWide(tile)) card.classList.add("wide");
+  card.append(tileBadge(tile), node("strong", name));
+  if (tile.options?.inline === "slider") card.append(node("span", "", "preview-slider"));
+  const controls = controlsPreview(tile);
+  if (controls) card.append(controls);
+  const display = tile.options?.display;
+  if (display && display !== "standard") card.append(node("small", displayNames[display] || display));
+  if (placeholder || index < 0) { card.classList.add("placeholder"); return card; }
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("aria-label", `${name}, plek ${(slot % SLOTS_PER_PAGE) + 1} op pagina ${pageOf(slot) + 1}. Enter: instellen, pijltjestoetsen: verplaatsen`);
+  card.classList.toggle("chosen", selectedTile === tile.entity);
+  enableDrag(card, { kind: "tile", tile });
+  card.onclick = () => openTileSheet(index);
+  card.onkeydown = (e) => {
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTileSheet(index); return; }
+    const step = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    // A wide card owns its row: left and right mean the row above and below.
+    if (placeTile(tile, tile.slot + (isWide(tile) ? Math.sign(step) * 2 : step))) focusSlot(tile.slot);
+  };
+  const remove = node("button", "✕", "preview-remove");
+  remove.type = "button";
+  remove.title = "Tegel verwijderen";
+  remove.setAttribute("aria-label", `${name} verwijderen`);
+  remove.onclick = (e) => { e.stopPropagation(); removeTile(index); };
+  card.append(remove);
+  return card;
+}
+// An empty cell: a drop target, and a click marks it as the place for the next tile.
+function emptyCell(slot) {
+  const cell = node("button", undefined, "preview-cell");
+  cell.type = "button";
+  cell.dataset.slot = slot;
+  const marked = insertAt === slot;
+  cell.classList.toggle("insert-here", marked);
+  cell.append(node("span", "+"), node("small", marked ? "Volgende tegel komt hier" : "Leeg"));
+  cell.title = "Lege plek. Klik om hier een tegel toe te voegen, of sleep er een naartoe.";
+  cell.setAttribute("aria-label", `Lege plek ${(slot % SLOTS_PER_PAGE) + 1} op pagina ${pageOf(slot) + 1}: hier de volgende tegel toevoegen`);
+  cell.onclick = () => {
+    insertAt = marked ? -1 : slot;
+    renderPreview();
+    if (insertAt >= 0) { $("#search").focus(); $("#search").scrollIntoView({ behavior: "smooth", block: "center" }); }
+  };
+  return cell;
+}
 function renderTiles() {
+  normalize();
+  // Pages follow the tiles; only a page the user added on purpose can stay empty.
+  layout.pages = pageCount(liveEntries());
   renderPreview();
+  $("#add-page").disabled = layout.pages >= MAX_PAGES;
   $("#count").textContent = `${layout.tiles.length} / ${tileLimit()}${tileLimit()===10?" · update firmware voor 20":""}`;
   $("#no-tiles").hidden = layout.tiles.length > 0;
+  // Firmware below 0.2.26 ignores positions and packs the tiles in order, without gaps.
+  const hint = $("#positions-hint");
+  hint.hidden = !hasGaps(layout.tiles) || supportsFirmware(0, 2, 26);
+  hint.textContent = `Lege plekken en vaste posities werken vanaf firmware 0.2.26. Dit scherm (firmware ${inventory.screens.find((s) => s.id === selected)?.firmware || "onbekend"}) schuift de tegels tot die update aan tot de eerste vrije plek.`;
   if (sheetIndex >= 0) renderTileSheet();
 }
 function removeTile(index) {
@@ -595,7 +733,7 @@ function removeTile(index) {
   renderResults();
   toast(`${tile.name || entityName(tile.entity)} verwijderd`, {
     label: "Ongedaan maken",
-    run: () => { layout.tiles.splice(Math.min(index, layout.tiles.length), 0, tile); markDirty(); renderTiles(); renderResults(); },
+    run: () => placeTile(tile, tile.slot),
   });
 }
 // Tile settings open in a sheet above the mockup; every change applies live,
@@ -748,6 +886,7 @@ function renderTileSheet() {
   if (domain === "sun") displays.push(["sunpath", "Zonnebaan"]);
   const current = (key, fallback) => tile.options?.[key] ?? fallback;
   const set = (key, value) => {
+    const wasWide = isWide(tile);
     tile.options = { ...tile.options, [key]: value };
     // Direct controls need the standard layout without a mini slider, and vice versa.
     if (key === "display" && value === "watch") { tile.options.inline = "none"; if (inventory.controls?.[domain]) tile.options.controls = "none"; }
@@ -755,6 +894,13 @@ function renderTileSheet() {
     if (key === "inline" && value === "slider") { tile.options.display = "standard"; if (inventory.controls?.[domain]) tile.options.controls = "none"; }
     if (key === "controls" && value !== "none") { tile.options.display = "standard"; tile.options.inline = "none"; }
     markDirty();
+    // A card that becomes double-wide keeps its row when the cell beside it is free, else it
+    // takes the nearest free row (below first); every other tile stays where it is.
+    if (isWide(tile) && !wasWide) {
+      const taken = occupied(liveEntries().filter((e) => e.tile !== tile)), own = rowStart(tile.slot);
+      const slot = fits(taken, own, true) ? own : nearestFree(taken, true, own);
+      if (slot >= 0) tile.slot = slot;
+    }
     renderTiles();
   };
   body.append(field("Weergave", segmented(displays, current("display", domain === "screen" ? "digital" : "standard"), (v) => set("display", v))));
@@ -815,48 +961,48 @@ function renderTileSheet() {
   foot.append(done);
   sheet.append(head, body, foot);
 }
-function addTile(id, at) {
+// A click in the picker: the marked empty cell, else the first free cell.
+function addTile(id) {
   if (layout.tiles.some((t) => t.entity === id) || layout.tiles.length >= tileLimit()) return;
-  layout.tiles.splice(Math.min(at, layout.tiles.length), 0, { entity: id, name: "", ...defaultOptions(id) });
+  const tile = { entity: id, name: "", ...defaultOptions(id) };
+  const slot = insertAt >= 0 ? insertAt : firstFree(occupied(liveEntries()), isWide(tile));
+  insertAt = -1;
   selectedTile = id;
-  markDirty();
-  renderTiles();
-  renderResults();
+  if (slot >= 0) placeTile(tile, slot);
 }
-// Pointer-based drag & drop: works with mouse and touch, from the picker into
-// the mockup and between tiles. Touch starts after a short hold so the page
-// still scrolls; a finished drag never doubles as a click.
-const drag = { active: false, source: null, element: null, ghost: null, target: null, timer: 0, start: null, offset: null, pointerId: null, suppressUntil: 0, last: null, scroller: 0 };
+// Pointer-based drag & drop, mouse and touch, from the picker into the mockup and between
+// cells. Touch starts after a short hold so the page still scrolls. While dragging, the
+// mockup already shows where everything ends up; the drop confirms exactly that, and a
+// drop off the grid changes nothing. A finished drag never doubles as a click.
+const drag = { active: false, source: null, element: null, ghost: null, timer: 0, start: null, offset: null, pointerId: null, suppressUntil: 0, last: null, scroller: 0, moving: null, target: null, preview: null };
 function enableDrag(element, source) {
   element.addEventListener("pointerdown", (e) => {
     if (e.button !== 0 || element.disabled || e.target.closest(".preview-remove")) return;
+    // No text selection while the mouse drags; touch keeps its default so the page can scroll.
+    if (e.pointerType !== "touch") e.preventDefault();
     Object.assign(drag, { source, element, start: { x: e.clientX, y: e.clientY }, pointerId: e.pointerId, active: false });
+    // A fast flick may leave the card before its first move event: keep the pointer until the drag begins.
+    try { element.setPointerCapture(e.pointerId); } catch {}
     clearTimeout(drag.timer);
     if (e.pointerType === "touch") drag.timer = setTimeout(() => beginDrag(e), 260);
   });
   element.addEventListener("pointermove", (e) => {
-    if (!drag.start || drag.element !== element) return;
+    if (drag.active || !drag.start || drag.element !== element) return;
     const distance = Math.hypot(e.clientX - drag.start.x, e.clientY - drag.start.y);
-    if (!drag.active) {
-      if (e.pointerType === "touch") { if (distance > 10) { clearTimeout(drag.timer); drag.start = null; } return; }
-      if (distance < 6) return;
-      beginDrag(e);
-    }
-    moveDrag(e);
+    if (e.pointerType === "touch") { if (distance > 10) { clearTimeout(drag.timer); drag.start = null; } return; }
+    if (distance >= 6) beginDrag(e);
   });
-  const finish = (e) => {
-    if (drag.element !== element) return;
-    clearTimeout(drag.timer);
-    if (drag.active) endDrag(e.type === "pointerup");
-    drag.start = null;
-  };
-  element.addEventListener("pointerup", finish);
-  element.addEventListener("pointercancel", finish);
+  const cancel = () => { if (drag.element === element && !drag.active) { clearTimeout(drag.timer); drag.start = null; } };
+  element.addEventListener("pointerup", cancel);
+  element.addEventListener("pointercancel", cancel);
 }
 function beginDrag(e) {
   if (drag.active || !drag.start) return;
   drag.active = true;
-  try { drag.element.setPointerCapture(drag.pointerId); } catch {}
+  drag.moving = drag.source.kind === "tile" ? drag.source.tile : { entity: drag.source.id, name: "", ...defaultOptions(drag.source.id) };
+  drag.target = null;
+  drag.preview = null;
+  getSelection()?.removeAllRanges();
   const rect = drag.element.getBoundingClientRect();
   const ghost = drag.element.cloneNode(true);
   ghost.classList.add("drag-ghost");
@@ -865,45 +1011,64 @@ function beginDrag(e) {
   document.body.append(ghost);
   drag.ghost = ghost;
   document.body.classList.add("dragging");
+  // The mockup re-renders while hovering, so the pointer is followed on the document, not the card.
+  document.addEventListener("pointermove", moveDrag);
+  document.addEventListener("pointerup", finishDrag);
+  document.addEventListener("pointercancel", finishDrag);
+  try { drag.element.releasePointerCapture(drag.pointerId); } catch {}
+  try { document.documentElement.setPointerCapture(drag.pointerId); } catch {}
   document.addEventListener("touchmove", blockScroll, { passive: false });
   // Near the viewport edges the page scrolls along, so the mockup can be reached on small screens.
   drag.scroller = setInterval(() => {
     if (!drag.last) return;
     const step = drag.last.y < 70 ? -12 : drag.last.y > innerHeight - 70 ? 12 : 0;
-    if (step) { window.scrollBy(0, step); setTarget(document.elementFromPoint(drag.last.x, drag.last.y)?.closest(".preview-tile, .preview-gap, .preview-grid") || null); }
+    if (step) { window.scrollBy(0, step); setTarget(slotAt(drag.last.x, drag.last.y)); }
   }, 16);
+  setTarget(-1);
   moveDrag(e);
 }
 function blockScroll(e) { if (drag.active) e.preventDefault(); }
+function finishDrag(e) { if (e.pointerId === drag.pointerId) endDrag(e.type === "pointerup"); }
 function moveDrag(e) {
-  if (!drag.ghost) return;
+  if (!drag.ghost || e.pointerId !== drag.pointerId) return;
   drag.last = { x: e.clientX, y: e.clientY };
   drag.ghost.style.transform = `translate(${e.clientX - drag.offset.x}px, ${e.clientY - drag.offset.y}px)`;
-  const under = document.elementFromPoint(e.clientX, e.clientY);
-  setTarget(under?.closest(".preview-tile, .preview-gap, .preview-grid") || null);
+  setTarget(slotAt(e.clientX, e.clientY));
 }
-function setTarget(target) {
-  if (drag.target === target) return;
-  drag.target?.classList.remove("drop-target");
-  drag.target = target;
-  drag.target?.classList.add("drop-target");
+// The cell under the pointer: the nearest card or empty cell (the gaps between them count
+// too); on a wide card the left or right half decides. -1 away from the mockup.
+function slotAt(x, y) {
+  let best = null, nearest = Infinity;
+  for (const cell of document.querySelectorAll("#layout-preview [data-slot]")) {
+    const r = cell.getBoundingClientRect();
+    const distance = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+    if (distance < nearest) { nearest = distance; best = { cell, r }; }
+  }
+  if (!best || nearest > 16) return -1;
+  let slot = Number(best.cell.dataset.slot);
+  if (best.cell.classList.contains("wide") && x > (best.r.left + best.r.right) / 2) slot += 1;
+  return slot;
+}
+function setTarget(slot) {
+  if (drag.target === slot) return;
+  drag.target = slot;
+  const result = slot >= 0 ? arrange(layout.tiles, drag.moving, slot) : null;
+  drag.preview = result;
+  // Off the grid: a tile from the grid shows where it came from; a new one shows nowhere yet.
+  renderPreview({ result: result || liveEntries(), moving: drag.moving });
 }
 function endDrag(drop) {
-  const { target, source } = drag;
-  setTarget(null);
-  drag.ghost?.remove();
-  drag.ghost = null;
-  drag.active = false;
-  drag.suppressUntil = Date.now() + 400;
-  clearInterval(drag.scroller);
-  drag.last = null;
-  document.body.classList.remove("dragging");
+  const { preview } = drag;
+  document.removeEventListener("pointermove", moveDrag);
+  document.removeEventListener("pointerup", finishDrag);
+  document.removeEventListener("pointercancel", finishDrag);
   document.removeEventListener("touchmove", blockScroll);
-  try { drag.element.releasePointerCapture(drag.pointerId); } catch {}
-  if (!drop || !target) return;
-  const to = target.dataset.index !== undefined ? Number(target.dataset.index) : layout.tiles.length;
-  if (source.kind === "tile") { if (to !== source.index) move(source.index, to); }
-  else addTile(source.id, to);
+  try { document.documentElement.releasePointerCapture(drag.pointerId); } catch {}
+  drag.ghost?.remove();
+  Object.assign(drag, { ghost: null, active: false, suppressUntil: Date.now() + 400, last: null, start: null, moving: null, target: null, preview: null });
+  clearInterval(drag.scroller);
+  document.body.classList.remove("dragging");
+  if (!(drop && preview && commit(preview))) renderPreview();
 }
 window.addEventListener("click", (e) => { if (Date.now() < drag.suppressUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
 function renderResults() {
@@ -934,7 +1099,7 @@ function renderResults() {
       node("span", chosen.has(entity.id) ? "✓" : "+", "plus"),
     );
     b.disabled = chosen.has(entity.id) || layout.tiles.length >= tileLimit();
-    b.onclick = () => addTile(entity.id, layout.tiles.length);
+    b.onclick = () => addTile(entity.id);
     if (!b.disabled) enableDrag(b, { kind: "entity", id: entity.id });
     $("#results").append(b);
   }
@@ -995,6 +1160,7 @@ $("#save").onclick = async () => {
   }
 };
 $("#title").oninput = () => { markDirty(); renderPreview(); };
+$("#add-page").onclick = addPage;
 $("#search").oninput = renderResults;
 $("#refresh").onclick = refresh;
 for (const [value, label] of [
