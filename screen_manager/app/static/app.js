@@ -89,7 +89,7 @@ const settingDefinitions = [
   ["clock_24h", "24-uursklok (uit = 12 uur)", "check", true],
   ["home_on_standby", "Na standby terug naar pagina 1", "check", false],
   ["rotation", "Scherm draaien (met de klok mee)", "rotation", 0],
-  ["swipe_pages", "Vegen tussen pagina’s (firmware 0.2.7+)", "check", false],
+  ["swipe_pages", "Vegen tussen pagina’s (Guition: vanaf de zijrand, firmware 0.2.24+; CYD: snelle veeg, 0.2.7+)", "check", false],
 ];
 function renderSettings() {
   const values = {

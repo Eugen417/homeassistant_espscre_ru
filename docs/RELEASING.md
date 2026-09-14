@@ -177,6 +177,17 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.29 / firmware 0.2.24
+
+Alleen firmware (Guition). `cyd::EdgeSwipe` (in `cyd_ui.h`, getest in
+`test_cyd_ui.cpp`) vervangt op de Guition de LVGL-gesture op `home_page`: `begin()`
+in `on_touch` met de LVGL-rotatie, `update()` in `on_update` voor het eerste contact;
+bij een treffer `touch_guard.consume()`, `lv_indev_wait_release()` op alle indevs en
+`show_tile_page`. Substituties `EDGE_SWIPE_BAND_PX`/`EDGE_SWIPE_TRAVEL_PX`;
+`DISPLAY_W`/`DISPLAY_H` bepalen de rotatiemapping (ESPHome: 90° `x=y, y=W-x-1`,
+270° `x=H-y-1, y=x`, 180° spiegelt beide). De CYD houdt de LVGL-gesture. De
+instelling `swipe_pages` blijft de schakelaar; protocol, opslag en sleutels ongewijzigd.
+
 ### Compatibiliteit 0.2.28 / firmware 0.2.23
 
 Alleen firmware. `cyd::TouchGuard` krijgt `configure(move_limit_px, min_press_ms)`

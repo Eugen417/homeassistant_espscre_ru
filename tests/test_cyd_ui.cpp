@@ -86,6 +86,32 @@ int main() {
   resistive.update(50, 180);                                                       // 70 px past the settled point: a swipe
   assert(!resistive.accept(1100, 1));
   assert(!resistive.accept_repeat(1100, 1));
+  // Edge swipe (0.2.24): only a touch that starts in the side band flips a page, from the
+  // right edge leftwards "next", from the left edge rightwards "previous", once per touch,
+  // slow or fast, and never diagonally or from the middle. Rotation follows ESPHome's mapping.
+  cyd::EdgeSwipe edge;
+  edge.configure(480, 480, 32, 40);
+  edge.begin(6, 240);
+  assert(edge.armed());
+  assert(edge.update(30, 242) == 0);   // not far enough yet
+  assert(edge.update(48, 245) == -1);  // 42 px inward from the left edge: previous page
+  assert(edge.update(90, 245) == 0);   // once per touch
+  assert(!edge.armed());
+  edge.begin(474, 100);
+  assert(edge.update(430, 104) == 1);  // from the right edge: next page
+  edge.begin(240, 240);
+  assert(!edge.armed());
+  assert(edge.update(300, 240) == 0);  // started in the middle: never a page swipe
+  edge.begin(6, 240);
+  assert(edge.update(50, 300) == 0);   // diagonal: 44 px sideways against 60 down
+  assert(edge.update(-10, 240) == 0);  // moving outward: nothing
+  assert(edge.update(60, 244) == -1);  // straightened out later: still counts
+  edge.begin(240, 6, 90);
+  assert(edge.update(240, 60) == -1);  // rotated 90: the user's left edge is the panel's top
+  edge.begin(240, 6, 270);
+  assert(edge.update(240, 60) == 1);   // rotated 270: that same edge is the user's right
+  edge.begin(6, 240, 180);
+  assert(edge.update(60, 240) == 1);   // upside down: the panel's left is the user's right
   cyd::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days

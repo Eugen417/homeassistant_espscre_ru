@@ -138,8 +138,12 @@ Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.
 
 Vanaf firmware 0.2.7 passen twintig tegels op maximaal vier pagina’s. Oudere
 firmware houdt de limiet van tien totdat je bijwerkt. Via **Algemene instellingen
-→ Vegen tussen pagina’s** kun je horizontaal swipen inschakelen. Sliders bedienen
-alleen hun waarde; detailmenu’s en standby wisselen niet van pagina.
+→ Vegen tussen pagina’s** kun je vegen inschakelen. Op de Guition (firmware
+0.2.24+) veeg je dan vanaf de linker- of rechterrand naar binnen, zoals
+terug-vegen op een telefoon; langzaam of snel, en een veeg die midden op het
+scherm begint doet niets, zodat tikken en slepen op tegels nooit per ongeluk van
+pagina wisselen. Op de CYD blijft het een snelle veeg over het scherm. Sliders
+bedienen alleen hun waarde; detailmenu’s en standby wisselen niet van pagina.
 
 Er staan zes tegels op een pagina. Bij maximaal zes verdwijnen Vorige/Volgende.
 De standby-tijd is standaard tien minuten. Bij offline apparaten blokkeert het
