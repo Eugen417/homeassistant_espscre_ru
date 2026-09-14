@@ -1,3 +1,8 @@
+## 0.2.33 (firmware 0.2.28)
+
+- **Guition: loslaten binnen de tegel telt.** De verplaatsingsgrens voor een tik staat op de Guition uit (`TOUCH_MOVE_LIMIT_PX: "0"`); LVGL beslist, zoals iOS: laat je los binnen de tegel waarop je begon, dan is het een tik, verlaat je vinger de tegel, dan niet. Een stevige druk die een centimeter verschoof (73 px op Studio 1) werd anders nog geweigerd. De randveeg neemt zijn eigen tik weg en sliders vangen hun eigen sleep, dus de grens had daar geen taak meer. De CYD houdt zijn 56 px, omdat het resistieve paneel kan springen.
+- Firmware 0.2.28 voor beide borden; de app biedt de update aan. Alleen de doelversie verandert in de app.
+
 ## 0.2.32 (firmware 0.2.27)
 
 - **Randveeg die nooit pakte, opgelost.** Live meegelezen op een Guition: de veeg werd herkend maar geblokkeerd door de voorwaarde "kaart open". De lichtkaart, klimaatkaart en stofzuigerkaart wisten bij sluiten (kruisje, tik naast de kaart) en bij wakker worden uit standby de interne "actieve kaart" niet, dus na één keer een kaart openen bleef vegen stil geblokkeerd tot de indeling veranderde. Dat gold ook voor de oude veeg over het hele scherm en voor de CYD. Beide borden sluiten kaarten nu via één script (`close_cards`) dat alles verbergt én die toestand wist; wakker worden gebruikt hetzelfde pad.

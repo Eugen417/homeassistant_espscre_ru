@@ -76,6 +76,18 @@ int main() {
   wide.begin(3200, 200, 200, 3);
   assert(!wide.accept(3260, 2)); // same tile within 600 ms
   assert(wide.reason() == "dezelfde knop binnen de dendertijd");
+  // No movement limit (0): a capacitive board leaves the drift decision to LVGL's press-lost.
+  cyd::TouchGuard free;
+  free.configure(0, 20);
+  free.begin(100, 200, 200, 3);
+  free.update(205, 200, 3); free.update(205, 200, 3); free.update(205, 200, 3);       // settled
+  free.update(400, 260, 3);
+  assert(free.distance() > 200);
+  assert(free.accept(180, 1));  // 200 px of drift, still a tap
+  free.begin(1000, 200, 200, 3);
+  free.update(205, 200, 3); free.update(205, 200, 3); free.update(205, 200, 3);
+  free.update(400, 200, 3);
+  assert(free.accept_repeat(1060, 7));  // -/+ keys follow the same rule
   cyd::TouchGuard resistive;
   resistive.configure(56, 60);
   resistive.begin(100, 50, 50);

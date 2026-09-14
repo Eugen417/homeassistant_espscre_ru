@@ -28,9 +28,10 @@ inline int quantize_temperature(int value, int minimum, int maximum, int step) {
 class TouchGuard {
  public:
   enum Reject { NONE, MOVED, TOO_SHORT, USED, BOUNCE };
-  // Board tuning, set from the profile on boot: how far the finger may drift (pixels, about
-  // one centimetre) before a tap is dropped, and the shortest contact that counts. A resistive
-  // panel (CYD) bounces on landing and lift-off; a capacitive one (Guition) does not.
+  // Board tuning, set from the profile on boot: how far the finger may drift (pixels) before
+  // a tap is dropped, 0 for no limit at all (LVGL then decides: releasing inside the tile is a
+  // tap, leaving it is not), and the shortest contact that counts. A resistive panel (CYD)
+  // bounces on landing and lift-off and needs both; a capacitive one (Guition) needs neither.
   void configure(int move_limit_px, uint32_t min_press_ms) {
     move_limit_ = move_limit_px;
     min_press_ = min_press_ms;
@@ -64,7 +65,7 @@ class TouchGuard {
     const long dx = x - anchor_x_, dy = y - anchor_y_;
     const int distance = static_cast<int>(std::lround(std::sqrt(static_cast<double>(dx * dx + dy * dy))));
     distance_ = std::max(distance_, distance);
-    if (distance > move_limit_) moved_ = true;
+    if (move_limit_ > 0 && distance > move_limit_) moved_ = true;
   }
   int distance() const { return distance_; }
   void consume() { accepted_ = true; moved_ = true; }

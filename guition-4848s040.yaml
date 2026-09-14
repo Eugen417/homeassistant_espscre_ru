@@ -1,9 +1,10 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.27"
-  # A tap survives a finger that drifts up to this far (480 px over 72 mm: 1 cm); further is a swipe.
-  TOUCH_MOVE_LIMIT_PX: "67"
+  SCREEN_FIRMWARE_VERSION: "0.2.28"
+  # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
+  # (like iOS). The CYD keeps a limit because its resistive panel jumps.
+  TOUCH_MOVE_LIMIT_PX: "0"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
   TOUCH_MIN_PRESS_MS: "20"
   # Page swipe starts in this band along the left or right edge (about 5 mm) and needs

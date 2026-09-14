@@ -177,6 +177,12 @@ staan iconen in de browser uit het midden); draai daarna `generate_packages.py`.
 De substituties `MDI_GLYPH_*` zijn vervallen: `TILEn_ICON` in handmatige
 profielen moet uit de set komen. Geen gewijzigde preferences of sleutels.
 
+### Compatibiliteit 0.2.33 / firmware 0.2.28
+
+Alleen firmware. `TouchGuard::configure(0, ...)` schakelt de verplaatsingsgrens uit
+(`moved_` wordt dan nooit gezet; LVGL's press-lost bepaalt of een tik doorgaat). Het
+Guition-profiel zet `TOUCH_MOVE_LIMIT_PX` op 0, de CYD houdt 56. Verder ongewijzigd.
+
 ### Compatibiliteit 0.2.32 / firmware 0.2.27
 
 Alleen firmware. `cyd::EdgeSwipe` werkt op LVGL-pointercoördinaten: `configure(band, travel)`,
