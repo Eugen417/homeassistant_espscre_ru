@@ -1,3 +1,10 @@
+## 0.2.36 (firmware 0.2.31)
+
+- **Alert vanuit een automatisering.** Elk scherm heeft nu de actie `esphome.<scherm>_show_alert` met `title`, `subtitle`, `icon`, `color`, `button_text`, `timeout` en `flash`. De kaart ligt op LVGL's toplaag over alles heen (pagina's, kaarten, de standby-laag), wekt het scherm en houdt de backlight op de normale helderheid tot iemand op de knop tikt (`button_text`, standaard Oké), of tot `timeout` seconden (0 is tot de knop; de knop sluit ook een alert met timeout direct). `flash: true` laat de backlight vier keer knipperen bij binnenkomst. Iconen zijn de namen uit de tegelkiezer (ook als `mdi:naam`, of als hex-codepoint van een meegecompileerd glyph); onbekend wordt `alert-outline`. Kleuren zijn de pasteltinten van de tegels; leeg is de witte kaart. Een nieuwe alert vervangt de huidige. Oké, timeout, vervangen en `dismiss_alert` melden zich als event `esphome.screen_alert` met `action`, `title` en `screen`.
+- De actie `esphome.<scherm>_dismiss_alert` haalt een alert op afstand weg, bijvoorbeeld als de deur al open is.
+- De iconenlijst schrijft nu ook `components/smart_display/tile_icon_names.h` (naam naar codepoint) via `tools/generate_icons.py`.
+- Firmware 0.2.31 voor beide borden; de app biedt de update aan. Alleen de doelversie verandert in de app.
+
 ## 0.2.35 (firmware 0.2.30)
 
 - **Snelle randveeg pakt nu ook in één keer (Guition).** Op 0.2.29 wisselde de veeg wel, maar ongeveer de helft van de snelle vegen eindigde met `randveeg niet gevuurd: 5 px naar binnen` terwijl de vinger duidelijk verder ging; elke aanraking duurde in de firmware bijna exact 160 ms en leverde maar één meting op. Een druk in de lege rand landde op de achtergrondcontainer en de pagina, en het thema geeft elk object een ingedrukte-stijl (45% dekking): bijna het hele scherm werd bij indrukken en loslaten opnieuw getekend, wat de touch-polling precies zo lang blokkeerde als een flick duurt. De pagina en de tegelcontainer nemen nu geen drukken meer aan (`LV_OBJ_FLAG_CLICKABLE` uit), dus geen hertekening en de metingen komen elke 20 ms door.

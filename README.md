@@ -75,6 +75,44 @@ De feedback stopt zodra Home Assistant de gewijzigde stand meldt, met een
 minimum van 150 ms voor switches. Tegels met een mini-slider behouden hun
 icoon; op CYD staan het icoon en tekstblok verticaal gecentreerd.
 
+## Alert vanuit een automatisering
+
+Elk scherm heeft de actie **`esphome.<scherm>_show_alert`** (firmware 0.2.31+). Die legt
+een kaart over het hele scherm, wekt het scherm en houdt de backlight op de normale
+helderheid tot iemand op **Oké** tikt. In een automatisering:
+
+```yaml
+action: esphome.keuken_scherm_show_alert
+data:
+  title: "Iemand belt aan"
+  subtitle: "Deur 3, achterkant"
+  icon: doorbell
+  color: orange
+  button_text: "Ik kom"
+  timeout: 0
+  flash: true
+```
+
+- **`title`** en **`subtitle`**: een titel op één regel (te lang krijgt puntjes) en een
+  toelichting die over meerdere regels loopt. Leeg mag; een lege titel wordt "Melding".
+- **`icon`**: een naam uit de tegelkiezer, zoals `doorbell`, `bell`, `alert-outline`,
+  `lock`, `door-open`, `motion-sensor`, `smoke-detector`, `water-alert`, `mailbox`, `car`
+  of `account`. `mdi:doorbell` en de hex-codepoint (`F12E6`) mogen ook, zolang het glyph
+  in de firmware zit. Onbekend geeft de waarschuwingsdriehoek.
+- **`color`**: `red`, `orange`, `yellow`, `green`, `mint`, `blue`, `purple`, `pink` of
+  `gray`, dezelfde pasteltinten als de tegels. Leeg geeft de witte kaart.
+- **`button_text`**: de tekst op de knop; leeg is "Oké".
+- **`timeout`**: seconden waarna de kaart vanzelf verdwijnt; `0` is tot de knop, hoe lang
+  dat ook duurt. De knop sluit de kaart altijd direct, ook met een timeout. Standby en
+  nachtstand wachten zolang de kaart staat.
+- **`flash`**: `true` laat de backlight vier keer knipperen bij binnenkomst.
+
+Home Assistant vraagt alle zeven velden; laat een veld leeg (`""`, `0`, `false`) als je het
+niet gebruikt. Een nieuwe alert vervangt de huidige. Elk einde meldt zich als event
+**`esphome.screen_alert`** met `action` (`ok`, `timeout`, `replaced` of `remote`), `title`,
+`screen` en het `device_id` dat Home Assistant toevoegt, zodat een automatisering op Oké
+kan wachten. **`esphome.<scherm>_dismiss_alert`** haalt de kaart op afstand weg.
+
 ## Installeren vanuit Home Assistant
 
 ### Heb ik ESPHome nodig?

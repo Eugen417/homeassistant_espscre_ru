@@ -1,7 +1,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.30"
+  SCREEN_FIRMWARE_VERSION: "0.2.31"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -549,6 +549,23 @@ substitutions:
   TILE_W: "218"
   TILE_H: "108"
   HEADER_Y: "22"
+
+  # Alert overlay (HA action show_alert), 480x480: one card centred on LVGL's top layer.
+  ALERT_CARD_W: "420"
+  ALERT_CARD_H: "320"
+  ALERT_ICON_X: "26"
+  ALERT_ICON_Y: "22"
+  ALERT_TEXT_X: "90"
+  ALERT_TEXT_W: "304"
+  ALERT_TITLE_Y: "26"
+  ALERT_SUBTITLE_Y: "68"
+  ALERT_SUBTITLE_H: "150"
+  ALERT_BUTTON_W: "150"
+  ALERT_BUTTON_H: "60"
+  ALERT_BUTTON_INSET: "22"
+  ALERT_TITLE_MAX: "64"       # bytes; the label ends one line with an ellipsis
+  ALERT_BUTTON_MAX: "16"      # bytes on the Oké button
+  ALERT_SUBTITLE_MAX: "240"   # bytes; wraps over the rows the card has
   OVERLAY_SLIDER_W: "144"
   OVERLAY_SLIDER_H: "300"
   OVERLAY_ICON_Y: "148"
@@ -590,6 +607,7 @@ esphome:
     - light_controls.h
     - guition_diagnostics.h
     - backlight_fade.h
+    - alert_overlay.h
   name: ${DEVICE_NAME}
   friendly_name: ${DEVICE_FRIENDLY_NAME}
   on_boot:
@@ -829,6 +847,32 @@ api:
     - action: ui_self_test
       then:
         - script.execute: ui_self_test
+    # Home Assistant automations: esphome.<device>_show_alert puts a card over the whole
+    # screen (README, "Alert vanuit een automatisering"); dismiss_alert removes it again.
+    - action: show_alert
+      variables:
+        title: string
+        subtitle: string
+        icon: string
+        color: string
+        button_text: string
+        timeout: int
+        flash: bool
+      then:
+        - script.execute:
+            id: alert_show
+            title: !lambda 'return title;'
+            subtitle: !lambda 'return subtitle;'
+            icon: !lambda 'return icon;'
+            color: !lambda 'return color;'
+            button_text: !lambda 'return button_text;'
+            timeout: !lambda 'return timeout;'
+            flash: !lambda 'return flash;'
+    - action: dismiss_alert
+      then:
+        - script.execute:
+            id: alert_dismiss
+            reason: "remote"
   encryption:
     key: !secret api_encryption_key
 
@@ -862,7 +906,7 @@ interval:
           condition:
             lambda: |-
               if (!screen_settings::current.standby_enabled) return false;
-              if (id(display_dimmed) || id(touch_down) || id(calibration_active)) return false;
+              if (id(display_dimmed) || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
               return (millis() - id(last_touch_ms)) > (screen_settings::current.standby_seconds * 1000UL);
           then:
             - script.execute: dim_display
@@ -884,6 +928,18 @@ time:
           - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
 
 globals:
+  # Alert overlay (HA action show_alert): standby waits while one is up.
+  - id: alert_active
+    type: bool
+    initial_value: 'false'
+  - id: alert_title_text
+    type: std::string
+  - id: alert_timeout_seconds
+    type: int
+    initial_value: '0'
+  - id: alert_flash_requested
+    type: bool
+    initial_value: 'false'
   - id: rendered_frames
     type: uint32_t
     initial_value: '0'
@@ -2081,6 +2137,111 @@ lvgl:
       text_font: sublabel
       text_color: 0x1B1B1B
       text_opa: 100%
+
+  # ---------- ALERT OVERLAY (HA action show_alert) ----------
+  # LVGL's top layer sits above every page, card and the dim overlay; the card
+  # is filled by the alert_show script. Fixed positions, no layout engine.
+  top_layer:
+    widgets:
+      - obj:
+          id: alert_overlay
+          x: 0
+          y: 0
+          width: ${DISPLAY_W}
+          height: ${DISPLAY_H}
+          hidden: true
+          bg_color: 0x101820
+          bg_opa: 60%
+          radius: 0
+          border_width: 0
+          pad_all: 0
+          clickable: true
+          scrollable: false
+          scrollbar_mode: 'OFF'
+          # Same look when pressed: a tap next to the card must not repaint the screen.
+          pressed:
+            bg_opa: 60%
+          widgets:
+            - obj:
+                id: alert_card
+                align: CENTER
+                width: ${ALERT_CARD_W}
+                height: ${ALERT_CARD_H}
+                bg_color: 0xFFFFFF
+                bg_opa: COVER
+                radius: 18
+                border_width: 1
+                border_color: 0xDDDDDD
+                border_opa: COVER
+                shadow_width: 0
+                pad_all: 0
+                clickable: false
+                scrollable: false
+                scrollbar_mode: 'OFF'
+                widgets:
+                  - label:
+                      id: alert_icon
+                      x: ${ALERT_ICON_X}
+                      y: ${ALERT_ICON_Y}
+                      text: "\U000F002A"
+                      text_font: materialdesign_icons
+                      text_color: 0x1B1B1B
+                      clickable: false
+                  - label:
+                      id: alert_title
+                      x: ${ALERT_TEXT_X}
+                      y: ${ALERT_TITLE_Y}
+                      width: ${ALERT_TEXT_W}
+                      long_mode: DOT
+                      text: "Melding"
+                      text_font: headline
+                      text_color: 0x1B1B1B
+                      clickable: false
+                  - label:
+                      id: alert_subtitle
+                      x: ${ALERT_TEXT_X}
+                      y: ${ALERT_SUBTITLE_Y}
+                      width: ${ALERT_TEXT_W}
+                      height: ${ALERT_SUBTITLE_H}
+                      long_mode: WRAP
+                      text: ""
+                      text_font: sublabel_big
+                      text_color: 0x3A3A3C
+                      clickable: false
+                  - obj:
+                      id: alert_ok
+                      align: BOTTOM_RIGHT
+                      x: -${ALERT_BUTTON_INSET}
+                      y: -${ALERT_BUTTON_INSET}
+                      width: ${ALERT_BUTTON_W}
+                      height: ${ALERT_BUTTON_H}
+                      radius: 999
+                      bg_color: 0x1B1B1B
+                      bg_opa: COVER
+                      border_width: 0
+                      shadow_width: 0
+                      pad_all: 0
+                      clickable: true
+                      scrollable: false
+                      pressed:
+                        bg_color: 0x3A3A3C
+                        bg_opa: COVER
+                      on_click:
+                        - if:
+                            condition:
+                              lambda: 'return cyd::touch_guard.accept(millis(), 13);'
+                            then:
+                              - script.execute:
+                                  id: alert_dismiss
+                                  reason: "ok"
+                      widgets:
+                        - label:
+                            id: alert_ok_label
+                            align: CENTER
+                            text: "Oké"
+                            text_font: headline
+                            text_color: 0xFFFFFF
+                            clickable: false
 
   pages:
     - id: home_page
@@ -4993,6 +5154,9 @@ script:
             - delay: 150ms
             - lambda: guition::check_geometry(id(vacuum_overlay));
             - lvgl.widget.hide: vacuum_overlay
+            - lvgl.widget.show: alert_overlay
+            - delay: 150ms
+            - lvgl.widget.hide: alert_overlay
       - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
       - logger.log: "UI_TEST COMPLETE"
 
@@ -5068,6 +5232,104 @@ script:
       - lvgl.widget.hide: climate_detail_overlay
       - lvgl.widget.hide: climate_mode_overlay
       - lvgl.widget.hide: vacuum_overlay
+
+  # ---------- ALERT (HA action show_alert) ----------
+  # The screen wakes, keeps its normal brightness and shows the card until Oké or the
+  # timeout (0: until Oké); the standby interval waits on alert_active. A new alert
+  # replaces the current one; every ending reports itself as esphome.screen_alert.
+  - id: alert_show
+    mode: restart
+    parameters:
+      title: string
+      subtitle: string
+      icon: string
+      color: string
+      button_text: string
+      timeout: int
+      flash: bool
+    then:
+      - lambda: |-
+          if (id(alert_active)) id(alert_report).execute("replaced");
+          const auto alert = screen_alert::make(title, subtitle, icon, color, button_text, timeout, flash, ${ALERT_TITLE_MAX}, ${ALERT_SUBTITLE_MAX}, ${ALERT_BUTTON_MAX});
+          id(alert_active) = true;
+          id(alert_title_text) = alert.title;
+          id(alert_timeout_seconds) = alert.timeout_seconds;
+          id(alert_flash_requested) = alert.flash;
+          lv_label_set_text(id(alert_icon), alert.icon.c_str());
+          lv_label_set_text(id(alert_title), alert.title.c_str());
+          lv_label_set_text(id(alert_subtitle), alert.subtitle.c_str());
+          lv_label_set_text(id(alert_ok_label), alert.button.c_str());
+          lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(alert.color), LV_PART_MAIN);
+          ESP_LOGI("alert", "show \"%s\" timeout=%d flash=%d", alert.title.c_str(), alert.timeout_seconds, (int) alert.flash);
+      - script.execute: wake_display
+      - lvgl.widget.show: alert_overlay
+      - script.stop: alert_timeout
+      - if:
+          condition:
+            lambda: 'return id(alert_flash_requested);'
+          then:
+            - script.execute: alert_flash
+      - if:
+          condition:
+            lambda: 'return id(alert_timeout_seconds) > 0;'
+          then:
+            - script.execute:
+                id: alert_timeout
+                seconds: !lambda 'return id(alert_timeout_seconds);'
+
+  - id: alert_dismiss
+    parameters:
+      reason: string
+    then:
+      - if:
+          condition:
+            lambda: 'return id(alert_active);'
+          then:
+            - lambda: |-
+                id(alert_active) = false;
+                id(last_touch_ms) = millis();
+                ESP_LOGI("alert", "dismissed: %s", reason.c_str());
+            - lvgl.widget.hide: alert_overlay
+            - script.stop: alert_timeout
+            - script.stop: alert_flash
+            - lambda: 'id(set_backlight).execute(screen_settings::current.brightness, 80);'
+            - script.execute:
+                id: alert_report
+                action: !lambda 'return reason;'
+
+  # Four backlight blinks when the alert arrives; the screen then stays on as usual.
+  - id: alert_flash
+    mode: restart
+    then:
+      - repeat:
+          count: 4
+          then:
+            - lambda: 'id(set_backlight).execute(0, 60);'
+            - delay: 140ms
+            - lambda: 'id(set_backlight).execute(screen_settings::current.brightness, 60);'
+            - delay: 180ms
+
+  - id: alert_timeout
+    mode: restart
+    parameters:
+      seconds: int
+    then:
+      - delay: !lambda 'return static_cast<uint32_t>(seconds) * 1000UL;'
+      - script.execute:
+          id: alert_dismiss
+          reason: "timeout"
+
+  # Home Assistant adds device_id; action is ok, timeout, replaced or remote.
+  - id: alert_report
+    parameters:
+      action: string
+    then:
+      - homeassistant.event:
+          event: esphome.screen_alert
+          data:
+            action: !lambda 'return action;'
+            title: !lambda 'return id(alert_title_text);'
+            screen: !lambda 'return App.get_name();'
 
   - id: wake_display
     mode: restart

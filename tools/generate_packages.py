@@ -21,7 +21,7 @@ def generate(board):
     s = re.sub(r'^ota:\n.*?(?=^\w)', '', s, flags=re.M | re.S)
     s = re.sub(r'^wifi:\n.*?(?=^\w)', '', s, flags=re.M | re.S)
     # Referenced files are fetched as an external component or over HTTPS.
-    s = re.sub(r'^    - (cyd_ui.h|light_controls.h|guition_diagnostics.h|backlight_fade.h)$', r'    - <esphome/components/smart_display/\1>', s, flags=re.M)
+    s = re.sub(r'^    - (cyd_ui.h|light_controls.h|guition_diagnostics.h|backlight_fade.h|alert_overlay.h)$', r'    - <esphome/components/smart_display/\1>', s, flags=re.M)
     components = '[xpt2046, smart_display]' if board == 'cyd' else '[smart_display]'
     external = f'''external_components:
   - source:
