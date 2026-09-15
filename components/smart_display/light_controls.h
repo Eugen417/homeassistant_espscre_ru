@@ -40,7 +40,7 @@ namespace light_controls {
 inline State states[8];
 inline State fallback;
 inline State *active = &fallback;
-struct Row { lv_obj_t *box{}, *slider{}, *value{}; bool dirty = false; unsigned index{}; };
+struct Row { lv_obj_t *box{}, *slider{}, *value{}; bool dirty = false; unsigned index{}; bool off = false; };
 inline Row rows[3];
 inline std::function<void(int)> commits[3];
 inline bool ready = false;
@@ -81,15 +81,20 @@ inline void preview(Row &row) {
     lv_label_set_text_fmt(row.value, "%d K", value);
     lv_obj_set_style_bg_color(row.slider, kelvin_color(value, lv_slider_get_min_value(row.slider), lv_slider_get_max_value(row.slider)), LV_PART_KNOB);
   } else {
-    // The range reaches below 1 only to draw the round end that holds the handle at 1 %.
+    // The range reaches below 1 only to draw the short stub that holds the handle at 1 %.
     if (value < 1) { lv_slider_set_value(row.slider, 1, LV_ANIM_OFF); value = 1; }
-    lv_label_set_text_fmt(row.value, "%d %%", value);
+    // An off light shows only the track, as in Home Assistant, until the slider moves.
+    lv_obj_set_style_bg_opa(row.slider, row.off ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_INDICATOR);
+    lv_obj_set_style_bg_opa(row.slider, row.off ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_KNOB);
+    lv_obj_set_style_bg_color(row.slider, lv_color_hex(row.off ? 0xECECEC : 0xFDEFC3), LV_PART_MAIN);
+    if (row.off) lv_label_set_text(row.value, "Off");
+    else lv_label_set_text_fmt(row.value, "%d %%", value);
   }
 }
 inline void event(lv_event_t *e) {
   auto &row = *static_cast<Row *>(lv_event_get_user_data(e));
   auto code = lv_event_get_code(e);
-  if (code == LV_EVENT_VALUE_CHANGED) { row.dirty = true; preview(row); }
+  if (code == LV_EVENT_VALUE_CHANGED) { row.dirty = true; row.off = false; preview(row); }
   if (code == LV_EVENT_PRESS_LOST) row.dirty = false;
   if (code == LV_EVENT_RELEASED && row.dirty) {
     row.dirty = false;
@@ -187,15 +192,16 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_obj_set_style_outline_opa(row.slider, LV_OPA_20, LV_PART_KNOB);
       lv_slider_set_range(row.slider, i == 0 ? 0 : 2000, i == 0 ? 360 : 6500);
     } else {
+      // Track and fill corners, handle and shortest fill as in Home Assistant's 42 px control slider.
       lv_obj_set_pos(row.slider, track_x, track_y); lv_obj_set_size(row.slider, track_w, track_h);
-      lv_obj_set_style_radius(row.slider, LV_RADIUS_CIRCLE, LV_PART_MAIN);
-      lv_obj_set_style_radius(row.slider, LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+      lv_obj_set_style_radius(row.slider, track_h * 12 / 42, LV_PART_MAIN);
+      lv_obj_set_style_radius(row.slider, track_h * 8 / 42, LV_PART_INDICATOR);
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_MAIN);
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_INDICATOR);
       lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFDEFC3), LV_PART_MAIN);
       lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFFC107), LV_PART_INDICATOR);
-      // White handle inside the rounded end of the fill, as on the tiles (runtime_tiles::slider_handle).
-      int handle = large ? 6 : 4, back = track_h / 4 + handle / 2, half = track_h >> 1;
+      // White handle inside the end of the fill, as on the tiles (runtime_tiles::slider_handle).
+      int handle = large ? 4 : 3, back = std::max(1, track_h / 8) + handle / 2, half = track_h >> 1;
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_KNOB);
       lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
       lv_obj_set_style_radius(row.slider, 2, LV_PART_KNOB);
@@ -203,8 +209,8 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_obj_set_style_pad_right(row.slider, handle / 2 - back - (track_h - half), LV_PART_KNOB);
       lv_obj_set_style_pad_top(row.slider, -(track_h / 4), LV_PART_KNOB);
       lv_obj_set_style_pad_bottom(row.slider, -(track_h / 4), LV_PART_KNOB);
-      // 1 % still shows one round end: the range starts that far below 1.
-      int below = track_w > track_h ? 99 * track_h / (track_w - track_h) : 0;
+      // 1 % still shows a stub a third of the height wide: the range starts that far below 1.
+      int stub = std::max(track_h / 3, 2 * std::max(1, track_h / 8) + handle), below = track_w > stub ? 99 * stub / (track_w - stub) : 0;
       lv_slider_set_range(row.slider, 1 - below, 100);
     }
     lv_obj_add_event_cb(row.slider, event, LV_EVENT_ALL, &row);
@@ -235,6 +241,7 @@ inline void open(const std::string &entity, bool color, bool temperature, int br
     if (i == 1 && !active->temperature_ready()) lv_obj_add_state(row.slider, LV_STATE_DISABLED);
     if (i == 1 && active->temperature_ready()) lv_slider_set_range(row.slider, active->minimum, active->maximum);
     lv_slider_set_value(row.slider, i == 0 ? active->hue : i == 1 ? active->kelvin : clamp(brightness, 1, 100), LV_ANIM_OFF);
+    row.off = i == 2 && brightness <= 0;
     preview(row); row.dirty = false;
     if (i == 1 && !active->temperature_ready()) lv_label_set_text(row.value, "Waiting...");
   }

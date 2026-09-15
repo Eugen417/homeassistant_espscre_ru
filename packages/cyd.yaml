@@ -58,7 +58,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.36"
+  SCREEN_FIRMWARE_VERSION: "0.2.37"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -827,6 +827,7 @@ esphome:
           runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
           runtime_tiles::clock_font = id(clock_digits)->get_lv_font();
           runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
+          runtime_tiles::screen_awake = []() { return !id(display_dimmed); };
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::control_font = id(sublabel_big)->get_lv_font();
           // Top bar (0.2.32+): values in the text font, icons in the small icon font; the clock
@@ -1520,6 +1521,7 @@ font:
       - "\U000F0141" # chevron-left
       - "\U000F0142" # chevron-right
       - "\U000F0156" # close
+      - "\U000F004D" # arrow-left
       - "\U000F1A79" # sun-snowflake-variant
       - "\U000F1B17" # thermostat-auto
       - "\U000F0591" # weather-fog
@@ -3728,24 +3730,47 @@ lvgl:
                   clickable: false
                   scrollable: false
 
+              - obj:
+                  id: overlay_back_button
+                  align: TOP_LEFT
+                  x: 10
+                  y: 8
+                  width: 40
+                  height: 40
+                  radius: 999
+                  bg_color: 0xEEEEEE
+                  bg_opa: COVER
+                  border_width: 0
+                  clickable: true
+                  scrollable: false
+                  on_click:
+                    - script.execute: close_cards
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "\U000F004D"
+                        text_font: materialdesign_icons_mini
+                        text_color: 0x1B1B1B
+                        clickable: false
+
               - label:
                   id: overlay_title
                   align: TOP_MID
-                  y: 10
+                  y: 19
                   text: "Light"
                   styles: style_room
 
               - label:
                   id: overlay_value
                   align: TOP_MID
-                  y: 35
+                  y: 42
                   text: "100 %"
                   styles: style_value_big
 
               - slider:
                   id: overlay_slider
                   align: CENTER
-                  y: 18
+                  y: 24
                   width: ${OVERLAY_SLIDER_W}
                   height: ${OVERLAY_SLIDER_H}
                   min_value: 0
@@ -4043,44 +4068,9 @@ lvgl:
                   id: color_close_button
                   align: TOP_LEFT
                   x: 10
-                  y: 9
-                  width: 36
-                  height: 36
-                  radius: 999
-                  bg_color: 0xEEEEEE
-                  bg_opa: COVER
-                  border_width: 1
-                  border_color: 0xFFFFFF
-                  border_opa: 20%
-                  clickable: true
-                  scrollable: false
-                  on_click:
-                    - script.execute: close_cards
-                  widgets:
-                    - label:
-                        align: CENTER
-                        text: "x"
-                        text_font: sublabel_big
-                        text_color: 0x1B1B1B
-                        clickable: false
-
-              - label:
-                  id: color_detail_title
-                  width: 210
-                  long_mode: DOT
-                  text_align: CENTER
-                  align: TOP_MID
-                  y: 16
-                  text: "Light Color"
-                  styles: style_room
-
-              - obj:
-                  id: color_done_button
-                  align: TOP_RIGHT
-                  x: -10
-                  y: 9
-                  width: 36
-                  height: 36
+                  y: 8
+                  width: 40
+                  height: 40
                   radius: 999
                   bg_color: 0xEEEEEE
                   bg_opa: COVER
@@ -4092,10 +4082,21 @@ lvgl:
                   widgets:
                     - label:
                         align: CENTER
-                        text: "\U000F012C"
-                        text_font: materialdesign_icons
+                        text: "\U000F004D"
+                        text_font: materialdesign_icons_mini
                         text_color: 0x1B1B1B
                         clickable: false
+
+              - label:
+                  id: color_detail_title
+                  width: 210
+                  long_mode: DOT
+                  text_align: CENTER
+                  align: TOP_MID
+                  y: 21
+                  text: "Light Color"
+                  styles: style_room
+
 
         # ---------- CLIMATE DETAIL OVERLAY ----------
         - obj:
@@ -4140,17 +4141,13 @@ lvgl:
                   id: climate_close_button
                   align: TOP_LEFT
                   x: 10
-                  y: 9
-                  # 44 instead of 36: slightly bigger tap target, grows away from the arc
-                  # (top-left anchor stays put) instead of towards it.
-                  width: 44
-                  height: 44
+                  y: 8
+                  width: 40
+                  height: 40
                   radius: 999
                   bg_color: 0xEEEEEE
                   bg_opa: COVER
-                  border_width: 1
-                  border_color: 0xFFFFFF
-                  border_opa: 20%
+                  border_width: 0
                   clickable: true
                   scrollable: false
                   on_click:
@@ -4158,8 +4155,8 @@ lvgl:
                   widgets:
                     - label:
                         align: CENTER
-                        text: "x"
-                        text_font: sublabel_big
+                        text: "\U000F004D"
+                        text_font: materialdesign_icons_mini
                         text_color: 0x1B1B1B
                         clickable: false
 
@@ -4167,9 +4164,9 @@ lvgl:
                   id: climate_power_button
                   align: TOP_RIGHT
                   x: -10
-                  y: 9
-                  width: 44
-                  height: 44
+                  y: 8
+                  width: 40
+                  height: 40
                   radius: 999
                   bg_color: 0xEEEEEE
                   bg_opa: COVER
@@ -4190,7 +4187,7 @@ lvgl:
               - label:
                   id: climate_detail_title
                   align: TOP_MID
-                  y: 16
+                  y: 21
                   text: "Climate"
                   styles: style_room
 
@@ -4361,7 +4358,7 @@ lvgl:
             widgets:
               - label:
                   align: TOP_MID
-                  y: 16
+                  y: 21
                   text: "Mode"
                   text_font: sublabel_big
                   text_color: 0x1B1B1B
@@ -4735,15 +4732,13 @@ lvgl:
                   id: climate_mode_overlay_x
                   align: TOP_LEFT
                   x: 10
-                  y: 9
-                  width: 36
-                  height: 36
+                  y: 8
+                  width: 40
+                  height: 40
                   radius: 999
-                  bg_color: 0xFFFFFF
+                  bg_color: 0xEEEEEE
                   bg_opa: COVER
-                  border_width: 1
-                  border_color: 0xDDDDDD
-                  border_opa: COVER
+                  border_width: 0
                   clickable: true
                   scrollable: false
                   on_click:
@@ -4751,8 +4746,8 @@ lvgl:
                   widgets:
                     - label:
                         align: CENTER
-                        text: "x"
-                        text_font: sublabel_big
+                        text: "\U000F004D"
+                        text_font: materialdesign_icons_mini
                         text_color: 0x1B1B1B
                         clickable: false
 
@@ -4777,10 +4772,9 @@ lvgl:
               - label:
                   id: vacuum_title
                   align: TOP_MID
-                  y: 16
+                  y: 21
                   text: "Vacuum"
-                  text_font: sublabel_big
-                  text_color: 0x1B1B1B
+                  styles: style_room
                   clickable: false
 
               - obj:
@@ -4999,36 +4993,11 @@ lvgl:
                   id: vacuum_overlay_x
                   align: TOP_LEFT
                   x: 10
-                  y: 9
-                  width: 36
-                  height: 36
+                  y: 8
+                  width: 40
+                  height: 40
                   radius: 999
                   bg_color: 0xEEEEEE
-                  bg_opa: COVER
-                  border_width: 1
-                  border_color: 0xFFFFFF
-                  border_opa: 20%
-                  clickable: true
-                  scrollable: false
-                  on_click:
-                    - script.execute: close_cards
-                  widgets:
-                    - label:
-                        align: CENTER
-                        text: "x"
-                        text_font: sublabel_big
-                        text_color: 0x1B1B1B
-                        clickable: false
-
-              - obj:
-                  id: vacuum_overlay_ok
-                  align: TOP_RIGHT
-                  x: -10
-                  y: 9
-                  width: 36
-                  height: 36
-                  radius: 999
-                  bg_color: 0xD5EEFC
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -5038,10 +5007,11 @@ lvgl:
                   widgets:
                     - label:
                         align: CENTER
-                        text: "\U000F012C"
-                        text_font: materialdesign_icons
+                        text: "\U000F004D"
+                        text_font: materialdesign_icons_mini
                         text_color: 0x1B1B1B
                         clickable: false
+
 
         # ---------- DIM / WAKE OVERLAY ----------
         - obj:
@@ -5717,12 +5687,10 @@ script:
           light_controls::open("diagnostic", true, true, 75);
           lv_label_set_text(id(color_detail_title), "Example lamp");
       - lvgl.widget.hide: color_close_button
-      - lvgl.widget.hide: color_done_button
       - lvgl.widget.show: color_detail_overlay
       - delay: 40s
       - lvgl.widget.hide: color_detail_overlay
       - lvgl.widget.show: color_close_button
-      - lvgl.widget.show: color_done_button
       - lambda: 'light_controls::demo = false; light_controls::fallback = light_controls::State{};'
 
   - id: open_color_detail

@@ -42,6 +42,10 @@ inline lv_obj_t *time_label = nullptr;
 inline const lv_font_t *header_text_font = nullptr, *header_icon_font = nullptr;
 inline void render_header();
 inline std::function<esphome::ESPTime()> now_time;
+// True while the screen is in use: the profile reports standby (also the night level) as not awake.
+// The analog clock's second hand runs only then; a standby screen stays on its minute redraws.
+inline std::function<bool()> screen_awake;
+inline bool awake() { return !screen_awake || screen_awake(); }
 inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
 inline void tick();
 inline void refresh_tile(size_t index);
@@ -101,6 +105,8 @@ struct Widgets {
   int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
   // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
   bool wide=false; int base_width=0; lv_obj_t *extra{}; std::string extra_mode; std::array<lv_obj_t *, 20> parts{}; lv_point_precise_t *points{};
+  // Analog clock: centre and radius of the dial, so the second hand can move without a card redraw.
+  int hand_cx=0, hand_cy=0, hand_r=0, hand_width=1;
   // Soft area under a polyline (graph, sun path), painted by the extra container's draw event.
   const lv_point_precise_t *fill_points{}; unsigned fill_count=0; int fill_x=0, fill_y=0, fill_base=0; lv_color_t fill_color{}; lv_opa_t fill_opa=0;
   // Direct controls on a wide card: a panel at the right with pill keys, a -/+ pill,
@@ -447,7 +453,8 @@ inline void slider_event(lv_event_t *e);
 inline void commit_slider(unsigned i,int raw){
   if(i>=model.count || !fresh())return;auto &t=model.tiles[i];if(!t.available() || t.loading(esphome::millis()))return;
   float value=std::clamp(raw,0,1000)/1000.0f;auto d=t.domain();
-  if(d=="light")action("light.turn_on",t.entity,"brightness",std::to_string((int)std::lround(value*255)));
+  // A light's slider stops at 1 %, as in Home Assistant; tapping the card turns it off.
+  if(d=="light")action("light.turn_on",t.entity,"brightness",std::to_string(std::max(3,(int)std::lround(value*255))));
   if(d=="fan")action("fan.set_percentage",t.entity,"percentage",std::to_string((int)std::lround(value*100)));
   if(d=="cover")action("cover.set_cover_position",t.entity,"position",std::to_string((int)std::lround(value*100)));
   if(d=="media_player")action("media_player.volume_set",t.entity,"volume_level",std::to_string(value));
@@ -601,10 +608,15 @@ inline void show_detail(unsigned index){
   lv_obj_set_style_bg_color(detail_root,lv_color_hex(0xE7E7E7),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
-  auto *heading=detail_label(detail_root,t.name,pad,large?24:12,width-80);if(watch_font){lv_obj_set_style_text_font(heading,watch_font,0);lv_obj_set_height(heading,lv_font_get_line_height(watch_font));}
-  detail_button("X",width-58,8,48,40,-1);
+  // The same top bar as the board's own cards: a round back arrow at the left, the name centred.
+  int bar=large?60:40,bar_x=large?16:10,bar_y=large?16:8;
+  auto *back=detail_button("",bar_x,bar_y,bar,bar,-1);lv_obj_set_style_radius(back,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(back,lv_color_hex(0xEEEEEE),0);
+  auto *arrow=lv_obj_get_child(back,0);if(mini_icon_font)lv_obj_set_style_text_font(arrow,mini_icon_font,0);lv_label_set_text(arrow,"\U000F004D");lv_obj_set_size(arrow,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(arrow);
+  const lv_font_t *title_font=watch_font?watch_font:detail_font;
+  auto *heading=detail_label(detail_root,t.name,bar_x+bar+8,bar_y+(bar-lv_font_get_line_height(title_font))/2,width-2*(bar_x+bar+8));
+  lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
   std::string state=detail_state(t);
-  detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
+  detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);
   auto d=t.domain();
   if(t.is_switch()){
     detail_label(detail_root,"Tap to toggle",pad,top,width-2*pad);
@@ -851,19 +863,31 @@ inline void set_number(lv_obj_t *obj, lv_style_prop_t prop, int32_t number, lv_s
   lv_style_value_t value{}; value.num = number;
   lv_obj_set_local_style_prop(obj, prop, value, selector);
 }
-// The white handle of a card slider sits inside the rounded end of the fill, like Home Assistant's
-// slider. LVGL centres the knob on the end of the fill, so the knob is narrowed and moved back by a
-// quarter of the height; the range starts below zero, so at 0 the fill is still one round end that
-// holds the handle. Values below zero never leave the slider (see slider_event).
+// Card sliders follow Home Assistant's control slider (a 42 px track there): corners of 12 and
+// 8 px on track and fill, a white handle 4 px wide and half the height, an eighth of the height in
+// from the end of the fill, and a fill that never gets shorter than a third of the height. LVGL
+// centres the knob on the end of the fill, so the knob is narrowed and moved back; the range starts
+// below zero, so at 0 the fill is still that short stub holding the handle. Values below zero never
+// leave the slider (see slider_event). Small strips keep round ends: the corners would not show.
+inline int slider_handle_width(int height) { return height > 20 ? 4 : 2; }
+inline int slider_stub(int height) { return std::max(height / 3, 2 * std::max(1, height / 8) + slider_handle_width(height)); }
 inline void slider_handle(lv_obj_t *slider, int width, int height) {
-  int handle = height > 20 ? 6 : 4, inset = height / 4 + handle / 2, half = height >> 1;
+  int handle = slider_handle_width(height), inset = std::max(1, height / 8) + handle / 2, half = height >> 1;
+  set_number(slider, LV_STYLE_RADIUS, height > 20 ? height * 12 / 42 : LV_RADIUS_CIRCLE, LV_PART_MAIN);
+  set_number(slider, LV_STYLE_RADIUS, height > 20 ? height * 8 / 42 : LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
   set_number(slider, LV_STYLE_PAD_LEFT, inset + handle / 2 - half, LV_PART_KNOB);
   set_number(slider, LV_STYLE_PAD_RIGHT, handle / 2 - inset - (height - half), LV_PART_KNOB);
   set_number(slider, LV_STYLE_PAD_TOP, -(height / 4), LV_PART_KNOB);
   set_number(slider, LV_STYLE_PAD_BOTTOM, -(height / 4), LV_PART_KNOB);
-  int below = width > height ? 1000 * height / (width - height) : 0;
+  int stub = slider_stub(height), below = width > stub ? 1000 * stub / (width - stub) : 0;
   if (lv_slider_get_min_value(slider) != -below || lv_slider_get_max_value(slider) != 1000) lv_slider_set_range(slider, -below, 1000);
 }
+// An off light or fan shows only the grey track, as in Home Assistant: no fill, no handle.
+inline void slider_bar(lv_obj_t *slider, bool shown) {
+  set_number(slider, LV_STYLE_BG_OPA, shown ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_INDICATOR);
+  set_number(slider, LV_STYLE_BG_OPA, shown ? LV_OPA_COVER : LV_OPA_TRANSP, LV_PART_KNOB);
+}
+inline bool slider_bar_shown(const Tile &t, bool on) { auto d = t.domain(); return on || (d != "light" && d != "fan"); }
 inline void set_hidden(lv_obj_t *obj, bool hidden) { if (hidden) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); }
 // A card's size as its styles request it. LVGL's own getters only follow after a layout pass, and
 // that pass walks every object on the screen, so the cards are laid out without asking for one.
@@ -899,7 +923,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(w.slider,LV_OPA_COVER,LV_PART_KNOB);
   slider_handle(w.slider,lv_obj_get_width(tile)-24,strip);
   lv_obj_set_style_border_width(w.slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(w.slider,0,LV_PART_KNOB);
-  lv_obj_set_style_radius(w.slider,14,LV_PART_MAIN);lv_obj_set_style_radius(w.slider,14,LV_PART_INDICATOR);lv_obj_set_style_radius(w.slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
+  lv_obj_set_style_radius(w.slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
   lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(w.slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
@@ -1028,7 +1052,14 @@ inline std::string time_text(esphome::ESPTime now) {
 // large cards) with hour and minute hands. A single card adds a calendar block
 // beside the dial (weekday, big day number, short month); a wide card adds the
 // digital time and the date instead. Parts: 0-11 marks, 12-13 hands, 14 centre,
-// 15-17 text.
+// 15-17 text, 18 the second hand (points 28-29), shown while the screen is awake.
+inline void second_hand(Widgets &w,const esphome::ESPTime &now) {
+  float a=(now.is_valid()?now.second:0)*3.14159265f/30;
+  w.points[28]={(lv_value_precise_t)(w.hand_cx-w.hand_r*0.2f*sinf(a)),(lv_value_precise_t)(w.hand_cy+w.hand_r*0.2f*cosf(a))};
+  w.points[29]={(lv_value_precise_t)(w.hand_cx+w.hand_r*0.92f*sinf(a)),(lv_value_precise_t)(w.hand_cy-w.hand_r*0.92f*cosf(a))};
+  auto *p=part_line(w,18,w.points+28,2,w.hand_width);
+  set_hidden(p,!(awake() && now.is_valid()));
+}
 inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int height) {
   bool analog=t.display=="analog";
   begin_extra(w,analog?(w.wide?"analog":"calendar"):"digital",width,height);
@@ -1065,6 +1096,11 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   w.points[2]={(lv_value_precise_t)cx,(lv_value_precise_t)cy};w.points[3]={(lv_value_precise_t)(cx+radius*0.82f*sinf(minute)),(lv_value_precise_t)(cy-radius*0.82f*cosf(minute))};
   part_line(w,12,w.points,2,large?5:3);part_line(w,13,w.points+2,2,large?3:2);
   int center=large?8:4;part_dot(w,14,cx-center/2,cy-center/2,center);
+  // A thin red second hand with a short tail, under the centre dot; tick() moves it every second.
+  w.hand_cx=cx;w.hand_cy=cy;w.hand_r=radius;w.hand_width=large?2:1;
+  bool new_hand=!w.parts[18];
+  second_hand(w,now);
+  if(new_hand)lv_obj_move_to_index(w.parts[18],lv_obj_get_index(w.parts[14]));
   std::string day=now.is_valid()?std::to_string(now.day_of_month):"--";
   if(w.wide){
     int x=dial+(large?16:8),y=std::max(0,(height-text_h)/2);
@@ -1257,7 +1293,6 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       lv_obj_remove_flag(slider,LV_OBJ_FLAG_GESTURE_BUBBLE);lv_obj_remove_flag(slider,LV_OBJ_FLAG_SCROLLABLE);
       lv_obj_set_size(slider,mode=="volume"?m.slider_w:m.pill_w,h);
       lv_obj_set_style_pad_all(slider,0,LV_PART_MAIN);
-      lv_obj_set_style_radius(slider,LV_RADIUS_CIRCLE,LV_PART_MAIN);lv_obj_set_style_radius(slider,LV_RADIUS_CIRCLE,LV_PART_INDICATOR);
       lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_INDICATOR);
       // The handle is a short white bar inside the fill, like Home Assistant's slider.
       lv_obj_set_style_radius(slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(slider,lv_color_hex(0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
@@ -1355,9 +1390,12 @@ inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t te
   }
   if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,key_bg);set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
   if(w.control_slider){
-    lv_color_t fill=fresh() && t.active()?accent:lv_color_hex(0x9E9E9E);
-    set_color(w.control_slider,LV_STYLE_BG_COLOR,lv_color_mix(fill,card,76),LV_PART_MAIN);
+    bool on=fresh() && t.active();
+    lv_color_t fill=on?accent:lv_color_hex(0x9E9E9E);
+    // The track is the fill colour at 20 % over the card, as in Home Assistant.
+    set_color(w.control_slider,LV_STYLE_BG_COLOR,lv_color_mix(fill,card,51),LV_PART_MAIN);
     set_color(w.control_slider,LV_STYLE_BG_COLOR,fill,LV_PART_INDICATOR);
+    slider_bar(w.control_slider,slider_bar_shown(t,on));
   }
   if(w.knob){set_color(w.keys[0],LV_STYLE_BG_COLOR,lv_color_hex(0xD7DADF));set_color(w.keys[0],LV_STYLE_BG_COLOR,lv_color_hex(0xC5C9CF),LV_STATE_PRESSED);}
 }
@@ -1536,10 +1574,11 @@ inline void render_slot(size_t slot) {
   auto circle_color=available?lv_color_mix(color,lv_color_hex(0xFFFFFF),38):lv_color_hex(0xF0F0F0);
   // Darken the foreground slightly: very pale bulbs still need a visible icon.
   auto icon_color=available?lv_color_mix(color,lv_color_hex(0x333333),205):lv_color_hex(0x9E9E9E);
-  // Off: the round end that holds the handle is grey, so the slider reads as off too.
+  // Off: a grey track without fill or handle, as in Home Assistant.
   auto fill_color=on?color:lv_color_hex(0x9E9E9E);
   set_color(w.slider,LV_STYLE_BG_COLOR,fill_color,LV_PART_INDICATOR);
-  set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_mix(fill_color,lv_color_hex(0xFFFFFF),30),LV_PART_MAIN);
+  set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_mix(fill_color,lv_color_hex(0xFFFFFF),51),LV_PART_MAIN);
+  slider_bar(w.slider,slider_bar_shown(t,on));
   set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(t.background ? t.background : 0xFFFFFF));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
   // "Background: none" hides only the card; geometry and padding stay identical,
@@ -1563,7 +1602,7 @@ inline void render_slot(size_t slot) {
     bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
     if(lv_obj_check_type(p,&lv_label_class))set_color(p,LV_STYLE_TEXT_COLOR,muted?value_color:title_color);
     else if(w.extra_mode=="sunpath")continue;
-    else if(lv_obj_check_type(p,&lv_line_class))set_color(p,LV_STYLE_LINE_COLOR,w.extra_mode=="graph"?color:i<12?value_color:i==13?icon_color:title_color);
+    else if(lv_obj_check_type(p,&lv_line_class))set_color(p,LV_STYLE_LINE_COLOR,w.extra_mode=="graph"?color:i==18?lv_color_hex(0xE53935):i<12?value_color:i==13?icon_color:title_color);
     else set_color(p,LV_STYLE_BG_COLOR,i==14?icon_color:value_color);
   }
   lap(swipe_profile::PALETTE);
@@ -1586,10 +1625,11 @@ inline lv_timer_t *fill_timer=nullptr;
 inline bool fill_refreshed=false;
 inline uint32_t fill_step_ms=0;
 inline bool fill_cards(size_t cards);
+// Before the first layout the screen is starting: HA connects, then ESP Screens sends the tiles.
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room; swipe_profile::Lap lap;
-  label(room, !model.configured ? "Choose tiles in HA" : !model.ready() ? "Loading tiles..." : !ha_connected() ? "HA not connected" : !feed_alive() ? "ESP Screens not active" : model.title);
+  label(room, !model.configured ? (!ha_connected() ? "Connecting to Home Assistant..." : "Waiting for ESP Screens...") : !model.ready() ? "Loading tiles..." : !ha_connected() ? "HA not connected" : !feed_alive() ? "ESP Screens not active" : model.title);
   render_header();
   lap(swipe_profile::HEADER);
   bool all=dirty_all || (!dirty_tiles && !dirty_header);
@@ -2068,6 +2108,8 @@ inline void tick() {
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
       if((t.builtin() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
+      // The second hand moves on its own: only its line is redrawn, and it hides during standby.
+      else if(w.parts[18] && w.points && t.builtin() && t.display=="analog")second_hand(w,now);
     }
   }
   if(redraw && refresh)refresh();

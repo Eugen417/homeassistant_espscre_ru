@@ -176,6 +176,28 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.43 / firmware 0.2.37
+
+Firmware only: storage version, tile protocol, preferences and keys are unchanged.
+
+- `runtime_tiles::screen_awake` is a hook both profiles set to `!id(display_dimmed)`; without it
+  the runtime counts as awake. `second_hand()` draws part 18 (points 28-29) of an analog clock
+  card and `tick()` moves it once a second while awake, hiding it otherwise; the minute redraw
+  stays as it was.
+- `slider_handle()` now sets the track and fill radii (12/42 and 8/42 of the height, round ends
+  under 20 px), a handle of 4 px (2 px on small strips) an eighth of the height from the end, and a
+  shortest fill of a third of the height (`slider_stub`). `slider_bar()` hides fill and knob for
+  an off light or fan (`slider_bar_shown`); tracks are the fill colour at 20 % over the card.
+  `light_controls::Row::off` does the same for the colour card's brightness row.
+- `commit_slider` floors a light's brightness at 3 (1 %); the card tap turns it off.
+- Overlay top bar: the profiles' `*_close_button`, `climate_mode_overlay_x`, `vacuum_overlay_x` and
+  the new `overlay_back_button` are one round `arrow-left` (glyph `F004D`, added to
+  `tile_icons.FIXED`) button at the top left, 60/40 px (Guition/CYD) at (16,16)/(10,8);
+  `climate_power_button` is the same size at the top right. `color_done_button` and
+  `vacuum_overlay_ok` are gone; `show_detail()` draws the same bar for the runtime detail card.
+- `render()` shows "Connecting to Home Assistant..." / "Waiting for ESP Screens..." until the
+  first layout arrives.
+
 ### Compatibility 0.2.42 / firmware 0.2.36
 
 Firmware only: storage version, tile protocol, preferences and keys are unchanged. What moved

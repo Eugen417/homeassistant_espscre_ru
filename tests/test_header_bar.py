@@ -222,6 +222,19 @@ class ParityTests(unittest.TestCase):
         self.assertIn('render_header();', TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n', 5)[4])
         self.assertLessEqual(HEADER_MIN_FIRMWARE, tuple(int(p) for p in FIRMWARE_VERSION.split('.')))
 
+    def test_second_hand_runs_only_while_the_screen_is_awake(self):
+        for name in PROFILES:
+            text = (ROOT / name).read_text()
+            self.assertIn('runtime_tiles::screen_awake = []() { return !id(display_dimmed); };', text, name)
+        for name in ('packages/cyd.yaml', 'packages/guition.yaml'):
+            self.assertIn('runtime_tiles::screen_awake', (ROOT / name).read_text(), name)
+        self.assertIn('inline bool awake() { return !screen_awake || screen_awake(); }', TILES)
+        second_hand = TILES.split('inline void second_hand(', 1)[1].split('\n}', 1)[0]
+        self.assertIn('set_hidden(p,!(awake() && now.is_valid()));', second_hand)
+        self.assertIn('part_line(w,18,w.points+28,2,w.hand_width)', second_hand)
+        tick = TILES.split('inline void tick() {', 1)[1]
+        self.assertIn('t.builtin() && t.display=="analog")second_hand(w,now);', tick)
+
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:
     from aiohttp.test_utils import TestClient, TestServer

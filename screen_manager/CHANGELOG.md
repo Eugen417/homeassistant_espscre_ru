@@ -1,3 +1,14 @@
+## 0.2.43 (firmware 0.2.37)
+
+A second hand on the analog clock, sliders that look like Home Assistant's, and one top bar for every card.
+
+- **Second hand.** The analog clock card gets a thin red second hand with a short tail that moves every second while the screen is in use. During standby (also at the night level) it is hidden and the clock keeps its once-a-minute redraw, so a sleeping screen does no extra work. Only the hand's own line is redrawn, not the card. The small dial in the top bar stays as it was.
+- **Sliders like Home Assistant.** Card sliders (a light's or fan's direct control, the Sonos volume, the brightness row of the colour card) now use the proportions of HA's control slider: softer corners on track and fill, a slimmer white handle a little in from the end of the fill, a track in the fill colour at 20 %, and a short stub instead of a full circle at 0 or 1 %. A light or fan that is off shows only the empty grey track, without fill or handle, exactly as HA does; the colour card's brightness row then reads Off until you move it.
+- **A light's slider stops at 1 %.** As in HA, dragging a light's slider all the way down leaves it on at 1 %; tapping the card turns it off.
+- **One top bar on every card.** Every card that opens over the tiles (brightness, colour, climate, vacuum, media, timer, switch, sensor history and the others) has the same bar: a round back arrow at the left, big enough for a finger (60 px on the Guition, 40 px on the CYD), and the name in the middle. Only a card with one overriding action keeps a round button at the right, such as the on/off of a climate device; the colour and vacuum cards lose their extra "done" buttons, which only closed the card. The brightness card, which had no button at all, gets the back arrow too.
+- **A starting screen says so.** Until the first layout arrives the top bar reads "Connecting to Home Assistant..." and then "Waiting for ESP Screens...", instead of "Choose tiles in HA".
+- Firmware 0.2.37 for both boards; the app offers the update.
+
 ## 0.2.42 (firmware 0.2.36)
 
 Smoother page swipes and a new colour card for lights.

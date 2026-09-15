@@ -205,6 +205,8 @@ FIXED = (
     ('chevron-left', 'F0141'),
     ('chevron-right', 'F0142'),
     ('close', 'F0156'),
+    # Back button of every overlay (firmware 0.2.37+).
+    ('arrow-left', 'F004D'),
     ('sun-snowflake-variant', 'F1A79'),
     ('thermostat-auto', 'F1B17'),
     ('weather-fog', 'F0591'),
