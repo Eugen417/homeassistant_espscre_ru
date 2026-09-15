@@ -1,3 +1,11 @@
+## 0.2.48 (firmware 0.2.41)
+
+Keep a screen awake from a Home Assistant automation.
+
+- **Auto standby in Home Assistant.** Every screen gets the switch **Auto standby**, the same setting as the checkbox in ESP Screens. Turn it off and a dimmed screen wakes at once and stays on; turn it on and the screen dims again after its standby time, counted from that moment. So an automation can keep the screens on while someone is home and the lights are on or a window is open. A change shows in ESP Screens too and is kept after a restart.
+- **The Claude skill knows it.** The skill under Settings → Claude now also covers standby and brightness: the Auto standby switch, Standby after and the three brightness numbers, with an example automation. Install it again from the Settings page to get the new version.
+- Firmware 0.2.41 for both boards; the app offers the update.
+
 ## 0.2.47 (firmware 0.2.40)
 
 The new climate card comes to the Guition, with fan and swing right on the card.

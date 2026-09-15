@@ -92,7 +92,8 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   changed ("5 min ago", "Yesterday"). See [Top bar](#top-bar).
 - **Screen settings:** standby time, normal and dimmed brightness,
   night hours, 24- or 12-hour clock, return to the home page, and optional swiping
-  between pages.
+  between pages. Home Assistant automations can turn **Auto standby** off and on per
+  screen (firmware 0.2.41+), for example to keep a screen on while someone is home.
 - **Guition rotation:** 0°, 90°, 180°, or 270°, directly from the management page.
   Native LVGL rotation turns the display and touch together. The CYD keeps its fixed
   orientation and its own calibration.

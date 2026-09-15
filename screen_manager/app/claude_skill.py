@@ -13,12 +13,13 @@ import zipfile
 
 import tile_icons
 from core import (ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
-                  ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, BROADCAST_DISMISS, BROADCAST_SHOW, TILE_BACKGROUNDS)
+                  ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
+                  TILE_BACKGROUNDS)
 
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
-DESCRIPTION = ('Show alerts or notifications on ESP Screens (CYD and Guition touchscreens run from Home Assistant): '
-               'all screens or one, now or in an automation, with the icons and colors they support.')
+DESCRIPTION = ('Alerts and standby on ESP Screens (CYD and Guition touchscreens run from Home Assistant): alerts on '
+               'all screens or one with the icons they support, and an automation that keeps screens awake.')
 TYPES = {'string': 'text', 'int': 'number', 'bool': 'on/off'}
 
 def skill_dir(config=None):
@@ -31,7 +32,8 @@ def _limit(name, kind):
     return f'0 to {ALERT_MAX_TIMEOUT} s' if kind == 'int' else ''
 
 def text():
-    """SKILL.md: when to use it, the event for every screen, the per-screen action, fields, colors and icons."""
+    """SKILL.md: when to use it, the event for every screen, the per-screen action, fields, colors and icons,
+    then the standby and brightness entities every screen has in Home Assistant."""
     fields = '\n'.join(f'| `{name}` | {TYPES[kind]} | {help_} | {_limit(name, kind)} |' for name, kind, _, help_, _ in ALERT_FIELDS)
     colors = ', '.join(f"`{name}` ({item['label']})" for name, item in TILE_BACKGROUNDS.items() if item['color'])
     suggested = ', '.join(f'`{name}`' for name in ALERT_SUGGESTED_ICONS)
@@ -43,9 +45,11 @@ name: {NAME}
 description: {DESCRIPTION}
 ---
 
-# Alerts on ESP Screens
+# Alerts and standby on ESP Screens
 
 Made by ESP Screen Manager (ESP Screens → Settings → Claude). Installing it again from there replaces this file, so changes made here get lost.
+
+Two things Home Assistant can do with the screens: show an alert (below), and keep a screen awake or let it dim ([Standby and brightness](#standby-and-brightness)).
 
 An alert is a card over the whole screen with an icon, a title, a subtitle and one button. It wakes the screen and stays until someone presses the button or the timeout runs out. A new alert replaces the one showing.
 
@@ -160,6 +164,56 @@ actions:
         sequence:
           - event: {BROADCAST_DISMISS}
 ```
+
+## Standby and brightness
+
+Every screen has these entities in Home Assistant, on its ESPHome device. `<screen>` stands for the start Home Assistant gave the screen's entity IDs, the same as in `text.<screen>_tile_settings`; look them up rather than guessing.
+
+| Entity | What it does |
+|---|---|
+| `switch.<screen>_auto_standby` | On: the screen dims after the standby time without a touch. Off: the screen wakes up and stays on. Firmware {AUTO_STANDBY_MIN_FIRMWARE} or newer. |
+| `number.<screen>_standby_after` | Seconds without a touch before standby, 60 to 86400. |
+| `number.<screen>_normal_brightness` | Brightness while in use, 5 to 100 %. |
+| `number.<screen>_standby_brightness` | Brightness in standby, 0 to 100 %, at most the normal brightness. |
+| `number.<screen>_night_brightness` | Brightness in standby during the night hours set in ESP Screens, 0 to 100 %. |
+
+These are the same settings as in ESP Screens: a change made from Home Assistant shows there too and stays after a restart. Turning Auto standby on again counts the standby time from that moment. Every change is saved on the screen, so switch on changes that happen a few times a day (someone comes home, a light goes on, a window opens), never on every motion.
+
+To keep screens on while something is going on at home, turn Auto standby off when the situation starts and on when it ends, all from one automation. Example with placeholders for the user's own entities:
+
+```yaml
+alias: Keep the screens awake
+mode: restart
+triggers:
+  - trigger: state
+    entity_id:
+      - person.alex
+      - light.living_room
+      - binary_sensor.bedroom_window
+actions:
+  - if:
+      - condition: state
+        entity_id: person.alex
+        state: home
+      - condition: or
+        conditions:
+          - condition: state
+            entity_id: light.living_room
+            state: "on"
+          - condition: state
+            entity_id: binary_sensor.bedroom_window
+            state: "on"
+    then:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kitchen_screen_auto_standby
+    else:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.kitchen_screen_auto_standby
+```
+
+Replace the person, light, window and screen with the real entity IDs (ask which screens when there are several), and leave out conditions the user did not ask for.
 '''
 
 def status(directory):

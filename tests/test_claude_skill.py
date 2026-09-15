@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import claude_skill  # noqa: E402
 import tile_icons  # noqa: E402
-from core import ALERT_EVENT, ALERT_FIELDS, ALERT_LIMITS, ALERT_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW, TILE_BACKGROUNDS  # noqa: E402
+from core import ALERT_EVENT, ALERT_FIELDS, ALERT_LIMITS, ALERT_MIN_FIRMWARE, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW, TILE_BACKGROUNDS  # noqa: E402
 
 HAS_YAML = importlib.util.find_spec('yaml') is not None
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
@@ -27,7 +27,7 @@ class SkillText(unittest.TestCase):
         self.assertIsNotNone(front)
         self.assertEqual(front[1], 'esp-screens')
         self.assertLessEqual(len(front[2]), 200, 'claude.ai refuses longer descriptions')
-        for words in ('ESP Screens', 'alerts', 'all screens', 'automation', 'icons'):
+        for words in ('ESP Screens', 'alerts', 'all screens', 'automation', 'icons', 'awake'):
             self.assertIn(words, front[2])
         self.assertEqual(text, claude_skill.text(), 'same text every time, so status() can compare')
         self.assertNotRegex(text, r'\{[A-Z_]+\}', 'no placeholder left over')
@@ -44,6 +44,13 @@ class SkillText(unittest.TestCase):
         for name, item in TILE_BACKGROUNDS.items():
             if item['color']:
                 self.assertIn(f'`{name}`', text)
+        # Standby from automations (0.2.48): the switch, the numbers and when the switch arrived.
+        standby = text.split('## Standby and brightness', 1)[1]
+        for entity in ('switch.<screen>_auto_standby', 'number.<screen>_standby_after', 'number.<screen>_normal_brightness',
+                       'number.<screen>_standby_brightness', 'number.<screen>_night_brightness'):
+            self.assertIn(f'`{entity}`', standby)
+        self.assertIn(AUTO_STANDBY_MIN_FIRMWARE, standby)
+        self.assertIn('(#standby-and-brightness)', text, 'the intro links to the section')
         icons = text.split('## Icons', 1)[1].split('## When an alert ends', 1)[0]
         self.assertEqual(set(re.findall(r'`([a-z0-9-]+)`', icons)) - {'icon'}, set(tile_icons.GLYPHS), 'exactly the glyphs the firmware carries')
 
@@ -51,7 +58,7 @@ class SkillText(unittest.TestCase):
     def test_every_yaml_example_parses(self):
         import yaml
         blocks = re.findall(r'```yaml\n(.*?)```', claude_skill.text(), re.S)
-        self.assertEqual(len(blocks), 4)
+        self.assertEqual(len(blocks), 5)
         parsed = [yaml.safe_load(block) for block in blocks]
         self.assertEqual(parsed[0]['actions'][0]['event'], BROADCAST_SHOW)
         self.assertEqual(set(parsed[0]['actions'][0]['event_data']), {name for name, *_ in ALERT_FIELDS})
@@ -59,6 +66,14 @@ class SkillText(unittest.TestCase):
         self.assertEqual(parsed[2][0]['wait_for_trigger'][0]['event_type'], ALERT_EVENT)
         choose = parsed[3]['actions'][0]['choose']
         self.assertEqual([option['sequence'][0]['event'] for option in choose], [BROADCAST_SHOW, BROADCAST_DISMISS])
+        awake = parsed[4]
+        self.assertEqual(awake['mode'], 'restart')
+        branch = awake['actions'][0]
+        self.assertEqual((branch['then'][0]['action'], branch['else'][0]['action']), ('switch.turn_off', 'switch.turn_on'))
+        self.assertTrue(branch['then'][0]['target']['entity_id'].endswith('_auto_standby'))
+        watched = set(awake['triggers'][0]['entity_id'])
+        conditions = {branch['if'][0]['entity_id']} | {c['entity_id'] for c in branch['if'][1]['conditions']}
+        self.assertEqual(watched, conditions, 'the automation reacts to every entity its condition reads')
 
 
 class Archive(unittest.TestCase):

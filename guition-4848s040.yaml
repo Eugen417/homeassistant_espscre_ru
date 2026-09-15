@@ -1,7 +1,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.40"
+  SCREEN_FIRMWARE_VERSION: "0.2.41"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -1933,6 +1933,33 @@ text_sensor:
 switch:
   - platform: restart
     name: "Restart"
+  # Auto standby, the same setting as the checkbox in ESP Screens (firmware 0.2.41+), so Home Assistant
+  # automations can keep a screen on. Off wakes the screen and keeps it on; on counts the standby time
+  # from that moment. Nothing runs at boot: the switch follows the saved setting.
+  - platform: template
+    id: setting_auto_standby
+    name: "Auto standby"
+    icon: "mdi:sleep"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return screen_settings::current.standby_enabled;
+    turn_on_action:
+      - lambda: |-
+          auto &s = screen_settings::current;
+          id(last_touch_ms) = millis();
+          if (s.standby_enabled) return;
+          s.standby_enabled = true;
+          if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
+          runtime_tiles::setting_event("standby_enabled", 1);
+          id(apply_screen_settings).execute();
+    turn_off_action:
+      - lambda: |-
+          auto &s = screen_settings::current;
+          if (!s.standby_enabled) return;
+          s.standby_enabled = false;
+          if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
+          runtime_tiles::setting_event("standby_enabled", 0);
+          id(apply_screen_settings).execute();
 
 # Two SPI buses used by the CYD:
 # - lcd: built-in display

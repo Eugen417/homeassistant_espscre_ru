@@ -176,6 +176,20 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.48 / firmware 0.2.41
+
+Storage, protocol, preferences and keys are unchanged.
+
+- Both profiles add a template switch `setting_auto_standby` ("Auto standby", entity category config,
+  `restore_mode: DISABLED`, state from `screen_settings::current.standby_enabled` through its lambda).
+  Its actions change `standby_enabled`, save the settings preference, send the existing
+  `esphome.screen_setting` event (`standby_enabled`, 1/0; the app already stores bool settings from it)
+  and run `apply_screen_settings`, which wakes a dimmed screen when standby is off. Turning it on sets
+  `last_touch_ms`, so the standby time counts from then.
+- `claude_skill.text()` gains "Standby and brightness" (the switch, the four numbers, an example
+  automation); `core.AUTO_STANDBY_MIN_FIRMWARE` is 0.2.41. The skill description stays under 200 bytes.
+  An installed skill shows as outdated until it is installed again.
+
 ### Compatibility 0.2.47 / firmware 0.2.40
 
 Firmware and board profiles; the app only raises `FIRMWARE_VERSION`. Storage, protocol, preferences and

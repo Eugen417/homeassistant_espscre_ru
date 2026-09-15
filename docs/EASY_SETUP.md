@@ -238,6 +238,41 @@ After this, changes to these settings don't need a new firmware flash.
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
 | Guition rotation | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
 
+Home Assistant shows the same settings on each screen's ESPHome device: the switch
+**Auto standby** (firmware 0.2.41+) and the numbers **Standby after**, **Normal brightness**,
+**Standby brightness** and **Night brightness**. Changing them there, for example from an
+automation, also changes them in ESP Screens and keeps them after a restart. Turning Auto
+standby off wakes the screen and keeps it on; turning it on counts the standby time from
+that moment. To keep a screen on while someone is home and a light is on:
+
+```yaml
+alias: Keep the kitchen screen awake
+mode: restart
+triggers:
+  - trigger: state
+    entity_id: [person.alex, light.living_room]
+actions:
+  - if:
+      - condition: state
+        entity_id: person.alex
+        state: home
+      - condition: state
+        entity_id: light.living_room
+        state: "on"
+    then:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.kitchen_screen_auto_standby
+    else:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.kitchen_screen_auto_standby
+```
+
+Every change is saved on the screen, so switch on changes that happen a few times a day,
+not on every motion. ESP Screens → Settings → Claude installs a skill that writes such
+automations for you.
+
 Night hours use the ESPHome device's timezone and the time from HA.
 Without a valid time, the screen uses the regular standby brightness; matching
 start and end times turn the night window off. At 0%, only the
