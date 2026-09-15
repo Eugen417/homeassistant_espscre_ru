@@ -21,7 +21,7 @@ if HAS_AIOHTTP:
 
 class ProtocolTests(unittest.TestCase):
     def test_encode_revision_and_action(self):
-        message = {'v': 1, 'op': 'layout', 'title': 'Kantoor 1', 'entities': ['light.a']}
+        message = {'v': 1, 'op': 'layout', 'title': 'Office 1', 'entities': ['light.a']}
         self.assertEqual(json.loads(encode(message)), message)
         self.assertNotIn(', ', encode(message), 'compact separators')
         with self.assertRaises(ValueError):
@@ -30,10 +30,10 @@ class ProtocolTests(unittest.TestCase):
         import base64
         self.assertEqual(base64.b64decode(''.join(p.split('|')[3] for p in packets(message))).decode(), encode(message))
         # Same content, any key order: same revision; any change: another one.
-        self.assertEqual(revision(message), revision({'entities': ['light.a'], 'title': 'Kantoor 1', 'op': 'layout', 'v': 1}))
-        self.assertNotEqual(revision(message), revision({**message, 'title': 'Kantoor 2'}))
+        self.assertEqual(revision(message), revision({'entities': ['light.a'], 'title': 'Office 1', 'op': 'layout', 'v': 1}))
+        self.assertNotEqual(revision(message), revision({**message, 'title': 'Office 2'}))
         self.assertEqual(len(revision(message)), 12)
-        self.assertEqual(message_action('kantoor-1'), 'esphome.kantoor_1_screen_message')
+        self.assertEqual(message_action('office-1'), 'esphome.office_1_screen_message')
         self.assertIsNone(message_action(None))
         self.assertEqual(TRANSPORT_MIN_FIRMWARE, (0, 2, 33))
 
@@ -47,21 +47,21 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(samples([], 0, 2400), [None] * 24)
 
 
-def fake_ha(firmware='0.2.33', node='kantoor-1'):
+def fake_ha(firmware='0.2.33', node='office-1'):
     class HA:
         online = True
 
         def __init__(self):
-            self.registry = [{'entity_id': 'text.screen', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd1'},
-                             {'entity_id': 'sensor.fw', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd1'},
-                             {'entity_id': 'text.node', 'platform': 'esphome', 'original_name': 'Apparaatnaam', 'device_id': 'd1'},
+            self.registry = [{'entity_id': 'text.screen', 'platform': 'esphome', 'original_name': 'Tile settings', 'device_id': 'd1'},
+                             {'entity_id': 'sensor.fw', 'platform': 'esphome', 'original_name': 'Screen firmware', 'device_id': 'd1'},
+                             {'entity_id': 'text.node', 'platform': 'esphome', 'original_name': 'Device name', 'device_id': 'd1'},
                              {'entity_id': 'light.a', 'platform': 'hue'}, {'entity_id': 'light.b', 'platform': 'hue'},
                              {'entity_id': 'sensor.t', 'platform': 'mqtt'}, {'entity_id': 'sensor.co2', 'platform': 'mqtt'}]
-            self.devices, self.areas = [{'id': 'd1', 'name': 'Kantoor 1'}], []
-            self.states = {'text.screen': {'state': 'Gesynchroniseerd'}, 'sensor.fw': {'state': firmware}, 'text.node': {'state': node},
+            self.devices, self.areas = [{'id': 'd1', 'name': 'Office 1'}], []
+            self.states = {'text.screen': {'state': 'Synced'}, 'sensor.fw': {'state': firmware}, 'text.node': {'state': node},
                            'light.a': {'state': 'on', 'attributes': {'friendly_name': 'Lamp A'}},
                            'light.b': {'state': 'off', 'attributes': {'friendly_name': 'Lamp B'}},
-                           'sensor.t': {'state': '21.5', 'attributes': {'unit_of_measurement': '°C', 'friendly_name': 'Temperatuur'}},
+                           'sensor.t': {'state': '21.5', 'attributes': {'unit_of_measurement': '°C', 'friendly_name': 'Temperature'}},
                            'sensor.co2': {'state': '600', 'attributes': {'unit_of_measurement': 'ppm', 'friendly_name': 'CO2'}}}
             self.changed = asyncio.Event()
             self.dirty = set()
@@ -87,7 +87,7 @@ def fake_ha(firmware='0.2.33', node='kantoor-1'):
 class IncrementalSync(unittest.IsolatedAsyncioTestCase):
     def manager(self, tmp, **kw):
         m = Manager(fake_ha(**kw), Path(tmp) / 'screens.json')
-        m.save('text.screen', {'title': 'Kantoor 1', 'tiles': [{'entity': 'light.a', 'name': ''}, {'entity': 'light.b', 'name': ''}],
+        m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}, {'entity': 'light.b', 'name': ''}],
                                'header': {'items': [{'type': 'clock'}, {'type': 'entity', 'entity': 'sensor.t', 'content': 'state', 'icon': 'auto', 'show': 'always'}]}})
         return m
 
@@ -99,7 +99,7 @@ class IncrementalSync(unittest.IsolatedAsyncioTestCase):
             ops = [msg['op'] for _, msg, _ in m.ha.messages]
             self.assertEqual(ops, ['layout', 'header', 'state', 'state'])
             self.assertIn('rev', m.ha.messages[0][1])
-            self.assertTrue(all(action == 'esphome.kantoor_1_screen_message' for _, _, action in m.ha.messages), 'firmware 0.2.33: one action per message')
+            self.assertTrue(all(action == 'esphome.office_1_screen_message' for _, _, action in m.ha.messages), 'firmware 0.2.33: one action per message')
             m.ha.messages.clear()
             # Both lamps change in HA, but only light.a is reported dirty: light.b's message is reused as sent.
             m.ha.states['light.a']['state'] = 'off'
@@ -135,7 +135,7 @@ class IncrementalSync(unittest.IsolatedAsyncioTestCase):
             rev = m.ha.messages[0][1]['rev']
             m.ha.messages.clear()
             await m.ping('text.screen', m.screen('text.screen'))
-            self.assertEqual(m.ha.messages, [('text.screen', {'v': 1, 'op': 'ping', 'rev': rev, 'keepalive': KEEPALIVE_SECONDS}, 'esphome.kantoor_1_screen_message')])
+            self.assertEqual(m.ha.messages, [('text.screen', {'v': 1, 'op': 'ping', 'rev': rev, 'keepalive': KEEPALIVE_SECONDS}, 'esphome.office_1_screen_message')])
             self.assertEqual(rev, revision({k: v for k, v in m.sent['text.screen']['layout'].items() if k != 'rev'}))
             # Firmware before 0.2.33: base64 chunks in the text inbox, no ping.
             old = self.manager(tmp, firmware='0.2.32')
@@ -176,7 +176,7 @@ class IncrementalSync(unittest.IsolatedAsyncioTestCase):
             self.assertEqual([msg['op'] for _, msg, _ in m.ha.messages], ['ping'])
             m.ha.messages.clear()
             # The screen answered a ping with a mismatch (or restarted): everything again, once.
-            m.ha.states['text.screen'] = {'state': 'Indeling opnieuw nodig'}
+            m.ha.states['text.screen'] = {'state': 'Resend needed'}
             m.last['text.screen'] = time.monotonic() - 130
             m.ha.changed.set()
             await self.run_loop_for(m, 0.6)
@@ -187,7 +187,7 @@ class IncrementalSync(unittest.IsolatedAsyncioTestCase):
             await self.run_loop_for(m, 0.6)
             self.assertEqual(m.ha.messages, [])
             # The hourly safety net repeats everything.
-            m.ha.states['text.screen'] = {'state': 'Gesynchroniseerd'}
+            m.ha.states['text.screen'] = {'state': 'Synced'}
             m.last['text.screen'] = time.monotonic() - FULL_REPEAT_SECONDS
             m.ha.changed.set()
             await self.run_loop_for(m, 0.6)

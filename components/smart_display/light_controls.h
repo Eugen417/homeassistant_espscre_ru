@@ -108,7 +108,7 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
   int margin = large ? 24 : 16, w = width - 2 * margin;
   int track_x = 14, track_y = large ? 43 : 28, track_h = large ? 28 : 14;
   int track_w = w - 28;
-  const char *names[] = {"Kleur", "Wittemperatuur", "Helderheid"};
+  const char *names[] = {"Color", "Color temperature", "Brightness"};
   const uint32_t rainbow[] = {0xFF0000, 0xFFFF00, 0x00FF00, 0x00FFFF, 0x0000FF, 0xFF00FF, 0xFF0000};
   for (unsigned i = 0; i < 3; ++i) {
     auto &row = rows[i]; row.index = i;
@@ -170,7 +170,7 @@ inline void open(const std::string &entity, bool color, bool temperature, int br
     if (i == 1 && active->temperature_ready()) lv_slider_set_range(row.slider, active->minimum, active->maximum);
     lv_slider_set_value(row.slider, i == 0 ? active->hue : i == 1 ? active->kelvin : clamp(brightness, 1, 100), LV_ANIM_OFF);
     preview(row); row.dirty = false;
-    if (i == 1 && !active->temperature_ready()) lv_label_set_text(row.value, "Even wachten");
+    if (i == 1 && !active->temperature_ready()) lv_label_set_text(row.value, "Waiting...");
   }
 }
 inline bool self_test() {

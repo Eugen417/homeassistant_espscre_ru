@@ -30,35 +30,35 @@ def daily():
 
 class WeatherExtras(unittest.TestCase):
     def test_hours_start_now_and_carry_rain(self):
-        states = {'weather.huis': {'state': 'rainy', 'attributes': {'temperature': 18.4, 'humidity': 92, 'wind_speed': 12.2, 'wind_speed_unit': 'km/h'}}}
-        extra = extras({'entity': 'weather.huis'}, states, daily(), TZ, hourly(), NOW)
+        states = {'weather.house': {'state': 'rainy', 'attributes': {'temperature': 18.4, 'humidity': 92, 'wind_speed': 12.2, 'wind_speed_unit': 'km/h'}}}
+        extra = extras({'entity': 'weather.house'}, states, daily(), TZ, hourly(), NOW)
         self.assertEqual([h['t'] for h in extra['hours']], ['13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00'], 'local time, from the current hour')
         self.assertEqual(extra['hours'][0], {'t': '13:00', 'c': 'rainy', 'h': 19.1, 'p': 60, 'r': 0.2})
         self.assertEqual(extra['hours'][1]['r'], 0.0)
         self.assertEqual(len(extra['days']), 5)
-        self.assertEqual(extra['days'][1], {'d': 'ma', 'c': 'cloudy', 'h': 22, 'l': 12.1, 'r': 1.7}, 'no probability when the provider gives none')
-        message = state_message(0, {'entity': 'weather.huis', 'name': 'Buiten', 'options': {'display': 'forecast'}}, states, extra)
+        self.assertEqual(extra['days'][1], {'d': 'Mo', 'c': 'cloudy', 'h': 22, 'l': 12.1, 'r': 1.7}, 'no probability when the provider gives none')
+        message = state_message(0, {'entity': 'weather.house', 'name': 'Outside', 'options': {'display': 'forecast'}}, states, extra)
         self.assertEqual(message['a']['wind_speed_unit'], 'km/h')
         self.assertEqual(message['a']['humidity'], 92)
         self.assertLessEqual(len(packets(message)), 8, 'a full weather card still fits comfortably')
 
     def test_weather_without_forecasts_sends_nothing_extra(self):
-        self.assertIsNone(extras({'entity': 'weather.huis'}, {}, None, TZ, None, NOW))
-        self.assertEqual(extras({'entity': 'weather.huis'}, {}, daily(), TZ, [], NOW).keys(), {'days'})
+        self.assertIsNone(extras({'entity': 'weather.house'}, {}, None, TZ, None, NOW))
+        self.assertEqual(extras({'entity': 'weather.house'}, {}, daily(), TZ, [], NOW).keys(), {'days'})
 
 
 class LastRun(unittest.TestCase):
     def test_scripts_scenes_and_buttons_report_when_they_last_ran(self):
         states = {'script.tv': {'state': 'off', 'attributes': {'last_triggered': '2026-09-13T08:10:49.403953+00:00'}},
-                  'scene.avond': {'state': '2026-09-12T16:33:37.040291+00:00', 'attributes': {}},
-                  'button.bel': {'state': '2026-09-13T09:00:00+00:00', 'attributes': {}},
-                  'script.nieuw': {'state': 'off', 'attributes': {'last_triggered': None}},
-                  'scene.nooit': {'state': 'unknown', 'attributes': {}}}
+                  'scene.evening': {'state': '2026-09-12T16:33:37.040291+00:00', 'attributes': {}},
+                  'button.bell': {'state': '2026-09-13T09:00:00+00:00', 'attributes': {}},
+                  'script.new': {'state': 'off', 'attributes': {'last_triggered': None}},
+                  'scene.never': {'state': 'unknown', 'attributes': {}}}
         self.assertEqual(extras({'entity': 'script.tv'}, states, None, TZ), {'last': 1789287049})
-        self.assertEqual(extras({'entity': 'scene.avond'}, states, None, TZ), {'last': 1789230817})
-        self.assertEqual(extras({'entity': 'button.bel'}, states, None, TZ), {'last': 1789290000})
-        self.assertIsNone(extras({'entity': 'script.nieuw'}, states, None, TZ))
-        self.assertIsNone(extras({'entity': 'scene.nooit'}, states, None, TZ))
+        self.assertEqual(extras({'entity': 'scene.evening'}, states, None, TZ), {'last': 1789230817})
+        self.assertEqual(extras({'entity': 'button.bell'}, states, None, TZ), {'last': 1789290000})
+        self.assertIsNone(extras({'entity': 'script.new'}, states, None, TZ))
+        self.assertIsNone(extras({'entity': 'scene.never'}, states, None, TZ))
         message = state_message(0, {'entity': 'script.tv', 'name': ''}, states, extras({'entity': 'script.tv'}, states, None, TZ))
         self.assertEqual(message['x'], {'last': 1789287049})
         self.assertNotIn('last_triggered', message['a'], 'the raw timestamp stays behind; the firmware gets the epoch')
@@ -68,16 +68,16 @@ class HourlySync(unittest.IsolatedAsyncioTestCase):
     async def test_manager_asks_for_daily_and_hourly_forecasts(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = test_portal.ManagerTests().setup_manager(Path(tmp) / 'screens.json')
-            m.ha.states['weather.huis'] = {'state': 'rainy', 'attributes': {'friendly_name': 'Huis', 'temperature': 18.4}}
+            m.ha.states['weather.house'] = {'state': 'rainy', 'attributes': {'friendly_name': 'House', 'temperature': 18.4}}
             asked = []
             async def forecast(entity, kind='daily'):
                 asked.append(kind)
                 # The manager reads the real clock, so the hourly strip is anchored to today.
                 return daily() if kind == 'daily' else hourly(datetime.now(timezone.utc))
             m.ha.forecast = forecast
-            m.ha.registry.append({'entity_id': 'sensor.fw', 'platform': 'esphome', 'original_name': 'Schermfirmware'})
+            m.ha.registry.append({'entity_id': 'sensor.fw', 'platform': 'esphome', 'original_name': 'Screen firmware'})
             m.ha.states['sensor.fw'] = {'state': '0.2.19'}
-            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'weather.huis', 'name': '', 'options': {'display': 'forecast'}}]})
+            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'weather.house', 'name': '', 'options': {'display': 'forecast'}}]})
             await m.sync_one('text.screen', m.layouts['text.screen'])
             self.assertEqual(sorted(asked), ['daily', 'hourly'])
             sent = m.ha.messages[1][1]

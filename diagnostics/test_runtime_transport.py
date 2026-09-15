@@ -20,7 +20,8 @@ async def main():
     await client.connect(login=True)
     try:
         entities, _ = await client.list_entities_services()
-        inbox = next(e for e in entities if isinstance(e, TextInfo) and e.name == 'Tegelinstellingen')
+        # Firmware built before the English translation still names this entity in Dutch.
+        inbox = next(e for e in entities if isinstance(e, TextInfo) and e.name in ('Tile settings', 'Tegelinstellingen'))
         assert inbox.max_length == 255
         queue = asyncio.Queue()
         client.subscribe_states(lambda s: queue.put_nowait(s.state) if isinstance(s, TextState) and s.key == inbox.key else None)
@@ -35,13 +36,13 @@ async def main():
             client.text_command(inbox.key, secrets.token_hex(6) + '|0|1|' + encoded)
             while True:
                 ack = await asyncio.wait_for(queue.get(), 5)
-                if ack.startswith('Fout:'):
+                if ack.startswith(('Error:', 'Fout:')):
                     print('PASS: rejected invalid command — ' + ack)
                     break
         client.text_command(inbox.key, secrets.token_hex(6) + '|2|1|e30=')
         while True:
             ack = await asyncio.wait_for(queue.get(), 5)
-            if ack == 'Fout: onvolledig bericht':
+            if ack in ('Error: incomplete message', 'Fout: onvolledig bericht'):
                 print('PASS: missing chunks rejected')
                 break
     finally:

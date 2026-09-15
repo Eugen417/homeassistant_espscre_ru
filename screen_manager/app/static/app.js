@@ -36,7 +36,7 @@ async function api(path, options = {}) {
     },
   });
   if (!response.ok) {
-    let message = "Dit lukte niet. Vernieuw de pagina en probeer opnieuw.";
+    let message = "That didn't work. Refresh the page and try again.";
     try {
       message = (await response.json()).error || message;
     } catch {}
@@ -46,15 +46,15 @@ async function api(path, options = {}) {
 }
 function markDirty() {
   dirty = true;
-  $("#dirty").textContent = "Niet-opgeslagen wijzigingen";
-  $("#save-detail").textContent = "Klik op opslaan om je scherm bij te werken.";
+  $("#dirty").textContent = "Unsaved changes";
+  $("#save-detail").textContent = "Click save to update your screen.";
 }
 function select(id) {
   if (
     id !== selected &&
     dirty &&
     !confirm(
-      "Je hebt niet-opgeslagen wijzigingen. Toch een ander scherm openen?",
+      "You have unsaved changes. Open a different screen anyway?",
     )
   )
     return;
@@ -71,8 +71,8 @@ function select(id) {
   $("#screen-name").textContent = screen.name;
   $("#editor").hidden = false;
   $("#empty").hidden = true;
-  $("#dirty").textContent = "Alles opgeslagen";
-  $("#save-detail").textContent = "Aanpassen kan zonder opnieuw flashen.";
+  $("#dirty").textContent = "All saved";
+  $("#save-detail").textContent = "Changes apply without reflashing.";
   renderScreens();
   renderTopbar();
   renderTiles();
@@ -81,19 +81,19 @@ function select(id) {
   loadTopbarPreview(0);
 }
 const settingDefinitions = [
-  ["standby_enabled", "Automatisch standby", "check", true],
-  ["standby_seconds", "Standby na", "minutes", 600, 1, 1440],
-  ["brightness", "Helderheid normaal", "range", 100, 5, 100],
-  ["standby_brightness", "Helderheid in standby", "range", 20, 0, 100],
-  ["night_enabled", "Nachtstand gebruiken", "check", true],
-  ["night_brightness", "Helderheid in nachtstand", "range", 10, 0, 100],
-  ["night_start", "Nachtstand vanaf", "time", 1320],
-  ["night_end", "Nachtstand tot", "time", 420],
+  ["standby_enabled", "Auto standby", "check", true],
+  ["standby_seconds", "Standby after", "minutes", 600, 1, 1440],
+  ["brightness", "Normal brightness", "range", 100, 5, 100],
+  ["standby_brightness", "Standby brightness", "range", 20, 0, 100],
+  ["night_enabled", "Use night mode", "check", true],
+  ["night_brightness", "Night brightness", "range", 10, 0, 100],
+  ["night_start", "Night starts", "time", 1320],
+  ["night_end", "Night ends", "time", 420],
   // Whether the clock shows is up to the top bar now; the add-on keeps show_clock in step for older firmware.
-  ["clock_24h", "24-uursklok (uit = 12 uur)", "check", true],
-  ["home_on_standby", "Na standby terug naar pagina 1", "check", false],
-  ["rotation", "Scherm draaien (met de klok mee)", "rotation", 0],
-  ["swipe_pages", "Vegen tussen pagina’s (Guition: vanaf de zijrand, firmware 0.2.24+; CYD: snelle veeg, 0.2.7+)", "check", false],
+  ["clock_24h", "24-hour clock (off = 12 hour)", "check", true],
+  ["home_on_standby", "Return to page 1 after standby", "check", false],
+  ["rotation", "Rotate screen (clockwise)", "rotation", 0],
+  ["swipe_pages", "Swipe between pages (Guition: from the edge, firmware 0.2.24+; CYD: quick swipe, 0.2.7+)", "check", false],
 ];
 function renderSettings() {
   const values = {
@@ -137,7 +137,7 @@ function renderSettings() {
         kind === "range"
           ? `${input.value}%`
           : kind === "minutes"
-            ? "minuten"
+            ? "minutes"
             : "");
     updateOutput();
     input.oninput = () => {
@@ -176,14 +176,14 @@ function renderSettingsSupport() {
       Number(parts[2]) > 1 ||
       (Number(parts[2]) === 1 && Number(parts[3]) >= 2));
   $("#settings-support").textContent = supported
-    ? "Opslaan stuurt je instellingen direct naar dit scherm. Ze blijven ook na een herstart bewaard."
-    : "Eenmalig firmware 0.1.2 of nieuwer installeren via ESPHome. Je kunt de instellingen alvast bewaren; oudere firmware gebruikt ze nog niet.";
+    ? "Saving sends your settings straight to this screen. They're also kept after a restart."
+    : "Install firmware 0.1.2 or newer once via ESPHome. You can save the settings now; older firmware doesn't use them yet.";
 }
 const updating = new Set();
 const PHASES = {
-  install: "Bouwen en installeren…",
-  verify: "Wachten tot het scherm terug is…",
-  settle: "Controleren of het stabiel blijft…",
+  install: "Building and installing…",
+  verify: "Waiting for the screen to come back…",
+  settle: "Checking that it stays stable…",
 };
 async function startUpdate(screen, host) {
   updating.add(screen.id);
@@ -207,13 +207,13 @@ function renderUpdate(screen) {
   if (running) {
     row.append(
       node("span", undefined, "spin"),
-      node("small", PHASES[u.phase] || "Update starten…"),
+      node("small", PHASES[u.phase] || "Starting update…"),
     );
   } else if (u.state === "queued") {
-    row.append(node("small", "In de wachtrij voor de update"));
+    row.append(node("small", "Queued for the update"));
   } else if (u.available && screen.online) {
     row.append(node("span", `Update ${u.target}`, "badge update"));
-    const button = node("button", "Bijwerken", "mini");
+    const button = node("button", "Update", "mini");
     button.type = "button";
     if (u.host && u.profile) {
       button.onclick = (e) => {
@@ -222,19 +222,19 @@ function renderUpdate(screen) {
       };
     } else if (!u.profile) {
       button.disabled = true;
-      button.title = "Geen ESPHome-profiel met deze apparaatnaam gevonden.";
+      button.title = "No ESPHome profile found with this device name.";
     } else {
       button.onclick = (e) => {
         e.stopPropagation();
         const form = node("form", undefined, "screen-host");
         const input = node("input");
-        input.placeholder = "IP-adres, bijv. 192.168.1.50";
+        input.placeholder = "IP address, e.g. 192.168.1.50";
         input.required = true;
         input.pattern = "[A-Za-z0-9][A-Za-z0-9.\\-]*";
         const go = node("button", "Start", "mini");
         const cancel = node("button", "✕", "quiet");
         cancel.type = "button";
-        cancel.setAttribute("aria-label", "Annuleren");
+        cancel.setAttribute("aria-label", "Cancel");
         cancel.onclick = () => {
           form.remove();
           renderScreens();
@@ -246,7 +246,7 @@ function renderUpdate(screen) {
           startUpdate(screen, input.value.trim());
         };
         row.replaceChildren(
-          node("small", "Eenmalig het IP-adres; nieuwe firmware meldt het zelf."),
+          node("small", "The IP address, once; new firmware reports it itself."),
           form,
         );
         input.focus();
@@ -266,7 +266,7 @@ function renderUpdate(screen) {
 }
 function openIntegrations() {
   // Pairing happens in Home Assistant itself. This page lives in HA's ingress iframe,
-  // so send the top window to Apparaten & diensten (same origin); elsewhere open a tab.
+  // so send the top window to Devices & services (same origin); elsewhere open a tab.
   const path = "/config/integrations/dashboard";
   try {
     window.top.location.assign(path);
@@ -274,11 +274,11 @@ function openIntegrations() {
     window.open(path, "_blank");
   }
 }
-async function copyText(text, element, what = "API-sleutel") {
+async function copyText(text, element, what = "API key") {
   try {
     if (!navigator.clipboard || !window.isSecureContext) throw new Error();
     await navigator.clipboard.writeText(text);
-    toast(`${what} gekopieerd.`);
+    toast(`${what} copied.`);
   } catch {
     if (element) {
       const range = document.createRange();
@@ -287,11 +287,11 @@ async function copyText(text, element, what = "API-sleutel") {
       selection.removeAllRanges();
       selection.addRange(range);
     }
-    toast(document.execCommand("copy") ? `${what} gekopieerd.` : `${what} is geselecteerd. Kopieer met Ctrl+C of Command+C.`);
+    toast(document.execCommand("copy") ? `${what} copied.` : `${what} is selected. Copy with Ctrl+C or Command+C.`);
   }
 }
 // Profiles that Home Assistant does not list yet: the freshly flashed screen is not lost, it
-// still has to be added under Apparaten & diensten, outside this page.
+// still has to be added under Devices & services, outside this page.
 function renderPending() {
   const box = $("#pending");
   box.replaceChildren();
@@ -300,16 +300,16 @@ function renderPending() {
     card.append(
       node("strong", p.friendly),
       node("small", p.installed
-        ? "Geïnstalleerd, maar nog niet in Home Assistant. Dat doe je buiten ESP Screens: voeg het ontdekte ESPHome-apparaat toe onder Instellingen → Apparaten & diensten, plak daar de API-sleutel en zet bij Configureren “Allow the device to perform Home Assistant actions” aan."
-        : `Nog niet in Home Assistant. Al geflasht? Voeg het ESPHome-apparaat toe onder Instellingen → Apparaten & diensten en sta daarna bij Configureren de Home Assistant-acties toe. Nog niet geflasht? Firmware & USB → ${p.file}.`),
+        ? "Installed, but not yet in Home Assistant. That happens outside ESP Screens: add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and turn on “Allow the device to perform Home Assistant actions” under Configure."
+        : `Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Firmware & USB → ${p.file}.`),
     );
     const actions = node("div", undefined, "pending-actions");
-    const go = node("button", "Open Apparaten & diensten", "mini");
+    const go = node("button", "Open Devices & services", "mini");
     go.type = "button";
     go.onclick = openIntegrations;
     actions.append(go);
     if (p.api_key) {
-      const copy = node("button", "Kopieer API-sleutel", "mini quiet");
+      const copy = node("button", "Copy API key", "mini quiet");
       copy.type = "button";
       copy.onclick = () => copyText(p.api_key);
       actions.append(copy);
@@ -338,7 +338,7 @@ function renderScreens() {
     const meta = node("small");
     meta.append(
       node("span", screen.online ? "●" : "○", `dot ${screen.online ? "online" : ""}`),
-      ` ${screen.online ? "Online" : "Offline"}${screen.area ? " · " + screen.area : ""} · firmware ${screen.firmware || "onbekend"}`,
+      ` ${screen.online ? "Online" : "Offline"}${screen.area ? " · " + screen.area : ""} · firmware ${screen.firmware || "unknown"}`,
     );
     b.append(node("strong", screen.name), meta);
     b.onclick = () => select(screen.id);
@@ -351,7 +351,7 @@ function renderScreens() {
   if (screen) {
     $("#delivery").textContent = screen.online
       ? `${screen.delivery} · ${screen.status}`
-      : "Offline · wijzigingen worden bewaard";
+      : "Offline · changes are saved";
     $("#delivery").classList.toggle("online", screen.online);
   }
   renderUpdates();
@@ -362,12 +362,12 @@ function renderUpdates() {
   if (!u) return;
   const outdated = inventory.screens.filter((s) => s.update?.available).length;
   $("#updates-hint").textContent = u.busy
-    ? `Bezig met bijwerken naar firmware ${u.target}…`
+    ? `Updating to firmware ${u.target}…`
     : outdated
-      ? `Firmware ${u.target} is beschikbaar voor ${outdated} scherm${outdated === 1 ? "" : "en"}.`
-      : `Alle schermen hebben firmware ${u.target}.`;
+      ? `Firmware ${u.target} is available for ${outdated} screen${outdated === 1 ? "" : "s"}.`
+      : `All screens have firmware ${u.target}.`;
   $("#update-all").hidden = !u.pending || !!u.busy || u.pending < 2;
-  $("#update-all").textContent = `Alle ${u.pending} schermen bijwerken`;
+  $("#update-all").textContent = `Update all ${u.pending} screens`;
   if (document.activeElement !== $("#auto-update"))
     $("#auto-update").checked = u.auto;
 }
@@ -387,8 +387,8 @@ $("#auto-update").onchange = async () => {
     });
     toast(
       $("#auto-update").checked
-        ? "Schermen worden voortaan 's nachts bijgewerkt."
-        : "Automatisch bijwerken staat uit.",
+        ? "Screens will now update automatically at night."
+        : "Automatic updates are off.",
     );
   } catch (e) {
     $("#auto-update").checked = !$("#auto-update").checked;
@@ -396,30 +396,30 @@ $("#auto-update").onchange = async () => {
   }
 };
 const domains = {
-  light: ["Licht", "☀", "#ad7600", "#fff3d3"],
-  climate: ["Klimaat", "❄", "#c86620", "#ffebdc"],
-  vacuum: ["Stofzuiger", "◉", "#008577", "#def3ed"],
-  fan: ["Ventilator", "✣", "#008aab", "#def5fa"],
-  cover: ["Zonwering", "▤", "#8053af", "#eee5f8"],
+  light: ["Light", "☀", "#ad7600", "#fff3d3"],
+  climate: ["Climate", "❄", "#c86620", "#ffebdc"],
+  vacuum: ["Vacuum", "◉", "#008577", "#def3ed"],
+  fan: ["Fan", "✣", "#008aab", "#def5fa"],
+  cover: ["Cover", "▤", "#8053af", "#eee5f8"],
   media_player: ["Media", "▶", "#007cad", "#def2fc"],
   sensor: ["Sensor", "⌁", "#3476b1", "#e5effa"],
   binary_sensor: ["Status", "◈", "#ad7600", "#fff3d3"],
-  switch: ["Schakelaar", "⏻", "#ad7600", "#fff3d3"],
-  input_boolean: ["Schakelaar", "⏻", "#ad7600", "#fff3d3"],
-  scene: ["Scène", "✦", "#8053af", "#eee5f8"],
+  switch: ["Switch", "⏻", "#ad7600", "#fff3d3"],
+  input_boolean: ["Switch", "⏻", "#ad7600", "#fff3d3"],
+  scene: ["Scene", "✦", "#8053af", "#eee5f8"],
   script: ["Script", "▷", "#8053af", "#eee5f8"],
-  weather: ["Weer", "☁", "#007cad", "#def2fc"],
-  number: ["Waarde", "±", "#008577", "#def3ed"],
-  input_number: ["Waarde", "±", "#008577", "#def3ed"],
-  select: ["Keuze", "≡", "#5862af", "#eaecfa"],
-  input_select: ["Keuze", "≡", "#5862af", "#eaecfa"],
-  button: ["Actie", "↗", "#5862af", "#eaecfa"],
-  screen: ["Klok", "◷", "#25282c", "#e9ecf1"],
-  sun: ["Zon", "☼", "#c86620", "#ffebdc"],
-  timer: ["Kookwekker", "⏱", "#008577", "#def3ed"],
-  person: ["Persoon", "☺", "#2f7d32", "#e1f2e2"],
+  weather: ["Weather", "☁", "#007cad", "#def2fc"],
+  number: ["Value", "±", "#008577", "#def3ed"],
+  input_number: ["Value", "±", "#008577", "#def3ed"],
+  select: ["Select", "≡", "#5862af", "#eaecfa"],
+  input_select: ["Select", "≡", "#5862af", "#eaecfa"],
+  button: ["Action", "↗", "#5862af", "#eaecfa"],
+  screen: ["Clock", "◷", "#25282c", "#e9ecf1"],
+  sun: ["Sun", "☼", "#c86620", "#ffebdc"],
+  timer: ["Timer", "⏱", "#008577", "#def3ed"],
+  person: ["Person", "☺", "#2f7d32", "#e1f2e2"],
 };
-const displayNames = { standard: "standaard", watch: "grote waarde", forecast: "weersvoorspelling", graph: "grafiek", digital: "digitale klok", analog: "analoge klok", sunpath: "zonnebaan" };
+const displayNames = { standard: "standard", watch: "large value", forecast: "weather forecast", graph: "graph", digital: "digital clock", analog: "analog clock", sunpath: "sun path" };
 // Same rule as the add-on: only a wide card in the standard layout shows direct controls;
 // without a choice the domain's first control set applies.
 function effectiveControls(tile) {
@@ -430,7 +430,7 @@ function effectiveControls(tile) {
 }
 function controlsLabel(tile) {
   const key = effectiveControls(tile);
-  if (!key) return "geen";
+  if (!key) return "none";
   return inventory.controls?.[tile.entity.split(".")[0]]?.choices.find((c) => c.key === key)?.label.toLocaleLowerCase() || key;
 }
 // Miniature of the control set on the mockup card: the same shapes the screen draws.
@@ -450,7 +450,7 @@ function controlsPreview(tile) {
   else if (key === "buttons" && domain === "cover") buttons("arrow-expand-horizontal", "stop", "arrow-collapse-horizontal");
   else if (key === "buttons" && domain === "vacuum") buttons("play", "stop", "home-map-marker");
   else if (key === "buttons" && domain === "timer") buttons("play", "close");
-  else if (key === "run") box.append(node("b", { scene: "Activeren", script: "Uitvoeren" }[domain] || "Indrukken", "preview-run"));
+  else if (key === "run") box.append(node("b", { scene: "Activate", script: "Run" }[domain] || "Press", "preview-run"));
   else slider();
   return box;
 }
@@ -576,7 +576,7 @@ function supportsFirmware(major, minor, patch) {
   return a > major || (a === major && (b > minor || (b === minor && c >= patch)));
 }
 function domainBadge(id) {
-  const [title, symbol, color, background] = domains[id.split(".")[0]] || ["Entiteit", "◇", "#637184", "#edf0f4"];
+  const [title, symbol, color, background] = domains[id.split(".")[0]] || ["Entity", "◇", "#637184", "#edf0f4"];
   const badge = node("span", symbol, "domain-icon");
   badge.title = title;
   badge.setAttribute("aria-label", title);
@@ -631,15 +631,15 @@ function renderPreview(preview) {
   for (let page = 0; page < shown; page++) {
     const frame = node("section", undefined, "screen-preview");
     const heading = node("div", undefined, "preview-heading");
-    heading.append(node("small", `Pagina ${page + 1}`));
+    heading.append(node("small", `Page ${page + 1}`));
     if (page >= pages) {
       frame.classList.add("new-page");
-      heading.replaceChildren(node("small", `Pagina ${page + 1} · sleep hierheen voor een nieuwe pagina`));
+      heading.replaceChildren(node("small", `Page ${page + 1} · drag here for a new page`));
     } else if (pages > 1 && !entries.some((e) => pageOf(e.slot) === page)) {
-      heading.append(node("small", "leeg", "page-note"));
-      const drop = node("button", "Pagina weghalen", "mini");
+      heading.append(node("small", "empty", "page-note"));
+      const drop = node("button", "Remove page", "mini");
       drop.type = "button";
-      drop.title = "De pagina's erna schuiven een plek op";
+      drop.title = "The pages after this one shift up one slot";
       drop.onclick = () => removePage(page);
       heading.append(drop);
     }
@@ -665,7 +665,7 @@ function tileCard(tile, slot, placeholder) {
   const name = tile.name || entityName(tile.entity);
   const background = inventory.backgrounds?.[tile.options?.background]?.color;
   if (background) card.style.backgroundColor = background;
-  // "Geen": no card on the screen; the mockup keeps a dashed outline.
+  // "None": no card on the screen; the mockup keeps a dashed outline.
   if (tile.options?.background === "none") card.classList.add("bare");
   if (isWide(tile)) card.classList.add("wide");
   card.append(tileBadge(tile), node("strong", name));
@@ -677,7 +677,7 @@ function tileCard(tile, slot, placeholder) {
   if (placeholder || index < 0) { card.classList.add("placeholder"); return card; }
   card.tabIndex = 0;
   card.setAttribute("role", "button");
-  card.setAttribute("aria-label", `${name}, plek ${(slot % SLOTS_PER_PAGE) + 1} op pagina ${pageOf(slot) + 1}. Enter: instellen, pijltjestoetsen: verplaatsen`);
+  card.setAttribute("aria-label", `${name}, slot ${(slot % SLOTS_PER_PAGE) + 1} on page ${pageOf(slot) + 1}. Enter: configure, arrow keys: move`);
   card.classList.toggle("chosen", selectedTile === tile.entity);
   enableDrag(card, { kind: "tile", tile });
   card.onclick = () => openTileSheet(index);
@@ -691,8 +691,8 @@ function tileCard(tile, slot, placeholder) {
   };
   const remove = node("button", "✕", "preview-remove");
   remove.type = "button";
-  remove.title = "Tegel verwijderen";
-  remove.setAttribute("aria-label", `${name} verwijderen`);
+  remove.title = "Remove tile";
+  remove.setAttribute("aria-label", `Remove ${name}`);
   remove.onclick = (e) => { e.stopPropagation(); removeTile(index); };
   card.append(remove);
   return card;
@@ -704,9 +704,9 @@ function emptyCell(slot) {
   cell.dataset.slot = slot;
   const marked = insertAt === slot;
   cell.classList.toggle("insert-here", marked);
-  cell.append(node("span", "+"), node("small", marked ? "Volgende tegel komt hier" : "Leeg"));
-  cell.title = "Lege plek. Klik om hier een tegel toe te voegen, of sleep er een naartoe.";
-  cell.setAttribute("aria-label", `Lege plek ${(slot % SLOTS_PER_PAGE) + 1} op pagina ${pageOf(slot) + 1}: hier de volgende tegel toevoegen`);
+  cell.append(node("span", "+"), node("small", marked ? "Next tile goes here" : "Empty"));
+  cell.title = "Empty slot. Click to add a tile here, or drag one over.";
+  cell.setAttribute("aria-label", `Empty slot ${(slot % SLOTS_PER_PAGE) + 1} on page ${pageOf(slot) + 1}: add the next tile here`);
   cell.onclick = () => {
     insertAt = marked ? -1 : slot;
     renderPreview();
@@ -720,12 +720,12 @@ function renderTiles() {
   layout.pages = pageCount(liveEntries());
   renderPreview();
   $("#add-page").disabled = layout.pages >= MAX_PAGES;
-  $("#count").textContent = `${layout.tiles.length} / ${tileLimit()}${tileLimit()===10?" · update firmware voor 20":""}`;
+  $("#count").textContent = `${layout.tiles.length} / ${tileLimit()}${tileLimit()===10?" · update firmware for 20":""}`;
   $("#no-tiles").hidden = layout.tiles.length > 0;
   // Firmware below 0.2.26 ignores positions and packs the tiles in order, without gaps.
   const hint = $("#positions-hint");
   hint.hidden = !hasGaps(layout.tiles) || supportsFirmware(0, 2, 26);
-  hint.textContent = `Lege plekken en vaste posities werken vanaf firmware 0.2.26. Dit scherm (firmware ${inventory.screens.find((s) => s.id === selected)?.firmware || "onbekend"}) schuift de tegels tot die update aan tot de eerste vrije plek.`;
+  hint.textContent = `Empty slots and fixed positions work from firmware 0.2.26. This screen (firmware ${inventory.screens.find((s) => s.id === selected)?.firmware || "unknown"}) shifts the tiles up to the first free slot until that update.`;
   if (sheetIndex >= 0) renderTileSheet();
 }
 function removeTile(index) {
@@ -735,8 +735,8 @@ function removeTile(index) {
   markDirty();
   renderTiles();
   renderResults();
-  toast(`${tile.name || entityName(tile.entity)} verwijderd`, {
-    label: "Ongedaan maken",
+  toast(`${tile.name || entityName(tile.entity)} removed`, {
+    label: "Undo",
     run: () => placeTile(tile, tile.slot),
   });
 }
@@ -783,25 +783,25 @@ function iconField(tile, onChange) {
   return iconPicker({
     selected: tile.options?.icon || "auto",
     automatic: automaticIcon(tile.entity),
-    autoLabel: `Automatisch (${fromHA ? "uit Home Assistant" : "standaard"})`,
+    autoLabel: `Automatic (${fromHA ? "from Home Assistant" : "default"})`,
     onPick: (name) => { tile.options = { ...tile.options, icon: name }; markDirty(); renderPreview(); onChange(); },
-    note: supportsFirmware(0, 2, 18) ? "" : "Het scherm toont een gekozen icoon vanaf firmware 0.2.18.",
+    note: supportsFirmware(0, 2, 18) ? "" : "The screen shows a chosen icon from firmware 0.2.18.",
   });
 }
 // The icon choice for tiles and top bar items: automatic, optionally none, or one from the set.
 function iconPicker({ selected, automatic, autoLabel, allowNone = false, onPick, note = "" }) {
   const wrap = node("div", undefined, "sheet-field");
-  wrap.append(node("span", "Icoon"));
+  wrap.append(node("span", "Icon"));
   let picked = selected;
   const summary = node("button", undefined, "icon-current");
   summary.type = "button";
   summary.setAttribute("aria-expanded", String(iconPickerOpen));
-  const current = node("span", undefined, "mdi"), text = node("span"), action = node("small", iconPickerOpen ? "Sluiten" : "Wijzigen");
+  const current = node("span", undefined, "mdi"), text = node("span"), action = node("small", iconPickerOpen ? "Close" : "Change");
   summary.append(current, text, action);
   const describe = () => {
     const chosen = iconNamed(picked);
     current.textContent = picked === "none" ? "" : glyph(chosen?.cp || automatic);
-    text.textContent = picked === "none" ? "Geen icoon" : chosen?.label || autoLabel;
+    text.textContent = picked === "none" ? "No icon" : chosen?.label || autoLabel;
   };
   describe();
   const panel = node("div", undefined, "icon-picker");
@@ -810,7 +810,7 @@ function iconPicker({ selected, automatic, autoLabel, allowNone = false, onPick,
     iconPickerOpen = panel.hidden;
     panel.hidden = !iconPickerOpen;
     summary.setAttribute("aria-expanded", String(iconPickerOpen));
-    action.textContent = iconPickerOpen ? "Sluiten" : "Wijzigen";
+    action.textContent = iconPickerOpen ? "Close" : "Change";
   };
   const choice = (name, cp, label, cls = "") => {
     const b = node("button", undefined, `icon-choice ${cls}`);
@@ -818,7 +818,7 @@ function iconPicker({ selected, automatic, autoLabel, allowNone = false, onPick,
     b.dataset.icon = name;
     b.dataset.search = label.toLocaleLowerCase();
     b.title = label;
-    b.setAttribute("aria-label", `Icoon: ${label}`);
+    b.setAttribute("aria-label", `Icon: ${label}`);
     b.setAttribute("aria-pressed", String(picked === name));
     b.append(node("span", cp ? glyph(cp) : "", "mdi"));
     b.onclick = () => {
@@ -831,13 +831,13 @@ function iconPicker({ selected, automatic, autoLabel, allowNone = false, onPick,
   };
   const search = node("input");
   search.type = "search";
-  search.placeholder = "Zoek, bijvoorbeeld lamp, muziek of deur";
-  search.setAttribute("aria-label", "Zoek een icoon");
+  search.placeholder = "Search, for example lamp, music, or door";
+  search.setAttribute("aria-label", "Search for an icon");
   const auto = choice("auto", automatic, autoLabel, "icon-auto");
   auto.append(node("span", autoLabel));
-  const none = allowNone ? choice("none", "", "Geen icoon", "icon-auto icon-none") : null;
-  none?.append(node("span", "Geen icoon, alleen tekst"));
-  const list = node("div", undefined, "icon-list"), empty = node("p", "Geen icoon gevonden.", "hint");
+  const none = allowNone ? choice("none", "", "No icon", "icon-auto icon-none") : null;
+  none?.append(node("span", "No icon, text only"));
+  const list = node("div", undefined, "icon-list"), empty = node("p", "No icon found.", "hint");
   empty.hidden = true;
   const sections = inventory.icons.groups.map((group) => {
     const section = node("section"), grid = node("div", undefined, "icon-grid");
@@ -878,7 +878,7 @@ function renderTileSheet() {
   titles.append(node("strong", name), node("small", tile.entity));
   const close = node("button", "✕", "quiet sheet-close");
   close.type = "button";
-  close.setAttribute("aria-label", "Sluiten");
+  close.setAttribute("aria-label", "Close");
   close.onclick = closeTileSheet;
   let badge = tileBadge(tile);
   head.append(badge, titles, close);
@@ -888,16 +888,16 @@ function renderTileSheet() {
   nameInput.placeholder = name;
   nameInput.maxLength = 60;
   nameInput.oninput = () => { tile.name = nameInput.value; markDirty(); renderPreview(); };
-  body.append(field("Naam op het scherm", nameInput));
+  body.append(field("Name on the screen", nameInput));
   // The clock, forecast and sun path cards draw no tile icon.
   if (inventory.icons && domain !== "screen" && !["forecast", "sunpath"].includes(tile.options?.display))
     body.append(iconField(tile, () => { const next = tileBadge(tile); badge.replaceWith(next); badge = next; }));
   const displays = domain === "screen"
-    ? [["digital", "Digitale klok"], ["analog", "Analoge klok"]]
-    : [["standard", "Naam en status"], ["watch", "Grote waarde"]];
-  if (domain === "weather") displays.push(["forecast", "Weersvoorspelling"]);
-  if (domain === "sensor") displays.push(["graph", "Grafiek"]);
-  if (domain === "sun") displays.push(["sunpath", "Zonnebaan"]);
+    ? [["digital", "Digital clock"], ["analog", "Analog clock"]]
+    : [["standard", "Name and status"], ["watch", "Large value"]];
+  if (domain === "weather") displays.push(["forecast", "Weather forecast"]);
+  if (domain === "sensor") displays.push(["graph", "Graph"]);
+  if (domain === "sun") displays.push(["sunpath", "Sun path"]);
   const current = (key, fallback) => tile.options?.[key] ?? fallback;
   const set = (key, value) => {
     const wasWide = isWide(tile);
@@ -917,32 +917,32 @@ function renderTileSheet() {
     }
     renderTiles();
   };
-  body.append(field("Weergave", segmented(displays, current("display", domain === "screen" ? "digital" : "standard"), (v) => set("display", v))));
-  body.append(field("Breedte", segmented([["single", "Normaal"], ["wide", "Dubbelbreed"]], current("size", "single"), (v) => set("size", v))));
+  body.append(field("Display", segmented(displays, current("display", domain === "screen" ? "digital" : "standard"), (v) => set("display", v))));
+  body.append(field("Width", segmented([["single", "Normal"], ["wide", "Double-width"]], current("size", "single"), (v) => set("size", v))));
   const catalogue = inventory.controls?.[domain];
   if (catalogue && current("size", "single") === "wide") {
-    const wrap = field("Directe bediening op de tegel", segmented(catalogue.choices.map((c) => [c.key, c.label]), current("controls", catalogue.default), (v) => set("controls", v)));
+    const wrap = field("Direct control on the tile", segmented(catalogue.choices.map((c) => [c.key, c.label]), current("controls", catalogue.default), (v) => set("controls", v)));
     wrap.append(node("small", supportsFirmware(0, 2, 19)
-      ? "Rechts op de dubbelbrede tegel, zoals de rijen in Home Assistant. Tikken op de naam werkt zoals hieronder ingesteld."
-      : "Het scherm toont directe bediening vanaf firmware 0.2.19; tot die tijd blijft de tegel zoals hij was.", "field-hint"));
+      ? "On the right of the double-width tile, like the rows in Home Assistant. Tapping the name works as configured below."
+      : "The screen shows direct control from firmware 0.2.19; until then the tile stays as it was.", "field-hint"));
     body.append(wrap);
   }
   if (domain !== "screen") {
-    const taps = [["auto", "Automatisch"], ["detail", "Bediening openen"], ["none", "Alleen bekijken"]];
-    if (["light", "switch", "input_boolean", "fan", "media_player", "climate"].includes(domain)) taps.push(["toggle", "Aan / uit"]);
-    body.append(field("Bij aantikken", segmented(taps, current("tap", "auto"), (v) => set("tap", v))));
+    const taps = [["auto", "Automatic"], ["detail", "Open control"], ["none", "View only"]];
+    if (["light", "switch", "input_boolean", "fan", "media_player", "climate"].includes(domain)) taps.push(["toggle", "On / off"]);
+    body.append(field("On tap", segmented(taps, current("tap", "auto"), (v) => set("tap", v))));
   }
   if (["light", "fan", "cover", "number", "input_number", "media_player"].includes(domain))
-    body.append(field("Kleine slider op de tegel", segmented([["none", "Nee"], ["slider", "Ja, direct bedienen"]], current("inline", "none"), (v) => set("inline", v))));
+    body.append(field("Small slider on the tile", segmented([["none", "No"], ["slider", "Yes, control directly"]], current("inline", "none"), (v) => set("inline", v))));
   if (domain === "sensor")
-    body.append(field("Geschiedenis", segmented([[1, "1 uur"], [6, "6 uur"], [24, "24 uur"]], current("history_hours", 24), (v) => set("history_hours", Number(v)))));
+    body.append(field("History", segmented([[1, "1 hour"], [6, "6 hours"], [24, "24 hours"]], current("history_hours", 24), (v) => set("history_hours", Number(v)))));
   const palette = node("div", undefined, "sheet-field");
-  palette.append(node("span", "Pastel achtergrond"));
+  palette.append(node("span", "Pastel background"));
   const swatches = node("div", undefined, "palette-swatches");
   for (const [key, choice] of Object.entries(inventory.backgrounds || {})) {
     const button = node("button", undefined, "palette-choice");
     button.type = "button";
-    button.setAttribute("aria-label", `Achtergrond: ${choice.label}`);
+    button.setAttribute("aria-label", `Background: ${choice.label}`);
     button.setAttribute("aria-pressed", String((tile.options?.background || "auto") === key));
     const sample = node("span", undefined, "palette-sample");
     if (choice.color) sample.style.backgroundColor = choice.color;
@@ -959,17 +959,17 @@ function renderTileSheet() {
   palette.append(swatches);
   body.append(palette);
   const foot = node("div", undefined, "sheet-foot");
-  const remove = node("button", "Verwijderen", "quiet danger");
+  const remove = node("button", "Remove", "quiet danger");
   remove.type = "button";
   remove.onclick = () => removeTile(sheetIndex);
   foot.append(remove);
   if (domain !== "screen") {
-    const inspectButton = node("button", "Inspecteer", "quiet");
+    const inspectButton = node("button", "Inspect", "quiet");
     inspectButton.type = "button";
     inspectButton.onclick = () => { const entity = tile.entity; closeTileSheet(); inspect(entity); };
     foot.append(inspectButton);
   }
-  const done = node("button", "Klaar");
+  const done = node("button", "Done");
   done.type = "button";
   done.onclick = closeTileSheet;
   foot.append(done);
@@ -978,9 +978,9 @@ function renderTileSheet() {
 // ---- Top bar ----
 // The name on the left; on the right up to six items: the time, an analog clock, the date, or an
 // entity's state or last change. The add-on formats entity text (POST header-preview) exactly as the
-// screen gets it; the screen and this mockup tick clocks and "5 min geleden" themselves.
-const MONTHS = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"];
-const WEEKDAYS = ["zo", "ma", "di", "wo", "do", "vr", "za"];
+// screen gets it; the screen and this mockup tick clocks and "5 min ago" themselves.
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const BUILTIN_ICONS = { clock: "clock-outline", analog: "clock-outline", date: "calendar" };
 let topbarPreviews = new Map(), topbarTimer = 0, topbarSheetIndex = null, topbarOverflow = new Set(), topbarAdded = null;
 const itemKey = (item) => JSON.stringify(item);
@@ -1036,19 +1036,19 @@ const dateText = (now = new Date()) => `${WEEKDAYS[now.getDay()]} ${now.getDate(
 function agoText(then, now = Math.floor(Date.now() / 1000)) {
   const seconds = now - then, span = Math.abs(seconds), per = (unit) => Math.floor(span / unit);
   if (seconds < 0) {
-    if (span < 3600) return `Over ${Math.max(1, per(60))} min`;
-    if (span < 86400) return `Over ${per(3600)} uur`;
-    if (span < 172800) return "Morgen";
-    return `Over ${per(86400)} dagen`;
+    if (span < 3600) return `In ${Math.max(1, per(60))} min`;
+    if (span < 86400) return per(3600) === 1 ? "In 1 hour" : `In ${per(3600)} hours`;
+    if (span < 172800) return "Tomorrow";
+    return `In ${per(86400)} days`;
   }
-  if (span < 60) return "Zojuist";
-  if (span < 3600) return `${per(60)} min geleden`;
-  if (span < 86400) return `${per(3600)} uur geleden`;
-  if (span < 172800) return "Gisteren";
-  if (span < 604800) return `${per(86400)} dagen geleden`;
-  if (span < 2592000) return per(604800) === 1 ? "1 week geleden" : `${per(604800)} weken geleden`;
-  if (span < 31536000) return per(2592000) === 1 ? "1 maand geleden" : `${per(2592000)} maanden geleden`;
-  return `${per(31536000)} jaar geleden`;
+  if (span < 60) return "Just now";
+  if (span < 3600) return `${per(60)} min ago`;
+  if (span < 86400) return per(3600) === 1 ? "1 hour ago" : `${per(3600)} hours ago`;
+  if (span < 172800) return "Yesterday";
+  if (span < 604800) return `${per(86400)} days ago`;
+  if (span < 2592000) return per(604800) === 1 ? "1 week ago" : `${per(604800)} weeks ago`;
+  if (span < 31536000) return per(2592000) === 1 ? "1 month ago" : `${per(2592000)} months ago`;
+  return per(31536000) === 1 ? "1 year ago" : `${per(31536000)} years ago`;
 }
 function topbarLabel(item) {
   if (item.type === "entity") return entityName(item.entity);
@@ -1088,7 +1088,7 @@ function inkOf(text, font) {
 }
 const barFonts = (m) => ({ name: `500 ${m.name}px "Bar Roboto"`, text: `400 ${m.text}px "Bar Roboto"`, icon: `${m.icon}px "Tile Icons"` });
 // The fonts load on first use; measurements before that are wrong, so draw again once they are in.
-Promise.all([document.fonts.load('500 27px "Bar Roboto"', "Studio 0"), document.fonts.load('400 21px "Bar Roboto"', "Weg 0"), document.fonts.load('26px "Tile Icons"', String.fromCodePoint(0xf0150))])
+Promise.all([document.fonts.load('500 27px "Bar Roboto"', "Studio 0"), document.fonts.load('400 21px "Bar Roboto"', "Away 0"), document.fonts.load('26px "Tile Icons"', String.fromCodePoint(0xf0150))])
   .then(() => { inkCache.clear(); if (layout) { renderTopbar(); renderBars(); } })
   .catch(() => {});
 // Same integer arithmetic as header_bar::gaps() in the firmware, from the digit height in pixels.
@@ -1096,7 +1096,7 @@ function barGaps(cap) {
   return { icon: Math.max(2, Math.floor((cap * 4 + 5) / 10)), item: Math.max(6, Math.floor((cap * 125 + 50) / 100)), name: Math.max(8, Math.floor((cap * 16 + 5) / 10)) };
 }
 // The parts per item with their ink widths, the placement, and which items fall off.
-function barLayout(items = topbarItems(), metrics = barMetrics(), nameText = $("#title").value || "Thuis") {
+function barLayout(items = topbarItems(), metrics = barMetrics(), nameText = $("#title").value || "Home") {
   const fonts = barFonts(metrics);
   // The firmware reads the digit height as a whole number of pixels (the glyph box of "0").
   const zero = inkOf("0", fonts.text), cap = Math.round(zero.bottom - zero.top), gaps = barGaps(cap);
@@ -1180,9 +1180,9 @@ function topbarBar() {
   const group = svgNode("g");
   drawParts(group, lay, lay.placed, m.top);
   svg.append(group);
-  svg.setAttribute("aria-label", `Bovenbalk: ${lay.nameText}`);
+  svg.setAttribute("aria-label", `Top bar: ${lay.nameText}`);
   const wrap = node("div", undefined, "preview-bar-wrap");
-  wrap.title = "Bovenbalk aanpassen";
+  wrap.title = "Edit top bar";
   wrap.append(svg);
   wrap.onclick = () => { $("#topbar").scrollIntoView({ behavior: "smooth", block: "center" }); $("#topbar").classList.add("flash"); setTimeout(() => $("#topbar").classList.remove("flash"), 900); };
   return wrap;
@@ -1194,7 +1194,7 @@ function fitTopbars() {
   topbarOverflow = dropped;
   if ([...dropped].join() !== before) renderTopbar();
 }
-// One item on its own, drawn exactly as in the bar (the sheet's "zo staat het op het scherm").
+// One item on its own, drawn exactly as in the bar (the sheet's "how it looks on the screen").
 function itemSample(item) {
   const lay = barLayout([item]), m = lay.metrics, part = lay.parts[0];
   part.x = 0;
@@ -1211,10 +1211,10 @@ function renderTopbar() {
   const items = topbarItems(), chips = $("#topbar-chips");
   chips.replaceChildren();
   items.forEach((item, index) => chips.append(topbarChip(item, index)));
-  const add = node("button", "＋ Toevoegen", "topbar-add");
+  const add = node("button", "＋ Add", "topbar-add");
   add.type = "button";
   add.disabled = items.length >= topbarMax();
-  add.title = add.disabled ? `Maximaal ${topbarMax()} onderdelen` : "Tijd, datum, analoge klok of een entiteit toevoegen";
+  add.title = add.disabled ? `Maximum ${topbarMax()} items` : "Add the time, date, analog clock, or an entity";
   add.onclick = () => openTopbarSheet(-1);
   chips.append(add);
   $("#topbar-count").textContent = `${items.length} / ${topbarMax()}`;
@@ -1222,8 +1222,8 @@ function renderTopbar() {
   const [major, minor, patch] = needed.split(".").map(Number);
   const hint = $("#topbar-hint");
   hint.textContent = supportsFirmware(major, minor, patch)
-    ? topbarOverflow.size ? "Niet alles past naast de naam: het scherm laat de gestreepte onderdelen weg. Haal er een weg of kies een kortere naam." : "Sleep om de volgorde te wijzigen; tik op een onderdeel om het in te stellen."
-    : `Sensoren, datum en de analoge klok verschijnen vanaf firmware ${needed}; tot die update toont dit scherm de naam en, als de tijd erin staat, de klok.`;
+    ? topbarOverflow.size ? "Not everything fits next to the name: the screen drops the dashed items. Remove one or choose a shorter name." : "Drag to reorder; tap an item to configure it."
+    : `Sensors, the date, and the analog clock appear from firmware ${needed}; until that update, this screen shows the name and, if the time is in the bar, the clock.`;
   hint.classList.toggle("warn", topbarOverflow.size > 0 && supportsFirmware(major, minor, patch));
 }
 function topbarChip(item, index) {
@@ -1241,14 +1241,14 @@ function topbarChip(item, index) {
   if (cp) icon.textContent = glyph(cp);
   if (view.color) icon.style.color = view.color;
   const texts = node("span", undefined, "chip-text");
-  const detail = !view.shown ? "Verborgen: nu niet actief" : topbarOverflow.has(index) ? "Past niet naast de naam" : view.analog ? "Wijzerplaat" : view.text;
+  const detail = !view.shown ? "Hidden: not active right now" : topbarOverflow.has(index) ? "Doesn't fit next to the name" : view.analog ? "Dial" : view.text;
   texts.append(node("strong", topbarLabel(item)), node("small", detail));
   const remove = node("button", "✕", "chip-remove");
   remove.type = "button";
-  remove.setAttribute("aria-label", `${topbarLabel(item)} uit de bovenbalk halen`);
+  remove.setAttribute("aria-label", `Remove ${topbarLabel(item)} from the top bar`);
   remove.onclick = (e) => { e.stopPropagation(); removeTopbarItem(index); };
   chip.append(icon, texts, remove);
-  chip.setAttribute("aria-label", `${topbarLabel(item)}, plek ${index + 1}. Enter: instellen, pijltjes: verplaatsen`);
+  chip.setAttribute("aria-label", `${topbarLabel(item)}, slot ${index + 1}. Enter: configure, arrows: move`);
   chip.onclick = () => openTopbarSheet(index);
   chip.onkeydown = (e) => {
     if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTopbarSheet(index); return; }
@@ -1271,15 +1271,15 @@ function removeTopbarItem(index) {
   if (!item) return;
   if ($("#topbar-sheet").open) $("#topbar-sheet").close();
   setTopbarItems(items);
-  toast(`${topbarLabel(item)} uit de bovenbalk gehaald`, {
-    label: "Ongedaan maken",
+  toast(`${topbarLabel(item)} removed from the top bar`, {
+    label: "Undo",
     run: () => { const back = [...topbarItems()]; back.splice(Math.min(index, back.length), 0, item); setTopbarItems(back); },
   });
 }
 function addTopbarItem(item) {
   const items = topbarItems();
-  if (items.length >= topbarMax()) return toast(`De bovenbalk heeft plaats voor ${topbarMax()} onderdelen.`);
-  if (items.some((other) => itemKey(other) === itemKey(item))) return toast("Dit staat al in de bovenbalk.");
+  if (items.length >= topbarMax()) return toast(`The top bar has room for ${topbarMax()} items.`);
+  if (items.some((other) => itemKey(other) === itemKey(item))) return toast("This is already in the top bar.");
   // The new chip lights up briefly so the eye finds it.
   topbarAdded = { key: itemKey(item), time: Date.now() };
   setTopbarItems([...items, item]);
@@ -1363,7 +1363,7 @@ function sheetHead(badge, title, subtitle) {
   titles.append(node("strong", title), node("small", subtitle));
   const close = node("button", "✕", "quiet sheet-close");
   close.type = "button";
-  close.setAttribute("aria-label", "Sluiten");
+  close.setAttribute("aria-label", "Close");
   close.onclick = () => $("#topbar-sheet").close();
   head.append(badge, titles, close);
   return head;
@@ -1403,28 +1403,28 @@ function renderTopbarSheet() {
       badge.textContent = next.icon ? glyph(next.icon) : "";
     };
     const content = segmented(inventory.header.contents.map((c) => [c.key, c.label]), item.content, (v) => update({ content: v }));
-    const contentField = group("Wat laten zien", content);
-    contentField.append(node("small", "Laatst gewijzigd telt op het scherm zelf door: “Zojuist”, “5 min geleden”, “Gisteren”.", "field-hint"));
+    const contentField = group("What to show", content);
+    contentField.append(node("small", "Last changed keeps counting on the screen itself: “Just now”, “5 min ago”, “Yesterday”.", "field-hint"));
     body.append(contentField);
     body.append(iconPicker({
       selected: item.icon,
       automatic: topbarPreviews.get(itemKey(item))?.auto_icon || automaticIcon(item.entity),
-      autoLabel: "Automatisch (zoals Home Assistant)",
+      autoLabel: "Automatic (like Home Assistant)",
       allowNone: true,
       onPick: (name) => update({ icon: name }),
     }));
     const shows = segmented(inventory.header.shows.map((s) => [s.key, s.label]), item.show, (v) => update({ show: v }));
-    const showField = group("Tonen", shows);
-    showField.append(node("small", "Alleen als actief verbergt het onderdeel zolang het uit, dicht, weg of 0 is. Handig voor een open deur, een draaiende wasmachine of wie er thuis is.", "field-hint"));
+    const showField = group("Show", shows);
+    showField.append(node("small", "Only when active hides the item as long as it's off, closed, away, or 0. Handy for an open door, a running washing machine, or who's home.", "field-hint"));
     body.append(showField);
   } else {
     badge.textContent = glyph(iconNamed(BUILTIN_ICONS[item.type])?.cp || "");
-    sheet.append(sheetHead(badge, topbarLabel(item), "Van het scherm zelf, werkt ook zonder Home Assistant"));
+    sheet.append(sheetHead(badge, topbarLabel(item), "From the screen itself, also works without Home Assistant"));
     const live = node("div", undefined, "topbar-live");
     live.id = "topbar-live";
     body.append(live);
     if (item.type !== "date") {
-      const format = segmented([["24", "24 uur"], ["12", "12 uur"]], (layout.settings?.clock_24h ?? true) ? "24" : "12", (v) => {
+      const format = segmented([["24", "24 hour"], ["12", "12 hour"]], (layout.settings?.clock_24h ?? true) ? "24" : "12", (v) => {
         layout.settings = { ...Object.fromEntries(settingDefinitions.map(([key, , , value]) => [key, value])), ...layout.settings, clock_24h: v === "24" };
         markDirty();
         renderSettings();
@@ -1432,60 +1432,60 @@ function renderTopbarSheet() {
         renderBars();
         renderTopbarLive();
       });
-      const formatField = group("Notatie", format);
-      formatField.append(node("small", "Geldt voor elke klok op dit scherm, ook de kloktegels.", "field-hint"));
+      const formatField = group("Format", format);
+      formatField.append(node("small", "Applies to every clock on this screen, including the clock tiles.", "field-hint"));
       body.append(formatField);
     }
   }
   const foot = node("div", undefined, "sheet-foot");
-  const remove = node("button", "Weghalen", "quiet danger");
+  const remove = node("button", "Remove", "quiet danger");
   remove.type = "button";
   remove.onclick = () => removeTopbarItem(topbarSheetIndex);
-  const left = node("button", "← Naar links", "quiet"), right = node("button", "Naar rechts →", "quiet");
+  const left = node("button", "← Move left", "quiet"), right = node("button", "Move right →", "quiet");
   left.type = right.type = "button";
   left.disabled = topbarSheetIndex === 0;
   right.disabled = topbarSheetIndex >= topbarItems().length - 1;
   left.onclick = () => { if (moveTopbarItem(topbarSheetIndex, topbarSheetIndex - 1)) { topbarSheetIndex--; renderTopbarSheet(); } };
   right.onclick = () => { if (moveTopbarItem(topbarSheetIndex, topbarSheetIndex + 1)) { topbarSheetIndex++; renderTopbarSheet(); } };
-  const done = node("button", "Klaar");
+  const done = node("button", "Done");
   done.type = "button";
   done.onclick = () => sheet.close();
   foot.append(remove, left, right, done);
   sheet.append(body, foot);
   renderTopbarLive();
 }
-// "Op het scherm": the item as the bar draws it, updated while choosing.
+// "How it looks": the item as the bar draws it, updated while choosing.
 function renderTopbarLive() {
   const live = $("#topbar-live"), item = topbarItems()[topbarSheetIndex];
   if (!live || !item) return;
   const view = topbarView(item);
-  const note = !view.shown ? "Nu verborgen: niet actief" : topbarOverflow.has(topbarSheetIndex) ? "Past nu niet naast de naam" : "Zo staat het op het scherm";
+  const note = !view.shown ? "Hidden right now: not active" : topbarOverflow.has(topbarSheetIndex) ? "Doesn't currently fit next to the name" : "How it looks on the screen";
   live.replaceChildren(node("small", note), itemSample(item));
 }
 function renderTopbarAdd(sheet) {
   const badge = node("span", "＋", "domain-icon");
-  sheet.append(sheetHead(badge, "Toevoegen aan de bovenbalk", `${topbarItems().length} van ${topbarMax()} plekken gebruikt`));
+  sheet.append(sheetHead(badge, "Add to the top bar", `${topbarItems().length} of ${topbarMax()} slots used`));
   const body = node("div", undefined, "sheet-body");
   const taken = new Set(topbarItems().map(itemKey));
   const own = node("div", undefined, "topbar-options");
-  const samples = { clock: clockText(), analog: "Kleine wijzerplaat met de tijd", date: dateText() };
+  const samples = { clock: clockText(), analog: "Small dial with the time", date: dateText() };
   for (const builtin of inventory.header?.builtin || []) {
     const item = { type: builtin.type };
-    own.append(optionButton(iconNamed(BUILTIN_ICONS[builtin.type])?.cp, builtin.label, taken.has(itemKey(item)) ? "Staat er al in" : samples[builtin.type], () => addTopbarItem(item), taken.has(itemKey(item))));
+    own.append(optionButton(iconNamed(BUILTIN_ICONS[builtin.type])?.cp, builtin.label, taken.has(itemKey(item)) ? "Already added" : samples[builtin.type], () => addTopbarItem(item), taken.has(itemKey(item))));
   }
-  body.append(group("Van het scherm zelf", own));
+  body.append(group("From the screen itself", own));
   const suggested = inventory.header?.suggestions?.[selected] || [];
   if (suggested.length) {
     const list = node("div", undefined, "topbar-options");
     for (const s of suggested) {
       const exists = taken.has(itemKey(s.item));
-      list.append(optionButton(s.icon || automaticIcon(s.item.entity), s.label, exists ? "Staat er al in" : [s.name, s.area].filter(Boolean).join(" · "), () => addTopbarItem(s.item), exists));
+      list.append(optionButton(s.icon || automaticIcon(s.item.entity), s.label, exists ? "Already added" : [s.name, s.area].filter(Boolean).join(" · "), () => addTopbarItem(s.item), exists));
     }
-    body.append(group("Suggesties uit Home Assistant", list));
+    body.append(group("Suggestions from Home Assistant", list));
   }
   const search = node("input");
   search.type = "search";
-  search.placeholder = "Zoek op naam, ruimte of entiteit, bijv. temperatuur of deur";
+  search.placeholder = "Search by name, room, or entity, e.g. temperature or door";
   const results = node("div", undefined, "topbar-results");
   const renderMatches = () => {
     const query = search.value.trim().toLocaleLowerCase();
@@ -1494,17 +1494,17 @@ function renderTopbarAdd(sheet) {
       const item = { type: "entity", entity: e.id, content: "state", icon: "auto", show: "always" };
       return optionButton(automaticIcon(e.id), e.name, [e.area, e.id].filter(Boolean).join(" · "), () => addTopbarItem(item), taken.has(itemKey(item)));
     }));
-    if (!matches.length) results.append(node("p", "Geen entiteiten gevonden.", "hint"));
-    else if (matches.length > 40) results.append(node("p", `${matches.length} resultaten. Typ verder om te verfijnen.`, "hint"));
+    if (!matches.length) results.append(node("p", "No entities found.", "hint"));
+    else if (matches.length > 40) results.append(node("p", `${matches.length} results. Keep typing to narrow it down.`, "hint"));
   };
   search.oninput = renderMatches;
-  search.setAttribute("aria-label", "Zoek een entiteit voor de bovenbalk");
-  const searchField = group("Een entiteit", search);
+  search.setAttribute("aria-label", "Search for an entity for the top bar");
+  const searchField = group("An entity", search);
   searchField.append(results);
   body.append(searchField);
   renderMatches();
   const foot = node("div", undefined, "sheet-foot");
-  const cancel = node("button", "Annuleren", "quiet");
+  const cancel = node("button", "Cancel", "quiet");
   cancel.type = "button";
   cancel.onclick = () => sheet.close();
   foot.append(cancel);
@@ -1654,13 +1654,13 @@ function renderResults() {
   }
   if (!matches.length)
     $("#results").append(
-      node("p", "Geen entiteiten gevonden. Probeer een andere naam.", "hint"),
+      node("p", "No entities found. Try a different name.", "hint"),
     );
   if (matches.length > 80)
     $("#results").append(
       node(
         "p",
-        `${matches.length} resultaten. Typ verder om te verfijnen.`,
+        `${matches.length} results. Keep typing to narrow it down.`,
         "hint",
       ),
     );
@@ -1671,8 +1671,8 @@ async function refresh(full = true) {
     // A light poll carries only screens and update status; keep the catalogues we have.
     inventory = full ? data : { ...inventory, ...data };
     $("#connection").textContent = inventory.connected
-      ? "● Home Assistant verbonden"
-      : "Verbinding met Home Assistant herstellen…";
+      ? "● Home Assistant connected"
+      : "Reconnecting to Home Assistant…";
     $("#connection").classList.toggle("online", inventory.connected);
     renderScreens();
     if (selected) renderSettingsSupport();
@@ -1680,7 +1680,7 @@ async function refresh(full = true) {
     if ($("#alerts-dialog").open) renderAlertScreens();
   } catch {
     $("#connection").textContent =
-      "Beheerpagina niet bereikbaar · opnieuw proberen…";
+      "Management page unreachable · retrying…";
   }
 }
 $("#save").onclick = async () => {
@@ -1697,10 +1697,10 @@ $("#save").onclick = async () => {
       body: JSON.stringify(layout),
     });
     dirty = false;
-    $("#dirty").textContent = "Opgeslagen";
+    $("#dirty").textContent = "Saved";
     $("#save-detail").textContent =
-      "Synchronisatie volgt automatisch, ook na opnieuw verbinden.";
-    toast("Opgeslagen. Je scherm wordt bijgewerkt.");
+      "Sync follows automatically, even after reconnecting.";
+    toast("Saved. Your screen is being updated.");
     await refresh();
   } catch (e) {
     toast(e.message);
@@ -1714,25 +1714,25 @@ $("#add-page").onclick = addPage;
 $("#search").oninput = renderResults;
 $("#refresh").onclick = refresh;
 for (const [value, label] of [
-  ["", "Alles"],
-  ["light", "Lampen"],
-  ["climate", "Klimaat"],
-  ["switch", "Schakelaars"],
+  ["", "All"],
+  ["light", "Lights"],
+  ["climate", "Climate"],
+  ["switch", "Switches"],
   ["binary_sensor", "Status"],
-  ["button", "Acties"],
+  ["button", "Actions"],
   ["script", "Scripts"],
-  ["fan", "Ventilatoren"],
-  ["cover", "Zonwering"],
-  ["scene", "Scènes"],
+  ["fan", "Fans"],
+  ["cover", "Covers"],
+  ["scene", "Scenes"],
   ["vacuum", "Vacuum"],
-  ["sensor", "Sensoren"],
+  ["sensor", "Sensors"],
   ["media_player", "Media"],
-  ["weather", "Weer"],
-  ["number", "Waarden"],
-  ["select", "Keuzelijsten"],
-  ["person", "Personen"],
-  ["timer", "Kookwekkers"],
-  ["screen", "Klok"],
+  ["weather", "Weather"],
+  ["number", "Values"],
+  ["select", "Selects"],
+  ["person", "People"],
+  ["timer", "Timers"],
+  ["screen", "Clock"],
 ]) {
   const b = node("button", label, value === "" ? "active" : "");
   if (value) b.prepend(domainBadge(value + "."));
@@ -1746,7 +1746,7 @@ for (const [value, label] of [
   };
   $("#filters").append(b);
 }
-// ----- Nieuw scherm: profiel, wifi en de eerste flash in één venster -----
+// ----- New screen: profile, Wi-Fi, and the first flash in one window -----
 const installer = {
   poll: null, view: "setup", file: null, friendly: "", board: "cyd", target: "",
   apiKey: null, nodeEdited: false, ports: null, jobState: null,
@@ -1755,7 +1755,7 @@ const installer = {
 function slug(text) {
   const clean = text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
     .replace(/[^a-z0-9]+/g, "-").replace(/^[^a-z]+/, "").slice(0, 30).replace(/-+$/, "");
-  return clean || "scherm";
+  return clean || "screen";
 }
 function portLabel(port) {
   const id = port.replace(/^\/dev\/serial\/by-id\/usb-/, "").replace(/-if\d+(-port\d+)?$/, "").replace(/_/g, " ");
@@ -1772,7 +1772,7 @@ function renderTargets(ports) {
   if (installer.ports === key) return;
   installer.ports = key;
   const current = select.value;
-  const later = node("option", "Later · alleen het profiel bewaren");
+  const later = node("option", "Later · save profile only");
   later.value = "";
   select.replaceChildren(...ports.map((p) => { const o = node("option", portLabel(p)); o.value = p; return o; }), later);
   select.value = ports.includes(current) ? current : ports[0] || "";
@@ -1782,13 +1782,13 @@ function renderTargetHint() {
   const select = $("#install-target");
   const ports = select.options.length - 1;
   $("#target-hint").textContent = !ports
-    ? "Geen USB-poort gevonden. Sluit het scherm met een datakabel aan op de Home Assistant-machine; de lijst ververst vanzelf."
+    ? "No USB port found. Connect the screen with a data cable to the Home Assistant machine; the list refreshes on its own."
     : !select.value
-      ? "Het profiel komt in de ESPHome-map. Installeren kan later via Firmware & USB, of vanuit ESPHome Device Builder."
+      ? "The profile goes into the ESPHome folder. You can install later via Firmware & USB, or from ESPHome Device Builder."
       : ports > 1
-        ? "Meer dan één bord aangesloten: kies de poort van dit scherm."
-        : "Eén keer via USB; daarna gaat alles draadloos.";
-  $("#install-go").textContent = select.value ? "Installeren" : "Profiel bewaren";
+        ? "More than one board connected: choose this screen's port."
+        : "Once over USB; after that, everything is wireless.";
+  $("#install-go").textContent = select.value ? "Install" : "Save profile";
 }
 function renderWifi(wifi) {
   const fields = $("#wifi-fields");
@@ -1800,13 +1800,13 @@ function renderWifi(wifi) {
     $("#wifi-ssid-label").hidden = !missing.includes("wifi_ssid");
     $("#wifi-password-label").hidden = !missing.includes("wifi_password");
     $("#wifi-status").textContent = wifi.state === "new"
-      ? "Eén keer invullen: ESP Screens bewaart dit in ESPHome secrets.yaml, volgende schermen gebruiken het automatisch."
-      : "Je ESPHome secrets.yaml mist nog wifi-gegevens. ESP Screens vult alleen de ontbrekende regels aan.";
+      ? "Fill in once: ESP Screens saves this in ESPHome secrets.yaml, later screens use it automatically."
+      : "Your ESPHome secrets.yaml is still missing Wi-Fi details. ESP Screens only fills in the missing lines.";
   }
   return wifi?.state === "ready"
-    ? "Wifi komt uit je ESPHome secrets.yaml."
+    ? "Wi-Fi comes from your ESPHome secrets.yaml."
     : wifi?.state === "invalid"
-      ? "secrets.yaml in de ESPHome-map is geen geldige YAML. Herstel het bestand eerst; het wordt niet overschreven."
+      ? "secrets.yaml in the ESPHome folder isn't valid YAML. Fix the file first; it won't be overwritten."
       : "";
 }
 async function installerRefresh() {
@@ -1827,9 +1827,9 @@ async function installerRefresh() {
     const busy = job?.state === "running";
     const flashing = !!$("#install-target").value;
     $("#install-note").textContent = busy
-      ? `Er loopt al een build of installatie (${job.file}). Wacht tot die klaar is.`
+      ? `A build or installation is already running (${job.file}). Wait for it to finish.`
       : !data.available && flashing
-        ? "ESPHome CLI ontbreekt in deze installatie; alleen het profiel bewaren kan."
+        ? "The ESPHome CLI is missing from this installation; only saving the profile is possible."
         : wifiNote;
     $("#install-go").disabled = data.wifi?.state === "invalid" || (flashing && (busy || !data.available));
   } else if (installer.view === "progress" && ours) {
@@ -1857,17 +1857,17 @@ function renderProgress(job, logs) {
     $("#progress-spin").hidden = false;
     $("#progress-mark").hidden = true;
   } else outcome(ok);
-  $("#install-title").textContent = running ? "Even geduld…" : ok ? "Klaar." : "Dat lukte niet.";
+  $("#install-title").textContent = running ? "One moment…" : ok ? "Done." : "That didn't work.";
   $("#progress-title").textContent = running
-    ? job.stage === "upload" ? `Firmware naar ${installer.friendly} schrijven…` : "Firmware bouwen…"
-    : ok ? `Firmware staat op ${installer.friendly}` : "Installeren mislukt";
+    ? job.stage === "upload" ? `Writing firmware to ${installer.friendly}…` : "Building firmware…"
+    : ok ? `Firmware is on ${installer.friendly}` : "Install failed";
   $("#progress-detail").textContent = running
     ? job.stage === "upload"
-      ? "Haal de USB-kabel nog niet los."
-      : "Een eerste build duurt op een Raspberry enkele minuten. Je mag dit venster sluiten: de installatie loopt door en je vindt hem terug onder Nieuw scherm."
+      ? "Don't disconnect the USB cable yet."
+      : "A first build takes a few minutes on a Raspberry Pi. You can close this window: the installation keeps running and you'll find it again under New screen."
     : ok
-      ? `Het scherm start op en verbindt met je wifi.${installer.board === "cyd" ? " De CYD vraagt eerst om een touch-kalibratie: tik de kruisjes aan." : ""} Koppel het nu aan Home Assistant:`
-      : logs.filter((l) => /error/i.test(l)).pop() || logs.filter((l) => /failed|mislukt|fout/i.test(l)).pop() || "Bekijk het log hieronder.";
+      ? `The screen boots up and connects to your Wi-Fi.${installer.board === "cyd" ? " The CYD first asks for a touch calibration: tap the crosshairs." : ""} Pair it with Home Assistant now:`
+      : logs.filter((l) => /error/i.test(l)).pop() || logs.filter((l) => /failed/i.test(l)).pop() || "See the log below.";
   const pre = $("#install-log");
   const stick = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
   pre.textContent = logs.join("\n");
@@ -1876,7 +1876,7 @@ function renderProgress(job, logs) {
   $("#install-result").hidden = !ok;
   if (ok) renderSteps();
   $("#install-retry").hidden = running || ok;
-  $("#install-close").textContent = ok ? "Klaar" : "Sluiten";
+  $("#install-close").textContent = ok ? "Done" : "Close";
   $("#install-close").classList.toggle("quiet", !ok);
 }
 function showSaved() {
@@ -1884,30 +1884,30 @@ function showSaved() {
   $("#install-setup").hidden = true;
   $("#install-progress").hidden = false;
   outcome(true);
-  $("#install-title").textContent = "Profiel bewaard.";
-  $("#progress-title").textContent = `${installer.file} staat in de ESPHome-map`;
+  $("#install-title").textContent = "Profile saved.";
+  $("#progress-title").textContent = `${installer.file} is in the ESPHome folder`;
   $("#progress-detail").textContent =
-    "Installeren kan zodra het scherm aan de Home Assistant-machine hangt: Firmware & USB → dit profiel → USB-poort → Bouwen & installeren. Of open het profiel in ESPHome Device Builder (dezelfde map) en flash vanuit je browser. Bewaar de API-sleutel voor de koppeling:";
+    "You can install once the screen is connected to the Home Assistant machine: Firmware & USB → this profile → USB port → Build & install. Or open the profile in ESPHome Device Builder (same folder) and flash from your browser. Save the API key for pairing:";
   $("#install-result").hidden = false;
   renderSteps();
   $("#install-log-wrap").hidden = true;
   $("#install-retry").hidden = true;
-  $("#install-close").textContent = "Klaar";
+  $("#install-close").textContent = "Done";
   $("#install-close").classList.remove("quiet");
 }
 function renderSteps() {
   $("#api-key").textContent = installer.apiKey || "";
   const steps = [
-    ["Ga naar Home Assistant → Instellingen → Apparaten & diensten.", ` Dit gebeurt buiten ESP Screens. Home Assistant ontdekt ${installer.friendly} als ESPHome-apparaat; klik op Toevoegen. Niet ontdekt? Voeg ESPHome handmatig toe met het IP-adres van het scherm. `],
-    ["Plak de API-sleutel", " hierboven zodra Home Assistant om een encryptiesleutel vraagt."],
-    ["Sta HA-acties toe:", " ESPHome-integratie → Configureren → “Allow the device to perform Home Assistant actions”. Zonder dit ziet het scherm alles, maar bedient het niets."],
-    ["Kies je tegels.", " Terug in ESP Screens verschijnt het scherm binnen een halve minuut in de lijst links; tot die tijd staat het daar als “nog niet in Home Assistant”."],
+    ["Go to Home Assistant → Settings → Devices & services.", ` This happens outside ESP Screens. Home Assistant discovers ${installer.friendly} as an ESPHome device; click Add. Not discovered? Add ESPHome manually with the screen's IP address. `],
+    ["Paste the API key", " above when Home Assistant asks for an encryption key."],
+    ["Allow HA actions:", " ESPHome integration → Configure → “Allow the device to perform Home Assistant actions”. Without this, the screen sees everything but controls nothing."],
+    ["Choose your tiles.", " Back in ESP Screens, the screen appears in the list on the left within about thirty seconds; until then it's shown there as “not yet in Home Assistant”."],
   ];
   $("#install-steps").replaceChildren(...steps.map(([b, t], i) => {
     const li = node("li");
     li.append(node("b", b), t);
     if (i === 0) {
-      const go = node("button", "Open Apparaten & diensten", "mini");
+      const go = node("button", "Open Devices & services", "mini");
       go.type = "button";
       go.onclick = openIntegrations;
       li.append(go);
@@ -1925,7 +1925,7 @@ function resetInstaller() {
   $("#install-result").hidden = true;
   $("#install-log-wrap").open = false;
   $("#install-log").textContent = "";
-  $("#install-title").textContent = "Aansluiten en installeren.";
+  $("#install-title").textContent = "Connect and install.";
   $("#install-status").textContent = "";
   $("#install-note").textContent = "";
   $("#install-target").replaceChildren();
@@ -2003,7 +2003,7 @@ refresh();
 let pollTimer, lastFull = Date.now(), live = false, stream;
 function applyLive(data) {
   inventory = { ...inventory, ...data };
-  $("#connection").textContent = inventory.connected ? "● Home Assistant verbonden" : "Verbinding met Home Assistant herstellen…";
+  $("#connection").textContent = inventory.connected ? "● Home Assistant connected" : "Reconnecting to Home Assistant…";
   $("#connection").classList.toggle("online", inventory.connected);
   renderScreens();
   if (selected) renderSettingsSupport();
@@ -2058,7 +2058,7 @@ async function firmwareRefresh(initial = false) {
         }),
       );
       $("#firmware-port").replaceChildren(
-        ...[["ota", "Wifi / OTA"], ...data.ports.map((p) => [p, p])].map(
+        ...[["ota", "Wi-Fi / OTA"], ...data.ports.map((p) => [p, p])].map(
           ([value, text]) => {
             const o = node("option", text);
             o.value = value;
@@ -2072,10 +2072,10 @@ async function firmwareRefresh(initial = false) {
       $("#firmware-" + id).disabled =
         running || !data.available || !data.profiles.length;
     $("#firmware-status").textContent = !data.available
-      ? "ESPHome CLI ontbreekt. Werk de app bij naar 0.2.0."
+      ? "The ESPHome CLI is missing. Update the app to 0.2.0."
       : data.job
         ? `${data.job.file} · ${data.job.action} · ${data.job.state}`
-        : "Kies het bedoelde profiel en een USB-poort of IP-adres.";
+        : "Choose the intended profile and a USB port or IP address.";
     $("#firmware-log").textContent = data.logs.join("\n");
   } catch (e) {
     toast(e.message);
@@ -2134,7 +2134,7 @@ function openSection(id) {
 async function inspect(entity) {
   if (!selected) return;
   openSection("#inspector-section");
-  $("#inspection-summary").textContent = "Actuele HA-status ophalen...";
+  $("#inspection-summary").textContent = "Fetching current HA status...";
   try {
     const data = await (
       await api(`screens/${encodeURIComponent(selected)}/inspect`)
@@ -2154,7 +2154,7 @@ async function inspect(entity) {
       card.append(
         node(
           "small",
-          `Kleine slider: ${options.inline === "slider" ? "ja" : "nee"} · Weergave: ${displayNames[options.display || "standard"] || options.display} · Breedte: ${options.size === "wide" ? "dubbel" : "normaal"} · Bediening: ${controlsLabel({ entity: tile.entity, options })} · Achtergrond: ${inventory.backgrounds?.[options.background || "auto"]?.label || "Standaard"}`,
+          `Small slider: ${options.inline === "slider" ? "yes" : "no"} · Display: ${displayNames[options.display || "standard"] || options.display} · Width: ${options.size === "wide" ? "double" : "normal"} · Control: ${controlsLabel({ entity: tile.entity, options })} · Background: ${inventory.backgrounds?.[options.background || "auto"]?.label || "Default"}`,
         ),
       );
       $("#inspection-summary").append(card);
@@ -2181,7 +2181,7 @@ const versionAtLeast = (version, minimum) => {
 };
 const yamlString = (text) => `"${String(text).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 function copyChip(text, what) {
-  const b = node("button", "Kopieer", "mini");
+  const b = node("button", "Copy", "mini");
   b.type = "button";
   b.onclick = () => copyText(text, undefined, what);
   return b;
@@ -2189,19 +2189,19 @@ function copyChip(text, what) {
 function alertExampleYaml(action) {
   const fields = inventory.alerts?.fields || [];
   const lines = fields.map((f) => `  ${f.name}: ${f.type === "string" ? (/^[a-z][a-z0-9-]*$/.test(f.example) ? f.example : yamlString(f.example)) : f.example === true ? "true" : f.example === false ? "false" : f.example}`);
-  return `action: ${action || "esphome.<apparaatnaam>_show_alert"}\ndata:\n${lines.join("\n")}`;
+  return `action: ${action || "esphome.<device_name>_show_alert"}\ndata:\n${lines.join("\n")}`;
 }
 function alertWaitYaml(action) {
   return [
-    `# Deurbel: toon de alert en wacht tot iemand op de knop drukt.`,
+    `# Doorbell: show the alert and wait until someone presses the button.`,
     `actions:`,
-    `  - action: ${action || "esphome.<apparaatnaam>_show_alert"}`,
+    `  - action: ${action || "esphome.<device_name>_show_alert"}`,
     `    data:`,
-    `      title: "Iemand belt aan"`,
-    `      subtitle: "Deur 3, achterkant"`,
+    `      title: "Someone is at the door"`,
+    `      subtitle: "Door 3, back"`,
     `      icon: doorbell`,
     `      color: orange`,
-    `      button_text: "Ik kom"`,
+    `      button_text: "Coming"`,
     `      timeout: 0`,
     `      flash: true`,
     `  - wait_for_trigger:`,
@@ -2216,7 +2216,7 @@ function alertWaitYaml(action) {
     `    then:`,
     `      - action: notify.notify`,
     `        data:`,
-    `          message: "Iemand komt naar de deur."`,
+    `          message: "Someone is coming to the door."`,
   ].join("\n");
 }
 function renderAlertScreens() {
@@ -2225,20 +2225,20 @@ function renderAlertScreens() {
   $("#alerts-min-firmware").textContent = alerts.min_firmware;
   list.replaceChildren();
   if (!inventory.screens.length) {
-    list.append(node("p", "Nog geen scherm gekoppeld. Installeer er een via Nieuw scherm; de actie verschijnt zodra Home Assistant het scherm ziet.", "hint"));
+    list.append(node("p", "No screen paired yet. Install one via New screen; the action appears once Home Assistant sees the screen.", "hint"));
   }
   for (const screen of inventory.screens) {
     const row = node("div", undefined, "alert-screen");
     const head = node("div", undefined, "alert-screen-head");
     head.append(node("strong", screen.name));
     const ready = versionAtLeast(screen.firmware, alerts.min_firmware) && screen.alert_action;
-    const badge = node("span", ready ? `● firmware ${screen.firmware}` : screen.alert_action ? `Update nodig · firmware ${screen.firmware || "onbekend"}` : "Apparaatnaam onbekend · werk het scherm bij", `badge ${ready ? "online" : "update"}`);
+    const badge = node("span", ready ? `● firmware ${screen.firmware}` : screen.alert_action ? `Update needed · firmware ${screen.firmware || "unknown"}` : "Device name unknown · update the screen", `badge ${ready ? "online" : "update"}`);
     head.append(badge);
     row.append(head);
-    for (const [label, action] of [["Alert tonen", screen.alert_action], ["Alert sluiten", screen.dismiss_action]]) {
+    for (const [label, action] of [["Show alert", screen.alert_action], ["Dismiss alert", screen.dismiss_action]]) {
       const line = node("div", undefined, "copy-line");
-      line.append(node("span", label, "copy-label"), node("code", action || "esphome.<apparaatnaam>_show_alert"));
-      if (action) line.append(copyChip(action, "Actienaam"));
+      line.append(node("span", label, "copy-label"), node("code", action || "esphome.<device_name>_show_alert"));
+      if (action) line.append(copyChip(action, "Action name"));
       row.append(line);
     }
     list.append(row);
@@ -2251,7 +2251,7 @@ function renderAlertScreens() {
     select.append(option);
   }
   if (!select.options.length) {
-    const option = node("option", "een scherm (nog niet gekoppeld)");
+    const option = node("option", "a screen (not paired yet)");
     option.value = "";
     select.append(option);
   }
@@ -2266,10 +2266,10 @@ function renderAlertExamples() {
 function alertIconCard(icon, label) {
   const b = node("button", undefined, "alert-icon");
   b.type = "button";
-  b.title = `${icon.name} kopiëren`;
+  b.title = `Copy ${icon.name}`;
   b.append(node("span", glyph(icon.cp), "mdi"), node("code", icon.name));
   if (label) b.append(node("small", label));
-  b.onclick = () => copyText(icon.name, undefined, "Icoonnaam");
+  b.onclick = () => copyText(icon.name, undefined, "Icon name");
   return b;
 }
 function renderAlertIcons() {
@@ -2281,13 +2281,13 @@ function renderAlertIcons() {
     const chip = node("button", undefined, "chip");
     chip.type = "button";
     chip.append(node("span", glyph(icon.cp), "mdi"), node("code", icon.name));
-    chip.onclick = () => copyText(icon.name, undefined, "Icoonnaam");
+    chip.onclick = () => copyText(icon.name, undefined, "Icon name");
     suggested.append(chip);
   }
   const query = $("#alerts-icon-search").value.trim().toLowerCase();
   const groups = $("#alerts-icon-groups");
   groups.replaceChildren();
-  const all = [...icons.groups, { label: "Ook beschikbaar: bedienings- en weericonen", icons: alerts.extra_icons }];
+  const all = [...icons.groups, { label: "Also available: control and weather icons", icons: alerts.extra_icons }];
   let shown = 0;
   for (const group of all) {
     const matches = group.icons.filter((i) => !query || i.name.includes(query) || (i.label || "").toLowerCase().includes(query));
@@ -2300,7 +2300,7 @@ function renderAlertIcons() {
     block.append(grid);
     groups.append(block);
   }
-  if (!shown) groups.append(node("p", `Geen icoon voor "${query}". Onbekende namen tonen de waarschuwingsdriehoek (${alerts.fallback_icon}).`, "hint"));
+  if (!shown) groups.append(node("p", `No icon for "${query}". Unknown names show the warning triangle (${alerts.fallback_icon}).`, "hint"));
 }
 function renderAlertColors() {
   const alerts = inventory.alerts, swatches = $("#alerts-swatches");
@@ -2311,8 +2311,8 @@ function renderAlertColors() {
   const blank = node("i");
   blank.style.background = "#FFFFFF";
   white.append(blank, node("span", undefined));
-  white.lastChild.append(node("code", "leeg"), node("small", "Wit (standaard)"));
-  white.onclick = () => copyText("", undefined, "Lege kleur");
+  white.lastChild.append(node("code", "empty"), node("small", "White (default)"));
+  white.onclick = () => copyText("", undefined, "Empty color");
   swatches.append(white);
   for (const colour of alerts.colors) {
     const b = node("button", undefined, "swatch");
@@ -2322,18 +2322,18 @@ function renderAlertColors() {
     const text = node("span");
     text.append(node("code", colour.name), node("small", `${colour.label} · ${colour.color}`));
     b.append(dot, text);
-    b.onclick = () => copyText(colour.name, undefined, "Kleurnaam");
+    b.onclick = () => copyText(colour.name, undefined, "Color name");
     swatches.append(b);
   }
 }
 function renderAlertTables() {
   const alerts = inventory.alerts;
   if (!alerts) return;
-  const types = { string: "tekst", int: "getal", bool: "aan / uit" };
+  const types = { string: "text", int: "number", bool: "on / off" };
   const table = $("#alerts-field-table");
   table.replaceChildren();
   const head = node("tr");
-  for (const title of ["Veld", "Type", "Wat het doet", "Voorbeeld", "Limiet"]) head.append(node("th", title));
+  for (const title of ["Field", "Type", "What it does", "Example", "Limit"]) head.append(node("th", title));
   table.append(head);
   for (const field of alerts.fields) {
     const row = node("tr");
@@ -2343,21 +2343,21 @@ function renderAlertTables() {
     example.append(node("code", typeof field.example === "string" ? field.example : String(field.example)));
     const limit = alerts.limits.cyd[field.name];
     const cells = [name, node("td", types[field.type] || field.type), node("td", field.help), example,
-                   node("td", limit ? `CYD ${limit} · Guition ${alerts.limits.guition[field.name]} bytes` : field.type === "int" ? "0 tot 86400 s" : "—")];
-    cells.forEach((cell, index) => cell.dataset.label = ["Veld", "Type", "Wat het doet", "Voorbeeld", "Limiet"][index]);
+                   node("td", limit ? `CYD ${limit} · Guition ${alerts.limits.guition[field.name]} bytes` : field.type === "int" ? "0 to 86400 s" : "—")];
+    cells.forEach((cell, index) => cell.dataset.label = ["Field", "Type", "What it does", "Example", "Limit"][index]);
     row.append(...cells);
     table.append(row);
   }
   const endings = $("#alerts-ending-table");
   endings.replaceChildren();
   const endHead = node("tr");
-  for (const title of ["action", "Wanneer"]) endHead.append(node("th", title));
+  for (const title of ["action", "When"]) endHead.append(node("th", title));
   endings.append(endHead);
   for (const ending of alerts.endings) {
     const row = node("tr"), cell = node("td"), when = node("td", ending.label);
     cell.append(node("code", ending.action));
     cell.dataset.label = "action";
-    when.dataset.label = "Wanneer";
+    when.dataset.label = "When";
     row.append(cell, when);
     endings.append(row);
   }
@@ -2369,7 +2369,7 @@ function renderAlertTables() {
 }
 function renderAlerts() {
   if (!inventory.alerts) {
-    toast("De cheatsheet laadt nog; probeer het zo opnieuw.");
+    toast("The cheatsheet is still loading; try again in a moment.");
     return false;
   }
   renderAlertTables();

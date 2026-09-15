@@ -1,80 +1,80 @@
-## Easy Setup en releases
+## Easy Setup and releases
 
-De voorkeursroute voor nieuwe gebruikers is docs/EASY_SETUP.md: ESP Screen Manager
-plus remote ESPHome-pakketten. Geen token of blueprint nodig. Tegels staan in de
-permanente add-ondata; wifi/API/OTA blijven in de eigen ESPHome-YAML. Lees
-docs/RELEASING.md voordat je updates publiceert. Main distribueert beide borden.
-Elke push naar GitHub is een release: verhoog dan ook altijd de add-onversie in
-screen_manager/config.yaml (met CHANGELOG-regel), anders ziet HA geen update.
-Genereer packages met tools/generate_packages.py; bewerk ze niet handmatig.
-Runtime-modus ondersteunt alle kaarten op alle twintig posities. De positiebeperkingen
-hieronder gelden uitsluitend voor de oude handmatige profielen.
-Behoud gegevensschema, protocolcompatibiliteit, unieke sleutels en CYD-preferences.
-Test updates met bestaande gegevens. Publiceer geen onbekende opslagversie zonder
-migratie. Productie-Ingress heeft geen long-lived token of publieke poort nodig.
+The preferred route for new users is docs/EASY_SETUP.md: ESP Screen Manager
+plus remote ESPHome packages. No token or blueprint needed. Tiles live in the
+persistent add-on data; Wi-Fi/API/OTA stay in the device's own ESPHome YAML. Read
+docs/RELEASING.md before publishing updates. Main distributes both boards.
+Every push to GitHub is a release: always also bump the add-on version in
+screen_manager/config.yaml (with a CHANGELOG line), otherwise HA won't see an update.
+Generate packages with tools/generate_packages.py; don't edit them by hand.
+Runtime mode supports all cards in all twenty positions. The position constraints
+below apply only to the old manual profiles.
+Preserve the data schema, protocol compatibility, unique keys, and CYD preferences.
+Test updates against existing data. Don't publish an unknown storage version without
+a migration. Production Ingress needs no long-lived token or public port.
 
-## Guition-branch
+## Guition board
 
-De Guition 4848S040 heeft een apart profiel `guition-4848s040.yaml` met
-480×480, ST7701S RGB en GT911. Lees docs/GUITION.md. Gebruik de eigen lokale
-`guition-device.yaml`; neem geen CYD-layout of XPT2046-kalibratie over.
-Controleer touch met tools/verify_gt911.py en houd de CYD-regressies groen.
-Configureer geen wallbox-relais als onderdeel van displayondersteuning.
+The Guition 4848S040 has a separate profile `guition-4848s040.yaml` with
+480×480, ST7701S RGB, and GT911. Read docs/GUITION.md. Use its own local
+`guition-device.yaml`; don't carry over the CYD layout or XPT2046 calibration.
+Verify touch with tools/verify_gt911.py and keep the CYD regressions green.
+Don't configure wallbox relays as part of display support.
 
-# Werkinstructies voor LLM's en developers
+# Working instructions for LLMs and developers
 
-Dit project bedient een ESP32-2432S028 met ILI9341 + XPT2046 (320×240,
-LVGL 90°). Lees README.md en docs/ voordat je installeert. De eigenaar kan
-fysiek tikken; een agent kan dat niet vervangen door softwarecoördinaten.
+This project drives an ESP32-2432S028 with ILI9341 + XPT2046 (320×240,
+LVGL 90°). Read README.md and docs/ before installing. The owner can
+physically tap; an agent cannot replace that with software coordinates.
 
-## Een nieuw scherm installeren
+## Installing a new screen
 
-1. Identificeer USB-poort en bordvariant. Gebruik ESPHome 2026.6.2 met Python
-   3.11–3.14. Controleer eerst of er lokale configuratie bestaat.
-2. Maak in een verse kopie met `tools/new_device.py` een eigen `device.yaml`,
-   `calibration.yaml`, `secrets.yaml`. Overschrijf nooit een werkend profiel.
-   Laat de eigenaar wifi lokaal invullen. Toon geen sleutels in logs/chat.
-3. Flash `device.yaml` met de CLI-substitutie `CALIBRATION_ON_BOOT=true`.
-   Het geïsoleerde scherm heeft vijf kruisjes en werkt zonder HA.
-4. Volg docs/CALIBREREN.md: geleide USB-capture, fit, flash, nieuwe capture,
-   onafhankelijke verify. Vraag fysieke tikken per doel. Wacht op bevestiging
-   dat het meetscherm werkelijk zichtbaar is; een geslaagde build is geen flash.
-5. Flash zonder die override. Koppel de eigen HA via de ESPHome-integratie.
-   Lees echte entity-ID's en ondersteunde attributen; verzin geen entiteiten.
-6. Configureer alle gebruikte tegels volgens docs/TEGELS.md. De vacuumkaart
-   zit op positie 6. Posities 8/10 hebben geen volledige slider/climatebinding.
-   Test geen echte apparaat-acties zonder toestemming van de eigenaar.
-7. Doorloop docs/ACCEPTATIE.md en rapporteer werkelijk uitgevoerde tests,
-   beperkingen en de geobserveerde stabiliteitsduur.
+1. Identify the USB port and board variant. Use ESPHome 2026.6.2 with Python
+   3.11–3.14. First check whether local configuration already exists.
+2. In a fresh copy, use `tools/new_device.py` to create your own `device.yaml`,
+   `calibration.yaml`, `secrets.yaml`. Never overwrite a working profile.
+   Let the owner fill in Wi-Fi locally. Don't show keys in logs/chat.
+3. Flash `device.yaml` with the CLI substitution `CALIBRATION_ON_BOOT=true`.
+   The isolated screen shows five crosshairs and works without HA.
+4. Follow docs/CALIBRATING.md: guided USB capture, fit, flash, new capture,
+   independent verification. Ask for physical taps per target. Wait for confirmation
+   that the measurement screen is actually visible; a successful build is not a flash.
+5. Flash without that override. Pair with the owner's own HA via the ESPHome integration.
+   Read real entity IDs and supported attributes; don't make up entities.
+6. Configure every tile you use according to docs/TILES.md. The vacuum card
+   sits at position 6. Positions 8/10 don't have a full slider/climate binding.
+   Don't test real device actions without the owner's permission.
+7. Go through docs/ACCEPTANCE.md and report the tests actually carried out,
+   limitations, and the observed stability duration.
 
-## Code en regressies
+## Code and regressions
 
-- Houd basishardware en UI in `home-like-2432s028.yaml`; eigen gegevens horen
-  in de genegeerde lokale profielen. `home-like.yaml` is een ander oud profiel.
-- Behoud vaste pagina's, verborgen navigatie bij maximaal zes tegels en
-  minimaal 600 seconden standaard-standby. Geen vrij scrollen herintroduceren
-  zonder touch-/navigatieregressies fysiek te testen.
-- Behoud touchfilter en eventguard vóór acties; kalibratie verwerkt gefilterde
-  fysieke ADC-waarden. Zet de affine correctie niet dubbel in driver en UI.
-- Kalibratiewizard veronderstelt swap_xy=false, mirror_x=true, mirror_y=false
-  en LVGL 90°. Een gewijzigde oriëntatie vereist ook nieuwe projectie/tests.
-- Run Python-tests, beide C++-tests en ESPHome-validatie/build bij codewijzigingen.
-  Firmwaretests en hardwareacceptatie zijn verschillende controles.
-- `diagnostics/run_ui_test.py` rendert zonder HA-acties; raak tijdens die test
-  het scherm niet aan. Gebruik `--name` voor de verwachte apparaatidentiteit.
-  `diagnostics/send_layout.py` zet een demo-indeling met alle kaarttypen op een
-  scherm via de API-inbox (geen HA-acties); de manager herstelt de echte
-  indeling binnen ~25 s. Guition: `capture_ui.py` bewaart de LVGL-render als PNG.
-  Zonder scherm: `tools/render_topbar.py` rendert de echte bovenbalkcode van beide
-  borden via ESPHome host + SDL2 naar `.esphome/render-topbar/out/sheet.png`.
-- Deel via `tools/export_bundle.py` of Git. Stage geen secrets, metingen,
-  binaries, logs, buildcache of lokale apparaatprofielen.
-- Geen automatische firmware-upload naar een willekeurige aangesloten poort.
-  Bij meerdere borden eerst de bedoelde poort vaststellen.
-- Profielen met dezelfde `DEVICE_NAME` (Easy Setup en handmatig) delen
-  `.esphome/build/<naam>`. Compileer of upload ze nooit gelijktijdig; controleer
-  in het uploadlog het pad van `firmware.bin` en daarna de compileertijd via
-  `device_info`. Een verkeerd profiel haalt het scherm uit ESP Screen Manager.
+- Keep base hardware and UI in `home-like-2432s028.yaml`; personal data belongs
+  in the gitignored local profiles.
+- Preserve fixed pages, hidden navigation at six tiles or fewer, and a
+  minimum default standby of 600 seconds. Don't reintroduce free scrolling
+  without physically testing for touch/navigation regressions.
+- Preserve the touch filter and event guard before actions; calibration processes
+  filtered physical ADC values. Don't apply the affine correction twice, in both the driver and the UI.
+- The calibration wizard assumes swap_xy=false, mirror_x=true, mirror_y=false,
+  and LVGL 90°. A changed orientation also requires a new projection/tests.
+- Run the Python tests, both C++ test suites, and ESPHome validation/build on code changes.
+  Firmware tests and hardware acceptance are different checks.
+- `diagnostics/run_ui_test.py` renders without HA actions; don't touch the screen
+  during that test. Use `--name` for the expected device identity.
+  `diagnostics/send_layout.py` pushes a demo layout with every card type to a
+  screen via the API inbox (no HA actions); the manager restores the real
+  layout within ~25 s. Guition: `capture_ui.py` saves the LVGL render as a PNG.
+  Without a screen: `tools/render_topbar.py` renders the real top-bar code for both
+  boards via the ESPHome host + SDL2 to `.esphome/render-topbar/out/sheet.png`.
+- Share via `tools/export_bundle.py` or Git. Don't stage secrets, measurements,
+  binaries, logs, build caches, or local device profiles.
+- No automatic firmware upload to an arbitrary connected port.
+  With multiple boards, first determine the intended port.
+- Profiles with the same `DEVICE_NAME` (Easy Setup and manual) share
+  `.esphome/build/<name>`. Never compile or upload them concurrently; check
+  the `firmware.bin` path in the upload log, and then the compile time via
+  `device_info`. A wrong profile knocks the screen out of ESP Screen Manager.
 
-Historische diagnose is achtergrond, geen bewijs dat een nieuw paneel goed
-werkt. Maak tijdens onboarding geen claims over niet-uitgevoerde fysieke tests.
+Historical diagnostics are background context, not proof that a new panel
+works correctly. During onboarding, don't make claims about physical tests that weren't actually performed.

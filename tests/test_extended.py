@@ -19,7 +19,7 @@ class ExtendedTests(unittest.TestCase):
    with self.assertRaises(ValueError):validate_layout({'title':'Test','tiles':[{'entity':'sensor.x','options':options}]})
   with self.assertRaises(ValueError):validate_layout({'title':'Test','tiles':[{'entity':'light.x','options':{'display':'watch','inline':'slider'}}]})
  def test_attributes_and_history_fit_protocol(self):
-  tile={'entity':'sensor.a','name':'Temperatuur','options':{'history_hours':24,'display':'watch'}}
+  tile={'entity':'sensor.a','name':'Temperature','options':{'history_hours':24,'display':'watch'}}
   msg=state_message(0,tile,{'sensor.a':{'state':'21','attributes':{'unit_of_measurement':'°C','password':'hidden'}}})
   msg['history']={'hours':24,'values':[None,21.5]*12}
   self.assertNotIn('password',msg['a']);self.assertEqual(msg['o'],tile['options']);self.assertTrue(all(len(p)<=255 for p in packets(msg)))
@@ -53,7 +53,7 @@ class FirmwareJobs(unittest.IsolatedAsyncioTestCase):
   with tempfile.TemporaryDirectory() as tmp:
    m=ManagerTests().setup_manager(Path(tmp)/'screens.json')
    m.save('text.screen',{'title':'Home','tiles':[{'entity':'light.a','name':'Lamp','options':{'inline':'slider'}}]})
-   m.save('text.screen',{'title':'Nieuw','tiles':[{'entity':'light.a','name':'Lamp'}]})
+   m.save('text.screen',{'title':'New','tiles':[{'entity':'light.a','name':'Lamp'}]})
    self.assertEqual(m.layouts['text.screen']['tiles'][0]['options'],{'inline':'slider'})
 
 class SpecialTiles(unittest.TestCase):
@@ -79,11 +79,11 @@ class SpecialTiles(unittest.TestCase):
   self.assertEqual(extras({'entity':'timer.egg'},states,None,tz),{'end':1789300800,'dur':'0:05:00','rem':'0:05:00'})
   forecast=[{'datetime':f'2026-09-{13+i}T10:00:00+00:00','condition':'partlycloudy','temperature':20+i,'templow':11.5} for i in range(7)]+['junk']
   days=extras({'entity':'weather.home'},states,forecast,tz)['days']
-  self.assertEqual([d['d'] for d in days],['zo','ma','di','wo','do'])
-  self.assertEqual(days[0],{'d':'zo','c':'partlycloudy','h':20,'l':11.5})
+  self.assertEqual([d['d'] for d in days],['Su','Mo','Tu','We','Th'])
+  self.assertEqual(days[0],{'d':'Su','c':'partlycloudy','h':20,'l':11.5})
   self.assertIsNone(extras({'entity':'light.a'},states,None,tz))
   msg=state_message(0,{'entity':'screen.clock','name':'','options':{'display':'analog'}},{})
-  self.assertEqual((msg['state'],msg['name'],msg['o']),('ok','Klok',{'display':'analog'}))
+  self.assertEqual((msg['state'],msg['name'],msg['o']),('ok','Clock',{'display':'analog'}))
   msg=state_message(1,{'entity':'weather.home','name':''},states,extras({'entity':'weather.home'},states,forecast,tz))
   self.assertEqual(len(msg['x']['days']),5);self.assertTrue(all(len(p)<=255 for p in packets(msg)))
 
@@ -92,9 +92,9 @@ class SpecialTileSync(unittest.IsolatedAsyncioTestCase):
   with tempfile.TemporaryDirectory() as tmp:
    m=ManagerTests().setup_manager(Path(tmp)/'screens.json')
    layout={'title':'Home','tiles':[{'entity':'screen.clock','name':''},{'entity':'sun.sun','name':''}]}
-   m.ha.states['sun.sun']={'state':'above_horizon','attributes':{'friendly_name':'Zon','next_rising':'2026-09-14T05:15:00+00:00','next_setting':'2026-09-13T17:50:12+00:00'}}
+   m.ha.states['sun.sun']={'state':'above_horizon','attributes':{'friendly_name':'Sun','next_rising':'2026-09-14T05:15:00+00:00','next_setting':'2026-09-13T17:50:12+00:00'}}
    with self.assertRaises(ValueError):m.save('text.screen',layout)
-   m.ha.registry.append({'entity_id':'sensor.screen_firmware','platform':'esphome','original_name':'Schermfirmware'})
+   m.ha.registry.append({'entity_id':'sensor.screen_firmware','platform':'esphome','original_name':'Screen firmware'})
    m.ha.states['sensor.screen_firmware']={'state':'0.2.13'}
    with self.assertRaises(ValueError):m.save('text.screen',layout)
    m.ha.states['sensor.screen_firmware']={'state':'0.2.14'}
@@ -103,7 +103,7 @@ class SpecialTileSync(unittest.IsolatedAsyncioTestCase):
    sent=[message for _,message in m.ha.messages]
    self.assertEqual(sent[0]['entities'],['screen.clock','sun.sun'])
    self.assertEqual(sent[0]['keepalive'],KEEPALIVE_SECONDS,'the screen sizes its feed watchdog from the declared cadence')
-   self.assertEqual((sent[1]['state'],sent[1]['name']),('ok','Klok'))
+   self.assertEqual((sent[1]['state'],sent[1]['name']),('ok','Clock'))
    self.assertEqual(sent[2]['x'],{'rise':'05:15','set':'17:50'},'fake HA has no time zone: UTC')
    m.ha.states['sensor.screen_firmware']={'state':'0.2.13'};m.ha.messages.clear()
    await m.sync_one('text.screen',m.layouts['text.screen'])

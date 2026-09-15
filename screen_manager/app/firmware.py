@@ -82,10 +82,10 @@ class Firmware:
 
     def profile(self, name):
         if not isinstance(name,str) or not re.fullmatch(r'[a-zA-Z0-9_-]+\.yaml', name):
-            raise ValueError('Kies een bestaand YAML-profiel.')
+            raise ValueError('Choose an existing YAML profile.')
         p = self.root / name
         if p.is_symlink() or p.resolve().parent != self.root or not p.is_file():
-            raise ValueError('Profiel bestaat niet in de ESPHome-map.')
+            raise ValueError("Profile doesn't exist in the ESPHome folder.")
         return p
 
     def wifi_status(self):
@@ -116,12 +116,12 @@ class Firmware:
         if wifi['state'] == 'ready':
             return
         if wifi['state'] == 'invalid':
-            raise ValueError('secrets.yaml in de ESPHome-map is geen geldige YAML. Herstel het bestand eerst; het wordt niet overschreven.')
+            raise ValueError("secrets.yaml in the ESPHome folder isn't valid YAML. Fix the file first; it won't be overwritten.")
         values = {}
         for key in wifi['missing']:
             value = data.get(key)
             if not isinstance(value, str) or (key == 'wifi_ssid' and not value.strip()):
-                raise ValueError('Vul de wifi-naam en het wachtwoord in; ze worden in ESPHome secrets.yaml bewaard.')
+                raise ValueError("Fill in the Wi-Fi name and password; they'll be saved in ESPHome secrets.yaml.")
             values[key] = value
         path = self.root / 'secrets.yaml'
         if wifi['state'] == 'new':
@@ -140,7 +140,7 @@ class Firmware:
                 text = text + ('' if not text or text.endswith('\n') else '\n') + line + '\n'
         check = yaml.safe_load(text)
         if not isinstance(check, dict) or any(check.get(key) != value for key, value in values.items()):
-            raise ValueError('Wifi kon niet in secrets.yaml worden gezet. Vul wifi_ssid en wifi_password daar zelf in.')
+            raise ValueError("Wi-Fi couldn't be set in secrets.yaml. Fill in wifi_ssid and wifi_password there yourself.")
         path.write_text(text)
 
     def create(self, data):
@@ -149,13 +149,13 @@ class Firmware:
         self.root.mkdir(parents=True,exist_ok=True)
         profile = self.root / (data['name']+'.yaml')
         if profile.exists() or profile.is_symlink():
-            raise ValueError('Deze naam bestaat al. Gebruik het bestaande profiel voor updates.')
+            raise ValueError('This name already exists. Use the existing profile for updates.')
         self.store_wifi(data)
         try:
             with profile.open('x') as f:
                 os.chmod(profile,0o600);f.write(content)
         except FileExistsError:
-            raise ValueError('Deze naam bestaat al. Gebruik het bestaande profiel voor updates.')
+            raise ValueError('This name already exists. Use the existing profile for updates.')
         key = yaml.load(content, Loader=LenientLoader)['api']['encryption']['key']
         # The key is what Home Assistant asks for when pairing; the page shows it once.
         return {'file': profile.name, 'node': data['name'], 'api_key': key}
@@ -168,11 +168,11 @@ class Firmware:
         target = data.get('target') or ''
         if target:
             if not isinstance(target, str) or target not in self.ports():
-                raise ValueError('Kies de aangesloten USB-poort uit de lijst.')
+                raise ValueError('Choose the connected USB port from the list.')
             if self.task and not self.task.done():
-                raise ValueError('Er loopt al een build of installatie. Wacht tot die klaar is.')
+                raise ValueError('A build or installation is already running. Wait for it to finish.')
             if not shutil.which('esphome'):
-                raise ValueError('ESPHome CLI ontbreekt in deze installatie.')
+                raise ValueError('The ESPHome CLI is missing from this installation.')
         result = self.create(data)
         if target:
             result['job'] = self.start({'file': result['file'], 'action': 'install', 'target': target})
@@ -185,17 +185,17 @@ class Firmware:
         return re.sub(r'(?i)((?:password|encryption.key|token|ssid)\s*[:=]\s*).+',r'\1[redacted]',text)[:1500]
 
     def start(self, data):
-        if self.task and not self.task.done(): raise ValueError('Er loopt al een build of installatie.')
+        if self.task and not self.task.done(): raise ValueError('A build or installation is already running.')
         profile = self.profile(data.get('file'))
         action = data.get('action')
-        if action not in ('validate','build','install'): raise ValueError('Onbekende firmwareactie.')
-        if not shutil.which('esphome'): raise ValueError('ESPHome CLI ontbreekt in deze installatie.')
+        if action not in ('validate','build','install'): raise ValueError('Unknown firmware action.')
+        if not shutil.which('esphome'): raise ValueError('The ESPHome CLI is missing from this installation.')
         target = data.get('target','')
         if action == 'install':
             if target.startswith('/dev/'):
-                if target not in self.ports(): raise ValueError('Kies de aangesloten USB-poort uit de lijst.')
+                if target not in self.ports(): raise ValueError('Choose the connected USB port from the list.')
             elif not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}',target):
-                raise ValueError('Vul het IP-adres of de hostnaam van het bedoelde scherm in.')
+                raise ValueError('Enter the IP address or hostname of the intended screen.')
         self._secret_values=set()
         # Collect scalar literals, including !secret values, without executing YAML tags.
         def collect(node):
@@ -232,8 +232,8 @@ class Firmware:
                     async for line in self.process.stdout:
                         self.logs.append(self.redact(line.decode(errors='replace').rstrip()))
                     code=await self.process.wait()
-                if code: raise RuntimeError('ESPHome '+stage+' mislukt; bekijk het log.')
-            self.job['state']='success'; self.logs.append('Geslaagd: '+action)
+                if code: raise RuntimeError('ESPHome '+stage+' failed; see the log.')
+            self.job['state']='success'; self.logs.append('Succeeded: '+action)
             if action=='install': self.installed.add(profile.name)
         except asyncio.CancelledError:
             self.job['state']='interrupted'

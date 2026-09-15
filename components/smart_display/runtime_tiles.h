@@ -123,7 +123,7 @@ inline bool fresh() { return model.ready() && ha_connected() && feed_alive(); }
 // instead of guessed: moved too far, too short, already used by this contact, or bounce.
 inline bool allowed(uint32_t now, int tile, const std::string &what) {
   if (cyd::touch_guard.accept(now, tile)) return true;
-  ESP_LOGI("touch", "tik op %s genegeerd: %s", what.c_str(), cyd::touch_guard.reason().c_str());
+  ESP_LOGI("touch", "tap on %s ignored: %s", what.c_str(), cyd::touch_guard.reason().c_str());
   return false;
 }
 inline float number(JsonVariant value, float fallback = NAN) {
@@ -147,18 +147,18 @@ inline std::string list(JsonVariant value) {
   return out.size() <= 512 ? out : "";
 }
 inline std::string receive(const std::string &payload) {
-  if (!enabled) return "Gebruik het Easy Setup-profiel";
-  if (payload.size() > 4096) return "Fout: bericht te groot";
-  std::string result = "Fout: ongeldig bericht";
+  if (!enabled) return "Use the Easy Setup profile";
+  if (payload.size() > 4096) return "Error: message too large";
+  std::string result = "Error: invalid message";
   esphome::json::parse_json(payload, [&](JsonObject root) -> bool {
-    if (root["v"].as<int>() != 1) { result = "Fout: protocolversie"; return false; }
+    if (root["v"].as<int>() != 1) { result = "Error: protocol version"; return false; }
     auto op = string(root["op"]);
     if (op == "layout") {
       if (!root["entities"].is<JsonArray>() || !root["title"].is<const char *>()) return false;
       auto settings = screen_settings::current;
       if (!root["settings"].isNull() && (!root["settings"].is<JsonObject>() ||
           !parse_settings(root["settings"].as<JsonObject>(), settings))) {
-        result = "Fout: scherminstellingen"; return false;
+        result = "Error: screen settings"; return false;
       }
       std::vector<std::string> entities;
       for (JsonVariant entity : root["entities"].as<JsonArray>()) {
@@ -198,14 +198,14 @@ inline std::string receive(const std::string &payload) {
       }
       if(rotation_changed && settings_changed)settings_changed();
       if (changed) { active_index = -1; for (auto &w : widgets) w.cached_active = -1; if (dismiss) dismiss(); }
-      if (moved) ESP_LOGI("runtime", "tegels verplaatst: pagina's opnieuw ingedeeld");
+      if (moved) ESP_LOGI("runtime", "tiles moved: pages rearranged");
       if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
       layout_rev = string(root["rev"], 16);
       last_received = esphome::millis();
       if (layout_changed) layout_changed();
       if (refresh) refresh();
       // A repeat of the same layout keeps the inbox state as it is: no new recorder row.
-      result = changed || moved || !was_configured ? "Indeling ontvangen" : model.ready() ? "Gesynchroniseerd" : "Tegels laden";
+      result = changed || moved || !was_configured ? "Layout received" : model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
     if (op == "ping") {
@@ -215,8 +215,8 @@ inline std::string receive(const std::string &payload) {
           root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
       if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
       last_received = esphome::millis();
-      if (!model.configured || layout_rev != string(root["rev"], 16)) { result = "Indeling opnieuw nodig"; return true; }
-      result = model.ready() ? "Gesynchroniseerd" : "Tegels laden";
+      if (!model.configured || layout_rev != string(root["rev"], 16)) { result = "Resend needed"; return true; }
+      result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
     if (op == "header") {
@@ -243,13 +243,13 @@ inline std::string receive(const std::string &payload) {
       last_received = esphome::millis();
       if (!same && refresh) refresh();
       // The same status as a tile state, so a changing value never flips the inbox entity.
-      result = model.ready() ? "Gesynchroniseerd" : "Tegels laden";
+      result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
     if (op != "state" || !root["i"].is<unsigned>() || !root["a"].is<JsonObject>()) return false;
     unsigned index = root["i"].as<unsigned>();
     std::string entity = string(root["entity"], 120);
-    if (!model.accepts(index, entity)) { result = "Fout: verouderde tegel"; return false; }
+    if (!model.accepts(index, entity)) { result = "Error: outdated tile"; return false; }
     Tile &tile = model.tiles[index];
     auto a = root["a"].as<JsonObject>();
     // ArduinoJson clears its destination string: serialize attributes first, then add state.
@@ -354,7 +354,7 @@ inline std::string receive(const std::string &payload) {
     if (refresh) refresh();
     if (active_index == static_cast<int>(index) && detail_update) detail_update(tile);
     refresh_detail(index);
-    result = model.ready() ? "Gesynchroniseerd" : "Tegels laden";
+    result = model.ready() ? "Synced" : "Loading tiles";
     return true;
   });
   return result;
@@ -399,19 +399,19 @@ inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int
   lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);lv_obj_set_height(label,lv_font_get_line_height(detail_font));return label;
 }
 inline std::string detail_state(const Tile &t){
-  if(t.domain()=="person")return t.state=="home"?"Thuis":t.state=="not_home"?"Niet thuis":t.state;
-  if(t.domain()=="sun")return t.state=="above_horizon"?"Boven de horizon":"Onder de horizon";
+  if(t.domain()=="person")return t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
+  if(t.domain()=="sun")return t.state=="above_horizon"?"Above the horizon":"Below the horizon";
   if(t.domain()=="timer")return timer_text(t);
-  if(t.domain()=="script"||t.domain()=="scene"||t.domain()=="button"||t.domain()=="input_button")return t.state=="on"?"Bezig...":last_run_text(t.last_run);
-  if(t.state=="on")return "Aan";
-  if(t.state=="off")return "Uit";
-  if(t.state=="docked")return "In dock";
-  if(t.state=="cleaning")return "Bezig met schoonmaken";
-  if(t.state=="paused")return "Gepauzeerd";
-  if(t.state=="returning")return "Onderweg naar dock";
-  if(t.state=="idle")return "Klaar";
-  if(t.state=="error")return "Controleer de robot in HA";
-  if(!t.available())return "Niet beschikbaar";
+  if(t.domain()=="script"||t.domain()=="scene"||t.domain()=="button"||t.domain()=="input_button")return t.state=="on"?"Running...":last_run_text(t.last_run);
+  if(t.state=="on")return "On";
+  if(t.state=="off")return "Off";
+  if(t.state=="docked")return "Docked";
+  if(t.state=="cleaning")return "Cleaning";
+  if(t.state=="paused")return "Paused";
+  if(t.state=="returning")return "Returning to dock";
+  if(t.state=="idle")return "Idle";
+  if(t.state=="error")return "Check the robot in HA";
+  if(!t.available())return "Unavailable";
   return t.state;
 }
 inline void hide_detail(){if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
@@ -457,7 +457,7 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
   auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);if(command==0)lv_obj_set_style_text_color(label,lv_color_hex(0xFFFFFF),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(button,[](lv_event_t *e){
     int cmd=(intptr_t)lv_event_get_user_data(e);if(cmd==-1){hide_detail();return;}
-    if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"kaartknop "+model.tiles[detail_index].entity))return;
+    if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
     auto &t=model.tiles[detail_index];if(!t.available()||t.loading(esphome::millis()))return;
     if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
     if(cmd>=10 && cmd<14 && cmd-10<(int)t.fan_speed_count)action("vacuum.set_fan_speed",t.entity,"fan_speed",t.fan_speeds[cmd-10]);
@@ -533,9 +533,9 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   detail_text(now,degrees(t.current),temp_x,cy+(hero-big_h)/2,temp_w,big,LV_TEXT_ALIGN_LEFT,ink);
   int text_x=temp_x+temp_w+(large?4:2),text_w=width-2*pad-card_pad-text_x;
   int lines_h=text_h+small_h+(large?2:0);
-  detail_text(now,t.available()?weather_text(t.state):"Niet beschikbaar",text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
+  detail_text(now,t.available()?weather_text(t.state):"Unavailable",text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
   std::string details;
-  if(std::isfinite(t.feels)){snprintf(b,sizeof(b),"Voelt als %.0f°",t.feels);details=b;}
+  if(std::isfinite(t.feels)){snprintf(b,sizeof(b),"Feels like %.0f°",t.feels);details=b;}
   if(std::isfinite(t.humidity)){snprintf(b,sizeof(b),"%d%%",(int)std::lround(t.humidity));details+=(details.empty()?"":" · ")+std::string(b);}
   if(std::isfinite(t.wind)){snprintf(b,sizeof(b),"%.0f %s",t.wind,t.wind_unit.empty()?"km/h":t.wind_unit.c_str());details+=(details.empty()?"":" · ")+std::string(b);}
   detail_text(now,details,text_x,cy+(hero-lines_h)/2+text_h+(large?2:0),text_w,small,LV_TEXT_ALIGN_LEFT,muted);
@@ -552,8 +552,8 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   }
   y+=card_a_h+(large?12:6);
   // Coming days: a heading and a card with one row per day.
-  if(!t.forecast.size()){detail_text(detail_root,"Geen dagvoorspelling van Home Assistant",pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
-  if(large){detail_text(detail_root,"Komende dagen",pad+4,y,width-2*pad,detail_font,LV_TEXT_ALIGN_LEFT,muted);y+=text_h+8;}
+  if(!t.forecast.size()){detail_text(detail_root,"No daily forecast from Home Assistant",pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
+  if(large){detail_text(detail_root,"Coming days",pad+4,y,width-2*pad,detail_font,LV_TEXT_ALIGN_LEFT,muted);y+=text_h+8;}
   int card_b_h=height-y-(large?10:4);
   auto *days=detail_card(pad,y,width-2*pad,card_b_h);
   int row_pad=large?8:4,row=(card_b_h-2*row_pad)/(int)t.forecast.size();
@@ -588,7 +588,7 @@ inline void show_detail(unsigned index){
   detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?60:35,width-2*pad);
   auto d=t.domain();
   if(t.is_switch()){
-    detail_label(detail_root,"Tik om te schakelen",pad,top,width-2*pad);
+    detail_label(detail_root,"Tap to toggle",pad,top,width-2*pad);
     detail_switch=lv_switch_create(detail_root);
     lv_obj_set_size(detail_switch,large?240:140,large?112:64);
     lv_obj_set_pos(detail_switch,(width-(large?240:140))/2,top+(large?65:30));
@@ -623,31 +623,31 @@ inline void show_detail(unsigned index){
       lv_obj_set_style_border_width(robot,2,0);lv_obj_set_style_border_color(robot,lv_color_hex(0xCEDDE6),0);
       shape(robot,27,10,30,30,0xE3EBEF,15);shape(robot,35,18,14,14,0xA8BCC8,7);
       shape(robot,29,59,26,5,0x00A6ED,3);
-      detail_label(hero,t.state=="cleaning"?"Aan het werk":t.state=="returning"?"Even opladen":t.state=="paused"?"Even pauze":"Klaar voor je huis",154,24,260);
+      detail_label(hero,t.state=="cleaning"?"Working":t.state=="returning"?"Charging":t.state=="paused"?"Paused":"Ready for your home",154,24,260);
       auto *badge=shape(hero,154,59,240,32,muted,16);
-      auto *status=detail_label(badge,t.awaiting_action(esphome::millis())?"Opdracht verstuurd...":state,12,5,218);
+      auto *status=detail_label(badge,t.awaiting_action(esphome::millis())?"Command sent...":state,12,5,218);
       detail_badge_status=status;
       lv_obj_set_style_text_color(status,lv_color_hex(0x087BA8),0);
-      detail_label(hero,std::isfinite(t.battery)?"Batterij  "+std::to_string((int)t.battery)+"%":"Verbonden via Home Assistant",154,107,260);
-      detail_button(t.state=="cleaning"?"Pauzeer schoonmaken":"Start schoonmaken",pad,260,width-2*pad,58,t.state=="cleaning"?1:0);
-      detail_button("Terug naar dock",pad,330,cw,48,2);
-      detail_button("Vind mijn robot",pad+cw+gap,330,cw,48,3);
-      detail_label(detail_root,"Zuigkracht",pad,394,width-2*pad);
+      detail_label(hero,std::isfinite(t.battery)?"Battery  "+std::to_string((int)t.battery)+"%":"Connected via Home Assistant",154,107,260);
+      detail_button(t.state=="cleaning"?"Pause cleaning":"Start cleaning",pad,260,width-2*pad,58,t.state=="cleaning"?1:0);
+      detail_button("Return to dock",pad,330,cw,48,2);
+      detail_button("Find my robot",pad+cw+gap,330,cw,48,3);
+      detail_label(detail_root,"Suction power",pad,394,width-2*pad);
       top=424;
     }else{
       auto *robot=shape(detail_root,pad,64,46,46,muted,23);
       shape(robot,16,8,14,14,0xA8BCC8,7);shape(robot,15,32,16,3,0x00A6ED,2);
-      detail_label(detail_root,std::isfinite(t.battery)?"Batterij "+std::to_string((int)t.battery)+"%":"Robotstofzuiger",pad+58,66,width-2*pad-58);
-      detail_label(detail_root,"Kies een actie",pad+58,87,width-2*pad-58);
-      detail_button(t.state=="cleaning"?"Pauzeren":"Schoonmaken",pad,120,cw,38,t.state=="cleaning"?1:0);
-      detail_button("Naar dock",pad+cw+gap,120,cw,38,2);
-      detail_label(detail_root,"Zuigkracht",pad,168,width-2*pad);top=194;
+      detail_label(detail_root,std::isfinite(t.battery)?"Battery "+std::to_string((int)t.battery)+"%":"Robot vacuum",pad+58,66,width-2*pad-58);
+      detail_label(detail_root,"Choose an action",pad+58,87,width-2*pad-58);
+      detail_button(t.state=="cleaning"?"Pause":"Clean",pad,120,cw,38,t.state=="cleaning"?1:0);
+      detail_button("To dock",pad+cw+gap,120,cw,38,2);
+      detail_label(detail_root,"Suction power",pad,168,width-2*pad);top=194;
     }
-    if(!t.fan_speed_count)detail_label(detail_root,"Automatische zuigkracht",pad,top,width-2*pad);
+    if(!t.fan_speed_count)detail_label(detail_root,"Automatic suction power",pad,top,width-2*pad);
     int count=std::max(1,(int)t.fan_speed_count),sw=(width-2*pad-gap*(count-1))/count;
     for(unsigned i=0;i<t.fan_speed_count;++i){
       std::string name=t.fan_speeds[i];
-      if(name=="quiet")name="Stil";else if(name=="balanced")name="Normaal";else if(name=="turbo")name="Turbo";else if(name=="max")name="Max";
+      if(name=="quiet")name="Quiet";else if(name=="balanced")name="Normal";else if(name=="turbo")name="Turbo";else if(name=="max")name="Max";
       auto *button=detail_button(name.c_str(),pad+i*(sw+gap),top,sw,large?36:30,10+i);
       bool selected=t.fan_speed==t.fan_speeds[i];
       lv_obj_set_style_bg_color(button,lv_color_hex(selected?0x009FE3:surface),0);
@@ -655,33 +655,33 @@ inline void show_detail(unsigned index){
     }
   }else if(d=="sensor"){
     float minimum=INFINITY,maximum=-INFINITY;for(float value:t.history)if(t.has_history&&std::isfinite(value)){minimum=std::min(minimum,value);maximum=std::max(maximum,value);}
-    if(!std::isfinite(minimum)){detail_label(detail_root,"Geen numerieke HA-historie",pad,top,width-2*pad);return;}
-    char text[100];snprintf(text,sizeof(text),"%u uur / %.2f - %.2f %s",t.history_hours,minimum,maximum,t.unit.c_str());detail_label(detail_root,text,pad,top,width-2*pad);
+    if(!std::isfinite(minimum)){detail_label(detail_root,"No numeric HA history",pad,top,width-2*pad);return;}
+    char text[100];snprintf(text,sizeof(text),"%u hours / %.2f - %.2f %s",t.history_hours,minimum,maximum,t.unit.c_str());detail_label(detail_root,text,pad,top,width-2*pad);
     int chart_y=top+(large?46:28),chart_h=height-chart_y-30,bar_w=(width-pad*2)/24;
     for(unsigned i=0;i<24;++i){if(!std::isfinite(t.history[i]))continue;int h=maximum>minimum?8+(chart_h-8)*(t.history[i]-minimum)/(maximum-minimum):chart_h/2;
       auto *bar=lv_obj_create(detail_root);lv_obj_remove_style_all(bar);lv_obj_set_pos(bar,pad+i*bar_w,chart_y+chart_h-h);lv_obj_set_size(bar,std::max(2,bar_w-2),h);lv_obj_set_style_bg_color(bar,lv_color_hex(0x16A5E6),0);lv_obj_set_style_bg_opa(bar,LV_OPA_COVER,0);}
-    detail_label(detail_root,std::to_string(t.history_hours)+" uur geleden",pad,height-24,(width-2*pad)/2);
-    auto *now=detail_label(detail_root,"Nu",width/2,height-24,width/2-pad);lv_obj_set_style_text_align(now,LV_TEXT_ALIGN_RIGHT,0);
+    detail_label(detail_root,std::to_string(t.history_hours)+" hours ago",pad,height-24,(width-2*pad)/2);
+    auto *now=detail_label(detail_root,"Now",width/2,height-24,width/2-pad);lv_obj_set_style_text_align(now,LV_TEXT_ALIGN_RIGHT,0);
   }else if(d=="select"||d=="input_select"){
     for(unsigned i=0;i<t.option_count;++i)detail_button(t.options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
   }else if(d=="number"||d=="input_number"||d=="media_player"){
     if(d=="media_player"){
       detail_label(detail_root,t.media_title,pad,top,width-2*pad);top+=large?45:25;
       int w=(width-pad*2-2*gap)/3;
-      detail_button("Vorige",pad,top,w,bh,21);detail_button("Play/pauze",pad+w+gap,top,w,bh,20);detail_button("Volgende",pad+2*(w+gap),top,w,bh,22);top+=bh+gap;
+      detail_button("Previous",pad,top,w,bh,21);detail_button("Play/pause",pad+w+gap,top,w,bh,20);detail_button("Next",pad+2*(w+gap),top,w,bh,22);top+=bh+gap;
     }
-    detail_label(detail_root,d=="media_player"?"Volume":"Waarde",pad,top,width-2*pad);
+    detail_label(detail_root,d=="media_player"?"Volume":"Value",pad,top,width-2*pad);
     auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
     lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   }else if(d=="weather"){
     render_weather_detail(t,large,width,height,pad);
   }else if(d=="timer"){
-    detail_label(detail_root,t.state=="active"?"Loopt":t.state=="paused"?"Gepauzeerd":"Staat stil",pad,top,width-2*pad);
-    detail_button(t.state=="active"?"Pauzeer":"Start",pad,top+(large?50:30),cw,bh,40);
-    detail_button("Annuleer",pad+cw+gap,top+(large?50:30),cw,bh,41);
+    detail_label(detail_root,t.state=="active"?"Running":t.state=="paused"?"Paused":"Stopped",pad,top,width-2*pad);
+    detail_button(t.state=="active"?"Pause":"Start",pad,top+(large?50:30),cw,bh,40);
+    detail_button("Cancel",pad+cw+gap,top+(large?50:30),cw,bh,41);
   }else if(d=="sun"){
-    detail_label(detail_root,"Zonsopgang "+t.sunrise,pad,top,width-2*pad);
-    detail_label(detail_root,"Zonsondergang "+t.sunset,pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
+    detail_label(detail_root,"Sunrise "+t.sunrise,pad,top,width-2*pad);
+    detail_label(detail_root,"Sunset "+t.sunset,pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
   }
 }
 }
@@ -711,20 +711,20 @@ inline const char *weather_icon(const std::string &condition) {
   return "\U000F0595";
 }
 inline const char *weather_text(const std::string &condition) {
-  if (condition == "sunny") return "Zonnig";
-  if (condition == "clear-night") return "Heldere nacht";
-  if (condition == "cloudy") return "Bewolkt";
-  if (condition == "partlycloudy") return "Half bewolkt";
-  if (condition == "rainy") return "Regen";
-  if (condition == "pouring") return "Stortregen";
-  if (condition == "snowy") return "Sneeuw";
-  if (condition == "snowy-rainy") return "Natte sneeuw";
-  if (condition == "fog") return "Mist";
-  if (condition == "hail") return "Hagel";
-  if (condition == "lightning") return "Onweer";
-  if (condition == "lightning-rainy") return "Onweer en regen";
-  if (condition == "windy" || condition == "windy-variant") return "Winderig";
-  if (condition == "exceptional") return "Bijzonder weer";
+  if (condition == "sunny") return "Sunny";
+  if (condition == "clear-night") return "Clear, night";
+  if (condition == "cloudy") return "Cloudy";
+  if (condition == "partlycloudy") return "Partly cloudy";
+  if (condition == "rainy") return "Rainy";
+  if (condition == "pouring") return "Pouring";
+  if (condition == "snowy") return "Snowy";
+  if (condition == "snowy-rainy") return "Snowy, rainy";
+  if (condition == "fog") return "Fog";
+  if (condition == "hail") return "Hail";
+  if (condition == "lightning") return "Lightning";
+  if (condition == "lightning-rainy") return "Lightning, rainy";
+  if (condition == "windy" || condition == "windy-variant") return "Windy";
+  if (condition == "exceptional") return "Exceptional";
   return condition.c_str();
 }
 inline const char *icon_for(const Tile &tile) {
@@ -757,33 +757,33 @@ inline std::string countdown(uint32_t seconds) {
   else snprintf(b, sizeof(b), "%u:%02u", seconds / 60, seconds % 60);
   return b;
 }
-// "Laatst 14:32" today, "Gisteren 14:32", else "Laatst 13 sep"; scripts and scenes have no useful on/off.
+// "Last 14:32" today, "Yesterday 14:32", else "Last 13 Sep"; scripts and scenes have no useful on/off.
 inline std::string month_short(const esphome::ESPTime &now);
 inline std::string last_run_text(uint32_t epoch) {
-  if (!epoch) return "Nog niet gestart";
+  if (!epoch) return "Never run";
   auto when = esphome::ESPTime::from_epoch_local(epoch);
   auto now = now_time ? now_time() : esphome::ESPTime{};
-  if (!when.is_valid()) return "Nog niet gestart";
+  if (!when.is_valid()) return "Never run";
   char clock[8]; snprintf(clock, sizeof(clock), "%02d:%02d", when.hour, when.minute);
-  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year) return std::string("Laatst ") + clock;
-  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year + 1) return std::string("Gisteren ") + clock;
-  return "Laatst " + std::to_string(when.day_of_month) + " " + month_short(when);
+  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year) return std::string("Last ") + clock;
+  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year + 1) return std::string("Yesterday ") + clock;
+  return "Last " + std::to_string(when.day_of_month) + " " + month_short(when);
 }
 inline std::string timer_text(const Tile &t) {
   if (t.state == "active") { uint32_t now = now_epoch(); return countdown(t.timer_end > now && now ? t.timer_end - now : 0); }
-  if (t.state == "paused") return "Pauze " + countdown(duration_seconds(t.remaining));
-  return t.duration.empty() ? "Uit" : countdown(duration_seconds(t.duration));
+  if (t.state == "paused") return "Paused " + countdown(duration_seconds(t.remaining));
+  return t.duration.empty() ? "Off" : countdown(duration_seconds(t.duration));
 }
 inline std::string weekday_text(const esphome::ESPTime &now) {
-  static const char *days[] = {"zondag", "maandag", "dinsdag", "woensdag", "donderdag", "vrijdag", "zaterdag"};
+  static const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
   return now.is_valid() && now.day_of_week >= 1 && now.day_of_week <= 7 ? days[now.day_of_week - 1] : "";
 }
 inline std::string month_short(const esphome::ESPTime &now) {
-  static const char *months[] = {"jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"};
+  static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
   return now.is_valid() && now.month >= 1 && now.month <= 12 ? months[now.month - 1] : "";
 }
 inline std::string date_text(const esphome::ESPTime &now) {
-  static const char *months[] = {"januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"};
+  static const char *months[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
   if (!now.is_valid() || now.day_of_week < 1 || now.day_of_week > 7 || now.month < 1 || now.month > 12) return "";
   return weekday_text(now) + " " + std::to_string(now.day_of_month) + " " + months[now.month - 1];
 }
@@ -803,7 +803,7 @@ inline void event(lv_event_t *event) {
   if(d=="media_player" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("media_player.toggle",tile.entity);return;}
   if(d=="climate" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("climate.toggle",tile.entity);return;}
   if(tile.builtin())return;
-  // A short tap runs or pauses the kitchen timer; holding opens the card with a cancel button.
+  // A short tap runs or pauses the timer; holding opens the card with a cancel button.
   if(d=="timer" && !open){action(tile.state=="active"?"timer.pause":"timer.start",tile.entity);return;}
   if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum" || d=="sun" || d=="person" || d=="timer") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }
   if (open) {
@@ -1080,9 +1080,9 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   int title_h=lv_font_get_line_height(title_font),text_h=lv_font_get_line_height(w.value_font);
   int horizon=height-text_h-(large?4:2),top=title_h+(large?4:2),x0=large?14:8,x1=width-x0;
-  part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?"Zon":t.name);
-  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,"op "+t.sunrise);
-  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,"onder "+t.sunset);
+  part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?"Sun":t.name);
+  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,"rise "+t.sunrise);
+  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,"set "+t.sunset);
   auto now=now_time?now_time():esphome::ESPTime{};
   int rise=minutes_of(t.sunrise),set=minutes_of(t.sunset),minute=now.is_valid()?now.hour*60+now.minute:-1;
   bool day=t.state=="above_horizon";float fraction=0.5f;
@@ -1296,8 +1296,8 @@ inline void control_event(lv_event_t *e) {
   bool step=command==tile_controls::STEP_DOWN || command==tile_controls::STEP_UP;
   bool held=lv_event_get_code(e)==LV_EVENT_LONG_PRESSED_REPEAT;
   if(held){ if(!step || now-t.edit_since<300)return; }  // three steps a second while holding
-  else if(step){ if(!cyd::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tik op bediening %u genegeerd: %s",(unsigned)slot,cyd::touch_guard.reason().c_str());return;} }
-  else if(!allowed(now,400+slot*16+n,"bediening "+std::to_string(slot)))return;
+  else if(step){ if(!cyd::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tap on control %u ignored: %s",(unsigned)slot,cyd::touch_guard.reason().c_str());return;} }
+  else if(!allowed(now,400+slot*16+n,"control "+std::to_string(slot)))return;
   if(!t.available())return;
   if(step){
     // Local at once, tap after tap; tick() sends the last value after a short pause.
@@ -1337,7 +1337,7 @@ inline void set_busy(Widgets &w,bool busy,bool large){
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room;
-  label(room, !model.configured ? "Kies tegels in HA" : !model.ready() ? "Tegels laden..." : !ha_connected() ? "HA niet verbonden" : !feed_alive() ? "ESP Screens niet actief" : model.title);
+  label(room, !model.configured ? "Choose tiles in HA" : !model.ready() ? "Loading tiles..." : !ha_connected() ? "HA not connected" : !feed_alive() ? "ESP Screens not active" : model.title);
   render_header();
   for (size_t slot = 0; slot < 6; ++slot) {
     auto &w=widgets[slot];
@@ -1349,17 +1349,17 @@ inline void render(lv_obj_t *room) {
     bool watch=t.display=="watch";
     std::string unit=watch?t.unit:"";
     std::string value = t.state;
-    if (!fresh() || !t.available()) value = "Niet beschikbaar";
+    if (!fresh() || !t.available()) value = "Unavailable";
     else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
     else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
-    else if (d == "person") value = t.state=="home"?"Thuis":t.state=="not_home"?"Weg":t.state;
-    else if (d == "sun") value = !t.sunrise.empty() && !t.sunset.empty() ? t.sunrise+" - "+t.sunset : t.state=="above_horizon"?"Boven de horizon":"Onder de horizon";
+    else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
+    else if (d == "sun") value = !t.sunrise.empty() && !t.sunset.empty() ? t.sunrise+" - "+t.sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
     else if (d == "timer") value = timer_text(t);
-    else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Bezig..." : last_run_text(t.last_run);
-    else if (value == "on") value = "Aan";
-    else if (value == "off") value = "Uit";
-    else if (value == "cleaning") value = "Bezig";
-    else if (value == "docked") value = "In dock";
+    else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Running..." : last_run_text(t.last_run);
+    else if (value == "on") value = "On";
+    else if (value == "off") value = "Off";
+    else if (value == "cleaning") value = "Cleaning";
+    else if (value == "docked") value = "Docked";
     else if (!t.unit.empty() && !watch) value += " " + t.unit;
     bool pending=t.loading(esphome::millis());
     if(d=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
@@ -1451,7 +1451,7 @@ inline void render(lv_obj_t *room) {
     lv_obj_set_style_bg_color(w.slider,lv_color_mix(color,lv_color_hex(0xFFFFFF),30),LV_PART_MAIN);
     lv_obj_set_style_bg_color(w.tile, lv_color_hex(t.background ? t.background : 0xFFFFFF), 0);
     lv_obj_set_style_border_width(w.tile, 1, 0);
-    // "Achtergrond: geen" hides only the card; geometry and padding stay identical,
+    // "Background: none" hides only the card; geometry and padding stay identical,
     // and the pressed flash still shows because it lives on the PRESSED state.
     lv_obj_set_style_bg_opa(w.tile, t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
     lv_obj_set_style_border_opa(w.tile, t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
@@ -1821,7 +1821,7 @@ inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
     auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
-    std::string status=waiting?(t.confirmed?"Bevestigd door Home Assistant":"Opdracht verstuurd..."):detail_state(t);
+    std::string status=waiting?(t.confirmed?"Confirmed by Home Assistant":"Command sent..."):detail_state(t);
     if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));
     if(detail_badge_status)label(detail_badge_status,status);
     if(detail_switch && !lv_obj_has_state(detail_switch,LV_STATE_PRESSED)){

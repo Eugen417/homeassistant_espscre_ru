@@ -16,6 +16,6 @@ inline uint32_t color(const std::string &name) {
   if(name=="gray")return 0xE5E7EB;
   return 0;  // Automatic/default, including unknown future palette names.
 }
-// "Geen": no card behind the tile contents. Older firmware treats it as automatic.
+// "None": no card behind the tile contents. Older firmware treats it as automatic.
 inline bool transparent(const std::string &name) { return name=="none"; }
 }

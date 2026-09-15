@@ -13,8 +13,8 @@ import re
 import statistics
 import time
 
-TARGETS = [('linksboven', (20, 20)), ('rechtsboven', (299, 20)),
-           ('rechtsonder', (299, 219)), ('linksonder', (20, 219)), ('midden', (160, 120))]
+TARGETS = [('top-left', (20, 20)), ('top-right', (299, 20)),
+           ('bottom-right', (299, 219)), ('bottom-left', (20, 219)), ('center', (160, 120))]
 BOUNDS = (280, 3860, 340, 3860)
 PATTERN = re.compile(r'press native=(\d+),(\d+) raw=(\d+),(\d+) pressure=(\d+) calibration=([01])')
 
@@ -25,7 +25,7 @@ def parse_touch(line):
         return None
     nx, ny, rx, ry, pressure, isolated = map(int, match.groups())
     if not isolated:
-        raise ValueError('Geen geïsoleerd meetscherm: start met CALIBRATION_ON_BOOT=true. Geen data opgeslagen.')
+        raise ValueError('Not an isolated measurement screen: start with CALIBRATION_ON_BOOT=true. No data saved.')
     return dict(native_x=nx, native_y=ny, raw_x=rx, raw_y=ry, pressure=pressure)
 
 
@@ -33,7 +33,7 @@ def write_file(path, contents, replace=False):
     path = Path(path)
     if path.exists():
         if not replace:
-            raise ValueError(f'{path} bestaat al; kies een andere naam of expliciet --replace.')
+            raise ValueError(f'{path} already exists; choose a different name or pass --replace explicitly.')
         backup = path.with_name(path.name + '.bak-' + datetime.now().strftime('%Y%m%d-%H%M%S-%f'))
         backup.write_bytes(path.read_bytes())
     # Write completely before replacing an existing configuration.
@@ -48,20 +48,20 @@ def write_file(path, contents, replace=False):
 
 def validate(data):
     if data.get('schema') != 1 or data.get('screen') != [320, 240]:
-        raise ValueError('Verwacht schema 1 en landschap 320×240; andere oriëntaties zijn niet ondersteund.')
+        raise ValueError('Expected schema 1 and landscape 320×240; other orientations are not supported.')
     points = data.get('points', [])
     if len(points) != len(TARGETS):
-        raise ValueError('Alle vier hoeken én het onafhankelijke middenpunt zijn nodig.')
+        raise ValueError('All four corners and the independent center point are required.')
     for point, (name, xy) in zip(points, TARGETS):
         if point.get('name') != name or point.get('screen') != list(xy):
-            raise ValueError('Meetpunten/volgorde komen niet overeen met de wizard.')
+            raise ValueError("Measurement points/order don't match the wizard.")
         if len(point.get('samples', [])) < 3:
-            raise ValueError(f'{name}: minimaal drie afzonderlijke tikken nodig.')
+            raise ValueError(f'{name}: at least three separate taps required.')
         for sample in point['samples']:
             for key, maximum in [('raw_x', 4095), ('raw_y', 4095), ('native_x', 239), ('native_y', 319), ('pressure', 8190)]:
                 value = sample.get(key)
                 if type(value) is not int or not 0 <= value <= maximum:
-                    raise ValueError(f'{name}: ongeldige {key}.')
+                    raise ValueError(f'{name}: invalid {key}.')
     return points
 
 
@@ -77,7 +77,7 @@ def least_squares(rows, values):
         matrix[column], matrix[pivot] = matrix[pivot], matrix[column]
         scale = matrix[column][column]
         if abs(scale) < 1e-9:
-            raise ValueError('Meetpunten zijn niet onafhankelijk; waarschijnlijk dezelfde hoek meermaals gemeten.')
+            raise ValueError('Measurement points are not independent; likely the same corner was measured more than once.')
         matrix[column] = [v / scale for v in matrix[column]]
         for row in range(3):
             if row != column:
@@ -104,10 +104,10 @@ def fit(data, tolerance=12):
     cx, cy = least_squares(rows, values_x), least_squares(rows, values_y)
     coefficients = [cx[0] / 4095, cx[1] / 4095, cx[2], cy[0] / 4095, cy[1] / 4095, cy[2]]
     if not all(math.isfinite(v) for v in coefficients):
-        raise ValueError('Ongeldige kalibratiecoëfficiënten.')
+        raise ValueError('Invalid calibration coefficients.')
     # Reject captures that amplify small sensor jitter into huge screen movements.
     if max(abs(v) for v in (coefficients[0], coefficients[1], coefficients[3], coefficients[4])) > 4:
-        raise ValueError('Te klein meetbereik; tik de echte schermhoeken aan.')
+        raise ValueError('Measurement range too small; tap the actual screen corners.')
     report = []
     for point, median in zip(points, medians):
         predicted = project(coefficients, *median)
@@ -115,14 +115,14 @@ def fit(data, tolerance=12):
         spread = max(math.dist(project(coefficients, s['raw_x'], s['raw_y']), predicted) for s in point['samples'])
         report.append(dict(name=point['name'], median=list(median), error_px=round(error, 2), spread_px=round(spread, 2)))
         if error > tolerance or spread > 18:
-            raise ValueError(f"{point['name']}: fout {error:.1f}px, spreiding {spread:.1f}px. "
-                             'Meet opnieuw; een instabiel paneel niet wegkalibreren.')
+            raise ValueError(f"{point['name']}: error {error:.1f}px, spread {spread:.1f}px. "
+                             "Measure again; don't calibrate away an unstable panel.")
     return coefficients, report
 
 
 def calibration_yaml(coefficients):
     names = ['TOUCH_AFFINE_XX', 'TOUCH_AFFINE_XY', 'TOUCH_AFFINE_XC', 'TOUCH_AFFINE_YX', 'TOUCH_AFFINE_YY', 'TOUCH_AFFINE_YC']
-    lines = ['# Gemeten met tools/calibrate.py; uitsluitend voor dit fysieke paneel.', 'substitutions:']
+    lines = ['# Measured with tools/calibrate.py; only valid for this physical panel.', 'substitutions:']
     for name, value in zip(['TOUCH_CAL_X_MIN', 'TOUCH_CAL_X_MAX', 'TOUCH_CAL_Y_MIN', 'TOUCH_CAL_Y_MAX'], BOUNDS):
         lines.append(f'  {name}: "{value}"')
     lines += [f'  {name}: "{value:.9f}"' for name, value in zip(names, coefficients)]
@@ -138,21 +138,21 @@ def verify(data, tolerance=12):
         spread = max(math.dist(p, center) for p in measured)
         results.append(dict(name=point['name'], error_px=round(error, 2), spread_px=round(spread, 2)))
         if error > tolerance or spread > 18:
-            raise ValueError(f"{point['name']}: echte firmwarecoördinaten wijken {error:.1f}px af (spreiding {spread:.1f}px).")
+            raise ValueError(f"{point['name']}: real firmware coordinates deviate {error:.1f}px (spread {spread:.1f}px).")
     return results
 
 
 def capture(args):
     import serial
     if args.output.exists():
-        raise ValueError('Meetbestand bestaat al; kies een nieuwe naam.')
+        raise ValueError('Measurement file already exists; choose a new name.')
     data = dict(schema=1, device_name=args.device_name, screen=[320, 240],
                 created_at=datetime.now(timezone.utc).isoformat(), points=[])
-    print('Alleen voor 320×240 / LVGL 90° / swap_xy=false / mirror_x=true / mirror_y=false.')
-    print('Het scherm moet de VIJF kruisjes tonen. Sluit andere seriële loglezers af.')
+    print('Only for 320×240 / LVGL 90° / swap_xy=false / mirror_x=true / mirror_y=false.')
+    print('The screen must show the FIVE crosshairs. Close other serial log readers.')
     with serial.Serial(args.port, 115200, timeout=0.2) as port:
         for name, xy in TARGETS:
-            input(f'\nVolgende punt: {name} {xy}. Druk ENTER en tik daarna alleen dit kruisje {args.samples} keer: ')
+            input(f'\nNext point: {name} {xy}. Press ENTER, then tap only this crosshair {args.samples} times: ')
             port.reset_input_buffer()
             samples = []
             deadline = time.monotonic() + args.timeout
@@ -164,19 +164,19 @@ def capture(args):
                     last = time.monotonic()
                     print(f'  {name}: {len(samples)}/{args.samples}', flush=True)
             if len(samples) != args.samples:
-                raise ValueError(f'{name}: te weinig geldige tikken. Controleer de firmware, het meetscherm en USB-poort.')
+                raise ValueError(f'{name}: not enough valid taps. Check the firmware, the measurement screen, and the USB port.')
             data['points'].append(dict(name=name, screen=list(xy), samples=samples))
     write_file(args.output, json.dumps(data, indent=2) + '\n')
-    print(f'Meting opgeslagen: {args.output}. Het script heeft niets geflasht of aangestuurd.')
+    print(f'Measurement saved: {args.output}. The script did not flash or control anything.')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
-    c = commands.add_parser('capture', help='Lees geleide tikken via USB; firmware moet al het meetscherm tonen.')
+    c = commands.add_parser('capture', help='Read guided taps over USB; firmware must already show the measurement screen.')
     c.add_argument('--port', required=True)
     c.add_argument('--output', type=Path, required=True)
-    c.add_argument('--device-name', default='onbekend')
+    c.add_argument('--device-name', default='unknown')
     c.add_argument('--samples', type=int, choices=range(3, 10), default=3)
     c.add_argument('--timeout', type=float, default=60)
     for name in ('fit', 'verify'):
@@ -189,24 +189,24 @@ def main():
     args = parser.parse_args()
     try:
         if args.command == 'capture':
-            if args.timeout <= 0: raise ValueError('Timeout moet positief zijn.')
+            if args.timeout <= 0: raise ValueError('Timeout must be positive.')
             capture(args)
         else:
-            if args.tolerance <= 0 or not math.isfinite(args.tolerance): raise ValueError('Tolerantie moet eindig en positief zijn.')
+            if args.tolerance <= 0 or not math.isfinite(args.tolerance): raise ValueError('Tolerance must be finite and positive.')
             data = json.loads(args.input.read_text())
             if args.command == 'fit':
                 coefficients, report = fit(data, args.tolerance)
                 write_file(args.output, calibration_yaml(coefficients), args.replace)
-                print(f'Kalibratie geschreven: {args.output}. Het middenpunt is onafhankelijk gecontroleerd.')
+                print(f'Calibration written: {args.output}. The center point was independently checked.')
             else:
                 report = verify(data, args.tolerance)
-                print('PASS: onafhankelijke fysieke controle van de geflashte coördinaten.')
+                print('PASS: independent physical check of the flashed coordinates.')
             for item in report:
-                print(f"{item['name']}: fout={item['error_px']}px, spreiding={item['spread_px']}px")
+                print(f"{item['name']}: error={item['error_px']}px, spread={item['spread_px']}px")
     except (ValueError, OSError, KeyError, TypeError, EOFError) as exc:
-        parser.exit(1, f'Fout: {exc}\n')
+        parser.exit(1, f'Error: {exc}\n')
     except KeyboardInterrupt:
-        parser.exit(130, 'Afgebroken; geen gedeeltelijke meting opgeslagen.\n')
+        parser.exit(130, 'Aborted; no partial measurement saved.\n')
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ def generate(board):
     defaults += '\n' + (ROOT / 'calibration.example.yaml').read_text()
     replacements = dict(re.findall(r'^  (\w+): ("[^"\n]*")', defaults, re.M))
     replacements.update(DYNAMIC_TILES='"true"', DASHBOARD_INBOX_INTERNAL='"false"', DIRECT_ACTIONS='"true"',
-                        ROOM_NAME='"Kies tegels in HA"', TILE_COUNT='"1"')
+                        ROOM_NAME='"Choose tiles in HA"', TILE_COUNT='"1"')
     s = re.sub(r'^  (\w+): ("[^"\n]*")', lambda m: f'  {m[1]}: {replacements.get(m[1],m[2])}', s, flags=re.M)
     # The owner's wizard YAML supplies wifi/API/OTA credentials. No shared keys.
     s = re.sub(r'^  encryption:\n    key: !secret api_encryption_key\n', '', s, flags=re.M)

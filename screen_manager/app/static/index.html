@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="nl">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -13,28 +13,28 @@
         <span class="mark">▦</span>
         <div>
           <strong>ESP Screens</strong
-          ><small>Tegels voor je CYD en Guition, zonder opnieuw flashen</small>
+          ><small>Tiles for your CYD and Guition, without reflashing</small>
         </div>
       </div>
-      <nav class="toolbar" aria-label="Acties">
+      <nav class="toolbar" aria-label="Actions">
         <button id="new-screen" class="tool tool-primary">
           <span class="tool-icon" aria-hidden="true">＋</span>
           <span class="tool-text"
-            ><b>Nieuw scherm</b><small>Aansluiten en installeren</small></span
+            ><b>New screen</b><small>Connect and install</small></span
           >
         </button>
         <button id="open-firmware" class="tool">
           <span class="tool-icon" aria-hidden="true">⇪</span>
           <span class="tool-text"
             ><b>Firmware & USB</b
-            ><small>Bouwen en installeren via USB of wifi</small></span
+            ><small>Build and install via USB or Wi-Fi</small></span
           >
         </button>
         <button id="open-alerts" class="tool">
           <span class="tool-icon" aria-hidden="true">!</span>
           <span class="tool-text"
             ><b>Alerts</b
-            ><small>Meldingen over het hele scherm, vanuit een automatisering</small></span
+            ><small>Full-screen notifications, from an automation</small></span
           >
         </button>
       </nav>
@@ -43,26 +43,26 @@
       <div class="intro">
         <div>
           <p class="eyebrow">HOME ASSISTANT</p>
-          <h1>Beheer je remote screens hier.</h1>
+          <h1>Manage your remote screens here.</h1>
         </div>
-        <span id="connection" role="status" class="badge">Verbinden…</span>
+        <span id="connection" role="status" class="badge">Connecting…</span>
       </div>
       <div class="workspace">
         <aside>
-          <h2>Mijn schermen</h2>
+          <h2>My screens</h2>
           <div id="screens"></div>
           <div id="pending"></div>
-          <button class="quiet" id="refresh">↻ Vernieuwen</button>
+          <button class="quiet" id="refresh">↻ Refresh</button>
           <div class="updates" id="updates" hidden>
-            <h2>Firmware-updates</h2>
+            <h2>Firmware updates</h2>
             <p class="hint" id="updates-hint"></p>
-            <button id="update-all" hidden>Alle schermen bijwerken</button>
+            <button id="update-all" hidden>Update all screens</button>
             <label class="check">
               <input type="checkbox" id="auto-update" />
               <span
-                >Elke nacht automatisch bijwerken<small
-                  >Tussen 03:00 en 06:00, één scherm tegelijk. Stopt bij een
-                  fout en meldt dat in Home Assistant.</small
+                >Update automatically every night<small
+                  >Between 03:00 and 06:00, one screen at a time. Stops on an
+                  error and reports it in Home Assistant.</small
                 ></span
               >
             </label>
@@ -70,35 +70,35 @@
         </aside>
         <section id="empty" class="empty">
           <span class="empty-icon">▦</span>
-          <h2>Begin met een scherm</h2>
+          <h2>Start with a screen</h2>
           <p>
-            Sluit een CYD of Guition via USB aan op je Home Assistant-machine.
-            Profiel, firmware en de eerste flash gebeuren in één venster.
+            Connect a CYD or Guition via USB to your Home Assistant machine.
+            Profile, firmware, and the first flash happen in one window.
           </p>
-          <button id="start">Nieuw scherm installeren</button>
+          <button id="start">Install new screen</button>
         </section>
         <section id="editor" hidden>
           <div class="editor-head">
             <div>
               <p class="eyebrow" id="screen-name"></p>
-              <h2>Maak het jouw scherm</h2>
+              <h2>Make it your screen</h2>
             </div>
             <span id="delivery" class="badge"></span>
           </div>
           <section class="topbar-editor" id="topbar" aria-labelledby="topbar-title">
             <div class="section-title">
-              <h3 id="topbar-title">Bovenbalk</h3>
+              <h3 id="topbar-title">Top bar</h3>
               <span id="topbar-count"></span>
             </div>
             <div class="topbar-fields">
               <label class="topbar-name"
-                >Links: naam<input
+                >Left: name<input
                   id="title"
                   maxlength="60"
-                  placeholder="Bijvoorbeeld: Woonkamer"
+                  placeholder="For example: Living room"
               /></label>
               <div class="topbar-right">
-                <span class="topbar-caption" id="topbar-caption">Rechts: tijd, sensoren of een klok</span>
+                <span class="topbar-caption" id="topbar-caption">Right: time, sensors, or a clock</span>
                 <div
                   id="topbar-chips"
                   class="topbar-chips"
@@ -112,24 +112,24 @@
           <div class="columns" id="tile-section">
             <div class="tile-editor">
               <div class="section-title">
-                <h3>Je tegels</h3>
+                <h3>Your tiles</h3>
                 <span id="count">0 / 10</span>
               </div>
-              <div id="layout-preview" aria-label="Schermindeling"></div>
+              <div id="layout-preview" aria-label="Screen layout"></div>
               <button id="add-page" class="quiet add-page" type="button">
-                ＋ Pagina toevoegen
+                ＋ Add page
               </button>
               <p id="no-tiles" class="hint">
-                Voeg je eerste lamp, scène of apparaat toe via de kiezer.
+                Add your first light, scene, or device via the picker.
               </p>
               <p id="positions-hint" class="hint" hidden></p>
             </div>
             <div class="picker">
-              <label for="search">Voeg een entiteit toe</label
+              <label for="search">Add an entity</label
               ><input
                 id="search"
                 type="search"
-                placeholder="Zoek op naam, apparaat of ruimte…"
+                placeholder="Search by name, device, or room…"
                 autocomplete="off"
               />
               <div class="filters" id="filters"></div>
@@ -138,36 +138,36 @@
           </div>
           <details class="screen-settings" id="general-settings" open>
             <summary>
-              Scherminstellingen
-              <span class="hint">Helderheid, rustmomenten en weergave</span>
+              Screen settings
+              <span class="hint">Brightness, quiet hours, and display</span>
             </summary>
             <p class="hint" id="settings-support"></p>
             <div class="settings-grid" id="settings-fields"></div>
             <p class="hint">
-              Nachturen gelden voor de helderheid tijdens standby. De eerste
-              aanraking maakt het scherm wakker; de volgende bedient je huis.
-              Gelijke begin- en eindtijd schakelen het nachtvenster uit.
+              Night hours apply to the brightness during standby. The first
+              touch wakes the screen; the next one controls your home.
+              Matching start and end times turn the night window off.
             </p>
           </details>
           <details class="screen-settings" id="inspector-section">
             <summary>
               Inspector
               <span class="hint"
-                >Verbinding, status en ondersteunde eigenschappen</span
+                >Connection, status, and supported properties</span
               >
             </summary>
-            <button id="inspect" class="quiet">Lees actuele gegevens</button>
+            <button id="inspect" class="quiet">Read current data</button>
             <div id="inspection-summary"></div>
-            <pre id="inspection">Selecteer een scherm en lees de gegevens.</pre>
+            <pre id="inspection">Select a screen and read the data.</pre>
           </details>
           <footer class="savebar">
             <div>
-              <strong id="dirty">Alles opgeslagen</strong
+              <strong id="dirty">All saved</strong
               ><small id="save-detail"
-                >Aanpassen kan zonder opnieuw flashen.</small
+                >Changes apply without reflashing.</small
               >
             </div>
-            <button id="save">Opslaan & naar scherm</button>
+            <button id="save">Save & send to screen</button>
           </footer>
         </section>
       </div>
@@ -176,29 +176,29 @@
       <form id="install-form">
         <div class="dialog-head">
           <div>
-            <p class="eyebrow">NIEUW SCHERM</p>
-            <h2 id="install-title">Aansluiten en installeren.</h2>
+            <p class="eyebrow">NEW SCREEN</p>
+            <h2 id="install-title">Connect and install.</h2>
           </div>
           <button
             type="button"
             class="quiet"
             id="close-install"
-            aria-label="Sluiten"
+            aria-label="Close"
           >
             ✕
           </button>
         </div>
         <div id="install-setup">
           <p>
-            Sluit het scherm met een USB-datakabel aan op de machine waarop Home
-            Assistant draait. ESP Screens maakt een eigen profiel met unieke
-            sleutels, bouwt de firmware en zet die direct op het scherm.
+            Connect the screen with a USB data cable to the machine running Home
+            Assistant. ESP Screens creates its own profile with unique
+            keys, builds the firmware, and puts it straight on the screen.
           </p>
           <fieldset>
-            <legend>Welk scherm heb je?</legend>
+            <legend>Which screen do you have?</legend>
             <label class="board"
               ><input type="radio" name="board" value="cyd" checked /><span
-                ><b>CYD · 2,8 inch</b
+                ><b>CYD · 2.8 inch</b
                 ><small>ESP32-2432S028 · 320 × 240</small></span
               ></label
             ><label class="board"
@@ -209,51 +209,51 @@
             >
           </fieldset>
           <label
-            >Naam<input
+            >Name<input
               name="friendly_name"
               required
               maxlength="60"
-              placeholder="Scherm woonkamer"
+              placeholder="Living room screen"
               autocomplete="off" /><small class="node-line"
-              >Apparaatnaam <code id="node-preview">scherm</code
+              >Device name <code id="node-preview">screen</code
               ><button type="button" class="link" id="edit-node">
-                aanpassen
+                customize
               </button></small
             ><small
-              >Elk scherm krijgt een eigen profiel met eigen sleutels. Vier
-              schermen? Doorloop dit vier keer met een andere naam.</small
+              >Every screen gets its own profile with its own keys. Four
+              screens? Go through this four times with a different name.</small
             ></label
           >
           <label id="node-label" hidden
-            >Apparaatnaam<input
+            >Device name<input
               name="name"
               pattern="[a-z][a-z0-9-]{0,29}"
               maxlength="30"
               autocomplete="off" /><small
-              >Kleine letters, cijfers en streepjes. Elk scherm een andere
-              naam.</small
+              >Lowercase letters, digits, and dashes. A different name for
+              each screen.</small
             ></label
           >
           <fieldset id="wifi-fields" class="wifi" hidden disabled>
-            <legend>Wifi</legend>
+            <legend>Wi-Fi</legend>
             <p class="hint" id="wifi-status"></p>
             <label id="wifi-ssid-label"
-              >Wifi-naam (2,4 GHz)<input name="wifi_ssid" autocomplete="off"
+              >Wi-Fi name (2.4 GHz)<input name="wifi_ssid" autocomplete="off"
             /></label>
             <label id="wifi-password-label"
-              >Wifiwachtwoord<input
+              >Wi-Fi password<input
                 name="wifi_password"
                 type="password"
                 autocomplete="new-password"
             /></label>
           </fieldset>
           <label
-            >Installeren via<select name="target" id="install-target"></select
+            >Install via<select name="target" id="install-target"></select
             ><small id="target-hint"></small
           ></label>
           <p class="hint" id="install-note"></p>
           <div class="install-actions">
-            <button type="submit" id="install-go">Installeren</button>
+            <button type="submit" id="install-go">Install</button>
             <span id="install-status" role="status"></span>
           </div>
         </div>
@@ -266,21 +266,21 @@
           <p id="progress-detail"></p>
           <div id="install-result" hidden>
             <div class="key-box">
-              <span>API-sleutel</span><code id="api-key"></code>
-              <button type="button" class="mini" id="copy-key">Kopieer</button>
+              <span>API key</span><code id="api-key"></code>
+              <button type="button" class="mini" id="copy-key">Copy</button>
             </div>
             <ol class="steps" id="install-steps"></ol>
           </div>
           <details id="install-log-wrap">
-            <summary>Log van ESPHome</summary>
+            <summary>ESPHome log</summary>
             <pre id="install-log"></pre>
           </details>
           <div class="install-actions">
             <button type="button" id="install-retry" hidden>
-              Opnieuw proberen
+              Retry
             </button>
             <button type="button" class="quiet" id="install-close">
-              Sluiten
+              Close
             </button>
           </div>
         </div>
@@ -290,187 +290,187 @@
       <div class="dialog-head">
         <div>
           <p class="eyebrow">FIRMWARE & USB</p>
-          <h2>Schermfirmware bouwen en installeren</h2>
+          <h2>Build and install screen firmware</h2>
         </div>
-        <button id="close-firmware" class="quiet" aria-label="Sluiten">✕</button>
+        <button id="close-firmware" class="quiet" aria-label="Close">✕</button>
       </div>
       <p>
-        De ingebouwde ESPHome CLI gebruikt je eigen profiel (YAML met sleutels)
-        en secrets. Kies het profiel van het scherm, dan een USB-poort (scherm
-        aan de Home Assistant-machine) of <b>Wifi / OTA</b> met de hostnaam.
-        <b>Controleren</b> valideert alleen, <b>Alleen bouwen</b> compileert,
-        <b>Bouwen & installeren</b> zet de firmware op het scherm. Je tegels
-        blijven in ESP Screens staan. De eerste build duurt enkele minuten.
+        The built-in ESPHome CLI uses your own profile (YAML with keys)
+        and secrets. Choose the screen's profile, then a USB port (screen
+        connected to the Home Assistant machine) or <b>Wi-Fi / OTA</b> with the hostname.
+        <b>Check</b> only validates, <b>Build only</b> compiles,
+        <b>Build & install</b> puts the firmware on the screen. Your tiles
+        stay as they are in ESP Screens. The first build takes a few minutes.
       </p>
-      <label>ESPHome-profiel<select id="firmware-file"></select></label>
+      <label>ESPHome profile<select id="firmware-file"></select></label>
       <label
-        >Installeren naar<select id="firmware-port">
-          <option value="ota">Wifi / OTA</option>
+        >Install to<select id="firmware-port">
+          <option value="ota">Wi-Fi / OTA</option>
         </select></label
       >
       <label id="firmware-host-label"
-        >IP-adres of hostnaam<input
+        >IP address or hostname<input
           id="firmware-host"
-          placeholder="scherm-woonkamer.local"
+          placeholder="screen-livingroom.local"
       /></label>
       <div class="yaml-actions">
-        <button id="firmware-validate" class="quiet">Controleren</button
-        ><button id="firmware-build" class="quiet">Alleen bouwen</button
-        ><button id="firmware-install">Bouwen & installeren</button>
+        <button id="firmware-validate" class="quiet">Check</button
+        ><button id="firmware-build" class="quiet">Build only</button
+        ><button id="firmware-install">Build & install</button>
       </div>
       <p id="firmware-status" role="status"></p>
       <pre id="firmware-log"></pre>
     </dialog>
-    <dialog id="tile-sheet" class="tile-sheet" aria-label="Tegel instellen"></dialog>
-    <dialog id="topbar-sheet" class="tile-sheet" aria-label="Bovenbalk"></dialog>
+    <dialog id="tile-sheet" class="tile-sheet" aria-label="Configure tile"></dialog>
+    <dialog id="topbar-sheet" class="tile-sheet" aria-label="Top bar"></dialog>
     <dialog id="alerts-dialog" class="alerts" aria-label="Alerts">
       <div class="dialog-head">
         <div>
           <p class="eyebrow">ALERTS · CHEATSHEET</p>
-          <h2>Een melding over het hele scherm, vanuit een automatisering.</h2>
+          <h2>A full-screen notification, from an automation.</h2>
         </div>
-        <button id="close-alerts" class="quiet" aria-label="Sluiten">✕</button>
+        <button id="close-alerts" class="quiet" aria-label="Close">✕</button>
       </div>
       <p>
-        Elk scherm heeft de actie <code>show_alert</code>. Die legt een kaart over alles
-        heen, wekt het scherm en houdt de backlight op de normale helderheid tot iemand op
-        de knop tikt of de timeout verstrijkt. Home Assistant toont bij ESPHome-acties
-        zelf geen uitleg of keuzelijsten; alles wat je kunt invullen staat hier.
+        Every screen has the <code>show_alert</code> action. It places a card over everything,
+        wakes the screen, and keeps the backlight at normal brightness until someone taps
+        the button or the timeout runs out. Home Assistant itself shows no explanation or
+        dropdowns for ESPHome actions; everything you can fill in is listed here.
       </p>
       <div class="alert-hero">
         <div class="alert-mock" id="alert-mock" aria-hidden="true">
           <div class="alert-mock-card">
             <span class="mdi alert-mock-icon" id="alert-mock-icon"></span>
-            <strong id="alert-mock-title">Iemand belt aan</strong>
-            <span id="alert-mock-subtitle">Deur 3, achterkant</span>
-            <button type="button" id="alert-mock-button" tabindex="-1">Ik kom</button>
+            <strong id="alert-mock-title">Someone is at the door</strong>
+            <span id="alert-mock-subtitle">Door 3, back</span>
+            <button type="button" id="alert-mock-button" tabindex="-1">Coming</button>
           </div>
         </div>
-        <nav class="alerts-nav" aria-label="Onderdelen">
-          <button type="button" data-jump="alerts-screens">Jouw schermen</button>
-          <button type="button" data-jump="alerts-howto">In een automatisering</button>
-          <button type="button" data-jump="alerts-fields">De velden</button>
-          <button type="button" data-jump="alerts-icons">Iconen</button>
-          <button type="button" data-jump="alerts-colors">Kleuren</button>
-          <button type="button" data-jump="alerts-behaviour">Gedrag</button>
+        <nav class="alerts-nav" aria-label="Sections">
+          <button type="button" data-jump="alerts-screens">Your screens</button>
+          <button type="button" data-jump="alerts-howto">In an automation</button>
+          <button type="button" data-jump="alerts-fields">The fields</button>
+          <button type="button" data-jump="alerts-icons">Icons</button>
+          <button type="button" data-jump="alerts-colors">Colors</button>
+          <button type="button" data-jump="alerts-behaviour">Behavior</button>
           <button type="button" data-jump="alerts-events">Events</button>
           <button type="button" data-jump="alerts-tips">Tips</button>
         </nav>
       </div>
       <section id="alerts-screens">
-        <h3>Jouw schermen</h3>
+        <h3>Your screens</h3>
         <p>
-          Elke scherm heeft zijn eigen actie, met de apparaatnaam erin. Vanaf firmware
-          <code id="alerts-min-firmware">0.2.31</code>; een ouder scherm werk je bij onder
-          Firmware-updates.
+          Every screen has its own action, with the device name in it. From firmware
+          <code id="alerts-min-firmware">0.2.31</code>; update an older screen under
+          Firmware updates.
         </p>
         <div id="alerts-screen-list"></div>
       </section>
       <section id="alerts-howto">
-        <h3>In een automatisering</h3>
+        <h3>In an automation</h3>
         <ol class="steps">
-          <li><b>Actie toevoegen</b> en zoek op <b>ESPHome</b>. Kies de actie van je scherm:
-            Home Assistant noemt hem "Performs the action show_alert of the node
-            <i>apparaatnaam</i>".</li>
-          <li><b>Vul de velden in.</b> Home Assistant vraagt alle zeven; laat wat je niet
-            gebruikt leeg (<code>""</code>, <code>0</code>, uit).</li>
-          <li>Liever YAML? Kies <b>Bewerken in YAML</b> bij de actie en plak het voorbeeld
-            hieronder.</li>
+          <li><b>Add action</b> and search for <b>ESPHome</b>. Choose your screen's action:
+            Home Assistant calls it "Performs the action show_alert of the node
+            <i>device name</i>".</li>
+          <li><b>Fill in the fields.</b> Home Assistant asks for all seven; leave what you don't
+            use empty (<code>""</code>, <code>0</code>, off).</li>
+          <li>Prefer YAML? Choose <b>Edit in YAML</b> on the action and paste the example
+            below.</li>
         </ol>
         <div class="alert-example">
           <label
-            >Voorbeeld voor<select id="alerts-example-screen"></select
+            >Example for<select id="alerts-example-screen"></select
           ></label>
           <div class="copy-line">
             <pre id="alerts-example"></pre>
-            <button type="button" class="mini" id="alerts-example-copy">Kopieer YAML</button>
+            <button type="button" class="mini" id="alerts-example-copy">Copy YAML</button>
           </div>
         </div>
       </section>
       <section id="alerts-fields">
-        <h3>De velden</h3>
+        <h3>The fields</h3>
         <p>
-          Teksten zijn vrij; de limiet is in bytes en een letter met accent telt voor twee.
-          Wat niet past krijgt puntjes (titel) of valt weg (subtitle).
+          Text is free-form; the limit is in bytes, and an accented letter counts as two.
+          What doesn't fit gets an ellipsis (title) or is dropped (subtitle).
         </p>
         <div class="table-scroll"><table id="alerts-field-table"></table></div>
       </section>
       <section id="alerts-icons">
-        <h3>Iconen</h3>
+        <h3>Icons</h3>
         <p>
-          Vul de naam in bij <code>icon</code>, bijvoorbeeld <code>doorbell</code>.
-          <code>mdi:doorbell</code> en de hex-codepoint (<code>F12E6</code>) mogen ook.
-          Alleen deze iconen zitten in de firmware; een andere naam geeft de
-          waarschuwingsdriehoek. Tik op een icoon om de naam te kopiëren.
+          Fill in the name in <code>icon</code>, for example <code>doorbell</code>.
+          <code>mdi:doorbell</code> and the hex codepoint (<code>F12E6</code>) also work.
+          Only these icons are included in the firmware; any other name shows the
+          warning triangle. Tap an icon to copy its name.
         </p>
-        <p class="alerts-subhead">Handig voor meldingen</p>
+        <p class="alerts-subhead">Handy for notifications</p>
         <div class="chips" id="alerts-suggested"></div>
         <label class="alerts-search"
-          >Zoek een icoon<input
+          >Search for an icon<input
             id="alerts-icon-search"
             type="search"
-            placeholder="Zoek op naam of omschrijving…"
+            placeholder="Search by name or description…"
             autocomplete="off"
         /></label>
         <div id="alerts-icon-groups"></div>
       </section>
       <section id="alerts-colors">
-        <h3>Kleuren</h3>
+        <h3>Colors</h3>
         <p>
-          Vul de naam in bij <code>color</code>. Dit zijn de pasteltinten van de tegels,
-          met donkere tekst. Leeg of onbekend geeft de witte kaart. Tik om te kopiëren.
+          Fill in the name in <code>color</code>. These are the pastel shades of the tiles,
+          with dark text. Empty or unknown gives the white card. Tap to copy.
         </p>
         <div class="swatches" id="alerts-swatches"></div>
       </section>
       <section id="alerts-behaviour">
-        <h3>Gedrag</h3>
+        <h3>Behavior</h3>
         <ul class="alerts-list">
-          <li><b>Wekken.</b> Een alert maakt een gedimd of donker scherm meteen wakker en
-            komt boven elke pagina, elke open lichtkaart en de standby-laag.</li>
-          <li><b>Aan tot de knop.</b> Zolang de kaart staat blijft de backlight op de
-            normale helderheid. Standby en de nachturen wachten. Na de knop start de gewone
-            standby-tijd opnieuw.</li>
-          <li><b>Timeout.</b> <code>timeout: 0</code> wacht op de knop, hoe lang ook. Met
-            <code>timeout: 60</code> verdwijnt de kaart na een minuut, maar de knop sluit
-            hem eerder.</li>
-          <li><b>Knipperen.</b> <code>flash: true</code> knippert de backlight vier keer
-            bij binnenkomst (ongeveer een seconde) en laat het scherm daarna aan.</li>
-          <li><b>Vervangen.</b> Een nieuwe alert vervangt de huidige; er is geen stapel.
-            De vervangen alert meldt zich als <code>replaced</code>.</li>
-          <li><b>Op afstand sluiten.</b> <code>dismiss_alert</code> haalt de kaart weg,
-            bijvoorbeeld als de deur al open is. Zonder alert doet die actie niets.</li>
-          <li><b>Tikken naast de kaart</b> doet niets; alleen de knop sluit. Zo drukt een
-            wek-tik de alert nooit per ongeluk weg.</li>
+          <li><b>Wakes the screen.</b> An alert immediately wakes a dimmed or dark screen and
+            appears above every page, every open light card, and the standby layer.</li>
+          <li><b>On until the button.</b> As long as the card is showing, the backlight stays at
+            normal brightness. Standby and night hours wait. After the button, the regular
+            standby time starts again.</li>
+          <li><b>Timeout.</b> <code>timeout: 0</code> waits for the button, however long that
+            takes. With <code>timeout: 60</code> the card disappears after a minute, but the
+            button closes it sooner.</li>
+          <li><b>Blinking.</b> <code>flash: true</code> blinks the backlight four times
+            when the alert arrives (about a second) and leaves the screen on afterward.</li>
+          <li><b>Replacing.</b> A new alert replaces the current one; there's no stack.
+            The replaced alert reports itself as <code>replaced</code>.</li>
+          <li><b>Closing remotely.</b> <code>dismiss_alert</code> clears the card,
+            for example if the door is already open. Without an alert, that action does nothing.</li>
+          <li><b>Tapping beside the card</b> does nothing; only the button closes it. That way a
+            wake-up tap never accidentally dismisses the alert.</li>
         </ul>
       </section>
       <section id="alerts-events">
         <h3>Events</h3>
         <p>
-          Elk einde vuurt het event <code id="alerts-event-name">esphome.screen_alert</code>
-          met <code>action</code>, <code>title</code>, <code>screen</code> (de apparaatnaam)
-          en het <code>device_id</code> dat Home Assistant toevoegt. Te zien onder
-          Ontwikkelhulpmiddelen → Events.
+          Every end fires the event <code id="alerts-event-name">esphome.screen_alert</code>
+          with <code>action</code>, <code>title</code>, <code>screen</code> (the device name)
+          and the <code>device_id</code> that Home Assistant adds. Visible under
+          Settings → Tools → Events.
         </p>
         <div class="table-scroll"><table id="alerts-ending-table"></table></div>
-        <p class="alerts-subhead">Wachten tot iemand op de knop drukt</p>
+        <p class="alerts-subhead">Waiting until someone presses the button</p>
         <div class="copy-line">
           <pre id="alerts-wait-example"></pre>
-          <button type="button" class="mini" id="alerts-wait-copy">Kopieer YAML</button>
+          <button type="button" class="mini" id="alerts-wait-copy">Copy YAML</button>
         </div>
       </section>
       <section id="alerts-tips">
         <h3>Tips</h3>
         <ul class="alerts-list">
-          <li>Gebruik een <b>kleur per soort melding</b>: oranje voor de deur, rood voor
-            rook of water, groen voor "klaar". De tekst blijft altijd donker en leesbaar.</li>
-          <li>Houd de titel <b>kort</b>; de CYD toont ongeveer veertig tekens op één regel.
-            Zet details in de subtitle.</li>
-          <li>Een <b>eigen knoptekst</b> maakt de melding een vraag: "Ik kom", "Gezien",
-            "Uitzetten". Het event zegt dan wie reageerde.</li>
-          <li>Een alert die zichzelf oplost (de deur gaat open, de was is eruit gehaald)
-            sluit je in dezelfde automatisering met <code>dismiss_alert</code>.</li>
-          <li>Meerdere schermen? Roep de actie van elk scherm aan; ze werken los van
-            elkaar en melden zich elk met hun eigen <code>screen</code>.</li>
+          <li>Use a <b>color per kind of notification</b>: orange for the door, red for
+            smoke or water, green for "done". The text always stays dark and readable.</li>
+          <li>Keep the title <b>short</b>; the CYD shows about forty characters on one line.
+            Put details in the subtitle.</li>
+          <li>A <b>custom button text</b> turns the notification into a question: "Coming", "Seen",
+            "Turn off". The event then tells you who responded.</li>
+          <li>For an alert that resolves itself (the door opens, the laundry gets taken out)
+            close it in the same automation with <code>dismiss_alert</code>.</li>
+          <li>Multiple screens? Call each screen's action; they work independently and
+            each reports with its own <code>screen</code>.</li>
         </ul>
       </section>
     </dialog>

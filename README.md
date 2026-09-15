@@ -1,329 +1,328 @@
 # Home Assistant ESP Screens
 
-Een Home Assistant-bedieningsscherm dat je zelf indeelt. **ESP Screen Manager**
-beheert je tegels én bouwt en installeert de ESPHome-firmware vanuit Home Assistant.
-Geen blueprint, MQTT of long-lived token nodig voor normaal gebruik.
+A Home Assistant control screen that you lay out yourself. **ESP Screen Manager**
+manages your tiles and builds and installs the ESPHome firmware from Home Assistant.
+No blueprint, MQTT, or long-lived token needed for normal use.
 
-**Nieuw scherm? Volg de [complete installatiehandleiding](docs/EASY_SETUP.md).**
-Voor elke nieuwe gebruiker en elk nieuw apparaat maak je een eigen profiel.
+**New screen? Follow the [complete installation guide](docs/EASY_SETUP.md).**
+For every new user and every new device, you create your own profile.
 
-## Ondersteunde schermen
+## Supported screens
 
-| Scherm | Resolutie | Display / touch |
+| Screen | Resolution | Display / touch |
 | --- | --- | --- |
-| CYD ESP32-2432S028 | 320 × 240 | ILI9341 / resistieve XPT2046 |
-| Guition ESP32-S3-4848S040, 4 inch | 480 × 480 | ST7701S RGB / capacitieve GT911 |
+| CYD ESP32-2432S028 | 320 × 240 | ILI9341 / resistive XPT2046 |
+| Guition ESP32-S3-4848S040, 4 inch | 480 × 480 | ST7701S RGB / capacitive GT911 |
 
-Gebruik deze exacte bordvarianten: gelijkende productnamen kunnen andere
-controllers of aansluitingen hebben. Wallbox-relais worden niet aangestuurd.
-De firmware en ingebouwde CLI zijn getest met **ESPHome 2026.6.2**.
+Use these exact board variants: similar-looking product names can have different
+controllers or connectors. Wallbox relays are not controlled.
+The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
 
-## Wat je kunt instellen
+## What you can configure
 
-- **Tot twintig tegels**, verdeeld over maximaal vier vaste pagina's met zes
-  tegels. Zoek op entiteit, apparaat of ruimte en sleep om te ordenen.
-- **Instellingen per tegel:** eigen naam, klikgedrag, een kleine slider waar
-  ondersteund, of een grote waarde voor bijvoorbeeld temperatuur en verbruik.
-  De grote waarde toont vanaf firmware 0.2.13 een klein domeinicoon naast de
-  titel; een te lang getal wordt met puntjes afgekort, de eenheid blijft staan.
-- **Pastel achtergronden per tegel:** kies rood voor een alles-uit-script,
-  groen voor alles-aan, of een andere kleur. Titel en status blijven donker en
-  leesbaar. De kleur verschijnt ook in het schermvoorbeeld; **Standaard** herstelt
-  de normale kleuren. Vereist firmware 0.2.10 of nieuwer. **Geen** laat de kaart
-  helemaal weg: de inhoud staat dan even groot direct op de schermachtergrond
+- **Up to twenty tiles**, spread across up to four fixed pages of six
+  tiles each. Search by entity, device, or room, and drag to reorder.
+- **Per-tile settings:** a custom name, click behavior, a small slider where
+  supported, or a large value for things like temperature and power usage.
+  From firmware 0.2.13, the large value shows a small domain icon next to the
+  title; a number that's too long is truncated with an ellipsis, the unit stays visible.
+- **Pastel backgrounds per tile:** choose red for an all-off script,
+  green for all-on, or any other color. The title and status stay dark and
+  readable. The color also appears in the screen preview; **Default** restores
+  the normal colors. Requires firmware 0.2.10 or newer. **None** drops the card
+  entirely: the content then sits at the same size directly on the screen background
   (firmware 0.2.16).
-- **Klok:** digitaal of analoog. De analoge klok heeft streepjes met 12, 3, 6 en 9
-  en toont op een enkele tegel een kalenderblok (weekdag, dag, maand) naast de
-  wijzerplaat; dubbelbreed staat de digitale tijd met datum ernaast.
-- **Lampbediening:** helderheid, regenboogkleur en wittemperatuur volgens de
-  mogelijkheden van de lamp. Open de detailbediening met een lange aanraking.
-- **Meer kaarten:** climate, vacuum, fan, cover, media player, sensoren,
-  select/input_select, number/input_number, schakelaars, scènes, scripts en
-  buttons. Een sensor kan een historiekaart voor 1, 6 of 24 uur openen.
-- **Speciale kaarten (firmware 0.2.14+):** een **klok** (digitaal of analoog)
-  als ingebouwde tegel, een **weersvoorspelling** met vijf dagen op een
-  dubbelbrede kaart, een **grafiek** van de sensorgeschiedenis in de tegel,
-  een **zonnebaan** (`sun.sun`: horizon met de zon tussen opkomst en
-  ondergang), een **kookwekker** (`timer.*`, tikken start of pauzeert) en
-  **aanwezigheid** (`person.*`). Kies ze in de kiezer als elke andere tegel of
-  sleep ze direct in de schermmockup; **Dubbelbreed** is een optie voor iedere tegel.
-- **Directe bediening op dubbelbrede tegels** (firmware 0.2.19+), zoals de rijen in
-  Home Assistant: temperatuur − / + of modusknoppen (klimaat), een toggle (schakelaar,
-  lamp, ventilator), start/stop/dock (stofzuiger), open/stop/dicht of een
-  positieschuif (zonwering), volume met dempen of vorige/play/volgende (media),
-  − / + of een schuif (getallen), vorige/volgende (keuzelijst), start/pauze en
-  annuleren (kookwekker) en één knop voor scènes, scripts en knoppen. Per tegel
-  instelbaar; **Geen** houdt de gewone kaart.
-- **Weerkaart** met actueel weer, de komende uren en dagen inclusief regenkans of
-  millimeters; **klimaatkaart** met aan/uit-knop, modus-, ventilator- en zwenkstanden.
-  Scènes, scripts en knoppen tonen wanneer ze voor het laatst liepen. Een tegel die op
-  Home Assistant wacht toont een klein spinnertje op een lichte laag.
-- **Bovenbalk per scherm** (firmware 0.2.32+): links de naam, rechts tot zes
-  onderdelen naar keuze: de tijd, een analoge klok, de datum, of een entiteit uit
-  Home Assistant met icoon, zoals temperatuur, luchtvochtigheid, verbruik, een deur
-  (open/dicht), het alarm, wie er thuis is of wanneer iemand of iets het laatst
-  veranderde ("5 min geleden", "Gisteren"). Zie [Bovenbalk](#bovenbalk).
-- **Scherminstellingen:** standby-tijd, normale en gedimde helderheid,
-  nachturen, 24- of 12-uursklok, terug naar de hoofdpagina en optioneel swipen
-  tussen pagina's.
-- **Guition-rotatie:** 0°, 90°, 180° of 270°, direct vanuit de beheerpagina.
-  De native LVGL-rotatie draait beeld en touch samen. De CYD behoudt zijn vaste
-  oriëntatie en eigen kalibratie.
-- **Inspector:** controleer entiteiten, status en configuratie in ESP Screens.
-  Actiefeedback laat zien dat een opdracht onderweg is.
+- **Clock:** digital or analog. The analog clock has tick marks at 12, 3, 6, and 9
+  and, on a single tile, shows a calendar block (weekday, day, month) next to the
+  dial; double-width shows the digital time with the date beside it.
+- **Light control:** brightness, rainbow color, and white temperature according to
+  the light's capabilities. Open the detailed control with a long touch.
+- **More cards:** climate, vacuum, fan, cover, media player, sensors,
+  select/input_select, number/input_number, switches, scenes, scripts, and
+  buttons. A sensor can open a history card for 1, 6, or 24 hours.
+- **Special cards (firmware 0.2.14+):** a **clock** (digital or analog)
+  as a built-in tile, a **weather forecast** with five days on a
+  double-width card, a **graph** of the sensor history in the tile,
+  a **sun path** (`sun.sun`: horizon with the sun between sunrise and
+  sunset), a **timer** (`timer.*`, tapping starts or pauses it), and
+  **presence** (`person.*`). Pick them in the picker like any other tile, or
+  drag them straight into the screen mockup; **Double-width** is an option for every tile.
+- **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
+  Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,
+  light, fan), start/stop/dock (vacuum), open/stop/close or a
+  position slider (cover), volume with mute or previous/play/next (media),
+  − / + or a slider (numbers), previous/next (select), start/pause and
+  cancel (timer), and a single button for scenes, scripts, and buttons. Configurable
+  per tile; **None** keeps the regular card.
+- **Weather card** with current weather, the coming hours and days including chance of
+  rain or millimeters; **climate card** with an on/off button, mode, fan, and swing settings.
+  Scenes, scripts, and buttons show when they last ran. A tile that's waiting on
+  Home Assistant shows a small spinner on a light overlay.
+- **Top bar per screen** (firmware 0.2.32+): the name on the left, up to six
+  items of your choice on the right: the time, an analog clock, the date, or an
+  entity from Home Assistant with an icon, such as temperature, humidity, power usage, a door
+  (open/closed), the alarm, who's home, or when something or someone last
+  changed ("5 min ago", "Yesterday"). See [Top bar](#top-bar).
+- **Screen settings:** standby time, normal and dimmed brightness,
+  night hours, 24- or 12-hour clock, return to the home page, and optional swiping
+  between pages.
+- **Guition rotation:** 0°, 90°, 180°, or 270°, directly from the management page.
+  Native LVGL rotation turns the display and touch together. The CYD keeps its fixed
+  orientation and its own calibration.
+- **Inspector:** check entities, status, and configuration in ESP Screens.
+  Action feedback shows that a command is on its way.
 
-Functies hangen af van de mogelijkheden die Home Assistant voor een entiteit
-meldt. De app moet blijven draaien om de schermen van actuele gegevens te voorzien.
+Features depend on the capabilities Home Assistant reports for an entity.
+The app must keep running to keep the screens supplied with current data.
 
-Vanaf firmware **0.2.12** toont lang indrukken op een switch een grote
-schakelaar. Een korte tik schakelt direct; de uitstand krijgt een grijs icoon.
-De feedback stopt zodra Home Assistant de gewijzigde stand meldt, met een
-minimum van 150 ms voor switches. Tegels met een mini-slider behouden hun
-icoon; op CYD staan het icoon en tekstblok verticaal gecentreerd.
+From firmware **0.2.12**, a long press on a switch shows a large
+toggle. A short tap switches immediately; the off state gets a gray icon.
+The feedback stops as soon as Home Assistant reports the changed state, with a
+minimum of 150 ms for switches. Tiles with a mini-slider keep their
+icon; on the CYD, the icon and text block are vertically centered.
 
-## Alert vanuit een automatisering
+## Alert from an automation
 
-Elk scherm heeft de actie **`esphome.<scherm>_show_alert`** (firmware 0.2.31+). Die legt
-een kaart over het hele scherm, wekt het scherm en houdt de backlight op de normale
-helderheid tot iemand op **Oké** tikt. In een automatisering:
+Every screen has the action **`esphome.<screen>_show_alert`** (firmware 0.2.31+). It places
+a card over the entire screen, wakes the screen, and keeps the backlight at normal
+brightness until someone taps **OK**. In an automation:
 
 ```yaml
-action: esphome.keuken_scherm_show_alert
+action: esphome.kitchen_screen_show_alert
 data:
-  title: "Iemand belt aan"
-  subtitle: "Deur 3, achterkant"
+  title: "Someone is at the door"
+  subtitle: "Door 3, back"
   icon: doorbell
   color: orange
-  button_text: "Ik kom"
+  button_text: "Coming"
   timeout: 0
   flash: true
 ```
 
-- **`title`** en **`subtitle`**: een titel op één regel (te lang krijgt puntjes) en een
-  toelichting die over meerdere regels loopt. Leeg mag; een lege titel wordt "Melding".
-- **`icon`**: een naam uit de tegelkiezer, zoals `doorbell`, `bell`, `alert-outline`,
-  `lock`, `door-open`, `motion-sensor`, `smoke-detector`, `water-alert`, `mailbox`, `car`
-  of `account`. `mdi:doorbell` en de hex-codepoint (`F12E6`) mogen ook, zolang het glyph
-  in de firmware zit. Onbekend geeft de waarschuwingsdriehoek.
-- **`color`**: `red`, `orange`, `yellow`, `green`, `mint`, `blue`, `purple`, `pink` of
-  `gray`, dezelfde pasteltinten als de tegels. Leeg geeft de witte kaart.
-- **`button_text`**: de tekst op de knop; leeg is "Oké".
-- **`timeout`**: seconden waarna de kaart vanzelf verdwijnt; `0` is tot de knop, hoe lang
-  dat ook duurt. De knop sluit de kaart altijd direct, ook met een timeout. Standby en
-  nachtstand wachten zolang de kaart staat.
-- **`flash`**: `true` laat de backlight vier keer knipperen bij binnenkomst.
+- **`title`** and **`subtitle`**: a single-line title (truncated with an ellipsis if too long) and an
+  explanation that wraps across multiple lines. Empty is allowed; an empty title becomes "Notification".
+- **`icon`**: a name from the tile picker, such as `doorbell`, `bell`, `alert-outline`,
+  `lock`, `door-open`, `motion-sensor`, `smoke-detector`, `water-alert`, `mailbox`, `car`,
+  or `account`. `mdi:doorbell` and the hex codepoint (`F12E6`) also work, as long as the glyph
+  is included in the firmware. Unknown falls back to the warning triangle.
+- **`color`**: `red`, `orange`, `yellow`, `green`, `mint`, `blue`, `purple`, `pink`, or
+  `gray` — the same pastel shades as the tiles. Empty gives the white card.
+- **`button_text`**: the text on the button; empty is "OK".
+- **`timeout`**: seconds after which the card disappears on its own; `0` means it waits for the button,
+  however long that takes. The button always closes the card immediately, even with a timeout. Standby and
+  night mode wait as long as the card is showing.
+- **`flash`**: `true` makes the backlight blink four times when the alert arrives.
 
-In ESP Screens opent de knop **Alerts** een cheatsheet met per scherm de exacte actienaam,
-een voorbeeld om te plakken, alle velden, iconen en kleuren. Home Assistant vraagt alle zeven velden; laat een veld leeg (`""`, `0`, `false`) als je het
-niet gebruikt. Een nieuwe alert vervangt de huidige. Elk einde meldt zich als event
-**`esphome.screen_alert`** met `action` (`ok`, `timeout`, `replaced` of `remote`), `title`,
-`screen` en het `device_id` dat Home Assistant toevoegt, zodat een automatisering op Oké
-kan wachten. **`esphome.<scherm>_dismiss_alert`** haalt de kaart op afstand weg.
+In ESP Screens, the **Alerts** button opens a cheatsheet with the exact action name for each screen,
+a ready-to-paste example, and all fields, icons, and colors. Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false`) if you
+don't use it. A new alert replaces the current one. Every end is reported as the event
+**`esphome.screen_alert`** with `action` (`ok`, `timeout`, `replaced`, or `remote`), `title`,
+`screen`, and the `device_id` that Home Assistant adds, so an automation can wait for OK.
+**`esphome.<screen>_dismiss_alert`** clears the card remotely.
 
-## Installeren vanuit Home Assistant
+## Installing from Home Assistant
 
-### Heb ik ESPHome nodig?
+### Do I need ESPHome?
 
-**Je hoeft de aparte ESPHome Device Builder-app niet te installeren.**
-ESP Screen Manager bevat de ESPHome-CLI al en kan zelf firmware bouwen,
-via USB installeren en later draadloos via OTA bijwerken.
+**You don't need to install the separate ESPHome Device Builder app.**
+ESP Screen Manager already includes the ESPHome CLI and can build firmware itself,
+install it via USB, and later update it wirelessly over OTA.
 
-**Je moet het geflashte scherm wel koppelen via de ESPHome-integratie in HA.**
-Die koppeling staat onder **Instellingen → Apparaten & diensten**, niet in de
-appwinkel. Voeg daar het ontdekte apparaat toe. Verschijnt het niet automatisch,
-kies dan **Integratie toevoegen → ESPHome** en vul het IP-adres van het scherm in.
-Gebruik bij een sleutelvraag de `api.encryption.key` uit je eigen apparaat-YAML
-en geef het apparaat toestemming om Home Assistant-acties uit te voeren.
+**You do need to pair the flashed screen via the ESPHome integration in HA.**
+That pairing lives under **Settings → Devices & services**, not in the
+App store. Add the discovered device there. If it doesn't appear automatically,
+choose **Add integration → ESPHome** and enter the screen's IP address.
+If asked for a key, use the `api.encryption.key` from your own device YAML,
+and grant the device permission to perform Home Assistant actions.
 
-| Onderdeel | Nodig? | Waarvoor? |
+| Component | Needed? | What for? |
 | --- | --- | --- |
-| ESP Screen Manager-app | Ja, voor deze installatieroute | Firmware installeren, tegels beheren en actuele gegevens naar het scherm sturen |
-| ESPHome Device Builder-app | Nee, optioneel | Alternatieve editor en firmware-installatie; dezelfde CLI zit al in ESP Screens |
-| ESPHome-integratie in HA | Ja, koppel ieder scherm | De verbinding tussen Home Assistant en het fysieke scherm |
+| ESP Screen Manager app | Yes, for this installation route | Installing firmware, managing tiles, and sending current data to the screen |
+| ESPHome Device Builder app | No, optional | Alternative editor and firmware installer; the same CLI is already in ESP Screens |
+| ESPHome integration in HA | Yes, pair every screen | The connection between Home Assistant and the physical screen |
 
-Een verse installatie zonder ESPHome Device Builder werkt dus ook. Als er nog
-geen ESPHome `secrets.yaml` bestaat, vraagt onze wizard de wifi eenmalig en
-bewaart die lokaal. Bestaande wifi-secrets worden hergebruikt. API- en OTA-sleutels
-worden per nieuw scherm aangemaakt en blijven in het eigen apparaatprofiel.
+So a fresh installation without ESPHome Device Builder also works. If there's
+no ESPHome `secrets.yaml` yet, our wizard asks for Wi-Fi once and
+stores it locally. Existing Wi-Fi secrets are reused. API and OTA keys
+are generated per new screen and stay in that device's own profile.
 
-### Stap voor stap
+### Step by step
 
-Voor Home Assistant OS met Apps/Add-ons op **aarch64 of amd64**:
+For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 
-1. Open de appwinkel en voeg deze repository toe:
+1. Open the App store and add this repository:
    `https://github.com/MaxGramser/homeassistant_espscreen`.
-2. Installeer **ESP Screen Manager**, start de app en open **ESP Screens**.
-   ESPHome Device Builder is optioneel: de ESPHome-CLI zit al in deze app.
-3. Sluit het scherm met een USB-datakabel aan op de **Home Assistant-machine**
-   en kies **Nieuw scherm**: CYD of Guition, een naam, de USB-poort en
-   **Installeren**. Ontbreekt wifi in de ESPHome `secrets.yaml`, dan vraagt het
-   venster die eenmalig en zet ESP Screens alleen de ontbrekende regels erin.
-   Het profiel met unieke API- en OTA-sleutels komt in de ESPHome-map; de build
-   en de flash lopen in hetzelfde venster (een eerste build duurt op een
-   Raspberry enkele minuten). Elk scherm krijgt zijn eigen profiel.
-4. **CYD:** doorloop de kalibratie op het scherm. **Guition:** gebruikt GT911
-   zonder resistieve kalibratie. Koppel daarna het ontdekte ESPHome-apparaat in
-   **Instellingen → Apparaten & diensten** met de API-sleutel die het venster
-   na de installatie toont (kopieerknop). Geef het apparaat toestemming om
-   Home Assistant-acties uit te voeren.
-5. Selecteer het scherm in ESP Screens, kies je tegels en klik
-   **Opslaan & naar scherm**. Test vervolgens de fysieke bediening.
+2. Install **ESP Screen Manager**, start the app, and open **ESP Screens**.
+   ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
+3. Connect the screen with a USB data cable to the **Home Assistant machine**
+   and choose **New screen**: CYD or Guition, a name, the USB port, and
+   **Install**. If Wi-Fi is missing from the ESPHome `secrets.yaml`, the window
+   asks for it once and ESP Screens only adds the missing lines. The profile
+   with unique API and OTA keys goes into the ESPHome folder; the build
+   and flash run in the same window (a first build takes a few minutes on a
+   Raspberry Pi). Each screen gets its own profile.
+4. **CYD:** go through the calibration on the screen. **Guition:** uses GT911
+   without resistive calibration. Then pair the discovered ESPHome device in
+   **Settings → Devices & services** using the API key the window
+   shows after installation (copy button). Grant the device permission to
+   perform Home Assistant actions.
+5. Select the screen in ESP Screens, choose your tiles, and click
+   **Save & send to screen**. Then test the physical controls.
 
-Je kunt later vanuit **Firmware & USB → Wifi / OTA** nieuwe firmware installeren.
-Gebruik voor een bestaand scherm altijd het bestaande profiel; opnieuw een
-installatieprofiel aanmaken genereert nieuwe sleutels.
+You can install new firmware later from **Firmware & USB → Wi-Fi / OTA**.
+For an existing screen, always use the existing profile; creating a new
+installation profile generates new keys.
 
-## Tegels en kleuren aanpassen
+## Customizing tiles and colors
 
-Klik een tegel in het schermvoorbeeld. Kies bij **Pastel achtergrond** een kleur,
-zoals rood of groen. Pas eventueel de naam, klikactie, mini-slider of grote
-waarde aan. Klik **Opslaan & naar scherm** om de wijzigingen toe te passen.
-Dit vereist na de eerste ondersteunende firmware-update geen nieuwe flash.
+Click a tile in the screen preview. Under **Pastel background**, choose a color,
+such as red or green. Optionally adjust the name, click action, mini-slider, or large
+value. Click **Save & send to screen** to apply the changes.
+After the first supporting firmware update, this requires no new flash.
 
-Een kleur is een vaste keuze voor die tegel: hij blijft dus bijvoorbeeld rood
-wanneer je het alles-uit-script gebruikt. De entiteitsstatus en actiefeedback
-blijven afzonderlijk zichtbaar.
+A color is a fixed choice for that tile: it stays red, for example,
+even when you run the all-off script. The entity status and action feedback
+stay separately visible.
 
-## Bovenbalk
+## Top bar
 
-Bovenaan de editor staat per scherm de **Bovenbalk**: links de naam, rechts tot
-zes onderdelen. **＋ Toevoegen** biedt de tijd, een analoge klok en de datum (die
-tellen op het scherm zelf door, ook zonder Home Assistant), suggesties uit je eigen
-huis (temperatuur en verbruik uit de ruimte van het scherm, het weer, aantal thuis,
-zon op en onder) en een zoekveld voor elke entiteit, ook een telefoon
-(`device_tracker`), een slot, het alarmpaneel of `zone.home`. Sleep de onderdelen
-om de volgorde te wijzigen; tik erop om ze in te stellen:
+At the top of the editor, each screen has its **Top bar**: the name on the left, up to
+six items on the right. **＋ Add** offers the time, an analog clock, and the date (which
+keep ticking on the screen itself, even without Home Assistant), suggestions from your own
+home (temperature and power usage from the screen's room, the weather, how many people are home,
+sunrise and sunset), and a search field for any entity, including a phone
+(`device_tracker`), a lock, the alarm panel, or `zone.home`. Drag the items
+to change their order; tap one to configure it:
 
-- **Wat laten zien:** de status zoals Home Assistant hem schrijft (21,3 °C, 65%,
-  1.249 W, Open/Dicht, Thuis/Weg, Afwezig), of **Laatst gewijzigd**: "Zojuist",
-  "5 min geleden", "Gisteren". Een tijdstempel-sensor telt ook vooruit ("Over 2 uur").
-- **Icoon:** automatisch zoals Home Assistant (een open deur krijgt een open
-  deur-icoon), een eigen icoon uit de lijst of geen icoon.
-- **Tonen:** altijd, of **alleen als actief**: het onderdeel verschijnt pas als het
-  aan, open, thuis of meer dan 0 is. Handig voor een open deur of een draaiende
-  wasmachine. Actieve onderdelen kleuren zoals in Home Assistant (open deur amber,
-  alarm ingeschakeld groen, alarm afgegaan rood).
+- **What to show:** the state as Home Assistant writes it (21.3 °C, 65%,
+  1,249 W, Open/Closed, Home/Away, Armed away), or **Last changed**: "Just now",
+  "5 min ago", "Yesterday". A timestamp sensor can also count forward ("In 2 hours").
+- **Icon:** automatic, matching Home Assistant (an open door gets an open-
+  door icon), a custom icon from the list, or no icon.
+- **Show:** always, or **only when active**: the item only appears when it's
+  on, open, home, or greater than 0. Handy for an open door or a running
+  washing machine. Active items are colored like in Home Assistant (open door amber,
+  alarm armed green, alarm triggered red).
 
-Het schermvoorbeeld tekent de balk met dezelfde letters en regels als het scherm:
-alle waarden op één lijn met de naam, iconen op cijferhoogte, gelijke afstanden.
-Past niet alles naast de naam, dan krijgt de naam puntjes en laat het scherm de
-voorste onderdelen weg; de editor markeert die met strepen. Oudere firmware toont
-tot de update alleen de naam en de tijd (als die in de balk staat).
+The screen preview draws the bar with the same letters and rules as the screen:
+all values on one line with the name, icons aligned to digit height, equal spacing.
+If not everything fits next to the name, the name gets an ellipsis and the screen drops the
+leading items; the editor marks those with dashes. Until updated, older firmware shows
+only the name and the time (if that's in the bar).
 
-## Updates en behoud van je instellingen
+## Updates and keeping your settings
 
-| Wijziging | Actie |
+| Change | Action |
 | --- | --- |
-| Tegels, namen, kleuren, volgorde of scherminstellingen | Opslaan in ESP Screens; geen firmwareflash |
-| Nieuwe versie van de beheerpagina | ESP Screen Manager updaten in de HA-appwinkel |
-| Nieuwe functie op het fysieke scherm | Knop **Bijwerken** bij het scherm (badge *Update x.y.z*), of het vinkje **Elke nacht automatisch bijwerken** |
+| Tiles, names, colors, order, or screen settings | Save in ESP Screens; no firmware flash |
+| New version of the management page | Update ESP Screen Manager in the HA App store |
+| New feature on the physical screen | The **Update** button on the screen (badge *Update x.y.z*), or the **Update automatically every night** checkbox |
 
-Elke appversie hoort bij één firmwareversie. Na een app-update toont de lijst
-per scherm of er nieuwere firmware is. **Bijwerken** bouwt het eigen profiel
-met de ingebouwde CLI, installeert draadloos en wacht tot het scherm terug is.
-Met het vinkje gebeurt dat 's nachts vanzelf, één scherm tegelijk; een
-mislukking stopt de ronde en geeft een melding in Home Assistant. Firmware
-0.2.17+ meldt daarvoor zelf apparaatnaam en IP-adres; een ouder scherm vraagt
-eenmalig het IP-adres. Handmatig kan nog steeds via Firmware & USB → Wifi / OTA.
+Every app version belongs to one firmware version. After an app update, the list
+shows per screen whether newer firmware is available. **Update** builds that screen's own profile
+with the built-in CLI, installs it wirelessly, and waits until the screen is back.
+With the checkbox enabled, that happens automatically at night, one screen at a time; a
+failure stops the round and posts a notification in Home Assistant. Firmware
+0.2.17+ reports its own device name and IP address for this; an older screen asks
+for the IP address once. You can still do it manually via Firmware & USB → Wi-Fi / OTA.
 
-De eigen YAML en wifi/API/OTA-instellingen blijven in de ESPHome-configmap.
-Tegelindelingen en opties staan in de permanente appdata. CYD-kalibratie en
-schermvoorkeuren blijven op het apparaat opgeslagen. Updates vervangen deze
-gebruikersgegevens niet. Maak wel normale Home Assistant-back-ups en bewaar je
-apparaatprofielen; een app verwijderen of flashgeheugen wissen is geen update.
+The device's own YAML and Wi-Fi/API/OTA settings stay in the ESPHome config folder.
+Tile layouts and options live in the app's persistent data. CYD calibration and
+screen preferences stay stored on the device. Updates don't replace this
+user data. Do still make normal Home Assistant backups and keep your
+device profiles; removing an app or wiping flash memory is not an update.
 
-**Zuinig, ook met veel schermen (0.2.39 / firmware 0.2.33).** De app stuurt een
-scherm alleen de tegel die veranderde, als één actie
-(`esphome.<apparaatnaam>_screen_message`) in plaats van blokjes in een tekstveld.
-Elke twee minuten volgt een kleine ping met de revisie van de indeling; meldt het
-scherm dat die niet klopt (na een herstart bijvoorbeeld), dan komt alles opnieuw.
-Grafieken van sensortegels komen uit de statistieken van Home Assistant, in één
-vraag voor alle schermen. Oudere firmware blijft werken via het tekstveld en de
-volledige herhaling per twee minuten. De diagnostische sensor `Uptime` is
-vervangen door het tijdstempel `Opgestart`.
+**Efficient, even with many screens (0.2.39 / firmware 0.2.33).** The app sends a
+screen only the tile that changed, as a single action
+(`esphome.<device_name>_screen_message`) instead of chunks in a text field.
+Every two minutes, a small ping follows with the layout revision; if the
+screen reports that it doesn't match (after a restart, for example), everything is resent.
+Graphs on sensor tiles come from Home Assistant's statistics, in one
+query for all screens. Older firmware still works via the text field and the
+full resend every two minutes. The diagnostic sensor `Uptime` has been
+replaced by the `Last boot` timestamp.
 
-Zie [releasegeschiedenis](screen_manager/CHANGELOG.md) en
-[releases en protocolcompatibiliteit](docs/RELEASING.md).
+See the [release history](screen_manager/CHANGELOG.md) and
+[releases and protocol compatibility](docs/RELEASING.md).
 
-**Voor wie zelf publiceert:** elke push naar GitHub is een release. Verhoog dan
-altijd ook de add-onversie in `screen_manager/config.yaml` en zet de wijziging in
-de CHANGELOG, anders biedt de HA-appwinkel geen update aan. Een wijziging aan het
-scherm krijgt daarnaast een nieuwe `SCREEN_FIRMWARE_VERSION` in beide bordprofielen.
+**If you publish your own fork:** every push to GitHub is a release. Always also
+bump the add-on version in `screen_manager/config.yaml` and log the change in
+the CHANGELOG, otherwise the HA App store won't offer an update. A change to the
+screen also gets a new `SCREEN_FIRMWARE_VERSION` in both board profiles.
 
-## Handleidingen en hulp bij installatie
+## Guides and installation help
 
-- [Complete installatie vanuit ESP Screens](docs/EASY_SETUP.md)
-- [Guition-hardware, montage en rotatie](docs/GUITION.md)
-- [CYD-kalibratie en USB-diagnose](docs/CALIBREREN.md)
-- [Fysieke acceptatietest](docs/ACCEPTATIE.md)
-- [Instructies voor developers en LLM's](AGENTS.md)
+- [Complete installation from ESP Screens](docs/EASY_SETUP.md)
+- [Guition hardware, mounting, and rotation](docs/GUITION.md)
+- [CYD calibration and USB diagnostics](docs/CALIBRATING.md)
+- [Physical acceptance test](docs/ACCEPTANCE.md)
+- [Instructions for developers and LLMs](AGENTS.md)
 
-Geef een developer of LLM een schone kopie van deze repository en bijvoorbeeld:
+Give a developer or LLM a clean copy of this repository and, for example:
 
-> Lees AGENTS.md, README.md en docs/EASY_SETUP.md. Help me dit CYD- of
-> Guition-scherm via USB op mijn Home Assistant te installeren. Identificeer
-> het bord en gebruik mijn bestaande profiel als dat er al is. Begeleid
-> kalibratie, HA-koppeling, tegelkeuze en fysieke tests. Houd sleutels lokaal
-> en geef aan welke controles werkelijk zijn uitgevoerd.
+> Read AGENTS.md, README.md, and docs/EASY_SETUP.md. Help me install this CYD or
+> Guition screen via USB on my Home Assistant. Identify
+> the board and use my existing profile if one already exists. Guide me through
+> calibration, HA pairing, tile selection, and physical tests. Keep keys local,
+> and state which checks were actually carried out.
 
-Een build bewijst niet dat fysieke touch of het paneelbeeld goed is. De eigenaar
-moet het beeld controleren en de gevraagde tikken uitvoeren.
+A successful build doesn't prove the physical touch or panel image is correct. The owner
+must check the display and perform the requested taps.
 
 <details>
-<summary>Oudere handmatige CYD-installatie via een computer</summary>
+<summary>Older manual CYD installation via a computer</summary>
 
-Onderstaande route gebruikt het oudere handmatige profiel met maximaal tien
-tegels. De positiebeperkingen hiervan gelden niet voor de twintig runtime-tegels
-van ESP Screen Manager. Gebruik voor nieuwe installaties bij voorkeur de route
-hierboven; de handmatige instructies blijven beschikbaar voor onderhoud.
+The route below uses the older manual profile with up to ten
+tiles. Its position constraints don't apply to ESP Screen Manager's twenty
+runtime tiles. For new installations, prefer the route
+above; the manual instructions remain available for maintenance.
 
-# CYD Home Assistant-bedieningsscherm
+# CYD Home Assistant control screen
 
-Van een nieuwe **ESP32-2432S028 met ILI9341 + XPT2046** naar een gekalibreerd
-Home Assistant-scherm, via USB. Met lichtbediening, scènes/scripts, climate,
-vacuum, maximaal tien tegels en vaste pagina's. Bij maximaal zes tegels
-verdwijnt de paginering. Standby begint standaard na tien minuten.
+From a fresh **ESP32-2432S028 with ILI9341 + XPT2046** to a calibrated
+Home Assistant screen, over USB. With light control, scenes/scripts, climate,
+vacuum, up to ten tiles, and fixed pages. With six tiles or fewer,
+pagination disappears. Standby starts after ten minutes by default.
 
-**Handmatige installatie via de computer:** je hoeft geen Home Assistant-token te maken
-of een ESPHome-add-on te installeren om via de computer te flashen.
+**Manual installation via a computer:** you don't need to create a Home Assistant token
+or install an ESPHome add-on to flash from a computer.
 
-## Met een LLM of developer werken
+## Working with an LLM or developer
 
-Geef de uitgepakte map en deze opdracht:
+Give it the unpacked folder and this prompt:
 
-> Lees eerst AGENTS.md en README.md. Begeleid mij bij een nieuwe installatie
-> op een ESP32-2432S028 die via USB is aangesloten, met mijn eigen Home
-> Assistant. Controleer het bord, de seriële poort en de Python-omgeving.
-> Maak een lokaal device.yaml-profiel; gebruik geen bestaande persoonlijke
-> entiteiten of paneelkalibratie. Doorloop USB-kalibratie, HA-koppeling,
-> tegelconfiguratie en de acceptatietest. Vraag mij om fysieke tikken wanneer
-> nodig. Houd sleutels en wachtwoorden in lokale bestanden en rapporteer
-> welke controles echt zijn uitgevoerd.
+> First read AGENTS.md and README.md. Guide me through a new installation
+> on an ESP32-2432S028 connected via USB, with my own Home
+> Assistant. Check the board, the serial port, and the Python environment.
+> Create a local device.yaml profile; don't use any existing personal
+> entities or panel calibration. Walk through USB calibration, HA pairing,
+> tile configuration, and the acceptance test. Ask me for physical taps when
+> needed. Keep keys and passwords in local files, and report
+> which checks were actually carried out.
 
-De begeleider kan de code en logs lezen, maar kan het fysieke scherm niet
-vanzelf zien. Jij controleert het beeld en voert de gevraagde tikken uit.
+The assistant can read the code and logs, but can't see the physical screen
+on its own. You check the display and perform the requested taps.
 
-## 1. Benodigdheden controleren
+## 1. Check what you need
 
-- Het bedoelde bord: ESP32-2432S028, 320×240, **ILI9341-display en resistieve
-  XPT2046-touch**. Er bestaan borden met bijna dezelfde naam en een andere
-  schermcontroller. Deze handleiding garandeert die varianten niet.
-- Een USB-**datakabel** en een computer met macOS, Linux of Windows.
-- Python **3.11–3.14**, internet voor de eerste build en enkele GB vrije ruimte.
-  De versiegrens komt uit het geteste ESPHome-pakket; gebruik geen Python 3.15.
-- Een 2,4GHz-wifinetwerk; Home Assistant moet het bord via het netwerk kunnen
-  bereiken. Houd het wifiwachtwoord lokaal beschikbaar.
-- Toegang tot Home Assistant om entiteiten te kiezen en ESPHome toe te voegen.
+- The intended board: ESP32-2432S028, 320×240, **ILI9341 display and resistive
+  XPT2046 touch**. Boards exist with almost the same name and a different
+  display controller. This guide doesn't cover those variants.
+- A USB **data cable** and a computer running macOS, Linux, or Windows.
+- Python **3.11–3.14**, internet access for the first build, and a few GB of free space.
+  The version limit comes from the tested ESPHome package; don't use Python 3.15.
+- A 2.4GHz Wi-Fi network; Home Assistant must be able to reach the board over
+  the network. Keep the Wi-Fi password available locally.
+- Access to Home Assistant to choose entities and add ESPHome.
 
-Gebruik bij voorkeur één aangesloten ESP-bord tegelijk. Noteer de variant en
-het MAC-adres uit de boot-/uploadlogs. `home-like.yaml` en `buttons.yaml` uit
-het oorspronkelijke project zijn **niet** de startersconfiguratie voor dit bord.
+Preferably keep only one ESP board connected at a time. Note the variant and
+the MAC address from the boot/upload logs.
 
-## 2. De werkomgeving installeren
+## 2. Set up the work environment
 
-Kloon [de repository](https://github.com/MaxGramser/homeassistant_espscreen)
-of pak de starter-ZIP uit. Open een terminal **in de codefolder**. Alle opdrachten hieronder
-worden vanuit die folder uitgevoerd.
+Clone [the repository](https://github.com/MaxGramser/homeassistant_espscreen)
+or unpack the starter ZIP. Open a terminal **in the code folder**. All commands below
+are run from that folder.
 
 macOS/Linux:
 
@@ -343,9 +342,9 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Als PowerShell activeren blokkeert, gebruik rechtstreeks
-`.\.venv\Scripts\python.exe` in plaats van `python`; een systeemwijziging is
-niet nodig. Controleer daarna:
+If activating PowerShell is blocked, use
+`.\.venv\Scripts\python.exe` directly instead of `python`; no system change is
+needed. Then check:
 
 ```sh
 python --version
@@ -353,97 +352,97 @@ python -m esphome version
 python -m serial.tools.list_ports
 ```
 
-Verwacht **ESPHome 2026.6.2**. Deze repo bevat een aangepaste touchdriver die
-met deze versie is getest. Upgrade niet stilzwijgend tijdens een installatie.
-Zie ook de [officiële ESPHome-installatiehandleiding](https://esphome.io/install/).
+Expect **ESPHome 2026.6.2**. This repo includes a custom touch driver that's
+tested against this version. Don't silently upgrade during an installation.
+See also the [official ESPHome installation guide](https://esphome.io/install/).
 
-Noteer de poort: bijvoorbeeld `/dev/cu.usbserial-130` op macOS,
-`/dev/ttyUSB0` op Linux of `COM3` op Windows. Verderop staat `<USB_POORT>`;
-vervang dat steeds door de werkelijke poort, zonder punthaken.
+Note the port: for example `/dev/cu.usbserial-130` on macOS,
+`/dev/ttyUSB0` on Linux, or `COM3` on Windows. Further down, `<USB_PORT>`
+appears; always replace it with the actual port, without angle brackets.
 
-## 3. Een eigen apparaatprofiel maken
+## 3. Create your own device profile
 
-Kies een unieke naam, bijvoorbeeld `display-keuken`:
+Choose a unique name, for example `display-kitchen`:
 
 ```sh
-python tools/new_device.py --name display-keuken --friendly-name "Display keuken"
+python tools/new_device.py --name display-kitchen --friendly-name "Display kitchen"
 ```
 
-Dit maakt drie lokale bestanden en overschrijft niets:
+This creates three local files and overwrites nothing:
 
-| Bestand | Wat je erin aanpast |
+| File | What you edit in it |
 |---|---|
-| `device.yaml` | Apparaatnaam, ruimte, tegels en gedrag |
-| `calibration.yaml` | Kalibratie van dit ene fysieke paneel; de wizard schrijft dit |
-| `secrets.yaml` | Wifi, API-encryptiesleutel, OTA- en fallbackwachtwoord |
+| `device.yaml` | Device name, room, tiles, and behavior |
+| `calibration.yaml` | Calibration for this one physical panel; the wizard writes this |
+| `secrets.yaml` | Wi-Fi, API encryption key, OTA and fallback password |
 
-De sleutels worden uniek gegenereerd. Vul in `secrets.yaml` alleen jouw
-`wifi_ssid` en `wifi_password` in. Laat de gegenereerde sleutels staan en
-bewaar dit bestand bij je eigen configuratie. Deel het niet mee in de ZIP.
-De API-encryptiesleutel heb je later nodig bij de HA-koppeling; kopieer die
-lokaal uit het bestand, niet via een openbare chat.
+The keys are generated uniquely. In `secrets.yaml`, only fill in your
+`wifi_ssid` and `wifi_password`. Leave the generated keys as they are and
+keep this file with your own configuration. Don't include it in the ZIP.
+You'll need the API encryption key later for HA pairing; copy it
+locally from the file, not through a public chat.
 
-Bestaan deze bestanden al? Werk in een nieuwe kopie van de map voor een nieuw
-scherm. Wis de sleutels/kalibratie van een werkend scherm niet.
+Do these files already exist? Work in a new copy of the folder for a new
+screen. Don't erase the keys/calibration of a working screen.
 
-`device.yaml` importeert de basis en jouw kalibratie. Het overschrijft ook
-**alle verborgen tegelposities**, zodat die geen entiteiten van iemand anders
-blijven volgen. Begin met de zes voorbeeldtegels. `DIRECT_ACTIONS: "false"`
-voorkomt directe HA-aansturing tijdens de eerste installatie. Maak in deze
-fase nog geen HA-automations die op de actie-sensor reageren.
+`device.yaml` imports the base configuration and your calibration. It also overwrites
+**all hidden tile positions**, so they don't keep tracking someone else's
+entities. Start with the six example tiles. `DIRECT_ACTIONS: "false"`
+prevents direct HA control during the initial installation. At this
+stage, don't yet create HA automations that react to the action sensor.
 
-## 4. Eerste USB-flash en kalibratie
+## 4. First USB flash and calibration
 
-Controleer eerst de configuratie (ESPHome schermt secrets standaard af):
+First check the configuration (ESPHome masks secrets by default):
 
 ```sh
 python -m esphome config device.yaml
 ```
 
-Flash de kalibratiemodus, die zonder HA-verbinding werkt:
+Flash calibration mode, which works without an HA connection:
 
 ```sh
-python -m esphome -s CALIBRATION_ON_BOOT true run device.yaml --device <USB_POORT>
+python -m esphome -s CALIBRATION_ON_BOOT true run device.yaml --device <USB_PORT>
 ```
 
-De eerste build kan meerdere minuten duren. Na upload verschijnen vijf
-kruisjes op een donker scherm. `run` blijft logs tonen: stop **alleen de
-loglezer met Ctrl+C** voordat je de kalibratiewizard start. Het bord blijft aan.
+The first build can take several minutes. After uploading, five
+crosshairs appear on a dark screen. `run` keeps showing logs: stop **only the
+log reader with Ctrl+C** before starting the calibration wizard. The board stays on.
 
-Volg nu [docs/CALIBREREN.md](docs/CALIBREREN.md): per doel worden drie tikken
-verzameld, de vier hoeken bepalen de correctie en het midden is een
-onafhankelijke controle. Daarna flash je de uitkomst en meet je opnieuw.
-**Kopieer nooit de meetwaarden van een ander paneel.**
+Now follow [docs/CALIBRATING.md](docs/CALIBRATING.md): three taps are
+collected per target, the four corners determine the correction, and the center is an
+independent check. Then you flash the result and measure again.
+**Never copy the measurements from another panel.**
 
-## 5. Home Assistant koppelen
+## 5. Pair with Home Assistant
 
-Na een geslaagde kalibratie flash je de normale modus:
+After a successful calibration, flash the normal mode:
 
 ```sh
-python -m esphome run device.yaml --device <USB_POORT>
+python -m esphome run device.yaml --device <USB_PORT>
 ```
 
-Controleer in de logs de wifi-IP, stabiele boot en apparaatnaam. Ctrl+C sluit
-de loglezer. Het scherm moet nu de normale tegelpagina tonen.
+Check the logs for the Wi-Fi IP, a stable boot, and the device name. Ctrl+C closes
+the log reader. The screen should now show the normal tile page.
 
-1. Open in HA **Instellingen → Apparaten & diensten**.
-2. Kies het ontdekte ESPHome-apparaat, of **Integratie toevoegen → ESPHome**.
-3. Gebruik `display-keuken.local` of het IP-adres uit de logs; API-poort **6053**.
-4. Vul de `api_encryption_key` uit je lokale `secrets.yaml` in als daarom wordt gevraagd.
-5. Controleer of de apparaatnaam klopt en de status online wordt.
-6. Open de opties/configuratie van deze ESPHome-integratie en schakel
-   **Allow the device to perform Home Assistant actions** in.
+1. In HA, open **Settings → Devices & services**.
+2. Choose the discovered ESPHome device, or **Add integration → ESPHome**.
+3. Use `display-kitchen.local` or the IP address from the logs; API port **6053**.
+4. Enter the `api_encryption_key` from your local `secrets.yaml` if asked.
+5. Check that the device name is correct and the status becomes online.
+6. Open this ESPHome integration's options/configuration and enable
+   **Allow the device to perform Home Assistant actions**.
 
-De precieze vertaling/plaats van de optie verschilt per HA-versie. Zie de
-[officiële integratiehandleiding](https://www.home-assistant.io/integrations/esphome).
-De HA-integratie verbindt met het bord; de ESPHome Device Builder/add-on is
-optioneel en is een andere functie.
+The exact wording/location of this option varies by HA version. See the
+[official integration guide](https://www.home-assistant.io/integrations/esphome).
+The HA integration connects to the board; the ESPHome Device Builder/add-on is
+optional and is a separate feature.
 
-## 6. Eigen tegels instellen
+## 6. Configure your own tiles
 
-Volg [docs/TEGELS.md](docs/TEGELS.md). Verzamel de echte entity-ID's in HA,
-controleer ondersteunde attributen/acties en pas `device.yaml` aan. Gebruik
-korte titels. Als je alles hebt gecontroleerd:
+Follow [docs/TILES.md](docs/TILES.md). Collect the real entity IDs in HA,
+check supported attributes/actions, and edit `device.yaml`. Use
+short titles. Once you've checked everything:
 
 ```yaml
 substitutions:
@@ -451,52 +450,52 @@ substitutions:
   TILE_COUNT: "6"
 ```
 
-Dit zijn wijzigingen in de **bestaande** substitutions-map, geen tweede map
-onderaan het bestand. Bouw en flash opnieuw met `run device.yaml`. De tegels
-volgen daarna de werkelijke HA-status. Een actieve API-verbinding alleen
-bewijst nog niet dat een actie door HA is toegestaan.
+These are changes in the **existing** substitutions map, not a second map
+at the bottom of the file. Build and flash again with `run device.yaml`. The tiles
+will then follow the real HA state. An active API connection alone
+doesn't prove that HA has been granted permission for actions.
 
-## 7. Opleveren en testen
+## 7. Handover and testing
 
-Voer [docs/ACCEPTATIE.md](docs/ACCEPTATIE.md) uit. Dat omvat een onafhankelijke
-touchmeting, beide pagina's indien aanwezig, lange druk, sliders, climate,
-vacuum, werkelijke HA-status en de juiste actie-effecten. De ingebouwde
-renderproef stuurt zelf geen HA-apparaten aan:
-
-```sh
-python diagnostics/run_ui_test.py --host display-keuken.local --name display-keuken
-```
-
-Bewaar bij deze persoon: `device.yaml`, `calibration.yaml`, `secrets.yaml`, de
-meetbestanden, de gebruikte ESPHome-versie en een kort opleverrapport.
-Voor later bijwerken kun je USB blijven gebruiken of OTA gebruiken:
+Run through [docs/ACCEPTANCE.md](docs/ACCEPTANCE.md). That covers an independent
+touch measurement, both pages if present, long press, sliders, climate,
+vacuum, real HA state, and the correct action effects. The built-in
+render test doesn't control any HA devices itself:
 
 ```sh
-python -m esphome run device.yaml --device display-keuken.local
+python diagnostics/run_ui_test.py --host display-kitchen.local --name display-kitchen
 ```
 
-Verander naam/API-sleutel niet zonder ook de HA-koppeling bij te werken.
-Bij storing: [docs/PROBLEMEN.md](docs/PROBLEMEN.md).
+Keep with this person: `device.yaml`, `calibration.yaml`, `secrets.yaml`, the
+measurement files, the ESPHome version used, and a short handover report.
+For later updates you can keep using USB or use OTA:
 
-## Deze code aan de volgende persoon geven
+```sh
+python -m esphome run device.yaml --device display-kitchen.local
+```
 
-Gebruik de exporteur in plaats van je hele werkmap te kopiëren:
+Don't change the name/API key without also updating the HA pairing.
+For troubleshooting: [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md).
+
+## Handing this code to the next person
+
+Use the exporter instead of copying your entire working folder:
 
 ```sh
 python tools/export_bundle.py --output dist/cyd-starter.zip
 ```
 
-De ZIP bevat de code, lokale fonts, licenties, handleidingen en neutrale
-voorbeelden. De basisdefaults worden voor de ontvanger geneutraliseerd.
-Geen `secrets.yaml`, eigen `device.yaml`, metingen, logs, `.git`, `.esphome`,
-Python-omgeving of firmwarebackups. De exporteur weigert een bestaande ZIP
-te overschrijven; kies bij een nieuwe versie een andere bestandsnaam.
+The ZIP contains the code, local fonts, licenses, guides, and neutral
+examples. The base defaults are neutralized for the recipient.
+No `secrets.yaml`, personal `device.yaml`, measurements, logs, `.git`, `.esphome`,
+Python environment, or firmware backups. The exporter refuses to overwrite an
+existing ZIP; choose a different filename for a new version.
 
-De originele basis is van
+The original base is from
 [akuehlewind/ESPHome-touch-display-mount](https://github.com/akuehlewind/ESPHome-touch-display-mount).
-Project-, ESPHome-driver- en fontlicenties staan respectievelijk in `LICENSE`,
-`components/xpt2046/LICENSE` en `fonts/`. Historische borddiagnose staat in
-[CYD_STABILITY.md](CYD_STABILITY.md); volg voor een **nieuwe** installatie de
-handleidingen hierboven.
+Project, ESPHome driver, and font licenses are in `LICENSE`,
+`components/xpt2046/LICENSE`, and `fonts/` respectively. Historical board diagnostics are in
+[CYD_STABILITY.md](CYD_STABILITY.md); for a **new** installation, follow the
+guides above.
 
 </details>

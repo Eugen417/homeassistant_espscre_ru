@@ -26,26 +26,26 @@ class VersionSourceTests(unittest.TestCase):
         for name in ('packages/cyd.yaml', 'packages/guition.yaml', 'home-like-2432s028.yaml', 'guition-4848s040.yaml'):
             text = (ROOT / name).read_text()
             self.assertIn(f'SCREEN_FIRMWARE_VERSION: "{FIRMWARE_VERSION}"', text, name)
-            self.assertIn('name: "Apparaatnaam"', text, name)
+            self.assertIn('name: "Device name"', text, name)
             self.assertIn('platform: wifi_info', text, name)
         self.assertEqual(parse_version(FIRMWARE_VERSION), tuple(int(p) for p in FIRMWARE_VERSION.split('.')))
-        self.assertIsNone(parse_version('onbekend'))
+        self.assertIsNone(parse_version('unknown'))
         self.assertIsNone(parse_version('1.2'))
 
     def test_discovery_reports_node_and_address(self):
-        registry = [{'entity_id': 'text.screen', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd1'},
-                    {'entity_id': 'text.node', 'platform': 'esphome', 'original_name': 'Apparaatnaam', 'device_id': 'd1'},
-                    {'entity_id': 'text.ip', 'platform': 'esphome', 'original_name': 'IP-adres', 'device_id': 'd1'},
-                    {'entity_id': 'text.fw', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd1'}]
-        states = {'text.screen': {'state': 'Ready'}, 'text.node': {'state': 'woonkamer'},
+        registry = [{'entity_id': 'text.screen', 'platform': 'esphome', 'original_name': 'Tile settings', 'device_id': 'd1'},
+                    {'entity_id': 'text.node', 'platform': 'esphome', 'original_name': 'Device name', 'device_id': 'd1'},
+                    {'entity_id': 'text.ip', 'platform': 'esphome', 'original_name': 'IP address', 'device_id': 'd1'},
+                    {'entity_id': 'text.fw', 'platform': 'esphome', 'original_name': 'Screen firmware', 'device_id': 'd1'}]
+        states = {'text.screen': {'state': 'Ready'}, 'text.node': {'state': 'living-room'},
                   'text.ip': {'state': '192.168.1.50'}, 'text.fw': {'state': '0.2.16'}}
-        screens, _ = discover(registry, states, [{'id': 'd1', 'name': 'Woonkamer'}], [])
-        self.assertEqual(screens[0]['node'], 'woonkamer')
+        screens, _ = discover(registry, states, [{'id': 'd1', 'name': 'Living room'}], [])
+        self.assertEqual(screens[0]['node'], 'living-room')
         self.assertEqual(screens[0]['ip'], '192.168.1.50')
-        self.assertEqual(screens[0]['device'], 'Woonkamer')
+        self.assertEqual(screens[0]['device'], 'Living room')
         states['text.ip']['state'] = 'unavailable'
         states['text.node']['state'] = '../evil'
-        screens, _ = discover(registry, states, [{'id': 'd1', 'name': 'Woonkamer'}], [])
+        screens, _ = discover(registry, states, [{'id': 'd1', 'name': 'Living room'}], [])
         self.assertIsNone(screens[0]['ip'])
         self.assertIsNone(screens[0]['node'])
 
@@ -55,16 +55,16 @@ class ProfileNameTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             f = Firmware(tmp, tmp)
             (Path(tmp) / 'secrets.yaml').write_text('wifi_ssid: example-net\nwifi_password: example-pw\n')
-            f.create({'board': 'cyd', 'name': 'woonkamer', 'friendly_name': 'Woonkamer'})
-            (Path(tmp) / 'manual.yaml').write_text('substitutions:\n  DEVICE_NAME: "keuken"\n  DEVICE_FRIENDLY_NAME: "Keuken"\n'
+            f.create({'board': 'cyd', 'name': 'living-room', 'friendly_name': 'Living room'})
+            (Path(tmp) / 'manual.yaml').write_text('substitutions:\n  DEVICE_NAME: "kitchen"\n  DEVICE_FRIENDLY_NAME: "Kitchen"\n'
                                                    'esphome:\n  name: ${DEVICE_NAME}\n  friendly_name: ${DEVICE_FRIENDLY_NAME}\n'
                                                    'packages:\n  a: !include other.yaml\napi:\n  encryption:\n    key: !secret api\n')
             (Path(tmp) / 'broken.yaml').write_text('esphome: [\n')
             names = f.profile_names()
-            self.assertEqual(names['woonkamer.yaml'], {'node': 'woonkamer', 'friendly': 'Woonkamer', 'screen': True, 'api_key': names['woonkamer.yaml']['api_key']})
-            self.assertEqual(len(names['woonkamer.yaml']['api_key']), 44)
+            self.assertEqual(names['living-room.yaml'], {'node': 'living-room', 'friendly': 'Living room', 'screen': True, 'api_key': names['living-room.yaml']['api_key']})
+            self.assertEqual(len(names['living-room.yaml']['api_key']), 44)
             # A manual profile (no board package from this repo, key behind !secret) is not an ESP Screens profile.
-            self.assertEqual(names['manual.yaml'], {'node': 'keuken', 'friendly': 'Keuken', 'screen': False, 'api_key': None})
+            self.assertEqual(names['manual.yaml'], {'node': 'kitchen', 'friendly': 'Kitchen', 'screen': False, 'api_key': None})
             self.assertNotIn('broken.yaml', names)
             self.assertNotIn('secrets.yaml', names)
 
@@ -98,13 +98,13 @@ class FakeFirmware:
     """Stands in for the ESPHome CLI: records jobs and flips the screen to the target version."""
     def __init__(self, ha, outcome='success'):
         self.ha, self.outcome, self.calls, self.task, self.job = ha, outcome, [], None, None
-        self.names = {'woonkamer.yaml': {'node': 'woonkamer', 'friendly': 'Woonkamer'},
-                      'keuken.yaml': {'node': 'keuken', 'friendly': 'Keuken'}}
+        self.names = {'living-room.yaml': {'node': 'living-room', 'friendly': 'Living room'},
+                      'kitchen.yaml': {'node': 'kitchen', 'friendly': 'Kitchen'}}
 
     def profile_names(self): return self.names
 
     def start(self, data):
-        if self.task and not self.task.done(): raise ValueError('Er loopt al een build of installatie.')
+        if self.task and not self.task.done(): raise ValueError('A build or install is already running.')
         self.calls.append(data)
         self.job = {'state': 'running', **data}
         self.task = asyncio.create_task(self.run(data))
@@ -113,7 +113,7 @@ class FakeFirmware:
     async def run(self, data):
         await asyncio.sleep(0)
         if self.outcome == 'success':
-            for entity, node in (('text.fw1', 'woonkamer'), ('text.fw2', 'keuken')):
+            for entity, node in (('text.fw1', 'living-room'), ('text.fw2', 'kitchen')):
                 if data['file'] == node + '.yaml': self.ha.states[entity] = {'state': FIRMWARE_VERSION}
         self.job['state'] = self.outcome
 
@@ -125,15 +125,15 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
         class HA:
             online = True
             time_zone = timezone.utc
-            registry = [{'entity_id': 'text.screen1', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd1'},
-                        {'entity_id': 'text.node1', 'platform': 'esphome', 'original_name': 'Apparaatnaam', 'device_id': 'd1'},
-                        {'entity_id': 'text.ip1', 'platform': 'esphome', 'original_name': 'IP-adres', 'device_id': 'd1'},
-                        {'entity_id': 'text.fw1', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd1'},
-                        {'entity_id': 'text.screen2', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd2'},
-                        {'entity_id': 'text.fw2', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd2'}]
-            devices = [{'id': 'd1', 'name': 'Woonkamer'}, {'id': 'd2', 'name': 'Keuken'}]
+            registry = [{'entity_id': 'text.screen1', 'platform': 'esphome', 'original_name': 'Tile settings', 'device_id': 'd1'},
+                        {'entity_id': 'text.node1', 'platform': 'esphome', 'original_name': 'Device name', 'device_id': 'd1'},
+                        {'entity_id': 'text.ip1', 'platform': 'esphome', 'original_name': 'IP address', 'device_id': 'd1'},
+                        {'entity_id': 'text.fw1', 'platform': 'esphome', 'original_name': 'Screen firmware', 'device_id': 'd1'},
+                        {'entity_id': 'text.screen2', 'platform': 'esphome', 'original_name': 'Tile settings', 'device_id': 'd2'},
+                        {'entity_id': 'text.fw2', 'platform': 'esphome', 'original_name': 'Screen firmware', 'device_id': 'd2'}]
+            devices = [{'id': 'd1', 'name': 'Living room'}, {'id': 'd2', 'name': 'Kitchen'}]
             areas = []
-            states = {'text.screen1': {'state': 'Ready'}, 'text.node1': {'state': 'woonkamer'}, 'text.ip1': {'state': '10.0.0.5'},
+            states = {'text.screen1': {'state': 'Ready'}, 'text.node1': {'state': 'living-room'}, 'text.ip1': {'state': '10.0.0.5'},
                       'text.fw1': {'state': '0.2.16'}, 'text.screen2': {'state': 'Ready'}, 'text.fw2': {'state': '0.2.16'}}
             changed = asyncio.Event()
             def __init__(self): self.messages, self.calls = [], []
@@ -149,21 +149,21 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             m = self.setup_manager(tmp)
             first, second = m.inventory()[0]
-            self.assertEqual(m.updates.state_for(first)['profile'], 'woonkamer.yaml')
+            self.assertEqual(m.updates.state_for(first)['profile'], 'living-room.yaml')
             self.assertEqual(m.updates.state_for(first)['host'], '10.0.0.5')
             self.assertTrue(m.updates.state_for(first)['available'])
             # Older firmware: no node name, so the friendly name decides; no address yet.
-            self.assertEqual(m.updates.state_for(second)['profile'], 'keuken.yaml')
+            self.assertEqual(m.updates.state_for(second)['profile'], 'kitchen.yaml')
             self.assertIsNone(m.updates.state_for(second)['host'])
             self.assertEqual(m.updates.pending(), ['text.screen1'])
-            with self.assertRaisesRegex(ValueError, 'IP-adres'): m.updates.start('text.screen2')
+            with self.assertRaisesRegex(ValueError, 'IP address'): m.updates.start('text.screen2')
             with self.assertRaises(ValueError): m.updates.start('text.screen2', host='bad host!')
             m.updates.start('text.screen2', host='10.0.0.6')
             await m.updates.task
-            self.assertEqual(m.firmware.calls, [{'file': 'keuken.yaml', 'action': 'install', 'target': '10.0.0.6'}])
+            self.assertEqual(m.firmware.calls, [{'file': 'kitchen.yaml', 'action': 'install', 'target': '10.0.0.6'}])
             self.assertEqual(m.updates.results['text.screen2']['state'], 'success')
             self.assertEqual(json.loads((Path(tmp) / 'updates.json').read_text())['hosts'], {'text.screen2': '10.0.0.6'})
-            with self.assertRaisesRegex(ValueError, 'nieuwste'): m.updates.start('text.screen2')
+            with self.assertRaisesRegex(ValueError, 'latest'): m.updates.start('text.screen2')
             m.ha.states['text.fw1'] = {'state': FIRMWARE_VERSION}
             self.assertEqual(m.updates.pending(), [])
 
@@ -180,7 +180,7 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(m.ha.calls, [], 'manual rounds do not notify')
             await m.updates.run_round(['text.screen1'], automatic=True)
             self.assertEqual(m.ha.calls[0][1]['domain'], 'persistent_notification')
-            self.assertIn('Woonkamer', m.ha.calls[0][1]['service_data']['message'])
+            self.assertIn('Living room', m.ha.calls[0][1]['service_data']['message'])
 
     async def test_screen_that_never_returns_fails(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -218,7 +218,7 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
     async def test_manager_watches_only_layout_and_screen_entities(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = self.setup_manager(tmp)
-            m.layouts['text.screen1'] = {'title': 'Thuis', 'tiles': [{'entity': 'light.lamp'}]}
+            m.layouts['text.screen1'] = {'title': 'Home', 'tiles': [{'entity': 'light.lamp'}]}
             watched = m.watched_entities()
             self.assertEqual(watched, {'light.lamp', 'text.screen1', 'text.node1', 'text.ip1', 'text.fw1', 'text.screen2', 'text.fw2'})
 

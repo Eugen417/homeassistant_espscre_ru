@@ -49,7 +49,7 @@ class ReferenceTests(unittest.TestCase):
 
     def test_action_names_follow_home_assistant_and_the_firmware_is_current(self):
         self.assertEqual(alert_service('studio-1'), 'esphome.studio_1_show_alert')
-        self.assertEqual(alert_service('keuken-scherm', 'dismiss_alert'), 'esphome.keuken_scherm_dismiss_alert')
+        self.assertEqual(alert_service('kitchen-screen', 'dismiss_alert'), 'esphome.kitchen_screen_dismiss_alert')
         for missing in (None, '', 3):
             self.assertIsNone(alert_service(missing))
         self.assertLessEqual(parse_version(ALERT_MIN_FIRMWARE), parse_version(FIRMWARE_VERSION))
@@ -77,7 +77,7 @@ class InventoryTests(unittest.IsolatedAsyncioTestCase):
                         {'entity_id': 'sensor.studio_1_apparaatnaam', 'platform': 'esphome', 'original_name': 'Apparaatnaam', 'device_id': 'd1'},
                         {'entity_id': 'sensor.studio_1_schermfirmware', 'platform': 'esphome', 'original_name': 'Schermfirmware', 'device_id': 'd1'},
                         {'entity_id': 'text.oud_tegelinstellingen', 'platform': 'esphome', 'original_name': 'Tegelinstellingen', 'device_id': 'd2'}]
-            devices = [{'id': 'd1', 'name': 'Studio 1'}, {'id': 'd2', 'name': 'Oud scherm'}]
+            devices = [{'id': 'd1', 'name': 'Studio 1'}, {'id': 'd2', 'name': 'Old screen'}]
             areas = []
             states = {'text.studio_1_tegelinstellingen': {'state': 'Ready'}, 'sensor.studio_1_apparaatnaam': {'state': 'studio-1'},
                       'sensor.studio_1_schermfirmware': {'state': '0.2.31'}, 'text.oud_tegelinstellingen': {'state': 'Ready'}}

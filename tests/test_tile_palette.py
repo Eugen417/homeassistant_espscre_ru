@@ -23,15 +23,15 @@ class PaletteTests(unittest.IsolatedAsyncioTestCase):
     async def test_old_editor_preserves_color_and_explicit_auto_clears(self):
         with tempfile.TemporaryDirectory() as tmp:
             m=test_portal.ManagerTests().setup_manager(Path(tmp)/'screens.json')
-            layout={'title':'Thuis','tiles':[{'entity':'light.a','options':{'background':'red','inline':'slider'}}]}
+            layout={'title':'Home','tiles':[{'entity':'light.a','options':{'background':'red','inline':'slider'}}]}
             m.save('text.screen',layout)
-            m.save('text.screen',{'title':'Nieuw','tiles':[{'entity':'light.a','options':{'inline':'none'}}]})
+            m.save('text.screen',{'title':'New','tiles':[{'entity':'light.a','options':{'inline':'none'}}]})
             fresh=test_portal.ManagerTests().setup_manager(m.path)
             tile=fresh.layouts['text.screen']['tiles'][0]
             self.assertEqual(tile['options'],{'background':'red','inline':'none'})
             await fresh.sync_one('text.screen',fresh.layouts['text.screen'])
             self.assertEqual(fresh.ha.messages[1][1]['o']['background'],'red')
-            fresh.save('text.screen',{'title':'Nieuw','tiles':[{'entity':'light.a','options':{'background':'auto'}}]})
+            fresh.save('text.screen',{'title':'New','tiles':[{'entity':'light.a','options':{'background':'auto'}}]})
             self.assertEqual(fresh.layouts['text.screen']['tiles'][0]['options']['background'],'auto')
 
     def test_none_hides_the_card_and_needs_firmware_0216(self):
@@ -40,11 +40,11 @@ class PaletteTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn('name=="none"',header)
         self.assertIsNone(TILE_BACKGROUNDS['none']['color'])
         for entity in ('screen.clock','light.a'):
-            layout=validate_layout({'title':'Thuis','tiles':[{'entity':entity,'options':{'background':'none'}}]})
+            layout=validate_layout({'title':'Home','tiles':[{'entity':entity,'options':{'background':'none'}}]})
             self.assertEqual(layout['tiles'][0]['options']['background'],'none')
             self.assertEqual(min_firmware(layout),(0,2,16))
         self.assertEqual(min_firmware({'tiles':[{'entity':'light.a','options':{'background':'red'}}]}),None)
 
     def test_unapproved_colors_rejected(self):
         for value in ('#000000','url(test)','unknown',None,{},42):
-            with self.assertRaises(ValueError):validate_layout({'title':'Thuis','tiles':[{'entity':'light.a','options':{'background':value}}]})
+            with self.assertRaises(ValueError):validate_layout({'title':'Home','tiles':[{'entity':'light.a','options':{'background':value}}]})

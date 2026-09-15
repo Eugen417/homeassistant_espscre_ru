@@ -46,7 +46,7 @@ class CalibrationTests(unittest.TestCase):
     def test_center_is_not_used_to_hide_bad_fit(self):
         data = measurements()
         for s in data['points'][4]['samples']: s['raw_x'] += 600
-        with self.assertRaisesRegex(ValueError, 'midden'): calibrate.fit(data)
+        with self.assertRaisesRegex(ValueError, 'center'): calibrate.fit(data)
 
     def test_jitter_rejected(self):
         data = measurements()
@@ -93,7 +93,7 @@ class InstallationTests(unittest.TestCase):
             new_device.create(b, 'display-b', 'Display B')
             original = (Path(a)/'secrets.yaml').read_text()
             self.assertNotEqual(original, (Path(b)/'secrets.yaml').read_text())
-            self.assertNotIn('WORDT_UNIEK_GEGENEREERD', original)
+            self.assertNotIn('WILL_BE_UNIQUELY_GENERATED', original)
             with self.assertRaises(ValueError): new_device.create(a, 'new', 'New')
             self.assertEqual(original, (Path(a)/'secrets.yaml').read_text())
 
@@ -117,7 +117,7 @@ class InstallationTests(unittest.TestCase):
                 self.assertEqual(values['TOUCH_AFFINE_XX'], '1.000000000')
                 self.assertEqual(values['DIRECT_ACTIONS'], 'false')
                 for i in range(1,11):
-                    self.assertRegex(values[f'TILE{i}_ENTITY'], r'\.(voorbeeld_|ongebruikt_)')
+                    self.assertRegex(values[f'TILE{i}_ENTITY'], r'\.(example_|unused_)')
                 archive.extractall(tmp)
             new_device.create(Path(tmp)/'cyd-display', 'fresh-board', 'Fresh board')
             with self.assertRaises(FileExistsError): export_bundle.export(ROOT, output)

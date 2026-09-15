@@ -36,9 +36,9 @@ def export(root, output):
                 paths.append(path)
     for path in paths:
         if path.is_symlink() or not path.resolve().is_relative_to(root):
-            raise ValueError(f'Geen bestanden buiten de bronmap of symlinks toegestaan: {path}')
+            raise ValueError(f'No files outside the source folder or symlinks allowed: {path}')
         if not path.is_file():
-            raise ValueError(f'Ontbrekend bundelbestand: {path}')
+            raise ValueError(f'Missing bundle file: {path}')
     output.parent.mkdir(parents=True, exist_ok=True)
     # Exclusive mode refuses to replace a previously delivered bundle.
     with zipfile.ZipFile(output, 'x', zipfile.ZIP_DEFLATED) as archive:
@@ -53,10 +53,10 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / 'dist' / 'cyd-starter.zip')
     args = parser.parse_args()
     try:
-        print(f'Deel deze ZIP: {export(ROOT, args.output)}')
-        print('Geen lokale secrets, device.yaml, kalibratiemetingen, logs of firmwarebackups opgenomen.')
+        print(f'Share this ZIP: {export(ROOT, args.output)}')
+        print('No local secrets, device.yaml, calibration measurements, logs or firmware backups included.')
     except (OSError, ValueError) as exc:
-        parser.exit(1, f'Fout: {exc}\n')
+        parser.exit(1, f'Error: {exc}\n')
 
 
 if __name__ == '__main__':

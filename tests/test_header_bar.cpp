@@ -5,7 +5,7 @@ using namespace header_bar;
 int main() {
   assert(kind("clock") == Kind::clock && kind("analog") == Kind::analog && kind("date") == Kind::date);
   assert(kind("text") == Kind::text && kind("ago") == Kind::ago);
-  for (const char *bad : {"", "Clock", "tijd", "state"}) assert(kind(bad) == Kind::none);
+  for (const char *bad : {"", "Clock", "time", "state"}) assert(kind(bad) == Kind::none);
 
   uint32_t c = 0;
   assert(color("FFB300", c) && c == 0xFFB300);
@@ -25,25 +25,26 @@ int main() {
   // The editor's agoText() uses the same words and thresholds.
   const int64_t now = 1789401840;
   assert(ago_text(now, 0) == "—" && ago_text(0, now) == "—");
-  assert(ago_text(now - 59, now) == "Zojuist");
-  assert(ago_text(now - 60, now) == "1 min geleden");
-  assert(ago_text(now - 3599, now) == "59 min geleden");
-  assert(ago_text(now - 3600, now) == "1 uur geleden");
-  assert(ago_text(now - 86399, now) == "23 uur geleden");
-  assert(ago_text(now - 86400, now) == "Gisteren");
-  assert(ago_text(now - 172800, now) == "2 dagen geleden");
-  assert(ago_text(now - 604800, now) == "1 week geleden");
-  assert(ago_text(now - 2 * 604800, now) == "2 weken geleden");
-  assert(ago_text(now - 2592000, now) == "1 maand geleden");
-  assert(ago_text(now - 3 * 2592000, now) == "3 maanden geleden");
-  assert(ago_text(now - 31536000, now) == "1 jaar geleden");
-  assert(ago_text(now + 30, now) == "Over 1 min");
-  assert(ago_text(now + 600, now) == "Over 10 min");
-  assert(ago_text(now + 7200, now) == "Over 2 uur");
-  assert(ago_text(now + 90000, now) == "Morgen");
-  assert(ago_text(now + 3 * 86400, now) == "Over 3 dagen");
+  assert(ago_text(now - 59, now) == "Just now");
+  assert(ago_text(now - 60, now) == "1 min ago");
+  assert(ago_text(now - 3599, now) == "59 min ago");
+  assert(ago_text(now - 3600, now) == "1 hour ago");
+  assert(ago_text(now - 86399, now) == "23 hours ago");
+  assert(ago_text(now - 86400, now) == "Yesterday");
+  assert(ago_text(now - 172800, now) == "2 days ago");
+  assert(ago_text(now - 604800, now) == "1 week ago");
+  assert(ago_text(now - 2 * 604800, now) == "2 weeks ago");
+  assert(ago_text(now - 2592000, now) == "1 month ago");
+  assert(ago_text(now - 3 * 2592000, now) == "3 months ago");
+  assert(ago_text(now - 31536000, now) == "1 year ago");
+  assert(ago_text(now + 30, now) == "In 1 min");
+  assert(ago_text(now + 600, now) == "In 10 min");
+  assert(ago_text(now + 3600, now) == "In 1 hour");
+  assert(ago_text(now + 7200, now) == "In 2 hours");
+  assert(ago_text(now + 90000, now) == "Tomorrow");
+  assert(ago_text(now + 3 * 86400, now) == "In 3 days");
 
-  assert(date_text(2, 14, 9) == "ma 14 sep" && date_text(1, 1, 1) == "zo 1 jan" && date_text(7, 31, 12) == "za 31 dec");
+  assert(date_text(2, 14, 9) == "Mo 14 Sep" && date_text(1, 1, 1) == "Su 1 Jan" && date_text(7, 31, 12) == "Sa 31 Dec");
   assert(date_text(0, 1, 1) == "—" && date_text(1, 1, 13) == "—");
 
   // Guition: digits 15 px high; CYD: 10 px.

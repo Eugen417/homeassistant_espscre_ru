@@ -9,7 +9,7 @@ async def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('action', choices=['touch_diagnostics', 'end_touch_diagnostics', 'ui_state', 'light_controls_preview'])
     parser.add_argument('--host', default='cyd-2432s028.local')
-    parser.add_argument('--name', default='cyd-2432s028', help='Verwachte DEVICE_NAME')
+    parser.add_argument('--name', default='cyd-2432s028', help='Expected DEVICE_NAME')
     parser.add_argument('--secrets', type=Path, default=Path(__file__).resolve().parents[1] / 'secrets.yaml')
     args = parser.parse_args()
     secret = yaml.safe_load(args.secrets.read_text())

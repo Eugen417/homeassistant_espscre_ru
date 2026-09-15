@@ -28,7 +28,7 @@ async def main():
     p.add_argument('--secrets',type=Path,default=Path(__file__).resolve().parents[1]/'secrets.yaml')
     p.add_argument('--output',type=Path,required=True)
     args=p.parse_args()
-    if args.output.exists():raise ValueError('Output bestaat al; kies een andere naam.')
+    if args.output.exists():raise ValueError('Output already exists; choose a different name.')
     client=APIClient(args.host,6053,noise_psk=yaml.safe_load(args.secrets.read_text())['api_encryption_key'],expected_name=args.name)
     await client.connect(login=True)
     try:
@@ -43,9 +43,9 @@ async def main():
         client.subscribe_logs(log,log_level=LogLevel.LOG_LEVEL_INFO,dump_config=False)
         await client.execute_service(next(s for s in services if s.name=='ui_snapshot'),{})
         await asyncio.wait_for(done.wait(),timeout=60)
-        if errors or set(rows)!=set(range(240)):raise ValueError(f'Onvolledig beeld: {len(rows)}/240 rijen; {errors}')
+        if errors or set(rows)!=set(range(240)):raise ValueError(f'Incomplete image: {len(rows)}/240 rows; {errors}')
         with args.output.open('xb') as f:f.write(png(rows))
-        print(f'PASS: LVGL-render opgeslagen in {args.output}')
+        print(f'PASS: LVGL render saved to {args.output}')
     finally:await client.disconnect()
 
 if __name__=='__main__':asyncio.run(main())

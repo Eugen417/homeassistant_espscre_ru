@@ -15,7 +15,7 @@ HEADER = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 class IconSetTests(unittest.TestCase):
     def test_set_is_complete_and_carried_by_every_icon_font(self):
         self.assertEqual(len(tile_icons.ICONS), 150)
-        self.assertTrue(any(group == 'Media en muziek' and len(icons) >= 20 for group, icons in tile_icons.GROUPS))
+        self.assertTrue(any(group == 'Media and music' and len(icons) >= 20 for group, icons in tile_icons.GROUPS))
         self.assertEqual(len(set(tile_icons.GLYPHS.values())), len(tile_icons.GLYPHS))
         for code in tile_icons.GLYPHS.values():
             self.assertRegex(code, r'^F[0-9A-F]{4}$')
@@ -60,11 +60,11 @@ class IconSetTests(unittest.TestCase):
 class IconOptionTests(unittest.IsolatedAsyncioTestCase):
     def test_validation_accepts_the_set_and_auto_only(self):
         for value in ('auto', 'lamp', 'spotify', 'speaker'):
-            layout = validate_layout({'title': 'Thuis', 'tiles': [{'entity': 'media_player.a', 'options': {'icon': value}}]})
+            layout = validate_layout({'title': 'Home', 'tiles': [{'entity': 'media_player.a', 'options': {'icon': value}}]})
             self.assertEqual(layout['tiles'][0]['options']['icon'], value)
         for value in ('mdi:lamp', 'F06B5', 'weather-fog', 'unknown', '', None, 42, ['lamp']):
             with self.assertRaises(ValueError):
-                validate_layout({'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'icon': value}}]})
+                validate_layout({'title': 'Home', 'tiles': [{'entity': 'light.a', 'options': {'icon': value}}]})
 
     def test_wire_carries_the_codepoint_chosen_or_from_home_assistant(self):
         states = {'light.a': {'state': 'on', 'attributes': {'icon': 'mdi:floor-lamp'}},
@@ -88,12 +88,12 @@ class IconOptionTests(unittest.IsolatedAsyncioTestCase):
     async def test_old_editor_preserves_icon_and_explicit_auto_clears(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = test_portal.ManagerTests().setup_manager(Path(tmp) / 'screens.json')
-            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'icon': 'spotify'}}]})
-            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'inline': 'none'}}]})
+            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.a', 'options': {'icon': 'spotify'}}]})
+            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.a', 'options': {'inline': 'none'}}]})
             self.assertEqual(m.layouts['text.screen']['tiles'][0]['options'], {'inline': 'none', 'icon': 'spotify'})
             await m.sync_one('text.screen', m.layouts['text.screen'])
             self.assertEqual(m.ha.messages[1][1]['o']['icon'], 'F04C7')
-            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'icon': 'auto'}}]})
+            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.a', 'options': {'icon': 'auto'}}]})
             self.assertEqual(m.layouts['text.screen']['tiles'][0]['options']['icon'], 'auto')
 
 if __name__ == '__main__':

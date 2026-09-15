@@ -95,10 +95,10 @@ class TouchGuard {
   // Why the last accept() refused, for the touch log; empty after a success.
   std::string reason() const {
     switch (reject_) {
-      case MOVED: return "verplaatst " + std::to_string(distance_) + " px (grens " + std::to_string(move_limit_) + ")";
-      case TOO_SHORT: return "te kort (" + std::to_string(duration_) + " ms, minimaal " + std::to_string(min_press_) + ")";
-      case USED: return "al verwerkt in dit contact";
-      case BOUNCE: return "dezelfde knop binnen de dendertijd";
+      case MOVED: return "moved " + std::to_string(distance_) + " px (limit " + std::to_string(move_limit_) + ")";
+      case TOO_SHORT: return "too short (" + std::to_string(duration_) + " ms, minimum " + std::to_string(min_press_) + ")";
+      case USED: return "already handled in this contact";
+      case BOUNCE: return "same button within the debounce window";
       default: return "";
     }
   }

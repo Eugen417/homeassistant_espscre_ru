@@ -1,14 +1,16 @@
-> Nieuwe ESP32-2432S028-installatie: begin bij [README.md](README.md) en
-> [de actuele tegelhandleiding](docs/TEGELS.md). Hieronder staat ook legacygedrag.
+> New ESP32-2432S028 installation: start at [README.md](README.md) and
+> [the current tile guide](docs/TILES.md). Legacy behavior is also described below.
 
 # Tile Configuration Reference
 
 For the ESP32-2432S028 profile, use `home-like-2432s028.yaml` and
 [CYD_STABILITY.md](CYD_STABILITY.md). That profile uses fixed pages instead of
 scrolling, hides pagination when `TILE_COUNT <= 6`, and dims after ten minutes.
-The scrolling description below applies to `home-like.yaml`.
+The scrolling section below describes `home-like.yaml`, an early personal
+profile that has since been removed from the repository; it's kept here only
+as a historical record.
 
-This document explains every substitution in `home-like.yaml` and provides copy-paste examples for all supported entity types.
+This document explains every substitution used across the tile profiles and provides copy-paste examples for all supported entity types.
 
 ---
 
@@ -55,11 +57,11 @@ of the entity id before the dot:
 
 | Entity | Domain | Accent |
 |--------|--------|--------|
-| `script.goede_morgen` | `script` | `ACCENT_ACTION` (violet) |
-| `scene.avondlicht` | `scene` | `ACCENT_ACTION` (violet) |
-| `light.woonkamer_2` | `light` | `ACCENT_LIGHT` (amber) |
+| `script.good_morning` | `script` | `ACCENT_ACTION` (violet) |
+| `scene.evening_lights` | `scene` | `ACCENT_ACTION` (violet) |
+| `light.living_room_2` | `light` | `ACCENT_LIGHT` (amber) |
 | `vacuum.s8` | `vacuum` | `ACCENT_DEVICE` (cyan) |
-| `climate.airco` | `climate` | `ACCENT_DEVICE` (cyan) |
+| `climate.ac` | `climate` | `ACCENT_DEVICE` (cyan) |
 
 The distinction that matters: a script or scene is something you *fire*, a
 device is something you switch *on and off*. Those should not look the same.
@@ -74,7 +76,7 @@ Because the color follows the entity, dropping a different entity into a tile
 gives it the right color without touching any color key.
 
 > The domain lookup lives in a small `accent_for` lambda that appears **twice**
-> in `home-like.yaml`: once in `ui_refresh` (for the tiles) and once in
+> in each profile: once in `ui_refresh` (for the tiles) and once in
 > `open_value_overlay` (for the slider fill). Keep the two copies in sync.
 
 ---
@@ -534,8 +536,10 @@ TILE1_LONGPRESS_ACTION_SERVICE: "light.toggle"  # must set toggle explicitly, de
 ## Adding a tile
 
 All ten slots are filled. To grow the grid, add a `GRID_ROW6_Y` to every
-orientation preset first. A tile is not a single block — it is six places in
-`home-like.yaml`. Copy tile 9 (a light with a slider) or tile 10 (a service
+orientation preset first (this applied to the now-removed `home-like.yaml`;
+the maintained fixed-page profiles cap at ten tiles by design — see
+[docs/TILES.md](docs/TILES.md)). A tile is not a single block — it is six
+places. Copy tile 9 (a light with a slider) or tile 10 (a service
 call) and change the number:
 
 1. **Substitutions** — a `TILE9_*` block. Copy an existing one wholesale.

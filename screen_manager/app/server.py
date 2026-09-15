@@ -14,7 +14,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BUILTIN, HEADER_MIN_FIRMWARE, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_reference, alert_service, controls_catalogue, discover, discover_screens, encode, extras, header_items, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BUILTIN, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_reference, alert_service, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 import header_bar
 from zoneinfo import ZoneInfo
 
@@ -31,7 +31,12 @@ FULL_REPEAT_SECONDS = 3600
 HISTORY_SECONDS = 300
 # Inbox states after which a screen needs the whole layout again: a restart, a ping that
 # did not match, or a tile state that never arrived. Guarded so a slow batch cannot loop.
-RESEND_STATES = frozenset({'Klaar voor tegelconfiguratie', 'Indeling opnieuw nodig', 'Tegels laden'})
+# Firmware built before the English translation still reports the Dutch originals, so both
+# forms are recognised until every board has been reflashed.
+RESEND_STATES = frozenset({
+    'Ready for tile configuration', 'Resend needed', 'Loading tiles',
+    'Klaar voor tegelconfiguratie', 'Indeling opnieuw nodig', 'Tegels laden',
+})
 RESEND_GUARD_SECONDS = 120
 FORECAST_SECONDS = 1800
 
@@ -78,7 +83,7 @@ class HomeAssistant:
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
-            raise ConnectionError('Home Assistant is niet verbonden.')
+            raise ConnectionError("Home Assistant isn't connected.")
         self.next_id += 1
         key = self.next_id
         future = asyncio.get_running_loop().create_future()
@@ -100,7 +105,7 @@ class HomeAssistant:
                     if data.get('success'):
                         future.set_result(data.get('result'))
                     else:
-                        future.set_exception(ConnectionError('Home Assistant heeft de opdracht geweigerd.'))
+                        future.set_exception(ConnectionError('Home Assistant refused the command.'))
             elif data.get('type') == 'event':
                 event = data.get('event', {})
                 body = event.get('data', {})
@@ -118,7 +123,7 @@ class HomeAssistant:
                         self.changed.set()
                 elif event.get('event_type') in REGISTRY_EVENTS:
                     self.registry_changed.set()
-        raise ConnectionError('Home Assistant-verbinding verbroken.')
+        raise ConnectionError('Home Assistant connection lost.')
 
     def describe_close(self, connected):
         """Why and after how long the websocket ended; helps explain unexpected reconnects in the log."""
@@ -126,7 +131,7 @@ class HomeAssistant:
             return ''
         ws = self.ws
         reason = ws.exception() if ws is not None else None
-        return ' na %d s, close-code %s%s' % (time.monotonic() - connected, ws.close_code if ws is not None else None,
+        return ' after %d s, close code %s%s' % (time.monotonic() - connected, ws.close_code if ws is not None else None,
                                             f', {type(reason).__name__}' if reason else '')
 
     async def registries(self):
@@ -144,7 +149,7 @@ class HomeAssistant:
                     await ws.receive_json(timeout=15)
                     await ws.send_json({'type': 'auth', 'access_token': self.token})
                     if (await ws.receive_json(timeout=15)).get('type') != 'auth_ok':
-                        raise ConnectionError('Home Assistant-authenticatie mislukt.')
+                        raise ConnectionError('Home Assistant authentication failed.')
                     reader = asyncio.create_task(self.read())
                     await self.request('subscribe_events', event_type='state_changed')
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
@@ -161,7 +166,7 @@ class HomeAssistant:
                     self.online = True
                     self.changed.set()
                     connected = time.monotonic()
-                    LOG.info('Home Assistant verbonden')
+                    LOG.info('Home Assistant connected')
                     # Refresh the registry when HA reports a change (debounced), with a slow
                     # fallback; a full fetch is about 1 MB of JSON and used to run every 30 s.
                     fetched = time.monotonic()
@@ -182,12 +187,12 @@ class HomeAssistant:
                         fetched = time.monotonic()
                         self.changed.set()
             except (ConnectionError, TimeoutError, OSError, ValueError) as error:
-                LOG.warning('Home Assistant tijdelijk niet beschikbaar (%s)%s', type(error).__name__, self.describe_close(connected))
+                LOG.warning('Home Assistant temporarily unavailable (%s)%s', type(error).__name__, self.describe_close(connected))
             except Exception as error:
-                LOG.warning('Verbinding opnieuw starten (%s)%s', type(error).__name__, self.describe_close(connected))
+                LOG.warning('Restarting connection (%s)%s', type(error).__name__, self.describe_close(connected))
             finally:
                 if self.online:
-                    LOG.info('Home Assistant-verbinding gesloten%s', self.describe_close(connected))
+                    LOG.info('Home Assistant connection closed%s', self.describe_close(connected))
                 self.online = False
                 self.ws = None
                 if reader:
@@ -196,7 +201,7 @@ class HomeAssistant:
                         await reader
                 for future in self.pending.values():
                     if not future.done():
-                        future.set_exception(ConnectionError('Verbinding verbroken.'))
+                        future.set_exception(ConnectionError('Connection lost.'))
             await asyncio.sleep(5)
 
     async def send(self, inbox, message, action=None):
@@ -249,7 +254,7 @@ class HomeAssistant:
             raw = bytearray()
             async for chunk in response.content.iter_chunked(65536):
                 raw.extend(chunk)
-                if len(raw)>2*1024*1024: raise ValueError('Geschiedenis te groot.')
+                if len(raw)>2*1024*1024: raise ValueError('History too large.')
             rows=json.loads(raw)
         events=[]
         begin=datetime.fromisoformat(start).timestamp(); span=hours*3600
@@ -278,11 +283,15 @@ class Manager:
         self._screens_key, self._screens = None, []
         self._watched_key, self._watched = None, set()
         self._seen_registry = None
+        # Inbox entity ids seen this run with their Home Assistant device, and old inbox ids that a screen
+        # now reports under a new id (see follow_renamed_inboxes); the updater follows a screen through them.
+        self._inbox_devices, self.aliases = {}, {}
+        self._prefix_source, self._prefixes = None, {}
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
             if raw.get('version') != 1 or not isinstance(raw.get('screens'), dict):
-                raise ValueError('Onbekende opslagversie; gegevens blijven ongewijzigd.')
+                raise ValueError('Unknown storage version; data stays unchanged.')
             self.layouts = {key: validate_layout(value) for key, value in raw['screens'].items()}
 
     def inventory(self):
@@ -306,10 +315,74 @@ class Manager:
         key = (id(ha.registry), id(ha.devices), id(ha.areas), tuple(ha.states.get(item['entity_id'], {}).get('state') for item in items))
         if key != self._screens_key:
             self._screens_key, self._screens = key, discover_screens(items, ha.states, ha.devices, ha.areas)
+            self.follow_renamed_inboxes(items)
         return [dict(screen) for screen in self._screens]
 
     def screen(self, inbox):
-        return next((s for s in self.screens() if s['id'] == inbox), None)
+        screens = self.screens()
+        inbox = self.aliases.get(inbox, inbox)
+        return next((s for s in screens if s['id'] == inbox), None)
+
+    def device_prefixes(self, device):
+        registry = getattr(self.ha, 'registry', [])
+        if self._prefix_source is not registry:
+            self._prefix_source, self._prefixes = registry, {}
+        if device not in self._prefixes:
+            self._prefixes[device] = device_prefixes(registry, device)
+        return self._prefixes[device]
+
+    def follow_renamed_inboxes(self, items):
+        """Keep a screen's layout and update history when its inbox entity gets a new entity id.
+
+        Firmware 0.2.34 renamed the inbox from "Tegelinstellingen" to "Tile settings". Home Assistant then
+        removes the old entity and registers the renamed one under a new id, which would orphan the layout
+        stored under the old id. The screen is recognised by its device: an inbox this run saw on the same
+        device, or (after a restart) a stored inbox id that carries one of the device's entity id prefixes."""
+        current = {item['entity_id']: item.get('device_id') for item in items
+                   if item.get('platform') == 'esphome' and item['entity_id'].startswith('text.') and item.get('device_id')
+                   and item.get('original_name') in NAME_TILE_SETTINGS and not item.get('disabled_by')}
+        stored = (set(self.layouts) | set(self.updates.hosts) | set(self.updates.results)) - set(current) - set(self.aliases)
+        for new, device in current.items():
+            olds = {old for old, seen in self._inbox_devices.items() if seen == device and old not in current}
+            candidates = [old for old in stored if inbox_prefix(old) is not None]
+            if candidates:
+                prefixes = self.device_prefixes(device)
+                olds |= {old for old in candidates if inbox_prefix(old) in prefixes}
+            for old in sorted(olds - set(self.aliases)):
+                self.rename_inbox(old, new)
+        self._inbox_devices.update(current)
+
+    def write_layouts(self, layouts):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        temp = self.path.with_suffix('.tmp')
+        with open(temp, 'w', encoding='utf8') as handle:
+            os.chmod(temp, 0o600)
+            json.dump({'version': 1, 'screens': layouts}, handle, ensure_ascii=False)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temp.replace(self.path)
+
+    def rename_inbox(self, old, new):
+        """Move everything kept under an old inbox id to the id the same screen reports under now."""
+        moved = []
+        if old in self.layouts and new not in self.layouts:
+            layouts = {(new if key == old else key): value for key, value in self.layouts.items()}
+            self.write_layouts(layouts)
+            self.layouts = layouts
+            moved.append('layout')
+        elif old in self.layouts:
+            LOG.warning('Screen %s already has a layout; the one stored under %s stays untouched', new, old)
+        if self.updates.renamed(old, new):
+            moved.append('update history')
+        for store in (self.sent, self.status, self.last, self.pinged):
+            store.pop(old, None)
+        self.aliases = {**{key: (new if value == old else value) for key, value in self.aliases.items()}, old: new}
+        self._inbox_devices.pop(old, None)
+        LOG.info('Screen %s now reports as %s%s', old, new, f"; moved its {' and '.join(moved)}" if moved else '')
+        if moved:
+            self.history_wake.set()
+            self.ha.changed.set()
+            self.notify()
 
     def firmware_version(self, inbox, screen=None):
         if screen is None:
@@ -356,13 +429,15 @@ class Manager:
 
     def save(self, inbox, data):
         screens, entities = self.inventory()
+        # A page opened before a screen's inbox got a new id still saves to the right screen.
+        inbox = self.aliases.get(inbox, inbox)
         screen=next((s for s in screens if s['id']==inbox), None)
         if screen is None:
-            raise ValueError('Dit is geen gekoppeld ESP-scherm. Vernieuw het overzicht.')
+            raise ValueError("This isn't a paired ESP screen. Refresh the overview.")
         layout = validate_layout(data)
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
-            raise ValueError(f"Installeer eerst schermfirmware {needed} of nieuwer voor deze tegels.")
+            raise ValueError(f"Install screen firmware {needed} or newer first for these tiles.")
         # A still-open older UI may save tiles without the new optional settings or top bar.
         if 'settings' not in layout and 'settings' in self.layouts.get(inbox, {}):
             layout['settings'] = self.layouts[inbox]['settings'].copy()
@@ -376,7 +451,7 @@ class Manager:
         if 'settings' in layout and 'rotation' not in data.get('settings',{}):
             layout['settings']['rotation']=self.layouts.get(inbox,{}).get('settings',{}).get('rotation',0)
         if layout.get('settings',{}).get('rotation',0) and screen.get('board')!='guition':
-            raise ValueError('Rotatie vereist een Guition met firmware 0.2.9 of nieuwer.')
+            raise ValueError('Rotation requires a Guition with firmware 0.2.9 or newer.')
         old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
         for tile in layout['tiles']:
             old_options=old_tiles.get(tile['entity'],{}).get('options',{})
@@ -393,21 +468,14 @@ class Manager:
         layout = validate_layout(layout)
         known = {e['id'] for e in entities} | set(BUILTIN)
         if any(t['entity'] not in known for t in layout['tiles']):
-            raise ValueError('Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.')
+            raise ValueError('A chosen entity no longer exists. Look up the new entity.')
         if any(item['type'] == 'entity' and item['entity'] not in known and item['entity'] not in self.ha.states for item in header_items(layout)):
-            raise ValueError('Een entiteit in de bovenbalk bestaat niet meer. Kies een andere.')
+            raise ValueError('An entity in the top bar no longer exists. Choose a different one.')
         updated = {**self.layouts, inbox: layout}
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        temp = self.path.with_suffix('.tmp')
-        with open(temp, 'w', encoding='utf8') as handle:
-            os.chmod(temp, 0o600)
-            json.dump({'version': 1, 'screens': updated}, handle, ensure_ascii=False)
-            handle.flush()
-            os.fsync(handle.fileno())
-        temp.replace(self.path)
+        self.write_layouts(updated)
         self.layouts = updated
         self.sent.pop(inbox, None)
-        self.status[inbox] = 'Opgeslagen; wacht op synchronisatie'
+        self.status[inbox] = 'Saved; waiting for sync'
         self.history_wake.set()
         self.ha.changed.set()
         self.notify()
@@ -497,7 +565,7 @@ class Manager:
             screen = self.screen(inbox) or {}
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
-            self.status[inbox]=f"Indeling bewaard; firmware {needed}+ nodig voor deze tegels"
+            self.status[inbox]=f"Layout saved; firmware {needed}+ needed for these tiles"
             return False
         tiles = layout['tiles']
         layout_msg = self.layout_message(inbox, layout, screen)
@@ -540,7 +608,7 @@ class Manager:
             self.last[inbox] = time.monotonic()
         if outgoing:
             self.pinged[inbox] = time.monotonic()
-        self.status[inbox] = 'Verzonden naar Home Assistant'
+        self.status[inbox] = 'Sent to Home Assistant'
         return bool(outgoing)
 
     async def ping(self, inbox, screen):
@@ -599,7 +667,7 @@ class Manager:
                 before = self.status.get(inbox)
                 if not screen['online']:
                     self.sent.pop(inbox, None)
-                    self.status[inbox] = 'Scherm offline; wijzigingen bewaard'
+                    self.status[inbox] = 'Screen offline; changes saved'
                     changed = changed or self.status[inbox] != before
                     continue
                 if inbox not in self.layouts:
@@ -617,8 +685,8 @@ class Manager:
                         await self.ping(inbox, screen)
                 except Exception as error:
                     self.sent.pop(inbox, None)
-                    self.status[inbox] = 'Verzenden mislukt; automatisch opnieuw proberen'
-                    LOG.warning('Schermsynchronisatie opnieuw proberen (%s)', type(error).__name__)
+                    self.status[inbox] = 'Sending failed; retrying automatically'
+                    LOG.warning('Retrying screen sync (%s)', type(error).__name__)
                     await asyncio.sleep(1)
                 changed = changed or self.status.get(inbox) != before
             if changed:
@@ -647,7 +715,7 @@ class Manager:
                 try:
                     found.update({(entity, hours): values for entity, values in (await self.ha.statistics(entities, hours)).items()})
                 except Exception as error:
-                    LOG.warning('Statistieken ophalen mislukt (%s); geschiedenis per sensor', type(error).__name__)
+                    LOG.warning('Fetching statistics failed (%s); falling back to per-sensor history', type(error).__name__)
         changed = set()
         for key in due:
             values = found.get(key)
@@ -677,7 +745,7 @@ class Manager:
             try:
                 await self.refresh_histories()
             except Exception as error:
-                LOG.warning('Geschiedenis vernieuwen mislukt (%s)', type(error).__name__)
+                LOG.warning('Refreshing history failed (%s)', type(error).__name__)
 
 def create_app(manager, development=False):
     csrf = secrets.token_urlsafe(32)
@@ -685,15 +753,15 @@ def create_app(manager, development=False):
     async def guard(request, handler):
         allowed = {'127.0.0.1', '::1'} if development else {'172.30.32.2'}
         if request.remote not in allowed:
-            raise web.HTTPForbidden(text='Open deze pagina via Home Assistant.')
+            raise web.HTTPForbidden(text='Open this page through Home Assistant.')
         if request.method not in {'GET', 'HEAD'} and request.headers.get('X-Screen-CSRF') != csrf:
-            raise web.HTTPForbidden(text='Vernieuw deze pagina en probeer opnieuw.')
+            raise web.HTTPForbidden(text='Refresh this page and try again.')
         try:
             response = await handler(request)
         except ValueError as error:
             return web.json_response({'error': str(error)}, status=400)
         except (TypeError, KeyError):
-            return web.json_response({'error': 'Ongeldige invoer. Controleer naam, bord en gekozen tegels.'}, status=400)
+            return web.json_response({'error': 'Invalid input. Check the name, board, and chosen tiles.'}, status=400)
         if response.prepared:
             return response  # streamed (SSE) responses set their headers before prepare()
         response.headers['Cache-Control'] = 'no-store'
@@ -712,8 +780,8 @@ def create_app(manager, development=False):
             screens = manager.screens()
         profiles = manager.firmware.profile_names()
         for screen in screens:
-            screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Thuis', 'tiles': []})
-            screen['delivery'] = manager.status.get(screen['id'], 'Kies je eerste tegels')
+            screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Home', 'tiles': []})
+            screen['delivery'] = manager.status.get(screen['id'], 'Choose your first tiles')
             screen['update'] = manager.updates.state_for(screen, profiles)
             screen['alert_action'] = alert_service(screen.get('node'))
             screen['dismiss_action'] = alert_service(screen.get('node'), 'dismiss_alert')
@@ -731,7 +799,7 @@ def create_app(manager, development=False):
         payload['controls'] = controls_catalogue()
         payload['icons'] = tile_icons.editor()
         payload['alerts'] = alert_reference()
-        payload['builtin'] = [{'id': key, 'name': name, 'device': 'Ingebouwd op het scherm', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
+        payload['builtin'] = [{'id': key, 'name': name, 'device': 'Built into the screen', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         payload['header'] = {**header_bar.catalogue(), 'suggestions': {
             screen['id']: header_bar.suggestions(screen, entities, manager.ha.states, manager.registry_index()) for screen in payload['screens']}}
         return web.json_response(payload)
@@ -778,9 +846,9 @@ def create_app(manager, development=False):
         manager.updates.set_auto((await request.json()).get('auto'))
         return web.json_response(manager.updates.summary())
     async def inspector(request):
-        inbox=request.match_info['inbox']
-        screen=manager.screen(inbox)
-        if screen is None: raise ValueError('Onbekend scherm.')
+        screen=manager.screen(request.match_info['inbox'])
+        inbox=manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
+        if screen is None: raise ValueError('Unknown screen.')
         layout=manager.layouts.get(inbox,{'tiles':[]})
         return web.json_response({'screen':screen,
             'delivery':manager.status.get(inbox), 'layout':layout,
@@ -819,7 +887,7 @@ async def main():
     if development and os.environ.get('HA_TOKEN_FILE'):
         token = Path(os.environ['HA_TOKEN_FILE']).read_text().strip()
     if not token:
-        raise SystemExit('Geen Home Assistant-toegang. Start de app via Supervisor.')
+        raise SystemExit('No Home Assistant access. Start the app via Supervisor.')
     async with ClientSession(timeout=ClientTimeout(total=20)) as session:
         ha = HomeAssistant(session, os.environ.get('HA_API', 'http://supervisor/core/api'), token)
         manager = Manager(ha, Path(os.environ.get('SCREEN_DATA', '/data')) / 'screens.json')

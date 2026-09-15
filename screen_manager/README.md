@@ -1,8 +1,8 @@
 # ESP Screen Manager
 
-Zoek je Home Assistant-entiteiten, orden maximaal twintig tegels en stuur wijzigingen
-naar een CYD- of Guition-scherm zonder opnieuw flashen. Met installatiehulp,
-unieke apparaat-YAML en ondersteuning voor meerdere schermen.
+Find your Home Assistant entities, arrange up to twenty tiles, and push changes
+to a CYD or Guition screen without reflashing. Includes installation help,
+a unique per-device YAML, and support for multiple screens.
 
-Open de webinterface na installatie. Zie **Documentatie** voor de eerste flash.
-De app gebruikt Home Assistant Ingress en heeft geen eigen login of token nodig.
+Open the web interface after installation. See **Documentation** for the first flash.
+The app uses Home Assistant Ingress and needs no login or token of its own.

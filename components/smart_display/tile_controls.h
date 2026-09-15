@@ -85,41 +85,41 @@ inline std::string format_value(float value, float step, const char *suffix) {
   char b[24]; snprintf(b, sizeof(b), step >= 1 ? "%.0f%s" : "%.1f%s", value, suffix); return b;
 }
 inline const char *climate_mode_text(const std::string &mode) {
-  if (mode == "off") return "Uit";
-  if (mode == "heat") return "Verwarmen";
-  if (mode == "cool") return "Koelen";
-  if (mode == "heat_cool") return "Verwarmen/koelen";
-  if (mode == "auto") return "Automatisch";
-  if (mode == "dry") return "Drogen";
-  if (mode == "fan_only") return "Ventileren";
+  if (mode == "off") return "Off";
+  if (mode == "heat") return "Heat";
+  if (mode == "cool") return "Cool";
+  if (mode == "heat_cool") return "Heat/Cool";
+  if (mode == "auto") return "Auto";
+  if (mode == "dry") return "Dry";
+  if (mode == "fan_only") return "Fan only";
   return mode.c_str();
 }
 inline const char *climate_action_text(const std::string &action) {
-  if (action == "heating") return "Verwarmt";
-  if (action == "cooling") return "Koelt";
-  if (action == "idle") return "Inactief";
-  if (action == "off") return "Uit";
-  if (action == "drying") return "Droogt";
-  if (action == "fan") return "Ventileert";
-  if (action == "preheating") return "Voorverwarmen";
-  if (action == "defrosting") return "Ontdooit";
+  if (action == "heating") return "Heating";
+  if (action == "cooling") return "Cooling";
+  if (action == "idle") return "Idle";
+  if (action == "off") return "Off";
+  if (action == "drying") return "Drying";
+  if (action == "fan") return "Fan";
+  if (action == "preheating") return "Preheating";
+  if (action == "defrosting") return "Defrosting";
   return "";
 }
 inline const char *cover_state_text(const std::string &state) {
   if (state == "open") return "Open";
-  if (state == "closed") return "Dicht";
-  if (state == "opening") return "Gaat open";
-  if (state == "closing") return "Gaat dicht";
+  if (state == "closed") return "Closed";
+  if (state == "opening") return "Opening";
+  if (state == "closing") return "Closing";
   return state.c_str();
 }
 inline const char *media_state_text(const std::string &state) {
-  if (state == "playing") return "Speelt";
-  if (state == "paused") return "Gepauzeerd";
-  if (state == "idle") return "Inactief";
-  if (state == "standby") return "Stand-by";
-  if (state == "buffering") return "Laden";
-  if (state == "on") return "Aan";
-  if (state == "off") return "Uit";
+  if (state == "playing") return "Playing";
+  if (state == "paused") return "Paused";
+  if (state == "idle") return "Idle";
+  if (state == "standby") return "Standby";
+  if (state == "buffering") return "Loading";
+  if (state == "on") return "On";
+  if (state == "off") return "Off";
   return state.c_str();
 }
 // Status line beside a control panel: what Home Assistant shows under the name.
@@ -189,9 +189,9 @@ inline std::string neighbour_option(const Tile &t, int direction) {
   return t.options[next];
 }
 inline const char *run_label(const std::string &domain) {
-  if (domain == "scene") return "Activeren";
-  if (domain == "script") return "Uitvoeren";
-  return "Indrukken";
+  if (domain == "scene") return "Activate";
+  if (domain == "script") return "Run";
+  return "Press";
 }
 // The Home Assistant action behind a key. STEP_* are handled locally (debounced) and return nothing.
 inline Action key_action(const Tile &t, int command, const std::string &arg = "") {

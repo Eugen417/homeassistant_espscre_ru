@@ -43,7 +43,6 @@
 #   light -> brightness, fan -> percentage/preset, scene/script -> text
 #
 # Device configuration: home-like-2432s028.yaml (ESP32-2432S028).
-# home-like.yaml targets the separate ST7789V/GT911 board.
 # Credentials stay in secrets.yaml. Fonts are bundled for offline validation.
 # Start at README.md; docs/ covers calibration, HA setup and acceptance tests.
 #
@@ -58,7 +57,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.33"
+  SCREEN_FIRMWARE_VERSION: "0.2.34"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -66,7 +65,7 @@ substitutions:
   DYNAMIC_TILES: "false"
   DASHBOARD_INBOX_INTERNAL: "true"
   DEVICE_NAME: "cyd-new"
-  DEVICE_FRIENDLY_NAME: "Mijn CYD"
+  DEVICE_FRIENDLY_NAME: "My CYD"
   CALIBRATION_ON_BOOT: "false"
   TOUCH_AFFINE_XX: "1.000000000"
   TOUCH_AFFINE_XY: "0.000000000"
@@ -78,7 +77,7 @@ substitutions:
   TILE_COUNT: "6"                                # 1-10; <=6 hides page navigation
 
   DIRECT_ACTIONS: "false"                           # true = call Home Assistant services directly, false = only emit action events
-  ROOM_NAME: "Woonkamer"                              # room name shown in the top-left header
+  ROOM_NAME: "Living room"                              # room name shown in the top-left header
   TIME_24H: "true"                                 # true = 24h format, false = 12h format
 
   ## DIM settings
@@ -92,24 +91,23 @@ substitutions:
   NIGHT_DIM_BRIGHTNESS: "10"                       # backlight brightness in percent at night
 
   # ============================================================
-  # ACCENTKLEUREN — automatisch bepaald uit het Home Assistant-domein
+  # ACCENT COLOURS — determined automatically from the Home Assistant domain
   #
-  # Het domein is het stuk voor de punt in het entity_id:
-  #   script.goede_morgen  -> "script"  -> ACCENT_ACTION
-  #   light.woonkamer_2    -> "light"   -> ACCENT_LIGHT
+  # The domain is the part before the dot in the entity_id:
+  #   script.good_morning  -> "script"  -> ACCENT_ACTION
+  #   light.living_room_2  -> "light"   -> ACCENT_LIGHT
   #   vacuum.s8            -> "vacuum"  -> ACCENT_DEVICE
   #
-  # Dat is Home Assistant's eigen indeling, dus een tegel krijgt vanzelf de
-  # juiste kleur zodra je er een entity in zet — je hoeft per tegel geen
-  # kleuren meer te kiezen. Het onderscheid dat telt: een script/scene vuur
-  # je af, een apparaat zet je aan of uit. Die twee horen niet hetzelfde
-  # te zijn.
+  # That's Home Assistant's own grouping, so a tile automatically gets the
+  # right colour as soon as you put an entity in it — you no longer have
+  # to pick colours per tile. The distinction that matters: a script/scene
+  # fires, a device you turn on or off. Those two shouldn't look the same.
   #
-  # Zet TILE*_CIRCLE_ACTIVE_COLOR / TILE*_ICON_DISABLED_COLOR op
-  # ${ACCENT_AUTO} om dit te gebruiken, of op een echte hexwaarde om die
-  # ene tegel handmatig te kleuren (zie tegel 8 — rood zodra er post ligt).
+  # Set TILE*_CIRCLE_ACTIVE_COLOR / TILE*_ICON_DISABLED_COLOR to
+  # ${ACCENT_AUTO} to use this, or to a real hex value to colour that
+  # one tile by hand (see tile 8 — red as soon as there's mail).
   # ============================================================
-  ACCENT_AUTO: "0x1000000"                         # sentinel: bewust buiten het 24-bits kleurbereik
+  ACCENT_AUTO: "0x1000000"                         # sentinel: deliberately outside the 24-bit colour range
   ACCENT_ACTION: "0x8B5CF6"                        # script / scene / button / input_button / automation
   ACCENT_LIGHT: "0xFEC600"                         # light
   ACCENT_DEVICE: "0x00C5EC"                        # switch, fan, cover, climate, vacuum, media_player, rest
@@ -125,16 +123,16 @@ substitutions:
   # ============================================================
 
   # --- basic settings ---
-  TILE1_ENTITY: "light.voorbeeld_lamp"                    # main Home Assistant entity for this tile
-  TILE1_STATE_ENTITY: "light.voorbeeld_lamp"              # entity used for active/inactive state styling
+  TILE1_ENTITY: "light.example_lamp"                    # main Home Assistant entity for this tile
+  TILE1_STATE_ENTITY: "light.example_lamp"              # entity used for active/inactive state styling
   TILE1_TITLE: "Lamp"                           # tile title shown in the UI
   TILE1_ICON: "\U000F001B"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE1_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE1_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE1_LONGPRESS: "slider"                        # long press mode: none | slider | action
   TILE1_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE1_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE1_LABEL_ON: "Aan"                             # text shown for text-mode tiles when entity is on
+  TILE1_LABEL_OFF: "Off"                           # text shown when entity is off
+  TILE1_LABEL_ON: "On"                             # text shown for text-mode tiles when entity is on
   TILE1_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -174,16 +172,16 @@ substitutions:
   # ============================================================
 
   # --- basic settings ---
-  TILE2_ENTITY: "switch.voorbeeld_stekker"                       # main Home Assistant entity for this tile
-  TILE2_STATE_ENTITY: "switch.voorbeeld_stekker"                 # entity used for active/inactive state styling
-  TILE2_TITLE: "Stekker"                              # tile title shown in the UI
+  TILE2_ENTITY: "switch.example_plug"                       # main Home Assistant entity for this tile
+  TILE2_STATE_ENTITY: "switch.example_plug"                 # entity used for active/inactive state styling
+  TILE2_TITLE: "Plug"                              # tile title shown in the UI
   TILE2_ICON: "\U000F0387"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE2_TYPE: "switch"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE2_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE2_LONGPRESS: "none"                        # long press mode: none | slider | action
   TILE2_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE2_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE2_LABEL_ON: "Aan"                             # text shown for text-mode tiles when entity is on
+  TILE2_LABEL_OFF: "Off"                           # text shown when entity is off
+  TILE2_LABEL_ON: "On"                             # text shown for text-mode tiles when entity is on
   TILE2_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -223,16 +221,16 @@ substitutions:
   # ============================================================
 
   # --- basic settings ---
-  TILE3_ENTITY: "scene.voorbeeld_avond"                 # main Home Assistant entity for this tile
-  TILE3_STATE_ENTITY: "scene.voorbeeld_avond"           # entity used for active/inactive state styling
-  TILE3_TITLE: "Avond"                        # tile title shown in the UI
+  TILE3_ENTITY: "scene.example_evening"                 # main Home Assistant entity for this tile
+  TILE3_STATE_ENTITY: "scene.example_evening"           # entity used for active/inactive state styling
+  TILE3_TITLE: "Evening"                        # tile title shown in the UI
   TILE3_ICON: "\U000F02E3"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE3_TYPE: "scene"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE3_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE3_LONGPRESS: "none"                        # long press mode: none | slider | action
   TILE3_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE3_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE3_LABEL_ON: "Aan"                             # text shown for text-mode tiles when entity is on
+  TILE3_LABEL_OFF: "Off"                           # text shown when entity is off
+  TILE3_LABEL_ON: "On"                             # text shown for text-mode tiles when entity is on
   TILE3_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -272,16 +270,16 @@ substitutions:
   # ============================================================
 
   # --- basic settings ---
-  TILE4_ENTITY: "script.voorbeeld_uit"               # main Home Assistant entity for this tile
-  TILE4_STATE_ENTITY: "script.voorbeeld_uit"         # entity used for active/inactive state styling
-  TILE4_TITLE: "Alles uit"                           # tile title shown in the UI
+  TILE4_ENTITY: "script.example_off"               # main Home Assistant entity for this tile
+  TILE4_STATE_ENTITY: "script.example_off"         # entity used for active/inactive state styling
+  TILE4_TITLE: "All off"                           # tile title shown in the UI
   TILE4_ICON: "\U000F059C"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE4_TYPE: "script"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE4_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE4_LONGPRESS: "none"                        # long press mode: none | slider | action
   TILE4_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE4_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE4_LABEL_ON: "Aan"                             # text shown for text-mode tiles when entity is on
+  TILE4_LABEL_OFF: "Off"                           # text shown when entity is off
+  TILE4_LABEL_ON: "On"                             # text shown for text-mode tiles when entity is on
   TILE4_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -321,16 +319,16 @@ substitutions:
   # ============================================================
 
   # --- basic settings ---
-  TILE5_ENTITY: "climate.voorbeeld_airco"                # main Home Assistant entity for this tile
-  TILE5_STATE_ENTITY: "climate.voorbeeld_airco"          # entity used for active/inactive state styling
-  TILE5_TITLE: "Airco"                             # tile title shown in the UI
+  TILE5_ENTITY: "climate.example_ac"                # main Home Assistant entity for this tile
+  TILE5_STATE_ENTITY: "climate.example_ac"          # entity used for active/inactive state styling
+  TILE5_TITLE: "AC"                             # tile title shown in the UI
   TILE5_ICON: "\U000F0425"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE5_TYPE: "climate"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE5_TAP_ACTION: "toggle"                         # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE5_LONGPRESS: "slider"                        # long press mode: none | slider | action
   TILE5_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE5_LABEL_OFF: "Uit"                        # text shown when entity is off (closed)
-  TILE5_LABEL_ON: "Aan"                           # text shown when entity is on (open)
+  TILE5_LABEL_OFF: "Off"                        # text shown when entity is off (closed)
+  TILE5_LABEL_ON: "On"                           # text shown when entity is on (open)
   TILE5_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -370,16 +368,16 @@ substitutions:
   # ============================================================
 
   # --- basic settings ---
-  TILE6_ENTITY: "vacuum.voorbeeld_robot"                 # main Home Assistant entity for this tile
-  TILE6_STATE_ENTITY: "vacuum.voorbeeld_robot"           # entity used for active/inactive state styling
-  TILE6_TITLE: "Stofzuiger"                          # tile title shown in the UI
+  TILE6_ENTITY: "vacuum.example_robot"                 # main Home Assistant entity for this tile
+  TILE6_STATE_ENTITY: "vacuum.example_robot"           # entity used for active/inactive state styling
+  TILE6_TITLE: "Vacuum"                          # tile title shown in the UI
   TILE6_ICON: "\U000F070D"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE6_TYPE: "vacuum"                                # tile type: light | fan | switch | scene | script | cover | climate
   TILE6_TAP_ACTION: "custom"            # tap action: auto | toggle | activate | fan_toggle_preset | custom
   TILE6_LONGPRESS: "vacuum"                        # long press mode: none | slider | action
   TILE6_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE6_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE6_LABEL_ON: "Aan"                             # text shown for text-mode tiles when entity is on
+  TILE6_LABEL_OFF: "Off"                           # text shown when entity is off
+  TILE6_LABEL_ON: "On"                             # text shown for text-mode tiles when entity is on
   TILE6_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -413,22 +411,22 @@ substitutions:
   TILE6_CLIMATE_TARGET_TEMP_ATTRIBUTE: "temperature"           # HA attribute for target temperature
   TILE6_CLIMATE_HUMIDITY_ATTRIBUTE: "current_humidity"         # HA attribute for humidity; leave as-is if unavailable
   # ============================================================
-  # TILE 7  —  Tafellamp
-  # Alleen-helderheid lamp (HA meldt supported_color_modes: ['brightness']),
-  # dus de kleurenknop in de slider-overlay blijft vanzelf verborgen.
+  # TILE 7  —  Table lamp
+  # Brightness-only lamp (HA reports supported_color_modes: ['brightness']),
+  # so the colour button in the slider overlay stays hidden automatically.
   # ============================================================
 
   # --- basic settings ---
-  TILE7_ENTITY: "light.ongebruikt_7"            # main Home Assistant entity for this tile
-  TILE7_STATE_ENTITY: "light.ongebruikt_7"      # entity used for active/inactive state styling
-  TILE7_TITLE: "Tegel 7"                         # tile title shown in the UI
+  TILE7_ENTITY: "light.unused_7"            # main Home Assistant entity for this tile
+  TILE7_STATE_ENTITY: "light.unused_7"      # entity used for active/inactive state styling
+  TILE7_TITLE: "Tile 7"                         # tile title shown in the UI
   TILE7_ICON: "\U000F06B5"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE7_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE7_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset
   TILE7_LONGPRESS: "none"                        # long press mode: none | slider | action | vacuum
   TILE7_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE7_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE7_LABEL_ON: "Aan"                            # text shown for text-mode tiles when entity is on
+  TILE7_LABEL_OFF: "Off"                           # text shown when entity is off
+  TILE7_LABEL_ON: "On"                            # text shown for text-mode tiles when entity is on
   TILE7_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -448,7 +446,7 @@ substitutions:
   TILE7_TAP_PARAM_KEY: ""                          # optional extra service parameter key
   TILE7_TAP_PARAM_VAL: ""                          # optional extra service parameter value
   # if LONGPRESS = slider:
-  TILE7_LONGPRESS_SLIDER: "auto"                   # auto = brightness voor een light
+  TILE7_LONGPRESS_SLIDER: "auto"                   # auto = brightness for a light
   TILE7_LONGPRESS_OFF_VALUE: "0"                   # initial slider value when entity is off
   # if LONGPRESS = action:
   TILE7_LONGPRESS_ACTION: ""                       # entity_id to fire on long press
@@ -456,27 +454,27 @@ substitutions:
   TILE7_LONGPRESS_ACTION_SERVICE: ""               # service to call (default: activate/turn_on)
 
   # ============================================================
-  # TILE 8  —  Brievenbus reset
-  # input_select.brievenbus_status heeft opties ['Vol', 'Leeg'].
-  # De tegel licht op zodra de status "Vol" is (ACTIVE_STATE), en een korte
-  # tik zet hem terug op "Leeg" via input_select.select_option.
+  # TILE 8  —  Mailbox reset
+  # input_select.mailbox_status has options ['Full', 'Empty'].
+  # The tile lights up as soon as the status is "Full" (ACTIVE_STATE), and a
+  # short tap sets it back to "Empty" via input_select.select_option.
   # ============================================================
 
   # --- basic settings ---
-  TILE8_ENTITY: "light.ongebruikt_8"   # main Home Assistant entity for this tile
-  TILE8_STATE_ENTITY: "light.ongebruikt_8"  # entity used for active/inactive state styling
-  TILE8_TITLE: "Tegel 8"                        # tile title shown in the UI
+  TILE8_ENTITY: "light.unused_8"   # main Home Assistant entity for this tile
+  TILE8_STATE_ENTITY: "light.unused_8"  # entity used for active/inactive state styling
+  TILE8_TITLE: "Tile 8"                        # tile title shown in the UI
   TILE8_ICON: "\U000F06EE"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
-  TILE8_TYPE: "light"                             # generiek type; het echte gedrag komt uit TAP_SERVICE hieronder
-  TILE8_TAP_ACTION: "auto"                     # activate + TAP_SERVICE = losse service call
-  TILE8_LONGPRESS: "none"                          # long press stuurt alleen het event naar HA
-  TILE8_VALUE_MODE: "auto"                         # toont LABEL_ON / LABEL_OFF
-  TILE8_LABEL_OFF: "Uit"                          # text shown when entity is off / inactive
-  TILE8_LABEL_ON: "Aan"                            # text shown when entity is active
-  TILE8_ACTIVE_STATE: ""                        # tegel is "aan" zodra de status exact "Vol" is
+  TILE8_TYPE: "light"                             # generic type; the real behavior comes from TAP_SERVICE below
+  TILE8_TAP_ACTION: "auto"                     # activate + TAP_SERVICE = a standalone service call
+  TILE8_LONGPRESS: "none"                          # long press only sends the event to HA
+  TILE8_VALUE_MODE: "auto"                         # shows LABEL_ON / LABEL_OFF
+  TILE8_LABEL_OFF: "Off"                          # text shown when entity is off / inactive
+  TILE8_LABEL_ON: "On"                            # text shown when entity is active
+  TILE8_ACTIVE_STATE: ""                        # tile is "on" as soon as the status is exactly "Full"
 
   # --- colors ---
-  TILE8_CIRCLE_ACTIVE_COLOR: "0xE5484D"            # rood zodra er post ligt
+  TILE8_CIRCLE_ACTIVE_COLOR: "0xE5484D"            # red as soon as there's mail
   TILE8_CIRCLE_DISABLED_COLOR: "0x7B7B6F"          # icon circle color when inactive
   TILE8_ICON_ACTIVE_COLOR: "0xFFFFFF"              # icon color when active
   TILE8_ICON_DISABLED_COLOR: "0xE5484D"            # icon color when inactive
@@ -488,35 +486,35 @@ substitutions:
   TILE8_VALUE_DISABLED_COLOR: "0xD9D9D9"           # value color when inactive
 
   # --- advanced settings ---
-  TILE8_TAP_SERVICE: ""  # zet de input_select op een vaste optie
-  TILE8_TAP_PARAM_KEY: ""                    # parameternaam voor input_select.select_option
-  TILE8_TAP_PARAM_VAL: ""                      # de "reset"-waarde
+  TILE8_TAP_SERVICE: ""  # sets the input_select to a fixed option
+  TILE8_TAP_PARAM_KEY: ""                    # parameter name for input_select.select_option
+  TILE8_TAP_PARAM_VAL: ""                      # the "reset" value
   # if LONGPRESS = slider:
-  TILE8_LONGPRESS_SLIDER: "auto"                   # niet in gebruik (LONGPRESS = none)
-  TILE8_LONGPRESS_OFF_VALUE: "0"                   # niet in gebruik
+  TILE8_LONGPRESS_SLIDER: "auto"                   # not in use (LONGPRESS = none)
+  TILE8_LONGPRESS_OFF_VALUE: "0"                   # not in use
   # if LONGPRESS = action:
   TILE8_LONGPRESS_ACTION: ""                       # entity_id to fire on long press
   TILE8_LONGPRESS_ACTION_TYPE: ""                  # entity type (empty = same as TILE*_TYPE)
   TILE8_LONGPRESS_ACTION_SERVICE: ""               # service to call (default: activate/turn_on)
 
   # ============================================================
-  # TILE 9  —  Woonkamer
-  # Verhuisd van tegel 2 naar rij 5 om plaats te maken voor Ambient.
-  # Kleurenlamp (color_temp / rgb / xy), dus de kleurknop in de
-  # slider-overlay verschijnt vanzelf.
+  # TILE 9  —  Living room
+  # Moved from tile 2 to row 5 to make room for Ambient.
+  # Colour lamp (color_temp / rgb / xy), so the colour button in the
+  # slider overlay appears automatically.
   # ============================================================
 
   # --- basic settings ---
-  TILE9_ENTITY: "light.ongebruikt_9"                # main Home Assistant entity for this tile
-  TILE9_STATE_ENTITY: "light.ongebruikt_9"          # entity used for active/inactive state styling
-  TILE9_TITLE: "Tegel 9"                         # tile title shown in the UI
+  TILE9_ENTITY: "light.unused_9"                # main Home Assistant entity for this tile
+  TILE9_STATE_ENTITY: "light.unused_9"          # entity used for active/inactive state styling
+  TILE9_TITLE: "Tile 9"                         # tile title shown in the UI
   TILE9_ICON: "\U000F04B9"                         # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
   TILE9_TYPE: "light"                              # tile type: light | fan | switch | scene | script | cover | climate
   TILE9_TAP_ACTION: "auto"                         # tap action: auto | toggle | activate | fan_toggle_preset
   TILE9_LONGPRESS: "none"                        # long press mode: none | slider | action | vacuum
   TILE9_VALUE_MODE: "auto"                         # value mode: auto | brightness | percentage | preset | text
-  TILE9_LABEL_OFF: "Uit"                           # text shown when entity is off
-  TILE9_LABEL_ON: "Aan"                            # text shown for text-mode tiles when entity is on
+  TILE9_LABEL_OFF: "Off"                           # text shown when entity is off
+  TILE9_LABEL_ON: "On"                            # text shown for text-mode tiles when entity is on
   TILE9_ACTIVE_STATE: ""                           # optional: exact HA state that counts as "active" (empty = default "on")
 
   # --- colors ---
@@ -536,7 +534,7 @@ substitutions:
   TILE9_TAP_PARAM_KEY: ""                          # optional extra service parameter key
   TILE9_TAP_PARAM_VAL: ""                          # optional extra service parameter value
   # if LONGPRESS = slider:
-  TILE9_LONGPRESS_SLIDER: "auto"                   # auto = brightness voor een light
+  TILE9_LONGPRESS_SLIDER: "auto"                   # auto = brightness for a light
   TILE9_LONGPRESS_OFF_VALUE: "0"                   # initial slider value when entity is off
   # if LONGPRESS = action:
   TILE9_LONGPRESS_ACTION: ""                       # entity_id to fire on long press
@@ -544,26 +542,26 @@ substitutions:
   TILE9_LONGPRESS_ACTION_SERVICE: ""               # service to call (default: activate/turn_on)
 
   # ============================================================
-  # TILE 10  —  Alarm aan/uit
-  # input_boolean.alarm_engaged. Een input_boolean reageert niet op
-  # switch.toggle, vandaar de expliciete TAP_SERVICE.
+  # TILE 10  —  Alarm on/off
+  # input_boolean.alarm_engaged. An input_boolean doesn't respond to
+  # switch.toggle, hence the explicit TAP_SERVICE.
   # ============================================================
 
   # --- basic settings ---
-  TILE10_ENTITY: "light.ongebruikt_10"     # main Home Assistant entity for this tile
-  TILE10_STATE_ENTITY: "light.ongebruikt_10"  # entity used for active/inactive state styling
-  TILE10_TITLE: "Tegel 10"                            # tile title shown in the UI
+  TILE10_ENTITY: "light.unused_10"     # main Home Assistant entity for this tile
+  TILE10_STATE_ENTITY: "light.unused_10"  # entity used for active/inactive state styling
+  TILE10_TITLE: "Tile 10"                            # tile title shown in the UI
   TILE10_ICON: "\U000F002A"                        # MDI glyph from the tile icon set (screen_manager/app/tile_icons.py)
-  TILE10_TYPE: "light"                            # generiek aan/uit-type; de service hieronder doet het echte werk
+  TILE10_TYPE: "light"                            # generic on/off type; the service below does the real work
   TILE10_TAP_ACTION: "auto"                      # tap action: auto | toggle | activate | fan_toggle_preset
-  TILE10_LONGPRESS: "none"                         # long press stuurt alleen het event naar HA
-  TILE10_VALUE_MODE: "auto"                        # toont LABEL_ON / LABEL_OFF
-  TILE10_LABEL_OFF: "Uit"                          # text shown when entity is off
-  TILE10_LABEL_ON: "Aan"                           # text shown when entity is on
-  TILE10_ACTIVE_STATE: ""                          # input_boolean gebruikt gewoon on/off
+  TILE10_LONGPRESS: "none"                         # long press only sends the event to HA
+  TILE10_VALUE_MODE: "auto"                        # shows LABEL_ON / LABEL_OFF
+  TILE10_LABEL_OFF: "Off"                          # text shown when entity is off
+  TILE10_LABEL_ON: "On"                           # text shown when entity is on
+  TILE10_ACTIVE_STATE: ""                          # input_boolean just uses on/off
 
   # --- colors ---
-  TILE10_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"     # input_boolean -> ACCENT_DEVICE (cyaan)
+  TILE10_CIRCLE_ACTIVE_COLOR: "${ACCENT_AUTO}"     # input_boolean -> ACCENT_DEVICE (cyan)
   TILE10_CIRCLE_DISABLED_COLOR: "0x7B7B6F"         # icon circle color when inactive
   TILE10_ICON_ACTIVE_COLOR: "0xFFFFFF"             # icon color when active
   TILE10_ICON_DISABLED_COLOR: "${ACCENT_AUTO}"     # icon color when inactive
@@ -575,12 +573,12 @@ substitutions:
   TILE10_VALUE_DISABLED_COLOR: "0xD9D9D9"          # value color when inactive
 
   # --- advanced settings ---
-  TILE10_TAP_SERVICE: ""       # switch.toggle werkt niet op een input_boolean
+  TILE10_TAP_SERVICE: ""       # switch.toggle doesn't work on an input_boolean
   TILE10_TAP_PARAM_KEY: ""                         # optional extra service parameter key
   TILE10_TAP_PARAM_VAL: ""                         # optional extra service parameter value
   # if LONGPRESS = slider:
-  TILE10_LONGPRESS_SLIDER: "auto"                  # niet in gebruik (LONGPRESS = none)
-  TILE10_LONGPRESS_OFF_VALUE: "0"                  # niet in gebruik
+  TILE10_LONGPRESS_SLIDER: "auto"                  # not in use (LONGPRESS = none)
+  TILE10_LONGPRESS_OFF_VALUE: "0"                  # not in use
   # if LONGPRESS = action:
   TILE10_LONGPRESS_ACTION: ""                      # entity_id to fire on long press
   TILE10_LONGPRESS_ACTION_TYPE: ""                 # entity type (empty = same as TILE*_TYPE)
@@ -609,8 +607,8 @@ substitutions:
   DISPLAY_H: "240"
   LVGL_ROTATION: "90"
   TOUCH_SWAP_XY: "false"
-  # true op dit bord (resistieve XPT2046) — was false op het 032c-bord
-  # (capacitieve GT911). Dit is de originele upstream-waarde voor dit paneel.
+  # true on this board (resistive XPT2046) — was false on the 032c board
+  # (capacitive GT911). This is the original upstream value for this panel.
   TOUCH_MIRROR_X: "true"
   TOUCH_MIRROR_Y: "false"
   # Measured on this board: median top-right raw=(523,3390),
@@ -650,9 +648,9 @@ substitutions:
   ALERT_BUTTON_H: "40"
   ALERT_BUTTON_INSET: "14"
   ALERT_TITLE_MAX: "48"       # bytes; the label ends one line with an ellipsis
-  ALERT_BUTTON_MAX: "12"      # bytes on the Oké button
+  ALERT_BUTTON_MAX: "12"      # bytes on the OK button
   ALERT_SUBTITLE_MAX: "160"   # bytes; wraps over the rows the card has
-  BG_TOP_COLOR: "0xE7E7E7"                          # lichte achtergrond, gelijk aan de Guition
+  BG_TOP_COLOR: "0xE7E7E7"                          # light background, matching the Guition
   BG_BOTTOM_COLOR: "0xE7E7E7"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "0"
@@ -688,8 +686,8 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "200"
   # OVERLAY_ICON_Y: "94"
-  # BG_TOP_COLOR: "0xAEC4D9"                        # achtergrond boven (zacht blauw)
-  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # achtergrond onder (warm zand)
+  # BG_TOP_COLOR: "0xAEC4D9"                        # background top (soft blue)
+  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # background bottom (warm sand)
   # TILE_ICON_X: "0"
   # TILE_ICON_Y: "0"
   # TILE_TITLE_X: "4"
@@ -724,8 +722,8 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "160"
   # OVERLAY_ICON_Y: "74"
-  # BG_TOP_COLOR: "0xAEC4D9"                        # achtergrond boven (zacht blauw)
-  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # achtergrond onder (warm zand)
+  # BG_TOP_COLOR: "0xAEC4D9"                        # background top (soft blue)
+  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # background bottom (warm sand)
   # TILE_ICON_X: "0"
   # TILE_ICON_Y: "0"
   # TILE_TITLE_X: "48"
@@ -760,8 +758,8 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "200"
   # OVERLAY_ICON_Y: "94"
-  # BG_TOP_COLOR: "0xAEC4D9"                        # achtergrond boven (zacht blauw)
-  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # achtergrond onder (warm zand)
+  # BG_TOP_COLOR: "0xAEC4D9"                        # background top (soft blue)
+  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # background bottom (warm sand)
   # TILE_ICON_X: "0"
   # TILE_ICON_Y: "0"
   # TILE_TITLE_X: "4"
@@ -889,7 +887,7 @@ esphome:
             id(active_climate_swing_modes) = t.swing_modes; id(active_climate_swing_mode) = t.swing_mode;
             id(open_value_overlay).execute(t.name, t.entity, t.domain(), "auto", t.active(), 0,
               t.brightness, t.percentage, t.position, runtime_tiles::icon_for(t),
-              0xD5EEFC, 0x00A6ED, 0x1B1B1B, "Uit", "Aan", t.modes,
+              0xD5EEFC, 0x00A6ED, 0x1B1B1B, "Off", "On", t.modes,
               t.current, t.target, t.humidity, t.state, t.hvac_modes,
               std::to_string(t.minimum), std::to_string(t.maximum), std::to_string(t.step));
           };
@@ -905,8 +903,8 @@ esphome:
               id(active_climate_fan_modes) = t.fan_modes; id(active_climate_fan_mode) = t.fan_mode;
               id(active_climate_swing_modes) = t.swing_modes; id(active_climate_swing_mode) = t.swing_mode;
               char buf[72];
-              if (std::isfinite(t.current)) snprintf(buf, sizeof(buf), "Nu: %.1f°", t.current);
-              else snprintf(buf, sizeof(buf), "Nu: --");
+              if (std::isfinite(t.current)) snprintf(buf, sizeof(buf), "Now: %.1f°", t.current);
+              else snprintf(buf, sizeof(buf), "Now: --");
               lv_label_set_text(id(climate_current_label), buf);
               if (std::isfinite(t.target)) {
                 int target = cyd::quantize_temperature(lround(t.target * 10), id(active_climate_min_x10), id(active_climate_max_x10), id(active_climate_step_x10));
@@ -954,19 +952,19 @@ esp32:
   framework:
     type: esp-idf
     advanced:
-      # ESPHome adviseert dit zelf in de boot-log. Levert ~40KB extra IRAM
-      # en een kleinere binary op, en op dit bord telt elke KB.
+      # ESPHome recommends this itself in the boot log. Yields ~40KB extra IRAM
+      # and a smaller binary, and every KB counts on this board.
       sram1_as_iram: true
-      # minimum_chip_revision bewust weggelaten: dat stond hier voor het
-      # 032c-bord (rev 3.1 bevestigd), maar dit is een ander fysiek bordje
-      # met een onbekende chip-revisie. Met een onterecht hoge minimum
-      # weigert de firmware simpelweg te booten.
+      # minimum_chip_revision deliberately left out: that was here for the
+      # 032c board (rev 3.1 confirmed), but this is a different physical board
+      # with an unknown chip revision. With an unjustifiably high minimum
+      # the firmware simply refuses to boot.
     version: recommended
   variant: esp32
 
 logger:
-  # Voor diagnose tijdelijk op DEBUG of VERBOSE zetten. Let op: ESPHome logt
-  # zijn configuratieregels op niveau CONFIG, die zijn op INFO onzichtbaar.
+  # Set to DEBUG or VERBOSE temporarily for diagnosis. Note: ESPHome logs
+  # its configuration lines at CONFIG level, which are invisible at INFO.
   level: DEBUG
   logs:
     sensor: WARN
@@ -1048,7 +1046,7 @@ api:
       then:
         - script.execute: ui_self_test
     # Home Assistant automations: esphome.<device>_show_alert puts a card over the whole
-    # screen (README, "Alert vanuit een automatisering"); dismiss_alert removes it again.
+    # screen (README, "Alert from an automation"); dismiss_alert removes it again.
     - action: show_alert
       variables:
         title: string
@@ -1182,10 +1180,10 @@ globals:
     restore_value: no
     initial_value: '0'
 
-  # Debounce voor do_tile_action: dit resistieve XPT2046-paneel geeft soms
-  # meerdere losse press/release-cycli voor één fysieke aanraking (ruis in
-  # het weerstandslaagje), waardoor dezelfde HA-actie meerdere keren binnen
-  # een paar honderd ms vuurt (gezien: script.ambient_morning 6x in 8s).
+  # Debounce for do_tile_action: this resistive XPT2046 panel sometimes gives
+  # multiple separate press/release cycles for one physical touch (noise in
+  # the resistive layer), causing the same HA action to fire multiple times
+  # within a few hundred ms (observed: script.ambient_morning 6x in 8s).
   - id: last_action_entity
     type: std::string
     restore_value: no
@@ -1553,8 +1551,8 @@ font:
     size: 12
     glyphs: *tile_icons
 
-# Geheugen zichtbaar maken: dit bord heeft geen PSRAM, dus de vrije heap
-# bepaalt hoeveel UI erbij kan. Verschijnt ook als entity in Home Assistant.
+# Make memory visible: this board has no PSRAM, so the free heap determines
+# how much UI still fits. Also shows up as an entity in Home Assistant.
 debug:
   # Heap figures every five minutes: enough to spot a leak, few recorder rows.
   update_interval: 300s
@@ -1581,7 +1579,7 @@ sensor:
   # "s" in its registry and would refuse a timestamp under that name.
   - platform: uptime
     type: timestamp
-    name: "Opgestart"
+    name: "Last boot"
     id: boot_time
 
   - platform: homeassistant
@@ -1656,17 +1654,17 @@ sensor:
     attribute: percentage
     on_value: { then: [ lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();' ] }
 
-  # Tegel 7 (Tafellamp) is een alleen-helderheid light: alleen brightness.
-  # Bewust geen percentage / cover_position / climate-sensors — elke
-  # HA-subscription kost heap op een bord zonder PSRAM.
+  # Tile 7 (Table lamp) is a brightness-only light: just brightness.
+  # Deliberately no percentage / cover_position / climate sensors — every
+  # HA subscription costs heap on a board without PSRAM.
   - platform: homeassistant
     id: tile7_brightness
     entity_id: ${TILE7_ENTITY}
     attribute: brightness
     on_value: { then: [ lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();' ] }
 
-  # Tegel 9 (Woonkamer) is een kleurenlamp: brightness + supported_color_modes.
-  # Geen percentage / cover / climate — die leest deze tegel nooit.
+  # Tile 9 (Living room) is a colour lamp: brightness + supported_color_modes.
+  # No percentage / cover / climate — this tile never reads those.
   - platform: homeassistant
     id: tile9_brightness
     entity_id: ${TILE9_ENTITY}
@@ -1837,19 +1835,19 @@ binary_sensor:
 # ----------------------------------------------------------
 text_sensor:
   - platform: template
-    name: "Schermfirmware"
+    name: "Screen firmware"
     entity_category: diagnostic
     lambda: 'return {"${SCREEN_FIRMWARE_VERSION}"};'
     update_interval: 60s
   # ESP Screen Manager matches the screen to its YAML profile and OTA address.
   - platform: template
-    name: "Apparaatnaam"
+    name: "Device name"
     entity_category: diagnostic
     lambda: 'return {"${DEVICE_NAME}"};'
     update_interval: 60s
   - platform: wifi_info
     ip_address:
-      name: "IP-adres"
+      name: "IP address"
       entity_category: diagnostic
   - platform: template
     id: smartdisplay_action
@@ -1906,15 +1904,15 @@ text_sensor:
     entity_id: ${TILE10_STATE_ENTITY}
     on_value: { then: [ lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();' ] }
 
-  # Woonkamer meldt color_temp/rgb/xy, dus hier verschijnt de kleurknop wel.
+  # Living room reports color_temp/rgb/xy, so the colour button does appear here.
   - platform: homeassistant
     id: tile9_supported_color_modes
     entity_id: ${TILE9_ENTITY}
     attribute: supported_color_modes
     on_value: { then: [ lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();' ] }
 
-  # Gebruikt door de slider-overlay om te bepalen of de kleurknop nodig is.
-  # Deze lamp meldt ['brightness'], dus de knop blijft vanzelf verborgen.
+  # Used by the slider overlay to decide whether the colour button is needed.
+  # This lamp reports ['brightness'], so the button stays hidden automatically.
   - platform: homeassistant
     id: tile7_supported_color_modes
     entity_id: ${TILE7_ENTITY}
@@ -2090,8 +2088,8 @@ switch:
 # Two SPI buses used by the CYD:
 # - lcd: built-in display
 # - my_touchscreen: built-in touch controller
-# Twee SPI bussen op de 2432S028: een voor het display, een losse voor de
-# resistieve XPT2046 touch (geen I2C op dit bord, in tegenstelling tot 032c).
+# Two SPI buses on the 2432S028: one for the display, a separate one for the
+# resistive XPT2046 touch (no I2C on this board, unlike the 032c).
 spi:
   - id: lcd
     clk_pin: GPIO14
@@ -2106,12 +2104,12 @@ output:
   - platform: ledc
     pin: GPIO21
     id: gpio_backlight_pwm
-    # ESPHome's ledc default is 1kHz. Bij stilstand zie je dat niet (ruim
-    # boven wat het oog als flikkering waarneemt), maar bij beweging van het
-    # scherm onthult motion-blur de aan/uit-pulsen als strepen (zelfde effect
-    # als een PWM-LED die "schokt" als je hem beweegt). 20kHz zit ruim boven
-    # de snelheid waarbij beweging dat nog zichtbaar maakt, en laat nog altijd
-    # ruim voldoende duty-cycle resolutie over voor vloeiend dimmen.
+    # ESPHome's ledc default is 1kHz. You don't see that while still (well
+    # above what the eye perceives as flicker), but moving the screen reveals
+    # motion blur turning the on/off pulses into streaks (the same effect as
+    # a PWM LED that "judders" when you move it). 20kHz sits well above the
+    # speed at which motion still makes that visible, and still leaves ample
+    # duty-cycle resolution left over for smooth dimming.
     frequency: 20000Hz
 
   - platform: ledc
@@ -2142,7 +2140,7 @@ light:
     blue: output_blue
     restore_mode: ALWAYS_OFF
 
-# Touchscreen configuration (XPT2046, resistief, via SPI)
+# Touchscreen configuration (XPT2046, resistive, via SPI)
 # XPT2046 calibration is board-specific. Poll at 50Hz; LVGL rotates touch
 # with the display. GPIO36 IRQ is deliberately unused (driver requests a
 # pull-up that this input-only pin cannot provide).
@@ -2217,23 +2215,23 @@ lvgl:
   touchscreens:
     - touchscreen_id: ts_touch
 
-  # De ESP32-WROOM-32 heeft geen PSRAM; een volledige framebuffer (320x240x2
-  # = 153600 bytes) past niet in DRAM. 25% is de gebruikelijke waarde.
-  # 12% in plaats van 25%: laat ~20KB extra aaneengesloten geheugen vrij,
-  # en LVGL schaalt de stroken van een ARGB-laag mee met de beschikbare
-  # tekenruimte, dus ook de gevraagde allocaties worden kleiner.
+  # The ESP32-WROOM-32 has no PSRAM; a full framebuffer (320x240x2
+  # = 153600 bytes) doesn't fit in DRAM. 25% is the usual value.
+  # 12% instead of 25%: frees up ~20KB of extra contiguous memory,
+  # and LVGL scales the strips of an ARGB layer along with the available
+  # drawing space, so the requested allocations get smaller too.
   buffer_size: 12%
 
-  # Directe lokale feedback op de HELE UI, niet alleen op de tegels.
-  # Een thema zet de stijl per widget-type, dus dit dekt in een klap alle
-  # knoppen, tabs, sliders en de thermostaatring. Niet-klikbare widgets
-  # komen nooit in de pressed-state, dus die blijven onaangeroerd.
+  # Direct local feedback on the WHOLE UI, not just the tiles.
+  # A theme sets the style per widget type, so this covers all
+  # buttons, tabs, sliders and the thermostat ring in one go. Non-clickable
+  # widgets never enter the pressed state, so those stay untouched.
   theme:
     obj:
       pressed:
-        # bg_opa en NIET opa: `opa` op widget-niveau dwingt LVGL het element
-        # naar een aparte laag te renderen, en die laag kost tientallen KB's
-        # per ingedrukte widget. Dat liep hier het geheugen uit.
+        # bg_opa and NOT opa: `opa` at widget level forces LVGL to render the
+        # element to a separate layer, and that layer costs tens of KB's
+        # per pressed widget. That ran the memory out here.
         bg_opa: 45%
     slider:
       knob:
@@ -2248,9 +2246,9 @@ lvgl:
   rotation: ${LVGL_ROTATION}
 
   style_definitions:
-    # Achtergrond: twee-stops verticale gradient in plaats van de 320x240
-    # RGB565-wallpaper. Scheelt ~150 KB flash en een image-blit per hertekening,
-    # wat je direct terugziet in de vloeiendheid van het scrollen.
+    # Background: two-stop vertical gradient instead of the 320x240
+    # RGB565 wallpaper. Saves ~150 KB flash and an image blit per redraw,
+    # which you can see directly in how smoothly it scrolls.
     - id: style_bg_grad
       bg_color: ${BG_TOP_COLOR}
       bg_grad_color: ${BG_BOTTOM_COLOR}
@@ -2389,7 +2387,7 @@ lvgl:
                       y: ${ALERT_TITLE_Y}
                       width: ${ALERT_TEXT_W}
                       long_mode: DOT
-                      text: "Melding"
+                      text: "Notification"
                       text_font: headline
                       text_color: 0x1B1B1B
                       clickable: false
@@ -2434,7 +2432,7 @@ lvgl:
                         - label:
                             id: alert_ok_label
                             align: CENTER
-                            text: "Oké"
+                            text: "OK"
                             text_font: headline
                             text_color: 0xFFFFFF
                             clickable: false
@@ -2503,8 +2501,8 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  # Directe lokale feedback: LVGL past dit toe zodra de vinger het
-                  # glas raakt, in dezelfde frame. Onafhankelijk van Home Assistant.
+                  # Direct local feedback: LVGL applies this as soon as the finger
+                  # touches the glass, in the same frame. Independent of Home Assistant.
                   pressed:
                     bg_opa: 45%
                   widgets:
@@ -2613,8 +2611,8 @@ lvgl:
                                           climate_min_temp: "${TILE1_CLIMATE_MIN_TEMP}"
                                           climate_max_temp: "${TILE1_CLIMATE_MAX_TEMP}"
                                           climate_step: "${TILE1_CLIMATE_STEP}"
-                          # Long-press modus "vacuum": opent de stofzuigerbediening.
-                          # Valt buiten de action/slider-keten, dus die blijft ongewijzigd.
+                          # Long-press mode "vacuum": opens the vacuum controls.
+                          # Falls outside the action/slider chain, so that stays unchanged.
                           - if:
                               condition:
                                 lambda: "return std::string(\"${TILE1_LONGPRESS}\") == \"vacuum\";"
@@ -2634,8 +2632,8 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  # Directe lokale feedback: LVGL past dit toe zodra de vinger het
-                  # glas raakt, in dezelfde frame. Onafhankelijk van Home Assistant.
+                  # Direct local feedback: LVGL applies this as soon as the finger
+                  # touches the glass, in the same frame. Independent of Home Assistant.
                   pressed:
                     bg_opa: 45%
                   widgets:
@@ -2744,8 +2742,8 @@ lvgl:
                                           climate_min_temp: "${TILE2_CLIMATE_MIN_TEMP}"
                                           climate_max_temp: "${TILE2_CLIMATE_MAX_TEMP}"
                                           climate_step: "${TILE2_CLIMATE_STEP}"
-                          # Long-press modus "vacuum": opent de stofzuigerbediening.
-                          # Valt buiten de action/slider-keten, dus die blijft ongewijzigd.
+                          # Long-press mode "vacuum": opens the vacuum controls.
+                          # Falls outside the action/slider chain, so that stays unchanged.
                           - if:
                               condition:
                                 lambda: "return std::string(\"${TILE2_LONGPRESS}\") == \"vacuum\";"
@@ -2765,8 +2763,8 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  # Directe lokale feedback: LVGL past dit toe zodra de vinger het
-                  # glas raakt, in dezelfde frame. Onafhankelijk van Home Assistant.
+                  # Direct local feedback: LVGL applies this as soon as the finger
+                  # touches the glass, in the same frame. Independent of Home Assistant.
                   pressed:
                     bg_opa: 45%
                   widgets:
@@ -2875,8 +2873,8 @@ lvgl:
                                           climate_min_temp: "${TILE3_CLIMATE_MIN_TEMP}"
                                           climate_max_temp: "${TILE3_CLIMATE_MAX_TEMP}"
                                           climate_step: "${TILE3_CLIMATE_STEP}"
-                          # Long-press modus "vacuum": opent de stofzuigerbediening.
-                          # Valt buiten de action/slider-keten, dus die blijft ongewijzigd.
+                          # Long-press mode "vacuum": opens the vacuum controls.
+                          # Falls outside the action/slider chain, so that stays unchanged.
                           - if:
                               condition:
                                 lambda: "return std::string(\"${TILE3_LONGPRESS}\") == \"vacuum\";"
@@ -2896,8 +2894,8 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  # Directe lokale feedback: LVGL past dit toe zodra de vinger het
-                  # glas raakt, in dezelfde frame. Onafhankelijk van Home Assistant.
+                  # Direct local feedback: LVGL applies this as soon as the finger
+                  # touches the glass, in the same frame. Independent of Home Assistant.
                   pressed:
                     bg_opa: 45%
                   widgets:
@@ -3006,8 +3004,8 @@ lvgl:
                                           climate_min_temp: "${TILE4_CLIMATE_MIN_TEMP}"
                                           climate_max_temp: "${TILE4_CLIMATE_MAX_TEMP}"
                                           climate_step: "${TILE4_CLIMATE_STEP}"
-                          # Long-press modus "vacuum": opent de stofzuigerbediening.
-                          # Valt buiten de action/slider-keten, dus die blijft ongewijzigd.
+                          # Long-press mode "vacuum": opens the vacuum controls.
+                          # Falls outside the action/slider chain, so that stays unchanged.
                           - if:
                               condition:
                                 lambda: "return std::string(\"${TILE4_LONGPRESS}\") == \"vacuum\";"
@@ -3027,8 +3025,8 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  # Directe lokale feedback: LVGL past dit toe zodra de vinger het
-                  # glas raakt, in dezelfde frame. Onafhankelijk van Home Assistant.
+                  # Direct local feedback: LVGL applies this as soon as the finger
+                  # touches the glass, in the same frame. Independent of Home Assistant.
                   pressed:
                     bg_opa: 45%
                   widgets:
@@ -3137,8 +3135,8 @@ lvgl:
                                           climate_min_temp: "${TILE5_CLIMATE_MIN_TEMP}"
                                           climate_max_temp: "${TILE5_CLIMATE_MAX_TEMP}"
                                           climate_step: "${TILE5_CLIMATE_STEP}"
-                          # Long-press modus "vacuum": opent de stofzuigerbediening.
-                          # Valt buiten de action/slider-keten, dus die blijft ongewijzigd.
+                          # Long-press mode "vacuum": opens the vacuum controls.
+                          # Falls outside the action/slider chain, so that stays unchanged.
                           - if:
                               condition:
                                 lambda: "return std::string(\"${TILE5_LONGPRESS}\") == \"vacuum\";"
@@ -3158,8 +3156,8 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  # Directe lokale feedback: LVGL past dit toe zodra de vinger het
-                  # glas raakt, in dezelfde frame. Onafhankelijk van Home Assistant.
+                  # Direct local feedback: LVGL applies this as soon as the finger
+                  # touches the glass, in the same frame. Independent of Home Assistant.
                   pressed:
                     bg_opa: 45%
                   widgets:
@@ -3268,8 +3266,8 @@ lvgl:
                                           climate_min_temp: "${TILE6_CLIMATE_MIN_TEMP}"
                                           climate_max_temp: "${TILE6_CLIMATE_MAX_TEMP}"
                                           climate_step: "${TILE6_CLIMATE_STEP}"
-                          # Long-press modus "vacuum": opent de stofzuigerbediening.
-                          # Valt buiten de action/slider-keten, dus die blijft ongewijzigd.
+                          # Long-press mode "vacuum": opens the vacuum controls.
+                          # Falls outside the action/slider chain, so that stays unchanged.
                           - if:
                               condition:
                                 lambda: "return std::string(\"${TILE6_LONGPRESS}\") == \"vacuum\";"
@@ -3279,11 +3277,11 @@ lvgl:
                                     title: "${TILE6_TITLE}"
                                     entity: "${TILE6_ENTITY}"
 
-              # ---------- TILE 7 — Tafellamp ----------
-              # Alleen-helderheid lamp: er zijn bewust geen percentage/cover/
-              # climate-sensors voor deze tegel aangemaakt, die zouden alleen
-              # maar HA-subscriptions en heap kosten. De overlay krijgt daarom
-              # NAN / "" voor de velden die een light nooit gebruikt.
+              # ---------- TILE 7 — Table lamp ----------
+              # Brightness-only lamp: deliberately no percentage/cover/climate
+              # sensors were created for this tile, those would only cost
+              # HA subscriptions and heap. The overlay therefore gets
+              # NAN / "" for the fields a light never uses.
               - obj:
                   id: tile7
                   hidden: true
@@ -3397,12 +3395,12 @@ lvgl:
                                           climate_max_temp: "30.0"
                                           climate_step: "0.5"
 
-              # ---------- TILE 8 — Brievenbus reset ----------
-              # input_select met opties Vol/Leeg. De tegel licht op zodra de
-              # status TILE8_ACTIVE_STATE ("Vol") is; een korte tik stuurt
-              # input_select.select_option met option: "Leeg".
-              # Geen slider-modus, dus deze tegel heeft alleen ha_state_tile8
-              # nodig — verder geen enkele HA-subscription.
+              # ---------- TILE 8 — Mailbox reset ----------
+              # input_select with options Full/Empty. The tile lights up as soon as
+              # the status is TILE8_ACTIVE_STATE ("Full"); a short tap sends
+              # input_select.select_option with option: "Empty".
+              # No slider mode, so this tile only needs ha_state_tile8 —
+              # no other HA subscription at all.
               - obj:
                   id: tile8
                   hidden: true
@@ -3469,8 +3467,8 @@ lvgl:
                           lambda: 'return !runtime_tiles::enabled && cyd::touch_guard.accept(millis(), 8);'
                         then:
                           - script.execute: { id: publish_action, action: "tile8_long_press" }
-                          # Slider-modus kan hier niet zonder eerst de bijbehorende
-                          # sensors aan te maken; "action" werkt wel out of the box.
+                          # Slider mode isn't possible here without first creating the
+                          # corresponding sensors; "action" works out of the box.
                           - if:
                               condition:
                                 lambda: "return std::string(\"${TILE8_LONGPRESS}\") == \"action\";"
@@ -3487,7 +3485,7 @@ lvgl:
                                     param_val: ""
                                     was_on: false
 
-              # ---------- TILE 9 — Woonkamer (verhuisd van tegel 2) ----------
+              # ---------- TILE 9 — Living room (moved from tile 2) ----------
               - obj:
                   id: tile9
                   hidden: true
@@ -3601,7 +3599,7 @@ lvgl:
                                           climate_max_temp: "30.0"
                                           climate_step: "0.5"
 
-              # ---------- TILE 10 — Alarm aan/uit ----------
+              # ---------- TILE 10 — Alarm on/off ----------
               - obj:
                   id: tile10
                   hidden: true
@@ -3712,7 +3710,7 @@ lvgl:
               - label:
                   align: LEFT_MID
                   x: 12
-                  text: "<  Vorige"
+                  text: "<  Previous"
                   text_font: label
                   text_color: 0x1B1B1B
                   clickable: false
@@ -3754,7 +3752,7 @@ lvgl:
               - label:
                   align: RIGHT_MID
                   x: -12
-                  text: "Volgende  >"
+                  text: "Next  >"
                   text_font: label
                   text_color: 0x1B1B1B
                   clickable: false
@@ -3827,12 +3825,12 @@ lvgl:
                   bg_color: 0xFFFFFF
                   bg_opa: 100%
                   radius: 28
-                  # Enige widget met ZOWEL radius ALS een kind (overlay_icon).
-                  # LVGL snijdt kinderen dan bij op de ronding, en dat kan
-                  # alleen via een ARGB-laag van 96x160 = 46KB aaneengesloten.
-                  # Lukt die allocatie niet, dan blijft LVGL het proberen tot
-                  # de task watchdog het bord herstart. Ronding blijft, het
-                  # bijsnijden gaat eraf.
+                  # The only widget with BOTH a radius AND a child (overlay_icon).
+                  # LVGL then clips children to the rounding, and that's only
+                  # possible via a contiguous 96x160 = 46KB ARGB layer.
+                  # If that allocation fails, LVGL keeps trying until the
+                  # task watchdog restarts the board. The rounding stays, the
+                  # clipping goes.
                   clip_corner: false
                   border_width: 0
 
@@ -3858,12 +3856,12 @@ lvgl:
                         value: !lambda "return lv_slider_get_value(id(overlay_slider));"
 
 
-              # Het icoon zat als KIND in de slider. Een widget met een radius
-              # en kinderen moet die kinderen bijsnijden op de ronding, en dat
-              # kan LVGL alleen via een ARGB-laag van tientallen KB's. Zonder
-              # PSRAM mislukt dat soms, waarna LVGL blijft hertesten tot de
-              # watchdog het bord herstart. Als broer eroverheen is er geen
-              # laag nodig en ziet het er identiek uit.
+              # The icon used to be a CHILD in the slider. A widget with a radius
+              # and children has to clip those children to the rounding, and
+              # LVGL can only do that via an ARGB layer of tens of KB's. Without
+              # PSRAM that sometimes fails, after which LVGL keeps retrying until
+              # the watchdog restarts the board. As a sibling on top, no layer
+              # is needed and it looks identical.
               - label:
                   id: overlay_icon
                   align: CENTER
@@ -4212,8 +4210,8 @@ lvgl:
                   align: TOP_LEFT
                   x: 10
                   y: 9
-                  # 44 i.p.v. 36: iets groter doelvlak, groeit weg van de arc
-                  # (top-left anchor blijft staan) i.p.v. ernaartoe.
+                  # 44 instead of 36: slightly bigger tap target, grows away from the arc
+                  # (top-left anchor stays put) instead of towards it.
                   width: 44
                   height: 44
                   radius: 999
@@ -4269,7 +4267,7 @@ lvgl:
                   id: climate_current_label
                   align: TOP_MID
                   y: 42
-                  text: "Nu: --"
+                  text: "Now: --"
                   text_font: sublabel_big
                   text_color: 0x1B1B1B
                   text_opa: 85%
@@ -4281,9 +4279,9 @@ lvgl:
                   y: 20
                   width: 184
                   height: 184
-                  # Zonder dit claimt de arc een onzichtbare rand extra
-                  # klikgebied buiten de 184x184 box — vlakbij de kruisje-
-                  # knop linksboven ontstaat daardoor overlap.
+                  # Without this the arc claims an invisible extra
+                  # click area outside the 184x184 box — near the close
+                  # button top-left this creates overlap.
                   ext_click_area: 0
                   start_angle: 135
                   end_angle: 45
@@ -4320,7 +4318,7 @@ lvgl:
                   id: climate_set_label
                   align: CENTER
                   y: -16
-                  text: "Gewenst"
+                  text: "Target"
                   text_font: sublabel_big
                   text_color: 0x1B1B1B
                   text_opa: 68%
@@ -4412,10 +4410,10 @@ lvgl:
                         text_color: 0x1B1B1B
                         clickable: false
         # ---------- CLIMATE MODE PICKER ----------
-        # Vervangt het doorcyclen van modi. Cyclen stuurt bij elke tik een
-        # set_hvac_mode, dus om van 'cool' naar 'dry' te komen zet je een
-        # warmtepomp onderweg ook echt in 'heat' en 'fan_only'. Hier kies je
-        # rechtstreeks, en wordt er precies een opdracht verstuurd.
+        # Replaces cycling through modes. Cycling sends a set_hvac_mode on every
+        # tap, so to get from 'cool' to 'dry' a heat pump actually passes through
+        # 'heat' and 'fan_only' along the way. Here you pick directly, and exactly
+        # one command is sent.
         - obj:
             id: climate_mode_overlay
             x: 0
@@ -4433,13 +4431,13 @@ lvgl:
               - label:
                   align: TOP_MID
                   y: 16
-                  text: "Modus"
+                  text: "Mode"
                   text_font: sublabel_big
                   text_color: 0x1B1B1B
                   clickable: false
 
-              # Flex zorgt dat niet-ondersteunde modi geen gat achterlaten:
-              # LVGL slaat verborgen kinderen over bij het schikken.
+              # Flex ensures unsupported modes don't leave a gap:
+              # LVGL skips hidden children when arranging.
               - obj:
                   id: climate_mode_list
                   align: TOP_MID
@@ -4477,7 +4475,7 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Uit"
+                              text: "Off"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
@@ -4498,7 +4496,7 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Verwarmen"
+                              text: "Heat"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
@@ -4519,7 +4517,7 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Koelen"
+                              text: "Cool"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
@@ -4540,7 +4538,7 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Verw./koelen"
+                              text: "Heat/Cool"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
@@ -4582,7 +4580,7 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Drogen"
+                              text: "Dry"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
@@ -4603,7 +4601,7 @@ lvgl:
                         widgets:
                           - label:
                               align: CENTER
-                              text: "Ventileren"
+                              text: "Fan only"
                               text_font: sublabel_big
                               text_color: 0x1B1B1B
                               clickable: false
@@ -4612,7 +4610,7 @@ lvgl:
                         id: cfan_title
                         width: 100%
                         height: 11
-                        text: "Ventilator"
+                        text: "Fan"
                         text_font: sublabel
                         text_color: 0x6B6B6B
                         text_align: CENTER
@@ -4709,7 +4707,7 @@ lvgl:
                         id: cswing_title
                         width: 100%
                         height: 11
-                        text: "Zwenken"
+                        text: "Swing"
                         text_font: sublabel
                         text_color: 0x6B6B6B
                         text_align: CENTER
@@ -4829,8 +4827,8 @@ lvgl:
 
 
         # ---------- VACUUM CONTROL ----------
-        # Een stofzuiger is geen schakelaar: start, pauze, stop en terug naar
-        # het dock zijn losse opdrachten, en de zuigkracht is een aparte as.
+        # A vacuum is not a switch: start, pause, stop and return to
+        # the dock are separate commands, and suction power is a separate axis.
         - obj:
             id: vacuum_overlay
             x: 0
@@ -5140,7 +5138,7 @@ lvgl:
         - label:
             align: TOP_MID
             y: 65
-            text: "Volg de kalibratiewizard"
+            text: "Follow the calibration wizard"
             text_font: sublabel
             text_color: 0xFFFFFF
         - obj:
@@ -5358,8 +5356,8 @@ script:
       - lvgl.widget.hide: vacuum_overlay
 
   # ---------- ALERT (HA action show_alert) ----------
-  # The screen wakes, keeps its normal brightness and shows the card until Oké or the
-  # timeout (0: until Oké); the standby interval waits on alert_active. A new alert
+  # The screen wakes, keeps its normal brightness and shows the card until OK or the
+  # timeout (0: until OK); the standby interval waits on alert_active. A new alert
   # replaces the current one; every ending reports itself as esphome.screen_alert.
   - id: alert_show
     mode: restart
@@ -5471,8 +5469,8 @@ script:
           id(display_dimmed) = false;
       - light.turn_on:
           id: back_light
-          # Bijna instant omhoog. De ESPHome-standaard is 1s, en dat voelt traag
-          # als je het scherm aanraakt en op licht staat te wachten.
+          # Almost instant brightness-up. ESPHome's default is 1s, and that feels sluggish
+          # when you touch the screen and are waiting on light.
           transition_length: 80ms
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
       - lvgl.widget.hide: dim_wake_overlay
@@ -5496,9 +5494,9 @@ script:
                   id(show_tile_page).execute();
                 }
 
-            # Terug naar het basisscherm bij standby. Bewust via de ESPHome
-            # acties en NIET met lv_obj_add_flag in een lambda: dit script
-            # draait vanuit een interval, dus buiten LVGL's eigen afhandeling.
+            # Back to the home screen on standby. Deliberately via ESPHome's
+            # actions and NOT with lv_obj_add_flag in a lambda: this script
+            # runs from an interval, so outside LVGL's own handling.
             - lvgl.widget.hide: brightness_overlay
             - lvgl.widget.hide: color_detail_overlay
             - lvgl.widget.hide: climate_detail_overlay
@@ -5572,9 +5570,9 @@ script:
           id: climate_target_commit
           value: !lambda "return id(active_climate_target_x10);"
 
-  # Opent de moduskiezer. Verbergt modi die de entiteit niet ondersteunt en
-  # markeert de huidige, zodat je ziet waar je staat voor je iets kiest.
-  # Opent de stofzuigerbediening en onthoudt om welke entiteit het gaat.
+  # Opens the mode picker. Hides modes the entity doesn't support and marks
+  # the current one, so you see where you stand before you pick something.
+  # Opens the vacuum controls and remembers which entity it concerns.
   - id: open_vacuum_overlay
     mode: restart
     parameters:
@@ -5586,7 +5584,7 @@ script:
           lv_label_set_text(id(vacuum_title), title.c_str());
       - lvgl.widget.show: vacuum_overlay
 
-  # Een losse opdracht: start, pause, stop of return_to_base.
+  # A standalone command: start, pause, stop or return_to_base.
   - id: vacuum_action
     mode: queued
     parameters:
@@ -5601,7 +5599,7 @@ script:
                 data:
                   entity_id: !lambda "return id(active_entity);"
 
-  # Zuigkracht is een aparte as, los van start/stop.
+  # Suction power is a separate axis, apart from start/stop.
   - id: vacuum_fan_speed
     mode: queued
     parameters:
@@ -5668,8 +5666,8 @@ script:
           fill(id(cswing_title), swing_chips, id(active_climate_swing_modes), id(active_climate_swing_mode));
       - lvgl.widget.show: climate_mode_overlay
 
-  # Zet precies een modus. Geen tussenstappen, dus geen ongewenste
-  # commando's naar de warmtepomp onderweg.
+  # Sets exactly one mode. No intermediate steps, so no unwanted
+  # commands to the heat pump along the way.
   # Fan and swing modes from the picker: one call with the entity's own mode name.
   - id: set_climate_fan_mode
     mode: restart
@@ -5786,7 +5784,7 @@ script:
           light_controls::fallback.kelvin = 3000;
           light_controls::fallback.hue = 200;
           light_controls::open("diagnostic", true, true, 75);
-          lv_label_set_text(id(color_detail_title), "Voorbeeld lamp");
+          lv_label_set_text(id(color_detail_title), "Example lamp");
       - lvgl.widget.hide: color_close_button
       - lvgl.widget.hide: color_done_button
       - lvgl.widget.show: color_detail_overlay
@@ -5997,12 +5995,12 @@ script:
           condition:
             lambda: |-
               if (std::string("${DIRECT_ACTIONS}") != "true") return false;
-              // Debounce: zelfde entity binnen 600ms genegeerd. Voorkomt dat
-              // touch-ruis dezelfde HA-actie meerdere keren afvuurt (zie
-              // globals hierboven voor waarom dit nodig is).
+              // Debounce: same entity within 600ms ignored. Prevents
+              // touch noise from firing the same HA action multiple times
+              // (see globals above for why this is needed).
               uint32_t now = millis();
               if (entity_id == id(last_action_entity) && (now - id(last_action_ms)) < 600) {
-                ESP_LOGD("tile", "do_tile_action: debounced repeat for %s (%ums na vorige)",
+                ESP_LOGD("tile", "do_tile_action: debounced repeat for %s (%ums after previous)",
                          entity_id.c_str(), now - id(last_action_ms));
                 return false;
               }
@@ -6257,11 +6255,11 @@ script:
       climate_step: string
     then:
       - lambda: |-
-          // Accentkleur uit het Home Assistant-domein: het stuk voor de punt in
-          // het entity_id. script/scene/button vuur je af (ACCENT_ACTION), een
-          // light is een light (ACCENT_LIGHT), de rest is apparaat.
-          // LET OP: deze helper staat twee keer in dit bestand — hier en in
-          // open_value_overlay. Pas ze samen aan.
+          // Accent colour from the Home Assistant domain: the part before the dot
+          // in the entity_id. script/scene/button fire (ACCENT_ACTION), a
+          // light is a light (ACCENT_LIGHT), the rest is a device.
+          // NOTE: this helper appears twice in this file — here and in
+          // open_value_overlay. Update them together.
           auto accent_for = [](const std::string& entity_id) -> uint32_t {
             std::string d = entity_id.substr(0, entity_id.find('.'));
             if (d == "script" || d == "scene" || d == "button" ||
@@ -6270,7 +6268,7 @@ script:
             return ${ACCENT_DEVICE};
           };
 
-          // De sliderkleur komt van de tegel, dus die kan ook ${ACCENT_AUTO} zijn.
+          // The slider colour comes from the tile, so it can also be ${ACCENT_AUTO}.
           uint32_t fill_color = (slider_fill_color == ${ACCENT_AUTO})
                                   ? accent_for(entity) : slider_fill_color;
 
@@ -6334,11 +6332,11 @@ script:
 
             char current_buf[48];
             if (isnan(climate_current_temperature)) {
-              snprintf(current_buf, sizeof(current_buf), "Nu: --");
+              snprintf(current_buf, sizeof(current_buf), "Now: --");
             } else if (id(active_climate_humidity) >= 0) {
-              snprintf(current_buf, sizeof(current_buf), "Nu: %.1f° · %d%%", climate_current_temperature, id(active_climate_humidity));
+              snprintf(current_buf, sizeof(current_buf), "Now: %.1f° · %d%%", climate_current_temperature, id(active_climate_humidity));
             } else {
-              snprintf(current_buf, sizeof(current_buf), "Nu: %.1f°", climate_current_temperature);
+              snprintf(current_buf, sizeof(current_buf), "Now: %.1f°", climate_current_temperature);
             }
             lv_label_set_text(id(climate_current_label), current_buf);
 
@@ -6581,8 +6579,8 @@ script:
             set_lbl(lbl, "—");
           };
 
-          // active_state niet leeg? Dan telt alleen die exacte HA-state als "aan".
-          // Zo kan een input_select ("Vol"/"Leeg") ook een tegel laten oplichten.
+          // active_state not empty? Then only that exact HA state counts as "on".
+          // This way an input_select ("Full"/"Empty") can also light up a tile.
           auto is_active = [](const std::string& tile_type, const std::string& state,
                               const std::string& active_state = std::string()) {
             if (!active_state.empty()) return state == active_state;
@@ -6601,7 +6599,7 @@ script:
           bool t4_on = (std::string("${TILE4_TYPE}") == "cover") ? (id(tile4_cover_state).state != "closed") : is_active("${TILE4_TYPE}", std::string(id(ha_state_tile4).state.c_str()), "${TILE4_ACTIVE_STATE}");
           bool t5_on = (std::string("${TILE5_TYPE}") == "cover") ? (id(tile5_cover_state).state != "closed") : is_active("${TILE5_TYPE}", std::string(id(ha_state_tile5).state.c_str()), "${TILE5_ACTIVE_STATE}");
           bool t6_on = (std::string("${TILE6_TYPE}") == "cover") ? (id(tile6_cover_state).state != "closed") : is_active("${TILE6_TYPE}", std::string(id(ha_state_tile6).state.c_str()), "${TILE6_ACTIVE_STATE}");
-          // Tegel 7/8 hebben geen cover_state-sensor, dus geen cover-tak nodig.
+          // Tile 7/8 have no cover_state sensor, so no cover branch needed.
           bool t7_on = is_active("${TILE7_TYPE}", std::string(id(ha_state_tile7).state.c_str()), "${TILE7_ACTIVE_STATE}");
           bool t8_on = is_active("${TILE8_TYPE}", std::string(id(ha_state_tile8).state.c_str()), "${TILE8_ACTIVE_STATE}");
           bool t9_on = is_active("${TILE9_TYPE}", std::string(id(ha_state_tile9).state.c_str()), "${TILE9_ACTIVE_STATE}");
@@ -6637,7 +6635,7 @@ script:
                          id(tile6_climate_current_temperature).state, id(tile6_climate_target_temperature).state, id(tile6_climate_humidity).state,
                          "${TILE6_LABEL_ON}", "${TILE6_LABEL_OFF}");
 
-          // Tegel 7: light met alleen brightness. Tegel 8: puur tekst (Vol/Leeg).
+          // Tile 7: light with only brightness. Tile 8: pure text (Full/Empty).
           set_value_auto(id(t7_value), t7_on, "${TILE7_TYPE}", "${TILE7_VALUE_MODE}",
                          id(tile7_brightness).state, NAN, std::string(),
                          NAN, NAN, NAN,
@@ -6648,7 +6646,7 @@ script:
                          NAN, NAN, NAN,
                          "${TILE8_LABEL_ON}", "${TILE8_LABEL_OFF}");
 
-          // Tegel 9: kleurenlamp (brightness). Tegel 10: puur tekst (Aan/Uit).
+          // Tile 9: colour lamp (brightness). Tile 10: pure text (On/Off).
           set_value_auto(id(t9_value), t9_on, "${TILE9_TYPE}", "${TILE9_VALUE_MODE}",
                          id(tile9_brightness).state, NAN, std::string(),
                          NAN, NAN, NAN,
@@ -6663,33 +6661,33 @@ script:
           const char* vacuum_state = id(ha_state_tile6).state.c_str();
           if (std::string("${TILE6_TYPE}") == "vacuum") {
             std::string state(vacuum_state);
-            if (state == "cleaning") set_lbl(id(t6_value), "Bezig");
-            else if (state == "docked") set_lbl(id(t6_value), "In dock");
-            else if (state == "returning") set_lbl(id(t6_value), "Naar dock");
-            else if (state == "paused") set_lbl(id(t6_value), "Gepauzeerd");
-            else if (state == "error") set_lbl(id(t6_value), "Fout");
+            if (state == "cleaning") set_lbl(id(t6_value), "Cleaning");
+            else if (state == "docked") set_lbl(id(t6_value), "Docked");
+            else if (state == "returning") set_lbl(id(t6_value), "Returning to dock");
+            else if (state == "paused") set_lbl(id(t6_value), "Paused");
+            else if (state == "error") set_lbl(id(t6_value), "Error");
             else if (!state.empty()) set_lbl(id(t6_value), state);
           }
           if (!id(ha_state_tile1).has_state() || id(ha_state_tile1).state == "unknown" || id(ha_state_tile1).state == "unavailable")
-            set_lbl(id(t1_value), "Niet beschikbaar");
+            set_lbl(id(t1_value), "Unavailable");
           if (!id(ha_state_tile2).has_state() || id(ha_state_tile2).state == "unknown" || id(ha_state_tile2).state == "unavailable")
-            set_lbl(id(t2_value), "Niet beschikbaar");
+            set_lbl(id(t2_value), "Unavailable");
           if (!id(ha_state_tile3).has_state() || id(ha_state_tile3).state == "unknown" || id(ha_state_tile3).state == "unavailable")
-            set_lbl(id(t3_value), "Niet beschikbaar");
+            set_lbl(id(t3_value), "Unavailable");
           if (!id(ha_state_tile4).has_state() || id(ha_state_tile4).state == "unknown" || id(ha_state_tile4).state == "unavailable")
-            set_lbl(id(t4_value), "Niet beschikbaar");
+            set_lbl(id(t4_value), "Unavailable");
           if (!id(ha_state_tile5).has_state() || id(ha_state_tile5).state == "unknown" || id(ha_state_tile5).state == "unavailable")
-            set_lbl(id(t5_value), "Niet beschikbaar");
+            set_lbl(id(t5_value), "Unavailable");
           if (!id(ha_state_tile6).has_state() || id(ha_state_tile6).state == "unknown" || id(ha_state_tile6).state == "unavailable")
-            set_lbl(id(t6_value), "Niet beschikbaar");
+            set_lbl(id(t6_value), "Unavailable");
           if (!id(ha_state_tile7).has_state() || id(ha_state_tile7).state == "unknown" || id(ha_state_tile7).state == "unavailable")
-            set_lbl(id(t7_value), "Niet beschikbaar");
+            set_lbl(id(t7_value), "Unavailable");
           if (!id(ha_state_tile8).has_state() || id(ha_state_tile8).state == "unknown" || id(ha_state_tile8).state == "unavailable")
-            set_lbl(id(t8_value), "Niet beschikbaar");
+            set_lbl(id(t8_value), "Unavailable");
           if (!id(ha_state_tile9).has_state() || id(ha_state_tile9).state == "unknown" || id(ha_state_tile9).state == "unavailable")
-            set_lbl(id(t9_value), "Niet beschikbaar");
+            set_lbl(id(t9_value), "Unavailable");
           if (!id(ha_state_tile10).has_state() || id(ha_state_tile10).state == "unknown" || id(ha_state_tile10).state == "unavailable")
-            set_lbl(id(t10_value), "Niet beschikbaar");
+            set_lbl(id(t10_value), "Unavailable");
           if (id(active_control_kind) == "climate_temperature" && !lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) {
             auto label_for_climate_mode = [](std::string mode) {
               for (char &c : mode) {
@@ -6739,11 +6737,11 @@ script:
 
               char current_buf[48];
               if (isnan(current_temperature)) {
-                snprintf(current_buf, sizeof(current_buf), "Nu: --");
+                snprintf(current_buf, sizeof(current_buf), "Now: --");
               } else if (id(active_climate_humidity) >= 0) {
-                snprintf(current_buf, sizeof(current_buf), "Nu: %.1f° · %d%%", current_temperature, id(active_climate_humidity));
+                snprintf(current_buf, sizeof(current_buf), "Now: %.1f° · %d%%", current_temperature, id(active_climate_humidity));
               } else {
-                snprintf(current_buf, sizeof(current_buf), "Nu: %.1f°", current_temperature);
+                snprintf(current_buf, sizeof(current_buf), "Now: %.1f°", current_temperature);
               }
               lv_label_set_text(id(climate_current_label), current_buf);
 
@@ -6763,9 +6761,9 @@ script:
 
           {
             auto now = id(homeassistant_time).now();
-            // Vóór de eerste tijd-sync is now() epoch 0 (1970) — dan geen
-            // misleidende "01:00" tonen, gewoon leeg laten tot er een
-            // echte tijd binnen is (na de eerste Home Assistant-tijdsynchronisatie).
+            // Before the first time sync, now() is epoch 0 (1970) — don't show
+            // a misleading "01:00" then, just leave it blank until a
+            // real time comes in (after the first Home Assistant time sync).
             if (now.is_valid()) {
               char buf[10];
 
@@ -6781,11 +6779,11 @@ script:
             }
           }
 
-          // Accentkleur uit het Home Assistant-domein: het stuk voor de punt in
-          // het entity_id. script/scene/button vuur je af (ACCENT_ACTION), een
-          // light is een light (ACCENT_LIGHT), de rest is apparaat.
-          // LET OP: deze helper staat twee keer in dit bestand — hier en in
-          // open_value_overlay. Pas ze samen aan.
+          // Accent colour from the Home Assistant domain: the part before the dot
+          // in the entity_id. script/scene/button fire (ACCENT_ACTION), a
+          // light is a light (ACCENT_LIGHT), the rest is a device.
+          // NOTE: this helper appears twice in this file — here and in
+          // open_value_overlay. Update them together.
           auto accent_for = [](const std::string& entity_id) -> uint32_t {
             std::string d = entity_id.substr(0, entity_id.find('.'));
             if (d == "script" || d == "scene" || d == "button" ||
@@ -6826,7 +6824,7 @@ script:
                 break;
               }
             }
-            // ${ACCENT_AUTO} = "bepaal zelf"; een echte hexwaarde wint altijd.
+            // ${ACCENT_AUTO} = "figure it out yourself"; a real hex value always wins.
             uint32_t accent = accent_for(entity_id);
             if (circle_active == ${ACCENT_AUTO}) circle_active = accent;
             if (icon_disabled == ${ACCENT_AUTO}) icon_disabled = accent;
@@ -6923,12 +6921,12 @@ script:
 text:
   - platform: smart_display
     id: dashboard_inbox
-    name: "Tegelinstellingen"
+    name: "Tile settings"
     internal: ${DASHBOARD_INBOX_INTERNAL}
 
 button:
   - platform: template
-    name: "Touch kalibreren"
+    name: "Calibrate touch"
     internal: ${DASHBOARD_INBOX_INTERNAL}
     entity_category: config
     on_press:
@@ -6937,7 +6935,7 @@ button:
 number:
   - platform: template
     id: setting_brightness
-    name: "Helderheid normaal"
+    name: "Normal brightness"
     entity_category: config
     min_value: 5
     max_value: 100
@@ -6956,7 +6954,7 @@ number:
           id(apply_screen_settings).execute();
   - platform: template
     id: setting_standby_brightness
-    name: "Helderheid standby"
+    name: "Standby brightness"
     entity_category: config
     min_value: 0
     max_value: 100
@@ -6975,7 +6973,7 @@ number:
           id(apply_screen_settings).execute();
   - platform: template
     id: setting_night_brightness
-    name: "Helderheid nacht"
+    name: "Night brightness"
     entity_category: config
     min_value: 0
     max_value: 100
@@ -6994,7 +6992,7 @@ number:
           id(apply_screen_settings).execute();
   - platform: template
     id: setting_standby_seconds
-    name: "Standby na"
+    name: "Standby after"
     entity_category: config
     min_value: 60
     max_value: 86400

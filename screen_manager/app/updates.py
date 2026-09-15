@@ -34,7 +34,7 @@ class Updater:
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             if raw.get('version') != 1:
-                raise ValueError('Onbekende opslagversie voor updates; gegevens blijven ongewijzigd.')
+                raise ValueError('Unknown storage version for updates; data stays unchanged.')
             self.auto = raw.get('auto') is True
             self.hosts = {k: v for k, v in raw.get('hosts', {}).items() if isinstance(v, str)}
             self.results = {k: v for k, v in raw.get('results', {}).items() if isinstance(v, dict)}
@@ -56,6 +56,26 @@ class Updater:
 
     def screen(self, inbox):
         return self.manager.screen(inbox)
+
+    def current_id(self, inbox):
+        """The id a screen reports under now; firmware 0.2.34 gave the inbox entity a new id."""
+        return getattr(self.manager, 'aliases', {}).get(inbox, inbox)
+
+    def renamed(self, old, new):
+        """A screen's inbox entity got a new id: its address, last result and place in a running round follow."""
+        changed = False
+        for store in (self.hosts, self.results):
+            if old in store:
+                if new not in store:
+                    store[new] = store[old]
+                del store[old]
+                changed = True
+        if changed:
+            self.save()
+        if self.current == old:
+            self.current = new
+        self.queue = [new if inbox == old else inbox for inbox in self.queue]
+        return changed
 
     def resolve(self, screen, profiles=None):
         """Profile file and OTA address for a screen; None when the add-on cannot tell."""
@@ -97,39 +117,40 @@ class Updater:
 
     def set_auto(self, enabled):
         if not isinstance(enabled, bool):
-            raise ValueError('Kies aan of uit voor automatisch bijwerken.')
+            raise ValueError('Choose on or off for automatic updates.')
         self.auto = enabled
         self.save()
 
     def start(self, inbox, host=None):
         if self.busy():
-            raise ValueError('Er loopt al een update. Wacht tot die klaar is.')
+            raise ValueError('An update is already running. Wait for it to finish.')
         screen = self.screen(inbox)
+        inbox = self.current_id(inbox)
         if not screen:
-            raise ValueError('Onbekend scherm. Vernieuw het overzicht.')
+            raise ValueError('Unknown screen. Refresh the overview.')
         if not screen['online']:
-            raise ValueError('Dit scherm is offline; bijwerken kan zodra het terug is.')
+            raise ValueError("This screen is offline; updating is possible once it's back.")
         if not self.state_for(screen)['available']:
-            raise ValueError('Dit scherm heeft al de nieuwste firmware.')
+            raise ValueError('This screen already has the latest firmware.')
         if host is not None:
             if not isinstance(host, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', host.strip()):
-                raise ValueError('Vul het IP-adres van dit scherm in.')
+                raise ValueError("Enter this screen's IP address.")
             self.hosts[inbox] = host.strip()
             self.save()
         profile, host = self.resolve(screen)
         if not profile:
-            raise ValueError('Geen ESPHome-profiel gevonden voor dit scherm. Controleer de naam in de ESPHome-map.')
+            raise ValueError('No ESPHome profile found for this screen. Check the name in the ESPHome folder.')
         if not host:
-            raise ValueError('IP-adres onbekend. Vul het eenmalig in; nieuwe firmware meldt het daarna zelf.')
+            raise ValueError('IP address unknown. Enter it once; new firmware reports it itself after that.')
         self.launch([inbox])
         return self.state_for(screen)
 
     def start_all(self):
         if self.busy():
-            raise ValueError('Er loopt al een update. Wacht tot die klaar is.')
+            raise ValueError('An update is already running. Wait for it to finish.')
         pending = self.pending()
         if not pending:
-            raise ValueError('Alle bereikbare schermen zijn al bijgewerkt.')
+            raise ValueError('All reachable screens are already updated.')
         self.launch(pending)
         return pending
 
@@ -139,19 +160,20 @@ class Updater:
         self.task = asyncio.create_task(self.run_round(inboxes, automatic))
 
     def record(self, inbox, state, message):
-        self.results[inbox] = {'time': time.time(), 'state': state, 'message': message, 'version': FIRMWARE_VERSION}
+        self.results[self.current_id(inbox)] = {'time': time.time(), 'state': state, 'message': message, 'version': FIRMWARE_VERSION}
         self.save()
 
     async def run_round(self, inboxes, automatic=False):
         """Update screens one by one; a failure ends the round so a bad build never reaches the next screen."""
         try:
             for index, inbox in enumerate(inboxes):
-                self.current, self.queue = inbox, inboxes[index+1:]
+                inbox = self.current_id(inbox)
+                self.current, self.queue = inbox, [self.current_id(i) for i in inboxes[index+1:]]
                 outcome = await self.update_one(inbox)
                 if outcome == 'failed':
                     if automatic:
-                        await self.notify(f"Automatisch bijwerken is gestopt bij {self.name(inbox)}: "
-                                          f"{self.results[inbox]['message']} De overige schermen zijn niet aangeraakt.")
+                        await self.notify(f"Automatic update stopped at {self.name(inbox)}: "
+                                          f"{self.results[self.current_id(inbox)]['message']} The remaining screens were not touched.")
                     break
                 if self.queue and outcome == 'success':
                     await asyncio.sleep(self.pause_seconds)
@@ -165,11 +187,11 @@ class Updater:
     async def update_one(self, inbox):
         screen = self.screen(inbox)
         if not screen or not screen['online']:
-            self.record(inbox, 'skipped', 'Scherm was offline; volgende keer opnieuw.')
+            self.record(inbox, 'skipped', 'Screen was offline; will retry next time.')
             return 'skipped'
         profile, host = self.resolve(screen)
         if not profile or not host:
-            self.record(inbox, 'skipped', 'Profiel of IP-adres onbekend; werk dit scherm handmatig bij.')
+            self.record(inbox, 'skipped', 'Profile or IP address unknown; update this screen manually.')
             return 'skipped'
         self.phase = 'install'
         try:
@@ -179,19 +201,19 @@ class Updater:
             self.record(inbox, 'failed', str(error))
             return 'failed'
         if self.manager.firmware.job.get('state') != 'success':
-            self.record(inbox, 'failed', 'Bouwen of installeren mislukt; bekijk het log onder Firmware & USB.')
+            self.record(inbox, 'failed', 'Build or install failed; see the log under Firmware & USB.')
             return 'failed'
         self.phase = 'verify'
         if not await self.wait_for_target(inbox):
-            self.record(inbox, 'failed', f'Scherm meldde zich niet met firmware {FIRMWARE_VERSION}; controleer het scherm.')
+            self.record(inbox, 'failed', f"Screen didn't report back with firmware {FIRMWARE_VERSION}; check the screen.")
             return 'failed'
         self.phase = 'settle'
         await asyncio.sleep(self.settle_seconds)
         current = self.screen(inbox)
         if not current or not current['online']:
-            self.record(inbox, 'failed', 'Scherm viel weg na de update; controleer het scherm.')
+            self.record(inbox, 'failed', 'Screen dropped off after the update; check the screen.')
             return 'failed'
-        self.record(inbox, 'success', f'Bijgewerkt naar firmware {FIRMWARE_VERSION}.')
+        self.record(inbox, 'success', f'Updated to firmware {FIRMWARE_VERSION}.')
         return 'success'
 
     async def wait_for_target(self, inbox):
@@ -209,7 +231,7 @@ class Updater:
             await self.manager.ha.request('call_service', domain='persistent_notification', service='create',
                                           service_data={'notification_id': 'esp_screens_update', 'title': 'ESP Screens', 'message': message})
         except Exception as error:
-            LOG.warning('Melding naar Home Assistant mislukt (%s)', type(error).__name__)
+            LOG.warning('Notifying Home Assistant failed (%s)', type(error).__name__)
 
     def due(self, now):
         return self.auto and now.hour in NIGHT_HOURS and self.last_round != now.date().isoformat()
@@ -227,7 +249,7 @@ class Updater:
                 self.save()
                 pending = self.pending()
                 if pending:
-                    LOG.info('Nachtelijke firmwareronde: %d scherm(en)', len(pending))
+                    LOG.info('Nightly firmware round: %d screen(s)', len(pending))
                     self.launch(pending, automatic=True)
             except Exception as error:
-                LOG.warning('Nachtelijke updatecontrole overgeslagen (%s)', type(error).__name__)
+                LOG.warning('Nightly update check skipped (%s)', type(error).__name__)

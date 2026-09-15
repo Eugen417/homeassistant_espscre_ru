@@ -929,7 +929,7 @@ pre {
 .icon-picker .hint { margin: 0; }
 .icon-hint { font-weight: 400; }
 
-/* Nieuw scherm: profiel, wifi en de eerste flash in één venster. */
+/* New screen: profile, Wi-Fi, and the first flash in one window. */
 .link {
   background: none;
   color: var(--accent);

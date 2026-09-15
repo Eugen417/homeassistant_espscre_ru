@@ -6,7 +6,7 @@
 
 namespace header_bar {
 // The top bar right of the screen name (firmware 0.2.32+). ESP Screen Manager decides what shows
-// and writes an entity's text; the screen draws it, ticks its clocks and counts "5 min geleden"
+// and writes an entity's text; the screen draws it, ticks its clocks and counts "5 min ago"
 // itself. Everything here is free of LVGL, so tests/test_header_bar.cpp covers it on a PC.
 constexpr size_t MAX_ITEMS = 6;
 constexpr size_t TEXT_BYTES = 48;
@@ -64,32 +64,32 @@ inline uint32_t next_codepoint(const std::string &s, size_t &i) {
   return cp;
 }
 
-// Relative time in the editor's words (app.js agoText): "Zojuist", "5 min geleden", "Gisteren",
-// "Over 2 uur". `now` 0 means the clock is not set yet.
+// Relative time in the editor's words (app.js agoText): "Just now", "5 min ago", "Yesterday",
+// "In 2 hours". `now` 0 means the clock is not set yet.
 inline std::string ago_text(int64_t then, int64_t now) {
   if (now <= 0 || then <= 0) return "—";
   int64_t seconds = now - then, span = seconds < 0 ? -seconds : seconds;
   auto n = [&](int64_t unit) { return std::to_string(span / unit); };
   if (seconds < 0) {
-    if (span < 3600) return "Over " + std::to_string(std::max<int64_t>(1, span / 60)) + " min";
-    if (span < 86400) return "Over " + n(3600) + " uur";
-    if (span < 172800) return "Morgen";
-    return "Over " + n(86400) + " dagen";
+    if (span < 3600) return "In " + std::to_string(std::max<int64_t>(1, span / 60)) + " min";
+    if (span < 86400) return span / 3600 == 1 ? "In 1 hour" : "In " + n(3600) + " hours";
+    if (span < 172800) return "Tomorrow";
+    return "In " + n(86400) + " days";
   }
-  if (span < 60) return "Zojuist";
-  if (span < 3600) return n(60) + " min geleden";
-  if (span < 86400) return n(3600) + " uur geleden";
-  if (span < 172800) return "Gisteren";
-  if (span < 604800) return n(86400) + " dagen geleden";
-  if (span < 2592000) return span / 604800 == 1 ? "1 week geleden" : n(604800) + " weken geleden";
-  if (span < 31536000) return span / 2592000 == 1 ? "1 maand geleden" : n(2592000) + " maanden geleden";
-  return n(31536000) + " jaar geleden";
+  if (span < 60) return "Just now";
+  if (span < 3600) return n(60) + " min ago";
+  if (span < 86400) return span / 3600 == 1 ? "1 hour ago" : n(3600) + " hours ago";
+  if (span < 172800) return "Yesterday";
+  if (span < 604800) return n(86400) + " days ago";
+  if (span < 2592000) return span / 604800 == 1 ? "1 week ago" : n(604800) + " weeks ago";
+  if (span < 31536000) return span / 2592000 == 1 ? "1 month ago" : n(2592000) + " months ago";
+  return span / 31536000 == 1 ? "1 year ago" : n(31536000) + " years ago";
 }
 
-// "ma 14 sep"; day_of_week 1 is Sunday, as ESPHome counts.
+// "Mo 14 Sep"; day_of_week 1 is Sunday, as ESPHome counts.
 inline std::string date_text(int day_of_week, int day_of_month, int month) {
-  static const char *days[] = {"zo", "ma", "di", "wo", "do", "vr", "za"};
-  static const char *months[] = {"jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"};
+  static const char *days[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
+  static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
   if (day_of_week < 1 || day_of_week > 7 || month < 1 || month > 12) return "—";
   return std::string(days[day_of_week - 1]) + " " + std::to_string(day_of_month) + " " + months[month - 1];
 }

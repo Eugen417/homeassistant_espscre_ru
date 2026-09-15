@@ -67,7 +67,7 @@ struct Tile {
   uint32_t timer_end = 0;
   float battery = NAN, volume = NAN;
   uint32_t supported = 0, background = 0;
-  bool transparent = false;  // "Achtergrond: geen": card fill and border hidden, contents unchanged.
+  bool transparent = false;  // "Background: none": card fill and border hidden, contents unchanged.
   std::string icon;  // UTF-8 glyph of a chosen icon the icon fonts contain; empty keeps the domain icon.
   std::string revision, pending_revision;
   uint32_t pending_since = 0;
@@ -113,7 +113,7 @@ struct Model {
   // Pages the manager wants shown even when the last ones are still empty (0.2.26+).
   uint8_t pages = 1;
   size_t count = 0;
-  std::string title = "Kies tegels in HA";
+  std::string title = "Choose tiles in HA";
   bool configured = false;
   bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed) {
     bool moved = false;
@@ -140,7 +140,7 @@ struct Model {
     moved = !changed && (explicit_slots != !positions.empty());
     for (size_t i = 0; i < positions.size() && !changed; ++i) if (slots[i] != positions[i]) moved = true;
     // A title-only update must not interrupt an open control card.
-    title = name.empty() ? "Thuis" : name;
+    title = name.empty() ? "Home" : name;
     if (changed) {
       for (auto &tile : tiles) tile = Tile{};
       count = entities.size();

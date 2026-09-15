@@ -11,15 +11,15 @@
 // tests/test_alert_overlay.cpp can check them; the profiles do the LVGL work.
 namespace screen_alert {
 constexpr const char *FALLBACK_ICON = "alert-outline";
-constexpr const char *FALLBACK_TITLE = "Melding";
-constexpr const char *FALLBACK_BUTTON = "Oké";
+constexpr const char *FALLBACK_TITLE = "Notification";
+constexpr const char *FALLBACK_BUTTON = "OK";
 constexpr uint32_t DEFAULT_CARD_COLOR = 0xFFFFFF;
 constexpr int MAX_TIMEOUT_SECONDS = 86400;
 
 struct Alert {
   std::string title, subtitle, icon, button;  // icon: UTF-8 glyph for the icon font
   uint32_t color = DEFAULT_CARD_COLOR;
-  int timeout_seconds = 0;  // 0: stays until Oké
+  int timeout_seconds = 0;  // 0: stays until OK
   bool flash = false;
 };
 

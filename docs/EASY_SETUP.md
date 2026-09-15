@@ -1,260 +1,260 @@
-# Installeren en beheren vanuit ESP Screens
+# Installing and managing from ESP Screens
 
-Een nieuw scherm, van USB naar dagelijks gebruik
+A new screen, from USB to everyday use
 
-Met **ESP Screen Manager** kies je je tegels in Home Assistant. Je zoekt op
-naam, apparaat, ruimte of entity-ID, zet ze in de gewenste volgorde en klikt
-op **Opslaan & naar scherm**. Daarna blijft de status automatisch actueel.
-Je hoeft voor andere tegels **niet opnieuw te flashen**.
+With **ESP Screen Manager**, you choose your tiles in Home Assistant. You search by
+name, device, room, or entity ID, arrange them in the order you want, and click
+**Save & send to screen**. After that, the status stays automatically up to date.
+You don't need to **reflash** for different tiles.
 
-Dit werkt met Home Assistant OS op een 64-bits Raspberry Pi of een amd64-machine,
-en een van deze exacte schermvarianten. De ESPHome-CLI zit in ESP Screen Manager;
-ESPHome Device Builder is optioneel:
+This works with Home Assistant OS on a 64-bit Raspberry Pi or an amd64 machine,
+and one of these exact screen variants. The ESPHome CLI is included in ESP Screen Manager;
+ESPHome Device Builder is optional:
 
-| Keuze | Hardware |
+| Choice | Hardware |
 | --- | --- |
-| CYD | ESP32-2432S028, 320×240, ILI9341 en XPT2046 |
-| Guition | ESP32-S3-4848S040, 480×480, ST7701S en GT911 |
+| CYD | ESP32-2432S028, 320×240, ILI9341 and XPT2046 |
+| Guition | ESP32-S3-4848S040, 480×480, ST7701S and GT911 |
 
-Andere schermen met ongeveer dezelfde naam kunnen andere pinnen hebben. Gebruik
-het bordprofiel dat bij de hardware hoort. Gebruik een USB-kabel die data ondersteunt.
-De wallbox-relais worden niet gebruikt.
+Other screens with roughly the same name can have different pins. Use
+the board profile that matches the hardware. Use a USB cable that supports data.
+The wallbox relays are not used.
 
-## 1. Installeer ESP Screen Manager
+## 1. Install ESP Screen Manager
 
-1. Open **Instellingen → Apps → Installeer een app** (in oudere HA-versies:
-   **Instellingen → Add-ons → Add-onwinkel**).
-2. Open het menu rechtsboven → **Repositories** en voeg toe:
+1. Open **Settings → Apps → Install app** (on older HA versions:
+   **Settings → Add-ons → Add-on Store**).
+2. Open the menu in the top right → **Repositories** and add:
    `https://github.com/MaxGramser/homeassistant_espscreen`.
-3. Installeer en start **ESP Screen Manager**. Zet **Starten bij opstarten**
-   en **Tonen in zijbalk** aan. Open de webinterface **ESP Screens**.
+3. Install and start **ESP Screen Manager**. Turn on **Start on boot**
+   and **Show in sidebar**. Open the **ESP Screens** web interface.
 
-Deze app bevat de geteste ESPHome 2026.6.2-CLI en draait binnen je HA-aanmelding.
-Een tweede ESPHome-beheerpagina, MQTT, blueprint of long-lived token is niet nodig.
-Gebruik de GitHub-versie voor updates; een lokale test-add-on is een andere app.
+This app includes the tested ESPHome 2026.6.2 CLI and runs within your HA login.
+A second ESPHome management page, MQTT, blueprint, or long-lived token is not needed.
+Use the GitHub version for updates; a local test add-on is a separate app.
 
-## 2. Nieuw scherm: aansluiten en installeren
+## 2. New screen: connecting and installing
 
-1. Sluit het scherm met een **USB-datakabel** aan op de machine waarop Home
-   Assistant draait. Bij meerdere borden: sluit ze voor de eerste installatie
-   één voor één aan, of controleer welke poort bij dit scherm hoort.
-2. Klik **Nieuw scherm**. Kies CYD of Guition en geef het scherm een naam,
-   bijvoorbeeld `Keuken`. De apparaatnaam (`keuken`) volgt daaruit; met
-   **aanpassen** kies je een andere.
-3. Wifi: staan `wifi_ssid` en `wifi_password` al in de ESPHome `secrets.yaml`,
-   dan gebruikt het scherm die automatisch. Ontbreken ze, of bestaat het bestand
-   nog niet, dan vraagt het venster ze eenmalig en zet ESP Screens alleen de
-   ontbrekende regels in `secrets.yaml`; commentaar en andere secrets blijven
-   staan. Een `secrets.yaml` die geen geldige YAML is, herstel je eerst zelf.
-4. Kies bij **Installeren via** de USB-poort van dit scherm en klik
-   **Installeren**. ESP Screens bewaart het profiel (`keuken.yaml`, met unieke
-   API- en OTA-sleutels) in de ESPHome-map, bouwt de firmware en schrijft die
-   via USB. Het ESPHome-log en de fase (bouwen, schrijven) staan in hetzelfde
-   venster; een eerste build duurt op een Raspberry enkele minuten. Je mag het
-   venster sluiten: de installatie loopt door en staat bij heropenen weer klaar.
-5. Na **Klaar** toont het venster de API-sleutel met een kopieerknop en de
-   koppelstappen uit hoofdstuk 3. Mislukt de build, dan staat het log open en
-   kun je **Opnieuw proberen**.
+1. Connect the screen with a **USB data cable** to the machine running Home
+   Assistant. With multiple boards: connect them one at a time for the first
+   installation, or check which port belongs to this screen.
+2. Click **New screen**. Choose CYD or Guition and give the screen a name,
+   for example `Kitchen`. The device name (`kitchen`) follows from that; use
+   **customize** to choose a different one.
+3. Wi-Fi: if `wifi_ssid` and `wifi_password` are already in the ESPHome `secrets.yaml`,
+   the screen uses them automatically. If they're missing, or the file doesn't
+   exist yet, the window asks for them once and ESP Screens only adds the
+   missing lines to `secrets.yaml`; comments and other secrets are left
+   alone. If `secrets.yaml` isn't valid YAML, fix that yourself first.
+4. Under **Install via**, choose this screen's USB port and click
+   **Install**. ESP Screens stores the profile (`kitchen.yaml`, with unique
+   API and OTA keys) in the ESPHome folder, builds the firmware, and writes it
+   over USB. The ESPHome log and the current phase (building, writing) are in the same
+   window; a first build takes a few minutes on a Raspberry Pi. You can close the
+   window: the installation keeps running and picks back up when you reopen it.
+5. After **Done**, the window shows the API key with a copy button and the
+   pairing steps from chapter 3. If the build fails, the log stays open and
+   you can **Retry**.
 
-Elk scherm krijgt zijn eigen profiel: vier schermen betekent vier keer **Nieuw
-scherm** met vier verschillende namen. Het gedeelde bordpakket is voor alle
-schermen gelijk; het profiel bevat alleen naam, sleutels en de wifi-verwijzing.
-Bewaar dat profiel en gebruik het opnieuw bij updates. Voor een bestaand scherm
-opnieuw **Nieuw scherm** doorlopen maakt nieuwe sleutels aan en is niet de
-updateroute.
+Every screen gets its own profile: four screens means going through **New
+screen** four times, with four different names. The shared board package is the
+same for every screen; the profile only holds the name, keys, and the Wi-Fi reference.
+Keep that profile and reuse it for updates. Going through **New screen**
+again for an existing screen generates new keys and is not the
+update route.
 
-Geen USB-poort in de lijst? Een kabel aan je laptop is niet zichtbaar voor de
-Raspberry. Kies dan **Later · alleen het profiel bewaren**: het profiel staat
-daarna in dezelfde map die ESPHome Device Builder gebruikt, dus je kunt het daar
-openen en vanuit je browser flashen (**Install → Plug into this computer**), of
-het later via **Firmware & USB** alsnog aan de HA-machine installeren.
+No USB port in the list? A cable plugged into your laptop isn't visible to the
+Raspberry Pi. In that case, choose **Later · save profile only**: the profile then
+sits in the same folder ESPHome Device Builder uses, so you can open it there
+and flash from your browser (**Install → Plug into this computer**), or
+install it to the HA machine later via **Firmware & USB**.
 
-**CYD:** bij de eerste start verschijnt de kalibratie. Tik het zichtbare kruisje
-drie keer rustig aan, houd elke tik kort vast en volg steeds het volgende kruisje.
-Er zijn vijf posities. Het midden controleert de nauwkeurigheid. Bij een mislukte
-meting vraagt het scherm opnieuw te beginnen. De correctie wordt lokaal opgeslagen
-en blijft bij OTA-updates behouden. Via de HA-apparaatknop **Touch kalibreren** kun
-je later opnieuw meten. Voor diagnose en de oudere handmatige installatie:
-[CALIBREREN.md](CALIBREREN.md).
+**CYD:** calibration appears on first boot. Calmly tap the visible crosshair
+three times, hold each tap briefly, and follow each next crosshair in turn.
+There are five positions. The center checks accuracy. On a failed
+measurement, the screen asks you to start over. The correction is stored locally
+and survives OTA updates. Use the HA device button **Calibrate touch** to
+measure again later. For diagnostics and the older manual installation, see:
+[CALIBRATING.md](CALIBRATING.md).
 
-**Guition:** de GT911-touchmapping zit in het bordprofiel; er is geen ADC-kalibratie.
+**Guition:** the GT911 touch mapping is baked into the board profile; there's no ADC calibration.
 
-## 3. Koppel het scherm aan Home Assistant
+## 3. Pair the screen with Home Assistant
 
-Dit gebeurt in Home Assistant zelf, buiten ESP Screens. Zolang een profiel nog
-niet aan Home Assistant is toegevoegd, staat het links onder **Mijn schermen**
-als kaart *nog niet in Home Assistant*, met de knop **Open Apparaten & diensten**
-en **Kopieer API-sleutel**; het klaar-scherm van **Nieuw scherm** heeft dezelfde
-knop. De kaart verdwijnt zodra het scherm in de lijst staat.
+This happens in Home Assistant itself, outside ESP Screens. As long as a profile
+hasn't been added to Home Assistant yet, it appears on the left under **My screens**
+as a *not yet in Home Assistant* card, with an **Open Devices & services**
+button and **Copy API key**; the done screen of **New screen** has the same
+button. The card disappears once the screen is in the list.
 
-1. Open **Instellingen → Apparaten & diensten**. Voeg het ontdekte ESPHome-apparaat
-   toe. Niet ontdekt? Voeg de integratie **ESPHome** handmatig toe met het IP-adres
-   van het scherm, poort 6053.
-2. Vraagt HA om een encryptiesleutel? Plak de API-sleutel die het venster na de
-   installatie toont (ook terug te vinden als **api → encryption → key** in het
-   profiel). Gebruik niet het OTA-wachtwoord.
-3. Open bij de ESPHome-integratie **Configureren** en zet **Allow the device to
-   perform Home Assistant actions** aan. Zonder deze toestemming verschijnen
-   waarden wel, maar kan het scherm lampen en apparaten niet bedienen.
-4. Open ESP Screens. Het scherm verschijnt binnen ongeveer 30 seconden.
+1. Open **Settings → Devices & services**. Add the discovered ESPHome device.
+   Not discovered? Manually add the **ESPHome** integration with the screen's
+   IP address, port 6053.
+2. Does HA ask for an encryption key? Paste the API key the window shows after
+   installation (also found as **api → encryption → key** in the
+   profile). Don't use the OTA password.
+3. On the ESPHome integration, open **Configure** and enable **Allow the device to
+   perform Home Assistant actions**. Without this permission, values still show up,
+   but the screen can't control lights and devices.
+4. Open ESP Screens. The screen appears within about 30 seconds.
 
-## 4. Kies en wijzig je tegels
+## 4. Choose and edit your tiles
 
-Tip: zet in je ESPHome-YAML onder `wifi:` de regel `power_save_mode: none` (nieuwe
-wizard-YAML's hebben hem al); het scherm hangt aan het lichtnet en reageert dan zonder
-wifi-slaapvertraging op Home Assistant.
+Tip: in your ESPHome YAML, add the line `power_save_mode: none` under `wifi:` (new
+wizard YAMLs already have it); the screen is mains-powered, so this keeps it responding to
+Home Assistant without Wi-Fi sleep delay.
 
-Selecteer je scherm, vul de titel in en zoek entiteiten. De kiezer heeft
-domeinfilters met gekleurde iconen. Je kunt maximaal twintig tegels toevoegen.
-Het schermvoorbeeld toont hun plaats: twee kolommen, zes plekken per pagina,
-maximaal acht pagina's. Elke tegel heeft een vaste plek die alleen verandert als
-jij hem versleept; lege plekken blijven leeg, waar je ze ook laat. Sleep een tegel
-op een lege plek en hij staat daar; sleep hem op een andere tegel en die twee
-wisselen (de ander neemt de vrijgekomen plek, of anders de dichtstbijzijnde vrije
-plek); de rest blijft staan. Tijdens het slepen zie je in het voorbeeld al waar
-alles komt; onder de laatste pagina staat dan een lege pagina klaar. **Pagina
-toevoegen** maakt een lege pagina die bewaard blijft; een lege pagina heeft
-**Pagina weghalen**. Klik op een lege plek om de volgende tegel uit de kiezer
-daar te zetten. Met de pijltjestoetsen verplaats je een gefocuste tegel.
-Klik op een tegel voor een eigen naam en **Bediening & weergave instellen**:
-klikgedrag, een mini-slider, een grote waarde, een grafiek (sensoren), een
-weersvoorspelling (weer) of de breedte **Dubbelbreed**. Een dubbelbrede tegel van
-een klimaat, schakelaar, lamp, ventilator, stofzuiger, zonwering, mediaspeler,
-getal, keuzelijst, kookwekker, scène, script of knop krijgt rechts **directe
-bediening** zoals de rijen in Home Assistant (bijvoorbeeld temperatuur − / +,
-open/stop/dicht, volume met dempen, een toggle); kies onder **Directe bediening
-op de tegel** welke set, of **Geen** (firmware 0.2.19+). **Bediening openen** op
-een weertegel toont de weerkaart met de komende uren en dagen (regen inbegrepen);
-op een klimaattegel de kaart met aan/uit-knop en de modus-, ventilator- en
-zwenkstanden. De ingebouwde **Klok**
-staat bovenaan de kiezer; zon, kookwekkers en personen vind je via de filters. Kies bij
-**Pastel achtergrond** een eigen kleur met donkere tekst; **Standaard** herstelt
-de normale weergave en **Geen** laat de kaart weg, zodat de inhoud even groot
-direct op de schermachtergrond staat (firmware 0.2.16+). Hiervoor is firmware 0.2.10+ nodig.
-Toevoegen zonder gekozen plek vult de eerste vrije plek. Vaste plekken en lege
-plekken werken op het scherm vanaf firmware 0.2.26; oudere firmware schuift de
-tegels aan tot de eerste vrije plek, de editor meldt dat onder het voorbeeld.
-Het voorbeeld toont de indeling, geen live sensorwaarden.
-Klik **Opslaan & naar scherm** om je wijzigingen door te sturen.
+Select your screen, fill in the title, and search for entities. The picker has
+domain filters with colored icons. You can add up to twenty tiles.
+The screen preview shows their placement: two columns, six slots per page,
+up to eight pages. Every tile has a fixed slot that only changes if
+you drag it; empty slots stay empty, wherever you leave them. Drag a tile
+onto an empty slot and it stays there; drag it onto another tile and the two
+swap (the other tile takes the freed-up slot, or otherwise the nearest free
+slot); everything else stays put. While dragging, the preview already shows where
+everything will land; an empty page then stands ready below the last page. **Add
+page** creates an empty page that's kept; an empty page gets
+**Remove page**. Click an empty slot to place the next tile from the picker
+there. Use the arrow keys to move a focused tile.
+Click a tile for a custom name and **Configure control & display**:
+click behavior, a mini-slider, a large value, a graph (sensors), a
+weather forecast (weather), or the **Double-width** setting. A double-width tile for
+a climate, switch, light, fan, vacuum, cover, media player,
+number, select, timer, scene, script, or button gets **direct
+control** on the right, like the rows in Home Assistant (for example temperature − / +,
+open/stop/close, volume with mute, a toggle); under **Direct control
+on the tile**, choose which set, or **None** (firmware 0.2.19+). **Open control** on
+a weather tile shows the weather card with the coming hours and days (rain included);
+on a climate tile, the card with an on/off button and the mode, fan, and
+swing settings. The built-in **Clock**
+sits at the top of the picker; find sun, timers, and people via the filters. Under
+**Pastel background**, choose a custom color with dark text; **Default** restores
+the normal look, and **None** drops the card, so the content sits the same size
+directly on the screen background (firmware 0.2.16+). This requires firmware 0.2.10+.
+Adding without a chosen slot fills the first free slot. Fixed slots and empty
+slots work on the screen from firmware 0.2.26 on; older firmware shifts the
+tiles up to the first free slot, and the editor notes that below the preview.
+The preview shows the layout, not live sensor values.
+Click **Save & send to screen** to send your changes.
 
-- Lamp, switch, input_boolean en fan: tik om aan/uit te zetten.
-- Lamp lang indrukken: helderheid, regenboogkleur en wittemperatuur, voor zover
-  de lamp die functies ondersteunt.
-- Climate, vacuum en cover: tik om de bedieningskaart te openen.
-- Fan lang indrukken: snelheid als het apparaat percentages ondersteunt.
-- Scene/script: tik om uit te voeren; button/input_button: tik om in te drukken.
-- Sensor: tik voor de historiekaart; stel bij de tegel 1, 6 of 24 uur in.
-- Binary sensor: status bekijken. Select/input_select: open het keuzemenu.
+- Light, switch, input_boolean, and fan: tap to turn on/off.
+- Long press a light: brightness, rainbow color, and white temperature, as far as
+  the light supports those features.
+- Climate, vacuum, and cover: tap to open the control card.
+- Long press a fan: speed, if the device supports percentages.
+- Scene/script: tap to run; button/input_button: tap to press.
+- Sensor: tap for the history card; set 1, 6, or 24 hours on the tile.
+- Binary sensor: view status. Select/input_select: open the picker menu.
 
-Vanaf firmware 0.2.7 passen twintig tegels op maximaal vier pagina’s. Oudere
-firmware houdt de limiet van tien totdat je bijwerkt. Via **Algemene instellingen
-→ Vegen tussen pagina’s** kun je vegen inschakelen. Op de Guition (firmware
-0.2.24+) veeg je dan vanaf de linker- of rechterrand naar binnen, zoals
-terug-vegen op een telefoon; langzaam of snel, en een veeg die midden op het
-scherm begint doet niets, zodat tikken en slepen op tegels nooit per ongeluk van
-pagina wisselen. Op de CYD blijft het een snelle veeg over het scherm. Sliders
-bedienen alleen hun waarde; detailmenu’s en standby wisselen niet van pagina.
+From firmware 0.2.7, twenty tiles fit across up to four pages. Older
+firmware keeps the limit of ten until you update. Under **General settings
+→ Swipe between pages**, you can enable swiping. On the Guition (firmware
+0.2.24+), you then swipe inward from the left or right edge, like the
+back-swipe gesture on a phone; slow or fast, and a swipe starting in the
+middle of the screen does nothing, so tapping and dragging tiles never
+accidentally changes pages. On the CYD, it stays a quick swipe across the screen. Sliders
+only control their value; detail menus and standby don't change pages.
 
-Er staan zes tegels op een pagina. Bij maximaal zes verdwijnen Vorige/Volgende.
-De standby-tijd is standaard tien minuten. Bij offline apparaten blokkeert het
-scherm acties. Valt de verbinding met Home Assistant weg, dan meldt het scherm
-direct "HA niet verbonden"; stuurt de app twee rondes (circa vijf minuten) niets,
-dan "ESP Screens niet actief". In beide gevallen is de bediening geblokkeerd
-totdat de gegevens opnieuw ontvangen zijn.
+Six tiles sit on a page. With six or fewer, Previous/Next disappear.
+The default standby time is ten minutes. For offline devices, the screen blocks
+actions. If the connection to Home Assistant drops, the screen immediately shows
+"HA not connected"; if the app sends nothing for two rounds (about five minutes),
+it shows "ESP Screens not active". In both cases, control is blocked
+until data is received again.
 
-Je mag indelingen opslaan terwijl een scherm offline is. De app verstuurt ze
-zodra het scherm terugkomt. De app moet blijven draaien voor actuele tegeldata.
+You can save layouts while a screen is offline. The app sends them
+as soon as the screen comes back. The app must keep running for current tile data.
 
-## 5. Updates zonder je instellingen kwijt te raken
+## 5. Updates without losing your settings
 
-| Wat verandert? | Wat doe je? | Wat blijft behouden? |
+| What changes? | What do you do? | What's kept? |
 | --- | --- | --- |
-| Andere entiteiten, namen of volgorde | Opslaan in ESP Screens | Wifi, sleutels, kalibratie |
-| Nieuwe beheerpagina/appversie | Appwinkel → ESP Screen Manager → Update | Alle indelingen in `/data/screens.json` |
-| Nieuwe schermfunctie/kaart | Knop **Bijwerken** bij het scherm, of vinkje **Elke nacht automatisch bijwerken** (handmatig: Firmware & USB → Wifi / OTA) | Eigen YAML, sleutels en CYD-kalibratie; app stuurt tegels opnieuw |
+| Different entities, names, or order | Save in ESP Screens | Wi-Fi, keys, calibration |
+| New management page/app version | App store → ESP Screen Manager → Update | All layouts in `/data/screens.json` |
+| New screen feature/card | The **Update** button on the screen, or the **Update automatically every night** checkbox (manually: Firmware & USB → Wi-Fi / OTA) | Own YAML, keys, and CYD calibration; the app resends tiles |
 
-De eigen YAML verwijst naar de firmwarepakketten in `main`. Bij een nieuwe build
-haalt ESPHome de nieuwste gepubliceerde pakket- en componentcode op. Je vervangt
-je eigen YAML dus niet door een nieuw downloadbestand. Wifi, naam en sleutels
-staan buiten het gedeelde pakket en blijven gelijk.
+The device's own YAML references the firmware packages on `main`. On a new build,
+ESPHome fetches the latest published package and component code. So you don't
+replace your own YAML with a new downloaded file. Wi-Fi, name, and keys
+live outside the shared package and stay the same.
 
-Maak vóór updates een Home Assistant-back-up inclusief ESP Screen Manager en
-de eigen ESPHome-configuraties. **Verwijderen/herinstalleren** van een app is niet hetzelfde
-als updaten; daarmee kun je de gegevensmap wissen. Houd de apparaatnaam en de
-entity-ID van **Tegelinstellingen** gelijk, zodat de bestaande indeling gekoppeld blijft.
+Make a Home Assistant backup before updates, including ESP Screen Manager and
+the device's own ESPHome configurations. **Removing/reinstalling** an app is not the same
+as updating; that can wipe the data folder. Keep the device name and the
+entity ID of **Tile settings** the same, so the existing layout stays linked.
 
-Voor een nieuwe ondersteunde kaart update je eerst de app, daarna de firmware.
-De beheerder moet protocol- en gegevensmigraties achterwaarts compatibel maken;
-zie [RELEASING.md](RELEASING.md). Voor terugrollen kun je `ref: main` in je eigen
-YAML tijdelijk vervangen door een eerdere releasetag, zonder de sleutels te wijzigen.
+For a newly supported card, update the app first, then the firmware.
+The maintainer keeps protocol and data migrations backward compatible;
+see [RELEASING.md](RELEASING.md). To roll back, you can temporarily replace `ref: main`
+in your own YAML with an earlier release tag, without changing the keys.
 
-## Als iets niet werkt
+## If something doesn't work
 
-- **Geen scherm in de lijst:** controleer of de nieuwe Easy Setup-firmware draait,
-  de ESPHome-integratie verbonden is en de tekstentiteit **Tegelinstellingen**
-  niet uitgeschakeld is. De oude handmatige firmware publiceert die standaard niet.
-- **Wel tegels, geen acties:** geef het apparaat toestemming voor HA-acties.
-- **Niet beschikbaar:** controleer of de geselecteerde entiteit in HA bestaat en
-  beschikbaar is. Een hernoemde entity-ID moet je opnieuw kiezen.
-- **Geen OTA:** controleer wifi/IP en het oorspronkelijke OTA-wachtwoord. Gebruik
-  zo nodig dezelfde eigen YAML via USB. Genereer geen nieuwe identiteit.
-- **Build mislukt:** lees de eerste fout, controleer ESPHome-versie en internet voor
-  GitHub/fontdownloads. Gebruik bij te weinig Raspberry-geheugen tijdelijk een
-  krachtigere computer voor compileren; de YAML blijft hetzelfde.
-- **Bestaand handmatig scherm migreren:** bewaar de oude YAML en neem de bestaande
-  apparaatnaam, API-sleutel en OTA-wachtwoord over in het nieuwe installatieprofiel.
-  Kies daarna de tegels in de app. De oude vaste tegel-substituties worden niet
-  automatisch in de nieuwe beheerpagina geïmporteerd.
+- **No screen in the list:** check that the new Easy Setup firmware is running,
+  the ESPHome integration is connected, and the **Tile settings** text entity
+  isn't disabled. The old manual firmware doesn't publish that by default.
+- **Tiles show but no actions:** grant the device permission for HA actions.
+- **Unavailable:** check that the selected entity exists in HA and is
+  available. A renamed entity ID needs to be chosen again.
+- **No OTA:** check Wi-Fi/IP and the original OTA password. If needed,
+  use the same own YAML over USB. Don't generate a new identity.
+- **Build fails:** read the first error, check the ESPHome version and internet for
+  GitHub/font downloads. If the Raspberry Pi is low on memory, temporarily use a
+  more powerful computer to compile; the YAML stays the same.
+- **Migrating an existing manual screen:** keep the old YAML and carry over the
+  existing device name, API key, and OTA password into the new installation profile.
+  Then choose the tiles in the app. The old fixed tile substitutions aren't
+  automatically imported into the new management page.
 
-HA Container zonder Supervisor heeft geen appwinkel. Deze installatiehandleiding
-richt zich op Home Assistant OS; de ontwikkelserver is geen productieroute voor
-een los openbaar portal.
+HA Container without Supervisor has no App store. This installation guide
+targets Home Assistant OS; the development server is not a production route for
+a standalone public portal.
 
-Gebruikte HA-mechanismen: [Ingress](https://developers.home-assistant.io/docs/apps/presentation/),
-[interne HA-API](https://developers.home-assistant.io/docs/apps/communication/) en
-[ESPHome-pakketten](https://esphome.io/components/packages/).
+HA mechanisms used: [Ingress](https://developers.home-assistant.io/docs/apps/presentation/),
+[the internal HA API](https://developers.home-assistant.io/docs/apps/communication/), and
+[ESPHome packages](https://esphome.io/components/packages/).
 
 
-## Scherminstellingen aanpassen (vanaf 0.1.2)
+## Adjusting screen settings (from 0.1.2)
 
-Update ESP Screen Manager naar 0.1.2 en installeer één keer de nieuwe firmware
-via je **bestaande** ESPHome-apparaat → Install → Wirelessly. Behoud de eigen YAML
-met wifi en sleutels. Open daarna het scherm in ESP Screen Manager en klap
-**Scherminstellingen** open. Klik na aanpassen op **Opslaan & naar scherm**.
-Hierna vragen wijzigingen aan deze instellingen geen nieuwe firmwareflash.
+Update ESP Screen Manager to 0.1.2 and install the new firmware once
+via your **existing** ESPHome device → Install → Wirelessly. Keep your own YAML
+with Wi-Fi and keys. Then open the screen in ESP Screen Manager and expand
+**Screen settings**. After adjusting, click **Save & send to screen**.
+After this, changes to these settings don't need a new firmware flash.
 
-| Instelling | Mogelijkheden | Standaard |
+| Setting | Options | Default |
 |---|---|---|
-| Automatisch standby | Aan/uit | Aan |
-| Standby na | 1–1440 minuten na de laatste aanraking | 10 minuten |
-| Helderheid normaal | 5–100% | 100% |
-| Helderheid standby | 0–100%, maximaal normale helderheid | 20% |
-| Nachtstand | Aan/uit; geldt tijdens standby | Aan |
-| Begin/einde nacht | Uur en minuut, ook over middernacht | 22:00–07:00 |
-| Helderheid nacht | 0–100%, maximaal normale helderheid | 10% |
-| Klok tonen | Aan/uit | Aan |
-| Tijdnotatie | 24 of 12 uur, zonder AM/PM | 24 uur |
-| Terug naar pagina 1 | Sluit ook detailmenu’s bij standby | Uit |
-| Vegen tussen pagina’s | Native horizontale swipe, firmware 0.2.7+ | Uit |
-| Guition draaien | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
+| Auto standby | On/off | On |
+| Standby after | 1–1440 minutes after the last touch | 10 minutes |
+| Normal brightness | 5–100% | 100% |
+| Standby brightness | 0–100%, capped at normal brightness | 20% |
+| Night mode | On/off; applies during standby | On |
+| Night start/end | Hour and minute, can span midnight | 22:00–07:00 |
+| Night brightness | 0–100%, capped at normal brightness | 10% |
+| Show clock | On/off | On |
+| Time format | 24 or 12 hour, without AM/PM | 24 hour |
+| Return to page 1 | Also closes detail menus on standby | Off |
+| Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
+| Guition rotation | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
 
-Nachturen gebruiken de tijdzone van het ESPHome-apparaat en de tijd uit HA.
-Zonder geldige tijd gebruikt het scherm de gewone standbyhelderheid; gelijke
-begin- en eindtijd schakelen het nachtvenster uit. Op 0% gaat alleen de
-achtergrondverlichting uit: dit is geen deep sleep en geen schermbeveiliging.
-De eerste tik wekt het scherm zonder een apparaat te bedienen.
+Night hours use the ESPHome device's timezone and the time from HA.
+Without a valid time, the screen uses the regular standby brightness; matching
+start and end times turn the night window off. At 0%, only the
+backlight turns off: this is not deep sleep and not a screensaver.
+The first tap wakes the screen without controlling a device.
 
-De add-on bewaart alles per scherm in zijn permanente gegevens. Het scherm bewaart
-de laatst ontvangen instellingen ook in preferences; ESPHome bundelt die
-schrijfacties (normaal maximaal een minuut). Trek daarom niet direct na opslaan
-de voeding los. Bestaande CYD-kalibratie, tegels, API- en OTA-sleutels blijven staan.
-Een offline scherm krijgt wijzigingen zodra het terugkomt. Gewone HA-statusupdates
-wekken het scherm niet en veranderen de standbytimer niet.
+The add-on stores everything per screen in its persistent data. The screen also
+stores the last received settings in preferences; ESPHome batches those
+write operations (normally up to a minute). So don't unplug the power right after
+saving. Existing CYD calibration, tiles, API, and OTA keys are preserved.
+An offline screen gets the changes as soon as it comes back. Regular HA status
+updates don't wake the screen and don't reset the standby timer.
 
-Bij oudere firmware toont de beheerpagina dat eerst een update nodig is.
-De tegels blijven bruikbaar. Handmatige YAML-profielen blijven hun substitutions
-gebruiken; voor beheer via deze app gebruik je het Easy Setup-pakket.
+With older firmware, the management page shows that an update is needed first.
+The tiles remain usable. Manual YAML profiles keep using their substitutions;
+to manage through this app, use the Easy Setup package.
 
-De huidige Guition gebruikt de native ST7701S-configuratie; zie
-[de hardwarevergelijking](GUITION_FACTORY_REFERENCE.md). Instellingen en
-tegelkleuren veranderen geen paneeltimings. Controleer beeld en touch fysiek.
+The current Guition uses the native ST7701S configuration; see
+[the hardware comparison](GUITION_FACTORY_REFERENCE.md). Settings and
+tile colors don't change panel timings. Physically check the display and touch.

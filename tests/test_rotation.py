@@ -14,10 +14,10 @@ class RotationTests(unittest.IsolatedAsyncioTestCase):
     async def test_legacy_wire_and_saved_rotation_survive_old_browser(self):
         with tempfile.TemporaryDirectory() as tmp:
             m=test_portal.ManagerTests().setup_manager(Path(tmp)/'screens.json')
-            layout={'title':'Thuis','tiles':[{'entity':'light.a'}],'settings':{'rotation':90}}
+            layout={'title':'Home','tiles':[{'entity':'light.a'}],'settings':{'rotation':90}}
             with self.assertRaises(ValueError):m.save('text.screen',layout)
             m.ha.registry[0]['device_id']='guition'
-            m.ha.registry.append({'entity_id':'sensor.board','device_id':'guition','platform':'esphome','original_name':'Guition schermtype'})
+            m.ha.registry.append({'entity_id':'sensor.board','device_id':'guition','platform':'esphome','original_name':'Guition screen type'})
             # Capability stays discoverable with the panel offline or renamed.
             m.ha.states['sensor.board']={'state':'unavailable'}
             m.save('text.screen',layout)
@@ -26,7 +26,7 @@ class RotationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(wire['rotation'],90)
             self.assertEqual(len(wire['settings']),11)
             self.assertNotIn('rotation',wire['settings'])
-            m.save('text.screen',{'title':'Anders','tiles':layout['tiles'],'settings':{'brightness':80}})
+            m.save('text.screen',{'title':'Different','tiles':layout['tiles'],'settings':{'brightness':80}})
             self.assertEqual(m.layouts['text.screen']['settings']['rotation'],90)
             fresh=test_portal.ManagerTests().setup_manager(m.path)
             self.assertEqual(fresh.layouts['text.screen']['settings']['rotation'],90)

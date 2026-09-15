@@ -61,21 +61,21 @@ int main() {
   wide.update(275, 200, 3); wide.update(300, 200, 3); wide.update(340, 200, 3);     // a real swipe: the reference
   wide.update(380, 200, 3);                                                        // settles, the finger keeps going
   assert(!wide.accept(1100, 1));
-  assert(wide.reason().rfind("verplaatst", 0) == 0);
+  assert(wide.reason().rfind("moved", 0) == 0);
   wide.begin(2000, 200, 200, 3);
   wide.update(400, 400, 5);                                                        // a second finger elsewhere
   assert(wide.accept(2050, 1)); // ignored: only contact 3 is followed; 50 ms is long enough here
   wide.begin(3000, 200, 200, 3);
   assert(!wide.accept(3010, 2)); // 10 ms is below the capacitive minimum
-  assert(wide.reason().rfind("te kort", 0) == 0);
+  assert(wide.reason().rfind("too short", 0) == 0);
   wide.begin(3100, 200, 200, 3);
   assert(wide.accept(3160, 2));
   assert(wide.reason().empty());
   assert(!wide.accept(3170, 2));
-  assert(wide.reason() == "al verwerkt in dit contact");
+  assert(wide.reason() == "already handled in this contact");
   wide.begin(3200, 200, 200, 3);
   assert(!wide.accept(3260, 2)); // same tile within 600 ms
-  assert(wide.reason() == "dezelfde knop binnen de dendertijd");
+  assert(wide.reason() == "same button within the debounce window");
   // No movement limit (0): a capacitive board leaves the drift decision to LVGL's press-lost.
   cyd::TouchGuard free;
   free.configure(0, 20);

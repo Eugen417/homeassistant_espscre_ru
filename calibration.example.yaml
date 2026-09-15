@@ -1,5 +1,5 @@
-# Identiteit: startpunt voor een NIEUW paneel, geen gemeten kalibratie.
-# tools/calibrate.py schrijft een gemeten versie van dit bestand.
+# Identity: starting point for a NEW panel, not a measured calibration.
+# tools/calibrate.py writes a measured version of this file.
 substitutions:
   TOUCH_CAL_X_MIN: "280"
   TOUCH_CAL_X_MAX: "3860"

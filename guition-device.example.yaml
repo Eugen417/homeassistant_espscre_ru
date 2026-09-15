@@ -1,20 +1,20 @@
-# Kopieer via: python tools/new_device.py --board guition --name display-keuken
-# Bewerk alleen dit lokale profiel voor jouw scherm.
+# Copy via: python tools/new_device.py --board guition --name display-kitchen
+# Only edit this local profile for your screen.
 packages:
   display: !include guition-4848s040.yaml
 
 substitutions:
   DEVICE_NAME: "guition-new"
-  DEVICE_FRIENDLY_NAME: "Mijn Guition"
-  ROOM_NAME: "Woonkamer"
+  DEVICE_FRIENDLY_NAME: "My Guition"
+  ROOM_NAME: "Living room"
   TILE_COUNT: "6"
-  DIRECT_ACTIONS: "false"  # Pas na koppelen/testen op true zetten.
+  DIRECT_ACTIONS: "false"  # Set to true only after pairing/testing.
   AUTO_DIM_TIMEOUT: "600"
   CALIBRATION_ON_BOOT: "false"
 
-  # Tegel 1
-  TILE1_ENTITY: "light.voorbeeld_lamp"
-  TILE1_STATE_ENTITY: "light.voorbeeld_lamp"
+  # Tile 1
+  TILE1_ENTITY: "light.example_lamp"
+  TILE1_STATE_ENTITY: "light.example_lamp"
   TILE1_TITLE: "Lamp"
   TILE1_TYPE: "light"
   TILE1_TAP_ACTION: "auto"
@@ -28,14 +28,14 @@ substitutions:
   TILE1_LONGPRESS_ACTION_TYPE: ""
   TILE1_LONGPRESS_ACTION_SERVICE: ""
   TILE1_VALUE_MODE: "auto"
-  TILE1_LABEL_ON: "Aan"
-  TILE1_LABEL_OFF: "Uit"
+  TILE1_LABEL_ON: "On"
+  TILE1_LABEL_OFF: "Off"
   TILE1_ACTIVE_STATE: ""
 
-  # Tegel 2
-  TILE2_ENTITY: "switch.voorbeeld_stekker"
-  TILE2_STATE_ENTITY: "switch.voorbeeld_stekker"
-  TILE2_TITLE: "Stekker"
+  # Tile 2
+  TILE2_ENTITY: "switch.example_plug"
+  TILE2_STATE_ENTITY: "switch.example_plug"
+  TILE2_TITLE: "Plug"
   TILE2_TYPE: "switch"
   TILE2_TAP_ACTION: "auto"
   TILE2_TAP_SERVICE: ""
@@ -48,14 +48,14 @@ substitutions:
   TILE2_LONGPRESS_ACTION_TYPE: ""
   TILE2_LONGPRESS_ACTION_SERVICE: ""
   TILE2_VALUE_MODE: "auto"
-  TILE2_LABEL_ON: "Aan"
-  TILE2_LABEL_OFF: "Uit"
+  TILE2_LABEL_ON: "On"
+  TILE2_LABEL_OFF: "Off"
   TILE2_ACTIVE_STATE: ""
 
-  # Tegel 3
-  TILE3_ENTITY: "scene.voorbeeld_avond"
-  TILE3_STATE_ENTITY: "scene.voorbeeld_avond"
-  TILE3_TITLE: "Avond"
+  # Tile 3
+  TILE3_ENTITY: "scene.example_evening"
+  TILE3_STATE_ENTITY: "scene.example_evening"
+  TILE3_TITLE: "Evening"
   TILE3_TYPE: "scene"
   TILE3_TAP_ACTION: "auto"
   TILE3_TAP_SERVICE: ""
@@ -68,14 +68,14 @@ substitutions:
   TILE3_LONGPRESS_ACTION_TYPE: ""
   TILE3_LONGPRESS_ACTION_SERVICE: ""
   TILE3_VALUE_MODE: "auto"
-  TILE3_LABEL_ON: "Aan"
-  TILE3_LABEL_OFF: "Uit"
+  TILE3_LABEL_ON: "On"
+  TILE3_LABEL_OFF: "Off"
   TILE3_ACTIVE_STATE: ""
 
-  # Tegel 4
-  TILE4_ENTITY: "script.voorbeeld_uit"
-  TILE4_STATE_ENTITY: "script.voorbeeld_uit"
-  TILE4_TITLE: "Alles uit"
+  # Tile 4
+  TILE4_ENTITY: "script.example_all_off"
+  TILE4_STATE_ENTITY: "script.example_all_off"
+  TILE4_TITLE: "All off"
   TILE4_TYPE: "script"
   TILE4_TAP_ACTION: "auto"
   TILE4_TAP_SERVICE: ""
@@ -88,14 +88,14 @@ substitutions:
   TILE4_LONGPRESS_ACTION_TYPE: ""
   TILE4_LONGPRESS_ACTION_SERVICE: ""
   TILE4_VALUE_MODE: "auto"
-  TILE4_LABEL_ON: "Aan"
-  TILE4_LABEL_OFF: "Uit"
+  TILE4_LABEL_ON: "On"
+  TILE4_LABEL_OFF: "Off"
   TILE4_ACTIVE_STATE: ""
 
-  # Tegel 5
-  TILE5_ENTITY: "climate.voorbeeld_airco"
-  TILE5_STATE_ENTITY: "climate.voorbeeld_airco"
-  TILE5_TITLE: "Airco"
+  # Tile 5
+  TILE5_ENTITY: "climate.example_ac"
+  TILE5_STATE_ENTITY: "climate.example_ac"
+  TILE5_TITLE: "AC"
   TILE5_TYPE: "climate"
   TILE5_TAP_ACTION: "toggle"
   TILE5_TAP_SERVICE: "climate.toggle"
@@ -108,14 +108,14 @@ substitutions:
   TILE5_LONGPRESS_ACTION_TYPE: ""
   TILE5_LONGPRESS_ACTION_SERVICE: ""
   TILE5_VALUE_MODE: "auto"
-  TILE5_LABEL_ON: "Aan"
-  TILE5_LABEL_OFF: "Uit"
+  TILE5_LABEL_ON: "On"
+  TILE5_LABEL_OFF: "Off"
   TILE5_ACTIVE_STATE: ""
 
-  # Tegel 6
-  TILE6_ENTITY: "vacuum.voorbeeld_robot"
-  TILE6_STATE_ENTITY: "vacuum.voorbeeld_robot"
-  TILE6_TITLE: "Stofzuiger"
+  # Tile 6
+  TILE6_ENTITY: "vacuum.example_robot"
+  TILE6_STATE_ENTITY: "vacuum.example_robot"
+  TILE6_TITLE: "Vacuum"
   TILE6_TYPE: "vacuum"
   TILE6_TAP_ACTION: "custom"
   TILE6_TAP_SERVICE: "vacuum.start"
@@ -128,14 +128,14 @@ substitutions:
   TILE6_LONGPRESS_ACTION_TYPE: ""
   TILE6_LONGPRESS_ACTION_SERVICE: ""
   TILE6_VALUE_MODE: "auto"
-  TILE6_LABEL_ON: "Aan"
-  TILE6_LABEL_OFF: "Uit"
+  TILE6_LABEL_ON: "On"
+  TILE6_LABEL_OFF: "Off"
   TILE6_ACTIVE_STATE: ""
 
-  # Tegel 7 (verborgen zolang TILE_COUNT lager is)
-  TILE7_ENTITY: "light.ongebruikt_7"
-  TILE7_STATE_ENTITY: "light.ongebruikt_7"
-  TILE7_TITLE: "Tegel 7"
+  # Tile 7 (hidden while TILE_COUNT is lower)
+  TILE7_ENTITY: "light.unused_7"
+  TILE7_STATE_ENTITY: "light.unused_7"
+  TILE7_TITLE: "Tile 7"
   TILE7_TYPE: "light"
   TILE7_TAP_ACTION: "auto"
   TILE7_TAP_SERVICE: ""
@@ -148,14 +148,14 @@ substitutions:
   TILE7_LONGPRESS_ACTION_TYPE: ""
   TILE7_LONGPRESS_ACTION_SERVICE: ""
   TILE7_VALUE_MODE: "auto"
-  TILE7_LABEL_ON: "Aan"
-  TILE7_LABEL_OFF: "Uit"
+  TILE7_LABEL_ON: "On"
+  TILE7_LABEL_OFF: "Off"
   TILE7_ACTIVE_STATE: ""
 
-  # Tegel 8 (verborgen zolang TILE_COUNT lager is)
-  TILE8_ENTITY: "light.ongebruikt_8"
-  TILE8_STATE_ENTITY: "light.ongebruikt_8"
-  TILE8_TITLE: "Tegel 8"
+  # Tile 8 (hidden while TILE_COUNT is lower)
+  TILE8_ENTITY: "light.unused_8"
+  TILE8_STATE_ENTITY: "light.unused_8"
+  TILE8_TITLE: "Tile 8"
   TILE8_TYPE: "light"
   TILE8_TAP_ACTION: "auto"
   TILE8_TAP_SERVICE: ""
@@ -168,14 +168,14 @@ substitutions:
   TILE8_LONGPRESS_ACTION_TYPE: ""
   TILE8_LONGPRESS_ACTION_SERVICE: ""
   TILE8_VALUE_MODE: "auto"
-  TILE8_LABEL_ON: "Aan"
-  TILE8_LABEL_OFF: "Uit"
+  TILE8_LABEL_ON: "On"
+  TILE8_LABEL_OFF: "Off"
   TILE8_ACTIVE_STATE: ""
 
-  # Tegel 9 (verborgen zolang TILE_COUNT lager is)
-  TILE9_ENTITY: "light.ongebruikt_9"
-  TILE9_STATE_ENTITY: "light.ongebruikt_9"
-  TILE9_TITLE: "Tegel 9"
+  # Tile 9 (hidden while TILE_COUNT is lower)
+  TILE9_ENTITY: "light.unused_9"
+  TILE9_STATE_ENTITY: "light.unused_9"
+  TILE9_TITLE: "Tile 9"
   TILE9_TYPE: "light"
   TILE9_TAP_ACTION: "auto"
   TILE9_TAP_SERVICE: ""
@@ -188,14 +188,14 @@ substitutions:
   TILE9_LONGPRESS_ACTION_TYPE: ""
   TILE9_LONGPRESS_ACTION_SERVICE: ""
   TILE9_VALUE_MODE: "auto"
-  TILE9_LABEL_ON: "Aan"
-  TILE9_LABEL_OFF: "Uit"
+  TILE9_LABEL_ON: "On"
+  TILE9_LABEL_OFF: "Off"
   TILE9_ACTIVE_STATE: ""
 
-  # Tegel 10 (verborgen zolang TILE_COUNT lager is)
-  TILE10_ENTITY: "light.ongebruikt_10"
-  TILE10_STATE_ENTITY: "light.ongebruikt_10"
-  TILE10_TITLE: "Tegel 10"
+  # Tile 10 (hidden while TILE_COUNT is lower)
+  TILE10_ENTITY: "light.unused_10"
+  TILE10_STATE_ENTITY: "light.unused_10"
+  TILE10_TITLE: "Tile 10"
   TILE10_TYPE: "light"
   TILE10_TAP_ACTION: "auto"
   TILE10_TAP_SERVICE: ""
@@ -208,6 +208,6 @@ substitutions:
   TILE10_LONGPRESS_ACTION_TYPE: ""
   TILE10_LONGPRESS_ACTION_SERVICE: ""
   TILE10_VALUE_MODE: "auto"
-  TILE10_LABEL_ON: "Aan"
-  TILE10_LABEL_OFF: "Uit"
+  TILE10_LABEL_ON: "On"
+  TILE10_LABEL_OFF: "Off"
   TILE10_ACTIVE_STATE: ""

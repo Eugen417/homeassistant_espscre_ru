@@ -1,3 +1,14 @@
+## 0.2.40 (firmware 0.2.34)
+
+ESP Screens is now in English: the screens, the management page, the Home Assistant entities and the documentation.
+
+- **English everywhere.** Every label on both boards (tiles, detail cards, the climate and vacuum cards, page navigation, calibration), the ESP Screens editor, the Alerts cheatsheet, error messages and logs, and the README and guides. The top bar writes numbers the English way (21.5 °C, 1,249 W). State labels follow Home Assistant's own English names, for example Heat and Cool for climate modes, Heating and Cooling for what the device is doing, Away, Returning to dock, and weather conditions such as Lightning, rainy. Dates use English abbreviations (Mo 14 Sep).
+- **English entity names.** Firmware 0.2.34 names its entities Tile settings, Screen firmware, Device name, IP address, Guition screen type, Last boot, Normal brightness, Standby brightness, Night brightness, Standby after and Calibrate touch. Home Assistant registers a renamed ESPHome entity under a new entity id and removes the old one, so `text.kitchen_screen_tegelinstellingen` becomes `text.kitchen_screen_tile_settings`. Dashboards or automations that use one of these diagnostic entities need the new id.
+- **Your layouts move along.** ESP Screen Manager recognises a screen that comes back under a new inbox id and moves its tiles, settings, top bar and update history to it, also when the app restarts in between. The **Update** button and the nightly round follow the screen through the rename and report the update as successful.
+- **Older firmware keeps working.** Screens on firmware 0.2.33 or older still report the Dutch entity names and status messages; the app recognises both until they are updated.
+- Docs use Home Assistant's current menu names (**Settings → Apps**, **App store**, **Settings → Tools**), and the guides are now `docs/TILES.md`, `docs/CALIBRATING.md`, `docs/ACCEPTANCE.md` and `docs/TROUBLESHOOTING.md`.
+- Firmware 0.2.34 for both boards; the app offers the update. Besides the English text and entity names it changes nothing on the screen.
+
 ## 0.2.39 (firmware 0.2.33)
 
 Zuiniger in dagelijks gebruik, ook met tientallen schermen. Niets verandert aan wat je ziet of instelt.

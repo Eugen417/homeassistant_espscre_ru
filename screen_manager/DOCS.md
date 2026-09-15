@@ -1,23 +1,23 @@
-# Installatie en dagelijks gebruik
+# Installation and everyday use
 
-Zie [de volledige 0.2.0-handleiding](https://github.com/MaxGramser/homeassistant_espscreen/blob/main/docs/WHATS_NEW_020.md).
+See [the full installation guide](https://github.com/MaxGramser/homeassistant_espscreen/blob/main/docs/EASY_SETUP.md).
 
-Open **Nieuw scherm** om een scherm te installeren: sluit het via USB aan op de
-Home Assistant-machine, kies bord, naam en USB-poort en klik **Installeren**.
-Het profiel met unieke sleutels komt in de ESPHome-map van de HA-configuratie,
-ontbrekende wifi gaat in `secrets.yaml` (bestaande secrets blijven staan), en de
-build en de flash lopen in hetzelfde venster; daarna toont het de API-sleutel
-voor de koppeling. De koppeling zelf doe je in Home Assistant onder **Instellingen → Apparaten & diensten** (knop in het venster en op de kaart *nog niet in Home Assistant* onder Mijn schermen). Elk scherm heeft zijn eigen profiel. **Firmware & USB** is
-voor bestaande profielen: controleren, bouwen of opnieuw installeren via USB of
-het IP-adres (OTA). Bestaande ESPHome-profielen in de HA-configmap worden
-automatisch gevonden.
+Open **New screen** to install a screen: connect it via USB to the
+Home Assistant machine, choose the board, name and USB port, then click **Install**.
+The profile with unique keys goes into the ESPHome folder of the HA configuration,
+any missing Wi-Fi goes into `secrets.yaml` (existing secrets are left untouched), and the
+build and flash run in the same window; it then shows the API key
+for pairing. Pairing itself happens in Home Assistant under **Settings → Devices & services** (a button in the window and on the *not yet in Home Assistant* card under My screens). Each screen has its own profile. **Firmware & USB** is
+for existing profiles: check, build or reinstall via USB or
+the IP address (OTA). Existing ESPHome profiles in the HA config folder are
+found automatically.
 
-Bovenaan de editor stel je per scherm de **Bovenbalk** in: links de naam, rechts
-tot zes onderdelen (tijd, analoge klok, datum of een entiteit met icoon, zoals
-temperatuur, een deur, het alarm of "laatst gewijzigd"). Sleep om te ordenen, tik
-om in te stellen; firmware 0.2.32 of nieuwer tekent ze.
+At the top of the editor you set the **Top bar** for each screen: the name on the left, up
+to six items on the right (time, analog clock, date, or an entity with an icon, such as
+temperature, a door, the alarm, or "last changed"). Drag to reorder, tap
+to configure; firmware 0.2.32 or newer renders them.
 
-Na koppeling via de HA ESPHome-integratie kies je in ESP Screens de tegels.
-Onder **Tegelinstellingen** staan klikgedrag, grotere waarden en mini-schuiven.
-Onder **Scherminstellingen** staan helderheid en standby. **Inspector** helpt bij
-ontbrekende attributen of een offline scherm. Nieuwe kaarten vereisen firmware 0.2.0.
+After pairing via the HA ESPHome integration, choose the tiles in ESP Screens.
+**Tile settings** has click behavior, larger values and mini-sliders.
+**Screen settings** has brightness and standby. **Inspector** helps with
+missing attributes or an offline screen. New cards require firmware 0.2.0.

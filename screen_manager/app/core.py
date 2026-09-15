@@ -11,31 +11,31 @@ import tile_icons
 
 DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
-BUILTIN = {'screen.clock': 'Klok'}
+BUILTIN = {'screen.clock': 'Clock'}
 NEW_DOMAINS = frozenset('sun timer person screen'.split())
-WEEKDAYS = ['ma', 'di', 'wo', 'do', 'vr', 'za', 'zo']
+WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.33'
+FIRMWARE_VERSION = '0.2.34'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
 
 
 TILE_BACKGROUNDS = {
-    'auto': {'label': 'Standaard', 'color': None},
+    'auto': {'label': 'Default', 'color': None},
     # No card behind the tile: contents keep their size and place on the screen background.
-    'none': {'label': 'Geen', 'color': None},
-    'red': {'label': 'Rood', 'color': '#FADADD'},
-    'orange': {'label': 'Oranje', 'color': '#FFE1C6'},
-    'yellow': {'label': 'Geel', 'color': '#FFF0C2'},
-    'green': {'label': 'Groen', 'color': '#D9EEDC'},
+    'none': {'label': 'None', 'color': None},
+    'red': {'label': 'Red', 'color': '#FADADD'},
+    'orange': {'label': 'Orange', 'color': '#FFE1C6'},
+    'yellow': {'label': 'Yellow', 'color': '#FFF0C2'},
+    'green': {'label': 'Green', 'color': '#D9EEDC'},
     'mint': {'label': 'Mint', 'color': '#D5F0EA'},
-    'blue': {'label': 'Blauw', 'color': '#D9EAFB'},
-    'purple': {'label': 'Paars', 'color': '#E9DDF5'},
-    'pink': {'label': 'Roze', 'color': '#F7DDEC'},
-    'gray': {'label': 'Grijs', 'color': '#E5E7EB'},
+    'blue': {'label': 'Blue', 'color': '#D9EAFB'},
+    'purple': {'label': 'Purple', 'color': '#E9DDF5'},
+    'pink': {'label': 'Pink', 'color': '#F7DDEC'},
+    'gray': {'label': 'Gray', 'color': '#E5E7EB'},
 }
 
 # Display modes per domain; everything else offers standard and watch (large value).
@@ -77,28 +77,28 @@ def has_gaps(tiles):
 # Home Assistant's own entity rows. The first choice is what a wide card shows
 # when the tile has no explicit choice; 'none' keeps the plain card.
 CONTROLS = {
-    'climate': (('setpoint', 'Temperatuur − / +'), ('mode', 'Uit, verwarmen, koelen')),
-    'switch': (('toggle', 'Aan/uit-schakelaar'),),
-    'input_boolean': (('toggle', 'Aan/uit-schakelaar'),),
-    'light': (('toggle', 'Aan/uit-schakelaar'), ('brightness', 'Helderheidsschuif')),
-    'fan': (('toggle', 'Aan/uit-schakelaar'), ('speed', 'Snelheidsschuif')),
-    'vacuum': (('buttons', 'Start, stop, naar dock'),),
-    'cover': (('buttons', 'Open, stop, dicht'), ('position', 'Positieschuif')),
-    'media_player': (('volume', 'Volume en dempen'), ('playback', 'Vorige, play/pauze, volgende')),
-    'number': (('stepper', 'Waarde − / +'), ('slider', 'Schuif')),
-    'input_number': (('stepper', 'Waarde − / +'), ('slider', 'Schuif')),
-    'select': (('stepper', 'Vorige / volgende keuze'),),
-    'input_select': (('stepper', 'Vorige / volgende keuze'),),
-    'timer': (('buttons', 'Start/pauze en annuleren'),),
-    'scene': (('run', 'Knop Activeren'),),
-    'script': (('run', 'Knop Uitvoeren'),),
-    'button': (('run', 'Knop Indrukken'),),
-    'input_button': (('run', 'Knop Indrukken'),),
+    'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Off, heat, cool')),
+    'switch': (('toggle', 'On/off switch'),),
+    'input_boolean': (('toggle', 'On/off switch'),),
+    'light': (('toggle', 'On/off switch'), ('brightness', 'Brightness slider')),
+    'fan': (('toggle', 'On/off switch'), ('speed', 'Speed slider')),
+    'vacuum': (('buttons', 'Start, stop, dock'),),
+    'cover': (('buttons', 'Open, stop, close'), ('position', 'Position slider')),
+    'media_player': (('volume', 'Volume and mute'), ('playback', 'Previous, play/pause, next')),
+    'number': (('stepper', 'Value − / +'), ('slider', 'Slider')),
+    'input_number': (('stepper', 'Value − / +'), ('slider', 'Slider')),
+    'select': (('stepper', 'Previous / next choice'),),
+    'input_select': (('stepper', 'Previous / next choice'),),
+    'timer': (('buttons', 'Start/pause and cancel'),),
+    'scene': (('run', 'Activate button'),),
+    'script': (('run', 'Run button'),),
+    'button': (('run', 'Press button'),),
+    'input_button': (('run', 'Press button'),),
 }
 
 def controls_catalogue():
     """Editor choices per domain: the default first, then 'none'."""
-    return {domain: {'default': choices[0][0], 'choices': [{'key': key, 'label': label} for key, label in choices] + [{'key': 'none', 'label': 'Geen'}]}
+    return {domain: {'default': choices[0][0], 'choices': [{'key': key, 'label': label} for key, label in choices] + [{'key': 'none', 'label': 'None'}]}
             for domain, choices in CONTROLS.items()}
 
 def resolve_controls(tile):
@@ -111,7 +111,42 @@ def resolve_controls(tile):
     return None if choice == 'none' else choice
 
 # Diagnostic entities every ESP Screens firmware exposes; the manager watches them for screens.
-SCREEN_ENTITY_NAMES = frozenset({'Tegelinstellingen', 'Schermfirmware', 'Guition schermtype', 'Apparaatnaam', 'IP-adres'})
+# Firmware built before the English translation still registers the Dutch originals, so both
+# forms are recognised until every board has been reflashed with an English `name:`.
+NAME_TILE_SETTINGS = ('Tile settings', 'Tegelinstellingen')
+NAME_SCREEN_FIRMWARE = ('Screen firmware', 'Schermfirmware')
+NAME_GUITION_TYPE = ('Guition screen type', 'Guition schermtype')
+NAME_DEVICE_NAME = ('Device name', 'Apparaatnaam')
+NAME_IP_ADDRESS = ('IP address', 'IP-adres')
+SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS)
+
+def entity_slug(name):
+    """The end of an entity id Home Assistant derives from an entity name (ASCII names)."""
+    return re.sub(r'[^a-z0-9]+', '_', str(name).lower()).strip('_')
+
+# An inbox entity id is text.<device>_tile_settings, or text.<device>_tegelinstellingen before firmware 0.2.34.
+INBOX_SUFFIXES = tuple('_' + entity_slug(name) for name in NAME_TILE_SETTINGS)
+
+def inbox_prefix(entity):
+    """The device part of an inbox entity id ('office_1' for text.office_1_tile_settings), or None."""
+    if isinstance(entity, str) and entity.startswith('text.'):
+        for suffix in INBOX_SUFFIXES:
+            if entity.endswith(suffix) and len(entity) > len('text.') + len(suffix):
+                return entity[len('text.'):-len(suffix)]
+    return None
+
+def device_prefixes(registry, device_id):
+    """Entity id prefixes Home Assistant gave the ESPHome entities of one device: the device name when each
+    entity was created. Entities whose name never changed keep the prefix an older inbox id carried."""
+    prefixes = set()
+    for item in registry:
+        name = item.get('original_name')
+        if item.get('device_id') != device_id or item.get('platform') != 'esphome' or not isinstance(name, str):
+            continue
+        object_id, suffix = item['entity_id'].split('.', 1)[-1], '_' + entity_slug(name)
+        if len(suffix) > 1 and object_id.endswith(suffix) and len(object_id) > len(suffix):
+            prefixes.add(object_id[:-len(suffix)])
+    return prefixes
 
 # Additive schema 1 extension. An absent object retains old firmware/YAML defaults.
 SETTING_RULES = {
@@ -132,7 +167,7 @@ SETTING_RULES = {
 
 def validate_settings(data):
     if not isinstance(data, dict) or set(data) - SETTING_RULES.keys():
-        raise ValueError('Onbekende scherminstellingen; vernieuw de beheerpagina.')
+        raise ValueError('Unknown screen settings; refresh the management page.')
     clean = {}
     for key, (default, minimum, maximum) in SETTING_RULES.items():
         value = data.get(key, default)
@@ -142,10 +177,10 @@ def validate_settings(data):
             valid = type(value) is int and minimum <= value <= maximum
         if key == "rotation": valid = valid and value in (0, 90, 180, 270)
         if not valid:
-            raise ValueError(f'Ongeldige waarde voor {key}.')
+            raise ValueError(f'Invalid value for {key}.')
         clean[key] = value
     if max(clean['standby_brightness'], clean['night_brightness']) > clean['brightness']:
-        raise ValueError('Helderheid in standby en nacht mag niet hoger zijn dan normaal.')
+        raise ValueError('Standby and night brightness may not be higher than normal.')
     return clean
 
 def entity_id(value):
@@ -163,7 +198,7 @@ TRANSPORT_MIN_FIRMWARE = (0, 2, 33)
 MESSAGE_ACTION = 'screen_message'
 HEADER_MAX_ITEMS = 6
 # Items the screen draws on its own clock, without Home Assistant.
-HEADER_BUILTIN = {'clock': 'Tijd', 'analog': 'Analoge klok', 'date': 'Datum'}
+HEADER_BUILTIN = {'clock': 'Time', 'analog': 'Analog clock', 'date': 'Date'}
 # Only shown, never controlled: the top bar takes these besides every tile domain.
 HEADER_ONLY_DOMAINS = frozenset('device_tracker zone lock alarm_control_panel counter event input_datetime input_text water_heater humidifier'.split())
 HEADER_CONTENTS = ('state', 'last_changed')
@@ -181,32 +216,32 @@ def header_items(layout):
 
 def validate_header(data):
     if not isinstance(data, dict) or set(data) - {'items'} or not isinstance(data.get('items'), list):
-        raise ValueError('Ongeldige bovenbalk; vernieuw de beheerpagina.')
+        raise ValueError('Invalid top bar; refresh the management page.')
     if len(data['items']) > HEADER_MAX_ITEMS:
-        raise ValueError(f'De bovenbalk heeft plaats voor maximaal {HEADER_MAX_ITEMS} onderdelen.')
+        raise ValueError(f'The top bar has room for at most {HEADER_MAX_ITEMS} items.')
     items, seen = [], set()
     for item in data['items']:
         kind = item.get('type') if isinstance(item, dict) else None
         if kind in HEADER_BUILTIN:
             if set(item) != {'type'}:
-                raise ValueError('Ongeldige instelling in de bovenbalk.')
+                raise ValueError('Invalid setting in the top bar.')
             clean = {'type': kind}
         elif kind == 'entity':
             if set(item) - {'type', 'entity', 'content', 'icon', 'show'}:
-                raise ValueError('Onbekende instelling in de bovenbalk; vernieuw de beheerpagina.')
+                raise ValueError('Unknown setting in the top bar; refresh the management page.')
             if not header_entity(item.get('entity')):
-                raise ValueError('Deze entiteit kan niet in de bovenbalk.')
+                raise ValueError("This entity can't go in the top bar.")
             clean = {'type': 'entity', 'entity': item['entity'], 'content': item.get('content', 'state'),
                      'icon': item.get('icon', 'auto'), 'show': item.get('show', 'always')}
             if clean['content'] not in HEADER_CONTENTS or clean['show'] not in HEADER_SHOWS:
-                raise ValueError('Ongeldige instelling in de bovenbalk.')
+                raise ValueError('Invalid setting in the top bar.')
             if not (clean['icon'] in ('auto', 'none') or isinstance(clean['icon'], str) and clean['icon'] in tile_icons.ICONS):
-                raise ValueError('Kies een icoon uit de lijst.')
+                raise ValueError('Choose an icon from the list.')
         else:
-            raise ValueError('Onbekend onderdeel in de bovenbalk; vernieuw de beheerpagina.')
+            raise ValueError('Unknown item in the top bar; refresh the management page.')
         key = json.dumps(clean, sort_keys=True)
         if key in seen:
-            raise ValueError('Dit onderdeel staat al in de bovenbalk.')
+            raise ValueError('This item is already in the top bar.')
         seen.add(key)
         items.append(clean)
     return {'items': items}
@@ -226,52 +261,52 @@ def short(value, limit):
 
 def validate_layout(data):
     if not isinstance(data, dict):
-        raise ValueError('Ongeldige indeling.')
+        raise ValueError('Invalid layout.')
     title, tiles = data.get('title'), data.get('tiles')
     if not isinstance(title, str) or not title.strip() or len(title.encode()) > 96:
-        raise ValueError('Geef het scherm een titel van maximaal 96 bytes.')
+        raise ValueError('Give the screen a title of at most 96 bytes.')
     if not isinstance(tiles, list) or len(tiles) > 20:
-        raise ValueError('Kies maximaal 20 tegels.')
+        raise ValueError('Choose at most 20 tiles.')
     clean, seen = [], set()
     for tile in tiles:
         if not isinstance(tile, dict) or not entity_id(tile.get('entity')):
-            raise ValueError('Deze entiteit wordt niet ondersteund.')
+            raise ValueError("This entity isn't supported.")
         if tile['entity'] in seen:
-            raise ValueError('Een entiteit kan maar één keer op een scherm staan.')
+            raise ValueError('An entity can only appear once on a screen.')
         name = tile.get('name', '')
         if not isinstance(name, str) or len(name.encode()) > 80:
-            raise ValueError('Een tegelnaam mag maximaal 80 bytes bevatten.')
+            raise ValueError('A tile name may contain at most 80 bytes.')
         seen.add(tile['entity'])
         item = {'entity': tile['entity'], 'name': name.strip()}
         if 'options' in tile:
             options = tile['options']
             if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls'}:
-                raise ValueError('Onbekende tegelinstellingen.')
+                raise ValueError('Unknown tile settings.')
             if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
-                raise ValueError('Kies een pastel achtergrondkleur uit het palet.')
+                raise ValueError('Choose a pastel background color from the palette.')
             if 'icon' in options and not (options['icon'] == 'auto' or isinstance(options['icon'], str) and options['icon'] in tile_icons.ICONS):
-                raise ValueError('Kies een icoon uit de lijst.')
+                raise ValueError('Choose an icon from the list.')
             domain = tile['entity'].split('.')[0]
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
             choices = {'tap': ('auto', 'detail', 'toggle', 'none'), 'display': displays, 'inline': ('none', 'slider'), 'size': ('single', 'wide')}
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
-                    raise ValueError('Ongeldige tegelinstelling: ' + key)
+                    raise ValueError('Invalid tile setting: ' + key)
             # The five-day strip and the sun path only fit a double-width card.
             if options.get('display') in WIDE_ONLY:
                 options = {**options, 'size': 'wide'}
             if options.get('tap') == 'toggle' and domain not in {'light','switch','input_boolean','fan','media_player','climate'}:
-                raise ValueError('Deze entiteit ondersteunt geen aan/uit-actie.')
+                raise ValueError("This entity doesn't support an on/off action.")
             if options.get('inline') == 'slider' and domain not in {'light','fan','cover','number','input_number','media_player'}:
-                raise ValueError('Deze entiteit ondersteunt geen mini-schuif.')
+                raise ValueError("This entity doesn't support a mini-slider.")
             if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in (1,6,24)):
-                raise ValueError('Geschiedenis: kies 1, 6 of 24 uur.')
+                raise ValueError('History: choose 1, 6, or 24 hours.')
             if options.get('display') == 'watch' and options.get('inline') == 'slider':
-                raise ValueError('Kies grote waarde of mini-schuif.')
+                raise ValueError('Choose large value or mini-slider.')
             if 'controls' in options:
                 allowed = ('none',) + tuple(key for key, _ in CONTROLS.get(domain, ()))
                 if not isinstance(options['controls'], str) or options['controls'] not in allowed:
-                    raise ValueError('Deze entiteit ondersteunt die directe bediening niet.')
+                    raise ValueError("This entity doesn't support that direct control.")
             item['options'] = dict(options)
         clean.append(item)
     # Positions: every tile or none (an older editor sends none and keeps its order).
@@ -280,12 +315,12 @@ def validate_layout(data):
         occupied = set()
         for item, slot in zip(clean, given):
             if type(slot) is not int or not 0 <= slot < MAX_SLOTS:
-                raise ValueError('Ongeldige tegelpositie; vernieuw de beheerpagina.')
+                raise ValueError('Invalid tile position; refresh the management page.')
             if is_wide(item) and slot % 2:
-                raise ValueError('Een dubbelbrede tegel begint in de linkerkolom.')
+                raise ValueError('A double-width tile starts in the left column.')
             for cell in footprint(slot, is_wide(item)):
                 if cell in occupied:
-                    raise ValueError('Twee tegels staan op dezelfde plek.')
+                    raise ValueError('Two tiles are in the same spot.')
                 occupied.add(cell)
             item['slot'] = slot
         clean.sort(key=lambda item: item['slot'])
@@ -296,7 +331,7 @@ def validate_layout(data):
     # Pages kept on purpose, empty ones included; the screen shows at least what the tiles need.
     if 'pages' in data:
         if type(data['pages']) is not int or not 1 <= data['pages'] <= MAX_PAGES:
-            raise ValueError(f'Een scherm heeft 1 tot {MAX_PAGES} pagina\'s.')
+            raise ValueError(f'A screen has 1 to {MAX_PAGES} pages.')
         result['pages'] = data['pages']
     if 'settings' in data:
         result['settings'] = validate_settings(data['settings'])
@@ -451,7 +486,7 @@ def encode(message):
     """The message as the firmware parses it: compact JSON, at most 4096 bytes."""
     raw = json.dumps(message, ensure_ascii=False, separators=(',', ':'), allow_nan=False)
     if len(raw.encode()) > 4096:
-        raise ValueError('Het schermbericht is te groot.')
+        raise ValueError('The screen message is too large.')
     return raw
 
 def revision(message):
@@ -473,20 +508,20 @@ def message_action(node):
 # keeps every value here equal to what the board profiles compile. -----
 ALERT_MIN_FIRMWARE = '0.2.31'
 ALERT_EVENT = 'esphome.screen_alert'
-ALERT_ENDINGS = (('ok', 'De knop is ingedrukt'), ('timeout', 'De timeout is verstreken'),
-                 ('replaced', 'Een nieuwe alert kwam eroverheen'), ('remote', 'dismiss_alert vanuit Home Assistant'))
+ALERT_ENDINGS = (('ok', 'The button was pressed'), ('timeout', 'The timeout ran out'),
+                 ('replaced', 'A new alert came over it'), ('remote', 'dismiss_alert from Home Assistant'))
 ALERT_FALLBACK_ICON = 'alert-outline'
 # (field, ESPHome type, label, explanation, example) in the order Home Assistant shows them.
 ALERT_FIELDS = (
-    ('title', 'string', 'Titel', 'Eén regel bovenaan de kaart; wat niet past krijgt puntjes. Leeg wordt "Melding".', 'Iemand belt aan'),
-    ('subtitle', 'string', 'Subtitle', 'Toelichting onder de titel, over meerdere regels; een regeleinde mag. Leeg mag.', 'Deur 3, achterkant'),
-    ('icon', 'string', 'Icoon', 'Een naam uit de lijst, ook als mdi:naam of als hex-codepoint (F12E6). Onbekend of leeg geeft de waarschuwingsdriehoek.', 'doorbell'),
-    ('color', 'string', 'Kleur', 'Een van de negen pastelkleuren van de tegels. Leeg geeft de witte kaart.', 'orange'),
-    ('button_text', 'string', 'Knoptekst', 'De tekst op de knop. Leeg is "Oké".', 'Ik kom'),
-    ('timeout', 'int', 'Timeout', 'Seconden waarna de kaart vanzelf verdwijnt. 0 wacht op de knop, hoe lang dat ook duurt. De knop sluit altijd direct, ook met een timeout.', 0),
-    ('flash', 'bool', 'Knipperen', 'Aan laat de backlight vier keer knipperen als de alert binnenkomt; daarna blijft het scherm gewoon aan.', True),
+    ('title', 'string', 'Title', 'A single line at the top of the card; what doesn\'t fit gets an ellipsis. Empty becomes "Notification".', 'Someone is at the door'),
+    ('subtitle', 'string', 'Subtitle', 'Explanation under the title, across multiple lines; a line break is fine. Empty is fine.', 'Door 3, back'),
+    ('icon', 'string', 'Icon', 'A name from the list, also as mdi:name or as a hex codepoint (F12E6). Unknown or empty gives the warning triangle.', 'doorbell'),
+    ('color', 'string', 'Color', 'One of the nine pastel colors of the tiles. Empty gives the white card.', 'orange'),
+    ('button_text', 'string', 'Button text', 'The text on the button. Empty is "OK".', 'Coming'),
+    ('timeout', 'int', 'Timeout', 'Seconds after which the card disappears on its own. 0 waits for the button, however long that takes. The button always closes it immediately, even with a timeout.', 0),
+    ('flash', 'bool', 'Blinking', 'On makes the backlight blink four times when the alert arrives; the screen then just stays on.', True),
 )
-# Bytes per field the firmware keeps (the profiles' ALERT_*_MAX); a Dutch letter with accent takes two.
+# Bytes per field the firmware keeps (the profiles' ALERT_*_MAX); an accented letter takes two.
 ALERT_LIMITS = {'cyd': {'title': 48, 'subtitle': 160, 'button_text': 12}, 'guition': {'title': 64, 'subtitle': 240, 'button_text': 16}}
 ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alarm-light', 'lock', 'lock-open-variant', 'door-open',
                          'window-closed-variant', 'motion-sensor', 'cctv', 'smoke-detector', 'water-alert', 'fire', 'mailbox', 'car',
@@ -515,35 +550,35 @@ def discover_screens(registry, states, devices, areas):
     """Paired screens: every enabled ESPHome inbox with the diagnostics of its device."""
     device_map = {d['id']: d for d in devices}
     area_map = {a['area_id']: a['name'] for a in areas}
-    versions = {item.get('device_id'): states.get(item['entity_id'], {}).get('state', 'onbekend') for item in registry
-                if item.get('platform') == 'esphome' and item.get('original_name') == 'Schermfirmware'}
+    versions = {item.get('device_id'): states.get(item['entity_id'], {}).get('state', 'unknown') for item in registry
+                if item.get('platform') == 'esphome' and item.get('original_name') in NAME_SCREEN_FIRMWARE}
     boards = {item.get("device_id"): "guition" for item in registry
-              if item.get("platform") == "esphome" and item.get("original_name") == "Guition schermtype"}
-    def diagnostic(name, pattern):
+              if item.get("platform") == "esphome" and item.get("original_name") in NAME_GUITION_TYPE}
+    def diagnostic(names, pattern):
         found = {}
         for item in registry:
-            if item.get('platform') == 'esphome' and item.get('original_name') == name:
+            if item.get('platform') == 'esphome' and item.get('original_name') in names:
                 value = states.get(item['entity_id'], {}).get('state', '')
                 if isinstance(value, str) and re.fullmatch(pattern, value):
                     found[item.get('device_id')] = value
         return found
-    nodes = diagnostic('Apparaatnaam', r'[a-z0-9][a-z0-9-]{0,30}')
-    addresses = diagnostic('IP-adres', r'\d{1,3}(\.\d{1,3}){3}')
+    nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')
+    addresses = diagnostic(NAME_IP_ADDRESS, r'\d{1,3}(\.\d{1,3}){3}')
     screens = []
     for item in registry:
         eid = item['entity_id']
-        if not (item.get('platform') == 'esphome' and eid.startswith('text.') and item.get('original_name') == 'Tegelinstellingen' and not item.get('disabled_by')):
+        if not (item.get('platform') == 'esphome' and eid.startswith('text.') and item.get('original_name') in NAME_TILE_SETTINGS and not item.get('disabled_by')):
             continue
         device = device_map.get(item.get('device_id'), {})
         state = states.get(eid, {})
         area = area_map.get(item.get('area_id') or device.get('area_id'), '')
         screens.append({'id': eid, 'name': device.get('name_by_user') or device.get('name') or eid,
-                        'firmware': versions.get(item.get('device_id'), 'onbekend'),
+                        'firmware': versions.get(item.get('device_id'), 'unknown'),
                         'board': boards.get(item.get('device_id'), 'unknown'),
                         'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
                         'device': device.get('name') or '',
                         'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
-                        'status': state.get('state', 'Niet verbonden')})
+                        'status': state.get('state', 'Not connected')})
     return screens
 
 def discover(registry, states, devices, areas):
@@ -578,13 +613,13 @@ def discover(registry, states, devices, areas):
 def installation_yaml(data):
     board, name, friendly = data.get('board'), data.get('name'), data.get('friendly_name')
     if board not in REFS or not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,29}', name):
-        raise ValueError('Kies een bord en een unieke naam (kleine letters, cijfers, streepjes; maximaal 30 tekens).')
+        raise ValueError('Choose a board and a unique name (lowercase letters, digits, dashes; 30 characters max).')
     if not isinstance(friendly, str) or not friendly.strip() or len(friendly) > 60:
-        raise ValueError('Geef het scherm een herkenbare naam (maximaal 60 tekens).')
+        raise ValueError('Give the screen a recognizable name (60 characters max).')
     quote = lambda s: json.dumps(s, ensure_ascii=False)
     key, ota, ap = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24), secrets.token_urlsafe(12)
-    return f'''# Bewaar dit bestand: het bevat de unieke sleutels voor dit scherm.
-# Wifi komt uit de secrets.yaml van ESPHome Device Builder.
+    return f'''# Keep this file safe: it contains the unique keys for this screen.
+# Wi-Fi comes from the secrets.yaml of ESPHome Device Builder.
 substitutions:
   DEVICE_NAME: {quote(name)}
   DEVICE_FRIENDLY_NAME: {quote(friendly.strip())}

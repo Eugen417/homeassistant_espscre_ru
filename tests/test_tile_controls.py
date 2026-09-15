@@ -26,7 +26,7 @@ class ControlChoices(unittest.TestCase):
         self.assertNotIn('sensor', catalogue)
 
     def test_validation_accepts_own_sets_and_rejects_others(self):
-        layout = validate_layout({'title': 'T', 'tiles': [{'entity': 'cover.gordijn', 'options': {'size': 'wide', 'controls': 'position'}}]})
+        layout = validate_layout({'title': 'T', 'tiles': [{'entity': 'cover.curtain', 'options': {'size': 'wide', 'controls': 'position'}}]})
         self.assertEqual(layout['tiles'][0]['options']['controls'], 'position')
         validate_layout({'title': 'T', 'tiles': [{'entity': 'light.a', 'options': {'controls': 'none'}}]})
         for entity, choice in (('cover.a', 'volume'), ('sensor.a', 'toggle'), ('switch.a', 'brightness'), ('climate.a', 42), ('light.a', 'run')):
@@ -44,25 +44,25 @@ class ControlChoices(unittest.TestCase):
 
     def test_wire_carries_only_the_shown_set_and_the_attributes_the_panels_need(self):
         states = {'media_player.sonos': {'state': 'playing', 'attributes': {'volume_level': 0.17, 'is_volume_muted': False, 'media_title': 'TV', 'supported_features': 8321599, 'assumed_state': True}},
-                  'cover.gordijn': {'state': 'open', 'attributes': {'current_position': 80, 'device_class': 'curtain', 'supported_features': 15}},
-                  'climate.airco': {'state': 'cool', 'attributes': {'hvac_action': 'cooling', 'hvac_modes': ['off', 'cool', 'heat'], 'temperature': 20, 'target_temp_step': 1.0}}}
+                  'cover.curtain': {'state': 'open', 'attributes': {'current_position': 80, 'device_class': 'curtain', 'supported_features': 15}},
+                  'climate.ac': {'state': 'cool', 'attributes': {'hvac_action': 'cooling', 'hvac_modes': ['off', 'cool', 'heat'], 'temperature': 20, 'target_temp_step': 1.0}}}
         msg = state_message(0, {'entity': 'media_player.sonos', 'name': '', 'options': {'size': 'wide'}}, states)
         self.assertEqual(msg['o'], {'size': 'wide', 'controls': 'volume'})
         self.assertIs(msg['a']['is_volume_muted'], False)
         self.assertNotIn('assumed_state', msg['a'])
-        msg = state_message(1, {'entity': 'cover.gordijn', 'name': '', 'options': {'size': 'wide', 'controls': 'none', 'background': 'blue'}}, states)
+        msg = state_message(1, {'entity': 'cover.curtain', 'name': '', 'options': {'size': 'wide', 'controls': 'none', 'background': 'blue'}}, states)
         self.assertEqual(msg['o'], {'size': 'wide', 'background': 'blue'}, 'an explicit none is not sent; the stored choice stays')
         self.assertEqual(msg['a']['device_class'], 'curtain')
-        msg = state_message(2, {'entity': 'climate.airco', 'name': '', 'options': {'size': 'wide', 'controls': 'mode'}}, states)
+        msg = state_message(2, {'entity': 'climate.ac', 'name': '', 'options': {'size': 'wide', 'controls': 'mode'}}, states)
         self.assertEqual(msg['o'], {'size': 'wide', 'controls': 'mode'})
         self.assertEqual(msg['a']['hvac_action'], 'cooling')
         self.assertTrue(all(len(p) <= 255 for p in packets(msg)))
-        msg = state_message(3, {'entity': 'climate.airco', 'name': '', 'options': {'controls': 'mode'}}, states)
+        msg = state_message(3, {'entity': 'climate.ac', 'name': '', 'options': {'controls': 'mode'}}, states)
         self.assertEqual(msg['o'], {}, 'a single card never shows a panel')
-        self.assertIsNone(min_firmware({'tiles': [{'entity': 'climate.airco', 'options': {'size': 'wide', 'controls': 'mode'}}]}), 'older firmware ignores the field')
+        self.assertIsNone(min_firmware({'tiles': [{'entity': 'climate.ac', 'options': {'size': 'wide', 'controls': 'mode'}}]}), 'older firmware ignores the field')
 
     def test_screen_options_keeps_the_choice_out_of_the_wire_but_in_storage(self):
-        tile = {'entity': 'switch.bureau', 'name': '', 'options': {'size': 'wide', 'controls': 'toggle', 'icon': 'auto'}}
+        tile = {'entity': 'switch.desk', 'name': '', 'options': {'size': 'wide', 'controls': 'toggle', 'icon': 'auto'}}
         self.assertEqual(screen_options(tile, {}), {'size': 'wide', 'controls': 'toggle'})
         self.assertEqual(validate_layout({'title': 'T', 'tiles': [tile]})['tiles'][0]['options'], tile['options'])
 
@@ -86,8 +86,8 @@ class ControlInventory(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             m = test_portal.ManagerTests().setup_manager(Path(tmp) / 'screens.json')
             self.assertEqual(m.inventory()[0][0]['id'], 'text.screen')
-            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'size': 'wide', 'controls': 'brightness'}}]})
-            m.save('text.screen', {'title': 'Thuis', 'tiles': [{'entity': 'light.a', 'options': {'size': 'wide'}}]})
+            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.a', 'options': {'size': 'wide', 'controls': 'brightness'}}]})
+            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.a', 'options': {'size': 'wide'}}]})
             self.assertEqual(m.layouts['text.screen']['tiles'][0]['options'], {'size': 'wide', 'controls': 'brightness'})
             await m.sync_one('text.screen', m.layouts['text.screen'])
             self.assertEqual(m.ha.messages[1][1]['o'], {'size': 'wide', 'controls': 'brightness'})

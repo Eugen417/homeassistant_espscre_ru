@@ -1,99 +1,99 @@
-# Guition 4848S040: onafhankelijke fabrikanttest
+# Guition 4848S040: independent manufacturer test
 
-Deze test onderscheidt onze ESPHome/UI van de oorspronkelijke paneelaansturing.
-Een passende demo is gevonden in het fabrikantpakket dat SpotPear aanbiedt:
+This test distinguishes our ESPHome/UI from the original panel driving.
+A matching demo was found in the manufacturer package offered by SpotPear:
 
-- [Verkoper met downloadlink](https://spotpear.com/ESP32-S3-4-inch-LCD-Touchscreen-Display-SHT20-Temperature-Humidity-480x480-RS485-Relay-GC9503-ST7701-FT6336U-GT911-86-TVbox/forum-answer/357.html)
-- [Origineel archief](https://cdn.static.spotpear.com/uploads/picture/learn/ESP32/ESP32-S3-4inch/4.0inch_ESP32-4848S040.zip)
-- [Community-uitleg voor bouwen met LVGL 8/9](https://github.com/paulhamsh/LVGL_GUITION)
+- [Vendor with download link](https://spotpear.com/ESP32-S3-4-inch-LCD-Touchscreen-Display-SHT20-Temperature-Humidity-480x480-RS485-Relay-GC9503-ST7701-FT6336U-GT911-86-TVbox/forum-answer/357.html)
+- [Original archive](https://cdn.static.spotpear.com/uploads/picture/learn/ESP32/ESP32-S3-4inch/4.0inch_ESP32-4848S040.zip)
+- [Community write-up for building with LVGL 8/9](https://github.com/paulhamsh/LVGL_GUITION)
 
-In het archief:
+In the archive:
 
-- `1-Demo/Demo_Arduino/1_2_4.0_LvglWidgets/4.0_LvglWidgets/`: broncode.
-- `1-Demo/Demo_Arduino/Libraries/Arduino_GFX-master/`: meegeleverde paneeldriver.
-- `8-Burn operation/Burn files/4.0_LvglWidgets.bin`: samengevoegde firmware,
-  652640 bytes, flashadres 0. Bootloader op 0, partitietabel op 0x8000,
-  applicatie op 0x10000.
-- SHA256 van die demo: `9662c193fc52407bba2ed1462c582d40148f7d8eedfc806db4e8fff7685abba1`.
+- `1-Demo/Demo_Arduino/1_2_4.0_LvglWidgets/4.0_LvglWidgets/`: source code.
+- `1-Demo/Demo_Arduino/Libraries/Arduino_GFX-master/`: bundled panel driver.
+- `8-Burn operation/Burn files/4.0_LvglWidgets.bin`: combined firmware,
+  652640 bytes, flash address 0. Bootloader at 0, partition table at 0x8000,
+  application at 0x10000.
+- SHA256 of that demo: `9662c193fc52407bba2ed1462c582d40148f7d8eedfc806db4e8fff7685abba1`.
 
-Gebruik uitsluitend de Widgets-demo voor de displaytest. De andere meegeleverde
-voorbeelden zijn relay- en muziektoepassingen. De Widgets-bron gebruikt alleen
-paneel, GT911 en achtergrondverlichting en heeft geen HA-/wifi-configuratie.
+Use only the Widgets demo for the display test. The other bundled
+examples are relay and music applications. The Widgets source only uses the
+panel, GT911, and backlight, and has no HA/Wi-Fi configuration.
 
-## Opvallende referentie-instellingen
+## Notable reference settings
 
-De oorspronkelijke bron gebruikt ArduinoGFX, `st7701_type1_init_operations`,
-16 MHz pixelklok, RGB-pinnen R=11/12/13/14/0, G=8/20/3/46/9/10,
-B=4/5/6/7/15. Horizontaal front/pulse/back=10/8/50; verticaal=10/8/20.
-De paneelmodus is 0x3A=0x60, RGB666 op een 16-bits bedrade bus, met 0xCD=0x00.
-Rotatie 0 schrijft C7=0 in registerbank 0x10 en MADCTL=0 in bank 0.
-De achtergrondverlichting staat via GPIO38 continu aan, zonder PWM.
+The original source uses ArduinoGFX, `st7701_type1_init_operations`,
+a 16 MHz pixel clock, RGB pins R=11/12/13/14/0, G=8/20/3/46/9/10,
+B=4/5/6/7/15. Horizontal front/pulse/back=10/8/50; vertical=10/8/20.
+The panel mode is 0x3A=0x60, RGB666 on a 16-bit wired bus, with 0xCD=0x00.
+Rotation 0 writes C7=0 in register bank 0x10 and MADCTL=0 in bank 0.
+The backlight is on continuously via GPIO38, without PWM.
 
-De gamma- en spanningswaarden lijken op ESPHome's ST7701S-basis, maar de volgorde,
-porches en rotatiecommando's verschillen. Dat is aanleiding voor vergelijking,
-geen bewijs dat een specifieke wijziging strepen oplost.
+The gamma and voltage values resemble ESPHome's ST7701S base, but the order,
+porches, and rotation commands differ. That's grounds for comparison,
+not proof that a specific change fixes banding.
 
-## Back-up en terugkeer
+## Backup and recovery
 
-Verifieer eerst de chip/MAC en de echte USB-poort. Een volledige flashback-up is
-het veiligst. Voor deze specifieke demo worden alleen sectoren binnen de eerste
-1 MiB overschreven. Een exacte back-up van dat bereik is voldoende om die
-overschrijving terug te draaien als de demo geen andere flashgebieden beschrijft.
-Bewaar daarnaast de eigen firmware/YAML. Flashback-ups bevatten persoonlijke
-sleutels: alleen lokaal opslaan, nooit in Git.
+First verify the chip/MAC and the actual USB port. A full flash backup is
+safest. For this specific demo, only sectors within the first
+1 MiB are overwritten. An exact backup of that range is enough to
+undo that overwrite, as long as the demo doesn't write to other flash regions.
+Also keep the device's own firmware/YAML. Flash backups contain personal
+keys: keep them local only, never in Git.
 
-Gebruik geen erase-all. Herstel na de test de geback-upte sectoren en verifieer de
-ESPHome-identiteit, versie, voorkeuren en HA-koppeling. Leg het fysieke resultaat
-apart vast: een succesvolle upload zegt niets over het zichtbare beeld.
-
-
-## Uitgevoerde test op 12 september 2026
-
-- Fabrikantarchief opgehaald en de Widgets-bron plus meegeleverde driver gelezen.
-- De eerste 1 MiB (alle door deze demo overschreven sectoren) via USB geback-upt;
-  921600/460800 baud gaven communicatieproblemen, 115200 baud werkte.
-- Originele Widgets-binary ongewijzigd op adres 0 geschreven; hashverificatie geslaagd.
-- USB-bootlog meldt `LVGL Widgets Demo` en `Setup done`, vervolgens GT911-polling.
-  Ook meldt de oorspronkelijke demo GPIO-fouten bij het opzetten; daarom blijft
-  fysieke bevestiging nodig. De eigenaar bevestigt daarna: de fabrikantdemo is schoon, zonder strepen.
-  Daarmee is goede beeldweergave op dit fysieke paneel aangetoond. Dit sluit
-  niet iedere hardware-/voedingsfactor uit, maar maakt onze aansturing de
-  eerste onderzoekslijn.
+Don't use erase-all. After the test, restore the backed-up sectors and verify the
+ESPHome identity, version, preferences, and HA pairing. Record the physical result
+separately: a successful upload says nothing about the visible image.
 
 
-## Native ESPHome-kandidaat 0.1.3
+## Test performed on September 12, 2026
 
-De standaard `st7701s`-component krijgt dezelfde 16 MHz-klok en horizontale
-10/8/50 en verticale 10/8/20 timing als de fabrikantdemo. SPI gebruikt MODE0;
-kleurvolgorde RGB, geen inversie of hardwarematige spiegeling. Na de ingebouwde
-initialisatie worden de 16-bits busconfiguratie CD=00 en de standaard registerbank
-expliciet gekozen, gevolgd door 3A=60 en de wachttijd na sleep-out. De GT911 blijft
-in dezelfde ongemirrorde oriëntatie. De ESPHome RGB-driver wordt niet gekopieerd
-of gepatcht; de eerdere extra SDK-cache-/restart-instellingen zijn verwijderd.
+- Fetched the manufacturer archive and read the Widgets source plus bundled driver.
+- Backed up the first 1 MiB (every sector this demo overwrites) over USB;
+  921600/460800 baud caused communication problems, 115200 baud worked.
+- Wrote the original Widgets binary unchanged at address 0; hash verification passed.
+- The USB boot log reports `LVGL Widgets Demo` and `Setup done`, then GT911 polling.
+  The original demo also reports GPIO errors during setup; physical
+  confirmation therefore remains necessary. The owner then confirmed: the manufacturer demo is clean, no banding.
+  That demonstrates good image output on this physical panel. This doesn't
+  rule out every hardware/power factor, but it makes our own driving the
+  first line of investigation.
 
-De eigenaar meldt dat deze kandidaat schoner is, maar nog enkele vaste verticale
-banden toont. Dit is dus geen afgeronde oplossing. De fabrikantdemo blijft de
-schone referentie. Verschillen zijn onder meer ESP-IDF/LVGL-versies, framebuffer-
-en bouncebuffergebruik, wifi/API, PWM en de extra initialisatiestappen van de
-standaarddriver (inclusief software-reset). Native betekent hier de ingebouwde
-ESPHome-driver, niet byte-voor-byte dezelfde uitvoering als de fabrikantdemo.
 
-Daarna is alleen de Guition-interface licht vormgegeven: achtergrond F7F7F7,
-witte kaarten, rand DDDDDD, donkere tekst en blauwe accenten. Ook de detailkaarten
-gebruiken lichte bedieningselementen. Geometrie, paginering, touch, HA-indeling en
-opgeslagen instellingen blijven behouden. Deze stijlwijziging is geen strepenfix.
+## Native ESPHome candidate 0.1.3
 
-### Lichte interface: softwarecontrole
+The standard `st7701s` component gets the same 16 MHz clock and horizontal
+10/8/50 and vertical 10/8/20 timing as the manufacturer demo. SPI uses MODE0;
+color order RGB, no inversion or hardware mirroring. After the built-in
+initialization, the 16-bit bus configuration CD=00 and the standard register bank
+are explicitly selected, followed by 3A=60 and the wait after sleep-out. The GT911 stays
+in the same unmirrored orientation. The ESPHome RGB driver isn't copied
+or patched; the earlier extra SDK cache/restart settings have been removed.
 
-De Python-suite (33 tests), zeven C++-regressietests en packagegeneratorcontrole
-slagen. De eerste lichte firmware is via OTA geïnstalleerd; tien paginacontroles
-plus vijftig overlaywisselingen slagen zonder HA-acties. De schermopname toont de
-nieuwe lichte kaarten met de bestaande HA-indeling. Lange namen kregen daarna
-vaste regelhoogtes met afkapping, zodat titel en status niet overlappen.
-Een interne schermopname bewijst geen storingsvrije fysieke paneeluitvoer.
+The owner reports that this candidate is cleaner but still shows a few fixed vertical
+bands. So this is not a finished solution. The manufacturer demo remains the
+clean reference. Differences include ESP-IDF/LVGL versions, framebuffer
+and bounce buffer usage, Wi-Fi/API, PWM, and the extra initialization steps of the
+standard driver (including a software reset). "Native" here means the built-in
+ESPHome driver, not a byte-for-byte identical execution to the manufacturer demo.
 
-De definitieve lichte versie (config_hash 0x0a70a194) is via OTA geïnstalleerd.
-Beide Easy Setup- en beide handmatige profielen bouwen succesvol. De eigenaar
-bevestigt vervolgens: ‘Stijl goed, geen banden zichtbaar’. Dit is fysieke
-acceptatie van het huidige beeld, geen duurtest na langdurige standby en geen
-bewijs dat alleen een driverwijziging de oorzaak heeft opgelost.
+After that, only the Guition interface was given a light design: background F7F7F7,
+white cards, border DDDDDD, dark text, and blue accents. The detail cards also
+use light controls. Geometry, pagination, touch, HA layout, and
+saved settings are preserved. This style change is not a banding fix.
+
+### Light interface: software check
+
+The Python suite (33 tests), seven C++ regression tests, and the package generator check
+pass. The first light firmware was installed over OTA; ten page checks
+plus fifty overlay switches pass without HA actions. The screen capture shows the
+new light cards with the existing HA layout. Long names then got
+fixed line heights with truncation, so the title and status don't overlap.
+An internal screen capture doesn't prove glitch-free physical panel output.
+
+The final light version (config_hash 0x0a70a194) was installed over OTA.
+Both Easy Setup and both manual profiles build successfully. The owner
+then confirmed: 'Style good, no bands visible'. This is physical
+acceptance of the current image, not an endurance test after prolonged standby, and not
+proof that a driver change alone fixed the root cause.

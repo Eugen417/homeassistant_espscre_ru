@@ -29,13 +29,13 @@ BANDS = {'guition': (480, 72), 'cyd': (320, 40)}
 
 # (slug, title, items) with items as C++ expressions of the render lambda's helpers.
 SCENARIOS = (
-    ('1-klok', 'Studio 1', ['builtin(Kind::clock)']),
-    ('2-mockup', 'Woonkamer', ['text(0xF050F, "—")', 'text(0xF050F, "21,3 °C")', 'text(0xF058E, "—")', 'ago(0xF0004, 26 * 3600)']),
-    ('3-deur-alarm', 'Studio 1', ['text(0xF081C, "Open", 0xFFB300)', 'text(0xF068A, "Afwezig", 0x43A047)', 'builtin(Kind::clock)']),
-    ('4-analoog-datum', 'Keuken', ['text(0xF050F, "23,5 °C")', 'builtin(Kind::date)', 'builtin(Kind::analog)']),
-    ('5-thuis-weer-stroom', 'Studio 1', ['text(0xF0849, "4")', 'text(0xF0595, "22 °C")', 'text(0xF0241, "1.249 W")', 'builtin(Kind::clock)']),
-    ('6-te-vol', 'Woonkamer beneden', ['text(0xF050F, "21,3 °C")', 'text(0xF058E, "48%")', 'ago(0xF0D91, 5 * 60)', 'text(0xF0241, "78,0 W")', 'builtin(Kind::analog)', 'builtin(Kind::clock)']),
-    ('7-mensen', 'Studio 1', ['text(0xF0004, "Weg")', 'text(0xF0849, "4")', 'builtin(Kind::analog)', 'builtin(Kind::clock)']),
+    ('1-clock', 'Studio 1', ['builtin(Kind::clock)']),
+    ('2-mockup', 'Living room', ['text(0xF050F, "—")', 'text(0xF050F, "21.3 °C")', 'text(0xF058E, "—")', 'ago(0xF0004, 26 * 3600)']),
+    ('3-door-alarm', 'Studio 1', ['text(0xF081C, "Open", 0xFFB300)', 'text(0xF068A, "Armed away", 0x43A047)', 'builtin(Kind::clock)']),
+    ('4-analog-date', 'Kitchen', ['text(0xF050F, "23.5 °C")', 'builtin(Kind::date)', 'builtin(Kind::analog)']),
+    ('5-home-weather-power', 'Studio 1', ['text(0xF0849, "4")', 'text(0xF0595, "22 °C")', 'text(0xF0241, "1,249 W")', 'builtin(Kind::clock)']),
+    ('6-too-full', 'Living room downstairs', ['text(0xF050F, "21.3 °C")', 'text(0xF058E, "48%")', 'ago(0xF0D91, 5 * 60)', 'text(0xF0241, "78.0 W")', 'builtin(Kind::analog)', 'builtin(Kind::clock)']),
+    ('7-people', 'Studio 1', ['text(0xF0004, "Away")', 'text(0xF0849, "4")', 'builtin(Kind::analog)', 'builtin(Kind::clock)']),
 )
 
 def font_blocks(board):
@@ -152,7 +152,7 @@ for (auto &scenario : scenarios) {{
     lv_draw_buf_destroy(buf);
   }}
 }}
-ESP_LOGI("render", "klaar");
+ESP_LOGI("render", "done");
 fflush(stdout);
 exit(0);
 '''
@@ -192,7 +192,7 @@ api:
 
 text:
   - platform: smart_display
-    name: "Tegelinstellingen"
+    name: "Tile settings"
 
 display:
   - platform: sdl
@@ -272,7 +272,7 @@ def main():
     parser.add_argument('--esphome', default=os.environ.get('ESPHOME') or shutil.which('esphome') or str(Path.home() / '.local/pipx/venvs/esphome/bin/esphome'))
     args = parser.parse_args()
     if not shutil.which('sdl2-config'):
-        raise SystemExit('SDL2 ontbreekt: installeer het eerst (bijvoorbeeld brew install sdl2).')
+        raise SystemExit('SDL2 is missing: install it first (for example brew install sdl2).')
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     for old in out.glob('*.p[np][gm]'):
@@ -288,10 +288,10 @@ def main():
     build = subprocess.run([args.esphome, 'compile', str(config)], capture_output=True, text=True)
     if build.returncode:
         sys.stdout.write(build.stdout[-4000:] + build.stderr[-2000:])
-        raise SystemExit('Build mislukt.')
+        raise SystemExit('Build failed.')
     program = next(WORK.glob('.esphome/build/render-topbar/.pioenvs/render-topbar/program'), None)
     if not program:
-        raise SystemExit('Geen host-programma gevonden na de build.')
+        raise SystemExit('No host program found after the build.')
     subprocess.run([str(program)], capture_output=True, timeout=60, check=True)
     print(sheet(out))
 

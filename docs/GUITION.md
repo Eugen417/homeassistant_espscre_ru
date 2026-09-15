@@ -1,173 +1,173 @@
 # Guition ESP32-S3 4-inch wallbox — 480 × 480
 
-Deze branch voegt een apart profiel toe voor de **Guition 4848S040** met
-ST7701S RGB-display en **GT911 capacitieve touch**, ESP32-S3, 16 MB flash en
-8 MB octal PSRAM. De naam/2mm-wandplaat beschrijft ook de behuizing; controleer
-altijd de elektronica. Dit profiel configureert geen relais.
+This branch adds a separate profile for the **Guition 4848S040** with an
+ST7701S RGB display and **GT911 capacitive touch**, ESP32-S3, 16 MB flash, and
+8 MB octal PSRAM. The name/2mm wall plate also describes the enclosure; always
+check the electronics. This profile doesn't configure any relay.
 
-Hardwarebron: [ESPHome Guition-bordbeschrijving](https://devices.esphome.io/devices/guition-esp32-s3-4848s040/)
-en de ingebouwde [ST7701S-driver](https://esphome.io/components/display/st7701s/).
-De paneelconfiguratie volgt de originele, fysiek schoon bevonden fabrikantdemo;
-zie [de vergelijking](GUITION_FACTORY_REFERENCE.md). Er is geen lokale RGB-driver
-of periodiek herstel-script nodig. De GT911 gebruikt ongemirrorde coördinaten.
+Hardware source: the [ESPHome Guition board writeup](https://devices.esphome.io/devices/guition-esp32-s3-4848s040/)
+and the built-in [ST7701S driver](https://esphome.io/components/display/st7701s/).
+The panel configuration follows the original manufacturer demo, found physically clean;
+see [the comparison](GUITION_FACTORY_REFERENCE.md). No local RGB driver
+or periodic recovery script is needed. The GT911 uses unmirrored coordinates.
 
-## Bestanden
+## Files
 
-- `guition-4848s040.yaml`: neutrale hardware + 480×480-interface.
-- `guition-device.example.yaml`: eigen apparaat-/tegelinstellingen.
-- `guition-device.yaml`: jouw lokale profiel, buiten Git.
-- `secrets.yaml`: lokale wifi/API/OTA-instellingen, buiten Git.
-- `tools/verify_gt911.py`: fysieke pixelcontrole; geen resistieve ADC-kalibratie.
+- `guition-4848s040.yaml`: neutral hardware + 480×480 interface.
+- `guition-device.example.yaml`: personal device/tile settings.
+- `guition-device.yaml`: your local profile, outside Git.
+- `secrets.yaml`: local Wi-Fi/API/OTA settings, outside Git.
+- `tools/verify_gt911.py`: physical pixel check; no resistive ADC calibration.
 
-Het 2,8-inch CYD-profiel blijft apart. Flash dat niet naar de Guition en neem
-geen `calibration.yaml` of XPT2046-correctie over.
+The 2.8-inch CYD profile stays separate. Don't flash that to the Guition, and don't
+carry over `calibration.yaml` or the XPT2046 correction.
 
 ## Interface
 
-### Montage en schermrotatie (runtime 0.2.9+)
+### Mounting and screen rotation (runtime 0.2.9+)
 
-Installeer Guition-firmware 0.2.9 en ESP Screen Manager 0.2.9. Open het scherm
-in de beheerpagina, ga naar **Scherminstellingen** en kies bij **Scherm draaien**
-0°, 90°, 180° of 270°, met de klok mee. Klik op opslaan. Een firmwareflash is
-daarna niet meer nodig om de hoek te wijzigen. De instelling blijft in de appdata
-en op het scherm bewaard na een herstart.
+Install Guition firmware 0.2.9 and ESP Screen Manager 0.2.9. Open the screen
+in the management page, go to **Screen settings**, and choose 0°, 90°, 180°,
+or 270° (clockwise) under **Rotate screen**. Click save. After that, a
+firmware flash is no longer needed to change the angle. The setting is kept
+in the app data and on the screen after a restart.
 
-Dit gebruikt de native ESPHome/LVGL-rotatie voor beeld én touch, zonder wijzigingen
-aan de paneelinitialisatie of GT911-spiegeling. Controleer na montage de vier
-hoeken en de navigatie fysiek; een renderproef test geen aanrakingen. De optie is
-alleen zichtbaar voor de Guition nadat zijn nieuwe firmware door HA is ontdekt.
-De CYD blijft op zijn bestaande oriëntatie met zijn eigen kalibratie.
+This uses native ESPHome/LVGL rotation for both display and touch, with no changes
+to the panel initialization or GT911 mirroring. After mounting, physically check the
+four corners and navigation; a render test doesn't test touches. The option is
+only visible for the Guition once its new firmware has been discovered by HA.
+The CYD stays on its existing orientation with its own calibration.
 
-Zes tegels van **218 × 108 pixels** per pagina, 12px tussenruimte en een
-aparte navigatiestrook. In ESP Screen Manager passen twintig tegels op maximaal
-vier pagina’s; tot zes verdwijnt de navigatie. De huidige interface heeft een
-lichtgrijze achtergrond, witte kaarten en gekleurde domeiniconen. Vanaf 0.2.10 kun
-je per tegel een pastel achtergrond kiezen met donkere tekst. Standby begint
-standaard na tien minuten zonder aanraking en is instelbaar in de beheerpagina.
-Vanaf 0.2.13 dimt de backlight via de LEDC-hardwarefader (`backlight_fade.h`,
-1,5 s naar standby, 80 ms wakker): de volledige LVGL-herteken bij standby
-onderbreekt de overgang dan niet meer. ESPHome's lichtstatus wordt na de fade
-gesynchroniseerd, zodat de entity in HA en latere overgangen kloppen.
+Six tiles of **218 × 108 pixels** per page, 12px spacing, and a
+separate navigation strip. In ESP Screen Manager, twenty tiles fit across up to
+four pages; navigation disappears at six or fewer. The current interface has a
+light gray background, white cards, and colored domain icons. From 0.2.10, you
+can choose a pastel background with dark text per tile. Standby starts
+after ten minutes without touch by default and is adjustable in the management page.
+From 0.2.13, the backlight dims via the LEDC hardware fader (`backlight_fade.h`,
+1.5 s to standby, 80 ms to wake): the full LVGL redraw on standby no longer
+interrupts the transition. ESPHome's light state is synced after the fade,
+so the entity in HA and later transitions stay correct.
 
-De bestaande tegelacties, climatebediening en vacuumkaart zijn behouden.
-Alle kaarttypen zijn beschikbaar op alle twintig runtime-posities. Alleen in
-het oude handmatige profiel blijft de vacuumkaart op tegel 6 en hebben posities
-8/10 beperkingen; zie [TEGELS.md](TEGELS.md).
+The existing tile actions, climate control, and vacuum card are preserved.
+All card types are available at all twenty runtime positions. Only in
+the old manual profile does the vacuum card stay on tile 6 and do positions
+8/10 have limitations; see [TILES.md](TILES.md).
 
-## Nieuwe installatie
+## New installation
 
-Volg de Python-/USB-voorbereiding in [README.md](../README.md), in een verse
-kopie. Maak dit profiel:
+Follow the Python/USB setup in [README.md](../README.md), in a fresh
+copy. Create this profile:
 
 ```sh
-python tools/new_device.py --board guition --name wallbox-keuken --friendly-name "Wallbox keuken"
+python tools/new_device.py --board guition --name wallbox-kitchen --friendly-name "Wallbox kitchen"
 ```
 
-Dit maakt `guition-device.yaml` en nieuwe secrets; bestaande bestanden worden
-niet overschreven. Vul wifi in en wijzig de tegelentiteiten. Gebruik bij
-meerdere borden een aparte map per apparaat. Het huidige lokale Guition-profiel
-van de eigenaar mag diens bestaande secrets gebruiken.
+This creates `guition-device.yaml` and new secrets; existing files are
+not overwritten. Fill in Wi-Fi and change the tile entities. With
+multiple boards, use a separate folder per device. The owner's current local
+Guition profile may use their existing secrets.
 
-Controleer de seriële poort en chip voordat je uploadt. Voor het geteste bord
-bleken hogere seriële snelheden bij uitlezen onbetrouwbaar. Gebruik 115200 baud:
+Check the serial port and chip before uploading. On the tested board,
+higher serial speeds proved unreliable when reading. Use 115200 baud:
 
 ```sh
 python -m esphome config guition-device.yaml
 python -m esphome compile guition-device.yaml
 ```
 
-Flash via `esphome run` als de USB-verbinding betrouwbaar is. Voor expliciet
-115200 baud kun je de gecombineerde factory-image gebruiken. Vervang zowel
-poort als apparaatnaam in het pad door jouw waarden:
+Flash via `esphome run` if the USB connection is reliable. For explicit
+115200 baud, you can use the combined factory image. Replace both the
+port and the device name in the path with your own values:
 
 ```sh
-python -m esptool --chip esp32s3 --port <USB_POORT> --baud 115200 write-flash 0 .esphome/build/wallbox-keuken/.pioenvs/wallbox-keuken/firmware.factory.bin
+python -m esptool --chip esp32s3 --port <USB_PORT> --baud 115200 write-flash 0 .esphome/build/wallbox-kitchen/.pioenvs/wallbox-kitchen/firmware.factory.bin
 ```
 
-De factory-image hoort bij dit S3-profiel en begint op adres **0**, anders dan
-sommige klassieke ESP32-images. Bewaar een herstelkopie vóór vervanging van
-bestaande firmware als die later nog nodig is. Houd binaries en logs lokaal.
+The factory image belongs to this S3 profile and starts at address **0**, unlike
+some classic ESP32 images. Keep a recovery copy before replacing
+existing firmware if you might need it later. Keep binaries and logs local.
 
-## GT911 en oriëntatie testen
+## Testing GT911 and orientation
 
-De GT911 geeft pixels door. Meestal is geen kalibratie nodig; een verkeerde
-rotatie/transform mag niet met de CYD-affinewizard worden weggewerkt.
+The GT911 reports pixels directly. Usually no calibration is needed; a wrong
+rotation/transform should not be papered over with the CYD affine wizard.
 
-Met een werkende wifi/API-verbinding:
+With a working Wi-Fi/API connection:
 
 ```sh
-python diagnostics/control_ui.py touch_diagnostics --host wallbox-keuken.local --name wallbox-keuken
-python tools/verify_gt911.py --port <USB_POORT> --output measurements-guition.json
-python diagnostics/control_ui.py end_touch_diagnostics --host wallbox-keuken.local --name wallbox-keuken
+python diagnostics/control_ui.py touch_diagnostics --host wallbox-kitchen.local --name wallbox-kitchen
+python tools/verify_gt911.py --port <USB_PORT> --output measurements-guition.json
+python diagnostics/control_ui.py end_touch_diagnostics --host wallbox-kitchen.local --name wallbox-kitchen
 ```
 
-Er verschijnen vijf kruisjes. De wizard vraagt drie afzonderlijke tikken per
-punt; eerst Enter en daarna uitsluitend het genoemde kruisje aanraken. Fout
-maximaal 16px, spreiding maximaal 18px. De test stuurt geen HA-acties.
+Five crosshairs appear. The wizard asks for three separate taps per
+point; press Enter first, then touch only the named crosshair. Error
+at most 16px, spread at most 18px. The test doesn't send any HA actions.
 
-Zonder wifi kun je eerst een build maken met `-s CALIBRATION_ON_BOOT true`,
-die na USB-upload direct het GT911-meetscherm toont. Na controle opnieuw
-bouwen/flashen zonder die override. Deze compatibiliteitsnaam opent alleen
-een pixeltest; hij voert geen ADC-kalibratie uit.
+Without Wi-Fi, you can first build with `-s CALIBRATION_ON_BOOT true`,
+which shows the GT911 measurement screen right after the USB upload. After
+checking, rebuild/reflash without that override. This compatibility name only
+opens a pixel test; it doesn't perform any ADC calibration.
 
-Op het geteste paneel zijn beide GT911-assen gespiegeld: `TOUCH_MIRROR_X` en
-`TOUCH_MIRROR_Y` staan op `true`. Standaard is `LVGL_ROTATION: "0"`. Bij een andere montage stel je de gewenste
-LVGL-rotatie in en geef je dezelfde waarde aan de wizard, bijvoorbeeld
-`--rotation 90`. Controleer alle hoeken; verander de GT911 `TOUCH_SWAP_XY` /
-`TOUCH_MIRROR_X` / `TOUCH_MIRROR_Y` alleen als de fysieke meting dat vereist.
+On the tested panel, both GT911 axes are mirrored: `TOUCH_MIRROR_X` and
+`TOUCH_MIRROR_Y` are set to `true`. The default is `LVGL_ROTATION: "0"`. For a different mounting, set the
+desired LVGL rotation and give the wizard the same value, for example
+`--rotation 90`. Check every corner; only change the GT911 `TOUCH_SWAP_XY` /
+`TOUCH_MIRROR_X` / `TOUCH_MIRROR_Y` if the physical measurement requires it.
 
-## HA en acceptatie
+## HA and acceptance
 
-Voeg het nieuwe apparaat toe via de ESPHome-integratie (naam/IP, poort 6053,
-API-sleutel uit secrets). Geef toestemming voor HA-acties en gebruik
-`DIRECT_ACTIONS: "true"` zodra de juiste entiteiten gecontroleerd zijn.
+Add the new device via the ESPHome integration (name/IP, port 6053,
+API key from secrets). Grant permission for HA actions and use
+`DIRECT_ACTIONS: "true"` once the correct entities have been checked.
 
 ```sh
-python diagnostics/run_ui_test.py --host wallbox-keuken.local --name wallbox-keuken
+python diagnostics/run_ui_test.py --host wallbox-kitchen.local --name wallbox-kitchen
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Doorloop ook de fysieke controles uit [ACCEPTATIE.md](ACCEPTATIE.md), met de
-GT911-wizard in plaats van de XPT2046-kalibratie. Controleer beeld, juiste
-aanrakingen, paginering, lange druk, climate/vacuum, echte HA-terugmelding,
-standby en herstel na herstart. Een compilatie/renderproef vervangt die
-fysieke controle niet. De testuitkomst van het oorspronkelijke CYD-bord
-zegt niets over dit nieuwe bord.
+Also go through the physical checks in [ACCEPTANCE.md](ACCEPTANCE.md), using the
+GT911 wizard instead of the XPT2046 calibration. Check the display, correct
+touches, pagination, long press, climate/vacuum, real HA feedback,
+standby, and recovery after a restart. A compile/render test doesn't replace
+that physical check. The original CYD board's test outcome
+says nothing about this new board.
 
-## Gerenderde interface inspecteren
+## Inspecting the rendered interface
 
 ```sh
-python diagnostics/capture_ui.py --host wallbox-keuken.local --name wallbox-keuken --output diagnostics/guition-home.png
+python diagnostics/capture_ui.py --host wallbox-kitchen.local --name wallbox-kitchen --output diagnostics/guition-home.png
 ```
 
-Dit maakt alleen op verzoek een LVGL-snapshot en stuurt een 240×240-preview
-via de versleutelde API. De tijdelijke buffer wordt na ongeveer 24 seconden
-vrijgegeven. Het beeld controleert de renderer; het bewijst niet dat de fysieke
-RGB-signalen, schermkleuren of montageoriëntatie goed zijn. De renderproef
-controleert ook of zichtbare klikgebieden binnen het 480×480-scherm vallen.
+This only takes an LVGL snapshot on request and sends a 240×240 preview
+over the encrypted API. The temporary buffer is released after about 24 seconds.
+The image verifies the renderer; it doesn't prove the physical
+RGB signals, screen colors, or mounting orientation are correct. The render test
+also checks that visible click areas fall within the 480×480 screen.
 
-## Herstelkopie van dit testbord
+## Recovery copy of this test board
 
-De oorspronkelijke gebruikte firmware inclusief bootloader, partitietabel
-en NVS is lokaal bewaard als `diagnostics/guition-original-recovery.bin`.
-De lengtes van de vijf applicatiesegmenten bepaalden de benodigde 4.788.224
-bytes; dit is geen kopie van alle 16 MB flash. De stub controleerde de MD5
-van ieder uitgelezen blok. SHA-256 van het complete herstelbestand:
+The original firmware in use, including bootloader, partition table,
+and NVS, is stored locally as `diagnostics/guition-original-recovery.bin`.
+The lengths of the five application segments determined the needed 4,788,224
+bytes; this is not a copy of the full 16 MB flash. The stub verified the MD5
+of every block read. SHA-256 of the complete recovery file:
 
 ```text
 a656c793c422848b5ad72bc16545fb92c844b7dfba029f4e4399d22444a9e046
 ```
 
-Deze kopie is privé, hoort uitsluitend bij het geteste bord en wordt niet
-meegecommit of geëxporteerd. Herstellen gebeurt op adres 0, met dezelfde
-115200-baudopdracht als de factory-image, maar met dit herstelbestand.
+This copy is private, belongs only to the tested board, and is not
+committed or exported. Recovery happens at address 0, with the same
+115200-baud command as the factory image, but with this recovery file.
 
-## RGB-geheugeninstellingen
+## RGB memory settings
 
-De pixelklok staat op 16 MHz: op het testbord verdween daarmee het zachte
-flikkeren van de 12MHz-instelling. Voor de RGB-bouncebuffer worden code en
-constante data vanuit octal PSRAM uitgevoerd, met 64KB datacache en 64-byte
-cachelijnen; herstel van de RGB-stroom gebeurt op VSYNC. Deze instellingen
-volgen [Espressifs RGB-LCD-aanbevelingen](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32s3/api-reference/peripherals/lcd/rgb_lcd.html).
-Controleer fysiek op incidentele glitches onder wifi-/renderbelasting; een
-software-snapshot kan een verstoring van het paneelsignaal niet bewijzen.
+The pixel clock is set to 16 MHz: on the test board, this removed the faint
+flicker seen at the 12MHz setting. For the RGB bounce buffer, code and
+constant data run from octal PSRAM, with a 64KB data cache and 64-byte
+cache lines; RGB stream recovery happens on VSYNC. These settings
+follow [Espressif's RGB LCD recommendations](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32s3/api-reference/peripherals/lcd/rgb_lcd.html).
+Physically check for occasional glitches under Wi-Fi/render load; a
+software snapshot can't prove a disturbance in the panel signal.
