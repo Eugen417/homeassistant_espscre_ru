@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.38"
+  SCREEN_FIRMWARE_VERSION: "0.2.39"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -902,7 +902,16 @@ interval:
           condition:
             lambda: 'return id(climate_edit_pending) && !id(touch_down) && millis() - id(climate_edit_ms) >= 3000;'
           then:
-            - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+            # The edit window is over: show what Home Assistant reports now. A closed card has
+            # nothing to show, and a flag left set would redraw every tile each second.
+            - lambda: |-
+                if (lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) { id(climate_edit_pending) = false; return; }
+                if (!runtime_tiles::enabled) { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); return; }
+                // Runtime tiles: a state that arrived during the window was held back.
+                id(climate_edit_pending) = false;
+                if (runtime_tiles::detail_update && runtime_tiles::active_index >= 0 &&
+                    runtime_tiles::active_index < (int) runtime_tiles::model.count)
+                  runtime_tiles::detail_update(runtime_tiles::model.tiles[runtime_tiles::active_index]);
       - if:
           condition:
             lambda: |-
@@ -1342,6 +1351,7 @@ font:
       - "\U000F0596" # weather-pouring
       - "\U000F067F" # weather-snowy-rainy
       - "\U000F059B" # weather-sunset-down
+      - "\U000F01D8" # dots-horizontal
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
     id: materialdesign_icons_mini

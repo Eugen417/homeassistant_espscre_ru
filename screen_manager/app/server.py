@@ -429,6 +429,25 @@ class Manager:
             self._registry_source, self._registry_index = registry, {item['entity_id']: item for item in registry}
         return self._registry_index
 
+    def device_entries(self, entity):
+        """Registry entries on the device of `entity` (itself included); the index follows the registry object."""
+        registry = getattr(self.ha, 'registry', [])
+        if getattr(self, '_devices_source', None) is not registry:
+            by_device = {}
+            for item in registry:
+                if item.get('device_id'):
+                    by_device.setdefault(item['device_id'], []).append(item)
+            self._devices_source, self._by_device = registry, by_device
+        device = self.registry_index().get(entity, {}).get('device_id')
+        return self._by_device.get(device, []) if device else []
+
+    def related_entities(self, tile):
+        """Entities a card reads besides its own: a vacuum's cleaning mode and water selects and its battery sensor."""
+        if not tile['entity'].startswith('vacuum.'):
+            return ()
+        from core import vacuum_related
+        return tuple(vacuum_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
+
     def header_message(self, layout):
         return header_bar.message(layout, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}), getattr(self.ha, 'time_zone', None))
 
@@ -518,6 +537,7 @@ class Manager:
             watched = {tile['entity'] for layout in self.layouts.values() for tile in layout['tiles']}
             watched |= {item['entity'] for layout in self.layouts.values() for item in header_items(layout) if item['type'] == 'entity'}
             watched |= {item['entity_id'] for item in self.screen_registry()}
+            watched |= {eid for layout in self.layouts.values() for tile in layout['tiles'] for eid in self.related_entities(tile)}
             self._watched_key, self._watched = key, watched
         return set(self._watched)
 
@@ -541,7 +561,9 @@ class Manager:
             forecast=await self.cached(self.forecasts, tile['entity'], FORECAST_SECONDS, lambda: self.ha.forecast(tile['entity']))
             # Hourly forecasts feed the weather card's next-hours strip (0.2.23+); refreshed every half hour.
             hourly=await self.cached(self.forecasts, (tile['entity'],'hourly'), FORECAST_SECONDS, lambda: self.ha.forecast(tile['entity'],'hourly'))
-        message=state_message(index,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly))
+        # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46).
+        device=self.device_entries(tile['entity']) if tile['entity'].startswith('vacuum.') else None
+        message=state_message(index,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device))
         if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
             hours=tile.get('options',{}).get('history_hours',24)
             entry=self.histories.get((tile['entity'],hours))
@@ -593,7 +615,7 @@ class Manager:
                 header_msg = previous['header']
         states = []
         for i, tile in enumerate(tiles):
-            reuse = not full and i < len(previous['states']) and tile['entity'] not in dirty
+            reuse = not full and i < len(previous['states']) and tile['entity'] not in dirty and dirty.isdisjoint(self.related_entities(tile))
             if reuse and tile['entity'].startswith('weather.') and self.forecast_due(tile['entity']):
                 reuse = False
             states.append(previous['states'][i] if reuse else await self.tile_message(i, tile))

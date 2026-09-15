@@ -278,6 +278,8 @@ inline std::string receive(const std::string &payload) {
     auto a = root["a"].as<JsonObject>();
     // ArduinoJson clears its destination string: serialize attributes first, then add state.
     std::string attributes; serializeJson(a, attributes);
+    // The extras count too: a vacuum's mode or water select changes only there.
+    if (!root["x"].isNull()) { std::string more; serializeJson(root["x"], more); attributes += more; }
     std::string revision = state_revision(string(root["state"]), attributes);
     bool was_confirmed=tile.confirmed;
     tile.observe(revision);
@@ -369,6 +371,30 @@ inline std::string receive(const std::string &payload) {
       if (tile.fan_speed_count == 4) break;
       tile.fan_speeds[tile.fan_speed_count++] = string(speed, 48);
     }
+    // Vacuum rows (app 0.2.46+): the cleaning mode and water selects of the robot's device and the
+    // suction speeds to offer, each at most six; the battery sensor when the vacuum has no attribute.
+    // A chip just tapped keeps its choice while Home Assistant is still busy with it, so another update
+    // of the robot (its battery, say) does not flip the row back for a moment.
+    std::vector<std::pair<char, std::string>> tapped;
+    if (tile.loading(esphome::millis())) for (auto &c : tile.choices) if (!c.sent.empty()) tapped.emplace_back(c.kind, c.sent);
+    tile.choices.clear();
+    auto choice = [&](const char *key, char kind) {
+      auto c = extra[key];
+      if (!c["o"].is<JsonArray>()) return;
+      Choice row; row.kind = kind;
+      row.entity = string(c["e"], 120); row.current = string(c["s"], 48); row.roles = string(c["r"], 6);
+      if (kind != 's' && !valid_entity(row.entity)) return;
+      for (JsonVariant value : c["o"].as<JsonArray>()) { if (row.values.size() == 6) break; row.values.push_back(string(value, 48)); }
+      if (c["l"].is<JsonArray>()) for (JsonVariant label : c["l"].as<JsonArray>()) {
+        if (row.labels.size() == row.values.size()) break; row.labels.push_back(string(label, 24)); }
+      while (row.labels.size() < row.values.size()) row.labels.push_back(row.values[row.labels.size()]);
+      if (!row.values.empty()) tile.choices.push_back(std::move(row));
+    };
+    if (tile.domain() == "vacuum") { choice("mode", 'm'); choice("water", 'w'); choice("fan", 's'); tile_controls::settle_suction(tile); }
+    for (auto &[kind, value] : tapped) if (auto *c = tile.choice(kind)) if (c->current != value) c->sent = value;
+    if (!std::isfinite(tile.battery)) tile.battery = number(extra["bat"]);
+    tile.charging = extra["chg"].is<int>() && extra["chg"].as<int>() == 1;
+    tile.room = string(extra["room"], 32);
     // Home Assistant reports the edited value: the -/+ pill follows its state again.
     if(std::isfinite(tile.edit_value) && tile.edit_sent && std::fabs(tile_controls::edit_target(tile)-tile.edit_value)<0.051f)tile.edit_value=NAN;
     tile.received = true;
@@ -411,7 +437,7 @@ namespace runtime_tiles {
 inline lv_obj_t *detail_root=nullptr;
 inline unsigned detail_index=0;
 inline const lv_font_t *detail_font=nullptr;
-inline lv_obj_t *detail_actions[16]{};
+inline lv_obj_t *detail_actions[32]{};
 inline unsigned detail_action_count=0;
 inline lv_obj_t *detail_status=nullptr;
 inline lv_obj_t *detail_badge_status=nullptr;
@@ -477,6 +503,17 @@ inline void slider_event(lv_event_t *e){
     if(changed && cyd::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
   }
 }
+inline void show_detail(unsigned index);
+// A chip on the vacuum card: the service call goes out, the chip shows the choice at once, and the card
+// waits for Home Assistant like after its other buttons. The card is drawn again once this tap's event
+// has finished, because a chosen mode can add or remove the suction and water rows.
+inline void choose(Tile &t,Choice &row,const std::string &value){
+  if(value==row.current)return;
+  auto a=tile_controls::choice_action(t,row.kind,value);if(!a.valid())return;
+  action(a.service,row.kind=='s'?t.entity:row.entity,a.key,a.value);
+  row.sent=value;t.begin(esphome::millis());
+  lv_async_call([](void *){if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
+}
 inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height,int command){
   auto *button=lv_obj_create(detail_root);lv_obj_remove_style_all(button);lv_obj_set_pos(button,x,y);lv_obj_set_size(button,width,height);
   lv_obj_set_style_bg_color(button,lv_color_hex(command==0?0x009FE3:0xD9E6F0),0);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);lv_obj_set_style_radius(button,12,0);lv_obj_add_flag(button,LV_OBJ_FLAG_CLICKABLE);
@@ -486,7 +523,10 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
     if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
     auto &t=model.tiles[detail_index];if(!t.available()||t.loading(esphome::millis()))return;
     if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
-    if(cmd>=10 && cmd<14 && cmd-10<(int)t.fan_speed_count)action("vacuum.set_fan_speed",t.entity,"fan_speed",t.fan_speeds[cmd-10]);
+    // Vacuum rows: 10-15 suction, 50-55 cleaning mode, 60-65 water.
+    static const std::pair<int,char> rows[]={{10,'s'},{50,'m'},{60,'w'}};
+    for(const auto &[first,kind]:rows)
+      if(cmd>=first && cmd<first+6){auto *row=t.choice(kind);if(row && cmd-first<(int)row->values.size())choose(t,*row,row->values[cmd-first]);}
     if(cmd==20)action("media_player.media_play_pause",t.entity);
     if(cmd==21)action("media_player.media_previous_track",t.entity);
     if(cmd==22)action("media_player.media_next_track",t.entity);
@@ -497,7 +537,7 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
   lv_obj_set_style_bg_color(button,lv_color_hex(0x0075B0),LV_STATE_PRESSED);
   lv_obj_set_style_transform_width(button,-2,LV_STATE_PRESSED);lv_obj_set_style_transform_height(button,-2,LV_STATE_PRESSED);
   lv_obj_set_style_opa(button,LV_OPA_50,LV_STATE_DISABLED);
-  if(command>=0 && detail_action_count<16)detail_actions[detail_action_count++]=button;
+  if(command>=0 && detail_action_count<32)detail_actions[detail_action_count++]=button;
   return button;
 }
 
@@ -600,6 +640,195 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
     detail_text(days,std::isfinite(f.low)?degrees(f.low):"",temps_x+high_w,scy,low_w,small,LV_TEXT_ALIGN_RIGHT,muted);
   }
 }
+// ---- Vacuum card ----
+// A robot with its state and battery, the two commands used most, and one block that says how it cleans:
+// the cleaning mode, then suction and water. Only the rows the chosen mode uses are shown, and they sit
+// below the mode, so a tap never moves the control under the finger. Native shapes and labels only.
+// Native shapes keep the robot crisp without image buffers or extra layers.
+inline lv_obj_t *detail_shape(lv_obj_t *parent,int x,int y,int w,int h,uint32_t color,int radius){
+  auto *o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
+  lv_obj_set_style_radius(o,radius,0);lv_obj_set_style_bg_color(o,lv_color_hex(color),0);lv_obj_set_style_bg_opa(o,LV_OPA_COVER,0);
+  lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);return o;
+}
+inline int text_width(const std::string &text,const lv_font_t *font){
+  lv_point_t size;lv_text_get_size(&size,text.c_str(),font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);return size.x;
+}
+// The state colour, as Home Assistant colours a vacuum: teal while cleaning, blue on the way back, amber
+// when paused, red on an error; a docked or idle robot keeps the card's own blue. `tint` is the halo.
+struct VacuumLook { uint32_t accent, tint; };
+inline VacuumLook vacuum_look(const std::string &state){
+  if(state=="cleaning")return {0x009688,0xDCF0EE};
+  if(state=="returning")return {0x2196F3,0xE1EFFD};
+  if(state=="paused")return {0xFF9800,0xFFF0DA};
+  if(state=="error")return {0xF44336,0xFDE4E2};
+  return {0x00A6ED,0xEAF5FC};
+}
+// A robot seen from above on a halo: a white body with a rim, the laser turret, a light bar in the state colour.
+inline void vacuum_robot(lv_obj_t *parent,int x,int y,int size,const VacuumLook &look){
+  auto *halo=detail_shape(parent,x,y,size,size,look.tint,size/2);
+  int r=size*72/100,rim=std::max(1,size/44);
+  auto *body=detail_shape(halo,(size-r)/2,(size-r)/2,r,r,0xFFFFFF,r/2);
+  lv_obj_set_style_border_width(body,rim,0);lv_obj_set_style_border_color(body,lv_color_hex(0xCEDDE6),0);
+  int c=r-2*rim;auto s=[&](int v){return std::max(1,v*c/100);};
+  detail_shape(body,s(32),s(10),s(36),s(36),0xE3EBEF,s(18));
+  detail_shape(body,s(41),s(19),s(18),s(18),0xA8BCC8,s(9));
+  detail_shape(body,s(31),s(70),s(38),std::max(3,s(7)),look.accent,s(4));
+}
+// A battery like a phone's: outline, level fill (red below 20 %) and a small cap.
+inline void vacuum_battery(lv_obj_t *parent,int x,int y,int w,int h,float level){
+  int line=std::max(1,h/7),fill_w=w-4*line,fill=std::clamp((int)std::lround(fill_w*level/100.0f),0,fill_w);
+  auto *shell=detail_shape(parent,x,y,w,h,0xFFFFFF,std::max(2,h/4));
+  lv_obj_set_style_bg_opa(shell,LV_OPA_TRANSP,0);
+  lv_obj_set_style_border_width(shell,line,0);lv_obj_set_style_border_color(shell,lv_color_hex(0x7D858D),0);
+  if(fill)detail_shape(shell,line,line,fill,h-4*line,level<20?0xE53935:0x46525E,std::max(1,h/9));
+  detail_shape(parent,x+w,y+h*3/10,std::max(2,line+1),h-2*(h*3/10),0x7D858D,1);
+}
+// Battery meter, level and a green bolt while charging, in one row from `x`; returns the row's width.
+// Without a parent it only measures.
+inline int vacuum_power(lv_obj_t *parent,const Tile &t,int x,int y,const lv_font_t *font,bool large){
+  const lv_font_t *bolt_font=large && watch_icon_font?watch_icon_font:mini_icon_font;
+  std::string percent=std::to_string((int)std::lround(t.battery))+"%";
+  int h=lv_font_get_line_height(font),meter_w=large?30:22,meter_h=large?15:11,gap=large?10:6,words=text_width(percent,font);
+  int bolt_w=t.charging && bolt_font?text_width("\U000F0241",bolt_font):0;
+  int width=meter_w+3+gap+words+(bolt_w?gap/2+bolt_w:0);
+  if(!parent)return width;
+  vacuum_battery(parent,x,y+(h-meter_h)/2,meter_w,meter_h,t.battery);
+  int px=x+meter_w+3+gap;
+  detail_text(parent,percent,px,y,words+2,font,LV_TEXT_ALIGN_LEFT,0x5F6368);
+  if(bolt_w)detail_text(parent,"\U000F0241",px+words+gap/2,y+(h-lv_font_get_line_height(bolt_font))/2,bolt_w+2,bolt_font,LV_TEXT_ALIGN_LEFT,0x43A047);
+  return width;
+}
+// Put a detail_button's words in `font`, sized to the words and centred (or at `x` when given).
+inline lv_obj_t *button_words(lv_obj_t *button,const lv_font_t *font,uint32_t color,int available,int x=-1){
+  auto *label=lv_obj_get_child(button,0);
+  lv_obj_set_style_text_font(label,font,0);lv_obj_set_style_text_color(label,lv_color_hex(color),0);
+  lv_obj_set_size(label,std::min(available,text_width(lv_label_get_text(label),font)+2),lv_font_get_line_height(font));
+  if(x<0)lv_obj_center(label);else lv_obj_align(label,LV_ALIGN_LEFT_MID,x,0);
+  return label;
+}
+// A command button with its icon before the words, the two centred as one group.
+inline lv_obj_t *vacuum_command(const char *icon,const char *text,int x,int y,int w,int h,int command,bool primary,
+                                const lv_font_t *font,const lv_font_t *icon_font,int radius){
+  auto *button=detail_button(text,x,y,w,h,command);
+  uint32_t ink=primary?0xFFFFFF:0x1B1B1B;
+  lv_obj_set_style_radius(button,radius,0);
+  lv_obj_set_style_bg_color(button,lv_color_hex(primary?0x009FE3:0xFFFFFF),0);
+  if(!primary){
+    lv_obj_set_style_border_width(button,1,0);lv_obj_set_style_border_color(button,lv_color_hex(0xDDDDDD),0);
+    lv_obj_set_style_bg_color(button,lv_color_hex(0xEEEEEE),LV_STATE_PRESSED);
+  }
+  int gap=std::max(6,h/7),icon_w=text_width(icon,icon_font),words=text_width(text,font);
+  int group=icon_w+gap+words,left=std::max(4,(w-group)/2);
+  auto *glyph=lv_label_create(button);lv_label_set_text(glyph,icon);lv_obj_remove_flag(glyph,LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_text_font(glyph,icon_font,0);lv_obj_set_style_text_color(glyph,lv_color_hex(ink),0);
+  lv_obj_align(glyph,LV_ALIGN_LEFT_MID,left,0);
+  button_words(button,font,ink,w-left-icon_w-gap-4,left+icon_w+gap);
+  return button;
+}
+// A segmented control: one rounded track, each option as wide as its words plus an equal share of the
+// room left, the chosen one filled in blue. Commands first..first+5.
+inline void vacuum_segments(const Tile &t,const Choice &row,int first,int x,int y,int w,int h,uint32_t track,bool border,const lv_font_t *font){
+  int n=std::min<int>((int)row.values.size(),6);if(!n)return;
+  auto *bar=detail_shape(detail_root,x,y,w,h,track,h/2);
+  if(border){lv_obj_set_style_border_width(bar,1,0);lv_obj_set_style_border_color(bar,lv_color_hex(0xDDDDDD),0);}
+  int inset=std::max(3,h/12),room=w-2*inset,words=0;int widths[6];
+  for(int i=0;i<n;++i){widths[i]=text_width(row.labels[i],font);words+=widths[i];}
+  int share=(room-words)/n;
+  const std::string &chosen=tile_controls::shown_value(t,row,esphome::millis());
+  int sx=x+inset;
+  for(int i=0;i<n;++i){
+    int sw=i==n-1?x+w-inset-sx:(words<=room?widths[i]+share:room/n);
+    bool selected=row.values[i]==chosen;
+    auto *segment=detail_button(row.labels[i].c_str(),sx,y+inset,sw,h-2*inset,first+i);
+    lv_obj_set_style_radius(segment,(h-2*inset)/2,0);
+    lv_obj_set_style_bg_color(segment,lv_color_hex(0x009FE3),0);
+    lv_obj_set_style_bg_opa(segment,selected?LV_OPA_COVER:LV_OPA_TRANSP,0);
+    lv_obj_set_style_bg_opa(segment,LV_OPA_COVER,LV_STATE_PRESSED);
+    if(!selected)lv_obj_set_style_bg_color(segment,lv_color_hex(0xD5EEFC),LV_STATE_PRESSED);
+    button_words(segment,font,selected?0xFFFFFF:0x1B1B1B,sw-6);
+    sx+=sw;
+  }
+}
+inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad){
+  uint32_t now=esphome::millis();
+  auto rows=tile_controls::vacuum_rows(t,now);
+  const Choice *mode=t.choice('m'),*suction=rows.suction?t.choice('s'):nullptr,*water=rows.water?t.choice('w'):nullptr;
+  bool automatic=mode && tile_controls::vacuum_role(t,now)=='a';
+  const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
+  const lv_font_t *big=watch_font?watch_font:detail_font;
+  const lv_font_t *icons=mini_icon_font?mini_icon_font:detail_font;
+  VacuumLook look=vacuum_look(t.state);
+  bool cleaning=t.state=="cleaning",paused=t.state=="paused";
+  bool battery=std::isfinite(t.battery),on_the_way=cleaning||paused||t.state=="returning";
+  int inner=width-2*pad,gap=large?12:6,radius=lv_obj_get_style_radius(widgets[0].tile,LV_PART_MAIN);
+  std::string state=t.awaiting_action(now)&&!t.confirmed?"Command sent...":detail_state(t);
+  // A robot with little to set gets a hero on the small screen too; one with mode and water rows uses a status row.
+  bool small_hero=!large && !mode && !t.choice('w');
+  int y=large?92:52;
+  if(large || small_hero){
+    int hero_h=large?108:60,robot=large?84:48,edge=large?12:6;
+    auto *hero=detail_card(pad,y,inner,hero_h);
+    vacuum_robot(hero,edge,(hero_h-robot)/2,robot,look);
+    // Locate, when the robot can do it (supported_features 512; unknown features keep the button).
+    bool locate=large && (!t.supported || (t.supported & 512));
+    int key=48,text_x=edge+robot+(large?18:12),text_w=inner-text_x-(locate?key+2*edge:edge);
+    int line=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text),space=large?6:3;
+    bool room=on_the_way && !t.room.empty();
+    int block=line+(room?space+text_h:0)+(battery?space+text_h:0),ty=(hero_h-block)/2;
+    detail_badge_status=detail_text(hero,state,text_x,ty,text_w,big,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+    ty+=line;
+    if(room){ty+=space;detail_text(hero,t.room,text_x,ty,text_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);ty+=text_h;}
+    if(battery){ty+=space;vacuum_power(hero,t,text_x,ty,text,large);}
+    if(locate){
+      auto *find=detail_button("",pad+inner-edge-key-6,y+(hero_h-key)/2,key,key,3);
+      lv_obj_set_style_radius(find,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(find,lv_color_hex(0xF1F1F1),0);
+      lv_obj_set_style_bg_color(find,lv_color_hex(0xDDDDDD),LV_STATE_PRESSED);
+      auto *glyph=lv_obj_get_child(find,0);lv_obj_set_style_text_font(glyph,icons,0);lv_label_set_text(glyph,"\U000F034E");
+      lv_obj_set_style_text_color(glyph,lv_color_hex(0x46525E),0);lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
+    }
+    y+=hero_h+gap;
+  }else{
+    // Status row: a dot in the state colour, the state (and the room on the way), the battery at the right.
+    int line=lv_font_get_line_height(text),dot=8,power_w=battery?vacuum_power(nullptr,t,0,0,text,false):0;
+    detail_shape(detail_root,pad+2,y+(line-dot)/2,dot,dot,look.accent,dot/2);
+    int words=inner-dot-10-power_w-12,state_w=std::min(words,text_width(state,text)+2);
+    detail_badge_status=detail_text(detail_root,state,pad+dot+10,y,state_w,text,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+    if(on_the_way && !t.room.empty() && words-state_w>24)
+      detail_text(detail_root," · "+t.room,pad+dot+10+state_w,y,words-state_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);
+    if(battery)vacuum_power(detail_root,t,pad+inner-power_w,y,text,false);
+    y+=line+(gap+4);
+  }
+  // Start (or pause, or resume) as the one blue button, dock beside it.
+  int action_h=large?54:(small_hero?40:36),start_w=large?(inner-gap)*2/3:(inner-gap)/2;
+  vacuum_command(cleaning?"\U000F03E4":"\U000F040A",cleaning?(large?"Pause cleaning":"Pause"):paused?"Resume":(large?"Start cleaning":"Clean"),
+                 pad,y,start_w,action_h,cleaning?1:0,true,text,icons,large?radius:action_h/2);
+  vacuum_command("\U000F05F8","Dock",pad+start_w+gap,y,inner-start_w-gap,action_h,2,false,text,icons,large?radius:action_h/2);
+  y+=action_h+gap;
+  if(!mode && !suction && !water){
+    auto *note=detail_text(detail_root,"Automatic suction power",pad,y+gap,inner,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);(void)note;
+    return;
+  }
+  // How it cleans. The Guition groups the rows on one white card; the small screen has no room for a card.
+  int mode_h=large?48:34,row_h=large?44:32,step=large?10:6,edge=large?14:0,icon_w=large?40:26;
+  int note_h=lv_font_get_line_height(text);
+  int block=(mode?mode_h:0)+(suction?(mode?step:0)+row_h:0)+(water?((mode||suction)?step:0)+row_h:0)+(automatic?step+note_h+step:0);
+  uint32_t track=large?0xF1F1F1:0xFFFFFF;
+  if(large)detail_card(pad,y,inner,block+2*edge);
+  int x=pad+edge,w=inner-2*edge;
+  y+=edge;
+  if(mode){vacuum_segments(t,*mode,50,x,y,w,mode_h,track,!large,text);y+=mode_h+step;}
+  auto level=[&](const Choice &row,int first,const char *icon){
+    detail_text(detail_root,icon,x,y+(row_h-lv_font_get_line_height(icons))/2,icon_w,icons,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+    vacuum_segments(t,row,first,x+icon_w,y,w-icon_w,row_h,track,!large,text);
+    y+=row_h+step;
+  };
+  if(suction)level(*suction,10,"\U000F0210");
+  if(water)level(*water,60,"\U000F058C");
+  if(automatic){
+    bool smart=tile_controls::shown_value(t,*mode,now).find("smart")!=std::string::npos;
+    detail_text(detail_root,smart?"The robot chooses suction and water":"Suction and water as set per room",x,y,w,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);
+  }
+}
 inline void show_detail(unsigned index){
   if(index>=model.count)return;detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
@@ -617,8 +846,8 @@ inline void show_detail(unsigned index){
   lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
   std::string state=detail_state(t);
   auto d=t.domain();
-  // The large vacuum card carries its state in the badge of the hero; a second line would crowd it.
-  if(!(d=="vacuum" && large)){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);}
+  // The vacuum card draws its own state (hero or status row) with the battery beside it.
+  if(d!="vacuum"){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);}
   if(t.is_switch()){
     detail_label(detail_root,"Tap to toggle",pad,top,width-2*pad);
     detail_switch=lv_switch_create(detail_root);
@@ -641,50 +870,7 @@ inline void show_detail(unsigned index){
     },LV_EVENT_VALUE_CHANGED,nullptr);
     detail_actions[detail_action_count++]=detail_switch;
   }else if(d=="vacuum"){
-    // Native shapes keep the robot crisp without image buffers or extra layers.
-    auto shape=[&](lv_obj_t *parent,int x,int y,int w,int h,uint32_t color,int radius){
-      auto *o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_set_pos(o,x,y);lv_obj_set_size(o,w,h);
-      lv_obj_set_style_radius(o,radius,0);lv_obj_set_style_bg_color(o,lv_color_hex(color),0);lv_obj_set_style_bg_opa(o,LV_OPA_COVER,0);
-      lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);return o;
-    };
-    uint32_t surface=0xFFFFFF, muted=0xEAF5FC;
-    if(large){
-      auto *hero=shape(detail_root,pad,100,width-2*pad,148,surface,24);
-      shape(hero,18,14,120,120,muted,60);
-      auto *robot=shape(hero,35,27,86,86,0xFFFFFF,43);
-      lv_obj_set_style_border_width(robot,2,0);lv_obj_set_style_border_color(robot,lv_color_hex(0xCEDDE6),0);
-      shape(robot,27,10,30,30,0xE3EBEF,15);shape(robot,35,18,14,14,0xA8BCC8,7);
-      shape(robot,29,59,26,5,0x00A6ED,3);
-      detail_label(hero,t.state=="cleaning"?"Working":t.state=="returning"?"Charging":t.state=="paused"?"Paused":"Ready for your home",154,24,260);
-      auto *badge=shape(hero,154,59,240,32,muted,16);
-      auto *status=detail_label(badge,t.awaiting_action(esphome::millis())?"Command sent...":state,12,5,218);
-      detail_badge_status=status;
-      lv_obj_set_style_text_color(status,lv_color_hex(0x087BA8),0);
-      detail_label(hero,std::isfinite(t.battery)?"Battery  "+std::to_string((int)t.battery)+"%":"Connected via Home Assistant",154,107,260);
-      detail_button(t.state=="cleaning"?"Pause cleaning":"Start cleaning",pad,260,width-2*pad,58,t.state=="cleaning"?1:0);
-      detail_button("Return to dock",pad,330,cw,48,2);
-      detail_button("Find my robot",pad+cw+gap,330,cw,48,3);
-      detail_label(detail_root,"Suction power",pad,394,width-2*pad);
-      top=424;
-    }else{
-      auto *robot=shape(detail_root,pad,64,46,46,muted,23);
-      shape(robot,16,8,14,14,0xA8BCC8,7);shape(robot,15,32,16,3,0x00A6ED,2);
-      detail_label(detail_root,std::isfinite(t.battery)?"Battery "+std::to_string((int)t.battery)+"%":"Robot vacuum",pad+58,66,width-2*pad-58);
-      detail_label(detail_root,"Choose an action",pad+58,87,width-2*pad-58);
-      detail_button(t.state=="cleaning"?"Pause":"Clean",pad,120,cw,38,t.state=="cleaning"?1:0);
-      detail_button("To dock",pad+cw+gap,120,cw,38,2);
-      detail_label(detail_root,"Suction power",pad,168,width-2*pad);top=194;
-    }
-    if(!t.fan_speed_count)detail_label(detail_root,"Automatic suction power",pad,top,width-2*pad);
-    int count=std::max(1,(int)t.fan_speed_count),sw=(width-2*pad-gap*(count-1))/count;
-    for(unsigned i=0;i<t.fan_speed_count;++i){
-      std::string name=t.fan_speeds[i];
-      if(name=="quiet")name="Quiet";else if(name=="balanced")name="Normal";else if(name=="turbo")name="Turbo";else if(name=="max")name="Max";
-      auto *button=detail_button(name.c_str(),pad+i*(sw+gap),top,sw,large?36:30,10+i);
-      bool selected=t.fan_speed==t.fan_speeds[i];
-      lv_obj_set_style_bg_color(button,lv_color_hex(selected?0x009FE3:surface),0);
-      if(selected)lv_obj_set_style_text_color(lv_obj_get_child(button,0),lv_color_hex(0xFFFFFF),0);
-    }
+    render_vacuum_detail(t,large,width,height,pad);
   }else if(d=="sensor"){
     float minimum=INFINITY,maximum=-INFINITY;for(float value:t.history)if(t.has_history&&std::isfinite(value)){minimum=std::min(minimum,value);maximum=std::max(maximum,value);}
     if(!std::isfinite(minimum)){detail_label(detail_root,"No numeric HA history",pad,top,width-2*pad);return;}
@@ -948,13 +1134,8 @@ inline void set_line_width(lv_obj_t *obj, int value) { if (lv_obj_get_style_line
 inline uint32_t domain_accent(const Tile &t) {
   auto d=t.domain();
   if(d=="light" || d=="switch" || d=="input_boolean" || d=="binary_sensor")return 0xFFC107;
-  if(d=="climate"){
-    if(t.state=="cool")return 0x2196F3;
-    if(t.state=="fan_only")return 0x00BCD4;
-    if(t.state=="auto")return 0x4CAF50;
-    if(t.state=="heat_cool")return 0xFFC107;
-    return t.state=="heat"?0xFF6F22:0xFF9800;
-  }
+  // A climate card that is off or in an unknown mode keeps HA's orange climate circle.
+  if(d=="climate"){uint32_t c=tile_controls::mode_color(t.state);return c==0x9E9E9E?0xFF9800:c;}
   if(d=="vacuum")return t.state=="error"?0xF44336:0x009688;
   if(d=="fan")return 0x00BCD4;
   if(d=="cover")return 0x926BC7;
@@ -2073,7 +2254,12 @@ inline void tick() {
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
     std::string status=waiting?(t.confirmed?"Confirmed by Home Assistant":"Command sent..."):detail_state(t);
     if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));
-    if(detail_badge_status)label(detail_badge_status,status);
+    // The vacuum card lays its state out with the room and battery beside it, so a new text draws the
+    // card again; once Home Assistant answered, the new state says enough.
+    if(detail_badge_status && t.domain()=="vacuum"){
+      status=waiting && !t.confirmed?"Command sent...":detail_state(t);
+      if(status!=lv_label_get_text(detail_badge_status))refresh_detail(detail_index);
+    }else if(detail_badge_status)label(detail_badge_status,status);
     if(detail_switch && !lv_obj_has_state(detail_switch,LV_STATE_PRESSED)){
       if(t.state=="on")lv_obj_add_state(detail_switch,LV_STATE_CHECKED);
       else lv_obj_remove_state(detail_switch,LV_STATE_CHECKED);
@@ -2086,7 +2272,13 @@ inline void tick() {
   // HA dropping or returning and the feed timing out change every card at once.
   bool now_fresh=fresh();
   if(now_fresh!=was_fresh){was_fresh=now_fresh;dirty_all=true;redraw=true;}
-  for(size_t i=0;i<model.tiles.size();++i){auto &t=model.tiles[i];if(t.pending && !t.loading(esphome::millis())){t.pending=false;card(i);}}
+  for(size_t i=0;i<model.tiles.size();++i){
+    auto &t=model.tiles[i];if(!t.pending || t.loading(esphome::millis()))continue;
+    t.pending=false;card(i);
+    // A vacuum chip Home Assistant never confirmed goes back to what the robot reports.
+    bool sent=false;for(auto &c:t.choices){sent=sent||!c.sent.empty();c.sent.clear();}
+    if(sent)refresh_detail(i);
+  }
   // A -/+ edit goes out as one call once the finger rests; a value HA never reports is dropped after a while.
   for(size_t i=0;i<model.count;++i){
     auto &t=model.tiles[i];if(!std::isfinite(t.edit_value))continue;

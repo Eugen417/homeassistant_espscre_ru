@@ -1,3 +1,14 @@
+## 0.2.46 (firmware 0.2.39)
+
+Choose between vacuuming, mopping or both on the vacuum card, and a climate card made for the small CYD.
+
+- **Vacuum, vacuum and mop, or mop only.** Robots that offer a cleaning mode in Home Assistant, such as a Roborock (HA 2026.8 or newer), get a row with Vacuum, Vac & mop and Mop on the vacuum card of both screens. ESP Screens finds the mode and the mop intensity on the robot's own device, whatever language your entity IDs are in; you don't have to add them as tiles. Custom (the per-room settings from the robot's app) shows up only while the robot uses it.
+- **Only what the mode uses.** Below the mode sit suction power and water as rows of choices: vacuum only shows suction, mop only shows water, both show both. A tap shows your choice at once and the card waits for Home Assistant. Speeds that belong to a mode, such as suction off for mopping, move into the mode row, and Max+ now fits next to Max.
+- **A new vacuum card.** The robot, its state and battery on top, with a green bolt while it charges and the room it is in while it cleans; then Start cleaning (or Pause, Resume) and Dock; then how it cleans. On the Guition the cleaning settings share one white card, and Locate became a round button beside the robot. Since HA 2026.8 a vacuum no longer reports its battery itself, so ESP Screens now reads the battery sensor of the robot.
+- **Climate card for the CYD.** No more dial to drag on the small resistive screen: the target temperature sits big between two large − / + keys. The number follows every tap at once and one call goes out when you stop tapping; holding a key keeps stepping. One row of keys picks the mode (in Home Assistant's order and colours), and ··· opens fan and swing. A tap only redraws the number or a key, so the card responds right away. The Guition keeps its dial.
+- **Less redrawing after a climate change.** A card closed within three seconds of a change left a flag behind that redrew every tile each second; that flag is now cleared.
+- Firmware 0.2.39 for both boards; the app offers the update. Update the app and the screens together: with firmware 0.2.39 and an older app the vacuum card falls back to suction only.
+
 ## 0.2.45 (firmware 0.2.38)
 
 One alert for every screen, a Claude skill, and a Settings page that clears up the main page.

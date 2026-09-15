@@ -100,5 +100,43 @@ int main() {
   Tile lamp = make("light.lamp", "on"); lamp.controls = "brightness";
   assert(is_slider(panel_kind(lamp)) && !is_key_row(panel_kind(lamp)));
   assert(is_key_row("playback") && is_key_row("mode") && !is_key_row("setpoint"));
+
+  // Climate mode colours follow Home Assistant; anything else is grey.
+  assert(mode_color("heat") == 0xFF6F22 && mode_color("cool") == 0x2196F3 && mode_color("off") == 0x9E9E9E);
+
+  // Vacuum rows: the cleaning mode decides which of suction and water the card shows.
+  Tile pippa = make("vacuum.s8", "docked", 30524);
+  auto row = [](char kind, const char *entity, const char *current, std::vector<std::string> values, const char *roles = "") {
+    runtime_tiles::Choice c; c.kind = kind; c.entity = entity; c.current = current; c.values = values; c.labels = values; c.roles = roles; return c;
+  };
+  pippa.choices = {row('m', "select.woonkamer_s8_schoonmaakmodus", "vac_and_mop", {"vacuum", "vac_and_mop", "mop", "custom"}, "vbma"),
+                   row('w', "select.s8_intensiteit_van_dweilen", "intense", {"mild", "standard", "intense"}),
+                   row('s', "", "", {"quiet", "balanced", "turbo", "max", "max_plus"})};
+  pippa.fan_speed = "max";
+  settle_suction(pippa);
+  assert(pippa.choice('s')->current == "max" && pippa.choices.size() == 3);
+  auto rows = vacuum_rows(pippa, 0);
+  assert(rows.suction && rows.water && vacuum_role(pippa, 0) == 'b');
+  pippa.choice('m')->current = "mop"; rows = vacuum_rows(pippa, 0);
+  assert(!rows.suction && rows.water);
+  pippa.choice('m')->current = "vacuum"; rows = vacuum_rows(pippa, 0);
+  assert(rows.suction && !rows.water);
+  pippa.choice('m')->current = "custom"; rows = vacuum_rows(pippa, 0);
+  assert(!rows.suction && !rows.water && vacuum_role(pippa, 0) == 'a');
+  pippa.choice('m')->current = "something_new"; assert(vacuum_role(pippa, 0) == 'b');
+  // A tapped chip shows while Home Assistant is busy, and the old value once it gave up.
+  pippa.choice('m')->current = "vac_and_mop"; pippa.choice('m')->sent = "mop";
+  pippa.begin(1000);
+  assert(shown_value(pippa, *pippa.choice('m'), 1500) == "mop" && vacuum_rows(pippa, 1500).water && !vacuum_rows(pippa, 1500).suction);
+  assert(shown_value(pippa, *pippa.choice('m'), 9000) == "vac_and_mop");
+  assert(choice_action(pippa, 'm', "mop").service == "select.select_option" && choice_action(pippa, 'm', "mop").key == "option");
+  assert(choice_action(pippa, 's', "turbo").service == "vacuum.set_fan_speed" && choice_action(pippa, 's', "turbo").value == "turbo");
+  // An older manager sends no suction row: the vacuum's own four speeds, with the card's names.
+  Tile old_robot2 = make("vacuum.old", "docked", 30524);
+  old_robot2.fan_speed_count = 2; old_robot2.fan_speeds[0] = "quiet"; old_robot2.fan_speeds[1] = "balanced"; old_robot2.fan_speed = "balanced";
+  settle_suction(old_robot2);
+  assert(old_robot2.choice('s') && old_robot2.choice('s')->labels[1] == "Normal" && old_robot2.choice('s')->current == "balanced");
+  rows = vacuum_rows(old_robot2, 0);
+  assert(rows.suction && !rows.water && !choice_action(old_robot2, 'm', "mop").valid());
   return 0;
 }

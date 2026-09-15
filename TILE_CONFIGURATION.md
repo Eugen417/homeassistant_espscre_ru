@@ -47,8 +47,9 @@ vertically, so the grid can be taller than the screen.
 The background is a two-stop vertical gradient (`BG_TOP_COLOR` ->
 `BG_BOTTOM_COLOR`), not an image. That saves ~150 KB of flash and removes an
 image blit from every redraw, which is what makes scrolling usable on this
-board. The same gradient is reused as the backdrop of the slider, color and
-thermostat overlays through the `style_bg_grad` style.
+board. The same gradient is reused as the backdrop of the slider and color
+overlays through the `style_bg_grad` style; the climate card uses the plain
+light background of the other cards.
 
 ## Accent colors are automatic
 
@@ -167,9 +168,9 @@ Only relevant when `TILE*_TYPE` is set to `"climate"`.
 
 | Key | Default | Description |
 |-----|---------|-------------|
-| `TILE*_CLIMATE_MIN_TEMP` | `"5.0"` | Minimum target temperature shown in the thermostat overlay. |
-| `TILE*_CLIMATE_MAX_TEMP` | `"30.0"` | Maximum target temperature shown in the thermostat overlay. |
-| `TILE*_CLIMATE_STEP` | `"0.5"` | Step size for the thermostat ring and +/- buttons. Values below `0.5` are rounded up to `0.5`, so the UI always adjusts in whole or half-degree steps. |
+| `TILE*_CLIMATE_MIN_TEMP` | `"5.0"` | Minimum target temperature on the climate card. |
+| `TILE*_CLIMATE_MAX_TEMP` | `"30.0"` | Maximum target temperature on the climate card. |
+| `TILE*_CLIMATE_STEP` | `"0.5"` | Step size of the − / + keys. Values below `0.5` are rounded up to `0.5`, so the UI always adjusts in whole or half-degree steps. |
 | `TILE*_CLIMATE_CURRENT_TEMP_ATTRIBUTE` | `"current_temperature"` | Home Assistant attribute used for the current room temperature. |
 | `TILE*_CLIMATE_TARGET_TEMP_ATTRIBUTE` | `"temperature"` | Home Assistant attribute used for the target temperature. |
 | `TILE*_CLIMATE_HUMIDITY_ATTRIBUTE` | `"current_humidity"` | Home Assistant attribute used for humidity. Leave the default if the entity does not provide humidity. |
@@ -210,7 +211,7 @@ In all modes, the event `tileN_long_press` is always published to `sensor.smartd
 
 For light tiles in `slider` mode, the brightness overlay automatically shows a color-ring button when `DIRECT_ACTIONS` is `"true"` and Home Assistant reports a supported color mode (`hs`, `rgb`, `rgbw`, `rgbww`, `xy`) or color temperature mode (`color_temp`). The color detail view can send `light.turn_on` with `color_name`, `color_temp_kelvin`, and the current brightness percentage. If the light only supports color or only supports color temperature, the Color/Temp tab switch is hidden and only the supported controls are shown. No extra tile substitutions are required.
 
-For climate tiles in `slider` mode, the thermostat overlay sends `climate.set_temperature` with the configured target temperature. The min/max range, step size, and Home Assistant attribute names are configured through the `TILE*_CLIMATE_*` substitutions. The mode pill cycles through the climate entity's supported `hvac_modes` and sends `climate.set_hvac_mode` when `DIRECT_ACTIONS` is `"true"`.
+For climate tiles in `slider` mode, the climate card shows the target temperature between big − / + keys: the number follows every tap at once, holding a key keeps stepping, and one `climate.set_temperature` goes out once the taps stop (0.7 s). The min/max range, step size, and Home Assistant attribute names are configured through the `TILE*_CLIMATE_*` substitutions. Below it, one key per supported `hvac_mode` (in Home Assistant's order, off is the power key) sends `climate.set_hvac_mode` when `DIRECT_ACTIONS` is `"true"`; the ··· key opens the picker with fan and swing modes.
 
 ---
 
@@ -390,7 +391,7 @@ TILE4_LONGPRESS_ACTION_SERVICE: ""
 
 ---
 
-### Climate — thermostat ring on long press
+### Climate — climate card on long press
 
 ```yaml
 TILE5_ENTITY: "climate.living_room"
@@ -399,7 +400,7 @@ TILE5_TITLE: "Living"
 TILE5_ICON: "\U000F0438"          # mdi:radiator
 TILE5_TYPE: "climate"
 TILE5_TAP_ACTION: "auto"          # no default tap action; use TAP_SERVICE if desired
-TILE5_LONGPRESS: "slider"         # long press opens thermostat ring
+TILE5_LONGPRESS: "slider"         # long press opens the climate card
 TILE5_VALUE_MODE: "auto"          # shows target temperature, or current temperature as fallback
 TILE5_LABEL_OFF: "Off"
 TILE5_LABEL_ON: "Heat"

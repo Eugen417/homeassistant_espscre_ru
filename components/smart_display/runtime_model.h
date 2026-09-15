@@ -31,6 +31,16 @@ inline std::string state_revision(const std::string &state, const std::string &a
 }
 struct Forecast { std::string day, condition; float high = NAN, low = NAN, rain = NAN, mm = NAN; };
 struct Hour { std::string time, condition; float temp = NAN, rain = NAN, mm = NAN; };
+// One row of choices on a vacuum card (firmware 0.2.39+), found by the manager on the robot's device:
+// kind 'm' a cleaning mode select (Roborock: vacuum, mop or both), 'w' a water or mop intensity
+// select, 's' the suction speeds of the vacuum itself. `values` go to Home Assistant, `labels` are
+// shown; a cleaning mode carries one role letter per value (v vacuum only, m mop only, b both,
+// a automatic: the robot or the app decides suction and water). `sent` is the value just tapped.
+struct Choice {
+  char kind = 0;
+  std::string entity, current, roles, sent;
+  std::vector<std::string> values, labels;
+};
 struct Tile {
   std::string entity, name, state, unit, modes, hvac_modes, fan_modes, swing_modes, fan_mode, swing_mode;
   std::array<std::string, 4> fan_speeds;
@@ -66,6 +76,13 @@ struct Tile {
   std::string sunrise, sunset, duration, remaining;
   uint32_t timer_end = 0;
   float battery = NAN, volume = NAN;
+  // Vacuum only: mode, water and suction rows (see Choice); an empty vector costs nothing elsewhere.
+  // `room` is where the robot is and `charging` whether it charges, both from sensors of its device.
+  std::vector<Choice> choices;
+  std::string room;
+  bool charging = false;
+  Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
+  const Choice *choice(char kind) const { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   uint32_t supported = 0, background = 0;
   bool transparent = false;  // "Background: none": card fill and border hidden, contents unchanged.
   std::string icon;  // UTF-8 glyph of a chosen icon the icon fonts contain; empty keeps the domain icon.

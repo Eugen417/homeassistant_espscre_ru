@@ -77,6 +77,11 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   per tile; **None** keeps the regular card.
 - **Weather card** with current weather, the coming hours and days including chance of
   rain or millimeters; **climate card** with an on/off button, mode, fan, and swing settings.
+  On the CYD the climate card has big − / + keys and one row of mode keys instead of a dial.
+- **Vacuum card** with the state, battery and charging, start and dock, and how the robot
+  cleans: **vacuum, vacuum and mop, or mop only** for robots that offer a cleaning mode in
+  Home Assistant (such as Roborock), then suction and water. Only the rows the chosen mode
+  uses are shown (app 0.2.46 / firmware 0.2.39).
   Scenes, scripts, and buttons show when they last ran. A tile that's waiting on
   Home Assistant shows a small spinner on a light overlay.
 - **Top bar per screen** (firmware 0.2.32+): the name on the left, up to six
@@ -99,9 +104,13 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   <img src="docs/images/guition-light.png" width="32%" alt="Light control: color, color temperature and brightness">
 </p>
 <p align="center">
-  <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: status, battery, start, return to dock, find the robot and suction power">
+  <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: docked and charging, start and dock, the cleaning mode vacuum, vac and mop or mop, suction and water">
   <img src="docs/images/guition-history.png" width="32%" alt="Sensor history of the last 24 hours">
   <img src="docs/images/guition-page-3.png" width="32%" alt="Curtains with open, stop and close, a kitchen timer counting down, a scene and the sun path">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-vacuum.png" width="40%" alt="The vacuum card on the CYD: state, battery and charging, clean and dock, the cleaning mode, suction and water">
+  <img src="docs/images/cyd-climate.png" width="40%" alt="The climate card on the CYD: the target temperature with big minus and plus keys and one row of mode keys">
 </p>
 
 Features depend on the capabilities Home Assistant reports for an entity.

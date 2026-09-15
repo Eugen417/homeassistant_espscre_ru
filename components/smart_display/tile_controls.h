@@ -44,6 +44,16 @@ inline std::string panel_kind(const Tile &t) {
   return c;
 }
 inline bool has_mode(const std::string &hvac_modes, const char *mode) { return hvac_modes.find("\"" + std::string(mode) + "\"") != std::string::npos; }
+// Home Assistant's colour for a climate mode (the card and its mode keys use it).
+inline uint32_t mode_color(const std::string &mode) {
+  if (mode == "heat") return 0xFF6F22;
+  if (mode == "cool") return 0x2196F3;
+  if (mode == "heat_cool") return 0xFFC107;
+  if (mode == "auto") return 0x4CAF50;
+  if (mode == "fan_only") return 0x00BCD4;
+  if (mode == "dry") return 0xFF9800;
+  return 0x9E9E9E;
+}
 inline const char *mode_icon(const std::string &mode) {
   if (mode == "off") return glyph::POWER;
   if (mode == "heat") return glyph::FIRE;
@@ -226,6 +236,59 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
     default: return {};
   }
 }
+// ---- Vacuum card rows (firmware 0.2.39+) ----
+// The value a row shows as chosen: the one just tapped while Home Assistant has not answered yet.
+inline const std::string &shown_value(const Tile &t, const runtime_tiles::Choice &c, uint32_t now) {
+  return !c.sent.empty() && t.loading(now) ? c.sent : c.current;
+}
+// Role of the cleaning mode in use: 'v' vacuum only, 'm' mop only, 'b' both, 'a' automatic; 'b' when
+// the robot has no mode select or reports a mode the manager did not know.
+inline char vacuum_role(const Tile &t, uint32_t now) {
+  const auto *mode = t.choice('m');
+  if (!mode) return 'b';
+  const std::string &value = shown_value(t, *mode, now);
+  for (size_t i = 0; i < mode->values.size() && i < mode->roles.size(); ++i)
+    if (mode->values[i] == value) return mode->roles[i];
+  return 'b';
+}
+// Rows under the mode: suction unless the robot only mops, water (when the robot has a water select)
+// unless it only vacuums; an automatic mode leaves both to the robot or its app.
+struct VacuumRows { bool suction = false, water = false; };
+inline VacuumRows vacuum_rows(const Tile &t, uint32_t now) {
+  char role = vacuum_role(t, now);
+  VacuumRows rows;
+  rows.suction = role != 'm' && role != 'a' && t.choice('s');
+  rows.water = role != 'v' && role != 'a' && t.choice('w');
+  return rows;
+}
+// Labels for a manager that sends no suction row (app before 0.2.46): the vacuum's own speed names.
+inline std::string speed_label(const std::string &speed) {
+  if (speed == "quiet") return "Quiet";
+  if (speed == "balanced") return "Normal";
+  if (speed == "turbo") return "Turbo";
+  if (speed == "max") return "Max";
+  return speed;
+}
+// The suction row a vacuum card shows: the manager's (filtered, labelled) speeds, else the first four
+// of the vacuum's own list. Its value is always the vacuum's fan_speed.
+inline void settle_suction(Tile &t) {
+  auto *row = t.choice('s');
+  if (!row && t.fan_speed_count) {
+    runtime_tiles::Choice legacy; legacy.kind = 's';
+    for (unsigned i = 0; i < t.fan_speed_count; ++i) { legacy.values.push_back(t.fan_speeds[i]); legacy.labels.push_back(speed_label(t.fan_speeds[i])); }
+    t.choices.push_back(std::move(legacy));
+    row = &t.choices.back();
+  }
+  if (row) row->current = t.fan_speed;
+}
+// The service call behind a chip: a select option on the device, or the vacuum's own fan speed.
+inline Action choice_action(const Tile &t, char kind, const std::string &value) {
+  if (kind == 's') return {"vacuum.set_fan_speed", "fan_speed", value};
+  const auto *row = t.choice(kind);
+  if (!row || row->entity.empty()) return {};
+  return {"select.select_option", "option", value};
+}
+
 // The debounced -/+ edit lands as one service call.
 inline Action edit_action(const Tile &t, float value) {
   if (!std::isfinite(value)) return {};

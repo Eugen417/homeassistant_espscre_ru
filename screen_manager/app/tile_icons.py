@@ -216,6 +216,8 @@ FIXED = (
     ('weather-pouring', 'F0596'),
     ('weather-snowy-rainy', 'F067F'),
     ('weather-sunset-down', 'F059B'),
+    # "More" key on the CYD climate card: fan and swing (firmware 0.2.39+).
+    ('dots-horizontal', 'F01D8'),
 )
 
 # Pickable icons by name, and every glyph the firmware fonts contain.

@@ -176,6 +176,41 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.46 / firmware 0.2.39
+
+Storage version, tile protocol (`v: 1`), preferences and keys are unchanged. Additive wire fields only.
+
+- A vacuum's state message carries new extras in `x` (`core.vacuum_extras`): `mode` and `water`
+  (`e` select entity, `s` state, `o` options, `l` labels, `r` one role letter per mode: v/m/b/a),
+  `fan` (the suction speeds to offer, `o`/`l`), `bat` (0..100), `chg` (1 while charging) and
+  `room`. Options are capped at six, labels at 24 bytes. With a mode select, speeds and water
+  levels that a mode covers (`off`, `custom`, `smart_mode`, …) leave the rows, and `custom` leaves
+  the mode row unless it is the current mode. `a.fan_speed_list` stays capped at four, so firmware
+  before 0.2.39 draws its old suction row; firmware 0.2.39 with an older app does the same.
+- `core.vacuum_related` finds the selects, the battery sensor (`device_class: battery`), the
+  charging binary sensor (`battery_charging`) and the room sensor on the vacuum's device, by
+  translation key first (entity ids follow the HA language) and entity id ending second; disabled
+  entities are skipped. `Manager.device_entries` indexes the registry per device (rebuilt with the
+  registry object), `related_entities` adds these ids to `watched_entities` and to the `sync_one`
+  reuse check, so a select change resends the vacuum's message.
+- Firmware: `Tile::choices` (`Choice`: kind m/w/s, entity, current, roles, values, labels, `sent`),
+  `room`, `charging`; the state revision now includes `x`, so a select change confirms a pending
+  command. Chips send `select.select_option` (or `vacuum.set_fan_speed`), mark the vacuum tile
+  pending and redraw the card through `lv_async_call` after the event. `tile_controls::vacuum_rows`
+  / `vacuum_role` / `shown_value` / `settle_suction` / `choice_action` are covered by
+  tests/test_tile_controls.cpp. Detail commands: 10-15 suction, 50-55 mode, 60-65 water;
+  `detail_actions` holds 32 buttons. `tick()` redraws an open vacuum card when its state text changes.
+- CYD climate card (home-like-2432s028.yaml): the arc is gone. New widgets `climate_setpoint_card`,
+  `climate_mode_keys`, `cmkey_*`, font `setpoint_digits` (Roboto 400, 40 px, digits . - °), globals
+  `active_climate_current`, `active_climate_action`, `active_climate_target_known`, scripts
+  `climate_card_refresh` and `climate_target_send` (restart mode, 700 ms, entity and value as
+  parameters); `climate_target_preview`/`climate_target_commit` are removed. `tile_controls::mode_color`
+  holds HA's mode colours (also used by `domain_accent`). Glyph `dots-horizontal` (F01D8) joins
+  `tile_icons.FIXED`.
+- Both profiles: the 1 s interval clears `climate_edit_pending` when the climate card is closed and,
+  on runtime tiles, replays the held-back state through `detail_update`, instead of running
+  `ui_refresh` every second while the flag stayed set.
+
 ### Compatibility 0.2.45 (firmware stays 0.2.38)
 
 App only: storage version, tile protocol, preferences and keys are unchanged.

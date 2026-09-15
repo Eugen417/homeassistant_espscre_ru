@@ -17,7 +17,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.38'
+FIRMWARE_VERSION = '0.2.39'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
@@ -369,10 +369,114 @@ def epoch(value):
         moment = moment.replace(tzinfo=timezone.utc)
     return int(moment.timestamp())
 
-def extras(tile, states, forecast=None, tz=None, hourly=None, now=None):
-    """Small, pre-computed values the firmware cannot derive itself (time zones, forecasts)."""
+# Vacuum cards (app 0.2.46, firmware 0.2.39+): how a robot cleans is often a select on its own device,
+# not an attribute. Roborock has "Cleaning mode" (vacuum, vac_and_mop, mop, custom, smart_mode) and
+# "Mop intensity" since HA 2026.8; Ecovacs calls its mode work_mode. They are found by translation key
+# or by the end of their entity id. HA 2026.8 also dropped battery_level from vacuum entities, so the
+# battery comes from the device's battery sensor.
+VACUUM_MODE_KEYS = ('cleaning_mode', 'work_mode', 'clean_mode')
+VACUUM_WATER_KEYS = ('mop_intensity', 'water_flow', 'water_amount', 'water_flow_level', 'water_volume', 'mop_water_level')
+# Short chip labels; anything else shows its own words.
+VACUUM_LABELS = {
+    'vacuum': 'Vacuum', 'sweeping': 'Vacuum', 'vac_and_mop': 'Vac & mop', 'vacuum_and_mop': 'Vac & mop',
+    'sweeping_and_mopping': 'Vac & mop', 'mop_after_vacuum': 'Vac, then mop', 'mopping_after_sweeping': 'Vac, then mop',
+    'mop': 'Mop', 'mopping': 'Mop', 'custom': 'Custom', 'smart_mode': 'Smart',
+    'off': 'Off', 'min': 'Min', 'slight': 'Slight', 'low': 'Low', 'mild': 'Mild', 'medium': 'Medium', 'moderate': 'Moderate',
+    'standard': 'Standard', 'high': 'High', 'intense': 'Intense', 'extreme': 'Extreme', 'ultrahigh': 'Ultra high',
+    'quiet': 'Quiet', 'silent': 'Silent', 'gentle': 'Gentle', 'balanced': 'Normal', 'turbo': 'Turbo', 'strong': 'Strong',
+    'max': 'Max', 'max_plus': 'Max+', 'auto': 'Auto',
+}
+# What a cleaning mode does, one letter per option for the firmware: v vacuum only, m mop only, b both,
+# a automatic (the robot or its app picks suction and water). Unknown modes count as both.
+VACUUM_ROLES = {'vacuum': 'v', 'sweeping': 'v', 'mop': 'm', 'mopping': 'm', 'custom': 'a', 'smart_mode': 'a'}
+# With a cleaning mode select these speeds and water levels belong to a mode: suction off is mop only,
+# water off is vacuum only, and custom or smart settings are the Custom and Smart modes.
+MODE_COVERED = frozenset(('off', 'off_raise_main_brush', 'custom', 'custom_water_flow', 'smart_mode', 'vac_followed_by_mop'))
+VACUUM_CHOICES = 6
+
+def vacuum_label(value):
+    return short(VACUUM_LABELS.get(value) or str(value).replace('_', ' ').capitalize(), 24)
+
+def vacuum_related(entity, device, states):
+    """Entities on the vacuum's device that its card reads, by role: the 'mode' and 'water' selects, the
+    'battery' and 'room' sensors and the 'charging' binary sensor; absent roles are left out.
+
+    `device` holds the registry entries of the vacuum's device. Entity ids follow Home Assistant's
+    language (select.s8_intensiteit_van_dweilen), so translation keys come first."""
+    found = {}
+    for item in device or ():
+        eid = item.get('entity_id') or ''
+        if eid == entity or item.get('disabled_by'):
+            continue
+        key = item.get('translation_key') or ''
+        attrs = states.get(eid, {}).get('attributes', {})
+        role = None
+        if eid.startswith('select.'):
+            if key in VACUUM_MODE_KEYS or eid.endswith(tuple('_' + k for k in VACUUM_MODE_KEYS)):
+                role = 'mode'
+            elif key in VACUUM_WATER_KEYS or eid.endswith(tuple('_' + k for k in VACUUM_WATER_KEYS)):
+                role = 'water'
+        elif eid.startswith('sensor.'):
+            if attrs.get('device_class') == 'battery':
+                role = 'battery'
+            elif key == 'current_room' or eid.endswith('_current_room'):
+                role = 'room'
+        elif eid.startswith('binary_sensor.') and attrs.get('device_class') == 'battery_charging':
+            role = 'charging'
+        if role and role not in found:
+            found[role] = eid
+    return found
+
+def vacuum_extras(tile, states, device):
+    """The vacuum card's rows and details: the mode and water selects (`e` entity, `s` state, `o` options,
+    `l` labels, `r` a role per mode), the suction speeds to offer (`fan`), the battery (`bat`), charging
+    (`chg`) and the room the robot is in (`room`)."""
+    entity = tile['entity']
+    attrs = states.get(entity, {}).get('attributes', {})
+    related = vacuum_related(entity, device, states)
+    result = {}
+    def row(values):
+        values = [short(v, 48) for v in values][:VACUUM_CHOICES]
+        return {'o': values, 'l': [vacuum_label(v) for v in values]} if values else None
+    def select(eid, keep):
+        state = states.get(eid) or {}
+        options = state.get('attributes', {}).get('options')
+        current = state.get('state') if isinstance(state.get('state'), str) else ''
+        found = row([o for o in options if isinstance(o, str) and keep(o, current)]) if isinstance(options, list) else None
+        return {'e': eid, 's': short(current, 48), **found} if found else None
+    # Custom runs the per-room settings made in the robot's app: listed only while it is in use.
+    mode = select(related['mode'], lambda o, current: o != 'custom' or o == current) if 'mode' in related else None
+    covered = MODE_COVERED if mode else frozenset()
+    if mode:
+        mode['r'] = ''.join(VACUUM_ROLES.get(v, 'b') for v in mode['o'])
+        result['mode'] = mode
+    water = select(related['water'], lambda o, current: o not in covered) if 'water' in related else None
+    if water:
+        result['water'] = water
+    speeds = attrs.get('fan_speed_list')
+    fan = row([s for s in speeds if isinstance(s, str) and s not in covered]) if isinstance(speeds, list) else None
+    if fan:
+        result['fan'] = fan
+    if not isinstance(attrs.get('battery_level'), (int, float)) and 'battery' in related:
+        try:
+            level = float(states[related['battery']].get('state'))
+        except (TypeError, ValueError, KeyError):
+            level = math.nan
+        if math.isfinite(level):
+            result['bat'] = max(0, min(100, round(level)))
+    if states.get(related.get('charging'), {}).get('state') == 'on':
+        result['chg'] = 1
+    room = states.get(related.get('room'), {}).get('state')
+    if isinstance(room, str) and room not in ('', 'unknown', 'unavailable', 'none'):
+        result['room'] = short(room, 32)
+    return result or None
+
+def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=None):
+    """Small, pre-computed values the firmware cannot derive itself (time zones, forecasts, a vacuum's device)."""
     domain = tile['entity'].split('.')[0]
     attrs = states.get(tile['entity'], {}).get('attributes', {})
+    if domain == 'vacuum':
+        return vacuum_extras(tile, states, device)
     if domain == 'weather' and (forecast or hourly):
         result = {}
         days = []
