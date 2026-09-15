@@ -616,8 +616,9 @@ inline void show_detail(unsigned index){
   auto *heading=detail_label(detail_root,t.name,bar_x+bar+8,bar_y+(bar-lv_font_get_line_height(title_font))/2,width-2*(bar_x+bar+8));
   lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
   std::string state=detail_state(t);
-  detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);
   auto d=t.domain();
+  // The large vacuum card carries its state in the badge of the hero; a second line would crowd it.
+  if(!(d=="vacuum" && large)){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);}
   if(t.is_switch()){
     detail_label(detail_root,"Tap to toggle",pad,top,width-2*pad);
     detail_switch=lv_switch_create(detail_root);

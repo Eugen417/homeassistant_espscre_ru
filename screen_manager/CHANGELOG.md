@@ -1,3 +1,8 @@
+## 0.2.44 (firmware 0.2.38)
+
+- **Vacuum card on the Guition.** The state line under the name is gone; the card below already shows it in its badge, and the two sat on top of each other.
+- Firmware 0.2.38 for both boards; the app offers the update.
+
 ## 0.2.43 (firmware 0.2.37)
 
 A second hand on the analog clock, sliders that look like Home Assistant's, and one top bar for every card.

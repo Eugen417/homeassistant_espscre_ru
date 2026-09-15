@@ -176,6 +176,11 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.44 / firmware 0.2.38
+
+Firmware only: `show_detail()` creates no `detail_status` for a large vacuum card (the hero badge
+carries the state; `tick()` already guards on a null status).
+
 ### Compatibility 0.2.43 / firmware 0.2.37
 
 Firmware only: storage version, tile protocol, preferences and keys are unchanged.
