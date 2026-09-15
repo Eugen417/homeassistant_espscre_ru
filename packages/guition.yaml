@@ -2,7 +2,7 @@
 # Guition ESP32-S3-4848S040 / 4-inch EU wallbox, 480x480 IPS + GT911.
 # Use guition-device.yaml; see docs/GUITION.md. CYD hardware is a separate profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.39"
+  SCREEN_FIRMWARE_VERSION: "0.2.40"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -698,6 +698,7 @@ esphome:
             light_controls::fallback.maximum = t.max_kelvin;
             id(active_climate_fan_modes) = t.fan_modes; id(active_climate_fan_mode) = t.fan_mode;
             id(active_climate_swing_modes) = t.swing_modes; id(active_climate_swing_mode) = t.swing_mode;
+            id(active_climate_action) = t.hvac_action;
             id(open_value_overlay).execute(t.name, t.entity, t.domain(), "auto", t.active(), 0,
               t.brightness, t.percentage, t.position, runtime_tiles::icon_for(t),
               0xD5EEFC, 0x00A6ED, 0x1B1B1B, "Off", "On", t.modes,
@@ -710,22 +711,17 @@ esphome:
               if (id(climate_edit_pending) && millis() - id(climate_edit_ms) < 3000) return;
               id(climate_edit_pending) = false;
               id(active_climate_mode) = t.state;
+              id(active_climate_action) = t.hvac_action;
               id(active_climate_supported_modes) = t.hvac_modes;
-              lv_label_set_text(id(climate_mode_label), tile_controls::climate_mode_text(t.state));
-              id(climate_power_refresh).execute();
               id(active_climate_fan_modes) = t.fan_modes; id(active_climate_fan_mode) = t.fan_mode;
               id(active_climate_swing_modes) = t.swing_modes; id(active_climate_swing_mode) = t.swing_mode;
-              char buf[72];
-              if (std::isfinite(t.current)) snprintf(buf, sizeof(buf), "Now: %.1f°", t.current);
-              else snprintf(buf, sizeof(buf), "Now: --");
-              lv_label_set_text(id(climate_current_label), buf);
+              id(active_climate_current) = t.current;
+              id(active_climate_humidity) = std::isfinite(t.humidity) ? (int) lround(t.humidity) : -1;
               if (std::isfinite(t.target)) {
-                int target = cyd::quantize_temperature(lround(t.target * 10), id(active_climate_min_x10), id(active_climate_max_x10), id(active_climate_step_x10));
-                id(active_climate_target_x10) = target;
-                snprintf(buf, sizeof(buf), "%.1f°", target / 10.0f);
-                lv_label_set_text(id(climate_target_label), buf);
-                lv_arc_set_value(id(climate_arc), target);
+                id(active_climate_target_x10) = cyd::quantize_temperature(lround(t.target * 10), id(active_climate_min_x10), id(active_climate_max_x10), id(active_climate_step_x10));
+                id(active_climate_target_known) = true;
               }
+              id(climate_card_refresh).execute();
             }
           };
       - lambda: |-
@@ -735,6 +731,13 @@ esphome:
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
+          climate_card::look.card = id(climate_settings_card);
+          climate_card::look.font = id(label)->get_lv_font();
+          climate_card::look.icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          climate_card::choose = [](char kind, int index) {
+            if (kind == 'f') id(set_climate_fan_mode).execute(index);
+            else id(set_climate_swing_mode).execute(index);
+          };
       - light.turn_on:
           id: back_light
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
@@ -1098,12 +1101,29 @@ globals:
     type: std::string
     restore_value: no
 
+  # Room temperature (NAN when unknown), what the device does (hvac_action, runtime tiles only),
+  # and whether Home Assistant reported a setpoint at all (heat_cool ranges do not).
+  - id: active_climate_current
+    type: float
+    restore_value: no
+    initial_value: 'NAN'
+
+  - id: active_climate_action
+    type: std::string
+    restore_value: no
+
+  - id: active_climate_target_known
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
 font:
-  - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-700.ttf"
-    id: climate_number
-    size: 46
+  # The climate card's setpoint, large enough to read across the room.
+  - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-400.ttf"
+    id: setpoint_digits
+    size: 64
     bpp: 4
-    glyphs: "0123456789.-° "
+    glyphs: ['-','.','°','0','1','2','3','4','5','6','7','8','9']
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/Roboto-500.ttf"
     id: time_label
     size: 27
@@ -1352,6 +1372,7 @@ font:
       - "\U000F067F" # weather-snowy-rainy
       - "\U000F059B" # weather-sunset-down
       - "\U000F01D8" # dots-horizontal
+      - "\U000F1C91" # arrow-oscillating
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
     id: materialdesign_icons_mini
@@ -3990,13 +4011,17 @@ lvgl:
 
 
         # ---------- CLIMATE DETAIL OVERLAY ----------
+        # The CYD's climate card at the Guition's size: nothing to drag. A setpoint card with big
+        # -/+ keys (the number changes at once, one call goes out once the taps stop) and one row
+        # of mode keys like Home Assistant's climate card; fan and swing stay in the picker behind
+        # "more". A tap redraws only a label or a key, never a dial.
         - obj:
             id: climate_detail_overlay
             x: 0
             y: 0
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
-            bg_color: 0xF7F7F7
+            bg_color: 0xE7E7E7
             bg_opa: COVER
             hidden: true
             scrollable: false
@@ -4007,27 +4032,6 @@ lvgl:
             pad_bottom: 0
             border_width: 0
             widgets:
-              - obj:
-                  id: climate_detail_bg
-                  x: 0
-                  y: 0
-                  width: ${DISPLAY_W}
-                  height: ${DISPLAY_H}
-                  styles: style_bg_grad
-                  scrollable: false
-                  clickable: false
-              - obj:
-                  id: climate_detail_scrim
-                  x: 0
-                  y: 0
-                  width: ${DISPLAY_W}
-                  height: ${DISPLAY_H}
-                  bg_color: 0xFFFFFF
-                  bg_opa: 62%
-                  border_width: 0
-                  clickable: false
-                  scrollable: false
-
               - obj:
                   id: climate_close_button
                   align: TOP_LEFT
@@ -4078,156 +4082,322 @@ lvgl:
               - label:
                   id: climate_detail_title
                   align: TOP_MID
-                  y: 35
+                  y: 30
+                  width: 300
+                  long_mode: DOT
+                  text_align: CENTER
                   text: "Climate"
                   styles: style_room
 
+              # What the device does (or its mode), the room temperature and humidity.
               - label:
                   id: climate_current_label
                   align: TOP_MID
-                  y: 84
-                  text: "Now: --"
+                  y: 92
+                  width: 94%
+                  long_mode: DOT
+                  text_align: CENTER
+                  text: "--"
                   text_font: sublabel_big
-                  text_color: 0x1B1B1B
-                  text_opa: 85%
+                  text_color: 0x616161
                   clickable: false
 
-              - arc:
-                  id: climate_arc
-                  align: CENTER
-                  y: 40
-                  width: 276
-                  height: 276
-                  # Without this the arc claims an invisible extra
-                  # click area outside the 184x184 box — near the close
-                  # button top-left this creates overlap.
-                  ext_click_area: 0
-                  start_angle: 135
-                  end_angle: 45
-                  min_value: 50
-                  max_value: 300
-                  value: 200
-                  adjustable: true
-                  arc_width: 30
-                  arc_rounded: true
-                  arc_color: 0xE5E5E5
-                  arc_opa: 80%
+              - obj:
+                  id: climate_setpoint_card
+                  align: TOP_MID
+                  y: 136
+                  width: 94%
+                  height: 200
+                  radius: 24
+                  bg_color: 0xFFFFFF
+                  bg_opa: COVER
+                  border_width: 1
+                  border_color: 0xDDDDDD
+                  pad_all: 0
+                  clickable: false
+                  scrollable: false
+                  widgets:
+                    # Every clean tap counts (a quick triple tap is three steps); holding keeps stepping.
+                    - obj:
+                        id: climate_minus_button
+                        align: LEFT_MID
+                        x: 18
+                        width: 116
+                        height: 116
+                        radius: 58
+                        bg_color: 0xF1F1F1
+                        bg_opa: COVER
+                        border_width: 0
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xD9D9D9
+                        disabled:
+                          opa: 40%
+                        on_short_click:
+                          - if:
+                              condition:
+                                lambda: 'return cyd::touch_guard.accept_repeat(millis(), 60);'
+                              then:
+                                - script.execute: { id: climate_adjust_target, direction: -1, held: false }
+                        on_long_press_repeat:
+                          - script.execute: { id: climate_adjust_target, direction: -1, held: true }
+                        widgets:
+                          - label:
+                              id: climate_minus_icon
+                              align: CENTER
+                              text: "\U000F0374"
+                              text_font: materialdesign_icons
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - obj:
+                        id: climate_plus_button
+                        align: RIGHT_MID
+                        x: -18
+                        width: 116
+                        height: 116
+                        radius: 58
+                        bg_color: 0xF1F1F1
+                        bg_opa: COVER
+                        border_width: 0
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xD9D9D9
+                        disabled:
+                          opa: 40%
+                        on_short_click:
+                          - if:
+                              condition:
+                                lambda: 'return cyd::touch_guard.accept_repeat(millis(), 61);'
+                              then:
+                                - script.execute: { id: climate_adjust_target, direction: 1, held: false }
+                        on_long_press_repeat:
+                          - script.execute: { id: climate_adjust_target, direction: 1, held: true }
+                        widgets:
+                          - label:
+                              id: climate_plus_icon
+                              align: CENTER
+                              text: "\U000F0415"
+                              text_font: materialdesign_icons
+                              text_color: 0x1B1B1B
+                              clickable: false
+                    - label:
+                        id: climate_target_label
+                        align: CENTER
+                        y: -14
+                        text: "--"
+                        text_font: setpoint_digits
+                        text_color: 0x1B1B1B
+                        clickable: false
+                    - label:
+                        id: climate_set_label
+                        align: CENTER
+                        y: 46
+                        text: "Target"
+                        text_font: sublabel
+                        text_color: 0x6B6B6B
+                        clickable: false
+
+              # One key per mode the device supports (off is the power key); the one in use is
+              # filled in Home Assistant's colour for it. "More" opens the picker with fan and swing.
+              - obj:
+                  id: climate_mode_keys
+                  align: TOP_MID
+                  y: 364
+                  width: 94%
+                  height: 76
                   bg_opa: TRANSP
                   border_width: 0
-                  indicator:
-                    arc_color: 0x00A6ED
-                    arc_opa: COVER
-                    arc_width: 30
-                    arc_rounded: true
-                  knob:
-                    bg_color: 0x111111
-                    bg_opa: COVER
-                    border_width: 0
-                    shadow_width: 0
-                  on_value:
-                    - script.execute:
-                        id: climate_target_preview
-                        value: !lambda "return x;"
-                  on_release:
-                    - script.execute:
-                        id: climate_target_commit
-                        value: !lambda "return lv_arc_get_value(id(climate_arc));"
-
-              - label:
-                  id: climate_set_label
-                  align: CENTER
-                  y: -32
-                  text: "Target"
-                  text_font: sublabel_big
-                  text_color: 0x1B1B1B
-                  text_opa: 68%
+                  pad_all: 0
                   clickable: false
-
-              - label:
-                  id: climate_target_label
-                  align: CENTER
-                  y: 40
-                  text: "20.0°"
-                  text_font: climate_number
-                  text_color: 0x1B1B1B
-                  clickable: false
-
+                  scrollable: false
+                  layout:
+                    type: FLEX
+                    flex_flow: ROW
+                    flex_align_main: CENTER
+                    flex_align_cross: CENTER
+                    pad_column: 10
+                  widgets:
+                    - obj:
+                        id: cmkey_auto
+                        flex_grow: 1
+                        height: 76
+                        radius: 38
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xEEEEEE
+                        on_click:
+                          - script.execute: { id: set_climate_mode, mode: "auto" }
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "\U000F1B17"
+                              text_font: materialdesign_icons
+                              text_color: 0x46525E
+                              clickable: false
+                    - obj:
+                        id: cmkey_heat_cool
+                        flex_grow: 1
+                        height: 76
+                        radius: 38
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xEEEEEE
+                        on_click:
+                          - script.execute: { id: set_climate_mode, mode: "heat_cool" }
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "\U000F1A79"
+                              text_font: materialdesign_icons
+                              text_color: 0x46525E
+                              clickable: false
+                    - obj:
+                        id: cmkey_heat
+                        flex_grow: 1
+                        height: 76
+                        radius: 38
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xEEEEEE
+                        on_click:
+                          - script.execute: { id: set_climate_mode, mode: "heat" }
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "\U000F0238"
+                              text_font: materialdesign_icons
+                              text_color: 0x46525E
+                              clickable: false
+                    - obj:
+                        id: cmkey_cool
+                        flex_grow: 1
+                        height: 76
+                        radius: 38
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xEEEEEE
+                        on_click:
+                          - script.execute: { id: set_climate_mode, mode: "cool" }
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "\U000F0717"
+                              text_font: materialdesign_icons
+                              text_color: 0x46525E
+                              clickable: false
+                    - obj:
+                        id: cmkey_dry
+                        flex_grow: 1
+                        height: 76
+                        radius: 38
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xEEEEEE
+                        on_click:
+                          - script.execute: { id: set_climate_mode, mode: "dry" }
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "\U000F058E"
+                              text_font: materialdesign_icons
+                              text_color: 0x46525E
+                              clickable: false
+                    - obj:
+                        id: cmkey_fan_only
+                        flex_grow: 1
+                        height: 76
+                        radius: 38
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xEEEEEE
+                        on_click:
+                          - script.execute: { id: set_climate_mode, mode: "fan_only" }
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "\U000F0210"
+                              text_font: materialdesign_icons
+                              text_color: 0x46525E
+                              clickable: false
+                    - obj:
+                        id: cmkey_more
+                        flex_grow: 1
+                        height: 76
+                        radius: 38
+                        bg_color: 0xFFFFFF
+                        bg_opa: COVER
+                        border_width: 1
+                        border_color: 0xDDDDDD
+                        pad_all: 0
+                        clickable: true
+                        scrollable: false
+                        pressed:
+                          bg_color: 0xEEEEEE
+                        on_click:
+                          - script.execute: open_climate_mode_picker
+                        widgets:
+                          - label:
+                              align: CENTER
+                              text: "\U000F01D8"
+                              text_font: materialdesign_icons
+                              text_color: 0x46525E
+                              clickable: false
+              # Fan and swing, each a row of choices behind its icon (climate_card.h fills the card).
               - obj:
-                  id: climate_minus_button
-                  align: BOTTOM_LEFT
-                  x: 57
-                  y: -32
-                  width: 72
-                  height: 72
-                  radius: 22
-                  bg_color: 0xEEEEEE
+                  id: climate_settings_card
+                  align: TOP_MID
+                  y: 340
+                  width: 94%
+                  height: 116
+                  radius: 24
+                  bg_color: 0xFFFFFF
                   bg_opa: COVER
                   border_width: 1
-                  border_color: 0xFFFFFF
-                  border_opa: 16%
-                  clickable: true
+                  border_color: 0xDDDDDD
+                  pad_all: 0
+                  hidden: true
+                  clickable: false
                   scrollable: false
-                  on_click:
-                    - script.execute:
-                        id: climate_adjust_target
-                        direction: -1
-                  widgets:
-                    - label:
-                        align: CENTER
-                        text: "-"
-                        text_font: headline
-                        text_color: 0x1B1B1B
-                        clickable: false
-
-              - obj:
-                  id: climate_plus_button
-                  align: BOTTOM_RIGHT
-                  x: -57
-                  y: -32
-                  width: 72
-                  height: 72
-                  radius: 22
-                  bg_color: 0xEEEEEE
-                  bg_opa: COVER
-                  border_width: 1
-                  border_color: 0xFFFFFF
-                  border_opa: 16%
-                  clickable: true
-                  scrollable: false
-                  on_click:
-                    - script.execute:
-                        id: climate_adjust_target
-                        direction: 1
-                  widgets:
-                    - label:
-                        align: CENTER
-                        text: "+"
-                        text_font: headline
-                        text_color: 0x1B1B1B
-                        clickable: false
-
-              - obj:
-                  id: climate_mode_pill
-                  align: BOTTOM_MID
-                  y: -36
-                  width: 189
-                  height: 68
-                  radius: 26
-                  bg_color: 0xF0F0F0
-                  bg_opa: 82%
-                  border_width: 0
-                  clickable: true
-                  scrollable: false
-                  on_click:
-                    - script.execute: open_climate_mode_picker
-                  widgets:
-                    - label:
-                        id: climate_mode_label
-                        align: CENTER
-                        text: "Auto"
-                        text_font: sublabel_big
-                        text_color: 0x1B1B1B
-                        clickable: false
         # ---------- CLIMATE MODE PICKER ----------
         # Replaces cycling through modes. Cycling sends a set_hvac_mode on every
         # tap, so to get from 'cool' to 'dry' a heat pump actually passes through
@@ -5336,55 +5506,157 @@ script:
           id: smartdisplay_action
           state: ""
 
-  - id: climate_target_preview
+  # A -/+ tap on the climate card: the number follows at once, the call waits for the last tap.
+  # Holding a key steps three times a second.
+  - id: climate_adjust_target
     parameters:
-      value: int
+      direction: int
+      held: bool
     then:
       - lambda: |-
+          if (held && millis() - id(climate_edit_ms) < 300) return;
+          int step_x10 = std::max(5, id(active_climate_step_x10));
+          int next = cyd::quantize_temperature(id(active_climate_target_x10) + direction * step_x10,
+                                               id(active_climate_min_x10), id(active_climate_max_x10), step_x10);
           id(climate_edit_ms) = millis();
           id(climate_edit_pending) = true;
-          int min_x10 = id(active_climate_min_x10);
-          int max_x10 = id(active_climate_max_x10);
-          value = cyd::quantize_temperature(value, min_x10, max_x10,
-                                            id(active_climate_step_x10));
-          id(active_climate_target_x10) = value;
+          if (next == id(active_climate_target_x10) && id(active_climate_target_known)) return;
+          id(active_climate_target_x10) = next;
+          id(active_climate_target_known) = true;
+          id(climate_card_refresh).execute();
+          id(climate_target_send).execute(id(active_entity), next / 10.0f);
 
-          char buf[16];
-          snprintf(buf, sizeof(buf), "%.1f°", value / 10.0f);
-          lv_label_set_text(id(climate_target_label), buf);
-          lv_arc_set_value(id(climate_arc), value);
-
-  - id: climate_target_commit
+  # One set_temperature for a series of taps: every tap restarts the wait with the newest value.
+  # Entity and value travel along, so leaving the card right after a tap still sends it.
+  - id: climate_target_send
+    mode: restart
     parameters:
-      value: int
+      entity: string
+      value: float
     then:
-      - script.execute:
-          id: climate_target_preview
-          value: !lambda "return value;"
+      - delay: 700ms
       - if:
           condition:
-            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true";'
+            lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && !entity.empty();'
           then:
             - homeassistant.action:
                 action: climate.set_temperature
                 data:
-                  entity_id: !lambda "return id(active_entity);"
-                  temperature: !lambda "return id(active_climate_target_x10) / 10.0f;"
+                  entity_id: !lambda "return entity;"
+                  temperature: !lambda "return value;"
 
-  - id: climate_adjust_target
-    parameters:
-      direction: int
+  # Draws the climate card from the active_climate_* globals: status line, setpoint, -/+ and mode keys.
+  - id: climate_card_refresh
     then:
       - lambda: |-
-          int step_x10 = id(active_climate_step_x10);
-          if (step_x10 < 5) step_x10 = 5;
-          int next = id(active_climate_target_x10) + (direction * step_x10);
-          if (next < id(active_climate_min_x10)) next = id(active_climate_min_x10);
-          if (next > id(active_climate_max_x10)) next = id(active_climate_max_x10);
-          id(active_climate_target_x10) = next;
-      - script.execute:
-          id: climate_target_commit
-          value: !lambda "return id(active_climate_target_x10);"
+          auto lower = [](std::string v) {
+            for (char &c : v) { if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a'); }
+            return v;
+          };
+          std::string mode = lower(id(active_climate_mode));
+          bool off = mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable";
+          // What the device does (Heating), else its mode (Heat); then the room.
+          std::string status = off ? std::string("Off") : std::string(tile_controls::climate_action_text(lower(id(active_climate_action))));
+          if (status.empty()) status = tile_controls::climate_mode_text(mode);
+          char part[32];
+          if (std::isfinite(id(active_climate_current))) { snprintf(part, sizeof(part), " · Now %.1f°", id(active_climate_current)); status += part; }
+          if (id(active_climate_humidity) >= 0) { snprintf(part, sizeof(part), " · %d%%", id(active_climate_humidity)); status += part; }
+          lv_label_set_text(id(climate_current_label), status.c_str());
+
+          int target = id(active_climate_target_x10);
+          std::string value = id(active_climate_target_known)
+              ? tile_controls::format_value(target / 10.0f, id(active_climate_step_x10) / 10.0f, "°") : std::string("--");
+          lv_label_set_text(id(climate_target_label), value.c_str());
+          lv_obj_set_style_text_color(id(climate_target_label), lv_color_hex(off ? 0x9E9E9E : 0x1B1B1B), LV_PART_MAIN);
+          auto enable = [](lv_obj_t *key, bool on) {
+            if (on) lv_obj_remove_state(key, LV_STATE_DISABLED); else lv_obj_add_state(key, LV_STATE_DISABLED);
+          };
+          enable(id(climate_minus_button), !id(active_climate_target_known) || target > id(active_climate_min_x10));
+          enable(id(climate_plus_button), !id(active_climate_target_known) || target < id(active_climate_max_x10));
+
+          // One key per supported mode, in Home Assistant's order. Fan and swing add "more"; with it
+          // five mode keys fit, and when a sixth mode is in use it takes the last place.
+          std::string supported = lower(id(active_climate_supported_modes));
+          auto has = [&](const char *m) {
+            return supported.find(std::string("\"") + m + "\"") != std::string::npos ||
+                   supported.find(std::string("'") + m + "'") != std::string::npos;
+          };
+          struct Key { lv_obj_t *obj; const char *mode; };
+          const Key keys[] = {{id(cmkey_auto), "auto"}, {id(cmkey_heat_cool), "heat_cool"}, {id(cmkey_heat), "heat"},
+                              {id(cmkey_cool), "cool"}, {id(cmkey_dry), "dry"}, {id(cmkey_fan_only), "fan_only"}};
+          // The Guition shows fan and swing on their own card below, so no "more" key.
+          bool more = false;
+          const Key *visible[6];
+          unsigned count = 0, room = more ? 5 : 6;
+          for (const auto &k : keys) if (has(k.mode)) visible[count++] = &k;
+          if (count > room) {
+            for (unsigned i = room; i < count; ++i) if (mode == visible[i]->mode) visible[room - 1] = visible[i];
+            count = room;
+          }
+          for (const auto &k : keys) {
+            bool show = false;
+            for (unsigned i = 0; i < count; ++i) show = show || visible[i] == &k;
+            if (show) lv_obj_remove_flag(k.obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(k.obj, LV_OBJ_FLAG_HIDDEN);
+            bool selected = show && !off && mode == k.mode;
+            uint32_t color = tile_controls::mode_color(k.mode);
+            lv_obj_set_style_bg_color(k.obj, lv_color_hex(selected ? color : 0xFFFFFF), LV_PART_MAIN);
+            lv_obj_set_style_border_color(k.obj, lv_color_hex(selected ? color : 0xDDDDDD), LV_PART_MAIN);
+            lv_obj_set_style_text_color(lv_obj_get_child(k.obj, 0), lv_color_hex(selected ? 0xFFFFFF : 0x46525E), LV_PART_MAIN);
+          }
+          if (more) lv_obj_remove_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN);
+          // One mode is no choice: the power key already turns it on and off.
+          const bool show_keys = count > 1 || more;
+          if (show_keys) lv_obj_remove_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
+
+          // Fan and swing rows, in the entity's own names and order.
+          climate_card::Row settings[2];
+          int rows = 0;
+          if (!cyd::list_item(id(active_climate_fan_modes), 0).empty())
+            settings[rows++] = {'f', "\U000F0210", id(active_climate_fan_modes), id(active_climate_fan_mode)};
+          if (!cyd::list_item(id(active_climate_swing_modes), 0).empty())
+            settings[rows++] = {'s', "\U000F1C91", id(active_climate_swing_modes), id(active_climate_swing_mode)};
+          // One layout per card: the setpoint gives room to the mode keys and the settings below it,
+          // and a card with nothing below keeps the setpoint centred.
+          static int laid_out = -1;
+          if (laid_out != rows * 2 + show_keys) {
+            laid_out = rows * 2 + show_keys;
+            struct Layout { int status, card_y, card_h, key, number_y, caption_y, modes_y, modes_h, settings_y, edge, row_h, gap; };
+            static const Layout layouts[6] = {
+              // no mode keys: 0, 1, 2 rows
+              {92, 180, 200, 116, -14, 46, 0, 0, 0, 14, 48, 10},
+              {92, 140, 200, 116, -14, 46, 0, 0, 364, 14, 48, 10},
+              {90, 130, 180, 108, -12, 42, 0, 0, 330, 14, 46, 10},
+              // mode keys: 0, 1, 2 rows
+              {92, 136, 200, 116, -14, 46, 364, 76, 0, 14, 48, 10},
+              {90, 126, 170, 108, -12, 42, 312, 68, 394, 12, 44, 8},
+              {86, 118, 140, 96, -10, 36, 270, 60, 342, 12, 42, 8},
+            };
+            const Layout &l = layouts[(show_keys ? 3 : 0) + rows];
+            lv_obj_set_y(id(climate_current_label), l.status);
+            lv_obj_set_y(id(climate_setpoint_card), l.card_y);
+            lv_obj_set_height(id(climate_setpoint_card), l.card_h);
+            for (lv_obj_t *button : {id(climate_minus_button), id(climate_plus_button)}) {
+              lv_obj_set_size(button, l.key, l.key);
+              lv_obj_set_style_radius(button, l.key / 2, LV_PART_MAIN);
+            }
+            lv_obj_set_y(id(climate_target_label), l.number_y);
+            lv_obj_set_y(id(climate_set_label), l.caption_y);
+            if (show_keys) {
+              lv_obj_set_y(id(climate_mode_keys), l.modes_y);
+              lv_obj_set_height(id(climate_mode_keys), l.modes_h);
+              for (lv_obj_t *mode_key : {id(cmkey_auto), id(cmkey_heat_cool), id(cmkey_heat), id(cmkey_cool), id(cmkey_dry), id(cmkey_fan_only), id(cmkey_more)}) {
+                lv_obj_set_height(mode_key, l.modes_h);
+                lv_obj_set_style_radius(mode_key, l.modes_h / 2, LV_PART_MAIN);
+              }
+            }
+            lv_obj_set_y(id(climate_settings_card), l.settings_y);
+            climate_card::look.edge = l.edge;
+            climate_card::look.row_h = l.row_h;
+            climate_card::look.gap = l.gap;
+          }
+          climate_card::show(settings, rows);
+          id(climate_power_refresh).execute();
 
   # Opens the mode picker. Hides modes the entity doesn't support and marks
   # the current one, so you see where you stand before you pick something.
@@ -5494,6 +5766,7 @@ script:
           id(active_climate_fan_mode) = cyd::list_item(id(active_climate_fan_modes), index);
           id(climate_edit_ms) = millis();
           id(climate_edit_pending) = true;
+          id(climate_card_refresh).execute();
       - lvgl.widget.hide: climate_mode_overlay
       - if:
           condition:
@@ -5513,6 +5786,7 @@ script:
           id(active_climate_swing_mode) = cyd::list_item(id(active_climate_swing_modes), index);
           id(climate_edit_ms) = millis();
           id(climate_edit_pending) = true;
+          id(climate_card_refresh).execute();
       - lvgl.widget.hide: climate_mode_overlay
       - if:
           condition:
@@ -5534,8 +5808,8 @@ script:
           id(active_climate_power_on) = mode == "off" || mode.empty() || mode == "unknown";
           id(climate_edit_ms) = millis();
           id(climate_edit_pending) = true;
-          if (!id(active_climate_power_on)) { id(active_climate_mode) = "off"; lv_label_set_text(id(climate_mode_label), "Off"); }
-          id(climate_power_refresh).execute();
+          if (!id(active_climate_power_on)) id(active_climate_mode) = "off";
+          id(climate_card_refresh).execute();
       - if:
           condition:
             lambda: 'return (!runtime_tiles::enabled || runtime_tiles::fresh()) && std::string("${DIRECT_ACTIONS}") == "true" && id(active_climate_power_on);'
@@ -5574,9 +5848,10 @@ script:
           id(climate_edit_ms) = millis();
           id(climate_edit_pending) = true;
           id(active_climate_mode) = mode;
+          // The action line would still say what the old mode did.
+          id(active_climate_action).clear();
           id(active_climate_power_on) = mode != "off";
-          id(climate_power_refresh).execute();
-          lv_label_set_text(id(climate_mode_label), tile_controls::climate_mode_text(mode));
+          id(climate_card_refresh).execute();
       - lvgl.widget.hide: climate_mode_overlay
       - if:
           condition:
@@ -6131,6 +6406,8 @@ script:
             }
 
             id(active_climate_current_x10) = to_x10(climate_current_temperature, 0);
+            id(active_climate_current) = climate_current_temperature;
+            id(active_climate_target_known) = !isnan(climate_target_temperature);
             int fallback_target = isnan(climate_current_temperature) ? 200 : id(active_climate_current_x10);
             id(active_climate_target_x10) = to_x10(climate_target_temperature, fallback_target);
             if (id(active_climate_target_x10) < id(active_climate_min_x10)) id(active_climate_target_x10) = id(active_climate_min_x10);
@@ -6143,41 +6420,7 @@ script:
             id(active_climate_supported_modes) = climate_supported_modes;
 
             lv_label_set_text(id(climate_detail_title), title.c_str());
-
-            char current_buf[48];
-            if (isnan(climate_current_temperature)) {
-              snprintf(current_buf, sizeof(current_buf), "Now: --");
-            } else if (id(active_climate_humidity) >= 0) {
-              snprintf(current_buf, sizeof(current_buf), "Now: %.1f° · %d%%", climate_current_temperature, id(active_climate_humidity));
-            } else {
-              snprintf(current_buf, sizeof(current_buf), "Now: %.1f°", climate_current_temperature);
-            }
-            lv_label_set_text(id(climate_current_label), current_buf);
-
-            char target_buf[16];
-            snprintf(target_buf, sizeof(target_buf), "%.1f°", id(active_climate_target_x10) / 10.0f);
-            lv_label_set_text(id(climate_target_label), target_buf);
-            lv_label_set_text(id(climate_mode_label), tile_controls::climate_mode_text(id(active_climate_mode)));
-            id(climate_power_refresh).execute();
-
-            lv_arc_set_range(id(climate_arc), id(active_climate_min_x10), id(active_climate_max_x10));
-            lv_arc_set_value(id(climate_arc), id(active_climate_target_x10));
-
-            if (atoi("${DISPLAY_W}") < atoi("${DISPLAY_H}")) {
-              lv_obj_set_size(id(climate_arc), 294, 294);
-              lv_obj_set_y(id(climate_arc), 16);
-              lv_obj_set_y(id(climate_current_label), 96);
-              lv_obj_set_y(id(climate_minus_button), -124);
-              lv_obj_set_y(id(climate_plus_button), -124);
-              lv_obj_set_y(id(climate_mode_pill), -36);
-            } else {
-              lv_obj_set_size(id(climate_arc), 264, 264);
-              lv_obj_set_y(id(climate_arc), 36);
-              lv_obj_set_y(id(climate_current_label), 80);
-              lv_obj_set_y(id(climate_minus_button), -28);
-              lv_obj_set_y(id(climate_plus_button), -28);
-              lv_obj_set_y(id(climate_mode_pill), -30);
-            }
+            id(climate_card_refresh).execute();
 
             lv_obj_add_flag(id(brightness_overlay), LV_OBJ_FLAG_HIDDEN);
             lv_obj_clear_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN);
@@ -6503,66 +6746,24 @@ script:
           if (!id(ha_state_tile10).has_state() || id(ha_state_tile10).state == "unknown" || id(ha_state_tile10).state == "unavailable")
             set_lbl(id(t10_value), "Unavailable");
           if (id(active_control_kind) == "climate_temperature" && !lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) {
-            auto label_for_climate_mode = [](std::string mode) {
-              for (char &c : mode) {
-                if (c >= 'A' && c <= 'Z') c = (char) (c - 'A' + 'a');
-              }
-              if (mode == "off") return std::string("Off");
-              if (mode == "heat") return std::string("Heat");
-              if (mode == "cool") return std::string("Cool");
-              if (mode == "heat_cool") return std::string("Heat/Cool");
-              if (mode == "auto") return std::string("Auto");
-              if (mode == "dry") return std::string("Dry");
-              if (mode == "fan_only") return std::string("Fan");
-              return mode.empty() ? std::string("Auto") : mode;
-            };
             auto sync_open_climate = [&](const std::string& entity,
                                          float current_temperature,
                                          float target_temperature,
                                          float humidity,
                                          const std::string& climate_mode) {
               if (id(active_entity) != entity) return;
-              auto to_x10 = [](float value, int fallback) -> int {
-                if (isnan(value)) return fallback;
-                return (int) lround(value * 10.0f);
-              };
-
-              id(active_climate_current_x10) = to_x10(current_temperature, id(active_climate_current_x10));
+              id(active_climate_current) = current_temperature;
               id(active_climate_humidity) = isnan(humidity) ? -1 : (int) lround(humidity);
-              if (!climate_mode.empty() && !id(touch_down) &&
-                  !(id(climate_edit_pending) && millis() - id(climate_edit_ms) < 3000)) {
-                id(active_climate_mode) = climate_mode;
-                lv_label_set_text(id(climate_mode_label), label_for_climate_mode(climate_mode).c_str());
-              }
-
               const bool editing = id(touch_down) ||
                   (id(climate_edit_pending) && millis() - id(climate_edit_ms) < 3000);
               if (!editing) id(climate_edit_pending) = false;
-              int target_x10 = editing ? id(active_climate_target_x10) :
-                  to_x10(target_temperature, id(active_climate_target_x10));
-              if (target_x10 < id(active_climate_min_x10)) target_x10 = id(active_climate_min_x10);
-              if (target_x10 > id(active_climate_max_x10)) target_x10 = id(active_climate_max_x10);
-              int step_x10 = id(active_climate_step_x10);
-              if (step_x10 < 5) step_x10 = 5;
-              target_x10 = id(active_climate_min_x10) + (int) lround((target_x10 - id(active_climate_min_x10)) / (float) step_x10) * step_x10;
-              if (target_x10 < id(active_climate_min_x10)) target_x10 = id(active_climate_min_x10);
-              if (target_x10 > id(active_climate_max_x10)) target_x10 = id(active_climate_max_x10);
-              id(active_climate_target_x10) = target_x10;
-
-              char current_buf[48];
-              if (isnan(current_temperature)) {
-                snprintf(current_buf, sizeof(current_buf), "Now: --");
-              } else if (id(active_climate_humidity) >= 0) {
-                snprintf(current_buf, sizeof(current_buf), "Now: %.1f° · %d%%", current_temperature, id(active_climate_humidity));
-              } else {
-                snprintf(current_buf, sizeof(current_buf), "Now: %.1f°", current_temperature);
+              if (!climate_mode.empty() && !editing) id(active_climate_mode) = climate_mode;
+              if (!editing && !isnan(target_temperature)) {
+                id(active_climate_target_x10) = cyd::quantize_temperature((int) lround(target_temperature * 10.0f),
+                    id(active_climate_min_x10), id(active_climate_max_x10), std::max(5, id(active_climate_step_x10)));
+                id(active_climate_target_known) = true;
               }
-              lv_label_set_text(id(climate_current_label), current_buf);
-
-              char target_buf[16];
-              snprintf(target_buf, sizeof(target_buf), "%.1f°", id(active_climate_target_x10) / 10.0f);
-              lv_label_set_text(id(climate_target_label), target_buf);
-              lv_arc_set_value(id(climate_arc), id(active_climate_target_x10));
+              id(climate_card_refresh).execute();
             };
 
             if (std::string("${TILE1_TYPE}") == "climate") sync_open_climate("${TILE1_ENTITY}", id(tile1_climate_current_temperature).state, id(tile1_climate_target_temperature).state, id(tile1_climate_humidity).state, std::string(id(tile1_climate_mode).state.c_str()));

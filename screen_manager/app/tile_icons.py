@@ -218,6 +218,8 @@ FIXED = (
     ('weather-sunset-down', 'F059B'),
     # "More" key on the CYD climate card: fan and swing (firmware 0.2.39+).
     ('dots-horizontal', 'F01D8'),
+    # Swing row on the Guition climate card, Home Assistant's icon for swing modes (firmware 0.2.40+).
+    ('arrow-oscillating', 'F1C91'),
 )
 
 # Pickable icons by name, and every glyph the firmware fonts contain.

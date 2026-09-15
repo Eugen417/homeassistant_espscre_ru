@@ -176,6 +176,25 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.47 / firmware 0.2.40
+
+Firmware and board profiles; the app only raises `FIRMWARE_VERSION`. Storage, protocol, preferences and
+keys are unchanged.
+
+- guition-4848s040.yaml gets the CYD's climate card (0.2.46): the arc, `climate_detail_bg`/`_scrim`,
+  `climate_mode_pill` and the `climate_number` font are gone; `setpoint_digits` is Roboto 400 at 64 px.
+  The scripts `climate_adjust_target`, `climate_target_send` and `climate_card_refresh` match the CYD,
+  except that the Guition's refresh hides the ··· key and lays the card out per case (no, one or two
+  settings rows, with or without mode keys) from one table, applied only when that case changes.
+- New `components/smart_display/climate_card.h`: `climate_card::show(rows, count)` draws the fan
+  ('f') and swing ('s') rows into `climate_settings_card` through `lv_async_call`, so a row can redraw
+  itself from its own tap; taps go through `cyd::touch_guard` and the profile's `climate_card::choose`
+  hook, which runs `set_climate_fan_mode` / `set_climate_swing_mode` with the index in the entity's list
+  (`cyd::list_item`). At most six choices per row. Both scripts now refresh the card at once.
+- Both profiles hide the mode key row when a device offers at most one mode besides off (and no ···),
+  and centre the setpoint card instead.
+- Glyph `arrow-oscillating` (F1C91), Home Assistant's swing icon, joins `tile_icons.FIXED`.
+
 ### Compatibility 0.2.46 / firmware 0.2.39
 
 Storage version, tile protocol (`v: 1`), preferences and keys are unchanged. Additive wire fields only.

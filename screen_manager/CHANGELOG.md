@@ -1,3 +1,12 @@
+## 0.2.47 (firmware 0.2.40)
+
+The new climate card comes to the Guition, with fan and swing right on the card.
+
+- **Climate card on the Guition.** The dial is gone here too: the target temperature sits big between two large − / + keys, the number follows every tap and one call goes out when you stop tapping, and holding a key keeps stepping. One row of keys picks the mode in Home Assistant's order and colours.
+- **Fan and swing at a glance.** Below the mode keys a white card shows the fan speeds and the swing modes as rows of choices, each behind its icon, like the cleaning settings on the vacuum card. Tap a choice and it shows at once. The card makes room for whatever the device has: with fan and swing everything moves a little closer together, and a thermostat without them keeps a larger setpoint.
+- **One mode is no choice.** A thermostat that can only heat no longer shows a single mode key; its setpoint sits in the middle of the card, on both boards. The power key still turns it on and off.
+- Firmware 0.2.40 for both boards; the app offers the update. The CYD keeps fan and swing behind ···.
+
 ## 0.2.46 (firmware 0.2.39)
 
 Choose between vacuuming, mopping or both on the vacuum card, and a climate card made for the small CYD.

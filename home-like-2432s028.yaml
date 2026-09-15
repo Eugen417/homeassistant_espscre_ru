@@ -57,7 +57,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.39"
+  SCREEN_FIRMWARE_VERSION: "0.2.40"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -1571,6 +1571,7 @@ font:
       - "\U000F067F" # weather-snowy-rainy
       - "\U000F059B" # weather-sunset-down
       - "\U000F01D8" # dots-horizontal
+      - "\U000F1C91" # arrow-oscillating
 
   - file: 'fonts/materialdesignicons-webfont.ttf'
     id: materialdesign_icons_mini
@@ -5749,8 +5750,13 @@ script:
             lv_obj_set_style_text_color(lv_obj_get_child(k.obj, 0), lv_color_hex(selected ? 0xFFFFFF : 0x46525E), LV_PART_MAIN);
           }
           if (more) lv_obj_remove_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN);
-          if (count || more) lv_obj_remove_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
+          // One mode is no choice: the power key already turns it on and off. Without keys the
+          // setpoint card moves to the middle of the room below the status line.
+          const bool show_keys = count > 1 || more;
+          if (show_keys) lv_obj_remove_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
           else lv_obj_add_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
+          const bool landscape = atoi("${DISPLAY_W}") >= atoi("${DISPLAY_H}");
+          lv_obj_set_y(id(climate_setpoint_card), show_keys ? (landscape ? 80 : 96) : (landscape ? 108 : 140));
           id(climate_power_refresh).execute();
 
   # Opens the mode picker. Hides modes the entity doesn't support and marks

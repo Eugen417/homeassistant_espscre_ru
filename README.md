@@ -77,7 +77,8 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   per tile; **None** keeps the regular card.
 - **Weather card** with current weather, the coming hours and days including chance of
   rain or millimeters; **climate card** with an on/off button, mode, fan, and swing settings.
-  On the CYD the climate card has big − / + keys and one row of mode keys instead of a dial.
+  The target temperature sits big between − / + keys with one row of mode keys below; the
+  Guition shows fan and swing right away on a card of their own, the CYD behind ···.
 - **Vacuum card** with the state, battery and charging, start and dock, and how the robot
   cleans: **vacuum, vacuum and mop, or mop only** for robots that offer a cleaning mode in
   Home Assistant (such as Roborock), then suction and water. Only the rows the chosen mode
@@ -100,7 +101,7 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
 
 <p align="center">
   <img src="docs/images/guition-weather.png" width="32%" alt="Weather card: current weather, the coming hours and the coming days with chance of rain">
-  <img src="docs/images/guition-climate.png" width="32%" alt="Climate card: target temperature dial, current temperature and humidity, and the mode">
+  <img src="docs/images/guition-climate.png" width="32%" alt="Climate card: the target temperature between big minus and plus keys, the mode keys, and fan and swing choices">
   <img src="docs/images/guition-light.png" width="32%" alt="Light control: color, color temperature and brightness">
 </p>
 <p align="center">
