@@ -17,44 +17,165 @@
         </div>
       </div>
       <nav class="toolbar" aria-label="Actions">
-        <button id="new-screen" class="tool tool-primary">
-          <span class="tool-icon" aria-hidden="true">＋</span>
+        <button id="open-settings" class="tool" type="button" aria-controls="settings-view">
+          <span class="tool-icon" id="open-settings-icon" aria-hidden="true">⚙</span>
           <span class="tool-text"
-            ><b>New screen</b><small>Connect and install</small></span
-          >
-        </button>
-        <button id="open-firmware" class="tool">
-          <span class="tool-icon" aria-hidden="true">⇪</span>
-          <span class="tool-text"
-            ><b>Firmware & USB</b
-            ><small>Build and install via USB or Wi-Fi</small></span
-          >
-        </button>
-        <button id="open-alerts" class="tool">
-          <span class="tool-icon" aria-hidden="true">!</span>
-          <span class="tool-text"
-            ><b>Alerts</b
-            ><small>Full-screen notifications, from an automation</small></span
+            ><b id="open-settings-label">Settings</b
+            ><small id="open-settings-hint">New screen, updates, alerts, Claude</small></span
           >
         </button>
       </nav>
     </header>
     <main>
-      <div class="intro">
-        <div>
-          <p class="eyebrow">HOME ASSISTANT</p>
-          <h1>Manage your remote screens here.</h1>
+      <div id="home-view">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">HOME ASSISTANT</p>
+            <h1>Manage your remote screens here.</h1>
+          </div>
+          <span id="connection" role="status" class="badge">Connecting…</span>
         </div>
-        <span id="connection" role="status" class="badge">Connecting…</span>
+        <div class="workspace">
+          <aside>
+            <h2>My screens</h2>
+            <div id="screens"></div>
+            <div id="pending"></div>
+            <button class="quiet" id="refresh">↻ Refresh</button>
+          </aside>
+          <section id="empty" class="empty">
+            <span class="empty-icon">▦</span>
+            <h2>Start with a screen</h2>
+            <p>
+              Connect a CYD or Guition via USB to your Home Assistant machine.
+              Profile, firmware, and the first flash happen in one window.
+            </p>
+            <button id="start">Install new screen</button>
+          </section>
+          <section id="editor" hidden>
+            <div class="editor-head">
+              <div>
+                <p class="eyebrow" id="screen-name"></p>
+                <h2>Make it your screen</h2>
+              </div>
+              <span id="delivery" class="badge"></span>
+            </div>
+            <section class="topbar-editor" id="topbar" aria-labelledby="topbar-title">
+              <div class="section-title">
+                <h3 id="topbar-title">Top bar</h3>
+                <span id="topbar-count"></span>
+              </div>
+              <div class="topbar-fields">
+                <label class="topbar-name"
+                  >Left: name<input
+                    id="title"
+                    maxlength="60"
+                    placeholder="For example: Living room"
+                /></label>
+                <div class="topbar-right">
+                  <span class="topbar-caption" id="topbar-caption">Right: time, sensors, or a clock</span>
+                  <div
+                    id="topbar-chips"
+                    class="topbar-chips"
+                    role="list"
+                    aria-labelledby="topbar-caption"
+                  ></div>
+                </div>
+              </div>
+              <p class="hint" id="topbar-hint"></p>
+            </section>
+            <div class="columns" id="tile-section">
+              <div class="tile-editor">
+                <div class="section-title">
+                  <h3>Your tiles</h3>
+                  <span id="count">0 / 10</span>
+                </div>
+                <div id="layout-preview" aria-label="Screen layout"></div>
+                <button id="add-page" class="quiet add-page" type="button">
+                  ＋ Add page
+                </button>
+                <p id="no-tiles" class="hint">
+                  Add your first light, scene, or device via the picker.
+                </p>
+                <p id="positions-hint" class="hint" hidden></p>
+              </div>
+              <div class="picker">
+                <label for="search">Add an entity</label
+                ><input
+                  id="search"
+                  type="search"
+                  placeholder="Search by name, device, or room…"
+                  autocomplete="off"
+                />
+                <div class="filters" id="filters"></div>
+                <div id="results" aria-live="polite"></div>
+              </div>
+            </div>
+            <details class="screen-settings" id="general-settings" open>
+              <summary>
+                Screen settings
+                <span class="hint">Brightness, quiet hours, and display</span>
+              </summary>
+              <p class="hint" id="settings-support"></p>
+              <div class="settings-grid" id="settings-fields"></div>
+              <p class="hint">
+                Night hours apply to the brightness during standby. The first
+                touch wakes the screen; the next one controls your home.
+                Matching start and end times turn the night window off.
+              </p>
+            </details>
+            <details class="screen-settings" id="inspector-section">
+              <summary>
+                Inspector
+                <span class="hint"
+                  >Connection, status, and supported properties</span
+                >
+              </summary>
+              <button id="inspect" class="quiet">Read current data</button>
+              <div id="inspection-summary"></div>
+              <pre id="inspection">Select a screen and read the data.</pre>
+            </details>
+            <footer class="savebar">
+              <div>
+                <strong id="dirty">All saved</strong
+                ><small id="save-detail"
+                  >Changes apply without reflashing.</small
+                >
+              </div>
+              <button id="save">Save & send to screen</button>
+            </footer>
+          </section>
+        </div>
       </div>
-      <div class="workspace">
-        <aside>
-          <h2>My screens</h2>
-          <div id="screens"></div>
-          <div id="pending"></div>
-          <button class="quiet" id="refresh">↻ Refresh</button>
-          <div class="updates" id="updates" hidden>
-            <h2>Firmware updates</h2>
+      <section id="settings-view" class="settings-view" hidden aria-labelledby="settings-title">
+        <div class="intro">
+          <div>
+            <p class="eyebrow">SETTINGS</p>
+            <h1 id="settings-title">Everything around your screens.</h1>
+          </div>
+          <button type="button" class="quiet" id="close-settings">← My screens</button>
+        </div>
+        <div class="settings-groups">
+          <section class="settings-group" aria-labelledby="settings-screens-title">
+            <h2 id="settings-screens-title">Screens</h2>
+            <p class="hint">Add a screen, or build and reinstall the firmware of one you already have.</p>
+            <div class="settings-tools">
+              <button id="new-screen" class="tool tool-primary" type="button">
+                <span class="tool-icon" aria-hidden="true">＋</span>
+                <span class="tool-text"
+                  ><b>New screen</b><small>Connect and install</small></span
+                >
+              </button>
+              <button id="open-firmware" class="tool" type="button">
+                <span class="tool-icon" aria-hidden="true">⇪</span>
+                <span class="tool-text"
+                  ><b>Firmware & USB</b
+                  ><small>Build and install via USB or Wi-Fi</small></span
+                >
+              </button>
+            </div>
+          </section>
+          <section class="settings-group updates" id="updates" aria-labelledby="updates-title">
+            <h2 id="updates-title">Firmware updates</h2>
             <p class="hint" id="updates-hint"></p>
             <button id="update-all" hidden>Update all screens</button>
             <label class="check">
@@ -66,111 +187,45 @@
                 ></span
               >
             </label>
-          </div>
-        </aside>
-        <section id="empty" class="empty">
-          <span class="empty-icon">▦</span>
-          <h2>Start with a screen</h2>
-          <p>
-            Connect a CYD or Guition via USB to your Home Assistant machine.
-            Profile, firmware, and the first flash happen in one window.
-          </p>
-          <button id="start">Install new screen</button>
-        </section>
-        <section id="editor" hidden>
-          <div class="editor-head">
-            <div>
-              <p class="eyebrow" id="screen-name"></p>
-              <h2>Make it your screen</h2>
-            </div>
-            <span id="delivery" class="badge"></span>
-          </div>
-          <section class="topbar-editor" id="topbar" aria-labelledby="topbar-title">
-            <div class="section-title">
-              <h3 id="topbar-title">Top bar</h3>
-              <span id="topbar-count"></span>
-            </div>
-            <div class="topbar-fields">
-              <label class="topbar-name"
-                >Left: name<input
-                  id="title"
-                  maxlength="60"
-                  placeholder="For example: Living room"
-              /></label>
-              <div class="topbar-right">
-                <span class="topbar-caption" id="topbar-caption">Right: time, sensors, or a clock</span>
-                <div
-                  id="topbar-chips"
-                  class="topbar-chips"
-                  role="list"
-                  aria-labelledby="topbar-caption"
-                ></div>
-              </div>
-            </div>
-            <p class="hint" id="topbar-hint"></p>
           </section>
-          <div class="columns" id="tile-section">
-            <div class="tile-editor">
-              <div class="section-title">
-                <h3>Your tiles</h3>
-                <span id="count">0 / 10</span>
-              </div>
-              <div id="layout-preview" aria-label="Screen layout"></div>
-              <button id="add-page" class="quiet add-page" type="button">
-                ＋ Add page
-              </button>
-              <p id="no-tiles" class="hint">
-                Add your first light, scene, or device via the picker.
-              </p>
-              <p id="positions-hint" class="hint" hidden></p>
-            </div>
-            <div class="picker">
-              <label for="search">Add an entity</label
-              ><input
-                id="search"
-                type="search"
-                placeholder="Search by name, device, or room…"
-                autocomplete="off"
-              />
-              <div class="filters" id="filters"></div>
-              <div id="results" aria-live="polite"></div>
-            </div>
-          </div>
-          <details class="screen-settings" id="general-settings" open>
-            <summary>
-              Screen settings
-              <span class="hint">Brightness, quiet hours, and display</span>
-            </summary>
-            <p class="hint" id="settings-support"></p>
-            <div class="settings-grid" id="settings-fields"></div>
+          <section class="settings-group" aria-labelledby="settings-alerts-title">
+            <h2 id="settings-alerts-title">Alerts</h2>
             <p class="hint">
-              Night hours apply to the brightness during standby. The first
-              touch wakes the screen; the next one controls your home.
-              Matching start and end times turn the night window off.
+              A card over the whole screen from an automation, on one screen or on all of them.
+              The cheatsheet has the action names, fields, icons, and colors.
             </p>
-          </details>
-          <details class="screen-settings" id="inspector-section">
-            <summary>
-              Inspector
-              <span class="hint"
-                >Connection, status, and supported properties</span
-              >
-            </summary>
-            <button id="inspect" class="quiet">Read current data</button>
-            <div id="inspection-summary"></div>
-            <pre id="inspection">Select a screen and read the data.</pre>
-          </details>
-          <footer class="savebar">
-            <div>
-              <strong id="dirty">All saved</strong
-              ><small id="save-detail"
-                >Changes apply without reflashing.</small
-              >
+            <div class="settings-tools">
+              <button id="open-alerts" class="tool" type="button">
+                <span class="tool-icon" aria-hidden="true">!</span>
+                <span class="tool-text"
+                  ><b>Alerts</b
+                  ><small>Full-screen notifications, from an automation</small></span
+                >
+              </button>
             </div>
-            <button id="save">Save & send to screen</button>
-          </footer>
-        </section>
-      </div>
+          </section>
+          <section class="settings-group" id="claude" aria-labelledby="claude-title">
+            <h2 id="claude-title">Claude</h2>
+            <p class="hint">
+              Teach Claude about ESP Screens, then ask: "Show an alert on all my screens when the
+              mailbox is full." Claude knows the alert events, every field, color, and icon.
+            </p>
+            <div class="claude-skill">
+              <button type="button" id="claude-install">Install for Claude Code</button>
+              <span id="claude-status" class="hint" role="status"></span>
+            </div>
+            <small>
+              For Claude Code in Home Assistant. Writes one file to
+              <code id="claude-path">/homeassistant/.claude/skills/esp-screens</code>; installing
+              again replaces it.
+            </small>
+            <div class="claude-skill">
+              <a class="button again" id="claude-download" href="api/claude-skill.zip" download="esp-screens.zip">Download for claude.ai</a>
+              <small>Upload the zip in Claude under Customize → Skills.</small>
+            </div>
+          </section>
+        </div>
+      </section>
     </main>
     <dialog id="installer">
       <form id="install-form">
@@ -349,6 +404,7 @@
         <nav class="alerts-nav" aria-label="Sections">
           <button type="button" data-jump="alerts-screens">Your screens</button>
           <button type="button" data-jump="alerts-howto">In an automation</button>
+          <button type="button" data-jump="alerts-all">All screens</button>
           <button type="button" data-jump="alerts-fields">The fields</button>
           <button type="button" data-jump="alerts-icons">Icons</button>
           <button type="button" data-jump="alerts-colors">Colors</button>
@@ -361,8 +417,8 @@
         <h3>Your screens</h3>
         <p>
           Every screen has its own action, with the device name in it. From firmware
-          <code id="alerts-min-firmware">0.2.31</code>; update an older screen under
-          Firmware updates.
+          <code id="alerts-min-firmware">0.2.31</code>; update an older screen with its
+          Update button under My screens.
         </p>
         <div id="alerts-screen-list"></div>
       </section>
@@ -385,6 +441,21 @@
             <pre id="alerts-example"></pre>
             <button type="button" class="mini" id="alerts-example-copy">Copy YAML</button>
           </div>
+        </div>
+      </section>
+      <section id="alerts-all">
+        <h3>All screens at once</h3>
+        <p>
+          Fire the event <code id="alerts-all-event">esp_screens_show_alert</code> with the same
+          fields, and ESP Screens passes the alert on to every screen that is online, including
+          screens you add later. <code id="alerts-all-dismiss">esp_screens_dismiss_alert</code>
+          clears it everywhere. In an automation, add the <b>Event</b> action or paste the example
+          under <b>Edit in YAML</b>. Leave out the fields you don't use. ESP Screens has to be
+          running for this.
+        </p>
+        <div class="copy-line">
+          <pre id="alerts-all-example"></pre>
+          <button type="button" class="mini" id="alerts-all-copy">Copy YAML</button>
         </div>
       </section>
       <section id="alerts-fields">
@@ -469,8 +540,11 @@
             "Turn off". The event then tells you who responded.</li>
           <li>For an alert that resolves itself (the door opens, the laundry gets taken out)
             close it in the same automation with <code>dismiss_alert</code>.</li>
-          <li>Multiple screens? Call each screen's action; they work independently and
-            each reports with its own <code>screen</code>.</li>
+          <li>Every screen? Fire <code>esp_screens_show_alert</code> once (see All screens at
+            once). The screens still work independently and each reports with its own
+            <code>screen</code>.</li>
+          <li>Rather <b>ask Claude</b> for the automation? Install the ESP Screens skill under
+            Settings → Claude.</li>
         </ul>
       </section>
     </dialog>

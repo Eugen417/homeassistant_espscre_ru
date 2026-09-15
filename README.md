@@ -150,12 +150,45 @@ data:
   night mode wait as long as the card is showing.
 - **`flash`**: `true` makes the backlight blink four times when the alert arrives.
 
-In ESP Screens, the **Alerts** button opens a cheatsheet with the exact action name for each screen,
+In ESP Screens, **Settings → Alerts** opens a cheatsheet with the exact action name for each screen,
 a ready-to-paste example, and all fields, icons, and colors. Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false`) if you
 don't use it. A new alert replaces the current one. Every end is reported as the event
 **`esphome.screen_alert`** with `action` (`ok`, `timeout`, `replaced`, or `remote`), `title`,
 `screen`, and the `device_id` that Home Assistant adds, so an automation can wait for OK.
 **`esphome.<screen>_dismiss_alert`** clears the card remotely.
+
+### All screens at once
+
+From app 0.2.45, one event reaches every screen that is online, screens you add later included.
+ESP Screen Manager passes it on to each screen's `show_alert` action. The fields are the same;
+the ones you leave out stay empty:
+
+```yaml
+actions:
+  - event: esp_screens_show_alert
+    event_data:
+      title: "Mail!"
+      subtitle: "There is post in the mailbox"
+      icon: mailbox
+      color: orange
+      timeout: 0
+      flash: true
+```
+
+**`esp_screens_dismiss_alert`** clears the alert on every screen. The app has to be running
+for these two events; the per-screen actions work without it.
+
+### Ask Claude
+
+Use Claude Code in Home Assistant? **Settings → Claude → Install for Claude Code** writes an
+ESP Screens skill to `/homeassistant/.claude/skills/esp-screens`, so Claude knows these events
+and every field, color, and icon. Then ask, for example: "Show an alert on all my screens when
+the mailbox is full." **Download for claude.ai** gives the same skill as a zip to upload in
+Claude under Customize → Skills. Nothing is written until you press the button.
+
+<p align="center">
+  <img src="docs/images/editor-settings.png" width="80%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">
+</p>
 
 ## Installing from Home Assistant
 
@@ -192,7 +225,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 2. Install **ESP Screen Manager**, start the app, and open **ESP Screens**.
    ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
 3. Connect the screen with a USB data cable to the **Home Assistant machine**
-   and choose **New screen**: CYD or Guition, a name, the USB port, and
+   and choose **Settings → New screen**: CYD or Guition, a name, the USB port, and
    **Install**. If Wi-Fi is missing from the ESPHome `secrets.yaml`, the window
    asks for it once and ESP Screens only adds the missing lines. The profile
    with unique API and OTA keys goes into the ESPHome folder; the build
@@ -212,7 +245,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 </p>
 <p align="center"><sub>New screen (step 3) and choosing your tiles (step 5).</sub></p>
 
-You can install new firmware later from **Firmware & USB → Wi-Fi / OTA**.
+You can install new firmware later from **Settings → Firmware & USB → Wi-Fi / OTA**.
 For an existing screen, always use the existing profile; creating a new
 installation profile generates new keys.
 
@@ -270,7 +303,7 @@ only the name and the time (if that's in the bar).
 | --- | --- |
 | Tiles, names, colors, order, or screen settings | Save in ESP Screens; no firmware flash |
 | New version of the management page | Update ESP Screen Manager in the HA App store |
-| New feature on the physical screen | The **Update** button on the screen (badge *Update x.y.z*), or the **Update automatically every night** checkbox |
+| New feature on the physical screen | The **Update** button on the screen (badge *Update x.y.z*), or **Update automatically every night** under Settings |
 
 Every app version belongs to one firmware version. After an app update, the list
 shows per screen whether newer firmware is available. **Update** builds that screen's own profile
@@ -278,7 +311,7 @@ with the built-in CLI, installs it wirelessly, and waits until the screen is bac
 With the checkbox enabled, that happens automatically at night, one screen at a time; a
 failure stops the round and posts a notification in Home Assistant. Firmware
 0.2.17+ reports its own device name and IP address for this; an older screen asks
-for the IP address once. You can still do it manually via Firmware & USB → Wi-Fi / OTA.
+for the IP address once. You can still do it manually via Settings → Firmware & USB → Wi-Fi / OTA.
 
 The device's own YAML and Wi-Fi/API/OTA settings stay in the ESPHome config folder.
 Tile layouts and options live in the app's persistent data. CYD calibration and

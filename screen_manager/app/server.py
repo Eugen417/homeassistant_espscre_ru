@@ -1,4 +1,4 @@
-"""HA Ingress app. HA writes: text.set_value on discovered inboxes (or the screen_message action on firmware 0.2.33+) and one persistent notification when a nightly update stops."""
+"""HA Ingress app. HA writes: text.set_value on discovered inboxes (or the screen_message action on firmware 0.2.33+), each screen's alert actions when an alert event for every screen fires, and one persistent notification when a nightly update stops."""
 import asyncio
 import contextlib
 import json
@@ -9,12 +9,13 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 import math
+import claude_skill
 from firmware import Firmware
 import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BUILTIN, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_reference, alert_service, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BROADCAST_EVENTS, BUILTIN, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 import header_bar
 from zoneinfo import ZoneInfo
 
@@ -80,6 +81,8 @@ class HomeAssistant:
         self.time_zone = None
         # Home Assistant's unit system; a climate entity's temperature carries no unit of its own.
         self.units = {}
+        # (event type, data) of alert events for every screen, for Manager.alert_loop.
+        self.broadcasts = asyncio.Queue()
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -123,6 +126,9 @@ class HomeAssistant:
                         self.changed.set()
                 elif event.get('event_type') in REGISTRY_EVENTS:
                     self.registry_changed.set()
+                elif event.get('event_type') in BROADCAST_EVENTS:
+                    # Queued, not handled here: the calls wait for results this reader has to deliver.
+                    self.broadcasts.put_nowait((event['event_type'], body))
         raise ConnectionError('Home Assistant connection lost.')
 
     def describe_close(self, connected):
@@ -153,7 +159,7 @@ class HomeAssistant:
                     reader = asyncio.create_task(self.read())
                     await self.request('subscribe_events', event_type='state_changed')
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
-                    for event_type in REGISTRY_EVENTS:
+                    for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
@@ -213,6 +219,11 @@ class HomeAssistant:
         for packet in packets(message):
             await self.request('call_service', domain='text', service='set_value',
                                service_data={'entity_id': inbox, 'value': packet})
+
+    async def call(self, action, data):
+        """One Home Assistant action, such as a screen's esphome.<node>_show_alert."""
+        domain, service = action.split('.', 1)
+        await self.request('call_service', domain=domain, service=service, service_data=data)
 
     async def forecast(self, entity, kind='daily'):
         # Forecasts left the weather attributes in HA 2024.4; ask the service instead.
@@ -278,6 +289,7 @@ class Manager:
         self.listeners = set()  # asyncio.Event per open /api/events stream
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
         self.updates = Updater(self, self.path.parent / 'updates.json')
+        self.skill_dir = claude_skill.skill_dir()
         self._registry_source, self._registry_index = None, {}
         self._items_source, self._items = None, []
         self._screens_key, self._screens = None, []
@@ -747,6 +759,31 @@ class Manager:
             except Exception as error:
                 LOG.warning('Refreshing history failed (%s)', type(error).__name__)
 
+    async def broadcast(self, event_type, data):
+        """An alert event for every screen: the matching action on each screen that can show it, all at once."""
+        action = BROADCAST_EVENTS[event_type]
+        service_data, unusable = alert_data(data) if action == 'show_alert' else ({}, [])
+        if unusable:
+            LOG.warning('%s: unusable %s left empty', event_type, ', '.join(unusable))
+        ready, skipped = alert_targets(self.screens())
+        results = await asyncio.gather(*(self.ha.call(alert_service(screen['node'], action), service_data) for screen in ready),
+                                       return_exceptions=True)
+        failed = [(screen, type(result).__name__) for screen, result in zip(ready, results) if isinstance(result, BaseException)]
+        notes = [f"{screen['name']} {reason}" for screen, reason in skipped + failed]
+        LOG.info('%s: %d of %d screens%s', event_type, len(ready) - len(failed), len(ready) + len(skipped),
+                 f" (not: {'; '.join(notes)})" if notes else '')
+        return {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
+
+    async def alert_loop(self):
+        """Alert events for every screen, in arrival order and apart from the sync loop, which can be busy for a while."""
+        queue = getattr(self.ha, 'broadcasts', None)
+        while queue is not None:
+            event_type, data = await queue.get()
+            try:
+                await self.broadcast(event_type, data)
+            except Exception as error:
+                LOG.warning('%s failed (%s)', event_type, type(error).__name__)
+
 def create_app(manager, development=False):
     csrf = secrets.token_urlsafe(32)
     @web.middleware
@@ -799,6 +836,7 @@ def create_app(manager, development=False):
         payload['controls'] = controls_catalogue()
         payload['icons'] = tile_icons.editor()
         payload['alerts'] = alert_reference()
+        payload['claude_skill'] = claude_skill.status(manager.skill_dir)
         payload['builtin'] = [{'id': key, 'name': name, 'device': 'Built into the screen', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         payload['header'] = {**header_bar.catalogue(), 'suggestions': {
             screen['id']: header_bar.suggestions(screen, entities, manager.ha.states, manager.registry_index()) for screen in payload['screens']}}
@@ -855,6 +893,13 @@ def create_app(manager, development=False):
             'tiles':[{'entity':t['entity'],'state':manager.ha.states.get(t['entity'],{}).get('state'),
                       'attributes':state_message(i,t,manager.ha.states)['a'],
                       'options':t.get('options',{})} for i,t in enumerate(layout['tiles'])]})
+    async def install_claude_skill(request):
+        """Settings → Claude → Install: writes the skill into Home Assistant's configuration folder, only on request."""
+        return web.json_response(claude_skill.install(manager.skill_dir))
+    async def download_claude_skill(request):
+        """Settings → Claude → Download: the same skill as a zip for claude.ai; writes nothing."""
+        return web.Response(body=claude_skill.archive(), content_type='application/zip',
+                            headers={'Content-Disposition': f'attachment; filename="{claude_skill.NAME}.zip"'})
     async def firmware_status(request): return web.json_response(manager.firmware.status())
     async def firmware_start(request): return web.json_response(manager.firmware.start(await request.json()))
     async def firmware_create(request):
@@ -876,6 +921,8 @@ def create_app(manager, development=False):
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_post('/api/header-preview', header_preview)
+    app.router.add_post('/api/claude-skill', install_claude_skill)
+    app.router.add_get('/api/claude-skill.zip', download_claude_skill)
     app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
     app.router.add_static('/static/', static)
@@ -895,7 +942,7 @@ async def main():
         await runner.setup()
         await web.TCPSite(runner, '127.0.0.1' if development else '0.0.0.0', 8099).start()
         try:
-            await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run())
+            await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(), manager.alert_loop())
         finally:
             await runner.cleanup()
 

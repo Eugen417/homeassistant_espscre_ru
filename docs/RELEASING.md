@@ -176,6 +176,26 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.45 (firmware stays 0.2.38)
+
+App only: storage version, tile protocol, preferences and keys are unchanged.
+
+- Alerts for every screen: on connect the app also subscribes to the Home Assistant events
+  `esp_screens_show_alert` and `esp_screens_dismiss_alert`. The reader only queues them;
+  `Manager.alert_loop` handles them in arrival order, apart from the sync loop, and calls
+  `esphome.<node>_show_alert` / `_dismiss_alert` at once on every screen from `discover_screens`
+  that is online, has a device name and reports firmware 0.2.31+ (one call per node).
+  `core.alert_data` types the seven fields the way Home Assistant validates ESPHome actions (text,
+  an int clamped to 0..86400, a bool) and leaves an unusable value empty instead of failing the call.
+  The log line `<event>: N of M screens (not: …)` names skipped and failed screens.
+- `claude_skill.py` builds SKILL.md from the alert reference and `tile_icons`, byte for byte the same
+  on every call. `POST /api/claude-skill` writes `$HA_CONFIG/.claude/skills/esp-screens/SKILL.md`
+  (default `/homeassistant`, the start folder of the Claude Code apps) only on request;
+  `GET /api/claude-skill.zip` returns `esp-screens/SKILL.md` for claude.ai, whose description limit
+  is 200 characters. The full inventory's `claude_skill` compares the file with the current text.
+- Editor: the header tools and the updates block moved into `#settings-view`, shown for the hash
+  `#settings`; element ids and their handlers are unchanged.
+
 ### Compatibility 0.2.44 / firmware 0.2.38
 
 Firmware only: `show_detail()` creates no `detail_status` for a large vacuum card (the hero badge

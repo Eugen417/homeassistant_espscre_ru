@@ -1,3 +1,13 @@
+## 0.2.45 (firmware 0.2.38)
+
+One alert for every screen, a Claude skill, and a Settings page that clears up the main page.
+
+- **One alert for every screen.** Fire the Home Assistant event `esp_screens_show_alert` with the usual alert fields and ESP Screens shows the alert on every screen that is online, screens added later included. `esp_screens_dismiss_alert` clears it everywhere. Fields you leave out stay empty. A value that doesn't fit, such as a bare `Yes` that YAML turns into true, is left empty with a line in the log instead of losing the alert. The per-screen actions stay as they are.
+- **Ask Claude.** Settings → Claude installs an ESP Screens skill for Claude Code in Home Assistant (`/homeassistant/.claude/skills/esp-screens`), or downloads it as a zip for claude.ai. Claude then knows the alert events and every field, color and icon, so "show an alert on all my screens when the mailbox is full" becomes a working automation. Nothing is written until you press the button, and the page says when a newer version of the skill is ready.
+- **Settings page.** New screen, Firmware & USB, the firmware updates, Alerts and Claude moved from the header and the sidebar to a page of their own; the header keeps one Settings button. The Update button of each screen stays in My screens.
+- **Clearer screen list.** Every screen in My screens sits on a light grey card; the selected screen is white.
+- No new firmware: screens on firmware 0.2.31 or newer show alerts for every screen.
+
 ## 0.2.44 (firmware 0.2.38)
 
 - **Vacuum card on the Guition.** The state line under the name is gone; the card below already shows it in its badge, and the two sat on top of each other.

@@ -167,6 +167,10 @@ aside h2 {
 .screen {
   border: 1px solid transparent;
   border-radius: 14px;
+  background: #e9ecf1;
+}
+.screen:hover:not(.selected) {
+  background: #e2e6ec;
 }
 .screen.selected {
   background: white;
@@ -234,18 +238,69 @@ aside h2 {
     transform: rotate(360deg);
   }
 }
-.updates {
-  margin-top: 22px;
+/* Settings: a view of its own next to My screens (app 0.2.45). */
+.settings-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
 }
-.updates h2 {
-  margin-bottom: 4px;
+@media (max-width: 800px) {
+  .settings-groups {
+    grid-template-columns: 1fr;
+  }
 }
-.updates .hint {
-  margin: 0 0 10px;
+.settings-group {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 20px 22px;
+}
+.settings-group h2 {
+  margin: 0;
+}
+.settings-group > .hint,
+.settings-group > p {
+  margin: 0;
+}
+.settings-group code {
+  background: var(--soft);
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.settings-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 .updates #update-all {
-  width: 100%;
-  margin-bottom: 12px;
+  justify-self: start;
+}
+.claude-skill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+a.button {
+  display: inline-block;
+  border-radius: 11px;
+  padding: 11px 18px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.again {
+  background: white;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
+.again:hover {
+  border-color: #b9cbec;
+  filter: none;
 }
 .check {
   display: flex;

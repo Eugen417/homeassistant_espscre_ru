@@ -301,7 +301,7 @@ function renderPending() {
       node("strong", p.friendly),
       node("small", p.installed
         ? "Installed, but not yet in Home Assistant. That happens outside ESP Screens: add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and turn on “Allow the device to perform Home Assistant actions” under Configure."
-        : `Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Firmware & USB → ${p.file}.`),
+        : `Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Settings → Firmware & USB → ${p.file}.`),
     );
     const actions = node("div", undefined, "pending-actions");
     const go = node("button", "Open Devices & services", "mini");
@@ -358,14 +358,16 @@ function renderScreens() {
 }
 function renderUpdates() {
   const u = inventory.updates;
-  $("#updates").hidden = !u || !inventory.screens.length;
+  $("#updates").hidden = !u;
   if (!u) return;
   const outdated = inventory.screens.filter((s) => s.update?.available).length;
   $("#updates-hint").textContent = u.busy
     ? `Updating to firmware ${u.target}…`
-    : outdated
-      ? `Firmware ${u.target} is available for ${outdated} screen${outdated === 1 ? "" : "s"}.`
-      : `All screens have firmware ${u.target}.`;
+    : !inventory.screens.length
+      ? `No screen paired yet. New screens get firmware ${u.target}.`
+      : outdated
+        ? `Firmware ${u.target} is available for ${outdated} screen${outdated === 1 ? "" : "s"}.`
+        : `All screens have firmware ${u.target}.`;
   $("#update-all").hidden = !u.pending || !!u.busy || u.pending < 2;
   $("#update-all").textContent = `Update all ${u.pending} screens`;
   if (document.activeElement !== $("#auto-update"))
@@ -377,6 +379,56 @@ $("#update-all").onclick = async () => {
     await refresh();
   } catch (e) {
     toast(e.message);
+  }
+};
+// ----- Settings: a view of its own next to My screens; #settings keeps it open across a reload -----
+function showView() {
+  const settings = location.hash === "#settings";
+  $("#home-view").hidden = settings;
+  $("#settings-view").hidden = !settings;
+  $("#open-settings-label").textContent = settings ? "My screens" : "Settings";
+  $("#open-settings-icon").textContent = settings ? "▦" : "⚙";
+  $("#open-settings-hint").textContent = settings ? "Tiles and top bar" : "New screen, updates, alerts, Claude";
+  $("#open-settings").setAttribute("aria-expanded", String(settings));
+  if (settings) {
+    renderUpdates();
+    renderClaude();
+  }
+  window.scrollTo(0, 0);
+}
+$("#open-settings").onclick = () => {
+  location.hash = location.hash === "#settings" ? "" : "#settings";
+};
+$("#close-settings").onclick = () => {
+  location.hash = "";
+};
+window.addEventListener("hashchange", showView);
+showView();
+function renderClaude() {
+  const skill = inventory.claude_skill, button = $("#claude-install"), status = $("#claude-status");
+  button.disabled = !skill;
+  if (!skill) {
+    status.textContent = "Loading…";
+    return;
+  }
+  $("#claude-path").textContent = skill.path;
+  button.textContent = !skill.installed ? "Install for Claude Code" : skill.current ? "Install again" : "Update the skill";
+  button.classList.toggle("again", skill.installed && skill.current);
+  status.textContent = !skill.installed ? "Not installed" : skill.current ? "● Installed" : "Installed · a newer version is ready";
+  status.className = !skill.installed ? "hint" : skill.current ? "badge online" : "badge update";
+}
+$("#claude-install").onclick = async () => {
+  const button = $("#claude-install");
+  button.disabled = true;
+  try {
+    inventory.claude_skill = await (await api("claude-skill", { method: "POST" })).json();
+    toast(inventory.claude_skill.restart
+      ? "Skill installed. Restart Claude Code once so it finds the new skills folder."
+      : "Skill installed. Claude Code picks it up right away.");
+  } catch (e) {
+    toast(e.message);
+  } finally {
+    renderClaude();
   }
 };
 $("#auto-update").onchange = async () => {
@@ -1675,6 +1727,7 @@ async function refresh(full = true) {
       : "Reconnecting to Home Assistant…";
     $("#connection").classList.toggle("online", inventory.connected);
     renderScreens();
+    if (full) renderClaude();
     if (selected) renderSettingsSupport();
     if (!selected && inventory.screens.length) select(inventory.screens[0].id);
     if ($("#alerts-dialog").open) renderAlertScreens();
@@ -1784,7 +1837,7 @@ function renderTargetHint() {
   $("#target-hint").textContent = !ports
     ? "No USB port found. Connect the screen with a data cable to the Home Assistant machine; the list refreshes on its own."
     : !select.value
-      ? "The profile goes into the ESPHome folder. You can install later via Firmware & USB, or from ESPHome Device Builder."
+      ? "The profile goes into the ESPHome folder. You can install later via Settings → Firmware & USB, or from ESPHome Device Builder."
       : ports > 1
         ? "More than one board connected: choose this screen's port."
         : "Once over USB; after that, everything is wireless.";
@@ -1887,7 +1940,7 @@ function showSaved() {
   $("#install-title").textContent = "Profile saved.";
   $("#progress-title").textContent = `${installer.file} is in the ESPHome folder`;
   $("#progress-detail").textContent =
-    "You can install once the screen is connected to the Home Assistant machine: Firmware & USB → this profile → USB port → Build & install. Or open the profile in ESPHome Device Builder (same folder) and flash from your browser. Save the API key for pairing:";
+    "You can install once the screen is connected to the Home Assistant machine: Settings → Firmware & USB → this profile → USB port → Build & install. Or open the profile in ESPHome Device Builder (same folder) and flash from your browser. Save the API key for pairing:";
   $("#install-result").hidden = false;
   renderSteps();
   $("#install-log-wrap").hidden = true;
@@ -2219,6 +2272,20 @@ function alertWaitYaml(action) {
     `          message: "Someone is coming to the door."`,
   ].join("\n");
 }
+// One event for every screen (app 0.2.45): an action for "Edit in YAML" of the Event action.
+function alertAllYaml() {
+  const fields = inventory.alerts?.fields || [];
+  const lines = fields.map((f) => `  ${f.name}: ${f.type === "string" ? (/^[a-z][a-z0-9-]*$/.test(f.example) ? f.example : yamlString(f.example)) : String(f.example)}`);
+  return `event: ${inventory.alerts?.broadcast?.show || "esp_screens_show_alert"}\nevent_data:\n${lines.join("\n")}`;
+}
+function renderAlertBroadcast() {
+  const broadcast = inventory.alerts?.broadcast;
+  if (broadcast) {
+    $("#alerts-all-event").textContent = broadcast.show;
+    $("#alerts-all-dismiss").textContent = broadcast.dismiss;
+  }
+  $("#alerts-all-example").textContent = alertAllYaml();
+}
 function renderAlertScreens() {
   const alerts = inventory.alerts, list = $("#alerts-screen-list");
   if (!alerts) return;
@@ -2374,6 +2441,7 @@ function renderAlerts() {
   }
   renderAlertTables();
   renderAlertScreens();
+  renderAlertBroadcast();
   renderAlertIcons();
   renderAlertColors();
   return true;
@@ -2385,6 +2453,7 @@ $("#close-alerts").onclick = () => $("#alerts-dialog").close();
 $("#alerts-example-screen").onchange = renderAlertExamples;
 $("#alerts-example-copy").onclick = () => copyText($("#alerts-example").textContent, $("#alerts-example"), "YAML");
 $("#alerts-wait-copy").onclick = () => copyText($("#alerts-wait-example").textContent, $("#alerts-wait-example"), "YAML");
+$("#alerts-all-copy").onclick = () => copyText($("#alerts-all-example").textContent, $("#alerts-all-example"), "YAML");
 $("#alerts-icon-search").oninput = renderAlertIcons;
 for (const b of document.querySelectorAll("#alerts-dialog [data-jump]")) {
   b.onclick = () => document.getElementById(b.dataset.jump)?.scrollIntoView({ behavior: "smooth", block: "start" });

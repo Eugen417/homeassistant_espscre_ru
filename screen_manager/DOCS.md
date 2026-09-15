@@ -2,15 +2,20 @@
 
 See [the full installation guide](https://github.com/MaxGramser/homeassistant_espscreen/blob/main/docs/EASY_SETUP.md).
 
-Open **New screen** to install a screen: connect it via USB to the
+Open **Settings → New screen** to install a screen: connect it via USB to the
 Home Assistant machine, choose the board, name and USB port, then click **Install**.
 The profile with unique keys goes into the ESPHome folder of the HA configuration,
 any missing Wi-Fi goes into `secrets.yaml` (existing secrets are left untouched), and the
 build and flash run in the same window; it then shows the API key
-for pairing. Pairing itself happens in Home Assistant under **Settings → Devices & services** (a button in the window and on the *not yet in Home Assistant* card under My screens). Each screen has its own profile. **Firmware & USB** is
+for pairing. Pairing itself happens in Home Assistant under **Settings → Devices & services** (a button in the window and on the *not yet in Home Assistant* card under My screens). Each screen has its own profile. **Settings → Firmware & USB** is
 for existing profiles: check, build or reinstall via USB or
 the IP address (OTA). Existing ESPHome profiles in the HA config folder are
 found automatically.
+
+**Settings** (top right) also has the nightly firmware updates, the **Alerts** cheatsheet
+(an alert on one screen, or on every screen with the `esp_screens_show_alert` event)
+and **Claude**: install the ESP Screens skill for Claude Code in Home Assistant, or
+download it for claude.ai, and ask Claude for the alert automation.
 
 At the top of the editor you set the **Top bar** for each screen: the name on the left, up
 to six items on the right (time, analog clock, date, or an entity with an icon, such as

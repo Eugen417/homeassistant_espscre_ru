@@ -38,7 +38,7 @@ Use the GitHub version for updates; a local test add-on is a separate app.
 1. Connect the screen with a **USB data cable** to the machine running Home
    Assistant. With multiple boards: connect them one at a time for the first
    installation, or check which port belongs to this screen.
-2. Click **New screen**. Choose CYD or Guition and give the screen a name,
+2. Open **Settings** at the top right of ESP Screens and click **New screen**. Choose CYD or Guition and give the screen a name,
    for example `Kitchen`. The device name (`kitchen`) follows from that; use
    **customize** to choose a different one.
 3. Wi-Fi: if `wifi_ssid` and `wifi_password` are already in the ESPHome `secrets.yaml`,
@@ -67,7 +67,7 @@ No USB port in the list? A cable plugged into your laptop isn't visible to the
 Raspberry Pi. In that case, choose **Later · save profile only**: the profile then
 sits in the same folder ESPHome Device Builder uses, so you can open it there
 and flash from your browser (**Install → Plug into this computer**), or
-install it to the HA machine later via **Firmware & USB**.
+install it to the HA machine later via **Settings → Firmware & USB**.
 
 **CYD:** calibration appears on first boot. Calmly tap the visible crosshair
 three times, hold each tap briefly, and follow each next crosshair in turn.
@@ -171,7 +171,7 @@ as soon as the screen comes back. The app must keep running for current tile dat
 | --- | --- | --- |
 | Different entities, names, or order | Save in ESP Screens | Wi-Fi, keys, calibration |
 | New management page/app version | App store → ESP Screen Manager → Update | All layouts in `/data/screens.json` |
-| New screen feature/card | The **Update** button on the screen, or the **Update automatically every night** checkbox (manually: Firmware & USB → Wi-Fi / OTA) | Own YAML, keys, and CYD calibration; the app resends tiles |
+| New screen feature/card | The **Update** button on the screen, or **Update automatically every night** under Settings (manually: Settings → Firmware & USB → Wi-Fi / OTA) | Own YAML, keys, and CYD calibration; the app resends tiles |
 
 The device's own YAML references the firmware packages on `main`. On a new build,
 ESPHome fetches the latest published package and component code. So you don't

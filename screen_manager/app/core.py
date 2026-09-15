@@ -526,6 +526,12 @@ ALERT_LIMITS = {'cyd': {'title': 48, 'subtitle': 160, 'button_text': 12}, 'guiti
 ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alarm-light', 'lock', 'lock-open-variant', 'door-open',
                          'window-closed-variant', 'motion-sensor', 'cctv', 'smoke-detector', 'water-alert', 'fire', 'mailbox', 'car',
                          'account', 'account-group', 'washing-machine', 'robot-vacuum', 'timer-outline', 'check')
+# The firmware's MAX_TIMEOUT_SECONDS.
+ALERT_MAX_TIMEOUT = 86400
+# One alert for every screen (app 0.2.45): an automation fires one of these Home Assistant events and the
+# app calls the matching action on each screen that can show it, screens added later included.
+BROADCAST_SHOW, BROADCAST_DISMISS = 'esp_screens_show_alert', 'esp_screens_dismiss_alert'
+BROADCAST_EVENTS = {BROADCAST_SHOW: 'show_alert', BROADCAST_DISMISS: 'dismiss_alert'}
 
 def alert_service(node, action='show_alert'):
     """Home Assistant registers a device's actions as esphome.<node>_<action>, dashes as underscores."""
@@ -534,6 +540,7 @@ def alert_service(node, action='show_alert'):
 def alert_reference():
     """Everything the Alerts cheatsheet shows besides the screens themselves."""
     return {'min_firmware': ALERT_MIN_FIRMWARE, 'event': ALERT_EVENT,
+            'broadcast': {'show': BROADCAST_SHOW, 'dismiss': BROADCAST_DISMISS},
             'endings': [{'action': action, 'label': label} for action, label in ALERT_ENDINGS],
             'fallback_icon': ALERT_FALLBACK_ICON, 'fallback_cp': tile_icons.GLYPHS[ALERT_FALLBACK_ICON],
             'fields': [{'name': name, 'type': kind, 'label': label, 'help': help_, 'example': example} for name, kind, label, help_, example in ALERT_FIELDS],
@@ -541,6 +548,77 @@ def alert_reference():
             'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in TILE_BACKGROUNDS.items() if item['color']],
             'suggested_icons': [{'name': name, 'cp': tile_icons.GLYPHS[name]} for name in ALERT_SUGGESTED_ICONS],
             'extra_icons': [{'name': name, 'cp': cp} for name, cp in tile_icons.FIXED]}
+
+def _whole(value):
+    """A whole number from an int, a finite float or a numeric string; None for anything else."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, str):
+        try:
+            value = float(value.strip())
+        except ValueError:
+            return None
+    if isinstance(value, float):
+        return int(value) if math.isfinite(value) else None
+    return value if isinstance(value, int) else None
+
+def _flag(value):
+    """True/False from a bool, 0/1 or the words Home Assistant accepts; None for anything else."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    text = value.strip().lower() if isinstance(value, str) else None
+    return True if text in ('true', 'on', 'yes', '1') else False if text in ('false', 'off', 'no', '0') else None
+
+def alert_data(data):
+    """(service data, unusable field names): the seven show_alert fields from an event's data, typed the way
+    Home Assistant validates ESPHome actions. A missing field is empty; so is an unusable one (YAML turns a bare
+    `Yes` into a boolean), so one bad value never loses the whole alert. The firmware clips texts itself."""
+    data = data if isinstance(data, dict) else {}
+    service, unusable = {}, []
+    for name, kind, *_ in ALERT_FIELDS:
+        value = data.get(name)
+        missing = value is None or value == ''
+        if kind == 'string':
+            usable = isinstance(value, (str, int, float)) and not isinstance(value, bool)
+            service[name] = str(value) if usable and not missing else ''
+        elif kind == 'int':
+            number = _whole(value)
+            usable = number is not None
+            service[name] = min(max(number, 0), ALERT_MAX_TIMEOUT) if usable else 0
+        else:
+            flag = _flag(value)
+            usable = flag is not None
+            service[name] = bool(flag)
+        if not usable and not missing:
+            unusable.append(name)
+    return service, unusable
+
+def alert_targets(screens):
+    """(ready, skipped): the paired screens that can show an alert now, and the others with the reason.
+
+    One call per device: a screen that shows up twice (an old inbox next to a renamed one) counts once."""
+    minimum = tuple(int(part) for part in ALERT_MIN_FIRMWARE.split('.'))
+    ready, skipped, nodes = [], [], set()
+    for screen in screens:
+        try:
+            version = tuple(int(part) for part in str(screen.get('firmware') or '').split('.'))
+        except ValueError:
+            version = ()
+        node = screen.get('node')
+        if node in nodes:
+            continue
+        if not node:
+            skipped.append((screen, 'device name unknown'))
+        elif not screen.get('online'):
+            skipped.append((screen, 'offline'))
+        elif len(version) != 3 or version < minimum:
+            skipped.append((screen, f"firmware {screen.get('firmware') or 'unknown'}"))
+        else:
+            ready.append(screen)
+            nodes.add(node)
+    return ready, skipped
 
 def screen_items(registry):
     """The ESPHome entities that describe a screen; the subset `discover_screens` needs."""
