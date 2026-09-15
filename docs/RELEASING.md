@@ -176,6 +176,17 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.49 / firmware 0.2.42
+
+Firmware and the CYD board profile; the app only raises `FIRMWARE_VERSION`. Storage, protocol,
+preferences and keys are unchanged.
+
+- home-like-2432s028.yaml adds `init_sequence` to the mipi_spi display: `0xB4 0x07` (frame inversion)
+  and `0xB1 0x00 0x10` (119 Hz). ESPHome appends these after its built-in ILI9341 sequence, so the
+  panel init otherwise stays the ESPHome default. Found on 2026-09-15 by sending panel commands at
+  runtime on the bench CYD; VCOM (`0xC5`) sweeps changed contrast, not the stripes, so it stays default.
+- guition-4848s040.yaml only raises `SCREEN_FIRMWARE_VERSION`.
+
 ### Compatibility 0.2.48 / firmware 0.2.41
 
 Storage, protocol, preferences and keys are unchanged.

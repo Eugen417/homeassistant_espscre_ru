@@ -1,3 +1,10 @@
+## 0.2.49 (firmware 0.2.42)
+
+No more flickering stripes on the CYD.
+
+- **CYD panel fix.** The cheap 2.8" panel showed a fine pattern of vertical lines that shimmered when you moved your eyes or the board. The screen now uses frame inversion at the panel's highest refresh rate, which removes the stripes. Colours and contrast are unchanged. Guition screens are not affected.
+- Firmware 0.2.42 for both boards (version only on the Guition); the app offers the update.
+
 ## 0.2.48 (firmware 0.2.41)
 
 Keep a screen awake from a Home Assistant automation.

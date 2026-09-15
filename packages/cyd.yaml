@@ -58,7 +58,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.41"
+  SCREEN_FIRMWARE_VERSION: "0.2.42"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -2189,6 +2189,18 @@ display:
     invert_colors: false
     update_interval: never
     auto_clear_enabled: false
+
+    # Panel tuning, appended after ESPHome's built-in ILI9341 sequence. With the
+    # defaults (line inversion, 79 Hz) the cheap CYD panel shows a fine vertical
+    # stripe pattern that flickers when you move your eyes or the board: the
+    # two polarities of adjacent columns differ in brightness. Frame inversion
+    # (0xB4 = 0x07) removes the stripes; the maximum frame rate (0xB1 = 0x10,
+    # 119 Hz) keeps the resulting whole-frame flicker above what the eye sees.
+    # VCOM (0xC5) stayed at the default; sweeping it changed contrast, not the
+    # stripes. Checked on the bench CYD on 2026-09-15.
+    init_sequence:
+      - [0xB4, 0x07]
+      - [0xB1, 0x00, 0x10]
 
     # Native panel dimensions (portrait). Do NOT swap these per orientation and
     # do NOT add a display transform — rotation is handled by LVGL below.
