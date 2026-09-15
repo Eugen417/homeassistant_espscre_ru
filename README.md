@@ -229,6 +229,8 @@ are generated per new screen and stay in that device's own profile.
 
 ### Step by step
 
+For Home Assistant Container (Docker) without the App store, follow [ESP Screens with Docker](docs/DOCKER.md).
+
 For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 
 1. Open the App store and add this repository:

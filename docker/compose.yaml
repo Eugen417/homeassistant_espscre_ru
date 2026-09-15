@@ -1,0 +1,36 @@
+# ESP Screen Manager for Home Assistant Container (Docker), without the Supervisor.
+# Guide: https://github.com/MaxGramser/homeassistant_espscreen/blob/main/docs/DOCKER.md
+#
+# Next to this file, create `ha_token` with a long-lived access token, then:
+#   docker compose up -d --build
+
+services:
+  esp-screens:
+    container_name: esp-screens
+    build:
+      # The same image as the Home Assistant app, built from the main branch.
+      context: https://github.com/MaxGramser/homeassistant_espscreen.git#main:screen_manager
+    restart: unless-stopped
+    # Home Assistant reaches the page on 127.0.0.1:8099, and .local names resolve.
+    network_mode: host
+    environment:
+      SCREEN_DEV: "1"                    # outside the Supervisor: token from HA_TOKEN_FILE, page on 127.0.0.1 only
+      HA_API: http://127.0.0.1:8123/api  # Home Assistant's address, ending in /api
+      HA_TOKEN_FILE: /run/secrets/ha_token
+      ESPHOME_CONFIG: /config            # not /esphome: that holds the ESPHome CLI itself
+      SCREEN_DATA: /data
+    secrets:
+      - ha_token
+    volumes:
+      - ./esphome:/config                # device profiles and secrets.yaml; or your ESPHome Device Builder folder
+      - ./data:/data                     # layouts, update settings and build caches
+    healthcheck:
+      # The base image checks the ESPHome dashboard, which doesn't run here.
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8099/"]
+    # USB flashing (Linux only): connect the screen first, then uncomment and set its port.
+    # devices:
+    #   - /dev/ttyUSB0:/dev/ttyUSB0
+
+secrets:
+  ha_token:
+    file: ./ha_token

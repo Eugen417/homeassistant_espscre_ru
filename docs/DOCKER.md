@@ -1,0 +1,103 @@
+# ESP Screens with Home Assistant Container (Docker)
+
+Home Assistant Container has no App store, so ESP Screen Manager can't be installed as an
+app there. This guide runs the same app as its own container next to Home Assistant, with
+the ESPHome CLI included. On Home Assistant OS, follow the
+[normal installation](../README.md#installing-from-home-assistant) instead.
+
+This route is new. If something doesn't work on your setup, please
+[open an issue](https://github.com/MaxGramser/homeassistant_espscreen/issues).
+
+## What you need
+
+- Home Assistant Container on a Linux host (aarch64 or amd64) with host networking,
+  as in the Home Assistant installation docs.
+- Docker with Compose on the same host.
+- The ESPHome integration in Home Assistant, to pair the screens. ESPHome Device Builder
+  is optional: the ESPHome CLI is already in this image.
+
+## Install
+
+1. Create a folder, for example `esp-screens`, and put
+   [`docker/compose.yaml`](../docker/compose.yaml) in it.
+2. In Home Assistant, open your profile → **Security** → **Long-lived access tokens** and
+   create a token, signed in as an administrator. Save only the token in a file named
+   `ha_token` next to `compose.yaml`, readable for you only (`chmod 600 ha_token`).
+3. Check two lines in `compose.yaml`:
+   - `HA_API`: `http://127.0.0.1:8123/api` works when Home Assistant runs on the same host
+     on port 8123. Keep `/api` at the end.
+   - The ESPHome folder: `./esphome` works as is. Already using ESPHome Device Builder?
+     Use its folder instead, so both see the same device profiles.
+4. Start it:
+
+   ```sh
+   docker compose up -d --build
+   ```
+
+   The first build downloads the official ESPHome image. `docker compose logs -f` shows
+   `Home Assistant connected` once the token works.
+
+## Open ESP Screens
+
+The page has no login of its own, so it only listens on `127.0.0.1:8099` of the Docker
+host. Don't make port 8099 reachable from your network without a login in front of it.
+
+**In the Home Assistant sidebar (recommended).** Install
+[hass_ingress](https://github.com/lovelylain/hass_ingress) from HACS, add this to
+`configuration.yaml`, and restart Home Assistant:
+
+```yaml
+ingress:
+  esp_screens:
+    title: ESP Screens
+    icon: mdi:monitor-dashboard
+    require_admin: true
+    url: http://127.0.0.1:8099
+```
+
+Home Assistant then handles the login, like the app panel on Home Assistant OS.
+
+**Through an SSH tunnel.** From your computer:
+
+```sh
+ssh -L 8099:127.0.0.1:8099 you@docker-host
+```
+
+Then open `http://localhost:8099`. The **Open Devices & services** button only works in
+the sidebar panel; here, open Home Assistant yourself.
+
+## Using it
+
+From here it works like the app: **Settings → New screen** installs a screen, you pair it
+under **Settings → Devices & services** in Home Assistant, and then choose the tiles. See the
+[installation guide](EASY_SETUP.md).
+
+- **USB (Linux only):** connect the screen, uncomment `devices:` in `compose.yaml` with its
+  port (`/dev/ttyUSB0` or `/dev/ttyACM0`), and run `docker compose up -d` again. Installs
+  over Wi-Fi (OTA) and the nightly updates need nothing extra.
+- **Backups:** Home Assistant backups don't include this container. Keep a copy of
+  `data/screens.json` and `data/updates.json` (layouts and update settings) and of the
+  ESPHome folder. `data/build` and `data/platformio` are caches.
+- **Claude:** **Install for Claude Code** is meant for the Claude Code app on Home Assistant
+  OS. Use **Download for claude.ai** instead.
+
+## Updating
+
+```sh
+docker compose build --pull
+docker compose up -d
+```
+
+This builds the latest version from `main`, the same one the App store offers. To stay on
+one version, replace `main` in `compose.yaml` with a release tag, such as `screens-v0.2.49`.
+After an update, ESP Screens shows per screen whether newer firmware is available, as usual.
+
+## Settings in compose.yaml
+
+| Setting | What it does |
+| --- | --- |
+| `SCREEN_DEV: "1"` | Runs the app outside the Supervisor: it reads the token from `HA_TOKEN_FILE` and only listens on 127.0.0.1 |
+| `HA_API` | Home Assistant's address, ending in `/api` |
+| `HA_TOKEN_FILE` | The token file inside the container (the `ha_token` secret) |
+| `ESPHOME_CONFIG` | The ESPHome folder inside the container |
+| `SCREEN_DATA` | Layouts, update settings, and build caches |
