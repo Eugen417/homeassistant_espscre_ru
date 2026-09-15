@@ -176,6 +176,14 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.41 / firmware 0.2.35
+
+Storage version and tile protocol stay 1. Firmware 0.2.35 only raises
+`SCREEN_FIRMWARE_VERSION`, so the owner can test the update path from 0.2.34: no new
+entities, names, preferences or keys. App 0.2.41 changes the README, the App store
+description (`screen_manager/README.md`, images through absolute `raw.githubusercontent.com`
+URLs because the App store does not resolve relative paths) and `FIRMWARE_VERSION`.
+
 ### Compatibility 0.2.40 / firmware 0.2.34
 
 Storage version and tile protocol stay 1; no new message fields, preferences or keys.

@@ -1,3 +1,10 @@
+## 0.2.41 (firmware 0.2.35)
+
+See ESP Screens before you install it. What the screens show and what you can set stay the same.
+
+- **Screenshots in the README.** Photos of a Guition at home, both boards with demo layouts (pages, direct controls, the weather, climate, light and vacuum cards, sensor history, an alert) and the ESP Screens page itself: the tiles, tile settings, top bar, Alerts cheatsheet and New screen. The screen images are rendered from the firmware's own LVGL code on a demo home, so they match what the screens draw. The app's page in the App store shows a photo and the editor too.
+- Firmware 0.2.35 for both boards, so you can try an update from the app. It only changes the version number.
+
 ## 0.2.40 (firmware 0.2.34)
 
 ESP Screens is now in English: the screens, the management page, the Home Assistant entities and the documentation.

@@ -7,6 +7,15 @@ No blueprint, MQTT, or long-lived token needed for normal use.
 **New screen? Follow the [complete installation guide](docs/EASY_SETUP.md).**
 For every new user and every new device, you create your own profile.
 
+<p align="center">
+  <img src="docs/images/photo-guition-page-2.jpg" width="49%" alt="The Guition 4-inch screen on a table: the second page with scenes and scripts, the robot vacuum and a table lamp with a brightness slider">
+  <img src="docs/images/photo-guition-vacuum.jpg" width="49%" alt="The vacuum card on the Guition: start cleaning, return to dock, find my robot and the suction power">
+</p>
+<p align="center">
+  <img src="docs/images/editor.png" width="98%" alt="ESP Screens in Home Assistant: the screens on the left, the top bar and tiles of the selected screen on the right">
+</p>
+<p align="center"><sub>A Guition ESP32-S3-4848S040 at home, and the ESP Screens page in Home Assistant with a demo home.</sub></p>
+
 ## Supported screens
 
 | Screen | Resolution | Display / touch |
@@ -17,6 +26,18 @@ For every new user and every new device, you create your own profile.
 Use these exact board variants: similar-looking product names can have different
 controllers or connectors. Wallbox relays are not controlled.
 The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
+
+<p align="center">
+  <img src="docs/images/guition-home.png" width="32%" alt="Guition 4-inch screen: an analog clock with the date, a temperature graph, the weather forecast, a lamp and presence">
+  <img src="docs/images/guition-controls.png" width="32%" alt="Double-width tiles with direct control: the heating setpoint, a dimmer and the Sonos volume">
+  <img src="docs/images/guition-page-4.png" width="32%" alt="An energy graph, the robot vacuum, a coffee machine, a fan and a good-night script with pastel backgrounds">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-home.png" width="32%" alt="CYD 2.8-inch screen: the weather forecast, a kitchen timer, the coffee machine, a lamp and power usage as a large value">
+  <img src="docs/images/cyd-page-2.png" width="32%" alt="Second CYD page: Sonos volume, presence, a scene and an energy graph">
+  <img src="docs/images/cyd-weather.png" width="32%" alt="The weather card on the CYD: current weather, the coming hours and the coming days">
+</p>
+<p align="center"><sub>Guition 4-inch, 480 × 480 (top) and CYD 2.8-inch, 320 × 240 (bottom), rendered from the firmware's own LVGL code with a demo home.</sub></p>
 
 ## What you can configure
 
@@ -72,6 +93,17 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
 - **Inspector:** check entities, status, and configuration in ESP Screens.
   Action feedback shows that a command is on its way.
 
+<p align="center">
+  <img src="docs/images/guition-weather.png" width="32%" alt="Weather card: current weather, the coming hours and the coming days with chance of rain">
+  <img src="docs/images/guition-climate.png" width="32%" alt="Climate card: target temperature dial, current temperature and humidity, and the mode">
+  <img src="docs/images/guition-light.png" width="32%" alt="Light control: color, color temperature and brightness">
+</p>
+<p align="center">
+  <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: status, battery, start, return to dock, find the robot and suction power">
+  <img src="docs/images/guition-history.png" width="32%" alt="Sensor history of the last 24 hours">
+  <img src="docs/images/guition-page-3.png" width="32%" alt="Curtains with open, stop and close, a kitchen timer counting down, a scene and the sun path">
+</p>
+
 Features depend on the capabilities Home Assistant reports for an entity.
 The app must keep running to keep the screens supplied with current data.
 
@@ -82,6 +114,11 @@ minimum of 150 ms for switches. Tiles with a mini-slider keep their
 icon; on the CYD, the icon and text block are vertically centered.
 
 ## Alert from an automation
+
+<p align="center">
+  <img src="docs/images/guition-alert.png" width="41%" alt="An alert on the Guition: someone is at the door, with a Coming button">
+  <img src="docs/images/editor-alerts.png" width="53%" alt="The Alerts cheatsheet in ESP Screens: the action name of every screen, ready to copy">
+</p>
 
 Every screen has the action **`esphome.<screen>_show_alert`** (firmware 0.2.31+). It places
 a card over the entire screen, wakes the screen, and keeps the backlight at normal
@@ -169,6 +206,12 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 5. Select the screen in ESP Screens, choose your tiles, and click
    **Save & send to screen**. Then test the physical controls.
 
+<p align="center">
+  <img src="docs/images/editor-new-screen.png" width="37%" alt="New screen in ESP Screens: choose the board, give it a name, pick the USB port and install">
+  <img src="docs/images/editor-tiles.png" width="59%" alt="Choosing tiles: every page in the screen preview, next to the entity picker with filters">
+</p>
+<p align="center"><sub>New screen (step 3) and choosing your tiles (step 5).</sub></p>
+
 You can install new firmware later from **Firmware & USB → Wi-Fi / OTA**.
 For an existing screen, always use the existing profile; creating a new
 installation profile generates new keys.
@@ -179,6 +222,12 @@ Click a tile in the screen preview. Under **Pastel background**, choose a color,
 such as red or green. Optionally adjust the name, click action, mini-slider, or large
 value. Click **Save & send to screen** to apply the changes.
 After the first supporting firmware update, this requires no new flash.
+
+<p align="center">
+  <img src="docs/images/editor-tile-settings.png" width="36%" alt="Tile settings: name, icon, display, width, direct control, tap action and pastel background">
+  <img src="docs/images/guition-controls.png" width="60%" alt="The result on the screen: a double-width Heating tile with temperature − and +">
+</p>
+<p align="center"><sub>The settings of the Heating tile, and that tile on the screen: double-width with temperature − / +.</sub></p>
 
 A color is a fixed choice for that tile: it stays red, for example,
 even when you run the all-off script. The entity status and action feedback
@@ -203,6 +252,11 @@ to change their order; tap one to configure it:
   on, open, home, or greater than 0. Handy for an open door or a running
   washing machine. Active items are colored like in Home Assistant (open door amber,
   alarm armed green, alarm triggered red).
+
+<p align="center">
+  <img src="docs/images/editor-top-bar.png" width="31%" alt="Add to the top bar: the time, an analog clock, the date and suggestions from your own home">
+  <img src="docs/images/guition-home.png" width="49%" alt="The top bar on the screen: outdoor temperature, people at home and the time">
+</p>
 
 The screen preview draws the bar with the same letters and rules as the screen:
 all values on one line with the name, icons aligned to digit height, equal spacing.
