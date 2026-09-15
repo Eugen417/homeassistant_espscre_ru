@@ -176,6 +176,36 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.42 / firmware 0.2.36
+
+Firmware only: storage version, tile protocol, preferences and keys are unchanged. What moved
+inside `runtime_tiles.h` (measurements in docs/SWIPE_PROFILE.md):
+
+- `render()` is split into `render_slot()`. A page switch (`show_page` to another page) places
+  the page, shows every card as a skeleton (a sheet in the card colour over its content area,
+  `Widgets::veil`) and draws two cards per LVGL refresh (`fill_cards`, `FILL_STEP_CARDS`,
+  `LV_EVENT_REFR_READY`, 40 ms fallback); a new switch cancels the fill. `apply_page` (same page:
+  keepalives, re-packing) still draws everything at once. `check_tile_geometry` finishes a fill
+  still under way and logs `page fill still under way at the check`.
+- `refresh_tile(index)`, `refresh_header_only()` and `refresh_all()` mark what the next
+  `render()` draws; a plain `refresh()` from the board YAML draws every card, as before.
+- A slot hides custom parts and control panels instead of deleting them and reuses them for the
+  same kind (`hide_extra`, `hide_panel`); `end_extra`/`end_panel` still delete on a kind change.
+- Guarded style setters `set_color`/`set_number`; card content sizes from the styles
+  (`tile_width`, `content_width`, `content_height`) instead of `lv_obj_update_layout()`.
+- Card sliders: `slider_handle()` narrows the knob and moves it back into the fill and sets the
+  range to `-below..1000`, so 0 still shows one round end; `slider_event` keeps values at 0 or
+  above, `commit_slider` clamps as before. Off cards get a grey fill.
+- The busy sheet is sized from the requested card width and kept as the tile's last child.
+- `show_page` ignores a request past the first or last page when that page is already shown.
+- `tick()` redraws clock cards when the minute changes.
+- `light_controls::setup(parent, font, width, height, icon_font)`: the icon font is new and
+  optional; both board profiles pass `materialdesign_icons_mini` (the glyphs palette,
+  thermometer and lightbulb are already in the tile icon set). Rows, sliders, `open()` and
+  `self_test()` keep their behaviour; the brightness range starts below 1 for the same round end.
+- `swipe_profile.h` and the `swipe_test` message exist only with `-DSWIPE_PROFILE=1`; release
+  builds and packages never set it.
+
 ### Compatibility 0.2.41 / firmware 0.2.35
 
 Storage version and tile protocol stay 1. Firmware 0.2.35 only raises

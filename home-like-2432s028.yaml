@@ -57,7 +57,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.35"
+  SCREEN_FIRMWARE_VERSION: "0.2.36"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -918,7 +918,7 @@ esphome:
       - lambda: |-
           static const char *entities[] = {"${TILE1_ENTITY}", "${TILE2_ENTITY}", "${TILE3_ENTITY}", "${TILE4_ENTITY}", "${TILE5_ENTITY}", "${TILE6_ENTITY}", "${TILE7_ENTITY}", "${TILE9_ENTITY}"};
           if (!runtime_tiles::enabled) light_controls::subscribe(entities, 8);
-          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"));
+          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"), id(materialdesign_icons_mini)->get_lv_font());
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };

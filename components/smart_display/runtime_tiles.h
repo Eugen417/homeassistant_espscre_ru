@@ -8,6 +8,7 @@
 #include "cyd_ui.h"
 #include "light_controls.h"
 #include "tile_controls.h"
+#include "swipe_profile.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
 #include "esphome/core/hal.h"
@@ -43,6 +44,12 @@ inline void render_header();
 inline std::function<esphome::ESPTime()> now_time;
 inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
 inline void tick();
+inline void refresh_tile(size_t index);
+#ifdef SWIPE_PROFILE
+inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms, JsonObject tuning);
+#endif
+inline void refresh_header_only();
+inline void refresh_all();
 inline void refresh_detail(unsigned index);
 inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
@@ -104,6 +111,8 @@ struct Widgets {
   lv_color_t panel_accent{}, panel_text{};
   // Busy sheet: a translucent white cover with a small spinner while a command is under way.
   lv_obj_t *busy{}, *spinner{};
+  // Page fill skeleton: a sheet in the card's colour over its contents until the card is drawn.
+  lv_obj_t *veil{};
 };
 constexpr unsigned POINT_BUFFER = 128;
 inline std::array<Widgets, 10> widgets;
@@ -203,7 +212,7 @@ inline std::string receive(const std::string &payload) {
       layout_rev = string(root["rev"], 16);
       last_received = esphome::millis();
       if (layout_changed) layout_changed();
-      if (refresh) refresh();
+      refresh_all();
       // A repeat of the same layout keeps the inbox state as it is: no new recorder row.
       result = changed || moved || !was_configured ? "Layout received" : model.ready() ? "Synced" : "Loading tiles";
       return true;
@@ -241,11 +250,20 @@ inline std::string receive(const std::string &payload) {
       for (size_t i = 0; same && i < next.count; ++i) same = header.items[i] == next.items[i];
       header = next;
       last_received = esphome::millis();
-      if (!same && refresh) refresh();
+      if (!same) refresh_header_only();
       // The same status as a tile state, so a changing value never flips the inbox entity.
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
+#ifdef SWIPE_PROFILE
+    if (op == "swipe_test") {
+      // Diagnostic builds only: page switches without a finger, `n` of them `ms` apart; `back`
+      // (ms) swipes straight back after each one, like a quick second swipe.
+      swipe_test(root["n"] | 20u, root["ms"] | 1200u, root["back"] | 0u, root);
+      result = "Swipe test started";
+      return true;
+    }
+#endif
     if (op != "state" || !root["i"].is<unsigned>() || !root["a"].is<JsonObject>()) return false;
     unsigned index = root["i"].as<unsigned>();
     std::string entity = string(root["entity"], 120);
@@ -351,7 +369,7 @@ inline std::string receive(const std::string &payload) {
     for(auto &w:widgets)if(w.index==index)w.cached_active=-1;
     last_received = esphome::millis();
     if (repack && layout_changed) layout_changed();
-    if (refresh) refresh();
+    refresh_tile(index);
     if (active_index == static_cast<int>(index) && detail_update) detail_update(tile);
     refresh_detail(index);
     result = model.ready() ? "Synced" : "Loading tiles";
@@ -369,10 +387,9 @@ inline void action(const std::string &service, const std::string &entity, const 
   entry.value = esphome::StringRef(entity);
   request.data.push_back(entry);
   if(!key.empty()) {esphome::api::HomeassistantServiceMap param;param.key=esphome::StringRef(key);param.value=esphome::StringRef(value);request.data.push_back(param);}
-  for(auto &tile:model.tiles) if(tile.entity==entity)tile.begin(esphome::millis());
+  for(size_t i=0;i<model.tiles.size();++i) if(model.tiles[i].entity==entity){model.tiles[i].begin(esphome::millis());refresh_tile(i);}
   esphome::api::global_api_server->send_homeassistant_action(request);
   ESP_LOGI("runtime_action","Sent service=%s entity=%s",service.c_str(),entity.c_str());
-  if(refresh)refresh();
 }
 inline void setting_event(const std::string &key, int value) {
   if(inbox.empty())return;
@@ -442,6 +459,8 @@ inline void commit_slider(unsigned i,int raw){
 inline void slider_event(lv_event_t *e){
   auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
   if(code==LV_EVENT_PRESSED){captured_slider=slider;slider_changed=false;}
+  // The range reaches below zero only to draw the round end at 0 (slider_handle).
+  if(code==LV_EVENT_VALUE_CHANGED && lv_slider_get_value(slider)<0)lv_slider_set_value(slider,0,LV_ANIM_OFF);
   if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider)slider_changed=true;
   if(code==LV_EVENT_PRESS_LOST && captured_slider==slider){captured_slider=nullptr;slider_changed=false;}
   if(code==LV_EVENT_RELEASED && captured_slider==slider){
@@ -818,6 +837,46 @@ inline void event(lv_event_t *event) {
   if (d == "scene" || d == "script") action(d + ".turn_on", tile.entity);
   if (d == "button" || d == "input_button") action(d + ".press", tile.entity);
 }
+// The same guard for any local style: a page switch mostly hands a slot the colours it already has,
+// and each real set refreshes the style and invalidates the object (about 0.3 ms on the Guition).
+inline void set_color(lv_obj_t *obj, lv_style_prop_t prop, lv_color_t color, lv_style_selector_t selector = 0) {
+  lv_style_value_t current;
+  if (lv_obj_get_local_style_prop(obj, prop, &current, selector) == LV_STYLE_RES_FOUND && lv_color_eq(current.color, color)) return;
+  lv_style_value_t value{}; value.color = color;
+  lv_obj_set_local_style_prop(obj, prop, value, selector);
+}
+inline void set_number(lv_obj_t *obj, lv_style_prop_t prop, int32_t number, lv_style_selector_t selector = 0) {
+  lv_style_value_t current;
+  if (lv_obj_get_local_style_prop(obj, prop, &current, selector) == LV_STYLE_RES_FOUND && current.num == number) return;
+  lv_style_value_t value{}; value.num = number;
+  lv_obj_set_local_style_prop(obj, prop, value, selector);
+}
+// The white handle of a card slider sits inside the rounded end of the fill, like Home Assistant's
+// slider. LVGL centres the knob on the end of the fill, so the knob is narrowed and moved back by a
+// quarter of the height; the range starts below zero, so at 0 the fill is still one round end that
+// holds the handle. Values below zero never leave the slider (see slider_event).
+inline void slider_handle(lv_obj_t *slider, int width, int height) {
+  int handle = height > 20 ? 6 : 4, inset = height / 4 + handle / 2, half = height >> 1;
+  set_number(slider, LV_STYLE_PAD_LEFT, inset + handle / 2 - half, LV_PART_KNOB);
+  set_number(slider, LV_STYLE_PAD_RIGHT, handle / 2 - inset - (height - half), LV_PART_KNOB);
+  set_number(slider, LV_STYLE_PAD_TOP, -(height / 4), LV_PART_KNOB);
+  set_number(slider, LV_STYLE_PAD_BOTTOM, -(height / 4), LV_PART_KNOB);
+  int below = width > height ? 1000 * height / (width - height) : 0;
+  if (lv_slider_get_min_value(slider) != -below || lv_slider_get_max_value(slider) != 1000) lv_slider_set_range(slider, -below, 1000);
+}
+inline void set_hidden(lv_obj_t *obj, bool hidden) { if (hidden) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); }
+// A card's size as its styles request it. LVGL's own getters only follow after a layout pass, and
+// that pass walks every object on the screen, so the cards are laid out without asking for one.
+inline int tile_width(const Widgets &w) {
+  int32_t width = lv_obj_get_style_width(w.tile, LV_PART_MAIN);
+  return LV_COORD_IS_PX(width) ? width : lv_obj_get_width(w.tile);
+}
+inline int content_width(const Widgets &w) {
+  return tile_width(w) - lv_obj_get_style_space_left(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_right(w.tile, LV_PART_MAIN);
+}
+inline int content_height(const Widgets &w) {
+  return lv_obj_get_height(w.tile) - lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
+}
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
   lv_obj_update_layout(tile);
   // Compact cards need room for two text lines and a separate dimmer track.
@@ -838,7 +897,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   // A short white bar inside the fill as handle, like the control sliders (invisible before 0.2.20).
   int strip=lv_obj_get_height(tile)>80?28:10;
   lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(w.slider,LV_OPA_COVER,LV_PART_KNOB);
-  lv_obj_set_style_pad_hor(w.slider,-(strip/2-(strip>20?3:2)),LV_PART_KNOB);lv_obj_set_style_pad_ver(w.slider,-(strip/4),LV_PART_KNOB);
+  slider_handle(w.slider,lv_obj_get_width(tile)-24,strip);
   lv_obj_set_style_border_width(w.slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(w.slider,0,LV_PART_KNOB);
   lv_obj_set_style_radius(w.slider,14,LV_PART_MAIN);lv_obj_set_style_radius(w.slider,14,LV_PART_INDICATOR);lv_obj_set_style_radius(w.slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
@@ -893,10 +952,16 @@ inline uint32_t domain_accent(const Tile &t) {
 }
 // Custom cards draw into a transparent `extra` container; parts are rebuilt only
 // when a slot changes mode, so paging keeps RAM use flat on the CYD.
+// A slot whose next card draws no custom part only hides them: paging back to the clock or
+// graph in that slot reuses its objects instead of creating them again (tens of ms per card).
+inline void hide_extra(Widgets &w) {
+  if(!w.extra)return;
+  if(!lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN))lv_obj_add_flag(w.extra,LV_OBJ_FLAG_HIDDEN);
+  w.fill_points=nullptr;w.fill_count=0;
+}
 inline void end_extra(Widgets &w) {
   if(!w.extra)return;
-  lv_obj_add_flag(w.extra,LV_OBJ_FLAG_HIDDEN);
-  w.fill_points=nullptr;w.fill_count=0;
+  hide_extra(w);
   if(!w.extra_mode.empty()){lv_obj_clean(w.extra);w.parts.fill(nullptr);w.extra_mode.clear();delete[] w.points;w.points=nullptr;}
 }
 // Two triangles per segment between the polyline and its baseline. No canvas
@@ -920,7 +985,9 @@ inline void begin_extra(Widgets &w,const char *mode,int width,int height) {
   }
   if(w.extra_mode!=mode){end_extra(w);w.extra_mode=mode;w.points=new lv_point_precise_t[POINT_BUFFER];w.cached_active=-1;}
   w.fill_points=nullptr;w.fill_count=0;
-  lv_obj_set_pos(w.extra,0,0);lv_obj_set_size(w.extra,width,height);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_HIDDEN);
+  // Parts that were hidden kept the colours of the card they last showed.
+  if(lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN)){w.cached_active=-1;lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_HIDDEN);}
+  lv_obj_set_pos(w.extra,0,0);lv_obj_set_size(w.extra,width,height);
 }
 // Catmull-Rom curve through the samples: the trend reads smoothly without extra data.
 inline unsigned smooth(const lv_point_precise_t *in,unsigned n,lv_point_precise_t *out,unsigned capacity,int width,int height) {
@@ -1122,11 +1189,18 @@ inline lv_obj_t *panel_obj(lv_obj_t *parent,bool clickable) {
   if(clickable)lv_obj_add_flag(o,LV_OBJ_FLAG_CLICKABLE);else lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);
   return o;
 }
+// Like the custom parts: a card without controls hides the slot's panel and a later card with
+// the same control set shows it again.
+inline void hide_panel(Widgets &w) {
+  if(!w.panel)return;
+  if(!lv_obj_has_flag(w.panel,LV_OBJ_FLAG_HIDDEN))lv_obj_add_flag(w.panel,LV_OBJ_FLAG_HIDDEN);
+  w.panel_w=0;
+  if(captured_slider && captured_slider==w.control_slider)captured_slider=nullptr;
+}
 inline void end_panel(Widgets &w) {
   if(!w.panel)return;
-  lv_obj_add_flag(w.panel,LV_OBJ_FLAG_HIDDEN);w.panel_w=0;
+  hide_panel(w);
   if(!w.panel_mode.empty()){
-    if(captured_slider && captured_slider==w.control_slider)captured_slider=nullptr;
     lv_obj_clean(w.panel);w.keys.fill(nullptr);w.key_icons.fill(nullptr);w.key_checked.fill(-1);
     w.pill=w.pill_value=w.knob=w.control_slider=nullptr;w.knob_on=-1;w.panel_mode.clear();
   }
@@ -1181,13 +1255,13 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       int h=mode=="volume"?m.slider_h:m.slider_h;
       auto *slider=lv_slider_create(w.panel);w.control_slider=slider;
       lv_obj_remove_flag(slider,LV_OBJ_FLAG_GESTURE_BUBBLE);lv_obj_remove_flag(slider,LV_OBJ_FLAG_SCROLLABLE);
-      lv_slider_set_range(slider,0,1000);lv_obj_set_size(slider,mode=="volume"?m.slider_w:m.pill_w,h);
+      lv_obj_set_size(slider,mode=="volume"?m.slider_w:m.pill_w,h);
       lv_obj_set_style_pad_all(slider,0,LV_PART_MAIN);
       lv_obj_set_style_radius(slider,LV_RADIUS_CIRCLE,LV_PART_MAIN);lv_obj_set_style_radius(slider,LV_RADIUS_CIRCLE,LV_PART_INDICATOR);
       lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_INDICATOR);
       // The handle is a short white bar inside the fill, like Home Assistant's slider.
       lv_obj_set_style_radius(slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(slider,lv_color_hex(0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
-      lv_obj_set_style_pad_hor(slider,-(h/2-(large?3:2)),LV_PART_KNOB);lv_obj_set_style_pad_ver(slider,-(h/4),LV_PART_KNOB);
+      slider_handle(slider,mode=="volume"?m.slider_w:m.pill_w,h);
       lv_obj_set_style_border_width(slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(slider,0,LV_PART_KNOB);
       lv_obj_set_ext_click_area(slider,m.ext+2);
       lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)w.index);
@@ -1253,11 +1327,13 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     if(w.knob_on!=(int)on){w.knob_on=on;lv_obj_set_x(w.knob,on?m.toggle_w-(m.toggle_h-8)-4:4);}
     panel_w=m.toggle_w;panel_h=m.toggle_h;
   }else if(mode=="run"){
-    panel_w=lv_obj_get_width(w.keys[0]);
+    // The requested width: a key created in this pass has no coordinates before LVGL's layout.
+    panel_w=lv_obj_get_style_width(w.keys[0],LV_PART_MAIN);
   }
   (void)now;
-  if(!panel_w){lv_obj_add_flag(w.panel,LV_OBJ_FLAG_HIDDEN);w.panel_w=0;return 0;}
-  lv_obj_remove_flag(w.panel,LV_OBJ_FLAG_HIDDEN);
+  if(!panel_w){hide_panel(w);return 0;}
+  // A panel shown again kept the colours of the card it last served.
+  if(lv_obj_has_flag(w.panel,LV_OBJ_FLAG_HIDDEN)){lv_obj_remove_flag(w.panel,LV_OBJ_FLAG_HIDDEN);w.panel_dirty=true;}
   lv_obj_set_size(w.panel,panel_w,panel_h);lv_obj_set_pos(w.panel,content_w-panel_w,std::max(0,(content_h-panel_h)/2));
   w.panel_w=panel_w+m.text_gap;
   return w.panel_w;
@@ -1272,17 +1348,18 @@ inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t te
   for(unsigned n=0;n<3;++n){
     auto *key=w.keys[n];if(!key)continue;
     bool in_pill=w.pill && lv_obj_get_parent(key)==w.pill;
-    lv_obj_set_style_bg_color(key,in_pill?key_pressed:key_bg,0);
-    lv_obj_set_style_bg_color(key,in_pill?lv_color_mix(card,lv_color_hex(0x000000),190):key_pressed,LV_STATE_PRESSED);
-    lv_obj_set_style_bg_color(key,w.key_args[n]=="off" && w.panel_mode=="mode"?lv_color_hex(0x9E9E9E):accent,LV_STATE_CHECKED);
-    if(w.key_icons[n])lv_obj_set_style_text_color(w.key_icons[n],w.key_checked[n]==1?lv_color_hex(0xFFFFFF):text,0);
+    set_color(key,LV_STYLE_BG_COLOR,in_pill?key_pressed:key_bg);
+    set_color(key,LV_STYLE_BG_COLOR,in_pill?lv_color_mix(card,lv_color_hex(0x000000),190):key_pressed,LV_STATE_PRESSED);
+    set_color(key,LV_STYLE_BG_COLOR,w.key_args[n]=="off" && w.panel_mode=="mode"?lv_color_hex(0x9E9E9E):accent,LV_STATE_CHECKED);
+    if(w.key_icons[n])set_color(w.key_icons[n],LV_STYLE_TEXT_COLOR,w.key_checked[n]==1?lv_color_hex(0xFFFFFF):text);
   }
-  if(w.pill){lv_obj_set_style_bg_color(w.pill,key_bg,0);lv_obj_set_style_text_color(w.pill_value,text,0);}
+  if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,key_bg);set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
   if(w.control_slider){
-    lv_obj_set_style_bg_color(w.control_slider,lv_color_mix(accent,card,76),LV_PART_MAIN);
-    lv_obj_set_style_bg_color(w.control_slider,accent,LV_PART_INDICATOR);
+    lv_color_t fill=fresh() && t.active()?accent:lv_color_hex(0x9E9E9E);
+    set_color(w.control_slider,LV_STYLE_BG_COLOR,lv_color_mix(fill,card,76),LV_PART_MAIN);
+    set_color(w.control_slider,LV_STYLE_BG_COLOR,fill,LV_PART_INDICATOR);
   }
-  if(w.knob){lv_obj_set_style_bg_color(w.keys[0],lv_color_hex(0xD7DADF),0);lv_obj_set_style_bg_color(w.keys[0],lv_color_hex(0xC5C9CF),LV_STATE_PRESSED);}
+  if(w.knob){set_color(w.keys[0],LV_STYLE_BG_COLOR,lv_color_hex(0xD7DADF));set_color(w.keys[0],LV_STYLE_BG_COLOR,lv_color_hex(0xC5C9CF),LV_STATE_PRESSED);}
 }
 inline void control_event(lv_event_t *e) {
   unsigned code=(uintptr_t)lv_event_get_user_data(e);unsigned slot=code/16,n=code%16;
@@ -1328,153 +1405,200 @@ inline void set_busy(Widgets &w,bool busy,bool large){
     lv_obj_set_style_bg_opa(w.spinner,LV_OPA_TRANSP,LV_PART_KNOB);lv_obj_set_style_pad_all(w.spinner,0,LV_PART_KNOB);
 #endif
   }
-  if(!lv_obj_has_flag(w.busy,LV_OBJ_FLAG_HIDDEN))return;
-  // Cover the whole card, padding included.
+  // Cover the whole card, padding included, at the width the card asks for: a slot that just turned
+  // wide is still single width in LVGL's own coordinates. Unchanged sizes cost LVGL nothing.
   lv_obj_set_pos(w.busy,-lv_obj_get_style_pad_left(w.tile,LV_PART_MAIN),-lv_obj_get_style_pad_top(w.tile,LV_PART_MAIN));
-  lv_obj_set_size(w.busy,lv_obj_get_width(w.tile),lv_obj_get_height(w.tile));
-  lv_obj_remove_flag(w.busy,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(w.busy);
+  lv_obj_set_size(w.busy,tile_width(w),lv_obj_get_height(w.tile));
+  lv_obj_remove_flag(w.busy,LV_OBJ_FLAG_HIDDEN);
+  // Controls and custom parts created after the sheet would otherwise paint over its right side.
+  if(lv_obj_get_index(w.busy)!=(int32_t)lv_obj_get_child_count(w.tile)-1)lv_obj_move_foreground(w.busy);
 }
+// One card: name, status, icon, layout and palette. Everything reads the model; nothing is created
+// unless the card's custom parts or controls change kind.
+inline void render_slot(size_t slot) {
+  swipe_profile::SlotTimer slot_timer(slot);
+  swipe_profile::Lap lap;
+  auto &w=widgets[slot];
+  if(!w.tile || w.index>=model.count)return;
+  const auto &t = model.tiles[w.index];
+  auto d=t.domain();
+  label(w.title, t.name.empty() ? t.entity : t.name);
+  label(w.icon, icon_for(t));
+  bool watch=t.display=="watch";
+  std::string unit=watch?t.unit:"";
+  std::string value = t.state;
+  if (!fresh() || !t.available()) value = "Unavailable";
+  else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
+  else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
+  else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
+  else if (d == "sun") value = !t.sunrise.empty() && !t.sunset.empty() ? t.sunrise+" - "+t.sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
+  else if (d == "timer") value = timer_text(t);
+  else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Running..." : last_run_text(t.last_run);
+  else if (value == "on") value = "On";
+  else if (value == "off") value = "Off";
+  else if (value == "cleaning") value = "Cleaning";
+  else if (value == "docked") value = "Docked";
+  else if (!t.unit.empty() && !watch) value += " " + t.unit;
+  bool pending=t.loading(esphome::millis());
+  if(d=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
+  if(d=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
+  // Direct controls: only a wide card in the standard layout has room for the panel.
+  bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
+  if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty())value=status;}
+  label(w.value, value);
+  bool mini=t.inline_control=="slider" && !watch && t.available();
+  bool large_tile=lv_obj_get_height(w.tile)>80;
+  lap(swipe_profile::TEXT);
+  // Cards that replace the name/status layout entirely.
+  bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.forecast.size()>0 && fresh() && t.available();
+  bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.sunrise.empty() && !t.sunset.empty() && fresh() && t.available();
+  bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
+  bool custom=clock||forecast||sunpath;
+  if(!large_tile)pad_vertical(w.tile,watch||custom||graph?2:4);
+  set_font(w.value,watch && watch_value_font ? watch_value_font : w.value_font);
+  // Both text boxes are one line high; the sizes come from the styles, not from a layout pass.
+  int title_height=lv_font_get_line_height(lv_obj_get_style_text_font(w.title,LV_PART_MAIN));
+  int value_height=lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN));
+  lv_obj_set_height(w.value,value_height);
+  int content_w=content_width(w),content_h=content_height(w);
+  lap(swipe_profile::LAYOUT);
+  set_busy(w,pending && !t.builtin(),large_tile);
+  lap(swipe_profile::BUSY);
+  for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);
+  if(custom){
+    lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);
+    lap(swipe_profile::GEOMETRY);
+    if(clock)render_clock(w,t,large_tile,content_w,content_h);
+    else if(sunpath)render_sunpath(w,t,large_tile,content_w,content_h);
+    else render_forecast(w,t,large_tile,content_w,content_h);
+    lap(swipe_profile::CUSTOM);
+  }else{
+  int line_gap=large_tile?2:1,text_height=title_height+line_gap+value_height;
+  int slider_height=large_tile?28:8;
+  // A single-width graph takes the slider strip; a wide graph takes the right half.
+  bool graph_strip=graph && !w.wide, graph_side=graph && w.wide;
+  int chart_w=graph_side?content_w*55/100:0;
+  lap(swipe_profile::GEOMETRY);
+  int panel_w=with_panel && !graph?layout_panel(w,t,large_tile,content_w,content_h):0;
+  if(!panel_w)hide_panel(w);
+  lap(swipe_profile::PANEL);
+  int header_height=(mini||graph_strip)?content_h-slider_height-(large_tile?6:3):content_h;
+  int text_y=std::max(0,(header_height-text_height)/2);
+  int circle_size=watch?(large_tile?26:18):(mini||graph_strip)?(large_tile?36:24):(large_tile?54:36);
+  lv_obj_set_size(w.circle,circle_size,circle_size);
+  const lv_font_t *icon_font=watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font;
+  if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
+  int text_x=watch?0:(mini||graph_strip)?circle_size+(large_tile?8:6):w.title_x;
+  lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y);
+  lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
+    watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y);
+  lv_obj_set_pos(w.circle,0,(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12);
+  // Use the requested coordinates: LVGL getters still return the previous
+  // layout until its next pass when a slot changes from watch/slider to normal.
+  int text_room=content_w-chart_w-(graph_side?(large_tile?10:6):0)-panel_w;
+  lv_obj_set_width(w.title,std::max(1,text_room-text_x));
+  lv_obj_set_width(w.value,std::max(1,text_room-(watch?0:(mini||graph_strip)?text_x:w.value_x)));
+  if(watch){
+    int gap=large_tile?6:2,header=std::max(circle_size,title_height);
+    int group_y=std::max(0,(content_h-header-gap-value_height)/2);
+    int value_y=group_y+header+gap;
+    lv_obj_set_pos(w.circle,0,group_y+(header-circle_size)/2);
+    lv_obj_set_pos(w.title,circle_size+(large_tile?6:4),group_y+(header-title_height)/2);
+    lv_obj_set_width(w.title,text_room-circle_size-(large_tile?6:4));
+    label(w.unit,unit);
+    lv_point_t size;lv_text_get_size(&size,unit.c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+    int unit_width=unit.empty()?0:std::min((int)size.x,text_room-20);
+    int number_width=text_room-(unit_width?unit_width+(large_tile?6:3):0);
+    lv_obj_set_pos(w.value,0,value_y);lv_obj_set_width(w.value,number_width);
+    lv_obj_set_pos(w.unit,text_room-unit_width,value_y+value_height-lv_font_get_line_height(w.value_font));
+    lv_obj_set_size(w.unit,unit_width,lv_font_get_line_height(w.value_font));
+    set_hidden(w.unit,!unit_width);
+  }else lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
+  lv_obj_set_size(w.slider,content_w,slider_height);
+  slider_handle(w.slider,content_w,slider_height);
+  if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED) && lv_slider_get_value(w.slider)!=slider_value(t))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
+  else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+  lap(swipe_profile::GEOMETRY);
+  if(graph_strip)render_graph(w,t,large_tile,0,content_h-slider_height,content_w,slider_height);
+  else if(graph_side)render_graph(w,t,large_tile,content_w-chart_w,0,chart_w,content_h);
+  else hide_extra(w);
+  lap(swipe_profile::CUSTOM);
+  }
+  bool on = fresh() && t.active();
+  bool available=fresh() && t.available();
+  int palette_state=(available?2:0)|(on?1:0);
+  if (w.cached_active == palette_state && !w.panel_dirty) { lap(swipe_profile::GEOMETRY); return; }
+  w.cached_active = palette_state;w.panel_dirty=false;
+  uint32_t accent = domain_accent(t);
+  auto color=lv_color_hex((t.is_switch()||d=="person"||d=="timer") && !on ? 0x9E9E9E : accent);
+  if(d=="light" && on && t.has_hs_color)
+    color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
+  auto circle_color=available?lv_color_mix(color,lv_color_hex(0xFFFFFF),38):lv_color_hex(0xF0F0F0);
+  // Darken the foreground slightly: very pale bulbs still need a visible icon.
+  auto icon_color=available?lv_color_mix(color,lv_color_hex(0x333333),205):lv_color_hex(0x9E9E9E);
+  // Off: the round end that holds the handle is grey, so the slider reads as off too.
+  auto fill_color=on?color:lv_color_hex(0x9E9E9E);
+  set_color(w.slider,LV_STYLE_BG_COLOR,fill_color,LV_PART_INDICATOR);
+  set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_mix(fill_color,lv_color_hex(0xFFFFFF),30),LV_PART_MAIN);
+  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(t.background ? t.background : 0xFFFFFF));
+  set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
+  // "Background: none" hides only the card; geometry and padding stay identical,
+  // and the pressed flash still shows because it lives on the PRESSED state.
+  set_number(w.tile,LV_STYLE_BG_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
+  set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
+  set_color(w.tile,LV_STYLE_BORDER_COLOR,t.background ? lv_color_mix(lv_color_hex(t.background),lv_color_hex(0x000000),220) : lv_color_hex(0xDDDDDD));
+  set_color(w.circle,LV_STYLE_BG_COLOR,circle_color);
+  set_color(w.icon,LV_STYLE_TEXT_COLOR,icon_color);
+  auto title_color=lv_color_hex(0x1B1B1B);
+  auto value_color=lv_color_hex(t.background ? 0x46525E : 0x616161);
+  set_color(w.unit,LV_STYLE_TEXT_COLOR,lv_color_hex(0x46525E));
+  set_color(w.title,LV_STYLE_TEXT_COLOR,title_color);
+  set_color(w.value,LV_STYLE_TEXT_COLOR,value_color);
+  style_panel(w,t,color,title_color);
+  // Custom parts follow the card palette: text like the title, lines/dots in the accent.
+  // The sun path sets its own colours on every render.
+  w.fill_color=color;
+  for(unsigned i=0;i<w.parts.size();++i){
+    auto *p=w.parts[i];if(!p)continue;
+    bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
+    if(lv_obj_check_type(p,&lv_label_class))set_color(p,LV_STYLE_TEXT_COLOR,muted?value_color:title_color);
+    else if(w.extra_mode=="sunpath")continue;
+    else if(lv_obj_check_type(p,&lv_line_class))set_color(p,LV_STYLE_LINE_COLOR,w.extra_mode=="graph"?color:i<12?value_color:i==13?icon_color:title_color);
+    else set_color(p,LV_STYLE_BG_COLOR,i==14?icon_color:value_color);
+  }
+  lap(swipe_profile::PALETTE);
+}
+// What the next render() draws besides the name and the top bar: the cards of the tiles a state
+// message or a tick named, or every card. A refresh that names nothing (the board's own triggers,
+// such as the minute tick and time sync) draws every card.
+inline uint32_t dirty_tiles=0;
+inline bool dirty_all=false, dirty_header=false;
+inline void refresh_tile(size_t index) { if(index<32)dirty_tiles|=1u<<index; else dirty_all=true; if(refresh)refresh(); }
+inline void refresh_header_only() { dirty_header=true; if(refresh)refresh(); }
+inline void refresh_all() { dirty_all=true; if(refresh)refresh(); }
+// Slots whose new page content is still to come: the page fill draws them, render() leaves them.
+inline std::array<bool,SLOTS_PER_PAGE> slot_pending{};
+// Cards per fill step, the swipe pass included; the next waiting slot; the step timer, and whether
+// LVGL refreshed the screen since the last step.
+inline size_t FILL_STEP_CARDS=2;
+inline size_t fill_next=SLOTS_PER_PAGE;
+inline lv_timer_t *fill_timer=nullptr;
+inline bool fill_refreshed=false;
+inline uint32_t fill_step_ms=0;
+inline bool fill_cards(size_t cards);
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
-  room_label=room;
+  room_label=room; swipe_profile::Lap lap;
   label(room, !model.configured ? "Choose tiles in HA" : !model.ready() ? "Loading tiles..." : !ha_connected() ? "HA not connected" : !feed_alive() ? "ESP Screens not active" : model.title);
   render_header();
-  for (size_t slot = 0; slot < 6; ++slot) {
-    auto &w=widgets[slot];
-    if(!w.tile || w.index>=model.count)continue;
-    const auto &t = model.tiles[w.index];
-    auto d=t.domain();
-    label(w.title, t.name.empty() ? t.entity : t.name);
-    label(w.icon, icon_for(t));
-    bool watch=t.display=="watch";
-    std::string unit=watch?t.unit:"";
-    std::string value = t.state;
-    if (!fresh() || !t.available()) value = "Unavailable";
-    else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
-    else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
-    else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
-    else if (d == "sun") value = !t.sunrise.empty() && !t.sunset.empty() ? t.sunrise+" - "+t.sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
-    else if (d == "timer") value = timer_text(t);
-    else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Running..." : last_run_text(t.last_run);
-    else if (value == "on") value = "On";
-    else if (value == "off") value = "Off";
-    else if (value == "cleaning") value = "Cleaning";
-    else if (value == "docked") value = "Docked";
-    else if (!t.unit.empty() && !watch) value += " " + t.unit;
-    bool pending=t.loading(esphome::millis());
-    if(d=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
-    if(d=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
-    // Direct controls: only a wide card in the standard layout has room for the panel.
-    bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
-    if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty())value=status;}
-    label(w.value, value);
-    bool mini=t.inline_control=="slider" && !watch && t.available();
-    bool large_tile=lv_obj_get_height(w.tile)>80;
-    set_busy(w,pending && !t.builtin(),large_tile);
-    // Cards that replace the name/status layout entirely.
-    bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.forecast.size()>0 && fresh() && t.available();
-    bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.sunrise.empty() && !t.sunset.empty() && fresh() && t.available();
-    bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
-    bool custom=clock||forecast||sunpath;
-    if(!large_tile)pad_vertical(w.tile,watch||custom||graph?2:4);
-    set_font(w.value,watch && watch_value_font ? watch_value_font : w.value_font);
-    lv_obj_set_height(w.value,lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN)));
-    lv_obj_update_layout(w.tile);
-    int content_width=lv_obj_get_content_width(w.tile),content_height=lv_obj_get_content_height(w.tile);
-    for(auto *o:{w.title,w.value,w.circle,w.unit}){if(custom)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);else lv_obj_remove_flag(o,LV_OBJ_FLAG_HIDDEN);}
-    if(custom){
-      lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);end_panel(w);
-      if(clock)render_clock(w,t,large_tile,content_width,content_height);
-      else if(sunpath)render_sunpath(w,t,large_tile,content_width,content_height);
-      else render_forecast(w,t,large_tile,content_width,content_height);
-    }else{
-    int title_height=lv_obj_get_height(w.title),value_height=lv_obj_get_height(w.value);
-    int line_gap=large_tile?2:1,text_height=title_height+line_gap+value_height;
-    int slider_height=large_tile?28:8;
-    // A single-width graph takes the slider strip; a wide graph takes the right half.
-    bool graph_strip=graph && !w.wide, graph_side=graph && w.wide;
-    int chart_w=graph_side?content_width*55/100:0;
-    int panel_w=with_panel && !graph?layout_panel(w,t,large_tile,content_width,content_height):0;
-    if(!panel_w)end_panel(w);
-    int header_height=(mini||graph_strip)?content_height-slider_height-(large_tile?6:3):content_height;
-    int text_y=std::max(0,(header_height-text_height)/2);
-    int circle_size=watch?(large_tile?26:18):(mini||graph_strip)?(large_tile?36:24):(large_tile?54:36);
-    lv_obj_set_size(w.circle,circle_size,circle_size);
-    const lv_font_t *icon_font=watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font;
-    if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
-    int text_x=watch?0:(mini||graph_strip)?circle_size+(large_tile?8:6):w.title_x;
-    lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y);
-    lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
-      watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y);
-    lv_obj_set_pos(w.circle,0,(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12);
-    // Use the requested coordinates: LVGL getters still return the previous
-    // layout until its next pass when a slot changes from watch/slider to normal.
-    int text_room=content_width-chart_w-(graph_side?(large_tile?10:6):0)-panel_w;
-    lv_obj_set_width(w.title,std::max(1,text_room-text_x));
-    lv_obj_set_width(w.value,std::max(1,text_room-(watch?0:(mini||graph_strip)?text_x:w.value_x)));
-    if(watch){
-      int gap=large_tile?6:2,header=std::max(circle_size,title_height);
-      int group_y=std::max(0,(content_height-header-gap-value_height)/2);
-      int value_y=group_y+header+gap;
-      lv_obj_set_pos(w.circle,0,group_y+(header-circle_size)/2);
-      lv_obj_set_pos(w.title,circle_size+(large_tile?6:4),group_y+(header-title_height)/2);
-      lv_obj_set_width(w.title,text_room-circle_size-(large_tile?6:4));
-      label(w.unit,unit);
-      lv_point_t size;lv_text_get_size(&size,unit.c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
-      int unit_width=unit.empty()?0:std::min((int)size.x,text_room-20);
-      int number_width=text_room-(unit_width?unit_width+(large_tile?6:3):0);
-      lv_obj_set_pos(w.value,0,value_y);lv_obj_set_width(w.value,number_width);
-      lv_obj_set_pos(w.unit,text_room-unit_width,value_y+value_height-lv_font_get_line_height(w.value_font));
-      lv_obj_set_size(w.unit,unit_width,lv_font_get_line_height(w.value_font));
-      if(unit_width)lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_HIDDEN);else lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
-    }else lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
-    lv_obj_set_size(w.slider,content_width,slider_height);
-    if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
-    else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
-    if(graph_strip)render_graph(w,t,large_tile,0,content_height-slider_height,content_width,slider_height);
-    else if(graph_side)render_graph(w,t,large_tile,content_width-chart_w,0,chart_w,content_height);
-    else end_extra(w);
-    }
-    bool on = fresh() && t.active();
-    bool available=fresh() && t.available();
-    int palette_state=(available?2:0)|(on?1:0);
-    if (w.cached_active == palette_state && !w.panel_dirty) continue;
-    w.cached_active = palette_state;w.panel_dirty=false;
-    uint32_t accent = domain_accent(t);
-    auto color=lv_color_hex((t.is_switch()||d=="person"||d=="timer") && !on ? 0x9E9E9E : accent);
-    if(d=="light" && on && t.has_hs_color)
-      color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
-    auto circle_color=available?lv_color_mix(color,lv_color_hex(0xFFFFFF),38):lv_color_hex(0xF0F0F0);
-    // Darken the foreground slightly: very pale bulbs still need a visible icon.
-    auto icon_color=available?lv_color_mix(color,lv_color_hex(0x333333),205):lv_color_hex(0x9E9E9E);
-    lv_obj_set_style_bg_color(w.slider,color,LV_PART_INDICATOR);
-    lv_obj_set_style_bg_color(w.slider,lv_color_mix(color,lv_color_hex(0xFFFFFF),30),LV_PART_MAIN);
-    lv_obj_set_style_bg_color(w.tile, lv_color_hex(t.background ? t.background : 0xFFFFFF), 0);
-    lv_obj_set_style_border_width(w.tile, 1, 0);
-    // "Background: none" hides only the card; geometry and padding stay identical,
-    // and the pressed flash still shows because it lives on the PRESSED state.
-    lv_obj_set_style_bg_opa(w.tile, t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
-    lv_obj_set_style_border_opa(w.tile, t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
-    lv_obj_set_style_border_color(w.tile, t.background ? lv_color_mix(lv_color_hex(t.background),lv_color_hex(0x000000),220) : lv_color_hex(0xDDDDDD), 0);
-    lv_obj_set_style_bg_color(w.circle,circle_color,0);
-    lv_obj_set_style_text_color(w.icon,icon_color,0);
-    auto title_color=lv_color_hex(0x1B1B1B);
-    auto value_color=lv_color_hex(t.background ? 0x46525E : 0x616161);
-    lv_obj_set_style_text_color(w.unit,lv_color_hex(0x46525E),0);
-    lv_obj_set_style_text_color(w.title, title_color, 0);
-    lv_obj_set_style_text_color(w.value, value_color, 0);
-    style_panel(w,t,color,title_color);
-    // Custom parts follow the card palette: text like the title, lines/dots in the accent.
-    // The sun path sets its own colours on every render.
-    w.fill_color=color;
-    for(unsigned i=0;i<w.parts.size();++i){
-      auto *p=w.parts[i];if(!p)continue;
-      bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
-      if(lv_obj_check_type(p,&lv_label_class))lv_obj_set_style_text_color(p,muted?value_color:title_color,0);
-      else if(w.extra_mode=="sunpath")continue;
-      else if(lv_obj_check_type(p,&lv_line_class))lv_obj_set_style_line_color(p,w.extra_mode=="graph"?color:i<12?value_color:i==13?icon_color:title_color,0);
-      else lv_obj_set_style_bg_color(p,i==14?icon_color:value_color,0);
-    }
+  lap(swipe_profile::HEADER);
+  bool all=dirty_all || (!dirty_tiles && !dirty_header);
+  uint32_t tiles=dirty_tiles;
+  dirty_all=dirty_header=false;dirty_tiles=0;
+  for (size_t slot = 0; slot < SLOTS_PER_PAGE; ++slot) {
+    const auto &w=widgets[slot];
+    if(slot_pending[slot] || w.index>=model.count)continue;
+    if(all || (w.index<32 && (tiles>>w.index)&1))render_slot(slot);
   }
 }
 
@@ -1665,6 +1789,7 @@ inline void render_header() {
 // Inspect actual LVGL coordinates, including padding and the loaded font metrics.
 inline bool check_tile_geometry() {
   bool ok=true;
+  if(fill_next<SLOTS_PER_PAGE){ESP_LOGW("ui_test","page fill still under way at the check");fill_cards(SLOTS_PER_PAGE);}
   for(auto &w:widgets){
     if(!w.tile || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
     lv_obj_update_layout(w.tile);
@@ -1695,7 +1820,7 @@ inline bool check_tile_geometry() {
         else fits=fits && circle.y2<=content.y2;
         if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,circle.x1,circle.y1,circle.x2,circle.y2,title.x1,content.x1,content.y1,content.x2,content.y2);
         bool watch=w.index<model.count && model.tiles[w.index].display=="watch";
-        bool graph=w.extra_mode=="graph";
+        bool graph=w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN) && w.extra_mode=="graph";
         if(!watch && !graph && (mini || lv_obj_get_height(w.tile)<=80)){
           int header_bottom=mini?track.y1-(lv_obj_get_height(w.tile)>80?6:3)-1:content.y2;
           int center_twice=content.y1+header_bottom;
@@ -1755,15 +1880,16 @@ inline unsigned page_count() {
   std::array<Placement,MAX_TILES> placement;
   return place(model,placement);
 }
-// Page switches feel immediate: the new page's card frames (right widths, no
-// contents, light skeleton style) appear in the very next frame, and a one-shot
-// LVGL timer fills them in right after. Keepalives and re-packing on the same
-// page apply directly. Nothing is allocated, so the CYD stays comfortable.
+// Page switches feel immediate without blocking touch: the swipe pass places the new page (page
+// number, card widths), draws its first two cards and gives the others a light skeleton frame, all
+// in the very next frame. Every following LVGL refresh draws the next two cards, so the loop, and
+// the touch polling in it, runs between the steps, and a new swipe drops a fill still under way.
+// Keepalives and re-packing on the same page draw at once. Nothing is allocated.
 inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
-inline int applied_page=-1,target_page=0;
-inline lv_timer_t *page_timer=nullptr;
+inline int applied_page=-1;
 // Slot assignment plus card widths and visibility for a page; contents are untouched.
 inline int place_page(int page) {
+  swipe_profile::Lap lap;
   std::array<Placement,MAX_TILES> placement;
   int pages=place(model,placement);
   page=std::clamp(page,0,pages-1);
@@ -1773,49 +1899,132 @@ inline int place_page(int page) {
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
     if(slot<SLOTS_PER_PAGE && w.index<model.count){lv_obj_set_width(w.tile,w.wide?wide_width:w.base_width);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);}
-    else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);end_extra(w);end_panel(w);}
+    else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}
   }
-  for(auto *control:{nav_prev,nav_next,nav_number}){
-    if(pages>1)lv_obj_remove_flag(control,LV_OBJ_FLAG_HIDDEN);
-    else lv_obj_add_flag(control,LV_OBJ_FLAG_HIDDEN);
-  }
+  for(auto *control:{nav_prev,nav_next,nav_number})set_hidden(control,pages<=1);
   if(page==0)lv_obj_add_state(nav_prev,LV_STATE_DISABLED);else lv_obj_remove_state(nav_prev,LV_STATE_DISABLED);
   if(page==pages-1)lv_obj_add_state(nav_next,LV_STATE_DISABLED);else lv_obj_remove_state(nav_next,LV_STATE_DISABLED);
   for(auto *control:{nav_prev,nav_next})if(lv_obj_get_child_count(control))
-    lv_obj_set_style_text_opa(lv_obj_get_child(control,0),lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER,0);
-  std::string caption=std::to_string(page+1)+" / "+std::to_string(pages);lv_label_set_text(nav_number,caption.c_str());
+    set_number(lv_obj_get_child(control,0),LV_STYLE_TEXT_OPA,lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER);
+  label(nav_number,std::to_string(page+1)+" / "+std::to_string(pages));
+  lap(swipe_profile::PLACE);
   return page;
 }
-inline void apply_page(int page) {
-  applied_page=place_page(page);
-  if(room_label)render(room_label);else if(refresh)refresh();
+// The skeleton frame is the empty card: its contents hidden under a sheet in the card's own colour
+// (the page colour for a card without a background) that covers the content area. The sheet is a
+// plain rectangle inside the card's padding, so it has no corners, border or layer to render, and
+// while it is up LVGL draws nothing under it. Drawing the card takes the sheet away again.
+inline lv_color_t page_color(const Widgets &w) {
+  for(auto *o=lv_obj_get_parent(w.tile);o;o=lv_obj_get_parent(o))
+    if(lv_obj_get_style_bg_opa(o,LV_PART_MAIN)>=LV_OPA_MAX)return lv_obj_get_style_bg_color(o,LV_PART_MAIN);
+  return lv_color_hex(0xE7E7E7);
 }
-inline void skeleton_page(int page) {
-  place_page(page);
-  uint32_t bg=0xF4F5F7, border=0xE3E5E8;
-  for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
-    auto &w=widgets[slot];if(!w.tile || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
-    for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra,w.panel,w.busy})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
-    // A card-less tile shows no skeleton frame either.
-    bool bare=w.index<model.count && model.tiles[w.index].transparent;
-    lv_obj_set_style_bg_opa(w.tile,bare?LV_OPA_TRANSP:LV_OPA_COVER,0);
-    lv_obj_set_style_border_opa(w.tile,bare?LV_OPA_TRANSP:LV_OPA_COVER,0);
-    lv_obj_set_style_bg_color(w.tile,lv_color_hex(bg),0);
-    lv_obj_set_style_border_color(w.tile,lv_color_hex(border),0);
+inline void skeleton(Widgets &w) {
+  for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra,w.panel,w.busy})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
+  if(!w.veil){
+    w.veil=lv_obj_create(w.tile);lv_obj_remove_style_all(w.veil);
+    lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_opa(w.veil,LV_OPA_COVER,0);
   }
+  const Tile *t=w.index<model.count?&model.tiles[w.index]:nullptr;
+  set_color(w.veil,LV_STYLE_BG_COLOR,t && t->transparent?page_color(w):lv_color_hex(t && t->background?t->background:0xFFFFFF));
+  lv_obj_set_pos(w.veil,0,0);
+  lv_obj_set_size(w.veil,content_width(w),content_height(w));
+  lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_HIDDEN);
+  if(lv_obj_get_index(w.veil)!=(int32_t)lv_obj_get_child_count(w.tile)-1)lv_obj_move_foreground(w.veil);
 }
-inline void page_timer_done(lv_timer_t *) { page_timer=nullptr; apply_page(target_page); }
+inline void drop_veil(Widgets &w) {
+  if(w.veil && !lv_obj_has_flag(w.veil,LV_OBJ_FLAG_HIDDEN))lv_obj_add_flag(w.veil,LV_OBJ_FLAG_HIDDEN);
+}
+// Draws up to `cards` waiting cards in slot order; true once the page is complete.
+inline bool fill_cards(size_t cards) {
+  for(size_t drawn=0;fill_next<SLOTS_PER_PAGE && drawn<cards;++fill_next){
+    if(!slot_pending[fill_next])continue;
+    slot_pending[fill_next]=false;render_slot(fill_next);drop_veil(widgets[fill_next]);++drawn;
+  }
+  while(fill_next<SLOTS_PER_PAGE && !slot_pending[fill_next])++fill_next;
+  fill_step_ms=esphome::millis();fill_refreshed=false;
+  if(fill_next<SLOTS_PER_PAGE)return false;
+  if(fill_timer)lv_timer_pause(fill_timer);
+  swipe_profile::content_complete();
+  return true;
+}
+inline void cancel_fill() {
+  fill_next=SLOTS_PER_PAGE;slot_pending.fill(false);
+  if(fill_timer)lv_timer_pause(fill_timer);
+}
+inline void fill_timer_done(lv_timer_t *) {
+  // One step per refresh, so a step's frame reaches the glass before the next step is drawn. A step
+  // that changed no pixel starts no refresh; the fill then moves on after a short wait.
+  if(fill_next>=SLOTS_PER_PAGE || (!fill_refreshed && esphome::millis()-fill_step_ms<40))return;
+  swipe_profile::FillTimer timer;
+  fill_cards(FILL_STEP_CARDS);
+}
+inline void apply_page(int page) {
+  cancel_fill();
+  applied_page=place_page(page);
+  for(auto &w:widgets)drop_veil(w);
+  if(room_label){dirty_all=true;render(room_label);}else refresh_all();
+}
+inline int *shown_page=nullptr;
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
-  nav_prev=previous;nav_next=next;nav_number=number;
+  nav_prev=previous;nav_next=next;nav_number=number;shown_page=&page;
+  int requested=page;
   page=std::clamp(page,0,int(page_count())-1);
-  target_page=page;
-  if(applied_page<0 || page==applied_page){if(page_timer){lv_timer_delete(page_timer);page_timer=nullptr;}apply_page(page);return;}
-  skeleton_page(page);
-  if(page_timer)lv_timer_reset(page_timer);
-  else{page_timer=lv_timer_create(page_timer_done,60,nullptr);lv_timer_set_repeat_count(page_timer,1);}
+  // A swipe past the first or last page: the page on screen is already right, so nothing is
+  // drawn again. A layout change always lands in range or on a different page.
+  if(requested!=page && page==applied_page)return;
+  if(applied_page<0 || page==applied_page || !room_label){apply_page(page);return;}
+  swipe_profile::begin(applied_page,page);
+  swipe_profile::SkeletonTimer timer;
+  cancel_fill();
+  applied_page=place_page(page);
+  swipe_profile::Lap lap;
+  for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
+    auto &w=widgets[slot];
+    slot_pending[slot]=w.tile && w.index<model.count;
+    if(slot_pending[slot])skeleton(w);
+  }
+  for(size_t slot=SLOTS_PER_PAGE;slot<widgets.size();++slot)drop_veil(widgets[slot]);
+  lap(swipe_profile::SKELETON);
+  // The skeleton frame goes out first; the fill starts on the refresh after it.
+  fill_next=0;fill_step_ms=esphome::millis();fill_refreshed=false;
+  if(!fill_timer){
+    fill_timer=lv_timer_create(fill_timer_done,1,nullptr);
+    if(auto *display=lv_display_get_default())
+      lv_display_add_event_cb(display,[](lv_event_t *){fill_refreshed=true;},LV_EVENT_REFR_READY,nullptr);
+  }
+  lv_timer_resume(fill_timer);
 }
 
+#ifdef SWIPE_PROFILE
+inline unsigned swipe_test_left=0, swipe_test_back=0;
+inline bool swipe_test_returning=false;
+inline lv_timer_t *swipe_test_timer=nullptr;
+inline void swipe_test_step(lv_timer_t *timer) {
+  if(!shown_page || !swipe_test_left || page_count()<2){lv_timer_pause(timer);swipe_test_left=0;ESP_LOGI("swipe_prof","swipe test finished");return;}
+  int pages=page_count(),from=*shown_page;
+  *shown_page=swipe_test_returning?from-1:(from+1<pages?from+1:0);
+  if(*shown_page<0)*shown_page=pages-1;
+  show_page(*shown_page,nav_prev,nav_next,nav_number);
+  if(swipe_test_back && !swipe_test_returning){swipe_test_returning=true;lv_timer_set_period(timer,swipe_test_back);return;}
+  swipe_test_returning=false;--swipe_test_left;
+  lv_timer_set_period(timer,lv_timer_get_user_data(timer)?(uint32_t)(uintptr_t)lv_timer_get_user_data(timer):1200);
+}
+inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms, JsonObject tuning) {
+  // Cards per fill step for the measurement.
+  if(tuning["cards"].is<unsigned>())FILL_STEP_CARDS=std::clamp<unsigned>(tuning["cards"].as<unsigned>(),1,6);
+  ESP_LOGI("swipe_prof","tuning: %u cards per step",(unsigned)FILL_STEP_CARDS);
+  swipe_test_left=std::min(count,200u);swipe_test_back=back_ms;swipe_test_returning=false;
+  interval_ms=std::clamp(interval_ms,200u,10000u);
+  if(!swipe_test_timer)swipe_test_timer=lv_timer_create(swipe_test_step,interval_ms,(void*)(uintptr_t)interval_ms);
+  lv_timer_set_user_data(swipe_test_timer,(void*)(uintptr_t)interval_ms);
+  lv_timer_set_period(swipe_test_timer,interval_ms);lv_timer_reset(swipe_test_timer);lv_timer_resume(swipe_test_timer);
+  ESP_LOGI("swipe_prof","swipe test: %u page switches every %u ms, back after %u ms",swipe_test_left,interval_ms,back_ms);
+}
+#endif
 inline uint32_t last_live_second=0;
+inline int last_clock_minute=-2;
 inline bool was_fresh=false;
 inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
@@ -1830,11 +2039,13 @@ inline void tick() {
     }
   }
   if(!enabled)return;
+  // Only the cards that change are drawn again: a clock or a finished command redraws its own card.
   bool redraw=false;
+  auto card=[&](size_t index){ if(index<32)dirty_tiles|=1u<<index; else dirty_all=true; redraw=true; };
   // HA dropping or returning and the feed timing out change every card at once.
   bool now_fresh=fresh();
-  if(now_fresh!=was_fresh){was_fresh=now_fresh;redraw=true;}
-  for(auto &t:model.tiles)if(t.pending && !t.loading(esphome::millis())){t.pending=false;redraw=true;}
+  if(now_fresh!=was_fresh){was_fresh=now_fresh;dirty_all=true;redraw=true;}
+  for(size_t i=0;i<model.tiles.size();++i){auto &t=model.tiles[i];if(t.pending && !t.loading(esphome::millis())){t.pending=false;card(i);}}
   // A -/+ edit goes out as one call once the finger rests; a value HA never reports is dropped after a while.
   for(size_t i=0;i<model.count;++i){
     auto &t=model.tiles[i];if(!std::isfinite(t.edit_value))continue;
@@ -1843,16 +2054,20 @@ inline void tick() {
       if(now-t.edit_since<700 || t.awaiting_action(now))continue;
       auto a=tile_controls::edit_action(t,t.edit_value);
       if(a.valid()){t.edit_sent=true;t.edit_since=now;action(a.service,t.entity,a.key,a.value);}else t.edit_value=NAN;
-    }else if(now-t.edit_since>10000){t.edit_value=NAN;redraw=true;}
+    }else if(now-t.edit_since>10000){t.edit_value=NAN;card(i);}
   }
-  // Clocks and running timers advance once per second without any HA traffic.
+  // Running timers advance once per second without any HA traffic; clocks show hours and minutes,
+  // so they are drawn again only when the minute (or the time's validity) changes.
   uint32_t second=esphome::millis()/1000;
   if(second!=last_live_second){
     last_live_second=second;
+    auto now=now_time?now_time():esphome::ESPTime{};
+    int minute=now.is_valid()?now.day_of_year*1440+now.hour*60+now.minute:-1;
+    bool new_minute=minute!=last_clock_minute;last_clock_minute=minute;
     for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
-      if(t.builtin() || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))redraw=true;
+      if((t.builtin() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
     }
   }
   if(redraw && refresh)refresh();

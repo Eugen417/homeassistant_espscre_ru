@@ -1,3 +1,14 @@
+## 0.2.42 (firmware 0.2.36)
+
+Smoother page swipes and a new colour card for lights.
+
+- **Page swipes that keep up with your finger.** The next page shows up at once as empty cards and fills in two cards at a time, top to bottom, while the screen keeps reading touch in between, so a quick second swipe is no longer lost. On the Guition the longest pause during a swipe went from about 280 ms to about 75 ms, and the page is complete in about a quarter of a second. Swiping past the first or last page no longer redraws the page.
+- **Less redrawing overall.** A state change redraws only its own card, and clock cards redraw once a minute instead of every second.
+- **Slider handles sit inside the fill**, like in Home Assistant, also at 1 %. A light that is off shows a grey slider end.
+- **The busy sheet covers the whole card**, including the controls of a wide card.
+- **New colour card for lights.** Colour, colour temperature and brightness each get their own card with a rounded track: a knob in the chosen colour for colour and temperature, and a filled slider with the handle inside for brightness. Lights that only do colour temperature, or only colour, show just their cards. The knob no longer gets cut off at the ends of the track.
+- Firmware 0.2.36 for both boards; the app offers the update.
+
 ## 0.2.41 (firmware 0.2.35)
 
 See ESP Screens before you install it. What the screens show and what you can set stay the same.
