@@ -15,7 +15,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BUILTIN, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BROADCAST_EVENTS, BUILTIN, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 import header_bar
 from zoneinfo import ZoneInfo
 
@@ -83,6 +83,8 @@ class HomeAssistant:
         self.units = {}
         # (event type, data) of alert events for every screen, for Manager.alert_loop.
         self.broadcasts = asyncio.Queue()
+        # (event type, data) of tile events (app 0.2.51+), for Manager.tile_loop.
+        self.tile_events = asyncio.Queue()
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -129,6 +131,8 @@ class HomeAssistant:
                 elif event.get('event_type') in BROADCAST_EVENTS:
                     # Queued, not handled here: the calls wait for results this reader has to deliver.
                     self.broadcasts.put_nowait((event['event_type'], body))
+                elif event.get('event_type') in TILE_EVENTS:
+                    self.tile_events.put_nowait((event['event_type'], body))
         raise ConnectionError('Home Assistant connection lost.')
 
     def describe_close(self, connected):
@@ -159,7 +163,7 @@ class HomeAssistant:
                     reader = asyncio.create_task(self.read())
                     await self.request('subscribe_events', event_type='state_changed')
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
-                    for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS):
+                    for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, *TILE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
@@ -224,6 +228,18 @@ class HomeAssistant:
         """One Home Assistant action, such as a screen's esphome.<node>_show_alert."""
         domain, service = action.split('.', 1)
         await self.request('call_service', domain=domain, service=service, service_data=data)
+
+    async def fire(self, event_type, data):
+        """One Home Assistant event of our own, such as the answer to a tile event."""
+        await self.request('fire_event', event_type=event_type, event_data=data)
+
+    async def set_state(self, entity_id, state, attributes):
+        """A state this app publishes itself (the layout sensors). Home Assistant's websocket has no
+        command for that, so this goes over the REST API with the same token."""
+        async with self.session.post(f'{self.base}/states/{entity_id}',
+                                     headers={'Authorization': 'Bearer ' + self.token},
+                                     json={'state': state, 'attributes': attributes}) as response:
+            response.raise_for_status()
 
     async def forecast(self, entity, kind='daily'):
         # Forecasts left the weather attributes in HA 2024.4; ask the service instead.
@@ -298,6 +314,8 @@ class Manager:
         # Inbox entity ids seen this run with their Home Assistant device, and old inbox ids that a screen
         # now reports under a new id (see follow_renamed_inboxes); the updater follows a screen through them.
         self._inbox_devices, self.aliases = {}, {}
+        # The layout snapshot each screen's sensor already carries, so it is only written when it changes.
+        self.published = {}
         self._prefix_source, self._prefixes = None, {}
         if self.path.exists():
             raw = json.loads(self.path.read_text())
@@ -723,6 +741,7 @@ class Manager:
                     LOG.warning('Retrying screen sync (%s)', type(error).__name__)
                     await asyncio.sleep(1)
                 changed = changed or self.status.get(inbox) != before
+            await self.publish_layouts()
             if changed:
                 self.notify()
 
@@ -795,6 +814,53 @@ class Manager:
         LOG.info('%s: %d of %d screens%s', event_type, len(ready) - len(failed), len(ready) + len(skipped),
                  f" (not: {'; '.join(notes)})" if notes else '')
         return {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
+
+    async def tile_event(self, event_type, data):
+        """One tile event: the screen it names, the changed layout, saved and pushed like the editor does."""
+        screen = match_screen(self.screens(), data.get('screen'), self.layouts)
+        inbox = self.aliases.get(screen['id'], screen['id'])
+        layout = self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}
+        self.save(inbox, apply_tile_event(layout, TILE_EVENTS[event_type], data))
+        return screen
+
+    async def tile_loop(self):
+        """Tile events (app 0.2.51+) in arrival order, apart from the sync loop, which can be busy for a
+        while. Every event gets an answer, so whoever fired it knows what happened."""
+        queue = getattr(self.ha, 'tile_events', None)
+        while queue is not None:
+            event_type, data = await queue.get()
+            answer = {'event': event_type, 'screen': data.get('screen') or '', 'entity': data.get('entity') or ''}
+            try:
+                screen = await self.tile_event(event_type, data)
+                answer.update(ok=True, screen=screen['name'])
+                LOG.info('%s: %s on %s', event_type, answer['entity'] or 'order', screen['name'])
+                await self.publish_layouts()
+            except Exception as error:
+                answer.update(ok=False, error=str(error) if isinstance(error, ValueError) else type(error).__name__)
+                LOG.warning('%s refused: %s', event_type, answer['error'])
+            try:
+                await self.ha.fire(TILE_RESULT_EVENT, answer)
+            except Exception as error:
+                LOG.warning('%s: no answer sent (%s)', event_type, type(error).__name__)
+
+    async def publish_layouts(self):
+        """Each screen's layout as a sensor in Home Assistant, so an assistant can read what is where.
+        Published again after every change and after a reconnect; a state made this way is gone once
+        Home Assistant restarts."""
+        for screen in self.screens():
+            inbox = self.aliases.get(screen['id'], screen['id'])
+            layout, node = self.layouts.get(inbox), screen.get('node')
+            if not layout or not node:
+                continue
+            snapshot = layout_snapshot(screen, layout)
+            if self.published.get(inbox) == snapshot:
+                continue
+            try:
+                await self.ha.set_state('sensor.esp_screens_' + node.replace('-', '_'), len(snapshot['tiles']),
+                                        {'friendly_name': f"{screen['name']} tiles", 'icon': 'mdi:view-dashboard-outline', **snapshot})
+                self.published[inbox] = snapshot
+            except Exception as error:
+                LOG.warning('Publishing the layout of %s failed (%s)', screen['name'], type(error).__name__)
 
     async def alert_loop(self):
         """Alert events for every screen, in arrival order and apart from the sync loop, which can be busy for a while."""
@@ -964,7 +1030,8 @@ async def main():
         await runner.setup()
         await web.TCPSite(runner, '127.0.0.1' if development else '0.0.0.0', 8099).start()
         try:
-            await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(), manager.alert_loop())
+            await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
+                                 manager.alert_loop(), manager.tile_loop())
         finally:
             await runner.cleanup()
 

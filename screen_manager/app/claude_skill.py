@@ -14,12 +14,12 @@ import zipfile
 import tile_icons
 from core import (ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
-                  TILE_BACKGROUNDS)
+                  CONTROLS, DISPLAYS, MAX_PAGES, SLOTS_PER_PAGE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT)
 
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
-DESCRIPTION = ('Alerts and standby on ESP Screens (CYD and Guition touchscreens run from Home Assistant): alerts on '
-               'all screens or one with the icons they support, and an automation that keeps screens awake.')
+DESCRIPTION = ('ESP Screens (CYD and Guition touchscreens run from Home Assistant): put a tile on a screen, move or '
+               'order tiles, show an alert on one screen or all of them, and keep a screen awake.')
 TYPES = {'string': 'text', 'int': 'number', 'bool': 'on/off'}
 
 def skill_dir(config=None):
@@ -32,26 +32,110 @@ def _limit(name, kind):
     return f'0 to {ALERT_MAX_TIMEOUT} s' if kind == 'int' else ''
 
 def text():
-    """SKILL.md: when to use it, the event for every screen, the per-screen action, fields, colors and icons,
-    then the standby and brightness entities every screen has in Home Assistant."""
+    """SKILL.md: the tile events and how to read a screen, then the alert event for every screen, the
+    per-screen action, fields, colors and icons, and the standby and brightness entities."""
     fields = '\n'.join(f'| `{name}` | {TYPES[kind]} | {help_} | {_limit(name, kind)} |' for name, kind, _, help_, _ in ALERT_FIELDS)
     colors = ', '.join(f"`{name}` ({item['label']})" for name, item in TILE_BACKGROUNDS.items() if item['color'])
     suggested = ', '.join(f'`{name}`' for name in ALERT_SUGGESTED_ICONS)
     groups = '\n'.join(f'- {group}: ' + ', '.join(f'`{name}` ({label})' for name, _, label in icons) for group, icons in tile_icons.GROUPS)
     fixed = ', '.join(f'`{name}`' for name, _ in tile_icons.FIXED)
     endings = ', '.join(f'`{action}` ({label[0].lower() + label[1:]})' for action, label in ALERT_ENDINGS)
+    controls = '\n'.join(f'| `{domain}` | ' + ', '.join(f'`{key}` ({label.lower()})' for key, label in choices) + ' |'
+                         for domain, choices in CONTROLS.items())
+    displays = '\n'.join(f'| `{domain}` | ' + ', '.join(f'`{name}`' for name in names) + ' |' for domain, names in DISPLAYS.items())
+    events = '\n'.join(f'| `{event}` | {what} |' for event, what in
+                       (('esp_screens_add_tile', 'Puts an entity on a screen, or changes the tile that is already there'),
+                        ('esp_screens_remove_tile', 'Takes a tile off a screen'),
+                        ('esp_screens_move_tile', 'Moves a tile to another page or spot'),
+                        ('esp_screens_order_tiles', 'Puts tiles in the order you give')))
     return f'''---
 name: {NAME}
 description: {DESCRIPTION}
 ---
 
-# Alerts and standby on ESP Screens
+# Tiles, alerts and standby on ESP Screens
 
 Made by ESP Screen Manager (ESP Screens → Settings → Claude). Installing it again from there replaces this file, so changes made here get lost.
 
-Two things Home Assistant can do with the screens: show an alert (below), and keep a screen awake or let it dim ([Standby and brightness](#standby-and-brightness)).
+Three things Home Assistant can do with the screens: choose what a screen shows ([Tiles](#tiles-on-a-screen)), show an alert (below), and keep a screen awake or let it dim ([Standby and brightness](#standby-and-brightness)).
 
 An alert is a card over the whole screen with an icon, a title, a subtitle and one button. It wakes the screen and stays until someone presses the button or the timeout runs out. A new alert replaces the one showing.
+
+## Tiles on a screen
+
+A screen shows tiles: two columns and {SLOTS_PER_PAGE // 2} rows per page, at most {MAX_PAGES} pages and twenty tiles. A tile is single or double-width; a double-width one starts in the left column and takes two spots.
+
+Fire one of these events and ESP Screens changes that screen and sends it right away, the same way its own editor does.
+
+| Event | What it does |
+|---|---|
+{events}
+
+```yaml
+actions:
+  - event: esp_screens_add_tile
+    event_data:
+      screen: living room
+      entity: vacuum.s8
+```
+
+### What you can put in the event
+
+| Field | Meaning |
+|---|---|
+| `screen` | Which screen: its device name, the name Home Assistant shows, its area, or the title on the screen. With one screen paired you can leave this out. |
+| `entity` | The entity the tile shows. Use the real entity ID; never invent one. |
+| `name` | A name of your own on the tile; leave it out to keep Home Assistant's. |
+| `page` | Page, counted from 1. Without a spot the tile takes the first free one on that page. |
+| `row`, `column` | An exact spot on that page: row 1 to {SLOTS_PER_PAGE // 2}, column `left` or `right`. |
+| `size` | `single` or `wide`. |
+| `controls` | What you can operate on the tile itself (see below). |
+| `display` | How the tile draws itself (see below). |
+| `icon`, `color` | An icon from the list further down, and one of the pastel colors. |
+| `tap` | What a tap does: `auto`, `detail` (open the card), `toggle` or `none`. |
+| `entities` | Only for `esp_screens_order_tiles`: the entities in the order you want them. |
+
+A tile with a control, a forecast or a sun path is drawn double-width on its own; you don't have to ask for that.
+
+### What a tile can do, per kind of entity
+
+| Entity | `controls` |
+|---|---|
+{controls}
+
+| Entity | `display` |
+|---|---|
+{displays}
+
+Everything else shows its name and state, and opens a card of its own on a long press.
+
+### Reading a screen first
+
+Every screen also publishes what it shows, as `sensor.esp_screens_<device name>`: the state is the number of tiles, and the attributes hold `title`, `pages` and `tiles` with `entity`, `name`, `page`, `row`, `column`, `size`, `controls` and `display` per tile. Read that before moving things around, so you know what is already there and where.
+
+Ordering a page means naming the tiles that are on it, in the order you want:
+
+```yaml
+actions:
+  - event: esp_screens_order_tiles
+    event_data:
+      screen: living room
+      page: 1
+      entities: [light.kitchen, light.dining, vacuum.s8]
+```
+
+A tile from another page has to be moved there first (`esp_screens_move_tile` with `page`). Leave `page` out to order the whole screen: the entities you name come first, the rest keeps its order behind them.
+
+### What comes back
+
+ESP Screens answers every event with `{TILE_RESULT_EVENT}`, carrying `ok`, the `screen`, the `entity` and, when it refused, an `error` that says why ("No screen called ...", "That spot is taken by ...", "This screen already has twenty tiles"). The add-on log says the same. Nothing changes on a refused event.
+
+### How to work
+
+1. Read the screen's sensor, and Home Assistant's own entities for what the user names. Ask which screen when several could fit.
+2. Say what you are going to do: which tile, which screen, which spot. A tile appears on a screen in someone's house, so wait for a yes before firing the event.
+3. Fire the events one at a time and read `{TILE_RESULT_EVENT}` (or the sensor) before the next one.
+4. Sorting by how much something is used comes from Home Assistant itself (history or the logbook), not from the screen.
 
 ## All screens: fire an event
 

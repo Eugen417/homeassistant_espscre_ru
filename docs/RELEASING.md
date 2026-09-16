@@ -176,6 +176,35 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.51 / firmware 0.2.43
+
+App only; no firmware change, no protocol change, no storage change. Layouts keep their shape, so an
+older app reads what this one writes.
+
+- `core.TILE_EVENTS` maps four Home Assistant events to an action: `esp_screens_add_tile` (add or
+  change), `esp_screens_remove_tile`, `esp_screens_move_tile` and `esp_screens_order_tiles`.
+  `apply_tile_event(layout, action, data)` returns the new layout and raises `ValueError` with the
+  sentence the log and the answer carry; `match_screen` finds the screen by device name, the name Home
+  Assistant shows, the device, the area or the layout title, and needs no name when one screen is paired.
+  `tile_options` turns the event's fields into tile settings (`color` is the pastel background) and makes
+  a tile with a control, a forecast or a sun path double-width. `event_page`/`event_slot` accept `page`
+  (from 1), `row` (1-3) and `column` (left/right), or `slot` as the editor counts it. `place_tile`,
+  `free_slot` and `pack_page` keep a double-width tile in the left column and leave gaps alone.
+- `HomeAssistant` subscribes to those events, queues them in `tile_events`, and gained `fire()` (the
+  websocket `fire_event`) and `set_state()` (the REST API, the only way an app can publish a state).
+  `Manager.tile_loop` handles one event at a time, saves through `Manager.save` so validation, the entity
+  check and the push are the editor's, and answers with `TILE_RESULT_EVENT` (`ok`, `screen`, `entity`,
+  `error`).
+- `Manager.publish_layouts` writes `sensor.esp_screens_<node>` per screen after every sync pass and after
+  every tile event: the state is the tile count, the attributes carry `title`, `pages` and `tiles`
+  (`entity`, `name`, `page`, `row`, `column`, `slot`, `size`, `controls`, `display`). States made over the
+  REST API disappear when Home Assistant restarts; the sync loop writes them again.
+- The Claude skill gains "Tiles on a screen" with the four events, the fields, the controls and displays
+  per domain (generated from `CONTROLS`/`DISPLAYS`), how to read the sensor first, and the rule to
+  confirm before changing a screen. Its description changed, so an installed skill shows as outdated
+  until it is installed again. `tests/test_tile_events.py` covers the logic and one event end to end;
+  `tests/test_claude_skill.py` checks the section and the two new YAML examples.
+
 ### Compatibility 0.2.50 / firmware 0.2.43
 
 Firmware, board profiles and the package generator; the app only raises `FIRMWARE_VERSION`. Storage,

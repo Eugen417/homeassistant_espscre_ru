@@ -261,6 +261,230 @@ def min_firmware(layout):
 def short(value, limit):
     return str(value).encode('utf-8')[:limit].decode('utf-8', errors='ignore')
 
+# ----- Tiles from a Home Assistant event (app 0.2.51) -----
+# Claude in Home Assistant, or any automation, can put something on a screen without opening the editor:
+# it fires one of these events and the app changes that screen's layout, with the same validation and the
+# same push. The app answers with TILE_RESULT_EVENT, and publishes every layout as a sensor
+# (layout_snapshot) so an assistant can see what is where before it changes anything.
+TILE_EVENTS = {'esp_screens_add_tile': 'add', 'esp_screens_remove_tile': 'remove',
+               'esp_screens_move_tile': 'move', 'esp_screens_order_tiles': 'order'}
+TILE_RESULT_EVENT = 'esp_screens_tile_result'
+# What an event may set on a tile: the editor's own settings, with `color` as a friendlier name for the
+# pastel background.
+TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'display', 'icon': 'icon',
+                      'color': 'background', 'background': 'background', 'tap': 'tap', 'inline': 'inline',
+                      'history_hours': 'history_hours'}
+TILE_SIZES = {'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
+              'single': 'single', 'small': 'single', 'normal': 'single'}
+
+def loose(text):
+    """A name as people write it: case, spaces, dashes and underscores don't matter."""
+    return re.sub(r'[\s_-]+', ' ', str(text or '')).strip().casefold()
+
+def match_screen(screens, wanted, layouts=None):
+    """The screen an event means: by its device name, the name Home Assistant shows, or its title.
+    With one screen paired, an event doesn't have to name it."""
+    listing = ', '.join(sorted(screen['name'] for screen in screens)) or 'none yet'
+    if not loose(wanted):
+        if len(screens) == 1:
+            return screens[0]
+        raise ValueError(f'Name the screen. Paired: {listing}.')
+    key = loose(wanted)
+    def names(screen):
+        title = (layouts or {}).get(screen['id'], {}).get('title', '')
+        return [loose(value) for value in (screen.get('node'), screen.get('name'), screen.get('device'), title, screen.get('area')) if value]
+    found = [s for s in screens if key in names(s)] or [s for s in screens if any(key in name for name in names(s))]
+    if not found:
+        raise ValueError(f'No screen called "{wanted}". Paired: {listing}.')
+    if len(found) > 1:
+        raise ValueError(f'"{wanted}" fits more than one screen: ' + ', '.join(sorted(s['name'] for s in found)) + '.')
+    return found[0]
+
+def occupied_cells(tiles, skip=None):
+    cells = set()
+    for tile in tiles:
+        if tile is skip or 'slot' not in tile:
+            continue
+        cells.update(footprint(tile['slot'], is_wide(tile)))
+    return cells
+
+def free_slot(tiles, wide, page=None, skip=None):
+    """The first cell a tile of this width fits in, on `page` or anywhere; None when there is no room."""
+    cells = occupied_cells(tiles, skip)
+    first = 0 if page is None else page * SLOTS_PER_PAGE
+    last = MAX_SLOTS if page is None else min(MAX_SLOTS, first + SLOTS_PER_PAGE)
+    for slot in range(first, last):
+        if wide and (slot % 2 or slot + 1 >= last):
+            continue
+        if not set(footprint(slot, wide)) & cells:
+            return slot
+    return None
+
+def place_tile(tile, tiles, page=None, slot=None):
+    """Give a tile its cell: the one asked for when it is free, else the first free one (on `page`)."""
+    wide = is_wide(tile)
+    if slot is not None:
+        if wide and slot % 2:
+            slot -= 1
+        taken = next((t for t in tiles if t is not tile and slot in footprint(t.get('slot', -9), is_wide(t))), None)
+        if taken:
+            raise ValueError(f"That spot is taken by {taken['entity']}; give another spot or move that one first.")
+        tile['slot'] = slot
+        return
+    free = free_slot(tiles, wide, page, skip=tile)
+    if free is None:
+        raise ValueError(f'Page {page + 1} is full.' if page is not None else 'This screen has no room left.')
+    tile['slot'] = free
+
+def tile_options(data, current=None):
+    """The settings an event asks for, on top of what the tile already has. A direct control, a forecast
+    and a sun path only fit a double-width card, so they widen the tile themselves."""
+    options = dict(current or {})
+    for key, name in TILE_EVENT_OPTIONS.items():
+        if key not in data or data[key] in (None, ''):
+            continue
+        value = data[key]
+        if name == 'history_hours':
+            options[name] = int(value) if str(value).isdigit() else value
+        elif name == 'size':
+            options[name] = TILE_SIZES.get(loose(value), str(value))
+        else:
+            options[name] = str(value).strip()
+    if options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY:
+        options['size'] = 'wide'
+    return {key: value for key, value in options.items() if value not in (None, '')}
+
+def event_page(data):
+    """The page an event names, counted from one as people do; None when it doesn't name one."""
+    page = data.get('page')
+    if page in (None, ''):
+        return None
+    if not str(page).strip().isdigit() or not 1 <= int(page) <= MAX_PAGES:
+        raise ValueError(f'Choose a page between 1 and {MAX_PAGES}.')
+    return int(page) - 1
+
+def event_slot(data, page):
+    """An exact spot: `slot` as the editor counts it, or `row` and `column` within a page."""
+    if data.get('slot') not in (None, ''):
+        if not str(data['slot']).strip().isdigit() or not 0 <= int(data['slot']) < MAX_SLOTS:
+            raise ValueError(f'Choose a spot between 0 and {MAX_SLOTS - 1}.')
+        return int(data['slot'])
+    if data.get('row') in (None, '') and data.get('column') in (None, ''):
+        return None
+    if page is None:
+        raise ValueError('Name the page for that row or column.')
+    row = str(data.get('row', 1)).strip()
+    if not row.isdigit() or not 1 <= int(row) <= SLOTS_PER_PAGE // 2:
+        raise ValueError(f'Choose a row between 1 and {SLOTS_PER_PAGE // 2}.')
+    column = loose(data.get('column') or 'left')
+    if column not in ('left', 'right'):
+        raise ValueError('The column is left or right.')
+    return page * SLOTS_PER_PAGE + (int(row) - 1) * 2 + (1 if column == 'right' else 0)
+
+def page_of(tile):
+    return tile.get('slot', 0) // SLOTS_PER_PAGE
+
+def pack_page(tiles, page):
+    """Give these tiles the cells of one page, in the order they are in."""
+    position = page * SLOTS_PER_PAGE
+    last = position + SLOTS_PER_PAGE
+    for tile in tiles:
+        wide = is_wide(tile)
+        if wide and position % 2:
+            position += 1
+        if position + (2 if wide else 1) > last:
+            raise ValueError(f'That does not fit on page {page + 1}; a double-width tile takes two spots.')
+        tile['slot'] = position
+        position += 2 if wide else 1
+
+def apply_tile_event(layout, action, data):
+    """The layout after one tile event. Raises ValueError with the sentence the log and the answer show."""
+    result = {key: value for key, value in layout.items() if key != 'tiles'}
+    tiles = [dict(tile) for tile in layout.get('tiles', [])]
+    entity = str(data.get('entity') or '').strip()
+    page, slot = event_page(data), None
+    slot = event_slot(data, page)
+    if slot is not None and page is None:
+        page = slot // SLOTS_PER_PAGE
+    if action == 'order':
+        wanted = data.get('entities') or data.get('order') or []
+        if isinstance(wanted, str):
+            wanted = [part.strip() for part in wanted.split(',')]
+        wanted = [str(item).strip() for item in wanted if str(item).strip()]
+        if not wanted:
+            raise ValueError('Give the entities in the order you want them.')
+        known = {tile['entity']: tile for tile in tiles}
+        missing = [name for name in wanted if name not in known]
+        if missing:
+            raise ValueError('Not on this screen: ' + ', '.join(missing) + '.')
+        if page is None:
+            rest = [tile for tile in tiles if tile['entity'] not in wanted]
+            tiles = [known[name] for name in wanted] + rest
+            for tile, cell in zip(tiles, pack_slots(tiles)):
+                tile['slot'] = cell
+        else:
+            elsewhere = [name for name in wanted if page_of(known[name]) != page]
+            if elsewhere:
+                raise ValueError('Not on page %d: %s. Move it there first.' % (page + 1, ', '.join(elsewhere)))
+            on_page = [known[name] for name in wanted] + [t for t in tiles if page_of(t) == page and t['entity'] not in wanted]
+            pack_page(on_page, page)
+        result['tiles'] = tiles
+        return result
+    if not entity:
+        raise ValueError('Name the entity.')
+    found = next((tile for tile in tiles if tile['entity'] == entity), None)
+    if action == 'remove':
+        if not found:
+            raise ValueError(f'{entity} is not on this screen.')
+        tiles.remove(found)
+    elif action == 'move':
+        if not found:
+            raise ValueError(f'{entity} is not on this screen; add it first.')
+        if page is None and slot is None:
+            raise ValueError('Name the page or the spot to move it to.')
+        found.pop('slot', None)
+        place_tile(found, tiles, page, slot)
+    else:
+        if not entity_id(entity) and entity not in BUILTIN:
+            raise ValueError(f'{entity} cannot go on a screen.')
+        was_wide, had_slot = bool(found) and is_wide(found), (found or {}).get('slot')
+        options = tile_options(data, (found or {}).get('options'))
+        tile = found or {'entity': entity, 'name': ''}
+        if data.get('name') not in (None, ''):
+            tile['name'] = str(data['name']).strip()
+        if options:
+            tile['options'] = options
+        elif found:
+            tile.pop('options', None)
+        if found is None:
+            if len(tiles) >= 20:
+                raise ValueError('This screen already has twenty tiles; remove one first.')
+            tiles.append(tile)
+        wide = is_wide(tile)
+        move = found is None or had_slot is None or page is not None or slot is not None
+        if not move and wide != was_wide:
+            # A tile that just grew keeps its spot when the cell beside it is free.
+            move = (wide and had_slot % 2) or bool(set(footprint(had_slot, wide)) & occupied_cells([t for t in tiles if t is not tile]))
+        if move:
+            tile.pop('slot', None)
+            place_tile(tile, tiles, page, slot)
+    result['tiles'] = tiles
+    return result
+
+def layout_snapshot(screen, layout):
+    """What a screen shows, for the sensor the app publishes in Home Assistant: one entry per tile with
+    the page and the spot it is in, so an assistant can read the screen before it changes it."""
+    tiles = []
+    for tile in sorted(layout.get('tiles', []), key=lambda item: item.get('slot', 0)):
+        slot, options = tile.get('slot', 0), tile.get('options', {})
+        tiles.append({'entity': tile['entity'], 'name': tile.get('name') or '',
+                      'page': slot // SLOTS_PER_PAGE + 1, 'row': slot % SLOTS_PER_PAGE // 2 + 1,
+                      'column': 'right' if slot % 2 else 'left', 'slot': slot,
+                      'size': options.get('size', 'single'), 'controls': options.get('controls', ''),
+                      'display': options.get('display', 'standard')})
+    return {'screen': screen.get('name', ''), 'node': screen.get('node') or '', 'title': layout.get('title', ''),
+            'pages': max([tile['page'] for tile in tiles], default=1), 'tiles': tiles}
+
 def validate_layout(data):
     if not isinstance(data, dict):
         raise ValueError('Invalid layout.')

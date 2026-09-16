@@ -1,3 +1,12 @@
+## 0.2.51 (firmware 0.2.43)
+
+Ask Claude in Home Assistant to put something on a screen.
+
+- **Tiles from a Home Assistant event.** ESP Screens now listens for `esp_screens_add_tile`, `esp_screens_remove_tile`, `esp_screens_move_tile` and `esp_screens_order_tiles`. An event names the screen (its device name, the name Home Assistant shows, its area or its title) and the entity, and may set the size, the direct control, the display, the icon, the colour and the spot. The app changes the screen and sends it right away, with the same checks as its own editor: at most twenty tiles, an entity once per screen, and a double-width tile in the left column. A tile with a control or a forecast becomes double-width by itself. Every event gets an answer, `esp_screens_tile_result`, with `ok` or the reason it was refused; a refused event changes nothing.
+- **A screen you can read.** Every screen also publishes what it shows as `sensor.esp_screens_<device name>`: the number of tiles, and per tile the entity, the page, the row, the column, the width, the control and the display. So an assistant can look before it moves something, and you can use it in a template.
+- **The Claude skill knows all of it.** Settings → Claude now also covers tiles: the four events, every field, what each kind of entity can do, how to read a screen first, and the rule to show what it is about to do and wait for a yes. Install it again from the Settings page, then ask for example "put the vacuum on the living room screen", "give the living room lights a brightness slider and make that tile wide" or "order page 1 by how often I use them".
+- No new firmware: screens on 0.2.43 need no update.
+
 ## 0.2.50 (firmware 0.2.43)
 
 More memory for the CYD, so a busy moment no longer restarts it.

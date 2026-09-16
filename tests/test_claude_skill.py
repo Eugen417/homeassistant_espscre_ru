@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import claude_skill  # noqa: E402
 import tile_icons  # noqa: E402
-from core import ALERT_EVENT, ALERT_FIELDS, ALERT_LIMITS, ALERT_MIN_FIRMWARE, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW, TILE_BACKGROUNDS  # noqa: E402
+from core import (ALERT_EVENT, ALERT_FIELDS, ALERT_LIMITS, ALERT_MIN_FIRMWARE, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS,  # noqa: E402
+                  BROADCAST_SHOW, CONTROLS, DISPLAYS, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT)
 
 HAS_YAML = importlib.util.find_spec('yaml') is not None
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
@@ -27,7 +28,7 @@ class SkillText(unittest.TestCase):
         self.assertIsNotNone(front)
         self.assertEqual(front[1], 'esp-screens')
         self.assertLessEqual(len(front[2]), 200, 'claude.ai refuses longer descriptions')
-        for words in ('ESP Screens', 'alerts', 'all screens', 'automation', 'icons', 'awake'):
+        for words in ('ESP Screens', 'tile', 'order', 'alert', 'awake'):
             self.assertIn(words, front[2])
         self.assertEqual(text, claude_skill.text(), 'same text every time, so status() can compare')
         self.assertNotRegex(text, r'\{[A-Z_]+\}', 'no placeholder left over')
@@ -51,6 +52,19 @@ class SkillText(unittest.TestCase):
             self.assertIn(f'`{entity}`', standby)
         self.assertIn(AUTO_STANDBY_MIN_FIRMWARE, standby)
         self.assertIn('(#standby-and-brightness)', text, 'the intro links to the section')
+        # Tiles (0.2.51): the events, what a tile can do per domain, how to read a screen and the rule to ask first.
+        tiles = text.split('## Tiles on a screen', 1)[1].split('## All screens', 1)[0]
+        for event in TILE_EVENTS:
+            self.assertIn(f'`{event}`', tiles)
+        self.assertIn(TILE_RESULT_EVENT, tiles)
+        self.assertIn('sensor.esp_screens_<device name>', tiles)
+        for domain, choices in CONTROLS.items():
+            self.assertRegex(tiles, rf'\| `{domain}` \|' + ''.join(rf'.*`{key}`' for key, _ in choices))
+        for domain, names in DISPLAYS.items():
+            for name in names:
+                self.assertIn(f'`{name}`', tiles)
+        self.assertIn('wait for a yes', tiles)
+        self.assertIn('(#tiles-on-a-screen)', text, 'the intro links to the section')
         icons = text.split('## Icons', 1)[1].split('## When an alert ends', 1)[0]
         self.assertEqual(set(re.findall(r'`([a-z0-9-]+)`', icons)) - {'icon'}, set(tile_icons.GLYPHS), 'exactly the glyphs the firmware carries')
 
@@ -58,15 +72,20 @@ class SkillText(unittest.TestCase):
     def test_every_yaml_example_parses(self):
         import yaml
         blocks = re.findall(r'```yaml\n(.*?)```', claude_skill.text(), re.S)
-        self.assertEqual(len(blocks), 5)
+        self.assertEqual(len(blocks), 7)
         parsed = [yaml.safe_load(block) for block in blocks]
-        self.assertEqual(parsed[0]['actions'][0]['event'], BROADCAST_SHOW)
-        self.assertEqual(set(parsed[0]['actions'][0]['event_data']), {name for name, *_ in ALERT_FIELDS})
-        self.assertEqual(set(parsed[1]['actions'][0]['data']), {name for name, *_ in ALERT_FIELDS}, 'the per-screen action needs all seven')
-        self.assertEqual(parsed[2][0]['wait_for_trigger'][0]['event_type'], ALERT_EVENT)
-        choose = parsed[3]['actions'][0]['choose']
+        # Tiles first (0.2.51): putting one on a screen, and ordering a page.
+        self.assertEqual(parsed[0]['actions'][0]['event'], 'esp_screens_add_tile')
+        self.assertEqual(set(parsed[0]['actions'][0]['event_data']), {'screen', 'entity'})
+        self.assertEqual(parsed[1]['actions'][0]['event'], 'esp_screens_order_tiles')
+        self.assertEqual(set(parsed[1]['actions'][0]['event_data']), {'screen', 'page', 'entities'})
+        self.assertEqual(parsed[2]['actions'][0]['event'], BROADCAST_SHOW)
+        self.assertEqual(set(parsed[2]['actions'][0]['event_data']), {name for name, *_ in ALERT_FIELDS})
+        self.assertEqual(set(parsed[3]['actions'][0]['data']), {name for name, *_ in ALERT_FIELDS}, 'the per-screen action needs all seven')
+        self.assertEqual(parsed[4][0]['wait_for_trigger'][0]['event_type'], ALERT_EVENT)
+        choose = parsed[5]['actions'][0]['choose']
         self.assertEqual([option['sequence'][0]['event'] for option in choose], [BROADCAST_SHOW, BROADCAST_DISMISS])
-        awake = parsed[4]
+        awake = parsed[6]
         self.assertEqual(awake['mode'], 'restart')
         branch = awake['actions'][0]
         self.assertEqual((branch['then'][0]['action'], branch['else'][0]['action']), ('switch.turn_off', 'switch.turn_on'))

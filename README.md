@@ -192,10 +192,13 @@ for these two events; the per-screen actions work without it.
 ### Ask Claude
 
 Use Claude Code in Home Assistant? **Settings → Claude → Install for Claude Code** writes an
-ESP Screens skill to `/homeassistant/.claude/skills/esp-screens`, so Claude knows these events
-and every field, color, and icon. Then ask, for example: "Show an alert on all my screens when
-the mailbox is full." **Download for claude.ai** gives the same skill as a zip to upload in
-Claude under Customize → Skills. Nothing is written until you press the button.
+ESP Screens skill to `/homeassistant/.claude/skills/esp-screens`, so Claude knows the events, the
+tile settings and every field, color and icon. Then ask, for example: "Put the vacuum on the living
+room screen", "Give the living room lights a brightness slider and make that tile wide", "Move the
+vacuum to page 1" or "Show an alert on all my screens when the mailbox is full." Claude reads what a
+screen shows from `sensor.esp_screens_<screen>` and asks before it changes anything. **Download for
+claude.ai** gives the same skill as a zip to upload in Claude under Customize → Skills. Nothing is
+written until you press the button.
 
 <p align="center">
   <img src="docs/images/editor-settings.png" width="80%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">
