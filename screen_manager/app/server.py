@@ -15,7 +15,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BUILTIN, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BROADCAST_EVENTS, BUILTIN, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 import header_bar
 from zoneinfo import ZoneInfo
 
@@ -599,8 +599,12 @@ class Manager:
         if 'pages' in layout:
             message['pages'] = layout['pages']
         if 'settings' in layout:
-            message['settings'] = {k:v for k,v in layout['settings'].items() if k not in ('swipe_pages','rotation')}
+            # `settings` is the fixed eleven-key block older firmware insists on; everything added
+            # later travels as its own key, which firmware that predates it simply ignores.
+            message['settings'] = {k:v for k,v in layout['settings'].items() if k not in SETTINGS_BESIDE_BLOCK}
             message['swipe_pages'] = layout['settings'].get('swipe_pages',False)
+            message['auto_home'] = layout['settings'].get('auto_home',True)
+            message['auto_home_seconds'] = layout['settings'].get('auto_home_seconds',120)
             if screen.get('board')=='guition':
                 message['rotation'] = layout['settings'].get('rotation',0)
         # The revision the screen echoes on every ping (firmware 0.2.33+; older firmware ignores it).

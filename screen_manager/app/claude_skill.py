@@ -14,7 +14,8 @@ import zipfile
 import tile_icons
 from core import (ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
-                  CONTROLS, DISPLAYS, MAX_PAGES, SLOTS_PER_PAGE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT)
+                  CONTROLS, DISPLAYS, MAX_PAGES, SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS,
+                  TILE_EVENTS, TILE_RESULT_EVENT)
 
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
@@ -298,6 +299,23 @@ actions:
 ```
 
 Replace the person, light, window and screen with the real entity IDs (ask which screens when there are several), and leave out conditions the user did not ask for.
+
+## The settings page on the screen itself
+
+Firmware {SETTINGS_PAGE_MIN_FIRMWARE} or newer carries a settings page the user can open at the panel: hold the top bar (the strip with the screen's name and the clock) for about a second and a half, until the blue line along the top edge is full. A screen can also carry a tile for it: put the entity `screen.settings` on a screen like any other tile.
+
+It holds Brightness, Night, Screen (clock, going back to page 1, swiping, rotation) and This screen (name, address, firmware, whether Home Assistant is connected, and Restart). A change there is saved on the screen and shows up in ESP Screens within a second, exactly like a change made from Home Assistant.
+
+You can open it for someone who is standing at the panel:
+
+```yaml
+actions:
+  - action: esphome.kitchen_screen_open_settings
+    data:
+      page: 1
+```
+
+`page` 0 is the menu, 1 Brightness, 2 Night, 3 Screen, 4 This screen, and -1 closes the page and puts the screen back on page 1. Use it to walk someone through a setting ("I opened Brightness on the kitchen screen"), not to change something yourself: for that, use the entities above, which do the same thing without anyone at the panel.
 '''
 
 def status(directory):

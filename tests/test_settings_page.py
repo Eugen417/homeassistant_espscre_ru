@@ -1,0 +1,112 @@
+"""The settings page on the screen itself (app 0.2.52, firmware 0.2.44).
+
+Two halves have to agree without ever seeing each other: the row table in settings_screen.h writes keys
+that only mean something if ESP Screens knows them, and the eleven-key `settings` block older firmware
+insists on may never grow. Both are checked here, against the real files.
+"""
+import importlib.util
+import json
+import re
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+import test_portal
+from core import (BUILTIN, SETTING_RULES, SETTINGS_BESIDE_BLOCK, entity_id, min_firmware, validate_layout,
+                  validate_settings)
+
+SCREEN = (ROOT / 'components/smart_display/settings_screen.h').read_text()
+RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+# The keys the firmware's own block still carries; everything newer travels as its own key.
+FROZEN = {'standby_enabled', 'standby_seconds', 'brightness', 'standby_brightness', 'night_enabled',
+          'night_start', 'night_end', 'night_brightness', 'show_clock', 'clock_24h', 'home_on_standby'}
+assert FROZEN == set(SETTING_RULES) - set(SETTINGS_BESIDE_BLOCK)
+
+
+class SettingsPage(unittest.TestCase):
+    def test_every_key_the_screen_reports_is_a_setting_the_app_knows(self):
+        keys = set(re.findall(r'changed\("(\w+)"', SCREEN))
+        self.assertTrue(keys, 'no rows found in settings_screen.h')
+        self.assertLessEqual(keys, set(SETTING_RULES), 'the screen writes a key ESP Screens would drop')
+
+    def test_the_frozen_settings_block_keeps_exactly_eleven_keys(self):
+        # Firmware before 0.2.44 refuses a `settings` object of any other size; that is why the newer
+        # settings travel as their own keys.
+        self.assertEqual(re.search(r'if \(obj\.size\(\) != (\d+)\) return false;', RUNTIME).group(1), '11')
+        self.assertEqual(FROZEN, set(SETTING_RULES) & FROZEN)
+
+    def test_new_settings_default_and_validate(self):
+        clean = validate_settings({})
+        self.assertEqual(clean['auto_home'], True)
+        self.assertEqual(clean['auto_home_seconds'], 120)
+        self.assertEqual(validate_settings({'auto_home_seconds': 30})['auto_home_seconds'], 30)
+        for bad in ({'auto_home_seconds': 29}, {'auto_home_seconds': 3601}, {'auto_home': 1},
+                    {'auto_home_seconds': True}):
+            with self.assertRaises(ValueError):
+                validate_settings(bad)
+
+    def test_the_settings_tile_is_a_builtin_that_needs_new_firmware(self):
+        self.assertIn('screen.settings', BUILTIN)
+        self.assertTrue(entity_id('screen.settings'))
+        self.assertEqual(min_firmware({'tiles': [{'entity': 'screen.settings'}]}), (0, 2, 44))
+        self.assertLess(min_firmware({'tiles': [{'entity': 'screen.clock'}]}), (0, 2, 44))
+        layout = validate_layout({'title': 'Home', 'tiles': [{'entity': 'screen.settings', 'name': 'Settings'}]})
+        self.assertEqual(layout['tiles'][0]['entity'], 'screen.settings')
+
+
+@unittest.skipUnless(importlib.util.find_spec('aiohttp'), 'Run using .venv-portal/bin/python for server tests')
+class LayoutMessage(unittest.IsolatedAsyncioTestCase):
+    async def test_the_new_keys_ride_beside_the_frozen_block(self):
+        with tempfile.TemporaryDirectory() as temp:
+            manager = test_portal.ManagerTests().setup_manager(Path(temp) / 'screens.json')
+            layout = {'title': 'Home', 'tiles': [{'entity': 'light.a'}],
+                      'settings': validate_settings({'auto_home': False, 'auto_home_seconds': 600})}
+            manager.save('text.screen', layout)
+            message = manager.layout_message('text.screen', manager.layouts['text.screen'], {})
+            self.assertEqual(set(message['settings']), FROZEN, 'older firmware refuses any other size')
+            self.assertEqual(message['auto_home'], False)
+            self.assertEqual(message['auto_home_seconds'], 600)
+            # A screen that never stored settings still gets the defaults, not a missing key.
+            plain = manager.layout_message('text.screen', {**manager.layouts['text.screen'],
+                                                           'settings': validate_settings({})}, {})
+            self.assertEqual((plain['auto_home'], plain['auto_home_seconds']), (True, 120))
+            self.assertLess(len(json.dumps(message)), 4096, 'the screen refuses a message over 4 KB')
+
+
+class Firmware(unittest.TestCase):
+    """The board profiles have to carry the page, its way in, and the timer that closes it."""
+
+    def setUp(self):
+        self.profiles = {name: (ROOT / name).read_text()
+                         for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml')}
+
+    def test_both_boards_wire_the_page_and_its_gesture(self):
+        for name, text in self.profiles.items():
+            self.assertIn('settings_screen::attach_hold', text, name)
+            self.assertIn('settings_screen::report', text, name)
+            self.assertIn('settings_screen::may_open', text, name)
+            self.assertIn('- action: open_settings', text, name)
+            self.assertIn('- id: go_home', text, name)
+            self.assertIn('runtime_tiles::auto_home', text, name)
+            self.assertIn('SCREEN_FIRMWARE_VERSION: "0.2.44"', text, name)
+
+    def test_the_hold_strip_covers_the_top_bar_and_no_more(self):
+        for name, text in self.profiles.items():
+            values = dict(re.findall(r'^  (\w+): "([^"]*)"', text, re.M))
+            width, scroll = int(values['DISPLAY_W']), int(values['SCROLL_Y'])
+            x = int(values['SETTINGS_HOLD_X'].replace('${EDGE_SWIPE_BAND_PX}', values.get('EDGE_SWIPE_BAND_PX', '0')))
+            hold = values['SETTINGS_HOLD_W'].replace('${DISPLAY_W}', values['DISPLAY_W'])
+            self.assertLessEqual(x + int(hold), width, name)
+            self.assertGreater(scroll, 20, name)
+            if 'EDGE_SWIPE_BAND_PX' in values:
+                # The page swipe owns both edge bands; the hold may not start there.
+                band = int(values['EDGE_SWIPE_BAND_PX'])
+                self.assertGreaterEqual(x, band, name)
+                self.assertLessEqual(x + int(hold), width - band, name)
+
+
+if __name__ == '__main__':
+    unittest.main()

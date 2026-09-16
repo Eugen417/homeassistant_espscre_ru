@@ -233,7 +233,7 @@ class ParityTests(unittest.TestCase):
         self.assertIn('set_hidden(p,!(awake() && now.is_valid()));', second_hand)
         self.assertIn('part_line(w,18,w.points+28,2,w.hand_width)', second_hand)
         tick = TILES.split('inline void tick() {', 1)[1]
-        self.assertIn('t.builtin() && t.display=="analog")second_hand(w,now);', tick)
+        self.assertIn('t.is_clock() && t.display=="analog")second_hand(w,now);', tick)
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:

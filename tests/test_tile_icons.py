@@ -48,7 +48,15 @@ class IconSetTests(unittest.TestCase):
         for domains, code in re.findall(r'if \((d == "\w+"(?: \|\| d == "\w+")*)\) return "\\U000(F[0-9A-F]{4})";', body):
             for domain in re.findall(r'"(\w+)"', domains):
                 native[domain] = code
-        self.assertEqual(native, {domain: tile_icons.GLYPHS[name] for domain, name in tile_icons.DEFAULTS.items()})
+        # The built-in cards pick per entity, not per domain: a clock or the settings page.
+        settings, clock = re.search(
+            r'if \(d == "screen"\) return tile\.is_settings\(\) \? "\\U000(F[0-9A-F]{4})" : "\\U000(F[0-9A-F]{4})";', body).groups()
+        builtin = {entity: tile_icons.GLYPHS[name] for entity, name in tile_icons.BUILTIN_TILES.items()}
+        self.assertEqual({'screen.settings': settings, 'screen.clock': clock}, builtin)
+        self.assertEqual(tile_icons.editor()['builtin'], builtin)
+        self.assertEqual(tile_icons.GLYPHS[tile_icons.DEFAULTS['screen']], clock)
+        expected = {domain: tile_icons.GLYPHS[name] for domain, name in tile_icons.DEFAULTS.items() if domain != 'screen'}
+        self.assertEqual(native, expected)
         self.assertIn(f'return "\\U000{tile_icons.GLYPHS[tile_icons.FALLBACK]}";', body)
         weather = HEADER.split('inline const char *weather_icon(const std::string &condition) {', 1)[1].split('\n}', 1)[0]
         for state, name in tile_icons.WEATHER.items():

@@ -26,3 +26,7 @@ After pairing via the HA ESPHome integration, choose the tiles in ESP Screens.
 **Tile settings** has click behavior, larger values and mini-sliders.
 **Screen settings** has brightness and standby. **Inspector** helps with
 missing attributes or an offline screen. New cards require firmware 0.2.0.
+
+The screen carries the same settings itself (firmware 0.2.44 or newer): hold the top bar for
+about a second and a half, or put the built-in **Settings** card on a page. What is changed
+there appears here within a second, and the other way around.

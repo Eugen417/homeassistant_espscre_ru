@@ -220,6 +220,10 @@ FIXED = (
     ('dots-horizontal', 'F01D8'),
     # Swing row on the Guition climate card, Home Assistant's icon for swing modes (firmware 0.2.40+).
     ('arrow-oscillating', 'F1C91'),
+    # The settings page on the screen itself (firmware 0.2.44+): its menu and the restart row.
+    ('monitor', 'F0379'),
+    ('information-outline', 'F02FD'),
+    ('restart', 'F0709'),
 )
 
 # Pickable icons by name, and every glyph the firmware fonts contain.
@@ -230,6 +234,8 @@ GLYPHS = {**{name: codepoint for name, (codepoint, _) in ICONS.items()}, **dict(
 DEFAULTS = {'light': 'lightbulb', 'climate': 'air-conditioner', 'vacuum': 'robot-vacuum', 'fan': 'fan',
             'cover': 'window-shutter', 'scene': 'sofa', 'script': 'sofa', 'sensor': 'gauge', 'binary_sensor': 'gauge',
             'timer': 'timer-outline', 'person': 'account', 'screen': 'clock-outline'}
+# The cards the screen brings itself: one icon per entity, not per domain.
+BUILTIN_TILES = {'screen.clock': 'clock-outline', 'screen.settings': 'cog'}
 FALLBACK = 'power'
 CONTROL_GLYPHS = ('play', 'pause', 'stop', 'skip-next', 'skip-previous', 'volume-high', 'volume-off', 'arrow-up', 'arrow-down',
                   'arrow-expand-horizontal', 'arrow-collapse-horizontal', 'home-map-marker', 'plus', 'minus', 'chevron-left',
@@ -250,6 +256,7 @@ def editor():
     return {'groups': [{'label': group, 'icons': [{'name': name, 'cp': codepoint, 'label': label} for name, codepoint, label in icons]}
                        for group, icons in GROUPS],
             'defaults': {domain: GLYPHS[name] for domain, name in DEFAULTS.items()}, 'fallback': GLYPHS[FALLBACK],
+            'builtin': {entity: GLYPHS[name] for entity, name in BUILTIN_TILES.items()},
             'weather': {state: GLYPHS[name] for state, name in WEATHER.items()},
             'sun': {'above_horizon': GLYPHS['weather-sunset-down'], 'below_horizon': GLYPHS['weather-sunset-up']},
             # Glyphs of the direct controls on wide cards, so the mockup previews them.

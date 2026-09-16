@@ -11,15 +11,17 @@ import tile_icons
 
 DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
-BUILTIN = {'screen.clock': 'Clock'}
+BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings'}
 NEW_DOMAINS = frozenset('sun timer person screen'.split())
 WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.43'
+FIRMWARE_VERSION = '0.2.44'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
+# The settings page the screen opens itself, and the screen.settings tile that opens it.
+SETTINGS_PAGE_MIN_FIRMWARE = '0.2.44'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
@@ -165,7 +167,16 @@ SETTING_RULES = {
     'home_on_standby': (False, None, None),
     'swipe_pages': (False, None, None),
     'rotation': (0, 0, 270),
+    # Back to page 1 by itself (firmware 0.2.44+): closes an open card and any page but the first
+    # after this many seconds without a touch. Older firmware ignores both keys.
+    'auto_home': (True, None, None),
+    'auto_home_seconds': (120, 30, 3600),
 }
+# Firmware before 0.2.44 accepts a `settings` object with exactly its own eleven keys and refuses any
+# other size, so everything added after it travels as its own key in the layout message. Old firmware
+# ignores a key it does not know; a new screen with an old add-on keeps what it saved itself.
+# docs/SETTINGS.md walks through adding one.
+SETTINGS_BESIDE_BLOCK = ('swipe_pages', 'rotation', 'auto_home', 'auto_home_seconds')
 
 def validate_settings(data):
     if not isinstance(data, dict) or set(data) - SETTING_RULES.keys():
@@ -250,6 +261,8 @@ def validate_header(data):
 
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
+    if any(t['entity'] == 'screen.settings' for t in layout['tiles']):
+        return (0, 2, 44)
     if any(t.get('options', {}).get('background') == 'none' for t in layout['tiles']):
         return (0, 2, 16)
     if any(t['entity'].split('.')[0] in NEW_DOMAINS for t in layout['tiles']):

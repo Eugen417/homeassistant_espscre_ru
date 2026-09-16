@@ -22,7 +22,7 @@ inline bool valid_entity(const std::string &entity) {
         !(entity[i] >= '0' && entity[i] <= '9') && entity[i] != '_') return false;
   std::string domain = entity.substr(0, dot);
   // screen.* are built-in cards without a Home Assistant entity behind them.
-  if (domain == "screen") return entity == "screen.clock";
+  if (domain == "screen") return entity == "screen.clock" || entity == "screen.settings";
   for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person"})
     if (domain == allowed) return true;
   return false;
@@ -146,6 +146,9 @@ struct Tile {
   void observe(uint32_t next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }
   std::string domain() const { return entity.substr(0, entity.find('.')); }
   bool builtin() const { return domain() == "screen"; }
+  // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
+  bool is_clock() const { return entity == "screen.clock"; }
+  bool is_settings() const { return entity == "screen.settings"; }
   bool available() const { return builtin() || (received && state != "unknown" && state != "unavailable" && !state.empty()); }
   bool active() const {
     return state == "on" || state == "cleaning" || state == "active" || (domain() == "person" && state == "home") ||

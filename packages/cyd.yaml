@@ -18,7 +18,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.43"
+  SCREEN_FIRMWARE_VERSION: "0.2.44"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -98,6 +98,11 @@ substitutions:
   TILE_W: "147"
   TILE_H: "52"
   HEADER_Y: "14"
+  # Holding the top bar opens the settings page (0.2.44+). The whole strip counts on this board;
+  # a finger that travels further than the drift limit of a tap is swiping, not holding.
+  SETTINGS_HOLD_X: "0"
+  SETTINGS_HOLD_W: "${DISPLAY_W}"
+  SETTINGS_HOLD_DRIFT_PX: "24"
   OVERLAY_SLIDER_W: "96"
   OVERLAY_SLIDER_H: "160"
   OVERLAY_ICON_Y: "74"
@@ -263,6 +268,7 @@ esphome:
     - <esphome/components/smart_display/cyd_ui.h>
     - <esphome/components/smart_display/light_controls.h>
     - <esphome/components/smart_display/alert_overlay.h>
+    - <esphome/components/smart_display/settings_screen.h>
   name: ${DEVICE_NAME}
   friendly_name: ${DEVICE_FRIENDLY_NAME}
   on_boot:
@@ -378,6 +384,31 @@ esphome:
           screen_calibration::isolation = [](bool active) { id(calibration_active) = active; };
           screen_calibration::setup(id(home_page)->obj, id(sublabel)->get_lv_font(), id(headline)->get_lv_font(),
             ${TOUCH_CAL_X_MIN}, ${TOUCH_CAL_X_MAX}, ${TOUCH_CAL_Y_MIN}, ${TOUCH_CAL_Y_MAX});
+      # The settings page the screen opens on its own (0.2.44+): the same values ESP Screen Manager
+      # writes, reachable by holding the top bar. Fonts and hooks only; the page itself is built
+      # when it opens and thrown away when it closes, so it costs nothing while it is closed.
+      - lambda: |-
+          if (!runtime_tiles::enabled) return;
+          settings_screen::title_font = id(headline)->get_lv_font();
+          settings_screen::row_font = id(sublabel_big)->get_lv_font();
+          settings_screen::icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          settings_screen::store = []() { runtime_tiles::persist_settings(); };
+          settings_screen::apply = []() { id(apply_screen_settings).execute(); };
+          settings_screen::report = [](const char *key, int32_t value) { runtime_tiles::setting_event(key, value); };
+          settings_screen::name_text = []() { return std::string("${DEVICE_FRIENDLY_NAME}"); };
+          settings_screen::address_text = []() { return id(wifi_ip).state.empty() ? std::string("No network") : id(wifi_ip).state; };
+          settings_screen::firmware_text = []() { return std::string("${SCREEN_FIRMWARE_VERSION}"); };
+          settings_screen::link_text = []() { return std::string(esphome::api_is_connected() ? "Connected" : "Not connected"); };
+          settings_screen::restart_device = []() { ESP_LOGI("settings", "restart from the screen"); App.safe_reboot(); };
+          // A dimmed screen, a calibration or an alert owns the glass; the page waits.
+          settings_screen::may_open = []() {
+            return runtime_tiles::enabled && !id(display_dimmed) && !id(calibration_active) && !id(alert_active);
+          };
+          settings_screen::drift = []() { return cyd::touch_guard.distance(); };
+          settings_screen::before_open = []() { id(close_cards).execute(); };
+          settings_screen::hold_limit = ${SETTINGS_HOLD_DRIFT_PX};
+          settings_screen::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
+          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0, ${SETTINGS_HOLD_W}, ${SCROLL_Y});
       - light.turn_on:
           id: back_light
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
@@ -474,6 +505,19 @@ api:
               }
               runtime_tiles::show_detail(index);
             }
+    # The settings page from Home Assistant: `page` 0 is its menu, 1-4 open a group straight away
+    # (Brightness, Night, Screen, This screen) and a negative page closes it and goes back to page 1.
+    # Handy for support ("look at Screen -> Rotation") and for the render tests.
+    - action: open_settings
+      variables:
+        page: int
+      then:
+        - lambda: |-
+            if (page < 0) { id(go_home).execute(); return; }
+            id(wake_display).execute();
+            settings_screen::open((uint8_t) page);
+            ESP_LOGI("settings", "page %d open from Home Assistant", page);
+
     # Diagnostics: the climate mode picker and the busy sheet of a tile, without touching the glass or HA.
     - action: preview_climate_picker
       then:
@@ -557,6 +601,19 @@ interval:
               return (millis() - id(last_touch_ms)) > (screen_settings::current.standby_seconds * 1000UL);
           then:
             - script.execute: dim_display
+      # Back to page 1 by itself (0.2.44+). A card, a settings page or a second page left open keeps
+      # showing what someone looked at minutes ago; after this long the screen is a screen again.
+      # Independent of standby, which may be off or much later.
+      - if:
+          condition:
+            lambda: |-
+              if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
+              if (id(display_dimmed)) return false;
+              bool away = settings_screen::visible() || !id(active_entity).empty() || id(tile_page) != 0 ||
+                          (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
+              return away && (millis() - id(last_touch_ms)) > (uint32_t) runtime_tiles::auto_home_seconds * 1000UL;
+          then:
+            - script.execute: go_home
 
 time:
   - platform: homeassistant
@@ -1008,6 +1065,9 @@ font:
       - "\U000F059B" # weather-sunset-down
       - "\U000F01D8" # dots-horizontal
       - "\U000F1C91" # arrow-oscillating
+      - "\U000F0379" # monitor
+      - "\U000F02FD" # information-outline
+      - "\U000F0709" # restart
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
     id: materialdesign_icons_mini
@@ -1088,6 +1148,8 @@ text_sensor:
     update_interval: 60s
   - platform: wifi_info
     ip_address:
+      # `id` so the settings page on the screen can show the same address (0.2.44+).
+      id: wifi_ip
       name: "IP address"
       entity_category: diagnostic
 
@@ -3547,6 +3609,15 @@ script:
       - lvgl.widget.hide: climate_detail_overlay
       - lvgl.widget.hide: climate_mode_overlay
 
+  # Everything back to the overview: the settings page, every card and the first page of tiles.
+  # Used by standby, by the "Back to page 1" timeout and by the Home Assistant action.
+  - id: go_home
+    then:
+      - lambda: 'settings_screen::close();'
+      - script.execute: close_cards
+      - lambda: 'id(tile_page) = 0;'
+      - script.execute: show_tile_page
+
   # ---------- ALERT (HA action show_alert) ----------
   # The screen wakes, keeps its normal brightness and shows the card until OK or the
   # timeout (0: until OK); the standby interval waits on alert_active. A new alert
@@ -3564,6 +3635,8 @@ script:
     then:
       - lambda: |-
           if (id(alert_active)) id(alert_report).execute("replaced");
+          // An alert is the one thing that outranks the settings page, so that closes first.
+          settings_screen::close();
           const auto alert = screen_alert::make(title, subtitle, icon, color, button_text, timeout, flash, ${ALERT_TITLE_MAX}, ${ALERT_SUBTITLE_MAX}, ${ALERT_BUTTON_MAX});
           id(alert_active) = true;
           id(alert_title_text) = alert.title;
@@ -3678,6 +3751,8 @@ script:
             - lambda: |-
                 id(display_dimmed) = true;
                 id(apply_screen_settings).execute();
+                // A settings page behind a dark screen helps nobody; it always closes.
+                settings_screen::close();
                 if (screen_settings::current.home_on_standby) {
                   // Runtime detail cards live above the tile grid, so paging alone cannot close them.
                   runtime_tiles::hide_detail();

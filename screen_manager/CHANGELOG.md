@@ -1,3 +1,14 @@
+## 0.2.52 (firmware 0.2.44)
+
+Change a screen's settings on the screen itself.
+
+- **A settings page on the glass.** Hold the top bar of the overview for about a second and a half -- a blue line fills along the top edge while you hold -- and the screen opens its own settings: Brightness, Night, Screen and This screen. Toggles flip on a tap, numbers and times have `-` and `+` (hold them and a time walks whole hours), and a choice like the clock cycles in a chip. A change is saved on the screen, takes effect at once and appears in ESP Screens within a second, so both sides always show the same value.
+- **Rotation and swiping are on it too.** Everything you would want to change standing in front of the panel: brightness, standby, night mode and its hours, the 12/24-hour clock, swiping between pages and, on boards that can, the rotation. Tiles and the top bar stay in the editor, where there is a mouse.
+- **This screen.** Its name, IP address, firmware version, whether Home Assistant is connected, and a Restart that asks once before it does it.
+- **Back to page 1 by itself.** New setting, on by default at two minutes: a card someone opened, or a second page they left behind, closes by itself after that long without a touch. Until now that only happened when the screen went into standby, so with standby off or far away a card could stay up all day. Set the time in ESP Screens or on the screen, or switch it off there.
+- **A Settings tile.** Next to the clock card there is now a `Settings` card you can put on a page, for a screen where holding the bar is not obvious. Needs firmware 0.2.44.
+- **For Home Assistant.** `esphome.<screen>_open_settings` opens the page (0 menu, 1 Brightness, 2 Night, 3 Screen, 4 This screen, -1 closes it and goes back to page 1), and the Claude skill explains all of it.
+
 ## 0.2.51 (firmware 0.2.43)
 
 Ask Claude in Home Assistant to put something on a screen.

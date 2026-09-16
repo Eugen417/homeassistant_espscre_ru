@@ -94,6 +94,11 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   night hours, 24- or 12-hour clock, return to the home page, and optional swiping
   between pages. Home Assistant automations can turn **Auto standby** off and on per
   screen (firmware 0.2.41+), for example to keep a screen on while someone is home.
+- **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
+  second and a half and the screen opens its own settings page — brightness, night,
+  the clock, swiping, rotation, and what this screen is (name, IP address, firmware,
+  whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
+  within a second. See [Settings on the screen](#settings-on-the-screen).
 - **Guition rotation:** 0°, 90°, 180°, or 270°, directly from the management page.
   Native LVGL rotation turns the display and touch together. The CYD keeps its fixed
   orientation and its own calibration.
@@ -312,6 +317,30 @@ all values on one line with the name, icons aligned to digit height, equal spaci
 If not everything fits next to the name, the name gets an ellipsis and the screen drops the
 leading items; the editor marks those with dashes. Until updated, older firmware shows
 only the name and the time (if that's in the bar).
+
+## Settings on the screen
+
+Everything you would want to change while standing in front of the panel is on the screen
+itself (firmware 0.2.44+). Tiles, the top bar and the pages stay in ESP Screens, where you
+have a mouse.
+
+**Opening it:** hold the top bar — the strip with the screen's name and the clock — until the
+blue line along the top edge is full, about a second and a half. Letting go early cancels.
+Rather have a button? Put the built-in **Settings** card on a page like any other tile. From
+Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 Brightness,
+2 Night, 3 Screen, 4 This screen, -1 closes it).
+
+| Group | What is on it |
+|---|---|
+| Brightness | Brightness, Auto standby, Standby after, Standby brightness |
+| Night | Night mode, Starts, Ends, Night brightness |
+| Screen | 12/24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages, rotation (boards that turn) |
+| This screen | Name, IP address, firmware version, Home Assistant connected, Restart |
+
+Tap a toggle to flip it, `-` and `+` to change a number or a time — hold them and a time walks
+whole hours — and tap a chip like the clock to cycle it. Every change is saved on the screen,
+takes effect at once, and appears in ESP Screens within a second, so both sides always show
+the same value.
 
 ## Updates and keeping your settings
 

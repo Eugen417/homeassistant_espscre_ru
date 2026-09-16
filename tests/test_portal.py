@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'screen_manager/app'))
-from core import discover, installation_yaml, packets, state_message, validate_layout, validate_settings
+from core import SETTINGS_BESIDE_BLOCK, discover, installation_yaml, packets, state_message, validate_layout, validate_settings
 
 class ProtocolTests(unittest.TestCase):
     def test_unicode_chunks_and_limits(self):
@@ -125,11 +125,11 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError): fresh.save('text.screen',{**saved,'settings':{'brightness':0}})
             self.assertEqual(path.read_bytes(),before)
             await fresh.sync_one('text.screen',saved)
-            self.assertEqual(fresh.ha.messages[0][1]['settings'],{k:v for k,v in settings.items() if k not in ('swipe_pages','rotation')})
+            self.assertEqual(fresh.ha.messages[0][1]['settings'],{k:v for k,v in settings.items() if k not in SETTINGS_BESIDE_BLOCK})
             await fresh.sync_one('text.screen',saved)
             self.assertEqual(len(fresh.ha.messages),2)
             await fresh.sync_one('text.screen',saved,True)
-            self.assertEqual(fresh.ha.messages[2][1]['settings'],{k:v for k,v in settings.items() if k not in ('swipe_pages','rotation')})
+            self.assertEqual(fresh.ha.messages[2][1]['settings'],{k:v for k,v in settings.items() if k not in SETTINGS_BESIDE_BLOCK})
 
     async def test_reorder_aborts_old_batch(self):
         with tempfile.TemporaryDirectory() as temp:

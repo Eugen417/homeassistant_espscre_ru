@@ -4,6 +4,7 @@
 #include "tile_palette.h"
 #include "tile_icon.h"
 #include "screen_settings.h"
+#include "settings_screen.h"
 #include "esphome/core/preferences.h"
 #include "cyd_ui.h"
 #include "light_controls.h"
@@ -20,11 +21,16 @@
 
 namespace runtime_tiles {
 inline bool enabled = false;
-inline bool swipe_pages = false;
-inline uint32_t rotation = 0;
-inline bool rotation_supported = false;
+// Swiping, rotation and going back to page 1 live in settings_screen, next to the other settings the
+// screen can change itself; these names stay as the way the rest of the firmware reaches them.
+using settings_screen::swipe_pages;
+using settings_screen::rotation;
+using settings_screen::rotation_supported;
+using settings_screen::auto_home;
+using settings_screen::auto_home_seconds;
 inline esphome::ESPPreferenceObject rotation_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
+inline esphome::ESPPreferenceObject home_preference;
 inline Model model;
 inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
@@ -69,18 +75,35 @@ inline uint32_t keepalive_seconds = 120;
 inline std::string layout_rev;
 inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
 inline esphome::ESPPreferenceObject settings_preference;
+// The two extra values of 0.2.44+ in one record: going back to page 1 by itself, and after how long.
+struct HomeTimeout { uint32_t enabled = 1, seconds = 120; };
 inline void load_settings() {
   settings_preference = esphome::global_preferences->make_preference<screen_settings::Settings>(0x53435231);
   swipe_preference = esphome::global_preferences->make_preference<uint32_t>(0x53575031);
+  home_preference = esphome::global_preferences->make_preference<HomeTimeout>(0x484F4D31);
   uint32_t swipe_saved=0;
   if(swipe_preference.load(&swipe_saved))swipe_pages=swipe_saved==1;
+  HomeTimeout home;
+  if(home_preference.load(&home) && home.seconds>=30 && home.seconds<=3600){
+    auto_home=home.enabled?1:0;auto_home_seconds=(int32_t)home.seconds;
+  }
   if(rotation_supported){
     rotation_preference=esphome::global_preferences->make_preference<uint32_t>(0x524F5431);
     uint32_t saved=0;
-    if(rotation_preference.load(&saved) && saved<=270 && saved%90==0)rotation=saved;
+    if(rotation_preference.load(&saved) && saved<=270 && saved%90==0)rotation=(int32_t)saved;
   }
   screen_settings::Settings saved;
   if (settings_preference.load(&saved) && saved.valid()) screen_settings::current = saved;
+}
+// Everything the screen remembers, written in one go. ESPHome batches the flash writes, so a row of
+// taps on -/+ costs one write, and a value that did not change costs nothing.
+inline void persist_settings() {
+  if (screen_settings::current.valid()) settings_preference.save(&screen_settings::current);
+  uint32_t swipe = swipe_pages ? 1 : 0;
+  swipe_preference.save(&swipe);
+  HomeTimeout home{(uint32_t) (auto_home ? 1 : 0), (uint32_t) std::clamp<int32_t>(auto_home_seconds, 30, 3600)};
+  home_preference.save(&home);
+  if (rotation_supported) { uint32_t turned = (uint32_t) rotation; rotation_preference.save(&turned); }
 }
 inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
   // Require the complete known schema; validate before touching any runtime state.
@@ -181,6 +204,9 @@ inline std::string receive(const std::string &payload) {
         entities.push_back(entity.as<std::string>());
       }
       if(!root["swipe_pages"].isNull() && !root["swipe_pages"].is<bool>())return false;
+      if(!root["auto_home"].isNull() && !root["auto_home"].is<bool>())return false;
+      if(!root["auto_home_seconds"].isNull() && (!root["auto_home_seconds"].is<unsigned>() ||
+          root["auto_home_seconds"].as<unsigned>()<30 || root["auto_home_seconds"].as<unsigned>()>3600))return false;
       if(!root["rotation"].isNull() && (!root["rotation"].is<unsigned>() ||
           root["rotation"].as<unsigned>()>270 || root["rotation"].as<unsigned>()%90!=0))return false;
       if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
@@ -201,6 +227,12 @@ inline std::string receive(const std::string &payload) {
       model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, MAX_PAGES)) : 1;
       if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
         swipe_pages=root["swipe_pages"].as<bool>();uint32_t saved=swipe_pages?1:0;swipe_preference.save(&saved);
+      }
+      if((root["auto_home"].is<bool>() && auto_home!=root["auto_home"].as<bool>()) ||
+         (root["auto_home_seconds"].is<unsigned>() && auto_home_seconds!=(int32_t)root["auto_home_seconds"].as<unsigned>())){
+        if(root["auto_home"].is<bool>())auto_home=root["auto_home"].as<bool>();
+        if(root["auto_home_seconds"].is<unsigned>())auto_home_seconds=(int32_t)root["auto_home_seconds"].as<unsigned>();
+        HomeTimeout home{(uint32_t)(auto_home?1:0),(uint32_t)auto_home_seconds};home_preference.save(&home);
       }
       bool rotation_changed=false;
       if(rotation_supported && root["rotation"].is<unsigned>() && rotation!=root["rotation"].as<unsigned>()){
@@ -961,7 +993,7 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "sun") return tile.state == "above_horizon" ? "\U000F059B" : "\U000F059C";
   if (d == "timer") return "\U000F051B";
   if (d == "person") return "\U000F0004";
-  if (d == "screen") return "\U000F0150";
+  if (d == "screen") return tile.is_settings() ? "\U000F0493" : "\U000F0150";
   return "\U000F0425";
 }
 // HA duration strings ("0:05:00") to seconds; 0 when unusable.
@@ -1023,7 +1055,8 @@ inline void event(lv_event_t *event) {
   if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="toggle")open=false;
   if(d=="media_player" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("media_player.toggle",tile.entity);return;}
   if(d=="climate" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("climate.toggle",tile.entity);return;}
-  if(tile.builtin())return;
+  // The clock card does nothing under a finger; the settings card opens the page.
+  if(tile.builtin()){if(tile.is_settings())settings_screen::open();return;}
   // A short tap runs or pauses the timer; holding opens the card with a cancel button.
   if(d=="timer" && !open){action(tile.state=="active"?"timer.pause":"timer.start",tile.entity);return;}
   if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum" || d=="sun" || d=="person" || d=="timer") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }
@@ -1653,7 +1686,9 @@ inline void render_slot(size_t slot) {
   bool watch=t.display=="watch";
   std::string unit=watch?t.unit:"";
   std::string value = t.state;
-  if (!fresh() || !t.available()) value = "Unavailable";
+  // Nothing in Home Assistant stands behind the settings card, so it says the same with the link down.
+  if (t.is_settings()) value = "Tap to open";
+  else if (!fresh() || !t.available()) value = "Unavailable";
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
   else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
   else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
@@ -1676,7 +1711,7 @@ inline void render_slot(size_t slot) {
   bool large_tile=lv_obj_get_height(w.tile)>80;
   lap(swipe_profile::TEXT);
   // Cards that replace the name/status layout entirely.
-  bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.extra().forecast.size()>0 && fresh() && t.available();
+  bool clock=t.is_clock(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.extra().forecast.size()>0 && fresh() && t.available();
   bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.extra().sunrise.empty() && !t.extra().sunset.empty() && fresh() && t.available();
   bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
   bool custom=clock||forecast||sunpath;
@@ -2306,9 +2341,9 @@ inline void tick() {
     for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
-      if((t.builtin() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
+      if((t.is_clock() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
       // The second hand moves on its own: only its line is redrawn, and it hides during standby.
-      else if(w.parts[18] && w.points && t.builtin() && t.display=="analog")second_hand(w,now);
+      else if(w.parts[18] && w.points && t.is_clock() && t.display=="analog")second_hand(w,now);
     }
   }
   if(redraw && refresh)refresh();

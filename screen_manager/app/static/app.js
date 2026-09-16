@@ -92,6 +92,8 @@ const settingDefinitions = [
   // Whether the clock shows is up to the top bar now; the add-on keeps show_clock in step for older firmware.
   ["clock_24h", "24-hour clock (off = 12 hour)", "check", true],
   ["home_on_standby", "Return to page 1 after standby", "check", false],
+  ["auto_home", "Close cards and return to page 1 by itself (firmware 0.2.44+)", "check", true],
+  ["auto_home_seconds", "Return to page 1 after", "minutes", 120, 1, 60],
   ["rotation", "Rotate screen (clockwise)", "rotation", 0],
   ["swipe_pages", "Swipe between pages (Guition: from the edge, firmware 0.2.24+; CYD: quick swipe, 0.2.7+)", "check", false],
 ];
@@ -647,6 +649,7 @@ function iconNamed(name) {
 // What the firmware draws without a choice: Home Assistant's own icon, else the domain icon.
 function automaticIcon(id) {
   const icons = inventory.icons, entity = inventory.entities.find((e) => e.id === id), domain = id.split(".")[0];
+  if (icons.builtin?.[id]) return icons.builtin[id];
   if (entity?.icon) return entity.icon;
   if (domain === "weather") return icons.weather[entity?.state] || icons.weather.partlycloudy;
   if (domain === "sun") return icons.sun[entity?.state] || icons.sun.below_horizon;

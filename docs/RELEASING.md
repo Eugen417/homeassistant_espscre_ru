@@ -176,6 +176,44 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.52 / firmware 0.2.44
+
+App and firmware. Storage version and tile protocol stay 1; everything is additive, so an old screen
+with this app, and a new screen with an older app, both keep working.
+
+- **Two settings, beside the frozen block.** `settings.auto_home` (bool, default `true`) and
+  `settings.auto_home_seconds` (30-3600, default 120) are new keys in `SETTING_RULES`, stored in
+  storage version 1. On the wire they travel as their own top-level keys of the layout message, next to
+  `swipe_pages` and `rotation`; the eleven-field `settings` object is unchanged, because firmware before
+  0.2.44 refuses any other size. `core.SETTINGS_BESIDE_BLOCK` is the one list of such keys and
+  `layout_message` uses it. Older firmware ignores the two keys.
+- **Firmware storage.** A new preference key `0x484F4D31` holds `HomeTimeout` (two uint32: enabled,
+  seconds). The Settings structure `0x53435231`, swipe `0x53575031`, rotation `0x524F5431` and the CYD
+  calibration are untouched. `runtime_tiles::persist_settings()` saves all of them; ESPHome compares each
+  blob with NVS before writing, so unchanged records cost no flash write.
+- **Settings page on the screen.** `components/smart_display/settings_screen.h`: one `constexpr` table of
+  pages and rows, drawn into a root object created on open and deleted on close. Opened by holding the
+  top bar (`attach_hold`, substitutions `SETTINGS_HOLD_X/W/DRIFT_PX`; on the Guition the strip keeps
+  clear of both swipe bands), by the `screen.settings` tile, or by the API action `open_settings`
+  (`page` 0-4, negative closes and goes home). A change is saved, applied (`apply_screen_settings`) and
+  reported with the existing `esphome.screen_setting` event; the manager's handler accepts every key in
+  `SETTING_RULES`, the new ones included. Row taps use the board's own drift limit
+  (`TOUCH_MOVE_LIMIT_PX`), the hold its own.
+- **Back to page 1 by itself.** The 1 s interval runs the new `go_home` script (settings page closed,
+  cards closed, page 1) when `auto_home` is on and nothing touched the screen for `auto_home_seconds`,
+  while a card, the settings page or a later page is showing. Standby now always closes the settings page;
+  an alert closes it too.
+- **`screen.settings` tile.** A second built-in entity next to `screen.clock`. `min_firmware` asks for
+  0.2.44, so the manager does not send a layout with it to older firmware. `Tile::is_clock()` now marks
+  the clock-only paths (minute redraw, second hand) that used `builtin()`; the editor mockup takes the
+  icon from `tile_icons.BUILTIN_TILES`.
+- **Glyphs.** `monitor`, `information-outline` and `restart` join `tile_icons.FIXED` (183 glyphs).
+- **API.** `open_settings` is a new ESPHome action; Home Assistant lists it as
+  `esphome.<screen>_open_settings` after the device reconnects with 0.2.44. The `IP address` text sensor
+  gained `id: wifi_ip`; its entity is unchanged.
+- **Docs.** docs/SETTINGS.md is the recipe for adding a setting; the Claude skill gains a section on the
+  page (one more YAML example), so an installed skill shows as outdated until it is installed again.
+
 ### Compatibility 0.2.51 / firmware 0.2.43
 
 App only; no firmware change, no protocol change, no storage change. Layouts keep their shape, so an
