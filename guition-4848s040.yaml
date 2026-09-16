@@ -2,7 +2,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.46"
+  SCREEN_FIRMWARE_VERSION: "0.2.47"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -142,6 +142,26 @@ esphome:
           // starving the touch polling for the whole length of a quick swipe.
           lv_obj_remove_flag(id(home_page)->obj, LV_OBJ_FLAG_CLICKABLE);
           lv_obj_remove_flag(id(tile_scroll), LV_OBJ_FLAG_CLICKABLE);
+          // A stray GT911 contact at exactly (0, 0) never reaches LVGL (cyd::GhostTouch): as the last
+          // sample of a drag it sent a slider to its end on release. LVGL still reads ESPHome's callback.
+          if (auto *indev = lv_indev_get_next(nullptr)) {
+            static lv_indev_read_cb_t esphome_read = nullptr;
+            static const lv_indev_read_cb_t filtered = [](lv_indev_t *input, lv_indev_data_t *data) {
+              esphome_read(input, data);
+              int32_t ghost_x = 0, ghost_y = 0;
+              id(screen_lvgl).rotate_coordinates(ghost_x, ghost_y);
+              const unsigned dropped = cyd::ghost_touch.dropped();
+              const auto read = cyd::ghost_touch.filter({data->state == LV_INDEV_STATE_PRESSED, (int) data->point.x, (int) data->point.y}, ghost_x, ghost_y);
+              if (cyd::ghost_touch.dropped() != dropped) ESP_LOGI("touch", "GT911 stray contact at (0,0) ignored");
+              data->state = read.pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+              data->point.x = read.x;
+              data->point.y = read.y;
+            };
+            if (lv_indev_get_read_cb(indev) != filtered) {
+              esphome_read = lv_indev_get_read_cb(indev);
+              lv_indev_set_read_cb(indev, filtered);
+            }
+          }
           id(last_touch_ms) = millis();
           id(display_dimmed) = false;
       - lambda: |-
@@ -1129,6 +1149,8 @@ touchscreen:
           // Trace every sample of an edge touch: the log then shows how often the panel delivers.
           if (cyd::edge_swipe.armed())
             ESP_LOGI("touch", "swipe id=%u st=%u x=%u y=%u", (unsigned) point.id, (unsigned) point.state, point.x, point.y);
+          // The stray (0, 0) contact (cyd::GhostTouch) is not where the finger went.
+          if (point.x == 0 && point.y == 0) continue;
           cyd::touch_guard.update(point.x, point.y, point.id);
           if (point.id != cyd::touch_guard.contact()) continue;
           // Swiping in from a side edge flips the page ("Swiping between pages"); the tap
@@ -4536,9 +4558,13 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.brightness = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          // The value the screen already has (an automation that sets it on every light change):
+          // no flash write, no event, so ESP Screen Manager does not resend the whole screen.
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("brightness",s.brightness);
           id(apply_screen_settings).execute();
@@ -4555,9 +4581,11 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.standby_brightness = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("standby_brightness",s.standby_brightness);
           id(apply_screen_settings).execute();
@@ -4574,9 +4602,11 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.night_brightness = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("night_brightness",s.night_brightness);
           id(apply_screen_settings).execute();
@@ -4593,9 +4623,11 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.standby_seconds = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("standby_seconds",s.standby_seconds);
           id(apply_screen_settings).execute();

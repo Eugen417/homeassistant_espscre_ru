@@ -222,6 +222,8 @@ inline std::string receive(const std::string &payload) {
       }
       inbox = string(root["inbox"], 160);
       bool changed = false, moved = false, was_configured = model.configured;
+      const std::string previous_title = model.title;
+      const uint8_t previous_pages = model.pages;
       if (!model.set_layout(entities, string(root["title"], 96), changed, positions, moved)) return false;
       // Empty pages the user keeps on purpose; absent on older managers.
       model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, MAX_PAGES)) : 1;
@@ -249,8 +251,13 @@ inline std::string receive(const std::string &payload) {
       if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
       layout_rev = string(root["rev"], 16);
       last_received = esphome::millis();
-      if (layout_changed) layout_changed();
-      refresh_all();
+      // A repeat of the layout on screen (the hourly repeat, a save that changed nothing here) only
+      // refreshes the feed: drawing the whole page again stalls touch input for a few hundred ms,
+      // long enough to spoil a slider drag. The tile states that follow redraw their own tiles.
+      if (changed || moved || !was_configured || rotation_changed || model.pages != previous_pages || model.title != previous_title) {
+        if (layout_changed) layout_changed();
+        refresh_all();
+      }
       // A repeat of the same layout keeps the inbox state as it is: no new recorder row.
       result = changed || moved || !was_configured ? "Layout received" : model.ready() ? "Synced" : "Loading tiles";
       return true;
@@ -507,6 +514,7 @@ inline int slider_value(const Tile &t){
 }
 inline lv_obj_t *captured_slider=nullptr;
 inline bool slider_changed=false;
+inline int slider_held=0;
 inline void slider_event(lv_event_t *e);
 inline void commit_slider(unsigned i,int raw){
   if(i>=model.count || !fresh())return;auto &t=model.tiles[i];if(!t.available() || t.loading(esphome::millis()))return;
@@ -524,6 +532,16 @@ inline void commit_slider(unsigned i,int raw){
 inline void slider_event(lv_event_t *e){
   auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
   if(code==LV_EVENT_PRESSED){captured_slider=slider;slider_changed=false;}
+  // On release LVGL sets the value once more from the last touch point: log it when that throws a
+  // dragged slider to one of its ends, so a stray touch sample shows up (cyd::release_jump).
+  if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider){
+    auto *indev=lv_indev_active();int raw=lv_slider_get_value(slider);
+    if(!indev || lv_indev_get_state(indev)!=LV_INDEV_STATE_RELEASED)slider_held=raw;
+    else if(slider_changed && cyd::release_jump(slider_held,raw,lv_slider_get_min_value(slider),lv_slider_get_max_value(slider))){
+      lv_point_t point;lv_indev_get_point(indev,&point);
+      ESP_LOGW("slider","Tile slider jumped on release: %d -> %d (touch x=%d y=%d)",slider_held,raw,(int)point.x,(int)point.y);
+    }
+  }
   // The range reaches below zero only to draw the round end at 0 (slider_handle).
   if(code==LV_EVENT_VALUE_CHANGED && lv_slider_get_value(slider)<0)lv_slider_set_value(slider,0,LV_ANIM_OFF);
   if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider)slider_changed=true;

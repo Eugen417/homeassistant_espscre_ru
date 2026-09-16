@@ -1,3 +1,12 @@
+## 0.2.55 (firmware 0.2.47)
+
+A colour slider no longer turns red when you let go.
+
+- **Sliders keep the value you let go of.** On a Guition, dragging a light's colour slider and letting go could send red instead of the colour under your finger, and brightness or colour temperature could jump to an end the same way. The touch panel now and then reports a stray touch in the top-left corner just as the finger lifts, and the screen took that as where the finger was. The screen now ignores it. Should a slider still jump when you let go, the ESPHome log says `slider jumped on release`.
+- **Setting a screen to what it already has costs nothing.** An automation that sets Standby after or a brightness whenever a light changes runs on every colour and brightness change too, because a state trigger without `to:` also fires on those. Each time, ESP Screens sent the whole screen again, and while the screen redrew its page it briefly stopped reading the touch panel: exactly when you were dragging that light's slider. A value the screen already has is now neither saved on the screen nor sent again by ESP Screens.
+- **A repeated layout no longer redraws the page.** The hourly repeat, and a save that changed nothing for this screen, only update the tiles whose state comes in, instead of rebuilding the whole page behind an open card.
+- Needs firmware 0.2.47: press **Update** on the screen.
+
 ## 0.2.54 (firmware 0.2.46)
 
 The standby code, tidied after a review of Wake and Sleep.

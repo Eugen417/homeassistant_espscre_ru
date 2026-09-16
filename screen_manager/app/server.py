@@ -704,13 +704,17 @@ class Manager:
                 try:
                     inbox,key,value=event.get('inbox'),event.get('key'),event.get('value')
                     if inbox in self.layouts:
-                        layout=dict(self.layouts[inbox]); settings=validate_settings(layout.get('settings',{}))
+                        layout=dict(self.layouts[inbox]); stored=validate_settings(layout.get('settings',{})); settings=dict(stored)
                         if key not in settings: continue
                         settings[key] = value=='1' if type(settings[key]) is bool else int(value)
                         if key=='brightness':
                             settings['standby_brightness']=min(settings['standby_brightness'],settings[key])
                             settings['night_brightness']=min(settings['night_brightness'],settings[key])
-                        layout['settings']=validate_settings(settings);self.save(inbox,layout)
+                        settings=validate_settings(settings)
+                        # A screen reporting what it already has (an automation setting the same value on
+                        # every light change): saving would resend the whole screen while someone uses it.
+                        if settings==stored: continue
+                        layout['settings']=settings;self.save(inbox,layout)
                 except (ValueError,TypeError): pass
             if hasattr(self.ha,'setting_events'): self.ha.setting_events.clear()
             dirty = self.take_dirty()

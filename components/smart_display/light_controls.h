@@ -34,13 +34,15 @@ struct State {
 
 #ifndef LIGHT_CONTROLS_TEST
 #include "esphome/components/api/api_server.h"
+#include "esphome/core/log.h"
 #include "lvgl.h"
+#include "cyd_ui.h"
 #include <functional>
 namespace light_controls {
 inline State states[8];
 inline State fallback;
 inline State *active = &fallback;
-struct Row { lv_obj_t *box{}, *slider{}, *value{}; bool dirty = false; unsigned index{}; bool off = false; };
+struct Row { lv_obj_t *box{}, *slider{}, *value{}; bool dirty = false; unsigned index{}; bool off = false; int held = 0; };
 inline Row rows[3];
 inline std::function<void(int)> commits[3];
 inline bool ready = false;
@@ -94,7 +96,20 @@ inline void preview(Row &row) {
 inline void event(lv_event_t *e) {
   auto &row = *static_cast<Row *>(lv_event_get_user_data(e));
   auto code = lv_event_get_code(e);
-  if (code == LV_EVENT_VALUE_CHANGED) { row.dirty = true; row.off = false; preview(row); }
+  if (code == LV_EVENT_VALUE_CHANGED) {
+    // On release LVGL sets the value once more from the last touch point; say so when that throws
+    // a dragged slider to one of its ends, so a stray touch sample shows up in the log.
+    auto *indev = lv_indev_active();
+    const int value = lv_slider_get_value(row.slider);
+    if (!indev || lv_indev_get_state(indev) != LV_INDEV_STATE_RELEASED) row.held = value;
+    else if (row.dirty && cyd::release_jump(row.held, value, lv_slider_get_min_value(row.slider), lv_slider_get_max_value(row.slider))) {
+      static const char *const names[] = {"Color", "Color temperature", "Brightness"};
+      lv_point_t point;
+      lv_indev_get_point(indev, &point);
+      ESP_LOGW("slider", "%s slider jumped on release: %d -> %d (touch x=%d y=%d)", names[row.index], row.held, value, (int) point.x, (int) point.y);
+    }
+    row.dirty = true; row.off = false; preview(row);
+  }
   if (code == LV_EVENT_PRESS_LOST) row.dirty = false;
   if (code == LV_EVENT_RELEASED && row.dirty) {
     row.dirty = false;

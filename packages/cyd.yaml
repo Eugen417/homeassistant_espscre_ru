@@ -18,7 +18,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.46"
+  SCREEN_FIRMWARE_VERSION: "0.2.47"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -4537,9 +4537,13 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.brightness = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          // The value the screen already has (an automation that sets it on every light change):
+          // no flash write, no event, so ESP Screen Manager does not resend the whole screen.
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("brightness",s.brightness);
           id(apply_screen_settings).execute();
@@ -4556,9 +4560,11 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.standby_brightness = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("standby_brightness",s.standby_brightness);
           id(apply_screen_settings).execute();
@@ -4575,9 +4581,11 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.night_brightness = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("night_brightness",s.night_brightness);
           id(apply_screen_settings).execute();
@@ -4594,9 +4602,11 @@ number:
     set_action:
       - lambda: |-
           auto &s = screen_settings::current;
+          const auto before = s;
           s.standby_seconds = (int)x;
           s.standby_brightness = std::min(s.standby_brightness,s.brightness);
           s.night_brightness = std::min(s.night_brightness,s.brightness);
+          if (s == before) return;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("standby_seconds",s.standby_seconds);
           id(apply_screen_settings).execute();

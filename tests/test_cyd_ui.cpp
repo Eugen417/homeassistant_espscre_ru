@@ -136,4 +136,23 @@ int main() {
   assert(rollover.accept(50, 1)); // millis wraps after 49 days
   rollover.begin(60);
   assert(!rollover.accept(130, 1));
+  // GT911 stray (0, 0): measured on Studio 1 as the last sample of a drag before lift-off.
+  cyd::GhostTouch ghost;
+  auto same = [](cyd::PointerRead a, bool pressed, int x, int y) { return a.pressed == pressed && a.x == x && a.y == y; };
+  assert(same(ghost.filter({false, 0, 0}, 0, 0), false, 0, 0));      // released: nothing to hide
+  assert(same(ghost.filter({true, 0, 0}, 0, 0), false, 0, 0));       // a touch cannot start in the corner
+  assert(same(ghost.filter({true, 302, 250}, 0, 0), true, 302, 250)); // the finger on blue
+  assert(same(ghost.filter({true, 0, 0}, 0, 0), true, 302, 250));    // stray sample: still on blue
+  assert(same(ghost.filter({true, 0, 0}, 0, 0), true, 302, 250));    // and again
+  assert(same(ghost.filter({false, 302, 250}, 0, 0), false, 302, 250)); // released where the finger was
+  assert(ghost.dropped() == 3);
+  assert(same(ghost.filter({true, 0, 240}, 0, 0), true, 0, 240));    // the left edge itself is a real touch
+  assert(same(ghost.filter({true, 479, 479}, 479, 479), true, 0, 240)); // rotated 180: (0, 0) is that corner
+  assert(same(ghost.filter({true, 0, 0}, 479, 479), true, 0, 0));    // and the top-left is a real pixel there
+  // A dragged slider sent to its end on release is reported; a drag that ends there is not a jump.
+  assert(cyd::release_jump(240, 0, 0, 360));      // hue: blue to red at the start
+  assert(cyd::release_jump(120, 360, 0, 360));    // green to red at the end
+  assert(!cyd::release_jump(20, 0, 0, 360));      // dragged to the start and let go
+  assert(!cyd::release_jump(240, 238, 0, 360));   // a few pixels on lift-off
+  assert(cyd::release_jump(80, -6, -6, 100));     // brightness: 80 % to the stub below 1 %
 }

@@ -176,6 +176,36 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.55 / firmware 0.2.47
+
+App, board profiles and `components/smart_display`. Storage, tile protocol, preferences and keys are unchanged.
+
+- The app: `Manager.run()` compares the validated settings of an `esphome.screen_setting` event with the stored
+  ones and skips `save()` when they are equal. Before, every event saved the layout, `save()` dropped
+  `sent[inbox]`, and the next pass resent layout, header and every tile state.
+- The four setting numbers (`setting_brightness`, `setting_standby_brightness`, `setting_night_brightness`,
+  `setting_standby_seconds`) return before `settings_preference.save` and `setting_event` when
+  `screen_settings::current` did not change (`Settings::operator==`). The Auto standby switch already did.
+  No state is published in that case: `apply_screen_settings` publishes numbers only when they differ.
+- `runtime_tiles::receive`, op `layout`: `layout_changed()` and `refresh_all()` run only for changed or moved
+  tiles, the first layout, a rotation or settings change, or another `pages` count or title. A repeat still
+  sets `inbox`, `keepalive_seconds`, `layout_rev` and `last_received`; the tile states after it redraw their
+  own tiles through `refresh_tile`.
+- Guition `on_boot` wraps the read callback of the LVGL touch input (ESPHome's `LVTouchListener`):
+  `cyd::GhostTouch` repeats the previous read when a pressed read lands exactly on the native (0, 0), mapped
+  with `LvglComponent::rotate_coordinates`, and logs `touch: GT911 stray contact at (0,0) ignored`.
+  `on_update` skips (0, 0) before `touch_guard` and `edge_swipe`. The CYD keeps its own XPT2046 `TouchFilter`.
+- `cyd::release_jump` logs (tag `slider`, WARN) when LVGL's recalculation on release (`update_knob_pos(obj,
+  false)` for RELEASED in LVGL 9.5) moves a dragged slider to an end, more than a quarter of its range away
+  from where it was held: the three colour-card rows and the tile sliders.
+- Measured on Studio 1 (firmware 0.2.43, 2026-09-16): `automation.studio_1_scherm_wakker_houden_bij_licht`, a
+  state trigger on a group of six lamps without `to:`, set `number.studio_1_standby_after` to its current
+  value after every colour change. The resulting `esphome.screen_setting` event triggered a full resync
+  (layout plus 13 states) 0.34 s later. Both red commits (`hs_color [0, 100]`) left 75-85 ms after such a
+  resync reached the screen. Earlier Studio 1 logs show a stray (0, 0) as the last sample in 4 of 90 traced
+  edge touches. ESPHome 2026.6.2's GT911 driver writes 0 to the status register before it reads the
+  coordinates; that ordering is a candidate for an upstream fix.
+
 ### Compatibility 0.2.54 / firmware 0.2.46
 
 Board profiles; the app raises `FIRMWARE_VERSION` and adjusts the Auto standby row of the Claude skill.

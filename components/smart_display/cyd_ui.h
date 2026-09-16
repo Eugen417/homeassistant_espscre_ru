@@ -183,4 +183,37 @@ class EdgeSwipe {
   bool done_{true};
 };
 inline EdgeSwipe edge_swipe;
+
+// The GT911 (Guition) now and then reports a contact at exactly (0, 0), mostly as the last
+// sample before the finger lifts. LVGL takes the last pressed sample as the finger's position
+// on release, so a slider jumped to its end and sent that value (a colour turning red). The
+// corner pixel is never a real touch: such a sample repeats the read before it instead.
+struct PointerRead {
+  bool pressed;
+  int x, y;
+};
+class GhostTouch {
+ public:
+  // `ghost_x`, `ghost_y`: where the native (0, 0) lands after the display rotation.
+  PointerRead filter(PointerRead read, int ghost_x, int ghost_y) {
+    if (read.pressed && read.x == ghost_x && read.y == ghost_y) {
+      ++dropped_;
+      return last_;
+    }
+    last_ = read;
+    return read;
+  }
+  unsigned dropped() const { return dropped_; }
+ private:
+  PointerRead last_{false, 0, 0};
+  unsigned dropped_{0};
+};
+inline GhostTouch ghost_touch;
+
+// A dragged slider that LVGL moved to one of its ends on release, far from where the finger held
+// it: the touch panel reported a stray point. Worth a log line, the finger was never there.
+inline bool release_jump(int held, int released, int minimum, int maximum) {
+  const bool at_end = released <= minimum || released >= maximum;
+  return at_end && std::abs(released - held) * 4 > maximum - minimum;
+}
 }  // namespace cyd
