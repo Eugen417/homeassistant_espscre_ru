@@ -2,7 +2,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.47"
+  SCREEN_FIRMWARE_VERSION: "0.2.48"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -281,7 +281,9 @@ esphome:
           settings_screen::before_open = []() { id(close_cards).execute(); };
           settings_screen::hold_limit = ${SETTINGS_HOLD_DRIFT_PX};
           settings_screen::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
-          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0, ${SETTINGS_HOLD_W}, ${SCROLL_Y});
+          // Under the cards: brightness_overlay is the first of them on the page, so the back button and
+          // the action at the top right of a card keep their taps.
+          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0, ${SETTINGS_HOLD_W}, ${SCROLL_Y}, id(brightness_overlay));
       - light.turn_on:
           id: back_light
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"

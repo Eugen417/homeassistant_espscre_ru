@@ -712,8 +712,10 @@ inline void hold_event(lv_event_t *event) {
 }
 
 // A transparent strip over the top bar plus the line that fills while it is held. Both belong to the
-// page below, so they survive every redraw of the tiles.
-inline void attach_hold(lv_obj_t *page, int x, int y, int width, int height) {
+// page below, so they survive every redraw of the tiles. `below` is the first card that opens over the
+// page: the strip goes under it, so a card's back button and its action at the top right get their taps
+// (firmware 0.2.44-0.2.47 created the strip last, on top of every card).
+inline void attach_hold(lv_obj_t *page, int x, int y, int width, int height, lv_obj_t *below = nullptr) {
   bool large = lv_display_get_horizontal_resolution(lv_display_get_default()) >= 480;
   hold_area = plain(page, x, y, width, height);
   lv_obj_add_flag(hold_area, LV_OBJ_FLAG_CLICKABLE);
@@ -727,6 +729,10 @@ inline void attach_hold(lv_obj_t *page, int x, int y, int width, int height) {
   lv_obj_set_style_bg_color(hold_bar, lv_color_hex(0x009FE3), 0);
   lv_obj_add_flag(hold_bar, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(hold_bar);
+  if (below && lv_obj_get_parent(below) == page) {
+    lv_obj_move_to_index(hold_area, lv_obj_get_index(below));
+    lv_obj_move_to_index(hold_bar, lv_obj_get_index(below));
+  }
 }
 
 }  // namespace settings_screen

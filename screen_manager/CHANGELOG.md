@@ -1,3 +1,10 @@
+## 0.2.56 (firmware 0.2.48)
+
+The back button on a card works again.
+
+- **Back works on every card.** Since firmware 0.2.44 the back arrow of the light, colour and climate cards hardly responded, and neither did the button at the top right of the climate card. The invisible strip you hold to open the settings page lay on top of the cards and caught those taps. It now lies under the cards, so holding the top bar only opens the settings page from the tile pages, as intended.
+- Needs firmware 0.2.48: press **Update** on the screen. Includes everything from 0.2.55.
+
 ## 0.2.55 (firmware 0.2.47)
 
 A colour slider no longer turns red when you let go.

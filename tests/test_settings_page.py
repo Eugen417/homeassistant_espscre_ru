@@ -108,6 +108,22 @@ class Firmware(unittest.TestCase):
                 self.assertGreaterEqual(x, band, name)
                 self.assertLessEqual(x + int(hold), width - band, name)
 
+    def test_the_hold_strip_lies_under_every_card(self):
+        # Firmware 0.2.44-0.2.47 created the strip after the cards, so it lay on top of them: a card's
+        # back button and its action at the top right lost their taps to it. (The wake overlay of a dimmed
+        # screen was not affected: apply_screen_settings moves it to the foreground.)
+        self.assertIn('lv_obj_move_to_index(hold_area, lv_obj_get_index(below));', SCREEN)
+        cards = ('brightness_overlay', 'color_detail_overlay', 'climate_detail_overlay', 'climate_mode_overlay',
+                 'dim_wake_overlay')
+        for name, text in self.profiles.items():
+            call = re.search(r'settings_screen::attach_hold\(id\(home_page\)->obj, [^;]*, id\((\w+)\)\);', text)
+            self.assertTrue(call, f'{name}: attach_hold gets no card to stay under')
+            self.assertEqual(call[1], cards[0], name)
+            page = text[text.index('- id: home_page'):]
+            positions = [page.index(f'id: {card}\n') for card in cards]
+            self.assertEqual(positions, sorted(positions), f'{name}: {cards[0]} must be the first card on the page')
+            self.assertLess(page.index('id: page_next\n'), positions[0], f'{name}: the page controls stay under the strip')
+
 
 if __name__ == '__main__':
     unittest.main()

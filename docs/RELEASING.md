@@ -176,6 +176,19 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.56 / firmware 0.2.48
+
+`components/smart_display/settings_screen.h` and both board profiles; the app only raises `FIRMWARE_VERSION`.
+Storage, tile protocol, preferences and keys are unchanged.
+
+- `settings_screen::attach_hold(page, x, y, w, h, below)` moves the hold strip and its fill line to the index of
+  `below`, directly under it. Both profiles pass `id(brightness_overlay)`, the first of the YAML cards on
+  `home_page` (brightness, colour, climate, climate mode, then the dim wake overlay). Before, `on_boot` created
+  the strip after them, so LVGL's hit test found the transparent strip (x 32-448 on the Guition, 72 px high)
+  before a card's back button (x 16-76) or its action at the top right. The dim wake overlay was not affected:
+  `apply_screen_settings` moves it to the foreground whenever the screen is dimmed. The runtime detail card
+  and the settings page move themselves to the foreground and were not affected either.
+
 ### Compatibility 0.2.55 / firmware 0.2.47
 
 App, board profiles and `components/smart_display`. Storage, tile protocol, preferences and keys are unchanged.

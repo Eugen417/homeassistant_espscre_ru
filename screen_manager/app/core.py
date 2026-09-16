@@ -17,7 +17,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.47'
+FIRMWARE_VERSION = '0.2.48'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
