@@ -9,6 +9,7 @@
 #include "cyd_ui.h"
 #include "light_controls.h"
 #include "tile_controls.h"
+#include "history_view.h"
 #include "swipe_profile.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
@@ -40,6 +41,8 @@ inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
 inline const lv_font_t *clock_font = nullptr;
 // Text in the -/+ pill and the run key of direct controls; the board profile sets it.
 inline const lv_font_t *control_font = nullptr;
+// The smallest regular text (sublabel): axis labels and the legend of the history card.
+inline const lv_font_t *small_font = nullptr;
 inline lv_obj_t *room_label = nullptr;  // remembered by render() so page switches can render synchronously
 // Top bar (0.2.32+): the profile's clock label only lends its place and margin; values use the
 // profile's text font, icons its small icon font. Set by the board profile at boot.
@@ -65,6 +68,8 @@ inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
 inline std::string last_run_text(uint32_t epoch);
+inline void history_received();
+inline uint32_t domain_accent(const Tile &t);
 inline const char *icon_for(const Tile &tile);
 inline void label(lv_obj_t *obj, const std::string &text);
 inline int active_index = -1;
@@ -75,6 +80,32 @@ inline uint32_t keepalive_seconds = 120;
 // Revision of the layout the manager sent last (app 0.2.39+). A keepalive ping carries the
 // manager's revision; a mismatch (a restart, a demo layout) asks for the whole layout again.
 inline std::string layout_rev;
+// History on a detail card (firmware 0.2.51+): the last history the manager sent (app 0.2.59+ answers
+// history_request with op "history"), for the card that asked.
+struct HistoryState { std::string label; uint32_t color = 0; uint32_t seconds = 0; };
+struct History {
+  std::string entity, unit;
+  uint32_t hours = 0, start = 0, end = 0, began = 0;
+  int32_t offset = 0;
+  bool line = true, has_high = false, has_low = false;
+  float values[history_view::PARTS]{};
+  bool has[history_view::PARTS]{};
+  float bottom = 0, top = 1, high = 0, low = 0;
+  uint32_t high_at = 0, low_at = 0;
+  int decimals = 1, active = -1;
+  std::vector<std::pair<float, std::string>> ticks;
+  std::vector<uint32_t> times;
+  uint16_t slots = 0;
+  std::vector<history_view::Run> runs;
+  std::vector<HistoryState> states;
+  // Home Assistant's words for the states (raw state, words), so the heading follows a state that changes.
+  std::vector<std::pair<std::string, std::string>> words;
+};
+inline History history;
+// The range the open card shows (1, 24 or 168 hours); what it asked for last and when; whether that answer came.
+inline uint32_t history_hours = 24, history_asked_at = 0, history_asked_hours = 0, history_received_at = 0;
+inline std::string history_asked_entity;
+inline bool history_answered = false;
 inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
 inline esphome::ESPPreferenceObject settings_preference;
 // The two extra values of 0.2.44+ in one record: going back to page 1 by itself, and after how long.
@@ -302,6 +333,90 @@ inline std::string receive(const std::string &payload) {
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
+    if (op == "history") {
+      // A detail card's history (app 0.2.59+), the answer to history_request. Checked whole before it replaces
+      // the one the screen holds.
+      History next;
+      next.entity = string(root["entity"], 120);
+      next.hours = root["hours"] | 0u;
+      if (!valid_entity(next.entity) || (next.hours != 1 && next.hours != 24 && next.hours != 168)) return false;
+      // An answer to an earlier question (another card, another range) would push out the one the card waits for.
+      if (next.entity != history_asked_entity || next.hours != history_asked_hours) {
+        result = model.ready() ? "Synced" : "Loading tiles";
+        return true;
+      }
+      next.start = root["start"] | 0u;
+      next.end = root["end"] | 0u;
+      next.offset = std::clamp(root["off"] | 0, -14 * 3600, 14 * 3600);
+      if (next.end <= next.start) return false;
+      next.line = string(root["kind"], 12) != "timeline";
+      if (root["xt"].is<JsonArray>()) for (JsonVariant moment : root["xt"].as<JsonArray>()) {
+        if (next.times.size() == 8) break;
+        if (moment.is<unsigned>()) next.times.push_back(moment.as<uint32_t>());
+      }
+      if (next.line) {
+        unsigned i = 0;
+        if (root["values"].is<JsonArray>()) for (JsonVariant value : root["values"].as<JsonArray>()) {
+          if (i == history_view::PARTS) break;
+          float v = number(value);
+          next.has[i] = std::isfinite(v);
+          next.values[i] = next.has[i] ? v : 0;
+          ++i;
+        }
+        next.bottom = number(root["dom"][0], 0);
+        next.top = number(root["dom"][1], 1);
+        if (!(next.top > next.bottom)) next.top = next.bottom + 1;
+        if (root["yt"].is<JsonArray>()) for (JsonVariant tick : root["yt"].as<JsonArray>()) {
+          if (next.ticks.size() == 6) break;
+          float v = number(tick[0]);
+          if (std::isfinite(v)) next.ticks.emplace_back(v, string(tick[1], 16));
+        }
+        next.high = number(root["hi"][0]);
+        next.has_high = std::isfinite(next.high);
+        next.high_at = root["hi"][1] | 0u;
+        next.low = number(root["lo"][0]);
+        next.has_low = std::isfinite(next.low);
+        next.low_at = root["lo"][1] | 0u;
+        next.decimals = std::clamp(root["dec"] | 1, 0, 4);
+        next.unit = string(root["unit"], 16);
+      } else {
+        next.slots = static_cast<uint16_t>(std::clamp(root["slots"] | 96u, 1u, 96u));
+        if (root["states"].is<JsonArray>()) for (JsonVariant state : root["states"].as<JsonArray>()) {
+          if (next.states.size() == 7) break;
+          HistoryState s;
+          s.label = string(state[0], 24);
+          s.color = std::strtoul(string(state[1], 8).c_str(), nullptr, 16);
+          s.seconds = state[2] | 0u;
+          next.states.push_back(std::move(s));
+        }
+        if (root["seg"].is<JsonArray>()) for (JsonVariant item : root["seg"].as<JsonArray>()) {
+          if (next.runs.size() == 96) break;
+          const unsigned slot = item[0] | 0u;
+          const int state = item[1] | -1;
+          if (slot >= next.slots || state >= static_cast<int>(next.states.size()) || state < -1) return false;
+          history_view::Run run;
+          run.slot = static_cast<uint16_t>(slot);
+          run.state = static_cast<int8_t>(state);
+          run.begin = item[2] | 0u;
+          run.end = std::max<uint32_t>(run.begin, item[3] | 0u);
+          run.seconds = item[4] | 0u;
+          next.runs.push_back(run);
+        }
+        if (root["words"].is<JsonArray>()) for (JsonVariant pair : root["words"].as<JsonArray>()) {
+          if (next.words.size() == 12) break;
+          next.words.emplace_back(string(pair[0], 32), string(pair[1], 24));
+        }
+        next.began = root["began"] | 0u;
+        next.active = root["active"] | -1;
+        if (next.active >= static_cast<int>(next.states.size())) next.active = -1;
+      }
+      history = std::move(next);
+      history_received_at = esphome::millis();
+      history_answered = true;
+      history_received();
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
 #ifdef SWIPE_PROFILE
     if (op == "swipe_test") {
       // Diagnostic builds only: page switches without a finger, `n` of them `ms` apart; `back`
@@ -465,6 +580,29 @@ inline void action(const std::string &service, const std::string &entity, const 
   esphome::api::global_api_server->send_homeassistant_action(request);
   ESP_LOGI("runtime_action","Sent service=%s entity=%s",service.c_str(),entity.c_str());
 }
+// A detail card asks the manager for its history (app 0.2.59+ answers with op "history"). An event, like
+// setting_event: it needs no permission to call Home Assistant actions.
+inline void history_request(const std::string &entity, uint32_t hours) {
+  if (inbox.empty()) return;
+  esphome::api::HomeassistantActionRequest request;
+  request.service = esphome::StringRef("esphome.screen_history");
+  request.is_event = true;
+  const std::string span = std::to_string(hours);
+  const std::string keys[] = {"inbox", "entity", "hours"}, values[] = {inbox, entity, span};
+  request.data.init(3);
+  for (int i = 0; i < 3; ++i) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef(keys[i]);
+    entry.value = esphome::StringRef(values[i]);
+    request.data.push_back(entry);
+  }
+  esphome::api::global_api_server->send_homeassistant_action(request);
+  history_asked_at = esphome::millis();
+  history_answered = false;
+  history_asked_entity = entity;
+  history_asked_hours = hours;
+  ESP_LOGI("history", "asked for %u h of %s", static_cast<unsigned>(hours), entity.c_str());
+}
 inline void setting_event(const std::string &key, int value) {
   if(inbox.empty())return;
   esphome::api::HomeassistantActionRequest request;request.service=esphome::StringRef("esphome.screen_setting");request.is_event=true;
@@ -573,6 +711,15 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
   auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);if(command==0)lv_obj_set_style_text_color(label,lv_color_hex(0xFFFFFF),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(button,[](lv_event_t *e){
     int cmd=(intptr_t)lv_event_get_user_data(e);if(cmd==-1){hide_detail();return;}
+    // History ranges (firmware 0.2.51+): redraw after this event, which belongs to a key the redraw deletes.
+    if(cmd>=160&&cmd<163){
+      static const uint32_t hours[]={1,24,168};
+      if(detail_index<model.count&&allowed(esphome::millis(),300+cmd,"history range")&&history_hours!=hours[cmd-160]){
+        history_hours=hours[cmd-160];
+        lv_async_call([](void *){if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
+      }
+      return;
+    }
     if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
     auto &t=model.tiles[detail_index];if(!t.available()||t.loading(esphome::millis()))return;
     if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
@@ -646,7 +793,9 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   unsigned columns=std::min<unsigned>(weather.hours.size(),6);
   int hours_h=columns?small_h+mini_h+text_h+small_h+(large?16:6):0;
   int card_a_h=card_pad+hero+(columns?(large?14:8)+hours_h:0)+card_pad;
-  int y=large?62:38;
+  // The Guition starts below the round back button of the top bar (60 px at 16); the CYD needs every pixel for the
+  // coming days and starts where it did.
+  int y=large?84:38;
   auto *now=detail_card(pad,y,width-2*pad,card_a_h);
   // Now: icon, temperature, condition, then feels-like / humidity / wind in one muted line.
   int cy=card_pad;char b[48];
@@ -1038,32 +1187,320 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
   if(key_count){cover_key_row(keys,key_count,pad,y,inner,key_h,gap,key_icons);y+=key_h+gap;}
   if(tilt_count)cover_key_row(tilt_keys,tilt_count,pad,y,inner,key_h,gap,key_icons);
 }
-inline void show_detail(unsigned index){
-  if(index>=model.count)return;detail_index=index;auto &t=model.tiles[index];
-  if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
-  if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
-  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
-  lv_obj_set_style_bg_color(detail_root,lv_color_hex(0xE7E7E7),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
-  int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
-  bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
-  // The same top bar as the board's own cards: a round back arrow at the left, the name centred.
-  int bar=large?60:40,bar_x=large?16:10,bar_y=large?16:8;
-  auto *back=detail_button("",bar_x,bar_y,bar,bar,-1);lv_obj_set_style_radius(back,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(back,lv_color_hex(0xEEEEEE),0);
-  auto *arrow=lv_obj_get_child(back,0);if(mini_icon_font)lv_obj_set_style_text_font(arrow,mini_icon_font,0);lv_label_set_text(arrow,"\U000F004D");lv_obj_set_size(arrow,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(arrow);
-  const lv_font_t *title_font=watch_font?watch_font:detail_font;
-  auto *heading=detail_label(detail_root,t.name,bar_x+bar+8,bar_y+(bar-lv_font_get_line_height(title_font))/2,width-2*(bar_x+bar+8));
-  lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
+// ---- History card (firmware 0.2.51+): numbers as a line with axes, states as a timeline ----
+// Sensors, numbers, switches, binary sensors and people. The card asks the manager for the chosen range when it
+// opens (an hour, a day or a week; always 24 averages or 96 slots) and draws what comes back. A finger on the
+// graph shows the value or state and its time at the top, until it lifts.
+inline bool history_card(const Tile &t){
   auto d=t.domain();
-  std::string state=d=="cover"?cover_status_line(t):detail_state(t);
-  // The vacuum card draws its own state (hero or status row) with the battery beside it.
-  if(d!="vacuum"){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);}
+  return d=="sensor"||d=="binary_sensor"||d=="switch"||d=="input_boolean"||d=="person"||d=="number"||d=="input_number";
+}
+// Before the history arrives: a line for numbers, a timeline for the rest.
+inline bool history_line_guess(const Tile &t){
+  auto d=t.domain();
+  if(d=="number"||d=="input_number")return true;
+  if(d!="sensor"||t.device_class=="enum"||t.device_class=="timestamp"||t.device_class=="date")return false;
+  if(!t.unit.empty())return true;
+  char *end=nullptr;std::strtof(t.state.c_str(),&end);return end!=t.state.c_str();
+}
+// The open card's parts that a finger changes, and the plot: x, y, w, h on the screen.
+struct HistoryChart {
+  lv_obj_t *value=nullptr,*first=nullptr,*second=nullptr,*area=nullptr,*status=nullptr;
+  int x=0,y=0,w=0,h=0;
+  float bottom=0,top=1;
+  // The highest and lowest moment the card shows: the history's, or the value now when it goes beyond them.
+  float high=NAN,low=NAN;
+  uint32_t high_at=0,low_at=0;
+  bool line=true,ready=false;
+  uint32_t accent=0x2196F3;
+  std::string value_text,first_text,second_text;
+  lv_point_precise_t *points=nullptr;unsigned count=0;
+};
+inline HistoryChart history_chart;
+inline void history_forget(){
+  auto &c=history_chart;c.value=c.first=c.second=c.area=c.status=nullptr;c.count=0;c.ready=false;c.high=c.low=NAN;
+}
+inline float history_y(float value){
+  const auto &c=history_chart;
+  return c.y+c.h-(std::clamp(value,c.bottom,c.top)-c.bottom)/(c.top-c.bottom)*c.h;
+}
+// Where a moment of the range lies across the plot, from its left edge.
+inline float history_x(uint32_t at){
+  const auto &h=history;const auto &c=history_chart;
+  return float(std::clamp(at,h.start,h.end)-h.start)/float(std::max<uint32_t>(1,h.end-h.start))*(c.w-1);
+}
+// The history holds the open card's entity and range, and is new: the answer to this opening, or less than a
+// minute old (a card opened again shows it at once while it asks).
+inline bool history_fits(const Tile &t){
+  return history.entity==t.entity&&history.hours==history_hours&&
+    (history_answered||esphome::millis()-history_received_at<60000);
+}
+// Home Assistant's word for the state now: from the history's words, else the card's own.
+inline std::string history_words(const Tile &t){
+  if(!t.available())return "Unavailable";
+  for(const auto &pair:history.words)if(pair.first==t.state)return pair.second;
+  return detail_state(t);
+}
+inline std::string history_clock(uint32_t epoch,bool weekday){
+  return history_view::clock(epoch,history.offset,screen_settings::current.clock_24h!=0,weekday);
+}
+// The soft area under the line: two triangles per segment down to the plot's bottom, no layer buffer.
+inline void history_fill(lv_event_t *e){
+  const auto &c=history_chart;if(!c.line||c.count<2||!c.area)return;
+  auto *layer=lv_event_get_layer(e);lv_area_t area;lv_obj_get_coords(c.area,&area);
+  lv_draw_triangle_dsc_t dsc;lv_draw_triangle_dsc_init(&dsc);dsc.color=lv_color_hex(c.accent);dsc.opa=LV_OPA_20;
+  const lv_value_precise_t ox=area.x1,oy=area.y1,base=area.y2+1;
+  for(unsigned i=0;i+1<c.count;++i){
+    const auto &a=c.points[i],&b=c.points[i+1];
+    dsc.p[0]={ox+a.x,oy+a.y};dsc.p[1]={ox+b.x,oy+b.y};dsc.p[2]={ox+b.x,base};lv_draw_triangle(layer,&dsc);
+    dsc.p[1]=dsc.p[2];dsc.p[2]={ox+a.x,base};lv_draw_triangle(layer,&dsc);
+  }
+}
+// The timeline: one rectangle per run, drawn in the bar's own draw event instead of an object each.
+inline void history_bar(lv_event_t *e){
+  const auto &h=history;if(h.line||!h.slots)return;
+  auto *obj=lv_event_get_current_target_obj(e);auto *layer=lv_event_get_layer(e);
+  lv_area_t area;lv_obj_get_coords(obj,&area);const int w=lv_area_get_width(&area);
+  lv_draw_rect_dsc_t dsc;lv_draw_rect_dsc_init(&dsc);dsc.bg_opa=LV_OPA_COVER;
+  for(size_t i=0;i<h.runs.size();++i){
+    const int state=h.runs[i].state;
+    const int x1=area.x1+w*h.runs[i].slot/h.slots,x2=area.x1+w*history_view::run_end(h.runs,h.slots,i)/h.slots-1;
+    dsc.bg_color=lv_color_hex(state<0||state>=static_cast<int>(h.states.size())?0xF1F1F1:h.states[state].color);
+    lv_area_t piece{x1,area.y1,std::max(x1,x2),area.y2};lv_draw_rect(layer,&dsc,&piece);
+  }
+}
+inline void history_restore(){
+  auto &c=history_chart;
+  if(c.value){label(c.value,c.value_text);lv_obj_set_style_text_color(c.value,lv_color_hex(0x1B1B1B),0);}
+  if(c.first)label(c.first,c.first_text);
+  if(c.second)label(c.second,c.second_text);
+}
+// A finger on the graph: the value (or state) of the moment under it, and when, at the top of the card. The graph
+// itself stays as it is.
+inline void history_scrub(lv_event_t *e){
+  auto &c=history_chart;const auto &h=history;auto code=lv_event_get_code(e);
+  if(code==LV_EVENT_RELEASED||code==LV_EVENT_PRESS_LOST){history_restore();return;}
+  if((code!=LV_EVENT_PRESSED&&code!=LV_EVENT_PRESSING)||!c.ready||!c.value||!lv_indev_active())return;
+  lv_point_t point;lv_indev_get_point(lv_indev_active(),&point);
+  const float fraction=std::clamp(float(point.x-c.x)/float(std::max(1,c.w)),0.0f,1.0f);
+  const bool week=h.hours==168;
+  if(c.line){
+    // A part without a value (before the sensor existed, while it was unavailable) says so.
+    const int i=history_view::part_at(fraction);
+    const uint64_t span=h.end-h.start;
+    const uint32_t begin=h.start+static_cast<uint32_t>(span*i/history_view::PARTS),finish=h.start+static_cast<uint32_t>(span*(i+1)/history_view::PARTS);
+    label(c.value,h.has[i]?history_view::number(h.values[i],h.decimals,h.unit):"No data");
+    lv_obj_set_style_text_color(c.value,lv_color_hex(h.has[i]?c.accent:0x6B6B6B),0);
+    if(c.first)label(c.first,history_clock(begin,week)+" \u2013 "+history_clock(finish,false));
+    if(c.second)label(c.second,!h.has[i]?"":h.hours==1?"average":"average of "+history_view::duration(finish-begin));
+  }else{
+    // A run reads the real times of its state, not the slots it covers: a door open for 5 minutes says 5 min.
+    const int r=history_view::run_at(h.runs,h.slots,fraction);if(r<0)return;
+    const auto &run=h.runs[r];
+    const uint32_t begin=h.start+run.begin,finish=h.start+run.end;
+    label(c.value,run.state<0||run.state>=static_cast<int>(h.states.size())?"No data":h.states[run.state].label);
+    if(c.first)label(c.first,history_clock(begin,week)+" \u2013 "+history_clock(finish,week&&finish-begin>=43200));
+    if(c.second)label(c.second,history_view::duration(run.seconds));
+  }
+}
+// The transparent area a finger scrubs, over the graph and a little around it; it keeps the finger while it drags.
+inline void history_touch(int x,int y,int w,int h){
+  auto *area=lv_obj_create(detail_root);lv_obj_remove_style_all(area);lv_obj_set_pos(area,x,y);lv_obj_set_size(area,w,h);
+  lv_obj_add_flag(area,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_flag(area,LV_OBJ_FLAG_PRESS_LOCK);
+  lv_obj_remove_flag(area,LV_OBJ_FLAG_SCROLLABLE);lv_obj_remove_flag(area,LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_add_event_cb(area,history_scrub,LV_EVENT_ALL,nullptr);
+}
+// Times below the graph: round clock times (weekdays for a week) where they fit, and "Now" at the end.
+inline void history_times(int x,int w,int y,const lv_font_t *font,bool large){
+  const auto &h=history;
+  const lv_font_t *bold=detail_font?detail_font:font;
+  const int now_w=text_width("Now",bold),gap=large?10:6;
+  detail_text(detail_root,"Now",x+w-now_w,y,now_w+2,bold,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+  int last=x-1000;
+  for(uint32_t at:h.times){
+    if(at<=h.start||at>=h.end)continue;
+    const std::string words=h.hours==168?history_view::clock(at,h.offset,true,true).substr(0,3)
+      :history_view::axis_clock(at,h.offset,screen_settings::current.clock_24h!=0);
+    const int tw=text_width(words,font),cx=x+static_cast<int>(std::lround(float(at-h.start)/float(h.end-h.start)*w));
+    const int left=std::max(x-(large?8:4),cx-tw/2);
+    if(left<=last+gap||left+tw>x+w-now_w-gap)continue;
+    detail_shape(detail_root,cx,y-(large?7:4),1,large?5:3,0xCCCCCC,0);
+    detail_text(detail_root,words,left,y,tw+2,font,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+    last=left+tw;
+  }
+}
+inline void render_history_line(bool large,int card_x,int card_y,int card_w,int card_h,const lv_font_t *small,float current){
+  auto &c=history_chart;const auto &h=history;
+  // The value now can lie outside the history (the last hour is not in the statistics yet): the plot makes room.
+  c.bottom=h.bottom;c.top=h.top;
+  if(std::isfinite(current)&&(current<c.bottom||current>c.top)){
+    const float margin=(std::max(c.top,current)-std::min(c.bottom,current))*0.06f;
+    if(current<c.bottom)c.bottom=current-margin;else c.top=current+margin;
+  }
+  const int label_h=lv_font_get_line_height(small),edge=large?14:8;
+  int label_w=0;for(const auto &tick:h.ticks)label_w=std::max(label_w,text_width(tick.second,small));
+  c.x=card_x+edge+label_w+(label_w?(large?10:5):0);c.w=card_x+card_w-(large?18:10)-c.x;
+  c.y=card_y+(large?22:10);c.h=card_y+card_h-(label_h+(large?16:8))-c.y;
+  if(c.w<40||c.h<24)return;
+  for(const auto &tick:h.ticks){
+    const int ty=static_cast<int>(std::lround(history_y(tick.first)));
+    detail_shape(detail_root,c.x,ty,c.w,1,0xEEEEEE,0);
+    detail_text(detail_root,tick.second,card_x+edge,ty-label_h/2,label_w+2,small,LV_TEXT_ALIGN_RIGHT,0x6B6B6B);
+  }
+  // Through the middle of each part, from the left edge when the range begins with a value, to "Now" at the right
+  // (the value now); a curve that never overshoots them, so the axis and the highest and lowest moment stay true.
+  // The averages only reach the highest and lowest moment in their hour, so the line also runs through those two
+  // moments: its peak and its valley are where the rings are.
+  float xs[history_view::PARTS+4],ys[history_view::PARTS+4];unsigned n=0;
+  for(int i=0;i<history_view::PARTS;++i){
+    if(!h.has[i])continue;
+    const float y=history_y(h.values[i])-c.y;
+    if(i==0){xs[n]=0;ys[n++]=y;}
+    xs[n]=history_view::part_middle(i)*(c.w-1);ys[n++]=y;
+  }
+  if(n&&std::isfinite(current)){xs[n]=float(c.w-1);ys[n++]=history_y(current)-c.y;}
+  // A moment takes the place of its part's point, so the curve stays smooth; its ring goes where the point is.
+  float high_x=history_x(c.high_at),low_x=history_x(c.low_at);
+  if(n){
+    const float snap=(c.w-1)/float(2*history_view::PARTS);
+    int kept=-1;
+    if(std::isfinite(c.high)&&(kept=history_view::through(xs,ys,n,history_view::PARTS+4,high_x,history_y(c.high)-c.y,snap))>=0)high_x=xs[kept];
+    if(std::isfinite(c.low)){
+      const int at=history_view::through(xs,ys,n,history_view::PARTS+4,low_x,history_y(c.low)-c.y,snap,kept);
+      if(at>=0)low_x=xs[at];
+    }
+  }
+  if(!c.points)c.points=new lv_point_precise_t[POINT_BUFFER];
+  c.count=n>=2?history_view::monotone(xs,ys,n,4,c.points,POINT_BUFFER):0;
+  c.area=lv_obj_create(detail_root);lv_obj_remove_style_all(c.area);lv_obj_set_pos(c.area,c.x,c.y);lv_obj_set_size(c.area,c.w,c.h);
+  lv_obj_remove_flag(c.area,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(c.area,LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_event_cb(c.area,history_fill,LV_EVENT_DRAW_MAIN,nullptr);
+  if(c.count>=2){
+    auto *stroke=lv_line_create(detail_root);lv_obj_remove_flag(stroke,LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_line_rounded(stroke,true,0);lv_obj_set_style_line_width(stroke,large?3:2,0);
+    lv_obj_set_style_line_color(stroke,lv_color_hex(c.accent),0);
+    lv_line_set_points(stroke,c.points,c.count);lv_obj_set_pos(stroke,c.x,c.y);
+  }
+  // The highest and lowest moment as rings; the Guition writes their values beside them.
+  const int ring=large?12:8;
+  auto marker=[&](float value,float at_x,bool high){
+    const int mx=c.x+static_cast<int>(std::lround(at_x));
+    const int my=static_cast<int>(std::lround(history_y(value)));
+    auto *o=detail_shape(detail_root,mx-ring/2,my-ring/2,ring,ring,0xFFFFFF,ring/2);
+    lv_obj_set_style_border_width(o,large?3:2,0);lv_obj_set_style_border_color(o,lv_color_hex(c.accent),0);
+    if(!large)return;
+    const std::string words=history_view::number(value,h.decimals,"");
+    const int lh=lv_font_get_line_height(detail_font),tw=text_width(words,detail_font)+2;
+    int ly=high?my-ring/2-lh-2:my+ring/2+2;
+    if(ly<card_y+4)ly=my+ring/2+2;
+    if(ly+lh>c.y+c.h+6)ly=my-ring/2-lh-2;
+    const int lx=std::max(c.x,std::min(mx-tw/2,c.x+c.w-tw));
+    detail_text(detail_root,words,lx,ly,tw,detail_font,LV_TEXT_ALIGN_CENTER,0x1B1B1B);
+  };
+  if(std::isfinite(c.high))marker(c.high,high_x,true);
+  if(std::isfinite(c.low)&&c.low!=c.high)marker(c.low,low_x,false);
+  if(std::isfinite(current)){
+    const int size=large?12:8;
+    auto *o=detail_shape(detail_root,c.x+c.w-1-size/2,static_cast<int>(std::lround(history_y(current)))-size/2,size,size,c.accent,size/2);
+    lv_obj_set_style_border_width(o,2,0);lv_obj_set_style_border_color(o,lv_color_hex(0xFFFFFF),0);
+  }
+  history_times(c.x,c.w,c.y+c.h+(large?8:4),small,large);
+  history_touch(c.x-(large?14:8),card_y,c.w+(large?28:16),card_h);
+}
+inline void render_history_timeline(bool large,int card_x,int card_y,int card_w,int card_h,const lv_font_t *small){
+  auto &c=history_chart;const auto &h=history;
+  const int edge=large?16:8,label_h=lv_font_get_line_height(small),times_gap=large?8:4,legend_gap=large?16:6;
+  const int row_h=label_h+(large?10:3),square=large?14:8;
+  c.x=card_x+edge;c.w=card_w-2*edge;c.h=large?56:24;
+  // Bar, times and legend as one block in the middle of the card; a legend that does not fit loses its last rows.
+  const int above=c.h+times_gap+label_h+legend_gap;
+  const int rows=std::max(1,std::min(static_cast<int>((h.states.size()+1)/2),(card_h-2*edge-above+row_h-label_h)/row_h));
+  const int block=above+rows*row_h-(row_h-label_h);
+  c.y=card_y+std::max(edge,(card_h-block)/2);
+  auto *bar=lv_obj_create(detail_root);lv_obj_remove_style_all(bar);lv_obj_set_pos(bar,c.x,c.y);lv_obj_set_size(bar,c.w,c.h);
+  lv_obj_remove_flag(bar,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(bar,LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_event_cb(bar,history_bar,LV_EVENT_DRAW_MAIN,nullptr);
+  history_times(c.x,c.w,c.y+c.h+times_gap,small,large);
+  // Every state with its colour and its time, in two columns.
+  const int top=c.y+above,col_w=c.w/2;
+  const size_t shown=std::min<size_t>(h.states.size(),static_cast<size_t>(rows)*2);
+  for(size_t i=0;i<shown;++i){
+    const int lx=c.x+static_cast<int>(i%2)*col_w,ly=top+static_cast<int>(i/2)*row_h;
+    detail_shape(detail_root,lx,ly+(label_h-square)/2,square,square,h.states[i].color,large?4:2);
+    const std::string time=history_view::duration(h.states[i].seconds);
+    const int tw=text_width(time,small)+2,words_x=lx+square+(large?10:5),time_x=lx+col_w-(large?14:8)-tw;
+    detail_text(detail_root,h.states[i].label,words_x,ly,std::max(8,time_x-words_x-6),small,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+    detail_text(detail_root,time,time_x,ly,tw,small,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+  }
+  history_touch(c.x-(large?14:8),card_y,c.w+(large?28:16),c.y+c.h+(large?24:12)-card_y);
+}
+// The range: an hour, a day or a week, as one segmented row. It asks the manager, not Home Assistant, so
+// waiting for a command does not lock it.
+inline void history_ranges(int x,int y,int w,int h){
+  static const uint32_t hours[]={1,24,168};
+  static const char *const words[]={"1 hour","24 hours","1 week"};
+  const lv_font_t *font=control_font?control_font:detail_font;
+  auto *track=detail_shape(detail_root,x,y,w,h,0xFFFFFF,h/2);
+  lv_obj_set_style_border_width(track,1,0);lv_obj_set_style_border_color(track,lv_color_hex(0xDDDDDD),0);
+  const int inset=std::max(3,h/10),sw=(w-2*inset)/3;
+  for(int i=0;i<3;++i){
+    const bool selected=history_hours==hours[i];
+    const int segment_w=i==2?w-2*inset-2*sw:sw;
+    auto *segment=detail_button(words[i],x+inset+i*sw,y+inset,segment_w,h-2*inset,160+i);
+    lv_obj_set_style_radius(segment,(h-2*inset)/2,0);
+    lv_obj_set_style_bg_color(segment,lv_color_hex(0x009FE3),0);
+    lv_obj_set_style_bg_opa(segment,selected?LV_OPA_COVER:LV_OPA_TRANSP,0);
+    lv_obj_set_style_bg_opa(segment,LV_OPA_COVER,LV_STATE_PRESSED);
+    if(!selected)lv_obj_set_style_bg_color(segment,lv_color_hex(0xD5EEFC),LV_STATE_PRESSED);
+    button_words(segment,font,selected?0xFFFFFF:0x1B1B1B,segment_w-6);
+    if(detail_action_count&&detail_actions[detail_action_count-1]==segment)--detail_action_count;
+  }
+}
+inline void render_history_detail(const Tile &t,bool large,int width,int height,int pad){
+  auto &c=history_chart;const auto &h=history;auto d=t.domain();
+  history_forget();
+  // Asked once per opening and range; again after 30 s without an answer (see tick).
+  if(history_asked_entity!=t.entity||history_asked_hours!=history_hours||(!history_fits(t)&&esphome::millis()-history_asked_at>30000))
+    history_request(t.entity,history_hours);
+  c.ready=history_fits(t);
+  const bool line=c.ready?h.line:history_line_guess(t);
+  c.line=line;c.accent=domain_accent(t);
+  const lv_font_t *big=watch_value_font?watch_value_font:(watch_font?watch_font:detail_font);
+  const lv_font_t *text=control_font?control_font:detail_font;
+  const lv_font_t *small=small_font?small_font:detail_font;
+  // The header: the value now (or the state), and at the right what the history says about it.
+  char *end=nullptr;const float parsed=std::strtof(t.state.c_str(),&end);
+  const bool numeric=end!=t.state.c_str()&&std::isfinite(parsed)&&t.available();
+  const float current=numeric?parsed:NAN;
+  c.first_text.clear();c.second_text.clear();
+  if(line){
+    int decimals=0;const auto dot=t.state.find('.');if(dot!=std::string::npos)decimals=static_cast<int>(std::min<size_t>(4,t.state.size()-dot-1));
+    if(c.ready)decimals=h.decimals;
+    c.value_text=!t.available()?"Unavailable":numeric?history_view::number(current,decimals,t.unit):t.state;
+    if(c.ready){
+      // The value now counts too: it can lie beyond the history (the running hour is not in the statistics yet).
+      if(h.has_high){c.high=h.high;c.high_at=h.high_at;}
+      if(h.has_low){c.low=h.low;c.low_at=h.low_at;}
+      if(std::isfinite(current)&&std::isfinite(c.high)&&current>c.high){c.high=current;c.high_at=h.end;}
+      if(std::isfinite(current)&&std::isfinite(c.low)&&current<c.low){c.low=current;c.low_at=h.end;}
+    }
+    if(std::isfinite(c.high))c.first_text="High "+history_view::number(c.high,h.decimals,h.unit)+" \u00B7 "+history_clock(c.high_at,h.hours==168);
+    if(std::isfinite(c.low))c.second_text="Low "+history_view::number(c.low,h.decimals,h.unit)+" \u00B7 "+history_clock(c.low_at,h.hours==168);
+  }else{
+    c.value_text=history_words(t);
+    if(c.ready&&h.active>=0){
+      c.first_text=h.states[h.active].label+" \u00B7 "+history_view::duration(h.states[h.active].seconds);
+      c.second_text=h.began==1?"once":h.began?std::to_string(h.began)+" times":"";
+    }
+  }
+  const int row=large?84:50,row_h=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text);
+  int right=width-pad-(large?8:4);
   if(t.is_switch()){
-    detail_label(detail_root,"Tap to toggle",pad,top,width-2*pad);
+    const int sw=large?84:52,sh=large?46:28;
     detail_switch=lv_switch_create(detail_root);
-    lv_obj_set_size(detail_switch,large?240:140,large?112:64);
-    lv_obj_set_pos(detail_switch,(width-(large?240:140))/2,top+(large?65:30));
+    lv_obj_set_size(detail_switch,sw,sh);lv_obj_set_pos(detail_switch,right-sw,row+(row_h-sh)/2);
     lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xB0B0B0),LV_PART_MAIN);
-    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xFFB900),LV_PART_INDICATOR|LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xFFB900),static_cast<lv_style_selector_t>(LV_PART_INDICATOR)|LV_STATE_CHECKED);
     lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xFFFFFF),LV_PART_KNOB);
     lv_obj_set_style_opa(detail_switch,LV_OPA_50,LV_STATE_DISABLED);
     if(t.state=="on")lv_obj_add_state(detail_switch,LV_STATE_CHECKED);
@@ -1077,31 +1514,80 @@ inline void show_detail(unsigned index){
       if(tile.state=="on")lv_obj_add_state(control,LV_STATE_CHECKED);else lv_obj_remove_state(control,LV_STATE_CHECKED);
       if(allowed)action(tile.domain()+(requested_on?".turn_on":".turn_off"),tile.entity);
     },LV_EVENT_VALUE_CHANGED,nullptr);
-    detail_actions[detail_action_count++]=detail_switch;
+    if(detail_action_count<32)detail_actions[detail_action_count++]=detail_switch;
+    right-=sw+(large?14:8);
+  }
+  // The value column fits the widest text a finger can show there, so a readout never runs into the texts beside it.
+  int widest=text_width(c.value_text,big);
+  if(c.ready)widest=std::max(widest,text_width("No data",big));
+  if(c.ready&&line){for(int i=0;i<history_view::PARTS;++i)if(h.has[i])widest=std::max(widest,text_width(history_view::number(h.values[i],h.decimals,h.unit),big));}
+  else if(c.ready){for(const auto &s:h.states)widest=std::max(widest,text_width(s.label,big));}
+  const int value_x=pad+(large?8:4),value_w=std::min(widest+6,(width-2*pad)*11/20);
+  c.value=detail_text(detail_root,c.value_text,value_x,row,value_w,big,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+  const int words_x=value_x+value_w+(large?12:6),words_w=std::max(20,right-words_x),words_y=row+(row_h-2*text_h)/2;
+  c.first=detail_text(detail_root,c.first_text,words_x,words_y,words_w,text,LV_TEXT_ALIGN_RIGHT,0x5F6368);
+  c.second=detail_text(detail_root,c.second_text,words_x,words_y+text_h,words_w,text,LV_TEXT_ALIGN_RIGHT,0x5F6368);
+  int top=row+std::max(row_h,2*text_h)+(large?10:4);
+  if(d=="number"||d=="input_number"){
+    const int slider_h=large?24:14;
+    auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+(large?14:10),top+(large?10:5));
+    lv_obj_set_size(slider,width-2*pad-(large?28:20),slider_h);lv_slider_set_range(slider,0,1000);
+    lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
+    lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)detail_index);
+    top+=slider_h+(large?22:12);
+  }
+  const int range_h=large?48:28,bottom=height-(large?16:6),range_y=bottom-range_h,card_h=range_y-(large?10:5)-top;
+  detail_card(pad,top,width-2*pad,card_h);
+  const bool empty=c.ready&&(line?std::none_of(h.has,h.has+history_view::PARTS,[](bool v){return v;}):h.states.empty());
+  if(!c.ready||empty){
+    c.status=detail_text(detail_root,!c.ready?"Loading history...":"No history in this period",pad,top+(card_h-text_h)/2,width-2*pad,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);
+  }else if(line){
+    render_history_line(large,pad,top,width-2*pad,card_h,small,current);
+  }else{
+    render_history_timeline(large,pad,top,width-2*pad,card_h,small);
+  }
+  history_ranges(pad,range_y,width-2*pad,range_h);
+}
+inline void show_detail(unsigned index){
+  if(index>=model.count)return;
+  // A card that opens starts on a day (an hour for a tile whose graph shows one); switching ranges keeps it open.
+  if(!detail_root||lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)||detail_index!=index){
+    history_hours=model.tiles[index].history_hours==1?1:24;history_asked_entity.clear();
+  }
+  detail_index=index;auto &t=model.tiles[index];
+  if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
+  if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
+  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;history_forget();lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
+  lv_obj_set_style_bg_color(detail_root,lv_color_hex(0xE7E7E7),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
+  int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
+  bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
+  // The same top bar as the board's own cards: a round back arrow at the left, the name centred.
+  int bar=large?60:40,bar_x=large?16:10,bar_y=large?16:8;
+  auto *back=detail_button("",bar_x,bar_y,bar,bar,-1);lv_obj_set_style_radius(back,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(back,lv_color_hex(0xEEEEEE),0);
+  auto *arrow=lv_obj_get_child(back,0);if(mini_icon_font)lv_obj_set_style_text_font(arrow,mini_icon_font,0);lv_label_set_text(arrow,"\U000F004D");lv_obj_set_size(arrow,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(arrow);
+  const lv_font_t *title_font=watch_font?watch_font:detail_font;
+  auto *heading=detail_label(detail_root,t.name,bar_x+bar+8,bar_y+(bar-lv_font_get_line_height(title_font))/2,width-2*(bar_x+bar+8));
+  lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
+  auto d=t.domain();
+  std::string state=d=="cover"?cover_status_line(t):detail_state(t);
+  // The vacuum and history cards draw their own state.
+  const bool with_history=history_card(t);
+  if(d!="vacuum"&&!with_history){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);}
+  if(with_history){
+    render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
     render_vacuum_detail(t,large,width,height,pad);
   }else if(d=="cover"){
     if(detail_status && control_font){lv_obj_set_style_text_font(detail_status,control_font,0);lv_obj_set_height(detail_status,lv_font_get_line_height(control_font));}
     render_cover_detail(t,large,width,height,pad);
-  }else if(d=="sensor"){
-    float minimum=INFINITY,maximum=-INFINITY;for(float value:t.history)if(t.has_history&&std::isfinite(value)){minimum=std::min(minimum,value);maximum=std::max(maximum,value);}
-    if(!std::isfinite(minimum)){detail_label(detail_root,"No numeric HA history",pad,top,width-2*pad);return;}
-    char text[100];snprintf(text,sizeof(text),"%u hours / %.2f - %.2f %s",t.history_hours,minimum,maximum,t.unit.c_str());detail_label(detail_root,text,pad,top,width-2*pad);
-    int chart_y=top+(large?46:28),chart_h=height-chart_y-30,bar_w=(width-pad*2)/24;
-    for(unsigned i=0;i<t.history.size() && i<24;++i){if(!std::isfinite(t.history[i]))continue;int h=maximum>minimum?8+(chart_h-8)*(t.history[i]-minimum)/(maximum-minimum):chart_h/2;
-      auto *bar=lv_obj_create(detail_root);lv_obj_remove_style_all(bar);lv_obj_set_pos(bar,pad+i*bar_w,chart_y+chart_h-h);lv_obj_set_size(bar,std::max(2,bar_w-2),h);lv_obj_set_style_bg_color(bar,lv_color_hex(0x16A5E6),0);lv_obj_set_style_bg_opa(bar,LV_OPA_COVER,0);}
-    detail_label(detail_root,std::to_string(t.history_hours)+" hours ago",pad,height-24,(width-2*pad)/2);
-    auto *now=detail_label(detail_root,"Now",width/2,height-24,width/2-pad);lv_obj_set_style_text_align(now,LV_TEXT_ALIGN_RIGHT,0);
   }else if(d=="select"||d=="input_select"){
     const auto &options=t.extra().options;
     for(unsigned i=0;i<options.size();++i)detail_button(options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
-  }else if(d=="number"||d=="input_number"||d=="media_player"){
-    if(d=="media_player"){
-      detail_label(detail_root,t.extra().media_title,pad,top,width-2*pad);top+=large?45:25;
-      int w=(width-pad*2-2*gap)/3;
-      detail_button("Previous",pad,top,w,bh,21);detail_button("Play/pause",pad+w+gap,top,w,bh,20);detail_button("Next",pad+2*(w+gap),top,w,bh,22);top+=bh+gap;
-    }
-    detail_label(detail_root,d=="media_player"?"Volume":"Value",pad,top,width-2*pad);
+  }else if(d=="media_player"){
+    detail_label(detail_root,t.extra().media_title,pad,top,width-2*pad);top+=large?45:25;
+    int w=(width-pad*2-2*gap)/3;
+    detail_button("Previous",pad,top,w,bh,21);detail_button("Play/pause",pad+w+gap,top,w,bh,20);detail_button("Next",pad+2*(w+gap),top,w,bh,22);top+=bh+gap;
+    detail_label(detail_root,"Volume",pad,top,width-2*pad);
     auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
     lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   }else if(d=="weather"){
@@ -1118,6 +1604,10 @@ inline void show_detail(unsigned index){
 }
 
 namespace runtime_tiles {
+inline void history_received(){
+  if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)&&detail_index<model.count&&
+     model.tiles[detail_index].entity==history.entity&&history_hours==history.hours)refresh_detail(detail_index);
+}
 inline void refresh_detail(unsigned index){
   if(!detail_root || lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) || detail_index!=index)return;
   auto *input=lv_indev_get_next(nullptr);if(input && lv_indev_get_state(input)==LV_INDEV_STATE_PRESSED)return;
@@ -2478,6 +2968,14 @@ inline bool was_fresh=false;
 inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
     auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());
+    // The history the card waits for: drawn once it is here (a finger on the screen holds that back), asked for
+    // again every 30 s, and after 8 s without it (an app from before 0.2.59, Home Assistant away) the card says so.
+    if(history_chart.status&&!history_chart.ready){
+      const uint32_t now=esphome::millis();
+      if(history_fits(t))refresh_detail(detail_index);
+      else if(now-history_asked_at>30000)history_request(t.entity,history_hours);
+      else if(now-history_asked_at>8000)label(history_chart.status,"No history available");
+    }
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
     std::string status=waiting?(t.confirmed?"Confirmed by Home Assistant":"Command sent..."):t.domain()=="cover"?cover_status_line(t):detail_state(t);
     if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));

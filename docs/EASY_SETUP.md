@@ -143,8 +143,10 @@ Click **Save & send to screen** to send your changes.
 - Climate, vacuum, and cover: tap to open the control card.
 - Long press a fan: speed, if the device supports percentages.
 - Scene/script: tap to run; button/input_button: tap to press.
-- Sensor: tap for the history card; set 1, 6, or 24 hours on the tile.
-- Binary sensor: view status. Select/input_select: open the picker menu.
+- Sensor, number, binary sensor, and person: tap for the history card, for 1 hour,
+  24 hours, or 1 week. Long press a switch for its history. A sensor's graph on the tile
+  shows 1, 6, or 24 hours.
+- Select/input_select: open the picker menu.
 
 From firmware 0.2.7, twenty tiles fit across up to four pages. Older
 firmware keeps the limit of ten until you update. Under **General settings

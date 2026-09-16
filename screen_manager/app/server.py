@@ -15,10 +15,11 @@ from firmware import Firmware
 import tile_icons
 from updates import Updater
 
-from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
+from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import BROADCAST_EVENTS, BUILTIN, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state
 import header_bar
+import history_card
 from zoneinfo import ZoneInfo
 
 LOG = logging.getLogger('screen_manager')
@@ -104,6 +105,8 @@ class HomeAssistant:
         # Assistant's own list; refreshed when a device registers its actions again.
         self.responses = set()
         self.services_changed = asyncio.Event()
+        # History a detail card asks for when it opens (firmware 0.2.51+): {inbox, entity, hours}, for Manager.card_history_loop.
+        self.history_requests = asyncio.Queue()
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -137,6 +140,8 @@ class HomeAssistant:
                 if event.get('event_type') == 'esphome.screen_setting':
                     self.setting_events.append(body)
                     self.changed.set()
+                elif event.get('event_type') == 'esphome.screen_history':
+                    self.history_requests.put_nowait(body)
                 elif event.get('event_type') == 'state_changed':
                     eid = body.get('entity_id')
                     if body.get('new_state'):
@@ -199,6 +204,7 @@ class HomeAssistant:
                     reader = asyncio.create_task(self.read())
                     await self.request('subscribe_events', event_type='state_changed')
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
+                    await self.request('subscribe_events', event_type='esphome.screen_history')
                     for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
@@ -324,7 +330,8 @@ class HomeAssistant:
             found[entity] = samples(events, begin, span)
         return found
 
-    async def history(self, entity, hours):
+    async def state_changes(self, entity, hours):
+        """(unix time, state) of every change in the last `hours`, beginning with the state at the start (REST history)."""
         start = (datetime.now(timezone.utc)-timedelta(hours=hours)).isoformat()
         async with self.session.get(self.base+'/history/period/'+start,
                 params={'filter_entity_id':entity,'minimal_response':'','no_attributes':''},
@@ -335,14 +342,26 @@ class HomeAssistant:
                 raw.extend(chunk)
                 if len(raw)>2*1024*1024: raise ValueError('History too large.')
             rows=json.loads(raw)
-        events=[]
-        begin=datetime.fromisoformat(start).timestamp(); span=hours*3600
+        changes=[]
         for row in rows[0] if rows else []:
             try:
                 timestamp=datetime.fromisoformat(row.get('last_changed',row.get('last_updated','')).replace('Z','+00:00')).timestamp()
-            except (ValueError,TypeError): continue
-            events.append((timestamp,rounded(row.get('state'))))
-        return samples(events, begin, span)
+            except (ValueError,TypeError,AttributeError): continue
+            changes.append((timestamp,row.get('state')))
+        return changes
+
+    async def history(self, entity, hours):
+        begin=(datetime.now(timezone.utc)-timedelta(hours=hours)).timestamp()
+        return samples([(timestamp,rounded(state)) for timestamp,state in await self.state_changes(entity,hours)], begin, hours*3600)
+
+    async def statistic_rows(self, entity, hours):
+        """The recorder's hourly statistics rows of one entity over the last `hours` (mean, min, max, state), from the
+        hour the range begins in; empty for an entity without statistics."""
+        start = datetime.now(timezone.utc) - timedelta(hours=hours + 1)
+        result = await self.request('recorder/statistics_during_period', start_time=start.isoformat(), statistic_ids=[entity],
+                                    period='hour', types=['mean', 'min', 'max', 'state'])
+        rows = (result or {}).get(entity) if isinstance(result, dict) else None
+        return rows if isinstance(rows, list) else []
 
 class Manager:
     def __init__(self, ha, path):
@@ -374,6 +393,8 @@ class Manager:
         # Answers (firmware 0.2.49+): when to send everything again after one said the screen lacks something,
         # how often that failed in a row, and actions Home Assistant refused to answer for.
         self.retry_at, self.retries, self.no_answers = {}, {}, set()
+        # History for detail cards (firmware 0.2.51+): (entity, hours) -> (monotonic, message), and the fetches under way.
+        self.card_histories, self.card_history_fetches = {}, {}
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
@@ -651,6 +672,78 @@ class Manager:
             LOG.info('%s answered "%s"; sending everything again in %d s', name, status, max(1, round(due - time.monotonic())))
             self.retries[inbox] = failures + 1
             self.retry_at[inbox] = due
+
+    # ----- History on a detail card (firmware 0.2.51+) -----
+    async def card_history_loop(self):
+        """Answer the history a screen asks for when a card opens, a few at a time."""
+        limit = asyncio.Semaphore(3)
+
+        async def answer(request):
+            async with limit:
+                try:
+                    await self.answer_history(request)
+                except (ClientError, ConnectionError, TimeoutError, OSError, ValueError) as error:
+                    # Nothing is sent or kept: the card says it has no history and asks again.
+                    LOG.info('No history for %s (%s)', request.get('entity'), type(error).__name__)
+                except Exception as error:
+                    LOG.warning('History for %s was not sent (%s)', request.get('entity') if isinstance(request, dict) else '?', type(error).__name__)
+        while True:
+            request = await self.ha.history_requests.get()
+            asyncio.ensure_future(answer(request))
+
+    async def answer_history(self, request):
+        """One screen's request: an entity on its own layout, a range the card offers, a screen that takes whole messages."""
+        if not isinstance(request, dict):
+            return
+        inbox = self.aliases.get(request.get('inbox'), request.get('inbox'))
+        entity = request.get('entity')
+        try:
+            hours = int(request.get('hours'))
+        except (TypeError, ValueError):
+            return
+        layout, screen = self.layouts.get(inbox), self.screen(inbox) if isinstance(inbox, str) else None
+        if hours not in history_card.RANGES or not layout or not screen or not screen.get('online'):
+            return
+        if entity not in {tile['entity'] for tile in layout['tiles']}:
+            return
+        what = history_card.kind(entity, self.ha.states.get(entity))
+        action = self.transport(inbox, screen)
+        if what is None or not action:
+            return
+        await self.ha.send(inbox, await self.card_history(entity, hours, what), action)
+
+    async def card_history(self, entity, hours, what):
+        """The history message, from a short cache; screens asking at the same time share one fetch."""
+        key = (entity, hours)
+        cached = self.card_histories.get(key)
+        if cached and time.monotonic() - cached[0] < history_card.CACHE_SECONDS[hours]:
+            return cached[1]
+        fetch = self.card_history_fetches.get(key)
+        if fetch is None:
+            fetch = asyncio.ensure_future(self.build_card_history(entity, hours, what))
+            self.card_history_fetches[key] = fetch
+            fetch.add_done_callback(lambda _: self.card_history_fetches.pop(key, None))
+        message = await asyncio.shield(fetch)
+        self.card_histories[key] = (time.monotonic(), message)
+        for old in [k for k, (moment, _) in self.card_histories.items() if time.monotonic() - moment > 3600]:
+            del self.card_histories[old]
+        return message
+
+    async def build_card_history(self, entity, hours, what):
+        """Numbers from the recorder's hourly statistics for a day or a week (the exact changes for an hour, or for an
+        entity without statistics); states from their changes. A fetch that fails raises, so nothing is kept."""
+        start, end = history_card.window(hours)
+        tz = getattr(self.ha, 'time_zone', None)
+        attrs = (self.ha.states.get(entity) or {}).get('attributes') or {}
+        if what == 'timeline':
+            return history_card.timeline(entity, hours, await self.ha.state_changes(entity, hours), start, end, tz, attrs)
+        entry, unit = self.registry_index().get(entity), attrs.get('unit_of_measurement') or ''
+        rows = await self.ha.statistic_rows(entity, hours) if hours > 1 else []
+        if rows:
+            means, extreme = history_card.statistic_changes(rows, 3600)
+            return history_card.line(entity, hours, means, start, end, tz, entry, unit, extreme)
+        changes = [(moment, header_bar.numeric(value)) for moment, value in await self.ha.state_changes(entity, hours)]
+        return history_card.line(entity, hours, changes, start, end, tz, entry, unit)
 
     def registry_index(self):
         """Entity registry by id (display precision, entity category); rebuilt only when HA delivers a new registry."""
@@ -1312,7 +1405,7 @@ async def main():
         await web.TCPSite(runner, '127.0.0.1' if development else '0.0.0.0', 8099).start()
         try:
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
-                                 manager.alert_loop(), manager.tile_loop())
+                                 manager.alert_loop(), manager.tile_loop(), manager.card_history_loop())
         finally:
             await runner.cleanup()
 

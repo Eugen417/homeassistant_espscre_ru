@@ -176,6 +176,43 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.59 / firmware 0.2.51
+
+App, both board profiles and `components/smart_display`. Storage, tile protocol, preferences and keys are
+unchanged. One new event from the screen and one new message to it; each side ignores what it does not know.
+
+- The history card replaces the sensor card (24 bars from the tile's own graph samples) and the switch card (a large
+  toggle) for `sensor`, `binary_sensor`, `switch`, `input_boolean`, `person`, `number` and `input_number`
+  (`history_card` in runtime_tiles.h; `render_history_detail`). Opening it, or choosing a range, fires the event
+  `esphome.screen_history` with `inbox`, `entity` and `hours` (1, 24 or 168) through `send_homeassistant_action` with
+  `is_event`, like `esphome.screen_setting`: no permission to call actions is needed. The card asks again after 30 s
+  without an answer and says "No history available" after 8 s, so it stays usable against an app from before 0.2.59.
+- The app answers with one `{"v":1,"op":"history"}` message through the screen's `screen_message` action
+  (`Manager.card_history_loop` → `answer_history`, only for an entity on that screen's layout and a screen that
+  takes whole messages). Numbers (`kind: "line"`): `values` (24 time-weighted averages, null without data), `dom`,
+  `yt` (axis values and their text, from `history_card.axis`), `dec`, `unit`, `hi` and `lo` ([value, unix time]).
+  States (`kind: "timeline"`): `slots` (96), `states` ([words, colour, seconds], at most six and "Other"), `seg`
+  ([slot, legend index or -1, begin, end, seconds], the real times of the run's state in seconds after `start`),
+  `words` ([raw state, words] for the heading), `began` and `active`. Both carry `start`, `end`, `off` (the UTC offset
+  at `end`) and `xt` (round times for the time axis). The largest possible timeline is about 3.6 KB.
+- Data: a day or a week from `recorder/statistics_during_period` (hourly mean, min and max, or state for a total),
+  starting an hour before the range; an hour, an entity without statistics and every timeline from
+  `/api/history/period` with `minimal_response` and `no_attributes` (the call the tile graphs already use, capped at
+  2 MB). Answers are cached per entity and range for 30 s, 2 min or 10 min, and screens asking at once share one
+  fetch. A fetch that fails sends and keeps nothing.
+- The screen keeps only the answer it waits for (`history_asked_entity`, `history_asked_hours`), draws the line
+  as a monotone cubic through the averages and through the highest and lowest moment (`history_view::monotone`,
+  `through`), and the timeline as rectangles in one draw event. The value now joins the highest or lowest moment
+  when it lies beyond the history. A transparent area with `LV_OBJ_FLAG_PRESS_LOCK` reads PRESSED and PRESSING
+  and only changes the heading's labels; nothing on the graph moves. Range keys are detail commands 160-162 left
+  out of `detail_actions`, so a command waiting on Home Assistant does not disable them.
+- `runtime_tiles::small_font` (axis labels and legend) is set to `sublabel` in `on_boot` of both profiles. The
+  tile option `history_hours` still sets the tile's graph; a card opens on 1 hour when it is 1, else on 24 hours.
+- Host redraw of the line card is about 70 ms, like the cover and weather cards (fill about 6 ms, line about 12 ms).
+- `render_weather_detail` starts at y 84 on the Guition (was 62, from before the round back button of 0.2.43, which
+  reaches y 76). The CYD keeps 38: its days card has no room to spare, and its back button overlaps the card by 10 px
+  as before.
+
 ### Compatibility 0.2.58 / firmware 0.2.50
 
 App, both board profiles and `components/smart_display`. Storage, tile protocol, preferences and keys are

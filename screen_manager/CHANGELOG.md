@@ -1,3 +1,15 @@
+## 0.2.59 (firmware 0.2.51)
+
+A history card you can read: axes, an hour, a day or a week, and the value under your finger.
+
+- **History with axes.** Tapping a sensor, a number, a binary sensor or a person, or holding a switch, opens its history the way Home Assistant shows it. Numbers get a line with round values along the side and clock times along the bottom, and their highest and lowest moment as rings with their values. On/off, home and away, zones and a status like a washing machine's get a timeline with the time spent in each state. The value now stays big at the top, with the highest and lowest moment and their times beside it, or how long the state lasted and how often it began: "Open · 22 min, 6 times".
+- **An hour, a day or a week.** Three keys below the graph. Every range has the same number of points, just further apart: 24 averages on a line, 96 steps on a timeline. ESP Screens fetches the range when the card opens, from Home Assistant's statistics where the entity has them.
+- **Your finger reads the graph.** Hold a finger on the graph and slide: the top of the card shows the value and the time of that moment. On a timeline it shows the state, when it began and ended, and how long it lasted, so a door that stood open for five minutes says 5 min. The graph itself stays as it is, and letting go shows the value now again.
+- **Every unit.** Temperatures, percentages, watts, kilowatt-hours, lux and any other unit get an axis in round steps with the decimals the entity shows in Home Assistant. Times follow the screen's 12- or 24-hour clock.
+- A switch's card keeps its toggle, top right, and a number's card its slider.
+- **The weather card's back button is whole again on the Guition.** Since 0.2.43 the round back button sat half under the card with the current weather.
+- Needs firmware 0.2.51: press **Update** on the screen. Screens with older firmware keep their old card.
+
 ## 0.2.58 (firmware 0.2.50)
 
 A card for blinds, curtains and garage doors, and three fixes found right after updating to 0.2.57.

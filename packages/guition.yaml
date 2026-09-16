@@ -3,7 +3,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.50"
+  SCREEN_FIRMWARE_VERSION: "0.2.51"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -186,6 +186,7 @@ esphome:
           runtime_tiles::screen_awake = []() { return !id(display_dimmed); };
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::control_font = id(sublabel_big)->get_lv_font();
+          runtime_tiles::small_font = id(sublabel)->get_lv_font();
           // Top bar (0.2.32+): values in the text font, icons in the small icon font; the clock
           // label lends its margin and drawing order and stays hidden in runtime mode.
           runtime_tiles::header_text_font = id(sublabel_big)->get_lv_font();

@@ -60,7 +60,7 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   the light's capabilities. Open the detailed control with a long touch.
 - **More cards:** climate, vacuum, fan, cover, media player, sensors,
   select/input_select, number/input_number, switches, scenes, scripts, and
-  buttons. A sensor can open a history card for 1, 6, or 24 hours.
+  buttons.
 - **Special cards (firmware 0.2.14+):** a **clock** (digital or analog)
   as a built-in tile, a **weather forecast** with five days on a
   double-width card, a **graph** of the sensor history in the tile,
@@ -89,6 +89,11 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   a tall position slider on which the blind hangs from the top, a tilt slider over slats for
   venetian blinds, open, stop, and close, and the battery of a battery-powered blind
   (such as Motionblinds). A cover shows only what it supports (app 0.2.58 / firmware 0.2.50).
+- **History card** for sensors, numbers, binary sensors, people, and switches, the way Home
+  Assistant shows history: a line with an axis in round steps and clock times for numbers,
+  with the highest and lowest moment, and a timeline with the time in each state for on/off,
+  home and away, and a status. Choose **1 hour**, **24 hours**, or **1 week**; hold a finger on
+  the graph to read the value and time of that moment at the top (app 0.2.59 / firmware 0.2.51).
 - **Top bar per screen** (firmware 0.2.32+): the name on the left, up to six
   items of your choice on the right: the time, an analog clock, the date, or an
   entity from Home Assistant with an icon, such as temperature, humidity, power usage, a door
@@ -120,7 +125,7 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
 </p>
 <p align="center">
   <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: docked and charging, start and dock, the cleaning mode vacuum, vac and mop or mop, suction and water">
-  <img src="docs/images/guition-history.png" width="32%" alt="Sensor history of the last 24 hours">
+  <img src="docs/images/guition-history.png" width="32%" alt="History card for a temperature: the value now, the highest and lowest moment with their times, a line over 24 hours with an axis in degrees and clock times, and keys for 1 hour, 24 hours and 1 week">
   <img src="docs/images/guition-page-3.png" width="32%" alt="Curtains with open, stop and close, a kitchen timer counting down, a scene and the sun path">
 </p>
 <p align="center">
@@ -129,16 +134,26 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   <img src="docs/images/guition-garage.png" width="32%" alt="Cover card for a garage door that only opens and closes: its icon and the open, stop and close keys, close disabled while it is closed">
 </p>
 <p align="center">
+  <img src="docs/images/guition-history-touch.png" width="32%" alt="A finger on the history graph: the top of the card shows the average of that hour and its time, the graph stays as it is">
+  <img src="docs/images/guition-history-door.png" width="32%" alt="History card for a door: closed now, opened 6 times for 22 minutes in all, a timeline over 24 hours and the time in each state">
+  <img src="docs/images/guition-history-person.png" width="32%" alt="History card for a person over a week: home, away and the zones they were in, with the time in each">
+</p>
+<p align="center">
   <img src="docs/images/cyd-vacuum.png" width="32%" alt="The vacuum card on the CYD: state, battery and charging, clean and dock, the cleaning mode, suction and water">
   <img src="docs/images/cyd-climate.png" width="32%" alt="The climate card on the CYD: the target temperature with big minus and plus keys and one row of mode keys">
   <img src="docs/images/cyd-blind.png" width="32%" alt="The cover card on the CYD: the position and tilt sliders with their values beside them, the battery, and open, stop and close">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-history.png" width="32%" alt="The history card on the CYD: power over 24 hours with its highest and lowest moment, an axis in watts and clock times">
+  <img src="docs/images/cyd-history-touch.png" width="32%" alt="A finger on the CYD's history graph: the average of that hour and its time at the top">
+  <img src="docs/images/cyd-history-door.png" width="32%" alt="The door's history on the CYD: a timeline over 24 hours with the time open and closed">
 </p>
 
 Features depend on the capabilities Home Assistant reports for an entity.
 The app must keep running to keep the screens supplied with current data.
 
-From firmware **0.2.12**, a long press on a switch shows a large
-toggle. A short tap switches immediately; the off state gets a gray icon.
+A short tap on a switch switches immediately; the off state gets a gray icon. A long press
+opens its history card with the toggle at the top right (firmware 0.2.51+).
 The feedback stops as soon as Home Assistant reports the changed state, with a
 minimum of 150 ms for switches. Tiles with a mini-slider keep their
 icon; on the CYD, the icon and text block are vertically centered.
