@@ -176,6 +176,64 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.57 / firmware 0.2.49
+
+App, both board profiles and `components/smart_display`. Storage version 1, tile protocol `v: 1`, preference
+keys and records are unchanged, and the eleven-key `settings` block is not widened.
+
+- Firmware 0.2.49 offers every setting as a template entity (`entity_category: config`) over the existing
+  preference records (`0x53435231` settings, `0x53575031` swipe, `0x484F4D31` back to page 1, `0x524F5431`
+  rotation), so a screen keeps its values across the update without a migration. New: switches Night mode,
+  24-hour clock, Back to page 1, Back to page 1 on standby and Swipe between pages (`restore_mode: DISABLED`,
+  state from a lambda); number Back to page 1 after (30-3600 s, step 30); datetimes of type time Night starts
+  and Night ends; select Rotation (`0°` to `270°`, Guition only). The four numbers and Auto standby are
+  unchanged entities. `restore_value` cannot be combined with a lambda, which is why the entities keep no copy.
+- Every writer goes through `settings_screen::set(key, value)`: the rows of the settings page and the
+  `set_action`s, `turn_on_action`s and `turn_off_action`s of the entities. It clamps the way the page steps,
+  pulls both dim levels down with the brightness, and stores, applies and reports (`changed()`) only a real
+  change; it returns `SetResult::same` or `SetResult::unknown` otherwise. The switches publish from their
+  lambda in `loop()`. `apply_screen_settings` publishes the numbers, times and the select when they differ; it
+  runs after every change, every minute and on every Home Assistant time sync, which the API requests right
+  after a client connects, so the entities have a value before Home Assistant subscribes to states. A host
+  build with `time: platform: host` gets no such sync and publishes them at the next whole minute.
+- `screen_message` has `supports_response: optional`. With a call id (a caller that sets `return_response`)
+  it answers `{"status": <inbox state>, "rev": <layout revision>}` through `api.respond`; without one it
+  neither answers nor logs "Cannot send response". The layout message still takes `settings` and the extra
+  keys, so app 0.2.56 and older keep working with firmware 0.2.49 as before.
+- `runtime_tiles::event` handles the built-in cards before the `fresh()` check: the settings card opens without
+  Home Assistant, the clock card still does nothing. `settings_screen::refresh()` only writes a label text, knob
+  colour or card opacity that differs, so a value from Home Assistant does not redraw unchanged rows.
+- The app finds the setting entities per ESPHome device in the entity registry (`setting_entities`, by domain
+  and `original_name`, disabled entries included). A device with one of `OWNED_SETTINGS_MARKERS` owns its
+  settings; the five older entities cannot tell. For such a screen `layout_message` leaves out `settings`,
+  `swipe_pages`, `auto_home`, `auto_home_seconds` and `rotation`; `save()` ignores `settings` from the editor
+  (values stored before the update stay unused in `screens.json`); `esphome.screen_setting` events are
+  ignored; `settings_view` reads the values from Home Assistant states (None while unavailable, keys only for
+  entities the device has); `PUT /api/screens/{inbox}/settings` calls `number.set_value`,
+  `switch.turn_on`/`turn_off`, `time.set_value` (`HH:MM:00`) and `select.select_option` (`90°`), brightness
+  first, and only for values that differ.
+- Older firmware keeps its settings in the layout. A reported setting is stored with
+  `store_settings(..., on_screen=True)`, without the tile check of `save()` that refused a layout with a
+  removed entity; `sent[inbox]['layout']` follows the stored settings and `sent[inbox]['rev']` keeps the
+  revision the screen holds, so nothing goes back and the next ping still matches. `sync_one` keeps that
+  revision while it does not send the layout message. Failures in the event loop are logged.
+- Answers: `HomeAssistant.fetch_services` collects the ESPHome actions for which `get_services` lists
+  `response`, again after `service_registered` or `service_removed` in the `esphome` domain. For those screens
+  the keepalive ping, and one ping right after a batch that sent a layout, wait up to 5 s for the answer.
+  A status from `RESEND_STATES` or starting with `Error` schedules a full resend 30 s after the last full send,
+  doubling per failure up to the 120 s guard; any other status resets the count. A timeout waits for the next
+  ping; a refusal whose message names `response` makes that action ping without answers from then on. The
+  text entity keeps its state for older apps and for the screen list. Home Assistant 2026.9.1 lists the
+  action with `response: {optional: true}` and passes the answer back.
+- `Manager.run()` clears `published` together with `sent` while Home Assistant is offline, so the layout
+  sensors made over REST are written again after a restart. `tile_message` asks `weather.get_forecasts` only
+  for the kinds in `supported_features` (1 daily, 2 hourly; twice daily is not used); an entity without the
+  attribute is asked for both, as before.
+- Editor: `SETTING_GROUPS` in `app.js` mirrors the groups, labels, steps and duration ladder of
+  `settings_screen.h` (a test compares them). Changes are debounced (150 ms for switches and chips, 600 ms
+  for steps) and sent as one PUT per screen; the panel keeps its own value for up to 4 s or until Home
+  Assistant reports it. Save no longer sends `settings`. The top bar's clock format is the `clock_24h` setting.
+
 ### Compatibility 0.2.56 / firmware 0.2.48
 
 `components/smart_display/settings_screen.h` and both board profiles; the app only raises `FIRMWARE_VERSION`.

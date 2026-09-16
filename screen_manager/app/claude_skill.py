@@ -15,7 +15,7 @@ import tile_icons
 from core import (ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
                   CONTROLS, DISPLAYS, MAX_PAGES, SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS,
-                  TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE)
+                  TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE)
 
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
@@ -262,7 +262,14 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 | `number.<screen>_standby_after` | Seconds without a touch before standby, 60 to 86400. |
 | `number.<screen>_normal_brightness` | Brightness while in use, 5 to 100 %. |
 | `number.<screen>_standby_brightness` | Brightness in standby, 0 to 100 %, at most the normal brightness. |
-| `number.<screen>_night_brightness` | Brightness in standby during the night hours set in ESP Screens, 0 to 100 %. |
+| `number.<screen>_night_brightness` | Brightness in standby during the night hours, 0 to 100 %. |
+| `switch.<screen>_night_mode` | Night mode: the night brightness between the two times below. Firmware {SETTING_ENTITIES_MIN_FIRMWARE} or newer, like every row below it. |
+| `time.<screen>_night_starts`, `time.<screen>_night_ends` | The night hours; set them with `time.set_value`. |
+| `switch.<screen>_24_hour_clock` | On: 24-hour clock. Off: 12-hour clock. |
+| `switch.<screen>_back_to_page_1` | On: after `number.<screen>_back_to_page_1_after` seconds without a touch (30 to 3600) the screen closes a card and goes back to page 1. |
+| `switch.<screen>_back_to_page_1_on_standby` | On: going into standby also goes back to page 1. |
+| `switch.<screen>_swipe_between_pages` | On: swipe between pages. |
+| `select.<screen>_rotation` | Guition only: `0°`, `90°`, `180°` or `270°`. |
 
 Wake and Sleep are buttons: press them with the `button.press` action. They save nothing, so an automation may press them as often as it likes, on every motion too. To reach several screens at once, list their buttons under `entity_id`. Don't target an area or a device with `button.press`: that presses every other button there as well, the Wake and Sleep of the same screen included.
 
@@ -297,7 +304,7 @@ actions:
                 - button.kitchen_screen_sleep
 ```
 
-The switch and the numbers are the same settings as in ESP Screens: a change made from Home Assistant shows there too and stays after a restart. Turning Auto standby on again counts the standby time from that moment. Every change is saved on the screen, so switch on changes that happen a few times a day (someone comes home, a light goes on, a window opens), never on every motion: press Wake for that.
+These switches, numbers, times and the select are the screen's own settings, the same as on its settings page and in ESP Screens: a change made from Home Assistant shows there too and stays after a restart. Turning Auto standby on again counts the standby time from that moment. Every change is saved on the screen, so switch on changes that happen a few times a day (someone comes home, a light goes on, a window opens), never on every motion: press Wake for that.
 
 To keep screens on while something is going on at home, turn Auto standby off when the situation starts and on when it ends, all from one automation. Example with placeholders for the user's own entities:
 

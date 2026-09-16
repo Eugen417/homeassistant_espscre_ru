@@ -17,13 +17,15 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.48'
+FIRMWARE_VERSION = '0.2.49'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
 SETTINGS_PAGE_MIN_FIRMWARE = '0.2.44'
 # The Wake and Sleep buttons a screen offers Home Assistant automations.
 WAKE_SLEEP_MIN_FIRMWARE = '0.2.45'
+# Every screen setting as an entity of the screen, which owns them (see SETTING_ENTITIES).
+SETTING_ENTITIES_MIN_FIRMWARE = '0.2.49'
 ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
@@ -179,6 +181,85 @@ SETTING_RULES = {
 # ignores a key it does not know; a new screen with an old add-on keeps what it saved itself.
 # docs/SETTINGS.md walks through adding one.
 SETTINGS_BESIDE_BLOCK = ('swipe_pages', 'rotation', 'auto_home', 'auto_home_seconds')
+
+# ----- The screen owns its settings (firmware 0.2.49+) -----
+# A screen offers every setting as an entity of its own device, and the settings page on the screen, Home
+# Assistant and ESP Screens all change them there. ESP Screens reads them from those entities, changes them
+# with the entity's own action, and leaves them out of the layout message, so it never overwrites what
+# someone changed on the screen or in an automation. A screen without these entities (older firmware) gets
+# its settings in the layout message as before. `show_clock` has no entity: the top bar decides the clock.
+# key: (Home Assistant domain, the entity's name in the board profiles)
+SETTING_ENTITIES = {
+    'brightness': ('number', 'Normal brightness'),
+    'standby_enabled': ('switch', 'Auto standby'),
+    'standby_seconds': ('number', 'Standby after'),
+    'standby_brightness': ('number', 'Standby brightness'),
+    'night_enabled': ('switch', 'Night mode'),
+    'night_start': ('time', 'Night starts'),
+    'night_end': ('time', 'Night ends'),
+    'night_brightness': ('number', 'Night brightness'),
+    'clock_24h': ('switch', '24-hour clock'),
+    'auto_home': ('switch', 'Back to page 1'),
+    'auto_home_seconds': ('number', 'Back to page 1 after'),
+    'home_on_standby': ('switch', 'Back to page 1 on standby'),
+    'swipe_pages': ('switch', 'Swipe between pages'),
+    'rotation': ('select', 'Rotation'),
+}
+# Entities firmware 0.2.49 added; one of them on a device means the screen owns its settings. The first five
+# existed before, so they cannot tell.
+OWNED_SETTINGS_MARKERS = frozenset(('Night mode', 'Night starts', 'Night ends', '24-hour clock', 'Back to page 1',
+                                    'Back to page 1 after', 'Back to page 1 on standby', 'Swipe between pages'))
+ROTATION_OPTIONS = ('0°', '90°', '180°', '270°')
+
+
+def setting_entities(items):
+    """{key: entity_id} of a screen's setting entities, from the registry entries of its device (disabled ones
+    included), or None when the screen does not own its settings yet (firmware before 0.2.49)."""
+    found, owned = {}, False
+    for item in items:
+        if item.get('platform') != 'esphome':
+            continue
+        name, domain = item.get('original_name'), item['entity_id'].split('.', 1)[0]
+        owned = owned or name in OWNED_SETTINGS_MARKERS
+        for key, (wanted_domain, wanted_name) in SETTING_ENTITIES.items():
+            if name == wanted_name and domain == wanted_domain and key not in found:
+                found[key] = item['entity_id']
+    return found if owned else None
+
+
+def setting_from_state(key, state):
+    """The value of one setting from its entity's state, or None while Home Assistant has none."""
+    value = (state or {}).get('state')
+    if not isinstance(value, str) or value in ('', 'unknown', 'unavailable'):
+        return None
+    domain = SETTING_ENTITIES[key][0]
+    try:
+        if domain == 'switch':
+            return {'on': True, 'off': False}.get(value)
+        if domain == 'number':
+            number = float(value)
+            return int(round(number)) if math.isfinite(number) else None
+        if domain == 'time':
+            hour, minute = (int(part) for part in value.split(':')[:2])
+            return hour * 60 + minute if 0 <= hour < 24 and 0 <= minute < 60 else None
+        if domain == 'select':
+            return int(value.rstrip('°')) if value in ROTATION_OPTIONS else None
+    except ValueError:
+        return None
+    return None
+
+
+def setting_action(key, entity, value):
+    """(action, data) that gives one setting entity `value`."""
+    domain = SETTING_ENTITIES[key][0]
+    if domain == 'switch':
+        return ('switch.turn_on' if value else 'switch.turn_off'), {'entity_id': entity}
+    if domain == 'number':
+        return 'number.set_value', {'entity_id': entity, 'value': value}
+    if domain == 'time':
+        return 'time.set_value', {'entity_id': entity, 'time': f'{value // 60:02d}:{value % 60:02d}:00'}
+    return 'select.select_option', {'entity_id': entity, 'option': f'{value}°'}
+
 
 def validate_settings(data):
     if not isinstance(data, dict) or set(data) - SETTING_RULES.keys():
@@ -590,6 +671,15 @@ def local_clock(value, tz):
         moment = moment.replace(tzinfo=timezone.utc)
     return moment.astimezone(tz or timezone.utc).strftime('%H:%M')
 
+def forecast_kinds(attributes):
+    """The forecasts a weather entity offers, from its supported_features (WeatherEntityFeature: 1 daily,
+    2 hourly). Asking for one it lacks makes Home Assistant log an error; an entity that reports no features
+    (unavailable) is asked for both, as before."""
+    features = (attributes or {}).get('supported_features')
+    if not isinstance(features, int) or isinstance(features, bool):
+        return frozenset(('daily', 'hourly'))
+    return frozenset(kind for kind, bit in (('daily', 1), ('hourly', 2)) if features & bit)
+
 def forecast_number(entry, name):
     value = entry.get(name)
     return round(value, 1) if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) else None
@@ -996,6 +1086,7 @@ def discover_screens(registry, states, devices, areas):
         state = states.get(eid, {})
         area = area_map.get(item.get('area_id') or device.get('area_id'), '')
         screens.append({'id': eid, 'name': device.get('name_by_user') or device.get('name') or eid,
+                        'device_id': item.get('device_id'),
                         'firmware': versions.get(item.get('device_id'), 'unknown'),
                         'board': boards.get(item.get('device_id'), 'unknown'),
                         'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),

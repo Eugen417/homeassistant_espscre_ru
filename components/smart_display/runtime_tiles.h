@@ -1060,9 +1060,18 @@ inline std::string date_text(const esphome::ESPTime &now) {
 }
 inline void event(lv_event_t *event) {
   auto &w = *static_cast<Widgets *>(lv_event_get_user_data(event));
-  if (!enabled || !fresh() || w.index >= model.count) return;
+  if (!enabled || w.index >= model.count) return;
   auto code = lv_event_get_code(event);
   if (code != LV_EVENT_SHORT_CLICKED && code != LV_EVENT_LONG_PRESSED) return;
+  // The built-in cards need nothing from Home Assistant: the settings card opens the screen's own page with
+  // the link down too, as its card says (firmware 0.2.49+), and the clock card does nothing under a finger.
+  if (model.tiles[w.index].builtin()) {
+    auto &card = model.tiles[w.index];
+    if (!card.is_settings() || card.tap == "none" || (settings_screen::may_open && !settings_screen::may_open())) return;
+    if (allowed(esphome::millis(), 100 + w.index, card.entity)) settings_screen::open();
+    return;
+  }
+  if (!fresh()) return;
   if (!allowed(esphome::millis(), 100 + w.index, model.tiles[w.index].entity)) return;
   auto &tile = model.tiles[w.index];
   auto d = tile.domain();
@@ -1073,8 +1082,6 @@ inline void event(lv_event_t *event) {
   if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="toggle")open=false;
   if(d=="media_player" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("media_player.toggle",tile.entity);return;}
   if(d=="climate" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("climate.toggle",tile.entity);return;}
-  // The clock card does nothing under a finger; the settings card opens the page.
-  if(tile.builtin()){if(tile.is_settings())settings_screen::open();return;}
   // A short tap runs or pauses the timer; holding opens the card with a cancel button.
   if(d=="timer" && !open){action(tile.state=="active"?"timer.pause":"timer.start",tile.entity);return;}
   if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum" || d=="sun" || d=="person" || d=="timer") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }

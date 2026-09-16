@@ -15,7 +15,8 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BUILTIN, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BROADCAST_EVENTS, BUILTIN, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state
 import header_bar
 from zoneinfo import ZoneInfo
 
@@ -40,6 +41,12 @@ RESEND_STATES = frozenset({
 })
 RESEND_GUARD_SECONDS = 120
 FORECAST_SECONDS = 1800
+# A screen that answers its ping (firmware 0.2.49+) is asked with this timeout, so a busy screen never holds
+# up the others. An answer that the screen lacks something repeats everything, after this many seconds right
+# after a full send, doubling up to RESEND_GUARD_SECONDS while it keeps failing.
+ANSWER_TIMEOUT_SECONDS = 5
+ANSWER_RETRY_SECONDS = 30
+SERVICE_EVENTS = ('service_registered', 'service_removed')
 
 def samples(events, begin, span):
     """24 values, one per bucket: the last known value at the end of each bucket (None until the first)."""
@@ -52,6 +59,13 @@ def samples(events, begin, span):
             position += 1
         out.append(value)
     return out
+
+class Refused(ConnectionError):
+    """Home Assistant answered a command with an error; `detail` is its own message."""
+    def __init__(self, detail=''):
+        super().__init__('Home Assistant refused the command.')
+        self.detail = detail
+
 
 def rounded(value):
     try:
@@ -85,6 +99,10 @@ class HomeAssistant:
         self.broadcasts = asyncio.Queue()
         # (event type, data) of tile events (app 0.2.51+), for Manager.tile_loop.
         self.tile_events = asyncio.Queue()
+        # ESPHome actions that can answer (`esphome.<node>_screen_message` of firmware 0.2.49+), from Home
+        # Assistant's own list; refreshed when a device registers its actions again.
+        self.responses = set()
+        self.services_changed = asyncio.Event()
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -110,7 +128,8 @@ class HomeAssistant:
                     if data.get('success'):
                         future.set_result(data.get('result'))
                     else:
-                        future.set_exception(ConnectionError('Home Assistant refused the command.'))
+                        error = data.get('error') if isinstance(data.get('error'), dict) else {}
+                        future.set_exception(Refused(str(error.get('message') or '')))
             elif data.get('type') == 'event':
                 event = data.get('event', {})
                 body = event.get('data', {})
@@ -128,6 +147,9 @@ class HomeAssistant:
                         self.changed.set()
                 elif event.get('event_type') in REGISTRY_EVENTS:
                     self.registry_changed.set()
+                elif event.get('event_type') in SERVICE_EVENTS:
+                    if body.get('domain') == 'esphome':
+                        self.services_changed.set()
                 elif event.get('event_type') in BROADCAST_EVENTS:
                     # Queued, not handled here: the calls wait for results this reader has to deliver.
                     self.broadcasts.put_nowait((event['event_type'], body))
@@ -148,6 +170,19 @@ class HomeAssistant:
         self.registry, self.devices, self.areas = await asyncio.gather(
             self.request('config/entity_registry/list'), self.request('config/device_registry/list'), self.request('config/area_registry/list'))
 
+    async def fetch_services(self):
+        """Which ESPHome actions answer: Home Assistant lists `response` for an action that can return one."""
+        esphome = (await self.request('get_services') or {}).get('esphome', {})
+        self.responses = {f'esphome.{name}' for name, spec in esphome.items() if isinstance(spec, dict) and spec.get('response')}
+
+    async def refresh_services(self):
+        """fetch_services for the connection loop: a list that cannot be read only means no answers are asked for."""
+        try:
+            await self.fetch_services()
+        except (ConnectionError, TimeoutError, OSError, ValueError, TypeError, AttributeError) as error:
+            LOG.warning('Reading the actions from Home Assistant failed (%s); screens are not asked for answers', type(error).__name__)
+            self.responses = set()
+
     async def run(self):
         url = ('ws://supervisor/core/websocket' if self.base == 'http://supervisor/core/api'
                else self.base.replace('http://', 'ws://').replace('https://', 'wss://') + '/websocket')
@@ -163,10 +198,11 @@ class HomeAssistant:
                     reader = asyncio.create_task(self.read())
                     await self.request('subscribe_events', event_type='state_changed')
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
-                    for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, *TILE_EVENTS):
+                    for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
+                    await self.refresh_services()
                     try:
                         config = await self.request('get_config')
                         self.units = config.get('unit_system') or {}
@@ -181,13 +217,20 @@ class HomeAssistant:
                     # fallback; a full fetch is about 1 MB of JSON and used to run every 30 s.
                     fetched = time.monotonic()
                     while True:
-                        waiter = asyncio.ensure_future(self.registry_changed.wait())
+                        waiters = [asyncio.ensure_future(self.registry_changed.wait()), asyncio.ensure_future(self.services_changed.wait())]
                         try:
-                            done, _ = await asyncio.wait([reader, waiter], timeout=30, return_when=asyncio.FIRST_COMPLETED)
+                            done, _ = await asyncio.wait([reader, *waiters], timeout=30, return_when=asyncio.FIRST_COMPLETED)
                         finally:
-                            waiter.cancel()
+                            for waiter in waiters:
+                                waiter.cancel()
                         if reader in done:
                             await reader
+                        if self.services_changed.is_set():
+                            # A screen that reconnects registers its actions one after the other.
+                            await asyncio.sleep(1)
+                            self.services_changed.clear()
+                            await self.refresh_services()
+                            self.changed.set()
                         if self.registry_changed.is_set():
                             await asyncio.sleep(1)
                             self.registry_changed.clear()
@@ -214,12 +257,20 @@ class HomeAssistant:
                         future.set_exception(ConnectionError('Connection lost.'))
             await asyncio.sleep(5)
 
-    async def send(self, inbox, message, action=None):
-        """One message to a screen: as one ESPHome action call (firmware 0.2.33+), else as text chunks."""
+    async def send(self, inbox, message, action=None, respond=False):
+        """One message to a screen: as one ESPHome action call (firmware 0.2.33+), else as text chunks.
+
+        `respond`: wait for the screen's answer (firmware 0.2.49+), at most ANSWER_TIMEOUT_SECONDS, and return it
+        (`status`, `rev`), or None when the answer carries nothing usable."""
         if action:
             domain, service = action.split('.', 1)
-            await self.request('call_service', domain=domain, service=service, service_data={'message': encode(message)})
-            return
+            data = {'domain': domain, 'service': service, 'service_data': {'message': encode(message)}}
+            if not respond:
+                await self.request('call_service', **data)
+                return None
+            result = await asyncio.wait_for(self.request('call_service', **data, return_response=True), ANSWER_TIMEOUT_SECONDS)
+            response = (result or {}).get('response') if isinstance(result, dict) else None
+            return response if isinstance(response, dict) else None
         for packet in packets(message):
             await self.request('call_service', domain='text', service='set_value',
                                service_data={'entity_id': inbox, 'value': packet})
@@ -317,6 +368,11 @@ class Manager:
         # The layout snapshot each screen's sensor already carries, so it is only written when it changes.
         self.published = {}
         self._prefix_source, self._prefixes = None, {}
+        # Screens that own their settings (firmware 0.2.49+): {device_id: {key: entity_id}}, per registry.
+        self._settings_source, self._settings_index, self._settings_key = None, {}, None
+        # Answers (firmware 0.2.49+): when to send everything again after one said the screen lacks something,
+        # how often that failed in a row, and actions Home Assistant refused to answer for.
+        self.retry_at, self.retries, self.no_answers = {}, {}, set()
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
@@ -440,6 +496,161 @@ class Manager:
             screen = self.screen(inbox) or {}
         return message_action(screen.get('node')) if self.supports_ping(inbox, screen) else None
 
+    # ----- Screen settings: owned by the screen (firmware 0.2.49+), else stored with the layout -----
+    def setting_index(self):
+        """{device_id: {key: entity_id}} for every screen that owns its settings; rebuilt per registry."""
+        registry = getattr(self.ha, 'registry', [])
+        if self._settings_source is not registry:
+            by_device = {}
+            for item in registry:
+                if item.get('platform') == 'esphome' and item.get('device_id'):
+                    by_device.setdefault(item['device_id'], []).append(item)
+            index = {}
+            for device, items in by_device.items():
+                entities = setting_entities(items)
+                if entities is not None:
+                    index[device] = entities
+            self._settings_source, self._settings_index = registry, index
+        return self._settings_index
+
+    def setting_entities(self, screen):
+        """{key: entity_id} when this screen owns its settings, else None (they travel in the layout message)."""
+        device = (screen or {}).get('device_id')
+        return self.setting_index().get(device) if device else None
+
+    def settings_view(self, screen):
+        """What the editor shows under Screen settings.
+
+        `owner` is 'screen' when the screen's own entities hold the settings, else 'layout'. `keys` are the
+        settings this screen has, `unavailable` the ones Home Assistant cannot read or change right now (the
+        screen is offline, or the entity is disabled); their value is None, not a default that could differ
+        from what the screen has."""
+        inbox = self.aliases.get(screen['id'], screen['id'])
+        keys = [key for key in SETTING_RULES if key != 'show_clock' and (key != 'rotation' or screen.get('board') == 'guition')]
+        entities = self.setting_entities(screen)
+        if entities is None:
+            try:
+                values = validate_settings(self.layouts.get(inbox, {}).get('settings', {}))
+            except ValueError:
+                values = validate_settings({})
+            if (self.firmware_version(inbox, screen) or (0, 0, 0)) < (0, 2, 44):
+                keys = [key for key in keys if key not in ('auto_home', 'auto_home_seconds')]
+            return {'owner': 'layout', 'values': values, 'keys': keys, 'unavailable': []}
+        # Only the settings this screen has an entity for: one added in later firmware stays out of the panel.
+        keys = [key for key in keys if key in entities]
+        values = {key: setting_from_state(key, self.ha.states.get(entities[key])) for key in keys}
+        return {'owner': 'screen', 'values': values, 'keys': keys, 'unavailable': [key for key in keys if values[key] is None]}
+
+    def settings_states_key(self):
+        """The states of every setting entity, so the sync loop notices a change the editor should show."""
+        states = self.ha.states
+        return tuple((entity, states.get(entity, {}).get('state')) for device in self.setting_index().values()
+                     for entity in device.values())
+
+    def store_settings(self, inbox, settings, screen=None, on_screen=False):
+        """Settings of a screen that does not own them, kept with its layout.
+
+        `on_screen`: the screen reported them itself. The layout message it holds is then brought in step
+        without sending it back, which could undo a change it made after reporting this one; its revision
+        stays, so the next ping still matches."""
+        base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or 'Home', 'tiles': []}
+        layout = validate_layout({**base, 'settings': settings})
+        updated = {**self.layouts, inbox: layout}
+        self.write_layouts(updated)
+        self.layouts = updated
+        if on_screen and inbox in self.sent:
+            self.sent[inbox] = {**self.sent[inbox], 'layout': self.layout_message(inbox, layout, screen or self.screen(inbox) or {})}
+        self.notify()
+
+    def screen_setting_event(self, event):
+        """A screen reported a setting that changed on it (its settings page, one of its entities).
+
+        A screen that owns its settings needs nothing here: its entities carry the change. Older firmware gets
+        it kept with the layout, without the layout being sent back."""
+        inbox = self.aliases.get(event.get('inbox'), event.get('inbox'))
+        if inbox not in self.layouts:
+            return
+        screen = self.screen(inbox)
+        if screen is not None and self.setting_entities(screen) is not None:
+            return
+        key, value = event.get('key'), event.get('value')
+        stored = validate_settings(self.layouts[inbox].get('settings', {}))
+        if key not in stored or key == 'show_clock':
+            return
+        settings = dict(stored)
+        settings[key] = value == '1' if type(stored[key]) is bool else int(value)
+        if key == 'brightness':
+            for dim in ('standby_brightness', 'night_brightness'):
+                settings[dim] = min(settings[dim], settings[key])
+        settings = validate_settings(settings)
+        # A screen reporting what it already has (an automation setting the same value on every light change).
+        if settings != stored:
+            self.store_settings(inbox, settings, screen, on_screen=True)
+
+    async def change_settings(self, inbox, changes):
+        """Settings from the editor: on the screen itself when it owns them, else kept with its layout, which the
+        sync loop then sends. Returns the settings as the editor shows them afterwards."""
+        inbox = self.aliases.get(inbox, inbox)
+        screen = self.screen(inbox)
+        if screen is None:
+            raise ValueError("This isn't a paired ESP screen. Refresh the overview.")
+        view = self.settings_view(screen)
+        if not isinstance(changes, dict) or not changes or set(changes) - set(view['keys']):
+            raise ValueError('Unknown screen settings; refresh the management page.')
+        if view['owner'] == 'screen' and not screen.get('online'):
+            raise ValueError('This screen is offline. You can change its settings once it is back.')
+        missing = [SETTING_ENTITIES[key][1] for key in changes if key in view['unavailable']]
+        if missing:
+            raise ValueError(f"{', '.join(missing)} can't be changed now: the entity is off in Home Assistant, or the screen is restarting.")
+        # A setting Home Assistant cannot read (its entity is off) is checked at its default.
+        wanted = {**{key: value for key, value in view['values'].items() if value is not None}, **changes}
+        if 'brightness' in changes and type(changes['brightness']) is int:
+            # A lower brightness pulls both dim levels down with it, as on the screen.
+            for dim in ('standby_brightness', 'night_brightness'):
+                if dim not in changes:
+                    wanted[dim] = min(wanted.get(dim, SETTING_RULES[dim][0]), changes['brightness'])
+        merged = validate_settings(wanted)
+        if merged['rotation'] and screen.get('board') != 'guition':
+            raise ValueError('Rotation requires a Guition with firmware 0.2.9 or newer.')
+        if view['owner'] == 'layout':
+            self.store_settings(inbox, merged, screen)
+            self.ha.changed.set()
+            return self.settings_view(screen)
+        entities = self.setting_entities(screen)
+        # Brightness first: the screen keeps both dim levels at or below it.
+        for key in sorted(changes, key=lambda key: (key != 'brightness', list(SETTING_RULES).index(key))):
+            if merged[key] != view['values'][key]:
+                await self.ha.call(*setting_action(key, entities[key], merged[key]))
+        return self.settings_view(screen)
+
+    # ----- Answers from the screen (firmware 0.2.49+) -----
+    def answers(self, inbox, screen):
+        """True when the screen's message action can answer, so a ping learns at once what the screen holds."""
+        action = self.transport(inbox, screen)
+        return bool(action) and action in getattr(self.ha, 'responses', ()) and action not in self.no_answers
+
+    def answered(self, inbox, screen, answer):
+        """Act on a screen's answer to a ping: everything again when it lacks the layout or a tile, or refused one."""
+        status = answer.get('status') if isinstance(answer, dict) else None
+        if not isinstance(status, str):
+            return
+        if status not in RESEND_STATES and not status.startswith('Error'):
+            self.retries.pop(inbox, None)
+            return
+        failures = self.retries.get(inbox, 0)
+        due = self.last.get(inbox, 0) + min(RESEND_GUARD_SECONDS, ANSWER_RETRY_SECONDS * 2 ** failures)
+        name = (screen or {}).get('name') or inbox
+        if time.monotonic() >= due:
+            LOG.info('%s answered "%s"; sending everything again', name, status)
+            self.retries[inbox] = failures + 1
+            self.retry_at.pop(inbox, None)
+            self.sent.pop(inbox, None)
+            self.ha.changed.set()
+        elif inbox not in self.retry_at:
+            LOG.info('%s answered "%s"; sending everything again in %d s', name, status, max(1, round(due - time.monotonic())))
+            self.retries[inbox] = failures + 1
+            self.retry_at[inbox] = due
+
     def registry_index(self):
         """Entity registry by id (display precision, entity category); rebuilt only when HA delivers a new registry."""
         registry = getattr(self.ha, 'registry', [])
@@ -487,6 +698,11 @@ class Manager:
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             raise ValueError(f"Install screen firmware {needed} or newer first for these tiles.")
+        # Settings change through their own call (change_settings). A page from before app 0.2.57 still sends them
+        # with the tiles: a screen that owns its settings ignores them, so a stale form never undoes a change
+        # made on the screen; other screens keep taking them, as before.
+        if self.setting_entities(screen) is not None:
+            layout.pop('settings', None)
         # A still-open older UI may save tiles without the new optional settings or top bar.
         if 'settings' not in layout and 'settings' in self.layouts.get(inbox, {}):
             layout['settings'] = self.layouts[inbox]['settings'].copy()
@@ -556,6 +772,7 @@ class Manager:
             watched |= {item['entity'] for layout in self.layouts.values() for item in header_items(layout) if item['type'] == 'entity'}
             watched |= {item['entity_id'] for item in self.screen_registry()}
             watched |= {eid for layout in self.layouts.values() for tile in layout['tiles'] for eid in self.related_entities(tile)}
+            watched |= {eid for device in self.setting_index().values() for eid in device.values()}
             self._watched_key, self._watched = key, watched
         return set(self._watched)
 
@@ -576,9 +793,15 @@ class Manager:
         """The state message of one tile: state, options, extras, and the history the background task holds."""
         forecast=hourly=None
         if tile['entity'].startswith('weather.') and hasattr(self.ha,'forecast'):
-            forecast=await self.cached(self.forecasts, tile['entity'], FORECAST_SECONDS, lambda: self.ha.forecast(tile['entity']))
+            entity = tile['entity']
+            # Only the forecasts the entity offers: asking Buienradar for hourly ones logged an error in Home
+            # Assistant every half hour. What it lacks is kept as empty, so the cache still counts its age.
+            kinds = forecast_kinds(self.ha.states.get(entity, {}).get('attributes', {}))
+            async def nothing():
+                return []
+            forecast=await self.cached(self.forecasts, entity, FORECAST_SECONDS, (lambda: self.ha.forecast(entity)) if 'daily' in kinds else nothing)
             # Hourly forecasts feed the weather card's next-hours strip (0.2.23+); refreshed every half hour.
-            hourly=await self.cached(self.forecasts, (tile['entity'],'hourly'), FORECAST_SECONDS, lambda: self.ha.forecast(tile['entity'],'hourly'))
+            hourly=await self.cached(self.forecasts, (entity,'hourly'), FORECAST_SECONDS, (lambda: self.ha.forecast(entity,'hourly')) if 'hourly' in kinds else nothing)
         # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46).
         device=self.device_entries(tile['entity']) if tile['entity'].startswith('vacuum.') else None
         message=state_message(index,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device))
@@ -598,7 +821,8 @@ class Manager:
                    'slots': [t['slot'] for t in tiles], 'keepalive': KEEPALIVE_SECONDS}
         if 'pages' in layout:
             message['pages'] = layout['pages']
-        if 'settings' in layout:
+        # A screen that owns its settings (firmware 0.2.49+) gets none: they would overwrite what changed on it.
+        if 'settings' in layout and self.setting_entities(screen) is None:
             # `settings` is the fixed eleven-key block older firmware insists on; everything added
             # later travels as its own key, which firmware that predates it simply ignores.
             message['settings'] = {k:v for k,v in layout['settings'].items() if k not in SETTINGS_BESIDE_BLOCK}
@@ -656,7 +880,11 @@ class Manager:
                 self.sent.pop(inbox, None)
                 return True
             await self.ha.send(inbox, message, action)
-        self.sent[inbox] = {'layout': layout_msg, 'header': header_msg, 'states': states, 'rev': layout_msg['rev']}
+        # `rev` is the revision of the layout message the screen holds: a layout brought in step without being
+        # sent (settings the screen reported itself, see store_settings) keeps the one it had.
+        sent_layout = any(message is layout_msg for message in outgoing)
+        rev = layout_msg['rev'] if sent_layout or not previous else previous.get('rev', layout_msg['rev'])
+        self.sent[inbox] = {'layout': layout_msg, 'header': header_msg, 'states': states, 'rev': rev}
         # The hourly timer follows a real full transmission; any message refreshes the screen's
         # feed window, so the ping timer follows whatever went out (a rebuild without differences,
         # after a registry refresh, must not postpone the ping).
@@ -665,15 +893,40 @@ class Manager:
         if outgoing:
             self.pinged[inbox] = time.monotonic()
         self.status[inbox] = 'Sent to Home Assistant'
+        # A screen that answers confirms a new layout at once: a ping after the batch says whether it holds
+        # the layout and every tile, or which part is missing (firmware 0.2.49+).
+        if sent_layout and self.answers(inbox, screen):
+            await self.ping(inbox, screen)
         return bool(outgoing)
 
     async def ping(self, inbox, screen):
-        """Keepalive for firmware 0.2.33+: the layout revision only; the screen asks for the rest itself."""
+        """Keepalive for firmware 0.2.33+: the layout revision only; the screen asks for the rest itself. A screen
+        that can answer (firmware 0.2.49+) is asked to, so a missing layout or tile is sent again right away."""
         sent = self.sent.get(inbox)
         if not sent:
             return
-        await self.ha.send(inbox, {'v': 1, 'op': 'ping', 'rev': sent['rev'], 'keepalive': KEEPALIVE_SECONDS}, self.transport(inbox, screen))
+        message = {'v': 1, 'op': 'ping', 'rev': sent['rev'], 'keepalive': KEEPALIVE_SECONDS}
+        action = self.transport(inbox, screen)
+        if not self.answers(inbox, screen):
+            await self.ha.send(inbox, message, action)
+            self.pinged[inbox] = time.monotonic()
+            return
+        try:
+            answer = await self.ha.send(inbox, message, action, respond=True)
+        except TimeoutError:
+            # Busy or gone: the text inbox and the next ping still tell.
+            LOG.info('%s did not answer its ping within %d s', (screen or {}).get('name') or inbox, ANSWER_TIMEOUT_SECONDS)
+            answer = None
+        except Refused as error:
+            if 'response' not in error.detail.lower():
+                raise
+            # Home Assistant listed an answer but will not give one: ask this screen no more, ping it as before.
+            LOG.warning('Home Assistant gives no answer for %s (%s); pinging it without', action, error.detail)
+            self.no_answers.add(action)
+            await self.ha.send(inbox, message, action)
+            answer = None
         self.pinged[inbox] = time.monotonic()
+        self.answered(inbox, screen, answer)
 
     def take_dirty(self):
         """Entity ids that changed since the last pass, or None when everything must be rebuilt."""
@@ -698,30 +951,26 @@ class Manager:
             await asyncio.sleep(0.25)
             if not self.ha.online:
                 self.sent.clear()
+                # States made over the REST API are gone once Home Assistant restarts: publish them again.
+                self.published.clear()
                 self.notify()
                 continue
             for event in getattr(self.ha,'setting_events',[])[:]:
                 try:
-                    inbox,key,value=event.get('inbox'),event.get('key'),event.get('value')
-                    if inbox in self.layouts:
-                        layout=dict(self.layouts[inbox]); stored=validate_settings(layout.get('settings',{})); settings=dict(stored)
-                        if key not in settings: continue
-                        settings[key] = value=='1' if type(settings[key]) is bool else int(value)
-                        if key=='brightness':
-                            settings['standby_brightness']=min(settings['standby_brightness'],settings[key])
-                            settings['night_brightness']=min(settings['night_brightness'],settings[key])
-                        settings=validate_settings(settings)
-                        # A screen reporting what it already has (an automation setting the same value on
-                        # every light change): saving would resend the whole screen while someone uses it.
-                        if settings==stored: continue
-                        layout['settings']=settings;self.save(inbox,layout)
-                except (ValueError,TypeError): pass
+                    self.screen_setting_event(event)
+                except (ValueError, TypeError, AttributeError) as error:
+                    LOG.warning('A setting %s reported by %s was not kept (%s)', event.get('key') if isinstance(event, dict) else '?',
+                                event.get('inbox') if isinstance(event, dict) else '?', error)
             if hasattr(self.ha,'setting_events'): self.ha.setting_events.clear()
             dirty = self.take_dirty()
             screens_key = self._screens_key
             screens = self.screens()
             changed = self._screens_key != screens_key
             self.ha.relevant = self.watched_entities()
+            # A setting changed on a screen that owns them: the editor shows it.
+            settings_key = self.settings_states_key()
+            if settings_key != self._settings_key:
+                self._settings_key, changed = settings_key, True
             for screen in screens:
                 inbox = screen['id']
                 before = self.status.get(inbox)
@@ -738,6 +987,10 @@ class Manager:
                     # The screen says it lost the layout (restart, mismatched ping, a state that never came).
                     if inbox in self.sent and screen['status'] in RESEND_STATES and now - self.last.get(inbox, 0) >= RESEND_GUARD_SECONDS:
                         self.sent.pop(inbox)
+                    # An answer said so right after a full send; its wait is over (firmware 0.2.49+).
+                    if inbox in self.retry_at and now >= self.retry_at[inbox]:
+                        del self.retry_at[inbox]
+                        self.sent.pop(inbox, None)
                     force = now - self.last.get(inbox, 0) >= (FULL_REPEAT_SECONDS if pings else KEEPALIVE_SECONDS)
                     if await self.sync_one(inbox, self.layouts[inbox], force, screen, dirty):
                         changed = True
@@ -914,6 +1167,7 @@ def create_app(manager, development=False):
         profiles = manager.firmware.profile_names()
         for screen in screens:
             screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Home', 'tiles': []})
+            screen['settings'] = manager.settings_view(screen)
             screen['delivery'] = manager.status.get(screen['id'], 'Choose your first tiles')
             screen['update'] = manager.updates.state_for(screen, profiles)
             screen['alert_action'] = alert_service(screen.get('node'))
@@ -971,6 +1225,16 @@ def create_app(manager, development=False):
     async def save(request):
         manager.save(request.match_info['inbox'], await request.json())
         return web.json_response({'saved': True})
+    async def change_settings(request):
+        """Screen settings apply one change at a time, like the settings page on the screen (app 0.2.57)."""
+        data = await request.json()
+        try:
+            view = await manager.change_settings(request.match_info['inbox'], data.get('settings') if isinstance(data, dict) else None)
+        except Refused as error:
+            raise ValueError(f"Home Assistant didn't take the change: {error.detail or 'no reason given'}.") from error
+        except (ConnectionError, TimeoutError) as error:
+            raise ValueError("Home Assistant isn't reachable right now. Try again in a moment.") from error
+        return web.json_response(view)
     async def update_screen(request):
         data = await request.json() if request.can_read_body else {}
         return web.json_response(manager.updates.start(request.match_info['inbox'], data.get('host')))
@@ -1021,6 +1285,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/claude-skill.zip', download_claude_skill)
     app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
+    app.router.add_put('/api/screens/{inbox}/settings', change_settings)
     app.router.add_static('/static/', static)
     return app
 

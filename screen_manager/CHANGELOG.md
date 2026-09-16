@@ -1,3 +1,17 @@
+## 0.2.57 (firmware 0.2.49)
+
+The screen keeps its own settings, and ESP Screens shows them the way the screen does.
+
+- **A setting you change stays changed.** Until now ESP Screens kept its own copy of a screen's settings and sent it along with every full update: after a restart of the app or Home Assistant, every hour and after every save. A change it had missed, because the app or Home Assistant was restarting, came back to the old value, and holding − or + on the screen's settings page could jump back a step. With firmware 0.2.49 the screen owns its settings, and ESP Screens changes them on the screen instead of overwriting them.
+- **Every setting is an entity in Home Assistant.** Besides the brightness numbers and Auto standby, each screen now has Night mode, Night starts and Night ends, 24-hour clock, Back to page 1 and after how long, Back to page 1 on standby, Swipe between pages and, on a Guition, Rotation, all under the device's configuration. The settings page, an automation and ESP Screens change the same value, and setting a value the screen already has costs nothing. The Claude skill lists them.
+- **New Screen settings panel.** The form under a screen's tiles is now three cards, Brightness, Night and Screen, with the rows of the settings page on the screen: switches, − and + that repeat while you hold them, and chips for the clock and the rotation. A change applies right away, without Save, and a change made on the screen shows up while the panel is open. An offline screen shows its values as unknown until it is back.
+- **A missing tile comes back sooner.** The screen now answers ESP Screens' ping directly, so a screen that still lacks its layout or a tile right after an update gets everything again after 30 seconds instead of two minutes.
+- **The Settings tile works without Home Assistant.** It did nothing while the screen had no connection, exactly when you want to see "Home Assistant: Not connected" or press Restart.
+- **Claude sees the screens again after Home Assistant restarts.** The `sensor.esp_screens_<screen>` layout sensors are written again right after a restart instead of after the next change to a screen.
+- **No more forecast errors in the Home Assistant log.** A weather tile only asks for the forecasts its weather entity has. Buienradar has no hourly forecast, and asking for one logged an error about 48 times a day.
+- Screens with older firmware work as before, with their settings kept in ESP Screens; a change made on such a screen is no longer sent back to it.
+- Needs firmware 0.2.49: press **Update** on the screen.
+
 ## 0.2.56 (firmware 0.2.48)
 
 The back button on a card works again.

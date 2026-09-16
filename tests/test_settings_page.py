@@ -28,9 +28,13 @@ assert FROZEN == set(SETTING_RULES) - set(SETTINGS_BESIDE_BLOCK)
 
 class SettingsPage(unittest.TestCase):
     def test_every_key_the_screen_reports_is_a_setting_the_app_knows(self):
-        keys = set(re.findall(r'changed\("(\w+)"', SCREEN))
-        self.assertTrue(keys, 'no rows found in settings_screen.h')
-        self.assertLessEqual(keys, set(SETTING_RULES), 'the screen writes a key ESP Screens would drop')
+        # Rows write through set(key, value) (firmware 0.2.49+), which reports the key it was given.
+        rows = set(re.findall(r'\bset\("(\w+)"', SCREEN))
+        self.assertTrue(rows, 'no rows found in settings_screen.h')
+        self.assertLessEqual(rows, set(SETTING_RULES), 'the screen writes a key ESP Screens would drop')
+        handled = set(re.findall(r'key == "(\w+)"', SCREEN))
+        self.assertLessEqual(rows, handled, 'a row writes a key set() does not handle')
+        self.assertEqual(handled, set(SETTING_RULES) - {'show_clock'}, 'set() handles every setting the app knows')
 
     def test_the_frozen_settings_block_keeps_exactly_eleven_keys(self):
         # Firmware before 0.2.44 refuses a `settings` object of any other size; that is why the newer

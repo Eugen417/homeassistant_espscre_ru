@@ -93,6 +93,43 @@ inline void changed(const char *key, int32_t value) {
   if (report) report(key, value);
 }
 
+// The one way a setting changes, for every writer: the rows below, and the Home Assistant entities of the
+// board profile (firmware 0.2.49+). The value is clamped the way the page steps it, a lower brightness pulls
+// the two dim levels down with it, and a value the screen already has is not saved, applied or reported
+// again: an automation may set it on every light change.
+enum class SetResult : uint8_t { unknown, same, changed };
+inline SetResult set(const std::string &key, int32_t value) {
+  auto &s = screen_settings::current;
+  const auto before = s;
+  const int32_t before_swipe = swipe_pages, before_rotation = rotation, before_home = auto_home,
+                before_home_seconds = auto_home_seconds;
+  int32_t reported = 0;
+  auto flag = [](int32_t v) -> int32_t { return v ? 1 : 0; };
+  if (key == "standby_enabled") reported = s.standby_enabled = flag(value);
+  else if (key == "standby_seconds") reported = s.standby_seconds = std::clamp<int32_t>(value, 60, 86400);
+  else if (key == "brightness") {
+    reported = s.brightness = std::clamp<int32_t>(value, 5, 100);
+    s.standby_brightness = std::min(s.standby_brightness, s.brightness);
+    s.night_brightness = std::min(s.night_brightness, s.brightness);
+  } else if (key == "standby_brightness") reported = s.standby_brightness = std::clamp<int32_t>(value, 0, s.brightness);
+  else if (key == "night_enabled") reported = s.night_enabled = flag(value);
+  else if (key == "night_start") reported = s.night_start = std::clamp<int32_t>(value, 0, 1439);
+  else if (key == "night_end") reported = s.night_end = std::clamp<int32_t>(value, 0, 1439);
+  else if (key == "night_brightness") reported = s.night_brightness = std::clamp<int32_t>(value, 0, s.brightness);
+  else if (key == "clock_24h") reported = s.clock_24h = flag(value);
+  else if (key == "home_on_standby") reported = s.home_on_standby = flag(value);
+  else if (key == "swipe_pages") reported = swipe_pages = flag(value);
+  else if (key == "rotation" && rotation_supported) reported = rotation = std::clamp<int32_t>(value, 0, 270) / 90 * 90;
+  else if (key == "auto_home") reported = auto_home = flag(value);
+  else if (key == "auto_home_seconds") reported = auto_home_seconds = std::clamp<int32_t>(value, 30, 3600);
+  else return SetResult::unknown;
+  if (s == before && swipe_pages == before_swipe && rotation == before_rotation && auto_home == before_home &&
+      auto_home_seconds == before_home_seconds)
+    return SetResult::same;
+  changed(key.c_str(), reported);
+  return SetResult::changed;
+}
+
 // How coarse a duration steps: seconds near the bottom, quarters of an hour at the top. Stepping down
 // reads the ladder one second lower, so up and down always land on the same values again.
 inline int32_t ladder_step(int32_t seconds) {
@@ -186,73 +223,47 @@ inline constexpr const char *rotation_options[] = {"0°", "90°", "180°", "270�
 // the board does not.
 inline constexpr Row light_rows[] = {
   number("Brightness", []() -> int32_t { return screen_settings::current.brightness; },
-         [](int32_t value) {
-           auto &s = screen_settings::current;
-           s.brightness = std::clamp<int32_t>(value, 5, 100);
-           s.standby_brightness = std::min(s.standby_brightness, s.brightness);
-           s.night_brightness = std::min(s.night_brightness, s.brightness);
-           changed("brightness", s.brightness);
-         }, 5, 100, 5, "%"),
+         [](int32_t value) { set("brightness", value); }, 5, 100, 5, "%"),
   toggle("Auto standby", []() -> int32_t { return screen_settings::current.standby_enabled; },
-         [](int32_t value) {
-           screen_settings::current.standby_enabled = value ? 1 : 0;
-           changed("standby_enabled", screen_settings::current.standby_enabled);
-         }),
+         [](int32_t value) { set("standby_enabled", value); }),
   duration("Standby after", []() -> int32_t { return screen_settings::current.standby_seconds; },
-           [](int32_t value) {
-             screen_settings::current.standby_seconds = value;
-             changed("standby_seconds", value);
-           }, 60, 86400, [] { return screen_settings::current.standby_enabled != 0; }),
+           [](int32_t value) { set("standby_seconds", value); }, 60, 86400,
+           [] { return screen_settings::current.standby_enabled != 0; }),
   number("Standby brightness", []() -> int32_t { return screen_settings::current.standby_brightness; },
-         [](int32_t value) {
-           auto &s = screen_settings::current;
-           s.standby_brightness = std::clamp<int32_t>(value, 0, s.brightness);
-           changed("standby_brightness", s.standby_brightness);
-         }, 0, 100, 5, "%", [] { return screen_settings::current.standby_enabled != 0; }),
+         [](int32_t value) { set("standby_brightness", value); }, 0, 100, 5, "%",
+         [] { return screen_settings::current.standby_enabled != 0; }),
 };
 
 // Darker between two times, so a panel in a hallway does not light up the bedroom.
 inline constexpr Row night_rows[] = {
   toggle("Night mode", []() -> int32_t { return screen_settings::current.night_enabled; },
-         [](int32_t value) {
-           screen_settings::current.night_enabled = value ? 1 : 0;
-           changed("night_enabled", screen_settings::current.night_enabled);
-         }),
+         [](int32_t value) { set("night_enabled", value); }),
   moment("Starts", []() -> int32_t { return screen_settings::current.night_start; },
-         [](int32_t value) { screen_settings::current.night_start = value; changed("night_start", value); },
+         [](int32_t value) { set("night_start", value); },
          [] { return screen_settings::current.night_enabled != 0; }),
   moment("Ends", []() -> int32_t { return screen_settings::current.night_end; },
-         [](int32_t value) { screen_settings::current.night_end = value; changed("night_end", value); },
+         [](int32_t value) { set("night_end", value); },
          [] { return screen_settings::current.night_enabled != 0; }),
   number("Night brightness", []() -> int32_t { return screen_settings::current.night_brightness; },
-         [](int32_t value) {
-           auto &s = screen_settings::current;
-           s.night_brightness = std::clamp<int32_t>(value, 0, s.brightness);
-           changed("night_brightness", s.night_brightness);
-         }, 0, 100, 5, "%", [] { return screen_settings::current.night_enabled != 0; }),
+         [](int32_t value) { set("night_brightness", value); }, 0, 100, 5, "%",
+         [] { return screen_settings::current.night_enabled != 0; }),
 };
 
 // How the screen behaves under your finger: the clock, going back to the first page, swiping, turning.
 inline constexpr Row screen_rows[] = {
   choice("Clock", []() -> int32_t { return screen_settings::current.clock_24h ? 1 : 0; },
-         [](int32_t value) {
-           screen_settings::current.clock_24h = value ? 1 : 0;
-           changed("clock_24h", screen_settings::current.clock_24h);
-         }, clock_options, 2),
+         [](int32_t value) { set("clock_24h", value); }, clock_options, 2),
   toggle("Back to page 1", []() -> int32_t { return auto_home; },
-         [](int32_t value) { auto_home = value ? 1 : 0; changed("auto_home", auto_home); }),
+         [](int32_t value) { set("auto_home", value); }),
   duration("After", []() -> int32_t { return auto_home_seconds; },
-           [](int32_t value) { auto_home_seconds = value; changed("auto_home_seconds", value); }, 30, 3600,
+           [](int32_t value) { set("auto_home_seconds", value); }, 30, 3600,
            [] { return auto_home != 0; }),
   toggle("Also on standby", []() -> int32_t { return screen_settings::current.home_on_standby; },
-         [](int32_t value) {
-           screen_settings::current.home_on_standby = value ? 1 : 0;
-           changed("home_on_standby", screen_settings::current.home_on_standby);
-         }),
+         [](int32_t value) { set("home_on_standby", value); }),
   toggle("Swipe between pages", []() -> int32_t { return swipe_pages; },
-         [](int32_t value) { swipe_pages = value ? 1 : 0; changed("swipe_pages", swipe_pages); }),
+         [](int32_t value) { set("swipe_pages", value); }),
   choice("Rotation", []() -> int32_t { return rotation / 90; },
-         [](int32_t value) { rotation = std::clamp<int32_t>(value, 0, 3) * 90; changed("rotation", rotation); },
+         [](int32_t value) { set("rotation", std::clamp<int32_t>(value, 0, 3) * 90); },
          rotation_options, 4, [] { return rotation_supported; }),
 };
 
@@ -398,22 +409,30 @@ inline void move_knob(Drawn &d, const Row &row) {
   auto *track = lv_obj_get_parent(d.knob);
   bool on = row.read && row.read();
   int w = lv_obj_get_width(track), size = lv_obj_get_width(d.knob), inset = (lv_obj_get_height(track) - size) / 2;
-  lv_obj_set_style_bg_color(track, lv_color_hex(on ? 0x009FE3 : 0xC4C4C4), 0);
+  // Setting a style always repaints, so only a real change sets it; lv_obj_set_x checks by itself.
+  const lv_color_t color = lv_color_hex(on ? 0x009FE3 : 0xC4C4C4);
+  if (!lv_color_eq(lv_obj_get_style_bg_color(track, LV_PART_MAIN), color)) lv_obj_set_style_bg_color(track, color, 0);
   lv_obj_set_x(d.knob, on ? w - inset - size : inset);
 }
 
 // After any change: every row on this page tells its own value again. Cheap (eight labels at most) and
 // it keeps rows that lean on each other honest -- lowering Brightness also lowers the two dim levels.
+// The board runs it after a change from Home Assistant too, so a text is only set when it differs.
 inline void refresh() {
+  if (!root) return;
   const Page &page = pages[current_page];
   for (uint8_t i = 0; i < drawn_count; ++i) {
     Drawn &d = drawn[i];
     const Row &row = page.rows[d.row];
-    if (d.value) lv_label_set_text(d.value, value_text(row).c_str());
+    if (d.value) {
+      const std::string text = value_text(row);
+      if (text != lv_label_get_text(d.value)) lv_label_set_text(d.value, text.c_str());
+    }
     if (d.knob) move_knob(d, row);
     // A row whose switch is off (night times, the standby levels) is there but does nothing, and says so.
     bool live = live_row(row);
-    if (d.card) lv_obj_set_style_opa(d.card, live ? LV_OPA_COVER : LV_OPA_50, 0);
+    const lv_opa_t opa = live ? LV_OPA_COVER : LV_OPA_50;
+    if (d.card && lv_obj_get_style_opa(d.card, LV_PART_MAIN) != opa) lv_obj_set_style_opa(d.card, opa, 0);
     if (d.minus && row.read) {
       bool off = !live || at_end(row, row.read(), -1);
       if (off) lv_obj_add_state(d.minus, LV_STATE_DISABLED); else lv_obj_remove_state(d.minus, LV_STATE_DISABLED);

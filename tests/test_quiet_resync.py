@@ -55,19 +55,27 @@ class SettingEvents(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ha.messages, [], 'nothing changed: no resend of the whole screen')
             self.assertIs(m.layouts['text.screen'], stored, 'and no save')
             self.assertEqual(ha.setting_events, [], 'the event is handled all the same')
-            # A real change is still saved and sent.
+            # A real change is kept (app 0.2.57), and not sent back: the screen has it already, and an echo that
+            # arrives after the screen stepped further would undo that step (a held + on its settings page).
+            rev = m.sent['text.screen']['rev']
             ha.setting_events.append({'inbox': 'text.screen', 'key': 'standby_seconds', 'value': '600'})
             ha.changed.set()
             await self.run_loop_for(m, 0.6)
             self.assertEqual(m.layouts['text.screen']['settings']['standby_seconds'], 600)
-            self.assertIn('layout', [msg['op'] for _, msg, _ in ha.messages])
+            self.assertEqual(ha.messages, [], 'nothing goes back to the screen')
+            self.assertEqual(m.sent['text.screen']['layout']['settings']['standby_seconds'], 600, 'what the screen holds follows')
+            self.assertEqual(m.sent['text.screen']['rev'], rev, 'the ping keeps the revision the screen has')
             # So is a brightness that pulls the standby brightness down with it.
-            ha.messages.clear()
             ha.setting_events.append({'inbox': 'text.screen', 'key': 'brightness', 'value': '10'})
             ha.changed.set()
             await self.run_loop_for(m, 0.6)
             settings = m.layouts['text.screen']['settings']
             self.assertEqual((settings['brightness'], settings['standby_brightness']), (10, 10))
+            self.assertEqual(ha.messages, [])
+            # The hourly repeat carries the kept values, so the screen and the stored layout agree.
+            await m.sync_one('text.screen', m.layouts['text.screen'], force=True, screen=m.screen('text.screen'), dirty=set())
+            layout = next(msg for _, msg, _ in ha.messages if msg['op'] == 'layout')
+            self.assertEqual((layout['settings']['brightness'], layout['settings']['standby_seconds']), (10, 600))
 
 
 class Firmware(unittest.TestCase):
@@ -75,12 +83,14 @@ class Firmware(unittest.TestCase):
         self.profiles = {name: (ROOT / name).read_text() for name in PROFILES}
 
     def test_home_assistant_setting_the_same_value_writes_and_reports_nothing(self):
+        # Firmware 0.2.49+: the setting entities change a value through settings_screen::set(), which stores,
+        # applies and reports only a real change (tests/test_settings_screen.cpp checks that).
+        screen = (ROOT / 'components/smart_display/settings_screen.h').read_text()
+        self.assertRegex(screen, r'return SetResult::same;\n  changed\(key\.c_str\(\), reported\);')
         for name, text in self.profiles.items():
             for key in ('brightness', 'standby_brightness', 'night_brightness', 'standby_seconds'):
-                action = re.search(r'const auto before = s;\n(?:.*\n){1,6}?\s+if \(s == before\) return;\n'
-                                   r'\s+if \(runtime_tiles::enabled\) runtime_tiles::settings_preference\.save\(&s\);\n'
-                                   rf'\s+runtime_tiles::setting_event\("{key}",', text)
-                self.assertTrue(action, f'{name}: {key} saves or reports a value it already has')
+                self.assertIn(f"set_action:\n      - lambda: 'settings_screen::set(\"{key}\", (int32_t) lround(x));'", text, f'{name}: {key}')
+            self.assertNotIn('runtime_tiles::setting_event("', text, f'{name}: settings are reported through set() only')
 
     def test_a_repeated_layout_does_not_redraw_the_page(self):
         block = RUNTIME[RUNTIME.index('if (op == "layout")'):RUNTIME.index('if (op == "ping")')]

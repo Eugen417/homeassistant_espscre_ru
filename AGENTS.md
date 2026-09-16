@@ -50,9 +50,11 @@ physically tap; an agent cannot replace that with software coordinates.
 - Keep base hardware and UI in `home-like-2432s028.yaml`; personal data belongs
   in the gitignored local profiles.
 - Screen settings live in one table: `components/smart_display/settings_screen.h` draws the
-  page on the screen, `SETTING_RULES` in the add-on validates and stores the same keys.
-  docs/SETTINGS.md is the end-to-end recipe for adding one; never widen the eleven-key
-  `settings` block older firmware insists on.
+  page on the screen, `SETTING_RULES` in the add-on validates the same keys. Firmware 0.2.49+
+  owns them: every writer (the page, the entities in both profiles) goes through
+  `settings_screen::set()`, and the add-on changes them through the entities in
+  `SETTING_ENTITIES`, never through the layout message. docs/SETTINGS.md is the end-to-end
+  recipe for adding one; never widen the eleven-key `settings` block older firmware insists on.
 - Preserve fixed pages, hidden navigation at six tiles or fewer, and a
   minimum default standby of 600 seconds. Don't reintroduce free scrolling
   without physically testing for touch/navigation regressions.

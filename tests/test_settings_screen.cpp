@@ -122,4 +122,47 @@ int main() {
   assert(stored == 1 && applied == 1 && last_key == "standby_enabled" && last_value == 0);
   row_named(screen, "After").write(600);
   assert(stored == 2 && last_key == "auto_home_seconds" && last_value == 600 && auto_home_seconds == 600);
+
+  // ---- set(): the one path for the rows and for Home Assistant's entities (firmware 0.2.49+) ----
+  // A value the screen already has is not stored, applied or reported: an automation may set it on every change.
+  SetResult result = set("standby_enabled", 0);
+  assert(result == SetResult::same && stored == 2 && applied == 2);
+  result = set("auto_home_seconds", 600);
+  assert(result == SetResult::same && stored == 2);
+  // Every key ESP Screens knows lands on the screen, clamped the way the page steps it.
+  screen_settings::current = screen_settings::Settings{};
+  rotation_supported = true;
+  const struct { const char *key; int32_t value, expected; } cases[] = {
+      {"standby_enabled", 5, 1}, {"standby_seconds", 10, 60}, {"standby_seconds", 999999, 86400},
+      {"brightness", 1, 5}, {"brightness", 250, 100}, {"standby_brightness", 101, 100}, {"night_enabled", 0, 0},
+      {"night_start", -5, 0}, {"night_end", 2000, 1439}, {"night_brightness", 7, 7}, {"clock_24h", 0, 0},
+      {"home_on_standby", 1, 1}, {"swipe_pages", 2, 1}, {"rotation", 100, 90}, {"rotation", 400, 270},
+      {"auto_home", 0, 0}, {"auto_home_seconds", 5, 30}, {"auto_home_seconds", 99999, 3600},
+  };
+  for (const auto &c : cases) {
+    result = set(c.key, c.value);
+    assert(result != SetResult::unknown);
+    if (result == SetResult::changed) assert(last_key == c.key && last_value == c.expected);
+  }
+  assert(screen_settings::current.standby_seconds == 86400 && screen_settings::current.brightness == 100);
+  assert(screen_settings::current.night_start == 0 && screen_settings::current.night_end == 1439);
+  assert(swipe_pages == 1 && rotation == 270 && auto_home == 0 && auto_home_seconds == 3600);
+  assert(screen_settings::current.valid());
+  // A lower brightness pulls both dim levels down, and reports the brightness itself.
+  set("standby_brightness", 60);
+  set("night_brightness", 50);
+  result = set("brightness", 30);
+  assert(result == SetResult::changed && last_key == "brightness" && last_value == 30);
+  assert(screen_settings::current.standby_brightness == 30 && screen_settings::current.night_brightness == 30);
+  result = set("standby_brightness", 90);
+  assert(result == SetResult::same && screen_settings::current.standby_brightness == 30);
+  // What the screen cannot do, or does not know, is refused without a store.
+  const int before = stored;
+  rotation_supported = false;
+  result = set("rotation", 90);
+  assert(result == SetResult::unknown && rotation == 270);
+  result = set("show_clock", 0);
+  assert(result == SetResult::unknown);
+  result = set("beep", 1);
+  assert(result == SetResult::unknown && stored == before);
 }

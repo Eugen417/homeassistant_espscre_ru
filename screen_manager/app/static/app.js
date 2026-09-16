@@ -58,6 +58,10 @@ function select(id) {
     )
   )
     return;
+  if (id !== selected) {
+    flushSettings();
+    settingEdits = {};
+  }
   selected = id;
   selectedTile = null;
   if ($("#tile-sheet").open) $("#tile-sheet").close();
@@ -80,106 +84,272 @@ function select(id) {
   renderSettings();
   loadTopbarPreview(0);
 }
-const settingDefinitions = [
-  ["standby_enabled", "Auto standby", "check", true],
-  ["standby_seconds", "Standby after", "minutes", 600, 1, 1440],
-  ["brightness", "Normal brightness", "range", 100, 5, 100],
-  ["standby_brightness", "Standby brightness", "range", 20, 0, 100],
-  ["night_enabled", "Use night mode", "check", true],
-  ["night_brightness", "Night brightness", "range", 10, 0, 100],
-  ["night_start", "Night starts", "time", 1320],
-  ["night_end", "Night ends", "time", 420],
-  // Whether the clock shows is up to the top bar now; the add-on keeps show_clock in step for older firmware.
-  ["clock_24h", "24-hour clock (off = 12 hour)", "check", true],
-  ["home_on_standby", "Return to page 1 after standby", "check", false],
-  ["auto_home", "Close cards and return to page 1 by itself (firmware 0.2.44+)", "check", true],
-  ["auto_home_seconds", "Return to page 1 after", "minutes", 120, 1, 60],
-  ["rotation", "Rotate screen (clockwise)", "rotation", 0],
-  ["swipe_pages", "Swipe between pages (Guition: from the edge, firmware 0.2.24+; CYD: quick swipe, 0.2.7+)", "check", false],
+// ----- Screen settings: the same groups and rows as the settings page on the screen itself -----
+// Every change applies at once, like on the screen; no Save needed. A screen with firmware 0.2.49+ owns its
+// settings and ESP Screens changes them through its entities in Home Assistant, so an automation, the page on
+// the screen and this panel always show the same value. Older firmware gets them with its layout.
+const SETTING_GROUPS = [
+  { title: "Brightness", icon: "F0599", rows: [
+    { key: "brightness", label: "Brightness", kind: "number", min: 5, max: 100, step: 5, unit: "%" },
+    { key: "standby_enabled", label: "Auto standby", kind: "toggle" },
+    { key: "standby_seconds", label: "Standby after", kind: "duration", min: 60, max: 86400, needs: "standby_enabled" },
+    { key: "standby_brightness", label: "Standby brightness", kind: "number", min: 0, max: 100, step: 5, unit: "%", needs: "standby_enabled", cap: "brightness" },
+  ] },
+  { title: "Night", icon: "F0594", rows: [
+    { key: "night_enabled", label: "Night mode", kind: "toggle" },
+    { key: "night_start", label: "Starts", kind: "moment", needs: "night_enabled" },
+    { key: "night_end", label: "Ends", kind: "moment", needs: "night_enabled" },
+    { key: "night_brightness", label: "Night brightness", kind: "number", min: 0, max: 100, step: 5, unit: "%", needs: "night_enabled", cap: "brightness" },
+  ] },
+  { title: "Screen", icon: "F0379", rows: [
+    { key: "clock_24h", label: "Clock", kind: "choice", options: [[false, "12 hour"], [true, "24 hour"]] },
+    { key: "auto_home", label: "Back to page 1", kind: "toggle" },
+    { key: "auto_home_seconds", label: "After", kind: "duration", min: 30, max: 3600, needs: "auto_home" },
+    { key: "home_on_standby", label: "Also on standby", kind: "toggle" },
+    { key: "swipe_pages", label: "Swipe between pages", kind: "toggle" },
+    { key: "rotation", label: "Rotation", kind: "choice", options: [[0, "0°"], [90, "90°"], [180, "180°"], [270, "270°"]] },
+  ] },
 ];
-function renderSettings() {
-  const values = {
-    ...Object.fromEntries(
-      settingDefinitions.map(([key, , , value]) => [key, value]),
-    ),
-    ...layout.settings,
-  };
-  const container = $("#settings-fields");
-  container.replaceChildren();
-  for (const [key, title, kind, , min, max] of settingDefinitions) {
-    if(key === "rotation" && inventory.screens.find(s => s.id === selected)?.board !== "guition") continue;
-    const label = node(
-      "label",
-      undefined,
-      `setting ${kind === "check" ? "setting-check" : ""}`,
-    );
-    const caption = node("span", title),
-      input = node(kind === "rotation" ? "select" : "input"),
-      output = node("output");
-    input.id = `setting-${key}`;
-    if(kind !== "rotation") input.type =
-      kind === "check" ? "checkbox" : kind === "minutes" ? "number" : kind;
-    input.setAttribute("aria-label", title);
-    input.required = kind === "minutes" || kind === "time";
-    if(kind === "rotation") {
-      for(const angle of [0,90,180,270]) { const option=node("option", `${angle}°`); option.value=angle; input.append(option); }
-      input.value=values[key];
-    }
-    else if (kind === "check") input.checked = values[key];
-    else if (kind === "time")
-      input.value = `${String(Math.floor(values[key] / 60)).padStart(2, "0")}:${String(values[key] % 60).padStart(2, "0")}`;
-    else {
-      input.min = min;
-      input.max = max;
-      input.step = 1;
-      input.value = kind === "minutes" ? values[key] / 60 : values[key];
-    }
-    const updateOutput = () =>
-      (output.textContent =
-        kind === "range"
-          ? `${input.value}%`
-          : kind === "minutes"
-            ? "minutes"
-            : "");
-    updateOutput();
-    input.oninput = () => {
-      if (!input.checkValidity() || input.value === "") return;
-      let value = kind === "check" ? input.checked : Number(input.value);
-      if (kind === "time") {
-        const [h, m] = input.value.split(":").map(Number);
-        value = h * 60 + m;
-      }
-      if (kind === "minutes") value *= 60;
-      layout.settings = { ...values, ...layout.settings, [key]: value };
-      // A lower normal brightness also lowers any higher standby levels.
-      if (key === "brightness")
-        for (const dim of ["standby_brightness", "night_brightness"]) {
-          layout.settings[dim] = Math.min(layout.settings[dim], value);
-          const other = $(`#setting-${dim}`);
-          other.value = layout.settings[dim];
-          other.parentElement.querySelector("output").textContent =
-            `${other.value}%`;
-        }
-      updateOutput();
-      markDirty();
-    };
-    label.append(caption, input, output);
-    container.append(label);
-  }
-  renderSettingsSupport();
+const SETTING_ROWS = Object.fromEntries(SETTING_GROUPS.flatMap((group) => group.rows.map((row) => [row.key, row])));
+// Changes made here that the screen has not reported back yet: {key: {value, at}}. They win over what
+// Home Assistant still shows for a few seconds, so a value never flicks back while it travels.
+let settingEdits = {}, settingQueue = {}, settingTarget = null, settingTimer = null, settingFlight = null, settingPanel = { key: "", rows: {} };
+const SETTING_EDIT_MS = 4000;
+const settingsView = () => inventory.screens.find((s) => s.id === selected)?.settings;
+function settingValues() {
+  const view = settingsView(), values = { ...(view?.values || {}) };
+  for (const [key, edit] of Object.entries(settingEdits)) values[key] = edit.value;
+  return values;
 }
-function renderSettingsSupport() {
-  const version =
-    inventory.screens.find((s) => s.id === selected)?.firmware || "";
-  const parts = /^([0-9]+)\.([0-9]+)\.([0-9]+)$/.exec(version);
-  const supported =
-    parts &&
-    (Number(parts[1]) > 0 ||
-      Number(parts[2]) > 1 ||
-      (Number(parts[2]) === 1 && Number(parts[3]) >= 2));
-  $("#settings-support").textContent = supported
-    ? "Saving sends your settings straight to this screen. They're also kept after a restart."
-    : "Install firmware 0.1.2 or newer once via ESPHome. You can save the settings now; older firmware doesn't use them yet.";
+// The same steps as settings_screen.h: seconds low down, quarters of an hour up top; times by the quarter,
+// whole hours while held.
+const ladderStep = (seconds) => (seconds < 300 ? 30 : seconds < 900 ? 60 : seconds < 3600 ? 300 : seconds < 7200 ? 900 : 1800);
+function steppedSetting(row, value, direction, held, values) {
+  if (row.kind === "moment") {
+    let next = held && value % 60 ? Math.floor(value / 60) * 60 + (direction > 0 ? 60 : 0) : value + direction * (held ? 60 : 15);
+    next %= 1440;
+    return next < 0 ? next + 1440 : next;
+  }
+  const step = row.kind === "duration" ? ladderStep(direction < 0 ? value - 1 : value) : row.step;
+  const max = row.cap ? Math.min(row.max, values[row.cap]) : row.max;
+  return Math.min(max, Math.max(row.min, value + direction * step));
+}
+function durationText(seconds) {
+  if (seconds < 60) return `${seconds} sec`;
+  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+  const hours = Math.floor(seconds / 3600), minutes = Math.floor((seconds % 3600) / 60);
+  return minutes ? `${hours} h ${String(minutes).padStart(2, "0")}` : `${hours} h`;
+}
+function momentText(minutes, clock24) {
+  const hour = Math.floor(minutes / 60), minute = String(minutes % 60).padStart(2, "0");
+  return clock24 ? `${String(hour).padStart(2, "0")}:${minute}` : `${hour % 12 || 12}:${minute} ${hour < 12 ? "AM" : "PM"}`;
+}
+function settingText(row, values) {
+  const value = values[row.key];
+  // Home Assistant has no value while the screen is offline or the entity is off.
+  if (value === null || value === undefined) return "—";
+  if (row.kind === "number") return `${value}${row.unit || ""}`;
+  if (row.kind === "duration") return durationText(value);
+  if (row.kind === "moment") return momentText(value, values.clock_24h !== false);
+  return "";
+}
+// A key held down steps again and again, faster after a moment, like the -/+ keys on the screen.
+function holdable(button, step) {
+  let timer = null, repeats = 0, held = false;
+  const stop = () => { clearTimeout(timer); timer = null; };
+  button.addEventListener("pointerdown", (event) => {
+    if (button.disabled || event.button !== 0) return;
+    held = false;
+    repeats = 0;
+    stop();
+    timer = setTimeout(function repeat() {
+      held = true;
+      repeats += 1;
+      step(repeats > 5);
+      timer = setTimeout(repeat, 180);
+    }, 450);
+  });
+  for (const type of ["pointerup", "pointercancel", "pointerleave"]) button.addEventListener(type, stop);
+  button.addEventListener("click", () => {
+    if (held) { held = false; return; }
+    step(false);
+  });
+}
+function settingControl(row) {
+  const refs = { row };
+  const line = node("div", undefined, `setting-row setting-${row.kind}`);
+  line.dataset.setting = row.key;
+  const label = node("span", row.label, "setting-label");
+  label.id = `setting-label-${row.key}`;
+  const control = node("div", undefined, "setting-control");
+  if (row.kind === "toggle") {
+    const toggle = node("button", undefined, "switch");
+    toggle.type = "button";
+    toggle.id = `setting-${row.key}`;
+    toggle.setAttribute("role", "switch");
+    toggle.setAttribute("aria-labelledby", label.id);
+    toggle.onclick = () => setSetting(row.key, !settingValues()[row.key], 150);
+    // The whole row answers a click, as on the screen.
+    line.onclick = (event) => { if (event.target === line || event.target === label) toggle.click(); };
+    control.append(toggle);
+    refs.toggle = toggle;
+  } else if (row.kind === "choice") {
+    const group = node("div", undefined, "segmented setting-choices");
+    group.setAttribute("role", "group");
+    group.setAttribute("aria-labelledby", label.id);
+    refs.chips = row.options.map(([value, text]) => {
+      const chip = node("button", text);
+      chip.type = "button";
+      chip.onclick = () => setSetting(row.key, value, 150);
+      group.append(chip);
+      return [value, chip];
+    });
+    control.append(group);
+  } else {
+    const minus = node("button", undefined, "step");
+    const plus = node("button", undefined, "step");
+    minus.type = plus.type = "button";
+    minus.append(node("span", glyph("F0374"), "mdi"));
+    plus.append(node("span", glyph("F0415"), "mdi"));
+    minus.setAttribute("aria-label", `${row.label} lower`);
+    plus.setAttribute("aria-label", `${row.label} higher`);
+    const value = node("output", undefined, "setting-value");
+    value.setAttribute("aria-labelledby", label.id);
+    value.id = `setting-${row.key}`;
+    for (const [button, direction] of [[minus, -1], [plus, 1]]) {
+      holdable(button, (held) => {
+        const values = settingValues();
+        const next = steppedSetting(row, values[row.key], direction, held, values);
+        if (next !== values[row.key]) setSetting(row.key, next, 600);
+      });
+    }
+    control.append(minus, value, plus);
+    Object.assign(refs, { minus, plus, value });
+  }
+  line.append(label, control);
+  refs.line = line;
+  return refs;
+}
+function renderSettings() {
+  const container = $("#settings-groups");
+  const screen = inventory.screens.find((s) => s.id === selected), view = screen?.settings;
+  if (!view) {
+    container.replaceChildren();
+    settingPanel = { key: "", rows: {} };
+    $("#settings-status").textContent = "";
+    return;
+  }
+  // Rebuild only when the rows change (another screen, board or firmware); otherwise update in place, so a
+  // key held down keeps its grip while the values come back.
+  const shape = `${screen.id}|${view.keys.join(",")}`;
+  if (settingPanel.key !== shape) {
+    const rows = {};
+    container.replaceChildren(...SETTING_GROUPS.map((group) => {
+      const shown = group.rows.filter((row) => view.keys.includes(row.key));
+      const card = node("section", undefined, "settings-card");
+      card.hidden = !shown.length;
+      const head = node("h4");
+      head.append(node("span", glyph(group.icon), "mdi"), node("span", group.title));
+      card.append(head);
+      for (const row of shown) {
+        rows[row.key] = settingControl(row);
+        card.append(rows[row.key].line);
+      }
+      return card;
+    }));
+    settingPanel = { key: shape, rows };
+  }
+  const values = settingValues();
+  const offline = view.owner === "screen" && !screen.online;
+  for (const [key, refs] of Object.entries(settingPanel.rows)) {
+    const row = refs.row, needs = row.needs ? values[row.needs] : true;
+    const unavailable = offline || view.unavailable.includes(key);
+    refs.line.classList.toggle("inactive", !needs || unavailable);
+    refs.line.title = unavailable && !offline ? "This entity is off in Home Assistant, or the screen is restarting." : "";
+    if (refs.toggle) {
+      refs.toggle.setAttribute("aria-checked", String(Boolean(values[key])));
+      refs.toggle.classList.toggle("unknown", values[key] === null || values[key] === undefined);
+      refs.toggle.disabled = unavailable;
+    } else if (refs.chips) {
+      for (const [value, chip] of refs.chips) {
+        chip.setAttribute("aria-pressed", String(values[key] === value));
+        chip.disabled = unavailable;
+      }
+    } else {
+      refs.value.textContent = settingText(row, values);
+      const lower = steppedSetting(row, values[key], -1, false, values), higher = steppedSetting(row, values[key], 1, false, values);
+      refs.minus.disabled = unavailable || !needs || (row.kind !== "moment" && lower === values[key]);
+      refs.plus.disabled = unavailable || !needs || (row.kind !== "moment" && higher === values[key]);
+    }
+  }
+  const pending = Object.keys(settingQueue).length || settingFlight;
+  $("#settings-status").textContent = offline
+    ? "This screen is offline. Its settings can change once it's back."
+    : pending
+      ? "Saving…"
+      : view.owner === "screen"
+        ? "Changes apply on the screen at once, and show up here when they change there."
+        : "Changes apply at once. Firmware 0.2.49 lets the screen keep them itself.";
+  $("#general-settings").classList.toggle("offline", offline);
+}
+function setSetting(key, value, delay) {
+  // One screen's changes at a time: the ones for the screen shown before go out first.
+  if (settingTarget && settingTarget !== selected && Object.keys(settingQueue).length) {
+    flushSettings();
+    toast("Still saving the other screen's settings. Try again in a moment.");
+    return;
+  }
+  settingTarget = selected;
+  const values = settingValues();
+  settingEdits[key] = { value, at: Date.now() };
+  settingQueue[key] = value;
+  // A lower brightness pulls both dim levels down with it, as on the screen.
+  if (key === "brightness")
+    for (const dim of ["standby_brightness", "night_brightness"])
+      if (values[dim] > value) settingEdits[dim] = { value, at: Date.now() };
+  renderSettings();
+  if (key === "clock_24h") { renderTopbar(); renderBars(); if ($("#topbar-sheet").open) renderTopbarLive(); }
+  clearTimeout(settingTimer);
+  settingTimer = setTimeout(flushSettings, delay);
+}
+async function flushSettings(unloading = false) {
+  clearTimeout(settingTimer);
+  if (settingFlight || !Object.keys(settingQueue).length || !settingTarget) return;
+  const screen = settingTarget, changes = settingQueue;
+  settingQueue = {};
+  const request = api(`screens/${encodeURIComponent(screen)}/settings`, {
+    method: "PUT",
+    body: JSON.stringify({ settings: changes }),
+    keepalive: unloading,
+  });
+  settingFlight = request;
+  renderSettings();
+  try {
+    const view = await (await request).json();
+    const current = inventory.screens.find((s) => s.id === screen);
+    if (current) current.settings = view;
+  } catch (e) {
+    toast(e.message);
+    // What did not arrive is not kept: the panel shows the screen's own values again.
+    if (screen === selected) for (const key of Object.keys(changes)) delete settingEdits[key];
+    if (screen === selected && changes.brightness !== undefined) for (const dim of ["standby_brightness", "night_brightness"]) delete settingEdits[dim];
+  } finally {
+    settingFlight = null;
+    if (Object.keys(settingQueue).length) settingTimer = setTimeout(flushSettings, 150);
+    else settingTarget = null;
+    if (screen === selected) { settleSettings(); renderSettings(); }
+    // A value the screen refused or clamped comes back without a live update: look again once edits expire.
+    setTimeout(() => { if (screen === selected) { settleSettings(); renderSettings(); } }, SETTING_EDIT_MS + 100);
+  }
+}
+// Values Home Assistant reports take over again once they match a change made here, or after a few seconds
+// (the screen refused or clamped it).
+function settleSettings() {
+  const view = settingsView();
+  for (const [key, edit] of Object.entries(settingEdits)) {
+    if (settingQueue[key] !== undefined || settingFlight) continue;
+    if ((view && view.values[key] === edit.value) || Date.now() - edit.at > SETTING_EDIT_MS) delete settingEdits[key];
+  }
 }
 const updating = new Set();
 const PHASES = {
@@ -1083,7 +1253,7 @@ function loadTopbarPreview(delay = 150) {
 function clockText(now = new Date()) {
   let hours = now.getHours();
   // The screen formats with %I:%M when the 24-hour clock is off.
-  if (!(layout.settings?.clock_24h ?? true)) hours = hours % 12 || 12;
+  if (settingValues().clock_24h === false) hours = hours % 12 || 12;
   return `${String(hours).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
 const dateText = (now = new Date()) => `${WEEKDAYS[now.getDay()]} ${now.getDate()} ${MONTHS[now.getMonth()]}`;
@@ -1479,13 +1649,9 @@ function renderTopbarSheet() {
     live.id = "topbar-live";
     body.append(live);
     if (item.type !== "date") {
-      const format = segmented([["24", "24 hour"], ["12", "12 hour"]], (layout.settings?.clock_24h ?? true) ? "24" : "12", (v) => {
-        layout.settings = { ...Object.fromEntries(settingDefinitions.map(([key, , , value]) => [key, value])), ...layout.settings, clock_24h: v === "24" };
-        markDirty();
-        renderSettings();
-        renderTopbar();
-        renderBars();
-        renderTopbarLive();
+      // The screen's own clock setting: it applies at once, like the Clock row under Screen settings.
+      const format = segmented([["24", "24 hour"], ["12", "12 hour"]], settingValues().clock_24h !== false ? "24" : "12", (v) => {
+        setSetting("clock_24h", v === "24", 150);
       });
       const formatField = group("Format", format);
       formatField.append(node("small", "Applies to every clock on this screen, including the clock tiles.", "field-hint"));
@@ -1731,7 +1897,7 @@ async function refresh(full = true) {
     $("#connection").classList.toggle("online", inventory.connected);
     renderScreens();
     if (full) renderClaude();
-    if (selected) renderSettingsSupport();
+    if (selected) { settleSettings(); renderSettings(); }
     if (!selected && inventory.screens.length) select(inventory.screens[0].id);
     if ($("#alerts-dialog").open) renderAlertScreens();
   } catch {
@@ -1741,16 +1907,15 @@ async function refresh(full = true) {
 }
 $("#save").onclick = async () => {
   if (busy) return;
-  for (const input of document.querySelectorAll("#settings-fields input")) {
-    if (!input.reportValidity()) return;
-  }
   busy = true;
   $("#save").disabled = true;
   try {
     layout.title = $("#title").value;
+    // Screen settings apply on their own (flushSettings); the stored ones stay as they are.
+    const { settings: _settings, ...tiles } = layout;
     await api(`screens/${encodeURIComponent(selected)}`, {
       method: "PUT",
-      body: JSON.stringify(layout),
+      body: JSON.stringify(tiles),
     });
     dirty = false;
     $("#dirty").textContent = "Saved";
@@ -2046,6 +2211,8 @@ $("#install-retry").onclick = async () => {
   }
 };
 $("#copy-key").onclick = () => copyText(installer.apiKey || "", $("#api-key"));
+// A change still waiting for its short pause goes out when the page closes.
+window.addEventListener("pagehide", () => flushSettings(true));
 window.addEventListener("beforeunload", (e) => {
   if (dirty) {
     e.preventDefault();
@@ -2062,7 +2229,7 @@ function applyLive(data) {
   $("#connection").textContent = inventory.connected ? "● Home Assistant connected" : "Reconnecting to Home Assistant…";
   $("#connection").classList.toggle("online", inventory.connected);
   renderScreens();
-  if (selected) renderSettingsSupport();
+  if (selected) { settleSettings(); renderSettings(); }
   if (!selected && inventory.screens.length) select(inventory.screens[0].id);
 }
 function listen() {

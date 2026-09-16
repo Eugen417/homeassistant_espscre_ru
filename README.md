@@ -92,8 +92,10 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   changed ("5 min ago", "Yesterday"). See [Top bar](#top-bar).
 - **Screen settings:** standby time, normal and dimmed brightness,
   night hours, 24- or 12-hour clock, return to the home page, and optional swiping
-  between pages. Home Assistant automations can turn **Auto standby** off and on per
-  screen (firmware 0.2.41+), for example to keep a screen on while someone is home, and
+  between pages. Change them in ESP Screens, where they apply at once, or on the screen
+  itself. With firmware 0.2.49+ the screen keeps them, and every one of them is also an
+  entity in Home Assistant, so an automation can switch **Night mode** or **Auto standby**
+  (firmware 0.2.41+), for example to keep a screen on while someone is home, and
   wake a screen or put it to sleep with its **Wake** and **Sleep** buttons (firmware 0.2.45+).
   See [Wake and sleep](#wake-and-sleep-from-an-automation).
 - **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
@@ -370,13 +372,21 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 Tap a toggle to flip it, `-` and `+` to change a number or a time — hold them and a time walks
 whole hours — and tap a chip like the clock to cycle it. Every change is saved on the screen,
 takes effect at once, and appears in ESP Screens within a second, so both sides always show
-the same value.
+the same value. The **Screen settings** cards in ESP Screens have the same rows.
+
+**In Home Assistant** (firmware 0.2.49+), every setting is an entity on the screen's device, under
+*Configuration*: `number.<screen>_normal_brightness`, `switch.<screen>_night_mode`,
+`time.<screen>_night_starts`, `switch.<screen>_24_hour_clock`, `select.<screen>_rotation` on a
+Guition, and the rest. An automation, the settings page and ESP Screens all change the same value,
+and setting a value the screen already has costs nothing. The full list is in
+[docs/SETTINGS.md](docs/SETTINGS.md#who-owns-a-setting).
 
 ## Updates and keeping your settings
 
 | Change | Action |
 | --- | --- |
-| Tiles, names, colors, order, or screen settings | Save in ESP Screens; no firmware flash |
+| Tiles, names, colors, or order | Save in ESP Screens; no firmware flash |
+| Screen settings | Change them in ESP Screens (they apply at once), on the screen, or on their entities in Home Assistant |
 | New version of the management page | Update ESP Screen Manager in the HA App store |
 | New feature on the physical screen | The **Update** button on the screen (badge *Update x.y.z*), or **Update automatically every night** under Settings |
 
@@ -399,6 +409,8 @@ screen only the tile that changed, as a single action
 (`esphome.<device_name>_screen_message`) instead of chunks in a text field.
 Every two minutes, a small ping follows with the layout revision; if the
 screen reports that it doesn't match (after a restart, for example), everything is resent.
+Firmware 0.2.49+ answers that ping, and a new layout, directly, so a screen that still
+lacks a tile gets it again after 30 seconds instead of two minutes.
 Graphs on sensor tiles come from Home Assistant's statistics, in one
 query for all screens. Older firmware still works via the text field and the
 full resend every two minutes. The diagnostic sensor `Uptime` has been

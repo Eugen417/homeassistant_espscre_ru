@@ -110,19 +110,13 @@
                 <div id="results" aria-live="polite"></div>
               </div>
             </div>
-            <details class="screen-settings" id="general-settings" open>
-              <summary>
-                Screen settings
-                <span class="hint">Brightness, quiet hours, and display</span>
-              </summary>
-              <p class="hint" id="settings-support"></p>
-              <div class="settings-grid" id="settings-fields"></div>
-              <p class="hint">
-                Night hours apply to the brightness during standby. The first
-                touch wakes the screen; the next one controls your home.
-                Matching start and end times turn the night window off.
-              </p>
-            </details>
+            <section class="screen-settings" id="general-settings" aria-labelledby="settings-heading">
+              <div class="section-title settings-title">
+                <h3 id="settings-heading">Screen settings</h3>
+                <span class="hint" id="settings-status" role="status"></span>
+              </div>
+              <div class="settings-cards" id="settings-groups"></div>
+            </section>
             <details class="screen-settings" id="inspector-section">
               <summary>
                 Inspector

@@ -1,14 +1,47 @@
-# Settings: on the screen and in ESP Screens
+# Settings: on the screen, in Home Assistant and in ESP Screens
 
-Every screen setting lives in two places at once: the **Screen settings** block of the add-on editor, and
-the **settings page on the screen itself** (firmware 0.2.44+). This page says what that page is made of,
-and exactly what adding one more setting takes.
+Every screen setting can be changed in three places: the **settings page on the screen itself**
+(firmware 0.2.44+), its **entity in Home Assistant** (firmware 0.2.49+), and the **Screen settings**
+panel of the add-on editor. This page says who owns a value, what the page is made of, and exactly what
+adding one more setting takes.
+
+## Who owns a setting
+
+**Firmware 0.2.49 and newer: the screen.** It keeps every value in its own preferences and offers each one
+as an entity in the *config* category of its ESPHome device. The settings page, an automation and ESP Screens
+all change a value through `settings_screen::set()`, so they never disagree, and nothing has to catch up
+after ESP Screens or Home Assistant was away. ESP Screens reads the values from Home Assistant's states,
+changes them with the entity's own action, and leaves them out of the layout message.
+
+| Row on the screen | Entity | Key in ESP Screens |
+|---|---|---|
+| Brightness | `number.<screen>_normal_brightness` | `brightness` |
+| Auto standby | `switch.<screen>_auto_standby` | `standby_enabled` |
+| Standby after | `number.<screen>_standby_after` | `standby_seconds` |
+| Standby brightness | `number.<screen>_standby_brightness` | `standby_brightness` |
+| Night mode | `switch.<screen>_night_mode` | `night_enabled` |
+| Starts, Ends | `time.<screen>_night_starts`, `time.<screen>_night_ends` | `night_start`, `night_end` |
+| Night brightness | `number.<screen>_night_brightness` | `night_brightness` |
+| Clock | `switch.<screen>_24_hour_clock` | `clock_24h` |
+| Back to page 1, After | `switch.<screen>_back_to_page_1`, `number.<screen>_back_to_page_1_after` | `auto_home`, `auto_home_seconds` |
+| Also on standby | `switch.<screen>_back_to_page_1_on_standby` | `home_on_standby` |
+| Swipe between pages | `switch.<screen>_swipe_between_pages` | `swipe_pages` |
+| Rotation (Guition) | `select.<screen>_rotation` | `rotation` |
+
+The first four entities and Auto standby existed before 0.2.49; ESP Screens recognizes a screen that owns
+its settings by one of the others (`OWNED_SETTINGS_MARKERS` in `core.py`).
+
+**Older firmware: ESP Screens.** The values travel in the layout message: `settings`, the frozen block of
+eleven keys, with `swipe_pages`, `auto_home`, `auto_home_seconds` and `rotation` as keys of their own. A
+change on the screen comes back as an `esphome.screen_setting` event, which ESP Screens stores with the
+layout without sending it back.
 
 ## What the user sees
 
 Holding the top bar of the overview for about one and a half seconds opens the page; a blue line grows
 along the top edge while you hold, and letting go before it finishes cancels. A screen can also carry a
-`screen.settings` tile, and Home Assistant can open it with `esphome.<screen>_open_settings`.
+`screen.settings` tile, which opens the page with or without Home Assistant, and Home Assistant can open it
+with `esphome.<screen>_open_settings`.
 
 The page is a menu of groups, each of which opens a page of its own:
 
@@ -19,9 +52,11 @@ The page is a menu of groups, each of which opens a page of its own:
 | Screen | Clock, Back to page 1, After, Also on standby, Swipe between pages, Rotation (boards that turn) |
 | This screen | Screen, Address, Firmware, Home Assistant, Restart |
 
-Every change is saved on the screen, applied at once, and sent to the add-on as an
-`esphome.screen_setting` event, so the editor shows the same value within a second. The add-on remains
-the owner: its next layout message repeats every setting, and a screen that was offline catches up then.
+Every change is stored on the screen, applied at once and published on its entity, so Home Assistant and
+ESP Screens show it within a second. The editor's **Screen settings** panel has the first three groups as
+cards with the same rows: a switch for a toggle, `-` and `+` that repeat while held, chips for the clock
+and the rotation. A change there applies at once, without Save. An offline screen shows its values as
+unknown and takes no changes until it is back.
 
 ## The rules the page follows
 
@@ -36,63 +71,93 @@ the owner: its next layout message repeats every setting, and a screen that was 
 
 ## Adding a setting
 
-The example below adds "Beep on touch" (`beep`), a switch.
+The example below adds "Beep on touch" (`beep`), a switch. Every firmware that has it also owns its
+settings, so a new setting never travels in the layout message.
 
 ### 1. Where the value lives
 
-Two homes, and the choice is fixed by history:
-
 - `screen_settings::Settings` in `components/smart_display/screen_settings.h` is the **frozen** block of
-  eleven values that ESP Screens sends as `settings`. Its format is version 1 and changing it needs a
-  preference migration *and* firmware-version gating in the add-on, because older firmware refuses a
+  eleven values that ESP Screens sends older firmware as `settings`. Its format is version 1 and changing it
+  needs a preference migration *and* firmware-version gating in the add-on, because older firmware refuses a
   `settings` object that does not have exactly its own keys. Don't.
 - Anything new is a plain value in `settings_screen.h` next to `swipe_pages`, `rotation` and `auto_home`,
-  with its own preference and its own key in the layout message. That is backward and forward
-  compatible in both directions: old firmware ignores the key, a new screen with an old add-on keeps its
-  saved value.
+  with a preference record of its own: load it in `runtime_tiles::load_settings()` and write it in
+  `persist_settings()`.
 
 ```cpp
 // settings_screen.h, next to the others
 inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, beep = 0;
 ```
 
-Storing it (`components/smart_display/runtime_tiles.h`): extend `HomeTimeout`-style records or add one of
-your own, load it in `load_settings()`, write it in `persist_settings()`, and accept the key in
-`receive()` next to `auto_home` — validate first, then save.
+### 2. The one write path, and the row
 
-### 2. The row
-
-One line in the table of the group it belongs to, in `settings_screen.h`:
+`settings_screen::set(key, value)` is where every writer ends up. Give the key a branch that clamps it the
+way the page steps it, and add the value to the before/after comparison at the bottom, so a value the screen
+already has is not stored, applied or reported again:
 
 ```cpp
-toggle("Beep on touch", [] { return beep; },
-       [](int32_t value) { beep = value ? 1 : 0; changed("beep", beep); }),
+else if (key == "beep") reported = beep = flag(value);
 ```
 
-`changed(key, value)` saves, applies and reports in one go; `key` must be the add-on's key exactly.
-The row kinds are `toggle`, `number` (fixed step, optional unit), `duration` (seconds, steps grow with
-the value), `moment` (minutes since midnight, quarters by tap and hours while held), `choice`, `info`
-and `action`. A row can carry `shown` (leave it out on boards that lack the hardware) and `enabled`
+Then one line in the table of the group it belongs to:
+
+```cpp
+toggle("Beep on touch", [] { return beep; }, [](int32_t value) { set("beep", value); }),
+```
+
+`set()` calls `changed(key, value)`, which stores, applies and reports in one go; `key` must be the add-on's
+key exactly. The row kinds are `toggle`, `number` (fixed step, optional unit), `duration` (seconds, steps
+grow with the value), `moment` (minutes since midnight, quarters by tap and hours while held), `choice`,
+`info` and `action`. A row can carry `shown` (leave it out on boards that lack the hardware) and `enabled`
 (grey while the switch it depends on is off).
 
 Watch the count: a group of more than five rows gets a pager on a 320x240 board. Six is the maximum
 that still fits a 480x480 board in one go.
 
-### 3. The add-on
+### 3. The entity
 
-- `screen_manager/app/core.py`: one line in `SETTING_RULES` (`'beep': (False, None, None)`), which gives
-  you validation, storage and the write-back from the screen for free.
-- `screen_manager/app/server.py`: add the key to `extra` in `layout_message` and send it as its own key,
-  next to `auto_home`. Never let it into the `settings` block.
-- `screen_manager/app/static/app.js`: one line in `settingDefinitions` for the editor's own control.
-- Needs new firmware? `min_firmware()` in `core.py` keeps the screen from being told about something it
-  cannot do.
+In both board profiles, with the same name as the row:
 
-### 4. Tests and proof
+```yaml
+switch:
+  - platform: template
+    id: setting_beep
+    name: "Beep on touch"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: 'return settings_screen::beep != 0;'
+    turn_on_action:
+      - lambda: 'settings_screen::set("beep", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("beep", 0);'
+```
+
+The screen's preferences hold the value, so the entity reads it in a lambda instead of keeping a copy
+(`restore_value` cannot be combined with a lambda). A switch publishes its own changes. A number, time or
+select takes `update_interval: never` and one line in `apply_screen_settings`, which publishes it when it
+differs; that script runs after every change and on every Home Assistant connection (the time sync), so the
+entity has a value before Home Assistant reads the states. Then run `python3 tools/generate_packages.py`.
+
+### 4. The add-on
+
+- `screen_manager/app/core.py`: one line in `SETTING_RULES` (`'beep': (False, None, None)`) for validation,
+  one in `SETTING_ENTITIES` (`'beep': ('switch', 'Beep on touch')`, the entity name exactly as in the
+  profiles), and the key in `SETTINGS_BESIDE_BLOCK` so it never enters the frozen block.
+- `screen_manager/app/server.py`: `settings_view` already leaves a key out for a screen whose device has no
+  entity for it. Leave it out for a screen that does not own its settings too (`owner` `'layout'`), like
+  `auto_home` below firmware 0.2.44: such firmware cannot have it.
+- `screen_manager/app/static/app.js`: one row in `SETTING_GROUPS`, with the label the screen uses.
+- `screen_manager/app/claude_skill.py`: a row in the table of screen entities.
+
+### 5. Tests and proof
 
 - `tests/test_settings_screen.cpp` (`clang++ -std=c++17 -Wall -Wextra -Werror -I.`) walks every page and
-  every row: a new row is checked by the table test as soon as it exists.
-- `tests/test_settings_view.py` and `tests/test_layout.py` cover the add-on side.
+  every row, and checks `set()`: add the key to its table of clamps.
+- `tests/test_screen_owned_settings.py` checks the entities in both profiles, `SETTING_ENTITIES`, the editor
+  rows (labels, steps and the duration ladder against `settings_screen.h`) and the add-on's calls;
+  `tests/test_settings_view.py` and `tests/test_layout.py` cover the rest of the add-on side.
 - Render it before believing it: `.esphome/readme-render/host_build.py <board> --compile` builds the real
   firmware for the Mac and `render_settings.py <board>` drives it over the API and saves PNGs of every
-  page, including the hold gesture, the time picker and the settings tile.
+  page, including the hold gesture, the time picker and the settings tile. The host build takes its time
+  from the Mac instead of Home Assistant, so without a connection-time sync its numbers, times and select
+  get their first value at the next whole minute.
