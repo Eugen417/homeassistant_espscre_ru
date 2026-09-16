@@ -176,6 +176,28 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.54 / firmware 0.2.46
+
+Board profiles; the app raises `FIRMWARE_VERSION` and adjusts the Auto standby row of the Claude skill.
+Storage, tile protocol, preferences and keys are unchanged.
+
+- The Auto standby switch no longer clears `sleep_requested`; `wake_display` is the only place that does.
+  The one rule lives in `apply_screen_settings`: a dimmed screen wakes when standby is off unless
+  `sleep_requested` is set, whichever path turned standby off (the switch, ESP Screens, the settings page).
+- `dim_display` has no condition any more; its callers decide (the 1 s interval checks `standby_enabled`,
+  the Sleep button sets the flag). It sets `display_dimmed`, runs `apply_screen_settings`, then `go_home`
+  with `home_on_standby` on, otherwise `settings_screen::close()` and `close_cards`. Runtime detail cards
+  now close on standby in both cases, as the light, colour and climate overlays already did.
+- `close_cards` is `runtime_tiles::dismiss()`, which on_boot sets on both boards (hide the detail card,
+  clear `active_entity`, hide the four overlays). The fallback after it and the four `lvgl.widget.hide`
+  actions ran for nothing: a `return` in a lambda does not skip the actions that follow it.
+- The `back_light` light is `internal: true`, so Home Assistant loses `light.<screen>_display_backlight`
+  (CYD: `light.<screen>_power_display_backlight`); it stays in the registry as unavailable until deleted.
+  Nothing in the app, the tools or the tests used it; the firmware keeps the light under the same id.
+- `apply_screen_settings` loses the `!runtime_tiles::enabled` clock-label branch: on_boot sets `enabled`
+  before anything can run the script. The `runtime_tiles::enabled` checks before preference saves stay,
+  because `load_settings()` makes that preference right after `enabled` is set.
+
 ### Compatibility 0.2.53 / firmware 0.2.45
 
 Firmware and board profiles; the app raises `FIRMWARE_VERSION` and extends the Claude skill. Storage,

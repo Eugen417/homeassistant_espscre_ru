@@ -18,7 +18,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.45"
+  SCREEN_FIRMWARE_VERSION: "0.2.46"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -1164,8 +1164,9 @@ switch:
   - platform: restart
     name: "Restart"
   # Auto standby, the same setting as the checkbox in ESP Screens (firmware 0.2.41+), so Home Assistant
-  # automations can keep a screen on. Off wakes the screen and keeps it on; on counts the standby time
-  # from that moment. Nothing runs at boot: the switch follows the saved setting.
+  # automations can keep a screen on. Off wakes a screen the standby time dimmed and keeps it on (a Sleep
+  # holds until a tap, Wake or an alert); on counts the standby time from that moment. Nothing runs at
+  # boot: the switch follows the saved setting.
   - platform: template
     id: setting_auto_standby
     name: "Auto standby"
@@ -1187,8 +1188,6 @@ switch:
           auto &s = screen_settings::current;
           if (!s.standby_enabled) return;
           s.standby_enabled = false;
-          // Switching it off wakes the screen, also out of Sleep; a switch that was already off leaves Sleep alone.
-          id(sleep_requested) = false;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("standby_enabled", 0);
           id(apply_screen_settings).execute();
@@ -1234,10 +1233,13 @@ output:
     inverted: true
 
 light:
+  # The firmware owns the backlight: brightness, standby, night and alerts set it, and the minute tick
+  # restores it. Home Assistant uses the brightness numbers and the Wake and Sleep buttons (0.2.46+).
   - platform: monochromatic
     output: gpio_backlight_pwm
     name: "Power Display Backlight"
     id: back_light
+    internal: true
     restore_mode: ALWAYS_ON
 
   - platform: rgb
@@ -3595,11 +3597,6 @@ script:
           id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();
           if (id(display_dimmed)) { lv_obj_clear_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN); lv_obj_move_foreground(id(dim_wake_overlay)); }
           else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
-          // Runtime mode draws the clock in the top bar; the manual profile keeps its own label.
-          if (!runtime_tiles::enabled) {
-            if (settings.show_clock) lv_obj_clear_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
-            else lv_obj_add_flag(id(lbl_time), LV_OBJ_FLAG_HIDDEN);
-          }
           // The four setting entities only publish a changed value (HA keeps identical states anyway).
           if (id(setting_brightness).state != settings.brightness) id(setting_brightness).publish_state(settings.brightness);
           if (id(setting_standby_brightness).state != settings.standby_brightness) id(setting_standby_brightness).publish_state(settings.standby_brightness);
@@ -3607,17 +3604,11 @@ script:
           if (id(setting_standby_seconds).state != settings.standby_seconds) id(setting_standby_seconds).publish_state(settings.standby_seconds);
           if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
 
+  # Every card closes through runtime_tiles::dismiss (set in on_boot): the runtime detail card, the light,
+  # colour and climate overlays, and active_entity, which the swipe guard reads.
   - id: close_cards
     then:
-      - lambda: |-
-          // Runtime cards and the legacy overlays close through one path; the swipe guard
-          // reads active_entity, so a hidden card must never leave it behind.
-          if (runtime_tiles::dismiss) { runtime_tiles::dismiss(); return; }
-          id(active_entity).clear();
-      - lvgl.widget.hide: brightness_overlay
-      - lvgl.widget.hide: color_detail_overlay
-      - lvgl.widget.hide: climate_detail_overlay
-      - lvgl.widget.hide: climate_mode_overlay
+      - lambda: 'if (runtime_tiles::dismiss) runtime_tiles::dismiss();'
 
   # Everything back to the overview: the settings page, every card and the first page of tiles.
   # Used by standby, by the "Back to page 1" timeout and by the Home Assistant action.
@@ -3752,35 +3743,22 @@ script:
       - lvgl.widget.hide: dim_wake_overlay
       - script.execute: close_cards
 
+  # Standby: the standby time ran out (the 1 s interval checks Auto standby) or Sleep was pressed.
+  # The settings page and every card close; with "also on standby" the screen goes back to page 1 too.
   - id: dim_display
     mode: restart
     then:
+      - lambda: |-
+          id(display_dimmed) = true;
+          id(apply_screen_settings).execute();
       - if:
           condition:
-            # Sleep from Home Assistant dims with Auto standby off too.
-            lambda: 'return screen_settings::current.standby_enabled || id(sleep_requested);'
+            lambda: 'return screen_settings::current.home_on_standby;'
           then:
-            - lambda: |-
-                id(display_dimmed) = true;
-                id(apply_screen_settings).execute();
-                // A settings page behind a dark screen helps nobody; it always closes.
-                settings_screen::close();
-                if (screen_settings::current.home_on_standby) {
-                  // Runtime detail cards live above the tile grid, so paging alone cannot close them.
-                  runtime_tiles::hide_detail();
-                  id(active_entity).clear();
-                  id(tile_page) = 0;
-                  id(show_tile_page).execute();
-                }
-
-            # Back to the home screen on standby. Deliberately via ESPHome's
-            # actions and NOT with lv_obj_add_flag in a lambda: this script
-            # runs from an interval, so outside LVGL's own handling.
-            - lvgl.widget.hide: brightness_overlay
-            - lvgl.widget.hide: color_detail_overlay
-            - lvgl.widget.hide: climate_detail_overlay
-            - lvgl.widget.hide: climate_mode_overlay
-
+            - script.execute: go_home
+          else:
+            - lambda: 'settings_screen::close();'
+            - script.execute: close_cards
 
   # A -/+ tap on the climate card: the number follows at once, the call waits for the last tap.
   # Holding a key steps three times a second.

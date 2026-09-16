@@ -1,3 +1,13 @@
+## 0.2.54 (firmware 0.2.46)
+
+The standby code, tidied after a review of Wake and Sleep.
+
+- **One rule for Sleep.** A screen put to sleep with Sleep stays asleep until someone taps it, Wake is pressed or an alert comes in. Switching Auto standby off from Home Assistant used to end it, while the same switch in ESP Screens or on the screen did not; now none of them do. Switching Auto standby off still wakes a screen that its standby time dimmed.
+- **Standby closes every card.** The settings page and any open card close when the screen goes into standby, and with "also on standby" on it goes back to page 1 as well. Until now a weather or media card stayed open under a dimmed screen while a light or climate card closed.
+- **The backlight light is gone from Home Assistant.** `Display Backlight` (on the CYD `Power Display Backlight`) fought the screen's own brightness: the screen put its level back within a minute, and switching the light off made the screen dark without standby, so taps landed on tiles you couldn't see. Use the brightness numbers and the Wake and Sleep buttons. If Home Assistant still lists the old light as unavailable after the update, you can delete it there.
+- Under the hood: standby goes through the same scripts as "back to page 1", every card closes through one call, and a leftover of the old manual profile is gone.
+- Needs firmware 0.2.46: press **Update** on the screen.
+
 ## 0.2.53 (firmware 0.2.45)
 
 Wake a screen or put it to sleep from Home Assistant.

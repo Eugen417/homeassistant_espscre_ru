@@ -1,7 +1,8 @@
-"""Wake and Sleep buttons for Home Assistant automations (app 0.2.53, firmware 0.2.45).
+"""Wake and Sleep buttons for Home Assistant automations (app 0.2.53, firmware 0.2.45) and the standby
+code around them (tidied in app 0.2.54, firmware 0.2.46).
 
 Both board profiles have to wire them the same way: Wake is a tap, Sleep is the standby time running out
-right away, and a Sleep holds with Auto standby off until a tap, Wake or an alert ends it.
+right away, and a Sleep holds until a tap, Wake or an alert ends it, whatever turns Auto standby off.
 """
 import re
 import sys
@@ -69,12 +70,41 @@ class Profiles(unittest.TestCase):
             steps = re.findall(r'script\.execute:(?:\s+id:)?\s+(\w+)|(id\(sleep_requested\) = true;)', sleep.split('else:', 1)[1])
             self.assertEqual([step[0] or 'flag' for step in steps], ['flag', 'alert_dismiss', 'dim_display'], name)
             self.assertIn('reason: "remote"', sleep, f'{name}: HA hears the alert was closed from Home Assistant')
-            dim = script(text, 'dim_display')
-            self.assertIn("lambda: 'return screen_settings::current.standby_enabled || id(sleep_requested);'", dim, name)
             apply = script(text, 'apply_screen_settings')
             self.assertIn('if (id(display_dimmed) && !settings.standby_enabled && !id(sleep_requested)) {', apply,
                           f'{name}: the minute tick must not undo a Sleep')
             self.assertEqual(len(re.findall(r'id\(sleep_requested\) = true;', text)), 1, f'{name}: only the button starts a Sleep')
+
+    def test_standby_has_one_way_in(self):
+        for name, text in self.profiles.items():
+            # dim_display decides nothing itself: the interval asks for Auto standby, the Sleep button sets the flag.
+            dim = script(text, 'dim_display')
+            self.assertRegex(dim, r"then:\s+- lambda: \|-\s+id\(display_dimmed\) = true;\s+id\(apply_screen_settings\)\.execute\(\);\s+- if:", name)
+            self.assertRegex(dim, r"return screen_settings::current\.home_on_standby;'\s+then:\s+- script\.execute: go_home\s+else:\s+"
+                                  r"- lambda: 'settings_screen::close\(\);'\s+- script\.execute: close_cards", name)
+            self.assertNotIn('lvgl.widget.hide', dim, f'{name}: cards close through close_cards')
+            callers = re.findall(r'script\.execute: dim_display', text)
+            self.assertEqual(len(callers), 2, f'{name}: the standby interval and the Sleep button')
+            interval = re.search(r'if \(!screen_settings::current\.standby_enabled\) return false;\s+'
+                                 r'if \(id\(display_dimmed\) \|\| id\(touch_down\) \|\| id\(calibration_active\) \|\| id\(alert_active\)\) return false;\s+'
+                                 r'return \(millis\(\) - id\(last_touch_ms\)\) > [^\n]+\n\s+then:\s+- script\.execute: dim_display', text)
+            self.assertTrue(interval, f'{name}: the standby time only dims with Auto standby on')
+
+    def test_every_card_closes_through_dismiss(self):
+        for name, text in self.profiles.items():
+            body = [line.strip() for line in script(text, 'close_cards').split('then:', 1)[1].splitlines()
+                    if line.strip() and not line.strip().startswith('#')]
+            self.assertEqual(body, ["- lambda: 'if (runtime_tiles::dismiss) runtime_tiles::dismiss();'"], name)
+            dismiss = re.search(r'runtime_tiles::dismiss = \[\]\(\) \{(.*?)\};', text, re.S)[1]
+            for step in ('runtime_tiles::hide_detail();', 'id(active_entity).clear();', 'id(brightness_overlay)',
+                         'id(color_detail_overlay)', 'id(climate_detail_overlay)', 'id(climate_mode_overlay)'):
+                self.assertIn(step, dismiss, name)
+
+    def test_the_backlight_belongs_to_the_firmware(self):
+        for name, text in self.profiles.items():
+            light = item(section(text, 'light'), 'id', 'back_light')
+            self.assertIn('platform: monochromatic', light, name)
+            self.assertIn('internal: true', light, f'{name}: Home Assistant would fight standby over it')
 
     def test_the_flag_starts_false_and_is_never_saved(self):
         for name, text in self.profiles.items():
@@ -83,13 +113,12 @@ class Profiles(unittest.TestCase):
             self.assertIn('restore_value: no', flag, name)
             self.assertIn("initial_value: 'false'", flag, name)
 
-    def test_switching_auto_standby_off_still_wakes_the_screen(self):
+    def test_only_a_tap_wake_or_an_alert_end_a_sleep(self):
         for name, text in self.profiles.items():
-            switch = item(section(text, 'switch'), 'name', 'Auto standby')
-            off = switch.split('turn_off_action:', 1)[1]
-            # Only a real change wakes: a switch that was already off returns before the flag is touched.
-            self.assertRegex(off, r'if \(!s\.standby_enabled\) return;\s+s\.standby_enabled = false;\s+(//[^\n]*\n\s+)?'
-                                  r'id\(sleep_requested\) = false;', name)
+            # wake_display is the one place that clears the flag; Auto standby, from any side, leaves it alone.
+            self.assertEqual(len(re.findall(r'id\(sleep_requested\) = false;', text)), 1, name)
+            self.assertIn('id(sleep_requested) = false;', script(text, 'wake_display'), name)
+            self.assertNotIn('sleep_requested', item(section(text, 'switch'), 'name', 'Auto standby'), name)
 
 
 if __name__ == '__main__':

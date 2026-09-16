@@ -220,7 +220,8 @@ with the `button.press` action:
   time starts counting again. On a screen that is already on, only the count starts again.
 - **`button.<screen>_sleep`** puts the screen in standby right away, the same as when the standby
   time runs out, and also works with **Auto standby** off. The screen stays in standby until someone
-  taps it, **Wake** is pressed or an alert comes in. An alert that is showing closes (reported as `remote`).
+  taps it, **Wake** is pressed or an alert comes in; switching Auto standby off doesn't end it. An alert
+  that is showing closes (reported as `remote`).
 
 Neither button saves anything on the screen, so an automation may press them as often as it likes,
 on every motion too. That is the difference with the **Auto standby** switch, which is a setting.
