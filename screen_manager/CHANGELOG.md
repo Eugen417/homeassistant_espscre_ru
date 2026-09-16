@@ -1,3 +1,12 @@
+## 0.2.53 (firmware 0.2.45)
+
+Wake a screen or put it to sleep from Home Assistant.
+
+- **Wake and Sleep buttons.** Every screen has `button.<screen>_wake` and `button.<screen>_sleep` in Home Assistant, pressed with `button.press`. Wake does what a tap does: a screen in standby lights up and the standby time counts again from that moment. Sleep puts the screen in standby right away, just like when the standby time runs out, and also works with Auto standby off: the screen stays in standby until someone taps it, Wake is pressed or an alert comes in. An alert that is showing closes, reported as `remote`.
+- **As often as you like.** Neither button saves anything on the screen, unlike the Auto standby switch, so an automation may press Wake on every motion. To reach several screens at once, list their buttons under `entity_id`; don't target an area or a device, because that presses every other button there too.
+- **The Claude skill knows them.** Settings → Claude explains both buttons with an example automation. Install the skill again to get it.
+- Needs firmware 0.2.45: press **Update** on the screen. Screens on older firmware keep working, without the two buttons.
+
 ## 0.2.52 (firmware 0.2.44)
 
 Change a screen's settings on the screen itself.

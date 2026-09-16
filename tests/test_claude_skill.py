@@ -12,7 +12,8 @@ sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import claude_skill  # noqa: E402
 import tile_icons  # noqa: E402
 from core import (ALERT_EVENT, ALERT_FIELDS, ALERT_LIMITS, ALERT_MIN_FIRMWARE, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS,  # noqa: E402
-                  BROADCAST_SHOW, CONTROLS, DISPLAYS, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT)
+                  BROADCAST_SHOW, CONTROLS, DISPLAYS, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT,
+                  WAKE_SLEEP_MIN_FIRMWARE)
 
 HAS_YAML = importlib.util.find_spec('yaml') is not None
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
@@ -51,6 +52,11 @@ class SkillText(unittest.TestCase):
                        'number.<screen>_standby_brightness', 'number.<screen>_night_brightness'):
             self.assertIn(f'`{entity}`', standby)
         self.assertIn(AUTO_STANDBY_MIN_FIRMWARE, standby)
+        # Wake and Sleep (0.2.53): the buttons, when they arrived, and how to press several at once.
+        for entity in ('button.<screen>_wake', 'button.<screen>_sleep'):
+            self.assertIn(f'`{entity}`', standby)
+        self.assertIn(f'Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer', standby)
+        self.assertIn('`button.press`', standby)
         self.assertIn('(#standby-and-brightness)', text, 'the intro links to the section')
         # Tiles (0.2.51): the events, what a tile can do per domain, how to read a screen and the rule to ask first.
         tiles = text.split('## Tiles on a screen', 1)[1].split('## All screens', 1)[0]
@@ -72,7 +78,7 @@ class SkillText(unittest.TestCase):
     def test_every_yaml_example_parses(self):
         import yaml
         blocks = re.findall(r'```yaml\n(.*?)```', claude_skill.text(), re.S)
-        self.assertEqual(len(blocks), 8)
+        self.assertEqual(len(blocks), 9)
         parsed = [yaml.safe_load(block) for block in blocks]
         # Tiles first (0.2.51): putting one on a screen, and ordering a page.
         self.assertEqual(parsed[0]['actions'][0]['event'], 'esp_screens_add_tile')
@@ -85,7 +91,20 @@ class SkillText(unittest.TestCase):
         self.assertEqual(parsed[4][0]['wait_for_trigger'][0]['event_type'], ALERT_EVENT)
         choose = parsed[5]['actions'][0]['choose']
         self.assertEqual([option['sequence'][0]['event'] for option in choose], [BROADCAST_SHOW, BROADCAST_DISMISS])
-        awake = parsed[6]
+        # Wake on motion for one screen, Sleep for two, each branch on its own trigger.
+        buttons = parsed[6]
+        options = buttons['actions'][0]['choose']
+        self.assertEqual({trigger['id'] for trigger in buttons['triggers']}, {option['conditions'][0]['id'] for option in options})
+        pressed = []
+        for option in options:
+            step = option['sequence'][0]
+            self.assertEqual(step['action'], 'button.press')
+            targets = step['target']['entity_id']
+            pressed.append([targets] if isinstance(targets, str) else targets)
+        self.assertTrue(all(entity.startswith('button.') and entity.endswith('_wake') for entity in pressed[0]))
+        self.assertTrue(all(entity.startswith('button.') and entity.endswith('_sleep') for entity in pressed[1]))
+        self.assertGreater(len(pressed[1]), 1, 'shows how to reach several screens at once')
+        awake = parsed[7]
         self.assertEqual(awake['mode'], 'restart')
         branch = awake['actions'][0]
         self.assertEqual((branch['then'][0]['action'], branch['else'][0]['action']), ('switch.turn_off', 'switch.turn_on'))

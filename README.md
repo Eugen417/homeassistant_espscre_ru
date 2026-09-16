@@ -93,7 +93,9 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
 - **Screen settings:** standby time, normal and dimmed brightness,
   night hours, 24- or 12-hour clock, return to the home page, and optional swiping
   between pages. Home Assistant automations can turn **Auto standby** off and on per
-  screen (firmware 0.2.41+), for example to keep a screen on while someone is home.
+  screen (firmware 0.2.41+), for example to keep a screen on while someone is home, and
+  wake a screen or put it to sleep with its **Wake** and **Sleep** buttons (firmware 0.2.45+).
+  See [Wake and sleep](#wake-and-sleep-from-an-automation).
 - **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
   second and a half and the screen opens its own settings page — brightness, night,
   the clock, swiping, rotation, and what this screen is (name, IP address, firmware,
@@ -208,6 +210,33 @@ written until you press the button.
 <p align="center">
   <img src="docs/images/editor-settings.png" width="80%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">
 </p>
+
+## Wake and sleep from an automation
+
+Every screen has two buttons in Home Assistant (firmware 0.2.45+). An automation presses them
+with the `button.press` action:
+
+- **`button.<screen>_wake`** does what a tap does: a screen in standby lights up, and the standby
+  time starts counting again. On a screen that is already on, only the count starts again.
+- **`button.<screen>_sleep`** puts the screen in standby right away, the same as when the standby
+  time runs out, and also works with **Auto standby** off. The screen stays in standby until someone
+  taps it, **Wake** is pressed or an alert comes in. An alert that is showing closes (reported as `remote`).
+
+Neither button saves anything on the screen, so an automation may press them as often as it likes,
+on every motion too. That is the difference with the **Auto standby** switch, which is a setting.
+To reach several screens at once, list their buttons:
+
+```yaml
+actions:
+  - action: button.press
+    target:
+      entity_id:
+        - button.kitchen_screen_sleep
+        - button.living_room_screen_sleep
+```
+
+Don't target an area or a device with `button.press`: that presses every other button there too,
+the Wake and Sleep of the same screen included.
 
 ## Installing from Home Assistant
 

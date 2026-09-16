@@ -176,6 +176,26 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.53 / firmware 0.2.45
+
+Firmware and board profiles; the app raises `FIRMWARE_VERSION` and extends the Claude skill. Storage,
+tile protocol, preferences and keys are unchanged.
+
+- Both profiles add two template buttons, `wake_button` ("Wake", `mdi:gesture-tap`) and `sleep_button`
+  ("Sleep", `mdi:power-sleep`), without an entity category: they are controls. Wake runs `wake_display`
+  on a dimmed screen (the path the tap on `dim_wake_overlay` takes) and only sets `last_touch_ms` on a
+  screen that is on. Sleep is ignored during a touch calibration; otherwise it sets the new global
+  `sleep_requested`, runs `alert_dismiss` (reason `remote`, a no-op without an alert) and runs
+  `dim_display`. Both log a line with tag `standby` at INFO.
+- `sleep_requested` (bool, not restored) lets `dim_display` dim with `standby_enabled` off and stops
+  `apply_screen_settings`, which runs every minute, from waking a dimmed screen while standby is off.
+  `wake_display` clears it (a tap, Wake, an alert, `open_settings`, `touch_diagnostics`), and so does
+  the Auto standby switch when it really turns standby off; a switch that was already off leaves it.
+  Nothing is saved, so the buttons cost no flash writes.
+- `core.WAKE_SLEEP_MIN_FIRMWARE` is 0.2.45. `claude_skill.text()` lists both buttons in "Standby and
+  brightness" with one more YAML example (nine in total), so an installed skill shows as outdated until
+  it is installed again. The skill description stays under 200 bytes.
+
 ### Compatibility 0.2.52 / firmware 0.2.44
 
 App and firmware. Storage version and tile protocol stay 1; everything is additive, so an old screen

@@ -91,7 +91,8 @@ class Firmware(unittest.TestCase):
             self.assertIn('- action: open_settings', text, name)
             self.assertIn('- id: go_home', text, name)
             self.assertIn('runtime_tiles::auto_home', text, name)
-            self.assertIn('SCREEN_FIRMWARE_VERSION: "0.2.44"', text, name)
+            version = re.search(r'SCREEN_FIRMWARE_VERSION: "([0-9.]+)"', text)[1]
+            self.assertGreaterEqual(tuple(map(int, version.split('.'))), (0, 2, 44), name)
 
     def test_the_hold_strip_covers_the_top_bar_and_no_more(self):
         for name, text in self.profiles.items():

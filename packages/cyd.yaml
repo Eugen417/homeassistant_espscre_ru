@@ -18,7 +18,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.44"
+  SCREEN_FIRMWARE_VERSION: "0.2.45"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -697,6 +697,13 @@ globals:
     restore_value: no
     initial_value: 'false'
 
+  # Sleep from Home Assistant (0.2.45+): standby that also holds with Auto standby off,
+  # until a tap, Wake or an alert wakes the screen.
+  - id: sleep_requested
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
   - id: active_label_off
     type: std::string
     restore_value: no
@@ -1180,6 +1187,8 @@ switch:
           auto &s = screen_settings::current;
           if (!s.standby_enabled) return;
           s.standby_enabled = false;
+          // Switching it off wakes the screen, also out of Sleep; a switch that was already off leaves Sleep alone.
+          id(sleep_requested) = false;
           if (runtime_tiles::enabled) runtime_tiles::settings_preference.save(&s);
           runtime_tiles::setting_event("standby_enabled", 0);
           id(apply_screen_settings).execute();
@@ -3576,7 +3585,8 @@ script:
     then:
       - lambda: |-
           const auto &settings = screen_settings::current;
-          if (id(display_dimmed) && !settings.standby_enabled) {
+          // Auto standby off wakes the screen, but not out of a Sleep pressed in Home Assistant.
+          if (id(display_dimmed) && !settings.standby_enabled && !id(sleep_requested)) {
             id(display_dimmed) = false;
           }
           auto now = id(homeassistant_time).now();
@@ -3732,6 +3742,7 @@ script:
       - lambda: |-
           id(last_touch_ms) = millis();
           id(display_dimmed) = false;
+          id(sleep_requested) = false;
       - light.turn_on:
           id: back_light
           # Almost instant brightness-up. ESPHome's default is 1s, and that feels sluggish
@@ -3746,7 +3757,8 @@ script:
     then:
       - if:
           condition:
-            lambda: 'return screen_settings::current.standby_enabled;'
+            # Sleep from Home Assistant dims with Auto standby off too.
+            lambda: 'return screen_settings::current.standby_enabled || id(sleep_requested);'
           then:
             - lambda: |-
                 id(display_dimmed) = true;
@@ -4496,6 +4508,42 @@ button:
     entity_category: config
     on_press:
       - lambda: 'if (runtime_tiles::enabled) screen_calibration::begin();'
+  # Wake and Sleep for Home Assistant automations (0.2.45+). Wake is a tap: it lights a dimmed
+  # screen and counts the standby time from now. Sleep is the standby time running out, right away
+  # and also with Auto standby off; it holds until a tap, Wake or an alert, and closes an alert that
+  # is up. Neither saves anything, so an automation may press them on every motion. No
+  # entity_category: they are controls, not settings.
+  - platform: template
+    id: wake_button
+    name: "Wake"
+    icon: "mdi:gesture-tap"
+    on_press:
+      - lambda: 'ESP_LOGI("standby", "Wake from Home Assistant, screen %s", id(display_dimmed) ? "in standby" : "on");'
+      - if:
+          condition:
+            lambda: 'return id(display_dimmed);'
+          then:
+            - script.execute: wake_display
+          else:
+            - lambda: 'id(last_touch_ms) = millis();'
+  - platform: template
+    id: sleep_button
+    name: "Sleep"
+    icon: "mdi:power-sleep"
+    on_press:
+      - if:
+          condition:
+            lambda: 'return id(calibration_active);'
+          then:
+            - lambda: 'ESP_LOGI("standby", "Sleep from Home Assistant ignored: touch calibration is running");'
+          else:
+            - lambda: |-
+                ESP_LOGI("standby", "Sleep from Home Assistant");
+                id(sleep_requested) = true;
+            - script.execute:
+                id: alert_dismiss
+                reason: "remote"
+            - script.execute: dim_display
 
 number:
   - platform: template

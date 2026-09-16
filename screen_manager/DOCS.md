@@ -30,3 +30,7 @@ missing attributes or an offline screen. New cards require firmware 0.2.0.
 The screen carries the same settings itself (firmware 0.2.44 or newer): hold the top bar for
 about a second and a half, or put the built-in **Settings** card on a page. What is changed
 there appears here within a second, and the other way around.
+
+In Home Assistant every screen also has a **Wake** and a **Sleep** button (firmware 0.2.45 or
+newer). Press them from an automation with `button.press`: Wake does what a tap does, Sleep puts
+the screen in standby right away, also with Auto standby off.
