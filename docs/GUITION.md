@@ -13,9 +13,9 @@ or periodic recovery script is needed. The GT911 uses unmirrored coordinates.
 
 ## Files
 
-- `guition-4848s040.yaml`: neutral hardware + 480×480 interface.
-- `guition-device.example.yaml`: personal device/tile settings.
-- `guition-device.yaml`: your local profile, outside Git.
+- `guition-4848s040.yaml`: the board profile (hardware + 480×480 interface).
+- `packages/guition.yaml`: what a screen builds from; generated from that profile.
+- `<your-screen>.yaml`: the screen's own profile, written by ESP Screens, outside Git.
 - `secrets.yaml`: local Wi-Fi/API/OTA settings, outside Git.
 - `tools/verify_gt911.py`: physical pixel check; no resistive ADC calibration.
 
@@ -50,30 +50,20 @@ interrupts the transition. ESPHome's light state is synced after the fade,
 so the entity in HA and later transitions stay correct.
 
 The existing tile actions, climate control, and vacuum card are preserved.
-All card types are available at all twenty runtime positions. Only in
-the old manual profile does the vacuum card stay on tile 6 and do positions
-8/10 have limitations; see [TILES.md](TILES.md).
+Every card type works in all twenty positions.
 
 ## New installation
 
-Follow the Python/USB setup in [README.md](../README.md), in a fresh
-copy. Create this profile:
-
-```sh
-python tools/new_device.py --board guition --name wallbox-kitchen --friendly-name "Wallbox kitchen"
-```
-
-This creates `guition-device.yaml` and new secrets; existing files are
-not overwritten. Fill in Wi-Fi and change the tile entities. With
-multiple boards, use a separate folder per device. The owner's current local
-Guition profile may use their existing secrets.
+Install the screen from ESP Screens ([EASY_SETUP.md](EASY_SETUP.md)): it writes the
+screen's own profile with its name, Wi-Fi reference and unique keys, and flashes it
+over USB. Choose the tiles afterwards in the app, not in the YAML.
 
 Check the serial port and chip before uploading. On the tested board,
 higher serial speeds proved unreliable when reading. Use 115200 baud:
 
 ```sh
-python -m esphome config guition-device.yaml
-python -m esphome compile guition-device.yaml
+python -m esphome config <your-screen>.yaml
+python -m esphome compile <your-screen>.yaml
 ```
 
 Flash via `esphome run` if the USB connection is reliable. For explicit
@@ -119,17 +109,16 @@ desired LVGL rotation and give the wizard the same value, for example
 ## HA and acceptance
 
 Add the new device via the ESPHome integration (name/IP, port 6053,
-API key from secrets). Grant permission for HA actions and use
-`DIRECT_ACTIONS: "true"` once the correct entities have been checked.
+API key from secrets), then choose its tiles in ESP Screens.
 
 ```sh
 python diagnostics/run_ui_test.py --host wallbox-kitchen.local --name wallbox-kitchen
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
-Also go through the physical checks in [ACCEPTANCE.md](ACCEPTANCE.md), using the
-GT911 wizard instead of the XPT2046 calibration. Check the display, correct
-touches, pagination, long press, climate/vacuum, real HA feedback,
+Also go through the physical checks, using the GT911 wizard instead of the XPT2046
+calibration. Check the display, correct touches, pagination, long press,
+climate and vacuum cards, real HA feedback,
 standby, and recovery after a restart. A compile/render test doesn't replace
 that physical check. The original CYD board's test outcome
 says nothing about this new board.

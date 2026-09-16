@@ -23,16 +23,12 @@ class LayoutTests(unittest.TestCase):
                     self.assertFalse(x < xx + ww and x + w > xx and y < yy + hh and y + h > yy)
                 rectangles.append((x, y, w, h))
 
-    def test_each_tile_filters_both_events_before_side_effects(self):
+    def test_runtime_binds_every_tile_and_guards_a_tap(self):
+        """The tiles are bound by the runtime; it filters a tap before anything happens."""
         for n in range(1, 11):
-            start = SOURCE.index(f'                  id: tile{n}\n')
-            next_obj = re.search(r'^              - obj:', SOURCE[start:], re.M)
-            end = start + next_obj.start() if next_obj else len(SOURCE)
-            block = SOURCE[start:end]
-            for event in ('short_click', 'long_press'):
-                match = re.search(r'on_' + event + r':\s+- if:\s+condition:\s+lambda: (.*?)\n', block)
-                self.assertIsNotNone(match, (n, event))
-                self.assertIn(f'cyd::touch_guard.accept(millis(), {n})', match[1])
+            self.assertIn(f'runtime_tiles::bind({n - 1}, id(tile{n})', SOURCE)
+        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        self.assertIn('if (!allowed(esphome::millis(), 100 + w.index, model.tiles[w.index].entity)) return;', runtime)
 
     def test_navigation_is_above_grid_but_below_modal_overlays(self):
         grid = SOURCE.index('            id: tile_scroll')

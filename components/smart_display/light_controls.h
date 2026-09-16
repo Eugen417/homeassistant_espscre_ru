@@ -192,10 +192,13 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_obj_set_style_outline_opa(row.slider, LV_OPA_20, LV_PART_KNOB);
       lv_slider_set_range(row.slider, i == 0 ? 0 : 2000, i == 0 ? 360 : 6500);
     } else {
-      // Track and fill corners, handle and shortest fill as in Home Assistant's 42 px control slider.
+      // Corners, handle and shortest fill as in Home Assistant's 42 px control slider. The fill keeps
+      // the track's radius: a smaller one makes LVGL draw the fill into its own full-size buffer on
+      // every redraw (20 KB on the CYD) and clip it to the track.
       lv_obj_set_pos(row.slider, track_x, track_y); lv_obj_set_size(row.slider, track_w, track_h);
-      lv_obj_set_style_radius(row.slider, track_h * 12 / 42, LV_PART_MAIN);
-      lv_obj_set_style_radius(row.slider, track_h * 8 / 42, LV_PART_INDICATOR);
+      int corner = track_h * 12 / 42;
+      lv_obj_set_style_radius(row.slider, corner, LV_PART_MAIN);
+      lv_obj_set_style_radius(row.slider, corner, LV_PART_INDICATOR);
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_MAIN);
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_INDICATOR);
       lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFDEFC3), LV_PART_MAIN);

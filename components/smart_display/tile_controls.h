@@ -136,7 +136,7 @@ inline const char *media_state_text(const std::string &state) {
 inline std::string status_text(const Tile &t) {
   auto d = t.domain(); char b[48];
   if (d == "climate") {
-    std::string text = climate_action_text(t.hvac_action);
+    std::string text = climate_action_text(t.extra().hvac_action);
     if (text.empty()) text = climate_mode_text(t.state);
     if (std::isfinite(t.current)) { snprintf(b, sizeof(b), " · %.1f°", t.current); text += b; }
     return text;
@@ -147,7 +147,8 @@ inline std::string status_text(const Tile &t) {
     return text;
   }
   if (d == "media_player") {
-    std::string text = (t.state == "playing" || t.state == "paused") && !t.media_title.empty() ? t.media_title : media_state_text(t.state);
+    const std::string &title = t.extra().media_title;
+    std::string text = (t.state == "playing" || t.state == "paused") && !title.empty() ? title : media_state_text(t.state);
     if (std::isfinite(t.volume) && (t.supported & feature::MEDIA_VOLUME_SET)) { snprintf(b, sizeof(b), " · %d%%", (int) std::lround(t.volume * 100)); text += b; }
     return text;
   }
@@ -184,19 +185,19 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out) {
   } else if (c == "mode") {
     // Three keys fit beside the name; Home Assistant lists modes in device order.
     for (const char *mode : {"off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"})
-      if (n < 3 && has_mode(t.hvac_modes, mode)) add(mode_icon(mode), HVAC_MODE, false, t.state == mode, mode);
+      if (n < 3 && has_mode(t.extra().hvac_modes, mode)) add(mode_icon(mode), HVAC_MODE, false, t.state == mode, mode);
   } else if (c == "chevrons") {
-    add(glyph::LEFT, SELECT_PREVIOUS, t.option_count < 2);
-    add(glyph::RIGHT, SELECT_NEXT, t.option_count < 2);
+    add(glyph::LEFT, SELECT_PREVIOUS, t.extra().options.size() < 2);
+    add(glyph::RIGHT, SELECT_NEXT, t.extra().options.size() < 2);
   }
   return n;
 }
 inline std::string neighbour_option(const Tile &t, int direction) {
-  if (!t.option_count) return {};
-  int current = 0;
-  for (unsigned i = 0; i < t.option_count; ++i) if (t.options[i] == t.state) current = i;
-  int next = (current + direction + (int) t.option_count) % (int) t.option_count;
-  return t.options[next];
+  const auto &options = t.extra().options;
+  if (options.empty()) return {};
+  int current = 0, count = (int) options.size();
+  for (int i = 0; i < count; ++i) if (options[i] == t.state) current = i;
+  return options[(current + direction + count) % count];
 }
 inline const char *run_label(const std::string &domain) {
   if (domain == "scene") return "Activate";
@@ -271,15 +272,15 @@ inline std::string speed_label(const std::string &speed) {
 }
 // The suction row a vacuum card shows: the manager's (filtered, labelled) speeds, else the first four
 // of the vacuum's own list. Its value is always the vacuum's fan_speed.
-inline void settle_suction(Tile &t) {
-  auto *row = t.choice('s');
-  if (!row && t.fan_speed_count) {
+inline void settle_suction(runtime_tiles::Extra &x) {
+  auto *row = x.choice('s');
+  if (!row && !x.fan_speeds.empty()) {
     runtime_tiles::Choice legacy; legacy.kind = 's';
-    for (unsigned i = 0; i < t.fan_speed_count; ++i) { legacy.values.push_back(t.fan_speeds[i]); legacy.labels.push_back(speed_label(t.fan_speeds[i])); }
-    t.choices.push_back(std::move(legacy));
-    row = &t.choices.back();
+    for (const auto &speed : x.fan_speeds) { legacy.values.push_back(speed); legacy.labels.push_back(speed_label(speed)); }
+    x.choices.push_back(std::move(legacy));
+    row = &x.choices.back();
   }
-  if (row) row->current = t.fan_speed;
+  if (row) row->current = x.fan_speed;
 }
 // The service call behind a chip: a select option on the device, or the vacuum's own fan speed.
 inline Action choice_action(const Tile &t, char kind, const std::string &value) {

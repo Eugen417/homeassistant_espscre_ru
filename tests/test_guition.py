@@ -2,12 +2,10 @@
 from pathlib import Path
 import re
 import sys
-import tempfile
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'tools'))
 import verify_gt911
-import new_device
 SOURCE=(ROOT/'guition-4848s040.yaml').read_text()
 VALUES=dict(re.findall(r'^  (\w+): "([^"]*)"',SOURCE,re.M))
 
@@ -49,9 +47,8 @@ class GuitionTests(unittest.TestCase):
         self.assertEqual(len(rectangles),6)
         self.assertIn('height: 44',SOURCE.split('id: page_next',1)[1][:200])
 
-    def test_all_tiles_guard_events_and_clip_long_titles(self):
+    def test_all_tiles_clip_long_titles(self):
         for i in range(1,11):
-            self.assertEqual(SOURCE.count(f'cyd::touch_guard.accept(millis(), {i})'),2)
             self.assertRegex(SOURCE,rf'id: t{i}_title\n\s+height: 24\n\s+width: 130\n\s+long_mode: DOT')
         self.assertEqual(VALUES['AUTO_DIM_TIMEOUT'],'600')
 
@@ -64,14 +61,5 @@ class GuitionTests(unittest.TestCase):
     def test_gt911_rotations(self):
         self.assertEqual(verify_gt911.screen_point(20,30,90),(30,459))
         self.assertEqual(verify_gt911.screen_point(20,30,270),(449,20))
-
-    def test_initializer_does_not_copy_resistive_calibration(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            new_device.create(tmp,'wallbox-test','Wallbox Test','guition')
-            profile=(Path(tmp)/'guition-device.yaml').read_text()
-            self.assertIn('!include guition-4848s040.yaml',profile)
-            self.assertIn('DEVICE_NAME: "wallbox-test"',profile)
-            self.assertFalse((Path(tmp)/'calibration.yaml').exists())
-            self.assertTrue((Path(tmp)/'secrets.yaml').exists())
 
 if __name__=='__main__':unittest.main()

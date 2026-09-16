@@ -49,7 +49,7 @@ int main() {
   assert(keys_for(old_robot, keys) == 2 && key_action(old_robot, VACUUM_START).service == "vacuum.turn_on");
 
   // Media: playback keys follow supported_features; mute flips is_volume_muted.
-  Tile sonos = make("media_player.sonos", "playing", 8321599); sonos.volume = 0.17f; sonos.media_title = "TV"; sonos.controls = "playback";
+  Tile sonos = make("media_player.sonos", "playing", 8321599); sonos.volume = 0.17f; sonos.edit_extra().media_title = "TV"; sonos.controls = "playback";
   assert(keys_for(sonos, keys) == 3 && !strcmp(keys[1].icon, glyph::PAUSE) && keys[1].command == MEDIA_PLAY_PAUSE);
   assert(status_text(sonos) == "TV · 17%");
   Action mute = key_action(sonos, MEDIA_MUTE);
@@ -60,13 +60,13 @@ int main() {
   assert(status_text(radio) == "Idle");
 
   // Climate: mode keys in priority order, at most three, the active one checked.
-  Tile ac = make("climate.ac", "cool"); ac.hvac_modes = "[\"off\",\"heat_cool\",\"cool\",\"heat\",\"fan_only\",\"dry\"]"; ac.controls = "mode"; ac.current = 21.5f; ac.target = 20; ac.step = 1;
+  Tile ac = make("climate.ac", "cool"); ac.edit_extra().hvac_modes = "[\"off\",\"heat_cool\",\"cool\",\"heat\",\"fan_only\",\"dry\"]"; ac.controls = "mode"; ac.current = 21.5f; ac.target = 20; ac.step = 1;
   assert(keys_for(ac, keys) == 3);
   assert(keys[0].arg == "off" && keys[1].arg == "heat" && keys[2].arg == "cool" && keys[2].checked && !keys[1].checked);
   Action mode = key_action(ac, HVAC_MODE, keys[1].arg);
   assert(mode.service == "climate.set_hvac_mode" && mode.key == "hvac_mode" && mode.value == "heat");
   assert(status_text(ac) == "Cool · 21.5°");
-  ac.hvac_action = "cooling"; assert(status_text(ac) == "Cooling · 21.5°");
+  ac.edit_extra().hvac_action = "cooling"; assert(status_text(ac) == "Cooling · 21.5°");
   assert(edit_target(ac) == 20 && edit_step(ac) == 1);
   Action set = edit_action(ac, step_value(edit_target(ac), edit_step(ac), ac.minimum, ac.maximum, 1));
   assert(set.service == "climate.set_temperature" && set.key == "temperature" && set.value == "21");
@@ -76,12 +76,12 @@ int main() {
   Tile number = make("number.target", "55"); number.minimum = 0; number.maximum = 100; number.step = 5;
   assert(edit_target(number) == 55 && edit_action(number, step_value(55, 5, 0, 100, -1)).value == "50");
   assert(edit_action(number, 50).service == "number.set_value");
-  Tile select = make("select.stand", "Comfort"); select.options = {"Eco", "Comfort", "Boost"}; select.option_count = 3; select.controls = "stepper";
+  Tile select = make("select.stand", "Comfort"); select.edit_extra().options = {"Eco", "Comfort", "Boost"}; select.controls = "stepper";
   assert(panel_kind(select) == "chevrons");
   assert(keys_for(select, keys) == 2 && !keys[0].disabled);
   assert(key_action(select, SELECT_NEXT).value == "Boost" && key_action(select, SELECT_PREVIOUS).value == "Eco");
   select.state = "Boost"; assert(key_action(select, SELECT_NEXT).value == "Eco");
-  select.option_count = 1; assert(keys_for(select, keys) == 2 && keys[0].disabled);
+  select.edit_extra().options.resize(1); assert(keys_for(select, keys) == 2 && keys[0].disabled);
 
   // Timer, run buttons and toggles.
   Tile timer = make("timer.eggs", "active"); timer.controls = "buttons";
@@ -109,12 +109,12 @@ int main() {
   auto row = [](char kind, const char *entity, const char *current, std::vector<std::string> values, const char *roles = "") {
     runtime_tiles::Choice c; c.kind = kind; c.entity = entity; c.current = current; c.values = values; c.labels = values; c.roles = roles; return c;
   };
-  pippa.choices = {row('m', "select.woonkamer_s8_schoonmaakmodus", "vac_and_mop", {"vacuum", "vac_and_mop", "mop", "custom"}, "vbma"),
+  pippa.edit_extra().choices = {row('m', "select.woonkamer_s8_schoonmaakmodus", "vac_and_mop", {"vacuum", "vac_and_mop", "mop", "custom"}, "vbma"),
                    row('w', "select.s8_intensiteit_van_dweilen", "intense", {"mild", "standard", "intense"}),
                    row('s', "", "", {"quiet", "balanced", "turbo", "max", "max_plus"})};
-  pippa.fan_speed = "max";
-  settle_suction(pippa);
-  assert(pippa.choice('s')->current == "max" && pippa.choices.size() == 3);
+  pippa.edit_extra().fan_speed = "max";
+  settle_suction(pippa.edit_extra());
+  assert(pippa.choice('s')->current == "max" && pippa.extra().choices.size() == 3);
   auto rows = vacuum_rows(pippa, 0);
   assert(rows.suction && rows.water && vacuum_role(pippa, 0) == 'b');
   pippa.choice('m')->current = "mop"; rows = vacuum_rows(pippa, 0);
@@ -133,8 +133,8 @@ int main() {
   assert(choice_action(pippa, 's', "turbo").service == "vacuum.set_fan_speed" && choice_action(pippa, 's', "turbo").value == "turbo");
   // An older manager sends no suction row: the vacuum's own four speeds, with the card's names.
   Tile old_robot2 = make("vacuum.old", "docked", 30524);
-  old_robot2.fan_speed_count = 2; old_robot2.fan_speeds[0] = "quiet"; old_robot2.fan_speeds[1] = "balanced"; old_robot2.fan_speed = "balanced";
-  settle_suction(old_robot2);
+  old_robot2.edit_extra().fan_speeds = {"quiet", "balanced"}; old_robot2.edit_extra().fan_speed = "balanced";
+  settle_suction(old_robot2.edit_extra());
   assert(old_robot2.choice('s') && old_robot2.choice('s')->labels[1] == "Normal" && old_robot2.choice('s')->current == "balanced");
   rows = vacuum_rows(old_robot2, 0);
   assert(rows.suction && !rows.water && !choice_action(old_robot2, 'm', "mop").valid());

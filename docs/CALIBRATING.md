@@ -11,14 +11,20 @@ panel, a loose connection, unstable power, or random outliers.
 
 ## Preparing
 
-1. Use the `device.yaml` from `tools/new_device.py`, with your own
-   `calibration.yaml` that starts as identity. Don't carry over the personal
-   correction from the historical base profile.
+1. Use the screen's own ESPHome YAML, the one ESP Screens wrote when it was
+   installed, and add your own `calibration.yaml` to its `packages:` (it starts as
+   identity). Don't carry over another panel's correction.
+
+```yaml
+packages:
+  display: ...        # what ESP Screens put there
+  calibration: !include calibration.yaml
+```
 2. Check the data cable and the USB port with `python -m serial.tools.list_ports`.
 3. Flash from the repo root:
 
 ```sh
-python -m esphome -s CALIBRATION_ON_BOOT true run device.yaml --device <USB_PORT>
+python -m esphome -s CALIBRATION_ON_BOOT true run <your-screen>.yaml --device <USB_PORT>
 ```
 
 4. Physically check for the **dark screen with five white + marks**.
@@ -75,8 +81,8 @@ The script:
   placing a new, complete version.
 
 The output contains only the four base bounds and six affine coefficients in
-an ESPHome substitutions map. `device.yaml` imports this as the calibration
-package. Don't change the coefficients by feel, and don't add a second correction
+an ESPHome substitutions map, which the screen's YAML imports as the
+calibration package. Don't change the coefficients by feel, and don't add a second correction
 in the driver. The `raw=` logs contain the filtered **physical ADC values**,
 even once a correction is already set; recalibrating therefore doesn't stack twice.
 
@@ -87,7 +93,7 @@ A successful fit on existing data is not yet a successful physical test.
 Flash the correction, still with the measurement screen:
 
 ```sh
-python -m esphome -s CALIBRATION_ON_BOOT true run device.yaml --device <USB_PORT>
+python -m esphome -s CALIBRATION_ON_BOOT true run <your-screen>.yaml --device <USB_PORT>
 ```
 
 Close the log reader with Ctrl+C and collect **new taps**:
@@ -109,12 +115,15 @@ test to pass. Report any remaining hardware deviation honestly.
 ## Back to normal operation
 
 ```sh
-python -m esphome run device.yaml --device <USB_PORT>
+python -m esphome run <your-screen>.yaml --device <USB_PORT>
 ```
 
-No `-s CALIBRATION_ON_BOOT true` is given here. In `device.yaml`, the
-setting stays `false`. Check the actual tiles and navigation per
-[ACCEPTANCE.md](ACCEPTANCE.md).
+No `-s CALIBRATION_ON_BOOT true` is given here; the profile keeps it `false`.
+Then check the real thing: the tiles, the navigation and a few taps in the corners.
+
+Most screens never need this. A CYD shows its calibration on the screen itself when
+it first starts, and ESP Screens has **Calibrate touch** for a repeat. This USB route
+is for a panel that stays off after that, or for a measurement report.
 
 If calibration mode was opened only via the API, you can close it:
 

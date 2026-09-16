@@ -7,8 +7,8 @@ docs/RELEASING.md before publishing updates. Main distributes both boards.
 Every push to GitHub is a release: always also bump the add-on version in
 screen_manager/config.yaml (with a CHANGELOG line), otherwise HA won't see an update.
 Generate packages with tools/generate_packages.py; don't edit them by hand.
-Runtime mode supports all cards in all twenty positions. The position constraints
-below apply only to the old manual profiles.
+A screen gets its tiles from the add-on while it runs: every card works in all
+twenty positions, and no Home Assistant entity belongs in a board profile.
 Preserve the data schema, protocol compatibility, unique keys, and CYD preferences.
 Test updates against existing data. Don't publish an unknown storage version without
 a migration. Production Ingress needs no long-lived token or public port.
@@ -16,8 +16,8 @@ a migration. Production Ingress needs no long-lived token or public port.
 ## Guition board
 
 The Guition 4848S040 has a separate profile `guition-4848s040.yaml` with
-480×480, ST7701S RGB, and GT911. Read docs/GUITION.md. Use its own local
-`guition-device.yaml`; don't carry over the CYD layout or XPT2046 calibration.
+480×480, ST7701S RGB, and GT911. Read docs/GUITION.md. Don't carry over the CYD
+layout or the XPT2046 calibration.
 Verify touch with tools/verify_gt911.py and keep the CYD regressions green.
 Don't configure wallbox relays as part of display support.
 
@@ -29,23 +29,21 @@ physically tap; an agent cannot replace that with software coordinates.
 
 ## Installing a new screen
 
-1. Identify the USB port and board variant. Use ESPHome 2026.6.2 with Python
-   3.11–3.14. First check whether local configuration already exists.
-2. In a fresh copy, use `tools/new_device.py` to create your own `device.yaml`,
-   `calibration.yaml`, `secrets.yaml`. Never overwrite a working profile.
-   Let the owner fill in Wi-Fi locally. Don't show keys in logs/chat.
-3. Flash `device.yaml` with the CLI substitution `CALIBRATION_ON_BOOT=true`.
-   The isolated screen shows five crosshairs and works without HA.
-4. Follow docs/CALIBRATING.md: guided USB capture, fit, flash, new capture,
-   independent verification. Ask for physical taps per target. Wait for confirmation
-   that the measurement screen is actually visible; a successful build is not a flash.
-5. Flash without that override. Pair with the owner's own HA via the ESPHome integration.
+1. Install it from ESP Screens (docs/EASY_SETUP.md): the add-on writes the screen's
+   own ESPHome YAML with its name, Wi-Fi reference and unique keys, and flashes it
+   over USB. Identify the USB port and board variant first, and check whether a
+   profile for this screen already exists; never overwrite a working one.
+   Use ESPHome 2026.6.2 with Python 3.11-3.14. Don't show keys in logs or chat.
+2. CYD: the screen shows its calibration on first boot; the owner taps the
+   crosshairs. `tools/calibrate.py` with docs/CALIBRATING.md is the USB route for a
+   panel that needs measuring; ask for physical taps per target, and wait for
+   confirmation that the measurement screen is visible. A successful build is not a flash.
+   Guition: GT911 reports pixels; verify with tools/verify_gt911.py, no ADC calibration.
+3. Pair with the owner's own Home Assistant through the ESPHome integration.
    Read real entity IDs and supported attributes; don't make up entities.
-6. Configure every tile you use according to docs/TILES.md. The vacuum card
-   sits at position 6. Positions 8/10 don't have a full slider/climate binding.
-   Don't test real device actions without the owner's permission.
-7. Go through docs/ACCEPTANCE.md and report the tests actually carried out,
-   limitations, and the observed stability duration.
+4. Choose the tiles in ESP Screens. Don't test real device actions without the
+   owner's permission, and report which checks were actually carried out,
+   the limitations, and how long the screen stayed up.
 
 ## Code and regressions
 
@@ -67,12 +65,12 @@ physically tap; an agent cannot replace that with software coordinates.
   layout within ~25 s. Guition: `capture_ui.py` saves the LVGL render as a PNG.
   Without a screen: `tools/render_topbar.py` renders the real top-bar code for both
   boards via the ESPHome host + SDL2 to `.esphome/render-topbar/out/sheet.png`.
-- Share via `tools/export_bundle.py` or Git. Don't stage secrets, measurements,
-  binaries, logs, build caches, or local device profiles.
+- Share through Git. Don't stage secrets, measurements, binaries, logs, build
+  caches, or local device profiles.
 - No automatic firmware upload to an arbitrary connected port.
   With multiple boards, first determine the intended port.
-- Profiles with the same `DEVICE_NAME` (Easy Setup and manual) share
-  `.esphome/build/<name>`. Never compile or upload them concurrently; check
+- Profiles with the same `DEVICE_NAME` share `.esphome/build/<name>`.
+  Never compile or upload them concurrently; check
   the `firmware.bin` path in the upload log, and then the compile time via
   `device_info`. A wrong profile knocks the screen out of ESP Screen Manager.
 

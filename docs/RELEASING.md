@@ -21,10 +21,10 @@
 1. Update the source profiles and shared components. Run
    `python3 tools/generate_packages.py`; never edit `packages/*.yaml` directly.
 2. Run all Python tests with aiohttp installed, all `tests/*.cpp`, the
-   generator with `--check`, and compile both Easy Setup profiles plus the
-   existing manual profiles. Do that sequentially: profiles with the same
-   `DEVICE_NAME` share one build folder, and a parallel build can make an upload
-   pick the wrong `firmware.bin`. Check that no secrets are in Git.
+   generator with `--check`, and compile both Easy Setup profiles. Do that
+   sequentially: profiles with the same `DEVICE_NAME` share one build folder, and a
+   parallel build can make an upload pick the wrong `firmware.bin`. Check that no
+   secrets are in Git.
 3. Test app start, saving, restarting/updating with existing layouts,
    reconnecting to HA, and an ESP restart. Test a new card on real
    hardware. A good build doesn't replace physical touch acceptance.
@@ -175,6 +175,52 @@ as a YAML anchor into the three MDI fonts of both board profiles and builds
 icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
+
+### Compatibility 0.2.50 / firmware 0.2.43
+
+Firmware, board profiles and the package generator; the app only raises `FIRMWARE_VERSION`. Storage,
+protocol, preferences and keys are unchanged.
+
+- Slider fills: `runtime_tiles::slider_handle` and the light card rows in `light_controls.h` give
+  `LV_PART_INDICATOR` the track's radius (`height * 12 / 42`, round at 20 px or less). A smaller fill
+  radius makes LVGL 9.5's `lv_bar` draw the fill into an ARGB8888 layer of its own size on every redraw
+  and clip it to the track (a 128×30 fill: 15 KB). When that allocation failed, the refresh retried until
+  the task watchdog reset the CYD (log: `lv_draw_buf_create_ex: No memory: 115x30, cf: 16`).
+  `tests/test_layer_free.py` rejects layer styles (`opa_layered`, transform rotation/scale/skew, blend
+  mode, bitmap masks, `clip_corner`, drop shadow, blur) and a fill radius that differs from its track in
+  both profiles, both packages and the firmware headers. `opa` itself makes no layer in LVGL 9.5.
+- `runtime_model.h`: `Tile` keeps the shared fields inline. `Extra` holds climate modes and action, select
+  options, forecast/hours/wind/feels, sunrise/sunset/timer, media title, vacuum speeds, choices, room and
+  charging. It lives on the heap only while a state message fills something in (`Tile::set_extra`,
+  `extra()`, `edit_extra()`, `extra_ptr()`). `options` and `fan_speeds` are vectors (no
+  `option_count`/`fan_speed_count`), and `history` holds 24 samples or none. `revision`/`pending_revision`
+  are FNV-1a fingerprints (`Fingerprint`, also an ArduinoJson writer) instead of copies of state,
+  attributes and extras. On the ESP32 `runtime_tiles::model` shrinks from 24,296 to 8,216 bytes.
+- The old manual profile is gone from both board profiles: the 80 `homeassistant` sensor and text
+  sensors of the fixed tiles, `smartdisplay_action`, the tile tap and long-press handlers,
+  `publish_action`, `do_tile_action`, the manual refresh in `ui_refresh`, the YAML vacuum card with
+  `open_vacuum_overlay`/`vacuum_action`/`vacuum_fan_speed`, `light_controls::subscribe`, the 331
+  `TILE*` substitutions, and `DYNAMIC_TILES`/`TILE_COUNT`/`DIRECT_ACTIONS`/`TIME_24H`/`ORIENTATION`.
+  `runtime_tiles::enabled` is set true at boot and the `DIRECT_ACTIONS` guards became
+  `runtime_tiles::fresh()`. The runtime detail hook lost its unreachable vacuum branch. Deleted:
+  `device.example.yaml`, `guition-device.example.yaml`, `tools/new_device.py`, `tools/export_bundle.py`,
+  `TILE_CONFIGURATION.md`, `docs/TILES.md`, `docs/ACCEPTANCE.md`, `CYD_STABILITY.md`, `TEST_RESULTS.md`,
+  and the five stale header copies in the repository root (`cyd_ui.h`, `light_controls.h`,
+  `alert_overlay.h`, `backlight_fade.h`, `guition_diagnostics.h`) that had drifted from
+  `components/smart_display/`; `tests/test_cyd_ui.cpp` and `tests/test_light_controls.cpp` were
+  compiling those copies and now include the component headers, as both profiles do.
+  `tools/generate_packages.py` no longer strips or substitutes anything for the manual profile: the
+  board profile's own defaults are the package's, and a `homeassistant` sensor in a profile is refused.
+  The entity "SmartDisplay Action" disappears from every screen. The USB touch calibration
+  (`tools/calibrate.py`, `docs/CALIBRATING.md`, `calibration.example.yaml`, `CALIBRATION_ON_BOOT`,
+  the measurement page) and the on-screen calibration are unchanged.
+- `esphome config` of both Easy profiles is byte-identical before and after this cleanup, apart from
+  two reordered lines: the firmware does the same thing, with the same calibration.
+- `tile_scroll` and `dim_wake_overlay` (and the manual vacuum rows) get `pressed: bg_opa: TRANSP`. The
+  theme's obj pressed style (`bg_opa` 45%) lit up the transparent area on a tap between tiles and on the
+  wake tap.
+- Both profiles add the debug sensor `min_free` ("Heap Minimum Free":
+  `heap_caps_get_minimum_free_size(MALLOC_CAP_INTERNAL)`, every 300 s).
 
 ### Compatibility 0.2.49 / firmware 0.2.42
 

@@ -74,8 +74,8 @@ three times, hold each tap briefly, and follow each next crosshair in turn.
 There are five positions. The center checks accuracy. On a failed
 measurement, the screen asks you to start over. The correction is stored locally
 and survives OTA updates. Use the HA device button **Calibrate touch** to
-measure again later. For diagnostics and the older manual installation, see:
-[CALIBRATING.md](CALIBRATING.md).
+measure again later. For a panel that stays off, or for a measurement report over
+USB, see [CALIBRATING.md](CALIBRATING.md).
 
 **Guition:** the GT911 touch mapping is baked into the board profile; there's no ADC calibration.
 

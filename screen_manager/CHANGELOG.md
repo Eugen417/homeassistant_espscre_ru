@@ -1,3 +1,14 @@
+## 0.2.50 (firmware 0.2.43)
+
+More memory for the CYD, so a busy moment no longer restarts it.
+
+- **Sliders without extra buffers.** The fill of the tile and light card sliders now has the same rounded corners as its track. With the tighter corners it had since 0.2.43, the screen drew every fill into a separate buffer of up to 20 KB on each redraw, and when the CYD ran short of memory it kept retrying until its watchdog restarted it. The end of the fill is now slightly rounder behind the white handle.
+- **Leaner tiles.** Climate modes, a select's options, weather, sun and timer times, the media title and the vacuum rows now only take memory on tiles that use them, and a tile keeps a short fingerprint of its last state instead of a full copy. That frees about 16 KB of RAM on the CYD.
+- **The old manual setup is gone.** Before ESP Screens existed, tiles were written by hand in the screen's YAML. Nothing used that any more, and it cost a screen memory: 80 Home Assistant subscriptions, its own tap handlers and an old vacuum card it never showed. All of it is out, together with its guides and helper scripts. Choosing tiles, the top bar, the settings and the calibration work exactly as before. The unused sensor **SmartDisplay Action** disappears: Home Assistant shows it as unavailable and you can delete it.
+- **No pale flash.** A tap between two tiles, or the tap that wakes a dimmed screen, lit up a pale panel. It stays transparent now, on both boards.
+- **Heap Minimum Free.** A new diagnostic sensor shows the lowest free memory since the screen started.
+- Firmware 0.2.43 for both boards; the app offers the update.
+
 ## 0.2.49 (firmware 0.2.42)
 
 No more flickering stripes on the CYD.

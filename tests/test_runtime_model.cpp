@@ -101,3 +101,34 @@ static void test_explicit_slots() {
   assert(changed && !moved && !m.ready() && place(m, p) == 2 && p[0].slot == 1 && p[1].page == 1);
 }
 struct RunSlots { RunSlots() { test_explicit_slots(); } } run_slots;
+// What only some tiles carry lives in an Extra that exists only while a state needs it.
+static void test_extra() {
+  using namespace runtime_tiles;
+  Tile lamp;
+  assert(!lamp.extra_ptr() && lamp.extra().options.empty() && !lamp.choice('m'));
+  lamp.set_extra(Extra{});
+  assert(!lamp.extra_ptr());  // an empty block is never allocated
+  Extra climate; climate.hvac_modes = "[\"off\",\"heat\"]"; climate.hvac_action = "heating";
+  lamp.set_extra(std::move(climate));
+  Extra *kept = lamp.extra_ptr();
+  assert(kept && lamp.extra().hvac_action == "heating");
+  Extra again; again.hvac_action = "idle";
+  lamp.set_extra(std::move(again));
+  assert(lamp.extra_ptr() == kept && lamp.extra().hvac_action == "idle" && lamp.extra().hvac_modes.empty());
+  Tile copy = lamp;  // a copy owns its own block
+  copy.edit_extra().hvac_action = "cooling";
+  assert(lamp.extra().hvac_action == "idle" && copy.extra().hvac_action == "cooling");
+  lamp.set_extra(Extra{});
+  assert(!lamp.extra_ptr() && lamp.extra().hvac_action.empty());
+  Extra robot; Choice mode; mode.kind = 'm'; mode.values = {"vacuum", "mop"}; robot.choices.push_back(mode); robot.room = "Kitchen";
+  Tile vacuum; vacuum.set_extra(std::move(robot));
+  assert(vacuum.choice('m') && vacuum.choice('m')->values.size() == 2 && !vacuum.choice('w') && vacuum.extra().room == "Kitchen");
+  vacuum.choice('m')->sent = "mop";
+  assert(static_cast<const Tile &>(vacuum).choice('m')->sent == "mop");
+  // A new layout resets the slots, blocks included.
+  Model m; bool changed = false;
+  assert(m.set_layout({"vacuum.robot"}, "Home", changed));
+  m.tiles[0] = vacuum;
+  assert(m.set_layout({"light.a"}, "Home", changed) && changed && !m.tiles[0].extra_ptr());
+}
+struct RunTileExtra { RunTileExtra() { test_extra(); } } run_tile_extra;

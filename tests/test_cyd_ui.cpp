@@ -1,4 +1,4 @@
-#include "../cyd_ui.h"
+#include "../components/smart_display/cyd_ui.h"
 #include <cassert>
 #include <limits>
 int main() {

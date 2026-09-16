@@ -1,6 +1,7 @@
 #pragma once
 #include <algorithm>
 #include <array>
+#include <memory>
 #include <string>
 #include <vector>
 #include <cmath>
@@ -26,8 +27,20 @@ inline bool valid_entity(const std::string &entity) {
     if (domain == allowed) return true;
   return false;
 }
-inline std::string state_revision(const std::string &state, const std::string &attributes) {
-  return state + "\n" + attributes;
+// A tile keeps a fingerprint (FNV-1a) of its last state message instead of a copy of it. It is also an
+// ArduinoJson writer: the firmware hashes the attributes while serializing them, without a string.
+struct Fingerprint {
+  uint32_t value = 2166136261u;
+  size_t write(uint8_t c) { value = (value ^ c) * 16777619u; return 1; }
+  size_t write(const uint8_t *data, size_t size) { for (size_t i = 0; i < size; ++i) write(data[i]); return size; }
+  void add(const std::string &text) { write(reinterpret_cast<const uint8_t *>(text.data()), text.size()); }
+};
+inline uint32_t state_revision(const std::string &state, const std::string &attributes) {
+  Fingerprint f;
+  f.add(state);
+  f.write('\n');
+  f.add(attributes);
+  return f.value;
 }
 struct Forecast { std::string day, condition; float high = NAN, low = NAN, rain = NAN, mm = NAN; };
 struct Hour { std::string time, condition; float temp = NAN, rain = NAN, mm = NAN; };
@@ -41,59 +54,96 @@ struct Choice {
   std::string entity, current, roles, sent;
   std::vector<std::string> values, labels;
 };
-struct Tile {
-  std::string entity, name, state, unit, modes, hvac_modes, fan_modes, swing_modes, fan_mode, swing_mode;
-  std::array<std::string, 4> fan_speeds;
-  unsigned fan_speed_count = 0;
+// What only some tiles carry: climate modes, a select's options, weather, sun and timer times, a media
+// title, the vacuum rows. A light or a sensor has none of it, so a tile holds this block only while its
+// state needs one: twenty tiles with these fields inline took 24 KB of the CYD's RAM, mostly empty.
+struct Extra {
+  // Climate: the modes as JSON lists, the current fan and swing mode, and what it is doing now.
+  std::string hvac_modes, fan_modes, swing_modes, fan_mode, swing_mode, hvac_action;
+  // A select's options, at most eight.
+  std::vector<std::string> options;
+  // Weather: up to five days and eight hours.
+  std::vector<Forecast> forecast;
+  std::vector<Hour> hours;
+  float wind = NAN, feels = NAN;
+  std::string wind_unit;
+  std::string sunrise, sunset, duration, remaining;
+  uint32_t timer_end = 0;
+  std::string media_title;
+  // Vacuum: its own speeds (at most four) and speed, the mode, water and suction rows (see Choice), and
+  // from sensors of its device the room it is in and whether it charges.
+  std::vector<std::string> fan_speeds;
   std::string fan_speed;
+  std::vector<Choice> choices;
+  std::string room;
+  bool charging = false;
+  Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
+  bool empty() const {
+    return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
+           hvac_action.empty() && options.empty() && forecast.empty() && hours.empty() && std::isnan(wind) &&
+           std::isnan(feels) && wind_unit.empty() && sunrise.empty() && sunset.empty() && duration.empty() &&
+           remaining.empty() && !timer_end && media_title.empty() && fan_speeds.empty() && fan_speed.empty() &&
+           choices.empty() && room.empty() && !charging;
+  }
+};
+// The Extra of a tile on the heap, copied along with the tile like an ordinary member.
+struct ExtraBox {
+  std::unique_ptr<Extra> ptr;
+  ExtraBox() = default;
+  ExtraBox(const ExtraBox &other) : ptr(other.ptr ? new Extra(*other.ptr) : nullptr) {}
+  ExtraBox &operator=(const ExtraBox &other) { if (this != &other) ptr.reset(other.ptr ? new Extra(*other.ptr) : nullptr); return *this; }
+  ExtraBox(ExtraBox &&) noexcept = default;
+  ExtraBox &operator=(ExtraBox &&) noexcept = default;
+};
+struct Tile {
+  std::string entity, name, state, unit, modes;
   float brightness = NAN, percentage = NAN, position = NAN;
   float current = NAN, target = NAN, humidity = NAN, minimum = 7, maximum = 35, step = 0.5f;
   int hue = 0, kelvin = 3000, min_kelvin = 0, max_kelvin = 0;
   bool received = false;
   bool has_hs_color = false;
   int saturation = 0;
-  std::string tap = "auto", display = "standard", inline_control = "none", media_title;
+  std::string tap = "auto", display = "standard", inline_control = "none";
   bool wide = false;
   // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.
-  std::string controls, device_class, hvac_action;
+  std::string controls, device_class;
   bool muted = false;
   // A -/+ edit shows at once and is sent as one call after a short pause; the
   // value stays until Home Assistant reports it (or a timeout clears it).
   float edit_value = NAN; uint32_t edit_since = 0; bool edit_sent = false;
   // Knob position a toggle shows while its command is under way.
   bool optimistic_on = false;
-  std::array<std::string, 8> options;
-  unsigned option_count = 0, history_hours = 24;
-  std::array<float,24> history{};
+  // A sensor's graph: 24 samples over `history_hours`, empty without one.
+  unsigned history_hours = 24;
+  std::vector<float> history;
   bool has_history = false;
-  // Weather only: up to five days and eight hours; empty vectors cost nothing on the other tiles.
-  std::vector<Forecast> forecast;
-  std::vector<Hour> hours;
-  float wind = NAN, feels = NAN;
-  std::string wind_unit;
   // When a scene, script or button last ran (unix time), pre-computed by the manager.
   uint32_t last_run = 0;
-  std::string sunrise, sunset, duration, remaining;
-  uint32_t timer_end = 0;
   float battery = NAN, volume = NAN;
-  // Vacuum only: mode, water and suction rows (see Choice); an empty vector costs nothing elsewhere.
-  // `room` is where the robot is and `charging` whether it charges, both from sensors of its device.
-  std::vector<Choice> choices;
-  std::string room;
-  bool charging = false;
-  Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
-  const Choice *choice(char kind) const { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   uint32_t supported = 0, background = 0;
   bool transparent = false;  // "Background: none": card fill and border hidden, contents unchanged.
   std::string icon;  // UTF-8 glyph of a chosen icon the icon fonts contain; empty keeps the domain icon.
-  std::string revision, pending_revision;
+  uint32_t revision = 0, pending_revision = 0;  // state_revision() fingerprints
   uint32_t pending_since = 0;
   bool pending = false, confirmed = false, local_feedback = false;
+  ExtraBox extra_box;
+  const Extra &extra() const { static const Extra none; return extra_box.ptr ? *extra_box.ptr : none; }
+  Extra *extra_ptr() { return extra_box.ptr.get(); }
+  Extra &edit_extra() { if (!extra_box.ptr) extra_box.ptr.reset(new Extra()); return *extra_box.ptr; }
+  // A state message's extras replace the block: it stays allocated while the tile needs one and is freed
+  // when a state brings none.
+  void set_extra(Extra &&next) {
+    if (next.empty()) extra_box.ptr.reset();
+    else if (extra_box.ptr) *extra_box.ptr = std::move(next);
+    else extra_box.ptr.reset(new Extra(std::move(next)));
+  }
+  Choice *choice(char kind) { return extra_box.ptr ? extra_box.ptr->choice(kind) : nullptr; }
+  const Choice *choice(char kind) const { for (auto &c : extra().choices) if (c.kind == kind) return &c; return nullptr; }
   bool is_switch() const { return domain()=="switch" || domain()=="input_boolean"; }
   bool loading(uint32_t now) const { return pending && (now-pending_since < (is_switch()?150u:1000u) || (!confirmed && !local_feedback && now-pending_since < 6000)); }
   bool awaiting_action(uint32_t now) const { return loading(now) && !local_feedback; }
   void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; }
-  void observe(const std::string &next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }
+  void observe(uint32_t next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }
   std::string domain() const { return entity.substr(0, entity.find('.')); }
   bool builtin() const { return domain() == "screen"; }
   bool available() const { return builtin() || (received && state != "unknown" && state != "unavailable" && !state.empty()); }

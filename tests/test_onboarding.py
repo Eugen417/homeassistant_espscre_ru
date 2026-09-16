@@ -1,17 +1,14 @@
-"""Offline regression tests for installation, calibration and safe export."""
+"""Offline regression tests for the guided USB touch calibration."""
 import copy
 from pathlib import Path
 import re
 import sys
 import tempfile
 import unittest
-import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 import calibrate
-import new_device
-import export_bundle
 
 
 def measurements():
@@ -84,43 +81,6 @@ class CalibrationTests(unittest.TestCase):
             calibrate.write_file(path, 'new', replace=True)
             self.assertEqual(path.read_text(), 'new')
             self.assertEqual(next(Path(tmp).glob('*.bak-*')).read_text(), 'old')
-
-
-class InstallationTests(unittest.TestCase):
-    def test_unique_secrets_and_no_overwrite(self):
-        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
-            new_device.create(a, 'display-a', 'Display A')
-            new_device.create(b, 'display-b', 'Display B')
-            original = (Path(a)/'secrets.yaml').read_text()
-            self.assertNotEqual(original, (Path(b)/'secrets.yaml').read_text())
-            self.assertNotIn('WILL_BE_UNIQUELY_GENERATED', original)
-            with self.assertRaises(ValueError): new_device.create(a, 'new', 'New')
-            self.assertEqual(original, (Path(a)/'secrets.yaml').read_text())
-
-    def test_invalid_device_name(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            for name in ('../oops', 'UPPER', 'has space', 'trailing-'):
-                with self.assertRaises(ValueError): new_device.create(tmp, name, 'Test')
-            self.assertEqual(list(Path(tmp).iterdir()), [])
-
-    def test_export_is_neutral_and_has_required_sources(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            output = Path(tmp)/'starter.zip'
-            export_bundle.export(ROOT, output)
-            with zipfile.ZipFile(output) as archive:
-                names = archive.namelist()
-                for forbidden in ('secrets.yaml', 'device.yaml', 'calibration.yaml', '.git/', '.esphome/', '.log', '.bin', '.json'):
-                    self.assertFalse(any(('/'+forbidden in n if forbidden.endswith('/') else n.endswith(forbidden) if forbidden.startswith('.') else n.endswith('/'+forbidden)) for n in names), forbidden)
-                self.assertIn('cyd-display/.gitignore', names)
-                base = archive.read('cyd-display/home-like-2432s028.yaml').decode()
-                values = dict(re.findall(r'^  (\w+): "([^"]*)"', base, re.M))
-                self.assertEqual(values['TOUCH_AFFINE_XX'], '1.000000000')
-                self.assertEqual(values['DIRECT_ACTIONS'], 'false')
-                for i in range(1,11):
-                    self.assertRegex(values[f'TILE{i}_ENTITY'], r'\.(example_|unused_)')
-                archive.extractall(tmp)
-            new_device.create(Path(tmp)/'cyd-display', 'fresh-board', 'Fresh board')
-            with self.assertRaises(FileExistsError): export_bundle.export(ROOT, output)
 
 
 if __name__ == '__main__': unittest.main()

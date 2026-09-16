@@ -101,10 +101,10 @@ class AlertTests(unittest.TestCase):
             self.assertGreater(v('ALERT_SUBTITLE_MAX'), v('ALERT_TITLE_MAX'), name)
 
     def test_helper_header_is_included_locally_and_in_the_remote_package(self):
+        header = '    - <esphome/components/smart_display/alert_overlay.h>\n'
         for board, name in PROFILES.items():
-            self.assertIn('    - alert_overlay.h\n', (ROOT / name).read_text(), name)
-            self.assertIn('    - <esphome/components/smart_display/alert_overlay.h>\n', (ROOT / PACKAGES[board]).read_text(), board)
-        self.assertIn('components/smart_display/alert_overlay.h', (ROOT / 'alert_overlay.h').read_text())
+            self.assertIn(header, (ROOT / name).read_text(), name)
+            self.assertIn(header, (ROOT / PACKAGES[board]).read_text(), board)
 
 if __name__ == '__main__':
     unittest.main()

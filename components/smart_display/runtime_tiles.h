@@ -276,13 +276,15 @@ inline std::string receive(const std::string &payload) {
     if (!model.accepts(index, entity)) { result = "Error: outdated tile"; return false; }
     Tile &tile = model.tiles[index];
     auto a = root["a"].as<JsonObject>();
-    // ArduinoJson clears its destination string: serialize attributes first, then add state.
-    std::string attributes; serializeJson(a, attributes);
-    // The extras count too: a vacuum's mode or water select changes only there.
-    if (!root["x"].isNull()) { std::string more; serializeJson(root["x"], more); attributes += more; }
-    std::string revision = state_revision(string(root["state"]), attributes);
+    // The fingerprint of state, attributes and extras (a vacuum's mode or water select changes only
+    // there), hashed while serializing so no copy of the message stays behind.
+    Fingerprint revision;
+    revision.add(string(root["state"]));
+    revision.write('\n');
+    serializeJson(a, revision);
+    if (!root["x"].isNull()) serializeJson(root["x"], revision);
     bool was_confirmed=tile.confirmed;
-    tile.observe(revision);
+    tile.observe(revision.value);
     if(tile.pending && !tile.local_feedback && !was_confirmed && tile.confirmed)
       ESP_LOGI("runtime_action","HA state received entity=%s elapsed=%u ms",entity.c_str(),(unsigned)(esphome::millis()-tile.pending_since));
     auto options = root["o"];
@@ -301,39 +303,38 @@ inline std::string receive(const std::string &payload) {
     bool was_wide = tile.wide;
     tile.wide = string(options["size"]) == "wide";
     bool repack = was_wide != tile.wide;
-    // Pre-computed extras: the manager converts time zones and fetches forecasts.
+    // Pre-computed extras: the manager converts time zones and fetches forecasts. What only some tiles
+    // carry is collected in `next` and replaces the tile's Extra at the end (see Tile::set_extra).
     auto extra = root["x"];
-    tile.forecast.clear();
+    Extra next;
     if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
-      if (tile.forecast.size() == 5) break;
-      tile.forecast.emplace_back(); auto &f = tile.forecast.back();
+      if (next.forecast.size() == 5) break;
+      next.forecast.emplace_back(); auto &f = next.forecast.back();
       f.day = string(day["d"], 3); f.condition = string(day["c"], 20); f.high = number(day["h"]); f.low = number(day["l"]);
       f.rain = number(day["p"]); f.mm = number(day["r"]);
     }
-    tile.hours.clear();
     if (extra["hours"].is<JsonArray>()) for (JsonVariant hour : extra["hours"].as<JsonArray>()) {
-      if (tile.hours.size() == 8) break;
-      tile.hours.emplace_back(); auto &h = tile.hours.back();
+      if (next.hours.size() == 8) break;
+      next.hours.emplace_back(); auto &h = next.hours.back();
       h.time = string(hour["t"], 5); h.condition = string(hour["c"], 20); h.temp = number(hour["h"]); h.rain = number(hour["p"]); h.mm = number(hour["r"]);
     }
     tile.last_run = extra["last"].is<unsigned>() ? extra["last"].as<uint32_t>() : 0;
-    tile.sunrise = string(extra["rise"], 5); tile.sunset = string(extra["set"], 5);
-    tile.timer_end = extra["end"].is<unsigned>() ? extra["end"].as<uint32_t>() : 0;
-    tile.duration = string(extra["dur"], 16); tile.remaining = string(extra["rem"], 16);
+    next.sunrise = string(extra["rise"], 5); next.sunset = string(extra["set"], 5);
+    next.timer_end = extra["end"].is<unsigned>() ? extra["end"].as<uint32_t>() : 0;
+    next.duration = string(extra["dur"], 16); next.remaining = string(extra["rem"], 16);
     tile.has_history=false;
     if (root["history"]["values"].is<JsonArray>()) {
-      tile.history.fill(NAN);unsigned j=0;
+      tile.history.assign(24,NAN);unsigned j=0;
       for (JsonVariant value:root["history"]["values"].as<JsonArray>()) {
         if(j==24) break; tile.history[j++]=number(value); }
       tile.has_history=j>0;tile.history_hours=std::clamp(root["history"]["hours"].as<unsigned>(),1u,24u);
-    }
-    tile.option_count=0;
+    } else if (!tile.history.empty()) { tile.history.clear(); tile.history.shrink_to_fit(); }
     if (a["options"].is<JsonArray>()) for(JsonVariant option:a["options"].as<JsonArray>()) {
-      if(tile.option_count==8)break;tile.options[tile.option_count++]=string(option,48); }
+      if(next.options.size()==8)break;next.options.push_back(string(option,48)); }
     tile.battery=number(a["battery_level"]);tile.volume=number(a["volume_level"]);
     tile.muted=a["is_volume_muted"].is<bool>() && a["is_volume_muted"].as<bool>();
-    tile.device_class=string(a["device_class"],24);tile.hvac_action=string(a["hvac_action"],24);
-    tile.media_title=string(a["media_title"],80);tile.supported=a["supported_features"].as<uint32_t>();
+    tile.device_class=string(a["device_class"],24);next.hvac_action=string(a["hvac_action"],24);
+    next.media_title=string(a["media_title"],80);tile.supported=a["supported_features"].as<uint32_t>();
     tile.name = string(root["name"], 80);
     tile.state = string(root["state"], 160);
     tile.unit = string(a["unit_of_measurement"], 20);
@@ -350,12 +351,12 @@ inline std::string receive(const std::string &payload) {
       tile.minimum=number(a["min"],0);tile.maximum=number(a["max"],100);tile.step=number(a["step"],1); }
     if(tile.domain()=="weather") {
       tile.current=number(a["temperature"]);tile.unit=string(a["temperature_unit"],12);
-      tile.humidity=number(a["humidity"]);tile.wind=number(a["wind_speed"]);tile.wind_unit=string(a["wind_speed_unit"],8);tile.feels=number(a["apparent_temperature"]);
+      tile.humidity=number(a["humidity"]);next.wind=number(a["wind_speed"]);next.wind_unit=string(a["wind_speed_unit"],8);next.feels=number(a["apparent_temperature"]);
     }
     tile.modes = list(a["supported_color_modes"]);
-    tile.hvac_modes = list(a["hvac_modes"]);
-    tile.fan_modes = list(a["fan_modes"]); tile.swing_modes = list(a["swing_modes"]);
-    tile.fan_mode = string(a["fan_mode"], 48); tile.swing_mode = string(a["swing_mode"], 48);
+    next.hvac_modes = list(a["hvac_modes"]);
+    next.fan_modes = list(a["fan_modes"]); next.swing_modes = list(a["swing_modes"]);
+    next.fan_mode = string(a["fan_mode"], 48); next.swing_mode = string(a["swing_mode"], 48);
     float hue = number(a["hs_color"][0]);
     float saturation = number(a["hs_color"][1]);
     tile.has_hs_color = std::isfinite(hue) && std::isfinite(saturation);
@@ -365,19 +366,17 @@ inline std::string receive(const std::string &payload) {
     if (std::isfinite(kelvin)) tile.kelvin = std::lround(std::clamp(kelvin, 1000.0f, 15000.0f));
     tile.min_kelvin = std::clamp(number(a["min_color_temp_kelvin"], 0), 0.0f, 15000.0f);
     tile.max_kelvin = std::clamp(number(a["max_color_temp_kelvin"], 0), 0.0f, 15000.0f);
-    tile.fan_speed = string(a["fan_speed"], 48);
-    tile.fan_speed_count = 0;
+    next.fan_speed = string(a["fan_speed"], 48);
     if (a["fan_speed_list"].is<JsonArray>()) for (JsonVariant speed : a["fan_speed_list"].as<JsonArray>()) {
-      if (tile.fan_speed_count == 4) break;
-      tile.fan_speeds[tile.fan_speed_count++] = string(speed, 48);
+      if (next.fan_speeds.size() == 4) break;
+      next.fan_speeds.push_back(string(speed, 48));
     }
     // Vacuum rows (app 0.2.46+): the cleaning mode and water selects of the robot's device and the
     // suction speeds to offer, each at most six; the battery sensor when the vacuum has no attribute.
     // A chip just tapped keeps its choice while Home Assistant is still busy with it, so another update
     // of the robot (its battery, say) does not flip the row back for a moment.
     std::vector<std::pair<char, std::string>> tapped;
-    if (tile.loading(esphome::millis())) for (auto &c : tile.choices) if (!c.sent.empty()) tapped.emplace_back(c.kind, c.sent);
-    tile.choices.clear();
+    if (tile.loading(esphome::millis())) for (auto &c : tile.extra().choices) if (!c.sent.empty()) tapped.emplace_back(c.kind, c.sent);
     auto choice = [&](const char *key, char kind) {
       auto c = extra[key];
       if (!c["o"].is<JsonArray>()) return;
@@ -388,13 +387,14 @@ inline std::string receive(const std::string &payload) {
       if (c["l"].is<JsonArray>()) for (JsonVariant label : c["l"].as<JsonArray>()) {
         if (row.labels.size() == row.values.size()) break; row.labels.push_back(string(label, 24)); }
       while (row.labels.size() < row.values.size()) row.labels.push_back(row.values[row.labels.size()]);
-      if (!row.values.empty()) tile.choices.push_back(std::move(row));
+      if (!row.values.empty()) next.choices.push_back(std::move(row));
     };
-    if (tile.domain() == "vacuum") { choice("mode", 'm'); choice("water", 'w'); choice("fan", 's'); tile_controls::settle_suction(tile); }
-    for (auto &[kind, value] : tapped) if (auto *c = tile.choice(kind)) if (c->current != value) c->sent = value;
+    if (tile.domain() == "vacuum") { choice("mode", 'm'); choice("water", 'w'); choice("fan", 's'); tile_controls::settle_suction(next); }
+    for (auto &[kind, value] : tapped) if (auto *c = next.choice(kind)) if (c->current != value) c->sent = value;
     if (!std::isfinite(tile.battery)) tile.battery = number(extra["bat"]);
-    tile.charging = extra["chg"].is<int>() && extra["chg"].as<int>() == 1;
-    tile.room = string(extra["room"], 32);
+    next.charging = extra["chg"].is<int>() && extra["chg"].as<int>() == 1;
+    next.room = string(extra["room"], 32);
+    tile.set_extra(std::move(next));
     // Home Assistant reports the edited value: the -/+ pill follows its state again.
     if(std::isfinite(tile.edit_value) && tile.edit_sent && std::fabs(tile_controls::edit_target(tile)-tile.edit_value)<0.051f)tile.edit_value=NAN;
     tile.received = true;
@@ -530,7 +530,7 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
     if(cmd==20)action("media_player.media_play_pause",t.entity);
     if(cmd==21)action("media_player.media_previous_track",t.entity);
     if(cmd==22)action("media_player.media_next_track",t.entity);
-    if(cmd>=30 && cmd<38 && cmd-30<(int)t.option_count)action(t.domain()+".select_option",t.entity,"option",t.options[cmd-30]);
+    if(cmd>=30 && cmd<38 && cmd-30<(int)t.extra().options.size())action(t.domain()+".select_option",t.entity,"option",t.extra().options[cmd-30]);
     if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
     if(cmd==41)action("timer.cancel",t.entity);
   },LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)command);
@@ -577,6 +577,7 @@ inline lv_obj_t *detail_card(int x,int y,int w,int h){
 // Two cards: "now" with the next hours, and the coming days. Bold highs, muted lows,
 // rain in blue with a drop, so the eye finds temperature first and rain second.
 inline void render_weather_detail(const Tile &t,bool large,int width,int height,int pad){
+  const Extra &weather=t.extra();
   if(detail_status){lv_obj_add_flag(detail_status,LV_OBJ_FLAG_HIDDEN);detail_status=nullptr;}
   const lv_font_t *big=watch_value_font?watch_value_font:detail_font;
   const lv_font_t *icon_font=widgets[0].icon_font?widgets[0].icon_font:detail_font;
@@ -587,7 +588,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   int text_h=lv_font_get_line_height(detail_font),small_h=lv_font_get_line_height(small),mini_h=lv_font_get_line_height(mini),tiny_h=lv_font_get_line_height(tiny);
   int icon_h=lv_font_get_line_height(icon_font),big_h=lv_font_get_line_height(big),hero=std::max(icon_h,big_h);
   int card_pad=large?14:7,inner=width-2*pad-2*card_pad;
-  unsigned columns=std::min<unsigned>(t.hours.size(),6);
+  unsigned columns=std::min<unsigned>(weather.hours.size(),6);
   int hours_h=columns?small_h+mini_h+text_h+small_h+(large?16:6):0;
   int card_a_h=card_pad+hero+(columns?(large?14:8)+hours_h:0)+card_pad;
   int y=large?62:38;
@@ -601,15 +602,15 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   int lines_h=text_h+small_h+(large?2:0);
   detail_text(now,t.available()?weather_text(t.state):"Unavailable",text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
   std::string details;
-  if(std::isfinite(t.feels)){snprintf(b,sizeof(b),"Feels like %.0f°",t.feels);details=b;}
+  if(std::isfinite(weather.feels)){snprintf(b,sizeof(b),"Feels like %.0f°",weather.feels);details=b;}
   if(std::isfinite(t.humidity)){snprintf(b,sizeof(b),"%d%%",(int)std::lround(t.humidity));details+=(details.empty()?"":" · ")+std::string(b);}
-  if(std::isfinite(t.wind)){snprintf(b,sizeof(b),"%.0f %s",t.wind,t.wind_unit.empty()?"km/h":t.wind_unit.c_str());details+=(details.empty()?"":" · ")+std::string(b);}
+  if(std::isfinite(weather.wind)){snprintf(b,sizeof(b),"%.0f %s",weather.wind,weather.wind_unit.empty()?"km/h":weather.wind_unit.c_str());details+=(details.empty()?"":" · ")+std::string(b);}
   detail_text(now,details,text_x,cy+(hero-lines_h)/2+text_h+(large?2:0),text_w,small,LV_TEXT_ALIGN_LEFT,muted);
   // Next hours inside the same card: time, icon, temperature, rain per column.
   if(columns){
     int hy=cy+hero+(large?14:8),col=inner/(int)columns;
     for(unsigned i=0;i<columns;++i){
-      const auto &h=t.hours[i];int x=card_pad+i*col;
+      const auto &h=weather.hours[i];int x=card_pad+i*col;
       detail_text(now,h.time,x,hy,col,small,LV_TEXT_ALIGN_CENTER,muted);
       detail_text(now,weather_icon(h.condition),x,hy+small_h+(large?4:1),col,mini,LV_TEXT_ALIGN_CENTER,weather_accent(h.condition));
       detail_text(now,std::isfinite(h.temp)?degrees(h.temp):"",x,hy+small_h+mini_h+(large?8:2),col,detail_font,LV_TEXT_ALIGN_CENTER,ink);
@@ -618,16 +619,16 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   }
   y+=card_a_h+(large?12:6);
   // Coming days: a heading and a card with one row per day.
-  if(!t.forecast.size()){detail_text(detail_root,"No daily forecast from Home Assistant",pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
+  if(!weather.forecast.size()){detail_text(detail_root,"No daily forecast from Home Assistant",pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
   if(large){detail_text(detail_root,"Coming days",pad+4,y,width-2*pad,detail_font,LV_TEXT_ALIGN_LEFT,muted);y+=text_h+8;}
   int card_b_h=height-y-(large?10:4);
   auto *days=detail_card(pad,y,width-2*pad,card_b_h);
-  int row_pad=large?8:4,row=(card_b_h-2*row_pad)/(int)t.forecast.size();
+  int row_pad=large?8:4,row=(card_b_h-2*row_pad)/(int)weather.forecast.size();
   int day_w=large?46:26,icon_x=card_pad+day_w,cond_x=icon_x+mini_h+(large?12:5);
   int high_w=large?52:30,low_w=large?46:28,rain_w=large?120:60,drop_w=tiny_h+(large?4:2);
   int temps_x=width-2*pad-card_pad-high_w-low_w,rain_x=temps_x-(large?14:6)-rain_w;
-  for(unsigned i=0;i<t.forecast.size();++i){
-    const auto &f=t.forecast[i];int ry=row_pad+i*row,tcy=ry+(row-text_h)/2,scy=ry+(row-small_h)/2;
+  for(unsigned i=0;i<weather.forecast.size();++i){
+    const auto &f=weather.forecast[i];int ry=row_pad+i*row,tcy=ry+(row-text_h)/2,scy=ry+(row-small_h)/2;
     detail_text(days,f.day,card_pad,tcy,day_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
     detail_text(days,weather_icon(f.condition),icon_x,ry+(row-mini_h)/2,mini_h+6,mini,LV_TEXT_ALIGN_LEFT,weather_accent(f.condition));
     detail_text(days,weather_text(f.condition),cond_x,scy,std::max(1,rain_x-cond_x-4),small,LV_TEXT_ALIGN_LEFT,muted);
@@ -689,7 +690,7 @@ inline int vacuum_power(lv_obj_t *parent,const Tile &t,int x,int y,const lv_font
   const lv_font_t *bolt_font=large && watch_icon_font?watch_icon_font:mini_icon_font;
   std::string percent=std::to_string((int)std::lround(t.battery))+"%";
   int h=lv_font_get_line_height(font),meter_w=large?30:22,meter_h=large?15:11,gap=large?10:6,words=text_width(percent,font);
-  int bolt_w=t.charging && bolt_font?text_width("\U000F0241",bolt_font):0;
+  int bolt_w=t.extra().charging && bolt_font?text_width("\U000F0241",bolt_font):0;
   int width=meter_w+3+gap+words+(bolt_w?gap/2+bolt_w:0);
   if(!parent)return width;
   vacuum_battery(parent,x,y+(h-meter_h)/2,meter_w,meter_h,t.battery);
@@ -773,11 +774,11 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     bool locate=large && (!t.supported || (t.supported & 512));
     int key=48,text_x=edge+robot+(large?18:12),text_w=inner-text_x-(locate?key+2*edge:edge);
     int line=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text),space=large?6:3;
-    bool room=on_the_way && !t.room.empty();
+    bool room=on_the_way && !t.extra().room.empty();
     int block=line+(room?space+text_h:0)+(battery?space+text_h:0),ty=(hero_h-block)/2;
     detail_badge_status=detail_text(hero,state,text_x,ty,text_w,big,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
     ty+=line;
-    if(room){ty+=space;detail_text(hero,t.room,text_x,ty,text_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);ty+=text_h;}
+    if(room){ty+=space;detail_text(hero,t.extra().room,text_x,ty,text_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);ty+=text_h;}
     if(battery){ty+=space;vacuum_power(hero,t,text_x,ty,text,large);}
     if(locate){
       auto *find=detail_button("",pad+inner-edge-key-6,y+(hero_h-key)/2,key,key,3);
@@ -793,8 +794,8 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     detail_shape(detail_root,pad+2,y+(line-dot)/2,dot,dot,look.accent,dot/2);
     int words=inner-dot-10-power_w-12,state_w=std::min(words,text_width(state,text)+2);
     detail_badge_status=detail_text(detail_root,state,pad+dot+10,y,state_w,text,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
-    if(on_the_way && !t.room.empty() && words-state_w>24)
-      detail_text(detail_root," · "+t.room,pad+dot+10+state_w,y,words-state_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);
+    if(on_the_way && !t.extra().room.empty() && words-state_w>24)
+      detail_text(detail_root," · "+t.extra().room,pad+dot+10+state_w,y,words-state_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);
     if(battery)vacuum_power(detail_root,t,pad+inner-power_w,y,text,false);
     y+=line+(gap+4);
   }
@@ -876,15 +877,16 @@ inline void show_detail(unsigned index){
     if(!std::isfinite(minimum)){detail_label(detail_root,"No numeric HA history",pad,top,width-2*pad);return;}
     char text[100];snprintf(text,sizeof(text),"%u hours / %.2f - %.2f %s",t.history_hours,minimum,maximum,t.unit.c_str());detail_label(detail_root,text,pad,top,width-2*pad);
     int chart_y=top+(large?46:28),chart_h=height-chart_y-30,bar_w=(width-pad*2)/24;
-    for(unsigned i=0;i<24;++i){if(!std::isfinite(t.history[i]))continue;int h=maximum>minimum?8+(chart_h-8)*(t.history[i]-minimum)/(maximum-minimum):chart_h/2;
+    for(unsigned i=0;i<t.history.size() && i<24;++i){if(!std::isfinite(t.history[i]))continue;int h=maximum>minimum?8+(chart_h-8)*(t.history[i]-minimum)/(maximum-minimum):chart_h/2;
       auto *bar=lv_obj_create(detail_root);lv_obj_remove_style_all(bar);lv_obj_set_pos(bar,pad+i*bar_w,chart_y+chart_h-h);lv_obj_set_size(bar,std::max(2,bar_w-2),h);lv_obj_set_style_bg_color(bar,lv_color_hex(0x16A5E6),0);lv_obj_set_style_bg_opa(bar,LV_OPA_COVER,0);}
     detail_label(detail_root,std::to_string(t.history_hours)+" hours ago",pad,height-24,(width-2*pad)/2);
     auto *now=detail_label(detail_root,"Now",width/2,height-24,width/2-pad);lv_obj_set_style_text_align(now,LV_TEXT_ALIGN_RIGHT,0);
   }else if(d=="select"||d=="input_select"){
-    for(unsigned i=0;i<t.option_count;++i)detail_button(t.options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
+    const auto &options=t.extra().options;
+    for(unsigned i=0;i<options.size();++i)detail_button(options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
   }else if(d=="number"||d=="input_number"||d=="media_player"){
     if(d=="media_player"){
-      detail_label(detail_root,t.media_title,pad,top,width-2*pad);top+=large?45:25;
+      detail_label(detail_root,t.extra().media_title,pad,top,width-2*pad);top+=large?45:25;
       int w=(width-pad*2-2*gap)/3;
       detail_button("Previous",pad,top,w,bh,21);detail_button("Play/pause",pad+w+gap,top,w,bh,20);detail_button("Next",pad+2*(w+gap),top,w,bh,22);top+=bh+gap;
     }
@@ -898,8 +900,8 @@ inline void show_detail(unsigned index){
     detail_button(t.state=="active"?"Pause":"Start",pad,top+(large?50:30),cw,bh,40);
     detail_button("Cancel",pad+cw+gap,top+(large?50:30),cw,bh,41);
   }else if(d=="sun"){
-    detail_label(detail_root,"Sunrise "+t.sunrise,pad,top,width-2*pad);
-    detail_label(detail_root,"Sunset "+t.sunset,pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
+    detail_label(detail_root,"Sunrise "+t.extra().sunrise,pad,top,width-2*pad);
+    detail_label(detail_root,"Sunset "+t.extra().sunset,pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
   }
 }
 }
@@ -988,9 +990,10 @@ inline std::string last_run_text(uint32_t epoch) {
   return "Last " + std::to_string(when.day_of_month) + " " + month_short(when);
 }
 inline std::string timer_text(const Tile &t) {
-  if (t.state == "active") { uint32_t now = now_epoch(); return countdown(t.timer_end > now && now ? t.timer_end - now : 0); }
-  if (t.state == "paused") return "Paused " + countdown(duration_seconds(t.remaining));
-  return t.duration.empty() ? "Off" : countdown(duration_seconds(t.duration));
+  const Extra &x = t.extra();
+  if (t.state == "active") { uint32_t now = now_epoch(); return countdown(x.timer_end > now && now ? x.timer_end - now : 0); }
+  if (t.state == "paused") return "Paused " + countdown(duration_seconds(x.remaining));
+  return x.duration.empty() ? "Off" : countdown(duration_seconds(x.duration));
 }
 inline std::string weekday_text(const esphome::ESPTime &now) {
   static const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
@@ -1060,8 +1063,11 @@ inline int slider_handle_width(int height) { return height > 20 ? 4 : 2; }
 inline int slider_stub(int height) { return std::max(height / 3, 2 * std::max(1, height / 8) + slider_handle_width(height)); }
 inline void slider_handle(lv_obj_t *slider, int width, int height) {
   int handle = slider_handle_width(height), inset = std::max(1, height / 8) + handle / 2, half = height >> 1;
-  set_number(slider, LV_STYLE_RADIUS, height > 20 ? height * 12 / 42 : LV_RADIUS_CIRCLE, LV_PART_MAIN);
-  set_number(slider, LV_STYLE_RADIUS, height > 20 ? height * 8 / 42 : LV_RADIUS_CIRCLE, LV_PART_INDICATOR);
+  // Track and fill share one radius: a fill rounded less than its track makes LVGL draw the fill into
+  // a buffer of its own size on every redraw (15 KB on a CYD card), which the CYD's heap can't spare.
+  int corner = height > 20 ? height * 12 / 42 : LV_RADIUS_CIRCLE;
+  set_number(slider, LV_STYLE_RADIUS, corner, LV_PART_MAIN);
+  set_number(slider, LV_STYLE_RADIUS, corner, LV_PART_INDICATOR);
   set_number(slider, LV_STYLE_PAD_LEFT, inset + handle / 2 - half, LV_PART_KNOB);
   set_number(slider, LV_STYLE_PAD_RIGHT, handle / 2 - inset - (height - half), LV_PART_KNOB);
   set_number(slider, LV_STYLE_PAD_TOP, -(height / 4), LV_PART_KNOB);
@@ -1324,7 +1330,7 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
   int column=(width-left)/5,day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
   for(unsigned k=0;k<5;++k){
-    int x=left+k*column;bool has=k<t.forecast.size();const auto &f=t.forecast[k];
+    static const Forecast no_day;int x=left+k*column;bool has=k<t.extra().forecast.size();const auto &f=has?t.extra().forecast[k]:no_day;
     char temps[24];if(has && std::isfinite(f.high))snprintf(temps,sizeof(temps),std::isfinite(f.low)?"%.0f/%.0f":"%.0f",f.high,f.low);else temps[0]=0;
     if(large){
       int rows=day_h+icon_col+text_h,top=std::max(0,(height-rows)/2);
@@ -1345,7 +1351,7 @@ inline void render_graph(Widgets &w,const Tile &t,bool large,int x,int y,int wid
   begin_extra(w,"graph",x+width,y+height);
   float minimum=INFINITY,maximum=-INFINITY;for(float v:t.history)if(std::isfinite(v)){minimum=std::min(minimum,v);maximum=std::max(maximum,v);}
   lv_point_precise_t raw[24];unsigned n=0;int stroke=large?3:2,top=stroke;
-  for(unsigned i=0;i<24;++i){
+  for(unsigned i=0;i<t.history.size() && i<24;++i){
     if(!std::isfinite(t.history[i]))continue;
     float level=maximum>minimum?(t.history[i]-minimum)/(maximum-minimum):0.5f;
     raw[n++]={(lv_value_precise_t)(stroke/2+i*(width-stroke-1)/23),(lv_value_precise_t)(height-stroke/2-1-level*(height-stroke-1-top))};
@@ -1366,10 +1372,10 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
   int title_h=lv_font_get_line_height(title_font),text_h=lv_font_get_line_height(w.value_font);
   int horizon=height-text_h-(large?4:2),top=title_h+(large?4:2),x0=large?14:8,x1=width-x0;
   part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?"Sun":t.name);
-  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,"rise "+t.sunrise);
-  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,"set "+t.sunset);
+  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,"rise "+t.extra().sunrise);
+  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,"set "+t.extra().sunset);
   auto now=now_time?now_time():esphome::ESPTime{};
-  int rise=minutes_of(t.sunrise),set=minutes_of(t.sunset),minute=now.is_valid()?now.hour*60+now.minute:-1;
+  int rise=minutes_of(t.extra().sunrise),set=minutes_of(t.extra().sunset),minute=now.is_valid()?now.hour*60+now.minute:-1;
   bool day=t.state=="above_horizon";float fraction=0.5f;
   if(rise>=0 && set>=0 && minute>=0){
     if(day){int span=(set-rise+1440)%1440;if(!span)span=1;fraction=std::clamp(float((minute-rise+1440)%1440)/span,0.0f,1.0f);}
@@ -1651,7 +1657,7 @@ inline void render_slot(size_t slot) {
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
   else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
   else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
-  else if (d == "sun") value = !t.sunrise.empty() && !t.sunset.empty() ? t.sunrise+" - "+t.sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
+  else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? t.extra().sunrise+" - "+t.extra().sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
   else if (d == "timer") value = timer_text(t);
   else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Running..." : last_run_text(t.last_run);
   else if (value == "on") value = "On";
@@ -1670,8 +1676,8 @@ inline void render_slot(size_t slot) {
   bool large_tile=lv_obj_get_height(w.tile)>80;
   lap(swipe_profile::TEXT);
   // Cards that replace the name/status layout entirely.
-  bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.forecast.size()>0 && fresh() && t.available();
-  bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.sunrise.empty() && !t.sunset.empty() && fresh() && t.available();
+  bool clock=t.builtin(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.extra().forecast.size()>0 && fresh() && t.available();
+  bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.extra().sunrise.empty() && !t.extra().sunset.empty() && fresh() && t.available();
   bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
   bool custom=clock||forecast||sunpath;
   if(!large_tile)pad_vertical(w.tile,watch||custom||graph?2:4);
@@ -2276,7 +2282,7 @@ inline void tick() {
     auto &t=model.tiles[i];if(!t.pending || t.loading(esphome::millis()))continue;
     t.pending=false;card(i);
     // A vacuum chip Home Assistant never confirmed goes back to what the robot reports.
-    bool sent=false;for(auto &c:t.choices){sent=sent||!c.sent.empty();c.sent.clear();}
+    bool sent=false;if(auto *x=t.extra_ptr())for(auto &c:x->choices){sent=sent||!c.sent.empty();c.sent.clear();}
     if(sent)refresh_detail(i);
   }
   // A -/+ edit goes out as one call once the finger rests; a value HA never reports is dropped after a while.
@@ -2310,6 +2316,7 @@ inline void tick() {
 inline std::string vacuum_option(unsigned index) {
   if (active_index < 0 || static_cast<size_t>(active_index) >= model.count) return {};
   auto &tile = model.tiles[active_index];
-  return index < tile.fan_speed_count ? tile.fan_speeds[index] : "";
+  const auto &speeds = tile.extra().fan_speeds;
+  return index < speeds.size() ? speeds[index] : "";
 }
 }

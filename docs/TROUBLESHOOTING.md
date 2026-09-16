@@ -15,8 +15,8 @@
 | Duplicate HA action | Check both the touch logs and HA automations. Don't use direct actions together with an automation on the action sensor for the same operation. |
 | Wi-Fi doesn't connect | 2.4GHz, correct local secrets, network range. USB calibration doesn't need HA. |
 | HA doesn't see the board | Manually use the IP from the logs; port 6053 reachable, correct encryption key, no guest network isolation. |
-| Status works but action doesn't | Check the HA option for allowed device actions, `DIRECT_ACTIONS: "true"`, the real entity ID, and a supported action. |
-| Vacuum/climate partly usable | Supported modes/attributes differ per integration; see TILES.md and test the same action in HA first. |
+| Status works but action doesn't | Check the HA option for allowed device actions, the real entity ID, and a supported action. |
+| Vacuum/climate partly usable | Supported modes/attributes differ per integration; test the same action in Home Assistant first. |
 | Wrong pagination | `TILE_COUNT` is 1–10; hidden buttons up to six, two pages from seven on. Reflash after changing it. |
 | Freeze/reset | Keep the USB log, check the reset reason/power, and run the render test. Note the action and time. |
 

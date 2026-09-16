@@ -1,5 +1,5 @@
 #define LIGHT_CONTROLS_TEST
-#include "../light_controls.h"
+#include "../components/smart_display/light_controls.h"
 #include <cassert>
 int main() {
   using namespace light_controls;
