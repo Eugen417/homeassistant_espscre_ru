@@ -125,7 +125,7 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
 </p>
 <p align="center">
   <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: docked and charging, start and dock, the cleaning mode vacuum, vac and mop or mop, suction and water">
-  <img src="docs/images/guition-history.png" width="32%" alt="History card for a temperature: the value now, the highest and lowest moment with their times, a line over 24 hours with an axis in degrees and clock times, and keys for 1 hour, 24 hours and 1 week">
+  <img src="docs/images/guition-fan.png" width="32%" alt="Fan card: the speed as a tall slider with the fan in it">
   <img src="docs/images/guition-page-3.png" width="32%" alt="Curtains with open, stop and close, a kitchen timer counting down, a scene and the sun path">
 </p>
 <p align="center">
@@ -134,8 +134,8 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   <img src="docs/images/guition-garage.png" width="32%" alt="Cover card for a garage door that only opens and closes: its icon and the open, stop and close keys, close disabled while it is closed">
 </p>
 <p align="center">
+  <img src="docs/images/guition-history.png" width="32%" alt="History card for a temperature: the value now, the highest and lowest moment with their times, a line over 24 hours with an axis in degrees and clock times, and keys for 1 hour, 24 hours and 1 week">
   <img src="docs/images/guition-history-touch.png" width="32%" alt="A finger on the history graph: the top of the card shows the average of that hour and its time, the graph stays as it is">
-  <img src="docs/images/guition-history-door.png" width="32%" alt="History card for a door: closed now, opened 6 times for 22 minutes in all, a timeline over 24 hours and the time in each state">
   <img src="docs/images/guition-history-person.png" width="32%" alt="History card for a person over a week: home, away and the zones they were in, with the time in each">
 </p>
 <p align="center">
