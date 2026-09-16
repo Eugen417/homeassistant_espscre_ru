@@ -119,6 +119,17 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   Action feedback shows that a command is on its way.
 
 <p align="center">
+  <img src="docs/images/guition-tiles-controls.png" width="32%" alt="Double-width tiles with direct control: heating mode keys with heat selected, previous, pause and next for the Sonos, and a ceiling fan's speed slider">
+  <img src="docs/images/guition-tiles-values.png" width="32%" alt="Power and humidity as large values, a lamp and a fan with a small slider on the tile, and an all-off script and a welcome-home scene with red and green backgrounds and when they last ran">
+  <img src="docs/images/guition-tiles-clock.png" width="32%" alt="A digital clock with the date, a pasta timer with pause and cancel, the outside temperature as a large value, and garden lights that are off">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-tiles-controls.png" width="32%" alt="The CYD with heating mode keys, playback keys for the radio and a ceiling fan's speed slider">
+  <img src="docs/images/cyd-tiles-values.png" width="32%" alt="The CYD with power and humidity as large values, a lamp and a fan with small sliders, and red and green scene tiles">
+  <img src="docs/images/cyd-tiles-choices.png" width="32%" alt="The CYD with a digital clock, previous and next for the house mode, and start, stop and dock for the robot vacuum">
+</p>
+<p align="center"><sub>What a tile can do: keys and sliders on double-width tiles, previous and next for a choice, large values, small sliders, pastel colors, a clock and a timer.</sub></p>
+<p align="center">
   <img src="docs/images/guition-weather.png" width="32%" alt="Weather card: current weather, the coming hours and the coming days with chance of rain">
   <img src="docs/images/guition-climate.png" width="32%" alt="Climate card: the target temperature between big minus and plus keys, the mode keys, and fan and swing choices">
   <img src="docs/images/guition-light.png" width="32%" alt="Light control: color, color temperature and brightness">
