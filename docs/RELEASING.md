@@ -176,6 +176,37 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.58 / firmware 0.2.50
+
+App, both board profiles and `components/smart_display`. Storage, tile protocol, preferences and keys are
+unchanged; the state message gains one attribute and one extra key that older firmware ignores.
+
+- Cover card: `runtime_tiles::event` sends a tap on a cover to `show_detail`, like the other runtime cards, instead
+  of `detail()` (the board's value overlay in `cover_position` mode, which stays in the profiles for now). The
+  `preview_runtime_card` action of both profiles does the same. `render_cover_detail` draws what
+  `tile_controls::cover_card` offers from `supported_features` (position 4, tilt position 128, open/close/stop
+  1/2/8, tilt open/close/stop 16/32/64; unknown features get the three keys): a vertical `lv_slider` per movement
+  in a white card, its value and name below it (beside it on the CYD), and a row of pill keys. The position
+  slider's range is reversed (1000 down to a stub below 0) so the fill hangs from the top by how far the cover is
+  closed; the tilt slider has a transparent fill, a margin past both ends for its handle, and slats drawn behind
+  it. Track and fill share one radius, so neither draws into a layer. A slider sends `cover.set_cover_position` or
+  `cover.set_cover_tilt_position` on RELEASED after `touch_guard.accept_slider`. Keys use detail commands
+  70 + `tile_controls::Command` through `key_action`; a disabled key is left out of `detail_actions`, so the
+  card's second tick does not enable it again. The tick keeps `cover_status_line` ("Open · 60% · Tilt 40%").
+- `Extra::tilt` holds `current_tilt_position`; the app adds it to `ATTRS`. A cover's device battery travels as
+  the extra `bat` (and `chg`) the vacuum card introduced: `core.device_power` and `cover_related` pick the
+  device's `battery` and `battery_charging` sensors, `Manager.related_entities` watches them, and `tile_message`
+  passes the device entries for covers too. The card draws the battery at the top right with `vacuum_battery`.
+- `apply_screen_settings` publishes a setting number that has no state yet: `number::Number::state` starts at
+  0, so a standby or night brightness of 0 never differed from it and Home Assistant kept "unknown". Seen on
+  Studio 1 (night brightness) after updating to 0.2.49.
+- `discover_screens` ignores `unknown` and `unavailable` in the diagnostic sensors: the device name pattern
+  accepted "unavailable" while a screen restarted, and `publish_layouts` wrote `sensor.esp_screens_unavailable`.
+- Editor: the first full inventory redraws the top bar, tiles and entity list when the live stream opened a
+  screen before the catalogue arrived. `index.html` is served with `?v=<content hash>` on `static/app.js` and
+  `static/style.css`. The responses already carried `Cache-Control: no-store`, yet Safari showed an old script
+  with the new page after the update to 0.2.57.
+
 ### Compatibility 0.2.57 / firmware 0.2.49
 
 App, both board profiles and `components/smart_display`. Storage version 1, tile protocol `v: 1`, preference

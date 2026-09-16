@@ -14,6 +14,7 @@ namespace tile_controls {
 // Home Assistant supported_features bits.
 namespace feature {
 constexpr uint32_t COVER_OPEN = 1, COVER_CLOSE = 2, COVER_POSITION = 4, COVER_STOP = 8;
+constexpr uint32_t COVER_OPEN_TILT = 16, COVER_CLOSE_TILT = 32, COVER_STOP_TILT = 64, COVER_TILT_POSITION = 128;
 constexpr uint32_t MEDIA_PAUSE = 1, MEDIA_VOLUME_SET = 4, MEDIA_VOLUME_MUTE = 8, MEDIA_PREVIOUS = 16, MEDIA_NEXT = 32, MEDIA_PLAY = 16384;
 constexpr uint32_t VACUUM_TURN_ON = 1, VACUUM_TURN_OFF = 2, VACUUM_PAUSE = 4, VACUUM_STOP = 8, VACUUM_RETURN = 16, VACUUM_START = 8192;
 }
@@ -24,11 +25,13 @@ constexpr const char *VOLUME = "\U000F057E", *MUTED = "\U000F0581", *UP = "\U000
 constexpr const char *EXPAND = "\U000F084E", *COLLAPSE = "\U000F084C", *DOCK = "\U000F05F8", *PLUS = "\U000F0415", *MINUS = "\U000F0374";
 constexpr const char *LEFT = "\U000F0141", *RIGHT = "\U000F0142", *CLOSE = "\U000F0156", *POWER = "\U000F0425", *FIRE = "\U000F0238";
 constexpr const char *SNOWFLAKE = "\U000F0717", *HEAT_COOL = "\U000F1A79", *AUTO = "\U000F1B17", *DRY = "\U000F058E", *FAN = "\U000F0210";
+constexpr const char *BLINDS_OPEN = "\U000F1011", *BLINDS = "\U000F00AC";
 }
 enum Command {
   NONE = 0, COVER_OPEN, COVER_STOP, COVER_CLOSE, VACUUM_START, VACUUM_PAUSE, VACUUM_STOP, VACUUM_DOCK,
   MEDIA_PREVIOUS, MEDIA_PLAY_PAUSE, MEDIA_NEXT, MEDIA_MUTE, TIMER_START, TIMER_PAUSE, TIMER_CANCEL,
-  HVAC_MODE, SELECT_PREVIOUS, SELECT_NEXT, RUN, TOGGLE, STEP_DOWN, STEP_UP
+  HVAC_MODE, SELECT_PREVIOUS, SELECT_NEXT, RUN, TOGGLE, STEP_DOWN, STEP_UP,
+  COVER_OPEN_TILT, COVER_STOP_TILT, COVER_CLOSE_TILT
 };
 struct Key { const char *icon = ""; int command = NONE; std::string arg; bool checked = false, disabled = false; };
 struct Action { std::string service, key, value; bool valid() const { return !service.empty(); } };
@@ -154,6 +157,49 @@ inline std::string status_text(const Tile &t) {
   }
   return {};
 }
+// The cover card (firmware 0.2.50+) offers what Home Assistant's own dialog does: a position slider when the
+// cover reports positions, a tilt slider for slats, open, stop and close, and the tilt keys of slats that
+// tilt without a position. A cover whose features are not known yet gets the three keys.
+struct CoverCard { bool position = false, tilt = false, keys = false, tilt_keys = false; };
+inline CoverCard cover_card(const Tile &t) {
+  CoverCard card;
+  const uint32_t f = t.supported;
+  if (!f) { card.keys = true; return card; }
+  card.position = f & feature::COVER_POSITION;
+  card.tilt = f & feature::COVER_TILT_POSITION;
+  card.keys = f & (feature::COVER_OPEN | feature::COVER_CLOSE | feature::COVER_STOP);
+  card.tilt_keys = !card.tilt && (f & (feature::COVER_OPEN_TILT | feature::COVER_CLOSE_TILT | feature::COVER_STOP_TILT));
+  return card;
+}
+// The card's status line: the state, the position, and the tilt where the cover has one.
+inline std::string cover_card_status(const Tile &t) {
+  std::string text = status_text(t);
+  if ((t.supported & feature::COVER_TILT_POSITION) && std::isfinite(t.extra().tilt)) {
+    char b[24]; snprintf(b, sizeof(b), " · Tilt %d%%", (int) std::lround(t.extra().tilt)); text += b;
+  }
+  return text;
+}
+// Open, stop and close as the cover supports them (all three while its features are unknown). A key that
+// cannot move the cover further is disabled, unless the cover is on its way the other way.
+inline unsigned cover_keys(const Tile &t, std::array<Key, 3> &out) {
+  unsigned n = 0;
+  const uint32_t f = t.supported ? t.supported : feature::COVER_OPEN | feature::COVER_STOP | feature::COVER_CLOSE;
+  bool sideways = sideways_cover(t.device_class);
+  bool fully_open = std::isfinite(t.position) ? t.position >= 99.5f : t.state == "open";
+  bool fully_closed = std::isfinite(t.position) ? t.position <= 0.5f : t.state == "closed";
+  if (f & feature::COVER_OPEN) out[n++] = Key{sideways ? glyph::EXPAND : glyph::UP, COVER_OPEN, "", t.state == "opening", fully_open && t.state != "closing"};
+  if (f & feature::COVER_STOP) out[n++] = Key{glyph::STOP, COVER_STOP, "", false, false};
+  if (f & feature::COVER_CLOSE) out[n++] = Key{sideways ? glyph::COLLAPSE : glyph::DOWN, COVER_CLOSE, "", t.state == "closing", fully_closed && t.state != "opening"};
+  return n;
+}
+inline unsigned cover_tilt_keys(const Tile &t, std::array<Key, 3> &out) {
+  unsigned n = 0;
+  const float tilt = t.extra().tilt;
+  if (t.supported & feature::COVER_OPEN_TILT) out[n++] = Key{glyph::BLINDS_OPEN, COVER_OPEN_TILT, "", false, std::isfinite(tilt) && tilt >= 99.5f};
+  if (t.supported & feature::COVER_STOP_TILT) out[n++] = Key{glyph::STOP, COVER_STOP_TILT, "", false, false};
+  if (t.supported & feature::COVER_CLOSE_TILT) out[n++] = Key{glyph::BLINDS, COVER_CLOSE_TILT, "", false, std::isfinite(tilt) && tilt <= 0.5f};
+  return n;
+}
 // The row of up to three pill keys for a key-row panel; returns how many.
 inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out) {
   auto d = t.domain(); auto c = panel_kind(t); unsigned n = 0;
@@ -161,12 +207,8 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out) {
     if (n < out.size()) out[n++] = Key{icon, command, arg, checked, disabled};
   };
   if (c == "buttons" && d == "cover") {
-    bool sideways = sideways_cover(t.device_class);
-    bool fully_open = std::isfinite(t.position) ? t.position >= 99.5f : t.state == "open";
-    bool fully_closed = std::isfinite(t.position) ? t.position <= 0.5f : t.state == "closed";
-    if (t.supported & feature::COVER_OPEN) add(sideways ? glyph::EXPAND : glyph::UP, COVER_OPEN, fully_open && t.state != "closing");
-    if (t.supported & feature::COVER_STOP) add(glyph::STOP, COVER_STOP);
-    if (t.supported & feature::COVER_CLOSE) add(sideways ? glyph::COLLAPSE : glyph::DOWN, COVER_CLOSE, fully_closed && t.state != "opening");
+    // The tile keys are the card's keys, without the direction a moving cover shows there.
+    if (t.supported) for (unsigned i = 0, count = cover_keys(t, out); i < count; ++i) { out[i].checked = false; ++n; }
   } else if (c == "buttons" && d == "vacuum") {
     bool cleaning = t.state == "cleaning";
     if (cleaning && (t.supported & feature::VACUUM_PAUSE)) add(glyph::PAUSE, VACUUM_PAUSE);
@@ -211,6 +253,9 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
     case COVER_OPEN: return {"cover.open_cover", "", ""};
     case COVER_STOP: return {"cover.stop_cover", "", ""};
     case COVER_CLOSE: return {"cover.close_cover", "", ""};
+    case COVER_OPEN_TILT: return {"cover.open_cover_tilt", "", ""};
+    case COVER_STOP_TILT: return {"cover.stop_cover_tilt", "", ""};
+    case COVER_CLOSE_TILT: return {"cover.close_cover_tilt", "", ""};
     case VACUUM_START: return {(t.supported & feature::VACUUM_START) ? "vacuum.start" : "vacuum.turn_on", "", ""};
     case VACUUM_PAUSE: return {"vacuum.pause", "", ""};
     case VACUUM_STOP: return {(t.supported & feature::VACUUM_STOP) ? "vacuum.stop" : "vacuum.turn_off", "", ""};

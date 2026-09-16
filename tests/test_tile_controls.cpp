@@ -36,6 +36,38 @@ int main() {
   assert(status_text(curtain) == "Open · 100%");
   assert(status_text(shutter) == "Closed");
 
+  // The cover card (firmware 0.2.50+). Motionblinds venetian blinds report every feature (255).
+  Tile blind = make("cover.venetianblind_0001", "open", 255); blind.device_class = "blind"; blind.position = 60; blind.edit_extra().tilt = 40;
+  CoverCard card = cover_card(blind);
+  assert(card.position && card.tilt && card.keys && !card.tilt_keys);
+  assert(cover_card_status(blind) == "Open · 60% · Tilt 40%");
+  assert(cover_keys(blind, keys) == 3 && !strcmp(keys[0].icon, glyph::UP) && !keys[0].disabled && !keys[2].disabled && !keys[2].checked);
+  blind.state = "closing";
+  assert(cover_keys(blind, keys) == 3 && keys[2].checked && !keys[0].checked);
+  assert(cover_tilt_keys(blind, keys) == 3 && keys[0].command == COVER_OPEN_TILT && keys[2].command == COVER_CLOSE_TILT);
+  assert(key_action(blind, COVER_OPEN_TILT).service == "cover.open_cover_tilt");
+  assert(key_action(blind, COVER_STOP_TILT).service == "cover.stop_cover_tilt" && key_action(blind, COVER_CLOSE_TILT).service == "cover.close_cover_tilt");
+  CoverCard curtain_card = cover_card(curtain);
+  assert(curtain_card.position && !curtain_card.tilt && curtain_card.keys && !curtain_card.tilt_keys);
+  assert(cover_card_status(curtain) == "Open · 100%");
+  // A garage door: open, stop and close only; close is disabled while it is closed.
+  Tile garage = make("cover.garage", "closed", 11); garage.device_class = "garage";
+  CoverCard garage_card = cover_card(garage);
+  assert(!garage_card.position && !garage_card.tilt && garage_card.keys && !garage_card.tilt_keys);
+  assert(cover_keys(garage, keys) == 3 && keys[2].disabled && !keys[0].disabled);
+  // Slats that tilt without a position get tilt keys; a key that cannot tilt further is disabled.
+  Tile slats = make("cover.slats", "open", 3 | 16 | 32); slats.edit_extra().tilt = 100;
+  CoverCard slats_card = cover_card(slats);
+  assert(slats_card.tilt_keys && !slats_card.tilt && !slats_card.position);
+  assert(cover_tilt_keys(slats, keys) == 2 && keys[0].disabled && !keys[1].disabled);
+  assert(cover_card_status(slats) == "Open");
+  // Features not reported yet: the card offers the three keys, a tile's key row stays empty as before.
+  Tile unknown = make("cover.new", "unknown", 0);
+  CoverCard unknown_card = cover_card(unknown);
+  assert(unknown_card.keys && !unknown_card.position && cover_keys(unknown, keys) == 3);
+  unknown.controls = "buttons";
+  assert(keys_for(unknown, keys) == 0);
+
   // Vacuum: play while docked, pause while cleaning, dock disabled in the dock.
   Tile robot = make("vacuum.s8", "docked", 30524); robot.controls = "buttons";
   assert(keys_for(robot, keys) == 3);

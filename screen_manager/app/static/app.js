@@ -1889,6 +1889,9 @@ function renderResults() {
 async function refresh(full = true) {
   try {
     const data = await (await api(full ? "inventory" : "inventory?light=1")).json();
+    // The live stream can open a screen before the first full inventory arrives (an add-on busy building
+    // firmware answers it first); that screen was drawn without entity names and with an empty entity list.
+    const firstCatalogue = full && !inventory.entities?.length;
     // A light poll carries only screens and update status; keep the catalogues we have.
     inventory = full ? data : { ...inventory, ...data };
     $("#connection").textContent = inventory.connected
@@ -1898,6 +1901,7 @@ async function refresh(full = true) {
     renderScreens();
     if (full) renderClaude();
     if (selected) { settleSettings(); renderSettings(); }
+    if (firstCatalogue && selected && layout && !drag.active && !chipDrag.active) { renderTopbar(); renderTiles(); renderResults(); }
     if (!selected && inventory.screens.length) select(inventory.screens[0].id);
     if ($("#alerts-dialog").open) renderAlertScreens();
   } catch {

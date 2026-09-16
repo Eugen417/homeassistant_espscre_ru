@@ -1,0 +1,138 @@
+"""The cover card (app 0.2.58 / firmware 0.2.50), and two fixes found on Studio 1 after updating to 0.2.57.
+
+- A tap on a cover opens a card like Home Assistant's own: a position slider, a tilt slider for slats, open,
+  stop and close, and the battery of a battery-powered blind (Motionblinds keep it on a sensor of the device).
+  The layout and the drawing are checked on the Mac host builds; tests/test_tile_controls.cpp covers the logic.
+- A number whose value equals its initial state (a night brightness of 0) was never published, so Home
+  Assistant showed "unknown" and ESP Screens could not change it.
+- While a screen restarts its device name sensor reads "unavailable", which the app took for the device name.
+"""
+import importlib.util
+import re
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+sys.path.insert(0, str(ROOT / 'tests'))
+from core import ATTRS, cover_related, discover_screens, extras, state_message  # noqa: E402
+
+HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
+RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+PROFILES = {name: (ROOT / name).read_text() for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml')}
+BLIND = 'cover.venetianblind_0001'
+
+
+def motionblinds():
+    """(states, device registry entries) of a Motionblinds venetian blind as Home Assistant 2026.9.1 reports it in Dutch."""
+    states = {
+        BLIND: {'state': 'open', 'attributes': {'friendly_name': 'Blind Links', 'current_position': 60, 'current_tilt_position': 40,
+                                                'device_class': 'blind', 'supported_features': 255}},
+        'sensor.venetianblind_0001_batterij': {'state': '85', 'attributes': {'device_class': 'battery', 'unit_of_measurement': '%'}},
+        'sensor.venetianblind_0001_signaalsterkte': {'state': '-60', 'attributes': {}},
+    }
+    device = [{'entity_id': eid, 'platform': 'motion_blinds', 'device_id': 'blind'} for eid in states]
+    return states, device
+
+
+class CoverMessages(unittest.TestCase):
+    def test_the_card_gets_the_tilt_and_the_battery_of_the_device(self):
+        states, device = motionblinds()
+        self.assertIn('current_tilt_position', ATTRS)
+        extra = extras({'entity': BLIND}, states, device=device)
+        self.assertEqual(extra, {'bat': 85})
+        self.assertEqual(cover_related(BLIND, device, states), {'battery': 'sensor.venetianblind_0001_batterij'})
+        message = state_message(0, {'entity': BLIND, 'name': ''}, states, extra)
+        self.assertEqual((message['a']['current_position'], message['a']['current_tilt_position'], message['a']['supported_features']), (60, 40, 255))
+        self.assertEqual(message['x'], {'bat': 85})
+        # No battery sensor, or a cover that reports battery_level itself: nothing extra.
+        self.assertIsNone(extras({'entity': BLIND}, states, device=device[:1]))
+        states[BLIND]['attributes']['battery_level'] = 90
+        self.assertIsNone(extras({'entity': BLIND}, states, device=device))
+        states['sensor.venetianblind_0001_batterij']['state'] = 'unavailable'
+        del states[BLIND]['attributes']['battery_level']
+        self.assertIsNone(extras({'entity': BLIND}, states, device=device))
+
+    def test_a_restarting_screen_is_not_named_unavailable(self):
+        registry = [{'entity_id': 'text.studio_1_tile_settings', 'platform': 'esphome', 'original_name': 'Tile settings', 'device_id': 'd1'},
+                    {'entity_id': 'sensor.studio_1_device_name', 'platform': 'esphome', 'original_name': 'Device name', 'device_id': 'd1'},
+                    {'entity_id': 'sensor.studio_1_ip_address', 'platform': 'esphome', 'original_name': 'IP address', 'device_id': 'd1'}]
+        devices = [{'id': 'd1', 'name': 'Studio 1'}]
+        for state in ('unavailable', 'unknown'):
+            states = {'text.studio_1_tile_settings': {'state': 'unavailable'}, 'sensor.studio_1_device_name': {'state': state},
+                      'sensor.studio_1_ip_address': {'state': 'unavailable'}}
+            screen = discover_screens(registry, states, devices, [])[0]
+            self.assertEqual((screen['node'], screen['ip']), (None, None), state)
+        states['sensor.studio_1_device_name']['state'] = 'studio-1'
+        self.assertEqual(discover_screens(registry, states, devices, [])[0]['node'], 'studio-1')
+
+
+@unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
+class CoverSync(unittest.IsolatedAsyncioTestCase):
+    async def test_a_battery_change_reaches_the_card_and_restarts_publish_no_second_sensor(self):
+        import test_scaling
+        from server import Manager
+        states, device = motionblinds()
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = test_scaling.fake_ha(firmware='0.2.50')
+            ha.registry = ha.registry + [{**item} for item in device]
+            ha.states.update(states)
+            m = Manager(ha, Path(tmp) / 'screens.json')
+            m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': BLIND, 'name': ''}]})
+            self.assertIn('sensor.venetianblind_0001_batterij', m.watched_entities(), 'a battery change wakes the sync')
+            self.assertEqual(m.related_entities({'entity': BLIND}), ('sensor.venetianblind_0001_batterij',))
+            message = await m.tile_message(0, m.layouts['text.screen']['tiles'][0])
+            self.assertEqual(message['x'], {'bat': 85})
+            # The screen restarts: its device name reads unavailable, and no layout sensor goes out under that name.
+            published = []
+
+            async def set_state(entity_id, state, attributes):
+                published.append(entity_id)
+            ha.set_state = set_state
+            ha.states['text.node'] = {'state': 'unavailable'}
+            await m.publish_layouts()
+            self.assertEqual(published, [])
+            ha.states['text.node'] = {'state': 'office-1'}
+            await m.publish_layouts()
+            self.assertEqual(published, ['sensor.esp_screens_office_1'])
+
+
+class Firmware(unittest.TestCase):
+    def test_a_tap_on_a_cover_opens_the_cover_card(self):
+        event = RUNTIME[RUNTIME.index('inline void event(lv_event_t *event) {'):]
+        event = event[:event.index('\n}\n')]
+        show = re.search(r'if\(d=="sensor" \|\|.*?show_detail\(w\.index\); return; \}', event)
+        self.assertTrue(show and 'd=="cover"' in show[0], 'covers go to show_detail with the other runtime cards')
+        self.assertIn('if (d == "light" || d == "climate" || d == "vacuum" || d == "fan") {', event, 'not to the board\'s value overlay any more')
+        self.assertIn('}else if(d=="cover"){', RUNTIME)
+        self.assertIn('render_cover_detail(t,large,width,height,pad);', RUNTIME)
+        for name, text in PROFILES.items():
+            self.assertIn('if ((domain == "light" || domain == "fan" || domain == "climate") && runtime_tiles::detail) {', text, f'{name}: the preview opens the new card')
+
+    def test_the_card_commits_on_release_and_keeps_its_status_line(self):
+        self.assertIn('action("cover.set_cover_position",t.entity,"position",std::to_string(100-percent));', RUNTIME)
+        self.assertIn('action("cover.set_cover_tilt_position",t.entity,"tilt_position",std::to_string(percent));', RUNTIME)
+        self.assertIn('if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);', RUNTIME)
+        # The once-a-second tick of an open card must not replace "Open · 60% · Tilt 40%" with the raw state.
+        tick = RUNTIME[RUNTIME.index('inline void tick() {'):]
+        self.assertIn('t.domain()=="cover"?cover_status_line(t):detail_state(t)', tick[:tick.index('if(!enabled)return;')])
+        # A key the cover cannot use stays disabled: it is left out of the keys the tick enables again.
+        self.assertIn('if(key.disabled){lv_obj_add_state(button,LV_STATE_DISABLED);if(detail_action_count && detail_actions[detail_action_count-1]==button)--detail_action_count;}', RUNTIME)
+        # Track and fill share one radius: no layer per redraw on the CYD.
+        self.assertIn('lv_obj_set_style_radius(slider,radius,LV_PART_MAIN);lv_obj_set_style_radius(slider,radius,LV_PART_INDICATOR);', RUNTIME)
+        self.assertIn('next.tilt = number(a["current_tilt_position"]);', RUNTIME)
+
+    def test_every_setting_number_publishes_a_value_home_assistant_lacks(self):
+        for name, text in PROFILES.items():
+            script = text[text.index('- id: apply_screen_settings'):]
+            script = script[:script.index('\n  - id: ', 10)]
+            self.assertIn('if (!entity->has_state() || entity->state != value) entity->publish_state(value);', script, name)
+            for number in ('setting_brightness', 'setting_standby_brightness', 'setting_night_brightness', 'setting_standby_seconds', 'setting_auto_home_seconds'):
+                self.assertIn(f'std::make_pair(id({number}),', script, f'{name}: {number}')
+            self.assertNotRegex(script, r'if \(id\(setting_\w+\)\.state != ', name)
+
+
+if __name__ == '__main__':
+    unittest.main()

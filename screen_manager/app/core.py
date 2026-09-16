@@ -17,7 +17,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.49'
+FIRMWARE_VERSION = '0.2.50'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -26,7 +26,7 @@ SETTINGS_PAGE_MIN_FIRMWARE = '0.2.44'
 WAKE_SLEEP_MIN_FIRMWARE = '0.2.45'
 # Every screen setting as an entity of the screen, which owns them (see SETTING_ENTITIES).
 SETTING_ENTITIES_MIN_FIRMWARE = '0.2.49'
-ATTRS = frozenset('brightness percentage current_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
+ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
 
@@ -758,6 +758,26 @@ def vacuum_related(entity, device, states):
             found[role] = eid
     return found
 
+def device_power(attrs, related, states):
+    """`bat` from the device's battery sensor when the entity has no battery_level of its own, and `chg` while its
+    charging sensor is on; empty without them."""
+    result = {}
+    if not isinstance(attrs.get('battery_level'), (int, float)) and 'battery' in related:
+        try:
+            level = float(states[related['battery']].get('state'))
+        except (TypeError, ValueError, KeyError):
+            level = math.nan
+        if math.isfinite(level):
+            result['bat'] = max(0, min(100, round(level)))
+    if states.get(related.get('charging'), {}).get('state') == 'on':
+        result['chg'] = 1
+    return result
+
+def cover_related(entity, device, states):
+    """A cover's battery and charging sensors on its device (app 0.2.58): battery-powered blinds such as
+    Motionblinds report the battery there."""
+    return {role: eid for role, eid in vacuum_related(entity, device, states).items() if role in ('battery', 'charging')}
+
 def vacuum_extras(tile, states, device):
     """The vacuum card's rows and details: the mode and water selects (`e` entity, `s` state, `o` options,
     `l` labels, `r` a role per mode), the suction speeds to offer (`fan`), the battery (`bat`), charging
@@ -788,15 +808,7 @@ def vacuum_extras(tile, states, device):
     fan = row([s for s in speeds if isinstance(s, str) and s not in covered]) if isinstance(speeds, list) else None
     if fan:
         result['fan'] = fan
-    if not isinstance(attrs.get('battery_level'), (int, float)) and 'battery' in related:
-        try:
-            level = float(states[related['battery']].get('state'))
-        except (TypeError, ValueError, KeyError):
-            level = math.nan
-        if math.isfinite(level):
-            result['bat'] = max(0, min(100, round(level)))
-    if states.get(related.get('charging'), {}).get('state') == 'on':
-        result['chg'] = 1
+    result.update(device_power(attrs, related, states))
     room = states.get(related.get('room'), {}).get('state')
     if isinstance(room, str) and room not in ('', 'unknown', 'unavailable', 'none'):
         result['room'] = short(room, 32)
@@ -808,6 +820,8 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
     attrs = states.get(tile['entity'], {}).get('attributes', {})
     if domain == 'vacuum':
         return vacuum_extras(tile, states, device)
+    if domain == 'cover':
+        return device_power(attrs, cover_related(tile['entity'], device, states), states) or None
     if domain == 'weather' and (forecast or hourly):
         result = {}
         days = []
@@ -1072,7 +1086,8 @@ def discover_screens(registry, states, devices, areas):
         for item in registry:
             if item.get('platform') == 'esphome' and item.get('original_name') in names:
                 value = states.get(item['entity_id'], {}).get('state', '')
-                if isinstance(value, str) and re.fullmatch(pattern, value):
+                # A screen that restarts reports "unavailable", which reads like a device name.
+                if isinstance(value, str) and value not in ('unknown', 'unavailable') and re.fullmatch(pattern, value):
                     found[item.get('device_id')] = value
         return found
     nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')

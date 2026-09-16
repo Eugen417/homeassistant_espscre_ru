@@ -1,3 +1,14 @@
+## 0.2.58 (firmware 0.2.50)
+
+A card for blinds, curtains and garage doors, and three fixes found right after updating to 0.2.57.
+
+- **Cover card.** Tapping a blind, curtain, shutter or garage door opens a card like Home Assistant's own, in the style of the climate and vacuum cards: a tall position slider on which the blind hangs from the top, a tilt slider over slats for venetian blinds, and open, stop and close keys. The key of the direction the cover is moving is filled, and a key that can't move it further is greyed out. A slider shows its value while you drag and sends it when you let go. A battery-powered blind, such as Motionblinds, shows its battery at the top right. The card shows only what the cover supports: a garage door that only opens and closes gets just the keys.
+- **Night brightness 0 % now shows in Home Assistant.** A brightness setting whose value is 0 stayed "unknown" in Home Assistant, so ESP Screens could not change it on a screen with firmware 0.2.49.
+- **No second layout sensor while a screen restarts.** During a restart ESP Screens took "unavailable" for the screen's device name and wrote `sensor.esp_screens_unavailable`. Home Assistant drops that sensor at its next restart.
+- **The entity list is filled when the page opens.** When ESP Screens was busy, such as while building firmware, the page could open a screen before its entities arrived: "No entities found" until you picked a filter, and tile names showing as entity IDs.
+- **No stale page after an update.** A browser that keeps old files, as Safari did, could combine the new page with the old script and show an empty Screen settings panel. The page now always loads the script and styles of the version that is running.
+- Needs firmware 0.2.50 for the cover card and the brightness fix: press **Update** on the screen.
+
 ## 0.2.57 (firmware 0.2.49)
 
 The screen keeps its own settings, and ESP Screens shows them the way the screen does.

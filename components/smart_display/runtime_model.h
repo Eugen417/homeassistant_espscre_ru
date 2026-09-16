@@ -77,13 +77,15 @@ struct Extra {
   std::vector<Choice> choices;
   std::string room;
   bool charging = false;
+  // Cover (firmware 0.2.50+): the tilt of its slats, 0 closed to 100 open.
+  float tilt = NAN;
   Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   bool empty() const {
     return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
            hvac_action.empty() && options.empty() && forecast.empty() && hours.empty() && std::isnan(wind) &&
            std::isnan(feels) && wind_unit.empty() && sunrise.empty() && sunset.empty() && duration.empty() &&
            remaining.empty() && !timer_end && media_title.empty() && fan_speeds.empty() && fan_speed.empty() &&
-           choices.empty() && room.empty() && !charging;
+           choices.empty() && room.empty() && !charging && std::isnan(tilt);
   }
 };
 // The Extra of a tile on the heap, copied along with the tile like an ordinary member.

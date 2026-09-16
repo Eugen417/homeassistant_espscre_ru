@@ -85,6 +85,10 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   uses are shown (app 0.2.46 / firmware 0.2.39).
   Scenes, scripts, and buttons show when they last ran. A tile that's waiting on
   Home Assistant shows a small spinner on a light overlay.
+- **Cover card** for blinds, curtains, shutters, and garage doors, like Home Assistant's own:
+  a tall position slider on which the blind hangs from the top, a tilt slider over slats for
+  venetian blinds, open, stop, and close, and the battery of a battery-powered blind
+  (such as Motionblinds). A cover shows only what it supports (app 0.2.58 / firmware 0.2.50).
 - **Top bar per screen** (firmware 0.2.32+): the name on the left, up to six
   items of your choice on the right: the time, an analog clock, the date, or an
   entity from Home Assistant with an icon, such as temperature, humidity, power usage, a door
@@ -120,8 +124,14 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
   <img src="docs/images/guition-page-3.png" width="32%" alt="Curtains with open, stop and close, a kitchen timer counting down, a scene and the sun path">
 </p>
 <p align="center">
-  <img src="docs/images/cyd-vacuum.png" width="40%" alt="The vacuum card on the CYD: state, battery and charging, clean and dock, the cleaning mode, suction and water">
-  <img src="docs/images/cyd-climate.png" width="40%" alt="The climate card on the CYD: the target temperature with big minus and plus keys and one row of mode keys">
+  <img src="docs/images/guition-blind.png" width="32%" alt="Cover card for a venetian blind: its battery, the position slider with the blind hanging from the top, the tilt slider over slats, and open, stop and close">
+  <img src="docs/images/guition-curtains.png" width="32%" alt="Cover card for curtains: the position slider and the sideways open, stop and close keys">
+  <img src="docs/images/guition-garage.png" width="32%" alt="Cover card for a garage door that only opens and closes: its icon and the open, stop and close keys, close disabled while it is closed">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-vacuum.png" width="32%" alt="The vacuum card on the CYD: state, battery and charging, clean and dock, the cleaning mode, suction and water">
+  <img src="docs/images/cyd-climate.png" width="32%" alt="The climate card on the CYD: the target temperature with big minus and plus keys and one row of mode keys">
+  <img src="docs/images/cyd-blind.png" width="32%" alt="The cover card on the CYD: the position and tilt sliders with their values beside them, the battery, and open, stop and close">
 </p>
 
 Features depend on the capabilities Home Assistant reports for an entity.

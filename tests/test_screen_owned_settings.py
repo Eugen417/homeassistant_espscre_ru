@@ -106,7 +106,8 @@ def fake_ha(firmware=FIRMWARE_VERSION, owned=True, guition=True):
 class CoreSettings(unittest.TestCase):
     def test_every_setting_the_editor_offers_has_an_entity(self):
         self.assertEqual(set(SETTING_ENTITIES), set(SETTING_RULES) - {'show_clock'})
-        self.assertEqual(SETTING_ENTITIES_MIN_FIRMWARE, FIRMWARE_VERSION)
+        self.assertEqual(SETTING_ENTITIES_MIN_FIRMWARE, '0.2.49')
+        self.assertLessEqual(tuple(map(int, SETTING_ENTITIES_MIN_FIRMWARE.split('.'))), tuple(map(int, FIRMWARE_VERSION.split('.'))))
 
     def test_the_entities_are_named_as_in_both_board_profiles(self):
         blocks = {'switch': 'switch', 'number': 'number', 'time': 'datetime', 'select': 'select'}
@@ -581,7 +582,9 @@ class Firmware(unittest.TestCase):
             script = script[:script.index('\n  - id: ', 10)]
             for entity in ('setting_brightness', 'setting_standby_brightness', 'setting_night_brightness', 'setting_standby_seconds',
                            'setting_auto_home_seconds'):
-                self.assertIn(f'id({entity}).publish_state(', script, f'{path.name}: {entity}')
+                # One loop publishes every number that lacks a state or changed (firmware 0.2.50, see test_cover_card).
+                self.assertIn(f'std::make_pair(id({entity}),', script, f'{path.name}: {entity}')
+            self.assertIn('if (!entity->has_state() || entity->state != value) entity->publish_state(value);', script, path.name)
             self.assertIn('std::make_pair(id(setting_night_start), settings.night_start)', script, path.name)
             self.assertIn('settings_screen::refresh();', script, f'{path.name}: an open settings page follows Home Assistant')
             self.assertEqual('id(setting_rotation)->update();' in script, board == 'guition', path.name)

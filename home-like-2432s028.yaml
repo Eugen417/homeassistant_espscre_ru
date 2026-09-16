@@ -17,7 +17,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.49"
+  SCREEN_FIRMWARE_VERSION: "0.2.50"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -495,8 +495,9 @@ api:
               runtime_tiles::active_index = index;
               auto &tile = runtime_tiles::model.tiles[index];
               auto domain = tile.domain();
-              // Lights, fans, covers and climate open the board's own card, like a long press does.
-              if ((domain == "light" || domain == "fan" || domain == "cover" || domain == "climate") && runtime_tiles::detail) {
+              // Lights, fans and climate open the board's own card, like a long press does; covers (firmware 0.2.50+)
+              // open the runtime card, as a tap does.
+              if ((domain == "light" || domain == "fan" || domain == "climate") && runtime_tiles::detail) {
                 tile.begin(millis(), true);
                 runtime_tiles::detail(tile);
                 return;
@@ -3702,11 +3703,15 @@ script:
           else lv_obj_add_flag(id(dim_wake_overlay), LV_OBJ_FLAG_HIDDEN);
           // The setting numbers and times only publish a changed value (HA keeps identical states anyway); the
           // switches publish their own changes. An open settings page shows a change from Home Assistant too.
-          if (id(setting_brightness).state != settings.brightness) id(setting_brightness).publish_state(settings.brightness);
-          if (id(setting_standby_brightness).state != settings.standby_brightness) id(setting_standby_brightness).publish_state(settings.standby_brightness);
-          if (id(setting_night_brightness).state != settings.night_brightness) id(setting_night_brightness).publish_state(settings.night_brightness);
-          if (id(setting_standby_seconds).state != settings.standby_seconds) id(setting_standby_seconds).publish_state(settings.standby_seconds);
-          if (id(setting_auto_home_seconds).state != settings_screen::auto_home_seconds) id(setting_auto_home_seconds).publish_state(settings_screen::auto_home_seconds);
+          // A number without a state publishes too: a night brightness of 0 equals the number's initial state and
+          // stayed "unknown" in Home Assistant before firmware 0.2.50.
+          for (auto [entity, value] : {std::make_pair(id(setting_brightness), settings.brightness),
+                                       std::make_pair(id(setting_standby_brightness), settings.standby_brightness),
+                                       std::make_pair(id(setting_night_brightness), settings.night_brightness),
+                                       std::make_pair(id(setting_standby_seconds), settings.standby_seconds),
+                                       std::make_pair(id(setting_auto_home_seconds), settings_screen::auto_home_seconds)}) {
+            if (!entity->has_state() || entity->state != value) entity->publish_state(value);
+          }
           for (auto [entity, minutes] : {std::make_pair(id(setting_night_start), settings.night_start), std::make_pair(id(setting_night_end), settings.night_end)}) {
             if (!entity->has_state() || entity->hour * 60 + entity->minute != minutes) entity->update();
           }

@@ -65,6 +65,8 @@ inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
 inline std::string last_run_text(uint32_t epoch);
+inline const char *icon_for(const Tile &tile);
+inline void label(lv_obj_t *obj, const std::string &text);
 inline int active_index = -1;
 inline uint32_t last_received = 0;
 // Seconds between the manager's full repeats; every layout message declares it (app
@@ -380,6 +382,7 @@ inline std::string receive(const std::string &payload) {
     tile.brightness = number(a["brightness"]);
     tile.percentage = number(a["percentage"]);
     tile.position = number(a["current_position"]);
+    next.tilt = number(a["current_tilt_position"]);
     tile.current = number(a["current_temperature"]);
     tile.target = number(a["temperature"]);
     tile.humidity = number(a["current_humidity"]);
@@ -581,6 +584,8 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
     if(cmd==21)action("media_player.media_previous_track",t.entity);
     if(cmd==22)action("media_player.media_next_track",t.entity);
     if(cmd>=30 && cmd<38 && cmd-30<(int)t.extra().options.size())action(t.domain()+".select_option",t.entity,"option",t.extra().options[cmd-30]);
+    // Cover keys: 70 + tile_controls::Command (open, stop, close and the tilt keys).
+    if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);if(a.valid()&&t.domain()=="cover")action(a.service,t.entity,a.key,a.value);}
     if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
     if(cmd==41)action("timer.cancel",t.entity);
   },LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)command);
@@ -880,6 +885,159 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     detail_text(detail_root,smart?"The robot chooses suction and water":"Suction and water as set per room",x,y,w,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);
   }
 }
+// ---- Cover card (firmware 0.2.50+): Home Assistant's cover dialog in the style of the vacuum and climate cards ----
+// A tall slider per movement: the position as a blind hanging from the top (a fully open cover shows none of it)
+// and the tilt as a handle over slats, each with its value below, like Home Assistant's own sliders. Open, stop
+// and close as a row of pill keys under them; the key of the direction the cover moves is filled. A slider
+// sends its value when the finger lifts, and shows it while it moves.
+inline constexpr uint32_t COVER_ACCENT = 0x926BC7, COVER_TRACK = 0xEFE8F7, COVER_SLATS = 0xDDD0EF;
+inline lv_obj_t *cover_values[2]{};
+inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):"Unavailable";}
+inline void cover_slider_event(lv_event_t *e){
+  auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
+  const bool tilt=(uintptr_t)lv_event_get_user_data(e)==1;
+  if(code==LV_EVENT_VALUE_CHANGED){
+    // The range reaches past 0 and 1000 only to keep the handle inside the track.
+    int raw=lv_slider_get_value(slider);
+    if(raw<0||raw>1000){raw=std::clamp(raw,0,1000);lv_slider_set_value(slider,raw,LV_ANIM_OFF);}
+    int percent=(int)std::lround(raw/10.0f);
+    if(auto *value=cover_values[tilt?1:0])label(value,std::to_string(tilt?percent:100-percent)+"%");
+    return;
+  }
+  if(code!=LV_EVENT_RELEASED||detail_index>=model.count)return;
+  auto &t=model.tiles[detail_index];
+  if(!fresh()||!t.available()||!cyd::touch_guard.accept_slider(esphome::millis(),390+(tilt?1:0)))return;
+  int percent=(int)std::lround(std::clamp<int>(lv_slider_get_value(slider),0,1000)/10.0f);
+  if(tilt)action("cover.set_cover_tilt_position",t.entity,"tilt_position",std::to_string(percent));
+  else action("cover.set_cover_position",t.entity,"position",std::to_string(100-percent));
+}
+// One slider. The position fills from the top by how far the cover is closed; the tilt has no fill and its
+// handle moves over slats drawn behind it, thicker towards the closed end as in Home Assistant.
+inline lv_obj_t *cover_slider(lv_obj_t *parent,int x,int y,int w,int h,float value,bool tilt){
+  int radius=std::max(8,w/7),handle_h=std::max(4,w/18),handle_w=tilt?w*3/5:w*2/5,inset=std::max(6,w/9);
+  if(tilt){
+    auto *slats=detail_shape(parent,x,y,w,h,COVER_TRACK,radius);
+    const int count=10,pitch=(h-2*radius/2)/count;
+    for(int i=0;i<count;++i){
+      int thick=std::max(2,pitch*(20+60*i/(count-1))/100);
+      detail_shape(slats,inset,radius/2+i*pitch+(pitch-thick)/2,w-2*inset,thick,COVER_SLATS,thick/2);
+    }
+  }
+  auto *slider=lv_slider_create(parent);lv_obj_remove_style_all(slider);
+  lv_obj_set_pos(slider,x,y);lv_obj_set_size(slider,w,h);lv_slider_set_orientation(slider,LV_SLIDER_ORIENTATION_VERTICAL);
+  lv_obj_set_style_radius(slider,radius,LV_PART_MAIN);lv_obj_set_style_radius(slider,radius,LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(slider,lv_color_hex(COVER_TRACK),LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,tilt?LV_OPA_TRANSP:LV_OPA_COVER,LV_PART_MAIN);
+  lv_obj_set_style_bg_color(slider,lv_color_hex(COVER_ACCENT),LV_PART_INDICATOR);lv_obj_set_style_bg_opa(slider,tilt?LV_OPA_TRANSP:LV_OPA_COVER,LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(slider,lv_color_hex(tilt?COVER_ACCENT:0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
+  lv_obj_set_style_radius(slider,LV_RADIUS_CIRCLE,LV_PART_KNOB);
+  lv_obj_set_style_opa(slider,LV_OPA_50,LV_STATE_DISABLED);
+  // LVGL centres the knob on the end of the fill in a square as wide as the slider; the pads shrink it to a
+  // handle bar. The position's handle sits inside the blind, an inset above its edge; the tilt's is centred.
+  int side=-(w-handle_w)/2;
+  lv_obj_set_style_pad_left(slider,side,LV_PART_KNOB);lv_obj_set_style_pad_right(slider,side,LV_PART_KNOB);
+  if(tilt){
+    int squeeze=-(w-2*handle_h)/2;
+    lv_obj_set_style_pad_top(slider,squeeze,LV_PART_KNOB);lv_obj_set_style_pad_bottom(slider,squeeze,LV_PART_KNOB);
+    // A margin past both ends keeps the handle on the track at 0 and 100 %.
+    int margin=1000*(inset+handle_h)/std::max(1,h-2*(inset+handle_h));
+    lv_slider_set_range(slider,-margin,1000+margin);
+    lv_slider_set_value(slider,std::isfinite(value)?(int)std::lround(std::clamp(value,0.0f,100.0f)*10):500,LV_ANIM_OFF);
+  }else{
+    lv_obj_set_style_pad_top(slider,inset+handle_h-w/2,LV_PART_KNOB);lv_obj_set_style_pad_bottom(slider,1-inset-w/2,LV_PART_KNOB);
+    // Reversed, the fill hangs from the top; the stub past 0 holds the handle of a cover that is fully open.
+    int stub=inset+handle_h+inset,below=1000*stub/std::max(1,h-stub);
+    lv_slider_set_range(slider,1000,-below);
+    lv_slider_set_value(slider,std::isfinite(value)?(int)std::lround((100.0f-std::clamp(value,0.0f,100.0f))*10):0,LV_ANIM_OFF);
+  }
+  lv_obj_add_event_cb(slider,cover_slider_event,LV_EVENT_VALUE_CHANGED,(void*)(uintptr_t)(tilt?1:0));
+  lv_obj_add_event_cb(slider,cover_slider_event,LV_EVENT_RELEASED,(void*)(uintptr_t)(tilt?1:0));
+  if(detail_action_count<32)detail_actions[detail_action_count++]=slider;
+  return slider;
+}
+// A row of pill keys with an icon each, as the climate card's modes. A key that cannot move the cover further
+// is drawn disabled and left out of the keys the card enables again once Home Assistant answers.
+inline void cover_key_row(const std::array<tile_controls::Key,3> &keys,unsigned count,int x,int y,int w,int h,int gap,const lv_font_t *icons){
+  int key_w=count?(w-gap*((int)count-1))/(int)count:0;
+  for(unsigned i=0;i<count;++i){
+    const auto &key=keys[i];
+    auto *button=detail_button("",x+(int)i*(key_w+gap),y,key_w,h,70+key.command);
+    lv_obj_set_style_radius(button,h/2,0);
+    lv_obj_set_style_bg_color(button,lv_color_hex(key.checked?COVER_ACCENT:0xFFFFFF),0);
+    lv_obj_set_style_bg_color(button,lv_color_hex(key.checked?0x7552A8:0xEEEEEE),LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(button,key.checked?0:1,0);lv_obj_set_style_border_color(button,lv_color_hex(0xDDDDDD),0);
+    auto *glyph=lv_obj_get_child(button,0);
+    lv_obj_set_style_text_font(glyph,icons,0);lv_label_set_text(glyph,key.icon);
+    lv_obj_set_style_text_color(glyph,lv_color_hex(key.checked?0xFFFFFF:0x1B1B1B),0);
+    lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
+    if(key.disabled){lv_obj_add_state(button,LV_STATE_DISABLED);if(detail_action_count && detail_actions[detail_action_count-1]==button)--detail_action_count;}
+  }
+}
+// A battery-powered cover shows its level at the top right, across from the back key: the meter over the
+// percentage, red below 20 % (the battery sensor of its device, app 0.2.58+).
+inline void cover_battery(const Tile &t,bool large,int width){
+  if(!std::isfinite(t.battery))return;
+  const lv_font_t *font=large?detail_font:(control_font?control_font:detail_font);
+  int bar=large?60:40,bar_x=large?16:10,bar_y=large?16:8,meter_w=large?30:22,meter_h=large?15:11,gap=large?4:2;
+  int level=(int)std::lround(std::clamp(t.battery,0.0f,100.0f));
+  int line=lv_font_get_line_height(font),block=meter_h+gap+line,cx=width-bar_x-bar/2,y=bar_y+(bar-block)/2;
+  vacuum_battery(detail_root,cx-meter_w/2-1,y,meter_w,meter_h,t.battery);
+  detail_text(detail_root,std::to_string(level)+"%",cx-bar/2-8,y+meter_h+gap,bar+16,font,LV_TEXT_ALIGN_CENTER,0x5F6368);
+}
+inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad){
+  auto card=tile_controls::cover_card(t);
+  cover_battery(t,large,width);
+  const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
+  const lv_font_t *big=watch_font?watch_font:detail_font;
+  cover_values[0]=cover_values[1]=nullptr;
+  int inner=width-2*pad,gap=large?12:6,key_h=large?64:38,bottom=height-(large?18:6);
+  // The tile icons' own size where it fits the keys (42 px on the Guition, 28 on the CYD).
+  const lv_font_t *key_icons=widgets[0].icon_font && lv_font_get_line_height(widgets[0].icon_font)<=key_h-6?widgets[0].icon_font:(mini_icon_font?mini_icon_font:detail_font);
+  std::array<tile_controls::Key,3> keys,tilt_keys;
+  unsigned key_count=card.keys?tile_controls::cover_keys(t,keys):0,tilt_count=card.tilt_keys?tile_controls::cover_tilt_keys(t,tilt_keys):0;
+  int rows=(key_count?1:0)+(tilt_count?1:0);
+  int keys_y=bottom-rows*key_h-(rows>1?gap:0),top=large?108:72;
+  int box_h=keys_y-gap-top;
+  if(card.position||card.tilt){
+    detail_card(pad,top,inner,box_h);
+    struct Part{bool tilt;float value;const char *caption;};
+    Part parts[2];int n=0;
+    if(card.position)parts[n++]={false,t.position,"Position"};
+    if(card.tilt)parts[n++]={true,t.extra().tilt,"Tilt"};
+    int value_h=lv_font_get_line_height(big),caption_h=lv_font_get_line_height(text);
+    auto percent=[](float value){return std::isfinite(value)?std::to_string((int)std::lround(std::clamp(value,0.0f,100.0f)))+"%":std::string("--");};
+    if(large){
+      // Columns: the slider with its value and name below.
+      int edge=16,slider_h=box_h-2*edge-value_h-caption_h+4,slider_w=n==2?120:140,column_gap=48;
+      int x=pad+(inner-(n*slider_w+(n-1)*column_gap))/2;
+      for(int i=0;i<n;++i,x+=slider_w+column_gap){
+        cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
+        int ty=top+edge+slider_h+2;
+        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x-30,ty,slider_w+60,big,LV_TEXT_ALIGN_CENTER,0x1B1B1B);
+        detail_text(detail_root,parts[i].caption,x-30,ty+value_h,slider_w+60,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);
+      }
+    }else{
+      // The small screen puts the value and name beside each slider.
+      int edge=6,slider_h=box_h-2*edge,slider_w=n==2?48:56,label_w=n==2?76:96,column_gap=n==2?16:0;
+      int column=slider_w+8+label_w,x=pad+(inner-(n*column+(n-1)*column_gap))/2;
+      for(int i=0;i<n;++i,x+=column+column_gap){
+        cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
+        int ty=top+(box_h-value_h-caption_h)/2;
+        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x+slider_w+8,ty,label_w,big,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+        detail_text(detail_root,parts[i].caption,x+slider_w+8,ty+value_h,label_w,text,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+      }
+    }
+  }else{
+    // Open and close only (a garage door, a gate): the cover's icon on a halo and its state, as the vacuum's hero.
+    detail_card(pad,top,inner,box_h);
+    const lv_font_t *icon_font=widgets[0].icon_font?widgets[0].icon_font:mini_icon_font;
+    int halo=std::min(box_h-24,large?120:72);
+    auto *ring=detail_shape(detail_root,pad+(inner-halo)/2,top+(box_h-halo)/2,halo,halo,COVER_TRACK,halo/2);
+    if(icon_font){auto *icon=detail_text(ring,icon_for(t),0,(halo-lv_font_get_line_height(icon_font))/2,halo,icon_font,LV_TEXT_ALIGN_CENTER,COVER_ACCENT);(void)icon;}
+  }
+  int y=keys_y;
+  if(key_count){cover_key_row(keys,key_count,pad,y,inner,key_h,gap,key_icons);y+=key_h+gap;}
+  if(tilt_count)cover_key_row(tilt_keys,tilt_count,pad,y,inner,key_h,gap,key_icons);
+}
 inline void show_detail(unsigned index){
   if(index>=model.count)return;detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
@@ -895,8 +1053,8 @@ inline void show_detail(unsigned index){
   const lv_font_t *title_font=watch_font?watch_font:detail_font;
   auto *heading=detail_label(detail_root,t.name,bar_x+bar+8,bar_y+(bar-lv_font_get_line_height(title_font))/2,width-2*(bar_x+bar+8));
   lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
-  std::string state=detail_state(t);
   auto d=t.domain();
+  std::string state=d=="cover"?cover_status_line(t):detail_state(t);
   // The vacuum card draws its own state (hero or status row) with the battery beside it.
   if(d!="vacuum"){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);}
   if(t.is_switch()){
@@ -922,6 +1080,9 @@ inline void show_detail(unsigned index){
     detail_actions[detail_action_count++]=detail_switch;
   }else if(d=="vacuum"){
     render_vacuum_detail(t,large,width,height,pad);
+  }else if(d=="cover"){
+    if(detail_status && control_font){lv_obj_set_style_text_font(detail_status,control_font,0);lv_obj_set_height(detail_status,lv_font_get_line_height(control_font));}
+    render_cover_detail(t,large,width,height,pad);
   }else if(d=="sensor"){
     float minimum=INFINITY,maximum=-INFINITY;for(float value:t.history)if(t.has_history&&std::isfinite(value)){minimum=std::min(minimum,value);maximum=std::max(maximum,value);}
     if(!std::isfinite(minimum)){detail_label(detail_root,"No numeric HA history",pad,top,width-2*pad);return;}
@@ -1084,9 +1245,9 @@ inline void event(lv_event_t *event) {
   if(d=="climate" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("climate.toggle",tile.entity);return;}
   // A short tap runs or pauses the timer; holding opens the card with a cancel button.
   if(d=="timer" && !open){action(tile.state=="active"?"timer.pause":"timer.start",tile.entity);return;}
-  if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum" || d=="sun" || d=="person" || d=="timer") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }
+  if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum" || d=="cover" || d=="sun" || d=="person" || d=="timer") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }
   if (open) {
-    if (d == "light" || d == "climate" || d == "vacuum" || d == "fan" || d == "cover") {
+    if (d == "light" || d == "climate" || d == "vacuum" || d == "fan") {
       active_index = w.index;
       tile.begin(esphome::millis(),true);
       if (detail) detail(tile);
@@ -2318,7 +2479,7 @@ inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
     auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
-    std::string status=waiting?(t.confirmed?"Confirmed by Home Assistant":"Command sent..."):detail_state(t);
+    std::string status=waiting?(t.confirmed?"Confirmed by Home Assistant":"Command sent..."):t.domain()=="cover"?cover_status_line(t):detail_state(t);
     if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));
     // The vacuum card lays its state out with the room and battery beside it, so a new text draws the
     // card again; once Home Assistant answered, the new state says enough.

@@ -1,6 +1,7 @@
 """HA Ingress app. HA writes: text.set_value on discovered inboxes (or the screen_message action on firmware 0.2.33+), each screen's alert actions when an alert event for every screen fires, and one persistent notification when a nightly update stops."""
 import asyncio
 import contextlib
+import hashlib
 import json
 import logging
 import os
@@ -671,11 +672,14 @@ class Manager:
         return self._by_device.get(device, []) if device else []
 
     def related_entities(self, tile):
-        """Entities a card reads besides its own: a vacuum's cleaning mode and water selects and its battery sensor."""
-        if not tile['entity'].startswith('vacuum.'):
-            return ()
-        from core import vacuum_related
-        return tuple(vacuum_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
+        """Entities a card reads besides its own: a vacuum's cleaning mode and water selects and its battery sensor, a
+        cover's battery sensor."""
+        from core import cover_related, vacuum_related
+        if tile['entity'].startswith('vacuum.'):
+            return tuple(vacuum_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
+        if tile['entity'].startswith('cover.'):
+            return tuple(cover_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
+        return ()
 
     def header_message(self, layout):
         return header_bar.message(layout, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}), getattr(self.ha, 'time_zone', None))
@@ -802,8 +806,8 @@ class Manager:
             forecast=await self.cached(self.forecasts, entity, FORECAST_SECONDS, (lambda: self.ha.forecast(entity)) if 'daily' in kinds else nothing)
             # Hourly forecasts feed the weather card's next-hours strip (0.2.23+); refreshed every half hour.
             hourly=await self.cached(self.forecasts, (entity,'hourly'), FORECAST_SECONDS, (lambda: self.ha.forecast(entity,'hourly')) if 'hourly' in kinds else nothing)
-        # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46).
-        device=self.device_entries(tile['entity']) if tile['entity'].startswith('vacuum.') else None
+        # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46), a cover's card its battery (0.2.58).
+        device=self.device_entries(tile['entity']) if tile['entity'].startswith(('vacuum.', 'cover.')) else None
         message=state_message(index,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device))
         if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
             hours=tile.get('options',{}).get('history_hours',24)
@@ -1158,8 +1162,12 @@ def create_app(manager, development=False):
     app = web.Application(middlewares=[guard], client_max_size=16*1024)
     static = Path(__file__).parent / 'static'
 
+    # The page asks for its script and styles with a stamp of their content, so a browser that keeps old copies
+    # anyway (Safari did after an update) never runs an old script against a new page.
+    stamp = hashlib.sha1(b''.join((static / name).read_bytes() for name in ('app.js', 'style.css'))).hexdigest()[:12]
+    page = (static / 'index.html').read_text().replace('"static/app.js"', f'"static/app.js?v={stamp}"').replace('"static/style.css"', f'"static/style.css?v={stamp}"')
     async def index(request):
-        return web.FileResponse(static / 'index.html')
+        return web.Response(text=page, content_type='text/html')
     def light_payload(screens=None):
         """Screens and update status: everything that changes while the page is open."""
         if screens is None:
