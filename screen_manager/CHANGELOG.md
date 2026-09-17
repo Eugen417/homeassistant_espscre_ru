@@ -1,3 +1,10 @@
+## 0.2.69 (firmware 0.2.58)
+
+A very large sensor value no longer stops a screen's updates.
+
+- **A screen kept getting updates.** Since 0.2.67 a sensor tile with a display precision rounds its value as Home Assistant shows it. A value with more than 28 digits, such as `1e30` from a template or counter, made that rounding fail, and the screen with that tile then got no layout or state updates at all until the value changed. Such a value now shows as it is, and the rest of the screen goes on.
+- No firmware change: firmware stays 0.2.58. Includes everything from 0.2.68.
+
 ## 0.2.68 (firmware 0.2.58)
 
 Put a new screen on from your own computer.

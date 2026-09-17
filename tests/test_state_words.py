@@ -48,6 +48,8 @@ class Rounding(unittest.TestCase):
         self.assertEqual(rounded_state('21.45', 1), '21.5', 'half up, as the frontend rounds')
         self.assertEqual(rounded_state('1249.6', 0), '1250', 'no thousands separator: the screen reads the number')
         self.assertEqual(rounded_state('-0.04', 1), '0.0')
+        self.assertEqual(rounded_state('1e30', 1), '1e30', 'too many digits to round: the value stays and the sync goes on')
+        self.assertEqual(rounded_state('123456789012345678901234567890.5', 1), '123456789012345678901234567890.5')
         self.assertEqual(rounded_state('3', 2), '3.00')
         for value in ('unavailable', 'on', '', 'nan', 'inf'):
             self.assertEqual(rounded_state(value, 1), value)

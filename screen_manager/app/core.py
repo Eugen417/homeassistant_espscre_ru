@@ -1001,8 +1001,11 @@ def rounded_state(value, precision):
         return value
     if not math.isfinite(number):
         return value
-    from decimal import ROUND_HALF_UP, Decimal
-    text = format(Decimal(str(value)).quantize(Decimal(1).scaleb(-precision), rounding=ROUND_HALF_UP), 'f')
+    from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+    try:
+        text = format(Decimal(str(value)).quantize(Decimal(1).scaleb(-precision), rounding=ROUND_HALF_UP), 'f')
+    except InvalidOperation:  # more digits than Decimal's context holds, such as 1e30: the value is fine as it is
+        return value
     return text[1:] if text.startswith('-') and not text.strip('-0.') else text
 
 def ha_word(entity_id, suffix, attributes, entry, words):
