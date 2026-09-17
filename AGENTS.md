@@ -24,7 +24,7 @@ Don't configure wallbox relays as part of display support.
 # Working instructions for LLMs and developers
 
 This project drives an ESP32-2432S028 with ILI9341 + XPT2046 (320×240,
-LVGL 90°). Read README.md and docs/ before installing. The owner can
+LVGL 90°). Read README.md, README_EXTENDED.md and docs/ before installing. The owner can
 physically tap; an agent cannot replace that with software coordinates.
 
 ## Installing a new screen

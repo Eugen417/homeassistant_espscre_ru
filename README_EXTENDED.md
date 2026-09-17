@@ -1,0 +1,392 @@
+# ESP Screens: the full reference
+
+The [README](README.md) shows what ESP Screens is and how to install it. This page has the rest:
+every card and setting, what an automation can do with a screen, the top bar, the settings page
+on the screen itself, and how updates work.
+
+- [What you can configure](#what-you-can-configure)
+- [Alert from an automation](#alert-from-an-automation)
+- [Wake and sleep from an automation](#wake-and-sleep-from-an-automation)
+- [Customizing tiles and colors](#customizing-tiles-and-colors)
+- [Top bar](#top-bar)
+- [Settings on the screen](#settings-on-the-screen)
+- [Updates and keeping your settings](#updates-and-keeping-your-settings)
+- [Guides and installation help](#guides-and-installation-help)
+
+## What you can configure
+
+- **Up to twenty tiles**, spread across up to four fixed pages of six
+  tiles each. Search by entity, device, or room, and drag to reorder.
+- **Per-tile settings:** a custom name, click behavior, a small slider where
+  supported, or a large value for things like temperature and power usage.
+  From firmware 0.2.13, the large value shows a small domain icon next to the
+  title; a number that's too long is truncated with an ellipsis, the unit stays visible.
+- **Pastel backgrounds per tile:** choose red for an all-off script,
+  green for all-on, or any other color. The title and status stay dark and
+  readable. The color also appears in the screen preview; **Default** restores
+  the normal colors. Requires firmware 0.2.10 or newer. **None** drops the card
+  entirely: the content then sits at the same size directly on the screen background
+  (firmware 0.2.16).
+- **Clock:** digital or analog. The analog clock has tick marks at 12, 3, 6, and 9
+  and, on a single tile, shows a calendar block (weekday, day, month) next to the
+  dial; double-width shows the digital time with the date beside it.
+- **Light control:** brightness, rainbow color, and white temperature according to
+  the light's capabilities. Open the detailed control with a long touch.
+- **More cards:** climate, vacuum, fan, cover, media player, sensors,
+  select/input_select, number/input_number, switches, scenes, scripts, and
+  buttons.
+- **Special cards (firmware 0.2.14+):** a **clock** (digital or analog)
+  as a built-in tile, a **weather forecast** with five days on a
+  double-width card, a **graph** of the sensor history in the tile,
+  a **sun path** (`sun.sun`: horizon with the sun between sunrise and
+  sunset), a **timer** (`timer.*`, tapping starts or pauses it), and
+  **presence** (`person.*`). Pick them in the picker like any other tile, or
+  drag them straight into the screen mockup; **Double-width** is an option for every tile.
+- **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
+  Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,
+  light, fan), start/stop/dock (vacuum), open/stop/close or a
+  position slider (cover), volume with mute or previous/play/next (media),
+  − / + or a slider (numbers), previous/next (select), start/pause and
+  cancel (timer), and a single button for scenes, scripts, and buttons. Configurable
+  per tile; **None** keeps the regular card.
+- **Weather card** with current weather, the coming hours and days including chance of
+  rain or millimeters; **climate card** with an on/off button, mode, fan, and swing settings.
+  The target temperature sits big between − / + keys with one row of mode keys below; the
+  Guition shows fan and swing right away on a card of their own, the CYD behind ···.
+- **Vacuum card** with the state, battery and charging, start and dock, and how the robot
+  cleans: **vacuum, vacuum and mop, or mop only** for robots that offer a cleaning mode in
+  Home Assistant (such as Roborock), then suction and water. Only the rows the chosen mode
+  uses are shown (app 0.2.46 / firmware 0.2.39).
+  Scenes, scripts, and buttons show when they last ran. A tile that's waiting on
+  Home Assistant shows a small spinner on a light overlay.
+- **Cover card** for blinds, curtains, shutters, and garage doors, like Home Assistant's own:
+  a tall position slider on which the blind hangs from the top, a tilt slider over slats for
+  venetian blinds, open, stop, and close, and the battery of a battery-powered blind
+  (such as Motionblinds). A cover shows only what it supports (app 0.2.58 / firmware 0.2.50).
+- **History card** for sensors, numbers, binary sensors, people, and switches, the way Home
+  Assistant shows history: a line with an axis in round steps and clock times for numbers,
+  with the highest and lowest moment, and a timeline with the time in each state for on/off,
+  home and away, and a status. Choose **1 hour**, **24 hours**, or **1 week**; hold a finger on
+  the graph to read the value and time of that moment at the top (app 0.2.59 / firmware 0.2.51).
+- **Top bar per screen** (firmware 0.2.32+): the name on the left, up to six
+  items of your choice on the right: the time, an analog clock, the date, or an
+  entity from Home Assistant with an icon, such as temperature, humidity, power usage, a door
+  (open/closed), the alarm, who's home, or when something or someone last
+  changed ("5 min ago", "Yesterday"). See [Top bar](#top-bar).
+- **Screen settings:** standby time, normal and dimmed brightness,
+  night hours, 24- or 12-hour clock, return to the home page, and optional swiping
+  between pages. Change them in ESP Screens, where they apply at once, or on the screen
+  itself. With firmware 0.2.49+ the screen keeps them, and every one of them is also an
+  entity in Home Assistant, so an automation can switch **Night mode** or **Auto standby**
+  (firmware 0.2.41+), for example to keep a screen on while someone is home, and
+  wake a screen or put it to sleep with its **Wake** and **Sleep** buttons (firmware 0.2.45+).
+  See [Wake and sleep](#wake-and-sleep-from-an-automation).
+- **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
+  second and a half and the screen opens its own settings page — brightness, night,
+  the clock, swiping, rotation, and what this screen is (name, IP address, firmware,
+  whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
+  within a second. See [Settings on the screen](#settings-on-the-screen).
+- **Guition rotation:** 0°, 90°, 180°, or 270°, directly from the management page.
+  Native LVGL rotation turns the display and touch together. The CYD keeps its fixed
+  orientation and its own calibration.
+- **Inspector:** check entities, status, and configuration in ESP Screens.
+  Action feedback shows that a command is on its way.
+
+<p align="center">
+  <img src="docs/images/guition-tiles-controls.png" width="32%" alt="Double-width tiles with direct control: heating mode keys with heat selected, previous, pause and next for the Sonos, and a ceiling fan's speed slider">
+  <img src="docs/images/guition-tiles-values.png" width="32%" alt="Power and humidity as large values, a lamp and a fan with a small slider on the tile, and an all-off script and a welcome-home scene with red and green backgrounds and when they last ran">
+  <img src="docs/images/guition-tiles-clock.png" width="32%" alt="A digital clock with the date, a pasta timer with pause and cancel, the outside temperature as a large value, and garden lights that are off">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-tiles-controls.png" width="32%" alt="The CYD with heating mode keys, playback keys for the radio and a ceiling fan's speed slider">
+  <img src="docs/images/cyd-tiles-values.png" width="32%" alt="The CYD with power and humidity as large values, a lamp and a fan with small sliders, and red and green scene tiles">
+  <img src="docs/images/cyd-tiles-choices.png" width="32%" alt="The CYD with a digital clock, previous and next for the house mode, and start, stop and dock for the robot vacuum">
+</p>
+<p align="center"><sub>What a tile can do: keys and sliders on double-width tiles, previous and next for a choice, large values, small sliders, pastel colors, a clock and a timer.</sub></p>
+<p align="center">
+  <img src="docs/images/guition-weather.png" width="32%" alt="Weather card: current weather, the coming hours and the coming days with chance of rain">
+  <img src="docs/images/guition-climate.png" width="32%" alt="Climate card: the target temperature between big minus and plus keys, the mode keys, and fan and swing choices">
+  <img src="docs/images/guition-light.png" width="32%" alt="Light control: color, color temperature and brightness">
+</p>
+<p align="center">
+  <img src="docs/images/guition-vacuum.png" width="32%" alt="Vacuum card: docked and charging, start and dock, the cleaning mode vacuum, vac and mop or mop, suction and water">
+  <img src="docs/images/guition-fan.png" width="32%" alt="Fan card: the speed as a tall slider with the fan in it">
+  <img src="docs/images/guition-page-3.png" width="32%" alt="Curtains with open, stop and close, a kitchen timer counting down, a scene and the sun path">
+</p>
+<p align="center">
+  <img src="docs/images/guition-blind.png" width="32%" alt="Cover card for a venetian blind: its battery, the position slider with the blind hanging from the top, the tilt slider over slats, and open, stop and close">
+  <img src="docs/images/guition-curtains.png" width="32%" alt="Cover card for curtains: the position slider and the sideways open, stop and close keys">
+  <img src="docs/images/guition-garage.png" width="32%" alt="Cover card for a garage door that only opens and closes: its icon and the open, stop and close keys, close disabled while it is closed">
+</p>
+<p align="center">
+  <img src="docs/images/guition-history.png" width="32%" alt="History card for a temperature: the value now, the highest and lowest moment with their times, a line over 24 hours with an axis in degrees and clock times, and keys for 1 hour, 24 hours and 1 week">
+  <img src="docs/images/guition-history-touch.png" width="32%" alt="A finger on the history graph: the top of the card shows the average of that hour and its time, the graph stays as it is">
+  <img src="docs/images/guition-history-person.png" width="32%" alt="History card for a person over a week: home, away and the zones they were in, with the time in each">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-vacuum.png" width="32%" alt="The vacuum card on the CYD: state, battery and charging, clean and dock, the cleaning mode, suction and water">
+  <img src="docs/images/cyd-climate.png" width="32%" alt="The climate card on the CYD: the target temperature with big minus and plus keys and one row of mode keys">
+  <img src="docs/images/cyd-blind.png" width="32%" alt="The cover card on the CYD: the position and tilt sliders with their values beside them, the battery, and open, stop and close">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-history.png" width="32%" alt="The history card on the CYD: power over 24 hours with its highest and lowest moment, an axis in watts and clock times">
+  <img src="docs/images/cyd-history-touch.png" width="32%" alt="A finger on the CYD's history graph: the average of that hour and its time at the top">
+  <img src="docs/images/cyd-history-door.png" width="32%" alt="The door's history on the CYD: a timeline over 24 hours with the time open and closed">
+</p>
+
+Features depend on the capabilities Home Assistant reports for an entity.
+The app must keep running to keep the screens supplied with current data.
+
+A short tap on a switch switches immediately; the off state gets a gray icon. A long press
+opens its history card with the toggle at the top right (firmware 0.2.51+).
+The feedback stops as soon as Home Assistant reports the changed state, with a
+minimum of 150 ms for switches. Tiles with a mini-slider keep their
+icon; on the CYD, the icon and text block are vertically centered.
+
+## Alert from an automation
+
+<p align="center">
+  <img src="docs/images/guition-alert.png" width="41%" alt="An alert on the Guition: someone is at the door, with a Coming button">
+  <img src="docs/images/editor-alerts.png" width="53%" alt="The Alerts cheatsheet in ESP Screens: the action name of every screen, ready to copy">
+</p>
+
+Every screen has the action **`esphome.<screen>_show_alert`** (firmware 0.2.31+). It places
+a card over the entire screen, wakes the screen, and keeps the backlight at normal
+brightness until someone taps **OK**. In an automation:
+
+```yaml
+action: esphome.kitchen_screen_show_alert
+data:
+  title: "Someone is at the door"
+  subtitle: "Door 3, back"
+  icon: doorbell
+  color: orange
+  button_text: "Coming"
+  timeout: 0
+  flash: true
+```
+
+- **`title`** and **`subtitle`**: a single-line title (truncated with an ellipsis if too long) and an
+  explanation that wraps across multiple lines. Empty is allowed; an empty title becomes "Notification".
+- **`icon`**: a name from the tile picker, such as `doorbell`, `bell`, `alert-outline`,
+  `lock`, `door-open`, `motion-sensor`, `smoke-detector`, `water-alert`, `mailbox`, `car`,
+  or `account`. `mdi:doorbell` and the hex codepoint (`F12E6`) also work, as long as the glyph
+  is included in the firmware. Unknown falls back to the warning triangle.
+- **`color`**: `red`, `orange`, `yellow`, `green`, `mint`, `blue`, `purple`, `pink`, or
+  `gray` — the same pastel shades as the tiles. Empty gives the white card.
+- **`button_text`**: the text on the button; empty is "OK".
+- **`timeout`**: seconds after which the card disappears on its own; `0` means it waits for the button,
+  however long that takes. The button always closes the card immediately, even with a timeout. Standby and
+  night mode wait as long as the card is showing.
+- **`flash`**: `true` makes the backlight blink four times when the alert arrives.
+
+In ESP Screens, **Settings → Alerts** opens a cheatsheet with the exact action name for each screen,
+a ready-to-paste example, and all fields, icons, and colors. Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false`) if you
+don't use it. A new alert replaces the current one. Every end is reported as the event
+**`esphome.screen_alert`** with `action` (`ok`, `timeout`, `replaced`, or `remote`), `title`,
+`screen`, and the `device_id` that Home Assistant adds, so an automation can wait for OK.
+**`esphome.<screen>_dismiss_alert`** clears the card remotely.
+
+### All screens at once
+
+From app 0.2.45, one event reaches every screen that is online, screens you add later included.
+ESP Screen Manager passes it on to each screen's `show_alert` action. The fields are the same;
+the ones you leave out stay empty:
+
+```yaml
+actions:
+  - event: esp_screens_show_alert
+    event_data:
+      title: "Mail!"
+      subtitle: "There is post in the mailbox"
+      icon: mailbox
+      color: orange
+      timeout: 0
+      flash: true
+```
+
+**`esp_screens_dismiss_alert`** clears the alert on every screen. The app has to be running
+for these two events; the per-screen actions work without it.
+
+### Ask Claude
+
+Use Claude Code in Home Assistant? **Settings → Claude → Install for Claude Code** writes an
+ESP Screens skill to `/homeassistant/.claude/skills/esp-screens`, so Claude knows the events, the
+tile settings and every field, color and icon. Then ask, for example: "Put the vacuum on the living
+room screen", "Give the living room lights a brightness slider and make that tile wide", "Move the
+vacuum to page 1" or "Show an alert on all my screens when the mailbox is full." Claude reads what a
+screen shows from `sensor.esp_screens_<screen>` and asks before it changes anything. **Download for
+claude.ai** gives the same skill as a zip to upload in Claude under Customize → Skills. Nothing is
+written until you press the button.
+
+<p align="center">
+  <img src="docs/images/editor-settings.png" width="80%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">
+</p>
+
+## Wake and sleep from an automation
+
+Every screen has two buttons in Home Assistant (firmware 0.2.45+). An automation presses them
+with the `button.press` action:
+
+- **`button.<screen>_wake`** does what a tap does: a screen in standby lights up, and the standby
+  time starts counting again. On a screen that is already on, only the count starts again.
+- **`button.<screen>_sleep`** puts the screen in standby right away, the same as when the standby
+  time runs out, and also works with **Auto standby** off. The screen stays in standby until someone
+  taps it, **Wake** is pressed or an alert comes in; switching Auto standby off doesn't end it. An alert
+  that is showing closes (reported as `remote`).
+
+Neither button saves anything on the screen, so an automation may press them as often as it likes,
+on every motion too. That is the difference with the **Auto standby** switch, which is a setting.
+To reach several screens at once, list their buttons:
+
+```yaml
+actions:
+  - action: button.press
+    target:
+      entity_id:
+        - button.kitchen_screen_sleep
+        - button.living_room_screen_sleep
+```
+
+Don't target an area or a device with `button.press`: that presses every other button there too,
+the Wake and Sleep of the same screen included.
+
+## Customizing tiles and colors
+
+Click a tile in the screen preview. Under **Pastel background**, choose a color,
+such as red or green. Optionally adjust the name, click action, mini-slider, or large
+value. Click **Save & send to screen** to apply the changes.
+After the first supporting firmware update, this requires no new flash.
+
+<p align="center">
+  <img src="docs/images/editor-tile-settings.png" width="36%" alt="Tile settings: name, icon, display, width, direct control, tap action and pastel background">
+  <img src="docs/images/guition-controls.png" width="60%" alt="The result on the screen: a double-width Heating tile with temperature − and +">
+</p>
+<p align="center"><sub>The settings of the Heating tile, and that tile on the screen: double-width with temperature − / +.</sub></p>
+
+A color is a fixed choice for that tile: it stays red, for example,
+even when you run the all-off script. The entity status and action feedback
+stay separately visible.
+
+## Top bar
+
+At the top of the editor, each screen has its **Top bar**: the name on the left, up to
+six items on the right. **＋ Add** offers the time, an analog clock, and the date (which
+keep ticking on the screen itself, even without Home Assistant), suggestions from your own
+home (temperature and power usage from the screen's room, the weather, how many people are home,
+sunrise and sunset), and a search field for any entity, including a phone
+(`device_tracker`), a lock, the alarm panel, or `zone.home`. Drag the items
+to change their order; tap one to configure it:
+
+- **What to show:** the state as Home Assistant writes it (21.3 °C, 65%,
+  1,249 W, Open/Closed, Home/Away, Armed away), or **Last changed**: "Just now",
+  "5 min ago", "Yesterday". A timestamp sensor can also count forward ("In 2 hours").
+- **Icon:** automatic, matching Home Assistant (an open door gets an open-
+  door icon), a custom icon from the list, or no icon.
+- **Show:** always, or **only when active**: the item only appears when it's
+  on, open, home, or greater than 0. Handy for an open door or a running
+  washing machine. Active items are colored like in Home Assistant (open door amber,
+  alarm armed green, alarm triggered red).
+
+<p align="center">
+  <img src="docs/images/editor-top-bar.png" width="31%" alt="Add to the top bar: the time, an analog clock, the date and suggestions from your own home">
+  <img src="docs/images/guition-home.png" width="49%" alt="The top bar on the screen: outdoor temperature, people at home and the time">
+</p>
+
+The screen preview draws the bar with the same letters and rules as the screen:
+all values on one line with the name, icons aligned to digit height, equal spacing.
+If not everything fits next to the name, the name gets an ellipsis and the screen drops the
+leading items; the editor marks those with dashes. Until updated, older firmware shows
+only the name and the time (if that's in the bar).
+
+## Settings on the screen
+
+Everything you would want to change while standing in front of the panel is on the screen
+itself (firmware 0.2.44+). Tiles, the top bar and the pages stay in ESP Screens, where you
+have a mouse.
+
+**Opening it:** hold the top bar — the strip with the screen's name and the clock — until the
+blue line along the top edge is full, about a second and a half. Letting go early cancels.
+Rather have a button? Put the built-in **Settings** card on a page like any other tile. From
+Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 Brightness,
+2 Night, 3 Screen, 4 This screen, -1 closes it).
+
+| Group | What is on it |
+|---|---|
+| Brightness | Brightness, Auto standby, Standby after, Standby brightness |
+| Night | Night mode, Starts, Ends, Night brightness |
+| Screen | 12/24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages, rotation (boards that turn) |
+| This screen | Name, IP address, firmware version, Home Assistant connected, Restart |
+
+Tap a toggle to flip it, `-` and `+` to change a number or a time — hold them and a time walks
+whole hours — and tap a chip like the clock to cycle it. Every change is saved on the screen,
+takes effect at once, and appears in ESP Screens within a second, so both sides always show
+the same value. The **Screen settings** cards in ESP Screens have the same rows.
+
+**In Home Assistant** (firmware 0.2.49+), every setting is an entity on the screen's device, under
+*Configuration*: `number.<screen>_normal_brightness`, `switch.<screen>_night_mode`,
+`time.<screen>_night_starts`, `switch.<screen>_24_hour_clock`, `select.<screen>_rotation` on a
+Guition, and the rest. An automation, the settings page and ESP Screens all change the same value,
+and setting a value the screen already has costs nothing. The full list is in
+[docs/SETTINGS.md](docs/SETTINGS.md#who-owns-a-setting).
+
+## Updates and keeping your settings
+
+| Change | Action |
+| --- | --- |
+| Tiles, names, colors, or order | Save in ESP Screens; no firmware flash |
+| Screen settings | Change them in ESP Screens (they apply at once), on the screen, or on their entities in Home Assistant |
+| New version of the management page | Update ESP Screen Manager in the HA App store |
+| New feature on the physical screen | The **Update** button on the screen (badge *Update x.y.z*), or **Update automatically every night** under Settings |
+
+Every app version belongs to one firmware version. After an app update, the list
+shows per screen whether newer firmware is available. **Update** builds that screen's own profile
+with the built-in CLI, installs it wirelessly, and waits until the screen is back.
+With the checkbox enabled, that happens automatically at night, one screen at a time; a
+failure stops the round and posts a notification in Home Assistant. Firmware
+0.2.17+ reports its own device name and IP address for this; an older screen asks
+for the IP address once. You can still do it manually via Settings → Firmware & USB → Wi-Fi / OTA.
+
+The device's own YAML and Wi-Fi/API/OTA settings stay in the ESPHome config folder.
+Tile layouts and options live in the app's persistent data. CYD calibration and
+screen preferences stay stored on the device. Updates don't replace this
+user data. Do still make normal Home Assistant backups and keep your
+device profiles; removing an app or wiping flash memory is not an update.
+
+**Efficient, even with many screens (0.2.39 / firmware 0.2.33).** The app sends a
+screen only the tile that changed, as a single action
+(`esphome.<device_name>_screen_message`) instead of chunks in a text field.
+Every two minutes, a small ping follows with the layout revision; if the
+screen reports that it doesn't match (after a restart, for example), everything is resent.
+Firmware 0.2.49+ answers that ping, and a new layout, directly, so a screen that still
+lacks a tile gets it again after 30 seconds instead of two minutes.
+Graphs on sensor tiles come from Home Assistant's statistics, in one
+query for all screens. Older firmware still works via the text field and the
+full resend every two minutes. The diagnostic sensor `Uptime` has been
+replaced by the `Last boot` timestamp.
+
+See the [release history](screen_manager/CHANGELOG.md) and
+[releases and protocol compatibility](docs/RELEASING.md).
+
+**If you publish your own fork:** every push to GitHub is a release. Always also
+bump the add-on version in `screen_manager/config.yaml` and log the change in
+the CHANGELOG, otherwise the HA App store won't offer an update. A change to the
+screen also gets a new `SCREEN_FIRMWARE_VERSION` in both board profiles.
+
+## Guides and installation help
+
+- [Complete installation from ESP Screens](docs/EASY_SETUP.md)
+- [Guition hardware, mounting, and rotation](docs/GUITION.md)
+- [CYD calibration and USB diagnostics](docs/CALIBRATING.md)
+- [Instructions for developers and LLMs](AGENTS.md)
+
+Give a developer or LLM a clean copy of this repository and, for example:
+
+> Read AGENTS.md, README.md, and docs/EASY_SETUP.md. Help me install this CYD or
+> Guition screen via USB on my Home Assistant. Identify
+> the board and use my existing profile if one already exists. Guide me through
+> calibration, HA pairing, tile selection, and physical tests. Keep keys local,
+> and state which checks were actually carried out.
+
+A successful build doesn't prove the physical touch or panel image is correct. The owner
+must check the display and perform the requested taps.
