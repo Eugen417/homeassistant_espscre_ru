@@ -45,6 +45,11 @@ physically tap; an agent cannot replace that with software coordinates.
    owner's permission, and report which checks were actually carried out,
    the limitations, and how long the screen stayed up.
 
+## Owner's machine
+
+On the owner's machine, git-ignored `.esphome/owner-access.md` says how to reach his Home Assistant
+and screens for lookups and tests. If that file is missing you are not on his machine: ask, don't guess.
+
 ## Code and regressions
 
 - Keep base hardware and UI in `home-like-2432s028.yaml`; personal data belongs
