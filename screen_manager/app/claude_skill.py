@@ -181,7 +181,7 @@ actions:
 |---|---|---|---|
 {fields}
 
-Text limits are in bytes; an accented letter takes two. Keep the title short, the CYD shows about forty characters on one line, and put details in the subtitle.
+Text limits are in bytes; an accented letter takes two. Keep the title short: a screen shows about twenty characters of it on one line and ends a longer title with an ellipsis. Put details in the subtitle.
 
 ## Colors
 

@@ -176,6 +176,25 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.64 / firmware 0.2.55
+
+Both board profiles, the Claude skill and the editor's alert tips; the app raises `FIRMWARE_VERSION`. Storage, tile
+protocol, preferences and keys are unchanged.
+
+- `alert_title` gets `height: ${ALERT_TITLE_H}`, one line of its `headline` font: 32 px on the Guition, 21 px on the CYD.
+  That is FreeType's size height of Roboto 500 at 27 and 18 px (`hhea` ascender minus descender, scaled and rounded),
+  which ESPHome 2026.6.2 hands to `lv_font_t.line_height`. LVGL 9.5's `lv_label_refr_text` only puts the dots of
+  `long_mode: DOT` on a label whose wrapped text is taller than the label, and a label without a height is as tall as
+  its wrapped text, so a long title wrapped and ran into `alert_subtitle` (y 68 / 44). With one line of height LVGL
+  breaks that line anywhere and ends it with "...". A title that fits draws the same pixels as before.
+- `tests/test_alert.py` computes the line height from the font file and fails when `ALERT_TITLE_H` differs from it or
+  the title reaches the subtitle: a new `headline` size needs a new `ALERT_TITLE_H` on that board.
+- Older firmware keeps wrapping a long title over the subtitle.
+- `claude_skill.text()` and the alert tips in `static/index.html` said the CYD shows about forty characters of a title.
+  FreeType's advances of Roboto 500 give 20-23 characters before the "..." on the Guition (304 px at 27 px) and 24-25
+  on the CYD (212 px at 18 px), so both now say about twenty. An installed skill shows as outdated until it is
+  installed again.
+
 ### Compatibility 0.2.63 / firmware 0.2.54
 
 Firmware (`components/smart_display`, new `theme.h`), both board profiles and the app's settings. The tile protocol

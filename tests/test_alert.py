@@ -1,5 +1,6 @@
 """The alert a Home Assistant action puts over the whole screen: both board profiles and both remote packages."""
 import re
+import struct
 import sys
 import unittest
 from pathlib import Path
@@ -18,6 +19,20 @@ def section(text, start, end):
 def script(text, name):
     """One script block without its trailing comment lines, which introduce the next script."""
     return re.sub(r'^\s*#.*\n?', '', section(text, f'  - id: {name}\n', '\n  - id: '), flags=re.M)
+
+def line_height(font, size):
+    """LVGL's line height of an ESPHome font: FreeType's size height ('hhea' ascender - descender + line gap, scaled
+    to the pixel size and rounded to whole pixels), which ESPHome hands to lv_font_t.line_height."""
+    data = font.read_bytes()
+    tables = {}
+    for i in range(struct.unpack('>H', data[4:6])[0]):
+        tag, _, offset, _ = struct.unpack('>4sIII', data[12 + 16 * i:28 + 16 * i])
+        tables[tag] = offset
+    units_per_em = struct.unpack('>H', data[tables[b'head'] + 18:tables[b'head'] + 20])[0]
+    ascender, descender, line_gap = struct.unpack('>hhh', data[tables[b'hhea'] + 4:tables[b'hhea'] + 10])
+    scale = ((size * 64) << 16) // units_per_em                          # 16.16
+    height = ((ascender - descender + line_gap) * scale + 0x8000) >> 16  # 26.6 pixels
+    return (height + 32) // 64
 
 class AlertTests(unittest.TestCase):
     def sources(self):
@@ -51,6 +66,19 @@ class AlertTests(unittest.TestCase):
             self.assertIn('cyd::touch_guard.accept(millis(), 13)', ok, name)
             self.assertLess(ok.index('touch_guard.accept'), ok.index('id: alert_dismiss'), name)
             self.assertIn('reason: "ok"', ok, name)
+
+    def test_title_is_one_line_high_so_a_long_title_ends_in_an_ellipsis(self):
+        # LVGL 9.5 only puts the ellipsis on a DOT label whose wrapped text is taller than the label. Without a height
+        # the label grows with its lines instead, and a long title ran into the subtitle.
+        for name, text in self.sources():
+            top = section(section(text, '\nlvgl:\n', '\nscript:\n'), '  top_layer:\n', '  pages:\n')
+            title = section(top, 'id: alert_title\n', 'id: alert_subtitle')
+            self.assertIn('height: ${ALERT_TITLE_H}\n', title, name)
+            self.assertIn('text_font: headline\n', title, name)
+            font, size = re.search(r'(?m)^  - file: "(?:[^"\n]*/)?(fonts/[^"\n]+)"\n    id: headline\n    size: (\d+)$', text).groups()
+            v = lambda key: int(re.search(rf'^  {key}: "(-?\d+)"', text, re.M)[1])
+            self.assertEqual(v('ALERT_TITLE_H'), line_height(ROOT / font, int(size)), name)
+            self.assertLessEqual(v('ALERT_TITLE_Y') + v('ALERT_TITLE_H'), v('ALERT_SUBTITLE_Y'), name)
 
     def test_standby_waits_and_no_other_path_closes_the_card(self):
         for name, text in self.sources():

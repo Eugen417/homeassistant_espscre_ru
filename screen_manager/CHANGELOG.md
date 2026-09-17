@@ -1,3 +1,11 @@
+## 0.2.64 (firmware 0.2.55)
+
+A long alert title stays on its own line.
+
+- **An alert's title no longer runs into the text below it.** A title too long for one line, such as "Washing machine is done" on a Guition, wrapped onto a second line on top of the subtitle. It now ends in an ellipsis on one line, as the alert documentation says: "Washing machine is d...". A title that fits looks exactly as before; put the details in the subtitle.
+- **Claude knows how long a title can be.** The Claude skill and the alert tips in ESP Screens said the CYD shows about forty characters of a title; both screens show about twenty. Install the skill again from Settings → Claude to get it.
+- Needs firmware 0.2.55: press **Update** on the screen. Includes everything from 0.2.63.
+
 ## 0.2.63 (firmware 0.2.54)
 
 Dark mode, for a screen beside the bed.

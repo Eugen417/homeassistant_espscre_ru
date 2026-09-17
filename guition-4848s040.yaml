@@ -2,7 +2,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.54"
+  SCREEN_FIRMWARE_VERSION: "0.2.55"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -60,6 +60,7 @@ substitutions:
   ALERT_TEXT_X: "90"
   ALERT_TEXT_W: "304"
   ALERT_TITLE_Y: "26"
+  ALERT_TITLE_H: "32"         # one line of headline; a DOT label only ends in an ellipsis with a height
   ALERT_SUBTITLE_Y: "68"
   ALERT_SUBTITLE_H: "150"
   ALERT_BUTTON_W: "150"
@@ -1524,6 +1525,7 @@ lvgl:
                       x: ${ALERT_TEXT_X}
                       y: ${ALERT_TITLE_Y}
                       width: ${ALERT_TEXT_W}
+                      height: ${ALERT_TITLE_H}
                       long_mode: DOT
                       text: "Notification"
                       text_font: headline
