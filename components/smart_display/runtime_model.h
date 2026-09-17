@@ -132,6 +132,11 @@ struct Tile {
   float edit_value = NAN; uint32_t edit_since = 0; bool edit_sent = false;
   // Knob position a toggle shows while its command is under way.
   bool optimistic_on = false;
+  // A slider the finger let go stays where it was put while the light fades towards it (firmware 0.2.60+): the value
+  // sent, in the attribute's own unit (brightness 0-255, a fan's percent, a volume 0-1), the value Home Assistant
+  // reported meanwhile, and when the last of those came.
+  float slider_sent = NAN, slider_real = NAN;
+  uint32_t slider_sent_at = 0, slider_state_at = 0;
   // A tap that switched this tile is waiting; `optimistic_prev_on` is the stand to put back on a refusal.
   bool optimistic_tap = false, optimistic_prev_on = false;
   // A sensor's graph: 24 samples over `history_hours`, empty without one.
@@ -184,6 +189,49 @@ struct Tile {
   // message always wins, because it clears the flag in `observe`.
   void optimistic(bool on) { optimistic_prev_on = state == "on"; optimistic_on = on; optimistic_tap = true; state = on ? "on" : "off"; }
   void undo_optimistic() { if (optimistic_tap) { state = optimistic_prev_on ? "on" : "off"; optimistic_tap = false; } }
+  // The attribute a small slider sets: nothing for a cover, whose position slider follows the blind as it moves.
+  float *slider_field() {
+    auto d = domain();
+    return d == "light" ? &brightness : d == "fan" ? &percentage : d == "media_player" ? &volume : nullptr;
+  }
+  // Holding a slider: from the send until Home Assistant reports a value within 3 % of it, reports the entity off or
+  // unavailable, refuses, or reports once and then stays quiet for SLIDER_SETTLE (a fan that only knows 33/66/100
+  // took the nearest step). A hold never outlives SLIDER_HOLD_CAP, and with no report at all it ends with the wait.
+  static constexpr uint32_t SLIDER_HOLD_CAP = 8000, SLIDER_SETTLE = 1500;
+  bool slider_holding(uint32_t now) const {
+    if (!std::isfinite(slider_sent) || refused_at || now - slider_sent_at >= SLIDER_HOLD_CAP) return false;
+    if (!slider_state_at) return waiting(now) || answered_at;
+    return now - slider_state_at < SLIDER_SETTLE;
+  }
+  float slider_span() const { return domain() == "light" ? 255 : domain() == "media_player" ? 1 : 100; }
+  // The finger let go: the field shows the value sent from now on.
+  void hold_slider(uint32_t now, float value) {
+    float *field = slider_field();
+    if (!field) return;
+    slider_sent = value; slider_real = *field; slider_sent_at = now; slider_state_at = 0; *field = value;
+    // A slider on an off light or fan turns it on, so the tile lights up with it, as after a tap.
+    if (domain() != "media_player" && state == "off") optimistic(true);
+  }
+  // A state came in with `field` already parsed: keep the sent value in front while the hold goes on.
+  void slider_reported(uint32_t now) {
+    float *field = slider_field();
+    if (!field || !std::isfinite(slider_sent)) return;
+    float real = *field;
+    bool moved = !std::isfinite(slider_real) ? std::isfinite(real) : std::isfinite(real) && std::fabs(real - slider_real) > 0.5f * slider_span() / 100;
+    slider_real = real;
+    bool reached = std::isfinite(real) && std::fabs(real - slider_sent) <= 3 * slider_span() / 100;
+    bool off = !slider_active();
+    if (reached || off || refused_at) { slider_sent = NAN; return; }
+    if (moved) slider_state_at = std::max<uint32_t>(1, now);
+    if (!slider_holding(now)) { slider_sent = NAN; return; }
+    *field = slider_sent;
+  }
+  // The hold ran out without a report that ended it: what Home Assistant last said shows again.
+  void release_slider() {
+    float *field = slider_field();
+    if (field && std::isfinite(slider_sent)) *field = slider_real;
+    slider_sent = NAN;
+  }
   std::string domain() const { return entity.substr(0, entity.find('.')); }
   bool builtin() const { return domain() == "screen"; }
   // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.

@@ -176,6 +176,25 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.71 / firmware 0.2.60
+
+Firmware only (`runtime_model.h`, `runtime_tiles.h`); the app raises `FIRMWARE_VERSION`. No protocol, storage or
+editor change, and an older app drives this firmware as before.
+
+- `Tile::hold_slider(now, value)`, called from `commit_slider` for a light (brightness 0-255), fan (percent) and
+  media player (volume 0-1), writes the sent value into the attribute (`slider_field`) and keeps what Home Assistant
+  reported in `slider_real`. A cover is left out: its position slider follows the blind as it moves. On an off light
+  or fan it also calls `optimistic(true)`, like a tap.
+- `Tile::slider_reported(now)` runs in the state ingestion right after the attribute is parsed. It ends the hold when
+  the report is within 3 % of the target (`slider_span`), when `slider_active()` is false (off, unavailable), or on a
+  refusal; otherwise it keeps the sent value in front and notes `slider_state_at` when the reported value moved.
+- `Tile::slider_holding(now)`: no report yet, hold while `waiting(now)` or once `answered_at` is set; after a report,
+  hold for `SLIDER_SETTLE` (1500 ms) since the last movement; never beyond `SLIDER_HOLD_CAP` (8000 ms) from the send.
+  The once-a-second tick calls `release_slider()` (puts `slider_real` back) when a hold has run out, and the refusal
+  callback does the same next to `undo_optimistic`.
+- `slider_value(t)` and the tile's `%` label read the attribute, so every slider and label agrees without a change of
+  its own. Firmware before 0.2.60 keeps snapping to each report; the app sends nothing new.
+
 ### Compatibility 0.2.70 / firmware 0.2.59
 
 Firmware only (`runtime_model.h`, `runtime_tiles.h`, `tile_controls.h`); the app raises `FIRMWARE_VERSION`. No

@@ -536,6 +536,7 @@ inline std::string receive(const std::string &payload) {
     tile.unit = string(a["unit_of_measurement"], 20);
     tile.brightness = number(a["brightness"]);
     tile.percentage = number(a["percentage"]);
+    tile.slider_reported(esphome::millis());
     tile.position = number(a["current_position"]);
     next.tilt = number(a["current_tilt_position"]);
     tile.current = number(a["current_temperature"]);
@@ -663,6 +664,7 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
     for (size_t i = 0; i < model.tiles.size(); ++i) if (model.tiles[i].entity == entity) {
       model.tiles[i].pending = false;
       model.tiles[i].undo_optimistic();
+      model.tiles[i].release_slider();
       model.tiles[i].refused_at = std::max<uint32_t>(1, esphome::millis());
       refresh_tile(i);
     }
@@ -812,10 +814,11 @@ inline void commit_slider(unsigned i,int raw){
   if(i>=model.count || !fresh())return;auto &t=model.tiles[i];if(!t.available() || t.waiting(esphome::millis()))return;
   float value=std::clamp(raw,0,1000)/1000.0f;auto d=t.domain();
   // A light's slider stops at 1 %, as in Home Assistant; tapping the card turns it off.
-  if(d=="light")action("light.turn_on",t.entity,"brightness",std::to_string(std::max(3,(int)std::lround(value*255))));
-  if(d=="fan")action("fan.set_percentage",t.entity,"percentage",std::to_string((int)std::lround(value*100)));
+  // The slider stays where the finger left it while the light fades towards it (Tile::hold_slider).
+  if(d=="light"){int sent=std::max(3,(int)std::lround(value*255));action("light.turn_on",t.entity,"brightness",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
+  if(d=="fan"){int sent=(int)std::lround(value*100);action("fan.set_percentage",t.entity,"percentage",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
   if(d=="cover")action("cover.set_cover_position",t.entity,"position",std::to_string((int)std::lround(value*100)));
-  if(d=="media_player")action("media_player.volume_set",t.entity,"volume_level",std::to_string(value));
+  if(d=="media_player"){action("media_player.volume_set",t.entity,"volume_level",std::to_string(value));t.hold_slider(esphome::millis(),value);}
   if(d=="number"||d=="input_number") {
     if(!std::isfinite(t.minimum)||!std::isfinite(t.maximum)||t.maximum<=t.minimum||t.step<=0)return;
     value=std::clamp(t.minimum+std::round(value*(t.maximum-t.minimum)/t.step)*t.step,t.minimum,t.maximum);
@@ -3198,6 +3201,8 @@ inline void tick() {
   for(size_t i=0;i<model.tiles.size();++i){
     auto &t=model.tiles[i];
     if(t.refused_at && esphome::millis()-t.refused_at>=4000){t.refused_at=0;card(i);}
+    // A held slider whose light never got there shows what Home Assistant last reported again.
+    if(std::isfinite(t.slider_sent) && !t.slider_holding(esphome::millis())){t.release_slider();card(i);}
     if(!t.pending || t.waiting(esphome::millis()))continue;
     // A vacuum chip Home Assistant never confirmed goes back to what the robot reports.
     bool sent=false;if(auto *x=t.extra_ptr())for(auto &c:x->choices)sent=sent||!c.sent.empty();

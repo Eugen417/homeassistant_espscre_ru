@@ -1,3 +1,12 @@
+## 0.2.71 (firmware 0.2.60)
+
+A small slider stays where you leave it while the lights fade towards it.
+
+- **No jump back after a drag.** Drag the small slider on a light tile and let go, and it stays at that value while your lamps fade up or down. Before, a slow lamp or a group of lamps reported every step of the fade, and the slider jumped back to the old value and then crept up to the new one. The value on the tile follows the slider. The same goes for a fan's speed and a speaker's volume; a blind's position slider still follows the blind as it moves, because that is what it is for.
+- **Home Assistant still has the last word.** The slider lets go the moment Home Assistant reports a value within 3 % of what you asked, reports the light off, or refuses. A device that stops short, such as a fan that only knows 33, 66 and 100 %, shows its own value a moment and a half after its last report. Without any report at all the slider goes back with the wait, after three seconds, and no hold lasts longer than eight.
+- **A drag on an off light lights the tile up at once**, as a tap does since 0.2.70.
+- Needs firmware 0.2.60: press **Update** on the screen. Includes everything from 0.2.70.
+
 ## 0.2.70 (firmware 0.2.59)
 
 A tap looks instant, and the spinner only shows up when something really takes a while.

@@ -2,7 +2,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.59"
+  SCREEN_FIRMWARE_VERSION: "0.2.60"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
