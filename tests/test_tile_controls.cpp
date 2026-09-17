@@ -170,5 +170,13 @@ int main() {
   assert(old_robot2.choice('s') && old_robot2.choice('s')->labels[1] == "Normal" && old_robot2.choice('s')->current == "balanced");
   rows = vacuum_rows(old_robot2, 0);
   assert(rows.suction && !rows.water && !choice_action(old_robot2, 'm', "mop").valid());
+
+  // Binary sensors (firmware 0.2.53+) in the words of their device class; no class or an unknown one says On and Off.
+  assert(!strcmp(binary_state_text("door", true), "Open") && !strcmp(binary_state_text("door", false), "Closed"));
+  assert(!strcmp(binary_state_text("motion", true), "Motion") && !strcmp(binary_state_text("motion", false), "No motion"));
+  assert(!strcmp(binary_state_text("moisture", true), "Wet") && !strcmp(binary_state_text("moisture", false), "Dry"));
+  assert(!strcmp(binary_state_text("battery_charging", false), "Not charging") && !strcmp(binary_state_text("battery", true), "Low"));
+  assert(!strcmp(binary_state_text("", true), "On") && !strcmp(binary_state_text("", false), "Off"));
+  assert(!strcmp(binary_state_text("future_class", true), "On") && !strcmp(binary_state_text("Door", true), "On"));
   return 0;
 }

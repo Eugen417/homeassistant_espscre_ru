@@ -135,6 +135,27 @@ inline const char *media_state_text(const std::string &state) {
   if (state == "off") return "Off";
   return state.c_str();
 }
+// A binary sensor's state in Home Assistant's words for its device class: a door is Open or Closed, a leak sensor
+// Wet or Dry. The same words as the add-on's header_bar.BINARY_STATES, which the top bar and the history card show;
+// tests/test_binary_words.py keeps the two tables equal. Without a class, or with one this table lacks: On and Off.
+struct BinaryWords { const char *device_class, *on, *off; };
+constexpr BinaryWords BINARY_WORDS[] = {
+    {"battery", "Low", "Normal"}, {"battery_charging", "Charging", "Not charging"},
+    {"carbon_monoxide", "Danger", "Safe"}, {"cold", "Cold", "Normal"}, {"connectivity", "Connected", "Disconnected"},
+    {"door", "Open", "Closed"}, {"garage_door", "Open", "Closed"}, {"gas", "Danger", "Safe"},
+    {"heat", "Hot", "Normal"}, {"light", "Light", "Dark"}, {"lock", "Open", "Locked"}, {"moisture", "Wet", "Dry"},
+    {"motion", "Motion", "No motion"}, {"moving", "Moving", "Still"}, {"occupancy", "Occupied", "Clear"},
+    {"opening", "Open", "Closed"}, {"plug", "Plugged in", "Unplugged"}, {"power", "On", "Off"},
+    {"presence", "Home", "Away"}, {"problem", "Problem", "OK"}, {"running", "Active", "Inactive"},
+    {"safety", "Unsafe", "Safe"}, {"smoke", "Smoke", "No smoke"}, {"sound", "Sound", "Silent"},
+    {"tamper", "Tampering", "OK"}, {"update", "Update", "Up to date"}, {"vibration", "Vibration", "Still"},
+    {"window", "Open", "Closed"},
+};
+inline const char *binary_state_text(const std::string &device_class, bool on) {
+  for (const auto &words : BINARY_WORDS)
+    if (device_class == words.device_class) return on ? words.on : words.off;
+  return on ? "On" : "Off";
+}
 // Status line beside a control panel: what Home Assistant shows under the name.
 inline std::string status_text(const Tile &t) {
   auto d = t.domain(); char b[48];

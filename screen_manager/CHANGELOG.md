@@ -1,3 +1,12 @@
+## 0.2.62 (firmware 0.2.53)
+
+On or off at a glance, in Home Assistant's words and colours.
+
+- **A door says Open or Closed.** A binary sensor's tile and card use the words of its kind, the same ones the top bar and the history card show: a door or window Open or Closed, motion Motion or No motion, a leak sensor Wet or Dry, and so on for smoke, battery, connectivity, plugs and the rest. A sensor without a kind still says On or Off.
+- **Off looks off.** A light or binary sensor that is off turns grey, as in Home Assistant, and a light without an icon of its own shows a crossed-out bulb while it is off, in the top bar too. An icon you chose stays the same and turns grey, as Home Assistant does with an icon of its own.
+- **The history card's heading is right while it loads.** It said On until the history arrived, and a card opened after another one could show that card's word for a moment, such as Open on a motion sensor.
+- Needs firmware 0.2.53: press **Update** on the screen. Older firmware keeps On, Off and its colours, and shows an off light in the top bar without an icon.
+
 ## 0.2.61 (firmware 0.2.52)
 
 Your own YAML for one screen, kept through updates.

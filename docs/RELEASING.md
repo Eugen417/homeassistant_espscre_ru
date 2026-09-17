@@ -176,6 +176,30 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.62 / firmware 0.2.53
+
+Firmware (`components/smart_display`), the icon fonts and the top bar's icon. Storage, tile protocol, preferences and
+keys are unchanged; nothing new on the wire.
+
+- A binary sensor's tile (`render_slot`) and card (`detail_state`) turn `on`/`off` into words with
+  `tile_controls::binary_state_text(device_class, on)`, from the `device_class` attribute every state message has
+  carried since app 0.2.23. `BINARY_WORDS` is a copy of the app's `header_bar.BINARY_STATES` (top bar, history card
+  `states` and `words`); `tests/test_binary_words.py` keeps them equal, so change a word in both in one release.
+- The screen maps the class itself instead of the app sending words: it works with every app since 0.2.23 (screens
+  build from `ref: main`, so new firmware can meet an older app), costs the CYD no RAM per tile (the table lives in
+  flash, the class was already kept), and adds no field for older firmware to ignore.
+- `history_words` reads `history.words` only for the card's own entity. A card waiting for its history used to take
+  the previous card's words (a motion sensor opened after a door read "Open", a switch too).
+- Off looks off, as Home Assistant's frontend does it (checked on the `dev` branch and on a live dashboard):
+  `light/icons.json` gives `mdi:lightbulb`, and `mdi:lightbulb-off` while off; anything off takes
+  `--state-inactive-color` (grey); an entity's own icon never changes. `icon_for` draws F0E4F for a light without
+  `tile.icon` while it is off (its own `if`, so `test_tile_icons` still reads the domain default), `render_slot` greys
+  lights and binary sensors that are not active, as it did for switches, people and timers, and
+  `header_bar.auto_icon` gives an off light the same bulb. `lightbulb-off` joins `tile_icons.FIXED`: one glyph more in
+  the three icon fonts of both boards and in the editor font.
+- App 0.2.62 with firmware 0.2.52 or older: tiles unchanged; an off light's top bar item shows without an icon, since
+  that firmware drops a glyph its font lacks (`has_icon_glyph`).
+
 ### Compatibility 0.2.60 / firmware 0.2.52
 
 `components/smart_display` and both board profiles; the app only raises `FIRMWARE_VERSION`. Storage, tile protocol,

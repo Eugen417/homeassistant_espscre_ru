@@ -632,6 +632,7 @@ inline std::string detail_state(const Tile &t){
   if(t.domain()=="sun")return t.state=="above_horizon"?"Above the horizon":"Below the horizon";
   if(t.domain()=="timer")return timer_text(t);
   if(t.domain()=="script"||t.domain()=="scene"||t.domain()=="button"||t.domain()=="input_button")return t.state=="on"?"Running...":last_run_text(t.last_run);
+  if(t.domain()=="binary_sensor"&&(t.state=="on"||t.state=="off"))return tile_controls::binary_state_text(t.device_class,t.state=="on");
   if(t.state=="on")return "On";
   if(t.state=="off")return "Off";
   if(t.state=="docked")return "Docked";
@@ -1235,10 +1236,11 @@ inline bool history_fits(const Tile &t){
   return history.entity==t.entity&&history.hours==history_hours&&
     (history_answered||esphome::millis()-history_received_at<60000);
 }
-// Home Assistant's word for the state now: from the history's words, else the card's own.
+// Home Assistant's word for the state now: from this entity's history words, else the card's own. The history can
+// still be the previous card's while this one waits for its answer.
 inline std::string history_words(const Tile &t){
   if(!t.available())return "Unavailable";
-  for(const auto &pair:history.words)if(pair.first==t.state)return pair.second;
+  if(history.entity==t.entity)for(const auto &pair:history.words)if(pair.first==t.state)return pair.second;
   return detail_state(t);
 }
 inline std::string history_clock(uint32_t epoch,bool weekday){
@@ -1651,6 +1653,8 @@ inline const char *weather_text(const std::string &condition) {
 inline const char *icon_for(const Tile &tile) {
   if (!tile.icon.empty()) return tile.icon.c_str();
   auto d = tile.domain();
+  // Home Assistant's own icon: a bulb, crossed out while off. A chosen icon stays, as in Home Assistant.
+  if (d == "light" && tile.state == "off") return "\U000F0E4F";
   if (d == "light") return "\U000F0335";
   if (d == "climate") return "\U000F001B";
   if (d == "vacuum") return "\U000F070D";
@@ -2371,6 +2375,7 @@ inline void render_slot(size_t slot) {
   else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? t.extra().sunrise+" - "+t.extra().sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
   else if (d == "timer") value = timer_text(t);
   else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Running..." : last_run_text(t.last_run);
+  else if (d == "binary_sensor" && (value == "on" || value == "off")) value = tile_controls::binary_state_text(t.device_class, value == "on");
   else if (value == "on") value = "On";
   else if (value == "off") value = "Off";
   else if (value == "cleaning") value = "Cleaning";
@@ -2469,7 +2474,8 @@ inline void render_slot(size_t slot) {
   if (w.cached_active == palette_state && !w.panel_dirty) { lap(swipe_profile::GEOMETRY); return; }
   w.cached_active = palette_state;w.panel_dirty=false;
   uint32_t accent = domain_accent(t);
-  auto color=lv_color_hex((t.is_switch()||d=="person"||d=="timer") && !on ? 0x9E9E9E : accent);
+  // Off is grey, as in Home Assistant, so a light or a door sensor shows its state at a glance.
+  auto color=lv_color_hex((t.is_switch()||d=="light"||d=="binary_sensor"||d=="person"||d=="timer") && !on ? 0x9E9E9E : accent);
   if(d=="light" && on && t.has_hs_color)
     color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
   auto circle_color=available?lv_color_mix(color,lv_color_hex(0xFFFFFF),38):lv_color_hex(0xF0F0F0);

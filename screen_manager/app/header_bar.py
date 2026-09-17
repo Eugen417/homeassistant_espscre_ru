@@ -38,7 +38,8 @@ STATES = {
     'armed_vacation': 'Armed vacation', 'armed_custom_bypass': 'Armed', 'arming': 'Arming', 'pending': 'Pending',
     'triggered': 'Triggered', 'active': 'Active', 'above_horizon': 'Up', 'below_horizon': 'Down',
 }
-# device_class: (on, off)
+# device_class: (on, off). Tiles and cards show the same words from the screen's own copy, BINARY_WORDS in
+# components/smart_display/tile_controls.h (firmware 0.2.53+); tests/test_binary_words.py keeps the two equal.
 BINARY_STATES = {
     'battery': ('Low', 'Normal'), 'battery_charging': ('Charging', 'Not charging'), 'carbon_monoxide': ('Danger', 'Safe'),
     'cold': ('Cold', 'Normal'), 'connectivity': ('Connected', 'Disconnected'), 'door': ('Open', 'Closed'),
@@ -245,6 +246,8 @@ def auto_icon(entity, state):
     domain, device_class = entity.split('.')[0], attrs.get('device_class')
     if domain == 'weather':
         name = tile_icons.WEATHER.get(raw, 'weather-partly-cloudy')
+    elif domain == 'light' and raw == 'off':
+        name = 'lightbulb-off'
     elif domain == 'sun':
         name = 'weather-sunset-down' if raw == 'above_horizon' else 'weather-sunset-up'
     elif domain == 'binary_sensor' and device_class in BINARY_ICONS:

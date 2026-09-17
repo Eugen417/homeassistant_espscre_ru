@@ -190,6 +190,7 @@ inline constexpr Named NAMES[] = {
   {"monitor", 0xF0379},
   {"information-outline", 0xF02FD},
   {"restart", 0xF0709},
+  {"lightbulb-off", 0xF0E4F},
 };
 inline constexpr size_t NAME_COUNT = sizeof(NAMES) / sizeof(NAMES[0]);
 // Codepoint of a name the fonts carry; 0 for any other name.

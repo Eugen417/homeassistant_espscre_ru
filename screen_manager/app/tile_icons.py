@@ -224,6 +224,8 @@ FIXED = (
     ('monitor', 'F0379'),
     ('information-outline', 'F02FD'),
     ('restart', 'F0709'),
+    # A light that is off, as Home Assistant shows one without an icon of its own (firmware 0.2.53+).
+    ('lightbulb-off', 'F0E4F'),
 )
 
 # Pickable icons by name, and every glyph the firmware fonts contain.
