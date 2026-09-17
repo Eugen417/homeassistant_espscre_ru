@@ -75,6 +75,9 @@ under **Settings → Devices & services** in Home Assistant, and then choose the
 - **USB (Linux only):** connect the screen, uncomment `devices:` in `compose.yaml` with its
   port (`/dev/ttyUSB0` or `/dev/ttyACM0`), and run `docker compose up -d` again. Installs
   over Wi-Fi (OTA) and the nightly updates need nothing extra.
+- **Without USB passthrough (app 0.2.68+):** in **New screen**, choose **Download · flash from
+  your own computer**. The container builds the firmware, and you put it on the screen with
+  [ESPHome Web](https://web.esphome.io) in Chrome or Edge on the computer the screen is plugged into.
 - **Backups:** Home Assistant backups don't include this container. Keep a copy of
   `data/screens.json` and `data/updates.json` (layouts and update settings) and of the
   ESPHome folder. `data/build` and `data/platformio` are caches.

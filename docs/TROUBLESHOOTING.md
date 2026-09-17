@@ -6,6 +6,7 @@
 | Permission denied on Linux | Access to the serial device group (often `dialout`); log in again after a group change. |
 | Port busy | Stop ESPHome logs, the IDE monitor, and other serial readers. One reader at a time. |
 | Upload keeps connecting | Check the correct board/port. Hold BOOT while connecting and release afterward if the board requires it. |
+| ESPHome Web shows no port or can't connect (Download) | Chrome or Edge on a computer; Safari, Firefox and phones can't reach USB. A data cable, and the driver for the board's USB chip if the computer asks for one (CH340 on most CYDs). Hold BOOT while choosing the port if it keeps failing to connect. |
 | Build fails | Python 3.11–3.14 and ESPHome 2026.6.2; the full unpacked folder, local fonts/components present, internet, and disk space. Save the first real error from the build log. |
 | White/black or wrongly rotated image | Check the ILI9341 + XPT2046 variant. Don't blindly copy the pins, rotation, or SPI settings from a different CYD model. |
 | No measurement screen | The upload must be complete, not just the build. Flash with `-s CALIBRATION_ON_BOOT true`. Look for `USB calibration ready` in the USB logs; a normal boot shows no crosshairs. |

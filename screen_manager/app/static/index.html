@@ -248,9 +248,10 @@
         </div>
         <div id="install-setup">
           <p>
-            Connect the screen with a USB data cable to the machine running Home
-            Assistant. ESP Screens creates its own profile with unique
-            keys, builds the firmware, and puts it straight on the screen.
+            ESP Screens creates the screen's own profile with unique keys and
+            builds the firmware. Connect the screen with a USB data cable to the
+            machine running Home Assistant, or download the firmware and put it
+            on the screen from your own computer.
           </p>
           <fieldset>
             <legend>Which screen do you have?</legend>
@@ -285,7 +286,7 @@
           <label id="node-label" hidden
             >Device name<input
               name="name"
-              pattern="[a-z][a-z0-9-]{0,29}"
+              pattern="[a-z][a-z0-9\-]{0,29}"
               maxlength="30"
               autocomplete="off" /><small
               >Lowercase letters, digits, and dashes. A different name for
@@ -322,6 +323,11 @@
             <strong id="progress-title"></strong>
           </div>
           <p id="progress-detail"></p>
+          <div id="install-download" class="download-box" hidden>
+            <a class="button" id="download-firmware" href="">Download firmware</a>
+            <ol class="steps" id="download-steps"></ol>
+            <small>The file holds your Wi-Fi password and the screen's keys: keep it to yourself.</small>
+          </div>
           <div id="install-result" hidden>
             <div class="key-box">
               <span>API key</span><code id="api-key"></code>
@@ -355,7 +361,8 @@
       <p>
         The built-in ESPHome CLI uses your own profile (YAML with keys)
         and secrets. Choose the screen's profile, then a USB port (screen
-        connected to the Home Assistant machine) or <b>Wi-Fi / OTA</b> with the hostname.
+        connected to the Home Assistant machine), <b>Wi-Fi / OTA</b> with the hostname,
+        or <b>Download</b> to put the firmware on the screen from your own computer.
         <b>Check</b> only validates, <b>Build only</b> compiles,
         <b>Build & install</b> puts the firmware on the screen. Your tiles
         stay as they are in ESP Screens. The first build takes a few minutes.
@@ -377,6 +384,15 @@
         ><button id="firmware-install">Build & install</button>
       </div>
       <p id="firmware-status" role="status"></p>
+      <div id="firmware-download" class="download-box" hidden>
+        <a class="button" id="firmware-download-link" href="">Download firmware</a>
+        <small>
+          Put it on the screen with
+          <a href="https://web.esphome.io/?dashboard_install" target="_blank" rel="noopener">ESPHome Web</a>
+          in Chrome or Edge: Connect, choose the screen's USB port, Install, and select this file.
+          It holds your Wi-Fi password and the screen's keys: keep it to yourself.
+        </small>
+      </div>
       <pre id="firmware-log"></pre>
     </dialog>
     <dialog id="override-dialog" class="override-dialog" aria-labelledby="override-title">

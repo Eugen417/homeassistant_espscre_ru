@@ -1335,6 +1335,32 @@ pre {
   overflow-wrap: anywhere;
   font-size: 12px;
 }
+/* Download: the built firmware and how to put it on the screen from your own computer. */
+.download-box {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #f7f9fc;
+  margin: 4px 0 16px;
+}
+.download-box a.button {
+  background: var(--accent);
+  color: white;
+  overflow-wrap: anywhere;
+}
+.download-box .steps {
+  margin: 14px 0 6px;
+}
+.download-box .steps li {
+  margin-bottom: 6px;
+}
+.download-box a:not(.button) {
+  color: var(--accent);
+}
+.download-box > small {
+  margin-top: 10px;
+  line-height: 1.45;
+}
 #install-log-wrap {
   margin-top: 12px;
 }

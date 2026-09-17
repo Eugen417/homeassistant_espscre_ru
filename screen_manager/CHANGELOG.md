@@ -1,3 +1,15 @@
+## 0.2.68 (firmware 0.2.58)
+
+Put a new screen on from your own computer.
+
+- **Download the firmware.** **New screen** has a new choice under **Install via**: **Download · flash from your own computer**, for when the machine running Home Assistant is out of reach of the screen, such as a server, a virtual machine or a Docker host. ESP Screens builds the firmware as always and then offers the file, such as `kitchen.factory.bin`, with three steps: plug the screen into your computer, open ESPHome Web in Chrome or Edge and click Connect, then Install with that file. Pairing works as before, and after the first install every update goes over Wi-Fi.
+- **USB on the Home Assistant machine stays first.** The list always starts with USB, also before a board is plugged in, and picks the board as soon as it shows up. **Download** and **Later** stay chosen once you pick them.
+- **Firmware & USB** has the same **Download** choice for an existing profile: **Build & download** gives you that profile's file. Its USB entry is there before a board is plugged in too, and the list follows a board you plug in while the window is open.
+- **Only a fresh file.** A download is always the result of the latest successful build of that profile: while a build runs or after one fails, there is nothing to download. The file holds your Wi-Fi password and the screen's keys, and the window says so next to the button.
+- **The card under My screens knows.** A screen whose firmware was downloaded but isn't in Home Assistant yet says so, and what comes next.
+- **The device name is checked while you type.** Current Chrome ignored the check behind **customize**, so a name with a capital or a space was only refused after clicking Install.
+- No firmware change: firmware stays 0.2.58. Includes everything from 0.2.67.
+
 ## 0.2.67 (firmware 0.2.58)
 
 Tiles take what they can do, their words and their icons from Home Assistant, and a tap can run any action Home Assistant offers.

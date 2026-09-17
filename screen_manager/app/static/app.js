@@ -505,7 +505,9 @@ function renderPending() {
       node("strong", p.friendly),
       node("small", p.installed
         ? "Installed, but not yet in Home Assistant. That happens outside ESP Screens: add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and turn on “Allow the device to perform Home Assistant actions” under Configure."
-        : `Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Settings → Firmware & USB → ${p.file}.`),
+        : p.downloaded
+          ? "Firmware downloaded, not yet in Home Assistant. Put it on the screen with ESPHome Web, then add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and turn on “Allow the device to perform Home Assistant actions” under Configure."
+          : `Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Settings → Firmware & USB → ${p.file}.`),
     );
     const actions = node("div", undefined, "pending-actions");
     const go = node("button", "Open Devices & services", "mini");
@@ -2371,8 +2373,15 @@ for (const [value, label] of [
 // ----- New screen: profile, Wi-Fi, and the first flash in one window -----
 const installer = {
   poll: null, view: "setup", file: null, friendly: "", board: "cyd", target: "",
-  apiKey: null, nodeEdited: false, ports: null, jobState: null,
+  apiKey: null, nodeEdited: false, ports: null, jobState: null, picked: false, action: null,
 };
+// Download: ESP Screens builds, the owner flashes the file from their own computer. ESPHome Web is ESPHome's own
+// browser flasher; this address opens it with its hint for a downloaded project (as ESPHome Device Builder does).
+const ESPHOME_WEB = "https://web.esphome.io/?dashboard_install";
+const DOWNLOAD_TARGET = "Download · flash from your own computer";
+function firmwareFile(file) {
+  return { href: `api/firmware/profiles/${encodeURIComponent(file)}/download`, name: file.replace(/\.yaml$/, "") + ".factory.bin" };
+}
 // ESPHome's node-name rule: lowercase ASCII, digits and dashes, starting with a letter.
 function slug(text) {
   const clean = text.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "")
@@ -2394,23 +2403,29 @@ function renderTargets(ports) {
   if (installer.ports === key) return;
   installer.ports = key;
   const current = select.value;
-  const later = node("option", "Later · save profile only");
-  later.value = "";
-  select.replaceChildren(...ports.map((p) => { const o = node("option", portLabel(p)); o.value = p; return o; }), later);
-  select.value = ports.includes(current) ? current : ports[0] || "";
+  const option = (value, text) => { const o = node("option", text); o.value = value; return o; };
+  // USB on the Home Assistant machine is always listed first, also before a board is plugged in, so nobody
+  // concludes it isn't possible; "usb" stands for that port until one shows up.
+  const usb = ports.length ? ports.map((p) => option(p, portLabel(p))) : [option("usb", "USB · no board found on the Home Assistant machine yet")];
+  select.replaceChildren(...usb, option("download", DOWNLOAD_TARGET), option("", "Later · save profile only"));
+  // Download or Later stays once the owner chose it; a USB choice follows the board.
+  const kept = current === "download" || current === "" ? installer.picked : ports.includes(current);
+  select.value = kept ? current : ports[0] || "usb";
   renderTargetHint();
 }
 function renderTargetHint() {
   const select = $("#install-target");
-  const ports = select.options.length - 1;
-  $("#target-hint").textContent = !ports
-    ? "No USB port found. Connect the screen with a data cable to the Home Assistant machine; the list refreshes on its own."
-    : !select.value
-      ? "The profile goes into the ESPHome folder. You can install later via Settings → Firmware & USB, or from ESPHome Device Builder."
-      : ports > 1
-        ? "More than one board connected: choose this screen's port."
-        : "Once over USB; after that, everything is wireless.";
-  $("#install-go").textContent = select.value ? "Install" : "Save profile";
+  const ports = [...select.options].filter((o) => o.value.startsWith("/")).length;
+  $("#target-hint").textContent = select.value === "usb"
+    ? "Connect the screen with a USB data cable to the Home Assistant machine; the list refreshes on its own. Or choose Download to use your own computer."
+    : select.value === "download"
+      ? "Download the firmware and put it on the screen from your own computer, in Chrome or Edge. After that, updates go over Wi-Fi."
+      : !select.value
+        ? "The profile goes into the ESPHome folder. You can install later via Settings → Firmware & USB, or from ESPHome Device Builder."
+        : ports > 1
+          ? "More than one board connected: choose this screen's port."
+          : "Once over USB; after that, everything is wireless.";
+  $("#install-go").textContent = select.value === "download" ? "Build & download" : select.value ? "Install" : "Save profile";
 }
 function renderWifi(wifi) {
   const fields = $("#wifi-fields");
@@ -2453,7 +2468,9 @@ async function installerRefresh() {
       : !data.available && flashing
         ? "The ESPHome CLI is missing from this installation; only saving the profile is possible."
         : wifiNote;
-    $("#install-go").disabled = data.wifi?.state === "invalid" || (flashing && (busy || !data.available));
+    // "usb" without a port: the button waits for the board, the hint under the list says where to plug it in.
+    $("#install-go").disabled = data.wifi?.state === "invalid" || $("#install-target").value === "usb" ||
+      (flashing && (busy || !data.available));
   } else if (installer.view === "progress" && ours) {
     renderProgress(job, data.logs);
   }
@@ -2475,26 +2492,34 @@ function outcome(ok) {
 function renderProgress(job, logs) {
   const running = job.state === "running";
   const ok = job.state === "success";
+  const download = job.action === "download";
+  installer.action = job.action;
   if (running) {
     $("#progress-spin").hidden = false;
     $("#progress-mark").hidden = true;
   } else outcome(ok);
-  $("#install-title").textContent = running ? "One moment…" : ok ? "Done." : "That didn't work.";
+  $("#install-title").textContent = running ? "One moment…" : ok ? (download ? "Ready to download." : "Done.") : "That didn't work.";
   $("#progress-title").textContent = running
     ? job.stage === "upload" ? `Writing firmware to ${installer.friendly}…` : "Building firmware…"
-    : ok ? `Firmware is on ${installer.friendly}` : "Install failed";
+    : ok
+      ? download ? `Firmware for ${installer.friendly} is ready` : `Firmware is on ${installer.friendly}`
+      : download ? "Build failed" : "Install failed";
   $("#progress-detail").textContent = running
     ? job.stage === "upload"
       ? "Don't disconnect the USB cable yet."
-      : "A first build takes a few minutes on a Raspberry Pi. You can close this window: the installation keeps running and you'll find it again under New screen."
+      : `A first build takes a few minutes on a Raspberry Pi. You can close this window: the ${download ? "build" : "installation"} keeps running and you'll find it again under New screen.`
     : ok
-      ? `The screen boots up and connects to your Wi-Fi.${installer.board === "cyd" ? " The CYD first asks for a touch calibration: tap the crosshairs." : ""} Pair it with Home Assistant now:`
+      ? download
+        ? "Put it on the screen from your own computer, then pair the screen with Home Assistant."
+        : `The screen boots up and connects to your Wi-Fi.${installer.board === "cyd" ? " The CYD first asks for a touch calibration: tap the crosshairs." : ""} Pair it with Home Assistant now:`
       : logs.filter((l) => /error/i.test(l)).pop() || logs.filter((l) => /failed/i.test(l)).pop() || "See the log below.";
   const pre = $("#install-log");
   const stick = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 8;
   pre.textContent = logs.join("\n");
   if (stick) pre.scrollTop = pre.scrollHeight;
   if (!running && !ok) $("#install-log-wrap").open = true;
+  $("#install-download").hidden = !(ok && download);
+  if (ok && download) renderDownload();
   $("#install-result").hidden = !ok;
   if (ok) renderSteps();
   $("#install-retry").hidden = running || ok;
@@ -2509,13 +2534,38 @@ function showSaved() {
   $("#install-title").textContent = "Profile saved.";
   $("#progress-title").textContent = `${installer.file} is in the ESPHome folder`;
   $("#progress-detail").textContent =
-    "You can install once the screen is connected to the Home Assistant machine: Settings → Firmware & USB → this profile → USB port → Build & install. Or open the profile in ESPHome Device Builder (same folder) and flash from your browser. Save the API key for pairing:";
+    "Install it later from Settings → Firmware & USB: choose this profile, then the USB port of the Home Assistant machine, or Download to put the firmware on the screen from your own computer. Save the API key for pairing:";
+  $("#install-download").hidden = true;
   $("#install-result").hidden = false;
   renderSteps();
   $("#install-log-wrap").hidden = true;
   $("#install-retry").hidden = true;
   $("#install-close").textContent = "Done";
   $("#install-close").classList.remove("quiet");
+}
+// ESPHome Web's words: Connect, then Install and "Select the factory binary you want to install on your device".
+function renderDownload() {
+  const file = firmwareFile(installer.file);
+  const link = $("#download-firmware");
+  link.href = file.href;
+  link.download = file.name;
+  link.textContent = `Download ${file.name}`;
+  const web = node("a", "ESPHome Web");
+  web.href = ESPHOME_WEB;
+  web.target = "_blank";
+  web.rel = "noopener";
+  const steps = [
+    [["Plug the screen into your computer"], " with a USB data cable."],
+    [["Open ", web], " in Chrome or Edge, click Connect and choose the screen's USB port."],
+    [["Click Install"], ` and select ${file.name}. The screen restarts and joins your Wi-Fi.${installer.board === "cyd" ? " The CYD first asks for a touch calibration: tap the crosshairs." : ""}`],
+  ];
+  $("#download-steps").replaceChildren(...steps.map(([bold, text]) => {
+    const li = node("li");
+    const b = node("b");
+    b.append(...bold);
+    li.append(b, text);
+    return li;
+  }));
 }
 function renderSteps() {
   $("#api-key").textContent = installer.apiKey || "";
@@ -2538,12 +2588,13 @@ function renderSteps() {
   }));
 }
 function resetInstaller() {
-  Object.assign(installer, { view: "setup", file: null, apiKey: null, nodeEdited: false, ports: null, jobState: null, target: "" });
+  Object.assign(installer, { view: "setup", file: null, apiKey: null, nodeEdited: false, ports: null, jobState: null, target: "", picked: false, action: null });
   const form = $("#install-form");
   form.reset();
   $("#node-label").hidden = true;
   $("#install-setup").hidden = false;
   $("#install-progress").hidden = true;
+  $("#install-download").hidden = true;
   $("#install-result").hidden = true;
   $("#install-log-wrap").open = false;
   $("#install-log").textContent = "";
@@ -2569,7 +2620,7 @@ $("#installer").addEventListener("close", () => {
   // A finished job is shown once; the next open starts a fresh form.
   if (installer.view === "progress" && installer.jobState !== "running") installer.view = "done";
 });
-$("#install-target").onchange = () => { renderTargetHint(); installerRefresh(); };
+$("#install-target").onchange = () => { installer.picked = true; renderTargetHint(); installerRefresh(); };
 $("#install-form").elements.friendly_name.oninput = syncNode;
 $("#install-form").elements.name.oninput = () => { installer.nodeEdited = true; syncNode(); };
 $("#edit-node").onclick = () => {
@@ -2599,12 +2650,17 @@ $("#install-form").onsubmit = async (e) => {
 };
 $("#install-retry").onclick = async () => {
   try {
-    const { ports } = await (await api("firmware")).json();
-    // The board may have been replugged; a single visible port is unambiguous.
-    if (!ports.includes(installer.target) && ports.length === 1) installer.target = ports[0];
+    const download = installer.action === "download";
+    if (!download) {
+      const { ports } = await (await api("firmware")).json();
+      // The board may have been replugged; a single visible port is unambiguous.
+      if (!ports.includes(installer.target) && ports.length === 1) installer.target = ports[0];
+    }
     const job = await (await api("firmware/jobs", {
       method: "POST",
-      body: JSON.stringify({ file: installer.file, action: "install", target: installer.target }),
+      body: JSON.stringify(download
+        ? { file: installer.file, action: "download" }
+        : { file: installer.file, action: "install", target: installer.target }),
     })).json();
     showProgress(job, []);
   } catch (err) {
@@ -2668,10 +2724,11 @@ document.addEventListener("visibilitychange", async () => {
 });
 
 // Shared firmware workspace; always select a concrete profile and upload target.
-let firmwarePoll;
+let firmwarePoll, firmwareData;
 async function firmwareRefresh(initial = false) {
   try {
     const data = await (await api("firmware")).json();
+    firmwareData = data;
     if (initial) {
       $("#firmware-file").replaceChildren(
         ...data.profiles.map((p) => {
@@ -2680,28 +2737,55 @@ async function firmwareRefresh(initial = false) {
           return o;
         }),
       );
-      $("#firmware-port").replaceChildren(
-        ...[["ota", "Wi-Fi / OTA"], ...data.ports.map((p) => [p, p])].map(
-          ([value, text]) => {
-            const o = node("option", text);
-            o.value = value;
-            return o;
-          },
-        ),
-      );
     }
+    renderFirmwarePorts(data.ports);
     const running = data.job?.state === "running";
-    for (const id of ["validate", "build", "install"])
+    // Build & install also depends on the target: renderFirmwareTarget below.
+    for (const id of ["validate", "build"])
       $("#firmware-" + id).disabled =
         running || !data.available || !data.profiles.length;
     $("#firmware-status").textContent = !data.available
       ? "The ESPHome CLI is missing. Update the app to 0.2.0."
       : data.job
         ? `${data.job.file} · ${data.job.action} · ${data.job.state}`
-        : "Choose the intended profile and a USB port or IP address.";
+        : "Choose the intended profile, then a USB port, an IP address, or Download.";
     $("#firmware-log").textContent = data.logs.join("\n");
+    renderFirmwareTarget();
   } catch (e) {
     toast(e.message);
+  }
+}
+// Wi-Fi / OTA, then USB on the Home Assistant machine (listed before a board is plugged in too, as in New screen),
+// then Download. Rebuilt only when the ports change, so a choice survives the refresh.
+function renderFirmwarePorts(ports) {
+  const select = $("#firmware-port");
+  const key = ports.join("\n");
+  if (select.dataset.ports === key) return;
+  select.dataset.ports = key;
+  const current = select.value;
+  const option = (value, text) => { const o = node("option", text); o.value = value; return o; };
+  const usb = ports.length ? ports.map((p) => option(p, p)) : [option("usb", "USB · no board found on the Home Assistant machine yet")];
+  select.replaceChildren(option("ota", "Wi-Fi / OTA"), ...usb, option("download", DOWNLOAD_TARGET));
+  const usbChosen = current === "usb" || current.startsWith("/");
+  select.value = ports.includes(current) || current === "ota" || current === "download" ? current : usbChosen ? ports[0] || "usb" : "ota";
+}
+// The chosen target decides the host field and the main button; with Download, the file of the profile's last
+// build appears as soon as there is one.
+function renderFirmwareTarget() {
+  const target = $("#firmware-port").value;
+  const file = $("#firmware-file").value;
+  const data = firmwareData;
+  $("#firmware-host-label").hidden = target !== "ota";
+  $("#firmware-install").textContent = target === "download" ? "Build & download" : "Build & install";
+  $("#firmware-install").disabled = !data || data.job?.state === "running" || !data.available || !data.profiles.length || target === "usb";
+  const ready = target === "download" && !!file && !!data?.downloads?.includes(file);
+  $("#firmware-download").hidden = !ready;
+  if (ready) {
+    const image = firmwareFile(file);
+    const link = $("#firmware-download-link");
+    link.href = image.href;
+    link.download = image.name;
+    link.textContent = `Download ${image.name}`;
   }
 }
 $("#open-firmware").onclick = () => {
@@ -2717,16 +2801,17 @@ $("#close-firmware").onclick = () => {
 $("#firmware-dialog").addEventListener("close", () =>
   clearInterval(firmwarePoll),
 );
-$("#firmware-port").onchange = () =>
-  ($("#firmware-host-label").hidden = $("#firmware-port").value !== "ota");
+$("#firmware-port").onchange = renderFirmwareTarget;
 $("#firmware-file").onchange = () => {
   $("#firmware-host").placeholder = $("#firmware-file").value.replace(
     /\.yaml$/,
     ".local",
   );
+  renderFirmwareTarget();
 };
 for (const action of ["validate", "build", "install"])
   $("#firmware-" + action).onclick = async () => {
+    const target = $("#firmware-port").value;
     try {
       await api("firmware/jobs", {
         method: "POST",
@@ -2737,11 +2822,15 @@ for (const action of ["validate", "build", "install"])
               ? "validate"
               : action === "build"
                 ? "build"
-                : "install",
+                : target === "download"
+                  ? "download"
+                  : "install",
           target:
-            $("#firmware-port").value === "ota"
+            target === "ota"
               ? $("#firmware-host").value.trim()
-              : $("#firmware-port").value,
+              : target === "download"
+                ? ""
+                : target,
         }),
       });
       await firmwareRefresh();

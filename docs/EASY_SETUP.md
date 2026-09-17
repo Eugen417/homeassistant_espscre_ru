@@ -64,10 +64,21 @@ again for an existing screen generates new keys and is not the
 update route.
 
 No USB port in the list? A cable plugged into your laptop isn't visible to the
-Raspberry Pi. In that case, choose **Later · save profile only**: the profile then
-sits in the same folder ESPHome Device Builder uses, so you can open it there
-and flash from your browser (**Install → Plug into this computer**), or
-install it to the HA machine later via **Settings → Firmware & USB**.
+machine running Home Assistant, and a server or virtual machine may have no USB port
+within reach at all. Then put the firmware on the screen from your own computer:
+
+1. Under **Install via**, choose **Download · flash from your own computer** and click
+   **Build & download**. ESP Screens builds the firmware the same way; when it's ready,
+   the window offers the file, for example `kitchen.factory.bin`.
+2. Plug the screen into your own computer with a USB data cable.
+3. Open [ESPHome Web](https://web.esphome.io/?dashboard_install) in Chrome or Edge on that
+   computer (other browsers can't reach USB), click **Connect** and choose the screen's port.
+4. Click **Install** and select the downloaded file. The screen restarts and joins your Wi-Fi.
+
+The file holds your Wi-Fi password and the screen's keys: keep it to yourself. Pairing works
+as in chapter 3, and every later update goes over Wi-Fi, so the cable is only needed once.
+For an existing profile, the same file is under **Settings → Firmware & USB**: choose the
+profile and **Download · flash from your own computer**, then **Build & download**.
 
 **CYD:** calibration appears on first boot. Calmly tap the visible crosshair
 three times, hold each tap briefly, and follow each next crosshair in turn.

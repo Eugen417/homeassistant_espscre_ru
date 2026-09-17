@@ -105,7 +105,8 @@ The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
 
 **You don't need to install the separate ESPHome Device Builder app.**
 ESP Screen Manager already includes the ESPHome CLI and can build firmware itself,
-install it via USB, and later update it wirelessly over OTA.
+install it via USB or give you the file to put on the screen from your own computer,
+and later update it wirelessly over OTA.
 
 **You do need to pair the flashed screen via the ESPHome integration in HA.**
 That pairing lives under **Settings → Devices & services**, not in the
@@ -142,6 +143,10 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
    with unique API and OTA keys goes into the ESPHome folder; the build
    and flash run in the same window (a first build takes a few minutes on a
    Raspberry Pi). Each screen gets its own profile.
+   Is Home Assistant on a server or in a virtual machine, out of reach of the screen?
+   Choose **Download** under **Install via**: ESP Screens builds the firmware, and you put it
+   on the screen from your own computer with [ESPHome Web](https://web.esphome.io) in Chrome
+   or Edge. After that, updates go over Wi-Fi as usual.
 4. **CYD:** go through the calibration on the screen. **Guition:** uses GT911
    without resistive calibration. Then pair the discovered ESPHome device in
    **Settings → Devices & services** using the API key the window

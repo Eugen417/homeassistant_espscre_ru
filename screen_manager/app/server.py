@@ -998,8 +998,9 @@ class Manager:
         nodes = {s.get('node') for s in screens}
         devices = {s.get('device') for s in screens}
         installed = getattr(self.firmware, 'installed', set())
+        downloaded = getattr(self.firmware, 'downloaded', set())
         return [{'file': file, 'node': meta['node'], 'friendly': meta.get('friendly') or meta['node'] or file,
-                 'installed': file in installed, 'api_key': meta.get('api_key')}
+                 'installed': file in installed, 'downloaded': file in downloaded, 'api_key': meta.get('api_key')}
                 for file, meta in profiles.items()
                 if meta.get('screen') and meta.get('node') not in nodes and (meta.get('friendly') or None) not in devices]
 
@@ -1639,8 +1640,14 @@ def create_app(manager, development=False):
             raise ValueError('Invalid override data.')
         return web.json_response(manager.firmware.save_override(request.match_info['file'], data.get('content')))
     async def firmware_create(request):
-        # Profile, missing wifi secrets and (with a USB port) the build and flash in one request.
+        # Profile, missing wifi secrets and (with a USB port or the download) the build and flash in one request.
         return web.json_response(manager.firmware.install(await request.json()))
+    async def firmware_download(request):
+        """New screen and Firmware & USB → Download: the factory image this app just built, for ESPHome Web on
+        the owner's own computer. Like the profile it came from, it holds the Wi-Fi password and the screen's keys."""
+        path, name = manager.firmware.image(request.match_info['file'])
+        return web.FileResponse(path, headers={'Content-Type': 'application/octet-stream',
+                                               'Content-Disposition': f'attachment; filename="{name}"'})
     async def shutdown(app):
         for task in (manager.updates.task, manager.firmware.task):
             if task and not task.done():
@@ -1655,6 +1662,7 @@ def create_app(manager, development=False):
     app.router.add_post('/api/firmware/jobs', firmware_start)
     app.router.add_get('/api/firmware/profiles/{file}/override', firmware_override)
     app.router.add_put('/api/firmware/profiles/{file}/override', firmware_override_save)
+    app.router.add_get('/api/firmware/profiles/{file}/download', firmware_download)
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)

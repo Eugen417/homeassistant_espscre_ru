@@ -43,6 +43,10 @@ class Firmware:
     PROTECTED_OVERRIDE_KEYS = frozenset({'esphome', 'api', 'ota', 'wifi', 'packages',
                                          'external_components', 'captive_portal'})
     PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION'})
+    # ESPHome's "Factory format" (bootloader, partition table and app from address 0), the file ESPHome Web
+    # flashes on a board. A build writes it next to firmware.bin: under .pioenvs/<node>/ with PlatformIO,
+    # under build/ with ESPHome's native ESP-IDF toolchain.
+    FACTORY_IMAGES = ('*/.pioenvs/*/firmware.factory.bin', '*/build/firmware.factory.bin')
 
     def __init__(self, root, data):
         self.root, self.data = Path(root).resolve(), Path(data)
@@ -51,6 +55,10 @@ class Firmware:
         self.logs = deque(maxlen=300)
         self.process = None
         self.installed = set()  # profiles this process flashed successfully; the page nudges pairing for them
+        # Factory image per profile from its last successful build in this process; only these are downloaded,
+        # so a download is never older than the profile's latest build. Downloaded ones get their own pairing nudge.
+        self.images = {}
+        self.downloaded = set()
         self._names = {}  # file -> (stat signature, meta or None); parsed only when the file changes
 
     def profiles(self):
@@ -114,7 +122,8 @@ class Firmware:
 
     def status(self):
         return {'available': bool(shutil.which('esphome')), 'profiles': self.profiles(),
-                'ports': self.ports(), 'job': self.job, 'logs': list(self.logs), 'wifi': self.wifi_status()}
+                'ports': self.ports(), 'job': self.job, 'logs': list(self.logs), 'wifi': self.wifi_status(),
+                'downloads': sorted(self.images)}
 
     def store_wifi(self, data):
         """Put wifi_ssid/wifi_password in secrets.yaml when they are missing. Existing values and
@@ -261,22 +270,47 @@ class Firmware:
         return self.override(profile.name)
 
     def install(self, data):
-        """Profile plus, when a USB port is chosen, the build and flash in one go.
+        """Profile plus, when a USB port is chosen, the build and flash in one go. With the target
+        'download' it builds only, and the owner flashes the image from their own computer.
 
-        The port and the job slot are checked before anything is written, so a refused
+        The target and the job slot are checked before anything is written, so a refused
         install leaves no half-made profile behind."""
         target = data.get('target') or ''
         if target:
-            if not isinstance(target, str) or target not in self.ports():
+            if target != 'download' and (not isinstance(target, str) or target not in self.ports()):
                 raise ValueError('Choose the connected USB port from the list.')
             if self.task and not self.task.done():
                 raise ValueError('A build or installation is already running. Wait for it to finish.')
             if not shutil.which('esphome'):
                 raise ValueError('The ESPHome CLI is missing from this installation.')
         result = self.create(data)
-        if target:
+        if target == 'download':
+            result['job'] = self.start({'file': result['file'], 'action': 'download'})
+        elif target:
             result['job'] = self.start({'file': result['file'], 'action': 'install', 'target': target})
         return result
+
+    def factory_image(self, profile):
+        """The factory image in this profile's own build folder, or None. The newest wins: a renamed node
+        leaves its old folder behind."""
+        build = self.data / 'build' / profile.stem
+        found = [path for pattern in self.FACTORY_IMAGES for path in build.glob(pattern)
+                 if path.is_file() and not path.is_symlink()]
+        return max(found, key=lambda path: path.stat().st_mtime_ns) if found else None
+
+    def image(self, name):
+        """(path, file name) of the image a profile's last build made, for the page's download.
+
+        Only an image built by this process counts, and a new job for the profile withdraws it first, so the
+        owner never gets firmware from before a change or a failed build."""
+        profile = self.profile(name)
+        if self.job and self.job.get('file') == profile.name and self.job.get('state') == 'running':
+            raise ValueError('The firmware is still being built. Download it when the build has finished.')
+        path = self.images.get(profile.name)
+        if not path or not path.is_file():
+            raise ValueError('Build the firmware first; the download appears when the build has finished.')
+        self.downloaded.add(profile.name)
+        return path, profile.stem + '.factory.bin'
 
     def redact(self, text):
         text = re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]', '', text)
@@ -288,7 +322,7 @@ class Firmware:
         if self.task and not self.task.done(): raise ValueError('A build or installation is already running.')
         profile = self.profile(data.get('file'))
         action = data.get('action')
-        if action not in ('validate','build','install'): raise ValueError('Unknown firmware action.')
+        if action not in ('validate','build','install','download'): raise ValueError('Unknown firmware action.')
         if not shutil.which('esphome'): raise ValueError('The ESPHome CLI is missing from this installation.')
         target = data.get('target','')
         if action == 'install':
@@ -316,6 +350,7 @@ class Firmware:
         override_file = self.root / (profile.stem + self.OVERRIDE_SUFFIX)
         if override_file.exists() and not override_file.is_symlink():
             collect(yaml.compose(override_file.read_text()))
+        self.images.pop(profile.name, None)  # until this job succeeds, the old image may no longer match the profile
         self.logs.clear()
         self.job={'file':profile.name,'action':action,'target':target,'state':'running','started':time.time()}
         self.task=asyncio.create_task(self.run(profile,action,target))
@@ -336,8 +371,12 @@ class Firmware:
                         self.logs.append(self.redact(line.decode(errors='replace').rstrip()))
                     code=await self.process.wait()
                 if code: raise RuntimeError('ESPHome '+stage+' failed; see the log.')
+            image = self.factory_image(profile) if action != 'validate' else None
+            if action == 'download' and not image:
+                raise RuntimeError('ESPHome built no factory image (firmware.factory.bin) to download; see the log.')
             self.job['state']='success'; self.logs.append('Succeeded: '+action)
             if action=='install': self.installed.add(profile.name)
+            if image: self.images[profile.name] = image
         except asyncio.CancelledError:
             self.job['state']='interrupted'
             raise
