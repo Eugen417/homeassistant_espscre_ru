@@ -85,6 +85,35 @@ function select(id) {
   renderResults();
   renderSettings();
   loadTopbarPreview(0);
+  loadCapabilities(layout.tiles.map((t) => t.entity));
+}
+// What Home Assistant says each entity can do (app 0.2.67): On / off, a small slider, direct controls and the
+// graph and forecast displays follow its own action list, so a device that can do more gets more. Unknown (Home
+// Assistant not answering) is null, and the sheet then offers what it always did. A choice a tile already has stays
+// visible with a warning instead of disappearing.
+const capabilities = {}, askedCapabilities = new Set();
+const TOGGLE_BEFORE = ["light", "switch", "input_boolean", "fan", "media_player", "climate"];
+const SLIDER_DOMAINS = ["light", "fan", "cover", "number", "input_number", "media_player"];
+async function loadCapabilities(entities) {
+  const wanted = [...new Set(entities)].filter((id) => !askedCapabilities.has(id) && !id.startsWith("screen."));
+  if (!wanted.length) return;
+  wanted.forEach((id) => askedCapabilities.add(id));
+  try {
+    for (let i = 0; i < wanted.length; i += 40) {
+      const query = wanted.slice(i, i + 40).map((id) => `entity=${encodeURIComponent(id)}`).join("&");
+      Object.assign(capabilities, (await (await api(`capabilities?${query}`)).json()).capabilities || {});
+    }
+  } catch {
+    wanted.forEach((id) => askedCapabilities.delete(id));
+    return;
+  }
+  if (sheetIndex >= 0 && wanted.includes(layout?.tiles[sheetIndex]?.entity)) renderTileSheet();
+}
+// A hint under a field sits beside its label, not in it: a click on a label presses the first choice inside.
+function withHint(wrap, text, warn = false) {
+  const group = node("div", undefined, "sheet-hinted");
+  group.append(wrap, node("small", text, warn ? "field-hint warn" : "field-hint"));
+  return group;
 }
 // ----- Screen settings: the same groups and rows as the settings page on the screen itself -----
 // Every change applies at once, like on the screen; no Save needed. A screen with firmware 0.2.49+ owns its
@@ -802,6 +831,7 @@ const domains = {
   select: ["Select", "≡", "#5862af", "#eaecfa"],
   input_select: ["Select", "≡", "#5862af", "#eaecfa"],
   button: ["Action", "↗", "#5862af", "#eaecfa"],
+  input_button: ["Action", "↗", "#5862af", "#eaecfa"],
   screen: ["Clock", "◷", "#25282c", "#e9ecf1"],
   sun: ["Sun", "☼", "#c86620", "#ffebdc"],
   timer: ["Timer", "⏱", "#008577", "#def3ed"],
@@ -934,6 +964,7 @@ function commit(result) {
   return changed;
 }
 function placeTile(tile, target) {
+  loadCapabilities([tile.entity]);
   const result = arrange(layout.tiles, tile, target);
   return result ? commit(result) : false;
 }
@@ -1135,7 +1166,8 @@ function removeTile(index) {
 // so the card behind it shows the result while you pick.
 let sheetIndex = -1, iconPickerOpen = false;
 function openTileSheet(index) {
-  if (index !== sheetIndex) iconPickerOpen = false;
+  loadCapabilities([layout.tiles[index].entity]);
+  if (index !== sheetIndex) { iconPickerOpen = false; actionPickerOpen = false; actionSearch = ""; }
   sheetIndex = index;
   selectedTile = layout.tiles[index].entity;
   renderTileSheet();
@@ -1260,6 +1292,169 @@ function iconPicker({ selected, automatic, autoLabel, allowNone = false, onPick,
   if (note) wrap.append(node("small", note, "icon-hint"));
   return wrap;
 }
+// ----- Perform action (app 0.2.67): the actions Home Assistant offers for a tile's entity, under its own names -----
+const entityActions = {}, askedActions = new Set();
+let actionPickerOpen = false, actionSearch = "";
+async function loadEntityActions(entity) {
+  if (askedActions.has(entity)) return;
+  askedActions.add(entity);
+  try {
+    entityActions[entity] = (await (await api(`entity-actions?entity=${encodeURIComponent(entity)}`)).json()).actions;
+  } catch {
+    askedActions.delete(entity);
+    return;
+  }
+  if (sheetIndex >= 0 && layout?.tiles[sheetIndex]?.entity === entity) renderTileSheet();
+}
+// One field of an action, in the kind of value Home Assistant asks for (its selector). An empty field is left out.
+function actionField(field, value, onChange) {
+  const selector = field.selector || {}, kind = Object.keys(selector)[0] || "text", config = selector[kind] || {};
+  const wrap = node("div", undefined, "sheet-field action-field");
+  wrap.append(node("span", field.required ? field.name : `${field.name} (optional)`));
+  const example = field.example === undefined ? "" : typeof field.example === "string" ? field.example : JSON.stringify(field.example);
+  // A select's own options, or the values this entity has where Home Assistant asks for one of them (a source, an effect).
+  const choices = Array.isArray(field.options) ? field.options.map((o) => [o, o])
+    : kind === "select" && Array.isArray(config.options) && !config.multiple
+      ? config.options.map((o) => (o && typeof o === "object" ? [String(o.value), String(o.label ?? o.value)] : [String(o), String(o)]))
+      : null;
+  if (kind === "boolean") {
+    wrap.append(segmented([["", "Not set"], ["true", "On"], ["false", "Off"]], value === undefined ? "" : String(value), (v) => onChange(v === "" ? undefined : v === "true")));
+  } else if (choices && choices.length <= 4) {
+    wrap.append(segmented([["", "Not set"], ...choices], value === undefined ? "" : String(value), (v) => onChange(v === "" ? undefined : v)));
+  } else if (choices) {
+    const list = node("select");
+    list.setAttribute("aria-label", field.name);
+    for (const [key, text] of [["", "Not set"], ...choices]) {
+      const option = node("option", text);
+      option.value = key;
+      option.selected = String(value ?? "") === key;
+      list.append(option);
+    }
+    list.onchange = () => onChange(list.value === "" ? undefined : list.value);
+    wrap.append(list);
+  } else if (kind === "color_rgb") {
+    const row = node("div", undefined, "action-number"), input = node("input"), clear = node("button", "Not set", "quiet");
+    input.type = "color";
+    input.setAttribute("aria-label", field.name);
+    const hex = (rgb) => "#" + rgb.map((c) => Math.max(0, Math.min(255, Number(c) || 0)).toString(16).padStart(2, "0")).join("");
+    input.value = Array.isArray(value) && value.length === 3 ? hex(value) : "#ffffff";
+    input.oninput = () => onChange([1, 3, 5].map((i) => parseInt(input.value.slice(i, i + 2), 16)));
+    clear.type = "button";
+    clear.onclick = () => onChange(undefined);
+    row.append(input, clear);
+    wrap.append(row);
+  } else if (kind === "number" || kind === "color_temp") {
+    const row = node("div", undefined, "action-number"), input = node("input");
+    input.type = "number";
+    input.setAttribute("aria-label", field.name);
+    for (const key of ["min", "max", "step"]) if (typeof config[key] === "number") input[key] = config[key];
+    if (config.step === "any") input.step = "any";
+    input.value = value ?? "";
+    input.placeholder = example;
+    input.oninput = () => onChange(input.value === "" || !Number.isFinite(Number(input.value)) ? undefined : Number(input.value));
+    row.append(input);
+    const unit = config.unit_of_measurement || (kind === "color_temp" ? config.unit || "" : "");
+    if (unit) row.append(node("span", unit));
+    wrap.append(row);
+  } else {
+    // Text as it is; anything else Home Assistant asks for (a list, an object, a time) as JSON, or as text when it isn't.
+    const input = node("input");
+    input.type = "text";
+    input.setAttribute("aria-label", field.name);
+    input.value = value === undefined ? "" : typeof value === "string" ? value : JSON.stringify(value);
+    input.placeholder = example;
+    input.oninput = () => {
+      const text = input.value.trim();
+      if (!text) return onChange(undefined);
+      if (kind === "text") return onChange(input.value);
+      try { onChange(JSON.parse(text)); } catch { onChange(input.value); }
+    };
+    wrap.append(input);
+  }
+  if (field.description) wrap.append(node("small", field.description, "field-hint"));
+  return wrap;
+}
+function actionPicker(tile) {
+  const wrap = node("div", undefined, "sheet-field");
+  wrap.append(node("span", "Action"));
+  const list = entityActions[tile.entity], chosen = tile.options?.action;
+  if (list === undefined) {
+    wrap.append(node("small", "Asking Home Assistant which actions this entity has…", "field-hint"));
+    loadEntityActions(tile.entity);
+    return wrap;
+  }
+  if (list === null) {
+    wrap.append(node("small", "Home Assistant isn't answering right now. Try again in a moment.", "field-hint warn"));
+    return wrap;
+  }
+  const entry = list.find((a) => a.action === chosen?.action);
+  const open = actionPickerOpen || !chosen;
+  const summary = node("button", undefined, "icon-current action-current");
+  summary.type = "button";
+  summary.setAttribute("aria-expanded", String(open));
+  const text = node("span");
+  text.append(node("strong", entry ? entry.name : chosen ? chosen.action : "Choose an action"));
+  if (chosen) text.append(node("small", chosen.action, "action-id"));
+  summary.append(text, node("small", open ? "Close" : "Change"));
+  summary.onclick = () => { actionPickerOpen = !open; renderTileSheet(); };
+  const panel = node("div", undefined, "icon-picker");
+  panel.hidden = !open;
+  const search = node("input"), rows = node("div", undefined, "action-list"), empty = node("p", "No action found.", "hint");
+  search.type = "search";
+  search.placeholder = "Search, for example toggle, position, or play";
+  search.setAttribute("aria-label", "Search for an action");
+  search.value = actionSearch;
+  for (const action of list) {
+    const b = node("button", undefined, "action-choice");
+    b.type = "button";
+    b.dataset.search = `${action.name} ${action.action} ${action.description}`.toLocaleLowerCase();
+    b.setAttribute("aria-pressed", String(action.action === chosen?.action));
+    b.append(node("strong", action.name), node("small", action.description ? `${action.action} · ${action.description}` : action.action));
+    b.onclick = () => {
+      const same = action.action === chosen?.action;
+      tile.options = { ...tile.options, action: same ? chosen : { action: action.action } };
+      actionPickerOpen = false;
+      markDirty();
+      renderTileSheet();
+    };
+    rows.append(b);
+  }
+  const filter = () => {
+    const query = search.value.trim().toLocaleLowerCase();
+    let found = 0;
+    for (const b of rows.children) { b.hidden = !b.dataset.search.includes(query); if (!b.hidden) found++; }
+    empty.hidden = found > 0;
+  };
+  search.oninput = () => { actionSearch = search.value; filter(); };
+  filter();
+  panel.append(search, rows, empty);
+  wrap.append(summary, panel);
+  if (chosen && !entry)
+    wrap.append(node("small", "Home Assistant doesn't offer this action for this entity any more, so a tap does nothing. Choose another one.", "field-hint warn"));
+  if (entry && !open) {
+    const missing = node("small", "", "field-hint warn");
+    const check = () => {
+      const data = tile.options.action?.data || {};
+      const names = entry.fields.filter((f) => f.required && data[f.key] === undefined).map((f) => f.name);
+      missing.textContent = names.length ? `Home Assistant needs ${names.join(", ")}.` : "";
+      missing.hidden = !names.length;
+    };
+    for (const field of entry.fields)
+      wrap.append(actionField(field, chosen.data?.[field.key], (value) => {
+        const data = { ...(tile.options.action?.data || {}) };
+        if (value === undefined) delete data[field.key];
+        else data[field.key] = value;
+        tile.options = { ...tile.options, action: { action: chosen.action, ...(Object.keys(data).length ? { data } : {}) } };
+        markDirty();
+        check();
+      }));
+    check();
+    wrap.append(missing);
+  }
+  if (!supportsFirmware(0, 2, 58))
+    wrap.append(node("small", "The screen performs an action from firmware 0.2.58: press Update on the screen. Until then a tap works as Automatic.", "field-hint"));
+  return wrap;
+}
 function renderTileSheet() {
   const sheet = $("#tile-sheet"), tile = layout.tiles[sheetIndex];
   if (!tile) return;
@@ -1283,13 +1478,15 @@ function renderTileSheet() {
   // The clock, forecast and sun path cards draw no tile icon.
   if (inventory.icons && domain !== "screen" && !["forecast", "sunpath"].includes(tile.options?.display))
     body.append(iconField(tile, () => { const next = tileBadge(tile); badge.replaceWith(next); badge = next; }));
+  const caps = capabilities[tile.entity];
+  const current = (key, fallback) => tile.options?.[key] ?? fallback;
+  const display = current("display", domain === "screen" ? "digital" : "standard");
   const displays = domain === "screen"
     ? [["digital", "Digital clock"], ["analog", "Analog clock"]]
     : [["standard", "Name and status"], ["watch", "Large value"]];
-  if (domain === "weather") displays.push(["forecast", "Weather forecast"]);
-  if (domain === "sensor") displays.push(["graph", "Graph"]);
+  if (domain === "weather" && (!caps || caps.displays.includes("forecast") || display === "forecast")) displays.push(["forecast", "Weather forecast"]);
+  if (domain === "sensor" && (!caps || caps.displays.includes("graph") || display === "graph")) displays.push(["graph", "Graph"]);
   if (domain === "sun") displays.push(["sunpath", "Sun path"]);
-  const current = (key, fallback) => tile.options?.[key] ?? fallback;
   const set = (key, value) => {
     const wasWide = isWide(tile);
     tile.options = { ...tile.options, [key]: value };
@@ -1298,6 +1495,10 @@ function renderTileSheet() {
     if (key === "display" && ["forecast", "sunpath"].includes(value)) tile.options.size = "wide";
     if (key === "inline" && value === "slider") { tile.options.display = "standard"; if (inventory.controls?.[domain]) tile.options.controls = "none"; }
     if (key === "controls" && value !== "none") { tile.options.display = "standard"; tile.options.inline = "none"; }
+    // A card that becomes wide gets the first direct control Home Assistant offers when the usual one isn't there.
+    const catalogue = inventory.controls?.[domain];
+    if (key === "size" && value === "wide" && caps && catalogue && !("controls" in tile.options) && !caps.controls.includes(catalogue.default))
+      tile.options.controls = catalogue.choices.find((c) => c.key !== "none" && caps.controls.includes(c.key))?.key || "none";
     markDirty();
     // A card that becomes double-wide keeps its row when the cell beside it is free, else it
     // takes the nearest free row (below first); every other tile stays where it is.
@@ -1308,23 +1509,46 @@ function renderTileSheet() {
     }
     renderTiles();
   };
-  body.append(field("Display", segmented(displays, current("display", domain === "screen" ? "digital" : "standard"), (v) => set("display", v))));
+  const displayField = field("Display", segmented(displays, display, (v) => set("display", v)));
+  if (caps && display === "graph" && !caps.displays.includes("graph"))
+    body.append(withHint(displayField, "Home Assistant has no numbers for this entity, so the graph stays empty. Choose another display.", true));
+  else if (caps && display === "forecast" && !caps.displays.includes("forecast"))
+    body.append(withHint(displayField, "This weather service has no daily forecast in Home Assistant. Choose another display.", true));
+  else body.append(displayField);
   body.append(field("Width", segmented([["single", "Normal"], ["wide", "Double-width"]], current("size", "single"), (v) => set("size", v))));
   const catalogue = inventory.controls?.[domain];
   if (catalogue && current("size", "single") === "wide") {
-    const wrap = field("Direct control on the tile", segmented(catalogue.choices.map((c) => [c.key, c.label]), current("controls", catalogue.default), (v) => set("controls", v)));
-    wrap.append(node("small", supportsFirmware(0, 2, 19)
+    const chosen = current("controls", catalogue.default);
+    const choices = catalogue.choices.filter((c) => !caps || c.key === "none" || c.key === chosen || caps.controls.includes(c.key));
+    const wrap = field("Direct control on the tile", segmented(choices.map((c) => [c.key, c.label]), chosen, (v) => set("controls", v)));
+    if (caps && chosen !== "none" && !caps.controls.includes(chosen))
+      body.append(withHint(wrap, "Home Assistant doesn't offer this control for this entity, so it stays empty on the screen. Choose another one.", true));
+    else body.append(withHint(wrap, supportsFirmware(0, 2, 19)
       ? "On the right of the double-width tile, like the rows in Home Assistant. Tapping the name works as configured below."
-      : "The screen shows direct control from firmware 0.2.19; until then the tile stays as it was.", "field-hint"));
-    body.append(wrap);
+      : "The screen shows direct control from firmware 0.2.19; until then the tile stays as it was."));
   }
   if (domain !== "screen") {
+    const tap = current("tap", "auto");
     const taps = [["auto", "Automatic"], ["detail", "Open control"], ["none", "View only"]];
-    if (["light", "switch", "input_boolean", "fan", "media_player", "climate"].includes(domain)) taps.push(["toggle", "On / off"]);
-    body.append(field("On tap", segmented(taps, current("tap", "auto"), (v) => set("tap", v))));
+    // On / off where Home Assistant can toggle the entity, such as a cover; a speaker without on and off gets none.
+    if ((caps ? caps.toggle : TOGGLE_BEFORE.includes(domain)) || tap === "toggle") taps.push(["toggle", "On / off"]);
+    taps.push(["action", "Perform action"]);
+    const wrap = field("On tap", segmented(taps, tap, (v) => set("tap", v)));
+    if (tap === "toggle" && caps && !caps.toggle)
+      body.append(withHint(wrap, "Home Assistant can't turn this on and off, so a tap does nothing. Choose another option.", true));
+    else if (tap === "toggle" && !TOGGLE_BEFORE.includes(domain) && !supportsFirmware(0, 2, 58))
+      body.append(withHint(wrap, "The screen switches this from firmware 0.2.58: press Update on the screen. Until then a tap opens its card."));
+    else if (tap === "toggle") body.append(withHint(wrap, "Hold the tile to open its card."));
+    else body.append(wrap);
+    if (tap === "action") body.append(actionPicker(tile));
   }
-  if (["light", "fan", "cover", "number", "input_number", "media_player"].includes(domain))
-    body.append(field("Small slider on the tile", segmented([["none", "No"], ["slider", "Yes, control directly"]], current("inline", "none"), (v) => set("inline", v))));
+  const inline = current("inline", "none");
+  if (SLIDER_DOMAINS.includes(domain) && (!caps || caps.inline || inline === "slider")) {
+    const wrap = field("Small slider on the tile", segmented([["none", "No"], ["slider", "Yes, control directly"]], inline, (v) => set("inline", v)));
+    if (inline === "slider" && caps && !caps.inline)
+      body.append(withHint(wrap, "Home Assistant has nothing a slider can change for this entity. Choose No.", true));
+    else body.append(wrap);
+  }
   if (domain === "sensor")
     body.append(field("History", segmented([[1, "1 hour"], [6, "6 hours"], [24, "24 hours"]], current("history_hours", 24), (v) => set("history_hours", Number(v)))));
   const palette = node("div", undefined, "sheet-field");
@@ -2007,6 +2231,10 @@ function endDrag(drop) {
   if (!(drop && preview && commit(preview))) renderPreview();
 }
 window.addEventListener("click", (e) => { if (Date.now() < drag.suppressUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+// The picker offers what a tile can show: the inventory also lists locks, trackers and counters for the top bar (tile: false).
+function pickable(entity) {
+  return entity.tile !== false;
+}
 function renderResults() {
   if (!layout) return;
   const query = $("#search").value.toLocaleLowerCase();
@@ -2015,9 +2243,10 @@ function renderResults() {
   const guition = inventory.screens.find((s) => s.id === selected)?.board === "guition";
   const matches = [...(inventory.builtin || []), ...inventory.entities].filter(
     (e) =>
+      pickable(e) &&
       (guition || !["camera", "image"].includes(e.id.split(".")[0])) &&
       (!filter || e.id.startsWith(filter + ".") ||
-        ({switch:"input_boolean", number:"input_number", select:"input_select", weather:"sun"}[filter] === e.id.split(".")[0])) &&
+        ({switch:"input_boolean", number:"input_number", select:"input_select", weather:"sun", button:"input_button"}[filter] === e.id.split(".")[0])) &&
       `${e.name} ${e.id} ${e.device} ${e.area}`
         .toLocaleLowerCase()
         .includes(query),
@@ -2541,7 +2770,7 @@ async function inspect(entity) {
       const card = node("article", undefined, "inspection-tile");
       card.append(
         node("strong", tile.entity),
-        node("p", `Status: ${tile.state}`),
+        node("p", `Status: ${tile.word || tile.state}`),
       );
       const options =
         layout.tiles.find((t) => t.entity === tile.entity)?.options || {};

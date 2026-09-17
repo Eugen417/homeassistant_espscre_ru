@@ -140,7 +140,12 @@ Click **Save & send to screen** to send your changes.
 - Light, switch, input_boolean, and fan: tap to turn on/off.
 - Long press a light: brightness, rainbow color, and white temperature, as far as
   the light supports those features.
-- Climate, vacuum, and cover: tap to open the control card.
+- Climate, vacuum, and cover: tap to open the control card. Under **On tap**, choose **On / off**
+  to open, close, or stop a cover with a tap instead (firmware 0.2.58+); holding it still opens the card.
+  ESP Screens offers **On / off**, a small slider, and direct controls only when Home Assistant has
+  the action for that entity. **Perform action** runs any action Home Assistant offers for the
+  entity, such as **Set cover position** with a position, under Home Assistant's own names
+  (firmware 0.2.58+).
 - Long press a fan: speed, if the device supports percentages.
 - Scene/script: tap to run; button/input_button: tap to press.
 - Sensor, number, binary sensor, and person: tap for the history card, for 1 hour,

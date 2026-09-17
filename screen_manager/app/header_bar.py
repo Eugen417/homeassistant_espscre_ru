@@ -15,7 +15,7 @@ import unicodedata
 from datetime import datetime, time
 
 import tile_icons
-from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE, HEADER_SHOWS, epoch, header_items, local_clock, short
+from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE, HEADER_SHOWS, epoch, header_items, local_clock, short, state_word
 
 # Characters the top bar's text font carries on both boards (`sublabel_big` in the profiles;
 # tests/test_header_bar.py keeps them equal). Anything else folds to its base letter or goes.
@@ -142,8 +142,9 @@ def numeric(value):
 def short_date(moment):
     return f'{moment.day} {MONTHS[moment.month - 1]}'
 
-def value(entity, state, entry=None, units=None, tz=None):
-    """(text, unix time) an entity shows as its state; exactly one of them is set."""
+def value(entity, state, entry=None, units=None, tz=None, words=None):
+    """(text, unix time) an entity shows as its state; exactly one of them is set. `words` are Home Assistant's
+    translations: its word shows where the bar has none of its own ("Rinsing" for rinsing, app 0.2.67)."""
     domain = entity.split('.')[0]
     raw = state.get('state') if state else None
     attrs = (state or {}).get('attributes') or {}
@@ -192,10 +193,10 @@ def value(entity, state, entry=None, units=None, tz=None):
     if number is not None and domain in ('sensor', 'number', 'input_number', 'counter', 'zone'):
         return with_unit(number_text(number, precision_of(entry)), attrs.get('unit_of_measurement')), None
     if domain in ('input_text', 'input_select', 'select'):
-        return raw, None
+        return state_word(entity, raw, attrs, entry, words) or raw, None
     if raw in STATES:
         return STATES[raw], None
-    return raw[:1].upper() + raw[1:], None
+    return state_word(entity, raw, attrs, entry, words) or raw[:1].upper() + raw[1:], None
 
 def active(entity, state):
     """"Only when active": on, open, home, detected, playing, heating, or a number other than zero."""
@@ -236,11 +237,12 @@ def accent(entity, state):
         return TEAL
     return None
 
-def auto_icon(entity, state):
-    """Codepoint of the icon Home Assistant would show: its own mdi icon, else the device class, else the domain."""
+def auto_icon(entity, state, entry=None):
+    """Codepoint of the icon Home Assistant would show: its own mdi icon, else Home Assistant's default icon for this state
+    (app 0.2.67, the same as a tile), else the device class and domain tables."""
     attrs = (state or {}).get('attributes') or {}
     raw = (state or {}).get('state')
-    own = tile_icons.ha_icon(attrs)
+    own = tile_icons.ha_icon(attrs) or tile_icons.default_glyph(entity, raw, attrs, entry)
     if own:
         return own
     domain, device_class = entity.split('.')[0], attrs.get('device_class')
@@ -260,20 +262,20 @@ def auto_icon(entity, state):
         name = DOMAIN_ICONS.get(domain, tile_icons.FALLBACK)
     return tile_icons.GLYPHS[name]
 
-def entity_item(item, states, registry=None, units=None, tz=None):
+def entity_item(item, states, registry=None, units=None, tz=None, words=None):
     """(wire item, shown) for one entity item; the wire item exists even while hidden, for the editor."""
     entity = item['entity']
     state = states.get(entity)
     wire = {'k': 'text'}
     if item['icon'] == 'auto':
-        wire['i'] = auto_icon(entity, state)
+        wire['i'] = auto_icon(entity, state, (registry or {}).get(entity) if isinstance(registry, dict) else None)
     elif item['icon'] != 'none':
         wire['i'] = tile_icons.ICONS[item['icon']][0]
     if item['content'] == 'last_changed':
         moment = epoch((state or {}).get('last_changed'))
         text, moment = (None, moment) if moment else (UNAVAILABLE, None)
     else:
-        text, moment = value(entity, state, (registry or {}).get(entity), units, tz)
+        text, moment = value(entity, state, (registry or {}).get(entity), units, tz, words)
     if moment:
         wire.update(k='ago', e=moment)
     else:
@@ -283,25 +285,25 @@ def entity_item(item, states, registry=None, units=None, tz=None):
         wire['c'] = color
     return wire, item['show'] == 'always' or active(entity, state)
 
-def message(layout, states, registry=None, units=None, tz=None):
+def message(layout, states, registry=None, units=None, tz=None, words=None):
     items = []
     for item in header_items(layout):
         if item['type'] in HEADER_BUILTIN:
             items.append({'k': item['type']})
             continue
-        wire, shown = entity_item(item, states, registry, units, tz)
+        wire, shown = entity_item(item, states, registry, units, tz, words)
         if shown:
             items.append(wire)
     return {'v': 1, 'op': 'header', 'items': items}
 
-def preview(header, states, registry=None, units=None, tz=None):
+def preview(header, states, registry=None, units=None, tz=None, words=None):
     """What the editor's mockup shows per item, hidden ones included and marked."""
     result = []
     for item in header['items']:
         if item['type'] in HEADER_BUILTIN:
             result.append({'k': item['type'], 'name': HEADER_BUILTIN[item['type']], 'shown': True})
             continue
-        wire, shown = entity_item(item, states, registry, units, tz)
+        wire, shown = entity_item(item, states, registry, units, tz, words)
         attrs = (states.get(item['entity']) or {}).get('attributes') or {}
         result.append({**wire, 'name': attrs.get('friendly_name') or item['entity'], 'shown': shown,
                        'auto_icon': auto_icon(item['entity'], states.get(item['entity']))})

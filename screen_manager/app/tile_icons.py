@@ -6,6 +6,8 @@ the three icon fonts of both board profiles and builds the editor font
 fonts/materialdesignicons-webfont.ttf. Firmware 0.2.18+ carries every glyph here.
 """
 
+import re
+
 # (group, ((MDI name, codepoint, label), ...)) in picker order.
 GROUPS = (
     ('Lighting', (
@@ -228,9 +230,141 @@ FIXED = (
     ('lightbulb-off', 'F0E4F'),
 )
 
+# Home Assistant's own default icons for the domains a tile or the top bar shows (frontend/get_icons, `entity_component`,
+# Home Assistant 2026.9), with their state, range and device class variants and the few its frontend picks in code: a
+# closed blind, a playing speaker, a battery at 40 %, a phone's tracker on the router (app 0.2.67). The firmware fonts carry them, so a tile shows the icon Home Assistant shows; a name missing here, such as
+# one a later Home Assistant adds, keeps the screen's own default. Not pickable in the editor.
+HA_DEFAULTS = (
+    ('account-arrow-right', 'F0B53'),
+    ('air-filter', 'F0D43'),
+    ('air-humidifier', 'F1099'),
+    ('air-humidifier-off', 'F1466'),
+    ('alert-circle', 'F0028'),
+    ('angle-acute', 'F0937'),
+    ('arrow-bottom-left', 'F0042'),
+    ('arrow-bottom-right', 'F0043'),
+    ('arrow-down-box', 'F06C0'),
+    ('arrow-left-right', 'F0E73'),
+    ('arrow-right', 'F0054'),
+    ('arrow-split-vertical', 'F093C'),
+    ('arrow-top-left', 'F005B'),
+    ('arrow-top-right', 'F005C'),
+    ('arrow-up-box', 'F06C3'),
+    ('audio-video', 'F093D'),
+    ('audio-video-off', 'F11B6'),
+    ('battery', 'F0079'),
+    ('battery-10', 'F007A'),
+    ('battery-20', 'F007B'),
+    ('battery-30', 'F007C'),
+    ('battery-40', 'F007D'),
+    ('battery-50', 'F007E'),
+    ('battery-60', 'F007F'),
+    ('battery-70', 'F0080'),
+    ('battery-80', 'F0081'),
+    ('battery-90', 'F0082'),
+    ('battery-alert', 'F0083'),
+    ('battery-charging', 'F0084'),
+    ('battery-outline', 'F008E'),
+    ('battery-unknown', 'F0091'),
+    ('blinds-horizontal', 'F1A2B'),
+    ('blinds-horizontal-closed', 'F1A2C'),
+    ('bluetooth', 'F00AF'),
+    ('bluetooth-connect', 'F00B1'),
+    ('brightness-5', 'F00DE'),
+    ('brightness-7', 'F00E0'),
+    ('button-pointer', 'F1B50'),
+    ('car-battery', 'F010C'),
+    ('car-coolant-level', 'F1019'),
+    ('cash', 'F0114'),
+    ('cast-connected', 'F0119'),
+    ('cast-off', 'F078A'),
+    ('check-circle', 'F05E0'),
+    ('check-circle-outline', 'F05E1'),
+    ('check-network-outline', 'F0C54'),
+    ('checkbox-marked-circle', 'F0133'),
+    ('circle-slice-8', 'F0AA5'),
+    ('clock', 'F0954'),
+    ('clock-start', 'F0155'),
+    ('close-circle-outline', 'F015A'),
+    ('close-network-outline', 'F0C5F'),
+    ('compass-rose', 'F1382'),
+    ('crop-portrait', 'F01A1'),
+    ('crosshairs-question', 'F1136'),
+    ('current-ac', 'F1480'),
+    ('database', 'F01BC'),
+    ('ear-hearing', 'F07C5'),
+    ('eye', 'F0208'),
+    ('eye-check', 'F0D04'),
+    ('fan-off', 'F081D'),
+    ('format-list-bulleted', 'F0279'),
+    ('garage-open', 'F06DA'),
+    ('gate', 'F0299'),
+    ('gate-open', 'F116A'),
+    ('home-outline', 'F06A1'),
+    ('lan-connect', 'F0318'),
+    ('lan-disconnect', 'F0319'),
+    ('lightning-bolt', 'F140B'),
+    ('lock-alert', 'F08EE'),
+    ('lock-clock', 'F097F'),
+    ('lock-open', 'F033F'),
+    ('molecule', 'F0BAC'),
+    ('molecule-co', 'F12FE'),
+    ('motion-sensor-off', 'F1435'),
+    ('music-note-off', 'F038A'),
+    ('octagon', 'F03C3'),
+    ('package', 'F03D3'),
+    ('package-up', 'F03D5'),
+    ('ph', 'F17C5'),
+    ('pipe-valve', 'F184D'),
+    ('power-plug-off', 'F06A6'),
+    ('progress-clock', 'F0996'),
+    ('projector-off', 'F1A23'),
+    ('radioactive', 'F043C'),
+    ('ray-vertex', 'F0445'),
+    ('roller-shade', 'F1A6B'),
+    ('script-text-play', 'F1727'),
+    ('security', 'F0483'),
+    ('shield', 'F0498'),
+    ('shield-airplane', 'F06BB'),
+    ('shield-lock', 'F099D'),
+    ('shield-moon', 'F1828'),
+    ('shield-off', 'F099E'),
+    ('shield-outline', 'F0499'),
+    ('sine-wave', 'F095B'),
+    ('smoke-detector-alert', 'F192E'),
+    ('smoke-detector-variant', 'F180B'),
+    ('smoke-detector-variant-alert', 'F1930'),
+    ('speaker-off', 'F04C4'),
+    ('speaker-pause', 'F1B73'),
+    ('speaker-play', 'F1B72'),
+    ('speedometer', 'F04C5'),
+    ('spoon-sugar', 'F1429'),
+    ('sprout-outline', 'F0E67'),
+    ('square', 'F0764'),
+    ('square-outline', 'F0763'),
+    ('storage-tank', 'F1A75'),
+    ('sun-wireless', 'F17FE'),
+    ('television-off', 'F083B'),
+    ('television-pause', 'F0F89'),
+    ('television-play', 'F0ECF'),
+    ('texture-box', 'F0FE6'),
+    ('thermometer-lines', 'F0510'),
+    ('toggle-switch-variant', 'F1A25'),
+    ('toggle-switch-variant-off', 'F1A26'),
+    ('transmission-tower', 'F0D3E'),
+    ('vibrate', 'F0566'),
+    ('water-boiler-off', 'F11B4'),
+    ('water-off', 'F058D'),
+    ('water-opacity', 'F1855'),
+    ('weight', 'F05A1'),
+    ('wifi', 'F05A9'),
+    ('window-closed', 'F05AE'),
+    ('window-open', 'F05B1'),
+)
+
 # Pickable icons by name, and every glyph the firmware fonts contain.
 ICONS = {name: (codepoint, label) for _, icons in GROUPS for name, codepoint, label in icons}
-GLYPHS = {**{name: codepoint for name, (codepoint, _) in ICONS.items()}, **dict(FIXED)}
+GLYPHS = {**{name: codepoint for name, (codepoint, _) in ICONS.items()}, **dict(FIXED), **dict(HA_DEFAULTS)}
 
 # Mirrors runtime_tiles::icon_for() so the editor mockup shows what the screen draws.
 DEFAULTS = {'light': 'lightbulb', 'climate': 'air-conditioner', 'vacuum': 'robot-vacuum', 'fan': 'fan',
@@ -247,6 +381,97 @@ WEATHER = {'sunny': 'weather-sunny', 'clear-night': 'weather-night', 'cloudy': '
            'snowy': 'weather-snowy', 'snowy-rainy': 'weather-snowy-rainy', 'fog': 'weather-fog', 'hail': 'weather-hail',
            'lightning': 'weather-lightning', 'lightning-rainy': 'weather-lightning-rainy', 'windy': 'weather-windy',
            'windy-variant': 'weather-windy', 'exceptional': 'alert-circle-outline'}
+
+# Domains whose icon the screen draws from the state itself: a weather condition, the sun above or below the horizon.
+OWN_ICON_DOMAINS = frozenset(('weather', 'sun', 'screen'))
+# Home Assistant's icon resources ({'entity_component': ..., 'entity': ...}), set by the app when it reads them; empty keeps
+# the tables of earlier releases.
+HA_ICONS = {}
+
+def use_ha_icons(resources):
+    """The icon resources Home Assistant answered frontend/get_icons with, for every icon lookup of this app."""
+    global HA_ICONS
+    HA_ICONS = resources if isinstance(resources, dict) else {}
+
+# A number as JavaScript's Number() reads a state: Home Assistant's frontend picks a range icon by it.
+JS_NUMBER = re.compile(r'[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?|[+-]?Infinity')
+
+def js_number(text):
+    """The number JavaScript's Number() reads from a state or a range key, None where it reads NaN (a blank text is 0)."""
+    if not isinstance(text, str):
+        return None
+    text = text.strip()
+    if not text:
+        return 0.0
+    return float(text.replace('Infinity', 'inf')) if JS_NUMBER.fullmatch(text) else None
+
+def icon_for_state(state, spec):
+    """Home Assistant's getIconFromTranslations: the icon for this state, else the range's icon for a number at or above its
+    lowest step (the highest step not above it), else the default."""
+    if not isinstance(spec, dict):
+        return None
+    states, ranges = spec.get('state'), spec.get('range')
+    if state and isinstance(states, dict) and states.get(state):
+        return states[state]
+    value = js_number(state) if isinstance(ranges, dict) else None
+    if value is not None:
+        steps = sorted(step for step in map(js_number, ranges) if step is not None)
+        below = [step for step in steps if step <= value]
+        if below:
+            step = below[-1]
+            icon = ranges.get(str(int(step)) if step.is_integer() else repr(step))
+            if icon:
+                return icon
+    return spec.get('default')
+
+def state_icon(domain, state, attributes):
+    """Home Assistant's stateIcon: the icons its frontend picks in code, before those of the integration."""
+    if domain == 'update':
+        return 'mdi:package-down' if attributes.get('in_progress') else 'mdi:package-up' if state == 'on' else 'mdi:package'
+    if domain == 'device_tracker':
+        source = attributes.get('source_type')
+        if source == 'router':
+            return 'mdi:lan-connect' if state == 'home' else 'mdi:lan-disconnect'
+        if source in ('bluetooth', 'bluetooth_le'):
+            return 'mdi:bluetooth-connect' if state == 'home' else 'mdi:bluetooth'
+        return 'mdi:account-arrow-right' if state == 'not_home' else 'mdi:account'
+    if domain == 'sun':
+        return 'mdi:white-balance-sunny' if state == 'above_horizon' else 'mdi:weather-night'
+    if domain == 'input_datetime':
+        if not attributes.get('has_date'):
+            return 'mdi:clock'
+        if not attributes.get('has_time'):
+            return 'mdi:calendar'
+    return None
+
+def ha_default_icon(entity_id, state, attributes, entry, icons):
+    """The icon Home Assistant's frontend shows for an entity without one of its own (frontend/get_icons, app 0.2.67), in
+    its order: the integration's icon for the entity's translation key, then the icon its frontend picks in code, then the
+    domain's icon for the state's device class or else the domain's. The MDI name, or None when Home Assistant has none;
+    `state` None is an entity without a state, which gets the defaults."""
+    if not isinstance(icons, dict):
+        return None
+    domain = entity_id.split('.', 1)[0]
+    entry = entry if isinstance(entry, dict) else {}
+    attributes = attributes if isinstance(attributes, dict) else None
+    icon = None
+    if entry.get('platform') and entry.get('translation_key'):
+        platform = ((icons.get('entity') or {}).get(entry['platform']) or {}).get(domain) or {}
+        icon = icon_for_state(state, platform.get(entry['translation_key']))
+    if not icon and attributes is not None and state is not None:
+        icon = state_icon(domain, state, attributes)
+    if not icon:
+        component = (icons.get('entity_component') or {}).get(domain) or {}
+        device_class = (attributes or {}).get('device_class')
+        icon = icon_for_state(state, (isinstance(device_class, str) and component.get(device_class)) or component.get('_'))
+    return icon[4:] if isinstance(icon, str) and icon.startswith('mdi:') else None
+
+def default_glyph(entity_id, state, attributes, entry=None, icons=None):
+    """Codepoint of Home Assistant's default icon when the firmware fonts carry it; None keeps the screen's own icon."""
+    if entity_id.split('.', 1)[0] in OWN_ICON_DOMAINS:
+        return None
+    name = ha_default_icon(entity_id, state, attributes, entry, HA_ICONS if icons is None else icons)
+    return GLYPHS.get(name) if name else None
 
 def ha_icon(attributes):
     """Codepoint of Home Assistant's own `mdi:` icon when the firmware carries it, else None."""

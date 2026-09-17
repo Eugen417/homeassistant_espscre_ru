@@ -179,5 +179,67 @@ int main() {
   assert(!strcmp(binary_state_text("battery_charging", false), "Not charging") && !strcmp(binary_state_text("battery", true), "Low"));
   assert(!strcmp(binary_state_text("", true), "On") && !strcmp(binary_state_text("", false), "Off"));
   assert(!strcmp(binary_state_text("future_class", true), "On") && !strcmp(binary_state_text("Door", true), "On"));
+
+  // Tap routing (firmware 0.2.58). `legacy` is runtime_tiles::event() of firmware 0.2.56, line by line: every tap
+  // choice an existing layout can hold must route exactly as before, so no screen changes behaviour on the update.
+  struct Legacy { TapRoute route; std::string service; bool busy; };
+  auto legacy = [](const Tile &tile, bool hold) -> Legacy {
+    const std::string d = tile.domain();
+    if (tile.tap == "none") return {TapRoute::NONE, "", false};
+    bool open = hold || d == "climate" || d == "vacuum" || d == "cover";
+    if (!hold && tile.tap == "detail") open = true;
+    if (!hold && tile.tap == "toggle") open = false;
+    if (d == "media_player" && tile.tap == "toggle" && !hold) return {TapRoute::ACTION, "media_player.toggle", false};
+    if (d == "climate" && tile.tap == "toggle" && !hold) return {TapRoute::ACTION, "climate.toggle", false};
+    if (d == "timer" && !open) return {TapRoute::ACTION, tile.state == "active" ? "timer.pause" : "timer.start", false};
+    if (d == "sensor" || d == "binary_sensor" || d == "weather" || d == "number" || d == "input_number" || d == "select" ||
+        d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" || d == "timer")
+      return {TapRoute::CARD, "", true};
+    if (open) return d == "light" || d == "climate" || d == "vacuum" || d == "fan" ? Legacy{TapRoute::OVERLAY, "", true} : Legacy{TapRoute::CARD, "", false};
+    if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") return {TapRoute::ACTION, d + ".toggle", false};
+    if (d == "scene" || d == "script") return {TapRoute::ACTION, d + ".turn_on", false};
+    if (d == "button" || d == "input_button") return {TapRoute::ACTION, d + ".press", false};
+    return {TapRoute::NONE, "", false};
+  };
+  const char *domains[] = {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor",
+                           "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player",
+                           "button", "input_button", "sun", "timer", "person"};
+  // What validate_layout accepted before 0.2.67: `toggle` only on these six domains.
+  auto toggled_before = [](const std::string &d) {
+    return d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "media_player" || d == "climate";
+  };
+  int compared = 0;
+  // "action" without an action (an app before 0.2.67) taps like firmware 0.2.56 did with a value it didn't know: automatically.
+  for (const char *domain : domains) for (const char *choice : {"auto", "detail", "toggle", "none", "action"})
+    for (const char *state : {"on", "off", "active", "idle", "open"}) for (bool hold : {false, true}) {
+      Tile tile = make((std::string(domain) + ".x").c_str(), state);
+      tile.tap = choice;
+      Tap now = tap_route(tile, hold);
+      if (std::string(choice) == "toggle" && !toggled_before(domain)) {
+        // New in 0.2.58: a short tap toggles any entity the app allowed it for; holding still opens the card as before.
+        if (!hold) { assert(now.route == TapRoute::ACTION && now.service == std::string(domain) + ".toggle"); continue; }
+      }
+      Legacy before = legacy(tile, hold);
+      assert(now.route == before.route && now.service == before.service);
+      if (now.route != TapRoute::ACTION) assert(now.busy == before.busy);
+      ++compared;
+    }
+  assert(compared == 1020);  // 22 domains x 5 choices x 5 states x 2 gestures, less the 80 new short toggles
+  // The example of issue #7: a short tap on a cover set to On / off sends cover.toggle; holding opens its card.
+  Tile issue7 = make("cover.curtain", "open", feature::COVER_OPEN | feature::COVER_CLOSE | feature::COVER_STOP);
+  issue7.tap = "toggle";
+  assert(tap_route(issue7, false).route == TapRoute::ACTION && tap_route(issue7, false).service == "cover.toggle");
+  assert(tap_route(issue7, true).route == TapRoute::CARD);
+  issue7.tap = "auto";
+  assert(tap_route(issue7, false).route == TapRoute::CARD && tap_route(issue7, false).busy);
+  // An action of the tile's own choosing (firmware 0.2.58): a short tap performs it, holding still opens the card.
+  issue7.tap = "action";
+  issue7.edit_extra().action = "cover.set_cover_position";
+  issue7.edit_extra().action_data = {{"position", "50"}};
+  assert(tap_route(issue7, false).route == TapRoute::CUSTOM && tap_route(issue7, false).service == "cover.set_cover_position");
+  assert(tap_route(issue7, true).route == TapRoute::CARD);
+  assert(runtime_tiles::valid_action("cover.toggle") && runtime_tiles::valid_action("sonos.snapshot") && runtime_tiles::valid_action("homeassistant.turn_on"));
+  assert(!runtime_tiles::valid_action("cover") && !runtime_tiles::valid_action("Cover.toggle") && !runtime_tiles::valid_action("a.b.c") &&
+         !runtime_tiles::valid_action(".toggle") && !runtime_tiles::valid_action("cover.") && !runtime_tiles::valid_action("cover.to ggle"));
   return 0;
 }

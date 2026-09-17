@@ -13,12 +13,13 @@ import math
 import camera_feed
 import claude_skill
 from firmware import Firmware
+import ha_catalogue
 import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
-from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state
+from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
 import header_bar
 import history_card
 from zoneinfo import ZoneInfo
@@ -106,6 +107,18 @@ class HomeAssistant:
         # Assistant's own list; refreshed when a device registers its actions again.
         self.responses = set()
         self.services_changed = asyncio.Event()
+        # Every action Home Assistant describes (get_services), which the editor's choices per entity follow (app
+        # 0.2.67); `services_rev` counts the refreshes. `targets` keeps Home Assistant's answer per entity, and
+        # `target_lookup` stays None until it is known whether Home Assistant answers get_services_for_target (2025.12+).
+        self.services, self.services_rev, self.targets, self.target_lookup = {}, 0, {}, None
+        # Home Assistant's own names and descriptions of actions and their fields (frontend/get_translations, English
+        # like the editor), for Perform action (app 0.2.67). `get_services` has carried no translated names since 2025.10.
+        self.service_names = {}
+        # Home Assistant's words for states (frontend/get_translations `entity_component` and `entity`, English), which a
+        # tile shows where it would show the raw state (app 0.2.67).
+        self.state_words = {}
+        self.esphome_services = False
+        self._platforms_source, self._platforms = None, {}
         # History a detail card asks for when it opens (firmware 0.2.51+): {inbox, entity, hours}, for Manager.card_history_loop.
         self.history_requests = asyncio.Queue()
         # A camera a screen opens full screen (firmware 0.2.57+): {inbox, entity}, for Manager.camera_loop.
@@ -159,8 +172,10 @@ class HomeAssistant:
                 elif event.get('event_type') in REGISTRY_EVENTS:
                     self.registry_changed.set()
                 elif event.get('event_type') in SERVICE_EVENTS:
-                    if body.get('domain') == 'esphome':
-                        self.services_changed.set()
+                    # Every action counts for what the editor offers (app 0.2.67); a screen's own actions also decide
+                    # how the app talks to it.
+                    self.esphome_services |= body.get('domain') == 'esphome'
+                    self.services_changed.set()
                 elif event.get('event_type') in BROADCAST_EVENTS:
                     # Queued, not handled here: the calls wait for results this reader has to deliver.
                     self.broadcasts.put_nowait((event['event_type'], body))
@@ -182,9 +197,34 @@ class HomeAssistant:
             self.request('config/entity_registry/list'), self.request('config/device_registry/list'), self.request('config/area_registry/list'))
 
     async def fetch_services(self):
-        """Which ESPHome actions answer: Home Assistant lists `response` for an action that can return one."""
-        esphome = (await self.request('get_services') or {}).get('esphome', {})
+        """Every action Home Assistant describes: which ESPHome actions answer (Home Assistant lists `response` for an
+        action that can return one), and the descriptions the editor's choices per entity follow (app 0.2.67)."""
+        services = await self.request('get_services') or {}
+        esphome = services.get('esphome', {})
         self.responses = {f'esphome.{name}' for name, spec in esphome.items() if isinstance(spec, dict) and spec.get('response')}
+        if isinstance(services, dict):
+            self.services, self.services_rev, self.targets = services, self.services_rev + 1, {}
+        try:
+            names = await self.request('frontend/get_translations', language='en', category='services')
+            if isinstance((names or {}).get('resources'), dict):
+                self.service_names = names['resources']
+            words = {}
+            for category in ('entity_component', 'entity'):
+                found = await self.request('frontend/get_translations', language='en', category=category)
+                if isinstance((found or {}).get('resources'), dict):
+                    words.update(found['resources'])
+            if words:
+                self.state_words = words
+            icons = {}
+            for category in ('entity_component', 'entity'):
+                found = await self.request('frontend/get_icons', category=category)
+                if isinstance((found or {}).get('resources'), dict):
+                    icons[category] = found['resources']
+            if icons:
+                tile_icons.use_ha_icons(icons)
+        except (Refused, TimeoutError) as error:
+            # The editor then shows the names services.yaml still carries, and tiles keep their raw states.
+            LOG.info('No action names or state words from Home Assistant (%s)', type(error).__name__)
 
     async def refresh_services(self):
         """fetch_services for the connection loop: a list that cannot be read only means no answers are asked for."""
@@ -193,6 +233,49 @@ class HomeAssistant:
         except (ConnectionError, TimeoutError, OSError, ValueError, TypeError, AttributeError) as error:
             LOG.warning('Reading the actions from Home Assistant failed (%s); screens are not asked for answers', type(error).__name__)
             self.responses = set()
+
+    def platform_of(self, entity_id):
+        """The integration behind an entity, from the entity registry (an action can be meant for one integration)."""
+        registry = self.registry
+        if self._platforms_source is not registry:
+            self._platforms_source = registry
+            self._platforms = {item.get('entity_id'): item.get('platform') for item in registry if isinstance(item, dict)}
+        return self._platforms.get(entity_id)
+
+    async def entity_actions(self, entity_id):
+        """The actions Home Assistant offers for one entity, or None while that is unknown (no action list yet, or no
+        state). Home Assistant 2025.12+ answers get_services_for_target itself; an older one gets the same answer from the
+        action descriptions."""
+        state = self.states.get(entity_id)
+        if state is None or not self.services:
+            return None
+        attributes = state.get('attributes') or {}
+        key = (self.services_rev, id(self.registry), attributes.get('supported_features'), attributes.get('device_class'))
+        cached = self.targets.get(entity_id)
+        if cached and cached[0] == key:
+            return cached[1]
+        actions = None
+        if self.target_lookup is not False:
+            try:
+                answer = await self.request('get_services_for_target', target={'entity_id': [entity_id]}, expand_group=False)
+                if isinstance(answer, list):
+                    actions, self.target_lookup = frozenset(answer), True
+            except Refused as error:
+                if 'unknown command' in (error.detail or '').lower():
+                    self.target_lookup = False
+            except (ConnectionError, TimeoutError):
+                pass
+        if actions is None:
+            actions = frozenset(ha_catalogue.local_actions(self.services, entity_id, attributes, self.platform_of(entity_id)))
+        self.targets[entity_id] = (key, actions)
+        return actions
+
+    async def capabilities(self, entity_id):
+        """What the editor may offer for one entity (ha_catalogue.capabilities), or None while Home Assistant can't say."""
+        actions = await self.entity_actions(entity_id)
+        if actions is None:
+            return None
+        return ha_catalogue.capabilities(entity_id, actions, self.states.get(entity_id), self.services)
 
     async def run(self):
         url = ('ws://supervisor/core/websocket' if self.base == 'http://supervisor/core/api'
@@ -243,7 +326,9 @@ class HomeAssistant:
                             await asyncio.sleep(1)
                             self.services_changed.clear()
                             await self.refresh_services()
-                            self.changed.set()
+                            if self.esphome_services:
+                                self.esphome_services = False
+                                self.changed.set()
                         if self.registry_changed.is_set():
                             await asyncio.sleep(1)
                             self.registry_changed.clear()
@@ -425,7 +510,8 @@ class Manager:
             # Versioned persistent data. Never silently overwrite an unknown schema.
             if raw.get('version') != 1 or not isinstance(raw.get('screens'), dict):
                 raise ValueError('Unknown storage version; data stays unchanged.')
-            self.layouts = {key: validate_layout(value) for key, value in raw['screens'].items()}
+            # Loaded leniently: a tile setting this version doesn't know (saved by a newer one) never stops the app.
+            self.layouts = {key: validate_layout(value, stored=True) for key, value in raw['screens'].items()}
 
     def inventory(self):
         """(screens, every tile/top-bar entity): the full walk over the registry, for the editor and saving."""
@@ -763,7 +849,8 @@ class Manager:
         tz = getattr(self.ha, 'time_zone', None)
         attrs = (self.ha.states.get(entity) or {}).get('attributes') or {}
         if what == 'timeline':
-            return history_card.timeline(entity, hours, await self.ha.state_changes(entity, hours), start, end, tz, attrs)
+            return history_card.timeline(entity, hours, await self.ha.state_changes(entity, hours), start, end, tz, attrs,
+                                         entry=self.registry_index().get(entity), translations=getattr(self.ha, 'state_words', None))
         entry, unit = self.registry_index().get(entity), attrs.get('unit_of_measurement') or ''
         rows = await self.ha.statistic_rows(entity, hours) if hours > 1 else []
         if rows:
@@ -802,7 +889,8 @@ class Manager:
         return ()
 
     def header_message(self, layout):
-        return header_bar.message(layout, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}), getattr(self.ha, 'time_zone', None))
+        return header_bar.message(layout, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}), getattr(self.ha, 'time_zone', None),
+                                  getattr(self.ha, 'state_words', None))
 
     def needs_firmware(self, inbox, layout, screen=None):
         """Version string the screen must run first, or None when the layout can be sent."""
@@ -872,6 +960,32 @@ class Manager:
         self.ha.changed.set()
         self.notify()
 
+    async def check_supported(self, inbox, data):
+        """Refuse a tile setting Home Assistant doesn't support for its entity, before saving (app 0.2.67): On / off on a
+        speaker that can't turn on and off, a small slider on a light without brightness. A setting a tile already has
+        stays, and nothing is refused while Home Assistant can't say."""
+        capabilities = getattr(self.ha, 'capabilities', None)
+        if capabilities is None:
+            return
+        layout = validate_layout(data)
+        inbox = self.aliases.get(inbox, inbox)
+        before = {tile['entity']: tile for tile in self.layouts.get(inbox, {}).get('tiles', [])}
+        for tile in layout['tiles']:
+            previous = before.get(tile['entity'])
+            if tile['entity'] in BUILTIN or not tile.get('options') or (previous or {}).get('options') == tile['options']:
+                continue
+            name = tile.get('name') or self.ha.states.get(tile['entity'], {}).get('attributes', {}).get('friendly_name') or tile['entity']
+            found = ha_catalogue.unsupported(tile, previous, await capabilities(tile['entity']))
+            if found:
+                raise ValueError(ha_catalogue.refusal(tile['entity'], name, *found))
+            # Perform action (app 0.2.67): an action Home Assistant offers for the entity, with its required fields.
+            action = tile['options'].get('action')
+            if tile['options'].get('tap') == 'action' and action != ((previous or {}).get('options') or {}).get('action'):
+                problem = ha_catalogue.action_problem(tile['entity'], name, action, self.ha.states.get(tile['entity']),
+                                                      await self.ha.entity_actions(tile['entity']), self.ha.services)
+                if problem:
+                    raise ValueError(problem)
+
     def notify(self):
         for listener in self.listeners:
             listener.set()
@@ -931,7 +1045,17 @@ class Manager:
             hourly=await self.cached(self.forecasts, (entity,'hourly'), FORECAST_SECONDS, (lambda: self.ha.forecast(entity,'hourly')) if 'hourly' in kinds else nothing)
         # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46), a cover's card its battery (0.2.58).
         device=self.device_entries(tile['entity']) if tile['entity'].startswith(('vacuum.', 'cover.')) else None
-        message=state_message(index,tile,self.ha.states,extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device))
+        entry=self.registry_index().get(tile['entity'])
+        extra=extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device)
+        if tile['entity'].startswith('vacuum.'):
+            ha_catalogue.chip_words(extra,tile['entity'],self.ha.states,device,getattr(self.ha,'state_words',None))
+        message=state_message(index,tile,self.ha.states,extra,
+                              precision=header_bar.precision_of(entry) if tile['entity'].startswith('sensor.') else None,entry=entry)
+        # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
+        state=self.ha.states.get(tile['entity'],{})
+        word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
+        if word:
+            message.setdefault('x',{})['w']=word
         if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
             hours=tile.get('options',{}).get('history_hours',24)
             entry=self.histories.get((tile['entity'],hours))
@@ -1289,8 +1413,9 @@ class Manager:
         """One tile event: the screen it names, the changed layout, saved and pushed like the editor does."""
         screen = match_screen(self.screens(), data.get('screen'), self.layouts)
         inbox = self.aliases.get(screen['id'], screen['id'])
-        layout = self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}
-        self.save(inbox, apply_tile_event(layout, TILE_EVENTS[event_type], data))
+        layout = apply_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data)
+        await self.check_supported(inbox, layout)
+        self.save(inbox, layout)
         return screen
 
     async def tile_loop(self):
@@ -1411,7 +1536,8 @@ def create_app(manager, development=False):
         data = await request.json()
         header = validate_header(data.get('header') if isinstance(data, dict) else None)
         return web.json_response({'items': header_bar.preview(header, manager.ha.states, manager.registry_index(),
-                                                              getattr(manager.ha, 'units', {}), getattr(manager.ha, 'time_zone', None))})
+                                                              getattr(manager.ha, 'units', {}), getattr(manager.ha, 'time_zone', None),
+                                                              getattr(manager.ha, 'state_words', None))})
     async def events(request):
         """Server-sent events: pushes the light inventory whenever it changes, so the page need not poll."""
         response = web.StreamResponse(headers={'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store',
@@ -1438,8 +1564,33 @@ def create_app(manager, development=False):
             manager.listeners.discard(wake)
         return response
     async def save(request):
-        manager.save(request.match_info['inbox'], await request.json())
+        data = await request.json()
+        await manager.check_supported(request.match_info['inbox'], data)
+        manager.save(request.match_info['inbox'], data)
         return web.json_response({'saved': True})
+    async def capabilities(request):
+        """What Home Assistant says each entity can do, for the tile settings (app 0.2.67). Unknown is null: the editor
+        then offers what it always offered."""
+        entities = list(dict.fromkeys(request.query.getall('entity', [])))[:40]
+        lookup = getattr(manager.ha, 'capabilities', None)
+        async def one(entity):
+            try:
+                return await lookup(entity) if lookup else None
+            except Exception as error:
+                LOG.info('No capabilities for %s (%s)', entity, type(error).__name__)
+                return None
+        found = await asyncio.gather(*(one(entity) for entity in entities))
+        return web.json_response({'capabilities': dict(zip(entities, found))})
+    async def entity_actions(request):
+        """Perform action (app 0.2.67): the actions Home Assistant offers for one entity, with its names and the fields it
+        offers for that entity. Null while Home Assistant can't say."""
+        entity = request.query.get('entity', '')
+        ha = manager.ha
+        actions = await ha.entity_actions(entity) if entity_id(entity) and hasattr(ha, 'entity_actions') else None
+        if actions is None:
+            return web.json_response({'actions': None})
+        return web.json_response({'actions': ha_catalogue.action_choices(entity, actions, ha.states.get(entity), ha.services,
+                                                                         getattr(ha, 'service_names', {}), ha.platform_of(entity))})
     async def change_settings(request):
         """Screen settings apply one change at a time, like the settings page on the screen (app 0.2.57)."""
         data = await request.json()
@@ -1466,6 +1617,9 @@ def create_app(manager, development=False):
         return web.json_response({'screen':screen,
             'delivery':manager.status.get(inbox), 'layout':layout,
             'tiles':[{'entity':t['entity'],'state':manager.ha.states.get(t['entity'],{}).get('state'),
+                      # Home Assistant's word for the state, as its own pages show it ("Heat/Cool", app 0.2.67).
+                      'word':state_word(t['entity'],manager.ha.states.get(t['entity'],{}).get('state'),manager.ha.states.get(t['entity'],{}).get('attributes'),
+                                        manager.registry_index().get(t['entity']),getattr(manager.ha,'state_words',None)),
                       'attributes':state_message(i,t,manager.ha.states)['a'],
                       'options':t.get('options',{})} for i,t in enumerate(layout['tiles'])]})
     async def install_claude_skill(request):
@@ -1504,6 +1658,8 @@ def create_app(manager, development=False):
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
+    app.router.add_get('/api/capabilities', capabilities)
+    app.router.add_get('/api/entity-actions', entity_actions)
     app.router.add_post('/api/header-preview', header_preview)
     app.router.add_post('/api/claude-skill', install_claude_skill)
     app.router.add_get('/api/claude-skill.zip', download_claude_skill)

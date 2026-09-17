@@ -11,6 +11,7 @@ import math
 from datetime import datetime, timedelta, timezone
 
 import header_bar
+from core import state_word
 
 RANGES = (1, 24, 168)
 POINTS = 24
@@ -211,8 +212,9 @@ def line(entity, hours, changes, start, end, tz, entry=None, unit='', extreme_ch
     return message
 
 
-def state_label(domain, state, attrs):
-    """Home Assistant's words for a state, as the screen shows them elsewhere."""
+def state_label(domain, state, attrs, word=None):
+    """Home Assistant's words for a state, as the screen shows them elsewhere; `word` is Home Assistant's own word, for a
+    state the screen has no word of its own for (app 0.2.67)."""
     if state in (None, 'unavailable'):
         return 'Unavailable'
     if state == 'unknown':
@@ -222,7 +224,7 @@ def state_label(domain, state, attrs):
         return pair[0] if state == 'on' else pair[1] if state == 'off' else state
     if domain == 'person' and state not in header_bar.STATES:
         return state.replace('_', ' ')[:1].upper() + state.replace('_', ' ')[1:]
-    return header_bar.STATES.get(state) or (state[:1].upper() + state[1:]).replace('_', ' ')
+    return header_bar.STATES.get(state) or word or (state[:1].upper() + state[1:]).replace('_', ' ')
 
 
 def state_color(domain, state, others):
@@ -237,10 +239,12 @@ def state_color(domain, state, others):
     return PALETTE[others % len(PALETTE)]
 
 
-def timeline(entity, hours, changes, start, end, tz, attrs=None, slots=SLOTS):
+def timeline(entity, hours, changes, start, end, tz, attrs=None, slots=SLOTS, entry=None, translations=None):
     """The `history` message for states: the timeline as runs of slots, each state's time, and how often the
-    active state began (a door opened, a person came home)."""
+    active state began (a door opened, a person came home). `entry` and `translations` give Home Assistant's words."""
     domain = entity.split('.')[0]
+    def label(state):
+        return header_bar.clean_text(state_label(domain, state, attrs, state_word(entity, state, attrs, entry, translations)))[:24]
     changes = sorted(changes, key=lambda change: change[0])
     # The state in force over each stretch of the range.
     pieces, current, index = [], None, 0
@@ -271,7 +275,7 @@ def timeline(entity, hours, changes, start, end, tz, attrs=None, slots=SLOTS):
     shown = ranked[:STATES_SHOWN] if len(ranked) <= STATES_SHOWN else ranked[:STATES_SHOWN - 1]
     index_of = {state: i for i, state in enumerate(shown)}
     others = [state for state in order if state_color(domain, state, 0) == PALETTE[0]]
-    legend = [[header_bar.clean_text(state_label(domain, state, attrs))[:24],
+    legend = [[label(state),
                state_color(domain, state, others.index(state) if state in others else 0), int(totals[state])] for state in shown]
     rest = [state for state in ranked if state not in index_of]
     if rest:
@@ -300,7 +304,7 @@ def timeline(entity, hours, changes, start, end, tz, attrs=None, slots=SLOTS):
     shown_active = index_of.get(active, -1) if active in shown else -1
     return {'v': 1, 'op': 'history', 'entity': entity, 'hours': hours, 'kind': 'timeline', 'start': start, 'end': end,
             'off': utc_offset(end, tz), 'xt': time_ticks(start, end, hours, tz), 'slots': slots, 'states': legend,
-            'seg': run_times(runs, pieces, index_of, start, span, slots), 'words': words(domain, order + [current], attrs),
+            'seg': run_times(runs, pieces, index_of, start, span, slots), 'words': words(domain, order + [current], attrs, label),
             'began': began, 'active': shown_active}
 
 
@@ -326,13 +330,13 @@ def run_times(runs, pieces, index_of, start, span, slots):
     return out
 
 
-def words(domain, states, attrs):
+def words(domain, states, attrs, label=None):
     """[raw state, words] for the states of the range and a binary sensor's on and off: the card's heading shows the
     state now in these words, also after it changed while the card is open."""
     found = {}
     for state in states + (['on', 'off'] if domain == 'binary_sensor' else []):
         if isinstance(state, str) and len(state) <= 32 and state not in found and len(found) < 10:
-            found[state] = header_bar.clean_text(state_label(domain, state, attrs))[:24]
+            found[state] = label(state) if label else header_bar.clean_text(state_label(domain, state, attrs))[:24]
     return [[state, text] for state, text in found.items()]
 
 

@@ -18,7 +18,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.57"
+  SCREEN_FIRMWARE_VERSION: "0.2.58"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -1107,6 +1107,131 @@ font:
       - "\U000F02FD" # information-outline
       - "\U000F0709" # restart
       - "\U000F0E4F" # lightbulb-off
+      - "\U000F0B53" # account-arrow-right
+      - "\U000F0D43" # air-filter
+      - "\U000F1099" # air-humidifier
+      - "\U000F1466" # air-humidifier-off
+      - "\U000F0028" # alert-circle
+      - "\U000F0937" # angle-acute
+      - "\U000F0042" # arrow-bottom-left
+      - "\U000F0043" # arrow-bottom-right
+      - "\U000F06C0" # arrow-down-box
+      - "\U000F0E73" # arrow-left-right
+      - "\U000F0054" # arrow-right
+      - "\U000F093C" # arrow-split-vertical
+      - "\U000F005B" # arrow-top-left
+      - "\U000F005C" # arrow-top-right
+      - "\U000F06C3" # arrow-up-box
+      - "\U000F093D" # audio-video
+      - "\U000F11B6" # audio-video-off
+      - "\U000F0079" # battery
+      - "\U000F007A" # battery-10
+      - "\U000F007B" # battery-20
+      - "\U000F007C" # battery-30
+      - "\U000F007D" # battery-40
+      - "\U000F007E" # battery-50
+      - "\U000F007F" # battery-60
+      - "\U000F0080" # battery-70
+      - "\U000F0081" # battery-80
+      - "\U000F0082" # battery-90
+      - "\U000F0083" # battery-alert
+      - "\U000F0084" # battery-charging
+      - "\U000F008E" # battery-outline
+      - "\U000F0091" # battery-unknown
+      - "\U000F1A2B" # blinds-horizontal
+      - "\U000F1A2C" # blinds-horizontal-closed
+      - "\U000F00AF" # bluetooth
+      - "\U000F00B1" # bluetooth-connect
+      - "\U000F00DE" # brightness-5
+      - "\U000F00E0" # brightness-7
+      - "\U000F1B50" # button-pointer
+      - "\U000F010C" # car-battery
+      - "\U000F1019" # car-coolant-level
+      - "\U000F0114" # cash
+      - "\U000F0119" # cast-connected
+      - "\U000F078A" # cast-off
+      - "\U000F05E0" # check-circle
+      - "\U000F05E1" # check-circle-outline
+      - "\U000F0C54" # check-network-outline
+      - "\U000F0133" # checkbox-marked-circle
+      - "\U000F0AA5" # circle-slice-8
+      - "\U000F0954" # clock
+      - "\U000F0155" # clock-start
+      - "\U000F015A" # close-circle-outline
+      - "\U000F0C5F" # close-network-outline
+      - "\U000F1382" # compass-rose
+      - "\U000F01A1" # crop-portrait
+      - "\U000F1136" # crosshairs-question
+      - "\U000F1480" # current-ac
+      - "\U000F01BC" # database
+      - "\U000F07C5" # ear-hearing
+      - "\U000F0208" # eye
+      - "\U000F0D04" # eye-check
+      - "\U000F081D" # fan-off
+      - "\U000F0279" # format-list-bulleted
+      - "\U000F06DA" # garage-open
+      - "\U000F0299" # gate
+      - "\U000F116A" # gate-open
+      - "\U000F06A1" # home-outline
+      - "\U000F0318" # lan-connect
+      - "\U000F0319" # lan-disconnect
+      - "\U000F140B" # lightning-bolt
+      - "\U000F08EE" # lock-alert
+      - "\U000F097F" # lock-clock
+      - "\U000F033F" # lock-open
+      - "\U000F0BAC" # molecule
+      - "\U000F12FE" # molecule-co
+      - "\U000F1435" # motion-sensor-off
+      - "\U000F038A" # music-note-off
+      - "\U000F03C3" # octagon
+      - "\U000F03D3" # package
+      - "\U000F03D5" # package-up
+      - "\U000F17C5" # ph
+      - "\U000F184D" # pipe-valve
+      - "\U000F06A6" # power-plug-off
+      - "\U000F0996" # progress-clock
+      - "\U000F1A23" # projector-off
+      - "\U000F043C" # radioactive
+      - "\U000F0445" # ray-vertex
+      - "\U000F1A6B" # roller-shade
+      - "\U000F1727" # script-text-play
+      - "\U000F0483" # security
+      - "\U000F0498" # shield
+      - "\U000F06BB" # shield-airplane
+      - "\U000F099D" # shield-lock
+      - "\U000F1828" # shield-moon
+      - "\U000F099E" # shield-off
+      - "\U000F0499" # shield-outline
+      - "\U000F095B" # sine-wave
+      - "\U000F192E" # smoke-detector-alert
+      - "\U000F180B" # smoke-detector-variant
+      - "\U000F1930" # smoke-detector-variant-alert
+      - "\U000F04C4" # speaker-off
+      - "\U000F1B73" # speaker-pause
+      - "\U000F1B72" # speaker-play
+      - "\U000F04C5" # speedometer
+      - "\U000F1429" # spoon-sugar
+      - "\U000F0E67" # sprout-outline
+      - "\U000F0764" # square
+      - "\U000F0763" # square-outline
+      - "\U000F1A75" # storage-tank
+      - "\U000F17FE" # sun-wireless
+      - "\U000F083B" # television-off
+      - "\U000F0F89" # television-pause
+      - "\U000F0ECF" # television-play
+      - "\U000F0FE6" # texture-box
+      - "\U000F0510" # thermometer-lines
+      - "\U000F1A25" # toggle-switch-variant
+      - "\U000F1A26" # toggle-switch-variant-off
+      - "\U000F0D3E" # transmission-tower
+      - "\U000F0566" # vibrate
+      - "\U000F11B4" # water-boiler-off
+      - "\U000F058D" # water-off
+      - "\U000F1855" # water-opacity
+      - "\U000F05A1" # weight
+      - "\U000F05A9" # wifi
+      - "\U000F05AE" # window-closed
+      - "\U000F05B1" # window-open
 
   - file: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts/materialdesignicons-webfont.ttf"
     id: materialdesign_icons_mini

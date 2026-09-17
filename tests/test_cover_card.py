@@ -103,9 +103,15 @@ class Firmware(unittest.TestCase):
     def test_a_tap_on_a_cover_opens_the_cover_card(self):
         event = RUNTIME[RUNTIME.index('inline void event(lv_event_t *event) {'):]
         event = event[:event.index('\n}\n')]
-        show = re.search(r'if\(d=="sensor" \|\|.*?show_detail\(w\.index\); return; \}', event)
-        self.assertTrue(show and 'd=="cover"' in show[0], 'covers go to show_detail with the other runtime cards')
-        self.assertIn('if (d == "light" || d == "climate" || d == "vacuum" || d == "fan") {', event, 'not to the board\'s value overlay any more')
+        # Since firmware 0.2.58 tile_controls::tap_route decides and event() carries the route out.
+        controls = (ROOT / 'components/smart_display/tile_controls.h').read_text()
+        cards = controls[controls.index('inline bool runtime_card_domain('):]
+        cards = cards[:cards.index('\n}\n')]
+        self.assertIn('d == "cover"', cards, 'covers go to show_detail with the other runtime cards')
+        self.assertIn('if (runtime_card_domain(d)) return {TapRoute::CARD, "", true};', controls)
+        self.assertIn('return d == "light" || d == "climate" || d == "fan" ? Tap{TapRoute::OVERLAY', controls, 'not to the board\'s value overlay any more')
+        self.assertIn('case tile_controls::TapRoute::CARD:', event)
+        self.assertIn('show_detail(w.index);', event)
         self.assertIn('}else if(d=="cover"){', RUNTIME)
         self.assertIn('render_cover_detail(t,large,width,height,pad);', RUNTIME)
         for name, text in PROFILES.items():

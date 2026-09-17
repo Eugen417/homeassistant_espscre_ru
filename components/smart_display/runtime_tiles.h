@@ -485,6 +485,24 @@ inline std::string receive(const std::string &payload) {
     // carry is collected in `next` and replaces the tile's Extra at the end (see Tile::set_extra).
     auto extra = root["x"];
     Extra next;
+    // A tap's own Home Assistant action (app 0.2.67+): {"s": action, "d": [[key, text]], "t": [[key, template]]}.
+    auto act = options["act"];
+    if (act.is<JsonObject>()) {
+      std::string service = string(act["s"], 64);
+      auto pairs = [](JsonVariant list, std::vector<std::pair<std::string, std::string>> &out) {
+        if (!list.is<JsonArray>()) return;
+        for (JsonVariant pair : list.as<JsonArray>()) {
+          if (out.size() == 8 || !pair.is<JsonArray>() || pair.as<JsonArray>().size() != 2) continue;
+          std::string key = string(pair[0], 32);
+          if (!key.empty()) out.emplace_back(std::move(key), string(pair[1], 400));
+        }
+      };
+      if (valid_action(service)) {
+        next.action = std::move(service);
+        pairs(act["d"], next.action_data);
+        pairs(act["t"], next.action_templates);
+      }
+    }
     if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
       if (next.forecast.size() == 5) break;
       next.forecast.emplace_back(); auto &f = next.forecast.back();
@@ -573,6 +591,7 @@ inline std::string receive(const std::string &payload) {
     if (!std::isfinite(tile.battery)) tile.battery = number(extra["bat"]);
     next.charging = extra["chg"].is<int>() && extra["chg"].as<int>() == 1;
     next.room = string(extra["room"], 32);
+    next.state_word = string(extra["w"], 32);
     tile.set_extra(std::move(next));
     // Home Assistant reports the edited value: the -/+ pill follows its state again.
     if(std::isfinite(tile.edit_value) && tile.edit_sent && std::fabs(tile_controls::edit_target(tile)-tile.edit_value)<0.051f)tile.edit_value=NAN;
@@ -588,7 +607,51 @@ inline std::string receive(const std::string &payload) {
   });
   return result;
 }
-inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="") {
+#ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
+// Home Assistant answers an action sent with a call id (firmware 0.2.58+, Home Assistant 2025.10+). ESPHome keeps each
+// answer's callback until the answer arrives and has no timeout of its own, so a tap asks for at most four answers at a
+// time and ends the ones Home Assistant never gives (actions not allowed, an older Home Assistant) after eight seconds.
+// Only a refusal shows: the tile says Refused for a moment instead of waiting.
+struct WatchedCall { uint32_t id = 0, since = 0; };
+inline std::array<WatchedCall, 4> watched_calls{};
+inline const char *const NO_ANSWER = "no answer";
+inline void watch_call(esphome::api::HomeassistantActionRequest &request, const std::string &entity) {
+  static uint32_t last_id = 0x5C000000u;  // apart from ESPHome's own counter for YAML actions, which starts at 1
+  auto slot = std::find_if(watched_calls.begin(), watched_calls.end(), [](const WatchedCall &c) { return c.id == 0; });
+  if (slot == watched_calls.end()) return;
+  const uint32_t id = ++last_id;
+  *slot = {id, esphome::millis()};
+  request.call_id = id;
+  esphome::api::global_api_server->register_action_response_callback(id, [id, entity](const esphome::api::ActionResponse &answer) {
+    for (auto &c : watched_calls) if (c.id == id) c = {};
+    if (answer.is_success() || answer.get_error_message().c_str() == NO_ANSWER) return;
+    ESP_LOGW("runtime_action", "Home Assistant refused the action for %s: %.*s", entity.c_str(),
+             (int) answer.get_error_message().size(), answer.get_error_message().c_str());
+    for (size_t i = 0; i < model.tiles.size(); ++i) if (model.tiles[i].entity == entity) {
+      model.tiles[i].pending = false;
+      model.tiles[i].refused_at = std::max<uint32_t>(1, esphome::millis());
+      refresh_tile(i);
+    }
+  });
+}
+inline void expire_calls(uint32_t now) {
+  for (auto &c : watched_calls) {
+    if (!c.id || now - c.since < 8000) continue;
+    const uint32_t id = c.id;
+    c = {};
+    esphome::api::global_api_server->handle_action_response(id, false, esphome::StringRef(NO_ANSWER, 9));
+  }
+}
+#endif
+// Marks every tile of the entity busy and sends; `watch` asks Home Assistant for an answer (a tap).
+inline void send_action(esphome::api::HomeassistantActionRequest &request, const std::string &entity, bool watch) {
+  for(size_t i=0;i<model.tiles.size();++i) if(model.tiles[i].entity==entity){model.tiles[i].begin(esphome::millis());model.tiles[i].refused_at=0;refresh_tile(i);}
+#ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
+  if (watch) watch_call(request, entity);
+#endif
+  esphome::api::global_api_server->send_homeassistant_action(request);
+}
+inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=false) {
   if (!fresh() || !valid_entity(entity)) return;
   esphome::api::HomeassistantActionRequest request;
   request.service = esphome::StringRef(service);
@@ -598,9 +661,37 @@ inline void action(const std::string &service, const std::string &entity, const 
   entry.value = esphome::StringRef(entity);
   request.data.push_back(entry);
   if(!key.empty()) {esphome::api::HomeassistantServiceMap param;param.key=esphome::StringRef(key);param.value=esphome::StringRef(value);request.data.push_back(param);}
-  for(size_t i=0;i<model.tiles.size();++i) if(model.tiles[i].entity==entity){model.tiles[i].begin(esphome::millis());refresh_tile(i);}
-  esphome::api::global_api_server->send_homeassistant_action(request);
+  send_action(request, entity, watch);
   ESP_LOGI("runtime_action","Sent service=%s entity=%s",service.c_str(),entity.c_str());
+}
+// A tap's own action (firmware 0.2.58+): the tile's entity with the data the app sent, text as data and the values Home
+// Assistant renders itself (numbers, lists, true or false) as a data_template.
+inline void perform(const Tile &tile) {
+  const auto &x = tile.extra();
+  if (!fresh() || !valid_entity(tile.entity) || x.action.empty()) return;
+  esphome::api::HomeassistantActionRequest request;
+  request.service = esphome::StringRef(x.action);
+  request.data.init(1 + x.action_data.size());
+  esphome::api::HomeassistantServiceMap target;
+  target.key = esphome::StringRef("entity_id");
+  target.value = esphome::StringRef(tile.entity);
+  request.data.push_back(target);
+  for (const auto &pair : x.action_data) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef(pair.first);
+    entry.value = esphome::StringRef(pair.second);
+    request.data.push_back(entry);
+  }
+  request.data_template.init(x.action_templates.size());
+  for (const auto &pair : x.action_templates) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef(pair.first);
+    entry.value = esphome::StringRef(pair.second);
+    request.data_template.push_back(entry);
+  }
+  send_action(request, tile.entity, true);
+  ESP_LOGI("runtime_action", "Sent service=%s entity=%s (%u values)", x.action.c_str(), tile.entity.c_str(),
+           (unsigned) (x.action_data.size() + x.action_templates.size()));
 }
 // A detail card asks the manager for its history (app 0.2.59+ answers with op "history"). An event, like
 // setting_event: it needs no permission to call Home Assistant actions.
@@ -664,6 +755,8 @@ inline std::string detail_state(const Tile &t){
   if(t.state=="idle")return "Idle";
   if(t.state=="error")return "Check the robot in HA";
   if(!t.available())return "Unavailable";
+  // Home Assistant's word where the screen has none of its own (firmware 0.2.58+).
+  if(!t.extra().state_word.empty())return t.extra().state_word;
   return t.state;
 }
 inline void hide_detail(){if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
@@ -1767,25 +1860,28 @@ inline void event(lv_event_t *event) {
   if (!tile.available() || tile.loading(esphome::millis()) || tile.tap=="none") return;
   // A camera or an image entity opens full screen on a board that draws images (firmware 0.2.57+).
   if(d=="camera" || d=="image"){if(camera_supported())camera_open(tile.entity,tile.name);return;}
-  bool open = code == LV_EVENT_LONG_PRESSED || d == "climate" || d == "vacuum" || d == "cover";
-  if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="detail")open=true;
-  if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="toggle")open=false;
-  if(d=="media_player" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("media_player.toggle",tile.entity);return;}
-  if(d=="climate" && tile.tap=="toggle" && code==LV_EVENT_SHORT_CLICKED){action("climate.toggle",tile.entity);return;}
-  // A short tap runs or pauses the timer; holding opens the card with a cancel button.
-  if(d=="timer" && !open){action(tile.state=="active"?"timer.pause":"timer.start",tile.entity);return;}
-  if(d=="sensor" || d=="binary_sensor" || d=="weather" || d=="number" || d=="input_number" || d=="select" || d=="input_select" || d=="media_player" || d=="vacuum" || d=="cover" || d=="sun" || d=="person" || d=="timer") { tile.begin(esphome::millis(),true); active_index=w.index; show_detail(w.index); return; }
-  if (open) {
-    if (d == "light" || d == "climate" || d == "vacuum" || d == "fan") {
+  // tile_controls::tap_route decides; tests/test_tile_controls.cpp keeps every older tap choice routed as before.
+  auto tap = tile_controls::tap_route(tile, code == LV_EVENT_LONG_PRESSED);
+  switch (tap.route) {
+    case tile_controls::TapRoute::ACTION:
+      action(tap.service, tile.entity, "", "", true);
+      return;
+    case tile_controls::TapRoute::CUSTOM:
+      perform(tile);
+      return;
+    case tile_controls::TapRoute::CARD:
+      if (tap.busy) tile.begin(esphome::millis(), true);
       active_index = w.index;
-      tile.begin(esphome::millis(),true);
+      show_detail(w.index);
+      return;
+    case tile_controls::TapRoute::OVERLAY:
+      active_index = w.index;
+      tile.begin(esphome::millis(), true);
       if (detail) detail(tile);
-    } else { active_index=w.index;show_detail(w.index); }
-    return;
+      return;
+    default:
+      return;
   }
-  if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") action(d + ".toggle", tile.entity);
-  if (d == "scene" || d == "script") action(d + ".turn_on", tile.entity);
-  if (d == "button" || d == "input_button") action(d + ".press", tile.entity);
 }
 // The same guard for any local style: a page switch mostly hands a slot the colours it already has,
 // and each real set refreshes the style and invalidates the object (about 0.3 ms on the Guition).
@@ -2407,6 +2503,7 @@ inline void render_slot(size_t slot) {
   // Nothing in Home Assistant stands behind the settings card, so it says the same with the link down.
   if (t.is_settings()) value = "Tap to open";
   else if (!fresh() || !t.available()) value = "Unavailable";
+  else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = "Refused";
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
   else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
   else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
@@ -2420,6 +2517,8 @@ inline void render_slot(size_t slot) {
   else if (value == "off") value = "Off";
   else if (value == "cleaning") value = "Cleaning";
   else if (value == "docked") value = "Docked";
+  // Home Assistant's word where the screen has none of its own (firmware 0.2.58+): a cover says Open, a washer Rinsing.
+  else if (!t.extra().state_word.empty()) value = t.extra().state_word;
   else if (!t.unit.empty() && !watch) value += " " + t.unit;
   bool pending=t.loading(esphome::millis());
   if(d=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
@@ -3054,8 +3153,13 @@ inline void tick() {
   // HA dropping or returning and the feed timing out change every card at once.
   bool now_fresh=fresh();
   if(now_fresh!=was_fresh){was_fresh=now_fresh;dirty_all=true;redraw=true;}
+#ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
+  expire_calls(esphome::millis());
+#endif
   for(size_t i=0;i<model.tiles.size();++i){
-    auto &t=model.tiles[i];if(!t.pending || t.loading(esphome::millis()))continue;
+    auto &t=model.tiles[i];
+    if(t.refused_at && esphome::millis()-t.refused_at>=4000){t.refused_at=0;card(i);}
+    if(!t.pending || t.loading(esphome::millis()))continue;
     t.pending=false;card(i);
     // A vacuum chip Home Assistant never confirmed goes back to what the robot reports.
     bool sent=false;if(auto *x=t.extra_ptr())for(auto &c:x->choices){sent=sent||!c.sent.empty();c.sent.clear();}

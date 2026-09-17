@@ -38,6 +38,14 @@ static void test_domains_and_packing() {
   assert(valid_entity("sun.sun") && valid_entity("timer.kitchen") && valid_entity("person.max"));
   assert(m.set_layout({"screen.clock", "weather.home", "light.a", "sensor.b", "person.max", "timer.egg", "sun.sun"}, "Home", changed));
   assert(m.tiles[0].available() && !m.tiles[1].available());  // built-in cards need no HA state
+  // A scene or button that never ran is unknown in Home Assistant and can still be pressed; other unknown states can't act.
+  for (const char *entity : {"scene.evening", "button.restart", "input_button.doorbell"}) {
+    runtime_tiles::Tile never; never.entity = entity; never.received = true; never.state = "unknown";
+    assert(never.available());
+    never.state = "unavailable"; assert(!never.available());
+  }
+  { runtime_tiles::Tile lamp; lamp.entity = "light.lamp"; lamp.received = true; lamp.state = "unknown"; assert(!lamp.available()); }
+  { runtime_tiles::Tile waiting; waiting.entity = "scene.evening"; waiting.state = "unknown"; assert(!waiting.available()); }
   m.tiles[4].state = "home"; assert(m.tiles[4].active());
   m.tiles[5].state = "active"; assert(m.tiles[5].active());
   m.tiles[5].state = "idle"; assert(!m.tiles[5].active());

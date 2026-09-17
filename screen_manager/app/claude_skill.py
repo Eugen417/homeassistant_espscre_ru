@@ -40,7 +40,7 @@ def text():
     colors = ', '.join(f"`{name}` ({item['label']})" for name, item in TILE_BACKGROUNDS.items() if item['color'])
     suggested = ', '.join(f'`{name}`' for name in ALERT_SUGGESTED_ICONS)
     groups = '\n'.join(f'- {group}: ' + ', '.join(f'`{name}` ({label})' for name, _, label in icons) for group, icons in tile_icons.GROUPS)
-    fixed = ', '.join(f'`{name}`' for name, _ in tile_icons.FIXED)
+    fixed = ', '.join(f'`{name}`' for name, _ in tile_icons.FIXED + tile_icons.HA_DEFAULTS)
     endings = ', '.join(f'`{action}` ({label[0].lower() + label[1:]})' for action, label in ALERT_ENDINGS)
     controls = '\n'.join(f'| `{domain}` | ' + ', '.join(f'`{key}` ({label.lower()})' for key, label in choices) + ' |'
                          for domain, choices in CONTROLS.items())
@@ -94,7 +94,8 @@ actions:
 | `controls` | What you can operate on the tile itself (see below). |
 | `display` | How the tile draws itself (see below). |
 | `icon`, `color` | An icon from the list further down, and one of the pastel colors. |
-| `tap` | What a tap does: `auto`, `detail` (open the card), `toggle` or `none`. |
+| `tap` | What a tap does: `auto`, `detail` (open the card), `toggle`, `action` or `none`. `toggle` works for anything Home Assistant can toggle for that entity, such as a light, a cover (open, close, or stop while it moves) or a speaker that turns on and off. Holding the tile still opens its card. |
+| `action`, `data` | Perform action: an action Home Assistant offers for the tile's own entity, such as `cover.set_cover_position`, with `data` for its fields (`position: 50`). Giving `action` sets `tap` to `action`. The target is always the tile's entity. Only actions and fields Home Assistant lists for that entity are accepted; the answer says what is missing. |
 | `entities` | Only for `esp_screens_order_tiles`: the entities in the order you want them. |
 
 A tile with a control, a forecast or a sun path is drawn double-width on its own; you don't have to ask for that.

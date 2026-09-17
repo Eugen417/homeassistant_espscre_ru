@@ -20,7 +20,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.57'
+FIRMWARE_VERSION = '0.2.58'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -457,6 +457,11 @@ def tile_options(data, current=None):
             options[name] = TILE_SIZES.get(loose(value), str(value))
         else:
             options[name] = str(value).strip()
+    # Perform action (app 0.2.67): `action` names Home Assistant's action and `data` its fields; the tap follows.
+    if data.get('action') not in (None, ''):
+        options['action'] = {'action': str(data['action']).strip(), **({'data': data['data']} if isinstance(data.get('data'), dict) and data['data'] else {})}
+        if data.get('tap') in (None, ''):
+            options['tap'] = 'action'
     if options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY:
         options['size'] = 'wide'
     return {key: value for key, value in options.items() if value not in (None, '')}
@@ -588,11 +593,61 @@ def layout_snapshot(screen, layout):
                       'page': slot // SLOTS_PER_PAGE + 1, 'row': slot % SLOTS_PER_PAGE // 2 + 1,
                       'column': 'right' if slot % 2 else 'left', 'slot': slot,
                       'size': options.get('size', 'single'), 'controls': options.get('controls', ''),
-                      'display': options.get('display', 'standard')})
+                      'display': options.get('display', 'standard'), 'tap': options.get('tap', 'auto'),
+                      **({'action': options['action']} if options.get('tap') == 'action' and 'action' in options else {})})
     return {'screen': screen.get('name', ''), 'node': screen.get('node') or '', 'title': layout.get('title', ''),
             'pages': max([tile['page'] for tile in tiles], default=1), 'tiles': tiles}
 
-def validate_layout(data):
+# A tap's own action (app 0.2.67): Home Assistant's `domain.action` with data for its fields. It always acts on the tile's
+# entity, so the keys that name a target stay out of the data. Text travels as data and every other value as a template
+# Home Assistant renders back into that value (ESPHome's action data is text only); both stay small for the CYD.
+ACTION_NAME = re.compile(r'[a-z0-9_]+\.[a-z0-9_]+')
+ACTION_FIELD = re.compile(r'[a-z0-9_]{1,32}')
+TARGET_KEYS = frozenset(('entity_id', 'device_id', 'area_id', 'floor_id', 'label_id'))
+ACTION_MAX_FIELDS = 8
+ACTION_MAX_VALUE = 400
+ACTION_MAX_BYTES = 800
+
+def action_for_screen(value):
+    """A tap's own action as the firmware sends it (0.2.58+): {"s": action, "d": [[key, text]], "t": [[key, template]]}."""
+    pairs, templates = [], []
+    for key, item in (value.get('data') or {}).items():
+        if isinstance(item, str):
+            pairs.append([key, item])
+        else:
+            templates.append([key, '{{ %s | from_json }}' % json.dumps(json.dumps(item, ensure_ascii=False, separators=(',', ':'), allow_nan=False), ensure_ascii=False)])
+    act = {'s': value['action']}
+    if pairs:
+        act['d'] = pairs
+    if templates:
+        act['t'] = templates
+    return act
+
+def validate_tap_action(value):
+    """The stored form of a tap's own action; ValueError with what to change."""
+    if not isinstance(value, dict) or set(value) - {'action', 'data'}:
+        raise ValueError('Choose an action from the list.')
+    name, data = value.get('action'), value.get('data', {})
+    if not isinstance(name, str) or len(name) > 64 or not ACTION_NAME.fullmatch(name):
+        raise ValueError('Choose an action from the list.')
+    if not isinstance(data, dict) or len(data) > ACTION_MAX_FIELDS:
+        raise ValueError(f'An action on a tap sets at most {ACTION_MAX_FIELDS} fields.')
+    for key in data:
+        if not isinstance(key, str) or not ACTION_FIELD.fullmatch(key) or key in TARGET_KEYS:
+            raise ValueError(f'{key} is not a field an action on a tap can set.')
+    clean = {'action': name, **({'data': dict(data)} if data else {})}
+    try:
+        act = action_for_screen(clean)
+        size = len(json.dumps(act, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode())
+    except (TypeError, ValueError):
+        raise ValueError('A value of the action is something the screen cannot send.') from None
+    if size > ACTION_MAX_BYTES or any(len(item[1].encode()) > ACTION_MAX_VALUE for item in act.get('d', []) + act.get('t', [])):
+        raise ValueError('The values of the action are too long for the screen.')
+    return clean
+
+def validate_layout(data, stored=False):
+    """A layout as the editor, a tile event or the storage gives it. `stored`: loaded from the app's own data, where a
+    tile setting this version doesn't know (saved by a newer app) stays as it is instead of stopping the app."""
     if not isinstance(data, dict):
         raise ValueError('Invalid layout.')
     title, tiles = data.get('title'), data.get('tiles')
@@ -611,9 +666,17 @@ def validate_layout(data):
             raise ValueError('A tile name may contain at most 80 bytes.')
         seen.add(tile['entity'])
         item = {'entity': tile['entity'], 'name': name.strip()}
+        if stored and 'options' in tile:
+            try:
+                validate_layout({'title': 'stored', 'tiles': [{'entity': tile['entity'], 'options': tile['options']}]})
+            except ValueError:
+                # The screen ignores what its firmware doesn't know either.
+                item['options'] = dict(tile['options']) if isinstance(tile['options'], dict) else {}
+                clean.append(item)
+                continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action'}:
                 raise ValueError('Unknown tile settings.')
             if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
                 raise ValueError('Choose a pastel background color from the palette.')
@@ -621,15 +684,24 @@ def validate_layout(data):
                 raise ValueError('Choose an icon from the list.')
             domain = tile['entity'].split('.')[0]
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
-            choices = {'tap': ('auto', 'detail', 'toggle', 'none'), 'display': displays, 'inline': ('none', 'slider'), 'size': ('single', 'wide')}
+            choices = {'tap': ('auto', 'detail', 'toggle', 'none', 'action'), 'display': displays, 'inline': ('none', 'slider'), 'size': ('single', 'wide')}
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError('Invalid tile setting: ' + key)
             # The five-day strip and the sun path only fit a double-width card.
             if options.get('display') in WIDE_ONLY:
                 options = {**options, 'size': 'wide'}
-            if options.get('tap') == 'toggle' and domain not in {'light','switch','input_boolean','fan','media_player','climate'}:
+            # On / off sends <domain>.toggle. Whether Home Assistant offers that for the entity is checked when saving
+            # (Manager.check_supported, app 0.2.67); the built-in cards have nothing to switch.
+            if options.get('tap') == 'toggle' and domain == 'screen':
                 raise ValueError("This entity doesn't support an on/off action.")
+            # Perform action (app 0.2.67) keeps its action; another tap choice leaves a stale one behind.
+            if options.get('tap') == 'action':
+                if domain == 'screen':
+                    raise ValueError("A built-in card can't perform an action.")
+                options = {**options, 'action': validate_tap_action(options.get('action'))}
+            elif 'action' in options:
+                options = {key: value for key, value in options.items() if key != 'action'}
             if options.get('inline') == 'slider' and domain not in {'light','fan','cover','number','input_number','media_player'}:
                 raise ValueError("This entity doesn't support a mini-slider.")
             if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in (1,6,24)):
@@ -891,24 +963,77 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
         return result or None
     return None
 
-def tile_icon(tile, attrs):
-    """Codepoint the screen shows: the chosen icon, else HA's own mdi icon; None keeps the firmware default."""
+def tile_icon(tile, attrs, state=None, entry=None):
+    """Codepoint the screen shows: the chosen icon, else HA's own mdi icon, else the icon Home Assistant's frontend shows
+    for this state (app 0.2.67); None keeps the firmware default."""
     choice = tile.get('options', {}).get('icon', 'auto')
-    return tile_icons.ICONS[choice][0] if choice in tile_icons.ICONS else tile_icons.ha_icon(attrs)
+    if choice in tile_icons.ICONS:
+        return tile_icons.ICONS[choice][0]
+    return tile_icons.ha_icon(attrs) or tile_icons.default_glyph(tile['entity'], state, attrs, entry)
 
-def screen_options(tile, attrs):
+def screen_options(tile, attrs, state=None, entry=None):
     """Stored options on the wire; `icon` travels as the resolved codepoint (firmware 0.2.18+, ignored before)
     and `controls` only as the set the card really shows (firmware 0.2.19+, ignored before)."""
-    options = {k: v for k, v in tile.get('options', {}).items() if k not in ('icon', 'controls')}
-    icon = tile_icon(tile, attrs)
+    options = {k: v for k, v in tile.get('options', {}).items() if k not in ('icon', 'controls', 'action')}
+    icon = tile_icon(tile, attrs, state, entry)
     if icon:
         options['icon'] = icon
     controls = resolve_controls(tile)
     if controls:
         options['controls'] = controls
+    # Perform action travels in the firmware's compact form (0.2.58+); older firmware taps automatically.
+    action = tile.get('options', {}).get('action')
+    if options.get('tap') == 'action' and isinstance(action, dict):
+        try:
+            options['act'] = action_for_screen(validate_tap_action(action))
+        except ValueError:
+            pass
     return options if options or 'options' in tile else None
 
-def state_message(index, tile, states, extra=None):
+def rounded_state(value, precision):
+    """A sensor's state as Home Assistant shows it with a display precision (app 0.2.67): "21.456" at 1 becomes "21.5".
+    No thousands separators, so the screen still reads the number; anything that isn't a number stays as it is."""
+    if type(precision) is not int or not 0 <= precision <= 6:
+        return value
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return value
+    if not math.isfinite(number):
+        return value
+    from decimal import ROUND_HALF_UP, Decimal
+    text = format(Decimal(str(value)).quantize(Decimal(1).scaleb(-precision), rounding=ROUND_HALF_UP), 'f')
+    return text[1:] if text.startswith('-') and not text.strip('-0.') else text
+
+def ha_word(entity_id, suffix, attributes, entry, words):
+    """Home Assistant's English word for `suffix` (`state.<state>`, or `state_attributes.<attribute>.state.<value>`) as its
+    frontend picks it: the integration's word for the entity's translation key, then the domain's word for the state's
+    device class, then the domain's. None when Home Assistant has none (frontend/get_translations `entity` and
+    `entity_component`, app 0.2.67)."""
+    if not isinstance(words, dict) or not words or not isinstance(entity_id, str):
+        return None
+    domain = entity_id.split('.', 1)[0]
+    entry = entry if isinstance(entry, dict) else {}
+    device_class = attributes.get('device_class') if isinstance(attributes, dict) else None
+    keys = []
+    if entry.get('platform') and entry.get('translation_key'):
+        keys.append(f"component.{entry['platform']}.entity.{domain}.{entry['translation_key']}.{suffix}")
+    if isinstance(device_class, str) and device_class:
+        keys.append(f'component.{domain}.entity_component.{device_class}.{suffix}')
+    keys.append(f'component.{domain}.entity_component._.{suffix}')
+    return next((words[key] for key in keys if isinstance(words.get(key), str) and words[key]), None)
+
+def state_word(entity_id, state, attributes, entry, words):
+    """Home Assistant's word for a state ("rinsing" is "Rinsing", "heat_cool" is "Heat/Cool"), or None."""
+    return ha_word(entity_id, f'state.{state}', attributes, entry, words) if isinstance(state, str) and state else None
+
+def attribute_word(entity_id, attribute, value, attributes, entry, words):
+    """Home Assistant's word for an attribute's value, such as a robot's suction level, or None."""
+    if not isinstance(value, str) or not value:
+        return None
+    return ha_word(entity_id, f'state_attributes.{attribute}.state.{value}', attributes, entry, words)
+
+def state_message(index, tile, states, extra=None, precision=None, entry=None):
     if tile['entity'] in BUILTIN:
         message = {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
                    'name': short(tile['name'] or BUILTIN[tile['entity']], 80), 'state': 'ok', 'a': {}}
@@ -937,10 +1062,10 @@ def state_message(index, tile, states, extra=None):
             limit = 2 if key == 'hs_color' else 4 if key == 'fan_speed_list' else 8
             bounded[key] = [short(v, 48) if isinstance(v, str) else v for v in value[:limit]
                             if isinstance(v, str) or isinstance(v, (float, int)) and math.isfinite(v) and abs(v) <= 1000000]
-    options = screen_options(tile, attrs)
+    options = screen_options(tile, attrs, state.get('state'), entry)
     return {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
             'name': short(tile['name'] or attrs.get('friendly_name') or tile['entity'], 80),
-            'state': short(state.get('state', 'unavailable'), 160), 'a': bounded,
+            'state': short(rounded_state(state.get('state', 'unavailable'), precision) if tile['entity'].startswith('sensor.') else state.get('state', 'unavailable'), 160), 'a': bounded,
             **({'o': options} if options is not None else {}), **({'x': extra} if extra else {})}
 
 def encode(message):
@@ -1150,7 +1275,8 @@ def discover(registry, states, devices, areas):
         area = area_map.get(item.get('area_id') or device.get('area_id'), '')
         entities.append({'id': eid, 'name': state.get('attributes', {}).get('friendly_name') or item.get('name') or item.get('original_name') or eid,
                          'device': device.get('name_by_user') or device.get('name') or '', 'area': area,
-                         'state': state.get('state', 'unavailable'), 'icon': tile_icons.ha_icon(state.get('attributes')),
+                         'state': state.get('state', 'unavailable'),
+                         'icon': tile_icons.ha_icon(state.get('attributes')) or tile_icons.default_glyph(eid, state.get('state'), state.get('attributes'), item),
                          # Top-bar-only domains (a phone's tracker, a lock) stay out of the tile picker.
                          **({} if tile else {'tile': False})})
     # YAML entities may not have an entity-registry entry.

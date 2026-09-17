@@ -3,6 +3,7 @@
 #include <array>
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 #include <cmath>
 #include <cstdint>
@@ -26,6 +27,15 @@ inline bool valid_entity(const std::string &entity) {
   for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person", "camera", "image"})
     if (domain == allowed) return true;
   return false;
+}
+// An action as Home Assistant names it (domain.action: lowercase letters, digits, underscores), of any integration.
+inline bool valid_action(const std::string &action) {
+  if (action.size() > 64) return false;
+  auto dot = action.find('.');
+  if (dot == std::string::npos || dot == 0 || dot + 1 == action.size() || action.find('.', dot + 1) != std::string::npos) return false;
+  for (size_t i = 0; i < action.size(); ++i)
+    if (i != dot && !(action[i] >= 'a' && action[i] <= 'z') && !(action[i] >= '0' && action[i] <= '9') && action[i] != '_') return false;
+  return true;
 }
 // A tile keeps a fingerprint (FNV-1a) of its last state message instead of a copy of it. It is also an
 // ArduinoJson writer: the firmware hashes the attributes while serializing them, without a string.
@@ -79,13 +89,20 @@ struct Extra {
   bool charging = false;
   // Cover (firmware 0.2.50+): the tilt of its slats, 0 closed to 100 open.
   float tilt = NAN;
+  // A tap that performs a Home Assistant action of the tile's own choosing (firmware 0.2.58+): the action, its data as
+  // text, and the values Home Assistant renders itself (numbers, lists, true or false) as templates.
+  std::string action;
+  std::vector<std::pair<std::string, std::string>> action_data, action_templates;
+  // Home Assistant's word for the state where the screen has none of its own (app 0.2.67+): "Open", "Playing", "Rinsing".
+  std::string state_word;
   Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   bool empty() const {
     return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
            hvac_action.empty() && options.empty() && forecast.empty() && hours.empty() && std::isnan(wind) &&
            std::isnan(feels) && wind_unit.empty() && sunrise.empty() && sunset.empty() && duration.empty() &&
            remaining.empty() && !timer_end && media_title.empty() && fan_speeds.empty() && fan_speed.empty() &&
-           choices.empty() && room.empty() && !charging && std::isnan(tilt);
+           choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
+           action_templates.empty() && state_word.empty();
   }
 };
 // The Extra of a tile on the heap, copied along with the tile like an ordinary member.
@@ -128,6 +145,8 @@ struct Tile {
   uint32_t revision = 0, pending_revision = 0;  // state_revision() fingerprints
   uint32_t pending_since = 0;
   bool pending = false, confirmed = false, local_feedback = false;
+  // When Home Assistant refused the action a tap sent (firmware 0.2.58+); the tile says so for a moment.
+  uint32_t refused_at = 0;
   ExtraBox extra_box;
   const Extra &extra() const { static const Extra none; return extra_box.ptr ? *extra_box.ptr : none; }
   Extra *extra_ptr() { return extra_box.ptr.get(); }
@@ -151,7 +170,14 @@ struct Tile {
   // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
   bool is_clock() const { return entity == "screen.clock"; }
   bool is_settings() const { return entity == "screen.settings"; }
-  bool available() const { return builtin() || (received && state != "unknown" && state != "unavailable" && !state.empty()); }
+  // A scene, button or input button that never ran is "unknown" in Home Assistant, which still lets you press it
+  // (hui-button-entity-row disables only an unavailable one): its state is the moment it last ran (firmware 0.2.58+).
+  bool available() const {
+    if (builtin()) return true;
+    if (!received || state.empty() || state == "unavailable") return false;
+    auto d = domain();
+    return state != "unknown" || d == "scene" || d == "button" || d == "input_button";
+  }
   bool active() const {
     return state == "on" || state == "cleaning" || state == "active" || (domain() == "person" && state == "home") ||
            (domain() == "sun" && state == "above_horizon") || (domain() == "climate" && available() && state != "off");

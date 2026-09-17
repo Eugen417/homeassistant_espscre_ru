@@ -176,6 +176,125 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.67 / firmware 0.2.58
+
+App (new `ha_catalogue.py`, `core.py`, `server.py`, `header_bar.py`, `history_card.py`, `tile_icons.py`, the editor and
+the Claude skill), `runtime_model.h`, `tile_controls.h`, `runtime_tiles.h` and `text.py`; the app raises
+`FIRMWARE_VERSION` and both profiles' icon fonts grow. The storage version and the tile protocol stay 1. A tile gains
+the tap choice `action` with the option `action`; its state message gains the options `act` and `x.w`, and `o.icon` now
+carries most tiles' icon. Without Home Assistant's answers everything behaves as before.
+
+Capabilities (what the editor offers):
+
+- What the editor offers per entity comes from Home Assistant. `HomeAssistant.fetch_services` keeps the whole
+  `get_services` answer (it kept only `esphome`), and every `service_registered`/`service_removed` refreshes it after
+  the usual second; only an `esphome` one still wakes the sync loop. `HomeAssistant.entity_actions` asks
+  `get_services_for_target` per entity (Home Assistant 2025.12+, core PR 157334) and keeps the answer until the action
+  list, the registry or the entity's `supported_features`/`device_class` change. A Home Assistant that answers "Unknown
+  command" is remembered, and `ha_catalogue.local_actions` evaluates the `target.entity` filters of the descriptions
+  instead: every condition of a filter must hold, a `supported_features` entry is a mask the entity must support
+  completely, any entry will do. On Max's Home Assistant 2026.9.2 both answers were identical for 30 of 30 entities.
+- `ha_catalogue.capabilities` turns the action list into what the editor may offer: `toggle` (`<domain>.toggle`),
+  `inline` and `controls` (the Home Assistant action each of our widgets sends, `INLINE`/`CONTROLS`, with a field that
+  must pass its `filter`: a light's small slider needs `light.turn_on` with `brightness_pct`), and `displays` (graph for
+  a sensor `history_card.kind` draws as a line, forecast for weather with the daily bit or no features yet). `GET
+  /api/capabilities?entity=...` returns it for up to 40 entities, null when unknown (no action list, no state).
+- `Manager.check_supported` runs before `Manager.save` for the editor's PUT and for tile events. It refuses a tap,
+  slider, control or display Home Assistant doesn't support only when that setting is new or changed for the tile; what
+  a tile already has keeps saving, and nothing is refused while the capabilities are unknown.
+- `validate_layout` no longer limits `tap: toggle` to six domains (only `screen.*` has none); `check_supported` takes
+  that place. `validate_layout(data, stored=True)` loads the app's own data leniently: a tile whose options fail
+  validation (a newer app's setting after a downgrade) keeps them as stored instead of stopping the app. The editor and
+  tile events still validate strictly.
+- Firmware: `tile_controls::tap_route` decides what a tap or hold does and `runtime_tiles::event` carries it out. `tap
+  == "toggle"` on a short tap sends `<domain>.toggle` for every domain before the domain's own card; before, the 13
+  runtime-card domains opened their card first, so a cover could not toggle. `tests/test_tile_controls.cpp` transcribes
+  `event()` of firmware 0.2.56 and checks 800 combinations (22 domains x 4 tap choices x 5 states x hold): every one
+  routes as before, including `busy`; only a short tap with `toggle` on the 16 domains that could not have it changes.
+- Firmware before 0.2.58 opens the card for `toggle` on those domains; the editor says so under On tap and keeps the
+  choice. The editor keeps showing a stored choice that Home Assistant no longer supports, with a warning, and hides it
+  otherwise; a tile that becomes wide gets the first supported direct control when the domain's default isn't there.
+  Hints under a field sit beside the label (`withHint`): a click inside a `<label>` pressed its first button.
+- `renderResults` skips `tile: false` entities (the top bar's extra domains), and `input_button` joins the `domains`
+  table and the Actions filter.
+- `Tile::available()` counts `unknown` as available for `scene`, `button` and `input_button`: their state is the moment
+  they last ran, and Home Assistant's button row disables only an `unavailable` one. Since the first runtime tiles such
+  a tile said Unavailable and ignored taps until it had run once from Home Assistant; it now says Never run.
+
+Perform action:
+
+- Stored: `options.tap = "action"` with `options.action = {"action": "domain.action", "data": {...}}`.
+  `core.validate_tap_action` takes an action name of any integration, at most 8 fields, no target keys (`entity_id`,
+  `device_id`, `area_id`, `floor_id`, `label_id`: the target is the tile's entity), JSON values without NaN, each at
+  most 400 bytes on the wire and 800 bytes together. `validate_layout` drops `action` when the tap is anything else and
+  refuses it on `screen.*`. App 0.2.67 loads such a layout leniently; 0.2.66 and older stop on it (a downgrade only).
+- On the wire `screen_options` sends `o.act = {"s": action, "d": [[key, text]], "t": [[key, template]]}` and never the
+  stored `action`. Text goes as ESPHome action data; every other value as `{{ "<json>" | from_json }}`, which Home
+  Assistant's ESPHome integration renders with `render_complex` back into a number, a boolean, a list or an object
+  (ESPHome's action data is text only).
+- The list: `HomeAssistant.fetch_services` also reads `frontend/get_translations` (English, `services`) into
+  `service_names`; `get_services` has carried only services.yaml's legacy text since 2025-10-24. `GET
+  /api/entity-actions?entity=` answers `ha_catalogue.action_choices`: the actions of `entity_actions`, the entity's
+  domain first, then its integration, then the rest, each with Home Assistant's name and description and the fields
+  whose `filter` fits the entity (sections flattened). An action that must return data (`response.optional` false) is
+  left out. A `state` selector gets the entity's values for that attribute (`<attribute>_list`, `<attribute>s`,
+  `available_<attribute>s`, `supported_<attribute>s`), so a Sonos source is a choice.
+- `Manager.check_supported` refuses a new or changed action that Home Assistant doesn't offer for the entity, that only
+  returns data, that sets a field Home Assistant doesn't have for it, or that leaves a required field empty. A saved,
+  unchanged action keeps saving. Tile events take `action` and `data` (`tap` follows unless given); the layout sensor
+  carries `tap` and `action`.
+- Firmware: `receive` parses `o.act` into `Extra::action`, `action_data` and `action_templates` (a valid action name, at
+  most 8 pairs, keys up to 32 and values up to 400 bytes), so only a tile with an action holds them.
+  `tile_controls::tap_route` returns `CUSTOM` for a short tap with `tap == "action"` and an action; without one it taps
+  automatically, as older firmware does with the unknown value (the legacy test now routes 1020 combinations). Holding
+  still opens the card. `runtime_tiles::perform` sends `entity_id` plus the data, and the templates as `data_template`.
+- Answers: `text.py` defines `USE_API_HOMEASSISTANT_ACTION_RESPONSES`, which ESPHome otherwise sets only for a YAML
+  `homeassistant.action` with `on_success`/`on_error`. A tap's action (the tile's own, On / off, the automatic taps from
+  `event()`, not the sliders and keys) gets a call id through `watch_call`, at most four at a time. A refusal sets
+  `Tile::refused_at`: the tile says Refused for four seconds and stops waiting. A success changes nothing: the tile
+  waits for the new state as before. ESPHome keeps a callback until its answer arrives and has no timeout, and Home
+  Assistant never answers when the device may not perform actions or is older than 2025.10, so `expire_calls` ends a
+  call after eight seconds through `handle_action_response(id, false, "no answer")`, which shows nothing.
+
+Numbers, words and icons:
+
+- `core.rounded_state` rounds a sensor's state in `state_message` by the entity registry's display precision
+  (`header_bar.precision_of`: `display_precision`, else `suggested_display_precision`), half up like the frontend,
+  without thousands separators because the firmware parses the number, and "-0.0" as "0.0". No precision keeps the state
+  as it is, as Home Assistant does. Numbers, climate and other domains are unchanged.
+- `HomeAssistant.fetch_services` also reads `frontend/get_translations` (English) for `entity_component` (about 63 KB on
+  Max's installation) and `entity` (about 215 KB) into `state_words`, on connect and when actions register.
+  `core.state_word` picks a word as the frontend's `computeStateDisplay` does: the integration's word for the entity's
+  translation key (`component.<platform>.entity.<domain>.<key>.state.<state>`), then the domain's word for the state's
+  device class, then the domain's word; `core.attribute_word` does the same for
+  `state_attributes.<attribute>.state.<value>` (`computeAttributeValueToParts`). `ha_catalogue.screen_word` sends a word
+  as `x.w` only for cover, media player, vacuum, select, input select and non-numeric sensors, folded to the tile fonts'
+  glyphs (`header_bar.clean_text`), at most 32 bytes, and only when it differs from the state.
+- The same words, add-on only (any firmware): `header_bar.value` for a select, input select or input text and for a
+  state without a word in `STATES` (which stays: Returning, Auto, Up); `history_card.state_label` for timeline legends
+  and heading words, after `STATES`; `ha_catalogue.chip_words` for a vacuum card's `l` labels of a mode or water select
+  option and of a fan speed (`attribute_word` `fan_speed`) that `VACUUM_LABELS` lacks; the inspector's `word`. Without
+  translations every message is as before.
+- Firmware keeps `x.w` in `Extra::state_word` (heap only for such tiles). The tile value uses it after the screen's own
+  words (Unavailable, a light's brightness, a climate's setpoint, person, sun, timer, scene, script, button, binary
+  sensor, On, Off, Cleaning, Docked) and before the unit; `detail_state` after the vacuum words and Unavailable. Wide
+  cover and media tiles keep `tile_controls::status_text`, and the cover card its own status line.
+- Binary sensors keep firmware 0.2.53's words (Motion / No motion where Home Assistant says Detected / Clear) until Max
+  decides. Older firmware ignores `x.w`.
+- Icons: `tile_icons.HA_DEFAULTS` adds the 125 icons the fonts lacked that Home Assistant 2026.9 shows for the tile and
+  top bar domains: every default, state and range icon of `frontend/get_icons` (`entity_component`) and those its
+  frontend picks in code (`stateIcon`: a tracker on a router or Bluetooth). `circle` and `radiobox-blank` are not in
+  this repo's MDI font. `tools/generate_icons.py` puts them in both profiles' three icon fonts and the editor font (309
+  glyphs); they are not pickable. `HomeAssistant.fetch_services` reads `frontend/get_icons` (`entity_component`,
+  `entity`) into `tile_icons.use_ha_icons`. `tile_icons.ha_default_icon` follows the frontend's `getEntityIcon`
+  (src/data/icons.ts): the integration's icon for the translation key, then `stateIcon`, then the domain's icon for the
+  state's device class or else `_`; within one, the state's icon, then a range step for a number (`Number()`, the
+  highest step not above it), then the default. `default_glyph` returns a codepoint only for a glyph the fonts carry,
+  never for weather, sun or `screen.*`. `core.tile_icon` uses it after a chosen icon and the entity's own `icon`
+  attribute, so `o.icon` now carries most tiles' icon; `header_bar.auto_icon` and the editor's entity list (`discover`)
+  use the same before their tables. Firmware before 0.2.58 drops a codepoint its fonts lack (`has_icon_glyph`) and shows
+  its own default. Without icon resources (a Home Assistant before 2024.2, a refused request) everything is as before.
+
 ### Compatibility 0.2.66 / firmware 0.2.57
 
 Camera images on the Guition (docs/CAMERA.md). Storage, keys, preferences and the settings block are unchanged; the

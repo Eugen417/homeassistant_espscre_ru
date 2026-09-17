@@ -370,4 +370,34 @@ inline Action edit_action(const Tile &t, float value) {
   if (d == "number" || d == "input_number") return {d + ".set_value", "value", text};
   return {};
 }
+
+// ---- What a finger on a tile does ----
+// The tile's own `tap` choice comes first. `toggle` sends <domain>.toggle on every domain (firmware 0.2.58+): the app
+// only offers it where Home Assistant lists that action for the entity, such as a cover, which stops while it moves.
+// Otherwise the domain decides, as before: holding or `detail` opens a card, a short tap switches, runs or presses.
+// CARD is the runtime detail card (show_detail), OVERLAY the board's own light, fan and climate card; `busy` marks the
+// tile busy for a moment while the card opens.
+// CUSTOM (firmware 0.2.58+) is an action of the tile's own choosing from Home Assistant's list, with its data.
+enum class TapRoute : uint8_t { NONE, ACTION, CARD, OVERLAY, CUSTOM };
+struct Tap { TapRoute route = TapRoute::NONE; std::string service; bool busy = false; };
+inline bool runtime_card_domain(const std::string &d) {
+  return d == "sensor" || d == "binary_sensor" || d == "weather" || d == "number" || d == "input_number" || d == "select" ||
+         d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" || d == "timer";
+}
+inline Tap tap_route(const Tile &t, bool hold) {
+  const std::string d = t.domain();
+  if (t.tap == "none") return {};
+  // A tile whose action didn't arrive (an app before 0.2.67) taps automatically, as older firmware does.
+  if (!hold && t.tap == "action" && !t.extra().action.empty()) return {TapRoute::CUSTOM, t.extra().action};
+  if (!hold && t.tap == "toggle") return {TapRoute::ACTION, d + ".toggle"};
+  bool open = hold || t.tap == "detail" || d == "climate" || d == "vacuum" || d == "cover";
+  // A short tap runs or pauses the timer; holding opens the card with a cancel button.
+  if (d == "timer" && !open) return {TapRoute::ACTION, t.state == "active" ? "timer.pause" : "timer.start"};
+  if (runtime_card_domain(d)) return {TapRoute::CARD, "", true};
+  if (open) return d == "light" || d == "climate" || d == "fan" ? Tap{TapRoute::OVERLAY, "", true} : Tap{TapRoute::CARD, "", false};
+  if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") return {TapRoute::ACTION, d + ".toggle"};
+  if (d == "scene" || d == "script") return {TapRoute::ACTION, d + ".turn_on"};
+  if (d == "button" || d == "input_button") return {TapRoute::ACTION, d + ".press"};
+  return {};
+}
 }  // namespace tile_controls

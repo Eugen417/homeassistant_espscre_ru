@@ -15,8 +15,10 @@ class ExtendedTests(unittest.TestCase):
   for domain in ['sensor','number','input_number','select','weather','media_player']:
    layout=validate_layout({'title':'Test','tiles':[{'entity':domain+'.x','options':{'display':'watch'}}]})
    self.assertEqual(layout['tiles'][0]['options']['display'],'watch')
-  for options in [{'inline':'slider'},{'tap':'toggle'},{'history_hours':True},{'history_hours':100},{'arbitrary':'run'}]:
+  for options in [{'inline':'slider'},{'history_hours':True},{'history_hours':100},{'arbitrary':'run'}]:
    with self.assertRaises(ValueError):validate_layout({'title':'Test','tiles':[{'entity':'sensor.x','options':options}]})
+  # On / off: whether Home Assistant offers <domain>.toggle is checked when saving (app 0.2.67); a built-in card never.
+  with self.assertRaises(ValueError):validate_layout({'title':'Test','tiles':[{'entity':'screen.clock','options':{'tap':'toggle'}}]})
   with self.assertRaises(ValueError):validate_layout({'title':'Test','tiles':[{'entity':'light.x','options':{'display':'watch','inline':'slider'}}]})
  def test_attributes_and_history_fit_protocol(self):
   tile={'entity':'sensor.a','name':'Temperature','options':{'history_hours':24,'display':'watch'}}
