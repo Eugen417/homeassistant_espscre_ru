@@ -12,8 +12,9 @@ def luminance(color):
 
 class PaletteTests(unittest.IsolatedAsyncioTestCase):
     def test_palette_matches_firmware_and_has_readable_text(self):
-        header=(Path(__file__).resolve().parents[1]/'components/smart_display/tile_palette.h').read_text()
-        native=dict(re.findall(r'name=="(\w+)"\)return 0x([A-F0-9]+)',header))
+        # The named card colours live in theme.h (firmware 0.2.54+): name, light value, dark value.
+        header=(Path(__file__).resolve().parents[1]/'components/smart_display/theme.h').read_text()
+        native={name:light for name,light,_ in re.findall(r'\{"(\w+)", 0x([A-F0-9]{6}), 0x([A-F0-9]{6})\}',header)}
         expected={k:v['color'][1:] for k,v in TILE_BACKGROUNDS.items() if v['color']}
         self.assertEqual(native,expected)
         for color in expected.values():

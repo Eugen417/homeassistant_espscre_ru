@@ -16,6 +16,7 @@ changes them with the entity's own action, and leaves them out of the layout mes
 | Row on the screen | Entity | Key in ESP Screens |
 |---|---|---|
 | Brightness | `number.<screen>_normal_brightness` | `brightness` |
+| Dark mode (0.2.54+) | `switch.<screen>_dark_mode` | `dark_mode` |
 | Auto standby | `switch.<screen>_auto_standby` | `standby_enabled` |
 | Standby after | `number.<screen>_standby_after` | `standby_seconds` |
 | Standby brightness | `number.<screen>_standby_brightness` | `standby_brightness` |
@@ -29,7 +30,9 @@ changes them with the entity's own action, and leaves them out of the layout mes
 | Rotation (Guition) | `select.<screen>_rotation` | `rotation` |
 
 The first four entities and Auto standby existed before 0.2.49; ESP Screens recognizes a screen that owns
-its settings by one of the others (`OWNED_SETTINGS_MARKERS` in `core.py`).
+its settings by one of the others (`OWNED_SETTINGS_MARKERS` in `core.py`). Dark mode came with firmware 0.2.54:
+a screen without its switch shows no Dark mode row in ESP Screens, and firmware that gets its settings with the
+layout never gets it at all. What Dark mode changes on the glass is in [docs/THEME.md](THEME.md).
 
 **Older firmware: ESP Screens.** The values travel in the layout message: `settings`, the frozen block of
 eleven keys, with `swipe_pages`, `auto_home`, `auto_home_seconds` and `rotation` as keys of their own. A
@@ -47,7 +50,7 @@ The page is a menu of groups, each of which opens a page of its own:
 
 | Group | Rows |
 |---|---|
-| Brightness | Brightness, Auto standby, Standby after, Standby brightness |
+| Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
 | Screen | Clock, Back to page 1, After, Also on standby, Swipe between pages, Rotation (boards that turn) |
 | This screen | Screen, Address, Firmware, Home Assistant, Restart |

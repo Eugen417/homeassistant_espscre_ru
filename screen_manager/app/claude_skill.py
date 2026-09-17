@@ -15,7 +15,8 @@ import tile_icons
 from core import (ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
                   CONTROLS, DISPLAYS, MAX_PAGES, SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS,
-                  TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE)
+                  TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE,
+                  DARK_MODE_MIN_FIRMWARE)
 
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
@@ -263,6 +264,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 | `number.<screen>_normal_brightness` | Brightness while in use, 5 to 100 %. |
 | `number.<screen>_standby_brightness` | Brightness in standby, 0 to 100 %, at most the normal brightness. |
 | `number.<screen>_night_brightness` | Brightness in standby during the night hours, 0 to 100 %. |
+| `switch.<screen>_dark_mode` | On: the dark look, a black page with graphite cards and soft white text, for a screen beside a bed or in a dark room. Off: the light look. Firmware {DARK_MODE_MIN_FIRMWARE} or newer. |
 | `switch.<screen>_night_mode` | Night mode: the night brightness between the two times below. Firmware {SETTING_ENTITIES_MIN_FIRMWARE} or newer, like every row below it. |
 | `time.<screen>_night_starts`, `time.<screen>_night_ends` | The night hours; set them with `time.set_value`. |
 | `switch.<screen>_24_hour_clock` | On: 24-hour clock. Off: 12-hour clock. |
@@ -342,11 +344,36 @@ actions:
 
 Replace the person, light, window and screen with the real entity IDs (ask which screens when there are several), and leave out conditions the user did not ask for.
 
+Dark mode follows the same pattern: switch it on and off from an automation, for example at bedtime and in the morning, or with the sun. It changes the colours only, never the tiles or the brightness; lower the brightness with the numbers above.
+
+```yaml
+alias: Bedroom screen dark at night
+triggers:
+  - trigger: time
+    at: "21:30:00"
+    id: night
+  - trigger: time
+    at: "07:00:00"
+    id: day
+actions:
+  - if:
+      - condition: trigger
+        id: night
+    then:
+      - action: switch.turn_on
+        target:
+          entity_id: switch.bedroom_screen_dark_mode
+    else:
+      - action: switch.turn_off
+        target:
+          entity_id: switch.bedroom_screen_dark_mode
+```
+
 ## The settings page on the screen itself
 
 Firmware {SETTINGS_PAGE_MIN_FIRMWARE} or newer carries a settings page the user can open at the panel: hold the top bar (the strip with the screen's name and the clock) for about a second and a half, until the blue line along the top edge is full. A screen can also carry a tile for it: put the entity `screen.settings` on a screen like any other tile.
 
-It holds Brightness, Night, Screen (clock, going back to page 1, swiping, rotation) and This screen (name, address, firmware, whether Home Assistant is connected, and Restart). A change there is saved on the screen and shows up in ESP Screens within a second, exactly like a change made from Home Assistant.
+It holds Brightness (with Dark mode), Night, Screen (clock, going back to page 1, swiping, rotation) and This screen (name, address, firmware, whether Home Assistant is connected, and Restart). A change there is saved on the screen and shows up in ESP Screens within a second, exactly like a change made from Home Assistant.
 
 You can open it for someone who is standing at the panel:
 

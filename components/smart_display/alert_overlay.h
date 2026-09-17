@@ -13,7 +13,7 @@ namespace screen_alert {
 constexpr const char *FALLBACK_ICON = "alert-outline";
 constexpr const char *FALLBACK_TITLE = "Notification";
 constexpr const char *FALLBACK_BUTTON = "OK";
-constexpr uint32_t DEFAULT_CARD_COLOR = 0xFFFFFF;
+constexpr uint32_t DEFAULT_CARD_COLOR = 0;  // the normal card: theme::surface(0)
 constexpr int MAX_TIMEOUT_SECONDS = 86400;
 
 struct Alert {

@@ -2,6 +2,7 @@
 #include "runtime_model.h"
 #include "header_bar.h"
 #include "tile_palette.h"
+#include "theme.h"
 #include "tile_icon.h"
 #include "screen_settings.h"
 #include "settings_screen.h"
@@ -32,6 +33,7 @@ using settings_screen::auto_home_seconds;
 inline esphome::ESPPreferenceObject rotation_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
 inline esphome::ESPPreferenceObject home_preference;
+inline esphome::ESPPreferenceObject dark_preference;
 inline Model model;
 inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
@@ -114,8 +116,11 @@ inline void load_settings() {
   settings_preference = esphome::global_preferences->make_preference<screen_settings::Settings>(0x53435231);
   swipe_preference = esphome::global_preferences->make_preference<uint32_t>(0x53575031);
   home_preference = esphome::global_preferences->make_preference<HomeTimeout>(0x484F4D31);
+  dark_preference = esphome::global_preferences->make_preference<uint32_t>(0x44524B31);
   uint32_t swipe_saved=0;
   if(swipe_preference.load(&swipe_saved))swipe_pages=swipe_saved==1;
+  uint32_t dark_saved=0;
+  if(dark_preference.load(&dark_saved))settings_screen::dark_mode=dark_saved==1;
   HomeTimeout home;
   if(home_preference.load(&home) && home.seconds>=30 && home.seconds<=3600){
     auto_home=home.enabled?1:0;auto_home_seconds=(int32_t)home.seconds;
@@ -136,6 +141,8 @@ inline void persist_settings() {
   swipe_preference.save(&swipe);
   HomeTimeout home{(uint32_t) (auto_home ? 1 : 0), (uint32_t) std::clamp<int32_t>(auto_home_seconds, 30, 3600)};
   home_preference.save(&home);
+  uint32_t dark = settings_screen::dark_mode ? 1 : 0;
+  dark_preference.save(&dark);
   if (rotation_supported) { uint32_t turned = (uint32_t) rotation; rotation_preference.save(&turned); }
 }
 inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
@@ -624,7 +631,7 @@ inline lv_obj_t *detail_badge_status=nullptr;
 inline lv_obj_t *detail_switch=nullptr;
 inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int y,int width) {
   auto *label=lv_label_create(parent);lv_label_set_text(label,text.c_str());lv_obj_set_pos(label,x,y);lv_obj_set_width(label,width);
-  lv_obj_set_style_text_font(label,detail_font,0);lv_obj_set_style_text_color(label,lv_color_hex(0x202020),0);
+  lv_obj_set_style_text_font(label,detail_font,0);lv_obj_set_style_text_color(label,theme::color(theme::INK),0);
   lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);lv_obj_set_height(label,lv_font_get_line_height(detail_font));return label;
 }
 inline std::string detail_state(const Tile &t){
@@ -708,8 +715,8 @@ inline void choose(Tile &t,Choice &row,const std::string &value){
 }
 inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height,int command){
   auto *button=lv_obj_create(detail_root);lv_obj_remove_style_all(button);lv_obj_set_pos(button,x,y);lv_obj_set_size(button,width,height);
-  lv_obj_set_style_bg_color(button,lv_color_hex(command==0?0x009FE3:0xD9E6F0),0);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);lv_obj_set_style_radius(button,12,0);lv_obj_add_flag(button,LV_OBJ_FLAG_CLICKABLE);
-  auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);if(command==0)lv_obj_set_style_text_color(label,lv_color_hex(0xFFFFFF),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_bg_color(button,theme::color(command==0?theme::ACCENT:theme::BUTTON),0);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);lv_obj_set_style_radius(button,12,0);lv_obj_add_flag(button,LV_OBJ_FLAG_CLICKABLE);
+  auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);if(command==0)lv_obj_set_style_text_color(label,theme::color(theme::ON_ACCENT),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_event_cb(button,[](lv_event_t *e){
     int cmd=(intptr_t)lv_event_get_user_data(e);if(cmd==-1){hide_detail();return;}
     // History ranges (firmware 0.2.51+): redraw after this event, which belongs to a key the redraw deletes.
@@ -737,7 +744,7 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
     if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
     if(cmd==41)action("timer.cancel",t.entity);
   },LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)command);
-  lv_obj_set_style_bg_color(button,lv_color_hex(0x0075B0),LV_STATE_PRESSED);
+  lv_obj_set_style_bg_color(button,theme::color(theme::ACCENT_PRESSED),LV_STATE_PRESSED);
   lv_obj_set_style_transform_width(button,-2,LV_STATE_PRESSED);lv_obj_set_style_transform_height(button,-2,LV_STATE_PRESSED);
   lv_obj_set_style_opa(button,LV_OPA_50,LV_STATE_DISABLED);
   if(command>=0 && detail_action_count<32)detail_actions[detail_action_count++]=button;
@@ -745,18 +752,23 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
 }
 
 // ---- Weather card: now, the next hours and the coming days, with rain ----
+// The colour of a condition's icon, as this look draws it on a card.
 inline uint32_t weather_accent(const std::string &c) {
-  if(c=="sunny")return 0xFFB300;
-  if(c=="clear-night")return 0x6E41AB;
-  if(c=="rainy"||c=="pouring"||c=="lightning-rainy"||c=="snowy-rainy")return 0x1E88E5;
-  if(c=="snowy"||c=="hail")return 0x4FC3F7;
-  if(c=="lightning")return 0xFFA000;
-  if(c=="partlycloudy")return 0x7E9BB5;
-  return 0x78909C;
+  using namespace theme::ha;
+  if(c=="sunny")return theme::foreground(SUNNY);
+  if(c=="clear-night")return theme::foreground(DEEP_PURPLE);
+  if(c=="rainy"||c=="pouring"||c=="lightning-rainy"||c=="snowy-rainy")return theme::foreground(RAIN);
+  if(c=="snowy"||c=="hail")return theme::foreground(SNOW);
+  if(c=="lightning")return theme::foreground(LIGHTNING);
+  if(c=="partlycloudy")return theme::foreground(PARTLY_CLOUDY);
+  return theme::foreground(CLOUDY);
 }
 inline lv_obj_t *detail_text(lv_obj_t *parent,const std::string &text,int x,int y,int width,const lv_font_t *font,lv_text_align_t align,uint32_t color){
   auto *l=detail_label(parent,text,x,y,std::max(1,width));lv_obj_set_style_text_font(l,font,0);lv_obj_set_height(l,lv_font_get_line_height(font));
   lv_obj_set_style_text_align(l,align,0);lv_obj_set_style_text_color(l,lv_color_hex(color),0);return l;
+}
+inline lv_obj_t *detail_text(lv_obj_t *parent,const std::string &text,int x,int y,int width,const lv_font_t *font,lv_text_align_t align,theme::Role role){
+  return detail_text(parent,text,x,y,width,font,align,theme::hex(role));
 }
 // "30%", "30% · 1.7 mm" or "1.7 mm": whatever the provider reports; empty when dry.
 inline std::string rain_text(float chance,float mm,bool with_mm){
@@ -772,9 +784,9 @@ inline std::string degrees(float value){ if(!std::isfinite(value))return "--"; c
 inline lv_obj_t *detail_card(int x,int y,int w,int h){
   auto *card=lv_obj_create(detail_root);lv_obj_remove_style_all(card);lv_obj_remove_flag(card,LV_OBJ_FLAG_SCROLLABLE);lv_obj_remove_flag(card,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_pos(card,x,y);lv_obj_set_size(card,w,h);
-  lv_obj_set_style_bg_color(card,lv_color_hex(0xFFFFFF),0);lv_obj_set_style_bg_opa(card,LV_OPA_COVER,0);
+  lv_obj_set_style_bg_color(card,theme::color(theme::CARD),0);lv_obj_set_style_bg_opa(card,LV_OPA_COVER,0);
   lv_obj_set_style_radius(card,lv_obj_get_style_radius(widgets[0].tile,LV_PART_MAIN),0);
-  lv_obj_set_style_border_width(card,1,0);lv_obj_set_style_border_color(card,lv_color_hex(0xDDDDDD),0);
+  lv_obj_set_style_border_width(card,1,0);lv_obj_set_style_border_color(card,theme::color(theme::LINE),0);
   return card;
 }
 // Two cards: "now" with the next hours, and the coming days. Bold highs, muted lows,
@@ -787,7 +799,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   const lv_font_t *mini=mini_icon_font?mini_icon_font:icon_font;
   const lv_font_t *tiny=watch_icon_font?watch_icon_font:mini;
   const lv_font_t *small=widgets[0].value?lv_obj_get_style_text_font(widgets[0].value,LV_PART_MAIN):detail_font;
-  uint32_t ink=0x202020,muted=0x6B6B6B,rain=0x1E88E5;
+  const uint32_t ink=theme::hex(theme::INK),muted=theme::hex(theme::SUBTLE),rain=theme::foreground(theme::ha::RAIN);
   int text_h=lv_font_get_line_height(detail_font),small_h=lv_font_get_line_height(small),mini_h=lv_font_get_line_height(mini),tiny_h=lv_font_get_line_height(tiny);
   int icon_h=lv_font_get_line_height(icon_font),big_h=lv_font_get_line_height(big),hero=std::max(icon_h,big_h);
   int card_pad=large?14:7,inner=width-2*pad-2*card_pad;
@@ -856,6 +868,9 @@ inline lv_obj_t *detail_shape(lv_obj_t *parent,int x,int y,int w,int h,uint32_t 
   lv_obj_set_style_radius(o,radius,0);lv_obj_set_style_bg_color(o,lv_color_hex(color),0);lv_obj_set_style_bg_opa(o,LV_OPA_COVER,0);
   lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);return o;
 }
+inline lv_obj_t *detail_shape(lv_obj_t *parent,int x,int y,int w,int h,theme::Role role,int radius){
+  return detail_shape(parent,x,y,w,h,theme::hex(role),radius);
+}
 inline int text_width(const std::string &text,const lv_font_t *font){
   lv_point_t size;lv_text_get_size(&size,text.c_str(),font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);return size.x;
 }
@@ -863,31 +878,30 @@ inline int text_width(const std::string &text,const lv_font_t *font){
 // when paused, red on an error; a docked or idle robot keeps the card's own blue. `tint` is the halo.
 struct VacuumLook { uint32_t accent, tint; };
 inline VacuumLook vacuum_look(const std::string &state){
-  if(state=="cleaning")return {0x009688,0xDCF0EE};
-  if(state=="returning")return {0x2196F3,0xE1EFFD};
-  if(state=="paused")return {0xFF9800,0xFFF0DA};
-  if(state=="error")return {0xF44336,0xFDE4E2};
-  return {0x00A6ED,0xEAF5FC};
+  using namespace theme::ha;
+  const uint32_t accent=state=="cleaning"?TEAL:state=="returning"?BLUE:state=="paused"?ORANGE:state=="error"?RED:SKY;
+  // A robot at rest has the quietest halo.
+  return {accent,theme::tint(accent,accent==SKY?22:36)};
 }
 // A robot seen from above on a halo: a white body with a rim, the laser turret, a light bar in the state colour.
 inline void vacuum_robot(lv_obj_t *parent,int x,int y,int size,const VacuumLook &look){
   auto *halo=detail_shape(parent,x,y,size,size,look.tint,size/2);
   int r=size*72/100,rim=std::max(1,size/44);
-  auto *body=detail_shape(halo,(size-r)/2,(size-r)/2,r,r,0xFFFFFF,r/2);
-  lv_obj_set_style_border_width(body,rim,0);lv_obj_set_style_border_color(body,lv_color_hex(0xCEDDE6),0);
+  auto *body=detail_shape(halo,(size-r)/2,(size-r)/2,r,r,theme::ROBOT_BODY,r/2);
+  lv_obj_set_style_border_width(body,rim,0);lv_obj_set_style_border_color(body,theme::color(theme::ROBOT_RIM),0);
   int c=r-2*rim;auto s=[&](int v){return std::max(1,v*c/100);};
-  detail_shape(body,s(32),s(10),s(36),s(36),0xE3EBEF,s(18));
-  detail_shape(body,s(41),s(19),s(18),s(18),0xA8BCC8,s(9));
+  detail_shape(body,s(32),s(10),s(36),s(36),theme::ROBOT_TOP,s(18));
+  detail_shape(body,s(41),s(19),s(18),s(18),theme::ROBOT_LENS,s(9));
   detail_shape(body,s(31),s(70),s(38),std::max(3,s(7)),look.accent,s(4));
 }
 // A battery like a phone's: outline, level fill (red below 20 %) and a small cap.
 inline void vacuum_battery(lv_obj_t *parent,int x,int y,int w,int h,float level){
   int line=std::max(1,h/7),fill_w=w-4*line,fill=std::clamp((int)std::lround(fill_w*level/100.0f),0,fill_w);
-  auto *shell=detail_shape(parent,x,y,w,h,0xFFFFFF,std::max(2,h/4));
+  auto *shell=detail_shape(parent,x,y,w,h,theme::CARD,std::max(2,h/4));
   lv_obj_set_style_bg_opa(shell,LV_OPA_TRANSP,0);
-  lv_obj_set_style_border_width(shell,line,0);lv_obj_set_style_border_color(shell,lv_color_hex(0x7D858D),0);
-  if(fill)detail_shape(shell,line,line,fill,h-4*line,level<20?0xE53935:0x46525E,std::max(1,h/9));
-  detail_shape(parent,x+w,y+h*3/10,std::max(2,line+1),h-2*(h*3/10),0x7D858D,1);
+  lv_obj_set_style_border_width(shell,line,0);lv_obj_set_style_border_color(shell,theme::color(theme::BATTERY),0);
+  if(fill)detail_shape(shell,line,line,fill,h-4*line,level<20?theme::foreground(theme::ha::ALARM):theme::hex(theme::SLATE),std::max(1,h/9));
+  detail_shape(parent,x+w,y+h*3/10,std::max(2,line+1),h-2*(h*3/10),theme::BATTERY,1);
 }
 // Battery meter, level and a green bolt while charging, in one row from `x`; returns the row's width.
 // Without a parent it only measures.
@@ -900,8 +914,8 @@ inline int vacuum_power(lv_obj_t *parent,const Tile &t,int x,int y,const lv_font
   if(!parent)return width;
   vacuum_battery(parent,x,y+(h-meter_h)/2,meter_w,meter_h,t.battery);
   int px=x+meter_w+3+gap;
-  detail_text(parent,percent,px,y,words+2,font,LV_TEXT_ALIGN_LEFT,0x5F6368);
-  if(bolt_w)detail_text(parent,"\U000F0241",px+words+gap/2,y+(h-lv_font_get_line_height(bolt_font))/2,bolt_w+2,bolt_font,LV_TEXT_ALIGN_LEFT,0x43A047);
+  detail_text(parent,percent,px,y,words+2,font,LV_TEXT_ALIGN_LEFT,theme::MUTED);
+  if(bolt_w)detail_text(parent,"\U000F0241",px+words+gap/2,y+(h-lv_font_get_line_height(bolt_font))/2,bolt_w+2,bolt_font,LV_TEXT_ALIGN_LEFT,theme::foreground(theme::ha::CHARGING));
   return width;
 }
 // Put a detail_button's words in `font`, sized to the words and centred (or at `x` when given).
@@ -916,12 +930,12 @@ inline lv_obj_t *button_words(lv_obj_t *button,const lv_font_t *font,uint32_t co
 inline lv_obj_t *vacuum_command(const char *icon,const char *text,int x,int y,int w,int h,int command,bool primary,
                                 const lv_font_t *font,const lv_font_t *icon_font,int radius){
   auto *button=detail_button(text,x,y,w,h,command);
-  uint32_t ink=primary?0xFFFFFF:0x1B1B1B;
+  const uint32_t ink=theme::hex(primary?theme::ON_ACCENT:theme::INK);
   lv_obj_set_style_radius(button,radius,0);
-  lv_obj_set_style_bg_color(button,lv_color_hex(primary?0x009FE3:0xFFFFFF),0);
+  lv_obj_set_style_bg_color(button,theme::color(primary?theme::ACCENT:theme::CARD),0);
   if(!primary){
-    lv_obj_set_style_border_width(button,1,0);lv_obj_set_style_border_color(button,lv_color_hex(0xDDDDDD),0);
-    lv_obj_set_style_bg_color(button,lv_color_hex(0xEEEEEE),LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(button,1,0);lv_obj_set_style_border_color(button,theme::color(theme::LINE),0);
+    lv_obj_set_style_bg_color(button,theme::color(theme::KEY),LV_STATE_PRESSED);
   }
   int gap=std::max(6,h/7),icon_w=text_width(icon,icon_font),words=text_width(text,font);
   int group=icon_w+gap+words,left=std::max(4,(w-group)/2);
@@ -936,7 +950,7 @@ inline lv_obj_t *vacuum_command(const char *icon,const char *text,int x,int y,in
 inline void vacuum_segments(const Tile &t,const Choice &row,int first,int x,int y,int w,int h,uint32_t track,bool border,const lv_font_t *font){
   int n=std::min<int>((int)row.values.size(),6);if(!n)return;
   auto *bar=detail_shape(detail_root,x,y,w,h,track,h/2);
-  if(border){lv_obj_set_style_border_width(bar,1,0);lv_obj_set_style_border_color(bar,lv_color_hex(0xDDDDDD),0);}
+  if(border){lv_obj_set_style_border_width(bar,1,0);lv_obj_set_style_border_color(bar,theme::color(theme::LINE),0);}
   int inset=std::max(3,h/12),room=w-2*inset,words=0;int widths[6];
   for(int i=0;i<n;++i){widths[i]=text_width(row.labels[i],font);words+=widths[i];}
   int share=(room-words)/n;
@@ -947,11 +961,11 @@ inline void vacuum_segments(const Tile &t,const Choice &row,int first,int x,int 
     bool selected=row.values[i]==chosen;
     auto *segment=detail_button(row.labels[i].c_str(),sx,y+inset,sw,h-2*inset,first+i);
     lv_obj_set_style_radius(segment,(h-2*inset)/2,0);
-    lv_obj_set_style_bg_color(segment,lv_color_hex(0x009FE3),0);
+    lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT),0);
     lv_obj_set_style_bg_opa(segment,selected?LV_OPA_COVER:LV_OPA_TRANSP,0);
     lv_obj_set_style_bg_opa(segment,LV_OPA_COVER,LV_STATE_PRESSED);
-    if(!selected)lv_obj_set_style_bg_color(segment,lv_color_hex(0xD5EEFC),LV_STATE_PRESSED);
-    button_words(segment,font,selected?0xFFFFFF:0x1B1B1B,sw-6);
+    if(!selected)lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT_TINT),LV_STATE_PRESSED);
+    button_words(segment,font,theme::hex(selected?theme::ON_ACCENT:theme::INK),sw-6);
     sx+=sw;
   }
 }
@@ -981,16 +995,16 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     int line=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text),space=large?6:3;
     bool room=on_the_way && !t.extra().room.empty();
     int block=line+(room?space+text_h:0)+(battery?space+text_h:0),ty=(hero_h-block)/2;
-    detail_badge_status=detail_text(hero,state,text_x,ty,text_w,big,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+    detail_badge_status=detail_text(hero,state,text_x,ty,text_w,big,LV_TEXT_ALIGN_LEFT,theme::INK);
     ty+=line;
-    if(room){ty+=space;detail_text(hero,t.extra().room,text_x,ty,text_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);ty+=text_h;}
+    if(room){ty+=space;detail_text(hero,t.extra().room,text_x,ty,text_w,text,LV_TEXT_ALIGN_LEFT,theme::MUTED);ty+=text_h;}
     if(battery){ty+=space;vacuum_power(hero,t,text_x,ty,text,large);}
     if(locate){
       auto *find=detail_button("",pad+inner-edge-key-6,y+(hero_h-key)/2,key,key,3);
-      lv_obj_set_style_radius(find,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(find,lv_color_hex(0xF1F1F1),0);
-      lv_obj_set_style_bg_color(find,lv_color_hex(0xDDDDDD),LV_STATE_PRESSED);
+      lv_obj_set_style_radius(find,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(find,theme::color(theme::TRACK),0);
+      lv_obj_set_style_bg_color(find,theme::color(theme::KEY_PRESSED),LV_STATE_PRESSED);
       auto *glyph=lv_obj_get_child(find,0);lv_obj_set_style_text_font(glyph,icons,0);lv_label_set_text(glyph,"\U000F034E");
-      lv_obj_set_style_text_color(glyph,lv_color_hex(0x46525E),0);lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
+      lv_obj_set_style_text_color(glyph,theme::color(theme::SLATE),0);lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
     }
     y+=hero_h+gap;
   }else{
@@ -998,9 +1012,9 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     int line=lv_font_get_line_height(text),dot=8,power_w=battery?vacuum_power(nullptr,t,0,0,text,false):0;
     detail_shape(detail_root,pad+2,y+(line-dot)/2,dot,dot,look.accent,dot/2);
     int words=inner-dot-10-power_w-12,state_w=std::min(words,text_width(state,text)+2);
-    detail_badge_status=detail_text(detail_root,state,pad+dot+10,y,state_w,text,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+    detail_badge_status=detail_text(detail_root,state,pad+dot+10,y,state_w,text,LV_TEXT_ALIGN_LEFT,theme::INK);
     if(on_the_way && !t.extra().room.empty() && words-state_w>24)
-      detail_text(detail_root," · "+t.extra().room,pad+dot+10+state_w,y,words-state_w,text,LV_TEXT_ALIGN_LEFT,0x5F6368);
+      detail_text(detail_root," · "+t.extra().room,pad+dot+10+state_w,y,words-state_w,text,LV_TEXT_ALIGN_LEFT,theme::MUTED);
     if(battery)vacuum_power(detail_root,t,pad+inner-power_w,y,text,false);
     y+=line+(gap+4);
   }
@@ -1011,20 +1025,20 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   vacuum_command("\U000F05F8","Dock",pad+start_w+gap,y,inner-start_w-gap,action_h,2,false,text,icons,large?radius:action_h/2);
   y+=action_h+gap;
   if(!mode && !suction && !water){
-    auto *note=detail_text(detail_root,"Automatic suction power",pad,y+gap,inner,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);(void)note;
+    auto *note=detail_text(detail_root,"Automatic suction power",pad,y+gap,inner,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);(void)note;
     return;
   }
   // How it cleans. The Guition groups the rows on one white card; the small screen has no room for a card.
   int mode_h=large?48:34,row_h=large?44:32,step=large?10:6,edge=large?14:0,icon_w=large?40:26;
   int note_h=lv_font_get_line_height(text);
   int block=(mode?mode_h:0)+(suction?(mode?step:0)+row_h:0)+(water?((mode||suction)?step:0)+row_h:0)+(automatic?step+note_h+step:0);
-  uint32_t track=large?0xF1F1F1:0xFFFFFF;
+  const uint32_t track=theme::hex(large?theme::TRACK:theme::CARD);
   if(large)detail_card(pad,y,inner,block+2*edge);
   int x=pad+edge,w=inner-2*edge;
   y+=edge;
   if(mode){vacuum_segments(t,*mode,50,x,y,w,mode_h,track,!large,text);y+=mode_h+step;}
   auto level=[&](const Choice &row,int first,const char *icon){
-    detail_text(detail_root,icon,x,y+(row_h-lv_font_get_line_height(icons))/2,icon_w,icons,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+    detail_text(detail_root,icon,x,y+(row_h-lv_font_get_line_height(icons))/2,icon_w,icons,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
     vacuum_segments(t,row,first,x+icon_w,y,w-icon_w,row_h,track,!large,text);
     y+=row_h+step;
   };
@@ -1032,7 +1046,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   if(water)level(*water,60,"\U000F058C");
   if(automatic){
     bool smart=tile_controls::shown_value(t,*mode,now).find("smart")!=std::string::npos;
-    detail_text(detail_root,smart?"The robot chooses suction and water":"Suction and water as set per room",x,y,w,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);
+    detail_text(detail_root,smart?"The robot chooses suction and water":"Suction and water as set per room",x,y,w,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
   }
 }
 // ---- Cover card (firmware 0.2.50+): Home Assistant's cover dialog in the style of the vacuum and climate cards ----
@@ -1040,7 +1054,10 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
 // and the tilt as a handle over slats, each with its value below, like Home Assistant's own sliders. Open, stop
 // and close as a row of pill keys under them; the key of the direction the cover moves is filled. A slider
 // sends its value when the finger lifts, and shows it while it moves.
-inline constexpr uint32_t COVER_ACCENT = 0x926BC7, COVER_TRACK = 0xEFE8F7, COVER_SLATS = 0xDDD0EF;
+// Home Assistant's purple for covers; the track and the slats are its tints.
+inline constexpr uint32_t COVER_ACCENT = theme::ha::PURPLE;
+inline uint32_t cover_track(){return theme::tint(COVER_ACCENT,37);}
+inline uint32_t cover_slats(){return theme::tint(COVER_ACCENT,80);}
 inline lv_obj_t *cover_values[2]{};
 inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):"Unavailable";}
 inline void cover_slider_event(lv_event_t *e){
@@ -1066,19 +1083,19 @@ inline void cover_slider_event(lv_event_t *e){
 inline lv_obj_t *cover_slider(lv_obj_t *parent,int x,int y,int w,int h,float value,bool tilt){
   int radius=std::max(8,w/7),handle_h=std::max(4,w/18),handle_w=tilt?w*3/5:w*2/5,inset=std::max(6,w/9);
   if(tilt){
-    auto *slats=detail_shape(parent,x,y,w,h,COVER_TRACK,radius);
+    auto *slats=detail_shape(parent,x,y,w,h,cover_track(),radius);
     const int count=10,pitch=(h-2*radius/2)/count;
     for(int i=0;i<count;++i){
       int thick=std::max(2,pitch*(20+60*i/(count-1))/100);
-      detail_shape(slats,inset,radius/2+i*pitch+(pitch-thick)/2,w-2*inset,thick,COVER_SLATS,thick/2);
+      detail_shape(slats,inset,radius/2+i*pitch+(pitch-thick)/2,w-2*inset,thick,cover_slats(),thick/2);
     }
   }
   auto *slider=lv_slider_create(parent);lv_obj_remove_style_all(slider);
   lv_obj_set_pos(slider,x,y);lv_obj_set_size(slider,w,h);lv_slider_set_orientation(slider,LV_SLIDER_ORIENTATION_VERTICAL);
   lv_obj_set_style_radius(slider,radius,LV_PART_MAIN);lv_obj_set_style_radius(slider,radius,LV_PART_INDICATOR);
-  lv_obj_set_style_bg_color(slider,lv_color_hex(COVER_TRACK),LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,tilt?LV_OPA_TRANSP:LV_OPA_COVER,LV_PART_MAIN);
+  lv_obj_set_style_bg_color(slider,lv_color_hex(cover_track()),LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,tilt?LV_OPA_TRANSP:LV_OPA_COVER,LV_PART_MAIN);
   lv_obj_set_style_bg_color(slider,lv_color_hex(COVER_ACCENT),LV_PART_INDICATOR);lv_obj_set_style_bg_opa(slider,tilt?LV_OPA_TRANSP:LV_OPA_COVER,LV_PART_INDICATOR);
-  lv_obj_set_style_bg_color(slider,lv_color_hex(tilt?COVER_ACCENT:0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
+  lv_obj_set_style_bg_color(slider,tilt?lv_color_hex(COVER_ACCENT):theme::color(theme::KNOB),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
   lv_obj_set_style_radius(slider,LV_RADIUS_CIRCLE,LV_PART_KNOB);
   lv_obj_set_style_opa(slider,LV_OPA_50,LV_STATE_DISABLED);
   // LVGL centres the knob on the end of the fill in a square as wide as the slider; the pads shrink it to a
@@ -1112,12 +1129,12 @@ inline void cover_key_row(const std::array<tile_controls::Key,3> &keys,unsigned 
     const auto &key=keys[i];
     auto *button=detail_button("",x+(int)i*(key_w+gap),y,key_w,h,70+key.command);
     lv_obj_set_style_radius(button,h/2,0);
-    lv_obj_set_style_bg_color(button,lv_color_hex(key.checked?COVER_ACCENT:0xFFFFFF),0);
-    lv_obj_set_style_bg_color(button,lv_color_hex(key.checked?0x7552A8:0xEEEEEE),LV_STATE_PRESSED);
-    lv_obj_set_style_border_width(button,key.checked?0:1,0);lv_obj_set_style_border_color(button,lv_color_hex(0xDDDDDD),0);
+    lv_obj_set_style_bg_color(button,key.checked?lv_color_hex(COVER_ACCENT):theme::color(theme::CARD),0);
+    lv_obj_set_style_bg_color(button,key.checked?lv_color_hex(theme::ha::PURPLE_PRESSED):theme::color(theme::KEY),LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(button,key.checked?0:1,0);lv_obj_set_style_border_color(button,theme::color(theme::LINE),0);
     auto *glyph=lv_obj_get_child(button,0);
     lv_obj_set_style_text_font(glyph,icons,0);lv_label_set_text(glyph,key.icon);
-    lv_obj_set_style_text_color(glyph,lv_color_hex(key.checked?0xFFFFFF:0x1B1B1B),0);
+    lv_obj_set_style_text_color(glyph,theme::color(key.checked?theme::ON_ACCENT:theme::INK),0);
     lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
     if(key.disabled){lv_obj_add_state(button,LV_STATE_DISABLED);if(detail_action_count && detail_actions[detail_action_count-1]==button)--detail_action_count;}
   }
@@ -1131,7 +1148,7 @@ inline void cover_battery(const Tile &t,bool large,int width){
   int level=(int)std::lround(std::clamp(t.battery,0.0f,100.0f));
   int line=lv_font_get_line_height(font),block=meter_h+gap+line,cx=width-bar_x-bar/2,y=bar_y+(bar-block)/2;
   vacuum_battery(detail_root,cx-meter_w/2-1,y,meter_w,meter_h,t.battery);
-  detail_text(detail_root,std::to_string(level)+"%",cx-bar/2-8,y+meter_h+gap,bar+16,font,LV_TEXT_ALIGN_CENTER,0x5F6368);
+  detail_text(detail_root,std::to_string(level)+"%",cx-bar/2-8,y+meter_h+gap,bar+16,font,LV_TEXT_ALIGN_CENTER,theme::MUTED);
 }
 inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad){
   auto card=tile_controls::cover_card(t);
@@ -1162,8 +1179,8 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
       for(int i=0;i<n;++i,x+=slider_w+column_gap){
         cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
         int ty=top+edge+slider_h+2;
-        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x-30,ty,slider_w+60,big,LV_TEXT_ALIGN_CENTER,0x1B1B1B);
-        detail_text(detail_root,parts[i].caption,x-30,ty+value_h,slider_w+60,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);
+        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x-30,ty,slider_w+60,big,LV_TEXT_ALIGN_CENTER,theme::INK);
+        detail_text(detail_root,parts[i].caption,x-30,ty+value_h,slider_w+60,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
       }
     }else{
       // The small screen puts the value and name beside each slider.
@@ -1172,8 +1189,8 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
       for(int i=0;i<n;++i,x+=column+column_gap){
         cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
         int ty=top+(box_h-value_h-caption_h)/2;
-        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x+slider_w+8,ty,label_w,big,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
-        detail_text(detail_root,parts[i].caption,x+slider_w+8,ty+value_h,label_w,text,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x+slider_w+8,ty,label_w,big,LV_TEXT_ALIGN_LEFT,theme::INK);
+        detail_text(detail_root,parts[i].caption,x+slider_w+8,ty+value_h,label_w,text,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
       }
     }
   }else{
@@ -1181,8 +1198,8 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
     detail_card(pad,top,inner,box_h);
     const lv_font_t *icon_font=widgets[0].icon_font?widgets[0].icon_font:mini_icon_font;
     int halo=std::min(box_h-24,large?120:72);
-    auto *ring=detail_shape(detail_root,pad+(inner-halo)/2,top+(box_h-halo)/2,halo,halo,COVER_TRACK,halo/2);
-    if(icon_font){auto *icon=detail_text(ring,icon_for(t),0,(halo-lv_font_get_line_height(icon_font))/2,halo,icon_font,LV_TEXT_ALIGN_CENTER,COVER_ACCENT);(void)icon;}
+    auto *ring=detail_shape(detail_root,pad+(inner-halo)/2,top+(box_h-halo)/2,halo,halo,cover_track(),halo/2);
+    if(icon_font){auto *icon=detail_text(ring,icon_for(t),0,(halo-lv_font_get_line_height(icon_font))/2,halo,icon_font,LV_TEXT_ALIGN_CENTER,theme::foreground(COVER_ACCENT));(void)icon;}
   }
   int y=keys_y;
   if(key_count){cover_key_row(keys,key_count,pad,y,inner,key_h,gap,key_icons);y+=key_h+gap;}
@@ -1213,7 +1230,7 @@ struct HistoryChart {
   float high=NAN,low=NAN;
   uint32_t high_at=0,low_at=0;
   bool line=true,ready=false;
-  uint32_t accent=0x2196F3;
+  uint32_t accent=theme::ha::BLUE;
   std::string value_text,first_text,second_text;
   lv_point_precise_t *points=nullptr;unsigned count=0;
 };
@@ -1250,7 +1267,7 @@ inline std::string history_clock(uint32_t epoch,bool weekday){
 inline void history_fill(lv_event_t *e){
   const auto &c=history_chart;if(!c.line||c.count<2||!c.area)return;
   auto *layer=lv_event_get_layer(e);lv_area_t area;lv_obj_get_coords(c.area,&area);
-  lv_draw_triangle_dsc_t dsc;lv_draw_triangle_dsc_init(&dsc);dsc.color=lv_color_hex(c.accent);dsc.opa=LV_OPA_20;
+  lv_draw_triangle_dsc_t dsc;lv_draw_triangle_dsc_init(&dsc);dsc.color=lv_color_hex(c.accent);dsc.opa=theme::fill_opacity();
   const lv_value_precise_t ox=area.x1,oy=area.y1,base=area.y2+1;
   for(unsigned i=0;i+1<c.count;++i){
     const auto &a=c.points[i],&b=c.points[i+1];
@@ -1267,13 +1284,13 @@ inline void history_bar(lv_event_t *e){
   for(size_t i=0;i<h.runs.size();++i){
     const int state=h.runs[i].state;
     const int x1=area.x1+w*h.runs[i].slot/h.slots,x2=area.x1+w*history_view::run_end(h.runs,h.slots,i)/h.slots-1;
-    dsc.bg_color=lv_color_hex(state<0||state>=static_cast<int>(h.states.size())?0xF1F1F1:h.states[state].color);
+    dsc.bg_color=lv_color_hex(state<0||state>=static_cast<int>(h.states.size())?theme::hex(theme::TRACK):theme::state(h.states[state].color));
     lv_area_t piece{x1,area.y1,std::max(x1,x2),area.y2};lv_draw_rect(layer,&dsc,&piece);
   }
 }
 inline void history_restore(){
   auto &c=history_chart;
-  if(c.value){label(c.value,c.value_text);lv_obj_set_style_text_color(c.value,lv_color_hex(0x1B1B1B),0);}
+  if(c.value){label(c.value,c.value_text);lv_obj_set_style_text_color(c.value,theme::color(theme::INK),0);}
   if(c.first)label(c.first,c.first_text);
   if(c.second)label(c.second,c.second_text);
 }
@@ -1292,7 +1309,7 @@ inline void history_scrub(lv_event_t *e){
     const uint64_t span=h.end-h.start;
     const uint32_t begin=h.start+static_cast<uint32_t>(span*i/history_view::PARTS),finish=h.start+static_cast<uint32_t>(span*(i+1)/history_view::PARTS);
     label(c.value,h.has[i]?history_view::number(h.values[i],h.decimals,h.unit):"No data");
-    lv_obj_set_style_text_color(c.value,lv_color_hex(h.has[i]?c.accent:0x6B6B6B),0);
+    lv_obj_set_style_text_color(c.value,lv_color_hex(h.has[i]?theme::foreground(c.accent):theme::hex(theme::SUBTLE)),0);
     if(c.first)label(c.first,history_clock(begin,week)+" \u2013 "+history_clock(finish,false));
     if(c.second)label(c.second,!h.has[i]?"":h.hours==1?"average":"average of "+history_view::duration(finish-begin));
   }else{
@@ -1317,7 +1334,7 @@ inline void history_times(int x,int w,int y,const lv_font_t *font,bool large){
   const auto &h=history;
   const lv_font_t *bold=detail_font?detail_font:font;
   const int now_w=text_width("Now",bold),gap=large?10:6;
-  detail_text(detail_root,"Now",x+w-now_w,y,now_w+2,bold,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+  detail_text(detail_root,"Now",x+w-now_w,y,now_w+2,bold,LV_TEXT_ALIGN_LEFT,theme::INK);
   int last=x-1000;
   for(uint32_t at:h.times){
     if(at<=h.start||at>=h.end)continue;
@@ -1326,8 +1343,8 @@ inline void history_times(int x,int w,int y,const lv_font_t *font,bool large){
     const int tw=text_width(words,font),cx=x+static_cast<int>(std::lround(float(at-h.start)/float(h.end-h.start)*w));
     const int left=std::max(x-(large?8:4),cx-tw/2);
     if(left<=last+gap||left+tw>x+w-now_w-gap)continue;
-    detail_shape(detail_root,cx,y-(large?7:4),1,large?5:3,0xCCCCCC,0);
-    detail_text(detail_root,words,left,y,tw+2,font,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+    detail_shape(detail_root,cx,y-(large?7:4),1,large?5:3,theme::TICK,0);
+    detail_text(detail_root,words,left,y,tw+2,font,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
     last=left+tw;
   }
 }
@@ -1346,8 +1363,8 @@ inline void render_history_line(bool large,int card_x,int card_y,int card_w,int 
   if(c.w<40||c.h<24)return;
   for(const auto &tick:h.ticks){
     const int ty=static_cast<int>(std::lround(history_y(tick.first)));
-    detail_shape(detail_root,c.x,ty,c.w,1,0xEEEEEE,0);
-    detail_text(detail_root,tick.second,card_x+edge,ty-label_h/2,label_w+2,small,LV_TEXT_ALIGN_RIGHT,0x6B6B6B);
+    detail_shape(detail_root,c.x,ty,c.w,1,theme::GRID,0);
+    detail_text(detail_root,tick.second,card_x+edge,ty-label_h/2,label_w+2,small,LV_TEXT_ALIGN_RIGHT,theme::SUBTLE);
   }
   // Through the middle of each part, from the left edge when the range begins with a value, to "Now" at the right
   // (the value now); a curve that never overshoots them, so the axis and the highest and lowest moment stay true.
@@ -1388,7 +1405,7 @@ inline void render_history_line(bool large,int card_x,int card_y,int card_w,int 
   auto marker=[&](float value,float at_x,bool high){
     const int mx=c.x+static_cast<int>(std::lround(at_x));
     const int my=static_cast<int>(std::lround(history_y(value)));
-    auto *o=detail_shape(detail_root,mx-ring/2,my-ring/2,ring,ring,0xFFFFFF,ring/2);
+    auto *o=detail_shape(detail_root,mx-ring/2,my-ring/2,ring,ring,theme::CARD,ring/2);
     lv_obj_set_style_border_width(o,large?3:2,0);lv_obj_set_style_border_color(o,lv_color_hex(c.accent),0);
     if(!large)return;
     const std::string words=history_view::number(value,h.decimals,"");
@@ -1397,14 +1414,14 @@ inline void render_history_line(bool large,int card_x,int card_y,int card_w,int 
     if(ly<card_y+4)ly=my+ring/2+2;
     if(ly+lh>c.y+c.h+6)ly=my-ring/2-lh-2;
     const int lx=std::max(c.x,std::min(mx-tw/2,c.x+c.w-tw));
-    detail_text(detail_root,words,lx,ly,tw,detail_font,LV_TEXT_ALIGN_CENTER,0x1B1B1B);
+    detail_text(detail_root,words,lx,ly,tw,detail_font,LV_TEXT_ALIGN_CENTER,theme::INK);
   };
   if(std::isfinite(c.high))marker(c.high,high_x,true);
   if(std::isfinite(c.low)&&c.low!=c.high)marker(c.low,low_x,false);
   if(std::isfinite(current)){
     const int size=large?12:8;
     auto *o=detail_shape(detail_root,c.x+c.w-1-size/2,static_cast<int>(std::lround(history_y(current)))-size/2,size,size,c.accent,size/2);
-    lv_obj_set_style_border_width(o,2,0);lv_obj_set_style_border_color(o,lv_color_hex(0xFFFFFF),0);
+    lv_obj_set_style_border_width(o,2,0);lv_obj_set_style_border_color(o,theme::color(theme::CARD),0);
   }
   history_times(c.x,c.w,c.y+c.h+(large?8:4),small,large);
   history_touch(c.x-(large?14:8),card_y,c.w+(large?28:16),card_h);
@@ -1428,11 +1445,11 @@ inline void render_history_timeline(bool large,int card_x,int card_y,int card_w,
   const size_t shown=std::min<size_t>(h.states.size(),static_cast<size_t>(rows)*2);
   for(size_t i=0;i<shown;++i){
     const int lx=c.x+static_cast<int>(i%2)*col_w,ly=top+static_cast<int>(i/2)*row_h;
-    detail_shape(detail_root,lx,ly+(label_h-square)/2,square,square,h.states[i].color,large?4:2);
+    detail_shape(detail_root,lx,ly+(label_h-square)/2,square,square,theme::state(h.states[i].color),large?4:2);
     const std::string time=history_view::duration(h.states[i].seconds);
     const int tw=text_width(time,small)+2,words_x=lx+square+(large?10:5),time_x=lx+col_w-(large?14:8)-tw;
-    detail_text(detail_root,h.states[i].label,words_x,ly,std::max(8,time_x-words_x-6),small,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
-    detail_text(detail_root,time,time_x,ly,tw,small,LV_TEXT_ALIGN_LEFT,0x6B6B6B);
+    detail_text(detail_root,h.states[i].label,words_x,ly,std::max(8,time_x-words_x-6),small,LV_TEXT_ALIGN_LEFT,theme::INK);
+    detail_text(detail_root,time,time_x,ly,tw,small,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
   }
   history_touch(c.x-(large?14:8),card_y,c.w+(large?28:16),c.y+c.h+(large?24:12)-card_y);
 }
@@ -1442,19 +1459,19 @@ inline void history_ranges(int x,int y,int w,int h){
   static const uint32_t hours[]={1,24,168};
   static const char *const words[]={"1 hour","24 hours","1 week"};
   const lv_font_t *font=control_font?control_font:detail_font;
-  auto *track=detail_shape(detail_root,x,y,w,h,0xFFFFFF,h/2);
-  lv_obj_set_style_border_width(track,1,0);lv_obj_set_style_border_color(track,lv_color_hex(0xDDDDDD),0);
+  auto *track=detail_shape(detail_root,x,y,w,h,theme::CARD,h/2);
+  lv_obj_set_style_border_width(track,1,0);lv_obj_set_style_border_color(track,theme::color(theme::LINE),0);
   const int inset=std::max(3,h/10),sw=(w-2*inset)/3;
   for(int i=0;i<3;++i){
     const bool selected=history_hours==hours[i];
     const int segment_w=i==2?w-2*inset-2*sw:sw;
     auto *segment=detail_button(words[i],x+inset+i*sw,y+inset,segment_w,h-2*inset,160+i);
     lv_obj_set_style_radius(segment,(h-2*inset)/2,0);
-    lv_obj_set_style_bg_color(segment,lv_color_hex(0x009FE3),0);
+    lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT),0);
     lv_obj_set_style_bg_opa(segment,selected?LV_OPA_COVER:LV_OPA_TRANSP,0);
     lv_obj_set_style_bg_opa(segment,LV_OPA_COVER,LV_STATE_PRESSED);
-    if(!selected)lv_obj_set_style_bg_color(segment,lv_color_hex(0xD5EEFC),LV_STATE_PRESSED);
-    button_words(segment,font,selected?0xFFFFFF:0x1B1B1B,segment_w-6);
+    if(!selected)lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT_TINT),LV_STATE_PRESSED);
+    button_words(segment,font,theme::hex(selected?theme::ON_ACCENT:theme::INK),segment_w-6);
     if(detail_action_count&&detail_actions[detail_action_count-1]==segment)--detail_action_count;
   }
 }
@@ -1501,9 +1518,9 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
     const int sw=large?84:52,sh=large?46:28;
     detail_switch=lv_switch_create(detail_root);
     lv_obj_set_size(detail_switch,sw,sh);lv_obj_set_pos(detail_switch,right-sw,row+(row_h-sh)/2);
-    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xB0B0B0),LV_PART_MAIN);
-    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xFFB900),static_cast<lv_style_selector_t>(LV_PART_INDICATOR)|LV_STATE_CHECKED);
-    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(0xFFFFFF),LV_PART_KNOB);
+    lv_obj_set_style_bg_color(detail_switch,theme::color(theme::SWITCH_OFF),LV_PART_MAIN);
+    lv_obj_set_style_bg_color(detail_switch,lv_color_hex(theme::ha::SWITCH_ON),static_cast<lv_style_selector_t>(LV_PART_INDICATOR)|LV_STATE_CHECKED);
+    lv_obj_set_style_bg_color(detail_switch,theme::color(theme::KNOB),LV_PART_KNOB);
     lv_obj_set_style_opa(detail_switch,LV_OPA_50,LV_STATE_DISABLED);
     if(t.state=="on")lv_obj_add_state(detail_switch,LV_STATE_CHECKED);
     lv_obj_add_event_cb(detail_switch,[](lv_event_t *e){
@@ -1525,16 +1542,16 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   if(c.ready&&line){for(int i=0;i<history_view::PARTS;++i)if(h.has[i])widest=std::max(widest,text_width(history_view::number(h.values[i],h.decimals,h.unit),big));}
   else if(c.ready){for(const auto &s:h.states)widest=std::max(widest,text_width(s.label,big));}
   const int value_x=pad+(large?8:4),value_w=std::min(widest+6,(width-2*pad)*11/20);
-  c.value=detail_text(detail_root,c.value_text,value_x,row,value_w,big,LV_TEXT_ALIGN_LEFT,0x1B1B1B);
+  c.value=detail_text(detail_root,c.value_text,value_x,row,value_w,big,LV_TEXT_ALIGN_LEFT,theme::INK);
   const int words_x=value_x+value_w+(large?12:6),words_w=std::max(20,right-words_x),words_y=row+(row_h-2*text_h)/2;
-  c.first=detail_text(detail_root,c.first_text,words_x,words_y,words_w,text,LV_TEXT_ALIGN_RIGHT,0x5F6368);
-  c.second=detail_text(detail_root,c.second_text,words_x,words_y+text_h,words_w,text,LV_TEXT_ALIGN_RIGHT,0x5F6368);
+  c.first=detail_text(detail_root,c.first_text,words_x,words_y,words_w,text,LV_TEXT_ALIGN_RIGHT,theme::MUTED);
+  c.second=detail_text(detail_root,c.second_text,words_x,words_y+text_h,words_w,text,LV_TEXT_ALIGN_RIGHT,theme::MUTED);
   int top=row+std::max(row_h,2*text_h)+(large?10:4);
   if(d=="number"||d=="input_number"){
     const int slider_h=large?24:14;
     auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+(large?14:10),top+(large?10:5));
     lv_obj_set_size(slider,width-2*pad-(large?28:20),slider_h);lv_slider_set_range(slider,0,1000);
-    lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
+    lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,theme::color(theme::SLIDER_KNOB),LV_PART_KNOB);
     lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)detail_index);
     top+=slider_h+(large?22:12);
   }
@@ -1542,7 +1559,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   detail_card(pad,top,width-2*pad,card_h);
   const bool empty=c.ready&&(line?std::none_of(h.has,h.has+history_view::PARTS,[](bool v){return v;}):h.states.empty());
   if(!c.ready||empty){
-    c.status=detail_text(detail_root,!c.ready?"Loading history...":"No history in this period",pad,top+(card_h-text_h)/2,width-2*pad,text,LV_TEXT_ALIGN_CENTER,0x6B6B6B);
+    c.status=detail_text(detail_root,!c.ready?"Loading history...":"No history in this period",pad,top+(card_h-text_h)/2,width-2*pad,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
   }else if(line){
     render_history_line(large,pad,top,width-2*pad,card_h,small,current);
   }else{
@@ -1560,12 +1577,12 @@ inline void show_detail(unsigned index){
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
   if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
   detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;history_forget();lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
-  lv_obj_set_style_bg_color(detail_root,lv_color_hex(0xE7E7E7),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
+  lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
   // The same top bar as the board's own cards: a round back arrow at the left, the name centred.
   int bar=large?60:40,bar_x=large?16:10,bar_y=large?16:8;
-  auto *back=detail_button("",bar_x,bar_y,bar,bar,-1);lv_obj_set_style_radius(back,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(back,lv_color_hex(0xEEEEEE),0);
+  auto *back=detail_button("",bar_x,bar_y,bar,bar,-1);lv_obj_set_style_radius(back,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(back,theme::color(theme::KEY),0);
   auto *arrow=lv_obj_get_child(back,0);if(mini_icon_font)lv_obj_set_style_text_font(arrow,mini_icon_font,0);lv_label_set_text(arrow,"\U000F004D");lv_obj_set_size(arrow,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(arrow);
   const lv_font_t *title_font=watch_font?watch_font:detail_font;
   auto *heading=detail_label(detail_root,t.name,bar_x+bar+8,bar_y+(bar-lv_font_get_line_height(title_font))/2,width-2*(bar_x+bar+8));
@@ -1574,7 +1591,7 @@ inline void show_detail(unsigned index){
   std::string state=d=="cover"?cover_status_line(t):detail_state(t);
   // The vacuum and history cards draw their own state.
   const bool with_history=history_card(t);
-  if(d!="vacuum"&&!with_history){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,lv_color_hex(0x616161),0);}
+  if(d!="vacuum"&&!with_history){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
@@ -1590,7 +1607,7 @@ inline void show_detail(unsigned index){
     int w=(width-pad*2-2*gap)/3;
     detail_button("Previous",pad,top,w,bh,21);detail_button("Play/pause",pad+w+gap,top,w,bh,20);detail_button("Next",pad+2*(w+gap),top,w,bh,22);top+=bh+gap;
     detail_label(detail_root,"Volume",pad,top,width-2*pad);
-    auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,lv_color_hex(0x111111),LV_PART_KNOB);
+    auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,theme::color(theme::SLIDER_KNOB),LV_PART_KNOB);
     lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   }else if(d=="weather"){
     render_weather_detail(t,large,width,height,pad);
@@ -1826,10 +1843,11 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,lv_obj_get_width(tile)-24,lv_obj_get_height(tile)>80?28:10);lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);lv_slider_set_range(w.slider,0,1000);
   // A short white bar inside the fill as handle, like the control sliders (invisible before 0.2.20).
   int strip=lv_obj_get_height(tile)>80?28:10;
-  lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(w.slider,LV_OPA_COVER,LV_PART_KNOB);
+  lv_obj_add_style(w.slider,theme::style(theme::Paint::knob),LV_PART_KNOB);lv_obj_set_style_bg_opa(w.slider,LV_OPA_COVER,LV_PART_KNOB);
   slider_handle(w.slider,lv_obj_get_width(tile)-24,strip);
   lv_obj_set_style_border_width(w.slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(w.slider,0,LV_PART_KNOB);
-  lv_obj_set_style_radius(w.slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFCE5B4),LV_PART_MAIN);lv_obj_set_style_bg_color(w.slider,lv_color_hex(0xFFB900),LV_PART_INDICATOR);
+  // Track and fill follow the card's palette (render_slot), which is drawn before the slider shows.
+  lv_obj_set_style_radius(w.slider,2,LV_PART_KNOB);
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
   lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_GESTURE_BUBBLE);
   lv_obj_add_event_cb(w.slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
@@ -1851,29 +1869,30 @@ inline void set_line_width(lv_obj_t *obj, int value) { if (lv_obj_get_style_line
 // HA's default domain/state palette. Pastel circles also identify inactive domains.
 // Custom Lovelace card/theme CSS is not an entity attribute and is not imported.
 inline uint32_t domain_accent(const Tile &t) {
+  using namespace theme::ha;
   auto d=t.domain();
-  if(d=="light" || d=="switch" || d=="input_boolean" || d=="binary_sensor")return 0xFFC107;
+  if(d=="light" || d=="switch" || d=="input_boolean" || d=="binary_sensor")return AMBER;
   // A climate card that is off or in an unknown mode keeps HA's orange climate circle.
-  if(d=="climate"){uint32_t c=tile_controls::mode_color(t.state);return c==0x9E9E9E?0xFF9800:c;}
-  if(d=="vacuum")return t.state=="error"?0xF44336:0x009688;
-  if(d=="fan")return 0x00BCD4;
-  if(d=="cover")return 0x926BC7;
-  if(d=="media_player")return 0x03A9F4;
-  if(d=="scene" || d=="script")return 0x926BC7;
-  if(d=="select" || d=="input_select")return 0x3F51B5;
-  if(d=="number" || d=="input_number")return 0x009688;
-  if(d=="weather")return t.state=="sunny"?0xFFC107:t.state=="clear-night"?0x6E41AB:0x03A9F4;
-  if(d=="sun")return t.state=="above_horizon"?0xFF9800:0x6E41AB;
-  if(d=="timer")return t.state=="active"?0x009688:t.state=="paused"?0xFF9800:0x9E9E9E;
-  if(d=="person")return t.state=="home"?0x4CAF50:0x9E9E9E;
-  if(d=="screen")return 0x2196F3;
+  if(d=="climate"){uint32_t c=tile_controls::mode_color(t.state);return c==GREY?ORANGE:c;}
+  if(d=="vacuum")return t.state=="error"?RED:TEAL;
+  if(d=="fan")return CYAN;
+  if(d=="cover")return PURPLE;
+  if(d=="media_player")return LIGHT_BLUE;
+  if(d=="scene" || d=="script")return PURPLE;
+  if(d=="select" || d=="input_select")return INDIGO;
+  if(d=="number" || d=="input_number")return TEAL;
+  if(d=="weather")return t.state=="sunny"?AMBER:t.state=="clear-night"?DEEP_PURPLE:LIGHT_BLUE;
+  if(d=="sun")return t.state=="above_horizon"?ORANGE:DEEP_PURPLE;
+  if(d=="timer")return t.state=="active"?TEAL:t.state=="paused"?ORANGE:GREY;
+  if(d=="person")return t.state=="home"?GREEN:GREY;
+  if(d=="screen")return BLUE;
   if(d=="sensor"){
-    if(t.unit=="lx")return 0xFFC107;
-    if(t.unit=="°C" || t.unit=="°F")return 0xFF6F22;
-    if(t.unit=="kWh" || t.unit=="Wh")return 0x926BC7;
-    if(t.unit=="%")return 0x009688;
+    if(t.unit=="lx")return AMBER;
+    if(t.unit=="°C" || t.unit=="°F")return DEEP_ORANGE;
+    if(t.unit=="kWh" || t.unit=="Wh")return PURPLE;
+    if(t.unit=="%")return TEAL;
   }
-  return 0x2196F3;
+  return BLUE;
 }
 // Custom cards draw into a transparent `extra` container; parts are rebuilt only
 // when a slot changes mode, so paging keeps RAM use flat on the CYD.
@@ -2072,7 +2091,7 @@ inline void render_graph(Widgets &w,const Tile &t,bool large,int x,int y,int wid
   if(n==1){raw[1]=raw[0];raw[1].x=(lv_value_precise_t)(width-1);n=2;}
   unsigned count=smooth(raw,n,w.points,POINT_BUFFER,width,height);
   part_line(w,0,w.points,count,stroke,x,y);
-  w.fill_points=w.points;w.fill_count=count;w.fill_x=x;w.fill_y=y;w.fill_base=height;w.fill_opa=LV_OPA_20;
+  w.fill_points=w.points;w.fill_count=count;w.fill_x=x;w.fill_y=y;w.fill_base=height;w.fill_opa=theme::fill_opacity();
 }
 // Sun path: horizon, an arc from sunrise to sunset and the sun at the current
 // position (or below the horizon at night). Wide cards only.
@@ -2106,14 +2125,14 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
   lv_point_precise_t sun={(lv_value_precise_t)(x0+(x1-x0)*fraction),(lv_value_precise_t)(day?horizon-sinf(sa)*amplitude:horizon+sinf(sa)*amplitude)};
   travelled[filled+1]=sun;
   line[0]={(lv_value_precise_t)0,(lv_value_precise_t)horizon};line[1]={(lv_value_precise_t)(width-1),(lv_value_precise_t)horizon};
-  uint32_t path=0xCFD8DC, accent=day?0xFF9800:0x5C6BC0, disc=day?0xFFB300:0xB0BEC5;
+  const uint32_t path=theme::hex(theme::SUN_PATH), accent=day?theme::ha::ORANGE:theme::foreground(theme::ha::NIGHT_SKY), disc=day?theme::ha::SUNNY:theme::hex(theme::MOON);
   lv_obj_set_style_line_color(part_line(w,3,line,2,2),lv_color_hex(path),0);
   lv_obj_set_style_line_color(part_line(w,4,arc,segments+1,large?2:1),lv_color_hex(path),0);
   lv_obj_set_style_line_color(part_line(w,5,travelled,filled+2,large?4:3),lv_color_hex(accent),0);
   int size=large?18:10,glow=size+(large?12:6);
   auto *halo=part_dot(w,6,int(sun.x)-glow/2,int(sun.y)-glow/2,glow);lv_obj_set_style_bg_color(halo,lv_color_hex(disc),0);lv_obj_set_style_bg_opa(halo,LV_OPA_30,0);
   lv_obj_set_style_bg_color(part_dot(w,7,int(sun.x)-size/2,int(sun.y)-size/2,size),lv_color_hex(disc),0);
-  if(day){w.fill_points=travelled;w.fill_count=filled+2;w.fill_x=0;w.fill_y=0;w.fill_base=horizon;w.fill_color=lv_color_hex(0xFFB300);w.fill_opa=LV_OPA_20;}
+  if(day){w.fill_points=travelled;w.fill_count=filled+2;w.fill_x=0;w.fill_y=0;w.fill_base=horizon;w.fill_color=lv_color_hex(theme::ha::SUNNY);w.fill_opa=theme::fill_opacity();}
 }
 
 // ---- Direct controls on wide cards (Home Assistant entity-row style) ----
@@ -2196,7 +2215,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       lv_obj_set_style_pad_all(slider,0,LV_PART_MAIN);
       lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_INDICATOR);
       // The handle is a short white bar inside the fill, like Home Assistant's slider.
-      lv_obj_set_style_radius(slider,2,LV_PART_KNOB);lv_obj_set_style_bg_color(slider,lv_color_hex(0xFFFFFF),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
+      lv_obj_set_style_radius(slider,2,LV_PART_KNOB);lv_obj_add_style(slider,theme::style(theme::Paint::knob),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
       slider_handle(slider,mode=="volume"?m.slider_w:m.pill_w,h);
       lv_obj_set_style_border_width(slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(slider,0,LV_PART_KNOB);
       lv_obj_set_ext_click_area(slider,m.ext+2);
@@ -2205,7 +2224,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     }else if(mode=="toggle"){
       panel_key(w,0,w.panel,m,m.toggle_w,m.toggle_h,false);lv_obj_set_style_radius(w.keys[0],LV_RADIUS_CIRCLE,0);
       w.knob=panel_obj(w.keys[0],false);lv_obj_set_size(w.knob,m.toggle_h-8,m.toggle_h-8);lv_obj_set_y(w.knob,4);
-      lv_obj_set_style_radius(w.knob,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_opa(w.knob,LV_OPA_COVER,0);lv_obj_set_style_bg_color(w.knob,lv_color_hex(0xFFFFFF),0);
+      lv_obj_set_style_radius(w.knob,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_opa(w.knob,LV_OPA_COVER,0);lv_obj_add_style(w.knob,theme::style(theme::Paint::knob),0);
       w.key_commands[0]=tile_controls::TOGGLE;
     }else if(mode=="run"){
       const char *text=tile_controls::run_label(d);
@@ -2220,7 +2239,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   auto set_checked=[&](unsigned n,bool checked){
     if(w.key_checked[n]==(int)checked)return;w.key_checked[n]=checked;
     if(checked)lv_obj_add_state(w.keys[n],LV_STATE_CHECKED);else lv_obj_remove_state(w.keys[n],LV_STATE_CHECKED);
-    if(w.key_icons[n])lv_obj_set_style_text_color(w.key_icons[n],checked?lv_color_hex(0xFFFFFF):w.panel_text,0);
+    if(w.key_icons[n])lv_obj_set_style_text_color(w.key_icons[n],checked?theme::color(theme::ON_ACCENT):w.panel_text,0);
   };
   auto set_disabled=[&](unsigned n,bool disabled){if(disabled)lv_obj_add_state(w.keys[n],LV_STATE_DISABLED);else lv_obj_remove_state(w.keys[n],LV_STATE_DISABLED);};
   if(tile_controls::is_key_row(mode)){
@@ -2230,7 +2249,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       lv_obj_remove_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);lv_obj_set_pos(w.keys[n],n*(m.key_w+m.gap),0);
       label(w.key_icons[n],keys[n].icon);w.key_commands[n]=keys[n].command;w.key_args[n]=keys[n].arg;
       // The active mode key carries the accent; "off" stays neutral grey.
-      if(keys[n].checked && w.key_checked[n]!=1)lv_obj_set_style_bg_color(w.keys[n],keys[n].arg=="off"?lv_color_hex(0x9E9E9E):w.panel_accent,LV_STATE_CHECKED);
+      if(keys[n].checked && w.key_checked[n]!=1)lv_obj_set_style_bg_color(w.keys[n],keys[n].arg=="off"?theme::color(theme::OFF):w.panel_accent,LV_STATE_CHECKED);
       set_checked(n,keys[n].checked);set_disabled(n,keys[n].disabled);
     }
     panel_w=count?count*m.key_w+(count-1)*m.gap:0;
@@ -2277,28 +2296,29 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
 // Colours follow the card palette; called with the rest of the palette when it changes.
 inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t text) {
   if(!w.panel || w.panel_mode.empty())return;
-  lv_color_t card=lv_color_hex(t.background?t.background:0xFFFFFF);
-  lv_color_t key_bg=lv_color_mix(card,lv_color_hex(0x000000),236);
-  lv_color_t key_pressed=lv_color_mix(card,lv_color_hex(0x000000),212);
+  const uint32_t surface=theme::surface(t.background);
+  lv_color_t card=lv_color_hex(surface);
+  lv_color_t key_bg=lv_color_hex(theme::key_on(surface,236));
+  lv_color_t key_pressed=lv_color_hex(theme::key_on(surface,212));
   w.panel_accent=accent;w.panel_text=text;
   for(unsigned n=0;n<3;++n){
     auto *key=w.keys[n];if(!key)continue;
     bool in_pill=w.pill && lv_obj_get_parent(key)==w.pill;
     set_color(key,LV_STYLE_BG_COLOR,in_pill?key_pressed:key_bg);
-    set_color(key,LV_STYLE_BG_COLOR,in_pill?lv_color_mix(card,lv_color_hex(0x000000),190):key_pressed,LV_STATE_PRESSED);
-    set_color(key,LV_STYLE_BG_COLOR,w.key_args[n]=="off" && w.panel_mode=="mode"?lv_color_hex(0x9E9E9E):accent,LV_STATE_CHECKED);
-    if(w.key_icons[n])set_color(w.key_icons[n],LV_STYLE_TEXT_COLOR,w.key_checked[n]==1?lv_color_hex(0xFFFFFF):text);
+    set_color(key,LV_STYLE_BG_COLOR,in_pill?lv_color_hex(theme::key_on(surface,190)):key_pressed,LV_STATE_PRESSED);
+    set_color(key,LV_STYLE_BG_COLOR,w.key_args[n]=="off" && w.panel_mode=="mode"?theme::color(theme::OFF):accent,LV_STATE_CHECKED);
+    if(w.key_icons[n])set_color(w.key_icons[n],LV_STYLE_TEXT_COLOR,w.key_checked[n]==1?theme::color(theme::ON_ACCENT):text);
   }
   if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,key_bg);set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
   if(w.control_slider){
     bool on=fresh() && t.slider_active();
-    lv_color_t fill=on?accent:lv_color_hex(0x9E9E9E);
+    lv_color_t fill=on?accent:theme::color(theme::OFF);
     // The track is the fill colour at 20 % over the card, as in Home Assistant.
     set_color(w.control_slider,LV_STYLE_BG_COLOR,lv_color_mix(fill,card,51),LV_PART_MAIN);
     set_color(w.control_slider,LV_STYLE_BG_COLOR,fill,LV_PART_INDICATOR);
     slider_bar(w.control_slider,slider_bar_shown(t,on));
   }
-  if(w.knob){set_color(w.keys[0],LV_STYLE_BG_COLOR,lv_color_hex(0xD7DADF));set_color(w.keys[0],LV_STYLE_BG_COLOR,lv_color_hex(0xC5C9CF),LV_STATE_PRESSED);}
+  if(w.knob){set_color(w.keys[0],LV_STYLE_BG_COLOR,theme::color(theme::PANEL_TOGGLE_OFF));set_color(w.keys[0],LV_STYLE_BG_COLOR,theme::color(theme::PANEL_TOGGLE_OFF_PRESSED),LV_STATE_PRESSED);}
 }
 inline void control_event(lv_event_t *e) {
   unsigned code=(uintptr_t)lv_event_get_user_data(e);unsigned slot=code/16,n=code%16;
@@ -2334,13 +2354,13 @@ inline void set_busy(Widgets &w,bool busy,bool large){
   if(!busy){if(w.busy)lv_obj_add_flag(w.busy,LV_OBJ_FLAG_HIDDEN);return;}
   if(!w.busy){
     w.busy=lv_obj_create(w.tile);lv_obj_remove_style_all(w.busy);lv_obj_remove_flag(w.busy,LV_OBJ_FLAG_SCROLLABLE);lv_obj_add_flag(w.busy,LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_bg_color(w.busy,lv_color_hex(0xFFFFFF),0);lv_obj_set_style_bg_opa(w.busy,LV_OPA_60,0);
+    lv_obj_add_style(w.busy,theme::style(theme::Paint::veil),0);lv_obj_set_style_bg_opa(w.busy,LV_OPA_60,0);
     lv_obj_set_style_radius(w.busy,lv_obj_get_style_radius(w.tile,LV_PART_MAIN),0);
 #if LV_USE_SPINNER
     w.spinner=lv_spinner_create(w.busy);lv_spinner_set_anim_params(w.spinner,900,200);
     int size=large?30:20;lv_obj_set_size(w.spinner,size,size);lv_obj_center(w.spinner);lv_obj_remove_flag(w.spinner,LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_arc_width(w.spinner,large?4:3,LV_PART_MAIN);lv_obj_set_style_arc_width(w.spinner,large?4:3,LV_PART_INDICATOR);
-    lv_obj_set_style_arc_color(w.spinner,lv_color_hex(0xD9DDE2),LV_PART_MAIN);lv_obj_set_style_arc_color(w.spinner,lv_color_hex(0x1E88E5),LV_PART_INDICATOR);
+    lv_obj_add_style(w.spinner,theme::style(theme::Paint::spinner),LV_PART_MAIN);lv_obj_set_style_arc_color(w.spinner,lv_color_hex(theme::ha::RAIN),LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(w.spinner,LV_OPA_TRANSP,LV_PART_KNOB);lv_obj_set_style_pad_all(w.spinner,0,LV_PART_KNOB);
 #endif
   }
@@ -2475,41 +2495,44 @@ inline void render_slot(size_t slot) {
   w.cached_active = palette_state;w.panel_dirty=false;
   uint32_t accent = domain_accent(t);
   // Off is grey, as in Home Assistant, so a light or a door sensor shows its state at a glance.
-  auto color=lv_color_hex((t.is_switch()||d=="light"||d=="binary_sensor"||d=="person"||d=="timer") && !on ? 0x9E9E9E : accent);
+  uint32_t state_color=(t.is_switch()||d=="light"||d=="binary_sensor"||d=="person"||d=="timer") && !on ? theme::STATE_OFF : accent;
   if(d=="light" && on && t.has_hs_color)
-    color=lv_color_hsv_to_rgb(t.hue%360,t.saturation,100);
-  auto circle_color=available?lv_color_mix(color,lv_color_hex(0xFFFFFF),38):lv_color_hex(0xF0F0F0);
-  // Darken the foreground slightly: very pale bulbs still need a visible icon.
-  auto icon_color=available?lv_color_mix(color,lv_color_hex(0x333333),205):lv_color_hex(0x9E9E9E);
+    state_color=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation,100))&0xFFFFFF;
+  auto color=lv_color_hex(theme::state(state_color));
+  auto circle_color=lv_color_hex(available?theme::tint(state_color,38):theme::hex(theme::TRACK));
+  // Very pale bulbs still need a visible icon: a touch darker on a light card, a touch lighter on a dark one.
+  auto icon_color=lv_color_hex(available?theme::icon(state_color):theme::hex(theme::OFF));
   // Off: a grey track without fill or handle, as in Home Assistant.
-  auto fill_color=slider_on?color:lv_color_hex(0x9E9E9E);
+  const uint32_t fill=slider_on?state_color:theme::STATE_OFF;
+  auto fill_color=lv_color_hex(theme::state(fill));
   set_color(w.slider,LV_STYLE_BG_COLOR,fill_color,LV_PART_INDICATOR);
-  set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_mix(fill_color,lv_color_hex(0xFFFFFF),51),LV_PART_MAIN);
+  set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_hex(theme::tint(fill,51)),LV_PART_MAIN);
   slider_bar(w.slider,slider_bar_shown(t,slider_on));
-  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(t.background ? t.background : 0xFFFFFF));
+  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(theme::surface(t.background)));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
   // "Background: none" hides only the card; geometry and padding stay identical,
   // and the pressed flash still shows because it lives on the PRESSED state.
   set_number(w.tile,LV_STYLE_BG_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
   set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
-  set_color(w.tile,LV_STYLE_BORDER_COLOR,t.background ? lv_color_mix(lv_color_hex(t.background),lv_color_hex(0x000000),220) : lv_color_hex(0xDDDDDD));
+  set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));
   set_color(w.circle,LV_STYLE_BG_COLOR,circle_color);
   set_color(w.icon,LV_STYLE_TEXT_COLOR,icon_color);
-  auto title_color=lv_color_hex(0x1B1B1B);
-  auto value_color=lv_color_hex(t.background ? 0x46525E : 0x616161);
-  set_color(w.unit,LV_STYLE_TEXT_COLOR,lv_color_hex(0x46525E));
+  auto title_color=theme::color(theme::INK);
+  auto value_color=theme::color(t.background ? theme::SLATE : theme::MUTED);
+  set_color(w.unit,LV_STYLE_TEXT_COLOR,theme::color(theme::SLATE));
   set_color(w.title,LV_STYLE_TEXT_COLOR,title_color);
   set_color(w.value,LV_STYLE_TEXT_COLOR,value_color);
   style_panel(w,t,color,title_color);
   // Custom parts follow the card palette: text like the title, lines/dots in the accent.
-  // The sun path sets its own colours on every render.
-  w.fill_color=color;
+  // The sun path sets its own colours on every render, the sunlit area under its arc too: taking the
+  // accent here made that area orange after a palette change and yellow again after the next minute.
+  if(w.extra_mode!="sunpath")w.fill_color=color;
   for(unsigned i=0;i<w.parts.size();++i){
     auto *p=w.parts[i];if(!p)continue;
     bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
     if(lv_obj_check_type(p,&lv_label_class))set_color(p,LV_STYLE_TEXT_COLOR,muted?value_color:title_color);
     else if(w.extra_mode=="sunpath")continue;
-    else if(lv_obj_check_type(p,&lv_line_class))set_color(p,LV_STYLE_LINE_COLOR,w.extra_mode=="graph"?color:i==18?lv_color_hex(0xE53935):i<12?value_color:i==13?icon_color:title_color);
+    else if(lv_obj_check_type(p,&lv_line_class))set_color(p,LV_STYLE_LINE_COLOR,w.extra_mode=="graph"?color:i==18?lv_color_hex(theme::foreground(theme::ha::ALARM)):i<12?value_color:i==13?icon_color:title_color);
     else set_color(p,LV_STYLE_BG_COLOR,i==14?icon_color:value_color);
   }
   lap(swipe_profile::PALETTE);
@@ -2553,13 +2576,14 @@ inline void render(lv_obj_t *room) {
 // Drawn in the board's pixels by the editor's rules (app.js barLayout): every value, the time too,
 // in one font on the name's baseline; icons and the dial centred on the height of the digits; the
 // gaps measured between glyph ink, so every icon sits equally close to its value.
-struct HeaderSlot { lv_obj_t *icon{}, *text{}; uint32_t icon_color = 0; };
+// An icon either shows the slate paint or a colour of its own (the item's state colour); `own` and `icon_color`
+// remember which, so an unchanged icon is not styled again.
+struct HeaderSlot { lv_obj_t *icon{}, *text{}; uint32_t icon_color = 0; bool own = false; };
 inline lv_obj_t *header_root = nullptr, *header_ring = nullptr;
 inline std::array<lv_obj_t *, 2> header_hands{};
 inline std::array<HeaderSlot, header_bar::MAX_ITEMS> header_slots{};
 inline lv_point_precise_t header_points[4]{};
 inline int header_dial_key = -1;
-constexpr uint32_t HEADER_INK = 0x46525E;
 inline void set_visible(lv_obj_t *obj, bool visible) {
   if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) != visible) return;
   if (visible) lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
@@ -2585,7 +2609,7 @@ inline lv_obj_t *header_part(lv_obj_t *parent) {
   auto *part = lv_label_create(parent);
   lv_obj_remove_flag(part, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_style_text_color(part, lv_color_hex(HEADER_INK), 0);
+  lv_obj_add_style(part, theme::style(theme::Paint::slate), 0);
   return part;
 }
 // `live`: Home Assistant's values may show; without its link or the manager's feed only clocks stay.
@@ -2605,21 +2629,20 @@ inline void draw_header(bool live) {
       slot.text = header_part(header_root);
       lv_obj_set_style_text_font(slot.icon, header_icon_font, 0);
       lv_obj_set_style_text_font(slot.text, header_text_font, 0);
-      slot.icon_color = HEADER_INK;
     }
     header_ring = lv_obj_create(header_root);
     lv_obj_remove_style_all(header_ring);
     lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_style_radius(header_ring, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_border_color(header_ring, lv_color_hex(HEADER_INK), 0);
+    lv_obj_add_style(header_ring, theme::style(theme::Paint::slate), 0);
     lv_obj_set_style_border_opa(header_ring, LV_OPA_COVER, 0);
     lv_obj_add_flag(header_ring, LV_OBJ_FLAG_HIDDEN);
     for (auto *&hand : header_hands) {
       hand = lv_line_create(header_root);
       lv_obj_remove_flag(hand, LV_OBJ_FLAG_CLICKABLE);
       lv_obj_set_style_line_rounded(hand, true, 0);
-      lv_obj_set_style_line_color(hand, lv_color_hex(HEADER_INK), 0);
+      lv_obj_add_style(hand, theme::style(theme::Paint::slate), 0);
       lv_obj_add_flag(hand, LV_OBJ_FLAG_HIDDEN);
     }
     // A long name ends in dots instead of running under the items.
@@ -2714,8 +2737,14 @@ inline void draw_header(bool live) {
       int ink_top = (middle2 - g.box_h) / 2;
       lv_obj_set_pos(slot.icon, x - g.ofs_x, ink_top - ((header_icon_font->line_height - header_icon_font->base_line) - g.box_h - g.ofs_y));
       const auto &item = bar.items[p.item];
-      uint32_t color = item.has_color ? item.color : HEADER_INK;
-      if (slot.icon_color != color) { lv_obj_set_style_text_color(slot.icon, lv_color_hex(color), 0); slot.icon_color = color; }
+      // The words, icons and dial of the top bar take the slate paint; an item's own colour sits on top of it.
+      const uint32_t color = item.has_color ? theme::foreground(item.color) : 0;
+      if (slot.own != item.has_color || slot.icon_color != color) {
+        if (item.has_color) lv_obj_set_style_text_color(slot.icon, lv_color_hex(color), 0);
+        else lv_obj_remove_local_style_prop(slot.icon, LV_STYLE_TEXT_COLOR, 0);
+        slot.own = item.has_color;
+        slot.icon_color = color;
+      }
       icon_on[k] = true;
       x += p.icon_w + (p.text_w ? gaps.icon : 0);
     }
@@ -2807,8 +2836,8 @@ inline bool check_tile_geometry() {
     }
     if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u mode=%s wide=%d title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,w.extra_mode.c_str(),w.wide,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
     if(w.index<model.count && model.tiles[w.index].background){
-      bool palette_ok=lv_color_eq(lv_obj_get_style_bg_color(w.tile,LV_PART_MAIN),lv_color_hex(model.tiles[w.index].background)) &&
-        lv_color_eq(lv_obj_get_style_text_color(w.title,LV_PART_MAIN),lv_color_hex(0x1B1B1B));
+      bool palette_ok=lv_color_eq(lv_obj_get_style_bg_color(w.tile,LV_PART_MAIN),lv_color_hex(theme::surface(model.tiles[w.index].background))) &&
+        lv_color_eq(lv_obj_get_style_text_color(w.title,LV_PART_MAIN),theme::color(theme::INK));
       if(!palette_ok)ESP_LOGE("ui_test","Tile palette FAIL slot=%u",(unsigned)w.index);
       fits=fits && palette_ok;
     }
@@ -2864,7 +2893,7 @@ inline int place_page(int page) {
 inline lv_color_t page_color(const Widgets &w) {
   for(auto *o=lv_obj_get_parent(w.tile);o;o=lv_obj_get_parent(o))
     if(lv_obj_get_style_bg_opa(o,LV_PART_MAIN)>=LV_OPA_MAX)return lv_obj_get_style_bg_color(o,LV_PART_MAIN);
-  return lv_color_hex(0xE7E7E7);
+  return theme::color(theme::PAGE);
 }
 inline void skeleton(Widgets &w) {
   for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra,w.panel,w.busy})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
@@ -2874,7 +2903,7 @@ inline void skeleton(Widgets &w) {
     lv_obj_set_style_bg_opa(w.veil,LV_OPA_COVER,0);
   }
   const Tile *t=w.index<model.count?&model.tiles[w.index]:nullptr;
-  set_color(w.veil,LV_STYLE_BG_COLOR,t && t->transparent?page_color(w):lv_color_hex(t && t->background?t->background:0xFFFFFF));
+  set_color(w.veil,LV_STYLE_BG_COLOR,t && t->transparent?page_color(w):lv_color_hex(theme::surface(t?t->background:0)));
   lv_obj_set_pos(w.veil,0,0);
   lv_obj_set_size(w.veil,content_width(w),content_height(w));
   lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_HIDDEN);
@@ -3039,6 +3068,14 @@ inline void tick() {
     }
   }
   if(redraw && refresh)refresh();
+}
+// A change of look (Dark mode). The paints follow by themselves (theme::set_dark); what the tiles, the top bar and an
+// open card painted in code is drawn again here, in the same pass, so no frame shows half of each look.
+inline void restyle() {
+  for (auto &w : widgets) { w.cached_active = -1; w.panel_dirty = true; }
+  for (auto &slot : header_slots) { slot.own = true; slot.icon_color = UINT32_MAX; }
+  if (room_label) { dirty_all = true; render(room_label); }
+  if (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN) && detail_index < model.count) show_detail(detail_index);
 }
 inline std::string vacuum_option(unsigned index) {
   if (active_index < 0 || static_cast<size_t>(active_index) >= model.count) return {};

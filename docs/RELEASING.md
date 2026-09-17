@@ -176,6 +176,53 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.63 / firmware 0.2.54
+
+Firmware (`components/smart_display`, new `theme.h`), both board profiles and the app's settings. The tile protocol
+and the layout message are unchanged; nothing new on the wire.
+
+- **Colours in one table.** `theme.h` holds every colour the firmware chooses: roles with a light and a dark value,
+  the named card colours (`SWATCHES`, moved out of `tile_palette.h`, which now looks them up) and Home Assistant's
+  state colours (`theme::ha`). Headers ask for roles; the profiles give widgets paints (`styles: paint_card`), shared
+  styles without a colour that the profile's `theme::paints` list fills (`theme::fill()`, code in flash rather than a
+  table in RAM). `tests/test_theme.py` fails on a hex colour anywhere else (the light's colour picker and the value
+  card's colour wheel keep their hues) and on a paint that is not defined, filled once and used in every profile and
+  package; `tests/test_theme.cpp` checks the values.
+- **The light look is the old one.** Host renders of every page, card, alert and settings page against firmware
+  0.2.53 are pixel-identical, apart from merges below one panel step: the text of the simple cards (`#202020` to
+  `#1B1B1B`) and of some secondary words (`#5F6368` to `#616161`), the colour card's page (`#F7F7F7` to `#F8F8F8`,
+  what the eye saw through the old sheet), an unavailable tile's circle and the off brightness track (to `#F1F1F1`),
+  a pressed round key (`#DADADA` and `#D9D9D9` to `#DDDDDD`) and the tints of the vacuum's halo and the cover sliders,
+  now computed from their state colour (within two steps of the old hand-picked values), and the two fixes below.
+- **Two redraws that drew differently**, found by comparing a screen that switched looks with one that booted in it,
+  and both older than 0.2.54. `settings_screen::draw()` ends in `refresh()`, whose `move_knob()` read the new track's
+  coordinates before LVGL had laid the page out (still 0 wide), so every switch that was on showed its knob at the
+  left until the next refresh; the knob is now placed from the size `pill()` gave the track (`knob_x()`), and a
+  change of look, which draws the page again, no longer throws the Dark mode switch's own knob to the left. And
+  `render_slot`'s palette gave the sun path's fill the tile's accent (orange) whenever the palette changed, while
+  `render_sunpath` sets the sun's yellow on every render, so the sunlit area changed colour by itself a minute later;
+  the sun path keeps its own fill now.
+- **Dark mode** is `settings_screen::dark_mode` beside the other settings outside the frozen block, with a uint32
+  preference of its own (`0x44524B31`, "DRK1"); `screen_settings::Settings` stays version 1. It is a row under
+  Brightness (five rows: no pager on either board), the template switch `Dark mode` (config, `restore_mode: DISABLED`)
+  and the app's key `dark_mode` (`SETTING_RULES`, `SETTINGS_BESIDE_BLOCK`, `SETTING_ENTITIES`). A screen that gets its
+  settings with the layout never has it: `settings_view` leaves it out, the layout message never carries it.
+  `DARK_MODE_MIN_FIRMWARE` is 0.2.54.
+- **A change of look** runs through `set()` -> `apply_screen_settings` -> `theme::set_dark()`: the profile's and the
+  firmware's own paints are refilled, LVGL is told once (`lv_obj_report_style_change(nullptr)`), and `theme::redraw`
+  (set in `on_boot`) draws again what code painted by state: the tiles' palettes and the top bar
+  (`runtime_tiles::restyle`), an open card in place, the colour card (`light_controls::restyle`), the settings page,
+  an alert that is up (`alert_card_color`) and the climate card and its mode picker. The same pass, so no frame
+  mixes the looks; at boot `set_dark()` runs before the first frame.
+- **Profiles:** the substitutions `BG_TOP_COLOR`, `BG_BOTTOM_COLOR` and `ACCENT_*` are gone (an override that set them
+  has no effect any more), `style_bg_grad` is `style_page` (one fill, no gradient between two equal stops), the four
+  unused `*_disabled` styles and the colour card's `color_detail_bg` and `color_detail_scrim` are removed, and
+  `open_value_overlay` lost its three colour parameters (the value card's slider takes paints).
+- App 0.2.63 with firmware 0.2.53 or older: no Dark mode row, everything else as before. Firmware 0.2.54 with an
+  older app: Dark mode works on the screen and in Home Assistant; the older editor does not show the row.
+- A layout of a screen that gets its settings with the layout is stored with `dark_mode` among its settings. An app
+  from before 0.2.63 refuses that key: restore the data backup when rolling back, as for every settings key before.
+
 ### Compatibility 0.2.62 / firmware 0.2.53
 
 Firmware (`components/smart_display`), the icon fonts and the top bar's icon. Storage, tile protocol, preferences and

@@ -47,11 +47,12 @@ ENTITY_IDS = {
     'clock_24h': 'switch.office_1_24_hour_clock', 'auto_home': 'switch.office_1_back_to_page_1',
     'auto_home_seconds': 'number.office_1_back_to_page_1_after', 'home_on_standby': 'switch.office_1_back_to_page_1_on_standby',
     'swipe_pages': 'switch.office_1_swipe_between_pages', 'rotation': 'select.office_1_rotation',
+    'dark_mode': 'switch.office_1_dark_mode',
 }
 STATES = {'brightness': '80.0', 'standby_enabled': 'on', 'standby_seconds': '600.0', 'standby_brightness': '20.0',
           'night_enabled': 'on', 'night_start': '22:30:00', 'night_end': '07:00:00', 'night_brightness': '5.0',
           'clock_24h': 'on', 'auto_home': 'on', 'auto_home_seconds': '120.0', 'home_on_standby': 'off',
-          'swipe_pages': 'on', 'rotation': '90°'}
+          'swipe_pages': 'on', 'rotation': '90°', 'dark_mode': 'off'}
 
 
 def top_block(text, key):
@@ -295,6 +296,34 @@ class OlderFirmware(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(await m.sync_one('text.screen', m.layouts['text.screen'], screen=screen, dirty=set()))
             self.assertEqual([message['op'] for message, _ in m.ha.messages], ['layout'], 'the tiles are not sent again')
             self.assertEqual(m.ha.messages[0][0]['settings']['standby_seconds'], 1800)
+
+    async def test_dark_mode_needs_a_screen_that_owns_its_settings(self):
+        # Firmware that gets its settings with the layout has no dark look: no row, no key on the wire, no change.
+        with tempfile.TemporaryDirectory() as tmp:
+            m = Manager(fake_ha(firmware='0.2.48', owned=False), Path(tmp) / 'screens.json')
+            m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}],
+                                   'settings': validate_settings({'dark_mode': True})})
+            screen = m.screen('text.screen')
+            self.assertNotIn('dark_mode', m.settings_view(screen)['keys'])
+            message = m.layout_message('text.screen', m.layouts['text.screen'], screen)
+            self.assertNotIn('dark_mode', message)
+            self.assertNotIn('dark_mode', message['settings'], 'never inside the frozen eleven-key block')
+            self.assertEqual(len(message['settings']), 11)
+            with self.assertRaises(ValueError):
+                await m.change_settings('text.screen', {'dark_mode': True})
+        # Firmware 0.2.49-0.2.53 owns its settings but lacks the switch: left out, not unknown.
+        with tempfile.TemporaryDirectory() as tmp:
+            m = Manager(fake_ha(firmware='0.2.53'), Path(tmp) / 'screens.json')
+            m.ha.registry = [item for item in m.ha.registry if item['entity_id'] != ENTITY_IDS['dark_mode']]
+            view = m.settings_view(m.screen('text.screen'))
+            self.assertNotIn('dark_mode', view['keys'] + view['unavailable'])
+        # Firmware 0.2.54: the switch of the screen itself.
+        with tempfile.TemporaryDirectory() as tmp:
+            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}]})
+            self.assertFalse(m.settings_view(m.screen('text.screen'))['values']['dark_mode'])
+            await m.change_settings('text.screen', {'dark_mode': True})
+            self.assertEqual(m.ha.calls, [('switch.turn_on', {'entity_id': ENTITY_IDS['dark_mode']})])
 
     async def test_back_to_page_1_needs_firmware_0_2_44(self):
         with tempfile.TemporaryDirectory() as tmp:

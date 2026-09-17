@@ -1,3 +1,4 @@
+#define THEME_TEST
 #include "components/smart_display/alert_overlay.h"
 #include <cassert>
 #include <cstdio>
@@ -12,11 +13,13 @@ int main() {
   // Unknown names, a codepoint the fonts lack and junk draw the warning triangle.
   for (const char *icon : {"", "unknown", "mdi:", "F0000", "F12E", "\xF0\x9F\x94\x94", "mdi:not-in-the-set"})
     assert(screen_alert::icon_codepoint(icon) == 0xF002A);
-  // Colour: palette names in any case; empty, none and anything unknown keep the white card.
+  // Colour: palette names in any case; empty, none and anything unknown keep the normal card.
   assert(make("x", "", "", "Red", "", 0, false, 48, 160, 12).color == 0xFADADD);
   assert(make("x", "", "", " mint ", "", 0, false, 48, 160, 12).color == 0xD5F0EA);
   for (const char *color : {"", "none", "auto", "#ff0000", "0xFF0000"})
-    assert(make("x", "", "", color, "", 0, false, 48, 160, 12).color == 0xFFFFFF);
+    assert(make("x", "", "", color, "", 0, false, 48, 160, 12).color == screen_alert::DEFAULT_CARD_COLOR);
+  // The normal card is no colour of its own: the look draws it (theme::surface(0)).
+  assert(screen_alert::DEFAULT_CARD_COLOR == 0);
   // Timeout: 0 and negatives wait for OK; a day is the ceiling.
   assert(make("x", "", "", "", "", 0, false, 48, 160, 12).timeout_seconds == 0);
   assert(make("x", "", "", "", "", -5, false, 48, 160, 12).timeout_seconds == 0);

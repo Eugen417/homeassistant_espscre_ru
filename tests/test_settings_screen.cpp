@@ -43,6 +43,11 @@ int main() {
   assert(moment_text(1320, false) == "10:00 PM" && moment_text(0, false) == "12:00 AM");
   assert(moment_text(750, false) == "12:30 PM" && moment_text(60, false) == "1:00 AM");
 
+  // ---- a switch's knob: inset at the left when off, flush with the same inset at the right when on ----
+  // The Guition switch is 62 by 34 (a 28 px knob), the CYD one 40 by 22 (an 18 px knob).
+  assert(knob_x(62, 34, false) == 3 && knob_x(62, 34, true) == 31 && 31 + 28 + 3 == 62);
+  assert(knob_x(40, 22, false) == 2 && knob_x(40, 22, true) == 20 && 20 + 18 + 2 == 40);
+
   // ---- rows read and write the real settings ----
   screen_settings::current = screen_settings::Settings{};
   const Page &light = pages[1];
@@ -58,6 +63,14 @@ int main() {
   standby.write(90);
   assert(screen_settings::current.standby_brightness == 30);  // never above the normal brightness
   assert(screen_settings::current.valid());
+  // Dark mode (firmware 0.2.54+) sits right under Brightness, a switch of its own outside the frozen block.
+  assert(light.count == 5 && light.rows[1].kind == Kind::toggle && std::string(light.rows[1].label) == "Dark mode");
+  const Row &dark = row_named(light, "Dark mode");
+  assert(value_text(dark) == "Off");
+  dark.write(1);
+  assert(dark_mode == 1 && value_text(dark) == "On");
+  dark.write(0);
+  assert(dark_mode == 0 && value_text(dark) == "Off");
 
   const Page &screen = pages[3];
   const Row &clock = row_named(screen, "Clock");
@@ -138,6 +151,7 @@ int main() {
       {"night_start", -5, 0}, {"night_end", 2000, 1439}, {"night_brightness", 7, 7}, {"clock_24h", 0, 0},
       {"home_on_standby", 1, 1}, {"swipe_pages", 2, 1}, {"rotation", 100, 90}, {"rotation", 400, 270},
       {"auto_home", 0, 0}, {"auto_home_seconds", 5, 30}, {"auto_home_seconds", 99999, 3600},
+      {"dark_mode", 7, 1},
   };
   for (const auto &c : cases) {
     result = set(c.key, c.value);
@@ -146,8 +160,15 @@ int main() {
   }
   assert(screen_settings::current.standby_seconds == 86400 && screen_settings::current.brightness == 100);
   assert(screen_settings::current.night_start == 0 && screen_settings::current.night_end == 1439);
-  assert(swipe_pages == 1 && rotation == 270 && auto_home == 0 && auto_home_seconds == 3600);
+  assert(swipe_pages == 1 && rotation == 270 && auto_home == 0 && auto_home_seconds == 3600 && dark_mode == 1);
   assert(screen_settings::current.valid());
+  // Dark mode again is the same look: nothing stored, applied or reported; off is a change.
+  {
+    const int stored_before = stored, applied_before = applied;
+    assert(set("dark_mode", 1) == SetResult::same && stored == stored_before && applied == applied_before);
+    assert(set("dark_mode", 0) == SetResult::changed && last_key == "dark_mode" && last_value == 0 && dark_mode == 0);
+    set("dark_mode", 1);
+  }
   // A lower brightness pulls both dim levels down, and reports the brightness itself.
   set("standby_brightness", 60);
   set("night_brightness", 50);

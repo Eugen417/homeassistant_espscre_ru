@@ -13,6 +13,7 @@ import header_bar  # noqa: E402
 import tile_icons  # noqa: E402
 
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+THEME = (ROOT / 'components/smart_display/theme.h').read_text()
 
 
 class OffLook(unittest.TestCase):
@@ -23,7 +24,9 @@ class OffLook(unittest.TestCase):
 
     def test_the_screen_crosses_out_its_own_bulb_and_greys_what_is_off(self):
         self.assertIn('if (d == "light" && tile.state == "off") return "\\U000F0E4F";', TILES)
-        self.assertIn('(t.is_switch()||d=="light"||d=="binary_sensor"||d=="person"||d=="timer") && !on ? 0x9E9E9E : accent', TILES)
+        self.assertIn('(t.is_switch()||d=="light"||d=="binary_sensor"||d=="person"||d=="timer") && !on ? theme::STATE_OFF : accent', TILES)
+        self.assertIn('constexpr uint32_t STATE_OFF = ha::GREY;', THEME)
+        self.assertIn('constexpr uint32_t GREY = 0x9E9E9E;', THEME)
 
     def test_the_top_bar_does_the_same(self):
         light = lambda state, **attrs: {'state': state, 'attributes': attrs}

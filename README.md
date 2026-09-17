@@ -51,6 +51,12 @@ no reflash, no YAML to write, no blueprint, MQTT or token.
   <img src="docs/images/cyd-history.png" width="32%" alt="The history card on the CYD: power over 24 hours with its highest and lowest moment, an axis in watts and clock times">
 </p>
 <p align="center"><sub>The same cards on the 2.8-inch CYD, 320 × 240.</sub></p>
+<p align="center">
+  <img src="docs/images/guition-dark-home.png" width="32%" alt="Dark mode on the Guition: the same home page with a black page, graphite cards and soft white text, the clock, the temperature graph, the weather, a lamp and presence">
+  <img src="docs/images/guition-dark-controls.png" width="32%" alt="Dark mode with direct control: the heating setpoint, the dimmer's slider and the Sonos volume keep their colours">
+  <img src="docs/images/guition-dark-page-4.png" width="32%" alt="Dark mode with pastel backgrounds: the coffee machine and the good-night script keep their colour, deeper">
+</p>
+<p align="center"><sub>Dark mode, for a screen beside the bed: the same pages, darker. It is a switch on the screen, in ESP Screens and in Home Assistant, so an automation can turn it on at bedtime.</sub></p>
 
 ## Managed from Home Assistant
 

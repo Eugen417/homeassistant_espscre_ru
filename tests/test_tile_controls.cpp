@@ -1,4 +1,5 @@
 // c++ -std=c++17 -Wall -Wextra -pedantic tests/test_tile_controls.cpp -o /tmp/test_tile_controls && /tmp/test_tile_controls
+#define THEME_TEST
 #include "../components/smart_display/tile_controls.h"
 #include <cassert>
 #include <cmath>

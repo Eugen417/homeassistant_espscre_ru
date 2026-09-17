@@ -3,6 +3,7 @@
 #include "esphome/core/preferences.h"
 #include "esphome/core/hal.h"
 #include "lvgl.h"
+#include "theme.h"
 #include <functional>
 namespace screen_calibration {
 inline bool active = false, pressed = false;
@@ -36,8 +37,8 @@ inline void setup(lv_obj_t *home_screen, const lv_font_t *font, const lv_font_t 
   for (int i = 0; i < 4; ++i) valid &= stored.bounds[i] == calibration.bounds[i];
   for (float coefficient : stored.c) valid &= std::isfinite(coefficient);
   screen = lv_obj_create(nullptr);
-  lv_obj_set_style_bg_color(screen, lv_color_hex(0x101820), 0);
-  lv_obj_set_style_text_color(screen, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_bg_color(screen, theme::color(theme::CALIBRATION_PAGE), 0);
+  lv_obj_set_style_text_color(screen, theme::color(theme::CALIBRATION_INK), 0);
   lv_obj_set_style_text_font(screen, font, 0);
   instructions = lv_label_create(screen);
   lv_obj_set_style_text_align(instructions, LV_TEXT_ALIGN_CENTER, 0);
@@ -46,7 +47,7 @@ inline void setup(lv_obj_t *home_screen, const lv_font_t *font, const lv_font_t 
   cross = lv_label_create(screen); lv_label_set_text(cross, "+");
   lv_obj_set_size(cross, 24, 24); lv_obj_set_style_text_font(cross, large, 0);
   lv_obj_set_style_text_align(cross, LV_TEXT_ALIGN_CENTER, 0);
-  lv_obj_set_style_text_color(cross, lv_color_hex(0xFFD34D), 0);
+  lv_obj_set_style_text_color(cross, theme::color(theme::CALIBRATION_MARK), 0);
   if (valid) { calibration = stored; if (apply) apply(calibration); }
   else begin();
 }

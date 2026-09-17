@@ -557,6 +557,8 @@ class Manager:
                 values = validate_settings({})
             if (self.firmware_version(inbox, screen) or (0, 0, 0)) < (0, 2, 44):
                 keys = [key for key in keys if key not in ('auto_home', 'auto_home_seconds')]
+            # Dark mode came after the screens took over their settings: firmware that gets them with the layout lacks it.
+            keys = [key for key in keys if key != 'dark_mode']
             return {'owner': 'layout', 'values': values, 'keys': keys, 'unavailable': []}
         # Only the settings this screen has an entity for: one added in later firmware stays out of the panel.
         keys = [key for key in keys if key in entities]

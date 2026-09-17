@@ -34,10 +34,10 @@ class ReferenceTests(unittest.TestCase):
 
     def test_colours_icons_and_fallback_match_the_firmware_headers(self):
         reference = alert_reference()
-        palette = (ROOT / 'components/smart_display/tile_palette.h').read_text()
-        self.assertEqual([c['name'] for c in reference['colors']], re.findall(r'if\(name=="(\w+)"\)return 0x', palette))
+        palette = (ROOT / 'components/smart_display/theme.h').read_text()
+        self.assertEqual([c['name'] for c in reference['colors']], re.findall(r'\{"(\w+)", 0x[0-9A-F]{6}, 0x[0-9A-F]{6}\}', palette))
         for colour in reference['colors']:
-            self.assertIn(f'if(name=="{colour["name"]}")return 0x{colour["color"][1:]};', palette)
+            self.assertRegex(palette, rf'\{{"{colour["name"]}", 0x{colour["color"][1:]}, 0x[0-9A-F]{{6}}\}}')
             self.assertEqual(colour['label'], TILE_BACKGROUNDS[colour['name']]['label'])
         header = (ROOT / 'components/smart_display/alert_overlay.h').read_text()
         self.assertIn(f'FALLBACK_ICON = "{reference["fallback_icon"]}"', header)

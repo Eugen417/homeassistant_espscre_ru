@@ -17,7 +17,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.53"
+  SCREEN_FIRMWARE_VERSION: "0.2.54"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -44,26 +44,6 @@ substitutions:
   NIGHT_END_HOUR: "7"                              # 0-23
   NIGHT_DIM_BRIGHTNESS: "10"                       # backlight brightness in percent at night
 
-  # ============================================================
-  # ACCENT COLOURS — determined automatically from the Home Assistant domain
-  #
-  # The domain is the part before the dot in the entity_id:
-  #   script.good_morning  -> "script"  -> ACCENT_ACTION
-  #   light.living_room_2  -> "light"   -> ACCENT_LIGHT
-  #   vacuum.s8            -> "vacuum"  -> ACCENT_DEVICE
-  #
-  # That's Home Assistant's own grouping, so a tile automatically gets the
-  # right colour as soon as you put an entity in it — you no longer have
-  # to pick colours per tile. The distinction that matters: a script/scene
-  # fires, a device you turn on or off. Those two shouldn't look the same.
-  #
-  # A tile keeps this colour unless you pick one in ESP Screens; ${ACCENT_AUTO}
-  # is the sentinel that means "decide from the domain".
-  # ============================================================
-  ACCENT_AUTO: "0x1000000"                         # sentinel: deliberately outside the 24-bit colour range
-  ACCENT_ACTION: "0x8B5CF6"                        # script / scene / button / input_button / automation
-  ACCENT_LIGHT: "0xFEC600"                         # light
-  ACCENT_DEVICE: "0x00C5EC"                        # switch, fan, cover, climate, vacuum, media_player, rest
 
   # ORIENTATION
   # The panel is always driven at its native 240x320 (see display:); LVGL turns
@@ -122,8 +102,6 @@ substitutions:
   ALERT_TITLE_MAX: "48"       # bytes; the label ends one line with an ellipsis
   ALERT_BUTTON_MAX: "12"      # bytes on the OK button
   ALERT_SUBTITLE_MAX: "160"   # bytes; wraps over the rows the card has
-  BG_TOP_COLOR: "0xE7E7E7"                          # light background, matching the Guition
-  BG_BOTTOM_COLOR: "0xE7E7E7"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "0"
   TILE_TITLE_X: "48"
@@ -158,8 +136,6 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "200"
   # OVERLAY_ICON_Y: "94"
-  # BG_TOP_COLOR: "0xAEC4D9"                        # background top (soft blue)
-  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # background bottom (warm sand)
   # TILE_ICON_X: "0"
   # TILE_ICON_Y: "0"
   # TILE_TITLE_X: "4"
@@ -194,8 +170,6 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "160"
   # OVERLAY_ICON_Y: "74"
-  # BG_TOP_COLOR: "0xAEC4D9"                        # background top (soft blue)
-  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # background bottom (warm sand)
   # TILE_ICON_X: "0"
   # TILE_ICON_Y: "0"
   # TILE_TITLE_X: "48"
@@ -230,8 +204,6 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "200"
   # OVERLAY_ICON_Y: "94"
-  # BG_TOP_COLOR: "0xAEC4D9"                        # background top (soft blue)
-  # BG_BOTTOM_COLOR: "0xD6BB9E"                       # background bottom (warm sand)
   # TILE_ICON_X: "0"
   # TILE_ICON_Y: "0"
   # TILE_TITLE_X: "4"
@@ -302,6 +274,36 @@ esphome:
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
           runtime_tiles::load_settings();
+          // Colours (firmware 0.2.54+): the styles of this profile take their colours from theme.h. The list runs now,
+          // in the look the screen saved, before anything is drawn, and again after every change of look.
+          theme::paints = []() {
+            using theme::Paint;
+            for (auto *style : {id(style_room), id(style_time), id(style_title), id(style_value_big), id(paint_ink)}) theme::fill(style, Paint::ink);
+            theme::fill(id(style_page), Paint::page);
+            theme::fill(id(style_tile), Paint::card);
+            theme::fill(id(style_icon_circle), Paint::accent_tint);
+            theme::fill(id(style_value), Paint::muted);
+            theme::fill(id(paint_page_soft), Paint::page_soft);
+            theme::fill(id(paint_page_pressed), Paint::page_pressed);
+            theme::fill(id(paint_card), Paint::card);
+            theme::fill(id(paint_raised), Paint::raised);
+            theme::fill(id(paint_key), Paint::key);
+            theme::fill(id(paint_key_pressed), Paint::key_pressed);
+            theme::fill(id(paint_track), Paint::track);
+            theme::fill(id(paint_ink_soft), Paint::ink_soft);
+            theme::fill(id(paint_muted), Paint::muted);
+            theme::fill(id(paint_subtle), Paint::subtle);
+            theme::fill(id(paint_slate), Paint::slate);
+            theme::fill(id(paint_scrim), Paint::scrim);
+            theme::fill(id(paint_veil), Paint::veil);
+            theme::fill(id(paint_accent_tint), Paint::accent_tint);
+            theme::fill(id(paint_accent_bright), Paint::accent_bright);
+            theme::fill(id(paint_button_dark), Paint::button_dark);
+            theme::fill(id(paint_button_dark_pressed), Paint::button_dark_pressed);
+            theme::fill(id(paint_calibration), Paint::calibration);
+          };
+          theme::paints();
+          theme::set_dark(settings_screen::dark_mode != 0);
           runtime_tiles::settings_changed = []() { id(apply_screen_settings).execute(); };
           runtime_tiles::dismiss = []() {
             runtime_tiles::hide_detail();
@@ -345,7 +347,7 @@ esphome:
             id(active_climate_action) = t.extra().hvac_action;
             id(open_value_overlay).execute(t.name, t.entity, t.domain(), "auto", t.active(), 0,
               t.brightness, t.percentage, t.position, runtime_tiles::icon_for(t),
-              0xD5EEFC, 0x00A6ED, 0x1B1B1B, "Off", "On", t.modes,
+              "Off", "On", t.modes,
               t.current, t.target, t.humidity, t.state, t.extra().hvac_modes,
               std::to_string(t.minimum), std::to_string(t.maximum), std::to_string(t.step));
           };
@@ -405,6 +407,16 @@ esphome:
           settings_screen::before_open = []() { id(close_cards).execute(); };
           settings_screen::hold_limit = ${SETTINGS_HOLD_DRIFT_PX};
           settings_screen::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
+          // What a change of look draws again, now that everything is bound: the tiles, the top bar and an open card,
+          // the colour card, the settings page, an alert and the climate cards.
+          theme::redraw = []() {
+            runtime_tiles::restyle();
+            light_controls::restyle();
+            settings_screen::restyle();
+            if (id(alert_active)) lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(theme::surface(id(alert_card_color))), LV_PART_MAIN);
+            if (!lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) id(climate_card_refresh).execute();
+            if (!lv_obj_has_flag(id(climate_mode_overlay), LV_OBJ_FLAG_HIDDEN)) id(open_climate_mode_picker).execute();
+          };
           // Under the cards: brightness_overlay is the first of them on the page, so the back button and
           // the action at the top right of a card keep their taps.
           settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0, ${SETTINGS_HOLD_W}, ${SCROLL_Y}, id(brightness_overlay));
@@ -665,6 +677,10 @@ globals:
     initial_value: 'false'
   - id: alert_title_text
     type: std::string
+  # The alert's colour as the automation named it (a swatch's light value, 0 for the normal card).
+  - id: alert_card_color
+    type: uint32_t
+    initial_value: '0'
   - id: alert_timeout_seconds
     type: int
     initial_value: '0'
@@ -1222,6 +1238,18 @@ switch:
       - lambda: 'settings_screen::set("night_enabled", 1);'
     turn_off_action:
       - lambda: 'settings_screen::set("night_enabled", 0);'
+  # The dark look for a screen beside a bed (firmware 0.2.54+): black page, graphite cards, soft white text.
+  - platform: template
+    id: setting_dark_mode
+    name: "Dark mode"
+    icon: "mdi:theme-light-dark"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::dark_mode != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("dark_mode", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("dark_mode", 0);'
   - platform: template
     id: setting_clock_24h
     name: "24-hour clock"
@@ -1475,23 +1503,17 @@ lvgl:
   rotation: ${LVGL_ROTATION}
 
   style_definitions:
-    # Background: two-stop vertical gradient instead of the 320x240
-    # RGB565 wallpaper. Saves ~150 KB flash and an image blit per redraw,
-    # which you can see directly in how smoothly it scrolls.
-    - id: style_bg_grad
-      bg_color: ${BG_TOP_COLOR}
-      bg_grad_color: ${BG_BOTTOM_COLOR}
-      bg_grad_dir: VER
+    # The page behind the tiles and the cards: one colour from the theme (theme.h PAGE), no wallpaper and no
+    # gradient, so a redraw is a plain fill.
+    - id: style_page
       bg_opa: COVER
       border_width: 0
       radius: 0
 
     - id: style_tile
-      bg_color: 0xFFFFFF
       bg_opa: COVER
       radius: 18
       border_width: 1
-      border_color: 0xDDDDDD
       border_opa: COVER
       pad_left: 8
       pad_right: 8
@@ -1500,66 +1522,52 @@ lvgl:
       shadow_width: 0
       shadow_opa: 40%
 
-    - id: style_tile_disabled
-      bg_color: 0xFFFFFF
-      bg_opa: COVER
-      radius: 18
-      border_width: 1
-      border_color: 0xDDDDDD
-      border_opa: COVER
-      pad_left: 8
-      pad_right: 8
-      pad_top: 8
-      pad_bottom: 8
-      shadow_width: 0
-      shadow_opa: 25%
-
     - id: style_icon_circle
-      bg_color: 0xD5EEFC
-      bg_opa: COVER
-      radius: 999
-      border_width: 0
-
-    - id: style_icon_circle_disabled
-      bg_color: 0xEEEEEE
       bg_opa: COVER
       radius: 999
       border_width: 0
 
     - id: style_room
       text_font: headline
-      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_time
       text_font: time_label
-      text_color: 0x1B1B1B
       text_opa: 100%
 
     - id: style_title
       text_font: label
-      text_color: 0x000000
       text_opa: 100%
 
     - id: style_value
       text_font: sublabel
-      text_color: 0x7A7A7C
       text_opa: 100%
 
     - id: style_value_big
       text_font: sublabel_big
-      text_color: 0x1B1B1B
       text_opa: 80%
 
-    - id: style_title_disabled
-      text_font: label
-      text_color: 0x1B1B1B
-      text_opa: 100%
-
-    - id: style_value_disabled
-      text_font: sublabel
-      text_color: 0x1B1B1B
-      text_opa: 100%
+    # Paints: shared styles without a colour of their own. theme.h fills them (the list in on_boot, theme::paints)
+    # and fills them again when Dark mode changes, so a widget names a paint where it used to write a colour.
+    - id: paint_page_soft
+    - id: paint_page_pressed
+    - id: paint_card
+    - id: paint_raised
+    - id: paint_key
+    - id: paint_key_pressed
+    - id: paint_track
+    - id: paint_ink
+    - id: paint_ink_soft
+    - id: paint_muted
+    - id: paint_subtle
+    - id: paint_slate
+    - id: paint_scrim
+    - id: paint_veil
+    - id: paint_accent_tint
+    - id: paint_accent_bright
+    - id: paint_button_dark
+    - id: paint_button_dark_pressed
+    - id: paint_calibration
 
   # ---------- ALERT OVERLAY (HA action show_alert) ----------
   # LVGL's top layer sits above every page, card and the dim overlay; the card
@@ -1573,7 +1581,7 @@ lvgl:
           width: ${DISPLAY_W}
           height: ${DISPLAY_H}
           hidden: true
-          bg_color: 0x101820
+          styles: paint_scrim
           bg_opa: 60%
           radius: 0
           border_width: 0
@@ -1590,11 +1598,10 @@ lvgl:
                 align: CENTER
                 width: ${ALERT_CARD_W}
                 height: ${ALERT_CARD_H}
-                bg_color: 0xFFFFFF
+                styles: paint_raised
                 bg_opa: COVER
                 radius: 18
                 border_width: 1
-                border_color: 0xDDDDDD
                 border_opa: COVER
                 shadow_width: 0
                 pad_all: 0
@@ -1608,7 +1615,6 @@ lvgl:
                       y: ${ALERT_ICON_Y}
                       text: "\U000F002A"
                       text_font: materialdesign_icons
-                      text_color: 0x1B1B1B
                       clickable: false
                   - label:
                       id: alert_title
@@ -1618,7 +1624,6 @@ lvgl:
                       long_mode: DOT
                       text: "Notification"
                       text_font: headline
-                      text_color: 0x1B1B1B
                       clickable: false
                   - label:
                       id: alert_subtitle
@@ -1629,7 +1634,7 @@ lvgl:
                       long_mode: WRAP
                       text: ""
                       text_font: sublabel_big
-                      text_color: 0x3A3A3C
+                      styles: paint_ink_soft
                       clickable: false
                   - obj:
                       id: alert_ok
@@ -1639,7 +1644,7 @@ lvgl:
                       width: ${ALERT_BUTTON_W}
                       height: ${ALERT_BUTTON_H}
                       radius: 999
-                      bg_color: 0x1B1B1B
+                      styles: paint_button_dark
                       bg_opa: COVER
                       border_width: 0
                       shadow_width: 0
@@ -1647,7 +1652,7 @@ lvgl:
                       clickable: true
                       scrollable: false
                       pressed:
-                        bg_color: 0x3A3A3C
+                        styles: paint_button_dark_pressed
                         bg_opa: COVER
                       on_click:
                         - if:
@@ -1663,12 +1668,11 @@ lvgl:
                             align: CENTER
                             text: "OK"
                             text_font: headline
-                            text_color: 0xFFFFFF
                             clickable: false
 
   pages:
     - id: home_page
-      styles: style_bg_grad
+      styles: style_page
       pad_all: 0
       scrollable: false
       scrollbar_mode: 'OFF'
@@ -1754,7 +1758,6 @@ lvgl:
                               id: tile1_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F001B"
                               clickable: false
                     - label:
@@ -1802,7 +1805,6 @@ lvgl:
                               id: tile2_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F0387"
                               clickable: false
                     - label:
@@ -1850,7 +1852,6 @@ lvgl:
                               id: tile3_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F02E3"
                               clickable: false
                     - label:
@@ -1898,7 +1899,6 @@ lvgl:
                               id: tile4_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F059C"
                               clickable: false
                     - label:
@@ -1946,7 +1946,6 @@ lvgl:
                               id: tile5_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F0425"
                               clickable: false
                     - label:
@@ -1994,7 +1993,6 @@ lvgl:
                               id: tile6_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F070D"
                               clickable: false
                     - label:
@@ -2045,7 +2043,6 @@ lvgl:
                               id: tile7_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F06B5"
                               clickable: false
                     - label:
@@ -2097,7 +2094,6 @@ lvgl:
                               id: tile8_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F06EE"
                               clickable: false
                     - label:
@@ -2144,7 +2140,6 @@ lvgl:
                               id: tile9_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F04B9"
                               clickable: false
                     - label:
@@ -2191,7 +2186,6 @@ lvgl:
                               id: tile10_icon_lbl
                               align: CENTER
                               text_font: materialdesign_icons
-                              text_color: 0xFFFFFF
                               text: "\U000F002A"
                               clickable: false
                     - label:
@@ -2224,7 +2218,7 @@ lvgl:
             border_width: 0
             scrollable: false
             pressed:
-              bg_color: 0xE3E3E3
+              styles: paint_page_pressed
               bg_opa: COVER
             on_short_click:
               - if:
@@ -2239,7 +2233,7 @@ lvgl:
                   x: 12
                   text: "<  Previous"
                   text_font: label
-                  text_color: 0x1B1B1B
+                  styles: paint_ink
                   clickable: false
         - label:
             id: page_number
@@ -2252,7 +2246,6 @@ lvgl:
             text: "1 / 2"
             text_align: CENTER
             text_font: sublabel
-            text_color: 0x1B1B1B
         - obj:
             id: page_next
             align: BOTTOM_RIGHT
@@ -2266,7 +2259,7 @@ lvgl:
             border_width: 0
             scrollable: false
             pressed:
-              bg_color: 0xE3E3E3
+              styles: paint_page_pressed
               bg_opa: COVER
             on_short_click:
               - if:
@@ -2281,7 +2274,7 @@ lvgl:
                   x: -12
                   text: "Next  >"
                   text_font: label
-                  text_color: 0x1B1B1B
+                  styles: paint_ink
                   clickable: false
 
         - obj:
@@ -2306,7 +2299,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  styles: style_bg_grad
+                  styles: style_page
                   scrollable: false
                   clickable: true
                   on_click:
@@ -2318,7 +2311,7 @@ lvgl:
                   y: 0
                   width: ${DISPLAY_W}
                   height: ${DISPLAY_H}
-                  bg_color: 0xFFFFFF
+                  styles: paint_veil
                   bg_opa: 18%
                   border_width: 0
                   clickable: false
@@ -2332,7 +2325,7 @@ lvgl:
                   width: 40
                   height: 40
                   radius: 999
-                  bg_color: 0xEEEEEE
+                  styles: paint_key
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -2344,7 +2337,6 @@ lvgl:
                         align: CENTER
                         text: "\U000F004D"
                         text_font: materialdesign_icons_mini
-                        text_color: 0x1B1B1B
                         clickable: false
 
               - label:
@@ -2372,7 +2364,7 @@ lvgl:
                   value: 100
                   adv_hittest: false
 
-                  bg_color: 0xFFFFFF
+                  styles: paint_accent_tint
                   bg_opa: 100%
                   radius: 28
                   # The only widget with BOTH a radius AND a child (overlay_icon).
@@ -2385,7 +2377,7 @@ lvgl:
                   border_width: 0
 
                   indicator:
-                    bg_color: 0xD5EEFC
+                    styles: paint_accent_bright
                     bg_opa: 100%
                     radius: 28
 
@@ -2417,7 +2409,7 @@ lvgl:
                   align: CENTER
                   y: ${OVERLAY_ICON_Y}
                   text_font: materialdesign_icons
-                  text_color: 0x1B1B1B
+                  styles: paint_ink
                   text: "\U000F001B"
                   clickable: false
 
@@ -2626,7 +2618,7 @@ lvgl:
             y: 0
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
-            bg_color: 0xF7F7F7
+            styles: paint_page_soft
             bg_opa: COVER
             hidden: true
             scrollable: false
@@ -2638,27 +2630,6 @@ lvgl:
             border_width: 0
             widgets:
               - obj:
-                  id: color_detail_bg
-                  x: 0
-                  y: 0
-                  width: ${DISPLAY_W}
-                  height: ${DISPLAY_H}
-                  styles: style_bg_grad
-                  scrollable: false
-                  clickable: false
-              - obj:
-                  id: color_detail_scrim
-                  x: 0
-                  y: 0
-                  width: ${DISPLAY_W}
-                  height: ${DISPLAY_H}
-                  bg_color: 0xFFFFFF
-                  bg_opa: 72%
-                  border_width: 0
-                  clickable: false
-                  scrollable: false
-
-              - obj:
                   id: color_close_button
                   align: TOP_LEFT
                   x: 10
@@ -2666,7 +2637,7 @@ lvgl:
                   width: 40
                   height: 40
                   radius: 999
-                  bg_color: 0xEEEEEE
+                  styles: paint_key
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -2678,7 +2649,6 @@ lvgl:
                         align: CENTER
                         text: "\U000F004D"
                         text_font: materialdesign_icons_mini
-                        text_color: 0x1B1B1B
                         clickable: false
 
               - label:
@@ -2703,7 +2673,7 @@ lvgl:
             y: 0
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
-            bg_color: 0xE7E7E7
+            styles: style_page
             bg_opa: COVER
             hidden: true
             scrollable: false
@@ -2722,7 +2692,7 @@ lvgl:
                   width: 40
                   height: 40
                   radius: 999
-                  bg_color: 0xEEEEEE
+                  styles: paint_key
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -2734,7 +2704,6 @@ lvgl:
                         align: CENTER
                         text: "\U000F004D"
                         text_font: materialdesign_icons_mini
-                        text_color: 0x1B1B1B
                         clickable: false
 
               - obj:
@@ -2745,7 +2714,6 @@ lvgl:
                   width: 40
                   height: 40
                   radius: 999
-                  bg_color: 0xEEEEEE
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -2758,7 +2726,6 @@ lvgl:
                         align: CENTER
                         text: "\U000F0425"
                         text_font: materialdesign_icons_mini
-                        text_color: 0x1B1B1B
                         clickable: false
 
               - label:
@@ -2781,7 +2748,7 @@ lvgl:
                   text_align: CENTER
                   text: "--"
                   text_font: sublabel_big
-                  text_color: 0x616161
+                  styles: paint_muted
                   clickable: false
 
               - obj:
@@ -2791,10 +2758,9 @@ lvgl:
                   width: 94%
                   height: 92
                   radius: 16
-                  bg_color: 0xFFFFFF
+                  styles: paint_card
                   bg_opa: COVER
                   border_width: 1
-                  border_color: 0xDDDDDD
                   pad_all: 0
                   clickable: false
                   scrollable: false
@@ -2807,14 +2773,14 @@ lvgl:
                         width: 72
                         height: 72
                         radius: 36
-                        bg_color: 0xF1F1F1
+                        styles: paint_track
                         bg_opa: COVER
                         border_width: 0
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xD9D9D9
+                          styles: paint_key_pressed
                         disabled:
                           opa: 40%
                         on_short_click:
@@ -2831,7 +2797,6 @@ lvgl:
                               align: CENTER
                               text: "\U000F0374"
                               text_font: materialdesign_icons
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: climate_plus_button
@@ -2840,14 +2805,14 @@ lvgl:
                         width: 72
                         height: 72
                         radius: 36
-                        bg_color: 0xF1F1F1
+                        styles: paint_track
                         bg_opa: COVER
                         border_width: 0
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xD9D9D9
+                          styles: paint_key_pressed
                         disabled:
                           opa: 40%
                         on_short_click:
@@ -2864,7 +2829,6 @@ lvgl:
                               align: CENTER
                               text: "\U000F0415"
                               text_font: materialdesign_icons
-                              text_color: 0x1B1B1B
                               clickable: false
                     - label:
                         id: climate_target_label
@@ -2872,7 +2836,6 @@ lvgl:
                         y: -8
                         text: "--"
                         text_font: setpoint_digits
-                        text_color: 0x1B1B1B
                         clickable: false
                     - label:
                         id: climate_set_label
@@ -2880,7 +2843,7 @@ lvgl:
                         y: 26
                         text: "Target"
                         text_font: sublabel
-                        text_color: 0x6B6B6B
+                        styles: paint_subtle
                         clickable: false
 
               # One key per mode the device supports (off is the power key); the one in use is
@@ -2908,15 +2871,14 @@ lvgl:
                         flex_grow: 1
                         height: 46
                         radius: 23
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xEEEEEE
+                          styles: paint_key
                         on_click:
                           - script.execute: { id: set_climate_mode, mode: "auto" }
                         widgets:
@@ -2924,22 +2886,20 @@ lvgl:
                               align: CENTER
                               text: "\U000F1B17"
                               text_font: materialdesign_icons
-                              text_color: 0x46525E
                               clickable: false
                     - obj:
                         id: cmkey_heat_cool
                         flex_grow: 1
                         height: 46
                         radius: 23
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xEEEEEE
+                          styles: paint_key
                         on_click:
                           - script.execute: { id: set_climate_mode, mode: "heat_cool" }
                         widgets:
@@ -2947,22 +2907,20 @@ lvgl:
                               align: CENTER
                               text: "\U000F1A79"
                               text_font: materialdesign_icons
-                              text_color: 0x46525E
                               clickable: false
                     - obj:
                         id: cmkey_heat
                         flex_grow: 1
                         height: 46
                         radius: 23
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xEEEEEE
+                          styles: paint_key
                         on_click:
                           - script.execute: { id: set_climate_mode, mode: "heat" }
                         widgets:
@@ -2970,22 +2928,20 @@ lvgl:
                               align: CENTER
                               text: "\U000F0238"
                               text_font: materialdesign_icons
-                              text_color: 0x46525E
                               clickable: false
                     - obj:
                         id: cmkey_cool
                         flex_grow: 1
                         height: 46
                         radius: 23
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xEEEEEE
+                          styles: paint_key
                         on_click:
                           - script.execute: { id: set_climate_mode, mode: "cool" }
                         widgets:
@@ -2993,22 +2949,20 @@ lvgl:
                               align: CENTER
                               text: "\U000F0717"
                               text_font: materialdesign_icons
-                              text_color: 0x46525E
                               clickable: false
                     - obj:
                         id: cmkey_dry
                         flex_grow: 1
                         height: 46
                         radius: 23
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xEEEEEE
+                          styles: paint_key
                         on_click:
                           - script.execute: { id: set_climate_mode, mode: "dry" }
                         widgets:
@@ -3016,22 +2970,20 @@ lvgl:
                               align: CENTER
                               text: "\U000F058E"
                               text_font: materialdesign_icons
-                              text_color: 0x46525E
                               clickable: false
                     - obj:
                         id: cmkey_fan_only
                         flex_grow: 1
                         height: 46
                         radius: 23
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xEEEEEE
+                          styles: paint_key
                         on_click:
                           - script.execute: { id: set_climate_mode, mode: "fan_only" }
                         widgets:
@@ -3039,22 +2991,20 @@ lvgl:
                               align: CENTER
                               text: "\U000F0210"
                               text_font: materialdesign_icons
-                              text_color: 0x46525E
                               clickable: false
                     - obj:
                         id: cmkey_more
                         flex_grow: 1
                         height: 46
                         radius: 23
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         pad_all: 0
                         clickable: true
                         scrollable: false
                         pressed:
-                          bg_color: 0xEEEEEE
+                          styles: paint_key
                         on_click:
                           - script.execute: open_climate_mode_picker
                         widgets:
@@ -3062,7 +3012,7 @@ lvgl:
                               align: CENTER
                               text: "\U000F01D8"
                               text_font: materialdesign_icons
-                              text_color: 0x46525E
+                              styles: paint_slate
                               clickable: false
         # ---------- CLIMATE MODE PICKER ----------
         # Replaces cycling through modes. Cycling sends a set_hvac_mode on every
@@ -3076,7 +3026,7 @@ lvgl:
             width: ${DISPLAY_W}
             height: ${DISPLAY_H}
             hidden: true
-            bg_color: 0xE7E7E7
+            styles: style_page
             bg_opa: COVER
             border_width: 0
             clickable: true
@@ -3088,7 +3038,6 @@ lvgl:
                   y: 21
                   text: "Mode"
                   text_font: sublabel_big
-                  text_color: 0x1B1B1B
                   clickable: false
 
               # Flex ensures unsupported modes don't leave a gap:
@@ -3118,10 +3067,9 @@ lvgl:
                         width: 88
                         height: 26
                         radius: 13
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3132,17 +3080,15 @@ lvgl:
                               align: CENTER
                               text: "Off"
                               text_font: sublabel_big
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat
                         width: 88
                         height: 26
                         radius: 13
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3153,17 +3099,15 @@ lvgl:
                               align: CENTER
                               text: "Heat"
                               text_font: sublabel_big
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_cool
                         width: 88
                         height: 26
                         radius: 13
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3174,17 +3118,15 @@ lvgl:
                               align: CENTER
                               text: "Cool"
                               text_font: sublabel_big
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_heat_cool
                         width: 88
                         height: 26
                         radius: 13
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3195,17 +3137,15 @@ lvgl:
                               align: CENTER
                               text: "Heat/Cool"
                               text_font: sublabel_big
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_auto
                         width: 88
                         height: 26
                         radius: 13
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3216,17 +3156,15 @@ lvgl:
                               align: CENTER
                               text: "Auto"
                               text_font: sublabel_big
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_dry
                         width: 88
                         height: 26
                         radius: 13
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3237,17 +3175,15 @@ lvgl:
                               align: CENTER
                               text: "Dry"
                               text_font: sublabel_big
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cmode_fan_only
                         width: 88
                         height: 26
                         radius: 13
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3258,7 +3194,6 @@ lvgl:
                               align: CENTER
                               text: "Fan only"
                               text_font: sublabel_big
-                              text_color: 0x1B1B1B
                               clickable: false
 
                     - label:
@@ -3267,7 +3202,7 @@ lvgl:
                         height: 11
                         text: "Fan"
                         text_font: sublabel
-                        text_color: 0x6B6B6B
+                        styles: paint_subtle
                         text_align: CENTER
                         clickable: false
                     - obj:
@@ -3275,10 +3210,9 @@ lvgl:
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3290,17 +3224,15 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cfan_1
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3312,17 +3244,15 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cfan_2
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3334,17 +3264,15 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cfan_3
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3356,7 +3284,6 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
                     - label:
                         id: cswing_title
@@ -3364,7 +3291,7 @@ lvgl:
                         height: 11
                         text: "Swing"
                         text_font: sublabel
-                        text_color: 0x6B6B6B
+                        styles: paint_subtle
                         text_align: CENTER
                         clickable: false
                     - obj:
@@ -3372,10 +3299,9 @@ lvgl:
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3387,17 +3313,15 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cswing_1
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3409,17 +3333,15 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cswing_2
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3431,17 +3353,15 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
                     - obj:
                         id: cswing_3
                         width: 62
                         height: 22
                         radius: 11
-                        bg_color: 0xFFFFFF
+                        styles: paint_card
                         bg_opa: COVER
                         border_width: 1
-                        border_color: 0xDDDDDD
                         clickable: true
                         scrollable: false
                         pad_all: 0
@@ -3453,7 +3373,6 @@ lvgl:
                               align: CENTER
                               text: "-"
                               text_font: sublabel
-                              text_color: 0x1B1B1B
                               clickable: false
               - obj:
                   id: climate_mode_overlay_x
@@ -3463,7 +3382,7 @@ lvgl:
                   width: 40
                   height: 40
                   radius: 999
-                  bg_color: 0xEEEEEE
+                  styles: paint_key
                   bg_opa: COVER
                   border_width: 0
                   clickable: true
@@ -3475,7 +3394,6 @@ lvgl:
                         align: CENTER
                         text: "\U000F004D"
                         text_font: materialdesign_icons_mini
-                        text_color: 0x1B1B1B
                         clickable: false
 
 
@@ -3504,7 +3422,7 @@ lvgl:
               - script.execute: wake_display
 
     - id: touch_cal_page
-      bg_color: 0x101820
+      styles: paint_calibration
       bg_opa: COVER
       pad_all: 0
       border_width: 0
@@ -3515,7 +3433,6 @@ lvgl:
             y: 65
             text: "Follow the calibration wizard"
             text_font: sublabel
-            text_color: 0xFFFFFF
         - obj:
             x: 10
             y: 10
@@ -3530,7 +3447,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  styles: paint_calibration
         - obj:
             x: 289
             y: 10
@@ -3545,7 +3462,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  styles: paint_calibration
         - obj:
             x: 289
             y: 209
@@ -3560,7 +3477,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  styles: paint_calibration
         - obj:
             x: 10
             y: 209
@@ -3575,7 +3492,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  styles: paint_calibration
         - obj:
             x: 150
             y: 110
@@ -3590,7 +3507,7 @@ lvgl:
                   align: CENTER
                   text: "+"
                   text_font: headline
-                  text_color: 0xFFFFFF
+                  styles: paint_calibration
 
 script:
   # Render every overlay and both pages repeatedly without controlling devices.
@@ -3693,6 +3610,8 @@ script:
     then:
       - lambda: |-
           const auto &settings = screen_settings::current;
+          // Dark mode (firmware 0.2.54+): a look the screen already has costs nothing.
+          theme::set_dark(settings_screen::dark_mode != 0);
           // Auto standby off wakes the screen, but not out of a Sleep pressed in Home Assistant.
           if (id(display_dimmed) && !settings.standby_enabled && !id(sleep_requested)) {
             id(display_dimmed) = false;
@@ -3763,7 +3682,8 @@ script:
           lv_label_set_text(id(alert_title), alert.title.c_str());
           lv_label_set_text(id(alert_subtitle), alert.subtitle.c_str());
           lv_label_set_text(id(alert_ok_label), alert.button.c_str());
-          lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(alert.color), LV_PART_MAIN);
+          id(alert_card_color) = alert.color;
+          lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(theme::surface(alert.color)), LV_PART_MAIN);
           ESP_LOGI("alert", "show \"%s\" timeout=%d flash=%d", alert.title.c_str(), alert.timeout_seconds, (int) alert.flash);
       - script.execute: wake_display
       - lvgl.widget.show: alert_overlay
@@ -3937,7 +3857,7 @@ script:
           std::string value = id(active_climate_target_known)
               ? tile_controls::format_value(target / 10.0f, id(active_climate_step_x10) / 10.0f, "°") : std::string("--");
           lv_label_set_text(id(climate_target_label), value.c_str());
-          lv_obj_set_style_text_color(id(climate_target_label), lv_color_hex(off ? 0x9E9E9E : 0x1B1B1B), LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(climate_target_label), theme::color(off ? theme::OFF : theme::INK), LV_PART_MAIN);
           auto enable = [](lv_obj_t *key, bool on) {
             if (on) lv_obj_remove_state(key, LV_STATE_DISABLED); else lv_obj_add_state(key, LV_STATE_DISABLED);
           };
@@ -3968,9 +3888,9 @@ script:
             if (show) lv_obj_remove_flag(k.obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(k.obj, LV_OBJ_FLAG_HIDDEN);
             bool selected = show && !off && mode == k.mode;
             uint32_t color = tile_controls::mode_color(k.mode);
-            lv_obj_set_style_bg_color(k.obj, lv_color_hex(selected ? color : 0xFFFFFF), LV_PART_MAIN);
-            lv_obj_set_style_border_color(k.obj, lv_color_hex(selected ? color : 0xDDDDDD), LV_PART_MAIN);
-            lv_obj_set_style_text_color(lv_obj_get_child(k.obj, 0), lv_color_hex(selected ? 0xFFFFFF : 0x46525E), LV_PART_MAIN);
+            lv_obj_set_style_bg_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::CARD), LV_PART_MAIN);
+            lv_obj_set_style_border_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::LINE), LV_PART_MAIN);
+            lv_obj_set_style_text_color(lv_obj_get_child(k.obj, 0), theme::color(selected ? theme::ON_ACCENT : theme::SLATE), LV_PART_MAIN);
           }
           if (more) lv_obj_remove_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN);
           // One mode is no choice: the power key already turns it on and off. Without keys the
@@ -4011,8 +3931,8 @@ script:
             if (has(m)) lv_obj_clear_flag(btn, LV_OBJ_FLAG_HIDDEN);
             else        lv_obj_add_flag(btn, LV_OBJ_FLAG_HIDDEN);
             bool selected = (current == std::string(m));
-            lv_obj_set_style_bg_color(btn, lv_color_hex(selected ? 0x00A6ED : 0xFFFFFF), LV_PART_MAIN);
-            lv_obj_set_style_text_color(lv_obj_get_child(btn, 0), lv_color_hex(selected ? 0xFFFFFF : 0x1B1B1B), LV_PART_MAIN);
+            lv_obj_set_style_bg_color(btn, theme::color(selected ? theme::ACCENT_BRIGHT : theme::CARD), LV_PART_MAIN);
+            lv_obj_set_style_text_color(lv_obj_get_child(btn, 0), theme::color(selected ? theme::ON_ACCENT : theme::INK), LV_PART_MAIN);
           };
           apply(id(cmode_off), "off");
           apply(id(cmode_heat), "heat");
@@ -4030,8 +3950,8 @@ script:
               if (raw.empty()) { lv_obj_add_flag(chips[i], LV_OBJ_FLAG_HIDDEN); continue; }
               lv_obj_clear_flag(chips[i], LV_OBJ_FLAG_HIDDEN); ++shown;
               lv_label_set_text(lv_obj_get_child(chips[i], 0), pretty(raw).c_str());
-              lv_obj_set_style_bg_color(chips[i], lv_color_hex(raw == current_mode ? 0x00A6ED : 0xFFFFFF), LV_PART_MAIN);
-              lv_obj_set_style_text_color(lv_obj_get_child(chips[i], 0), lv_color_hex(raw == current_mode ? 0xFFFFFF : 0x1B1B1B), LV_PART_MAIN);
+              lv_obj_set_style_bg_color(chips[i], theme::color(raw == current_mode ? theme::ACCENT_BRIGHT : theme::CARD), LV_PART_MAIN);
+              lv_obj_set_style_text_color(lv_obj_get_child(chips[i], 0), theme::color(raw == current_mode ? theme::ON_ACCENT : theme::INK), LV_PART_MAIN);
             }
             if (shown) lv_obj_clear_flag(title, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(title, LV_OBJ_FLAG_HIDDEN);
           };
@@ -4121,8 +4041,8 @@ script:
           for (char &c : mode) if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
           bool on = !(mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable");
           if (id(climate_edit_pending)) on = id(active_climate_power_on);
-          lv_obj_set_style_bg_color(id(climate_power_button), lv_color_hex(on ? 0xD5EEFC : 0xEEEEEE), LV_PART_MAIN);
-          lv_obj_set_style_text_color(id(climate_power_icon), lv_color_hex(on ? 0x0B6E99 : 0x8A8A8A), LV_PART_MAIN);
+          lv_obj_set_style_bg_color(id(climate_power_button), theme::color(on ? theme::ACCENT_TINT : theme::KEY), LV_PART_MAIN);
+          lv_obj_set_style_text_color(id(climate_power_icon), theme::color(on ? theme::ACCENT_ICON : theme::ICON_OFF), LV_PART_MAIN);
 
   - id: set_climate_mode
     mode: restart
@@ -4367,9 +4287,6 @@ script:
       percentage_value: float
       position_value: float
       icon_text: string
-      slider_bg_color: uint32_t
-      slider_fill_color: uint32_t
-      slider_icon_color: uint32_t
       label_off: string
       label_on: string
       supported_color_modes: string
@@ -4383,23 +4300,6 @@ script:
       climate_step: string
     then:
       - lambda: |-
-          // Accent colour from the Home Assistant domain: the part before the dot
-          // in the entity_id. script/scene/button fire (ACCENT_ACTION), a
-          // light is a light (ACCENT_LIGHT), the rest is a device.
-          // NOTE: this helper appears twice in this file — here and in
-          // open_value_overlay. Update them together.
-          auto accent_for = [](const std::string& entity_id) -> uint32_t {
-            std::string d = entity_id.substr(0, entity_id.find('.'));
-            if (d == "script" || d == "scene" || d == "button" ||
-                d == "input_button" || d == "automation") return ${ACCENT_ACTION};
-            if (d == "light") return ${ACCENT_LIGHT};
-            return ${ACCENT_DEVICE};
-          };
-
-          // The slider colour comes from the tile, so it can also be ${ACCENT_AUTO}.
-          uint32_t fill_color = (slider_fill_color == ${ACCENT_AUTO})
-                                  ? accent_for(entity) : slider_fill_color;
-
           std::string mode = longpress_mode;
           auto contains_mode = [](const std::string& modes, const std::string& needle) {
             return modes.find(needle) != std::string::npos;
@@ -4518,16 +4418,8 @@ script:
             }
           }
 
-          if (tile_type == "cover") {
-            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(fill_color), LV_PART_MAIN);
-            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(slider_bg_color), LV_PART_INDICATOR);
-            lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
-          }
-          else{
-            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(slider_bg_color), LV_PART_MAIN);
-            lv_obj_set_style_bg_color(id(overlay_slider), lv_color_hex(fill_color), LV_PART_INDICATOR);
-            lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
-          }
+          // Track and fill are the pale blue and blue paints of overlay_slider.
+          lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
           lv_obj_set_style_radius(id(overlay_slider), 28, LV_PART_MAIN);
           lv_obj_set_style_radius(id(overlay_slider), 0, LV_PART_INDICATOR);
 
@@ -4560,8 +4452,6 @@ script:
           lv_label_set_text(id(overlay_value), value_text.c_str());
 
           lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_INDICATOR);
-
-          lv_obj_set_style_text_color(id(overlay_icon), lv_color_hex(slider_icon_color), 0);
 
       - if:
           condition:

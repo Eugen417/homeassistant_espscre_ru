@@ -256,6 +256,7 @@ After this, changes to these settings don't need a new firmware flash.
 | Auto standby | On/off | On |
 | Standby after | 1–1440 minutes after the last touch | 10 minutes |
 | Normal brightness | 5–100% | 100% |
+| Dark mode | On/off: black page, graphite cards, firmware 0.2.54+ | Off |
 | Standby brightness | 0–100%, capped at normal brightness | 20% |
 | Night mode | On/off; applies during standby | On |
 | Night start/end | Hour and minute, can span midnight | 22:00–07:00 |

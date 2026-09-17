@@ -37,12 +37,13 @@ struct State {
 #include "esphome/core/log.h"
 #include "lvgl.h"
 #include "cyd_ui.h"
+#include "theme.h"
 #include <functional>
 namespace light_controls {
 inline State states[8];
 inline State fallback;
 inline State *active = &fallback;
-struct Row { lv_obj_t *box{}, *slider{}, *value{}; bool dirty = false; unsigned index{}; bool off = false; int held = 0; };
+struct Row { lv_obj_t *box{}, *slider{}, *value{}, *icon{}; bool dirty = false; unsigned index{}; bool off = false; int held = 0; };
 inline Row rows[3];
 inline std::function<void(int)> commits[3];
 inline bool ready = false;
@@ -69,10 +70,13 @@ inline void subscribe(const char *const *entities, size_t count) {
   (void) count;
 #endif
 }
+// The picker's own spectrum: the colours a light can take, not a look, so they stay the same in dark.
+constexpr uint32_t WARM = 0xFF9C32, COOL = 0xC6E6FF;
+inline constexpr uint32_t RAINBOW[] = {0xFF0000, 0xFFFF00, 0x00FF00, 0x00FFFF, 0x0000FF, 0xFF00FF, 0xFF0000};
 // Temperature knob colour: the same warm-to-cool blend as the track under it.
 inline lv_color_t kelvin_color(int value, int low, int high) {
   int mix = high > low ? clamp((value - low) * 255 / (high - low), 0, 255) : 128;
-  return lv_color_mix(lv_color_hex(0xC6E6FF), lv_color_hex(0xFF9C32), mix);
+  return lv_color_hex(theme::mix(COOL, WARM, static_cast<uint8_t>(mix)));
 }
 inline void preview(Row &row) {
   int value = lv_slider_get_value(row.slider);
@@ -88,7 +92,7 @@ inline void preview(Row &row) {
     // An off light shows only the track, as in Home Assistant, until the slider moves.
     lv_obj_set_style_bg_opa(row.slider, row.off ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(row.slider, row.off ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_KNOB);
-    lv_obj_set_style_bg_color(row.slider, lv_color_hex(row.off ? 0xECECEC : 0xFDEFC3), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(row.slider, theme::color(row.off ? theme::TRACK : theme::AMBER_TRACK), LV_PART_MAIN);
     if (row.off) lv_label_set_text(row.value, "Off");
     else lv_label_set_text_fmt(row.value, "%d %%", value);
   }
@@ -138,6 +142,20 @@ inline lv_obj_t *round_end(lv_obj_t *parent, int x, int y, int size, uint32_t co
   lv_obj_set_style_bg_color(end, lv_color_hex(color), 0);
   return end;
 }
+// The colours of the three cards, for setup() and for a change of look.
+inline void paint(Row &row) {
+  lv_obj_set_style_bg_color(row.box, theme::color(theme::CARD), 0);
+  lv_obj_set_style_border_color(row.box, theme::color(theme::LINE), 0);
+  lv_obj_set_style_text_color(row.box, theme::color(theme::INK), 0);
+  lv_obj_set_style_text_color(row.value, theme::color(theme::MUTED), 0);
+  if (row.icon) lv_obj_set_style_text_color(row.icon, theme::color(theme::MUTED), 0);
+  if (row.index < 2) lv_obj_set_style_border_color(row.slider, theme::color(theme::KNOB), LV_PART_KNOB);
+  else lv_obj_set_style_bg_color(row.slider, theme::color(theme::KNOB), LV_PART_KNOB);
+}
+inline void restyle() {
+  if (!ready) return;
+  for (auto &row : rows) { paint(row); preview(row); }
+}
 // Three white cards like the tiles: an icon, the name and the value, then a pill-shaped track.
 // Colour and temperature are gradient pills with a round knob in the chosen colour; brightness
 // is filled like the tile sliders, with the white handle inside the fill.
@@ -151,22 +169,17 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
   int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (large ? 2 : 3) - track_h, radius = track_h / 2;
   const char *names[] = {"Color", "Color temperature", "Brightness"};
   const char *icons[] = {"\U000F03D8", "\U000F050F", "\U000F0335"};
-  const uint32_t rainbow[] = {0xFF0000, 0xFFFF00, 0x00FF00, 0x00FFFF, 0x0000FF, 0xFF00FF, 0xFF0000};
   for (unsigned i = 0; i < 3; ++i) {
     auto &row = rows[i]; row.index = i;
     row.box = plain(parent, margin, top + i * spacing, w, card_h);
     lv_obj_set_style_bg_opa(row.box, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(row.box, lv_color_hex(0xFFFFFF), 0);
     lv_obj_set_style_radius(row.box, large ? 18 : 10, 0);
     lv_obj_set_style_border_width(row.box, 1, 0);
-    lv_obj_set_style_border_color(row.box, lv_color_hex(0xDDDDDD), 0);
     lv_obj_set_style_text_font(row.box, font, 0);
-    lv_obj_set_style_text_color(row.box, lv_color_hex(0x1B1B1B), 0);
     int text_x = inset;
     if (icon_font) {
-      auto *icon = lv_label_create(row.box); lv_label_set_text(icon, icons[i]);
+      auto *icon = row.icon = lv_label_create(row.box); lv_label_set_text(icon, icons[i]);
       lv_obj_set_style_text_font(icon, icon_font, 0);
-      lv_obj_set_style_text_color(icon, lv_color_hex(0x616161), 0);
       int icon_h = lv_font_get_line_height(icon_font), text_h = lv_font_get_line_height(font);
       lv_obj_set_pos(icon, inset - (large ? 2 : 1), text_y + (text_h - icon_h) / 2);
       text_x += icon_h + (large ? 6 : 4);
@@ -174,23 +187,22 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
     auto *label = lv_label_create(row.box); lv_label_set_text(label, names[i]);
     lv_obj_set_pos(label, text_x, text_y);
     row.value = lv_label_create(row.box); lv_obj_align(row.value, LV_ALIGN_TOP_RIGHT, -inset, text_y);
-    lv_obj_set_style_text_color(row.value, lv_color_hex(0x616161), 0);
     row.slider = lv_slider_create(row.box);
     lv_obj_remove_style_all(row.slider);
     lv_obj_remove_flag(row.slider, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_ext_click_area(row.slider, large ? 12 : 8);
     if (i < 2) {
       // The knob travels between the centres of the two round ends.
-      round_end(row.box, track_x, track_y, track_h, i == 0 ? rainbow[0] : 0xFF9C32);
-      round_end(row.box, track_x + track_w - track_h, track_y, track_h, i == 0 ? rainbow[6] : 0xC6E6FF);
+      round_end(row.box, track_x, track_y, track_h, i == 0 ? RAINBOW[0] : WARM);
+      round_end(row.box, track_x + track_w - track_h, track_y, track_h, i == 0 ? RAINBOW[6] : COOL);
       unsigned segments = i == 0 ? 6 : 1;
       int span = track_w - track_h;
       for (unsigned n = 0; n < segments; ++n) {
         int start = n * span / segments, end = (n + 1) * span / segments;
         auto *stripe = plain(row.box, track_x + radius + start, track_y, end - start, track_h);
         lv_obj_set_style_bg_opa(stripe, LV_OPA_COVER, 0);
-        lv_obj_set_style_bg_color(stripe, lv_color_hex(i == 0 ? rainbow[n] : 0xFF9C32), 0);
-        lv_obj_set_style_bg_grad_color(stripe, lv_color_hex(i == 0 ? rainbow[n + 1] : 0xC6E6FF), 0);
+        lv_obj_set_style_bg_color(stripe, lv_color_hex(i == 0 ? RAINBOW[n] : WARM), 0);
+        lv_obj_set_style_bg_grad_color(stripe, lv_color_hex(i == 0 ? RAINBOW[n + 1] : COOL), 0);
         lv_obj_set_style_bg_grad_dir(stripe, LV_GRAD_DIR_HOR, 0);
       }
       lv_obj_move_foreground(row.slider);
@@ -201,9 +213,9 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_obj_set_style_radius(row.slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
       lv_obj_set_style_pad_all(row.slider, large ? 4 : 3, LV_PART_KNOB);
       lv_obj_set_style_border_width(row.slider, large ? 4 : 3, LV_PART_KNOB);
-      lv_obj_set_style_border_color(row.slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
       lv_obj_set_style_outline_width(row.slider, 1, LV_PART_KNOB);
-      lv_obj_set_style_outline_color(row.slider, lv_color_hex(0x000000), LV_PART_KNOB);
+      // A faint dark edge that lifts the white ring off a pale end of the track.
+      lv_obj_set_style_outline_color(row.slider, lv_color_black(), LV_PART_KNOB);
       lv_obj_set_style_outline_opa(row.slider, LV_OPA_20, LV_PART_KNOB);
       lv_slider_set_range(row.slider, i == 0 ? 0 : 2000, i == 0 ? 360 : 6500);
     } else {
@@ -216,12 +228,10 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_obj_set_style_radius(row.slider, corner, LV_PART_INDICATOR);
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_MAIN);
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_INDICATOR);
-      lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFDEFC3), LV_PART_MAIN);
-      lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFFC107), LV_PART_INDICATOR);
+      lv_obj_set_style_bg_color(row.slider, lv_color_hex(theme::ha::AMBER), LV_PART_INDICATOR);
       // White handle inside the end of the fill, as on the tiles (runtime_tiles::slider_handle).
       int handle = large ? 4 : 3, back = std::max(1, track_h / 8) + handle / 2, half = track_h >> 1;
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_KNOB);
-      lv_obj_set_style_bg_color(row.slider, lv_color_hex(0xFFFFFF), LV_PART_KNOB);
       lv_obj_set_style_radius(row.slider, 2, LV_PART_KNOB);
       lv_obj_set_style_pad_left(row.slider, back + handle / 2 - half, LV_PART_KNOB);
       lv_obj_set_style_pad_right(row.slider, handle / 2 - back - (track_h - half), LV_PART_KNOB);
@@ -232,6 +242,7 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_slider_set_range(row.slider, 1 - below, 100);
     }
     lv_obj_add_event_cb(row.slider, event, LV_EVENT_ALL, &row);
+    paint(row);
     preview(row);
   }
 }

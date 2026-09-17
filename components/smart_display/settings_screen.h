@@ -20,8 +20,9 @@ namespace settings_screen {
 
 // Values that are not part of the persisted `screen_settings::Settings` block, because that format is
 // frozen at version 1: each of these keeps its own preference, so a new option never rewrites the
-// old ones. The manager sends them as their own keys in the layout message.
-inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120;
+// old ones. The manager sends the older ones as their own keys in the layout message; dark_mode (firmware
+// 0.2.54+) only exists as the screen's own setting and entity.
+inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, dark_mode = 0;
 inline bool rotation_supported = false;
 
 // ------------------------------------------------------------------ the table
@@ -102,7 +103,7 @@ inline SetResult set(const std::string &key, int32_t value) {
   auto &s = screen_settings::current;
   const auto before = s;
   const int32_t before_swipe = swipe_pages, before_rotation = rotation, before_home = auto_home,
-                before_home_seconds = auto_home_seconds;
+                before_home_seconds = auto_home_seconds, before_dark = dark_mode;
   int32_t reported = 0;
   auto flag = [](int32_t v) -> int32_t { return v ? 1 : 0; };
   if (key == "standby_enabled") reported = s.standby_enabled = flag(value);
@@ -122,9 +123,10 @@ inline SetResult set(const std::string &key, int32_t value) {
   else if (key == "rotation" && rotation_supported) reported = rotation = std::clamp<int32_t>(value, 0, 270) / 90 * 90;
   else if (key == "auto_home") reported = auto_home = flag(value);
   else if (key == "auto_home_seconds") reported = auto_home_seconds = std::clamp<int32_t>(value, 30, 3600);
+  else if (key == "dark_mode") reported = dark_mode = flag(value);
   else return SetResult::unknown;
   if (s == before && swipe_pages == before_swipe && rotation == before_rotation && auto_home == before_home &&
-      auto_home_seconds == before_home_seconds)
+      auto_home_seconds == before_home_seconds && dark_mode == before_dark)
     return SetResult::same;
   changed(key.c_str(), reported);
   return SetResult::changed;
@@ -157,6 +159,11 @@ inline int32_t stepped(const Row &row, int32_t value, int direction, bool held =
 inline bool at_end(const Row &row, int32_t value, int direction) {
   if (row.kind == Kind::moment) return false;
   return stepped(row, value, direction) == value;
+}
+// Where the knob of a w by h switch sits: at the left when off, at the right when on, inset all round.
+inline int knob_x(int w, int h, bool on) {
+  int inset = std::max(2, h / 10), size = h - 2 * inset;
+  return on ? w - inset - size : inset;
 }
 
 inline std::string duration_text(int32_t seconds) {
@@ -217,13 +224,15 @@ inline uint8_t fitting_rows(int span, int row_height, int gap, int pager, uint8_
 inline constexpr const char *clock_options[] = {"12 hour", "24 hour"};
 inline constexpr const char *rotation_options[] = {"0°", "90°", "180°", "270°"};
 
-// Brightness, and when the screen dims by itself.
+// Brightness, the dark look for a screen beside a bed, and when the screen dims by itself.
 // Every reader says `-> int32_t` out loud: on the ESP32 that is `long`, and a lambda that returns a
 // plain `int` (a ternary, say) then does not convert to Read at all. The Mac's host build accepts it,
 // the board does not.
 inline constexpr Row light_rows[] = {
   number("Brightness", []() -> int32_t { return screen_settings::current.brightness; },
          [](int32_t value) { set("brightness", value); }, 5, 100, 5, "%"),
+  toggle("Dark mode", []() -> int32_t { return dark_mode; },
+         [](int32_t value) { set("dark_mode", value); }),
   toggle("Auto standby", []() -> int32_t { return screen_settings::current.standby_enabled; },
          [](int32_t value) { set("standby_enabled", value); }),
   duration("Standby after", []() -> int32_t { return screen_settings::current.standby_seconds; },
@@ -301,6 +310,7 @@ constexpr uint8_t PAGE_COUNT = (uint8_t) std::size(pages);
 
 #ifndef SETTINGS_SCREEN_TEST
 #include "lvgl.h"
+#include "theme.h"
 #include <functional>
 
 namespace settings_screen {
@@ -358,14 +368,14 @@ inline lv_obj_t *plain(lv_obj_t *parent, int x, int y, int w, int h) {
   lv_obj_set_size(obj, w, h);
   return obj;
 }
-inline lv_obj_t *text(lv_obj_t *parent, const std::string &value, const lv_font_t *font, uint32_t color,
+inline lv_obj_t *text(lv_obj_t *parent, const std::string &value, const lv_font_t *font, theme::Role color,
                       lv_text_align_t align = LV_TEXT_ALIGN_LEFT) {
   auto *label = lv_label_create(parent);
   lv_label_set_text(label, value.c_str());
   lv_label_set_long_mode(label, LV_LABEL_LONG_DOT);
   lv_obj_remove_flag(label, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_text_font(label, font, 0);
-  lv_obj_set_style_text_color(label, lv_color_hex(color), 0);
+  lv_obj_set_style_text_color(label, theme::color(color), 0);
   lv_obj_set_style_text_align(label, align, 0);
   lv_obj_set_height(label, lv_font_get_line_height(font));
   return label;
@@ -379,11 +389,11 @@ inline lv_obj_t *key(lv_obj_t *parent, const char *glyph, int x, int y, int w, i
   auto *button = plain(parent, x, y, w, h);
   lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(button, lv_color_hex(0xE9EFF4), 0);
-  lv_obj_set_style_bg_color(button, lv_color_hex(0xC3D5E3), LV_STATE_PRESSED);
+  lv_obj_set_style_bg_color(button, theme::color(theme::SETTING_KEY), 0);
+  lv_obj_set_style_bg_color(button, theme::color(theme::SETTING_KEY_PRESSED), LV_STATE_PRESSED);
   lv_obj_set_style_radius(button, LV_RADIUS_CIRCLE, 0);
   lv_obj_set_style_opa(button, LV_OPA_40, LV_STATE_DISABLED);
-  auto *label = text(button, glyph, icon_font ? icon_font : row_font, 0x1B1B1B);
+  auto *label = text(button, glyph, icon_font ? icon_font : row_font, theme::INK);
   lv_obj_set_width(label, LV_SIZE_CONTENT);
   lv_obj_center(label);
   lv_obj_add_event_cb(button, handler, LV_EVENT_SHORT_CLICKED, data);
@@ -395,12 +405,12 @@ inline lv_obj_t *key(lv_obj_t *parent, const char *glyph, int x, int y, int w, i
 inline lv_obj_t *pill(lv_obj_t *parent, int x, int y, int w, int h, bool on) {
   auto *track = plain(parent, x, y, w, h);
   lv_obj_set_style_bg_opa(track, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(track, lv_color_hex(on ? 0x009FE3 : 0xC4C4C4), 0);
+  lv_obj_set_style_bg_color(track, theme::color(on ? theme::ACCENT : theme::TOGGLE_OFF), 0);
   lv_obj_set_style_radius(track, LV_RADIUS_CIRCLE, 0);
   int inset = std::max(2, h / 10), size = h - 2 * inset;
-  auto *knob = plain(track, on ? w - inset - size : inset, inset, size, size);
+  auto *knob = plain(track, knob_x(w, h, on), inset, size, size);
   lv_obj_set_style_bg_opa(knob, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(knob, lv_color_hex(0xFFFFFF), 0);
+  lv_obj_set_style_bg_color(knob, theme::color(theme::KNOB), 0);
   lv_obj_set_style_radius(knob, LV_RADIUS_CIRCLE, 0);
   return knob;
 }
@@ -408,11 +418,12 @@ inline void move_knob(Drawn &d, const Row &row) {
   if (!d.knob) return;
   auto *track = lv_obj_get_parent(d.knob);
   bool on = row.read && row.read();
-  int w = lv_obj_get_width(track), size = lv_obj_get_width(d.knob), inset = (lv_obj_get_height(track) - size) / 2;
   // Setting a style always repaints, so only a real change sets it; lv_obj_set_x checks by itself.
-  const lv_color_t color = lv_color_hex(on ? 0x009FE3 : 0xC4C4C4);
+  const lv_color_t color = theme::color(on ? theme::ACCENT : theme::TOGGLE_OFF);
   if (!lv_color_eq(lv_obj_get_style_bg_color(track, LV_PART_MAIN), color)) lv_obj_set_style_bg_color(track, color, 0);
-  lv_obj_set_x(d.knob, on ? w - inset - size : inset);
+  // The size pill() gave the track, not its coordinates: draw() ends in refresh() before LVGL has laid the
+  // new page out, when every width still reads 0 and a switch that is on would show its knob at the left.
+  lv_obj_set_x(d.knob, knob_x(lv_obj_get_style_width(track, LV_PART_MAIN), lv_obj_get_style_height(track, LV_PART_MAIN), on));
 }
 
 // After any change: every row on this page tells its own value again. Cheap (eight labels at most) and
@@ -540,15 +551,15 @@ inline void draw() {
   auto *back = plain(root, m.pad, m.bar_y, m.bar, m.bar);
   lv_obj_add_flag(back, LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_bg_opa(back, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(back, lv_color_hex(0xEEEEEE), 0);
-  lv_obj_set_style_bg_color(back, lv_color_hex(0xDADADA), LV_STATE_PRESSED);
+  lv_obj_set_style_bg_color(back, theme::color(theme::KEY), 0);
+  lv_obj_set_style_bg_color(back, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
   lv_obj_set_style_radius(back, LV_RADIUS_CIRCLE, 0);
-  auto *arrow = text(back, "\U000F004D", icon_font ? icon_font : row_font, 0x1B1B1B);
+  auto *arrow = text(back, "\U000F004D", icon_font ? icon_font : row_font, theme::INK);
   lv_obj_set_width(arrow, LV_SIZE_CONTENT);
   lv_obj_center(arrow);
   lv_obj_add_event_cb(back, back_event, LV_EVENT_SHORT_CLICKED, nullptr);
   const lv_font_t *heading = title_font ? title_font : row_font;
-  auto *title = text(root, page.title, heading, 0x1B1B1B, LV_TEXT_ALIGN_CENTER);
+  auto *title = text(root, page.title, heading, theme::INK, LV_TEXT_ALIGN_CENTER);
   lv_obj_set_width(title, m.width - 2 * (m.pad + m.bar + 8));
   lv_obj_set_pos(title, m.pad + m.bar + 8, m.bar_y + (m.bar - lv_font_get_line_height(heading)) / 2);
 
@@ -571,30 +582,30 @@ inline void draw() {
 
     d.card = plain(root, m.pad, m.rows_y + slot * (m.row_h + m.gap), m.width - 2 * m.pad, m.row_h);
     lv_obj_set_style_bg_opa(d.card, LV_OPA_COVER, 0);
-    lv_obj_set_style_bg_color(d.card, lv_color_hex(asking ? 0x009FE3 : 0xFFFFFF), 0);
+    lv_obj_set_style_bg_color(d.card, theme::color(asking ? theme::ACCENT : theme::CARD), 0);
     lv_obj_set_style_radius(d.card, m.radius, 0);
     lv_obj_set_style_border_width(d.card, 1, 0);
-    lv_obj_set_style_border_color(d.card, lv_color_hex(asking ? 0x009FE3 : 0xDDDDDD), 0);
+    lv_obj_set_style_border_color(d.card, theme::color(asking ? theme::ACCENT : theme::LINE), 0);
     if (tappable) {
       lv_obj_add_flag(d.card, LV_OBJ_FLAG_CLICKABLE);
-      lv_obj_set_style_bg_color(d.card, lv_color_hex(asking ? 0x0083BC : 0xF1F1F1), LV_STATE_PRESSED);
+      lv_obj_set_style_bg_color(d.card, theme::color(asking ? theme::ACCENT_PRESSED : theme::CARD_PRESSED), LV_STATE_PRESSED);
       lv_obj_add_event_cb(d.card, row_event, LV_EVENT_SHORT_CLICKED, (void *) (intptr_t) index);
     }
 
     int left = m.inset;
     if (row.icon && *row.icon) {
-      auto *glyph = text(d.card, row.icon, icon_font ? icon_font : row_font, asking ? 0xFFFFFF : 0x4A4A4A);
+      auto *glyph = text(d.card, row.icon, icon_font ? icon_font : row_font, asking ? theme::ON_ACCENT : theme::ROW_ICON);
       int icon_h = lv_font_get_line_height(icon_font ? icon_font : row_font);
       lv_obj_set_width(glyph, LV_SIZE_CONTENT);
       lv_obj_set_pos(glyph, left, (m.row_h - icon_h) / 2);
       left += icon_h + (m.large ? 12 : 8);
     }
-    d.label = text(d.card, asking ? "Tap again to restart" : row.label, row_font, asking ? 0xFFFFFF : 0x1B1B1B);
+    d.label = text(d.card, asking ? "Tap again to restart" : row.label, row_font, asking ? theme::ON_ACCENT : theme::INK);
     lv_obj_set_pos(d.label, left, (m.row_h - label_h) / 2);
 
     int right = m.width - 2 * m.pad - m.inset;  // free space from the right edge of the card
     if (row.kind == Kind::page) {
-      auto *chevron = text(d.card, "\U000F0142", icon_font ? icon_font : row_font, 0xB0B0B0);
+      auto *chevron = text(d.card, "\U000F0142", icon_font ? icon_font : row_font, theme::CHEVRON);
       int icon_h = lv_font_get_line_height(icon_font ? icon_font : row_font);
       lv_obj_set_width(chevron, LV_SIZE_CONTENT);
       lv_obj_set_pos(chevron, right - icon_h, (m.row_h - icon_h) / 2);
@@ -608,7 +619,7 @@ inline void draw() {
                    (void *) (intptr_t) (index * 2 + 1));
       d.minus = key(d.card, "\U000F0374", right - m.pill_w - value_w - m.pill_w, y, m.pill_w, m.pill_h, step_event,
                     (void *) (intptr_t) (index * 2));
-      d.value = text(d.card, value_text(row), row_font, 0x1B1B1B, LV_TEXT_ALIGN_CENTER);
+      d.value = text(d.card, value_text(row), row_font, theme::INK, LV_TEXT_ALIGN_CENTER);
       lv_obj_set_width(d.value, value_w);
       lv_obj_set_pos(d.value, right - m.pill_w - value_w, (m.row_h - label_h) / 2);
       lv_obj_set_width(d.label, right - 2 * m.pill_w - value_w - left - 6);
@@ -616,14 +627,14 @@ inline void draw() {
       int value_w = m.large ? 150 : 96, chip_h = m.pill_h;
       auto *chip = plain(d.card, right - value_w, (m.row_h - chip_h) / 2, value_w, chip_h);
       lv_obj_set_style_bg_opa(chip, LV_OPA_COVER, 0);
-      lv_obj_set_style_bg_color(chip, lv_color_hex(0xE9EFF4), 0);
+      lv_obj_set_style_bg_color(chip, theme::color(theme::SETTING_KEY), 0);
       lv_obj_set_style_radius(chip, LV_RADIUS_CIRCLE, 0);
-      d.value = text(chip, value_text(row), row_font, 0x1B1B1B, LV_TEXT_ALIGN_CENTER);
+      d.value = text(chip, value_text(row), row_font, theme::INK, LV_TEXT_ALIGN_CENTER);
       lv_obj_set_width(d.value, value_w - 8);
       lv_obj_set_pos(d.value, 4, (chip_h - label_h) / 2);
       lv_obj_set_width(d.label, right - value_w - left - 6);
     } else if (row.kind == Kind::info) {
-      d.value = text(d.card, value_text(row), row_font, 0x616161, LV_TEXT_ALIGN_RIGHT);
+      d.value = text(d.card, value_text(row), row_font, theme::MUTED, LV_TEXT_ALIGN_RIGHT);
       int value_w = (m.width - 2 * m.pad) / 2;
       lv_obj_set_width(d.value, value_w);
       lv_obj_set_pos(d.value, right - value_w, (m.row_h - label_h) / 2);
@@ -647,16 +658,16 @@ inline void draw() {
     lv_obj_add_flag(bar, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_opa(bar, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_STATE_PRESSED);
-    lv_obj_set_style_bg_color(bar, lv_color_hex(0xDCDCDC), LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(bar, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
     lv_obj_set_style_radius(bar, m.radius, 0);
-    auto *label = text(bar, side ? "Next  >" : "<  Previous", row_font, 0x1B1B1B,
+    auto *label = text(bar, side ? "Next  >" : "<  Previous", row_font, theme::INK,
                        side ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_LEFT);
     lv_obj_set_width(label, half - 12);
     lv_obj_set_pos(label, 6, (m.pager - label_h) / 2);
     lv_obj_add_event_cb(bar, pager_event, LV_EVENT_SHORT_CLICKED,
                         (void *) (intptr_t) (side ? per_page : -per_page));
   }
-  auto *counter = text(root, std::to_string(page_number) + " / " + std::to_string(page_total), row_font, 0x616161,
+  auto *counter = text(root, std::to_string(page_number) + " / " + std::to_string(page_total), row_font, theme::MUTED,
                        LV_TEXT_ALIGN_CENTER);
   lv_obj_set_width(counter, m.width);
   lv_obj_set_pos(counter, 0, y + (m.pager - label_h) / 2);
@@ -680,7 +691,7 @@ inline void open(uint8_t page = 0) {
     lv_obj_set_size(root, lv_pct(100), lv_pct(100));
     lv_obj_remove_flag(root, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_flag(root, LV_OBJ_FLAG_CLICKABLE);  // nothing leaks through to the tiles below
-    lv_obj_set_style_bg_color(root, lv_color_hex(0xE7E7E7), 0);
+    lv_obj_set_style_bg_color(root, theme::color(theme::PAGE), 0);
     lv_obj_set_style_bg_opa(root, LV_OPA_COVER, 0);
   }
   lv_obj_move_foreground(root);
@@ -691,6 +702,13 @@ inline void close() {
   forget_confirm();
   drawn_count = 0;
   if (root) { lv_obj_delete(root); root = nullptr; }
+}
+
+// A change of look while the page is open (Dark mode is one of its rows): the page is drawn again in place.
+inline void restyle() {
+  if (!root) return;
+  lv_obj_set_style_bg_color(root, theme::color(theme::PAGE), 0);
+  draw();
 }
 
 // ---- holding the top bar opens the page ----
@@ -711,6 +729,9 @@ inline void hold_event(lv_event_t *event) {
   if (!hold_bar) return;
   if (code == LV_EVENT_PRESSED) {
     if (visible() || (may_open && !may_open())) return;
+    // The line takes the look's blue when it starts; it is hidden the rest of the time.
+    const lv_color_t blue = theme::color(theme::ACCENT);
+    if (!lv_color_eq(lv_obj_get_style_bg_color(hold_bar, LV_PART_MAIN), blue)) lv_obj_set_style_bg_color(hold_bar, blue, 0);
     lv_obj_set_width(hold_bar, 1);
     lv_anim_t anim;
     lv_anim_init(&anim);
@@ -745,7 +766,6 @@ inline void attach_hold(lv_obj_t *page, int x, int y, int width, int height, lv_
   lv_obj_add_event_cb(hold_area, hold_event, LV_EVENT_PRESS_LOST, nullptr);
   hold_bar = plain(page, 0, 0, 1, large ? 5 : 3);
   lv_obj_set_style_bg_opa(hold_bar, LV_OPA_COVER, 0);
-  lv_obj_set_style_bg_color(hold_bar, lv_color_hex(0x009FE3), 0);
   lv_obj_add_flag(hold_bar, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(hold_bar);
   if (below && lv_obj_get_parent(below) == page) {

@@ -13,7 +13,7 @@ import claude_skill  # noqa: E402
 import tile_icons  # noqa: E402
 from core import (ALERT_EVENT, ALERT_FIELDS, ALERT_LIMITS, ALERT_MIN_FIRMWARE, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS,  # noqa: E402
                   BROADCAST_SHOW, CONTROLS, DISPLAYS, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT,
-                  WAKE_SLEEP_MIN_FIRMWARE)
+                  WAKE_SLEEP_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE)
 
 HAS_YAML = importlib.util.find_spec('yaml') is not None
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
@@ -56,6 +56,9 @@ class SkillText(unittest.TestCase):
         for entity in ('button.<screen>_wake', 'button.<screen>_sleep'):
             self.assertIn(f'`{entity}`', standby)
         self.assertIn(f'Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer', standby)
+        # Dark mode (0.2.63): the switch and the firmware that has it.
+        self.assertIn('`switch.<screen>_dark_mode`', standby)
+        self.assertIn(f'Firmware {DARK_MODE_MIN_FIRMWARE} or newer', standby)
         self.assertIn('`button.press`', standby)
         self.assertIn('(#standby-and-brightness)', text, 'the intro links to the section')
         # Tiles (0.2.51): the events, what a tile can do per domain, how to read a screen and the rule to ask first.
@@ -78,7 +81,7 @@ class SkillText(unittest.TestCase):
     def test_every_yaml_example_parses(self):
         import yaml
         blocks = re.findall(r'```yaml\n(.*?)```', claude_skill.text(), re.S)
-        self.assertEqual(len(blocks), 9)
+        self.assertEqual(len(blocks), 10)
         parsed = [yaml.safe_load(block) for block in blocks]
         # Tiles first (0.2.51): putting one on a screen, and ordering a page.
         self.assertEqual(parsed[0]['actions'][0]['event'], 'esp_screens_add_tile')
@@ -112,6 +115,14 @@ class SkillText(unittest.TestCase):
         watched = set(awake['triggers'][0]['entity_id'])
         conditions = {branch['if'][0]['entity_id']} | {c['entity_id'] for c in branch['if'][1]['conditions']}
         self.assertEqual(watched, conditions, 'the automation reacts to every entity its condition reads')
+        # Dark mode at night (0.2.63): one automation that turns the switch on at one time and off at the other.
+        night = parsed[8]
+        self.assertEqual({trigger['id'] for trigger in night['triggers']}, {'night', 'day'})
+        branch = night['actions'][0]
+        self.assertEqual((branch['if'][0]['condition'], branch['if'][0]['id']), ('trigger', 'night'))
+        self.assertEqual((branch['then'][0]['action'], branch['else'][0]['action']), ('switch.turn_on', 'switch.turn_off'))
+        for step in (branch['then'][0], branch['else'][0]):
+            self.assertTrue(step['target']['entity_id'].endswith('_dark_mode'))
 
 
 class Archive(unittest.TestCase):

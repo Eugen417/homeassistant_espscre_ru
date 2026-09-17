@@ -49,6 +49,10 @@ physically tap; an agent cannot replace that with software coordinates.
 
 - Keep base hardware and UI in `home-like-2432s028.yaml`; personal data belongs
   in the gitignored local profiles.
+- Colours live in one table: `components/smart_display/theme.h` (firmware 0.2.54+). Every role has a
+  light and a dark value, board profiles name paints (`styles: paint_card`) instead of writing a colour,
+  and firmware code asks for a role (`theme::color(theme::INK)`). Never write a hex colour in a profile or
+  another header; docs/THEME.md is the recipe, tests/test_theme.py and tests/test_theme.cpp guard it.
 - Screen settings live in one table: `components/smart_display/settings_screen.h` draws the
   page on the screen, `SETTING_RULES` in the add-on validates the same keys. Firmware 0.2.49+
   owns them: every writer (the page, the entities in both profiles) goes through

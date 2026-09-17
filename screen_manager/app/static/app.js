@@ -92,6 +92,7 @@ function select(id) {
 const SETTING_GROUPS = [
   { title: "Brightness", icon: "F0599", rows: [
     { key: "brightness", label: "Brightness", kind: "number", min: 5, max: 100, step: 5, unit: "%" },
+    { key: "dark_mode", label: "Dark mode", kind: "toggle" },
     { key: "standby_enabled", label: "Auto standby", kind: "toggle" },
     { key: "standby_seconds", label: "Standby after", kind: "duration", min: 60, max: 86400, needs: "standby_enabled" },
     { key: "standby_brightness", label: "Standby brightness", kind: "number", min: 0, max: 100, step: 5, unit: "%", needs: "standby_enabled", cap: "brightness" },

@@ -4,6 +4,7 @@
 // a -/+ step lands on the entity's grid, and the status line beside them. The
 // LVGL drawing lives in runtime_tiles.h; tests/test_tile_controls.cpp covers this.
 #include "runtime_model.h"
+#include "theme.h"
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -49,13 +50,14 @@ inline std::string panel_kind(const Tile &t) {
 inline bool has_mode(const std::string &hvac_modes, const char *mode) { return hvac_modes.find("\"" + std::string(mode) + "\"") != std::string::npos; }
 // Home Assistant's colour for a climate mode (the card and its mode keys use it).
 inline uint32_t mode_color(const std::string &mode) {
-  if (mode == "heat") return 0xFF6F22;
-  if (mode == "cool") return 0x2196F3;
-  if (mode == "heat_cool") return 0xFFC107;
-  if (mode == "auto") return 0x4CAF50;
-  if (mode == "fan_only") return 0x00BCD4;
-  if (mode == "dry") return 0xFF9800;
-  return 0x9E9E9E;
+  using namespace theme::ha;
+  if (mode == "heat") return DEEP_ORANGE;
+  if (mode == "cool") return BLUE;
+  if (mode == "heat_cool") return AMBER;
+  if (mode == "auto") return GREEN;
+  if (mode == "fan_only") return CYAN;
+  if (mode == "dry") return ORANGE;
+  return GREY;
 }
 inline const char *mode_icon(const std::string &mode) {
   if (mode == "off") return glyph::POWER;

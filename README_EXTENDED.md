@@ -74,11 +74,12 @@ on the screen itself, and how updates work.
   (open/closed), the alarm, who's home, or when something or someone last
   changed ("5 min ago", "Yesterday"). See [Top bar](#top-bar).
 - **Screen settings:** standby time, normal and dimmed brightness,
-  night hours, 24- or 12-hour clock, return to the home page, and optional swiping
-  between pages. Change them in ESP Screens, where they apply at once, or on the screen
+  night hours, **Dark mode** (firmware 0.2.54+), 24- or 12-hour clock, return to the home page,
+  and optional swiping between pages. Change them in ESP Screens, where they apply at once, or on the screen
   itself. With firmware 0.2.49+ the screen keeps them, and every one of them is also an
   entity in Home Assistant, so an automation can switch **Night mode** or **Auto standby**
-  (firmware 0.2.41+), for example to keep a screen on while someone is home, and
+  (firmware 0.2.41+), for example to keep a screen on while someone is home, turn **Dark mode**
+  on at bedtime (firmware 0.2.54+), and
   wake a screen or put it to sleep with its **Wake** and **Sleep** buttons (firmware 0.2.45+).
   See [Wake and sleep](#wake-and-sleep-from-an-automation).
 - **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
@@ -313,7 +314,7 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 
 | Group | What is on it |
 |---|---|
-| Brightness | Brightness, Auto standby, Standby after, Standby brightness |
+| Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
 | Screen | 12/24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages, rotation (boards that turn) |
 | This screen | Name, IP address, firmware version, Home Assistant connected, Restart |

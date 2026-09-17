@@ -1,3 +1,15 @@
+## 0.2.63 (firmware 0.2.54)
+
+Dark mode, for a screen beside the bed.
+
+- **Dark mode** is a new switch under **Brightness** on the screen's settings page, in the **Screen settings** of ESP Screens and as `switch.<screen>_dark_mode` in Home Assistant, so an automation can turn it on at bedtime and off in the morning. The screen switches at once, open cards and an alert included, and keeps the look after a restart.
+- **The same design, darker.** Nothing moves: a black page, graphite cards with a fine edge, soft white text and grey secondary words. Home Assistant's colours stay where they tell you something: an amber lamp that is on, the orange of heating, the blue of a chosen key, the lines of a history graph. Pastel card colours become deep versions of the same colour, and a pale colour is lifted just enough to read on graphite.
+- **Every screen has it:** the tiles and their keys and sliders, the top bar, the weather, climate, light, cover, vacuum and history cards, the settings page, the alert and the busy spinner, on the CYD and the Guition.
+- **One place for colours.** Every colour the firmware draws now comes from one table (`components/smart_display/theme.h`) with a light and a dark value; the board profiles no longer write colours of their own. The light look is unchanged.
+- **A switch on the settings page shows where it is.** A switch that was on showed its knob at the left each time a settings page opened or turned, until you changed a setting. It now sits at the right from the first moment, which matters now that turning on Dark mode draws the page again.
+- **The sun card keeps its sunlight.** The area under the sun's arc turned orange after the card changed state and yellow again a minute later. It stays the soft yellow of the sun.
+- Needs firmware 0.2.54: press **Update** on the screen. ESP Screens shows the Dark mode switch only for a screen that has it.
+
 ## 0.2.62 (firmware 0.2.53)
 
 On or off at a glance, in Home Assistant's words and colours.
