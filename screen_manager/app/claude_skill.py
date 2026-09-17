@@ -257,7 +257,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 
 | Entity | What it does |
 |---|---|
-| `button.<screen>_wake` | Wakes the screen the way a tap does and counts the standby time from that moment; a screen that is already on only restarts that count. Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer. |
+| `button.<screen>_wake` | Lights the screen up to its normal brightness and counts the standby time from that moment; a screen that is already on only restarts that count. Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer. Wake is not a touch: from firmware 0.2.56 an open card or a later page still goes back to page 1 on its own time, and a screen whose time ran out during standby wakes on page 1. |
 | `button.<screen>_sleep` | Puts the screen in standby right away, also with Auto standby off, and closes an alert that is showing. It stays in standby until someone taps it, Wake is pressed or an alert arrives. Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer. |
 | `switch.<screen>_auto_standby` | On: the screen dims after the standby time without a touch. Off: the screen wakes up and stays on, except after Sleep, which holds until Wake, a tap or an alert. Firmware {AUTO_STANDBY_MIN_FIRMWARE} or newer. |
 | `number.<screen>_standby_after` | Seconds without a touch before standby, 60 to 86400. |
@@ -268,7 +268,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 | `switch.<screen>_night_mode` | Night mode: the night brightness between the two times below. Firmware {SETTING_ENTITIES_MIN_FIRMWARE} or newer, like every row below it. |
 | `time.<screen>_night_starts`, `time.<screen>_night_ends` | The night hours; set them with `time.set_value`. |
 | `switch.<screen>_24_hour_clock` | On: 24-hour clock. Off: 12-hour clock. |
-| `switch.<screen>_back_to_page_1` | On: after `number.<screen>_back_to_page_1_after` seconds without a touch (30 to 3600) the screen closes a card and goes back to page 1. |
+| `switch.<screen>_back_to_page_1` | On: after `number.<screen>_back_to_page_1_after` seconds without a touch (30 to 3600) the screen closes a card and goes back to page 1. Pressing Wake, an alert or Auto standby don't count as a touch. |
 | `switch.<screen>_back_to_page_1_on_standby` | On: going into standby also goes back to page 1. |
 | `switch.<screen>_swipe_between_pages` | On: swipe between pages. |
 | `select.<screen>_rotation` | Guition only: `0°`, `90°`, `180°` or `270°`. |

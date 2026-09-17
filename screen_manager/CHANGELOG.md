@@ -1,3 +1,14 @@
+## 0.2.65 (firmware 0.2.56)
+
+Wake lights the screen, and ESP Screens lets you pick the screen.
+
+- **Wake is for the light.** The **Wake** button in Home Assistant still turns a screen in standby up to its normal brightness, brings back the second hand of an analog clock and starts the standby time again. It no longer counts as a touch for **Back to page 1**: that keeps counting from the last time someone touched the screen. An automation that presses Wake on every motion used to keep an open card or page 2 up for as long as someone moved in the room; now the screen goes back to page 1 on time.
+- **Straight to page 1 after standby.** When the Back to page 1 time ran out while the screen was in standby, Wake lights it up on page 1 at once, instead of showing the old page for a moment first. With time left, the page stays.
+- **Only a touch counts.** An alert that closes by itself and turning Auto standby on also start the standby time again, but not the Back to page 1 time. Opening the settings page from Home Assistant (`open_settings`) still counts, so that page stays open.
+- **ESP Screens opens without a chosen screen.** It used to open the first screen in the list; now you pick one. Until then the page says **Choose a screen**, and with no screens yet it still offers to install one.
+- The Claude skill describes the new Wake. Install it again from Settings → Claude to get it.
+- Needs firmware 0.2.56 for Wake: press **Update** on the screen. The ESP Screens change works right after updating the app. Includes everything from 0.2.64.
+
 ## 0.2.64 (firmware 0.2.55)
 
 A long alert title stays on its own line.

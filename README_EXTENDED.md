@@ -229,8 +229,11 @@ written until you press the button.
 Every screen has two buttons in Home Assistant (firmware 0.2.45+). An automation presses them
 with the `button.press` action:
 
-- **`button.<screen>_wake`** does what a tap does: a screen in standby lights up, and the standby
-  time starts counting again. On a screen that is already on, only the count starts again.
+- **`button.<screen>_wake`** lights the screen up: a screen in standby goes to its normal brightness
+  (the second hand of an analog clock runs again), and the standby time starts counting again. On a
+  screen that is already on, only the count starts again. Wake is not a touch: **Back to page 1** keeps
+  counting from the last touch, so pressing Wake on every motion doesn't keep an open card or a later
+  page up, and a screen whose time ran out during standby lights up on page 1 (firmware 0.2.56+).
 - **`button.<screen>_sleep`** puts the screen in standby right away, the same as when the standby
   time runs out, and also works with **Auto standby** off. The screen stays in standby until someone
   taps it, **Wake** is pressed or an alert comes in; switching Auto standby off doesn't end it. An alert

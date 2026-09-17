@@ -76,6 +76,7 @@ function select(id) {
   $("#open-override").disabled = !screen.update?.profile;
   $("#editor").hidden = false;
   $("#empty").hidden = true;
+  $("#choose").hidden = true;
   $("#dirty").textContent = "All saved";
   $("#save-detail").textContent = "Changes apply without reflashing.";
   renderScreens();
@@ -494,6 +495,12 @@ function renderPending() {
 }
 function renderScreens() {
   renderPending();
+  // ESP Screens opens without a chosen screen (app 0.2.65+): the owner picks one. Until then the right side asks
+  // for that, or offers the install while there are no screens yet.
+  if (!selected) {
+    $("#choose").hidden = !inventory.screens.length;
+    $("#empty").hidden = !!inventory.screens.length;
+  }
   // Keep an open address form alive across the periodic refresh.
   if ($("#screens .screen-host")) {
     renderUpdates();
@@ -2059,7 +2066,6 @@ async function refresh(full = true) {
     if (full) renderClaude();
     if (selected) { settleSettings(); renderSettings(); }
     if (firstCatalogue && selected && layout && !drag.active && !chipDrag.active) { renderTopbar(); renderTiles(); renderResults(); }
-    if (!selected && inventory.screens.length) select(inventory.screens[0].id);
     if ($("#alerts-dialog").open) renderAlertScreens();
   } catch {
     $("#connection").textContent =
@@ -2391,7 +2397,6 @@ function applyLive(data) {
   $("#connection").classList.toggle("online", inventory.connected);
   renderScreens();
   if (selected) { settleSettings(); renderSettings(); }
-  if (!selected && inventory.screens.length) select(inventory.screens[0].id);
 }
 function listen() {
   if (stream || typeof EventSource === "undefined") return;

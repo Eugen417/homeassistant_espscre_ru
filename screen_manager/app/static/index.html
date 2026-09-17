@@ -42,7 +42,13 @@
             <div id="pending"></div>
             <button class="quiet" id="refresh">↻ Refresh</button>
           </aside>
-          <section id="empty" class="empty">
+          <!-- Hidden until the first inventory, so neither card flashes while the page loads. -->
+          <section id="choose" class="empty" hidden>
+            <span class="empty-icon">▦</span>
+            <h2>Choose a screen</h2>
+            <p>Pick one of your screens to change its tiles, top bar and settings.</p>
+          </section>
+          <section id="empty" class="empty" hidden>
             <span class="empty-icon">▦</span>
             <h2>Start with a screen</h2>
             <p>

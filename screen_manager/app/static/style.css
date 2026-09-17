@@ -735,6 +735,14 @@ dialog label {
   #editor {
     padding: 18px;
   }
+  /* The screens sit right above it on a phone: a short prompt, not a tall empty card. */
+  #choose {
+    min-height: 0;
+    padding: 18px;
+  }
+  #choose .empty-icon {
+    display: none;
+  }
   .savebar {
     align-items: stretch;
     flex-direction: column;

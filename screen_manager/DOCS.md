@@ -35,5 +35,6 @@ about a second and a half, or put the built-in **Settings** card on a page. What
 there appears here within a second, and the other way around.
 
 In Home Assistant every screen also has a **Wake** and a **Sleep** button (firmware 0.2.45 or
-newer). Press them from an automation with `button.press`: Wake does what a tap does, Sleep puts
-the screen in standby right away, also with Auto standby off.
+newer). Press them from an automation with `button.press`: Wake lights the screen up and restarts the
+standby time, Sleep puts the screen in standby right away, also with Auto standby off. Wake is not a
+touch, so an open card or a later page still goes back to page 1 on time (firmware 0.2.56 or newer).

@@ -1,8 +1,10 @@
 """Wake and Sleep buttons for Home Assistant automations (app 0.2.53, firmware 0.2.45) and the standby
 code around them (tidied in app 0.2.54, firmware 0.2.46).
 
-Both board profiles have to wire them the same way: Wake is a tap, Sleep is the standby time running out
-right away, and a Sleep holds until a tap, Wake or an alert ends it, whatever turns Auto standby off.
+Both board profiles have to wire them the same way: Wake lights the screen and restarts the standby time,
+Sleep is the standby time running out right away, and a Sleep holds until a tap, Wake or an alert ends it,
+whatever turns Auto standby off. Since app 0.2.65 (firmware 0.2.56) Wake is no tap: Back to page 1 counts
+from the last touch, so an automation pressing Wake on every motion no longer holds a card or page 2 up.
 """
 import re
 import sys
@@ -52,15 +54,48 @@ class Profiles(unittest.TestCase):
                 self.assertNotIn('entity_category', button, f'{name}: {label} is a control, not a setting')
                 self.assertNotIn('internal', button, f'{name}: {label} must reach Home Assistant')
 
-    def test_wake_is_a_tap(self):
+    def test_wake_is_light_not_a_tap(self):
         for name, text in self.profiles.items():
             wake = item(section(text, 'button'), 'name', 'Wake')
-            # A dimmed screen wakes the way the tap on its wake overlay does; one that is on only counts again.
-            self.assertRegex(wake, r"return id\(display_dimmed\);'\s+then:\s+- script\.execute: wake_display\s+else:\s+"
+            # A dimmed screen lights up the way the tap on its wake overlay does, then goes to page 1 at once when
+            # that time ran out during standby; one that is on only restarts the standby time.
+            self.assertRegex(wake, r"return id\(display_dimmed\);'\s+then:\s+- script\.execute: wake_display\s+"
+                                   r"(?:#[^\n]*\s+)?- script\.execute: back_to_page_1_when_due\s+else:\s+"
                                    r"- lambda: 'id\(last_touch_ms\) = millis\(\);'", name)
+            self.assertNotIn('last_use_ms', wake, f'{name}: Wake must not postpone Back to page 1')
+            self.assertNotIn('last_use_ms', script(text, 'wake_display'), f'{name}: waking is no touch')
             self.assertIn('id(sleep_requested) = false;', script(text, 'wake_display'), f'{name}: waking ends a Sleep')
             overlay = re.search(r'id: dim_wake_overlay\n.*?on_click:\s+- script\.execute: (\w+)', text, re.S)
             self.assertEqual(overlay[1], 'wake_display', f'{name}: a tap and Wake share one path')
+
+    def test_back_to_page_1_counts_from_the_last_touch(self):
+        for name, text in self.profiles.items():
+            clock = item(section(text, 'globals'), 'id', 'last_use_ms')
+            self.assertIn('type: uint32_t', clock, name)
+            self.assertIn('restore_value: no', clock, name)
+            check = script(text, 'back_to_page_1_when_due')
+            self.assertIn('if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;', check, name)
+            self.assertIn('if (id(display_dimmed)) return false;', check, f'{name}: standby keeps its page ("Also on standby")')
+            self.assertRegex(check, r'return away && \(millis\(\) - id\(last_use_ms\)\) > \(uint32_t\) runtime_tiles::auto_home_seconds \* 1000UL;'
+                                    r'\s+then:\s+- script\.execute: go_home', name)
+            self.assertNotIn('last_touch_ms', check, f'{name}: the standby clock is not the page clock')
+            # The one-second interval and Wake run it; nothing else decides about page 1 by itself.
+            interval = section(text, 'interval')
+            self.assertIn('- script.execute: back_to_page_1_when_due', interval, name)
+            self.assertNotIn('auto_home', interval, f'{name}: one copy of the rule')
+            self.assertEqual(len(re.findall(r'script\.execute: back_to_page_1_when_due', text)), 2, name)
+            # Written by the boot, the three touchscreen triggers, Home Assistant opening the settings page and the
+            # UI self test only; Wake, an alert ending and Auto standby restart the standby time alone.
+            self.assertEqual(len(re.findall(r'id\(last_use_ms\) = millis\(\);', text)), 6, name)
+            touch = section(text, 'touchscreen')
+            for trigger in ('on_touch', 'on_update', 'on_release'):
+                body = re.search(rf'^  {trigger}:\n(.*?)(?=^  [a-z_]+:|\Z)', touch, re.M | re.S)[1]
+                self.assertIn('id(last_use_ms) = millis();', body, f'{name}: {trigger}')
+            self.assertIn('id(last_use_ms) = millis();', re.search(r'- action: open_settings\n(.*?)- action:', text, re.S)[1], name)
+            self.assertIn('id(last_use_ms) = millis();', script(text, 'ui_self_test'), name)
+            for quiet in (script(text, 'alert_dismiss'), item(section(text, 'switch'), 'name', 'Auto standby')):
+                self.assertIn('id(last_touch_ms) = millis();', quiet, name)
+                self.assertNotIn('last_use_ms', quiet, name)
 
     def test_sleep_dims_now_and_holds_with_auto_standby_off(self):
         for name, text in self.profiles.items():

@@ -3,7 +3,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.55"
+  SCREEN_FIRMWARE_VERSION: "0.2.56"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -146,6 +146,7 @@ esphome:
             }
           }
           id(last_touch_ms) = millis();
+          id(last_use_ms) = millis();
           id(display_dimmed) = false;
       - lambda: |-
           auto &settings = screen_settings::current;
@@ -376,11 +377,11 @@ api:
       then:
         - lambda: |-
             const auto &cfg = screen_settings::current;
-            ESP_LOGI("ui_diag", "settings standby=%d timeout=%d brightness=%d dim=%d night=%d start=%d end=%d night_dim=%d clock=%d clock24=%d home=%d idle_ms=%u dimmed=%d",
+            ESP_LOGI("ui_diag", "settings standby=%d timeout=%d brightness=%d dim=%d night=%d start=%d end=%d night_dim=%d clock=%d clock24=%d home=%d idle_ms=%u use_idle_ms=%u dimmed=%d",
               cfg.standby_enabled, cfg.standby_seconds, cfg.brightness, cfg.standby_brightness,
               cfg.night_enabled, cfg.night_start, cfg.night_end, cfg.night_brightness,
               cfg.show_clock, cfg.clock_24h, cfg.home_on_standby,
-              (unsigned)(millis() - id(last_touch_ms)), id(display_dimmed));
+              (unsigned)(millis() - id(last_touch_ms)), (unsigned)(millis() - id(last_use_ms)), id(display_dimmed));
             ESP_LOGI("ui_diag", "navigation page=%d runtime_detail=%d", id(tile_page),
               runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
             ESP_LOGI("ui_diag", "rotation=%u actual=%u", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());
@@ -419,6 +420,8 @@ api:
       then:
         - lambda: |-
             if (page < 0) { id(go_home).execute(); return; }
+            // Opened for someone to look at: Back to page 1 counts from now, as after a touch.
+            id(last_use_ms) = millis();
             id(wake_display).execute();
             settings_screen::open((uint8_t) page);
             ESP_LOGI("settings", "page %d open from Home Assistant", page);
@@ -518,19 +521,7 @@ interval:
               return (millis() - id(last_touch_ms)) > (screen_settings::current.standby_seconds * 1000UL);
           then:
             - script.execute: dim_display
-      # Back to page 1 by itself (0.2.44+). A card, a settings page or a second page left open keeps
-      # showing what someone looked at minutes ago; after this long the screen is a screen again.
-      # Independent of standby, which may be off or much later.
-      - if:
-          condition:
-            lambda: |-
-              if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
-              if (id(display_dimmed)) return false;
-              bool away = settings_screen::visible() || !id(active_entity).empty() || id(tile_page) != 0 ||
-                          (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
-              return away && (millis() - id(last_touch_ms)) > (uint32_t) runtime_tiles::auto_home_seconds * 1000UL;
-          then:
-            - script.execute: go_home
+      - script.execute: back_to_page_1_when_due
 
 time:
   - platform: homeassistant
@@ -595,7 +586,14 @@ globals:
     type: std::string
     restore_value: no
 
+  # Two clocks. last_touch_ms is the standby time: a touch, Wake, an alert ending and Auto standby on restart it.
+  # last_use_ms is Back to page 1 (firmware 0.2.56+): only a touch, or Home Assistant opening the settings page.
   - id: last_touch_ms
+    type: uint32_t
+    restore_value: no
+    initial_value: '0'
+
+  - id: last_use_ms
     type: uint32_t
     restore_value: no
     initial_value: '0'
@@ -1272,6 +1270,7 @@ touchscreen:
   on_touch:
     - lambda: |-
         id(last_touch_ms) = millis();
+        id(last_use_ms) = millis();
         id(touch_down) = true;
         cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
         cyd::edge_swipe.begin(touch.x, touch.y, static_cast<int>(id(screen_lvgl).get_rotation()));
@@ -1279,6 +1278,7 @@ touchscreen:
   on_update:
     - lambda: |-
         id(last_touch_ms) = millis();
+        id(last_use_ms) = millis();
         // Only the contact that started the touch counts; the guard ignores other ids.
         for (const auto &point : touches) {
           // Trace every sample of an edge touch: the log then shows how often the panel delivers.
@@ -1306,6 +1306,7 @@ touchscreen:
   on_release:
     - lambda: |-
         id(last_touch_ms) = millis();
+        id(last_use_ms) = millis();
         id(touch_down) = false;
         if (cyd::edge_swipe.armed() && cyd::edge_swipe.inward() > 0)
           ESP_LOGI("touch", "edge swipe not fired: %d px inward, %d px vertical", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
@@ -3502,6 +3503,7 @@ script:
           then:
             - lambda: |-
                 id(last_touch_ms) = millis();
+                id(last_use_ms) = millis();
                 static unsigned test_page=0;
                 id(tile_page) = runtime_tiles::enabled ? test_page++ % runtime_tiles::page_count() : 1;
             - script.execute: show_tile_page
@@ -3643,6 +3645,24 @@ script:
       - script.execute: close_cards
       - lambda: 'id(tile_page) = 0;'
       - script.execute: show_tile_page
+
+  # Back to page 1 by itself (0.2.44+). A card, a settings page or a second page left open keeps
+  # showing what someone looked at minutes ago; after this long the screen is a screen again.
+  # Independent of standby, which may be off or much later; paused while the screen is in standby.
+  # The time runs from the last touch (last_use_ms, firmware 0.2.56+): Wake, an alert or Auto standby
+  # light the screen and restart the standby time, but nobody used a page. Checked every second and by Wake.
+  - id: back_to_page_1_when_due
+    then:
+      - if:
+          condition:
+            lambda: |-
+              if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
+              if (id(display_dimmed)) return false;
+              bool away = settings_screen::visible() || !id(active_entity).empty() || id(tile_page) != 0 ||
+                          (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
+              return away && (millis() - id(last_use_ms)) > (uint32_t) runtime_tiles::auto_home_seconds * 1000UL;
+          then:
+            - script.execute: go_home
 
   # ---------- ALERT (HA action show_alert) ----------
   # The screen wakes, keeps its normal brightness and shows the card until OK or the
@@ -4515,11 +4535,12 @@ text:
     internal: ${DASHBOARD_INBOX_INTERNAL}
 
 button:
-  # Wake and Sleep for Home Assistant automations (0.2.45+). Wake is a tap: it lights a dimmed
-  # screen and counts the standby time from now. Sleep is the standby time running out, right away
-  # and also with Auto standby off; it holds until a tap, Wake or an alert, and closes an alert that
-  # is up. Neither saves anything, so an automation may press them on every motion. No
-  # entity_category: they are controls, not settings.
+  # Wake and Sleep for Home Assistant automations (0.2.45+). Wake is light, not a tap (0.2.56+): it
+  # lights a dimmed screen and counts the standby time from now, while Back to page 1 keeps counting
+  # from the last touch, so Wake on every motion no longer holds a card or page 2 up. Sleep is the
+  # standby time running out, right away and also with Auto standby off; it holds until a tap, Wake
+  # or an alert, and closes an alert that is up. Neither saves anything, so an automation may press
+  # them on every motion. No entity_category: they are controls, not settings.
   - platform: template
     id: wake_button
     name: "Wake"
@@ -4531,6 +4552,8 @@ button:
             lambda: 'return id(display_dimmed);'
           then:
             - script.execute: wake_display
+            # A page whose time ran out during standby: light up on page 1, not on the old page first.
+            - script.execute: back_to_page_1_when_due
           else:
             - lambda: 'id(last_touch_ms) = millis();'
   - platform: template

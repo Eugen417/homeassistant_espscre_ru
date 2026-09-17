@@ -176,6 +176,29 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.65 / firmware 0.2.56
+
+Both board profiles and the editor page; the app raises `FIRMWARE_VERSION`. Storage, tile protocol, preferences, keys
+and entities are unchanged.
+
+- Two clocks. `last_touch_ms` stays the standby time: a touch, Wake, `wake_display`, an alert ending
+  (`alert_dismiss`) and Auto standby on restart it, exactly as before. The new non-restored `last_use_ms` is Back to
+  page 1: the boot, the three touchscreen triggers (`on_touch`, `on_update`, `on_release`), `open_settings` from Home
+  Assistant and the UI self test write it, nothing else. Before, Wake reset the one clock both rules read, so an
+  automation pressing Wake on every motion held a card or page 2 up indefinitely.
+- The Back to page 1 check moved from the one-second interval into the script `back_to_page_1_when_due` (same
+  condition, now on `last_use_ms`, still paused while `display_dimmed`). The interval runs it, and so does Wake
+  right after `wake_display` on a dimmed screen: a page whose time ran out during standby goes home in the same pass,
+  before LVGL draws the old page at full brightness. `ui_state` logs `use_idle_ms` beside `idle_ms`.
+- `wake_display` is unchanged and still restarts only the standby clock: a tap on the dim overlay is a touch through
+  the touchscreen triggers anyway, and an alert blocks the rule while it is up.
+- Older firmware keeps counting Wake, an alert ending and Auto standby on as a touch for Back to page 1. The Claude
+  skill says that from 0.2.56 Wake is no touch; an installed skill shows as outdated until it is installed again.
+- `static/app.js` no longer selects `inventory.screens[0]` in `refresh()` or `applyLive()`; the only way into a screen
+  is its button. `renderScreens()` shows `#choose` ("Choose a screen") while nothing is selected and screens exist,
+  `#empty` while there are none; both start `hidden` in `index.html`, so neither flashes before the first inventory.
+  A screen picked before the full inventory arrives still gets the 0.2.58 catalogue redraw.
+
 ### Compatibility 0.2.64 / firmware 0.2.55
 
 Both board profiles, the Claude skill and the editor's alert tips; the app raises `FIRMWARE_VERSION`. Storage, tile
