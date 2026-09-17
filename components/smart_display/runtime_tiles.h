@@ -184,7 +184,7 @@ struct Widgets {
   lv_obj_t *pill{}, *pill_value{}, *knob{}, *control_slider{}; int knob_on=-1;
   lv_color_t panel_accent{}, panel_text{};
   // Busy sheet: a translucent white cover with a small spinner while a command is under way.
-  lv_obj_t *busy{}, *spinner{};
+  lv_obj_t *busy{}, *spinner{}; bool busy_drawn=false;
   // Page fill skeleton: a sheet in the card's colour over its contents until the card is drawn.
   lv_obj_t *veil{};
 };
@@ -573,7 +573,7 @@ inline std::string receive(const std::string &payload) {
     // A chip just tapped keeps its choice while Home Assistant is still busy with it, so another update
     // of the robot (its battery, say) does not flip the row back for a moment.
     std::vector<std::pair<char, std::string>> tapped;
-    if (tile.loading(esphome::millis())) for (auto &c : tile.extra().choices) if (!c.sent.empty()) tapped.emplace_back(c.kind, c.sent);
+    if (tile.waiting(esphome::millis())) for (auto &c : tile.extra().choices) if (!c.sent.empty()) tapped.emplace_back(c.kind, c.sent);
     auto choice = [&](const char *key, char kind) {
       auto c = extra[key];
       if (!c["o"].is<JsonArray>()) return;
@@ -607,6 +607,31 @@ inline std::string receive(const std::string &payload) {
   });
   return result;
 }
+// Between the manager's messages nothing redraws a card, so a command under way gets its own 200 ms LVGL timer: it
+// brings the busy sheet up once the grace has passed, takes it away as soon as Home Assistant answered or the wait ran
+// out, and deletes itself when no tile waits any more (firmware 0.2.59+).
+inline lv_timer_t *busy_timer{};
+inline void end_wait(size_t index) {
+  auto &t = model.tiles[index];
+  t.pending = false;
+  t.undo_optimistic();
+  if (auto *x = t.extra_ptr()) for (auto &c : x->choices) c.sent.clear();
+}
+inline void busy_watch(lv_timer_t *) {
+  const uint32_t now = esphome::millis();
+  bool any = false;
+  for (auto &w : widgets) {
+    if (!w.tile || w.index >= model.count) continue;
+    auto &t = model.tiles[w.index];
+    if (!t.pending) continue;
+    if (!t.waiting(now) && !t.confirmed) end_wait(w.index);
+    any = any || t.pending;
+    if (t.loading(now) != w.busy_drawn) refresh_tile(w.index);
+  }
+  if (!any && busy_timer) { lv_timer_delete(busy_timer); busy_timer = nullptr; }
+}
+inline void watch_busy() { if (!busy_timer) busy_timer = lv_timer_create(busy_watch, 200, nullptr); }
+
 #ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
 // Home Assistant answers an action sent with a call id (firmware 0.2.58+, Home Assistant 2025.10+). ESPHome keeps each
 // answer's callback until the answer arrives and has no timeout of its own, so a tap asks for at most four answers at a
@@ -624,11 +649,20 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
   request.call_id = id;
   esphome::api::global_api_server->register_action_response_callback(id, [id, entity](const esphome::api::ActionResponse &answer) {
     for (auto &c : watched_calls) if (c.id == id) c = {};
-    if (answer.is_success() || answer.get_error_message().c_str() == NO_ANSWER) return;
+    if (answer.is_success() || answer.get_error_message().c_str() == NO_ANSWER) {
+      // "It worked" without a new state (a stop on a cover that already stands still) ends the wait in a moment
+      // instead of running to the cap.
+      if (answer.is_success())
+        for (size_t i = 0; i < model.tiles.size(); ++i)
+          if (model.tiles[i].entity == entity && model.tiles[i].pending && !model.tiles[i].answered_at)
+            model.tiles[i].answered_at = std::max<uint32_t>(1, esphome::millis());
+      return;
+    }
     ESP_LOGW("runtime_action", "Home Assistant refused the action for %s: %.*s", entity.c_str(),
              (int) answer.get_error_message().size(), answer.get_error_message().c_str());
     for (size_t i = 0; i < model.tiles.size(); ++i) if (model.tiles[i].entity == entity) {
       model.tiles[i].pending = false;
+      model.tiles[i].undo_optimistic();
       model.tiles[i].refused_at = std::max<uint32_t>(1, esphome::millis());
       refresh_tile(i);
     }
@@ -646,12 +680,13 @@ inline void expire_calls(uint32_t now) {
 // Marks every tile of the entity busy and sends; `watch` asks Home Assistant for an answer (a tap).
 inline void send_action(esphome::api::HomeassistantActionRequest &request, const std::string &entity, bool watch) {
   for(size_t i=0;i<model.tiles.size();++i) if(model.tiles[i].entity==entity){model.tiles[i].begin(esphome::millis());model.tiles[i].refused_at=0;refresh_tile(i);}
+  watch_busy();
 #ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
   if (watch) watch_call(request, entity);
 #endif
   esphome::api::global_api_server->send_homeassistant_action(request);
 }
-inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=false) {
+inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=true) {
   if (!fresh() || !valid_entity(entity)) return;
   esphome::api::HomeassistantActionRequest request;
   request.service = esphome::StringRef(service);
@@ -774,7 +809,7 @@ inline bool slider_changed=false;
 inline int slider_held=0;
 inline void slider_event(lv_event_t *e);
 inline void commit_slider(unsigned i,int raw){
-  if(i>=model.count || !fresh())return;auto &t=model.tiles[i];if(!t.available() || t.loading(esphome::millis()))return;
+  if(i>=model.count || !fresh())return;auto &t=model.tiles[i];if(!t.available() || t.waiting(esphome::millis()))return;
   float value=std::clamp(raw,0,1000)/1000.0f;auto d=t.domain();
   // A light's slider stops at 1 %, as in Home Assistant; tapping the card turns it off.
   if(d=="light")action("light.turn_on",t.entity,"brightness",std::to_string(std::max(3,(int)std::lround(value*255))));
@@ -837,7 +872,7 @@ inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height
       return;
     }
     if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
-    auto &t=model.tiles[detail_index];if(!t.available()||t.loading(esphome::millis()))return;
+    auto &t=model.tiles[detail_index];if(!t.available()||t.waiting(esphome::millis()))return;
     if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
     // Vacuum rows: 10-15 suction, 50-55 cleaning mode, 60-65 water.
     static const std::pair<int,char> rows[]={{10,'s'},{50,'m'},{60,'w'}};
@@ -1089,7 +1124,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   bool cleaning=t.state=="cleaning",paused=t.state=="paused";
   bool battery=std::isfinite(t.battery),on_the_way=cleaning||paused||t.state=="returning";
   int inner=width-2*pad,gap=large?12:6,radius=lv_obj_get_style_radius(widgets[0].tile,LV_PART_MAIN);
-  std::string state=t.awaiting_action(now)&&!t.confirmed?"Command sent...":detail_state(t);
+  std::string state=t.loading(now)?"Command sent...":detail_state(t);
   // A robot with little to set gets a hero on the small screen too; one with mode and water rows uses a status row.
   bool small_hero=!large && !mode && !t.choice('w');
   int y=large?92:52;
@@ -1634,12 +1669,12 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
     lv_obj_add_event_cb(detail_switch,[](lv_event_t *e){
       if(detail_index>=model.count)return;
       auto &tile=model.tiles[detail_index];auto *control=lv_event_get_target_obj(e);
-      bool allowed=fresh() && tile.available() && !tile.awaiting_action(esphome::millis()) &&
+      bool allowed=fresh() && tile.available() && !tile.waiting(esphome::millis()) &&
         cyd::touch_guard.accept(esphome::millis(),350);
       bool requested_on=lv_obj_has_state(control,LV_STATE_CHECKED);
       // Only HA's reported state is authoritative, including a refused/failed command.
       if(tile.state=="on")lv_obj_add_state(control,LV_STATE_CHECKED);else lv_obj_remove_state(control,LV_STATE_CHECKED);
-      if(allowed)action(tile.domain()+(requested_on?".turn_on":".turn_off"),tile.entity);
+      if(allowed){tile.optimistic(requested_on);action(tile.domain()+(requested_on?".turn_on":".turn_off"),tile.entity);}
     },LV_EVENT_VALUE_CHANGED,nullptr);
     if(detail_action_count<32)detail_actions[detail_action_count++]=detail_switch;
     right-=sw+(large?14:8);
@@ -1857,13 +1892,16 @@ inline void event(lv_event_t *event) {
   auto &tile = model.tiles[w.index];
   auto d = tile.domain();
   // Scenes/scripts often have timestamps or 'off'; unavailable devices never act.
-  if (!tile.available() || tile.loading(esphome::millis()) || tile.tap=="none") return;
+  if (!tile.available() || tile.waiting(esphome::millis()) || tile.tap=="none") return;
   // A camera or an image entity opens full screen on a board that draws images (firmware 0.2.57+).
   if(d=="camera" || d=="image"){if(camera_supported())camera_open(tile.entity,tile.name);return;}
   // tile_controls::tap_route decides; tests/test_tile_controls.cpp keeps every older tap choice routed as before.
   auto tap = tile_controls::tap_route(tile, code == LV_EVENT_LONG_PRESSED);
   switch (tap.route) {
     case tile_controls::TapRoute::ACTION:
+      // On / off shows the new stand at once, as Home Assistant's switch does; other actions have nothing to show yet.
+      if (tap.service == d + ".toggle" && (d == "light" || d == "switch" || d == "input_boolean" || d == "fan"))
+        tile.optimistic(tile.state != "on");
       action(tap.service, tile.entity, "", "", true);
       return;
     case tile_controls::TapRoute::CUSTOM:
@@ -2457,8 +2495,8 @@ inline void control_event(lv_event_t *e) {
     if(w.pill_value){std::string suffix=t.domain()=="climate"?"°":t.unit.empty()?"":" "+t.unit;label(w.pill_value,tile_controls::format_value(t.edit_value,tile_controls::edit_step(t),suffix.c_str()));}
     return;
   }
-  if(t.awaiting_action(now))return;
-  if(command==tile_controls::TOGGLE)t.optimistic_on=t.state!="on";
+  if(t.waiting(now))return;
+  if(command==tile_controls::TOGGLE)t.optimistic(t.state!="on");
   auto a=tile_controls::key_action(t,command,w.key_args[n]);
   if(a.valid())action(a.service,t.entity,a.key,a.value);
 }
@@ -2543,7 +2581,8 @@ inline void render_slot(size_t slot) {
   lv_obj_set_height(w.value,value_height);
   int content_w=content_width(w),content_h=content_height(w);
   lap(swipe_profile::LAYOUT);
-  set_busy(w,pending && !t.builtin(),large_tile);
+  w.busy_drawn = pending && !t.builtin();
+  set_busy(w,w.busy_drawn,large_tile);
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);
   if(custom){
@@ -3123,7 +3162,7 @@ inline int last_clock_minute=-2;
 inline bool was_fresh=false;
 inline void tick() {
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
-    auto &t=model.tiles[detail_index];bool waiting=t.awaiting_action(esphome::millis());
+    auto &t=model.tiles[detail_index];bool waiting=t.loading(esphome::millis());
     // The history the card waits for: drawn once it is here (a finger on the screen holds that back), asked for
     // again every 30 s, and after 8 s without it (an app from before 0.2.59, Home Assistant away) the card says so.
     if(history_chart.status&&!history_chart.ready){
@@ -3159,10 +3198,10 @@ inline void tick() {
   for(size_t i=0;i<model.tiles.size();++i){
     auto &t=model.tiles[i];
     if(t.refused_at && esphome::millis()-t.refused_at>=4000){t.refused_at=0;card(i);}
-    if(!t.pending || t.loading(esphome::millis()))continue;
-    t.pending=false;card(i);
+    if(!t.pending || t.waiting(esphome::millis()))continue;
     // A vacuum chip Home Assistant never confirmed goes back to what the robot reports.
-    bool sent=false;if(auto *x=t.extra_ptr())for(auto &c:x->choices){sent=sent||!c.sent.empty();c.sent.clear();}
+    bool sent=false;if(auto *x=t.extra_ptr())for(auto &c:x->choices)sent=sent||!c.sent.empty();
+    end_wait(i);card(i);
     if(sent)refresh_detail(i);
   }
   // A -/+ edit goes out as one call once the finger rests; a value HA never reports is dropped after a while.
@@ -3170,7 +3209,7 @@ inline void tick() {
     auto &t=model.tiles[i];if(!std::isfinite(t.edit_value))continue;
     uint32_t now=esphome::millis();
     if(!t.edit_sent){
-      if(now-t.edit_since<700 || t.awaiting_action(now))continue;
+      if(now-t.edit_since<700 || t.waiting(now))continue;
       auto a=tile_controls::edit_action(t,t.edit_value);
       if(a.valid()){t.edit_sent=true;t.edit_since=now;action(a.service,t.entity,a.key,a.value);}else t.edit_value=NAN;
     }else if(now-t.edit_since>10000){t.edit_value=NAN;card(i);}

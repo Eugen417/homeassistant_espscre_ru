@@ -1,3 +1,14 @@
+## 0.2.70 (firmware 0.2.59)
+
+A tap looks instant, and the spinner only shows up when something really takes a while.
+
+- **A switch flips at once.** Tap a light, switch, helper or fan and the tile shows the new stand right away, as Home Assistant's own switch does, instead of a spinner over the tile. Home Assistant's own state confirms it a moment later. Refuses it, then the tile says Refused and the old stand comes back.
+- **No spinner for a normal command.** Home Assistant answers in about half a second, and for that long the tile now shows nothing at all. Takes it longer, then the spinner appears as before. On Max's house every command measured was answered in 342 to 599 ms, and every one of those showed a spinner for a full second before.
+- **A command that changes nothing lets go.** Press Stop on a cover that already stands still and Home Assistant reports nothing new. The screen used to wait six seconds; it now lets go a moment after Home Assistant says the command went through.
+- **Nothing waits longer than three seconds.** A screen that gets no answer at all, because Home Assistant is older or may not perform actions, gives up after three seconds instead of six.
+- **The cards, keys, chips and sliders follow the same rule**, and they all ask Home Assistant for an answer now, so a refusal shows up wherever you press.
+- Needs firmware 0.2.59: press **Update** on the screen.
+
 ## 0.2.69 (firmware 0.2.58)
 
 A very large sensor value no longer stops a screen's updates.

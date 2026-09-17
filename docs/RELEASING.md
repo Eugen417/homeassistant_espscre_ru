@@ -176,6 +176,30 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.70 / firmware 0.2.59
+
+Firmware only (`runtime_model.h`, `runtime_tiles.h`, `tile_controls.h`); the app raises `FIRMWARE_VERSION`. No
+protocol, storage or editor change, and an older app drives this firmware as before.
+
+- `Tile::waiting(now)` replaces `awaiting_action`: pending, not confirmed, not `local_feedback`, and within `BUSY_CAP`
+  (3000 ms), or within `BUSY_AFTER_ANSWER` (800 ms) of Home Assistant's "it worked" answer (`answered_at`, set by the
+  action-response callback). It guards what a finger may do: a second tap, a slider, a key, a chip, the -/+ edit.
+- `Tile::loading(now)` is what gets drawn: `waiting` once `BUSY_GRACE` (400 ms) has passed. Home Assistant answered
+  every command in 342-599 ms on Max's installation, so a command that lands shows nothing at all; the busy sheet, the
+  card's "Command sent..." and its greyed keys only appear for a slow one. The old rule (always busy for 1000 ms,
+  150 ms for a switch, then up to 6000 ms without confirmation) is gone, and with it the switch's own window.
+- `Tile::optimistic(on)` writes the new stand into `state` and keeps the old one in `optimistic_prev_on`, as Home
+  Assistant's `ha-control-switch` flips before the command goes out. A tap that sends `<domain>.toggle` on a light,
+  switch, input boolean or fan uses it, and so does a card's switch. `observe` clears the flag, so a state message
+  always wins; `undo_optimistic` puts the old stand back on a refusal or when the wait runs out (`end_wait`, which
+  also drops a chip's sent value).
+- Between the manager's messages nothing redraws a card, so `watch_busy` creates one 200 ms LVGL timer while any tile
+  waits: it brings the sheet up after the grace, ends waits that ran out, and deletes itself. `Widgets::busy_drawn`
+  keeps a card from being drawn again for nothing.
+- `action()` asks for an answer by default now, so the cards' keys, sliders, chips and the -/+ edit get the same
+  refusal and "it worked" handling a tap has had since 0.2.67. At most four answers are watched at a time, as before.
+- Firmware before 0.2.59 keeps its own timing; the app sends nothing new, so any app drives either firmware.
+
 ### Compatibility 0.2.67 / firmware 0.2.58
 
 App (new `ha_catalogue.py`, `core.py`, `server.py`, `header_bar.py`, `history_card.py`, `tile_icons.py`, the editor and

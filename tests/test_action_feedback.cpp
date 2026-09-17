@@ -11,30 +11,58 @@ int main() {
   // A tile keeps the fingerprint of its last state message, not the message itself.
   auto rev=[](const char *state){ return runtime_tiles::state_revision(state,""); };
   runtime_tiles::Tile t;
+  t.entity="light.lamp";
   t.revision=rev("off"); t.begin(100);
-  assert(t.loading(200)); assert(t.awaiting_action(200));
+  // Nothing is drawn in the first 400 ms, so a command Home Assistant confirms in 350 ms looks instant. A second
+  // finger is ignored from the first moment all the same.
+  assert(t.waiting(200)); assert(!t.loading(200));
+  assert(t.loading(500));
   t.observe(rev("off")); assert(!t.confirmed);
   t.observe(rev("on")); assert(t.confirmed);
-  assert(t.loading(999)); assert(!t.loading(1100));
-  t.begin(2000); t.observe(rev("on"));
-  assert(t.loading(7999)); assert(!t.loading(8000)); assert(!t.awaiting_action(8000));
-  t.begin(0xFFFFFFF0); assert(t.loading(20));
-  t.begin(100,true);
-  assert(t.loading(1099)); assert(!t.awaiting_action(1099)); assert(!t.loading(1100));
+  assert(!t.waiting(500)); assert(!t.loading(500));
 
-  // A plain switch changes state with identical attributes. This must confirm
-  // immediately instead of leaving the tile blocked for the six-second timeout.
+  // Without a state the wait runs to three seconds, not six.
+  t.begin(2000); t.observe(rev("on"));
+  assert(t.waiting(4999)); assert(t.loading(2400)); assert(!t.loading(2399));
+  assert(!t.waiting(5000)); assert(!t.loading(5000));
+
+  // "It worked" without a new state (a stop on a cover that already stands still) ends the wait 800 ms later.
+  t.begin(2000); t.observe(rev("on")); t.answered_at=2600;
+  assert(t.waiting(3399)); assert(!t.waiting(3400)); assert(!t.loading(3400));
+  t.begin(2000); assert(t.answered_at==0);
+
+  // A tap that opens a card draws no sheet at all, and the clock wrapping around changes nothing.
+  t.begin(100,true);
+  assert(!t.waiting(200)); assert(!t.loading(1099));
+  t.begin(0xFFFFFFF0); t.observe(rev("on"));
+  assert(t.waiting(20)); assert(!t.loading(20)); assert(t.loading(0xFFFFFFF0+400));
+
+  // A switch changes state with identical attributes. That still confirms at once, and within the first 400 ms
+  // nothing was drawn anyway.
   runtime_tiles::Tile sw;
   sw.entity="switch.printer";
   sw.revision=runtime_tiles::state_revision("off","{}"); sw.begin(100);
-  assert(sw.loading(249));
+  assert(!sw.loading(249));
   sw.observe(runtime_tiles::state_revision("on","{}"));
-  assert(!sw.loading(250));
+  assert(!sw.waiting(250)); assert(!sw.loading(500));
   sw.begin(300); sw.observe(runtime_tiles::state_revision("on","{}"));
-  assert(sw.loading(1000)); // Repeated identical data is not confirmation.
-  assert(!sw.loading(6300));
-  sw.entity="input_boolean.test"; sw.begin(0xFFFFFFF0); sw.observe(rev("off"));
-  assert(sw.loading(20)); assert(!sw.loading(200));
+  assert(sw.waiting(1000)); // Repeated identical data is not confirmation.
+  assert(!sw.waiting(3300));
+
+  // On / off shows the new stand at once, as Home Assistant's own switch does.
+  runtime_tiles::Tile lamp;
+  lamp.entity="light.lamp"; lamp.state="off"; lamp.revision=rev("off");
+  lamp.optimistic(true); lamp.begin(100);
+  assert(lamp.state=="on"); assert(lamp.optimistic_tap); assert(lamp.optimistic_on);
+  // Home Assistant refuses, or never answers: the old stand comes back.
+  lamp.undo_optimistic();
+  assert(lamp.state=="off"); assert(!lamp.optimistic_tap);
+  lamp.undo_optimistic(); assert(lamp.state=="off");
+  // A state message always wins: it clears the flag, so a later wait that runs out changes nothing.
+  lamp.optimistic(true); lamp.begin(200);
+  lamp.state="off"; lamp.observe(rev("off"));
+  assert(!lamp.optimistic_tap);
+  lamp.undo_optimistic(); assert(lamp.state=="off");
 
   // The fingerprint follows state and attributes, and the streaming writer (what receive() hands to
   // ArduinoJson) gives the same value as hashing the joined text.

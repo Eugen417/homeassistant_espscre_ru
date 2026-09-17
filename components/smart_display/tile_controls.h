@@ -308,7 +308,7 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
 // ---- Vacuum card rows (firmware 0.2.39+) ----
 // The value a row shows as chosen: the one just tapped while Home Assistant has not answered yet.
 inline const std::string &shown_value(const Tile &t, const runtime_tiles::Choice &c, uint32_t now) {
-  return !c.sent.empty() && t.loading(now) ? c.sent : c.current;
+  return !c.sent.empty() && t.waiting(now) ? c.sent : c.current;
 }
 // Role of the cleaning mode in use: 'v' vacuum only, 'm' mop only, 'b' both, 'a' automatic; 'b' when
 // the robot has no mode select or reports a mode the manager did not know.

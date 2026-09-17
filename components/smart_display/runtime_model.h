@@ -132,6 +132,8 @@ struct Tile {
   float edit_value = NAN; uint32_t edit_since = 0; bool edit_sent = false;
   // Knob position a toggle shows while its command is under way.
   bool optimistic_on = false;
+  // A tap that switched this tile is waiting; `optimistic_prev_on` is the stand to put back on a refusal.
+  bool optimistic_tap = false, optimistic_prev_on = false;
   // A sensor's graph: 24 samples over `history_hours`, empty without one.
   unsigned history_hours = 24;
   std::vector<float> history;
@@ -144,6 +146,8 @@ struct Tile {
   std::string icon;  // UTF-8 glyph of a chosen icon the icon fonts contain; empty keeps the domain icon.
   uint32_t revision = 0, pending_revision = 0;  // state_revision() fingerprints
   uint32_t pending_since = 0;
+  // When Home Assistant answered "it worked" for a watched call (firmware 0.2.59+); 0 while no answer came.
+  uint32_t answered_at = 0;
   bool pending = false, confirmed = false, local_feedback = false;
   // When Home Assistant refused the action a tap sent (firmware 0.2.58+); the tile says so for a moment.
   uint32_t refused_at = 0;
@@ -161,10 +165,25 @@ struct Tile {
   Choice *choice(char kind) { return extra_box.ptr ? extra_box.ptr->choice(kind) : nullptr; }
   const Choice *choice(char kind) const { for (auto &c : extra().choices) if (c.kind == kind) return &c; return nullptr; }
   bool is_switch() const { return domain()=="switch" || domain()=="input_boolean"; }
-  bool loading(uint32_t now) const { return pending && (now-pending_since < (is_switch()?150u:1000u) || (!confirmed && !local_feedback && now-pending_since < 6000)); }
-  bool awaiting_action(uint32_t now) const { return loading(now) && !local_feedback; }
-  void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; }
-  void observe(uint32_t next) { revision=next; if (pending && revision!=pending_revision) confirmed=true; }
+  // Waiting for Home Assistant. It answered in 342-599 ms for every command measured on a real installation, so the
+  // tile draws nothing for the first 400 ms: a command that lands looks instant (firmware 0.2.59+). After that the busy
+  // sheet shows until the new state arrives, Home Assistant refuses, its "it worked" answer has stood for a moment
+  // without a state following (a stop on a cover that already stands still), or the wait runs out.
+  static constexpr uint32_t BUSY_GRACE = 400, BUSY_AFTER_ANSWER = 800, BUSY_CAP = 3000;
+  bool waiting(uint32_t now) const {
+    if (!pending || confirmed || local_feedback) return false;
+    return now - pending_since < (answered_at ? answered_at - pending_since + BUSY_AFTER_ANSWER : BUSY_CAP);
+  }
+  // What the busy sheet, the card's "Command sent..." and its greyed keys follow: the wait, once it takes long enough
+  // to be worth showing.
+  bool loading(uint32_t now) const { return waiting(now) && now - pending_since >= BUSY_GRACE; }
+  void begin(uint32_t now, bool local=false) { pending=true; pending_since=now; confirmed=false; local_feedback=local; pending_revision=revision; answered_at=0; }
+  void observe(uint32_t next) { revision=next; optimistic_tap=false; if (pending && revision!=pending_revision) confirmed=true; }
+  // Switching shows the new stand at once, as Home Assistant's own switch does (its ha-control-switch flips before the
+  // command goes out). `undo_optimistic` puts the old stand back when Home Assistant refuses or never answers; a state
+  // message always wins, because it clears the flag in `observe`.
+  void optimistic(bool on) { optimistic_prev_on = state == "on"; optimistic_on = on; optimistic_tap = true; state = on ? "on" : "off"; }
+  void undo_optimistic() { if (optimistic_tap) { state = optimistic_prev_on ? "on" : "off"; optimistic_tap = false; } }
   std::string domain() const { return entity.substr(0, entity.find('.')); }
   bool builtin() const { return domain() == "screen"; }
   // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
