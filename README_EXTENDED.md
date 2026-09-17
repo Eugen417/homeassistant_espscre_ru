@@ -49,6 +49,15 @@ on the screen itself, and how updates work.
   − / + or a slider (numbers), previous/next (select), start/pause and
   cancel (timer), and a single button for scenes, scripts, and buttons. Configurable
   per tile; **None** keeps the regular card.
+- **On tap** (app 0.2.67 / firmware 0.2.58): **Automatic**, **Open control**, **View only**,
+  **On / off** for everything Home Assistant can toggle, covers included, or **Perform action**:
+  any action Home Assistant has for the tile's entity, under Home Assistant's own names and with
+  its fields, such as Set cover position at 50 %. Holding the tile still opens its card, and the
+  tile settings only offer what Home Assistant supports for that entity.
+- **Home Assistant's words and icons** (app 0.2.67 / firmware 0.2.58): a blind says Open or
+  Closing, a speaker Playing and a door Open or Closed, a sensor shows the decimals Home Assistant
+  shows, and a tile without an icon of its own gets the one Home Assistant shows, following its
+  state. A light or binary sensor that is off turns grey (firmware 0.2.53+).
 - **Weather card** with current weather, the coming hours and days including chance of
   rain or millimeters; **climate card** with an on/off button, mode, fan, and swing settings.
   The target temperature sits big between − / + keys with one row of mode keys below; the
@@ -92,6 +101,9 @@ on the screen itself, and how updates work.
   orientation and its own calibration.
 - **Inspector:** check entities, status, and configuration in ESP Screens.
   Action feedback shows that a command is on its way.
+- **Override YAML per screen** (app 0.2.61): your own ESPHome YAML for one screen, such as another
+  display controller, kept through updates. See
+  [Updates and keeping your settings](#updates-and-keeping-your-settings).
 
 <p align="center">
   <img src="docs/images/guition-tiles-controls.png" width="32%" alt="Double-width tiles with direct control: heating mode keys with heat selected, previous, pause and next for the Sonos, and a ceiling fan's speed slider">
@@ -292,10 +304,10 @@ value. Click **Save & send to screen** to apply the changes.
 After the first supporting firmware update, this requires no new flash.
 
 <p align="center">
-  <img src="docs/images/editor-tile-settings.png" width="36%" alt="Tile settings: name, icon, display, width, direct control, tap action and pastel background">
-  <img src="docs/images/guition-controls.png" width="60%" alt="The result on the screen: a double-width Heating tile with temperature − and +">
+  <img src="docs/images/editor-tile-settings.png" width="39%" alt="Tile settings of the curtains: double-width with open, stop and close on the tile, and on tap Perform action with Set cover position at 50 %">
+  <img src="docs/images/guition-page-3.png" width="57%" alt="The result on the screen: the double-width Curtains tile with open, stop and close, above a kitchen timer, a scene and the sun path">
 </p>
-<p align="center"><sub>The settings of the Heating tile, and that tile on the screen: double-width with temperature − / +.</sub></p>
+<p align="center"><sub>The settings of the Curtains tile, and that tile on the screen: open, stop and close on the tile, and a tap on its name sets the curtains to 50 %.</sub></p>
 
 A color is a fixed choice for that tile: it stays red, for example,
 even when you run the all-off script. The entity status and action feedback
@@ -351,10 +363,20 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 | Screen | 12/24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages, rotation (boards that turn) |
 | This screen | Name, IP address, firmware version, Home Assistant connected, Restart |
 
+<p align="center">
+  <img src="docs/images/guition-settings-menu.png" width="32%" alt="The settings menu on the Guition: Brightness, Night, Screen and This screen">
+  <img src="docs/images/guition-settings.png" width="32%" alt="The Brightness page: the brightness with minus and plus, Dark mode off, Auto standby on, standby after 10 minutes and the standby brightness">
+  <img src="docs/images/guition-settings-night.png" width="32%" alt="The Night page: Night mode on, starting at 22:00 and ending at 07:00, and the night brightness">
+</p>
+
 Tap a toggle to flip it, `-` and `+` to change a number or a time — hold them and a time walks
 whole hours — and tap a chip like the clock to cycle it. Every change is saved on the screen,
 takes effect at once, and appears in ESP Screens within a second, so both sides always show
 the same value. The **Screen settings** cards in ESP Screens have the same rows.
+
+<p align="center">
+  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping and the rotation">
+</p>
 
 **In Home Assistant** (firmware 0.2.49+), every setting is an entity on the screen's device, under
 *Configuration*: `number.<screen>_normal_brightness`, `switch.<screen>_night_mode`,
@@ -371,6 +393,7 @@ and setting a value the screen already has costs nothing. The full list is in
 | Screen settings | Change them in ESP Screens (they apply at once), on the screen, or on their entities in Home Assistant |
 | New version of the management page | Update ESP Screen Manager in the HA App store |
 | New feature on the physical screen | The **Update** button on the screen (badge *Update x.y.z*), or **Update automatically every night** under Settings |
+| Your own YAML for one screen | **Override YAML** in ESP Screens; kept through updates (app 0.2.61) |
 
 Every app version belongs to one firmware version. After an app update, the list
 shows per screen whether newer firmware is available. **Update** builds that screen's own profile
@@ -385,6 +408,17 @@ Tile layouts and options live in the app's persistent data. CYD calibration and
 screen preferences stay stored on the device. Updates don't replace this
 user data. Do still make normal Home Assistant backups and keep your
 device profiles; removing an app or wiping flash memory is not an update.
+
+**Your own YAML for one screen (app 0.2.61).** **Override YAML** in ESP Screens edits a small
+`<screen>.local.yaml` beside the screen's profile, for hardware-specific changes such as another
+display controller. It is loaded after the shared board package and stays in place when the app or
+the firmware package updates. The screen's name, Wi-Fi, API, OTA, packages, external components and
+captive portal stay managed and are refused there. **Save & check** runs ESPHome's full validation
+of the complete profile, and a build never starts from an invalid one.
+
+<p align="center">
+  <img src="docs/images/editor-override-yaml.png" width="60%" alt="Override YAML for the living room screen: a small file of its own, loaded after the shared package, here with the example that changes the display controller">
+</p>
 
 **Efficient, even with many screens (0.2.39 / firmware 0.2.33).** The app sends a
 screen only the tile that changed, as a single action

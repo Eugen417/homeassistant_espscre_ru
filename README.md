@@ -14,11 +14,13 @@ lights, the heating or the vacuum.
 **What.** Firmware for two affordable panels, the 2.8-inch CYD and the 4-inch Guition, with up to
 twenty tiles over four pages: lights, climate, blinds and curtains, the vacuum, media, the weather,
 history graphs, clocks and timers. An automation can put an alert on every screen when someone rings
-the bell, and a Guition shows who is there with the doorbell camera's picture.
+the bell, and a Guition shows who is there with the doorbell camera's picture. A tap can run any
+action Home Assistant has for a tile, and Dark mode suits a screen beside the bed.
 
 **How.** ESP Screen Manager is an app inside Home Assistant. It flashes a new screen over USB, updates
 it over Wi-Fi and sends it your tiles. Changing a screen is pick, drag and **Save & send to screen**:
-no reflash, no YAML to write, no blueprint, MQTT or token.
+no reflash, no YAML to write, no blueprint, MQTT or token. Brightness, night hours and Dark mode can
+also be changed on the screen or by an automation, and your own YAML for one screen survives every update.
 
 **[Install it](#installing-from-home-assistant)** · [Full reference](README_EXTENDED.md) · [What's new](screen_manager/CHANGELOG.md)
 
@@ -57,6 +59,12 @@ no reflash, no YAML to write, no blueprint, MQTT or token.
   <img src="docs/images/guition-dark-page-4.png" width="32%" alt="Dark mode with pastel backgrounds: the coffee machine and the good-night script keep their colour, deeper">
 </p>
 <p align="center"><sub>Dark mode, for a screen beside the bed: the same pages, darker. It is a switch on the screen, in ESP Screens and in Home Assistant, so an automation can turn it on at bedtime.</sub></p>
+<p align="center">
+  <img src="docs/images/guition-settings-screen.png" width="32%" alt="The settings page on the Guition, Screen: the 12 or 24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages and the rotation">
+  <img src="docs/images/guition-settings.png" width="32%" alt="The settings page on the Guition, Brightness: the brightness with minus and plus, Dark mode off, Auto standby on, standby after 10 minutes and the standby brightness">
+  <img src="docs/images/guition-dark-settings.png" width="32%" alt="The same Brightness page right after turning Dark mode on: a black page with graphite rows and soft white text">
+</p>
+<p align="center"><sub>Settings on the screen itself: hold the top bar. The same brightness, Dark mode, standby, night hours, clock and rotation as in ESP Screens, and every one of them is an entity in Home Assistant.</sub></p>
 
 ## Managed from Home Assistant
 
@@ -65,15 +73,23 @@ no reflash, no YAML to write, no blueprint, MQTT or token.
 </p>
 <p align="center"><sub>ESP Screens, a page in Home Assistant: every screen on the left, its top bar and tiles on the right.</sub></p>
 <p align="center">
-  <img src="docs/images/editor-tiles.png" width="59%" alt="Choosing tiles: every page in the screen preview, next to the entity picker with filters">
-  <img src="docs/images/editor-tile-settings.png" width="37%" alt="Tile settings: name, icon, display, width, direct control, tap action and pastel background">
+  <img src="docs/images/editor-tiles.png" width="63%" alt="Choosing tiles: every page in the screen preview, next to the entity picker with filters">
+  <img src="docs/images/editor-tile-settings.png" width="33%" alt="Tile settings of the curtains: double-width with open, stop and close on the tile, and on tap Perform action with Set cover position at 50 %">
 </p>
-<p align="center"><sub>Search your home, drop a tile on the preview, tap it for its name, width, control and color. Save, and the screen has it.</sub></p>
+<p align="center"><sub>Search your home, drop a tile on the preview, tap it for its name, width, control and color, and for what a tap does: open its card, switch it, or run any action Home Assistant has for it, such as the curtains to 50 %. Save, and the screen has it.</sub></p>
 <p align="center">
   <img src="docs/images/editor-top-bar.png" width="31%" alt="Add to the top bar: the time, an analog clock, the date and suggestions from your own home">
   <img src="docs/images/editor-settings.png" width="65%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">
 </p>
 <p align="center"><sub>A top bar built from your own home, firmware updates over Wi-Fi (every night if you like), and a skill so Claude can rearrange your screens.</sub></p>
+<p align="center">
+  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping and the rotation">
+</p>
+<p align="center"><sub>Screen settings apply at once, and a change made on the screen or by an automation shows up here too.</sub></p>
+<p align="center">
+  <img src="docs/images/editor-override-yaml.png" width="50%" alt="Override YAML for the living room screen: a small file of its own, loaded after the shared package, here with the example that changes the display controller">
+</p>
+<p align="center"><sub>Other hardware, such as a different display controller? Every screen has an Override YAML of its own, checked by ESPHome before a build and kept through every update.</sub></p>
 
 ## Alerts
 
