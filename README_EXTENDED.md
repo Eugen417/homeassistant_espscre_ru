@@ -209,6 +209,35 @@ actions:
 **`esp_screens_dismiss_alert`** clears the alert on every screen. The app has to be running
 for these two events; the per-screen actions work without it.
 
+### With a camera picture
+
+<p align="center">
+  <img src="docs/images/guition-alert-camera.png" width="41%" alt="An alert on the Guition with the front door camera's picture across the top: someone is at the door, with a Coming button">
+  <img src="docs/images/guition-camera.png" width="41%" alt="The front door camera full screen on the Guition, with the round back key and the camera's name at the top">
+</p>
+
+From app 0.2.66, the event takes one more field: **`camera`**, a `camera.*` or `image.*` entity.
+A Guition with firmware 0.2.57+ shows that camera's picture of the moment across the top of the
+card; a tap on it opens the camera full screen over the alert, and Back returns to the alert.
+Other screens show the same alert without the picture. The per-screen actions have no `camera`
+field.
+
+```yaml
+actions:
+  - event: esp_screens_show_alert
+    event_data:
+      title: "Someone is at the door"
+      subtitle: "Front door"
+      icon: doorbell
+      color: orange
+      button_text: "Coming"
+      camera: camera.front_door
+```
+
+A camera or image entity also works as a **tile** on a Guition: a tap opens it full screen, refreshed
+every four seconds. How the image travels (port 8098 of the app, no token on the screen) is in
+[docs/CAMERA.md](docs/CAMERA.md).
+
 ### Ask Claude
 
 Use Claude Code in Home Assistant? **Settings → Claude → Install for Claude Code** writes an

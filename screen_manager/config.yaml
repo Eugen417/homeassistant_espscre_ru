@@ -1,5 +1,5 @@
 name: ESP Screen Manager
-version: "0.2.65"
+version: "0.2.66"
 slug: esp_screen_manager
 description: Choose tiles for your CYD and Guition touchscreen, without reflashing.
 url: https://github.com/MaxGramser/homeassistant_espscreen
@@ -10,6 +10,11 @@ init: false
 homeassistant_api: true
 ingress: true
 ingress_port: 8099
+# Camera images for Guition screens (docs/CAMERA.md): the screens load them from this port on the LAN.
+ports:
+  8098/tcp: 8098
+ports_description:
+  8098/tcp: Camera images for the screens (keep 8098)
 panel_icon: mdi:monitor-dashboard
 panel_title: ESP Screens
 panel_admin: true

@@ -23,7 +23,7 @@ inline bool valid_entity(const std::string &entity) {
   std::string domain = entity.substr(0, dot);
   // screen.* are built-in cards without a Home Assistant entity behind them.
   if (domain == "screen") return entity == "screen.clock" || entity == "screen.settings";
-  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person"})
+  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person", "camera", "image"})
     if (domain == allowed) return true;
   return false;
 }

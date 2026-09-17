@@ -9,15 +9,18 @@ import secrets
 
 import tile_icons
 
-DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen'.split())
+DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
 BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings'}
 NEW_DOMAINS = frozenset('sun timer person screen'.split())
+# A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
+CAMERA_DOMAINS = frozenset(('camera', 'image'))
+CAMERA_MIN_FIRMWARE = (0, 2, 57)
 WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.56'
+FIRMWARE_VERSION = '0.2.57'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -308,7 +311,7 @@ HEADER_SHOWS = ('always', 'active')
 
 def header_entity(value):
     return (isinstance(value, str) and len(value) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value) is not None
-            and value.split('.')[0] in (DOMAINS - {'screen'}) | HEADER_ONLY_DOMAINS)
+            and value.split('.')[0] in (DOMAINS - {'screen'} - CAMERA_DOMAINS) | HEADER_ONLY_DOMAINS)
 
 def header_items(layout):
     """Items the top bar shows: the stored ones, else what firmware before the top bar drew (the clock)."""
@@ -350,6 +353,8 @@ def validate_header(data):
 
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
+    if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']):
+        return CAMERA_MIN_FIRMWARE
     if any(t['entity'] == 'screen.settings' for t in layout['tiles']):
         return (0, 2, 44)
     if any(t.get('options', {}).get('background') == 'none' for t in layout['tiles']):
@@ -865,8 +870,9 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
         if hours:
             result['hours'] = hours
         return result or None
-    if domain in ('scene', 'script', 'button', 'input_button'):
-        # When it last ran: scripts report last_triggered; scenes and buttons carry the time as their state.
+    if domain in ('scene', 'script', 'button', 'input_button', 'image'):
+        # When it last ran: scripts report last_triggered; scenes and buttons carry the time as their state, and so does
+        # an image entity (when its picture last changed).
         last = epoch(attrs.get('last_triggered') if domain == 'script' else states.get(tile['entity'], {}).get('state'))
         return {'last': last} if last else None
     if domain == 'sun':
@@ -981,6 +987,9 @@ ALERT_LIMITS = {'cyd': {'title': 48, 'subtitle': 160, 'button_text': 12}, 'guiti
 ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alarm-light', 'lock', 'lock-open-variant', 'door-open',
                          'window-closed-variant', 'motion-sensor', 'cctv', 'smoke-detector', 'water-alert', 'fire', 'mailbox', 'car',
                          'account', 'account-group', 'washing-machine', 'robot-vacuum', 'timer-outline', 'check')
+# Not an argument of show_alert: the app sends the image itself to screens that can draw it (app 0.2.66, a Guition with
+# firmware 0.2.57+) and leaves it out for the others. (name, label, explanation, example) like ALERT_FIELDS.
+ALERT_CAMERA_FIELD = ('camera', 'Camera', 'A camera or image entity. A Guition with firmware 0.2.57+ shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. Other screens show the alert without it. Only through the esp_screens_show_alert event.', 'camera.front_door')
 # The firmware's MAX_TIMEOUT_SECONDS.
 ALERT_MAX_TIMEOUT = 86400
 # One alert for every screen (app 0.2.45): an automation fires one of these Home Assistant events and the
@@ -999,6 +1008,7 @@ def alert_reference():
             'endings': [{'action': action, 'label': label} for action, label in ALERT_ENDINGS],
             'fallback_icon': ALERT_FALLBACK_ICON, 'fallback_cp': tile_icons.GLYPHS[ALERT_FALLBACK_ICON],
             'fields': [{'name': name, 'type': kind, 'label': label, 'help': help_, 'example': example} for name, kind, label, help_, example in ALERT_FIELDS],
+            'camera': dict(zip(('name', 'label', 'help', 'example'), ALERT_CAMERA_FIELD)),
             'limits': ALERT_LIMITS,
             'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in TILE_BACKGROUNDS.items() if item['color']],
             'suggested_icons': [{'name': name, 'cp': tile_icons.GLYPHS[name]} for name in ALERT_SUGGESTED_ICONS],
@@ -1049,6 +1059,14 @@ def alert_data(data):
         if not usable and not missing:
             unusable.append(name)
     return service, unusable
+
+def alert_camera(data):
+    """(entity, usable): the alert's `camera` field when it names a camera or image entity; ('', True) without one."""
+    value = data.get(ALERT_CAMERA_FIELD[0]) if isinstance(data, dict) else None
+    if value is None or value == '':
+        return '', True
+    usable = isinstance(value, str) and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value.strip()) is not None and value.strip().split('.')[0] in CAMERA_DOMAINS
+    return (value.strip(), True) if usable else ('', False)
 
 def alert_targets(screens):
     """(ready, skipped): the paired screens that can show an alert now, and the others with the reason.

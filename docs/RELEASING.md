@@ -176,6 +176,51 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.66 / firmware 0.2.57
+
+Camera images on the Guition (docs/CAMERA.md). Storage, keys, preferences and the settings block are unchanged; the
+layout message is unchanged apart from two tile domains, and the `show_alert` action keeps its seven fields.
+
+- New tile domains `camera` and `image` in `core.DOMAINS` and the firmware's `valid_entity()`. `min_firmware()` asks
+  0.2.57 for them, and `Manager.save` refuses them for a screen whose board is not in `camera_feed.BOXES` (the CYD)
+  before it asks for firmware, so a CYD never hears "update first". The editor hides them for other boards; the top
+  bar refuses them (`header_entity`). An `image` tile carries `x.last` like a scene. Older firmware never gets these
+  tiles because of `min_firmware`.
+- New protocol, all optional: the screen fires `esphome.screen_camera` {inbox, entity} when a camera opens; the app
+  answers through `screen_message` with op `camera` {t: `full`|`alert`, e, u}. An empty `u` means no image. For an
+  alert the app sends op `camera` with `t: alert` and an empty `u` to screens that can show it (`camera_feed.can_show`:
+  a Guition on 0.2.57+) BEFORE `show_alert`, so the card opens with room, and the link after it. `show_alert` has no
+  camera field on purpose: Home Assistant requires every field of an ESPHome action, so a new field would break every
+  automation calling `esphome.<screen>_show_alert` directly. The camera is only a field of the
+  `esp_screens_show_alert` event (`core.alert_camera`, `ALERT_CAMERA_FIELD`).
+- The app publishes port 8098 (`config.yaml` `ports`) and serves `GET /camera/<token>.bmp` without the ingress guard.
+  Tokens are 24 random URL-safe characters, per camera and size; live links expire 120 s after their last use, an
+  alert's still after 30 min; at most 64 links. Only a camera on the screen's layout or in an alert of the last
+  30 min gets one. The address is Home Assistant's default adapter from the `network` websocket command, else the
+  host of `network/url`; `SCREEN_CAMERA_URL` / `SCREEN_CAMERA_PORT` override it (Docker). A port that cannot be
+  bound logs an error and leaves the rest of the app running.
+- Images are 24-bit BMP, not JPEG: ESPHome 2026.6.2 decodes a JPEG in one loop call (623 ms for 480x270 on the
+  Guition) and a BMP per downloaded chunk (`buffer_size: 4096`). Boxes: full 480x480, alert 392x220, proportions kept.
+- Fetching follows the screen: serving a live link starts the next snapshot fetch (`CameraFeed.frame(fresh=True)`),
+  one at a time per camera, so the picture changes at the screen's pace. The screen loads every 4 s start to start with
+  at least 800 ms free after a load (`camera_view.h`), never under a finger and never in standby. An alert fetches its
+  own snapshot (`now=True`), never one kept from an earlier view. A failing camera is asked again after 5-30 s.
+- Firmware (Guition profile only): `http_request` (4 s timeout, no TLS), two top-level `online_image`s
+  (`camera_image`, `alert_image`, the form 2026.6.2 knows; 2026.7+ reads it with a deprecation note), a hidden LVGL
+  `image` seed so `LV_USE_IMAGE` is compiled, the `alert_image_frame` in the alert card, `preview_camera` for
+  diagnostics and renders, theme roles `CAMERA_PAGE/INK/NOTE` and paint `camera`. The load hooks only call `set_url()`
+  for a new link, since it forgets the ETag. `runtime_tiles.h` builds the full view on `lv_layer_top()`; closing
+  frees the image on the next tick. `LV_USE_IMAGE` guards the drawing, so the CYD (no image widget) still compiles;
+  the CYD profile binds no hooks and never opens a camera.
+- Swipes, the settings hold and Back to page 1 treat an open camera like an open card; `close_cards` (standby,
+  Back to page 1, a new layout) closes it, and a new alert closes it first.
+- `guition_diagnostics.h` snapshots composite the top layer, so `capture_ui.py` shows alerts and the camera.
+- `backlight_fade.h` is gone. It derived from `esphome::ledc::LEDCOutput` to read its channel and bit depth, and
+  ESPHome 2026.8 declared that class `final`, so the Guition package no longer compiled in ESPHome Device Builder
+  2026.8+ (the app's own ESPHome 2026.6.2 still built it). `set_backlight` now only calls ESPHome's light transition
+  (1.5 s to standby, 80 ms to wake); a new call interrupts a running transition as ESPHome does. Both profiles and the
+  camera code were compiled with ESPHome 2026.6.2 and 2026.8.1 for this release.
+
 ### Compatibility 0.2.65 / firmware 0.2.56
 
 Both board profiles and the editor page; the app raises `FIRMWARE_VERSION`. Storage, tile protocol, preferences, keys

@@ -235,7 +235,7 @@ GLYPHS = {**{name: codepoint for name, (codepoint, _) in ICONS.items()}, **dict(
 # Mirrors runtime_tiles::icon_for() so the editor mockup shows what the screen draws.
 DEFAULTS = {'light': 'lightbulb', 'climate': 'air-conditioner', 'vacuum': 'robot-vacuum', 'fan': 'fan',
             'cover': 'window-shutter', 'scene': 'sofa', 'script': 'sofa', 'sensor': 'gauge', 'binary_sensor': 'gauge',
-            'timer': 'timer-outline', 'person': 'account', 'screen': 'clock-outline'}
+            'timer': 'timer-outline', 'person': 'account', 'camera': 'cctv', 'image': 'cctv', 'screen': 'clock-outline'}
 # The cards the screen brings itself: one icon per entity, not per domain.
 BUILTIN_TILES = {'screen.clock': 'clock-outline', 'screen.settings': 'cog'}
 FALLBACK = 'power'

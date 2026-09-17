@@ -11,6 +11,7 @@
 #include "light_controls.h"
 #include "tile_controls.h"
 #include "history_view.h"
+#include "camera_view.h"
 #include "swipe_profile.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
@@ -71,6 +72,10 @@ inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
 inline std::string last_run_text(uint32_t epoch);
 inline void history_received();
+// Camera images full screen and on an alert (firmware 0.2.57+, the Guition binds them; see the end of this file).
+inline void camera_open(const std::string &entity, const std::string &name);
+inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url);
+inline bool camera_supported();
 inline uint32_t domain_accent(const Tile &t);
 inline const char *icon_for(const Tile &tile);
 inline void label(lv_obj_t *obj, const std::string &text);
@@ -337,6 +342,16 @@ inline std::string receive(const std::string &payload) {
       last_received = esphome::millis();
       if (!same) refresh_header_only();
       // The same status as a tile state, so a changing value never flips the inbox entity.
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    if (op == "camera") {
+      // A link to a camera's image (app 0.2.66+): the answer to camera_request ("full"), or an alert's image ("alert",
+      // announced with an empty link before show_alert and sent again with the link). Only ESP Screens' own port.
+      const std::string view = string(root["t"], 8), entity = string(root["e"], 120), url = string(root["u"], 240);
+      if (!valid_entity(entity) || (view != "full" && view != "alert")) return false;
+      if (!url.empty() && url.rfind("http://", 0) != 0) return false;
+      camera_answer(view, entity, url);
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
@@ -1684,6 +1699,7 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "timer") return "\U000F051B";
   if (d == "person") return "\U000F0004";
   if (d == "screen") return tile.is_settings() ? "\U000F0493" : "\U000F0150";
+  if (d == "camera" || d == "image") return "\U000F07AE";
   return "\U000F0425";
 }
 // HA duration strings ("0:05:00") to seconds; 0 when unusable.
@@ -1749,6 +1765,8 @@ inline void event(lv_event_t *event) {
   auto d = tile.domain();
   // Scenes/scripts often have timestamps or 'off'; unavailable devices never act.
   if (!tile.available() || tile.loading(esphome::millis()) || tile.tap=="none") return;
+  // A camera or an image entity opens full screen on a board that draws images (firmware 0.2.57+).
+  if(d=="camera" || d=="image"){if(camera_supported())camera_open(tile.entity,tile.name);return;}
   bool open = code == LV_EVENT_LONG_PRESSED || d == "climate" || d == "vacuum" || d == "cover";
   if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="detail")open=true;
   if(code==LV_EVENT_SHORT_CLICKED && tile.tap=="toggle")open=false;
@@ -2395,6 +2413,8 @@ inline void render_slot(size_t slot) {
   else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? t.extra().sunrise+" - "+t.extra().sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
   else if (d == "timer") value = timer_text(t);
   else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Running..." : last_run_text(t.last_run);
+  else if (d == "camera") value = t.state == "streaming" ? "Live" : t.state == "recording" ? "Recording" : "Tap to view";
+  else if (d == "image") value = t.last_run ? "Tap to view" : "No image yet";
   else if (d == "binary_sensor" && (value == "on" || value == "off")) value = tile_controls::binary_state_text(t.device_class, value == "on");
   else if (value == "on") value = "On";
   else if (value == "off") value = "Off";
@@ -3084,3 +3104,261 @@ inline std::string vacuum_option(unsigned index) {
   return index < speeds.size() ? speeds[index] : "";
 }
 }
+
+// ---- Camera images (firmware 0.2.57+) ----
+// A camera or image tile, and an alert's image, open the camera full screen: the image as large as fits, the round back
+// key at the top left like on every card, the name beside it. ESP Screen Manager fetches the snapshot, sizes it for this
+// screen and serves it on its own port; camera_view::Feed decides when to ask for a link and when to load it again. The
+// board binds the two online_images (the full view and the alert's frame) through ImageHooks; a board without them (the
+// CYD) never opens the view. Nothing here exists while no camera is open, apart from the alert's small frame.
+namespace runtime_tiles {
+struct ImageHooks {
+  std::function<void(const std::string &)> load;  // set the online_image's URL and download it
+  std::function<void()> release;                  // free the decoded image
+  std::function<lv_image_dsc_t *()> source;       // the decoded image for LVGL
+};
+inline ImageHooks camera_full, camera_thumb;
+inline camera_view::Feed camera;
+// Freeing the image waits for the next tick: ending a download under way can take a few hundred ms, and Back should
+// show the page below at once.
+inline bool camera_release_due = false;
+inline lv_obj_t *camera_root = nullptr, *camera_picture = nullptr, *camera_note = nullptr, *camera_back = nullptr, *camera_title = nullptr;
+// The alert's image: the board's frame at the bottom left of the card, the camera the app announced for the next alert
+// and the one the card on screen shows.
+inline lv_obj_t *alert_frame = nullptr, *alert_picture = nullptr, *alert_frame_icon = nullptr;
+inline std::function<void(bool)> alert_room;  // the board makes the card taller for the frame, or back
+inline std::string alert_announced, alert_camera, alert_url;
+inline uint32_t alert_announced_at = 0, alert_retry_at = 0;
+inline uint8_t alert_retries = 0;
+inline bool alert_thumb_loading = false;
+constexpr uint8_t ALERT_IMAGE_RETRIES = 3;  // an alert's picture is worth another try after a failed connection
+
+inline bool camera_supported() { return static_cast<bool>(camera_full.load); }
+inline bool camera_visible() { return camera_root != nullptr; }
+
+// Asks ESP Screen Manager for a link (app 0.2.66+ answers with op "camera"). An event, like history_request.
+inline void camera_request(const std::string &entity) {
+  if (inbox.empty()) return;
+  esphome::api::HomeassistantActionRequest request;
+  request.service = esphome::StringRef("esphome.screen_camera");
+  request.is_event = true;
+  const std::string keys[] = {"inbox", "entity"}, values[] = {inbox, entity};
+  request.data.init(2);
+  for (int i = 0; i < 2; ++i) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef(keys[i]);
+    entry.value = esphome::StringRef(values[i]);
+    request.data.push_back(entry);
+  }
+  esphome::api::global_api_server->send_homeassistant_action(request);
+  ESP_LOGI("camera", "asked for %s", entity.c_str());
+}
+
+inline void camera_note_text(const char *text) {
+  if (!camera_note) return;
+  lv_label_set_text(camera_note, text);
+  if (text[0]) lv_obj_remove_flag(camera_note, LV_OBJ_FLAG_HIDDEN);
+  else lv_obj_add_flag(camera_note, LV_OBJ_FLAG_HIDDEN);
+}
+
+inline void camera_release() {
+  camera_release_due = false;
+  if (camera_full.release) camera_full.release();
+}
+
+inline void camera_close() {
+  if (!camera_root) return;
+  lv_obj_delete(camera_root);
+  camera_root = camera_picture = camera_note = camera_back = camera_title = nullptr;
+  camera_release_due = true;
+  ESP_LOGI("camera", "closed %s", camera.entity.c_str());
+  camera = camera_view::Feed{};
+}
+
+inline void camera_open(const std::string &entity, const std::string &name) {
+  if (!camera_supported() || !valid_entity(entity)) return;
+  camera_close();
+  // The last camera's image goes before this one loads into the same online_image.
+  if (camera_release_due) camera_release();
+  camera.open(entity);
+  const int width = lv_display_get_horizontal_resolution(lv_display_get_default());
+  const bool large = width >= 480;
+  // On the top layer: above the tiles, every card and an alert, which is there again after Back.
+  camera_root = lv_obj_create(lv_layer_top());
+  lv_obj_remove_style_all(camera_root);
+  lv_obj_set_size(camera_root, lv_pct(100), lv_pct(100));
+  lv_obj_remove_flag(camera_root, LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(camera_root, LV_OBJ_FLAG_CLICKABLE);  // nothing reaches the tiles below
+  lv_obj_set_style_bg_color(camera_root, theme::color(theme::CAMERA_PAGE), 0);
+  lv_obj_set_style_bg_opa(camera_root, LV_OPA_COVER, 0);
+  camera_note = lv_label_create(camera_root);
+  if (detail_font) lv_obj_set_style_text_font(camera_note, detail_font, 0);
+  lv_obj_set_style_text_color(camera_note, theme::color(theme::CAMERA_NOTE), 0);
+  lv_obj_center(camera_note);
+  camera_note_text("Loading image");
+  // The same top bar as a tile's card: a round back arrow at the left, the name centred.
+  const int bar = large ? 60 : 40, bar_x = large ? 16 : 10, bar_y = large ? 16 : 8;
+  camera_back = lv_obj_create(camera_root);
+  lv_obj_remove_style_all(camera_back);
+  lv_obj_set_pos(camera_back, bar_x, bar_y);
+  lv_obj_set_size(camera_back, bar, bar);
+  lv_obj_add_flag(camera_back, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_radius(camera_back, LV_RADIUS_CIRCLE, 0);
+  lv_obj_set_style_bg_opa(camera_back, LV_OPA_COVER, 0);
+  lv_obj_set_style_bg_color(camera_back, theme::color(theme::KEY), 0);
+  lv_obj_set_style_bg_color(camera_back, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
+  auto *arrow = lv_label_create(camera_back);
+  if (mini_icon_font) lv_obj_set_style_text_font(arrow, mini_icon_font, 0);
+  lv_obj_set_style_text_color(arrow, theme::color(theme::INK), 0);
+  lv_label_set_text(arrow, "\U000F004D");
+  lv_obj_center(arrow);
+  lv_obj_add_event_cb(camera_back, [](lv_event_t *) {
+    // Closed after this event: the key that sends it goes with the view.
+    lv_async_call([](void *) { camera_close(); }, nullptr);
+  }, LV_EVENT_SHORT_CLICKED, nullptr);
+  const lv_font_t *title_font = watch_font ? watch_font : detail_font;
+  camera_title = lv_label_create(camera_root);
+  if (title_font) lv_obj_set_style_text_font(camera_title, title_font, 0);
+  lv_obj_set_style_text_color(camera_title, theme::color(theme::CAMERA_INK), 0);
+  lv_obj_set_style_text_align(camera_title, LV_TEXT_ALIGN_CENTER, 0);
+  lv_label_set_long_mode(camera_title, LV_LABEL_LONG_DOT);
+  lv_obj_set_pos(camera_title, bar_x + bar + 8, bar_y + (bar - (title_font ? lv_font_get_line_height(title_font) : 20)) / 2);
+  lv_obj_set_size(camera_title, width - 2 * (bar_x + bar + 8), title_font ? lv_font_get_line_height(title_font) : 20);
+  lv_label_set_text(camera_title, name.c_str());
+  ESP_LOGI("camera", "open %s", entity.c_str());
+}
+
+// The board's interval (250 ms): ask for a link, or load the image again when it is time. Loading happens here, in
+// ESPHome's loop, and never while the screen is in standby.
+inline void camera_tick() {
+  const uint32_t now = esphome::millis();
+  if (camera_release_due && !camera_root) camera_release();
+  if (alert_retry_at && now >= alert_retry_at) {
+    alert_retry_at = 0;
+    if (!alert_camera.empty() && !alert_url.empty() && camera_thumb.load) {
+      alert_thumb_loading = true;
+      camera_thumb.load(alert_url);
+    }
+  }
+  if (!camera_root || !awake()) return;
+  if (camera.should_ask(now)) {
+    if (!fresh()) return;
+    camera.ask(now);
+    camera_request(camera.entity);
+  } else if (camera.should_load(now)) {
+    // Not under a finger: a load that starts now would hold up the tap that is on its way.
+    auto *input = lv_indev_get_next(nullptr);
+    if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
+    camera.start(now);
+    camera_full.load(camera.url);
+  }
+}
+
+inline void alert_picture_clear() {
+  alert_retry_at = 0;
+  if (alert_picture) { lv_obj_delete(alert_picture); alert_picture = nullptr; }
+  if (alert_frame_icon) lv_obj_remove_flag(alert_frame_icon, LV_OBJ_FLAG_HIDDEN);
+  if (alert_thumb_loading || alert_camera.size()) { if (camera_thumb.release) camera_thumb.release(); }
+  alert_thumb_loading = false;
+}
+
+// alert_show: the card gets its frame when the app announced a camera for it just before. A new alert closes the camera.
+inline void alert_prepare() {
+  camera_close();
+  alert_picture_clear();
+  const bool with_image = camera_supported() && alert_frame && !alert_announced.empty() &&
+                          esphome::millis() - alert_announced_at < camera_view::PENDING_MS;
+  alert_camera = with_image ? alert_announced : std::string();
+  alert_url.clear();
+  alert_announced.clear();
+  if (alert_frame) {
+    if (with_image) lv_obj_remove_flag(alert_frame, LV_OBJ_FLAG_HIDDEN);
+    else lv_obj_add_flag(alert_frame, LV_OBJ_FLAG_HIDDEN);
+  }
+  if (alert_room) alert_room(with_image);
+}
+
+// alert_dismiss: the frame goes, and so does its image.
+inline void alert_clear() {
+  alert_picture_clear();
+  alert_camera.clear();
+  alert_url.clear();
+  if (alert_frame) lv_obj_add_flag(alert_frame, LV_OBJ_FLAG_HIDDEN);
+}
+
+inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url) {
+  if (!camera_supported()) return;
+  if (view == "full") {
+    if (!camera_root || camera.entity != entity) return;
+    camera.link(url);
+    if (url.empty() && !camera.shown) camera_note_text("No image from this camera");
+    return;
+  }
+  if (url.empty()) {  // announced before its alert
+    alert_announced = entity;
+    alert_announced_at = esphome::millis();
+    return;
+  }
+  if (entity != alert_camera || !alert_frame || lv_obj_has_flag(alert_frame, LV_OBJ_FLAG_HIDDEN)) return;
+  alert_picture_clear();
+  alert_url = url;
+  alert_retries = 0;
+  alert_thumb_loading = true;
+  camera_thumb.load(url);
+}
+
+// LVGL's image widget is only built for a board whose profile draws images (the Guition's hidden seed); the CYD's has none.
+inline void camera_show(lv_obj_t *parent, lv_obj_t *&picture, lv_image_dsc_t *source, bool fresh_pixels) {
+#if LV_USE_IMAGE
+  if (!source || !source->data) return;
+  if (!picture) {
+    picture = lv_image_create(parent);
+    lv_obj_remove_flag(picture, LV_OBJ_FLAG_CLICKABLE);
+    lv_image_set_src(picture, source);
+    lv_obj_center(picture);
+    return;
+  }
+  if (!fresh_pixels) return;
+  // The same buffer with new pixels. LVGL keeps no decoded copy of an RGB565 image (its image cache is off in
+  // ESPHome's build), so drawing the area again shows them.
+  lv_image_set_src(picture, source);
+  lv_obj_invalidate(picture);
+#else
+  (void) parent; (void) picture; (void) source; (void) fresh_pixels;
+#endif
+}
+
+// The board's online_image triggers. `thumb`: the alert's frame; `cached`: the app answered 304, the image is unchanged.
+inline void camera_loaded(bool thumb, bool cached) {
+  if (thumb) {
+    alert_thumb_loading = false;
+    if (alert_camera.empty() || !alert_frame) return;
+    camera_show(alert_frame, alert_picture, camera_thumb.source(), !cached);
+    if (alert_picture && alert_frame_icon) lv_obj_add_flag(alert_frame_icon, LV_OBJ_FLAG_HIDDEN);
+    return;
+  }
+  if (!camera_root) return;
+  camera.finish(esphome::millis(), true);
+  const bool first = camera_picture == nullptr;
+  camera_show(camera_root, camera_picture, camera_full.source(), !cached);
+  if (first && camera_picture) {
+    camera_note_text("");
+    lv_obj_move_foreground(camera_back);
+    lv_obj_move_foreground(camera_title);
+  }
+}
+
+inline void camera_failed(bool thumb) {
+  if (thumb) {
+    alert_thumb_loading = false;
+    if (!alert_camera.empty() && !alert_picture && alert_retries < ALERT_IMAGE_RETRIES) {
+      ++alert_retries;
+      alert_retry_at = esphome::millis() + 1500;
+    }
+    return;
+  }
+  if (!camera_root) return;
+  camera.finish(esphome::millis(), false);
+  if (!camera.shown) camera_note_text("No image from this camera");
+}
+}  // namespace runtime_tiles

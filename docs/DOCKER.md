@@ -80,6 +80,10 @@ under **Settings → Devices & services** in Home Assistant, and then choose the
   ESPHome folder. `data/build` and `data/platformio` are caches.
 - **Claude:** **Install for Claude Code** is meant for the Claude Code app on Home Assistant
   OS. Use **Download for claude.ai** instead.
+- **Camera images (Guition, app 0.2.66+):** the screens load camera pictures from port **8098**
+  of this host, on all its addresses, so keep that port open to the screens. The app uses Home
+  Assistant's own LAN address; when the screens reach this host under another one, set
+  `SCREEN_CAMERA_URL` (see below). The links are random and short-lived. [docs/CAMERA.md](CAMERA.md)
 
 ## Updating
 
@@ -96,8 +100,10 @@ After an update, ESP Screens shows per screen whether newer firmware is availabl
 
 | Setting | What it does |
 | --- | --- |
-| `SCREEN_DEV: "1"` | Runs the app outside the Supervisor: it reads the token from `HA_TOKEN_FILE` and only listens on 127.0.0.1 |
+| `SCREEN_DEV: "1"` | Runs the app outside the Supervisor: it reads the token from `HA_TOKEN_FILE` and serves its page on 127.0.0.1 only (camera images still on port 8098 for the screens) |
 | `HA_API` | Home Assistant's address, ending in `/api` |
 | `HA_TOKEN_FILE` | The token file inside the container (the `ha_token` secret) |
 | `ESPHOME_CONFIG` | The ESPHome folder inside the container |
 | `SCREEN_DATA` | Layouts, update settings, and build caches |
+| `SCREEN_CAMERA_URL` | Optional: where screens load camera images, such as `http://192.168.1.20:8098`; by default Home Assistant's own LAN address |
+| `SCREEN_CAMERA_PORT` | Optional: the camera image port instead of 8098 |

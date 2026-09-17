@@ -23,7 +23,7 @@ WORK = ROOT / '.esphome' / 'render-topbar'
 PROFILES = {'guition': 'guition-4848s040.yaml', 'cyd': 'home-like-2432s028.yaml'}
 FONTS = ('headline', 'time_label', 'sublabel_big', 'label', 'materialdesign_icons', 'materialdesign_icons_mini')
 # Hardware headers the host cannot compile; the top bar needs none of them.
-SKIP = {'backlight_fade.h', 'guition_diagnostics.h', '__pycache__'}
+SKIP = {'guition_diagnostics.h', '__pycache__'}
 # Header band per board: page width and height above the tiles.
 BANDS = {'guition': (480, 72), 'cyd': (320, 40)}
 

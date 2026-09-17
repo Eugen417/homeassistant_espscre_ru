@@ -806,6 +806,8 @@ const domains = {
   sun: ["Sun", "☼", "#c86620", "#ffebdc"],
   timer: ["Timer", "⏱", "#008577", "#def3ed"],
   person: ["Person", "☺", "#2f7d32", "#e1f2e2"],
+  camera: ["Camera", "◧", "#3d4a57", "#e6ebf0"],
+  image: ["Image", "◧", "#3d4a57", "#e6ebf0"],
 };
 const displayNames = { standard: "standard", watch: "large value", forecast: "weather forecast", graph: "graph", digital: "digital clock", analog: "analog clock", sunpath: "sun path" };
 // Same rule as the add-on: only a wide card in the standard layout shows direct controls;
@@ -2009,8 +2011,11 @@ function renderResults() {
   if (!layout) return;
   const query = $("#search").value.toLocaleLowerCase();
   const chosen = new Set(layout.tiles.map((t) => t.entity));
+  // Camera images need a Guition (app 0.2.66); the add-on refuses them for other screens too.
+  const guition = inventory.screens.find((s) => s.id === selected)?.board === "guition";
   const matches = [...(inventory.builtin || []), ...inventory.entities].filter(
     (e) =>
+      (guition || !["camera", "image"].includes(e.id.split(".")[0])) &&
       (!filter || e.id.startsWith(filter + ".") ||
         ({switch:"input_boolean", number:"input_number", select:"input_select", weather:"sun"}[filter] === e.id.split(".")[0])) &&
       `${e.name} ${e.id} ${e.device} ${e.area}`
@@ -2612,6 +2617,8 @@ function alertWaitYaml(action) {
 function alertAllYaml() {
   const fields = inventory.alerts?.fields || [];
   const lines = fields.map((f) => `  ${f.name}: ${f.type === "string" ? (/^[a-z][a-z0-9-]*$/.test(f.example) ? f.example : yamlString(f.example)) : String(f.example)}`);
+  const camera = inventory.alerts?.camera;
+  if (camera) lines.push(`  # ${camera.name}: ${camera.example}   # a Guition shows its picture on the card`);
   return `event: ${inventory.alerts?.broadcast?.show || "esp_screens_show_alert"}\nevent_data:\n${lines.join("\n")}`;
 }
 function renderAlertBroadcast() {
@@ -2747,6 +2754,16 @@ function renderAlertTables() {
     const limit = alerts.limits.cyd[field.name];
     const cells = [name, node("td", types[field.type] || field.type), node("td", field.help), example,
                    node("td", limit ? `CYD ${limit} · Guition ${alerts.limits.guition[field.name]} bytes` : field.type === "int" ? "0 to 86400 s" : "—")];
+    cells.forEach((cell, index) => cell.dataset.label = ["Field", "Type", "What it does", "Example", "Limit"][index]);
+    row.append(...cells);
+    table.append(row);
+  }
+  // The camera image (app 0.2.66): a field of the event for every screen, not of a screen's own action.
+  if (alerts.camera) {
+    const row = node("tr"), name = node("td"), example = node("td");
+    name.append(node("code", alerts.camera.name), node("small", alerts.camera.label));
+    example.append(node("code", alerts.camera.example));
+    const cells = [name, node("td", "entity"), node("td", alerts.camera.help), example, node("td", "Guition, firmware 0.2.57+")];
     cells.forEach((cell, index) => cell.dataset.label = ["Field", "Type", "What it does", "Example", "Limit"][index]);
     row.append(...cells);
     table.append(row);

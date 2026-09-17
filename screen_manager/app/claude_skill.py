@@ -12,7 +12,7 @@ from pathlib import Path
 import zipfile
 
 import tile_icons
-from core import (ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
+from core import (ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
                   CONTROLS, DISPLAYS, MAX_PAGES, SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS,
                   TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE,
@@ -180,6 +180,8 @@ actions:
 | Field | Type | Meaning | Limit |
 |---|---|---|---|
 {fields}
+
+The event for every screen takes one more field, `{ALERT_CAMERA_FIELD[0]}`: {ALERT_CAMERA_FIELD[2]} Example: `{ALERT_CAMERA_FIELD[0]}: {ALERT_CAMERA_FIELD[3]}`. Use a real `camera.*` or `image.*` entity from this Home Assistant (a doorbell integration usually has one); the per-screen actions have no such field.
 
 Text limits are in bytes; an accented letter takes two. Keep the title short: a screen shows about twenty characters of it on one line and ends a longer title with an ellipsis. Put details in the subtitle.
 

@@ -1,3 +1,16 @@
+## 0.2.66 (firmware 0.2.57)
+
+Camera images on the Guition: see who is at the door.
+
+- **An alert with a picture.** Add `camera: camera.front_door` to the `esp_screens_show_alert` event and a Guition shows the camera's picture of that moment across the top of the alert card, with the title and subtitle under it. A tap on the picture opens the camera full screen over the alert; Back returns to the alert. Any `camera.*` or `image.*` entity works. Other screens show the same alert without the picture.
+- **A camera tile.** Add a `camera.*` or `image.*` entity as a tile on a Guition. A tap opens the image full screen, with the round back key at the top left like on every card, and the image refreshes every four seconds, at a steady pace, while it is open. It is not video: ESPHome has no video decoder. Standby and **Back to page 1** close it, and a new alert closes it before it opens.
+- **How it works.** The screen never gets a Home Assistant token. ESP Screen Manager fetches the snapshot, makes it exactly as large as the screen draws it and serves it on a new port, **8098**, under a random link that stops working when nobody uses it. On Home Assistant OS the app opens that port itself; keep it at 8098. docs/CAMERA.md has the details, Docker included.
+- **Smooth while it loads.** The image arrives as an uncompressed BMP, which the Guition decodes piece by piece while it downloads; a JPEG held the screen for more than half a second per image, long enough to miss a tap. The app fetches the camera's next snapshot each time the screen loads one, so a new picture follows every four seconds instead of after one and a half seconds one time and six the next. A slow camera makes the picture older, never the screen slower.
+- **The alert's picture is the moment it rang.** It stays as it was when the alert came in; tap it for the camera now.
+- **The Guition builds with ESPHome 2026.8 and newer.** Its firmware no longer uses a backlight fader of its own, which reached into ESPHome's LEDC output; ESPHome 2026.8 closed that off, so **Install** in ESPHome Device Builder failed for a Guition. Standby now dims through ESPHome's own light transition, like any light. Updating from ESP Screens was not affected.
+- **The Claude skill and the Alerts cheatsheet** describe the `camera` field. Install the skill again from Settings → Claude to get it.
+- Needs firmware 0.2.57 on the Guition: press **Update** on the screen. The CYD gets 0.2.57 too, without camera images: it has no memory for them.
+
 ## 0.2.65 (firmware 0.2.56)
 
 Wake lights the screen, and ESP Screens lets you pick the screen.

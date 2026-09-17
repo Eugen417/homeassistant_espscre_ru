@@ -84,9 +84,9 @@ class Profiles(unittest.TestCase):
             self.assertIn('- script.execute: back_to_page_1_when_due', interval, name)
             self.assertNotIn('auto_home', interval, f'{name}: one copy of the rule')
             self.assertEqual(len(re.findall(r'script\.execute: back_to_page_1_when_due', text)), 2, name)
-            # Written by the boot, the three touchscreen triggers, Home Assistant opening the settings page and the
-            # UI self test only; Wake, an alert ending and Auto standby restart the standby time alone.
-            self.assertEqual(len(re.findall(r'id\(last_use_ms\) = millis\(\);', text)), 6, name)
+            # Written by the boot, the three touchscreen triggers, Home Assistant opening the settings page (and, on the
+            # Guition, a camera) and the UI self test only; Wake, an alert ending and Auto standby restart the standby time alone.
+            self.assertEqual(len(re.findall(r'id\(last_use_ms\) = millis\(\);', text)), 7 if 'preview_camera' in text else 6, name)
             touch = section(text, 'touchscreen')
             for trigger in ('on_touch', 'on_update', 'on_release'):
                 body = re.search(rf'^  {trigger}:\n(.*?)(?=^  [a-z_]+:|\Z)', touch, re.M | re.S)[1]

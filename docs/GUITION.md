@@ -44,10 +44,10 @@ four pages; navigation disappears at six or fewer. The current interface has a
 light gray background, white cards, and colored domain icons. From 0.2.10, you
 can choose a pastel background with dark text per tile. Standby starts
 after ten minutes without touch by default and is adjustable in the management page.
-From 0.2.13, the backlight dims via the LEDC hardware fader (`backlight_fade.h`,
-1.5 s to standby, 80 ms to wake): the full LVGL redraw on standby no longer
-interrupts the transition. ESPHome's light state is synced after the fade,
-so the entity in HA and later transitions stay correct.
+The backlight dims through ESPHome's own light transition (1.5 s to standby, 80 ms to
+wake). Firmware 0.2.13-0.2.56 used the LEDC hardware fader (`backlight_fade.h`) instead;
+0.2.57 went back to ESPHome's transition, because that fader reached into ESPHome's LEDC
+output, which ESPHome 2026.8 no longer allows.
 
 The existing tile actions, climate control, and vacuum card are preserved.
 Every card type works in all twenty positions.

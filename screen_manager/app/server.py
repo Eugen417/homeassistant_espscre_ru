@@ -10,13 +10,14 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 import math
+import camera_feed
 import claude_skill
 from firmware import Firmware
 import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BUILTIN, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state
 import header_bar
 import history_card
@@ -107,6 +108,8 @@ class HomeAssistant:
         self.services_changed = asyncio.Event()
         # History a detail card asks for when it opens (firmware 0.2.51+): {inbox, entity, hours}, for Manager.card_history_loop.
         self.history_requests = asyncio.Queue()
+        # A camera a screen opens full screen (firmware 0.2.57+): {inbox, entity}, for Manager.camera_loop.
+        self.camera_requests = asyncio.Queue()
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -142,6 +145,8 @@ class HomeAssistant:
                     self.changed.set()
                 elif event.get('event_type') == 'esphome.screen_history':
                     self.history_requests.put_nowait(body)
+                elif event.get('event_type') == 'esphome.screen_camera':
+                    self.camera_requests.put_nowait(body)
                 elif event.get('event_type') == 'state_changed':
                     eid = body.get('entity_id')
                     if body.get('new_state'):
@@ -205,6 +210,7 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type='state_changed')
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
                     await self.request('subscribe_events', event_type='esphome.screen_history')
+                    await self.request('subscribe_events', event_type='esphome.screen_camera')
                     for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
@@ -286,6 +292,21 @@ class HomeAssistant:
         """One Home Assistant action, such as a screen's esphome.<node>_show_alert."""
         domain, service = action.split('.', 1)
         await self.request('call_service', domain=domain, service=service, service_data=data)
+
+    async def camera_image(self, entity):
+        """The picture of a camera or image entity as Home Assistant hands it to its own frontend."""
+        path = 'camera_proxy' if entity.startswith('camera.') else 'image_proxy'
+        async with self.session.get(f'{self.base}/{path}/{entity}', headers={'Authorization': 'Bearer ' + self.token},
+                                    timeout=ClientTimeout(total=camera_feed.FETCH_SECONDS)) as response:
+            response.raise_for_status()
+            if (response.content_length or 0) > camera_feed.MAX_SNAPSHOT_BYTES:
+                raise ValueError('image too large')
+            raw = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                raw += chunk
+                if len(raw) > camera_feed.MAX_SNAPSHOT_BYTES:
+                    raise ValueError('image too large')
+            return bytes(raw)
 
     async def fire(self, event_type, data):
         """One Home Assistant event of our own, such as the answer to a tile event."""
@@ -395,6 +416,10 @@ class Manager:
         self.retry_at, self.retries, self.no_answers = {}, {}, set()
         # History for detail cards (firmware 0.2.51+): (entity, hours) -> (monotonic, message), and the fetches under way.
         self.card_histories, self.card_history_fetches = {}, {}
+        # Camera images (firmware 0.2.57+): the feed behind the camera port, and the cameras of recent alerts
+        # (entity -> monotonic time) that a screen may open full screen without a tile.
+        self.camera = camera_feed.CameraFeed(lambda entity: self.ha.camera_image(entity))
+        self.alert_cameras = {}
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
@@ -794,6 +819,9 @@ class Manager:
         if screen is None:
             raise ValueError("This isn't a paired ESP screen. Refresh the overview.")
         layout = validate_layout(data)
+        # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
+        if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and screen.get('board') not in camera_feed.BOXES:
+            raise ValueError('Camera images need a Guition screen.')
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             raise ValueError(f"Install screen firmware {needed} or newer first for these tiles.")
@@ -1160,19 +1188,101 @@ class Manager:
             except Exception as error:
                 LOG.warning('Refreshing history failed (%s)', type(error).__name__)
 
+    # ----- Camera images (firmware 0.2.57+) -----
+    async def camera_loop(self):
+        """Answer the cameras screens open full screen, a few at a time."""
+        limit = asyncio.Semaphore(4)
+
+        async def answer(request):
+            async with limit:
+                try:
+                    await self.answer_camera(request)
+                except Exception as error:
+                    LOG.warning('Camera for %s was not sent (%s)', request.get('entity') if isinstance(request, dict) else '?', type(error).__name__)
+        queue = getattr(self.ha, 'camera_requests', None)
+        while queue is not None:
+            request = await queue.get()
+            asyncio.ensure_future(answer(request))
+
+    def camera_allowed(self, inbox, entity):
+        """A camera on the screen's own layout, or one a recent alert showed."""
+        seen = self.alert_cameras.get(entity)
+        if seen is not None and time.monotonic() - seen < camera_feed.STILL_SECONDS:
+            return True
+        return entity in {tile['entity'] for tile in self.layouts.get(inbox, {}).get('tiles', [])}
+
+    async def camera_message(self, entity, view, board, still=None):
+        """The screen message for one camera view: a link to its image, or an empty link when there is none."""
+        url = ''
+        base = await camera_feed.base_url(self.ha.request)
+        if base:
+            box = camera_feed.BOXES[board][view]
+            if view == 'thumb':
+                token = self.camera.link(entity, box, still) if still else None
+            else:
+                token = self.camera.link(entity, box) if await self.camera.frame(entity, box) else None
+            url = f'{base}/camera/{token}.bmp' if token else ''
+        else:
+            LOG.warning('Camera images: no address for this app on the LAN; set SCREEN_CAMERA_URL')
+        return {'v': 1, 'op': 'camera', 't': 'alert' if view == 'thumb' else 'full', 'e': entity, 'u': url}
+
+    async def answer_camera(self, request):
+        """One screen's request: a camera it may show, on a screen that draws camera images."""
+        if not isinstance(request, dict):
+            return
+        inbox = self.aliases.get(request.get('inbox'), request.get('inbox'))
+        entity = request.get('entity')
+        screen = self.screen(inbox) if isinstance(inbox, str) else None
+        if not camera_feed.supported(entity) or not camera_feed.can_show(screen) or not screen.get('online'):
+            return
+        action = self.transport(inbox, screen)
+        if not action or not self.camera_allowed(inbox, entity):
+            return
+        message = await self.camera_message(entity, 'full', screen['board'])
+        await self.ha.send(inbox, message, action)
+        LOG.info('Camera %s on %s%s', entity, screen['name'], '' if message['u'] else ': no image')
+
+    async def alert_images(self, camera, screens):
+        """The picture of an alert's camera at that moment, on every screen that draws it."""
+        self.alert_cameras[camera] = time.monotonic()
+        for old in [entity for entity, moment in self.alert_cameras.items() if time.monotonic() - moment > camera_feed.STILL_SECONDS]:
+            del self.alert_cameras[old]
+        boards = {}
+        for screen in screens:
+            boards.setdefault(screen['board'], []).append(screen)
+        for board, group in boards.items():
+            found = await self.camera.frame(camera, camera_feed.BOXES[board]['thumb'], fresh=False, now=True)
+            message = await self.camera_message(camera, 'thumb', board, found[1] if found else None)
+            results = await asyncio.gather(*(self.ha.send(screen['id'], message, self.transport(screen['id'], screen)) for screen in group),
+                                           return_exceptions=True)
+            failed = sum(isinstance(result, BaseException) for result in results)
+            LOG.info('Alert image of %s: %d of %d screens%s', camera, len(group) - failed, len(group), '' if message['u'] else ' (no image)')
+
     async def broadcast(self, event_type, data):
         """An alert event for every screen: the matching action on each screen that can show it, all at once."""
         action = BROADCAST_EVENTS[event_type]
         service_data, unusable = alert_data(data) if action == 'show_alert' else ({}, [])
+        camera, usable = alert_camera(data) if event_type == BROADCAST_SHOW else ('', True)
+        if not usable:
+            unusable.append('camera')
         if unusable:
             LOG.warning('%s: unusable %s left empty', event_type, ', '.join(unusable))
         ready, skipped = alert_targets(self.screens())
+        # A screen that draws the image hears about it before the alert, so the card opens with room for it.
+        viewers = [screen for screen in ready if camera and camera_feed.can_show(screen) and self.transport(screen['id'], screen)]
+        if viewers:
+            pending = {'v': 1, 'op': 'camera', 't': 'alert', 'e': camera, 'u': ''}
+            await asyncio.gather(*(self.ha.send(screen['id'], pending, self.transport(screen['id'], screen)) for screen in viewers),
+                                 return_exceptions=True)
         results = await asyncio.gather(*(self.ha.call(alert_service(screen['node'], action), service_data) for screen in ready),
                                        return_exceptions=True)
         failed = [(screen, type(result).__name__) for screen, result in zip(ready, results) if isinstance(result, BaseException)]
         notes = [f"{screen['name']} {reason}" for screen, reason in skipped + failed]
         LOG.info('%s: %d of %d screens%s', event_type, len(ready) - len(failed), len(ready) + len(skipped),
                  f" (not: {'; '.join(notes)})" if notes else '')
+        shown = [screen for screen, result in zip(ready, results) if not isinstance(result, BaseException)]
+        if viewers and any(screen in shown for screen in viewers):
+            await self.alert_images(camera, [screen for screen in viewers if screen in shown])
         return {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
 
     async def tile_event(self, event_type, data):
@@ -1416,10 +1526,19 @@ async def main():
         runner = web.AppRunner(create_app(manager, development), access_log=None)
         await runner.setup()
         await web.TCPSite(runner, '127.0.0.1' if development else '0.0.0.0', 8099).start()
+        # Camera images for the screens: their own port on the LAN, not the ingress page (docs/CAMERA.md).
+        cameras = web.AppRunner(camera_feed.web_app(manager.camera), access_log=None)
+        await cameras.setup()
+        try:
+            await web.TCPSite(cameras, '0.0.0.0', camera_feed.port()).start()
+        except OSError as error:
+            # Everything else still works; only camera images stay away.
+            LOG.error('Camera images are off: port %d is not available (%s)', camera_feed.port(), error)
         try:
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
-                                 manager.alert_loop(), manager.tile_loop(), manager.card_history_loop())
+                                 manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop())
         finally:
+            await cameras.cleanup()
             await runner.cleanup()
 
 if __name__ == '__main__':

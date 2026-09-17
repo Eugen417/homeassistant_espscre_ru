@@ -73,6 +73,10 @@ enum Role : uint8_t {
   AMBER_TRACK,          // the track of a light's brightness slider
   HISTORY_OFF,          // an off or away stretch on a timeline (the add-on's CFCFCF)
   HISTORY_EMPTY,        // a stretch without data on a timeline (the add-on's E6E6E6)
+  // ---- a camera image: dark in both looks, like a photo viewer (firmware 0.2.57+)
+  CAMERA_PAGE,          // behind the image full screen and in the alert's image frame
+  CAMERA_INK,           // the camera's name over the image
+  CAMERA_NOTE,          // "Loading image", "No image from this camera"
   // ---- the CYD's touch calibration: dark in both looks, a yellow crosshair
   CALIBRATION_PAGE,
   CALIBRATION_INK,
@@ -137,6 +141,9 @@ inline constexpr Pair ROLES[ROLE_COUNT] = {
   /* AMBER_TRACK */              {0xFDEFC3, 0x483B16},
   /* HISTORY_OFF */              {0xCFCFCF, 0x4A4A4A},
   /* HISTORY_EMPTY */            {0xE6E6E6, 0x2A2A2A},
+  /* CAMERA_PAGE */              {0x000000, 0x000000},
+  /* CAMERA_INK */               {0xF2F2F2, 0xDADADA},
+  /* CAMERA_NOTE */              {0x9E9E9E, 0x8A8A8A},
   /* CALIBRATION_PAGE */         {0x101820, 0x101820},
   /* CALIBRATION_INK */          {0xFFFFFF, 0xFFFFFF},
   /* CALIBRATION_MARK */         {0xFFD34D, 0xFFD34D},
@@ -281,7 +288,7 @@ inline lv_color_t rgb(uint32_t value) { return lv_color_hex(value); }
 constexpr uint8_t NONE = 0xFF;
 enum class Paint : uint8_t {
   page, page_soft, page_pressed, card, raised, key, key_pressed, track, ink, ink_soft, muted, subtle, slate,
-  scrim, veil, accent_tint, accent_bright, button_dark, button_dark_pressed, knob, spinner, calibration, COUNT
+  scrim, veil, accent_tint, accent_bright, button_dark, button_dark_pressed, knob, spinner, calibration, camera, COUNT
 };
 struct PaintRoles { uint8_t bg, border, text, line, arc; };
 inline constexpr PaintRoles PAINTS[static_cast<size_t>(Paint::COUNT)] = {
@@ -307,6 +314,7 @@ inline constexpr PaintRoles PAINTS[static_cast<size_t>(Paint::COUNT)] = {
   /* knob */                {KNOB, NONE, NONE, NONE, NONE},
   /* spinner */             {NONE, NONE, NONE, NONE, SPINNER_TRACK},
   /* calibration */         {CALIBRATION_PAGE, NONE, CALIBRATION_INK, NONE, NONE},
+  /* camera */              {CAMERA_PAGE, NONE, CAMERA_NOTE, NONE, NONE},
 };
 // Fill a style with a paint in the current look. Setting a property the style already has allocates nothing.
 inline void fill(lv_style_t *style, Paint paint) {

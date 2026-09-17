@@ -14,7 +14,7 @@ lights, the heating or the vacuum.
 **What.** Firmware for two affordable panels, the 2.8-inch CYD and the 4-inch Guition, with up to
 twenty tiles over four pages: lights, climate, blinds and curtains, the vacuum, media, the weather,
 history graphs, clocks and timers. An automation can put an alert on every screen when someone rings
-the bell.
+the bell, and a Guition shows who is there with the doorbell camera's picture.
 
 **How.** ESP Screen Manager is an app inside Home Assistant. It flashes a new screen over USB, updates
 it over Wi-Fi and sends it your tiles. Changing a screen is pick, drag and **Save & send to screen**:
@@ -78,10 +78,15 @@ no reflash, no YAML to write, no blueprint, MQTT or token.
 ## Alerts
 
 <p align="center">
+  <img src="docs/images/guition-alert-camera.png" width="41%" alt="An alert on the Guition with the front door camera's picture across the top: someone is at the door, with a Coming button">
+  <img src="docs/images/guition-camera.png" width="41%" alt="The front door camera full screen on the Guition, with the round back key and the camera's name at the top">
+</p>
+<p align="center"><sub>Someone at the door? One event in an automation wakes every screen and shows it. Add the doorbell camera and a Guition shows who is there; tap the picture, or a camera tile, for the camera full screen, refreshed every few seconds. <a href="docs/CAMERA.md">Camera images</a>.</sub></p>
+<p align="center">
   <img src="docs/images/guition-alert.png" width="41%" alt="An alert on the Guition: someone is at the door, with a Coming button">
   <img src="docs/images/editor-alerts.png" width="53%" alt="The Alerts cheatsheet in ESP Screens: the action name of every screen, ready to copy">
 </p>
-<p align="center"><sub>Someone at the door? One action in an automation wakes the screen and shows it, on one screen or all of them. <a href="README_EXTENDED.md#alert-from-an-automation">How alerts work</a>.</sub></p>
+<p align="center"><sub>Any alert, on one screen or all of them, in a pastel color of your choice. <a href="README_EXTENDED.md#alert-from-an-automation">How alerts work</a>.</sub></p>
 
 ## Installing from Home Assistant
 
