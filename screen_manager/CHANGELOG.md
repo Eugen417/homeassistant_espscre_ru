@@ -1,3 +1,10 @@
+## 0.2.60 (firmware 0.2.52)
+
+Sliders keep their colour while a speaker plays or a blind is open.
+
+- **Coloured sliders for speakers, blinds and numbers.** Since 0.2.42 the volume slider of a playing speaker, the position slider of a blind or curtain and the slider of a number were grey, the colour of a light that is off. Sliders now follow Home Assistant's tile sliders: a speaker that plays, is paused or is idle shows its volume in blue, a cover its position in purple, also when it is closed, and a number its value in teal. A speaker that is off or in standby, and a light or fan that is off, stay grey. This goes for the sliders on double-width tiles and for the small sliders on single tiles.
+- Needs firmware 0.2.52: press **Update** on the screen.
+
 ## 0.2.59 (firmware 0.2.51)
 
 A history card you can read: axes, an hour, a day or a week, and the value under your finger.

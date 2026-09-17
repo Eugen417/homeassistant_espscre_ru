@@ -156,6 +156,17 @@ struct Tile {
     return state == "on" || state == "cleaning" || state == "active" || (domain() == "person" && state == "home") ||
            (domain() == "sun" && state == "above_horizon") || (domain() == "climate" && available() && state != "off");
   }
+  // A slider shows the card's colour like Home Assistant's tile sliders: grey only while stateActive()
+  // (frontend src/common/entity/state_active.ts) calls the entity inactive, such as an off light or fan and a
+  // media player that is off or in standby. A number with a value is active there, and a closed cover's
+  // position slider keeps the cover's colour so it never looks disabled (hui-cover-position-card-feature.ts).
+  bool slider_active() const {
+    if (!available()) return false;
+    auto d = domain();
+    if (d == "media_player") return state != "off" && state != "standby";
+    if (d == "cover" || d == "number" || d == "input_number") return true;
+    return active();
+  }
 };
 // Slot position of a tile within the fixed two-column, three-row pages.
 struct Placement { uint8_t page = 0, slot = 0; };

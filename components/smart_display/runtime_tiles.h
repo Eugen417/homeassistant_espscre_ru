@@ -2287,7 +2287,7 @@ inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t te
   }
   if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,key_bg);set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
   if(w.control_slider){
-    bool on=fresh() && t.active();
+    bool on=fresh() && t.slider_active();
     lv_color_t fill=on?accent:lv_color_hex(0x9E9E9E);
     // The track is the fill colour at 20 % over the card, as in Home Assistant.
     set_color(w.control_slider,LV_STYLE_BG_COLOR,lv_color_mix(fill,card,51),LV_PART_MAIN);
@@ -2462,8 +2462,10 @@ inline void render_slot(size_t slot) {
   lap(swipe_profile::CUSTOM);
   }
   bool on = fresh() && t.active();
+  // Sliders colour more states than the card itself does, such as a playing media player (Tile::slider_active).
+  bool slider_on = fresh() && t.slider_active();
   bool available=fresh() && t.available();
-  int palette_state=(available?2:0)|(on?1:0);
+  int palette_state=(available?2:0)|(on?1:0)|(slider_on?4:0);
   if (w.cached_active == palette_state && !w.panel_dirty) { lap(swipe_profile::GEOMETRY); return; }
   w.cached_active = palette_state;w.panel_dirty=false;
   uint32_t accent = domain_accent(t);
@@ -2474,10 +2476,10 @@ inline void render_slot(size_t slot) {
   // Darken the foreground slightly: very pale bulbs still need a visible icon.
   auto icon_color=available?lv_color_mix(color,lv_color_hex(0x333333),205):lv_color_hex(0x9E9E9E);
   // Off: a grey track without fill or handle, as in Home Assistant.
-  auto fill_color=on?color:lv_color_hex(0x9E9E9E);
+  auto fill_color=slider_on?color:lv_color_hex(0x9E9E9E);
   set_color(w.slider,LV_STYLE_BG_COLOR,fill_color,LV_PART_INDICATOR);
   set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_mix(fill_color,lv_color_hex(0xFFFFFF),51),LV_PART_MAIN);
-  slider_bar(w.slider,slider_bar_shown(t,on));
+  slider_bar(w.slider,slider_bar_shown(t,slider_on));
   set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(t.background ? t.background : 0xFFFFFF));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
   // "Background: none" hides only the card; geometry and padding stay identical,

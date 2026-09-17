@@ -176,6 +176,19 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.60 / firmware 0.2.52
+
+`components/smart_display` and both board profiles; the app only raises `FIRMWARE_VERSION`. Storage, tile protocol,
+preferences and keys are unchanged.
+
+- `Tile::slider_active()` (runtime_model.h) decides whether a slider shows the tile's colour, after Home Assistant's
+  `stateActive()` and its tile features: grey for an unavailable entity, a light or fan that is off and a media player
+  that is `off` or `standby`; a cover keeps its colour when closed (`hui-cover-position-card-feature.ts`) and a number
+  with a value is active. `style_panel` (sliders of direct controls) and `render_slot` (small sliders, with a third bit
+  in the palette cache key) use it. `Tile::active()` is unchanged: it still greys the circle of an off switch, person or
+  timer and gives the value overlay its `was_on`.
+- Older firmware keeps the grey sliders; nothing else differs.
+
 ### Compatibility 0.2.59 / firmware 0.2.51
 
 App, both board profiles and `components/smart_display`. Storage, tile protocol, preferences and keys are

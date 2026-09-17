@@ -132,3 +132,25 @@ static void test_extra() {
   assert(m.set_layout({"light.a"}, "Home", changed) && changed && !m.tiles[0].extra_ptr());
 }
 struct RunTileExtra { RunTileExtra() { test_extra(); } } run_tile_extra;
+// Sliders keep their colour the way Home Assistant's tile sliders do: grey for an off light or fan and a media
+// player that is off or in standby, coloured for a player that plays, a cover open or closed and a number.
+static void test_slider_colours() {
+  using namespace runtime_tiles;
+  Model m; bool changed = false;
+  assert(m.set_layout({"light.a", "fan.b", "media_player.c", "cover.d", "number.e", "input_number.f"}, "Home", changed));
+  auto &light = m.tiles[0], &fan = m.tiles[1], &player = m.tiles[2], &cover = m.tiles[3], &number = m.tiles[4], &setpoint = m.tiles[5];
+  player.state = "playing"; assert(!player.slider_active());  // nothing received yet
+  for (size_t i = 0; i < m.count; ++i) m.tiles[i].received = true;
+  light.state = "on"; assert(light.slider_active());
+  light.state = "off"; assert(!light.slider_active());
+  fan.state = "on"; assert(fan.slider_active());
+  fan.state = "off"; assert(!fan.slider_active());
+  for (const char *state : {"playing", "paused", "idle", "buffering", "on"}) { player.state = state; assert(player.slider_active()); }
+  for (const char *state : {"off", "standby", "unavailable", "unknown"}) { player.state = state; assert(!player.slider_active()); }
+  for (const char *state : {"open", "opening", "closing", "closed"}) { cover.state = state; assert(cover.slider_active()); }
+  cover.state = "unavailable"; assert(!cover.slider_active());
+  number.state = "21.5"; assert(number.slider_active());
+  number.state = "unknown"; assert(!number.slider_active());
+  setpoint.state = "55.0"; assert(setpoint.slider_active());
+}
+struct RunSliderColours { RunSliderColours() { test_slider_colours(); } } run_slider_colours;
