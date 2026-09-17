@@ -1,3 +1,12 @@
+## 0.2.61 (firmware 0.2.52)
+
+Your own YAML for one screen, kept through updates.
+
+- **Override YAML** on each screen edits a small `<screen>.local.yaml` beside the profile. It is loaded after the shared board package and stays in place when the app or the firmware package updates. New screens get an empty one; an existing profile is attached on the first save, without reformatting the rest of the file.
+- The editor has an example that changes the display controller with `!extend` (ESPHome appends package lists, so a bare `id:` would add a second, incomplete display), line numbers, Tab indentation and Cmd/Ctrl-S. **Save & check** runs ESPHome's full validation of the complete profile; a build never starts from an invalid one.
+- The screen's name, Wi-Fi, API, OTA, packages, external components and captive portal stay managed and are refused in the override, as are the managed substitutions. Invalid YAML is refused before anything is written, and the file is 12 KB at most.
+- No firmware change: firmware stays 0.2.52.
+
 ## 0.2.60 (firmware 0.2.52)
 
 Sliders keep their colour while a speaker plays or a blind is open.

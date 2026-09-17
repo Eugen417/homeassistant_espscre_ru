@@ -38,6 +38,12 @@ def profile_meta(text):
             'screen': ours, 'api_key': key if isinstance(key, str) else None}
 
 class Firmware:
+    OVERRIDE_SUFFIX = '.local.yaml'
+    OVERRIDE_LIMIT = 12 * 1024  # bytes; the request body limit is 16 KB and JSON escaping grows the text
+    PROTECTED_OVERRIDE_KEYS = frozenset({'esphome', 'api', 'ota', 'wifi', 'packages',
+                                         'external_components', 'captive_portal'})
+    PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION'})
+
     def __init__(self, root, data):
         self.root, self.data = Path(root).resolve(), Path(data)
         self.job = None
@@ -50,7 +56,8 @@ class Firmware:
     def profiles(self):
         if not self.root.exists(): return []
         return [{'file': p.name} for p in sorted(self.root.glob('*.yaml'))
-                if p.name != 'secrets.yaml' and p.is_file() and not p.is_symlink()]
+                if p.name != 'secrets.yaml' and not p.name.endswith(self.OVERRIDE_SUFFIX)
+                and p.is_file() and not p.is_symlink()]
 
     def profile_names(self):
         """{file: {'node': esphome name, 'friendly': friendly name}} for every readable profile.
@@ -144,21 +151,114 @@ class Firmware:
         path.write_text(text)
 
     def create(self, data):
-        """Write the device profile (unique API/OTA keys) and any missing wifi secrets."""
+        """Write the device profile, its empty local override, and any missing wifi secrets."""
         content = installation_yaml(data)
         self.root.mkdir(parents=True,exist_ok=True)
         profile = self.root / (data['name']+'.yaml')
         if profile.exists() or profile.is_symlink():
             raise ValueError('This name already exists. Use the existing profile for updates.')
+        override = self.root / (data['name'] + self.OVERRIDE_SUFFIX)
+        if override.exists() or override.is_symlink():
+            raise ValueError('This name already has a local override. Restore or remove it before creating a new screen with this name.')
         self.store_wifi(data)
         try:
             with profile.open('x') as f:
                 os.chmod(profile,0o600);f.write(content)
         except FileExistsError:
             raise ValueError('This name already exists. Use the existing profile for updates.')
+        try:
+            with override.open('x') as f:
+                os.chmod(override, 0o600); f.write('{}\n')
+        except FileExistsError:
+            raise ValueError('This name already has a local override. Restore or remove it before creating a new screen with this name.')
         key = yaml.load(content, Loader=LenientLoader)['api']['encryption']['key']
         # The key is what Home Assistant asks for when pairing; the page shows it once.
         return {'file': profile.name, 'node': data['name'], 'api_key': key}
+
+    def _override_path(self, name):
+        profile = self.profile(name)
+        path = self.root / (profile.stem + self.OVERRIDE_SUFFIX)
+        if path.is_symlink():
+            raise ValueError('The local override is a symbolic link; replace it with a regular file first.')
+        return profile, path
+
+    def _atomic_write(self, path, text):
+        temporary = path.with_name(path.name + '.tmp')
+        with temporary.open('w', encoding='utf8') as handle:
+            os.chmod(temporary, 0o600)
+            handle.write(text)
+            handle.flush()
+            os.fsync(handle.fileno())
+        temporary.replace(path)
+
+    def _ensure_override_include(self, profile):
+        """Attach an existing profile to its sidecar without reformatting user YAML."""
+        filename = profile.stem + self.OVERRIDE_SUFFIX
+        text = profile.read_text()
+        if re.search(rf'(?m)^\s*local_overrides:\s*!include\s+{re.escape(filename)}\s*$', text):
+            return False
+        if re.search(r'(?m)^\s*local_overrides\s*:', text):
+            raise ValueError('This profile already has a different local_overrides include.')
+        try:
+            parsed = yaml.load(text, Loader=LenientLoader)
+        except yaml.YAMLError as error:
+            raise ValueError("The screen profile isn't valid YAML; fix it before adding an override.") from error
+        packages = parsed.get('packages') if isinstance(parsed, dict) else None
+        if not isinstance(packages, dict):
+            raise ValueError("This profile has no packages section that ESP Screens can extend.")
+        match = re.search(r'(?m)^packages:\s*\n', text)
+        if not match:
+            raise ValueError("This profile has no packages section that ESP Screens can extend.")
+        next_top = re.search(r'(?m)^[^\s#][^\n]*\n', text[match.end():])
+        if not next_top and not text.endswith('\n'):
+            text += '\n'
+        end = match.end() + next_top.start() if next_top else len(text)
+        addition = f'  local_overrides: !include {filename}\n'
+        self._atomic_write(profile, text[:end] + addition + text[end:])
+        self._names.pop(profile.name, None)
+        return True
+
+    def _validate_override(self, content):
+        if not isinstance(content, str):
+            raise ValueError('Enter YAML text first.')
+        if len(content.encode('utf8')) > self.OVERRIDE_LIMIT:
+            raise ValueError('The override is too large. Keep it below 12 KB.')
+        if not content.strip():
+            content = '{}\n'
+        try:
+            parsed = yaml.load(content, Loader=LenientLoader)
+        except yaml.YAMLError as error:
+            problem = getattr(error, 'problem', None) or 'invalid YAML'
+            mark = getattr(error, 'problem_mark', None)
+            where = f' on line {mark.line + 1}' if mark else ''
+            raise ValueError(f'YAML error{where}: {problem}.') from error
+        if not isinstance(parsed, dict):
+            raise ValueError('The override must contain a YAML object, for example display: or substitutions:.')
+        protected = sorted(set(parsed) & self.PROTECTED_OVERRIDE_KEYS)
+        if protected:
+            raise ValueError('These sections stay managed by ESP Screens: ' + ', '.join(protected) + '.')
+        substitutions = parsed.get('substitutions')
+        if isinstance(substitutions, dict):
+            protected = sorted(set(substitutions) & self.PROTECTED_SUBSTITUTIONS)
+            if protected:
+                raise ValueError('These substitutions stay managed by ESP Screens: ' + ', '.join(protected) + '.')
+        return content if content.endswith('\n') else content + '\n'
+
+    def override(self, name):
+        profile, path = self._override_path(name)
+        attached = bool(re.search(rf'(?m)^\s*local_overrides:\s*!include\s+{re.escape(path.name)}\s*$',
+                                  profile.read_text()))
+        content = path.read_text() if path.exists() else '{}\n'
+        return {'file': profile.name, 'override_file': path.name, 'attached': attached,
+                'exists': path.exists(), 'content': content}
+
+    def save_override(self, name, content):
+        profile, path = self._override_path(name)
+        content = self._validate_override(content)
+        # The sidecar first: a profile must never include a file that isn't there.
+        self._atomic_write(path, content)
+        self._ensure_override_include(profile)
+        return self.override(profile.name)
 
     def install(self, data):
         """Profile plus, when a USB port is chosen, the build and flash in one go.
@@ -213,6 +313,9 @@ class Firmware:
             node=yaml.compose(secret_file.read_text())
             if isinstance(node,yaml.MappingNode):
                 for _,v in node.value:collect(v)
+        override_file = self.root / (profile.stem + self.OVERRIDE_SUFFIX)
+        if override_file.exists() and not override_file.is_symlink():
+            collect(yaml.compose(override_file.read_text()))
         self.logs.clear()
         self.job={'file':profile.name,'action':action,'target':target,'state':'running','started':time.time()}
         self.task=asyncio.create_task(self.run(profile,action,target))

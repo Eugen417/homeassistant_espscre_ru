@@ -1163,6 +1163,7 @@ packages:
     ref: {REFS[board]}
     files: [packages/{board}.yaml]
     refresh: 0s
+  local_overrides: !include {name}.local.yaml
 
 api:
   encryption:

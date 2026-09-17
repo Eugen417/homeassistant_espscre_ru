@@ -73,6 +73,7 @@ function select(id) {
   dirty = false;
   $("#title").value = layout.title;
   $("#screen-name").textContent = screen.name;
+  $("#open-override").disabled = !screen.update?.profile;
   $("#editor").hidden = false;
   $("#empty").hidden = true;
   $("#dirty").textContent = "All saved";
@@ -515,6 +516,17 @@ function renderScreens() {
     b.append(node("strong", screen.name), meta);
     b.onclick = () => select(screen.id);
     item.append(b);
+    const override = node("button", "Override YAML", "mini quiet");
+    override.type = "button";
+    override.disabled = !screen.update?.profile;
+    override.title = screen.update?.profile ? "Hardware-specific YAML for this screen" : "No ESPHome profile found";
+    override.onclick = (event) => {
+      event.stopPropagation();
+      openOverride(screen.update?.profile, screen.name);
+    };
+    const overrideRow = node("div", undefined, "screen-override");
+    overrideRow.append(override);
+    item.append(overrideRow);
     const update = renderUpdate(screen);
     if (update) item.append(update);
     $("#screens").append(item);
@@ -528,6 +540,150 @@ function renderScreens() {
   }
   renderUpdates();
 }
+
+// ----- Per-screen local YAML overrides -----
+const OVERRIDE_EXAMPLE = `# Hardware-specific changes for this screen.
+# This file is kept when the shared firmware package updates.
+# Do not add esphome:, api:, ota:, wifi: or packages: here.
+
+# Example: a CYD with the ST7789V display controller.
+# "!extend" changes the display the shared package already defines;
+# a bare id would add a second, incomplete display and fail the build.
+display:
+  - id: !extend my_display
+    model: ST7789V
+`;
+const overrideEditor = $("#override-editor"), overrideGutter = $("#override-gutter");
+let overrideProfile = null;
+function updateOverrideEditor() {
+  if (!overrideEditor || !overrideGutter) return;
+  const lines = overrideEditor.value.split("\n").length;
+  overrideGutter.textContent = Array.from({ length: lines }, (_, i) => i + 1).join("\n");
+  $("#override-count").textContent = `${overrideEditor.value.length} characters · ${lines} line${lines === 1 ? "" : "s"}`;
+}
+function setOverrideStatus(message, kind = "") {
+  const status = $("#override-status");
+  status.textContent = message;
+  status.className = `override-status ${kind}`;
+}
+function setOverrideContent(content) {
+  overrideEditor.value = content || "";
+  updateOverrideEditor();
+  overrideEditor.scrollTop = 0;
+  overrideGutter.scrollTop = 0;
+}
+async function openOverride(profile, friendly = "") {
+  if (!profile) {
+    toast("No ESPHome profile was found for this screen.");
+    return;
+  }
+  overrideProfile = profile;
+  $("#override-title").textContent = `Override YAML${friendly ? ` · ${friendly}` : ""}`;
+  setOverrideStatus("Loading…");
+  $("#override-dialog").showModal();
+  try {
+    const data = await (await api(`firmware/profiles/${encodeURIComponent(profile)}/override`)).json();
+    $("#override-file").textContent = data.override_file;
+    $("#override-state").textContent = data.attached ? "Active" : "Ready to attach";
+    $("#override-state").className = `badge${data.attached ? " online" : ""}`;
+    setOverrideContent(data.exists && data.content !== "{}\n" ? data.content : "");
+    setOverrideStatus(data.attached ? "Changes here apply on the next build." : "Save once to attach this file to the profile.");
+  } catch (error) {
+    setOverrideStatus(error.message, "error");
+  }
+}
+function overridePayload() {
+  return { content: overrideEditor.value };
+}
+async function saveOverride(runCheck = false) {
+  if (!overrideProfile) return;
+  const save = $("#override-save"), check = $("#override-check");
+  save.disabled = true; check.disabled = true;
+  setOverrideStatus("Checking and saving…");
+  try {
+    const response = await api(`firmware/profiles/${encodeURIComponent(overrideProfile)}/override`, {
+      method: "PUT", body: JSON.stringify(overridePayload()),
+    });
+    const data = await response.json();
+    $("#override-file").textContent = data.override_file;
+    $("#override-state").textContent = "Active";
+    $("#override-state").className = "badge online";
+    if (!runCheck) {
+      setOverrideStatus("Saved. The override is kept during firmware updates.", "ok");
+      toast("Override YAML saved.");
+      return;
+    }
+    setOverrideStatus("Saved. ESPHome is checking the complete profile…");
+    const job = await (await api("firmware/jobs", {
+      method: "POST", body: JSON.stringify({ file: overrideProfile, action: "validate" }),
+    })).json();
+    pollOverrideCheck(job);
+  } catch (error) {
+    setOverrideStatus(error.message, "error");
+  } finally {
+    save.disabled = false; check.disabled = false;
+  }
+}
+function pollOverrideCheck(job) {
+  const started = Date.now(), profile = overrideProfile;
+  const poll = async () => {
+    if (overrideProfile !== profile) return;  // the dialog closed or shows another screen
+    try {
+      const data = await (await api("firmware")).json();
+      const current = data.job;
+      if (current && current.file === profile && current.state === "running") {
+        setOverrideStatus(`ESPHome is checking the profile… ${current.stage || ""}`.trim());
+      } else if (current && current.file === profile && current.state === "success") {
+        setOverrideStatus("The complete profile is valid. Safe to build and install.", "ok");
+        return;
+      } else if (current && current.file === profile && current.state === "failed") {
+        const error = (data.logs || []).filter((line) => /error|failed/i.test(line)).pop();
+        setOverrideStatus(error || "ESPHome rejected the complete profile. See Firmware & USB for the full log.", "error");
+        return;
+      }
+      if (Date.now() - started < 7200000) setTimeout(poll, 1200);
+    } catch (error) {
+      setOverrideStatus(error.message, "error");
+    }
+  };
+  poll();
+}
+$("#open-override").onclick = () => {
+  const screen = inventory.screens.find((entry) => entry.id === selected);
+  openOverride(screen?.update?.profile, screen?.name);
+};
+$("#close-override").onclick = () => $("#override-dialog").close();
+$("#override-dialog").addEventListener("close", () => { overrideProfile = null; });
+$("#override-save").onclick = () => saveOverride(false);
+$("#override-check").onclick = () => saveOverride(true);
+$("#override-example").onclick = () => {
+  if (!overrideEditor.value.trim() || confirm("Replace the current text with the example?")) {
+    setOverrideContent(OVERRIDE_EXAMPLE);
+    setOverrideStatus("Example loaded. Save it when you are ready.");
+    overrideEditor.focus();
+  }
+};
+$("#override-empty").onclick = () => {
+  if (!overrideEditor.value.trim() || confirm("Clear the local override?")) {
+    setOverrideContent("");
+    setOverrideStatus("The override will be empty after you save.");
+    overrideEditor.focus();
+  }
+};
+overrideEditor.addEventListener("input", updateOverrideEditor);
+overrideEditor.addEventListener("scroll", () => { overrideGutter.scrollTop = overrideEditor.scrollTop; });
+overrideEditor.addEventListener("keydown", (event) => {
+  if (event.key === "Tab") {
+    event.preventDefault();
+    const start = overrideEditor.selectionStart, end = overrideEditor.selectionEnd;
+    overrideEditor.setRangeText("  ", start, end, "end");
+    updateOverrideEditor();
+  } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    saveOverride(false);
+  }
+});
+updateOverrideEditor();
 function renderUpdates() {
   const u = inventory.updates;
   $("#updates").hidden = !u;

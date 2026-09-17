@@ -180,6 +180,32 @@ ESPHome fetches the latest published package and component code. So you don't
 replace your own YAML with a new downloaded file. Wi-Fi, name, and keys
 live outside the shared package and stay the same.
 
+### Hardware-specific YAML overrides
+
+Each screen also has a small local file beside its profile, for example
+`kitchen.local.yaml`. Open the screen and click **Override YAML**. The editor is
+intended for hardware-specific changes such as a different display controller:
+
+```yaml
+display:
+  - id: !extend my_display
+    model: ST7789V
+```
+
+ESPHome appends package lists instead of merging them, so `!extend` is what
+changes the display the shared package already defines; a bare `id:` would add
+a second, incomplete display and the build fails.
+
+This file is loaded after the shared board package and is kept when the app or
+firmware package updates. The editor protects the screen's name, Wi-Fi, API,
+OTA and package connection. Use **Save & check** before building a custom
+configuration. If the complete ESPHome profile is invalid, the firmware build
+does not start.
+
+The override is advanced configuration: the display model, dimensions, pins,
+touchscreen and initialization sequence must still match the physical board.
+For a similar-looking CYD, check the exact USB/controller variant first.
+
 Make a Home Assistant backup before updates, including ESP Screen Manager and
 the device's own ESPHome configurations. **Removing/reinstalling** an app is not the same
 as updating; that can wipe the data folder. Keep the device name and the

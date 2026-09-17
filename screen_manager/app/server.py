@@ -1243,6 +1243,8 @@ def create_app(manager, development=False):
             response = await handler(request)
         except ValueError as error:
             return web.json_response({'error': str(error)}, status=400)
+        except web.HTTPRequestEntityTooLarge:
+            return web.json_response({'error': 'That is too much text for one request. Keep it below 12 KB.'}, status=413)
         except (TypeError, KeyError):
             return web.json_response({'error': 'Invalid input. Check the name, board, and chosen tiles.'}, status=400)
         if response.prepared:
@@ -1363,6 +1365,13 @@ def create_app(manager, development=False):
                             headers={'Content-Disposition': f'attachment; filename="{claude_skill.NAME}.zip"'})
     async def firmware_status(request): return web.json_response(manager.firmware.status())
     async def firmware_start(request): return web.json_response(manager.firmware.start(await request.json()))
+    async def firmware_override(request):
+        return web.json_response(manager.firmware.override(request.match_info['file']))
+    async def firmware_override_save(request):
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError('Invalid override data.')
+        return web.json_response(manager.firmware.save_override(request.match_info['file'], data.get('content')))
     async def firmware_create(request):
         # Profile, missing wifi secrets and (with a USB port) the build and flash in one request.
         return web.json_response(manager.firmware.install(await request.json()))
@@ -1378,6 +1387,8 @@ def create_app(manager, development=False):
     app.router.add_put('/api/updates', update_settings)
     app.router.add_get('/api/firmware', firmware_status)
     app.router.add_post('/api/firmware/jobs', firmware_start)
+    app.router.add_get('/api/firmware/profiles/{file}/override', firmware_override)
+    app.router.add_put('/api/firmware/profiles/{file}/override', firmware_override_save)
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)

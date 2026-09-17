@@ -192,6 +192,12 @@ aside h2 {
 .screen-main .dot.online {
   color: #2e9d62;
 }
+.screen-override {
+  padding: 0 14px 12px;
+}
+.screen-override button {
+  width: 100%;
+}
 .screen-update {
   display: flex;
   align-items: center;
@@ -412,6 +418,13 @@ body.dragging {
   gap: 12px;
   align-items: start;
   margin-bottom: 15px;
+}
+.editor-head-actions {
+  display: flex;
+  align-items: center;
+  justify-content: end;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 .editor-head .badge {
   max-width: 240px;
@@ -678,6 +691,10 @@ dialog label {
   .editor-head {
     display: block;
   }
+  .editor-head-actions {
+    justify-content: start;
+    margin-top: 10px;
+  }
   .editor-head .badge {
     margin-bottom: 10px;
   }
@@ -941,6 +958,120 @@ pre {
 #firmware-dialog {
   max-width: 780px;
   width: 90vw;
+}
+.override-dialog {
+  max-width: 820px;
+  width: 92vw;
+  padding: 26px;
+}
+.override-intro {
+  max-width: 700px;
+  margin-bottom: 14px;
+}
+.override-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  padding: 12px 14px;
+  border: 1px solid #d8e8ff;
+  border-radius: 13px;
+  background: #f4f8ff;
+  color: #34506e;
+  font-size: 13px;
+}
+.override-notice strong,
+.override-notice span {
+  display: block;
+}
+.override-notice strong {
+  color: #233c5a;
+  margin-bottom: 2px;
+}
+.override-icon {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 25px;
+  border-radius: 8px;
+  background: #dceaff;
+  color: #286cc2;
+  font-weight: 750;
+}
+.override-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 8px;
+}
+.override-file {
+  font: 600 13px ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+.yaml-editor {
+  display: grid;
+  grid-template-columns: 43px minmax(0, 1fr);
+  min-height: 340px;
+  border: 1px solid #bac9dc;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #142131;
+  box-shadow: 0 8px 24px #1d2d4014;
+}
+.yaml-gutter {
+  padding: 15px 10px 15px 0;
+  overflow: hidden;
+  background: #1b2b3e;
+  color: #71849b;
+  font: 12px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-align: right;
+  user-select: none;
+  white-space: pre;
+}
+#override-editor {
+  display: block;
+  width: 100%;
+  min-height: 340px;
+  resize: vertical;
+  border: 0;
+  border-left: 1px solid #2e4158;
+  border-radius: 0;
+  outline: 0;
+  padding: 15px;
+  background: #142131;
+  color: #eaf2fc;
+  caret-color: #8ec5ff;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  tab-size: 2;
+  white-space: pre;
+}
+#override-editor::selection {
+  background: #3978bd80;
+}
+.override-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 9px;
+}
+.override-tools .hint {
+  margin-left: auto;
+}
+.override-status {
+  min-height: 20px;
+  margin: 12px 0 0;
+  font-size: 13px;
+}
+.override-status.ok {
+  color: #21704b;
+}
+.override-status.error {
+  color: #a53f3f;
+}
+.override-actions {
+  justify-content: flex-end;
+  margin-top: 8px;
 }
 .tile-actions {
   align-self: start;
