@@ -45,7 +45,12 @@ class GuitionTests(unittest.TestCase):
                     self.assertFalse(x<xx+ww and x+w>xx and y<yy+hh and y+h>yy)
                 rectangles.append((x,y,w,h))
         self.assertEqual(len(rectangles),6)
-        self.assertIn('height: 44',SOURCE.split('id: page_next',1)[1][:200])
+        # The page keys are the two halves of the band under the tiles (firmware 0.2.69+).
+        band=480-v('SCROLL_Y')-v('SCROLL_H')
+        self.assertEqual(band,60)
+        for key in ('page_prev','page_next'):
+            block=SOURCE.split(f'id: {key}',1)[1][:200]
+            self.assertIn('width: 240\n',block);self.assertIn(f'height: {band}\n',block)
 
     def test_all_tiles_clip_long_titles(self):
         for i in range(1,11):

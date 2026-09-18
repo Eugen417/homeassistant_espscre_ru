@@ -215,6 +215,29 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.82 / firmware 0.2.69
+
+Page buttons (GitHub issue #9): a setting the screen owns, `page_buttons`, on by default. It has a preference record
+of its own (`0x50474231`), the switch "Page buttons" in both profiles, and `SETTING_RULES`, `SETTING_ENTITIES` and
+`SETTINGS_BESIDE_BLOCK` entries in the app. Like Dark mode it never travels in the layout message, and a screen
+without the entity shows no row for it.
+
+- Firmware: `place_page` places the three rows itself (`runtime_tiles::rows`). With the bar on screen (more than one
+  page and `page_buttons` on) they keep the profile's places (`Widgets::base_y`, `base_height`). Without it they share
+  the room down to the bottom edge, keeping the side margin: Guition 108 → 122 px, CYD 52 → 61 px. `tile_scroll`
+  grows with them. A large card keeps its profile places for the circle, name and state, lowered by half the growth;
+  the single analog clock keeps the profile's dial. `page_buttons_changed()` (called from `apply_screen_settings`)
+  places the page again when the bar comes or goes. `check_tile_geometry` checks that every card lies inside the tile
+  area, clear of the bar and within the bottom margin.
+- Page bar: `page_prev` and `page_next` are the two halves of the band under the tiles, running from
+  `SCROLL_Y + SCROLL_H` to the bottom (Guition 240×60, CYD 160×36). Each holds a chevron in `materialdesign_icons_mini`
+  (F0141/F0142). `page_number` is a non-clickable `obj` that holds the dots (`settings_screen::page_dots`), so LVGL's
+  hit test gives every point of the band to one of the halves. The settings page's pager uses the same chevrons and
+  dots, with a dimmed chevron where it leads nowhere.
+- Editor: `strandedPages()` (`model/layout.ts`) and `pageReachWarning()` (`store.ts`) warn when page buttons and
+  swiping are both off and the Go to page tiles leave a page out of reach, or give it no way back to page 1. The
+  warning shows above the pages and under the Screen card.
+
 ### Compatibility 0.2.78 / firmware 0.2.65
 
 Repeated navigation tiles: the same `screen.page_<n>` may sit on several pages of one screen. Firmware 0.2.65 accepts

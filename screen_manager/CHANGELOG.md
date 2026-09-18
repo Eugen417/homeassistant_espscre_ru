@@ -1,3 +1,14 @@
+## 0.2.82 (firmware 0.2.69)
+
+The page buttons can make way, and the tiles fill the screen.
+
+- **Page buttons: a setting to take the bar under the tiles away.** Turned off, a screen with more pages has no buttons under its tiles, and the three rows of cards share their room: every card grows by 14 px on a Guition (108 to 122) and 9 px on a CYD (52 to 61). Pages then change by swiping or with *Go to page* tiles. It sits with the other screen settings: on the screen's own settings page (Screen), in the editor's *Screen settings*, and as `switch.<screen>_page_buttons` in Home Assistant. On by default. (GitHub issue #9)
+- **The editor says which pages you can't reach.** With the page buttons and swiping both off, only *Go to page* tiles change the page. The editor then says where your *Go to page* tiles lead and which pages that leaves out ("You have 3 Go to page tiles, to pages 1, 2 and 3, but none to page 4, so you can't reach it"), and it names a page with no way back to page 1. The warning shows above the pages and under the setting.
+- **New page buttons: a chevron in each corner and a dot per page.** The words *Previous* and *Next* and the "2 / 4" are gone. Each half of the bar is still one big key and lights up under your finger. On the first and last page the chevron that leads nowhere is dimmed. The settings page on the screen uses the same buttons.
+- **A screen with one page uses the whole screen.** Its bar was already hidden, but the tiles kept their size. Now they grow into that room the same way.
+- A card keeps its layout as it grows: the name, state and circle stay in its middle, and the analog clock on a single tile keeps its dial size so the date beside it still fits. The small slider of 0.2.81 still claims the whole card when the card is taller.
+- Needs firmware 0.2.69: press **Update** on the screen. Includes everything from 0.2.81. CYD firmware: 1,655,136 bytes, 90.2 % of the update slot (1,632 bytes more than 0.2.81).
+
 ## 0.2.81 (firmware 0.2.68)
 
 A card's slider takes the whole card, and a quick drag on it never turns a page.

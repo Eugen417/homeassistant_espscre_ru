@@ -37,6 +37,30 @@ class LayoutTests(unittest.TestCase):
         self.assertLess(grid, nav)
         self.assertLess(nav, modal)
 
+    def test_page_keys_are_the_halves_of_the_band_under_the_tiles(self):
+        """Firmware 0.2.69+: a chevron in each half of the band, the dots between them take no touches."""
+        for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml'):
+            source = (ROOT / name).read_text()
+            values = dict(re.findall(r'^  (\w+): "([^"]*)"', source, re.M))
+            band = int(values['DISPLAY_H']) - int(values['SCROLL_Y']) - int(values['SCROLL_H'])
+            half = int(values['DISPLAY_W']) // 2
+            for key, glyph in (('page_prev', 'F0141'), ('page_next', 'F0142')):
+                block = source.split(f'            id: {key}\n', 1)[1].split('\n        - ', 1)[0]
+                self.assertIn(f'width: {half}\n', block, f'{name} {key}')
+                self.assertIn(f'height: {band}\n', block, f'{name} {key}')
+                self.assertIn('styles: paint_page_pressed', block, f'{name} {key}: the half lights up under a finger')
+                self.assertIn(f'\\U000{glyph}', block, f'{name} {key}')
+                self.assertIn('text_font: materialdesign_icons_mini', block, f'{name} {key}')
+                self.assertNotIn('Previous', block)
+                self.assertNotIn('Next  >', block)
+            number = source.split('            id: page_number\n', 1)[1].split('\n        - ', 1)[0]
+            self.assertIn('clickable: false', number, name)
+            self.assertIn(f'height: {band}\n', number, name)
+            self.assertIn('settings_screen::page_dots(id(page_number)', source, name)
+        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        self.assertIn('settings_screen::page_dots(nav_number,page,pages,', runtime)
+        self.assertIn('set_hidden(control,!bar)', runtime)
+
     def test_pagination_is_conditional_and_excess_tiles_are_hidden(self):
         block = SOURCE.split('  - id: show_tile_page\n', 1)[1].split('  - id: wake_display', 1)[0]
         self.assertIn('const bool paginated = count > 6;', block)

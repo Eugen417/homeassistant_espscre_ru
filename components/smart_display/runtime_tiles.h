@@ -32,7 +32,9 @@ using settings_screen::rotation;
 using settings_screen::rotation_supported;
 using settings_screen::auto_home;
 using settings_screen::auto_home_seconds;
+using settings_screen::page_buttons;
 inline esphome::ESPPreferenceObject rotation_preference;
+inline esphome::ESPPreferenceObject buttons_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
 inline esphome::ESPPreferenceObject home_preference;
 inline esphome::ESPPreferenceObject dark_preference;
@@ -141,10 +143,13 @@ inline void load_settings() {
   swipe_preference = esphome::global_preferences->make_preference<uint32_t>(0x53575031);
   home_preference = esphome::global_preferences->make_preference<HomeTimeout>(0x484F4D31);
   dark_preference = esphome::global_preferences->make_preference<uint32_t>(0x44524B31);
+  buttons_preference = esphome::global_preferences->make_preference<uint32_t>(0x50474231);
   uint32_t swipe_saved=0;
   if(swipe_preference.load(&swipe_saved))swipe_pages=swipe_saved==1;
   uint32_t dark_saved=0;
   if(dark_preference.load(&dark_saved))settings_screen::dark_mode=dark_saved==1;
+  uint32_t buttons_saved=1;
+  if(buttons_preference.load(&buttons_saved))page_buttons=buttons_saved!=0;
   HomeTimeout home;
   if(home_preference.load(&home) && home.seconds>=30 && home.seconds<=3600){
     auto_home=home.enabled?1:0;auto_home_seconds=(int32_t)home.seconds;
@@ -167,6 +172,8 @@ inline void persist_settings() {
   home_preference.save(&home);
   uint32_t dark = settings_screen::dark_mode ? 1 : 0;
   dark_preference.save(&dark);
+  uint32_t buttons = page_buttons ? 1 : 0;
+  buttons_preference.save(&buttons);
   if (rotation_supported) { uint32_t turned = (uint32_t) rotation; rotation_preference.save(&turned); }
 }
 inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
@@ -192,7 +199,8 @@ struct Widgets {
   int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
   // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
   // Full (firmware 0.2.62+) takes the whole page: the double-width card's head on top, a control at the bottom.
-  bool wide=false, full=false; int base_width=0, base_height=0; const lv_font_t *title_font{};
+  // `base_y`: the card's row in the profile; without the page bar (firmware 0.2.69+) place_page moves it down.
+  bool wide=false, full=false; int base_width=0, base_height=0, base_y=0; const lv_font_t *title_font{};
   // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
   lv_obj_t *extra{}; std::string extra_mode; bool extra_full=false; std::array<lv_obj_t *, 36> parts{}; lv_point_precise_t *points{};
   // Analog clock: centre and radius of the dial, so the second hand can move without a card redraw.
@@ -2286,6 +2294,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
   w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);
+  w.base_y=lv_obj_get_y(tile);
   w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   w.unit=lv_label_create(tile);lv_obj_set_style_text_font(w.unit,w.value_font,0);lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
@@ -2452,7 +2461,11 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   }
   // The dial keeps the same size with or without a card behind it.
   // A full-page card centres its dial; the digital time and date beside a wide dial stay off it.
-  int dial=std::min(height,width),cx=(w.full?(width-dial)/2:0)+dial/2,cy=height/2,outer=dial/2-1,radius=dial/2-(large?4:2);
+  int dial=std::min(height,width);
+  // A single card keeps the dial of the profile's card when it grows without the page bar (firmware 0.2.69+), so the
+  // calendar block beside it keeps its room; the dial stays in the card's middle.
+  if(!w.full && !w.wide)dial=std::min(dial,w.base_height-(tile_height(w)-height));
+  int cx=(w.full?(width-dial)/2:0)+dial/2,cy=height/2,outer=dial/2-1,radius=dial/2-(large?4:2);
   for(int i=0;i<12;++i){
     float a=i*3.14159265f/6;bool cardinal=i%3==0;
     if(cardinal && large){
@@ -3129,10 +3142,13 @@ inline void render_slot(size_t slot) {
   const lv_font_t *icon_font=watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font;
   if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
   int text_x=watch?0:(mini||graph_strip)?circle_size+(large_tile?8:6):w.title_x;
-  lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y);
+  // A large card keeps the profile's places for its circle, name and state, moved down by half of what a card
+  // grows without the page bar, so they stay in its middle.
+  int lift=std::max(0,(tile_height(w)-w.base_height)/2);
+  lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y+lift);
   lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
-    watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y);
-  lv_obj_set_pos(w.circle,0,(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12);
+    watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y+lift);
+  lv_obj_set_pos(w.circle,0,(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12+lift);
   // Use the requested coordinates: LVGL getters still return the previous
   // layout until its next pass when a slot changes from watch/slider to normal.
   int text_room=content_w-chart_w-(graph_side?(large_tile?10:6):0)-panel_w;
@@ -3455,6 +3471,25 @@ inline void render_header() {
 }
 
 // Inspect actual LVGL coordinates, including padding and the loaded font metrics.
+// The Previous and Next bar and the page number between them (show_page binds them).
+inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
+// The three rows of cards. With the Previous and Next bar on the screen they keep the profile's places. Without it
+// (one page, or the Page buttons setting off, firmware 0.2.69+) they share the room down to the bottom edge of the
+// screen, keeping the margin the sides have, and every card grows by a third of the bar's room.
+struct Rows { int top=0, height=0, pitch=0; };
+inline Rows rows(bool bar) {
+  const auto &first=widgets[0];
+  const int gap=widgets[2].tile?widgets[2].base_y-first.base_y-first.base_height:0;
+  Rows r{first.base_y,first.base_height,first.base_height+gap};
+  auto *grid=first.tile?lv_obj_get_parent(first.tile):nullptr;auto *screen=grid?lv_obj_get_parent(grid):nullptr;
+  if(bar || !screen)return r;
+  const int room=lv_obj_get_height(screen)-lv_obj_get_x(first.tile)-lv_obj_get_y(grid)-first.base_y;
+  const int height=(room-2*gap)/3;
+  if(height>r.height){r.height=height;r.pitch=height+gap;}
+  return r;
+}
+inline Rows applied_rows;
+inline bool applied_bar=true;
 inline bool check_tile_geometry() {
   bool ok=true;
   if(fill_next<SLOTS_PER_PAGE){ESP_LOGW("ui_test","page fill still under way at the check");fill_cards(SLOTS_PER_PAGE);}
@@ -3473,10 +3508,16 @@ inline bool check_tile_geometry() {
       fits=lv_obj_get_width(w.tile)==expected;
       if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,lv_obj_get_width(w.tile),expected);
     }
-    if(w.full && widgets[4].tile){
-      // A full card ends exactly where the third row ends.
-      int expected=lv_obj_get_y(widgets[4].tile)-lv_obj_get_y(widgets[0].tile)+w.base_height;
-      if(lv_obj_get_height(w.tile)!=expected){fits=false;ESP_LOGE("ui_test","Full height FAIL slot=%u height=%d expected=%d",(unsigned)w.index,lv_obj_get_height(w.tile),expected);}
+    {
+      // Every card lies inside the tile area, a full card reaches its end, and the area stays clear of the page bar
+      // and keeps the side margin at the bottom of the screen (firmware 0.2.69+ moves the rows without the bar).
+      lv_area_t card,area,screen;auto *grid=lv_obj_get_parent(w.tile);
+      lv_obj_get_coords(w.tile,&card);lv_obj_get_coords(grid,&area);lv_obj_get_coords(lv_obj_get_parent(grid),&screen);
+      const int margin=lv_obj_get_x(widgets[0].tile);
+      bool placed=card.y1>=area.y1 && card.y2<=area.y2 && area.y2<=screen.y2-margin && (!w.full || card.y2==area.y2);
+      if(applied_bar && nav_next){lv_area_t nav;lv_obj_get_coords(nav_next,&nav);placed=placed && area.y2<nav.y1;}
+      if(!applied_bar)placed=placed && area.y2>=screen.y2-margin-3;
+      if(!placed){fits=false;ESP_LOGE("ui_test","Card place FAIL slot=%u card=%d..%d area=%d..%d screen_bottom=%d bar=%d",(unsigned)w.index,card.y1,card.y2,area.y1,area.y2,screen.y2,applied_bar);}
     }
     if(!custom && w.full){
       // Everything inside the card, the name above the state, a slider or the controls below them.
@@ -3570,30 +3611,40 @@ inline unsigned page_count() {
 // in the very next frame. Every following LVGL refresh draws the next two cards, so the loop, and
 // the touch polling in it, runs between the steps, and a new swipe drops a fill still under way.
 // Keepalives and re-packing on the same page draw at once. Nothing is allocated.
-inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
 inline int applied_page=-1;
-// Slot assignment plus card widths and visibility for a page; contents are untouched.
+// Slot assignment plus card places, sizes and visibility for a page; contents are untouched.
 inline int place_page(int page) {
   swipe_profile::Lap lap;
   std::array<Placement,MAX_TILES> placement;
   int pages=place(model,placement);
   page=std::clamp(page,0,pages-1);
+  const bool bar=pages>1 && page_buttons;
+  const Rows r=rows(bar);
+  applied_rows=r;applied_bar=bar;
   int wide_width=widgets[0].tile && widgets[1].tile ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)+widgets[0].base_width : 2*widgets[0].base_width;
   // A full card (firmware 0.2.62+) reaches from the first row to the end of the third.
-  int full_height=widgets[0].tile && widgets[4].tile ? lv_obj_get_y(widgets[4].tile)-lv_obj_get_y(widgets[0].tile)+widgets[0].base_height : 3*widgets[0].base_height;
+  int full_height=2*r.pitch+r.height;
+  // The tile area ends under the third row; a card outside it would be cut off.
+  if(auto *grid=widgets[0].tile?lv_obj_get_parent(widgets[0].tile):nullptr; grid && lv_obj_get_style_height(grid,LV_PART_MAIN)!=r.top+full_height)
+    lv_obj_set_height(grid,r.top+full_height);
   for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=MAX_TILES;widgets[slot].wide=false;widgets[slot].full=false;widgets[slot].cached_active=-1;}
   for(size_t i=0;i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;w.full=model.tiles[i].full;}
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
-    if(slot<SLOTS_PER_PAGE && w.index<model.count){lv_obj_set_size(w.tile,w.wide?wide_width:w.base_width,w.full?full_height:w.base_height);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);}
+    if(slot<SLOTS_PER_PAGE && w.index<model.count){
+      const int y=r.top+static_cast<int>(slot/2)*r.pitch;
+      if(lv_obj_get_style_y(w.tile,LV_PART_MAIN)!=y)lv_obj_set_y(w.tile,y);
+      lv_obj_set_size(w.tile,w.wide?wide_width:w.base_width,w.full?full_height:r.height);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
+    }
     else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}
   }
-  for(auto *control:{nav_prev,nav_next,nav_number})set_hidden(control,pages<=1);
+  for(auto *control:{nav_prev,nav_next,nav_number})set_hidden(control,!bar);
   if(page==0)lv_obj_add_state(nav_prev,LV_STATE_DISABLED);else lv_obj_remove_state(nav_prev,LV_STATE_DISABLED);
   if(page==pages-1)lv_obj_add_state(nav_next,LV_STATE_DISABLED);else lv_obj_remove_state(nav_next,LV_STATE_DISABLED);
   for(auto *control:{nav_prev,nav_next})if(lv_obj_get_child_count(control))
     set_number(lv_obj_get_child(control,0),LV_STYLE_TEXT_OPA,lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER);
-  label(nav_number,std::to_string(page+1)+" / "+std::to_string(pages));
+  // The dots between the two chevrons (firmware 0.2.69+): the page on screen in ink.
+  if(bar && nav_number)settings_screen::page_dots(nav_number,page,pages,widgets[0].base_height>80);
   lap(swipe_profile::PLACE);
   return page;
 }
@@ -3687,6 +3738,11 @@ inline void go_to_page(int page) {
   if(!shown_page || !nav_number)return;
   *shown_page=std::clamp(page,0,int(page_count())-1);
   show_page(*shown_page,nav_prev,nav_next,nav_number);
+}
+// The Page buttons setting changed (firmware 0.2.69+): the same page again, with the bar and the cards in their new places.
+inline void page_buttons_changed() {
+  if(!shown_page || !nav_number || applied_page<0)return;
+  if(applied_bar!=(page_count()>1 && page_buttons))apply_page(applied_page);
 }
 
 #ifdef SWIPE_PROFILE
@@ -3806,6 +3862,7 @@ inline void tick() {
 // open card painted in code is drawn again here, in the same pass, so no frame shows half of each look.
 inline void restyle() {
   for (auto &w : widgets) { w.cached_active = -1; w.panel_dirty = true; }
+  if (nav_number && applied_bar && applied_page >= 0) settings_screen::page_dots(nav_number, applied_page, page_count(), widgets[0].base_height > 80);
   for (auto &slot : header_slots) { slot.own = true; slot.icon_color = UINT32_MAX; }
   if (room_label) { dirty_all = true; render(room_label); }
   if (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN) && detail_index < model.count) show_detail(detail_index);

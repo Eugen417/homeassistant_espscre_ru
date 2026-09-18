@@ -27,6 +27,7 @@ changes them with the entity's own action, and leaves them out of the layout mes
 | Back to page 1, After | `switch.<screen>_back_to_page_1`, `number.<screen>_back_to_page_1_after` | `auto_home`, `auto_home_seconds` |
 | Also on standby | `switch.<screen>_back_to_page_1_on_standby` | `home_on_standby` |
 | Swipe between pages | `switch.<screen>_swipe_between_pages` | `swipe_pages` |
+| Page buttons (0.2.69+) | `switch.<screen>_page_buttons` | `page_buttons` |
 | Rotation (Guition) | `select.<screen>_rotation` | `rotation` |
 
 The first four entities and Auto standby existed before 0.2.49; ESP Screens recognizes a screen that owns
@@ -52,7 +53,7 @@ The page is a menu of groups, each of which opens a page of its own:
 |---|---|
 | Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
-| Screen | Clock, Back to page 1, After, Also on standby, Swipe between pages, Rotation (boards that turn) |
+| Screen | Clock, Back to page 1, After, Also on standby, Swipe between pages, Page buttons, Rotation (boards that turn) |
 | This screen | Screen, Address, Firmware, Home Assistant, Restart |
 
 Every change is stored on the screen, applied at once and published on its entity, so Home Assistant and
@@ -64,8 +65,9 @@ unknown and takes no changes until it is back.
 ## The rules the page follows
 
 - **Two levels, never three.** A group page is the deepest place a setting can live.
-- **No free scrolling.** A group that does not fit gets the same `< Previous / Next >` pager as the tile
-  pages. A 320x240 board shows five rows, a 480x480 board six.
+- **No free scrolling.** A group that does not fit gets the same pager as the tile pages: a chevron in each
+  half of the bar and a dot per page between them (firmware 0.2.69+). A 320x240 board shows five rows, a
+  480x480 board six; with the pager four and five.
 - **A row is a control, not a form.** Toggles flip on tap, numbers and times have `-` and `+`, a choice
   cycles through its options in a chip on the right.
 - **A row that depends on a switch above it is greyed out, not hidden**, so the page never jumps around.

@@ -175,7 +175,12 @@ middle of the screen does nothing, so tapping and dragging tiles never
 accidentally changes pages. On the CYD, it stays a quick swipe across the screen. Sliders
 only control their value; detail menus and standby don't change pages.
 
-Six tiles sit on a page. With six or fewer, Previous/Next disappear.
+Six tiles sit on a page. Under the tiles, the page buttons: a chevron in each half of the
+bar and a dot per page between them; tap anywhere in the left or right half. With six or
+fewer tiles they disappear and the tiles grow into their room (firmware 0.2.69+). **Page
+buttons** in the **Screen settings** tab takes them away on a screen with more pages too:
+then only swiping and *Go to page* tiles change the page, and the editor says which pages
+that leaves out of reach.
 The default standby time is ten minutes. For offline devices, the screen blocks
 actions. If the connection to Home Assistant drops, the screen immediately shows
 "HA not connected"; if the app sends nothing for two rounds (about five minutes),
@@ -283,6 +288,7 @@ After this, changes to these settings don't need a new firmware flash.
 | Time format | 24 or 12 hour, without AM/PM | 24 hour |
 | Return to page 1 | Also closes detail menus on standby | Off |
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
+| Page buttons | Off: no buttons under the tiles, the tiles take their room, firmware 0.2.69+ | On |
 | Guition rotation | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
 
 Home Assistant shows the same settings on each screen's ESPHome device: the switch

@@ -3,7 +3,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.68"
+  SCREEN_FIRMWARE_VERSION: "0.2.69"
   # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
   # (runtime_tiles::event checks where it let go: LVGL keeps the press on the tile and would click it
   # anywhere), and a quick flick is LVGL's gesture, never a tap (the home_page gesture handler in on_boot).
@@ -1447,6 +1447,18 @@ switch:
       - lambda: 'settings_screen::set("swipe_pages", 1);'
     turn_off_action:
       - lambda: 'settings_screen::set("swipe_pages", 0);'
+  # Off, the Previous and Next bar under the tiles goes and the tiles take its room (firmware 0.2.69+).
+  - platform: template
+    id: setting_page_buttons
+    name: "Page buttons"
+    icon: "mdi:page-next-outline"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::page_buttons != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("page_buttons", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("page_buttons", 0);'
 
 # Night hours as Home Assistant times (firmware 0.2.49+); the screen keeps minutes since midnight.
 datetime:
@@ -2475,14 +2487,16 @@ lvgl:
                         clickable: false
 
         # ---------- VALUE SLIDER OVERLAY ----------
-        # ---------- PAGE NAVIGATION: one full-width bar ----------
+        # ---------- PAGE NAVIGATION: the band under the tiles ----------
+        # Each half of the band is one key (firmware 0.2.69+): a chevron in its corner, lit up under a finger, and the
+        # page dots between them. The band reaches from the tile area's end (SCROLL_Y + SCROLL_H) to the bottom edge.
         - obj:
             id: page_prev
             align: BOTTOM_LEFT
             x: 0
             y: 0
-            width: 200
-            height: 44
+            width: 240
+            height: 60
             pad_all: 0
             radius: 0
             bg_opa: TRANSP
@@ -2504,28 +2518,28 @@ lvgl:
               - label:
                   align: LEFT_MID
                   x: 24
-                  text: "<  Previous"
-                  text_font: label
+                  text: "\U000F0141" # chevron-left
+                  text_font: materialdesign_icons_mini
                   styles: paint_ink
                   clickable: false
-        - label:
+        - obj:
             id: page_number
             align: BOTTOM_MID
             y: 0
-            width: 80
-            height: 44
-            pad_top: 12
+            width: 160
+            height: 60
+            pad_all: 0
+            bg_opa: TRANSP
             border_width: 0
-            text: "1 / 2"
-            text_align: CENTER
-            text_font: sublabel
+            clickable: false
+            scrollable: false
         - obj:
             id: page_next
             align: BOTTOM_RIGHT
             x: 0
             y: 0
-            width: 200
-            height: 44
+            width: 240
+            height: 60
             pad_all: 0
             radius: 0
             bg_opa: TRANSP
@@ -2545,8 +2559,8 @@ lvgl:
               - label:
                   align: RIGHT_MID
                   x: -24
-                  text: "Next  >"
-                  text_font: label
+                  text: "\U000F0142" # chevron-right
+                  text_font: materialdesign_icons_mini
                   styles: paint_ink
                   clickable: false
 
@@ -3841,12 +3855,14 @@ script:
                   bool visible = runtime_tiles::enabled ? i<6 && runtime_tiles::widgets[i].index<runtime_tiles::model.count : i < count && (paginated ? i >= 6 : i < 6);
                   ok = ok && (lv_obj_has_flag(tiles[i], LV_OBJ_FLAG_HIDDEN) != visible);
                 }
+                // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
+                const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);
                 for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})
-                  ok = ok && (lv_obj_has_flag(control, LV_OBJ_FLAG_HIDDEN) != paginated);
+                  ok = ok && (lv_obj_has_flag(control, LV_OBJ_FLAG_HIDDEN) != bar);
                 lv_area_t nav, grid;
                 lv_obj_get_coords(id(page_next), &nav);
                 lv_obj_get_coords(id(tile_scroll), &grid);
-                ok = ok && (!paginated || grid.y2 < nav.y1);
+                ok = ok && (!bar || grid.y2 < nav.y1);
                 if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
                 ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), grid.y2, nav.y1);
                 id(tile_page) = 0;
@@ -3900,7 +3916,7 @@ script:
               lv_obj_add_flag(tiles[i], LV_OBJ_FLAG_HIDDEN);
             }
           }
-          lv_label_set_text(id(page_number), id(tile_page) == 0 ? "1 / 2" : "2 / 2");
+          settings_screen::page_dots(id(page_number), id(tile_page), 2, true);
           if (id(tile_page) == 0) {
             lv_obj_add_state(id(page_prev), LV_STATE_DISABLED);
             lv_obj_clear_state(id(page_next), LV_STATE_DISABLED);
@@ -3949,6 +3965,8 @@ script:
           }
           const auto shown_rotation = id(setting_rotation)->active_index();
           if (!id(setting_rotation)->has_state() || !shown_rotation.has_value() || *shown_rotation != (size_t) (settings_screen::rotation / 90)) id(setting_rotation)->update();
+          // The Page buttons setting moves the cards into the bar's room or back (firmware 0.2.69+).
+          if (runtime_tiles::enabled) runtime_tiles::page_buttons_changed();
           settings_screen::refresh();
           if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
 

@@ -1,7 +1,7 @@
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addTile, canAlert, copyLayoutFrom, fullPage, importLayout, layoutJson, liveOf, moveTileToPage, pageTilesRepeat, PHASES, removeTile,
+  addTile, canAlert, copyLayoutFrom, fullPage, importLayout, layoutJson, liveOf, moveTileToPage, pageReachWarning, pageTilesRepeat, PHASES, removeTile,
   retargetPageTile, save, select, setTileOption, state, supports, tileLimit, topbarItems, topbarView, updateProgress, whatsNew,
 } from "../src/store";
 import type { Inventory, Screen } from "../src/types";
@@ -406,5 +406,36 @@ describe("several tiles that go to the same page (firmware 0.2.65)", () => {
     expect(retargetPageTile(nav, 2)).toBe(true);
     expect(state.layout!.pages).toBe(2);
     expect(state.dirty).toBe(true);
+  });
+});
+
+describe("page buttons and swiping both off (firmware 0.2.69)", () => {
+  const settings = (values: Record<string, unknown>) =>
+    Object.assign(state.inventory.screens[0], { settings: { owner: "screen", values, keys: Object.keys(values), unavailable: [] } });
+  const tiles = (list: [string, number][]) => { state.layout!.tiles = list.map(([entity, slot]) => ({ entity, name: "", slot, options: {} })); state.layout!.pages = 1; };
+  it("says which pages the Go to page tiles lead to, and which one they leave out", () => {
+    settings({ page_buttons: false, swipe_pages: false });
+    select("living");
+    tiles([["screen.page_2", 0], ["screen.page_3", 1], ["screen.page_1", 6], ["screen.page_1", 12], ["light.a", 18]]);
+    expect(pageReachWarning()).toBe("Page buttons and swiping are off, so only Go to page tiles change the page. "
+      + "You have 4 Go to page tiles, to pages 1, 2 and 3, but none to page 4, so you can't reach it.");
+    tiles([["light.a", 0], ["light.b", 6], ["switch.c", 12]]);
+    expect(pageReachWarning()).toBe("Page buttons and swiping are off, so only Go to page tiles change the page. "
+      + "You have no Go to page tiles to pages 2 and 3, so you can't reach them.");
+    tiles([["screen.page_2", 0], ["light.a", 6]]);
+    expect(pageReachWarning()).toMatch(/You have 1 Go to page tile, to page 2\. From page 2 no tile leads back to page 1\.$/);
+  });
+  it("stays quiet while either way of paging is on, the values are unknown, or every page can be reached and left", () => {
+    select("living");
+    tiles([["light.a", 0], ["light.b", 6]]);
+    for (const values of [{ page_buttons: true, swipe_pages: false }, { page_buttons: false, swipe_pages: true }, { page_buttons: null, swipe_pages: false }, {}]) {
+      settings(values);
+      expect(pageReachWarning()).toBe("");
+    }
+    settings({ page_buttons: false, swipe_pages: false });
+    tiles([["screen.page_2", 0], ["screen.page_1", 6]]);
+    expect(pageReachWarning()).toBe("");
+    tiles([["light.a", 0]]);
+    expect(pageReachWarning()).toBe("");
   });
 });

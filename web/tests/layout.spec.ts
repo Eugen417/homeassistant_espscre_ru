@@ -2,7 +2,8 @@
 import { describe, expect, it } from "vitest";
 import {
   arrange, cellsOf, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
-  newTile, normalize, occupied, packSlots, pageCount, pageStart, pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, spanOf, tileLimit, versionAtLeast,
+  newTile, normalize, occupied, packSlots, pageCount, pageStart, pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, spanOf, strandedPages, tileLimit,
+  versionAtLeast,
 } from "../src/model/layout";
 import type { Inventory, Layout, Tile } from "../src/types";
 
@@ -155,5 +156,21 @@ describe("full-page tiles and navigation tiles (firmware 0.2.62+)", () => {
     const inventory = { screens: [], entities: [], controls: { light: { default: "toggle", choices: [{ key: "toggle", label: "On/off" }, { key: "none", label: "None" }] } } } as unknown as Inventory;
     expect(effectiveControls(tile("light.a", 0, { size: "full" }), inventory)).toBeNull();
     expect(effectiveControls(tile("light.a", 0, { size: "full", controls: "toggle" }), inventory)).toBe("toggle");
+  });
+});
+
+describe("pages that only Go to page tiles reach (firmware 0.2.69)", () => {
+  const nav = (page: number, slot: number) => tile(`screen.page_${page}`, slot);
+  it("finds a page no tile leads to, and one without a way back", () => {
+    // Page 1 goes to 2 and 3; page 2 goes back to 1; page 3 leads nowhere; nothing goes to page 4.
+    const layout = entries([nav(2, 0), nav(3, 1), tile("light.a", 2), nav(1, 6), tile("light.b", 12), tile("light.c", 18)]);
+    expect(strandedPages(layout, 4)).toEqual({ tiles: 3, targets: [1, 2, 3], unreachable: [4], noWayBack: [3] });
+  });
+  it("follows a chain of pages, and ignores a tile to a page the screen lacks or to its own page", () => {
+    const chain = entries([nav(2, 0), nav(3, 6), nav(1, 12), nav(8, 13), nav(3, 14)]);
+    expect(strandedPages(chain, 3)).toEqual({ tiles: 4, targets: [1, 2, 3], unreachable: [], noWayBack: [] });
+    // A tile to page 3 that sits on a page nobody reaches leaves page 3 out too.
+    expect(strandedPages(entries([nav(3, 6)]), 3)).toEqual({ tiles: 1, targets: [3], unreachable: [2, 3], noWayBack: [] });
+    expect(strandedPages(entries([tile("light.a", 0)]), 1)).toEqual({ tiles: 0, targets: [], unreachable: [], noWayBack: [] });
   });
 });

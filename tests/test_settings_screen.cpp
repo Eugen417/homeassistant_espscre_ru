@@ -73,6 +73,17 @@ int main() {
   assert(dark_mode == 0 && value_text(dark) == "Off");
 
   const Page &screen = pages[3];
+  // Page buttons (firmware 0.2.69+) follows Swipe between pages: on by default, off takes the bar away.
+  {
+    const Row &buttons = row_named(screen, "Page buttons");
+    assert(buttons.kind == Kind::toggle && &buttons == &row_named(screen, "Swipe between pages") + 1);
+    assert(page_buttons == 1 && value_text(buttons) == "On");
+    buttons.write(0);
+    assert(page_buttons == 0 && value_text(buttons) == "Off");
+    assert(set("page_buttons", 0) == SetResult::same);
+    buttons.write(1);
+    assert(page_buttons == 1);
+  }
   const Row &clock = row_named(screen, "Clock");
   assert(clock.option_count == 2 && value_text(clock) == "24 hour");
   clock.write(0);
@@ -151,7 +162,7 @@ int main() {
       {"night_start", -5, 0}, {"night_end", 2000, 1439}, {"night_brightness", 7, 7}, {"clock_24h", 0, 0},
       {"home_on_standby", 1, 1}, {"swipe_pages", 2, 1}, {"rotation", 100, 90}, {"rotation", 400, 270},
       {"auto_home", 0, 0}, {"auto_home_seconds", 5, 30}, {"auto_home_seconds", 99999, 3600},
-      {"dark_mode", 7, 1},
+      {"dark_mode", 7, 1}, {"page_buttons", 0, 0},
   };
   for (const auto &c : cases) {
     result = set(c.key, c.value);
@@ -160,7 +171,7 @@ int main() {
   }
   assert(screen_settings::current.standby_seconds == 86400 && screen_settings::current.brightness == 100);
   assert(screen_settings::current.night_start == 0 && screen_settings::current.night_end == 1439);
-  assert(swipe_pages == 1 && rotation == 270 && auto_home == 0 && auto_home_seconds == 3600 && dark_mode == 1);
+  assert(swipe_pages == 1 && rotation == 270 && auto_home == 0 && auto_home_seconds == 3600 && dark_mode == 1 && page_buttons == 0);
   assert(screen_settings::current.valid());
   // Dark mode again is the same look: nothing stored, applied or reported; off is a change.
   {

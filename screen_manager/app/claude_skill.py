@@ -16,7 +16,7 @@ from core import (ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
                   CONTROLS, DISPLAYS, FULL_PAGE_MIN_FIRMWARE, MAX_PAGES, MAX_SLOTS, MAX_TILES, PAGE_TILE_REPEAT_MIN_FIRMWARE,
                   SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE,
-                  SETTING_ENTITIES_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE)
+                  SETTING_ENTITIES_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE, PAGE_BUTTONS_MIN_FIRMWARE)
 # Full-page tiles, navigation tiles and forty-eight tiles per screen.
 FULL_PAGE_VERSION = '.'.join(str(part) for part in FULL_PAGE_MIN_FIRMWARE)
 # The same navigation tile on several pages (app 0.2.78).
@@ -286,6 +286,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 | `switch.<screen>_back_to_page_1` | On: after `number.<screen>_back_to_page_1_after` seconds without a touch (30 to 3600) the screen closes a card and goes back to page 1. Pressing Wake, an alert or Auto standby don't count as a touch. |
 | `switch.<screen>_back_to_page_1_on_standby` | On: going into standby also goes back to page 1. |
 | `switch.<screen>_swipe_between_pages` | On: swipe between pages. |
+| `switch.<screen>_page_buttons` | On: the Previous and Next bar under the tiles on a screen with more than one page. Off: no bar, the tiles take its room, and only swiping or Go to page tiles change the page. Firmware {PAGE_BUTTONS_MIN_FIRMWARE} or newer. |
 | `select.<screen>_rotation` | Guition only: `0°`, `90°`, `180°` or `270°`. |
 
 Wake and Sleep are buttons: press them with the `button.press` action. They save nothing, so an automation may press them as often as it likes, on every motion too. To reach several screens at once, list their buttons under `entity_id`. Don't target an area or a device with `button.press`: that presses every other button there as well, the Wake and Sleep of the same screen included.

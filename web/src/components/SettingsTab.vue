@@ -3,12 +3,14 @@
 // once, like on the screen; no Save needed.
 import { computed } from "vue";
 import { glyph } from "../model/topbar";
-import { currentScreen, SETTING_GROUPS, setSetting, settingText, settingValues, settingsView, state, steppedSetting, type SettingRow } from "../store";
+import { currentScreen, pageReachWarning, SETTING_GROUPS, setSetting, settingText, settingValues, settingsView, state, steppedSetting, type SettingRow } from "../store";
 
 const view = computed(() => settingsView());
 const values = computed(() => settingValues());
 const offline = computed(() => view.value?.owner === "screen" && !currentScreen.value?.online);
 const groups = computed(() => SETTING_GROUPS.map((group) => ({ ...group, rows: (group.rows as readonly SettingRow[]).filter((row) => view.value?.keys.includes(row.key)) })).filter((g) => g.rows.length));
+// Page buttons and swiping off: the pages that only Go to page tiles could reach, and don't.
+const reachWarning = computed(() => pageReachWarning());
 const unavailable = (row: SettingRow) => offline.value || Boolean(view.value?.unavailable.includes(row.key));
 const needs = (row: SettingRow) => (row.needs ? Boolean(values.value[row.needs]) : true);
 const status = computed(() => offline.value
@@ -78,6 +80,7 @@ function click(e: MouseEvent, row: SettingRow, direction: number) {
             </div>
           </div>
         </div>
+        <p v-if="reachWarning && group.rows.some((row) => row.key === 'page_buttons')" class="hint warn" id="settings-page-reach">{{ reachWarning }}</p>
       </section>
     </div>
   </div>

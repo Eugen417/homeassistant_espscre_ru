@@ -105,6 +105,34 @@ export function pageCount(entries: Entry[], wanted = 1) {
   const last = Math.max(0, ...entries.map(({ tile, slot }) => slot + spanOf(sizeOf(tile))));
   return Math.min(MAX_PAGES, Math.max(1, Math.ceil(last / SLOTS_PER_PAGE), wanted || 1));
 }
+// With the page buttons and swiping both off (firmware 0.2.69+) only Go to page tiles change the page. Pages count
+// from 1: `tiles` is how many Go to page tiles lead to a page the screen has, `targets` the pages they lead to,
+// `unreachable` the pages no chain of them reaches from page 1, `noWayBack` the reachable ones they never lead back from.
+export function strandedPages(entries: Entry[], pages: number) {
+  const links = Array.from({ length: pages }, () => new Set<number>());
+  let tiles = 0;
+  for (const { tile, slot } of entries) {
+    const to = pageTarget(tile.entity) - 1, from = pageOf(slot);
+    if (to < 0 || to >= pages || from >= pages) continue;
+    tiles++;
+    links[from].add(to);
+  }
+  const reach = (next: (page: number) => number[]) => {
+    const seen = new Set([0]), queue = [0];
+    while (queue.length) for (const page of next(queue.shift()!)) if (!seen.has(page)) { seen.add(page); queue.push(page); }
+    return seen;
+  };
+  const forward = reach((page) => [...links[page]]);
+  const back = reach((page) => links.flatMap((to, from) => (to.has(page) ? [from] : [])));
+  const all = Array.from({ length: pages }, (_, page) => page);
+  const numbers = (list: number[]) => list.map((page) => page + 1);
+  return {
+    tiles,
+    targets: numbers(all.filter((page) => links.some((to) => to.has(page)))),
+    unreachable: numbers(all.filter((page) => !forward.has(page))),
+    noWayBack: numbers(all.filter((page) => forward.has(page) && !back.has(page))),
+  };
+}
 // New tiles start with the card that shows the entity best.
 export function defaultOptions(id: string): Partial<Tile> {
   const domain = id.split(".")[0];

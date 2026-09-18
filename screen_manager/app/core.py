@@ -37,7 +37,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.68'
+FIRMWARE_VERSION = '0.2.69'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -48,6 +48,8 @@ WAKE_SLEEP_MIN_FIRMWARE = '0.2.45'
 SETTING_ENTITIES_MIN_FIRMWARE = '0.2.49'
 # Dark mode: the screen's dark look, a setting and entity of its own (components/smart_display/theme.h).
 DARK_MODE_MIN_FIRMWARE = '0.2.54'
+# Page buttons: the Previous and Next bar under the tiles, a setting and entity of its own; off, the tiles take its room.
+PAGE_BUTTONS_MIN_FIRMWARE = '0.2.69'
 ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
@@ -276,12 +278,15 @@ SETTING_RULES = {
     # The dark look for a screen beside a bed (firmware 0.2.54+). Only a screen that owns its settings has it: it
     # never travels in the layout message.
     'dark_mode': (False, None, None),
+    # The Previous and Next bar under the tiles (firmware 0.2.69+); off, the tiles grow into its room. Only a screen
+    # that owns its settings has it, like dark_mode.
+    'page_buttons': (True, None, None),
 }
 # Firmware before 0.2.44 accepts a `settings` object with exactly its own eleven keys and refuses any
 # other size, so everything added after it travels as its own key in the layout message. Old firmware
 # ignores a key it does not know; a new screen with an old add-on keeps what it saved itself.
 # docs/SETTINGS.md walks through adding one.
-SETTINGS_BESIDE_BLOCK = ('swipe_pages', 'rotation', 'auto_home', 'auto_home_seconds', 'dark_mode')
+SETTINGS_BESIDE_BLOCK = ('swipe_pages', 'rotation', 'auto_home', 'auto_home_seconds', 'dark_mode', 'page_buttons')
 
 # ----- The screen owns its settings (firmware 0.2.49+) -----
 # A screen offers every setting as an entity of its own device, and the settings page on the screen, Home
@@ -306,6 +311,7 @@ SETTING_ENTITIES = {
     'swipe_pages': ('switch', 'Swipe between pages'),
     'rotation': ('select', 'Rotation'),
     'dark_mode': ('switch', 'Dark mode'),
+    'page_buttons': ('switch', 'Page buttons'),
 }
 # Entities firmware 0.2.49 added; one of them on a device means the screen owns its settings. The first five
 # existed before, so they cannot tell.

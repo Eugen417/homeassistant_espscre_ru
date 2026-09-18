@@ -4,7 +4,7 @@ import { computed, reactive, toRaw } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
-  pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, supportsFirmware as supportsVersion, tileLimit as limitFor,
+  pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
 import { agoText, BAR_METRICS, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { versionAtLeast } from "./model/layout";
@@ -636,10 +636,29 @@ export const SETTING_GROUPS = [
     { key: "auto_home_seconds", label: "After", kind: "duration", min: 30, max: 3600, needs: "auto_home" },
     { key: "home_on_standby", label: "Also on standby", kind: "toggle" },
     { key: "swipe_pages", label: "Swipe between pages", kind: "toggle" },
+    { key: "page_buttons", label: "Page buttons", kind: "toggle" },
     { key: "rotation", label: "Rotation", kind: "choice", options: [[0, "0°"], [90, "90°"], [180, "180°"], [270, "270°"]] },
   ] },
 ] as const;
 export type SettingRow = (typeof SETTING_GROUPS)[number]["rows"][number] & { min?: number; max?: number; step?: number; unit?: string; needs?: string; cap?: string; options?: readonly (readonly [unknown, string])[] };
+// Page buttons and swiping both off (firmware 0.2.69+): only Go to page tiles change the page, so the editor says which
+// pages the Go to page tiles lead to and which page that leaves out, or has no way back to page 1. Empty when either
+// is on or still unknown, or every page can be reached and left.
+export function pageReachWarning(entries = liveEntries(), pages = state.layout ? pageCount(entries, state.layout.pages) : 1) {
+  const values = settingValues();
+  if (pages < 2 || values.page_buttons !== false || values.swipe_pages !== false) return "";
+  const { tiles, targets, unreachable, noWayBack } = strandedPages(entries, pages);
+  if (!unreachable.length && !noWayBack.length) return "";
+  const named = (list: number[]) => (list.length === 1 ? `page ${list[0]}` : `pages ${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`);
+  // A page that tiles lead to but only from pages that can't be reached themselves.
+  const missing = unreachable.filter((page) => !targets.includes(page)), cutOff = unreachable.filter((page) => targets.includes(page));
+  let text = "Page buttons and swiping are off, so only Go to page tiles change the page. ";
+  text += tiles ? `You have ${tiles} Go to page ${tiles === 1 ? "tile" : "tiles"}, to ${named(targets)}` : "You have no Go to page tiles";
+  text += missing.length ? `${tiles ? ", but none" : ""} to ${named(missing)}, so you can't reach ${missing.length === 1 ? "it" : "them"}.` : ".";
+  if (cutOff.length) text += ` The tiles to ${named(cutOff)} are only on pages you can't reach.`;
+  if (noWayBack.length) text += ` From ${named(noWayBack)} no tile leads back to page 1.`;
+  return text;
+}
 // Changes made here that the screen has not reported back yet win over what Home Assistant still shows for a
 // few seconds, so a value never flicks back while it travels.
 const SETTING_EDIT_MS = 4000;

@@ -48,12 +48,12 @@ ENTITY_IDS = {
     'clock_24h': 'switch.office_1_24_hour_clock', 'auto_home': 'switch.office_1_back_to_page_1',
     'auto_home_seconds': 'number.office_1_back_to_page_1_after', 'home_on_standby': 'switch.office_1_back_to_page_1_on_standby',
     'swipe_pages': 'switch.office_1_swipe_between_pages', 'rotation': 'select.office_1_rotation',
-    'dark_mode': 'switch.office_1_dark_mode',
+    'dark_mode': 'switch.office_1_dark_mode', 'page_buttons': 'switch.office_1_page_buttons',
 }
 STATES = {'brightness': '80.0', 'standby_enabled': 'on', 'standby_seconds': '600.0', 'standby_brightness': '20.0',
           'night_enabled': 'on', 'night_start': '22:30:00', 'night_end': '07:00:00', 'night_brightness': '5.0',
           'clock_24h': 'on', 'auto_home': 'on', 'auto_home_seconds': '120.0', 'home_on_standby': 'off',
-          'swipe_pages': 'on', 'rotation': '90°', 'dark_mode': 'off'}
+          'swipe_pages': 'on', 'rotation': '90°', 'dark_mode': 'off', 'page_buttons': 'on'}
 
 
 def top_block(text, key):

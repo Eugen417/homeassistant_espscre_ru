@@ -21,8 +21,9 @@ namespace settings_screen {
 // Values that are not part of the persisted `screen_settings::Settings` block, because that format is
 // frozen at version 1: each of these keeps its own preference, so a new option never rewrites the
 // old ones. The manager sends the older ones as their own keys in the layout message; dark_mode (firmware
-// 0.2.54+) only exists as the screen's own setting and entity.
-inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, dark_mode = 0;
+// 0.2.54+) only exists as the screen's own setting and entity, like page_buttons (firmware 0.2.69+): off, the
+// Previous and Next bar under the tiles goes and the tiles take its room.
+inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, dark_mode = 0, page_buttons = 1;
 inline bool rotation_supported = false;
 
 // ------------------------------------------------------------------ the table
@@ -103,7 +104,7 @@ inline SetResult set(const std::string &key, int32_t value) {
   auto &s = screen_settings::current;
   const auto before = s;
   const int32_t before_swipe = swipe_pages, before_rotation = rotation, before_home = auto_home,
-                before_home_seconds = auto_home_seconds, before_dark = dark_mode;
+                before_home_seconds = auto_home_seconds, before_dark = dark_mode, before_buttons = page_buttons;
   int32_t reported = 0;
   auto flag = [](int32_t v) -> int32_t { return v ? 1 : 0; };
   if (key == "standby_enabled") reported = s.standby_enabled = flag(value);
@@ -124,9 +125,10 @@ inline SetResult set(const std::string &key, int32_t value) {
   else if (key == "auto_home") reported = auto_home = flag(value);
   else if (key == "auto_home_seconds") reported = auto_home_seconds = std::clamp<int32_t>(value, 30, 3600);
   else if (key == "dark_mode") reported = dark_mode = flag(value);
+  else if (key == "page_buttons") reported = page_buttons = flag(value);
   else return SetResult::unknown;
   if (s == before && swipe_pages == before_swipe && rotation == before_rotation && auto_home == before_home &&
-      auto_home_seconds == before_home_seconds && dark_mode == before_dark)
+      auto_home_seconds == before_home_seconds && dark_mode == before_dark && page_buttons == before_buttons)
     return SetResult::same;
   changed(key.c_str(), reported);
   return SetResult::changed;
@@ -258,7 +260,8 @@ inline constexpr Row night_rows[] = {
          [] { return screen_settings::current.night_enabled != 0; }),
 };
 
-// How the screen behaves under your finger: the clock, going back to the first page, swiping, turning.
+// How the screen behaves under your finger: the clock, going back to the first page, swiping, the page buttons,
+// turning.
 inline constexpr Row screen_rows[] = {
   choice("Clock", []() -> int32_t { return screen_settings::current.clock_24h ? 1 : 0; },
          [](int32_t value) { set("clock_24h", value); }, clock_options, 2),
@@ -271,6 +274,8 @@ inline constexpr Row screen_rows[] = {
          [](int32_t value) { set("home_on_standby", value); }),
   toggle("Swipe between pages", []() -> int32_t { return swipe_pages; },
          [](int32_t value) { set("swipe_pages", value); }),
+  toggle("Page buttons", []() -> int32_t { return page_buttons; },
+         [](int32_t value) { set("page_buttons", value); }),
   choice("Rotation", []() -> int32_t { return rotation / 90; },
          [](int32_t value) { set("rotation", std::clamp<int32_t>(value, 0, 3) * 90); },
          rotation_options, 4, [] { return rotation_supported; }),
@@ -358,6 +363,29 @@ inline Metrics metrics() {
                  large ? 40 : 26, large ? 16 : 10,
                  large ? 44 : 30, large ? 40 : 26,
                  large ? 62 : 40, large ? 34 : 22};
+}
+
+// The page dots of a pager (firmware 0.2.69+), under the tiles and on this page: one per page, centred in `row`, the
+// page on screen in ink and the others a quiet grey. The dots are made once and reused; `row` takes no touches.
+inline void page_dots(lv_obj_t *row, int current, int total, bool large) {
+  const int dot = large ? 8 : 6, gap = large ? 10 : 7;
+  total = std::clamp(total, 0, 8);
+  while ((int) lv_obj_get_child_count(row) < total) {
+    auto *d = lv_obj_create(row);
+    lv_obj_remove_style_all(d);
+    lv_obj_remove_flag(d, static_cast<lv_obj_flag_t>(LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE));
+    lv_obj_set_style_radius(d, LV_RADIUS_CIRCLE, 0);
+  }
+  const int width = total * dot + std::max(0, total - 1) * gap;
+  for (int i = 0; i < (int) lv_obj_get_child_count(row); ++i) {
+    auto *d = lv_obj_get_child(row, i);
+    if (i >= total) { lv_obj_add_flag(d, LV_OBJ_FLAG_HIDDEN); continue; }
+    lv_obj_remove_flag(d, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_set_size(d, dot, dot);
+    lv_obj_align(d, LV_ALIGN_CENTER, i * (dot + gap) + dot / 2 - width / 2, 0);
+    lv_obj_set_style_bg_color(d, theme::color(i == current ? theme::INK : theme::SUBTLE), 0);
+    lv_obj_set_style_bg_opa(d, i == current ? LV_OPA_COVER : LV_OPA_40, 0);
+  }
 }
 
 inline lv_obj_t *plain(lv_obj_t *parent, int x, int y, int w, int h) {
@@ -647,32 +675,34 @@ inline void draw() {
   refresh();
 
   if (!paged) return;
-  // The same pager as the tile pages, in the same place, so it is the one that is already learned.
+  // The same pager as the tile pages, in the same place, so it is the one that is already learned: a chevron in each
+  // half, the page dots between them (firmware 0.2.69+). A half lights up under a finger; one that leads nowhere is
+  // dimmed and takes no touches, so nothing moves from page to page.
   uint8_t page_number = (uint8_t) (first_row / per_page + 1);
   uint8_t page_total = (uint8_t) ((count + per_page - 1) / per_page);
   int y = m.height - m.pager - m.bottom / 2, half = (m.width - 2 * m.pad) / 2 - 20;
+  const lv_font_t *chevrons = icon_font ? icon_font : row_font;
+  int chevron_h = lv_font_get_line_height(chevrons);
+  auto *dots = plain(root, 0, y, m.width, m.pager);
+  page_dots(dots, page_number - 1, page_total, m.large);
   for (int side = 0; side < 2; ++side) {
     bool enabled = side ? page_number < page_total : page_number > 1;
-    if (!enabled) continue;
     auto *bar = plain(root, side ? m.width - m.pad - half : m.pad, y, half, m.pager);
+    auto *glyph = text(bar, side ? "\U000F0142" : "\U000F0141", chevrons, theme::INK,
+                       side ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_LEFT);
+    lv_obj_set_width(glyph, half - 12);
+    lv_obj_set_pos(glyph, 6, (m.pager - chevron_h) / 2);
+    if (!enabled) { lv_obj_set_style_opa(glyph, LV_OPA_30, 0); continue; }
     lv_obj_add_flag(bar, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_opa(bar, LV_OPA_TRANSP, 0);
     lv_obj_set_style_bg_opa(bar, LV_OPA_COVER, LV_STATE_PRESSED);
     lv_obj_set_style_bg_color(bar, theme::color(theme::KEY_PRESSED), LV_STATE_PRESSED);
     lv_obj_set_style_radius(bar, m.radius, 0);
-    auto *label = text(bar, side ? "Next  >" : "<  Previous", row_font, theme::INK,
-                       side ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_LEFT);
-    lv_obj_set_width(label, half - 12);
-    lv_obj_set_pos(label, 6, (m.pager - label_h) / 2);
     // CLICKED, not SHORT_CLICKED: LVGL sends no short click after a press of long_press_time (400 ms), so a firm or
     // slow press did nothing (firmware 0.2.65+). The bar has no hold of its own.
     lv_obj_add_event_cb(bar, pager_event, LV_EVENT_CLICKED,
                         (void *) (intptr_t) (side ? per_page : -per_page));
   }
-  auto *counter = text(root, std::to_string(page_number) + " / " + std::to_string(page_total), row_font, theme::MUTED,
-                       LV_TEXT_ALIGN_CENTER);
-  lv_obj_set_width(counter, m.width);
-  lv_obj_set_pos(counter, 0, y + (m.pager - label_h) / 2);
 }
 
 inline void hide_hold_bar() {
