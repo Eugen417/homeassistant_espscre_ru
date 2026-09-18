@@ -87,7 +87,10 @@ DOMAIN_ICONS = {
 MOMENT_DOMAINS = frozenset(['scene', 'button', 'input_button', 'event'])
 INACTIVE = frozenset(['off', 'closed', 'not_home', 'idle', 'docked', 'standby', 'locked', 'disarmed', 'paused', 'below_horizon'])
 AMBER, GREEN, RED, BLUE, ORANGE, TEAL = 'FFB300', '43A047', 'E53935', '2196F3', 'FF6F22', '009688'
-ALARM_CLASSES = frozenset(['problem', 'safety', 'smoke', 'gas', 'carbon_monoxide', 'moisture', 'tamper'])
+# Binary sensor classes Home Assistant draws red while on (--state-binary_sensor-<class>-on-color); the screen's
+# tile_controls::alarm_class has the same list (app 0.2.85).
+ALARM_CLASSES = frozenset(['battery', 'carbon_monoxide', 'gas', 'heat', 'lock', 'moisture', 'problem', 'safety', 'smoke',
+                           'sound', 'tamper'])
 
 def clean_text(text):
     """Text the screen can draw: known glyphs, accents folded to the base letter, at most TEXT_BYTES."""

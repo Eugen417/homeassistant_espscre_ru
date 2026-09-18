@@ -241,5 +241,38 @@ int main() {
   assert(runtime_tiles::valid_action("cover.toggle") && runtime_tiles::valid_action("sonos.snapshot") && runtime_tiles::valid_action("homeassistant.turn_on"));
   assert(!runtime_tiles::valid_action("cover") && !runtime_tiles::valid_action("Cover.toggle") && !runtime_tiles::valid_action("a.b.c") &&
          !runtime_tiles::valid_action(".toggle") && !runtime_tiles::valid_action("cover.") && !runtime_tiles::valid_action("cover.to ggle"));
+  // Home Assistant's state colours (firmware 0.2.71+): what a tile shows while it is active; inactive is grey.
+  {
+    using namespace theme::ha;
+    auto colour = [](const char *entity, const char *state, const char *device_class = "", const char *unit = "") {
+      Tile t = make(entity, state); t.device_class = device_class; t.unit = unit; return accent(t);
+    };
+    assert(colour("climate.a", "cool") == BLUE && colour("climate.a", "heat") == DEEP_ORANGE && colour("climate.a", "dry") == ORANGE);
+    assert(colour("climate.a", "fan_only") == CYAN && colour("climate.a", "auto") == GREEN && colour("climate.a", "heat_cool") == AMBER);
+    assert(colour("climate.a", "eco") == AMBER);  // a mode Home Assistant has no colour for: its active colour
+    for (const char *alarm : {"battery", "carbon_monoxide", "gas", "heat", "lock", "moisture", "problem", "safety", "smoke", "sound", "tamper"})
+      assert(alarm_class(alarm) && colour("binary_sensor.a", "on", alarm) == RED);
+    for (const char *calm : {"door", "window", "motion", "occupancy", "opening", "plug", "battery_charging", ""})
+      assert(!alarm_class(calm) && colour("binary_sensor.a", "on", calm) == AMBER);
+    assert(colour("sensor.a", "70", "battery", "%") == GREEN && colour("sensor.a", "69.5", "battery", "%") == ORANGE);
+    assert(colour("sensor.a", "30", "battery", "%") == ORANGE && colour("sensor.a", "29.9", "battery", "%") == RED);
+    assert(colour("sensor.a", "low", "battery") == BLUE && colour("sensor.a", "5%", "battery", "%") == TEAL);  // no number
+    assert(colour("sensor.a", "50", "humidity", "%") == TEAL && colour("sensor.a", "21", "temperature", "°C") == DEEP_ORANGE);
+    assert(colour("script.a", "on") == AMBER && colour("timer.a", "active") == AMBER && colour("camera.a", "streaming") == AMBER);
+    assert(colour("light.a", "on") == AMBER && colour("switch.a", "on") == AMBER && colour("input_boolean.a", "on") == AMBER);
+    assert(colour("scene.a", "2026-09-18T20:00:00+00:00") == PURPLE && colour("cover.a", "open") == PURPLE);
+    assert(colour("select.a", "eco") == INDIGO && colour("number.a", "3") == TEAL && colour("fan.a", "on") == CYAN);
+    assert(colour("media_player.a", "playing") == LIGHT_BLUE && colour("vacuum.a", "cleaning") == TEAL && colour("vacuum.a", "error") == RED);
+    assert(colour("person.a", "home") == GREEN && colour("person.a", "Work") == BLUE);
+    assert(colour("sun.sun", "above_horizon") == AMBER && colour("sun.sun", "below_horizon") == INDIGO);
+    assert(colour("screen.clock", "") == BLUE && colour("image.a", "unknown") == BLUE && colour("button.a", "unknown") == BLUE);
+    // Every condition Home Assistant's weather knows, in its colour.
+    assert(weather_color("sunny") == AMBER && weather_color("clear-night") == DEEP_PURPLE && weather_color("partlycloudy") == BLUE_GREY);
+    assert(weather_color("cloudy") == LIGHT_GREY && weather_color("fog") == GREY && weather_color("rainy") == BLUE);
+    assert(weather_color("pouring") == INDIGO && weather_color("snowy") == ICE && weather_color("snowy-rainy") == LIGHT_BLUE);
+    assert(weather_color("hail") == CYAN && weather_color("lightning") == YELLOW && weather_color("lightning-rainy") == LIME);
+    assert(weather_color("windy") == GREEN && weather_color("windy-variant") == GREEN && weather_color("exceptional") == RED);
+    assert(weather_color("something-new") == AMBER && colour("weather.a", "pouring") == INDIGO);
+  }
   return 0;
 }

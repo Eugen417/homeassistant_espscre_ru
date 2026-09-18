@@ -1,3 +1,15 @@
+## 0.2.85 (firmware 0.2.71)
+
+Off looks off on every tile, in Home Assistant's colours.
+
+- **What Home Assistant calls off is grey.** Tiles now follow the rule Home Assistant's own cards colour by (its `stateActive()`). An airco or fan that is off, a closed blind, a docked or paused robot, a player that is off or in standby, a script that isn't running, a paused timer and a camera that isn't streaming turn grey, as an off light or door sensor already did. The airco was the one you noticed: its tile stayed orange while the airco was off.
+- **An airco that is off says Off.** Its tile showed the temperature it was set to, even while off. It now reads *Off*, with the room's temperature when the device reports one (*Off · 21.5°*), as Home Assistant's tile does. While it runs, the tile still shows the set temperature.
+- **Home Assistant's colours for the rest.** An alarm that goes off is red on its tile, as in the top bar: smoke, gas, carbon monoxide, a leak, heat, a problem, safety, sound, tampering, a low battery and an unlocked lock. A battery sensor is green from 70 %, orange from 30 % and red below that. A running script or timer and a streaming camera are amber. The weather takes the colour of its condition: clouds light grey, fog grey, rain blue, pouring rain indigo, snow pale blue, lightning yellow and wind green. The sun is amber by day and indigo at night, and someone in a zone other than home is blue. Scenes, selects, numbers and sensors keep their own colour per kind, where Home Assistant draws them all in one neutral blue.
+- **A full-page tile lights up only when it is on.** It now also lights up for an open blind, a speaker that is on, a robot at work or on its way back, a running script, a streaming camera and someone at home or in a zone. Sensors, numbers, selects, scenes, the weather and the sun stay plain, because Home Assistant calls them active all the time; the sun no longer lights up by day.
+- **The top bar knows the same alarms.** A heat, sound or lock sensor and a low battery now turn red in the top bar too. That part is the add-on's and needs no firmware.
+- A closed blind's small slider keeps its colour while its tile is grey, as in Home Assistant.
+- Needs firmware 0.2.71: press **Update** on the screen. Includes everything from 0.2.84. CYD firmware: 1,677,488 bytes, 91.4 % of the update slot (576 bytes more than 0.2.84).
+
 ## 0.2.84 (firmware 0.2.70)
 
 One shared screen for every board: the two board profiles became one core plus a small file per board.

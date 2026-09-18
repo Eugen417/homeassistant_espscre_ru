@@ -201,19 +201,22 @@ inline uint32_t outline(uint32_t own) {
 // What a state looks like in Home Assistant's frontend (its --state-*-color and --*-color variables), the same in both
 // looks: an amber light is amber at night too. They are data, drawn through state(), foreground(), tint() and icon().
 namespace ha {
-constexpr uint32_t AMBER = 0xFFC107;         // a light, switch or binary sensor that is on; lux
-constexpr uint32_t ORANGE = 0xFF9800;        // the sun above the horizon, a paused timer or robot, drying
+constexpr uint32_t AMBER = 0xFFC107;         // on: a light, switch, running script or timer, streaming camera; the sun; lux
+constexpr uint32_t ORANGE = 0xFF9800;        // a paused robot, drying, a battery half full, the sun path by day
 constexpr uint32_t DEEP_ORANGE = 0xFF6F22;   // temperature, heating
-constexpr uint32_t RED = 0xF44336;           // a robot in trouble
-constexpr uint32_t PURPLE = 0x926BC7;        // covers, scenes and scripts, energy
-constexpr uint32_t DEEP_PURPLE = 0x6E41AB;   // a clear night, the sun below the horizon
-constexpr uint32_t INDIGO = 0x3F51B5;        // selects
-constexpr uint32_t BLUE = 0x2196F3;          // cooling, a robot on its way back, the settings card, everything else
-constexpr uint32_t LIGHT_BLUE = 0x03A9F4;    // media players, the weather
-constexpr uint32_t CYAN = 0x00BCD4;          // fans
-constexpr uint32_t TEAL = 0x009688;          // numbers, percentages, a running timer, a robot at work
-constexpr uint32_t GREEN = 0x4CAF50;         // someone at home, auto mode
-constexpr uint32_t GREY = 0x9E9E9E;          // anything off or away
+constexpr uint32_t RED = 0xF44336;           // an alarm going off, a robot in trouble, an empty battery
+constexpr uint32_t PURPLE = 0x926BC7;        // covers, scenes, energy
+constexpr uint32_t DEEP_PURPLE = 0x6E41AB;   // a clear night
+constexpr uint32_t INDIGO = 0x3F51B5;        // selects, the sun below the horizon, pouring rain
+constexpr uint32_t BLUE = 0x2196F3;          // cooling, rain, a robot on its way back, someone in a zone, everything else
+constexpr uint32_t LIGHT_BLUE = 0x03A9F4;    // media players, sleet
+constexpr uint32_t CYAN = 0x00BCD4;          // fans, hail
+constexpr uint32_t TEAL = 0x009688;          // numbers, percentages, a robot at work
+constexpr uint32_t GREEN = 0x4CAF50;         // someone at home, auto mode, wind, a full battery
+constexpr uint32_t GREY = 0x9E9E9E;          // anything off or away, fog
+// The rest of the weather, as Home Assistant colours a condition (--state-weather-*-color): clouds, a partly
+// cloudy sky, lightning, lightning with rain, and snow, which Home Assistant writes as a value of its own.
+constexpr uint32_t LIGHT_GREY = 0xBDBDBD, BLUE_GREY = 0x607D8B, YELLOW = 0xFFEB3B, LIME = 0xCDDC39, ICE = 0xC0E0FF;
 constexpr uint32_t SKY = 0x00A6ED;           // a robot that is docked or idle
 constexpr uint32_t SWITCH_ON = 0xFFB900;     // the switch on a history card while on
 constexpr uint32_t PURPLE_PRESSED = 0x7552A8;  // a chosen cover key under a finger

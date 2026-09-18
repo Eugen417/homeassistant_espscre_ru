@@ -26,7 +26,9 @@ class OffLook(unittest.TestCase):
 
     def test_the_screen_crosses_out_its_own_bulb_and_greys_what_is_off(self):
         self.assertIn('if (d == "light" && tile.state == "off") return "\\U000F0E4F";', TILES)
-        self.assertIn('(t.is_switch()||d=="light"||d=="binary_sensor"||d=="person"||d=="timer") && !on ? theme::STATE_OFF : accent', TILES)
+        # Since firmware 0.2.71 every tile follows Home Assistant's stateActive() (Tile::active), not a list of domains.
+        self.assertIn('bool on = t.builtin() || (fresh() && t.active());', TILES)
+        self.assertIn('uint32_t state_color=on?accent:theme::STATE_OFF;', TILES)
         self.assertIn('constexpr uint32_t STATE_OFF = ha::GREY;', THEME)
         self.assertIn('constexpr uint32_t GREY = 0x9E9E9E;', THEME)
 

@@ -27,7 +27,7 @@ ALLOWED_IN_FIRMWARE = {
     'light_controls.h': ('constexpr uint32_t WARM = 0xFF9C32, COOL = 0xC6E6FF;',
                          'inline constexpr uint32_t RAINBOW[] = {0xFF0000, 0xFFFF00, 0x00FF00, 0x00FFFF, 0x0000FF, 0xFF00FF, 0xFF0000};'),
     'tile_icon.h': ('if (cp < 0x10000 || cp > 0x10FFFF) return {};',),
-    'runtime_tiles.h': ('state_color=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation,100))&0xFFFFFF;',),
+    'runtime_tiles.h': ('accent=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation,100))&0xFFFFFF;',),
 }
 COLOUR_WHEEL = {'0xFF3B30', '0xFF9500', '0xFFD60A', '0x30D158', '0x32D6FF', '0x0A84FF', '0x5856D6', '0xBF5AF2'}
 

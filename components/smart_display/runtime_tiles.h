@@ -98,7 +98,6 @@ inline lv_image_dsc_t *cover_ready(const std::string &entity, int size, uint32_t
 inline lv_obj_t *media_detail_picture = nullptr;
 constexpr unsigned MEDIA_PICTURE = 14;
 inline void media_action(Tile &t, int cmd);
-inline uint32_t domain_accent(const Tile &t);
 inline const char *icon_for(const Tile &tile);
 inline void label(lv_obj_t *obj, const std::string &text);
 inline int active_index = -1;
@@ -1778,7 +1777,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
     history_request(t.entity,history_hours);
   c.ready=history_fits(t);
   const bool line=c.ready?h.line:history_line_guess(t);
-  c.line=line;c.accent=domain_accent(t);
+  c.line=line;c.accent=tile_controls::accent(t);
   const lv_font_t *big=watch_value_font?watch_value_font:(watch_font?watch_font:detail_font);
   const lv_font_t *text=control_font?control_font:detail_font;
   const lv_font_t *small=small_font?small_font:detail_font;
@@ -2385,34 +2384,6 @@ inline void pad_vertical(lv_obj_t *obj, int value) {
   if (lv_obj_get_style_pad_bottom(obj, LV_PART_MAIN) != value) lv_obj_set_style_pad_bottom(obj, value, 0);
 }
 inline void set_line_width(lv_obj_t *obj, int value) { if (lv_obj_get_style_line_width(obj, LV_PART_MAIN) != value) lv_obj_set_style_line_width(obj, value, 0); }
-// HA's default domain/state palette. Pastel circles also identify inactive domains.
-// Custom Lovelace card/theme CSS is not an entity attribute and is not imported.
-inline uint32_t domain_accent(const Tile &t) {
-  using namespace theme::ha;
-  auto d=t.domain();
-  if(d=="light" || d=="switch" || d=="input_boolean" || d=="binary_sensor")return AMBER;
-  // A climate card that is off or in an unknown mode keeps HA's orange climate circle.
-  if(d=="climate"){uint32_t c=tile_controls::mode_color(t.state);return c==GREY?ORANGE:c;}
-  if(d=="vacuum")return t.state=="error"?RED:TEAL;
-  if(d=="fan")return CYAN;
-  if(d=="cover")return PURPLE;
-  if(d=="media_player")return LIGHT_BLUE;
-  if(d=="scene" || d=="script")return PURPLE;
-  if(d=="select" || d=="input_select")return INDIGO;
-  if(d=="number" || d=="input_number")return TEAL;
-  if(d=="weather")return t.state=="sunny"?AMBER:t.state=="clear-night"?DEEP_PURPLE:LIGHT_BLUE;
-  if(d=="sun")return t.state=="above_horizon"?ORANGE:DEEP_PURPLE;
-  if(d=="timer")return t.state=="active"?TEAL:t.state=="paused"?ORANGE:GREY;
-  if(d=="person")return t.state=="home"?GREEN:GREY;
-  if(d=="screen")return BLUE;
-  if(d=="sensor"){
-    if(t.unit=="lx")return AMBER;
-    if(t.unit=="°C" || t.unit=="°F")return DEEP_ORANGE;
-    if(t.unit=="kWh" || t.unit=="Wh")return PURPLE;
-    if(t.unit=="%")return TEAL;
-  }
-  return BLUE;
-}
 // Custom cards draw into a transparent `extra` container; parts are rebuilt only
 // when a slot changes mode, so paging keeps RAM use flat on the CYD.
 // A slot whose next card draws no custom part only hides them: paging back to the clock or
@@ -3123,6 +3094,9 @@ inline void render_slot(size_t slot) {
   else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = "Refused";
   else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
+  // An airco that is off says so, with the room's temperature when it knows it, as Home Assistant's tile does
+  // (firmware 0.2.71+); while it runs, the tile shows the temperature it is set to.
+  else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) { char b[32]; snprintf(b, sizeof(b), " · %.1f°", t.current); value += b; } }
   else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
   else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
   else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? t.extra().sunrise+" - "+t.extra().sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
@@ -3245,30 +3219,33 @@ inline void render_slot(size_t slot) {
   else hide_extra(w);
   lap(swipe_profile::CUSTOM);
   }
-  bool on = fresh() && t.active();
-  // Sliders colour more states than the card itself does, such as a playing media player (Tile::slider_active).
+  // Home Assistant's rule (Tile::active): what it calls inactive is grey, such as an airco that is off, a closed
+  // blind, a docked robot or a player in standby (firmware 0.2.71+). A built-in card has no state and keeps its colour.
+  bool on = t.builtin() || (fresh() && t.active());
+  // A closed blind's slider keeps the blind's colour while its card is grey, as in Home Assistant (Tile::slider_active).
   bool slider_on = fresh() && t.slider_active();
   bool available=fresh() && t.available();
   int palette_state=(available?2:0)|(on?1:0)|(slider_on?4:0);
   if (w.cached_active == palette_state && !w.panel_dirty) { lap(swipe_profile::GEOMETRY); return; }
   w.cached_active = palette_state;w.panel_dirty=false;
-  uint32_t accent = domain_accent(t);
-  // Off is grey, as in Home Assistant, so a light or a door sensor shows its state at a glance.
-  uint32_t state_color=(t.is_switch()||d=="light"||d=="binary_sensor"||d=="person"||d=="timer") && !on ? theme::STATE_OFF : accent;
+  // Home Assistant's colour for the state (tile_controls::accent), and a lamp's own colour while it is on.
+  uint32_t accent=tile_controls::accent(t);
   if(d=="light" && on && t.has_hs_color)
-    state_color=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation,100))&0xFFFFFF;
+    accent=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation,100))&0xFFFFFF;
+  uint32_t state_color=on?accent:theme::STATE_OFF;
   auto color=lv_color_hex(theme::state(state_color));
   auto circle_color=lv_color_hex(available?theme::tint(state_color,38):theme::hex(theme::TRACK));
   // Very pale bulbs still need a visible icon: a touch darker on a light card, a touch lighter on a dark one.
   auto icon_color=lv_color_hex(available?theme::icon(state_color):theme::hex(theme::OFF));
   // Off: a grey track without fill or handle, as in Home Assistant.
-  const uint32_t fill=slider_on?state_color:theme::STATE_OFF;
+  const uint32_t fill=slider_on?accent:theme::STATE_OFF;
   auto fill_color=lv_color_hex(theme::state(fill));
   set_color(w.slider,LV_STYLE_BG_COLOR,fill_color,LV_PART_INDICATOR);
   set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_hex(theme::tint(fill,51)),LV_PART_MAIN);
   slider_bar(w.slider,slider_bar_shown(t,slider_on));
-  // A full-page card lights up in its state colour while on (firmware 0.2.62+): an amber lamp, a purple scene.
-  bool lit=w.full && on && available && !t.transparent;
+  // A full-page card lights up in its state colour while it is on (firmware 0.2.62+): an amber lamp, an open blind, a
+  // playing speaker, never a sensor or the weather (Tile::lights_up, firmware 0.2.71+).
+  bool lit=w.full && on && t.lights_up() && available && !t.transparent;
   set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(lit?theme::tint(state_color,51):theme::surface(t.background)));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
   // "Background: none" hides only the card; geometry and padding stay identical,
@@ -3283,7 +3260,9 @@ inline void render_slot(size_t slot) {
   set_color(w.unit,LV_STYLE_TEXT_COLOR,theme::color(t.is_page()?theme::CHEVRON:theme::SLATE));
   set_color(w.title,LV_STYLE_TEXT_COLOR,title_color);
   set_color(w.value,LV_STYLE_TEXT_COLOR,value_color);
-  style_panel(w,t,color,title_color);
+  // The controls take the state's colour even while the card is grey: a closed blind's position slider stays coloured
+  // (Tile::slider_active), while the slider of something off turns grey and the Off mode key has a grey of its own.
+  style_panel(w,t,lv_color_hex(theme::state(accent)),title_color);
   // Custom parts follow the card palette: text like the title, lines/dots in the accent.
   // The sun path sets its own colours on every render, the sunlit area under its arc too: taking the
   // accent here made that area orange after a palette change and yellow again after the next minute.

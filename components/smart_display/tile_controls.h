@@ -59,6 +59,69 @@ inline uint32_t mode_color(const std::string &mode) {
   if (mode == "dry") return ORANGE;
   return GREY;
 }
+// Binary sensor classes Home Assistant draws red while they are on (its --state-binary_sensor-<class>-on-color): an
+// alarm, a problem, a low battery, an unlocked lock. header_bar.ALARM_CLASSES gives the top bar the same list.
+inline bool alarm_class(const std::string &device_class) {
+  for (const char *alarm : {"battery", "carbon_monoxide", "gas", "heat", "lock", "moisture", "problem", "safety", "smoke",
+                            "sound", "tamper"})
+    if (device_class == alarm) return true;
+  return false;
+}
+// Home Assistant's colour for a weather condition (--state-weather-<condition>-color); a condition it has none for
+// takes its --state-active-color.
+inline uint32_t weather_color(const std::string &condition) {
+  using namespace theme::ha;
+  if (condition == "sunny") return AMBER;
+  if (condition == "clear-night") return DEEP_PURPLE;
+  if (condition == "partlycloudy") return BLUE_GREY;
+  if (condition == "cloudy") return LIGHT_GREY;
+  if (condition == "fog") return GREY;
+  if (condition == "rainy") return BLUE;
+  if (condition == "pouring") return INDIGO;
+  if (condition == "snowy") return ICE;
+  if (condition == "snowy-rainy") return LIGHT_BLUE;
+  if (condition == "hail") return CYAN;
+  if (condition == "lightning") return YELLOW;
+  if (condition == "lightning-rainy") return LIME;
+  if (condition == "windy" || condition == "windy-variant") return GREEN;
+  if (condition == "exceptional") return RED;
+  return AMBER;
+}
+// The colour of a tile while Home Assistant calls it active (Tile::active; anything inactive is grey): its
+// stateColorCss() (frontend src/common/entity/state_color.ts) for the domains it colours by state, and a colour of
+// our own per kind for those it draws in one neutral blue, such as scenes, selects, numbers and sensors (0.2.3).
+// A state Home Assistant has no colour of its own for takes its --state-active-color, amber (firmware 0.2.71+).
+// Colours set in a Lovelace card or theme are no entity attributes and never reach the screen.
+inline uint32_t accent(const Tile &t) {
+  using namespace theme::ha;
+  const auto d = t.domain();
+  if (d == "binary_sensor") return alarm_class(t.device_class) ? RED : AMBER;
+  if (d == "light" || d == "switch" || d == "input_boolean" || d == "script" || d == "timer" || d == "camera") return AMBER;
+  if (d == "climate") { const uint32_t c = mode_color(t.state); return c == GREY ? AMBER : c; }
+  if (d == "vacuum") return t.state == "error" ? RED : TEAL;
+  if (d == "fan") return CYAN;
+  if (d == "cover" || d == "scene") return PURPLE;
+  if (d == "media_player") return LIGHT_BLUE;
+  if (d == "select" || d == "input_select") return INDIGO;
+  if (d == "number" || d == "input_number") return TEAL;
+  if (d == "weather") return weather_color(t.state);
+  if (d == "sun") return t.state == "above_horizon" ? AMBER : INDIGO;
+  // At home green; in another zone blue (--state-person-active-color).
+  if (d == "person") return t.state == "home" ? GREEN : BLUE;
+  if (d == "sensor") {
+    // A battery by its charge, as Home Assistant's battery_color.ts: green from 70 %, orange from 30 %, red below.
+    if (t.device_class == "battery") {
+      char *end = nullptr;
+      const float charge = std::strtof(t.state.c_str(), &end);
+      if (end != t.state.c_str() && *end == '\0' && std::isfinite(charge)) return charge >= 70 ? GREEN : charge >= 30 ? ORANGE : RED;
+    }
+    if (t.unit == "lx") return AMBER;
+    if (t.unit == "°C" || t.unit == "°F") return DEEP_ORANGE;
+    if (t.unit == "kWh" || t.unit == "Wh") return PURPLE;
+    if (t.unit == "%") return TEAL;
+  }
+  return BLUE;
+}
 inline const char *mode_icon(const std::string &mode) {
   if (mode == "off") return glyph::POWER;
   if (mode == "heat") return glyph::FIRE;

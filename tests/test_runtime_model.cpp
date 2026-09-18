@@ -50,6 +50,7 @@ static void test_domains_and_packing() {
   }
   { runtime_tiles::Tile lamp; lamp.entity = "light.lamp"; lamp.received = true; lamp.state = "unknown"; assert(!lamp.available()); }
   { runtime_tiles::Tile waiting; waiting.entity = "scene.evening"; waiting.state = "unknown"; assert(!waiting.available()); }
+  m.tiles[4].received = m.tiles[5].received = true;
   m.tiles[4].state = "home"; assert(m.tiles[4].active());
   m.tiles[5].state = "active"; assert(m.tiles[5].active());
   m.tiles[5].state = "idle"; assert(!m.tiles[5].active());
@@ -186,6 +187,48 @@ static void test_slider_colours() {
   setpoint.state = "55.0"; assert(setpoint.slider_active());
 }
 struct RunSliderColours { RunSliderColours() { test_slider_colours(); } } run_slider_colours;
+// Home Assistant's stateActive() (firmware 0.2.71+): what it calls inactive is grey on the screen, and only a tile
+// that can be off lights up over a whole page, while it is on.
+static void test_state_active() {
+  using namespace runtime_tiles;
+  struct Case { const char *entity, *state; bool active, lights; };
+  for (const Case &c : std::initializer_list<Case>{
+           {"climate.airco", "off", false, false}, {"climate.airco", "cool", true, true}, {"climate.airco", "heat", true, true},
+           {"climate.airco", "heat_cool", true, true}, {"climate.airco", "fan_only", true, true}, {"climate.airco", "dry", true, true},
+           {"light.a", "on", true, true}, {"light.a", "off", false, false}, {"switch.a", "on", true, true},
+           {"input_boolean.a", "off", false, false}, {"fan.a", "on", true, true}, {"fan.a", "off", false, false},
+           {"cover.a", "open", true, true}, {"cover.a", "opening", true, true}, {"cover.a", "closing", true, true},
+           {"cover.a", "closed", false, false}, {"media_player.a", "playing", true, true}, {"media_player.a", "paused", true, true},
+           {"media_player.a", "idle", true, true}, {"media_player.a", "on", true, true}, {"media_player.a", "standby", false, false},
+           {"media_player.a", "off", false, false}, {"vacuum.a", "cleaning", true, true}, {"vacuum.a", "returning", true, true},
+           {"vacuum.a", "error", true, true}, {"vacuum.a", "docked", false, false}, {"vacuum.a", "idle", false, false},
+           {"vacuum.a", "paused", false, false}, {"script.a", "on", true, true}, {"script.a", "off", false, false},
+           {"timer.a", "active", true, true}, {"timer.a", "paused", false, false}, {"timer.a", "idle", false, false},
+           {"camera.a", "streaming", true, true}, {"camera.a", "recording", true, true}, {"camera.a", "idle", false, false},
+           {"person.a", "home", true, true}, {"person.a", "Work", true, true}, {"person.a", "not_home", false, false},
+           {"binary_sensor.a", "on", true, true}, {"binary_sensor.a", "off", false, false},
+           // Always active in Home Assistant: coloured, but never lit.
+           {"sensor.a", "21.5", true, false}, {"number.a", "3", true, false}, {"input_number.a", "3", true, false},
+           {"select.a", "eco", true, false}, {"input_select.a", "eco", true, false}, {"weather.a", "rainy", true, false},
+           {"sun.sun", "above_horizon", true, false}, {"sun.sun", "below_horizon", true, false},
+           {"scene.a", "2026-09-18T20:00:00+00:00", true, false}, {"scene.a", "unknown", true, false},
+           {"button.a", "unknown", true, false}, {"input_button.a", "unknown", true, false}, {"image.a", "unknown", true, false},
+           // "off" is inactive in every domain, a select's option too; unknown too, except where the state is a moment.
+           {"select.a", "off", false, false}, {"sensor.a", "unknown", false, false}, {"light.a", "unavailable", false, false},
+           {"scene.a", "unavailable", false, false}}) {
+    Tile t; t.entity = c.entity; t.state = c.state; t.received = true;
+    assert(t.active() == c.active);
+    assert(t.lights_up() == c.lights);
+  }
+  // Nothing received yet is inactive; a built-in card has no state, is always active and never lit.
+  { Tile t; t.entity = "light.a"; t.state = "on"; assert(!t.active() && !t.lights_up()); }
+  for (const char *entity : {"screen.clock", "screen.settings", "screen.page_2"}) {
+    Tile t; t.entity = entity; assert(t.active() && !t.lights_up());
+  }
+  // A closed blind: grey card, coloured slider.
+  { Tile t; t.entity = "cover.a"; t.state = "closed"; t.received = true; assert(!t.active() && t.slider_active()); }
+}
+struct RunStateActive { RunStateActive() { test_state_active(); } } run_state_active;
 // A navigation tile may sit on several pages of one screen (firmware 0.2.65+); a Home Assistant entity still appears once.
 static void test_repeated_page_tiles() {
   using namespace runtime_tiles;

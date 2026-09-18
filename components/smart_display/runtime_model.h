@@ -290,20 +290,42 @@ struct Tile {
     auto d = domain();
     return state != "unknown" || d == "scene" || d == "button" || d == "input_button";
   }
+  // Home Assistant's stateActive() (frontend src/common/entity/state_active.ts), the rule its cards colour by: an
+  // entity it calls inactive is grey, such as an airco that is off, a closed blind, a docked robot, a player in
+  // standby or a paused timer (firmware 0.2.71+). Only the cases of the domains a tile can show are here. A scene,
+  // button or image states the moment it last ran (TIMESTAMP_STATE_DOMAINS), so only "unavailable" makes it
+  // inactive. A built-in card has no state and is always active.
   bool active() const {
-    return state == "on" || state == "cleaning" || state == "active" || (domain() == "person" && state == "home") ||
-           (domain() == "sun" && state == "above_horizon") || (domain() == "climate" && available() && state != "off");
+    if (builtin()) return true;
+    if (!received || state.empty() || state == "unavailable") return false;
+    auto d = domain();
+    if (d == "scene" || d == "button" || d == "input_button" || d == "image") return true;
+    if (state == "unknown" || state == "off") return false;
+    if (d == "cover") return state != "closed";
+    if (d == "person") return state != "not_home";
+    if (d == "media_player") return state != "standby";
+    if (d == "vacuum") return state != "idle" && state != "docked" && state != "paused";
+    if (d == "timer") return state == "active";
+    if (d == "camera") return state == "streaming" || state == "recording";
+    return true;
   }
-  // A slider shows the card's colour like Home Assistant's tile sliders: grey only while stateActive()
-  // (frontend src/common/entity/state_active.ts) calls the entity inactive, such as an off light or fan and a
-  // media player that is off or in standby. A number with a value is active there, and a closed cover's
-  // position slider keeps the cover's colour so it never looks disabled (hui-cover-position-card-feature.ts).
+  // A card over the whole page lights up in its state colour while it is on (firmware 0.2.62+): only a tile that can
+  // be off, closed, docked or away, and only while active() calls it active (firmware 0.2.71+). Sensors, numbers,
+  // selects, scenes, buttons, images, the weather and the sun are always active in Home Assistant and stay plain.
+  bool lights_up() const {
+    const auto d = domain();
+    for (const char *on_off : {"light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "vacuum",
+                               "script", "timer", "camera", "person", "binary_sensor"})
+      if (d == on_off) return active();
+    return false;
+  }
+  // A slider shows the card's colour like Home Assistant's tile sliders: grey only while the entity is inactive
+  // (active() above), such as an off light or fan and a media player that is off or in standby. A number with a
+  // value is active there, and a closed cover's position slider keeps the cover's colour so it never looks
+  // disabled (hui-cover-position-card-feature.ts).
   bool slider_active() const {
     if (!available()) return false;
-    auto d = domain();
-    if (d == "media_player") return state != "off" && state != "standby";
-    if (d == "cover" || d == "number" || d == "input_number") return true;
-    return active();
+    return domain() == "cover" || active();
   }
 };
 // Slot position of a tile within the fixed two-column, three-row pages.

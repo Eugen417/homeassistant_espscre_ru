@@ -52,6 +52,9 @@ on the screen itself, and how updates work.
   drag them straight into the screen mockup; **Double-width** is an option for every tile, and so is
   **Full page** (firmware 0.2.62+): the tile takes the whole page and is one big button that lights up
   in its state colour while on, so a screen by the door switches the light when you push anywhere on it.
+  Only something that can be off lights up: a light, switch, airco, fan, blind, speaker, robot, script,
+  timer, camera, person or binary sensor. Sensors, numbers, selects, scenes, the weather and the sun stay plain
+  (firmware 0.2.71+).
   Its small slider, direct controls or graph sit at the bottom of the page. A **Go to page** tile
   (`screen.page_1` to `screen.page_8`) opens another page: a full-page light switch on page 1, a menu on page 2.
   Under **Goes to page** the editor offers the pages the screen has and the next, empty one, where a new sub-page
@@ -83,7 +86,13 @@ on the screen itself, and how updates work.
 - **Home Assistant's words and icons** (app 0.2.67 / firmware 0.2.58): a blind says Open or
   Closing, a speaker Playing and a door Open or Closed, a sensor shows the decimals Home Assistant
   shows, and a tile without an icon of its own gets the one Home Assistant shows, following its
-  state. A light or binary sensor that is off turns grey (firmware 0.2.53+).
+  state.
+- **Home Assistant's colours** (firmware 0.2.71+): a tile turns grey whenever Home Assistant calls
+  its entity inactive, by the same rule its own cards use: a light, switch or fan that is off, an
+  airco that is off (its tile then says Off), a closed blind, a docked robot, a player in standby,
+  a paused timer. Otherwise it takes Home Assistant's colour for the state: an airco per mode, an
+  alarm sensor red, a battery green, orange or red by its charge, the weather by its condition.
+  Scenes, selects, numbers and sensors keep a colour of their own per kind.
 - **Weather card** with current weather, the coming hours and days including chance of
   rain or millimeters; **climate card** with an on/off button, mode, fan, and swing settings.
   The target temperature sits big between − / + keys with one row of mode keys below; the
