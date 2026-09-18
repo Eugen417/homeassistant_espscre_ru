@@ -279,6 +279,9 @@ namespace theme {
 
 inline lv_color_t color(Role role) { return lv_color_hex(hex(role)); }
 inline lv_color_t rgb(uint32_t value) { return lv_color_hex(value); }
+// The colour an object draws with, as the 24-bit value the table speaks in (what the media card names as the colour
+// behind its cover's corners).
+inline uint32_t of(lv_color_t value) { return lv_color_to_u32(value) & 0xFFFFFF; }
 
 // ---- paints: shared styles filled from the table
 // A board profile gives a widget a paint instead of a colour (`styles: paint_card`). Its style definitions carry no

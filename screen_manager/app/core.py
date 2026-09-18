@@ -22,6 +22,8 @@ NEW_DOMAINS = frozenset('sun timer person screen'.split())
 # A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
 CAMERA_DOMAINS = frozenset(('camera', 'image'))
 CAMERA_MIN_FIRMWARE = (0, 2, 57)
+# The media card with its cover (app 0.2.77): firmware from here draws it and asks for the cover.
+COVER_MIN_FIRMWARE = (0, 2, 64)
 # Forty-eight tiles (one per slot), a tile over the whole page and the screen.page tile (firmware 0.2.62+).
 MAX_TILES = 48
 LEGACY_MAX_TILES = 20
@@ -30,7 +32,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.63'
+FIRMWARE_VERSION = '0.2.64'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -961,6 +963,36 @@ def vacuum_extras(tile, states, device):
         result['room'] = short(room, 32)
     return result or None
 
+def media_extras(attrs):
+    """The media card (app 0.2.77, firmware 0.2.64+): the artist and the album, the track's length and where it was
+    when Home Assistant last said so (seconds; that moment as an epoch), and a short mark of the cover picture. The
+    mark changes with the picture and says nothing else: the screen asks the app for the picture itself."""
+    result = {}
+    for key, name in (('artist', 'media_artist'), ('album', 'media_album_name')):
+        value = attrs.get(name)
+        if isinstance(value, str) and value.strip():
+            result[key] = short(value.strip(), 80)
+    for key, name in (('dur', 'media_duration'), ('pos', 'media_position')):
+        value = attrs.get(name)
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and 0 <= value <= 10_000_000:
+            if key == 'dur' and value <= 0:
+                continue
+            result[key] = int(value)
+    moment = attrs.get('media_position_updated_at')
+    if isinstance(moment, str) and moment:
+        try:
+            parsed = datetime.fromisoformat(moment.replace('Z', '+00:00'))
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+            result['at'] = int(parsed.timestamp())
+        except ValueError:
+            pass
+    picture = attrs.get('entity_picture') or attrs.get('entity_picture_local')
+    if isinstance(picture, str) and picture:
+        result['pic'] = hashlib.sha1(picture.encode()).hexdigest()[:10]
+    return result or None
+
+
 def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=None):
     """Small, pre-computed values the firmware cannot derive itself (time zones, forecasts, a vacuum's device)."""
     domain = tile['entity'].split('.')[0]
@@ -969,6 +1001,8 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
         return vacuum_extras(tile, states, device)
     if domain == 'cover':
         return device_power(attrs, cover_related(tile['entity'], device, states), states) or None
+    if domain == 'media_player':
+        return media_extras(attrs)
     if domain == 'weather' and (forecast or hourly):
         result = {}
         days = []

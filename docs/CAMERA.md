@@ -13,6 +13,23 @@ The CYD has no memory for images (a 320×180 image needs 115 KB in one piece, th
 free block is about 45 KB). It shows the alert without the picture, and the editor doesn't offer
 camera tiles for it.
 
+## The album cover on the media card
+
+App 0.2.77 with firmware 0.2.64 uses the same road for a media player's picture. The media card
+(a tap on a media player's tile, or a media tile of size *Full page*) shows the album cover of
+what plays, with the title, the artist and the album, a progress bar and the keys under it.
+
+- The screen asks ESP Screen Manager for the cover with the size it draws it at and the colour
+  behind it (the event `esphome.screen_camera` with `size` and `bg`). The app fetches the
+  picture where Home Assistant's state points (`entity_picture`), cuts it square, sizes it,
+  rounds the corners over that colour and serves it on port 8098 as a BMP, like a camera image.
+- A cover is fetched once per picture: the state carries a short mark of the picture, and the
+  screen asks again only when the mark changes (a new track), when the card opens again or
+  when the page turns back to a full-page media tile. Nothing polls.
+- A player without a picture (a radio station, a player that is off) keeps the player's icon in
+  the cover's place; the app answers with an empty link and the screen stops asking.
+- The CYD shows the same card without the picture: its icon stands in for the cover.
+
 ## A doorbell
 
 ```yaml

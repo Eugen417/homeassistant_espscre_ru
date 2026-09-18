@@ -95,6 +95,11 @@ struct Extra {
   std::string sunrise, sunset, duration, remaining;
   uint32_t timer_end = 0;
   std::string media_title;
+  // The media card (firmware 0.2.64+, app 0.2.77+): the artist and the album, the track's length and where it was when
+  // Home Assistant last said so (seconds, and that moment as an epoch), and a short mark of the cover picture, empty
+  // when the player shows none. The mark changes with the picture: the card fetches a new cover when it does.
+  std::string media_artist, media_album, media_picture;
+  uint32_t media_duration = 0, media_position = 0, media_position_at = 0;
   // Vacuum: its own speeds (at most four) and speed, the mode, water and suction rows (see Choice), and
   // from sensors of its device the room it is in and whether it charges.
   std::vector<std::string> fan_speeds;
@@ -115,7 +120,8 @@ struct Extra {
     return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
            hvac_action.empty() && options.empty() && forecast.empty() && hours.empty() && std::isnan(wind) &&
            std::isnan(feels) && wind_unit.empty() && sunrise.empty() && sunset.empty() && duration.empty() &&
-           remaining.empty() && !timer_end && media_title.empty() && fan_speeds.empty() && fan_speed.empty() &&
+           remaining.empty() && !timer_end && media_title.empty() && media_artist.empty() && media_album.empty() &&
+           media_picture.empty() && !media_duration && !media_position && !media_position_at && fan_speeds.empty() && fan_speed.empty() &&
            choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
            action_templates.empty() && state_word.empty();
   }

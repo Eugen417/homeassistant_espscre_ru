@@ -21,11 +21,18 @@ struct Feed {
   std::string entity, url;
   uint32_t asked_at = 0, started_at = 0, finished_at = 0;
   bool asked = false, loading = false, shown = false, empty = false;  // empty: the app said it has no image
+  // once (firmware 0.2.64+): an album cover on the media card. It loads one time per link and stays; a new cover comes
+  // with a new link (the card asks again when Home Assistant's picture changes), never on a clock.
+  bool once = false, loaded = false;  // loaded: this link's image is on screen
   uint8_t failures = 0;
 
-  void open(const std::string &camera) { *this = Feed{}; entity = camera; }
+  void open(const std::string &camera, bool one_load = false) { *this = Feed{}; entity = camera; once = one_load; }
   bool open() const { return !entity.empty(); }
-  bool should_ask(uint32_t now) const { return open() && !loading && url.empty() && (!asked || now - asked_at >= ASK_AGAIN_MS); }
+  // A cover the app has none of (or an app that knows no covers) is asked for once: the card keeps its placeholder.
+  bool should_ask(uint32_t now) const {
+    if (once && empty) return false;
+    return open() && !loading && url.empty() && (!asked || now - asked_at >= ASK_AGAIN_MS);
+  }
   void ask(uint32_t now) { asked = true; asked_at = now; }
   // The app's answer: a link, or none (no image from Home Assistant, or a camera this screen may not show).
   void link(const std::string &address) {
@@ -33,17 +40,19 @@ struct Feed {
     empty = address.empty();
     failures = 0;
     started_at = finished_at = 0;
+    loaded = false;
   }
   bool should_load(uint32_t now) const {
     if (!open() || loading || url.empty()) return false;
     if (!started_at) return true;
+    if (once) return !loaded && now - finished_at >= GAP_MS;  // a failed load is tried again, a loaded one stays
     return now - started_at >= REFRESH_MS && now - finished_at >= GAP_MS;
   }
   void start(uint32_t now) { loading = true; started_at = now ? now : 1; }
   void finish(uint32_t now, bool ok) {
     loading = false;
     finished_at = now;
-    if (ok) { shown = true; failures = 0; return; }
+    if (ok) { shown = true; loaded = true; failures = 0; return; }
     if (++failures >= MAX_FAILURES) { url.clear(); asked = false; failures = 0; }
   }
 };

@@ -12,6 +12,7 @@
 #include "tile_controls.h"
 #include "history_view.h"
 #include "camera_view.h"
+#include "media_card.h"
 #include "swipe_profile.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
@@ -66,6 +67,10 @@ inline bool awake() { return !screen_awake || screen_awake(); }
 inline uint32_t now_epoch() { if (!now_time) return 0; auto t = now_time(); return t.is_valid() ? static_cast<uint32_t>(t.timestamp) : 0; }
 inline void tick();
 inline void refresh_tile(size_t index);
+// Style setters that only touch a property when it changes (defined with the card renderers below).
+inline void set_color(lv_obj_t *obj, lv_style_prop_t prop, lv_color_t color, lv_style_selector_t selector = 0);
+inline void set_number(lv_obj_t *obj, lv_style_prop_t prop, int32_t number, lv_style_selector_t selector = 0);
+inline void set_font(lv_obj_t *obj, const lv_font_t *value);
 #ifdef SWIPE_PROFILE
 inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms, JsonObject tuning);
 #endif
@@ -81,6 +86,15 @@ inline void history_received();
 inline void camera_open(const std::string &entity, const std::string &name);
 inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url);
 inline bool camera_supported();
+// The media card's album cover (firmware 0.2.64+): the card or a tile over the whole page says which cover it shows,
+// the board's online_image loads it; see the end of this file.
+enum class CoverOwner : uint8_t { NONE, DETAIL, TILE };
+inline void cover_want(const std::string &entity, const std::string &picture, int size, uint32_t background, CoverOwner owner, size_t slot);
+inline lv_image_dsc_t *cover_ready(const std::string &entity, int size, uint32_t background);
+// The card's cover on screen, and the part a media tile keeps its cover in; both go with the image buffer.
+inline lv_obj_t *media_detail_picture = nullptr;
+constexpr unsigned MEDIA_PICTURE = 14;
+inline void media_action(Tile &t, int cmd);
 inline uint32_t domain_accent(const Tile &t);
 inline const char *icon_for(const Tile &tile);
 inline void label(lv_obj_t *obj, const std::string &text);
@@ -183,6 +197,9 @@ struct Widgets {
   lv_obj_t *extra{}; std::string extra_mode; bool extra_full=false; std::array<lv_obj_t *, 36> parts{}; lv_point_precise_t *points{};
   // Analog clock: centre and radius of the dial, so the second hand can move without a card redraw.
   int hand_cx=0, hand_cy=0, hand_r=0, hand_width=1;
+  // A media tile over the whole page (firmware 0.2.64+): the width of its progress bar, so the fill can run once a
+  // second without a card redraw.
+  int media_bar_w=0;
   // Soft area under a polyline (graph, sun path), painted by the extra container's draw event.
   const lv_point_precise_t *fill_points{}; unsigned fill_count=0; int fill_x=0, fill_y=0, fill_base=0; lv_color_t fill_color{}; lv_opa_t fill_opa=0;
   // Direct controls on a wide card: a panel at the right with pill keys, a -/+ pill,
@@ -362,9 +379,10 @@ inline std::string receive(const std::string &payload) {
     }
     if (op == "camera") {
       // A link to a camera's image (app 0.2.66+): the answer to camera_request ("full"), or an alert's image ("alert",
-      // announced with an empty link before show_alert and sent again with the link). Only ESP Screens' own port.
+      // announced with an empty link before show_alert and sent again with the link), or the media card's cover
+      // ("cover", app 0.2.77+). Only ESP Screens' own port.
       const std::string view = string(root["t"], 8), entity = string(root["e"], 120), url = string(root["u"], 240);
-      if (!valid_entity(entity) || (view != "full" && view != "alert")) return false;
+      if (!valid_entity(entity) || (view != "full" && view != "alert" && view != "cover")) return false;
       if (!url.empty() && url.rfind("http://", 0) != 0) return false;
       camera_answer(view, entity, url);
       result = model.ready() ? "Synced" : "Loading tiles";
@@ -548,6 +566,12 @@ inline std::string receive(const std::string &payload) {
     tile.muted=a["is_volume_muted"].is<bool>() && a["is_volume_muted"].as<bool>();
     tile.device_class=string(a["device_class"],24);next.hvac_action=string(a["hvac_action"],24);
     next.media_title=string(a["media_title"],80);tile.supported=a["supported_features"].as<uint32_t>();
+    // The media card (firmware 0.2.64+, app 0.2.77+): the artist, the album, the track's length and position, and a
+    // mark of the cover picture; an app from before sends none of them and the card shows what it has.
+    next.media_artist=string(extra["artist"],80);next.media_album=string(extra["album"],80);next.media_picture=string(extra["pic"],16);
+    next.media_duration=extra["dur"].is<unsigned>()?extra["dur"].as<uint32_t>():0;
+    next.media_position=extra["pos"].is<unsigned>()?extra["pos"].as<uint32_t>():0;
+    next.media_position_at=extra["at"].is<unsigned>()?extra["at"].as<uint32_t>():0;
     tile.name = string(root["name"], 80);
     tile.state = string(root["state"], 160);
     tile.unit = string(a["unit_of_measurement"], 20);
@@ -860,7 +884,8 @@ inline void slider_event(lv_event_t *e){
   if(code==LV_EVENT_PRESS_LOST && captured_slider==slider){captured_slider=nullptr;slider_changed=false;}
   if(code==LV_EVENT_RELEASED && captured_slider==slider){
     unsigned index=(uintptr_t)lv_event_get_user_data(e);
-    for(auto &w:widgets)if(w.slider==slider || w.control_slider==slider){index=w.index;break;}
+    // A slider among a card's own parts (the media tile's volume) belongs to the tile the slot shows now.
+    for(auto &w:widgets)if(w.slider==slider || w.control_slider==slider || (w.extra && lv_obj_get_parent(slider)==w.extra)){index=w.index;break;}
     bool changed=slider_changed;captured_slider=nullptr;slider_changed=false;
     if(changed && cyd::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
   }
@@ -876,37 +901,39 @@ inline void choose(Tile &t,Choice &row,const std::string &value){
   row.sent=value;t.begin(esphome::millis());
   lv_async_call([](void *){if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
 }
+// What a key on a card does; `cmd` is the key's command. Shared by the plain keys (detail_button) and the round
+// keys of the media card. -1 is Back.
+inline void detail_command(int cmd){
+  if(cmd==-1){hide_detail();return;}
+  // History ranges (firmware 0.2.51+): redraw after this event, which belongs to a key the redraw deletes.
+  if(cmd>=160&&cmd<163){
+    static const uint32_t hours[]={1,24,168};
+    if(detail_index<model.count&&allowed(esphome::millis(),300+cmd,"history range")&&history_hours!=hours[cmd-160]){
+      history_hours=hours[cmd-160];
+      lv_async_call([](void *){if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
+    }
+    return;
+  }
+  if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
+  auto &t=model.tiles[detail_index];if(!t.available()||t.waiting(esphome::millis()))return;
+  if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
+  // Vacuum rows: 10-15 suction, 50-55 cleaning mode, 60-65 water.
+  static const std::pair<int,char> rows[]={{10,'s'},{50,'m'},{60,'w'}};
+  for(const auto &[first,kind]:rows)
+    if(cmd>=first && cmd<first+6){auto *row=t.choice(kind);if(row && cmd-first<(int)row->values.size())choose(t,*row,row->values[cmd-first]);}
+  // The media card's keys (20-23); its volume slider goes through commit_slider.
+  if(cmd>=20 && cmd<=24)media_action(t,cmd);
+  if(cmd>=30 && cmd<38 && cmd-30<(int)t.extra().options.size())action(t.domain()+".select_option",t.entity,"option",t.extra().options[cmd-30]);
+  // Cover keys: 70 + tile_controls::Command (open, stop, close and the tilt keys).
+  if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);if(a.valid()&&t.domain()=="cover")action(a.service,t.entity,a.key,a.value);}
+  if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
+  if(cmd==41)action("timer.cancel",t.entity);
+}
 inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height,int command){
   auto *button=lv_obj_create(detail_root);lv_obj_remove_style_all(button);lv_obj_set_pos(button,x,y);lv_obj_set_size(button,width,height);
   lv_obj_set_style_bg_color(button,theme::color(command==0?theme::ACCENT:theme::BUTTON),0);lv_obj_set_style_bg_opa(button,LV_OPA_COVER,0);lv_obj_set_style_radius(button,12,0);lv_obj_add_flag(button,LV_OBJ_FLAG_CLICKABLE);
   auto *label=detail_label(button,text,6,0,width-12);lv_obj_center(label);lv_obj_set_style_text_align(label,LV_TEXT_ALIGN_CENTER,0);if(command==0)lv_obj_set_style_text_color(label,theme::color(theme::ON_ACCENT),0);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_event_cb(button,[](lv_event_t *e){
-    int cmd=(intptr_t)lv_event_get_user_data(e);if(cmd==-1){hide_detail();return;}
-    // History ranges (firmware 0.2.51+): redraw after this event, which belongs to a key the redraw deletes.
-    if(cmd>=160&&cmd<163){
-      static const uint32_t hours[]={1,24,168};
-      if(detail_index<model.count&&allowed(esphome::millis(),300+cmd,"history range")&&history_hours!=hours[cmd-160]){
-        history_hours=hours[cmd-160];
-        lv_async_call([](void *){if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
-      }
-      return;
-    }
-    if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
-    auto &t=model.tiles[detail_index];if(!t.available()||t.waiting(esphome::millis()))return;
-    if(cmd<4){const char *services[]={"vacuum.start","vacuum.pause","vacuum.return_to_base","vacuum.locate"};action(services[cmd],t.entity);}
-    // Vacuum rows: 10-15 suction, 50-55 cleaning mode, 60-65 water.
-    static const std::pair<int,char> rows[]={{10,'s'},{50,'m'},{60,'w'}};
-    for(const auto &[first,kind]:rows)
-      if(cmd>=first && cmd<first+6){auto *row=t.choice(kind);if(row && cmd-first<(int)row->values.size())choose(t,*row,row->values[cmd-first]);}
-    if(cmd==20)action("media_player.media_play_pause",t.entity);
-    if(cmd==21)action("media_player.media_previous_track",t.entity);
-    if(cmd==22)action("media_player.media_next_track",t.entity);
-    if(cmd>=30 && cmd<38 && cmd-30<(int)t.extra().options.size())action(t.domain()+".select_option",t.entity,"option",t.extra().options[cmd-30]);
-    // Cover keys: 70 + tile_controls::Command (open, stop, close and the tilt keys).
-    if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);if(a.valid()&&t.domain()=="cover")action(a.service,t.entity,a.key,a.value);}
-    if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
-    if(cmd==41)action("timer.cancel",t.entity);
-  },LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)command);
+  lv_obj_add_event_cb(button,[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));},LV_EVENT_SHORT_CLICKED,(void*)(intptr_t)command);
   lv_obj_set_style_bg_color(button,theme::color(theme::ACCENT_PRESSED),LV_STATE_PRESSED);
   lv_obj_set_style_transform_width(button,-2,LV_STATE_PRESSED);lv_obj_set_style_transform_height(button,-2,LV_STATE_PRESSED);
   lv_obj_set_style_opa(button,LV_OPA_50,LV_STATE_DISABLED);
@@ -1730,6 +1757,172 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   }
   history_ranges(pad,range_y,width-2*pad,range_h);
 }
+// ---- The media card (firmware 0.2.64+) ----
+// "Now playing" as a phone shows it: the album cover (app 0.2.77+ serves it, a Guition draws it; the CYD keeps the
+// placeholder), the title, the artist and the album, a progress bar that runs while the track plays, round keys for
+// previous, play or pause and next, and the volume row. media_card.h decides where everything goes for a tall card and
+// a wide one; the same parts draw the card here and a tile over the whole page (render_media_full). The keys go
+// through detail_command like every card's, the slider through commit_slider.
+inline lv_obj_t *media_progress_fill=nullptr,*media_elapsed_label=nullptr;  // the card's, moved by tick() once a second
+inline int media_bar_width=0;
+inline media_card::Rect media_art_rect;  // where the card's cover goes once it is here
+inline uint32_t media_accent(){return theme::foreground(theme::ha::LIGHT_BLUE);}
+inline const lv_font_t *tile_icon_font(){for(auto &w:widgets)if(w.icon_font)return w.icon_font;return mini_icon_font?mini_icon_font:detail_font;}
+inline media_card::Metrics media_metrics(bool large){
+  media_card::Metrics m;m.large=large;
+  const lv_font_t *title=watch_font?watch_font:detail_font,*artist=control_font?control_font:detail_font,*small=small_font?small_font:detail_font;
+  m.title_h=lv_font_get_line_height(title);m.artist_h=lv_font_get_line_height(artist);m.small_h=lv_font_get_line_height(small);
+  return m;
+}
+// What the keys do, on the card and on a tile over the whole page: 20 play or pause, 21 previous, 22 next, 23 mute.
+inline void media_action(Tile &t,int cmd){
+  if(cmd==20)action("media_player.media_play_pause",t.entity);
+  if(cmd==21)action("media_player.media_previous_track",t.entity);
+  if(cmd==22)action("media_player.media_next_track",t.entity);
+  if(cmd==23)action("media_player.volume_mute",t.entity,"is_volume_muted",t.muted?"false":"true");
+  if(cmd==24)action("media_player.turn_on",t.entity);
+}
+// An off or standby player shows one key: power, when the player can be turned on from here.
+inline bool media_off(const Tile &t){return t.state=="off" || t.state=="standby";}
+inline std::string media_volume_text(const Tile &t){
+  if(t.muted)return "Muted";
+  if(!std::isfinite(t.volume))return "";
+  return std::to_string((int)std::lround(std::clamp(t.volume,0.0f,1.0f)*100))+" %";
+}
+// A rounded box without a style of its own: the art's placeholder, the bar's track and its fill.
+inline lv_obj_t *media_box(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,uint32_t color,int radius){
+  auto *o=existing;
+  if(!o){o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_set_style_bg_opa(o,LV_OPA_COVER,0);lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);}
+  lv_obj_set_pos(o,r.x,r.y);lv_obj_set_size(o,std::max(1,r.w),std::max(1,r.h));
+  set_color(o,LV_STYLE_BG_COLOR,theme::rgb(color));set_number(o,LV_STYLE_RADIUS,radius);
+  return o;
+}
+// A round key: a glyph on a grey circle, the play key on the accent, the mute key bare beside the slider. Faded while
+// it cannot be used. `existing` keeps a tile's key across redraws; the card builds its keys anew each time.
+inline lv_obj_t *media_key(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,const char *glyph,const lv_font_t *font,bool accent,bool bare,bool enabled,lv_event_cb_t cb,void *user){
+  auto *key=existing;
+  if(!key){
+    key=lv_obj_create(parent);lv_obj_remove_style_all(key);
+    lv_obj_set_style_radius(key,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_opa(key,bare?LV_OPA_TRANSP:LV_OPA_COVER,0);lv_obj_set_style_bg_opa(key,LV_OPA_COVER,LV_STATE_PRESSED);
+    lv_obj_set_style_opa(key,LV_OPA_40,LV_STATE_DISABLED);
+    lv_obj_add_flag(key,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(key,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_ext_click_area(key,bare?10:6);
+    auto *icon=lv_label_create(key);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_event_cb(key,cb,LV_EVENT_SHORT_CLICKED,user);
+  }
+  lv_obj_set_pos(key,r.x,r.y);lv_obj_set_size(key,r.w,r.h);
+  set_color(key,LV_STYLE_BG_COLOR,theme::color(accent?theme::ACCENT:theme::KEY));
+  set_color(key,LV_STYLE_BG_COLOR,theme::color(accent?theme::ACCENT_PRESSED:theme::KEY_PRESSED),LV_STATE_PRESSED);
+  auto *icon=lv_obj_get_child(key,0);
+  if(font)set_font(icon,font);
+  set_color(icon,LV_STYLE_TEXT_COLOR,theme::color(accent?theme::ON_ACCENT:theme::INK));
+  label(icon,glyph);lv_obj_center(icon);
+  if(enabled)lv_obj_remove_state(key,LV_STATE_DISABLED);else lv_obj_add_state(key,LV_STATE_DISABLED);
+  return key;
+}
+// The volume slider: the media colour on a pale track, a round white knob, the range every card slider has.
+inline lv_obj_t *media_slider(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,const Tile &t,bool large,bool enabled,void *user){
+  auto *s=existing;
+  if(!s){
+    s=lv_slider_create(parent);lv_obj_remove_style_all(s);lv_slider_set_range(s,0,1000);
+    lv_obj_set_style_bg_opa(s,LV_OPA_COVER,LV_PART_MAIN);lv_obj_set_style_bg_opa(s,LV_OPA_COVER,LV_PART_INDICATOR);lv_obj_set_style_bg_opa(s,LV_OPA_COVER,LV_PART_KNOB);
+    lv_obj_set_style_radius(s,LV_RADIUS_CIRCLE,LV_PART_MAIN);lv_obj_set_style_radius(s,LV_RADIUS_CIRCLE,LV_PART_INDICATOR);lv_obj_set_style_radius(s,LV_RADIUS_CIRCLE,LV_PART_KNOB);
+    lv_obj_set_style_pad_all(s,large?4:3,LV_PART_KNOB);lv_obj_set_style_bg_opa(s,LV_OPA_80,(lv_style_selector_t)LV_PART_KNOB|(lv_style_selector_t)LV_STATE_PRESSED);
+    lv_obj_set_style_opa(s,LV_OPA_40,LV_STATE_DISABLED);
+    lv_obj_set_ext_click_area(s,large?12:8);
+    lv_obj_add_event_cb(s,slider_event,LV_EVENT_ALL,user);
+  }
+  lv_obj_set_pos(s,r.x,r.y);lv_obj_set_size(s,std::max(1,r.w),r.h);
+  set_color(s,LV_STYLE_BG_COLOR,theme::rgb(theme::tint(theme::ha::LIGHT_BLUE,64)),LV_PART_MAIN);
+  set_color(s,LV_STYLE_BG_COLOR,theme::rgb(t.muted?theme::hex(theme::OFF):media_accent()),LV_PART_INDICATOR);
+  set_color(s,LV_STYLE_BG_COLOR,theme::color(theme::SLIDER_KNOB),LV_PART_KNOB);
+  if(!lv_obj_has_state(s,LV_STATE_PRESSED) && lv_slider_get_value(s)!=slider_value(t))lv_slider_set_value(s,slider_value(t),LV_ANIM_OFF);
+  if(enabled){lv_obj_remove_state(s,LV_STATE_DISABLED);lv_obj_add_flag(s,LV_OBJ_FLAG_CLICKABLE);}
+  else{lv_obj_add_state(s,LV_STATE_DISABLED);lv_obj_remove_flag(s,LV_OBJ_FLAG_CLICKABLE);}
+  return s;
+}
+// The cover over its placeholder: LVGL's image widget exists only on a board whose profile draws images.
+inline lv_obj_t *media_picture_show(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,lv_image_dsc_t *src){
+#if LV_USE_IMAGE
+  if(!src || !src->data)return existing;
+  auto *p=existing;
+  if(!p){p=lv_image_create(parent);lv_obj_remove_flag(p,LV_OBJ_FLAG_CLICKABLE);}
+  lv_image_set_src(p,src);lv_obj_set_pos(p,r.x,r.y);lv_obj_set_size(p,r.w,r.h);lv_obj_invalidate(p);
+  return p;
+#else
+  (void)parent;(void)r;(void)src;return existing;
+#endif
+}
+// The bar's fill and the elapsed time follow the track: once a second from tick(), without a redraw.
+inline void media_progress(const Tile &t,lv_obj_t *fill,lv_obj_t *elapsed,int bar_w){
+  const auto &x=t.extra();
+  if(!fill || !x.media_duration)return;
+  const bool play=media_card::playing(t.state);
+  const int p=media_card::progress(x.media_position,x.media_position_at,now_epoch(),play,x.media_duration);
+  const int h=lv_obj_get_style_height(fill,LV_PART_MAIN);
+  const int w=std::max(h,bar_w*std::max(0,p)/1000);
+  if(lv_obj_get_style_width(fill,LV_PART_MAIN)!=w)lv_obj_set_width(fill,w);
+  if(elapsed)label(elapsed,media_card::clock_text(media_card::elapsed_seconds(x.media_position,x.media_position_at,now_epoch(),play,x.media_duration)));
+}
+// The card: everything under the top bar, from `top` down.
+inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int height,int top){
+  using namespace media_card;
+  using namespace tile_controls;
+  const auto &x=t.extra();
+  const Metrics m=media_metrics(large);
+  const Layout l=layout(m,width,std::max(60,height-top-(large?12:6)));
+  auto at=[&](Rect r){r.y+=top;return r;};
+  const bool usable=fresh()&&t.available(),track=usable&&has_track(t.state),play=media_card::playing(t.state);
+  const uint32_t f=t.supported;auto can=[&](uint32_t bit){return usable&&(!f||(f&bit));};
+  // The cover, or its placeholder with the player's icon; the cover comes over it once the app served it.
+  auto *frame=media_box(detail_root,nullptr,at(l.art),theme::tint(theme::ha::LIGHT_BLUE,51),l.art_radius);
+  const std::string glyph=icon_for(t);
+  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)?big_icon_font:tile_icon_font();
+  auto *icon=lv_label_create(frame);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);lv_obj_set_style_text_font(icon,placeholder_font,0);
+  lv_obj_set_style_text_color(icon,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)),0);lv_label_set_text(icon,glyph.c_str());lv_obj_center(icon);
+  media_art_rect=at(l.art);media_detail_picture=nullptr;
+  const uint32_t ground=theme::hex(theme::PAGE);
+  if(camera_supported()&&track&&!x.media_picture.empty()){
+    cover_want(t.entity,x.media_picture,l.art.w,ground,CoverOwner::DETAIL,0);
+    media_detail_picture=media_picture_show(detail_root,nullptr,media_art_rect,cover_ready(t.entity,l.art.w,ground));
+  }
+  // Title, artist · album.
+  const lv_font_t *title_font=watch_font?watch_font:detail_font,*artist_font=control_font?control_font:detail_font,*small=small_font?small_font:detail_font;
+  const lv_text_align_t align=l.wide?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER;
+  detail_text(detail_root,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),l.title.x,l.title.y+top,l.title.w,title_font,align,theme::INK);
+  if(l.artist)detail_text(detail_root,track?subtitle(x.media_artist,x.media_album):std::string(),l.artist_line.x,l.artist_line.y+top,l.artist_line.w,artist_font,align,theme::MUTED);
+  // The progress bar: the fill runs while the track plays; a stream without a length has no bar to show.
+  media_progress_fill=nullptr;media_elapsed_label=nullptr;media_bar_width=l.bar.w;
+  if(track && x.media_duration){
+    media_box(detail_root,nullptr,at(l.bar),theme::hex(theme::TRACK),LV_RADIUS_CIRCLE);
+    Rect fill=at(l.bar);fill.w=std::max(l.bar.h,l.bar.w*std::max(0,progress(x.media_position,x.media_position_at,now_epoch(),play,x.media_duration))/1000);
+    media_progress_fill=media_box(detail_root,nullptr,fill,media_accent(),LV_RADIUS_CIRCLE);
+    if(l.times){
+      media_elapsed_label=detail_text(detail_root,clock_text(elapsed_seconds(x.media_position,x.media_position_at,now_epoch(),play,x.media_duration)),l.elapsed.x,l.elapsed.y+top,l.elapsed.w,small,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
+      detail_text(detail_root,clock_text(x.media_duration),l.total.x,l.total.y+top,l.total.w,small,LV_TEXT_ALIGN_RIGHT,theme::SUBTLE);
+    }
+  }
+  // The keys: previous, play or pause on the accent, next; the mute key bare at the start of the volume row. An off
+  // player shows one power key instead, and no volume row: it reports no volume.
+  auto cb=[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));};
+  const lv_font_t *key_font=mini_icon_font?mini_icon_font:detail_font;
+  std::vector<lv_obj_t *> keys;
+  if(usable && media_off(t)){
+    if(can(feature::MEDIA_TURN_ON))keys.push_back(media_key(detail_root,nullptr,at(l.play),glyph::POWER,tile_icon_font(),true,false,true,cb,(void*)(intptr_t)24));
+  }else{
+    keys={media_key(detail_root,nullptr,at(l.prev),glyph::PREVIOUS,key_font,false,false,can(feature::MEDIA_PREVIOUS),cb,(void*)(intptr_t)21),
+          media_key(detail_root,nullptr,at(l.play),play?glyph::PAUSE:glyph::PLAY,tile_icon_font(),true,false,can(feature::MEDIA_PLAY|feature::MEDIA_PAUSE),cb,(void*)(intptr_t)20),
+          media_key(detail_root,nullptr,at(l.next),glyph::NEXT,key_font,false,false,can(feature::MEDIA_NEXT),cb,(void*)(intptr_t)22)};
+    if(std::isfinite(t.volume)){
+      keys.push_back(media_key(detail_root,nullptr,at(l.mute),t.muted?glyph::MUTED:glyph::VOLUME,key_font,false,true,can(feature::MEDIA_VOLUME_MUTE),cb,(void*)(intptr_t)23));
+      media_slider(detail_root,nullptr,at(l.volume),t,large,can(feature::MEDIA_VOLUME_SET),(void*)(uintptr_t)index);
+      detail_text(detail_root,media_volume_text(t),l.percent.x,l.percent.y+top,l.percent.w,small,LV_TEXT_ALIGN_RIGHT,theme::MUTED);
+    }
+  }
+  // Only the keys the player supports join the card's actions: tick() enables those again after a wait, and a key
+  // the player lacks stays faded.
+  for(auto *k:keys)if(!lv_obj_has_state(k,LV_STATE_DISABLED) && detail_action_count<32)detail_actions[detail_action_count++]=k;
+}
 inline void show_detail(unsigned index){
   if(index>=model.count)return;
   // A card that opens starts on a day (an hour for a tile whose graph shows one); switching ranges keeps it open.
@@ -1739,7 +1932,8 @@ inline void show_detail(unsigned index){
   detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
   if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
-  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;history_forget();lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
+  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;history_forget();
+  media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
   bool large=width>=480;int pad=large?20:10, top=large?100:62, gap=large?12:6,bh=large?58:34,cw=(width-pad*2-gap)/2;
@@ -1754,7 +1948,7 @@ inline void show_detail(unsigned index){
   std::string state=d=="cover"?cover_status_line(t):detail_state(t);
   // The vacuum and history cards draw their own state.
   const bool with_history=history_card(t);
-  if(d!="vacuum"&&!with_history){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
+  if(d!="vacuum"&&d!="media_player"&&!with_history){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
@@ -1766,12 +1960,8 @@ inline void show_detail(unsigned index){
     const auto &options=t.extra().options;
     for(unsigned i=0;i<options.size();++i)detail_button(options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
   }else if(d=="media_player"){
-    detail_label(detail_root,t.extra().media_title,pad,top,width-2*pad);top+=large?45:25;
-    int w=(width-pad*2-2*gap)/3;
-    detail_button("Previous",pad,top,w,bh,21);detail_button("Play/pause",pad+w+gap,top,w,bh,20);detail_button("Next",pad+2*(w+gap),top,w,bh,22);top+=bh+gap;
-    detail_label(detail_root,"Volume",pad,top,width-2*pad);
-    auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+12,top+(large?52:34));lv_obj_set_size(slider,width-2*pad-24,large?24:16);lv_slider_set_range(slider,0,1000);lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,theme::color(theme::SLIDER_KNOB),LV_PART_KNOB);
-    lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
+    // "Now playing" (firmware 0.2.64+): the cover, the track, a running progress bar, round keys and the volume row.
+    render_media_detail(t,index,large,width,height,bar_y+bar+(large?8:4));
   }else if(d=="weather"){
     render_weather_detail(t,large,width,height,pad);
   }else if(d=="timer"){
@@ -1949,13 +2139,13 @@ inline void event(lv_event_t *event) {
 }
 // The same guard for any local style: a page switch mostly hands a slot the colours it already has,
 // and each real set refreshes the style and invalidates the object (about 0.3 ms on the Guition).
-inline void set_color(lv_obj_t *obj, lv_style_prop_t prop, lv_color_t color, lv_style_selector_t selector = 0) {
+inline void set_color(lv_obj_t *obj, lv_style_prop_t prop, lv_color_t color, lv_style_selector_t selector) {
   lv_style_value_t current;
   if (lv_obj_get_local_style_prop(obj, prop, &current, selector) == LV_STYLE_RES_FOUND && lv_color_eq(current.color, color)) return;
   lv_style_value_t value{}; value.color = color;
   lv_obj_set_local_style_prop(obj, prop, value, selector);
 }
-inline void set_number(lv_obj_t *obj, lv_style_prop_t prop, int32_t number, lv_style_selector_t selector = 0) {
+inline void set_number(lv_obj_t *obj, lv_style_prop_t prop, int32_t number, lv_style_selector_t selector) {
   lv_style_value_t current;
   if (lv_obj_get_local_style_prop(obj, prop, &current, selector) == LV_STYLE_RES_FOUND && current.num == number) return;
   lv_style_value_t value{}; value.num = number;
@@ -2596,6 +2786,91 @@ inline void set_busy(Widgets &w,bool busy,bool large){
 // small slider, direct controls or a graph the double-width card's head stays on top and the control takes
 // a strip at the bottom, so a tap anywhere else still does what a tap on the tile does. The built-in cards
 // (clock, forecast, sun path) simply get the whole page.
+// A media player over the whole page (firmware 0.2.64+): the head as on every full card, and under it the media card
+// itself, wide: the cover at the left, the track, the bar and the keys beside it, the volume row along the bottom.
+// Parts: 0 placeholder, 1 its icon, 2 title, 3 artist, 4 track, 5 fill, 6 elapsed, 7 total, 8-10 keys, 11 mute,
+// 12 slider, 13 percent, MEDIA_PICTURE (14) the cover. Built once per slot and moved on every redraw.
+inline void media_tile_key_event(lv_event_t *e){
+  unsigned code=(uintptr_t)lv_event_get_user_data(e);unsigned slot=code/16,n=code%16;
+  if(slot>=widgets.size() || n>3)return;
+  auto &w=widgets[slot];
+  if(!enabled || !fresh() || w.index>=model.count || w.extra_mode!="media")return;
+  if(lv_obj_has_state(lv_event_get_target_obj(e),LV_STATE_DISABLED))return;
+  const uint32_t now=esphome::millis();
+  if(!allowed(now,500+slot*16+n,"media key "+std::to_string(slot)))return;
+  auto &t=model.tiles[w.index];
+  if(!t.available() || t.waiting(now))return;
+  static const int commands[]={21,20,22,23};
+  media_action(t,n==1 && media_off(t)?24:commands[n]);
+}
+inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,int content_h,int head_h){
+  using namespace media_card;
+  using namespace tile_controls;
+  const auto &x=t.extra();
+  const Metrics m=media_metrics(big);
+  const int top=head_h+(big?8:4);
+  const Layout l=layout(m,content_w,std::max(40,content_h-top-(big?4:2)));
+  begin_extra(w,"media",content_w,content_h);
+  auto at=[&](Rect r){r.y+=top;return r;};
+  const bool usable=fresh()&&t.available(),track=usable&&has_track(t.state),play=media_card::playing(t.state);
+  const uint32_t f=t.supported;auto can=[&](uint32_t bit){return usable&&(!f||(f&bit));};
+  const size_t slot=&w-widgets.data();
+  // The placeholder and the player's icon; the cover comes over them once the app served it.
+  w.parts[0]=media_box(w.extra,w.parts[0],at(l.art),theme::tint(theme::ha::LIGHT_BLUE,51),l.art_radius);
+  const std::string glyph=icon_for(t);
+  const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)?big_icon_font:w.icon_font;
+  if(!w.parts[1]){w.parts[1]=lv_label_create(w.parts[0]);lv_obj_remove_flag(w.parts[1],LV_OBJ_FLAG_CLICKABLE);}
+  set_font(w.parts[1],placeholder_font);set_color(w.parts[1],LV_STYLE_TEXT_COLOR,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)));label(w.parts[1],glyph);lv_obj_center(w.parts[1]);
+  const uint32_t ground=theme::of(lv_obj_get_style_bg_color(w.tile,LV_PART_MAIN));
+  lv_image_dsc_t *src=nullptr;
+  // A card open over the page owns the cover then; the tile asks again once the card closes (cover_tick).
+  const bool card_open=detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN);
+  if(camera_supported()&&track&&!x.media_picture.empty()&&!card_open){cover_want(t.entity,x.media_picture,l.art.w,ground,CoverOwner::TILE,slot);src=cover_ready(t.entity,l.art.w,ground);}
+  if(src)w.parts[MEDIA_PICTURE]=media_picture_show(w.extra,w.parts[MEDIA_PICTURE],at(l.art),src);
+  else if(w.parts[MEDIA_PICTURE]){lv_obj_delete(w.parts[MEDIA_PICTURE]);w.parts[MEDIA_PICTURE]=nullptr;}
+  // Title, artist · album, left-aligned beside the cover.
+  const lv_font_t *title_font=watch_font?watch_font:w.title_font,*artist_font=control_font?control_font:w.title_font,*small=small_font?small_font:w.title_font;
+  auto text=[&](unsigned i,const lv_font_t *font,const Rect &r,lv_text_align_t align,const std::string &value,theme::Role role){
+    auto *p=part_label(w,i,font,r.x,r.y+top,r.w,align,value);lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);set_color(p,LV_STYLE_TEXT_COLOR,theme::color(role));lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);return p;
+  };
+  text(2,title_font,l.title,LV_TEXT_ALIGN_LEFT,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),theme::INK);
+  if(l.artist)text(3,artist_font,l.artist_line,LV_TEXT_ALIGN_LEFT,track?subtitle(x.media_artist,x.media_album):std::string(),theme::MUTED);
+  else if(w.parts[3])lv_obj_add_flag(w.parts[3],LV_OBJ_FLAG_HIDDEN);
+  // The progress bar and its times; a stream without a length has none.
+  w.media_bar_w=l.bar.w;
+  const bool timed=track&&x.media_duration;
+  if(timed){
+    w.parts[4]=media_box(w.extra,w.parts[4],at(l.bar),theme::hex(theme::TRACK),LV_RADIUS_CIRCLE);lv_obj_remove_flag(w.parts[4],LV_OBJ_FLAG_HIDDEN);
+    Rect fill=at(l.bar);fill.w=std::max(l.bar.h,l.bar.w*std::max(0,progress(x.media_position,x.media_position_at,now_epoch(),play,x.media_duration))/1000);
+    w.parts[5]=media_box(w.extra,w.parts[5],fill,media_accent(),LV_RADIUS_CIRCLE);lv_obj_remove_flag(w.parts[5],LV_OBJ_FLAG_HIDDEN);
+  }else for(unsigned i:{4u,5u})if(w.parts[i])lv_obj_add_flag(w.parts[i],LV_OBJ_FLAG_HIDDEN);
+  if(timed&&l.times){
+    text(6,small,l.elapsed,LV_TEXT_ALIGN_LEFT,clock_text(elapsed_seconds(x.media_position,x.media_position_at,now_epoch(),play,x.media_duration)),theme::SUBTLE);
+    text(7,small,l.total,LV_TEXT_ALIGN_RIGHT,clock_text(x.media_duration),theme::SUBTLE);
+  }else for(unsigned i:{6u,7u})if(w.parts[i])lv_obj_add_flag(w.parts[i],LV_OBJ_FLAG_HIDDEN);
+  // The keys and the volume row. Their events carry the slot: the tile in it may change with the page. An off player
+  // shows one power key and no volume row.
+  const lv_font_t *key_font=mini_icon_font?mini_icon_font:w.icon_font;
+  auto user=[&](unsigned n){return (void*)(uintptr_t)(slot*16+n);};
+  auto show=[&](unsigned i,bool on){if(w.parts[i]){if(on)lv_obj_remove_flag(w.parts[i],LV_OBJ_FLAG_HIDDEN);else lv_obj_add_flag(w.parts[i],LV_OBJ_FLAG_HIDDEN);}};
+  const bool off=usable && media_off(t), volume=!off && std::isfinite(t.volume);
+  if(off){
+    w.parts[9]=media_key(w.extra,w.parts[9],at(l.play),glyph::POWER,w.icon_font,true,false,can(feature::MEDIA_TURN_ON),media_tile_key_event,user(1));
+    show(9,can(feature::MEDIA_TURN_ON));
+  }else{
+    w.parts[8]=media_key(w.extra,w.parts[8],at(l.prev),glyph::PREVIOUS,key_font,false,false,can(feature::MEDIA_PREVIOUS),media_tile_key_event,user(0));
+    w.parts[9]=media_key(w.extra,w.parts[9],at(l.play),play?glyph::PAUSE:glyph::PLAY,w.icon_font,true,false,can(feature::MEDIA_PLAY|feature::MEDIA_PAUSE),media_tile_key_event,user(1));
+    w.parts[10]=media_key(w.extra,w.parts[10],at(l.next),glyph::NEXT,key_font,false,false,can(feature::MEDIA_NEXT),media_tile_key_event,user(2));
+    show(9,true);
+  }
+  show(8,!off);show(10,!off);
+  if(volume){
+    w.parts[11]=media_key(w.extra,w.parts[11],at(l.mute),t.muted?glyph::MUTED:glyph::VOLUME,key_font,false,true,can(feature::MEDIA_VOLUME_MUTE),media_tile_key_event,user(3));
+    w.parts[12]=media_slider(w.extra,w.parts[12],at(l.volume),t,big,can(feature::MEDIA_VOLUME_SET),(void*)(uintptr_t)w.index);
+    text(13,small,l.percent,LV_TEXT_ALIGN_RIGHT,media_volume_text(t),theme::MUTED);
+  }
+  show(11,volume);show(12,volume);show(13,volume);
+}
 inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sunpath,bool graph,bool mini,bool with_panel,bool large,
                         const std::string &value,const std::string &unit,int content_w,int content_h) {
   const bool big=w.base_height>80;  // the board: a Guition card is large, a CYD card small
@@ -2610,7 +2885,9 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   }
   int value_h=lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN));
   int gap=big?12:6;
-  if(!mini && !with_panel && !graph){
+  // A media player that answers gets the media card under its head (firmware 0.2.64+); unavailable, it is the plain card.
+  const bool media=t.domain()=="media_player" && fresh() && t.available();
+  if(!mini && !with_panel && !graph && !media){
     hide_extra(w);hide_panel(w);lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
     const lv_font_t *name_font=room_label?lv_obj_get_style_text_font(room_label,LV_PART_MAIN):w.title_font;
     int name_h=lv_font_get_line_height(name_font),circle=big?128:64;
@@ -2638,6 +2915,11 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   lv_obj_set_pos(w.title,w.title_x,big?w.title_y:text_y);
   lv_obj_set_pos(w.value,w.value_x,big?w.value_y:text_y+title_h+line_gap);
   lv_obj_set_width(w.title,std::max(1,content_w-w.title_x));lv_obj_set_width(w.value,std::max(1,content_w-w.value_x));
+  if(media){
+    hide_panel(w);lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+    render_media_full(w,t,big,content_w,content_h,head_h);
+    return;
+  }
   if(mini){
     // The small slider becomes a strip a thumb finds at the bottom; the room above it is the button.
     hide_extra(w);hide_panel(w);
@@ -2705,6 +2987,8 @@ inline void render_slot(size_t slot) {
   else if (value == "docked") value = "Docked";
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+): a cover says Open, a washer Rinsing.
   else if (!t.extra().state_word.empty()) value = t.extra().state_word;
+  // A player's state in the screen's own words where Home Assistant sent none (firmware 0.2.64+).
+  else if (d == "media_player") value = tile_controls::media_state_text(t.state);
   else if (!t.unit.empty() && !watch) value += " " + t.unit;
   bool pending=t.loading(esphome::millis());
   if(d=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
@@ -2851,7 +3135,9 @@ inline void render_slot(size_t slot) {
   // The sun path sets its own colours on every render, the sunlit area under its arc too: taking the
   // accent here made that area orange after a palette change and yellow again after the next minute.
   if(w.extra_mode!="sunpath")w.fill_color=color;
-  for(unsigned i=0;i<w.parts.size();++i){
+  // The media tile (firmware 0.2.64+) paints its own parts on every render: keys, the bar and the cover's placeholder
+  // in the media colours, not the card's.
+  for(unsigned i=0;i<w.parts.size() && w.extra_mode!="media";++i){
     auto *p=w.parts[i];if(!p)continue;
     bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
     if(lv_obj_check_type(p,&lv_label_class))set_color(p,LV_STYLE_TEXT_COLOR,muted?value_color:title_color);
@@ -3411,6 +3697,9 @@ inline void tick() {
   uint32_t second=esphome::millis()/1000;
   if(second!=last_live_second){
     last_live_second=second;
+    // The media card's bar runs on while the track plays (firmware 0.2.64+).
+    if(media_progress_fill && detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count)
+      media_progress(model.tiles[detail_index],media_progress_fill,media_elapsed_label,media_bar_width);
     auto now=now_time?now_time():esphome::ESPTime{};
     int minute=now.is_valid()?now.day_of_year*1440+now.hour*60+now.minute:-1;
     bool new_minute=minute!=last_clock_minute;last_clock_minute=minute;
@@ -3418,6 +3707,8 @@ inline void tick() {
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
       if((t.is_clock() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
+      // A media tile over the whole page: its bar runs on while the track plays (firmware 0.2.64+).
+      if(w.extra_mode=="media" && w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN) && w.parts[5] && !lv_obj_has_flag(w.parts[5],LV_OBJ_FLAG_HIDDEN))media_progress(t,w.parts[5],w.parts[6],w.media_bar_w);
       // The second hand moves on its own: only its line is redrawn, and it hides during standby. Only while the
       // slot's parts are a dial: right after a page switch the slot already names the clock while its parts still
       // belong to the card drawn before (a forecast's hour labels take part 18 too), until the fill draws the dial.
@@ -3473,15 +3764,102 @@ constexpr uint8_t ALERT_IMAGE_RETRIES = 3;  // an alert's picture is worth anoth
 inline bool camera_supported() { return static_cast<bool>(camera_full.load); }
 inline bool camera_visible() { return camera_root != nullptr; }
 
+// ---- The album cover of the media card (firmware 0.2.64+) ----
+// The card, or a media tile over the whole page, says which cover it wants: the player, the mark of its picture, the
+// size and the colour behind the rounded corners (cover_want). The app answers `esphome.screen_camera` with a link to
+// a BMP of exactly that (op "camera", t "cover"); the board's full online_image loads it once and the picture stays
+// until the mark changes, the owner goes (the card closes, the page turns) or a camera opens full screen: the camera
+// and the cover share that one image buffer, and the camera wins. Everything runs from camera_tick().
+struct CoverWish { std::string entity, picture; int size = 0; uint32_t background = 0; CoverOwner owner = CoverOwner::NONE; size_t slot = 0; };
+inline CoverWish cover_wish;
+inline camera_view::Feed cover;
+inline void camera_release();
+inline void camera_request(const std::string &entity, int size = 0, uint32_t background = 0);
+// The pictures on screen go before their buffer does.
+inline void cover_forget_pictures() {
+  if (media_detail_picture) { lv_obj_delete(media_detail_picture); media_detail_picture = nullptr; }
+  for (auto &w : widgets) if (w.extra_mode == "media" && w.parts[MEDIA_PICTURE]) { lv_obj_delete(w.parts[MEDIA_PICTURE]); w.parts[MEDIA_PICTURE] = nullptr; }
+}
+inline void cover_release() {
+  const bool had = cover.open();
+  cover = camera_view::Feed{};
+  cover_forget_pictures();
+  if (had && !camera_root) camera_release_due = true;
+}
+inline void cover_want(const std::string &entity, const std::string &picture, int size, uint32_t background, CoverOwner owner, size_t slot) {
+  if (!camera_supported()) return;
+  const bool same = cover_wish.entity == entity && cover_wish.picture == picture && cover_wish.size == size && cover_wish.background == background;
+  cover_wish = CoverWish{entity, picture, size, background, owner, slot};
+  if (same) return;
+  cover_release();  // another cover: asked for on the next tick
+}
+inline lv_image_dsc_t *cover_ready(const std::string &entity, int size, uint32_t background) {
+  if (!cover.loaded || cover.entity != entity || cover_wish.size != size || cover_wish.background != background) return nullptr;
+  auto *src = camera_full.source();
+  return src && src->data ? src : nullptr;
+}
+inline void cover_drop() { cover_wish = CoverWish{}; cover_release(); }
+// Whether the owner still shows the cover: the card open on that player, or the tile on screen in its slot.
+inline bool cover_visible() {
+  if (cover_wish.owner == CoverOwner::DETAIL)
+    return detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN) && detail_index < model.count && model.tiles[detail_index].entity == cover_wish.entity;
+  if (cover_wish.owner == CoverOwner::TILE && cover_wish.slot < widgets.size()) {
+    if (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) return false;  // a card covers the page
+    auto &w = widgets[cover_wish.slot];
+    return w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].entity == cover_wish.entity && w.extra_mode == "media";
+  }
+  return false;
+}
+// Nobody holds the cover and a media tile with a picture is on the page (the card over it just closed, or the
+// page turned): the tile draws itself again and asks.
+inline void cover_offer() {
+  if (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) return;
+  for (auto &w : widgets) {
+    if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= model.count || w.extra_mode != "media") continue;
+    const auto &t = model.tiles[w.index];
+    if (t.extra().media_picture.empty() || !media_card::has_track(t.state)) continue;
+    refresh_tile(w.index);
+    return;
+  }
+}
+// The cover is here: onto the card at once, or the tile draws itself again with it.
+inline void cover_arrived() {
+  if (!cover_visible()) return;
+  if (cover_wish.owner == CoverOwner::DETAIL) media_detail_picture = media_picture_show(detail_root, media_detail_picture, media_art_rect, camera_full.source());
+  else refresh_tile(widgets[cover_wish.slot].index);
+  ESP_LOGI("camera", "cover of %s shown", cover.entity.c_str());
+}
+inline void cover_tick(uint32_t now) {
+  if (camera_root || !camera_supported()) return;
+  if (cover_wish.owner == CoverOwner::NONE) { cover_offer(); return; }
+  if (!cover_visible()) { cover_drop(); return; }
+  if (!awake()) return;
+  if (!cover.open()) cover.open(cover_wish.entity, true);
+  if (cover.should_ask(now)) {
+    if (!fresh()) return;
+    cover.ask(now);
+    camera_request(cover.entity, cover_wish.size, cover_wish.background);
+  } else if (cover.should_load(now)) {
+    auto *input = lv_indev_get_next(nullptr);
+    if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
+    cover.start(now);
+    camera_full.load(cover.url);
+  }
+}
+
 // Asks ESP Screen Manager for a link (app 0.2.66+ answers with op "camera"). An event, like history_request.
-inline void camera_request(const std::string &entity) {
+// A cover (firmware 0.2.64+) adds the size it wants and the colour behind its rounded corners; the app bakes both in.
+inline void camera_request(const std::string &entity, int size, uint32_t background) {
   if (inbox.empty()) return;
   esphome::api::HomeassistantActionRequest request;
   request.service = esphome::StringRef("esphome.screen_camera");
   request.is_event = true;
-  const std::string keys[] = {"inbox", "entity"}, values[] = {inbox, entity};
-  request.data.init(2);
-  for (int i = 0; i < 2; ++i) {
+  char size_text[12] = "", background_text[8] = "";
+  if (size > 0) { snprintf(size_text, sizeof(size_text), "%d", size); snprintf(background_text, sizeof(background_text), "%06X", (unsigned) background); }
+  const std::string keys[] = {"inbox", "entity", "size", "bg"}, values[] = {inbox, entity, size_text, background_text};
+  const int count = size > 0 ? 4 : 2;
+  request.data.init(count);
+  for (int i = 0; i < count; ++i) {
     esphome::api::HomeassistantServiceMap entry;
     entry.key = esphome::StringRef(keys[i]);
     entry.value = esphome::StringRef(values[i]);
@@ -3515,7 +3893,9 @@ inline void camera_close() {
 inline void camera_open(const std::string &entity, const std::string &name) {
   if (!camera_supported() || !valid_entity(entity)) return;
   camera_close();
-  // The last camera's image goes before this one loads into the same online_image.
+  // The last camera's image, or a media card's cover, goes before this one loads into the same online_image; the
+  // cover is asked for again once the camera closes (cover_tick).
+  cover_release();
   if (camera_release_due) camera_release();
   camera.open(entity);
   const int width = lv_display_get_horizontal_resolution(lv_display_get_default());
@@ -3577,6 +3957,7 @@ inline void camera_tick() {
       camera_thumb.load(alert_url);
     }
   }
+  cover_tick(now);
   if (!camera_root || !awake()) return;
   if (camera.should_ask(now)) {
     if (!fresh()) return;
@@ -3631,6 +4012,12 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
     if (url.empty() && !camera.shown) camera_note_text("No image from this camera");
     return;
   }
+  if (view == "cover") {  // the media card's album cover (firmware 0.2.64+)
+    if (!cover.open() || cover.entity != entity) return;
+    cover.link(url);
+    if (url.empty()) ESP_LOGI("camera", "no cover for %s", entity.c_str());
+    return;
+  }
   if (url.empty()) {  // announced before its alert
     alert_announced = entity;
     alert_announced_at = esphome::millis();
@@ -3674,7 +4061,12 @@ inline void camera_loaded(bool thumb, bool cached) {
     if (alert_picture && alert_frame_icon) lv_obj_add_flag(alert_frame_icon, LV_OBJ_FLAG_HIDDEN);
     return;
   }
-  if (!camera_root) return;
+  if (!camera_root) {
+    // The media card's cover (firmware 0.2.64+): the same online_image, loaded once.
+    if (cover.loading) { cover.finish(esphome::millis(), true); cover_arrived(); }
+    return;
+  }
+  if (!camera.loading) return;  // a cover's download that ended after the camera opened: not this camera's picture
   camera.finish(esphome::millis(), true);
   const bool first = camera_picture == nullptr;
   camera_show(camera_root, camera_picture, camera_full.source(), !cached);
@@ -3694,7 +4086,11 @@ inline void camera_failed(bool thumb) {
     }
     return;
   }
-  if (!camera_root) return;
+  if (!camera_root) {
+    if (cover.loading) cover.finish(esphome::millis(), false);  // tried again after the gap, three times at most
+    return;
+  }
+  if (!camera.loading) return;
   camera.finish(esphome::millis(), false);
   if (!camera.shown) camera_note_text("No image from this camera");
 }

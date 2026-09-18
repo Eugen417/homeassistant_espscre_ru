@@ -61,5 +61,39 @@ int main() {
   feed.start(0);
   feed.finish(10, true);
   assert(!feed.should_load(REFRESH_MS - 1) && feed.should_load(REFRESH_MS + 1));
+
+  // An album cover (firmware 0.2.64+) loads once per link: it stays on screen, never refreshed on a clock.
+  Feed cover;
+  cover.open("media_player.office", true);
+  assert(cover.once && cover.should_ask(0));
+  cover.ask(0);
+  cover.link("http://h/camera/cover.bmp");
+  assert(cover.should_load(100));
+  cover.start(100);
+  cover.finish(400, true);
+  assert(cover.loaded && cover.shown && !cover.should_load(400 + GAP_MS) && !cover.should_load(400 + 10 * REFRESH_MS) && !cover.should_ask(400 + ASK_AGAIN_MS));
+  // A failed load is tried again after the gap; three failures forget the link so the card asks for a new one.
+  cover.link("http://h/camera/cover2.bmp");
+  assert(!cover.loaded && cover.should_load(1000));
+  cover.start(1000); cover.finish(1100, false);
+  assert(!cover.should_load(1100 + GAP_MS - 1) && cover.should_load(1100 + GAP_MS));
+  cover.start(2000); cover.finish(2100, false);
+  cover.start(3000); cover.finish(3100, false);
+  assert(cover.url.empty() && cover.should_ask(3100));
+  // A new link (a new picture in Home Assistant) loads again, once.
+  cover.ask(3100);
+  cover.link("http://h/camera/cover3.bmp");
+  cover.start(3200); cover.finish(3500, true);
+  assert(cover.loaded && !cover.should_load(3500 + 10 * REFRESH_MS));
+  // A player without a picture (or an app from before covers) answers an empty link: asked once, then left alone.
+  Feed bare;
+  bare.open("media_player.radio", true);
+  bare.ask(0);
+  bare.link("");
+  assert(bare.empty && !bare.should_ask(ASK_AGAIN_MS) && !bare.should_ask(100 * ASK_AGAIN_MS) && !bare.should_load(ASK_AGAIN_MS));
+  // A camera feed keeps its clock: open() without the flag.
+  Feed live;
+  live.open("camera.front_door");
+  assert(!live.once);
   return 0;
 }

@@ -392,6 +392,36 @@ class HomeAssistant:
                     raise ValueError('image too large')
             return bytes(raw)
 
+    def media_picture(self, entity):
+        """The address of a media player's cover as its state carries it right now, or '' without one."""
+        attrs = self.states.get(entity, {}).get('attributes', {})
+        picture = attrs.get('entity_picture') or attrs.get('entity_picture_local')
+        return picture if isinstance(picture, str) and picture else ''
+
+    async def media_image(self, entity):
+        """The cover of a media player (app 0.2.77), fetched where its state points: Home Assistant's own proxy
+        with this app's token (`/api/media_player_proxy/...`), or a picture on the internet as it is."""
+        picture = self.media_picture(entity)
+        if not picture:
+            raise ValueError('no picture')
+        root = self.base[:-4] if self.base.endswith('/api') else self.base
+        if picture.startswith('/'):
+            url, headers = f'{root}{picture}', {'Authorization': 'Bearer ' + self.token}
+        elif picture.startswith(('http://', 'https://')):
+            url, headers = picture, {}
+        else:
+            raise ValueError('unknown picture address')
+        async with self.session.get(url, headers=headers, timeout=ClientTimeout(total=camera_feed.FETCH_SECONDS)) as response:
+            response.raise_for_status()
+            if (response.content_length or 0) > camera_feed.MAX_SNAPSHOT_BYTES:
+                raise ValueError('picture too large')
+            raw = bytearray()
+            async for chunk in response.content.iter_chunked(65536):
+                raw += chunk
+                if len(raw) > camera_feed.MAX_SNAPSHOT_BYTES:
+                    raise ValueError('picture too large')
+            return bytes(raw)
+
     async def fire(self, event_type, data):
         """One Home Assistant event of our own, such as the answer to a tile event."""
         await self.request('fire_event', event_type=event_type, event_data=data)
@@ -502,7 +532,9 @@ class Manager:
         self.card_histories, self.card_history_fetches = {}, {}
         # Camera images (firmware 0.2.57+): the feed behind the camera port, and the cameras of recent alerts
         # (entity -> monotonic time) that a screen may open full screen without a tile.
-        self.camera = camera_feed.CameraFeed(lambda entity: self.ha.camera_image(entity))
+        self.camera = camera_feed.CameraFeed(lambda entity: self.ha.camera_image(entity),
+                                             fetch_cover=lambda entity: self.ha.media_image(entity),
+                                             picture=lambda entity: self.ha.media_picture(entity))
         self.alert_cameras = {}
         if self.path.exists():
             raw = json.loads(self.path.read_text())
@@ -1357,14 +1389,31 @@ class Manager:
         inbox = self.aliases.get(request.get('inbox'), request.get('inbox'))
         entity = request.get('entity')
         screen = self.screen(inbox) if isinstance(inbox, str) else None
-        if not camera_feed.supported(entity) or not camera_feed.can_show(screen) or not screen.get('online'):
+        # A media player's cover (app 0.2.77, firmware 0.2.64+) comes the same way, at the size the card asks for.
+        cover = camera_feed.cover_request(request) if camera_feed.cover_supported(entity) else None
+        if cover:
+            if not camera_feed.can_show_cover(screen) or not screen.get('online'):
+                return
+        elif not camera_feed.supported(entity) or not camera_feed.can_show(screen) or not screen.get('online'):
             return
         action = self.transport(inbox, screen)
         if not action or not self.camera_allowed(inbox, entity):
             return
-        message = await self.camera_message(entity, 'full', screen['board'])
+        message = await self.cover_message(entity, *cover) if cover else await self.camera_message(entity, 'full', screen['board'])
         await self.ha.send(inbox, message, action)
-        LOG.info('Camera %s on %s%s', entity, screen['name'], '' if message['u'] else ': no image')
+        LOG.info('%s %s on %s%s', 'Cover of' if cover else 'Camera', entity, screen['name'], '' if message['u'] else ': no image')
+
+    async def cover_message(self, entity, size, background):
+        """The screen message with a link to a media player's cover at `size` with `background` behind the corners,
+        or an empty link when the player shows no picture (the card keeps its placeholder)."""
+        url = ''
+        base = await camera_feed.base_url(self.ha.request)
+        if base:
+            token = self.camera.link(entity, (size, size), cover=(size, background)) if await self.camera.cover(entity, size, background) else None
+            url = f'{base}/camera/{token}.bmp' if token else ''
+        else:
+            LOG.warning('Covers: no address for this app on the LAN; set SCREEN_CAMERA_URL')
+        return {'v': 1, 'op': 'camera', 't': 'cover', 'e': entity, 'u': url}
 
     async def alert_images(self, camera, screens):
         """The picture of an alert's camera at that moment, on every screen that draws it."""
