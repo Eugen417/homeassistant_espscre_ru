@@ -2,7 +2,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.60"
+  SCREEN_FIRMWARE_VERSION: "0.2.61"
   # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
   # (like iOS). The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
@@ -2438,7 +2438,7 @@ lvgl:
             on_short_click:
               - if:
                   condition:
-                    lambda: 'return cyd::touch_guard.accept(millis(), 11);'
+                    lambda: 'return cyd::touch_guard.accept_repeat(millis(), 11);'
                   then:
                     - lambda: 'id(tile_page) = std::max(0, id(tile_page) - 1);'
                     - script.execute: show_tile_page
@@ -2479,7 +2479,7 @@ lvgl:
             on_short_click:
               - if:
                   condition:
-                    lambda: 'return cyd::touch_guard.accept(millis(), 12);'
+                    lambda: 'return cyd::touch_guard.accept_repeat(millis(), 12);'
                   then:
                     - lambda: 'id(tile_page) += 1;'
                     - script.execute: show_tile_page

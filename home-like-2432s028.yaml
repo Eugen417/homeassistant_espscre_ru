@@ -17,7 +17,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.60"
+  SCREEN_FIRMWARE_VERSION: "0.2.61"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -2351,7 +2351,7 @@ lvgl:
             on_short_click:
               - if:
                   condition:
-                    lambda: 'return cyd::touch_guard.accept(millis(), 11);'
+                    lambda: 'return cyd::touch_guard.accept_repeat(millis(), 11);'
                   then:
                     - lambda: 'id(tile_page) = std::max(0, id(tile_page) - 1);'
                     - script.execute: show_tile_page
@@ -2392,7 +2392,7 @@ lvgl:
             on_short_click:
               - if:
                   condition:
-                    lambda: 'return cyd::touch_guard.accept(millis(), 12);'
+                    lambda: 'return cyd::touch_guard.accept_repeat(millis(), 12);'
                   then:
                     - lambda: 'id(tile_page) += 1;'
                     - script.execute: show_tile_page

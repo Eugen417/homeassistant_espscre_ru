@@ -176,6 +176,21 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.72 / firmware 0.2.61
+
+Firmware only (both board profiles; `cyd_ui.h` gains a comment); the app raises `FIRMWARE_VERSION`. No protocol,
+storage or editor change, and an older app drives this firmware as before.
+
+- The `< Previous` and `Next >` bars on `home_page` call `cyd::touch_guard.accept_repeat(millis(), 11 / 12)` instead
+  of `accept()`. `accept()` keeps a 600 ms window per tile so one contact can never fire a tile's action twice; on the
+  page bar that window dropped the second and third tap of Next, Next, Next, so page 4 took three waits of about
+  half a second. `accept_repeat`, the -/+ keys' rule since 0.2.25, still drops a contact shorter than 40 ms (20 ms on
+  the Guition), a contact that moved, a contact that already counted, and a tap within 150 ms of the last accepted
+  tap on the same button (bounce). `show_page` already drops a fill still under way when the next page is asked for,
+  so nothing else changed. `tests/test_cyd_ui.cpp` covers the page buttons.
+- The settings page's own pager (`settings_screen.h`) never used the guard and is unchanged. Tile taps, cards, keys,
+  chips and sliders keep `accept()` and its window.
+
 ### Compatibility 0.2.71 / firmware 0.2.60
 
 Firmware only (`runtime_model.h`, `runtime_tiles.h`); the app raises `FIRMWARE_VERSION`. No protocol, storage or

@@ -73,8 +73,9 @@ class TouchGuard {
     if (moved_) { reject_ = MOVED; return false; }
     return accept_slider(now, tile);
   }
-  // For -/+ keys: every clean tap counts, even the third within a second, so a
-  // setpoint moves several steps in one go. Only bounce (same key within `gap`) is dropped.
+  // For -/+ keys and the page buttons: every clean tap counts, even the third within a second,
+  // so a setpoint moves several steps in one go and Next, Next, Next reaches page 4 without
+  // waiting for each page to draw. Only bounce (same key within `gap`) is dropped.
   bool accept_repeat(uint32_t now, int tile, uint32_t gap = 150) {
     if (moved_) { reject_ = MOVED; return false; }
     if (accepted_) { reject_ = USED; return false; }

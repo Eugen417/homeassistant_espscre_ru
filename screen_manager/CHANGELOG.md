@@ -1,3 +1,11 @@
+## 0.2.72 (firmware 0.2.61)
+
+Next, Next, Next: the page buttons keep up with your finger.
+
+- **Tap through the pages as fast as you like.** Tap Next three times in a row and you are on page 4, whether or not the pages in between had finished drawing. Before, a second tap on the same button within 600 ms was dropped as a bounce, the rule that keeps a light from switching twice on one tap, so every page made you wait before the next tap counted. The page buttons now follow the rule of the -/+ keys: every clean tap counts, and only a contact within 150 ms of the last one on the same button is taken for a bounce.
+- **Previous does the same**, and tapping past the first or last page still changes nothing.
+- Needs firmware 0.2.61: press **Update** on the screen. Includes everything from 0.2.71.
+
 ## 0.2.71 (firmware 0.2.60)
 
 A small slider stays where you leave it while the lights fade towards it.

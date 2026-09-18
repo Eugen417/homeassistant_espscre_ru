@@ -21,6 +21,14 @@ int main() {
   r.begin(1300); assert(!r.accept_repeat(1340, 7));                                     // 80 ms after the last: bounce
   r.begin(1300); r.update(40, 0); assert(!r.accept_repeat(1500, 7));                   // a swipe is never a step
   r.begin(1600); assert(r.accept_repeat(1660, 8));                                      // the other key right away
+  // Page buttons (0.2.72): Next, Next, Next at a finger's pace all count, so page 4 is three taps away
+  // while the pages are still drawing; accept() would have dropped the second and third (600 ms).
+  cyd::TouchGuard pager;
+  pager.begin(2000); assert(pager.accept_repeat(2080, 12));
+  pager.begin(2250); assert(pager.accept_repeat(2330, 12));                              // 250 ms after the last
+  pager.begin(2500); assert(pager.accept_repeat(2580, 12));                              // and again
+  pager.begin(2600); assert(!pager.accept(2680, 12));                                    // the old rule: bounce window
+  pager.begin(2700); assert(pager.accept_repeat(2780, 11));                              // Previous right after Next
   cyd::TouchGuard g;
   g.begin(100);
   assert(!g.accept(120, 1)); // resistive noise pulse
