@@ -1,3 +1,13 @@
+## 0.2.81 (firmware 0.2.68)
+
+A card's slider takes the whole card, and a quick drag on it never turns a page.
+
+- **Dragging anywhere on a card with a small slider drags the slider.** The strip at the bottom of a compact card is 8 px high on a CYD, so a finger that landed a little above it pressed the card instead: the light's card opened, the light toggled, or a quick drag turned the page. The whole card now belongs to the strip, on both boards. A press that never moves is still the card's tap and a finger resting on it is still its hold, with the card lighting up as before; only a moving finger drags. The log says `Tap beside the strip of light.x: the tile's`.
+- **A quick drag on a slider is never a page swipe.** The CYD's swipe between pages caught fast drags on sliders and turned the page without a word in the log. The log now says `page swipe: page 0 -> 1` when a swipe turns a page and `page swipe ignored: a slider is being dragged` when a slider had the finger. A swipe that starts on a card with a slider no longer turns the page: start it on another card, between cards, or use the buttons. The Guition's flick rule leaves a slider's drag alone the same way.
+- **A second drag right after the first counts.** A slider's send within 600 ms of its previous one was dropped as a bounce, silently. That window is for buttons; a slider sends once per touch, on release.
+- **The edge band on a CYD is 20 px** (was 56). Its resistive panel reports a finger up to the bezel, and on a single card's 131 px slider the old band turned a release at 71 % into 100 %. The Guition keeps its centimetre.
+- Needs firmware 0.2.68: press **Update** on the screen. Includes everything from 0.2.80. CYD firmware: 1,653,504 bytes, 90.1 % of the update slot (720 bytes more than 0.2.80).
+
 ## 0.2.80 (firmware 0.2.67)
 
 A slider swiped off the edge of the glass goes all the way.

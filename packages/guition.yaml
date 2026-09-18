@@ -3,7 +3,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.67"
+  SCREEN_FIRMWARE_VERSION: "0.2.68"
   # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
   # (runtime_tiles::event checks where it let go: LVGL keeps the press on the tile and would click it
   # anywhere), and a quick flick is LVGL's gesture, never a tap (the home_page gesture handler in on_boot).
@@ -240,6 +240,8 @@ esphome:
           lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *) {
             if (!runtime_tiles::enabled || id(calibration_active) || !id(active_entity).empty() || settings_screen::visible() ||
                 (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN))) return;
+            // A quick drag on a slider is that slider's: the press stays with it (firmware 0.2.68+).
+            if (runtime_tiles::captured_slider) return;
             cyd::touch_guard.consume();
             ESP_LOGI("touch", "flick: no tap");
             if (id(display_dimmed)) return;

@@ -17,14 +17,15 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.67"
+  SCREEN_FIRMWARE_VERSION: "0.2.68"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
   TOUCH_MIN_PRESS_MS: "60"
-  # A slider let go this close to the left or right edge of the glass (about 1 cm) meant its end when
-  # that end lies in the band: a panel loses a finger swiped off the glass before the edge.
-  SLIDER_EDGE_SNAP_PX: "56"
+  # A slider let go this close to the left or right edge of the glass meant its end when that end lies in
+  # the band. The resistive panel reports a finger up to the bezel, so only the strip's last pixels and
+  # the margin beside them count (a capacitive Guition loses a fast finger 30-50 px before its edge).
+  SLIDER_EDGE_SNAP_PX: "20"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
   DEVICE_FRIENDLY_NAME: "My CYD"
@@ -327,8 +328,11 @@ esphome:
             auto *input=lv_indev_active();if(!input)return;
             auto direction=lv_indev_get_gesture_dir(input);
             if(direction!=LV_DIR_LEFT && direction!=LV_DIR_RIGHT)return;
+            // A quick drag on a slider is that slider's, never a page swipe (firmware 0.2.68+).
+            if(runtime_tiles::captured_slider){ESP_LOGI("touch","page swipe ignored: a slider is being dragged");return;}
             cyd::touch_guard.consume();
             lv_indev_wait_release(input);
+            ESP_LOGI("touch","page swipe: page %d -> %d",id(tile_page),id(tile_page)+(direction==LV_DIR_LEFT?1:-1));
             id(tile_page)+=direction==LV_DIR_LEFT?1:-1;
             id(show_tile_page).execute();
           }, LV_EVENT_GESTURE, nullptr);

@@ -873,9 +873,25 @@ inline void commit_slider(unsigned i,int raw){
     value=std::clamp(t.minimum+std::round(value*(t.maximum-t.minimum)/t.step)*t.step,t.minimum,t.maximum);
     action(d+".set_value",t.entity,"value",std::to_string(value)); }
 }
+// Where the finger landed on a slider, the value it had, and whether it landed beside the strip (in the tile's lower
+// half that the strip claims, slider_zone) and moved: a press beside the strip that never moves is a tap on the tile.
+inline lv_point_t slider_press{0,0};inline int slider_press_value=0;inline bool slider_press_beside=false,slider_press_moved=false,slider_press_held=false;
+// The card a strip belongs to, for a press beside the strip that turns out to be the card's tap or hold.
+inline lv_obj_t *strip_card(lv_obj_t *slider){for(auto &w:widgets)if(w.slider==slider)return w.tile;return nullptr;}
 inline void slider_event(lv_event_t *e){
   auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
-  if(code==LV_EVENT_PRESSED){captured_slider=slider;slider_changed=false;}
+  if(code==LV_EVENT_PRESSED){captured_slider=slider;slider_changed=false;slider_press_moved=false;slider_press_beside=false;slider_press_held=false;
+    slider_press_value=lv_slider_get_value(slider);
+    if(auto *indev=lv_indev_active()){lv_indev_get_point(indev,&slider_press);lv_area_t a;lv_obj_get_coords(slider,&a);slider_press_beside=slider_press.x<a.x1 || slider_press.x>a.x2 || slider_press.y<a.y1 || slider_press.y>a.y2;}
+    // Beside the strip the card lights up as under a tap, until the finger starts dragging.
+    if(slider_press_beside)if(auto *card=strip_card(slider))lv_obj_add_state(card,LV_STATE_PRESSED);}
+  if(code==LV_EVENT_PRESSING && captured_slider==slider && !slider_press_moved){
+    if(auto *indev=lv_indev_active()){lv_point_t p;lv_indev_get_point(indev,&p);if(std::abs(p.x-slider_press.x)>=10 || std::abs(p.y-slider_press.y)>=10){slider_press_moved=true;
+      if(auto *card=strip_card(slider))lv_obj_remove_state(card,LV_STATE_PRESSED);}}}
+  // A finger resting beside the strip holds the card, as it would without the strip's claim on the card.
+  if(code==LV_EVENT_LONG_PRESSED && captured_slider==slider && slider_press_beside && !slider_press_moved && !slider_press_held){
+    if(auto *card=strip_card(slider)){slider_press_held=true;lv_obj_send_event(card,LV_EVENT_LONG_PRESSED,nullptr);}}
+  if((code==LV_EVENT_RELEASED || code==LV_EVENT_PRESS_LOST) && slider_press_beside)if(auto *card=strip_card(slider))lv_obj_remove_state(card,LV_STATE_PRESSED);
   // On release LVGL sets the value once more from the last touch point: log it when that throws a
   // dragged slider to one of its ends, so a stray touch sample shows up (cyd::release_jump).
   if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider){
@@ -895,6 +911,15 @@ inline void slider_event(lv_event_t *e){
     // A slider among a card's own parts (the media tile's volume) belongs to the tile the slot shows now.
     for(auto &w:widgets)if(w.slider==slider || w.control_slider==slider || (w.extra && lv_obj_get_parent(slider)==w.extra)){index=w.index;break;}
     bool changed=slider_changed;captured_slider=nullptr;slider_changed=false;
+    // A finger that landed beside a tile's strip and let go without moving tapped the tile (or held it, sent above):
+    // the value LVGL set from that point on release goes back, and the tile's own rules decide what the tap does.
+    if(slider_press_beside && !slider_press_moved){
+      if(auto *card=strip_card(slider)){
+        lv_slider_set_value(slider,slider_press_value,LV_ANIM_OFF);
+        ESP_LOGI("slider","%s beside the strip of %s: the tile's",slider_press_held?"Hold":"Tap",model.tiles[index].entity.c_str());
+        if(!slider_press_held)lv_obj_send_event(card,LV_EVENT_SHORT_CLICKED,nullptr);
+        return;}
+    }
     // A finger let go within the edge band of the glass meant the slider's end (cyd::edge_snap).
     if(auto *indev=lv_indev_active();indev && lv_obj_get_width(slider)>=lv_obj_get_height(slider)){
       lv_point_t p;lv_indev_get_point(indev,&p);lv_area_t a;lv_obj_get_coords(slider,&a);
@@ -2247,6 +2272,11 @@ inline int content_width(const Widgets &w) {
 inline int content_height(const Widgets &w) {
   return tile_height(w) - lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
 }
+// A card's strip is thin (8 px on a CYD card), so the whole card belongs to it: a finger that lands above the strip
+// still drags it. A press that never moves taps or holds the card instead (slider_event), so nothing is lost.
+inline int slider_zone(const Widgets &w, int strip) {
+  return std::max(8, (int) lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) + content_height(w) - strip);
+}
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
   lv_obj_update_layout(tile);
   // Compact cards need room for two text lines and a separate dimmer track.
@@ -2975,7 +3005,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
     // The small slider becomes a strip a thumb finds at the bottom; the room above it is the button.
     hide_extra(w);hide_panel(w);
     int strip=big?64:40;
-    lv_obj_set_size(w.slider,content_w,strip);
+    lv_obj_set_size(w.slider,content_w,strip);lv_obj_set_ext_click_area(w.slider,slider_zone(w,strip));
     slider_handle(w.slider,content_w,strip);
     lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
     if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED) && lv_slider_get_value(w.slider)!=slider_value(t))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);
@@ -3133,7 +3163,7 @@ inline void render_slot(size_t slot) {
     lv_obj_set_pos(w.unit,content_w-chevron_w,std::max(0,(header_height-chevron_w)/2));lv_obj_set_size(w.unit,chevron_w,chevron_w);
     lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
   }else lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
-  lv_obj_set_size(w.slider,content_w,slider_height);
+  lv_obj_set_size(w.slider,content_w,slider_height);lv_obj_set_ext_click_area(w.slider,slider_zone(w,slider_height));
   slider_handle(w.slider,content_w,slider_height);
   if(mini){lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED) && lv_slider_get_value(w.slider)!=slider_value(t))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);}
   else lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);

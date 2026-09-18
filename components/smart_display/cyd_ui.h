@@ -73,7 +73,7 @@ class TouchGuard {
   void consume() { accepted_ = true; moved_ = true; }
   bool accept(uint32_t now, int tile) {
     if (moved_) { reject_ = MOVED; return false; }
-    return accept_slider(now, tile);
+    return accept_within(now, tile, 600);
   }
   // For -/+ keys and the page buttons: every clean tap counts, even the third within a second,
   // so a setpoint moves several steps in one go and Next, Next, Next reaches page 4 without
@@ -87,14 +87,9 @@ class TouchGuard {
     return true;
   }
   // Only for a slider which captured this contact and did not lose the press.
-  // Consume the gesture so its parent can never also turn it into a tile tap.
-  bool accept_slider(uint32_t now, int tile) {
-    if (accepted_) { reject_ = USED; return false; }
-    if (!long_enough(now, min_press_)) return false;
-    if (has_previous_ && tile == previous_tile_ && now - previous_ < 600) { reject_ = BOUNCE; return false; }
-    remember(now, tile);
-    return true;
-  }
+  // Consume the gesture so its parent can never also turn it into a tile tap. A slider sends
+  // once per contact, on release, so a second drag right after the first is no bounce.
+  bool accept_slider(uint32_t now, int tile) { return accept_within(now, tile, 0); }
   // Why the last accept() refused, for the touch log; empty after a success.
   std::string reason() const {
     switch (reject_) {
@@ -107,6 +102,13 @@ class TouchGuard {
   }
  private:
   static constexpr int SETTLE_SAMPLES = 4;
+  bool accept_within(uint32_t now, int tile, uint32_t gap) {
+    if (accepted_) { reject_ = USED; return false; }
+    if (!long_enough(now, min_press_)) return false;
+    if (gap && has_previous_ && tile == previous_tile_ && now - previous_ < gap) { reject_ = BOUNCE; return false; }
+    remember(now, tile);
+    return true;
+  }
   bool long_enough(uint32_t now, uint32_t minimum) {
     duration_ = now - started_;
     if (duration_ < minimum) { reject_ = TOO_SHORT; return false; }

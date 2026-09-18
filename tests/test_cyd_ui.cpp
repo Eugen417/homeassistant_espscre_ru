@@ -55,7 +55,7 @@ int main() {
   assert(!moving.accept_slider(1202, 202)); // one send per contact
   moving.begin(1250);
   assert(!moving.accept_slider(1260, 202)); // noise remains rejected
-  assert(!moving.accept_slider(1350, 202)); // same-control bounce remains rejected
+  assert(moving.accept_slider(1350, 202)); // a second drag 150 ms after the first commit counts (0.2.81)
   // Per-board limits (0.2.23): a centimetre of drift on the Guition is still a tap, and the
   // reference settles over the first samples, so the landing wobble does not count.
   cyd::TouchGuard wide;
@@ -176,4 +176,11 @@ int main() {
   assert(cyd::edge_snap(20, 29, 450, 480, 67) == -1);   // off the left: the start
   assert(cyd::edge_snap(20, 258, 452, 480, 67) == 0);   // the right column's start is not in the band
   assert(cyd::edge_snap(437, 29, 450, 480, 0) == 0);    // band off
+  // A second drag on the same slider right after the first counts (a slider sends once per contact, on release);
+  // a tap on the tile that soon after the slider's commit is still a bounce for the tile's own id only.
+  cyd::TouchGuard drags;
+  drags.begin(3000); assert(drags.accept_slider(3200, 205));
+  drags.begin(3300); assert(drags.accept_slider(3500, 205));                             // 300 ms after the last commit
+  drags.begin(3550); assert(drags.accept(3650, 105));                                    // the tile itself: another id
+  drags.begin(3700); assert(!drags.accept(3800, 105));                                   // the tile twice within 600 ms
 }
