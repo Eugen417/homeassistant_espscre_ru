@@ -6,7 +6,7 @@ Thank you! I work on this project with a lot of love, and every bit of support h
 
 <p align="center">
   <img src="docs/images/photo-guition-page-2.jpg" width="49%" alt="The Guition 4-inch screen on a table: the second page with scenes and scripts, the robot vacuum and a table lamp with a brightness slider">
-  <img src="docs/images/photo-guition-vacuum.jpg" width="49%" alt="The vacuum card on the Guition: start cleaning, return to dock, find my robot and the suction power">
+  <img src="docs/images/photo-guition-vacuum.jpg" width="49%" alt="The vacuum card on the Guition: docked and charging, start cleaning and dock, the cleaning mode, suction and water">
 </p>
 
 **A touch screen for every room that you lay out yourself, and manage from Home Assistant.**
@@ -108,7 +108,7 @@ also be changed on the screen or by an automation, and your own YAML for one scr
 </p>
 <p align="center"><sub>A top bar built from your own home, firmware updates over Wi-Fi (every night if you like), and a skill so Claude can rearrange your screens.</sub></p>
 <p align="center">
-  <img src="docs/images/editor-screen-settings.png" width="98%" alt="The Screen settings tab in ESP Screens: Brightness with standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping and the rotation">
+  <img src="docs/images/editor-screen-settings.png" width="98%" alt="The Screen settings tab in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping, the page buttons and the rotation">
 </p>
 <p align="center"><sub>Screen settings apply at once, and a change made on the screen or by an automation shows up here too.</sub></p>
 <p align="center">
@@ -224,5 +224,8 @@ The very first version started from Adrian Kuehlewind's
 [ESPHome-touch-display-mount](https://github.com/akuehlewind/ESPHome-touch-display-mount).
 Little of that code is left, but his repository has 3D-printable desk, under-desk, wall and flush
 mounts for the CYD.
+
+The front door in the camera pictures is a photo by
+[Virginia Marinova](https://unsplash.com/photos/the-door-welcomes-with-plants-on-both-sides-80uwJgdeqWg) on Unsplash.
 
 ESP Screens is MIT licensed, see [LICENSE](LICENSE).

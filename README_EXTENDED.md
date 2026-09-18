@@ -428,7 +428,7 @@ takes effect at once, and appears in ESP Screens within a second, so both sides 
 the same value. The **Screen settings** cards in ESP Screens have the same rows.
 
 <p align="center">
-  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping and the rotation">
+  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping, the page buttons and the rotation">
 </p>
 
 **In Home Assistant** (firmware 0.2.49+), every setting is an entity on the screen's device, under
