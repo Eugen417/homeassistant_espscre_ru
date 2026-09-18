@@ -1,0 +1,111 @@
+// The grid rules: the same ones the add-on applies (core.pack_slots, validate_layout) and the firmware draws.
+import { describe, expect, it } from "vitest";
+import {
+  arrange, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
+  newTile, normalize, occupied, packSlots, pageCount, rowStart, SLOTS_PER_PAGE, tileLimit, versionAtLeast,
+} from "../src/model/layout";
+import type { Inventory, Layout, Tile } from "../src/types";
+
+const tile = (entity: string, slot: number, options: Tile["options"] = {}): Tile => ({ entity, name: "", slot, options });
+const entries = (tiles: Tile[]) => tiles.map((t) => ({ tile: t, slot: t.slot }));
+
+describe("packing and positions", () => {
+  it("packs in reading order and moves a wide tile to the start of a row", () => {
+    const tiles = [tile("a", -1), tile("b", -1, { size: "wide" }), tile("c", -1)];
+    expect(packSlots(tiles)).toEqual([0, 2, 4]);
+    expect(hasGaps(tiles)).toBe(true);
+    const layout: Layout = { title: "T", tiles: [tile("z", 7), tile("y", 3)] };
+    normalize(layout);
+    expect(layout.tiles.map((t) => [t.entity, t.slot])).toEqual([["y", 3], ["z", 7]]);
+  });
+  it("gives every tile a slot when an old layout has none", () => {
+    const layout: Layout = { title: "T", tiles: [{ entity: "a", name: "" } as Tile, { entity: "b", name: "", options: { size: "wide" } } as Tile] };
+    normalize(layout);
+    expect(layout.tiles.map((t) => t.slot)).toEqual([0, 2]);
+  });
+  it("knows where a tile fits", () => {
+    const taken = occupied(entries([tile("a", 0), tile("w", 2, { size: "wide" })]));
+    expect([...taken].sort((x, y) => x - y)).toEqual([0, 2, 3]);
+    expect(fits(taken, 1, false)).toBe(true);
+    expect(fits(taken, 2, false)).toBe(false);
+    expect(fits(taken, 1, true)).toBe(false); // a wide tile starts in the left column
+    expect(fits(taken, 4, true)).toBe(true);
+    expect(fits(taken, MAX_SLOTS - 1, true)).toBe(false);
+    expect(fits(taken, MAX_SLOTS, false)).toBe(false);
+    expect(firstFree(taken, false)).toBe(1);
+    expect(firstFree(taken, true)).toBe(4);
+    expect(rowStart(5)).toBe(4);
+  });
+  it("prefers the later cell on a tie, so a nudged tile moves down", () => {
+    const taken = occupied(entries([tile("a", 2)]));
+    expect(nearestFree(taken, false, 2)).toBe(3);
+    expect(nearestFree(new Set([3]), false, 2)).toBe(2);
+  });
+});
+
+describe("arrange", () => {
+  it("swaps two tiles when one is dropped on the other", () => {
+    const a = tile("a", 0), b = tile("b", 1);
+    const result = arrange([a, b], a, 1)!;
+    expect(result.map((e) => [e.tile.entity, e.slot])).toEqual([["b", 0], ["a", 1]]);
+  });
+  it("pushes a displaced tile to the nearest free cell when the vacated cells do not fit it", () => {
+    const wide = tile("w", 0, { size: "wide" }), c = tile("c", 2), d = tile("d", 3);
+    // A new single tile lands on the wide one's row: the wide tile needs two cells and takes the next free row.
+    const fresh = newTile("light.x");
+    const result = arrange([wide, c, d], fresh, 0)!;
+    const by = Object.fromEntries(result.map((e) => [e.tile.entity, e.slot]));
+    expect(by["light.x"]).toBe(0);
+    expect(by.w).toBe(4);
+    expect(by.c).toBe(2);
+  });
+  it("snaps a wide tile to the start of its row and refuses a target off the grid", () => {
+    const w = tile("w", 0, { size: "wide" });
+    expect(arrange([w], w, 3)![0].slot).toBe(2);
+    expect(arrange([w], w, MAX_SLOTS)).toBeNull();
+    const single = tile("s", 0);
+    expect(arrange([single], single, -1)).toBeNull();
+    expect(arrange([single], single, MAX_SLOTS)).toBeNull();
+  });
+  it("counts the pages the tiles need, never more than eight", () => {
+    expect(pageCount(entries([tile("a", 0)]))).toBe(1);
+    expect(pageCount(entries([tile("a", 6)]))).toBe(2);
+    expect(pageCount(entries([tile("w", 4, { size: "wide" })]))).toBe(1);
+    expect(pageCount(entries([tile("a", 0)]), 3)).toBe(3);
+    expect(pageCount(entries([tile("a", 0)]), 99)).toBe(MAX_PAGES);
+    expect(SLOTS_PER_PAGE * MAX_PAGES).toBe(MAX_SLOTS);
+  });
+});
+
+describe("defaults, controls and versions", () => {
+  const inventory = { screens: [], entities: [], controls: { light: { default: "toggle", choices: [{ key: "toggle", label: "On/off switch" }, { key: "brightness", label: "Brightness slider" }, { key: "none", label: "None" }] } } } as unknown as Inventory;
+  it("starts a new tile with the card that shows the entity best", () => {
+    expect(defaultOptions("weather.home")).toEqual({ options: { display: "forecast", size: "wide" } });
+    expect(defaultOptions("sun.sun")).toEqual({ options: { display: "sunpath", size: "wide" } });
+    expect(defaultOptions("screen.clock")).toEqual({ options: { display: "digital", size: "wide" } });
+    expect(defaultOptions("light.a")).toEqual({});
+    expect(newTile("light.a")).toEqual({ entity: "light.a", name: "", slot: -1 });
+  });
+  it("shows direct controls only on a wide standard card without a mini slider", () => {
+    expect(effectiveControls(tile("light.a", 0, { size: "wide" }), inventory)).toBe("toggle");
+    expect(effectiveControls(tile("light.a", 0, { size: "wide", controls: "brightness" }), inventory)).toBe("brightness");
+    expect(effectiveControls(tile("light.a", 0, { size: "wide", controls: "none" }), inventory)).toBeNull();
+    expect(effectiveControls(tile("light.a", 0, { size: "wide", inline: "slider" }), inventory)).toBeNull();
+    expect(effectiveControls(tile("light.a", 0, { size: "wide", display: "watch" }), inventory)).toBeNull();
+    expect(effectiveControls(tile("light.a", 0), inventory)).toBeNull();
+    expect(controlsLabel(tile("light.a", 0, { size: "wide" }), inventory)).toBe("on/off switch");
+    expect(controlsLabel(tile("sensor.t", 0, { size: "wide" }), inventory)).toBe("none");
+  });
+  it("compares firmware versions and knows the tile limit", () => {
+    expect(versionAtLeast("0.2.60", "0.2.58")).toBe(true);
+    expect(versionAtLeast("0.2.58", "0.2.58")).toBe(true);
+    expect(versionAtLeast("0.2.9", "0.2.10")).toBe(false);
+    expect(versionAtLeast("1.0.0", "0.9.9")).toBe(true);
+    expect(versionAtLeast(undefined, "0.2.1")).toBe(false);
+    expect(versionAtLeast("unknown", "0.2.1")).toBe(false);
+    expect(tileLimit("0.2.6")).toBe(10);
+    expect(tileLimit("0.2.7")).toBe(20);
+    expect(tileLimit("0.2.60")).toBe(20);
+    expect(tileLimit(undefined)).toBe(10);
+  });
+});

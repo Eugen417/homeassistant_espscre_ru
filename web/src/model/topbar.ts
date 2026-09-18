@@ -45,17 +45,25 @@ export const BAR_METRICS: Record<string, BarMetrics> = {
 export type ItemView = { icon?: string | null; text?: string; color?: string | null; shown: boolean; analog?: boolean; loading?: boolean };
 type Ink = { left: number; right: number; top: number; bottom: number; advance: number };
 
-const measure = document.createElement("canvas").getContext("2d")!;
+let measure: CanvasRenderingContext2D | null | undefined;
 const inkCache = new Map<string, Ink>();
 export const clearInkCache = () => inkCache.clear();
 // Ink box of a string relative to its origin on the baseline: left/right, and top (negative, up)/bottom.
+// Without a canvas (a test runner) the box is estimated from the font size, so the layout rules still run.
 export function inkOf(text: string, font: string): Ink {
   const key = `${font}|${text}`;
   let ink = inkCache.get(key);
   if (!ink) {
-    measure.font = font;
-    const m = measure.measureText(text);
-    ink = { left: -m.actualBoundingBoxLeft, right: m.actualBoundingBoxRight, top: -m.actualBoundingBoxAscent, bottom: m.actualBoundingBoxDescent, advance: m.width };
+    if (measure === undefined) measure = document.createElement("canvas").getContext("2d");
+    if (measure) {
+      measure.font = font;
+      const m = measure.measureText(text);
+      ink = { left: -m.actualBoundingBoxLeft, right: m.actualBoundingBoxRight, top: -m.actualBoundingBoxAscent, bottom: m.actualBoundingBoxDescent, advance: m.width };
+    } else {
+      const px = Number(/(\d+(?:\.\d+)?)px/.exec(font)?.[1] || 14);
+      const width = [...text].length * px * 0.55;
+      ink = { left: 0, right: width, top: -px * 0.72, bottom: px * 0.02, advance: width };
+    }
     inkCache.set(key, ink);
   }
   return ink;

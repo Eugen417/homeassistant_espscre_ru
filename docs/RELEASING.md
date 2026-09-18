@@ -21,8 +21,8 @@
 1. Update the source profiles and shared components. Run
    `python3 tools/generate_packages.py`; never edit `packages/*.yaml` directly.
    The editor is the Vue app in `web/`: after a change under `web/src`, run
-   `cd web && npm ci && npm run build` and commit `screen_manager/app/static` with it
-   (that folder is the build output; never edit it by hand).
+   `cd web && npm ci && npm test && npm run check && npm run build` and commit
+   `screen_manager/app/static` with it (that folder is the build output; never edit it by hand).
 2. Run all Python tests with aiohttp installed, all `tests/*.cpp`, the
    generator with `--check`, and compile both Easy Setup profiles. Do that
    sequentially: profiles with the same `DEVICE_NAME` share one build folder, and a
@@ -58,7 +58,8 @@ python3 -m venv .venv-portal
 
 For the editor (`web/`, Vue 3 + Vite + TypeScript): `cd web && npm ci`, then `npm run dev` serves
 http://localhost:5173 with hot reload and proxies `/api` to a server on 127.0.0.1:8099 (SCREEN_DEV or a demo
-home). `npm run check` type-checks, `npm run build` writes the page into `screen_manager/app/static`
+home). `npm test` runs the Vitest suite in `web/tests` (grid and top bar rules, the store, the components in jsdom),
+`npm run check` type-checks, `npm run build` writes the page into `screen_manager/app/static`
 (clearing `assets/` first). Vite names every file after a hash of its content, which is what keeps a browser
 from combining an old script with a new page; `server.py` serves `index.html` as built and `/assets/`.
 Everything the page asks for is a relative URL (`api/...`, `./assets/...`), so it works under Home
