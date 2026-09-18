@@ -168,4 +168,12 @@ int main() {
   assert(!cyd::release_jump(20, 0, 0, 360));      // dragged to the start and let go
   assert(!cyd::release_jump(240, 238, 0, 360));   // a few pixels on lift-off
   assert(cyd::release_jump(80, -6, -6, 100));     // brightness: 80 % to the stub below 1 %
+  // A slider let go within the edge band of the glass meant the end that lies in that band.
+  assert(cyd::edge_snap(437, 29, 450, 480, 67) == 1);   // wide tile, a fast swipe the panel lost at 437
+  assert(cyd::edge_snap(431, 29, 450, 480, 67) == 1);
+  assert(cyd::edge_snap(412, 29, 450, 480, 67) == 0);   // let go just before the band
+  assert(cyd::edge_snap(437, 29, 222, 480, 67) == 0);   // a narrow tile's end is far from the edge
+  assert(cyd::edge_snap(20, 29, 450, 480, 67) == -1);   // off the left: the start
+  assert(cyd::edge_snap(20, 258, 452, 480, 67) == 0);   // the right column's start is not in the band
+  assert(cyd::edge_snap(437, 29, 450, 480, 0) == 0);    // band off
 }

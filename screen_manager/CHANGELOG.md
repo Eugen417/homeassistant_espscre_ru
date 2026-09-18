@@ -1,3 +1,10 @@
+## 0.2.80 (firmware 0.2.67)
+
+A slider swiped off the edge of the glass goes all the way.
+
+- **Swiping a slider off the screen sets it to the end.** A fast swipe to the right that leaves the glass ended at 93 to 98 % instead of 100 %: a capacitive panel loses a fast finger 30 to 50 px before the edge, and a wide tile's slider ends only 29 px from it, so the screen never saw the finger past the end (measured on a Guition: the last touch landed 33 to 48 px inside the edge, seven times out of seven). A slider whose end lies within about a centimetre of the left or right edge now takes a finger let go in that band as that end: off the right is 100 %, off the left is the minimum (1 % for a light, as in Home Assistant, where a pointer past the bar's end counts as its end too). Letting go anywhere else keeps the exact value. Tile sliders and the sliders on the light card do this; `SLIDER_EDGE_SNAP_PX` in the board profile sets the band (Guition 67 px, CYD 56 px, 0 turns it off). The log says when it happened (`Let go 39 px from the right edge: slider 973 -> 1000`).
+- Needs firmware 0.2.67: press **Update** on the screen. Includes everything from 0.2.79. CYD firmware: 1,652,784 bytes, 90.1 % of the update slot.
+
 ## 0.2.79 (firmware 0.2.66)
 
 A blind's bar reads the same way on the tile and on its card.

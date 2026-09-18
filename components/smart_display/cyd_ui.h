@@ -219,4 +219,17 @@ inline bool release_jump(int held, int released, int minimum, int maximum) {
   const bool at_end = released <= minimum || released >= maximum;
   return at_end && std::abs(released - held) * 4 > maximum - minimum;
 }
+
+// A slider whose end lies within `band` pixels of the screen's edge cannot be dragged to that end:
+// the panel loses a finger swiped off the glass before it gets there (a GT911 reports a fast swipe
+// for the last time 30-50 px inside the edge), and LVGL keeps the last point it saw. A finger let go
+// inside that band meant the end, as a pointer clamped to the bar does in Home Assistant's slider.
+// `point`, `start` and `end` lie along the slider's axis; returns -1 for the start, 1 for the end.
+inline int edge_snap(int point, int start, int end, int screen, int band) {
+  if (band <= 0 || screen <= 0) return 0;
+  if (end >= screen - band && point >= screen - band) return 1;
+  if (start < band && point < band) return -1;
+  return 0;
+}
+inline int edge_snap_band = 0;
 }  // namespace cyd

@@ -895,6 +895,15 @@ inline void slider_event(lv_event_t *e){
     // A slider among a card's own parts (the media tile's volume) belongs to the tile the slot shows now.
     for(auto &w:widgets)if(w.slider==slider || w.control_slider==slider || (w.extra && lv_obj_get_parent(slider)==w.extra)){index=w.index;break;}
     bool changed=slider_changed;captured_slider=nullptr;slider_changed=false;
+    // A finger let go within the edge band of the glass meant the slider's end (cyd::edge_snap).
+    if(auto *indev=lv_indev_active();indev && lv_obj_get_width(slider)>=lv_obj_get_height(slider)){
+      lv_point_t p;lv_indev_get_point(indev,&p);lv_area_t a;lv_obj_get_coords(slider,&a);
+      int screen=lv_display_get_horizontal_resolution(lv_obj_get_display(slider));
+      int snap=cyd::edge_snap(p.x,a.x1,a.x2,screen,cyd::edge_snap_band);
+      if(snap){int end=snap>0?(int)lv_slider_get_max_value(slider):std::max(0,(int)lv_slider_get_min_value(slider));
+        ESP_LOGI("slider","Let go %d px from the %s edge: slider %d -> %d",snap>0?screen-1-(int)p.x:(int)p.x,snap>0?"right":"left",lv_slider_get_value(slider),end);
+        lv_slider_set_value(slider,end,LV_ANIM_OFF);changed=true;}
+    }
     if(changed && cyd::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
   }
 }

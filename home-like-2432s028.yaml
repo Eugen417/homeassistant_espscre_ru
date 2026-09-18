@@ -17,11 +17,14 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.66"
+  SCREEN_FIRMWARE_VERSION: "0.2.67"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
   TOUCH_MIN_PRESS_MS: "60"
+  # A slider let go this close to the left or right edge of the glass (about 1 cm) meant its end when
+  # that end lies in the band: a panel loses a finger swiped off the glass before the edge.
+  SLIDER_EDGE_SNAP_PX: "56"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "cyd-new"
   DEVICE_FRIENDLY_NAME: "My CYD"
@@ -247,6 +250,7 @@ esphome:
           // Per-panel affine correction; shared defaults are neutral.
           id(ts_touch).set_raw_correction(${TOUCH_AFFINE_XX}f, ${TOUCH_AFFINE_XY}f, ${TOUCH_AFFINE_XC}f, ${TOUCH_AFFINE_YX}f, ${TOUCH_AFFINE_YY}f, ${TOUCH_AFFINE_YC}f);
           cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
+          cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
           id(last_touch_ms) = millis();
           id(last_use_ms) = millis();
           id(display_dimmed) = false;

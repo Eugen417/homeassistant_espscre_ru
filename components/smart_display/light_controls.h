@@ -117,6 +117,21 @@ inline void event(lv_event_t *e) {
   if (code == LV_EVENT_PRESS_LOST) row.dirty = false;
   if (code == LV_EVENT_RELEASED && row.dirty) {
     row.dirty = false;
+    // A finger let go within the edge band of the glass meant the slider's end (cyd::edge_snap).
+    if (auto *indev = lv_indev_active()) {
+      lv_point_t p;
+      lv_indev_get_point(indev, &p);
+      lv_area_t a;
+      lv_obj_get_coords(row.slider, &a);
+      const int screen = lv_display_get_horizontal_resolution(lv_obj_get_display(row.slider));
+      const int snap = cyd::edge_snap(p.x, a.x1, a.x2, screen, cyd::edge_snap_band);
+      if (snap) {
+        const int end = snap > 0 ? lv_slider_get_max_value(row.slider) : lv_slider_get_min_value(row.slider);
+        ESP_LOGI("slider", "Let go %d px from the %s edge: slider %d -> %d", snap > 0 ? screen - 1 - (int) p.x : (int) p.x, snap > 0 ? "right" : "left", lv_slider_get_value(row.slider), end);
+        lv_slider_set_value(row.slider, end, LV_ANIM_OFF);
+        preview(row);
+      }
+    }
     int value = lv_slider_get_value(row.slider);
     if (row.index == 0) active->hue = value;
     if (row.index == 1) {

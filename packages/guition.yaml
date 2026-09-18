@@ -3,7 +3,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.66"
+  SCREEN_FIRMWARE_VERSION: "0.2.67"
   # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
   # (runtime_tiles::event checks where it let go: LVGL keeps the press on the tile and would click it
   # anywhere), and a quick flick is LVGL's gesture, never a tap (the home_page gesture handler in on_boot).
@@ -15,6 +15,9 @@ substitutions:
   # this much travel inward (about 6 mm); a swipe from the middle of the screen does nothing.
   EDGE_SWIPE_BAND_PX: "32"
   EDGE_SWIPE_TRAVEL_PX: "40"
+  # A slider let go this close to the left or right edge of the glass (about 1 cm) meant its end when
+  # that end lies in the band: the panel loses a finger swiped off the glass 30-50 px before the edge.
+  SLIDER_EDGE_SNAP_PX: "67"
   DASHBOARD_INBOX_INTERNAL: "false"
   DEVICE_NAME: "guition-new"
   DEVICE_FRIENDLY_NAME: "My Guition"
@@ -131,6 +134,7 @@ esphome:
       - lambda: |-
           cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
           cyd::edge_swipe.configure(${DISPLAY_W}, ${DISPLAY_H}, ${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
+          cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
           // The page and the tile container take no presses: the theme's pressed style would
           // otherwise repaint nearly the whole screen twice per touch in the empty edge band,
           // starving the touch polling for the whole length of a quick swipe.
