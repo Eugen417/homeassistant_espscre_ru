@@ -1,3 +1,12 @@
+## 0.2.83 (firmware 0.2.70)
+
+A lamp's modes on the screen: effects, palettes and presets of a WLED, and the effect of any light that has one.
+
+- **An effects page behind the light's colour card.** A light that offers effects (a WLED, a Hue with its candle effect) gets a sparkles key at the top right of its colour card. It opens a page with one row per thing the lamp offers: the light's *Effect*, and the select entities on the lamp's device (a WLED's *Color palette*, *Preset* and *Playlist*), each with what it is set to. Under them a slider per number entity of the device (a WLED's *Speed* and *Intensity*). Nothing is hardcoded for a brand: the rows, their English names and their icons are what Home Assistant lists for the device, so another lamp shows its own rows and a lamp without any shows none.
+- **A picker that turns like a drum.** A row opens LVGL's roller with every name Home Assistant has at that moment, the effects alphabetically with *Solid* on top and a select's options in Home Assistant's order. Turn it to a name and press the check at the top right: that sends one action (`light.turn_on` with the effect, `select.select_option`; a slider sends `number.set_value` when you let go), the row shows the choice at once, and the back key sends nothing. The list is asked for when the picker opens (event `esphome.screen_options`, answered with `op: options`, one page of names per message), so the screen holds no list while it is closed and a WLED update shows its new effects the next time.
+- **The tile names the effect.** A light tile reads *TV Simulator* instead of *100 %* while an effect runs; *Solid*, *off* and *None* count as none.
+- Needs firmware 0.2.70: press **Update** on the screen. Includes everything from 0.2.82. CYD firmware: 1,675,424 bytes, 91.3 % of the update slot (20,288 bytes more than 0.2.82: LVGL's roller is compiled in for the first time, plus the page and five icons).
+
 ## 0.2.82 (firmware 0.2.69)
 
 The page buttons can make way, and the tiles fill the screen.

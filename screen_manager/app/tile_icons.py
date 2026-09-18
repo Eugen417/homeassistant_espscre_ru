@@ -338,6 +338,13 @@ HA_DEFAULTS = (
     ('speaker-pause', 'F1B73'),
     ('speaker-play', 'F1B72'),
     ('speedometer', 'F04C5'),
+    # A light's effects page (firmware 0.2.70+): Home Assistant's icons for an effect and WLED's palette, preset,
+    # playlist and intensity; the speedometer above serves its speed.
+    ('creation', 'F0674'),
+    ('palette-outline', 'F0E0C'),
+    ('playlist-play', 'F0411'),
+    ('play-speed', 'F08FF'),
+    ('brightness-6', 'F00DF'),
     ('spoon-sugar', 'F1429'),
     ('sprout-outline', 'F0E67'),
     ('square', 'F0764'),

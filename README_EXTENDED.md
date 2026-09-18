@@ -32,6 +32,14 @@ on the screen itself, and how updates work.
   dial; double-width shows the digital time with the date beside it.
 - **Light control:** brightness, rainbow color, and white temperature according to
   the light's capabilities. Open the detailed control with a long touch.
+- **Effects (firmware 0.2.70+):** a light that offers effects (a WLED, a Hue with
+  its candle effect) gets a sparkles key at the top right of its colour card. It
+  opens a page with a row per thing the lamp offers, named and ordered as Home
+  Assistant lists them: the light's effect and the select entities of its device
+  (a WLED's colour palette, preset and playlist), plus a slider per number entity
+  (speed, intensity). A row opens a drum picker with every name Home Assistant has
+  at that moment; the check at the top right sends the choice. While an effect
+  runs, the tile names it instead of the brightness.
 - **More cards:** climate, vacuum, fan, cover, media player, sensors,
   select/input_select, number/input_number, switches, scenes, scripts, and
   buttons.

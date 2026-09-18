@@ -37,7 +37,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.69'
+FIRMWARE_VERSION = '0.2.70'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -50,7 +50,7 @@ SETTING_ENTITIES_MIN_FIRMWARE = '0.2.49'
 DARK_MODE_MIN_FIRMWARE = '0.2.54'
 # Page buttons: the Previous and Next bar under the tiles, a setting and entity of its own; off, the tiles take its room.
 PAGE_BUTTONS_MIN_FIRMWARE = '0.2.69'
-ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode'.split())
+ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted'])
 
@@ -1131,10 +1131,16 @@ def media_extras(attrs):
     return result or None
 
 
-def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=None):
-    """Small, pre-computed values the firmware cannot derive itself (time zones, forecasts, a vacuum's device)."""
+def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=None, entries=None, words=None, icon_of=None, device_name=None):
+    """Small, pre-computed values the firmware cannot derive itself (time zones, forecasts, a vacuum's device, the rows of
+    a light's effects page)."""
     domain = tile['entity'].split('.')[0]
     attrs = states.get(tile['entity'], {}).get('attributes', {})
+    if domain == 'light':
+        # The effects page (app 0.2.83): the select and number entities of the light's device, named as Home Assistant
+        # names them; the effect itself travels as the `effect` attribute.
+        import light_effects
+        return light_effects.rows(tile['entity'], device, states, entries, words, icon_of, device_name) or None
     if domain == 'vacuum':
         return vacuum_extras(tile, states, device)
     if domain == 'cover':

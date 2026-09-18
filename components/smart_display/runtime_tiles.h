@@ -9,6 +9,7 @@
 #include "esphome/core/preferences.h"
 #include "cyd_ui.h"
 #include "light_controls.h"
+#include "effects_page.h"
 #include "tile_controls.h"
 #include "history_view.h"
 #include "camera_view.h"
@@ -194,6 +195,8 @@ inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
   return s.valid();
 }
 inline std::function<void(Tile &)> detail, detail_update;
+// One page of a picker's names (op "options", app 0.2.83+), for the light's effects page.
+inline std::function<void(const std::string &, unsigned, unsigned, std::vector<std::string> &&)> options_received;
 struct Widgets {
   lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}, *unit{};
   int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
@@ -486,6 +489,20 @@ inline std::string receive(const std::string &payload) {
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
+    if (op == "options") {
+      // The names a picker on a light's effects page asked for (options_request), one page per message.
+      std::string entity = string(root["e"], 120);
+      if (!valid_entity(entity) || !root["o"].is<JsonArray>()) return false;
+      std::vector<std::string> names;
+      for (JsonVariant name : root["o"].as<JsonArray>()) {
+        if (names.size() == effects_page::MAX_NAMES) break;
+        std::string text = string(name, 48);
+        if (!text.empty()) names.push_back(std::move(text));
+      }
+      if (options_received) options_received(entity, root["i"] | 0u, root["n"] | 1u, std::move(names));
+      result = model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
 #ifdef SWIPE_PROFILE
     if (op == "swipe_test") {
       // Diagnostic builds only: page switches without a finger, `n` of them `ms` apart; `back`
@@ -644,6 +661,25 @@ inline std::string receive(const std::string &payload) {
     };
     if (tile.domain() == "vacuum") { choice("mode", 'm'); choice("water", 'w'); choice("fan", 's'); tile_controls::settle_suction(next); }
     for (auto &[kind, value] : tapped) if (auto *c = next.choice(kind)) if (c->current != value) c->sent = value;
+    // A light's effects page (app 0.2.83+): the effect it runs, and the selects and numbers of its device.
+    next.effect = string(a["effect"], 48);
+    if (extra["rows"].is<JsonArray>()) for (JsonVariant r : extra["rows"].as<JsonArray>()) {
+      if (next.option_rows.size() == 3) break;
+      OptionRow row; row.entity = string(r["e"], 120);
+      if (!valid_entity(row.entity)) continue;
+      row.name = string(r["n"], 32); row.current = string(r["s"], 48); row.count = static_cast<uint16_t>(std::min(r["c"] | 0u, 65535u));
+      row.icon = tile_icon::codepoint(string(r["i"], 8));
+      next.option_rows.push_back(std::move(row));
+    }
+    if (extra["nums"].is<JsonArray>()) for (JsonVariant r : extra["nums"].as<JsonArray>()) {
+      if (next.number_rows.size() == 2) break;
+      NumberRow row; row.entity = string(r["e"], 120);
+      if (!valid_entity(row.entity)) continue;
+      row.name = string(r["n"], 32); row.value = number(r["v"]); row.low = number(r["lo"], 0); row.high = number(r["hi"], 100); row.step = number(r["st"], 1);
+      if (!(row.high > row.low)) continue;
+      row.icon = tile_icon::codepoint(string(r["i"], 8));
+      next.number_rows.push_back(std::move(row));
+    }
     if (!std::isfinite(tile.battery)) tile.battery = number(extra["bat"]);
     next.charging = extra["chg"].is<int>() && extra["chg"].as<int>() == 1;
     next.room = string(extra["room"], 32);
@@ -784,6 +820,25 @@ inline void perform(const Tile &tile) {
   send_action(request, tile.entity, true);
   ESP_LOGI("runtime_action", "Sent service=%s entity=%s (%u values)", x.action.c_str(), tile.entity.c_str(),
            (unsigned) (x.action_data.size() + x.action_templates.size()));
+}
+// A picker on a light's effects page asks the manager for its names (app 0.2.83+ answers with op "options"), one
+// page at a time. An event, like history_request.
+inline void options_request(const std::string &entity, unsigned page) {
+  if (inbox.empty()) return;
+  esphome::api::HomeassistantActionRequest request;
+  request.service = esphome::StringRef("esphome.screen_options");
+  request.is_event = true;
+  const std::string number = std::to_string(page);
+  const std::string keys[] = {"inbox", "entity", "page"}, values[] = {inbox, entity, number};
+  request.data.init(3);
+  for (int i = 0; i < 3; ++i) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef(keys[i]);
+    entry.value = esphome::StringRef(values[i]);
+    request.data.push_back(entry);
+  }
+  esphome::api::global_api_server->send_homeassistant_action(request);
+  ESP_LOGI("effects", "Asked for the names of %s, page %u", entity.c_str(), page);
 }
 // A detail card asks the manager for its history (app 0.2.59+ answers with op "history"). An event, like
 // setting_event: it needs no permission to call Home Assistant actions.
@@ -3066,6 +3121,7 @@ inline void render_slot(size_t slot) {
   else if (t.is_page()) value = "Page " + std::to_string(t.page_target());
   else if (!fresh() || !t.available()) value = "Unavailable";
   else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = "Refused";
+  else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
   else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
   else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;

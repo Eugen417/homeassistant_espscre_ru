@@ -3,7 +3,7 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.69"
+  SCREEN_FIRMWARE_VERSION: "0.2.70"
   # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
   # (runtime_tiles::event checks where it let go: LVGL keeps the press on the tile and would click it
   # anywhere), and a quick flick is LVGL's gesture, never a tap (the home_page gesture handler in on_boot).
@@ -223,6 +223,7 @@ esphome:
           theme::set_dark(settings_screen::dark_mode != 0);
           runtime_tiles::settings_changed = []() { id(apply_screen_settings).execute(); };
           runtime_tiles::dismiss = []() {
+            effects_page::close();
             runtime_tiles::hide_detail();
             runtime_tiles::camera_close();
             id(active_entity).clear();
@@ -300,6 +301,7 @@ esphome:
               std::to_string(t.minimum), std::to_string(t.maximum), std::to_string(t.step));
           };
           runtime_tiles::detail_update = [](runtime_tiles::Tile &t) {
+            effects_page::updated(t);
             if (id(active_entity) != t.entity || id(touch_down)) return;
             if (t.domain() == "climate" && !lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) {
               if (id(climate_edit_pending) && millis() - id(climate_edit_ms) < 3000) return;
@@ -323,6 +325,24 @@ esphome:
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
+          // The effects page behind the colour card's sparkles key (firmware 0.2.70+): fonts, the tile it shows, and
+          // the ways out: actions to Home Assistant and the question for a picker's names.
+          effects_page::title_font = id(headline)->get_lv_font();
+          effects_page::row_font = id(sublabel)->get_lv_font();
+          effects_page::roller_font = id(sublabel_big)->get_lv_font();
+          effects_page::icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          effects_page::tile_of = [](const std::string &entity) -> const runtime_tiles::Tile * {
+            for (size_t i = 0; i < runtime_tiles::model.count; ++i) if (runtime_tiles::model.tiles[i].entity == entity) return &runtime_tiles::model.tiles[i];
+            return nullptr;
+          };
+          effects_page::send = [](const std::string &service, const std::string &entity, const std::string &key, const std::string &value) {
+            runtime_tiles::action(service, entity, key, value);
+          };
+          effects_page::ask = [](const std::string &entity, unsigned page) { runtime_tiles::options_request(entity, page); };
+          effects_page::drift = []() { return cyd::touch_guard.distance(); };
+          effects_page::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
+          effects_page::now = []() { return (uint32_t) millis(); };
+          runtime_tiles::options_received = effects_page::received;
           climate_card::look.card = id(climate_settings_card);
           climate_card::look.font = id(label)->get_lv_font();
           climate_card::look.icon_font = id(materialdesign_icons_mini)->get_lv_font();
@@ -359,6 +379,7 @@ esphome:
           theme::redraw = []() {
             runtime_tiles::restyle();
             light_controls::restyle();
+            effects_page::restyle();
             settings_screen::restyle();
             if (id(alert_active)) lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(theme::surface(id(alert_card_color))), LV_PART_MAIN);
             if (!lv_obj_has_flag(id(climate_detail_overlay), LV_OBJ_FLAG_HIDDEN)) id(climate_card_refresh).execute();
@@ -1204,6 +1225,11 @@ font:
       - "\U000F1B73" # speaker-pause
       - "\U000F1B72" # speaker-play
       - "\U000F04C5" # speedometer
+      - "\U000F0674" # creation
+      - "\U000F0E0C" # palette-outline
+      - "\U000F0411" # playlist-play
+      - "\U000F08FF" # play-speed
+      - "\U000F00DF" # brightness-6
       - "\U000F1429" # spoon-sugar
       - "\U000F0E67" # sprout-outline
       - "\U000F0764" # square
@@ -1903,6 +1929,14 @@ lvgl:
             height: 2
             spin_time: 1s
             arc_length: 60deg
+        # Never shown either: it makes ESPHome compile LVGL's roller, the drum a light's effects page picks from
+        # (firmware 0.2.70+).
+        - roller:
+            id: roller_seed
+            hidden: true
+            width: 2
+            height: 2
+            options: ["-"]
         # Never shown either: it makes ESPHome compile LVGL's image widget, which a camera image is drawn with.
         - image:
             id: camera_image_seed
@@ -2935,6 +2969,31 @@ lvgl:
                     - label:
                         align: CENTER
                         text: "\U000F004D"
+                        text_font: materialdesign_icons_mini
+                        clickable: false
+
+              # The sparkles key (firmware 0.2.70+): a light with effects, or with modes on its device (a WLED's palette,
+              # preset, speed), opens its effects page. Hidden for every other light.
+              - obj:
+                  id: color_effects_button
+                  align: TOP_RIGHT
+                  x: -16
+                  y: 16
+                  width: 60
+                  height: 60
+                  radius: 999
+                  styles: paint_key
+                  bg_opa: COVER
+                  border_width: 0
+                  hidden: true
+                  clickable: true
+                  scrollable: false
+                  on_click:
+                    - lambda: 'effects_page::open(id(active_entity));'
+                  widgets:
+                    - label:
+                        align: CENTER
+                        text: "\U000F0674"
                         text_font: materialdesign_icons_mini
                         clickable: false
 
@@ -4494,6 +4553,8 @@ script:
       - lambda: |-
           lv_label_set_text(id(color_detail_title), id(active_title).c_str());
           light_controls::open(id(active_entity), id(active_supports_color), id(active_supports_temperature), id(active_brightness_pct));
+          if (effects_page::offered(id(active_entity))) lv_obj_remove_flag(id(color_effects_button), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(color_effects_button), LV_OBJ_FLAG_HIDDEN);
       - lvgl.widget.hide: brightness_overlay
       - lvgl.widget.show: color_detail_overlay
 

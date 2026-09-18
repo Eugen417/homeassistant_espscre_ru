@@ -52,11 +52,16 @@ also be changed on the screen or by an automation, and your own YAML for one scr
   <img src="docs/images/guition-history-touch.png" width="32%" alt="A finger on the history graph: the top of the card shows the average of that hour and its time, the graph stays as it is">
 </p>
 <p align="center">
+  <img src="docs/images/guition-effects.png" width="32%" alt="The effects page of a WLED lamp: the effect, colour palette, preset and playlist rows with what they are set to, and the speed and intensity sliders">
+  <img src="docs/images/guition-effects-picker.png" width="32%" alt="The effect picker: a drum with every effect Home Assistant lists, TV Simulator in the middle, and the check key at the top right that sends it">
+  <img src="docs/images/cyd-effects.png" width="32%" alt="The same effects page on the CYD: four rows and the two sliders in 320 by 240 pixels">
+</p>
+<p align="center">
   <img src="docs/images/guition-media.png" width="32%" alt="The media card on the Guition: the album cover, the title, artist and album, a progress bar with the elapsed and total time, previous, pause and next keys and the volume slider">
   <img src="docs/images/guition-media-full.png" width="32%" alt="A media player over the whole page: the cover at the left, the track, the bar and the keys beside it, the volume row along the bottom">
   <img src="docs/images/guition-dark-media.png" width="32%" alt="The media card in dark mode: the same cover and keys on a black page">
 </p>
-<p align="center"><sub>Tap a tile to switch it, hold it for the full card. Keys and sliders right on the tile, pastel colors, a clock, the weather and history you can read with a finger. The media card shows what plays with its album cover, fetched by ESP Screens like a camera picture (<a href="docs/CAMERA.md">how</a>). Rendered from the firmware's own LVGL code with a demo home.</sub></p>
+<p align="center"><sub>Tap a tile to switch it, hold it for the full card. Keys and sliders right on the tile, pastel colors, a clock, the weather and history you can read with a finger. A lamp with modes (a WLED) gets an effects page with a drum picker, named and filled from what Home Assistant lists for it. The media card shows what plays with its album cover, fetched by ESP Screens like a camera picture (<a href="docs/CAMERA.md">how</a>). Rendered from the firmware's own LVGL code with a demo home.</sub></p>
 <p align="center">
   <img src="docs/images/cyd-home.png" width="32%" alt="CYD 2.8-inch screen: the weather forecast, a kitchen timer, the coffee machine, a lamp and power usage as a large value">
   <img src="docs/images/cyd-page-2.png" width="32%" alt="Second CYD page: Sonos volume, presence, a scene and an energy graph">

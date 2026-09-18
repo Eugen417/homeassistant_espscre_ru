@@ -92,7 +92,15 @@ struct Choice {
 // What only some tiles carry: climate modes, a select's options, weather, sun and timer times, a media
 // title, the vacuum rows. A light or a sensor has none of it, so a tile holds this block only while its
 // state needs one: twenty tiles with these fields inline took 24 KB of the CYD's RAM, mostly empty.
+// A light's effects page (firmware 0.2.70+): a select entity of the light's device with what it is set to and how many
+// options it has, and a number entity with its range; the names and icons are Home Assistant's, through the add-on.
+struct OptionRow { std::string entity, name, current; uint16_t count = 0; uint32_t icon = 0; };
+struct NumberRow { std::string entity, name; float value = NAN, low = 0, high = 100, step = 1; uint32_t icon = 0; };
 struct Extra {
+  // The effect a light runs (its `effect` attribute), and the rows of its effects page.
+  std::string effect;
+  std::vector<OptionRow> option_rows;
+  std::vector<NumberRow> number_rows;
   // Climate: the modes as JSON lists, the current fan and swing mode, and what it is doing now.
   std::string hvac_modes, fan_modes, swing_modes, fan_mode, swing_mode, hvac_action;
   // A select's options, at most eight.
@@ -133,7 +141,7 @@ struct Extra {
            remaining.empty() && !timer_end && media_title.empty() && media_artist.empty() && media_album.empty() &&
            media_picture.empty() && !media_duration && !media_position && !media_position_at && fan_speeds.empty() && fan_speed.empty() &&
            choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
-           action_templates.empty() && state_word.empty();
+           action_templates.empty() && state_word.empty() && effect.empty() && option_rows.empty() && number_rows.empty();
   }
 };
 // The Extra of a tile on the heap, copied along with the tile like an ordinary member.

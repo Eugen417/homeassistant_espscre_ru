@@ -350,6 +350,14 @@ inline void settle_suction(runtime_tiles::Extra &x) {
   }
   if (row) row->current = x.fan_speed;
 }
+// Whether a light runs an effect worth naming on its tile (firmware 0.2.70+): WLED's "Solid" is its plain colour, a Hue's
+// "off" and Home Assistant's "None" mean no effect.
+inline bool effect_running(const std::string &effect) {
+  std::string lower;
+  for (char c : effect) lower += static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
+  while (!lower.empty() && lower.back() == ' ') lower.pop_back();
+  return !lower.empty() && lower != "solid" && lower != "off" && lower != "none" && lower != "unknown" && lower != "unavailable";
+}
 // The service call behind a chip: a select option on the device, or the vacuum's own fan speed.
 inline Action choice_action(const Tile &t, char kind, const std::string &value) {
   if (kind == 's') return {"vacuum.set_fan_speed", "fan_speed", value};

@@ -14,6 +14,7 @@ import camera_feed
 import claude_skill
 from firmware import Firmware
 import ha_catalogue
+import light_effects
 import tile_icons
 from updates import Updater
 
@@ -24,6 +25,11 @@ from core import PAGE_TILE_REPEAT_MIN_FIRMWARE, SLOTS_PER_PAGE, firmware_feature
 import header_bar
 import history_card
 from zoneinfo import ZoneInfo
+
+
+def row_icon(eid, state, attrs, entry):
+    """Codepoint of the icon Home Assistant shows for a row of a light's effects page, when the screen's fonts carry it."""
+    return tile_icons.ha_icon(attrs) or tile_icons.default_glyph(eid, state, attrs, entry)
 
 LOG = logging.getLogger('screen_manager')
 
@@ -124,6 +130,8 @@ class HomeAssistant:
         self.history_requests = asyncio.Queue()
         # A camera a screen opens full screen (firmware 0.2.57+): {inbox, entity}, for Manager.camera_loop.
         self.camera_requests = asyncio.Queue()
+        # The names a light's picker lists (firmware 0.2.70+): {inbox, entity, page}, for Manager.card_options_loop.
+        self.options_requests = asyncio.Queue()
 
     async def request(self, kind, **data):
         if self.ws is None or self.ws.closed:
@@ -161,6 +169,8 @@ class HomeAssistant:
                     self.history_requests.put_nowait(body)
                 elif event.get('event_type') == 'esphome.screen_camera':
                     self.camera_requests.put_nowait(body)
+                elif event.get('event_type') == light_effects.OPTIONS_EVENT:
+                    self.options_requests.put_nowait(body)
                 elif event.get('event_type') == 'state_changed':
                     eid = body.get('entity_id')
                     if body.get('new_state'):
@@ -295,6 +305,7 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type='esphome.screen_setting')
                     await self.request('subscribe_events', event_type='esphome.screen_history')
                     await self.request('subscribe_events', event_type='esphome.screen_camera')
+                    await self.request('subscribe_events', event_type=light_effects.OPTIONS_EVENT)
                     for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
@@ -818,6 +829,37 @@ class Manager:
             self.retries[inbox] = failures + 1
             self.retry_at[inbox] = due
 
+    # ----- The names a light's picker lists (app 0.2.83, firmware 0.2.70+) -----
+    async def card_options_loop(self):
+        """Answer a screen that opens a picker on a light's effects page: the effects of the light, or the options of a
+        select on its device, one page per message."""
+        while True:
+            request = await self.ha.options_requests.get()
+            try:
+                await self.answer_options(request)
+            except (ClientError, ConnectionError, TimeoutError, OSError, ValueError) as error:
+                LOG.info('No options for %s (%s)', request.get('entity') if isinstance(request, dict) else '?', type(error).__name__)
+
+    async def answer_options(self, request):
+        """One screen's request: a light on its own layout, or a select on that light's device; a page it asked for."""
+        if not isinstance(request, dict):
+            return
+        inbox = self.aliases.get(request.get('inbox'), request.get('inbox'))
+        entity = request.get('entity')
+        try:
+            page = int(request.get('page') or 0)
+        except (TypeError, ValueError):
+            page = 0
+        layout, screen = self.layouts.get(inbox), self.screen(inbox) if isinstance(inbox, str) else None
+        if not isinstance(entity, str) or not layout or not screen or not screen.get('online'):
+            return
+        names = light_effects.options_for(entity, self.ha.states, [tile['entity'] for tile in layout['tiles']], self.device_entries)
+        action = self.transport(inbox, screen)
+        if names is None or not action:
+            return
+        all_pages = light_effects.pages(names)
+        await self.ha.send(inbox, light_effects.message(entity, page, all_pages), action)
+
     # ----- History on a detail card (firmware 0.2.51+) -----
     async def card_history_loop(self):
         """Answer the history a screen asks for when a card opens, a few at a time."""
@@ -918,7 +960,17 @@ class Manager:
             return tuple(vacuum_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
         if tile['entity'].startswith('cover.'):
             return tuple(cover_related(tile['entity'], self.device_entries(tile['entity']), self.ha.states).values())
+        if tile['entity'].startswith('light.'):
+            return light_effects.related(tile['entity'], self.device_entries(tile['entity']), self.ha.states)
         return ()
+
+    def device_name_of(self, entity):
+        """The name of the entity's device as Home Assistant shows it (the user's name first), or None."""
+        device = self.registry_index().get(entity, {}).get('device_id')
+        for item in getattr(self.ha, 'devices', None) or ():
+            if isinstance(item, dict) and item.get('id') == device:
+                return item.get('name_by_user') or item.get('name')
+        return None
 
     def header_message(self, layout):
         return header_bar.message(layout, self.ha.states, self.registry_index(), getattr(self.ha, 'units', {}), getattr(self.ha, 'time_zone', None),
@@ -1088,9 +1140,13 @@ class Manager:
             # Hourly forecasts feed the weather card's next-hours strip (0.2.23+); refreshed every half hour.
             hourly=await self.cached(self.forecasts, (entity,'hourly'), FORECAST_SECONDS, (lambda: self.ha.forecast(entity,'hourly')) if 'hourly' in kinds else nothing)
         # A vacuum's card also reads selects and the battery sensor of its device (app 0.2.46), a cover's card its battery (0.2.58).
-        device=self.device_entries(tile['entity']) if tile['entity'].startswith(('vacuum.', 'cover.')) else None
+        device=self.device_entries(tile['entity']) if tile['entity'].startswith(('vacuum.', 'cover.', 'light.')) else None
         entry=self.registry_index().get(tile['entity'])
-        extra=extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device)
+        # A light's effects page (app 0.2.83) names the device's selects and numbers as Home Assistant does, with its icons.
+        light=tile['entity'].startswith('light.')
+        extra=extras(tile,self.ha.states,forecast,getattr(self.ha,'time_zone',None),hourly,device=device,
+                     entries=self.registry_index() if light else None,words=getattr(self.ha,'state_words',None) if light else None,
+                     icon_of=row_icon if light else None,device_name=self.device_name_of(tile['entity']) if light else None)
         if tile['entity'].startswith('vacuum.'):
             ha_catalogue.chip_words(extra,tile['entity'],self.ha.states,device,getattr(self.ha,'state_words',None))
         message=state_message(index,tile,self.ha.states,extra,
@@ -1843,7 +1899,7 @@ async def main():
             LOG.error('Camera images are off: port %d is not available (%s)', camera_feed.port(), error)
         try:
             await asyncio.gather(ha.run(), manager.run(), manager.history_loop(), manager.updates.run(),
-                                 manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop())
+                                 manager.alert_loop(), manager.tile_loop(), manager.card_history_loop(), manager.camera_loop(), manager.card_options_loop())
         finally:
             await cameras.cleanup()
             await runner.cleanup()
