@@ -1,8 +1,8 @@
 // The grid rules: the same ones the add-on applies (core.pack_slots, validate_layout) and the firmware draws.
 import { describe, expect, it } from "vitest";
 import {
-  arrange, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
-  newTile, normalize, occupied, packSlots, pageCount, rowStart, SLOTS_PER_PAGE, tileLimit, versionAtLeast,
+  arrange, cellsOf, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
+  newTile, normalize, occupied, packSlots, pageCount, pageStart, pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, spanOf, tileLimit, versionAtLeast,
 } from "../src/model/layout";
 import type { Inventory, Layout, Tile } from "../src/types";
 
@@ -107,5 +107,50 @@ describe("defaults, controls and versions", () => {
     expect(tileLimit("0.2.7")).toBe(20);
     expect(tileLimit("0.2.60")).toBe(20);
     expect(tileLimit(undefined)).toBe(10);
+  });
+});
+
+describe("full-page tiles and navigation tiles (firmware 0.2.62+)", () => {
+  it("knows the three sizes and what they cover", () => {
+    expect(sizeOf(tile("a", 0))).toBe("single");
+    expect(sizeOf(tile("a", 0, { size: "wide" }))).toBe("wide");
+    expect(sizeOf(tile("a", 0, { size: "full" }))).toBe("full");
+    expect(sizeOf(tile("a", 0, { size: "huge" }))).toBe("single");
+    expect(spanOf("full")).toBe(6);
+    expect(cellsOf(8, "full")).toEqual([6, 7, 8, 9, 10, 11]);
+    expect(cellsOf(3, true)).toEqual([3, 4]);
+    expect(pageStart(11)).toBe(6);
+  });
+  it("packs a full tile at the start of a page and lets only a page start fit it", () => {
+    expect(packSlots([tile("a", -1), tile("f", -1, { size: "full" }), tile("b", -1)])).toEqual([0, 6, 12]);
+    const taken = occupied(entries([tile("a", 0)]));
+    expect(fits(taken, 0, "full")).toBe(false);
+    expect(fits(taken, 6, "full")).toBe(true);
+    expect(fits(taken, 8, "full")).toBe(false);
+    expect(firstFree(taken, "full")).toBe(6);
+    expect(firstFree(taken, "single", 6)).toBe(6);
+    expect(pageCount(entries([tile("f", 6, { size: "full" })]))).toBe(2);
+  });
+  it("drops a full tile on its page and moves what was there to the next free cells", () => {
+    const a = tile("a", 0), b = tile("b", 3), f = tile("f", 6, { size: "full" });
+    const result = arrange([a, b, f], f, 2)!;
+    const by = Object.fromEntries(result.map((e) => [e.tile.entity, e.slot]));
+    expect(by.f).toBe(0);
+    // The displaced tiles take the cells the full tile left, in order.
+    expect(by.a).toBe(6);
+    expect(by.b).toBe(7);
+  });
+  it("knows a navigation tile and gives it no default card", () => {
+    expect(pageTarget("screen.page_3")).toBe(3);
+    expect(pageTarget("screen.page_9")).toBe(0);
+    expect(pageTarget("screen.clock")).toBe(0);
+    expect(defaultOptions("screen.page_2")).toEqual({});
+  });
+  it("holds 48 tiles from firmware 0.2.62 and shows no control on a full card without a choice", () => {
+    expect(tileLimit("0.2.62")).toBe(48);
+    expect(tileLimit("0.2.61")).toBe(20);
+    const inventory = { screens: [], entities: [], controls: { light: { default: "toggle", choices: [{ key: "toggle", label: "On/off" }, { key: "none", label: "None" }] } } } as unknown as Inventory;
+    expect(effectiveControls(tile("light.a", 0, { size: "full" }), inventory)).toBeNull();
+    expect(effectiveControls(tile("light.a", 0, { size: "full", controls: "toggle" }), inventory)).toBe("toggle");
   });
 });

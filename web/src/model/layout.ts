@@ -1,7 +1,8 @@
 // ---- Grid positions ----
 // Two columns, three rows per page, at most eight pages. A tile's `slot` is its absolute
 // cell (page * 6 + row * 2 + column); a wide tile starts in the left column and also covers
-// the cell to its right. Empty cells are allowed and stay exactly where they are.
+// the cell to its right; a full tile (firmware 0.2.62+) starts a page and covers all six cells.
+// Empty cells are allowed and stay exactly where they are.
 import type { Inventory, Layout, Tile } from "../types";
 
 export const SLOTS_PER_PAGE = 6;
@@ -9,21 +10,36 @@ export const MAX_PAGES = 8;
 export const MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
 
 export type Entry = { tile: Tile; slot: number };
+// A tile is single, wide (a row) or full (the whole page); `true` still means wide.
+export type Size = "single" | "wide" | "full";
+export const SIZES: Size[] = ["single", "wide", "full"];
+type SizeLike = Size | boolean;
+const asSize = (size: SizeLike): Size => (size === true ? "wide" : size === false ? "single" : size);
 
-export const isWide = (tile: Tile) => tile.options?.size === "wide";
-export const cellsOf = (slot: number, wide: boolean) => (wide ? [slot, slot + 1] : [slot]);
+// A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it opens; 0 for any other entity.
+export const pageTarget = (id: string) => (/^screen\.page_[1-8]$/.test(id) ? Number(id.slice(-1)) : 0);
+export const sizeOf = (tile: Tile): Size => (SIZES.includes(tile.options?.size as Size) ? (tile.options!.size as Size) : "single");
+export const isWide = (tile: Tile) => sizeOf(tile) !== "single";
+export const isFull = (tile: Tile) => sizeOf(tile) === "full";
+export const pageStart = (slot: number) => slot - (slot % SLOTS_PER_PAGE);
 export const rowStart = (slot: number) => slot - (slot % 2);
 export const pageOf = (slot: number) => Math.floor(slot / SLOTS_PER_PAGE);
+export const spanOf = (size: SizeLike) => (asSize(size) === "full" ? SLOTS_PER_PAGE : asSize(size) === "wide" ? 2 : 1);
+export const cellsOf = (slot: number, size: SizeLike) =>
+  asSize(size) === "full" ? Array.from({ length: SLOTS_PER_PAGE }, (_, i) => pageStart(slot) + i) : asSize(size) === "wide" ? [slot, slot + 1] : [slot];
+// The cell a tile of `size` starts at when dropped on `slot`.
+export const startOf = (slot: number, size: SizeLike) => (asSize(size) === "full" ? pageStart(slot) : asSize(size) === "wide" ? rowStart(slot) : slot);
 export const entriesOf = (layout: Layout): Entry[] => layout.tiles.map((tile) => ({ tile, slot: tile.slot }));
 
 // In-order packing: the rule before positions existed, and what firmware below 0.2.26 still draws.
 export function packSlots(tiles: Tile[]) {
   let position = 0;
   return tiles.map((tile) => {
-    const wide = isWide(tile);
-    if (wide && position % 2 === 1) position++;
+    const size = sizeOf(tile);
+    if (size === "full" && position % SLOTS_PER_PAGE) position += SLOTS_PER_PAGE - (position % SLOTS_PER_PAGE);
+    else if (size === "wide" && position % 2 === 1) position++;
     const slot = position;
-    position += wide ? 2 : 1;
+    position += spanOf(size);
     return slot;
   });
 }
@@ -41,41 +57,43 @@ export function normalize(layout: Layout) {
 }
 export function occupied(entries: Entry[]) {
   const taken = new Set<number>();
-  for (const { tile, slot } of entries) for (const cell of cellsOf(slot, isWide(tile))) taken.add(cell);
+  for (const { tile, slot } of entries) for (const cell of cellsOf(slot, sizeOf(tile))) taken.add(cell);
   return taken;
 }
-export const fits = (taken: Set<number>, slot: number, wide: boolean) =>
-  Number.isInteger(slot) && slot >= 0 && slot + (wide ? 1 : 0) < MAX_SLOTS && !(wide && slot % 2) && cellsOf(slot, wide).every((c) => !taken.has(c));
-export function firstFree(taken: Set<number>, wide: boolean) {
-  for (let slot = 0; slot < MAX_SLOTS; slot++) if (fits(taken, slot, wide)) return slot;
+export const fits = (taken: Set<number>, slot: number, size: SizeLike) =>
+  Number.isInteger(slot) && slot >= 0 && slot < MAX_SLOTS &&
+  (asSize(size) === "full" ? slot % SLOTS_PER_PAGE === 0 : asSize(size) === "wide" ? slot + 1 < MAX_SLOTS && !(slot % 2) : true) &&
+  cellsOf(slot, size).every((c) => !taken.has(c));
+export function firstFree(taken: Set<number>, size: SizeLike, from = 0) {
+  for (let slot = from; slot < MAX_SLOTS; slot++) if (fits(taken, slot, size)) return slot;
   return -1;
 }
 // The free position closest to `origin`; on a tie the later one, so a nudged tile moves down, not up.
-export function nearestFree(taken: Set<number>, wide: boolean, origin: number) {
+export function nearestFree(taken: Set<number>, size: SizeLike, origin: number) {
   let best = -1;
   for (let slot = 0; slot < MAX_SLOTS; slot++)
-    if (fits(taken, slot, wide) && (best < 0 || Math.abs(slot - origin) <= Math.abs(best - origin))) best = slot;
+    if (fits(taken, slot, size) && (best < 0 || Math.abs(slot - origin) <= Math.abs(best - origin))) best = slot;
   return best;
 }
 // The arrangement after putting `moving` (a tile on the grid, or a new one) at `target`:
 // it lands exactly there; tiles in its way take the cells it left (a swap) or else the
 // nearest free cell; everything else stays put. Null when the target is off the grid.
 export function arrange(tiles: Tile[], moving: Tile, target: number): Entry[] | null {
-  const wide = isWide(moving);
-  if (wide) target = rowStart(target);
-  if (!fits(new Set(), target, wide)) return null;
-  const footprint = cellsOf(target, wide);
-  const vacated = tiles.includes(moving) ? cellsOf(moving.slot, wide) : [];
+  const size = sizeOf(moving);
+  target = startOf(target, size);
+  if (!fits(new Set(), target, size)) return null;
+  const footprint = cellsOf(target, size);
+  const vacated = tiles.includes(moving) ? cellsOf(moving.slot, size) : [];
   const result: Entry[] = [{ tile: moving, slot: target }];
   const displaced: Tile[] = [];
   for (const tile of tiles) {
     if (tile === moving) continue;
-    if (cellsOf(tile.slot, isWide(tile)).some((c) => footprint.includes(c))) displaced.push(tile);
+    if (cellsOf(tile.slot, sizeOf(tile)).some((c) => footprint.includes(c))) displaced.push(tile);
     else result.push({ tile, slot: tile.slot });
   }
   for (const tile of displaced) {
-    const w = isWide(tile), taken = occupied(result);
-    let slot = vacated.map((c) => (w ? rowStart(c) : c)).find((c) => fits(taken, c, w));
+    const w = sizeOf(tile), taken = occupied(result);
+    let slot = vacated.map((c) => startOf(c, w)).find((c) => fits(taken, c, w));
     if (slot === undefined) slot = nearestFree(taken, w, tile.slot);
     if (slot < 0) return null;
     result.push({ tile, slot });
@@ -84,7 +102,7 @@ export function arrange(tiles: Tile[], moving: Tile, target: number): Entry[] | 
 }
 // Pages the tiles need, or more when the user keeps empty pages on purpose (`layout.pages`).
 export function pageCount(entries: Entry[], wanted = 1) {
-  const last = Math.max(0, ...entries.map(({ tile, slot }) => slot + (isWide(tile) ? 2 : 1)));
+  const last = Math.max(0, ...entries.map(({ tile, slot }) => slot + spanOf(sizeOf(tile))));
   return Math.min(MAX_PAGES, Math.max(1, Math.ceil(last / SLOTS_PER_PAGE), wanted || 1));
 }
 // New tiles start with the card that shows the entity best.
@@ -92,17 +110,18 @@ export function defaultOptions(id: string): Partial<Tile> {
   const domain = id.split(".")[0];
   if (domain === "sun") return { options: { display: "sunpath", size: "wide" } };
   if (domain === "weather") return { options: { display: "forecast", size: "wide" } };
+  if (pageTarget(id)) return {};
   if (domain === "screen") return { options: { display: "digital", size: "wide" } };
   return {};
 }
 export const newTile = (id: string): Tile => ({ entity: id, name: "", slot: -1, ...defaultOptions(id) } as Tile);
 
-// Same rule as the add-on: only a wide card in the standard layout shows direct controls;
-// without a choice the domain's first control set applies.
+// Same rule as the add-on: only a wide or full card in the standard layout shows direct controls;
+// without a choice the domain's first control set applies to a wide card, none to a full one.
 export function effectiveControls(tile: Tile, inventory: Inventory): string | null {
   const domain = tile.entity.split(".")[0], catalogue = inventory.controls?.[domain], o = tile.options || {};
-  if (!catalogue || o.size !== "wide" || (o.display || "standard") !== "standard" || o.inline === "slider") return null;
-  const choice = o.controls ?? catalogue.default;
+  if (!catalogue || !["wide", "full"].includes(o.size as string) || (o.display || "standard") !== "standard" || o.inline === "slider") return null;
+  const choice = o.controls ?? (o.size === "full" ? "none" : catalogue.default);
   return choice === "none" ? null : choice;
 }
 export function controlsLabel(tile: Tile, inventory: Inventory) {
@@ -120,15 +139,17 @@ export function versionAtLeast(version: string | undefined, minimum: string) {
 }
 export const supportsFirmware = (firmware: string | undefined, major: number, minor: number, patch: number) =>
   versionAtLeast(firmware, `${major}.${minor}.${patch}`);
+// Firmware 0.2.62 holds one tile per slot (48); 0.2.7 twenty; older firmware ten.
+export const MAX_TILES = MAX_SLOTS;
 export function tileLimit(firmware: string | undefined) {
-  const match = parseVersion(firmware);
-  if (match.length !== 3) return 10;
-  return match[0] > 0 || match[1] > 2 || (match[1] === 2 && match[2] >= 7) ? 20 : 10;
+  if (parseVersion(firmware).length !== 3) return 10;
+  return versionAtLeast(firmware, "0.2.62") ? MAX_TILES : versionAtLeast(firmware, "0.2.7") ? 20 : 10;
 }
 export const displayNames: Record<string, string> = {
   standard: "standard", watch: "large value", forecast: "weather forecast", graph: "graph",
   digital: "digital clock", analog: "analog clock", sunpath: "sun path",
 };
+export const sizeNames: Record<string, string> = { single: "normal", wide: "double", full: "full page" };
 export const TOGGLE_BEFORE = ["light", "switch", "input_boolean", "fan", "media_player", "climate"];
 export const SLIDER_DOMAINS = ["light", "fan", "cover", "number", "input_number", "media_player"];
 
@@ -152,7 +173,7 @@ export const domains: Record<string, [string, string, string, string]> = {
   input_select: ["Select", "≡", "#5862af", "#eaecfa"],
   button: ["Action", "↗", "#5862af", "#eaecfa"],
   input_button: ["Action", "↗", "#5862af", "#eaecfa"],
-  screen: ["Clock", "◷", "#25282c", "#e9ecf1"],
+  screen: ["Screen", "◷", "#25282c", "#e9ecf1"],
   sun: ["Sun", "☼", "#c86620", "#ffebdc"],
   timer: ["Timer", "⏱", "#008577", "#def3ed"],
   person: ["Person", "☺", "#2f7d32", "#e1f2e2"],

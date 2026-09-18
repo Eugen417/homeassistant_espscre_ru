@@ -1,7 +1,7 @@
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addTile, canAlert, copyLayoutFrom, importLayout, layoutJson, liveOf, PHASES, removeTile, select, setTileOption, state, tileLimit,
+  addTile, canAlert, copyLayoutFrom, importLayout, layoutJson, liveOf, PHASES, removeTile, retargetPageTile, select, setTileOption, state, tileLimit,
   topbarItems, topbarView, updateProgress, whatsNew,
 } from "../src/store";
 import type { Inventory, Screen } from "../src/types";
@@ -154,5 +154,37 @@ describe("updates with content", () => {
     expect(canAlert(living)).toBe(true);
     expect(canAlert(kitchen)).toBe(false);
     expect(canAlert(undefined)).toBe(false);
+  });
+});
+
+describe("full-page and navigation tiles", () => {
+  it("moves the other tiles of the page behind a tile that grows to the whole page", () => {
+    select("living");
+    const [lamp, sensor] = state.layout!.tiles;
+    setTileOption(lamp, "size", "full");
+    expect(lamp.slot).toBe(0);
+    expect(sensor.slot).toBe(6);
+    expect(state.layout!.pages).toBe(2);
+    expect(state.toast).toBeNull();
+  });
+  it("takes the first empty page when the others cannot move, and gives up with a toast when none is free", () => {
+    select("living");
+    state.layout!.tiles = Array.from({ length: 48 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i }));
+    const first = state.layout!.tiles[0];
+    setTileOption(first, "size", "full");
+    expect(first.options?.size).toBe("single");
+    expect(state.toast?.message).toMatch(/No page is free/);
+  });
+  it("lets a navigation tile point at another page, once per page", () => {
+    select("living");
+    addTile("screen.page_2");
+    const nav = state.layout!.tiles.find((t) => t.entity === "screen.page_2")!;
+    expect(nav.options).toBeUndefined();
+    expect(retargetPageTile(nav, 3)).toBe(true);
+    expect(nav.entity).toBe("screen.page_3");
+    addTile("screen.page_4");
+    expect(retargetPageTile(nav, 4)).toBe(false);
+    expect(state.toast?.message).toMatch(/already has a tile that goes to page 4/);
+    expect(retargetPageTile(nav, 9)).toBe(false);
   });
 });

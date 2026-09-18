@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // One page of the screen as the mockup draws it: the top bar and a 2 × 3 grid of cells.
 import { computed } from "vue";
-import { isWide, pageOf, SLOTS_PER_PAGE } from "../model/layout";
+import { cellsOf, pageOf, sizeOf, SLOTS_PER_PAGE, spanOf } from "../model/layout";
 import { isGuition, openBar, removePage, state } from "../store";
 import type { Tile } from "../types";
 import TileCard from "./TileCard.vue";
@@ -9,11 +9,11 @@ import TopbarSvg from "./TopbarSvg.vue";
 
 const props = defineProps<{ page: number; entries: { tile: Tile; slot: number }[]; pages: number; moving: Tile | null }>();
 const bySlot = computed(() => new Map(props.entries.map((e) => [e.slot, e])));
-const covered = computed(() => new Set(props.entries.filter((e) => isWide(e.tile)).map((e) => e.slot + 1)));
+const covered = computed(() => new Set(props.entries.flatMap((e) => cellsOf(e.slot, sizeOf(e.tile)).slice(1))));
 const cells = computed(() => Array.from({ length: SLOTS_PER_PAGE }, (_, cell) => props.page * SLOTS_PER_PAGE + cell).filter((slot) => !covered.value.has(slot)));
 const empty = computed(() => props.pages > 1 && !props.entries.some((e) => pageOf(e.slot) === props.page));
 const barSelected = computed(() => state.inspector?.kind === "bar" || state.inspector?.kind === "bar-add");
-const filled = computed(() => props.entries.filter((e) => pageOf(e.slot) === props.page).reduce((n, e) => n + (isWide(e.tile) ? 2 : 1), 0));
+const filled = computed(() => props.entries.filter((e) => pageOf(e.slot) === props.page).reduce((n, e) => n + spanOf(sizeOf(e.tile)), 0));
 function pickCell(slot: number) {
   const marked = state.insertAt === slot;
   state.insertAt = marked ? -1 : slot;

@@ -118,3 +118,16 @@ describe("CommandPalette", () => {
     expect(state.palette).toBe(false);
   });
 });
+
+describe("full-page and navigation tiles on the mockup", () => {
+  it("draws a full tile as one big card and a navigation tile with its page", () => {
+    state.liveStates["light.a"] = { state: "on", word: "On", a: {} };
+    const full = placed({ entity: "light.a", name: "", slot: 0, options: { size: "full" } });
+    expect(full.classes()).toContain("full");
+    expect(full.classes()).not.toContain("wide");
+    expect(full.find(".ic").classes()).toContain("lit");
+    expect(full.find(".tog").exists()).toBe(false);
+    const nav = placed({ entity: "screen.page_3", name: "Go to page 3", slot: 6 });
+    expect(nav.find(".goto").text()).toBe("Page 3 ›");
+  });
+});

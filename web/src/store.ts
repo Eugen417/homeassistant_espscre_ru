@@ -3,8 +3,8 @@
 import { computed, reactive } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
 import {
-  arrange, entriesOf, firstFree, fits, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
-  rowStart, SLOTS_PER_PAGE, supportsFirmware as supportsVersion, tileLimit as limitFor,
+  arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
+  pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
 import { agoText, BAR_METRICS, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { versionAtLeast } from "./model/layout";
@@ -246,7 +246,7 @@ export function addTile(id: string) {
   const layout = state.layout;
   if (!layout || layout.tiles.some((t) => t.entity === id) || layout.tiles.length >= tileLimit.value) return;
   const tile = newTile(id);
-  const slot = state.insertAt >= 0 ? state.insertAt : firstFree(occupied(entriesOf(layout)), isWide(tile));
+  const slot = state.insertAt >= 0 ? state.insertAt : firstFree(occupied(entriesOf(layout)), sizeOf(tile));
   state.insertAt = -1;
   if (slot >= 0 && placeTile(tile, slot)) openTile(id);
 }
@@ -286,7 +286,7 @@ export function pagesShown() {
 // The tile's options change live; a card that becomes double-wide keeps its row when the cell beside it is
 // free, else it takes the nearest free row (below first); every other tile stays where it is.
 export function setTileOption(tile: Tile, key: string, value: unknown) {
-  const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasWide = isWide(tile);
+  const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasWide = isWide(tile), wasSize = sizeOf(tile);
   tile.options = { ...tile.options, [key]: value };
   // Direct controls need the standard layout without a mini slider, and vice versa.
   if (key === "display" && value === "watch") { tile.options.inline = "none"; if (state.inventory.controls?.[domain]) tile.options.controls = "none"; }
@@ -298,13 +298,43 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
   if (key === "size" && value === "wide" && caps && catalogue && !("controls" in tile.options) && !caps.controls.includes(catalogue.default))
     tile.options.controls = catalogue.choices.find((c) => c.key !== "none" && caps.controls.includes(c.key))?.key || "none";
   markDirty();
-  if (state.layout && isWide(tile) && !wasWide) {
-    const taken = occupied(entriesOf(state.layout).filter((e) => e.tile !== tile)), own = rowStart(tile.slot);
-    const slot = fits(taken, own, true) ? own : nearestFree(taken, true, own);
+  const layout = state.layout;
+  if (!layout) return;
+  // A card that grows to the whole page keeps its page: the other tiles there move to the first free
+  // cells after it. With no room for them it takes the first empty page, or stays as it was.
+  if (isFull(tile) && wasSize !== "full") {
+    const page = pageOf(tile.slot), others = layout.tiles.filter((t) => t !== tile && pageOf(t.slot) === page);
+    const taken = occupied(entriesOf(layout).filter((e) => e.tile !== tile && !others.includes(e.tile)));
+    const moved: [Tile, number][] = [];
+    for (const other of others) {
+      const slot = firstFree(taken, sizeOf(other), (page + 1) * SLOTS_PER_PAGE);
+      if (slot < 0) { moved.length = 0; break; }
+      moved.push([other, slot]);
+      for (const c of cellsOf(slot, sizeOf(other))) taken.add(c);
+    }
+    if (moved.length === others.length) { for (const [other, slot] of moved) other.slot = slot; tile.slot = page * SLOTS_PER_PAGE; }
+    else {
+      const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), "full");
+      if (slot >= 0) tile.slot = slot;
+      else { tile.options.size = wasSize; toast("No page is free for a full-page tile. Free a page first."); }
+    }
+  } else if (isWide(tile) && !wasWide) {
+    const taken = occupied(entriesOf(layout).filter((e) => e.tile !== tile)), own = rowStart(tile.slot);
+    const slot = fits(taken, own, "wide") ? own : nearestFree(taken, "wide", own);
     if (slot >= 0) tile.slot = slot;
-    normalize(state.layout);
-    state.layout.pages = pageCount(entriesOf(state.layout), state.layout.pages);
   }
+  normalize(layout);
+  layout.pages = pageCount(entriesOf(layout), layout.pages);
+}
+// A navigation tile goes to another page: its entity changes (screen.page_<n>), one tile per page it goes to.
+export function retargetPageTile(tile: Tile, page: number) {
+  const entity = `screen.page_${page}`;
+  if (!state.layout || entity === tile.entity || !pageTarget(entity)) return false;
+  if (state.layout.tiles.some((t) => t.entity === entity)) { toast(`This screen already has a tile that goes to page ${page}.`); return false; }
+  tile.entity = entity;
+  if (state.selectedTile) state.selectedTile = entity;
+  markDirty();
+  return true;
 }
 
 // ---- Inspector (the drawer) ----

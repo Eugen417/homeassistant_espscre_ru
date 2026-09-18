@@ -2,7 +2,7 @@
 // Read current data: what Home Assistant reports for the screen's tiles right now, and how each tile is set.
 import { onMounted, ref, watch } from "vue";
 import { getJson } from "../api";
-import { controlsLabel, displayNames } from "../model/layout";
+import { controlsLabel, displayNames, sizeNames } from "../model/layout";
 import { closeInspector, state, toast } from "../store";
 
 const props = defineProps<{ entity?: string }>();
@@ -27,7 +27,7 @@ async function load() {
 }
 const optionsText = (entity: string) => {
   const options = state.layout?.tiles.find((t) => t.entity === entity)?.options || {};
-  return `Small slider: ${options.inline === "slider" ? "yes" : "no"} · Display: ${displayNames[options.display || "standard"] || options.display} · Width: ${options.size === "wide" ? "double" : "normal"} · Control: ${controlsLabel({ entity, name: "", slot: 0, options }, state.inventory)} · Background: ${state.inventory.backgrounds?.[options.background || "auto"]?.label || "Default"}`;
+  return `Small slider: ${options.inline === "slider" ? "yes" : "no"} · Display: ${displayNames[options.display || "standard"] || options.display} · Size: ${sizeNames[options.size as string] || "normal"} · Control: ${controlsLabel({ entity, name: "", slot: 0, options }, state.inventory)} · Background: ${state.inventory.backgrounds?.[options.background || "auto"]?.label || "Default"}`;
 };
 onMounted(load);
 watch(() => props.entity, load);

@@ -474,3 +474,14 @@ td code { white-space: nowrap; }
 /* Try it (alerts) */
 .try-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
 .try-grid .field.wide { grid-column: 1 / -1; }
+
+/* A full-page tile (firmware 0.2.62+): both columns and all three rows, one big button. */
+.tile.full { grid-column: span 2; grid-row: span 3; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
+.tile.full .ic { font-size: 34px; }
+.tile.full .lead { flex: 0 0 auto; align-content: center; justify-items: center; }
+.tile.full .nm { font-size: 14px; }
+.tile.full .st { font-size: 11px; }
+.tile.full .ctl { margin-top: 6px; }
+.tile.full .mini-slider { width: 60%; }
+.tile .goto { font-size: 10.5px; color: #5a5f66; }
+.device.cyd .tile.full .ic { font-size: 26px; }

@@ -228,7 +228,7 @@ class Editor(unittest.TestCase):
     def test_perform_action_is_a_tap_choice_with_home_assistants_list(self):
         self.assertIn('list.push(["action", "Perform action"]);', self.SCRIPT)
         self.assertIn('getJson(`entity-actions?entity=${encodeURIComponent(entity)}`)', self.SCRIPT)
-        self.assertIn('<ActionPicker v-if="domain !== \'screen\' && tap === \'action\'" :tile="tile" />', self.SCRIPT)
+        self.assertIn('<ActionPicker v-if="domain !== \'screen\' && !goesTo && tap === \'action\'" :tile="tile" />', self.SCRIPT)
         # Fields follow Home Assistant's selectors; an empty field is left out of the data.
         for marker in ("kindOf(field) === 'boolean'", "kindOf(field) === 'number' || kindOf(field) === 'color_temp'", 'config.options', 'delete data[key]'):
             self.assertIn(marker, self.PICKER, marker)

@@ -11,7 +11,7 @@ import { addTile, automaticIcon, isGuition, state, tileLimit } from "../store";
 const FILTERS: [string, string][] = [
   ["", "All"], ["light", "Lights"], ["climate", "Climate"], ["switch", "Switches"], ["binary_sensor", "Status"], ["button", "Actions"],
   ["script", "Scripts"], ["fan", "Fans"], ["cover", "Covers"], ["scene", "Scenes"], ["vacuum", "Vacuum"], ["sensor", "Sensors"],
-  ["media_player", "Media"], ["weather", "Weather"], ["number", "Values"], ["select", "Selects"], ["person", "People"], ["timer", "Timers"], ["screen", "Clock"],
+  ["media_player", "Media"], ["weather", "Weather"], ["number", "Values"], ["select", "Selects"], ["person", "People"], ["timer", "Timers"], ["screen", "Screen"],
 ];
 const ALIAS: Record<string, string> = { switch: "input_boolean", number: "input_number", select: "input_select", weather: "sun", button: "input_button" };
 const chosen = computed(() => new Set(state.layout?.tiles.map((t) => t.entity) || []));
@@ -69,6 +69,6 @@ const tone = (e: { id: string; state?: string }) => {
       <p v-if="!matches.length" class="hint">{{ state.hidePlaced && !state.search && !state.filter && !state.room ? "Everything here is already on this screen." : "No entities found. Try a different name, room or filter." }}</p>
       <p v-else-if="matches.length > 80" class="hint">{{ matches.length }} results. Keep typing to narrow it down.</p>
     </div>
-    <div class="lib-foot">{{ full ? `This screen holds ${tileLimit} tiles${tileLimit === 10 ? "; update its firmware for 20" : ""}.` : "Drag onto a page, or tap + to add to the first free slot. ⌘K searches everything." }}</div>
+    <div class="lib-foot">{{ full ? `This screen holds ${tileLimit} tiles${tileLimit < 48 ? "; update its firmware for 48" : ""}.` : "Drag onto a page, or tap + to add to the first free slot. ⌘K searches everything." }}</div>
   </aside>
 </template>
