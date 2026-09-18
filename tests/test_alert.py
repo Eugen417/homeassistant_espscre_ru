@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import tile_icons  # noqa: E402
 
@@ -37,7 +39,7 @@ def line_height(font, size):
 class AlertTests(unittest.TestCase):
     def sources(self):
         for name in list(PROFILES.values()) + list(PACKAGES.values()):
-            yield name, (ROOT / name).read_text()
+            yield name, profiles.text(name)
 
     def test_action_takes_the_six_fields_and_hands_them_to_one_script(self):
         for name, text in self.sources():
@@ -75,7 +77,8 @@ class AlertTests(unittest.TestCase):
             title = section(top, 'id: alert_title\n', 'id: alert_subtitle')
             self.assertIn('height: ${ALERT_TITLE_H}\n', title, name)
             self.assertIn('text_font: headline\n', title, name)
-            font, size = re.search(r'(?m)^  - file: "(?:[^"\n]*/)?(fonts/[^"\n]+)"\n    id: headline\n    size: (\d+)$', text).groups()
+            # The core names the font as ${FONT_DIR}/... at the board's ${FONT_HEADLINE_SIZE} (app 0.2.84+).
+            font, size = re.search(r'(?m)^  - file: "(?:[^"\n]*/)?(fonts/[^"\n]+)"\n    id: headline\n    size: (\d+)$', profiles.resolved(name)).groups()
             v = lambda key: int(re.search(rf'^  {key}: "(-?\d+)"', text, re.M)[1])
             self.assertEqual(v('ALERT_TITLE_H'), line_height(ROOT / font, int(size)), name)
             self.assertLessEqual(v('ALERT_TITLE_Y') + v('ALERT_TITLE_H'), v('ALERT_SUBTITLE_Y'), name)
@@ -107,7 +110,7 @@ class AlertTests(unittest.TestCase):
             self.assertIn('screen_alert::make(title, subtitle, icon, color, button_text, timeout, flash, ${ALERT_TITLE_MAX}, ${ALERT_SUBTITLE_MAX}, ${ALERT_BUTTON_MAX})', show, name)
             self.assertLess(show.index('script.execute: wake_display'), show.index('lvgl.widget.show: alert_overlay'), name)
             self.assertLess(show.index('lvgl.widget.show: alert_overlay'), show.index('script.execute: alert_flash'), name)
-            self_test = section(text, '  - id: ui_self_test\n', '  - id: show_tile_page')
+            self_test = section(text, '  - id: ui_self_test\n', '\n  - id: ')
             self.assertIn('lvgl.widget.show: alert_overlay', self_test, name)
             self.assertIn('lvgl.widget.hide: alert_overlay', self_test, name)
             for forbidden in ('alert_show', 'alert_dismiss', 'homeassistant.event'):
@@ -131,8 +134,8 @@ class AlertTests(unittest.TestCase):
     def test_helper_header_is_included_locally_and_in_the_remote_package(self):
         header = '    - <esphome/components/smart_display/alert_overlay.h>\n'
         for board, name in PROFILES.items():
-            self.assertIn(header, (ROOT / name).read_text(), name)
-            self.assertIn(header, (ROOT / PACKAGES[board]).read_text(), board)
+            self.assertIn(header, profiles.text(name), name)
+            self.assertIn(header, profiles.text(PACKAGES[board]), board)
 
 if __name__ == '__main__':
     unittest.main()

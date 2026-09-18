@@ -9,6 +9,8 @@ import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 from core import FIRMWARE_VERSION  # noqa: E402
 
@@ -17,7 +19,7 @@ CHANGELOG = ROOT / 'screen_manager/CHANGELOG.md'
 # sections are firmware-only releases between app 0.2.11 and 0.2.12 and carry no app version, so they don't count.
 APP_HEADING = re.compile(r'^## (\d+)\.(\d+)\.(\d+)\b(.*)$', re.M)
 FIRMWARE_IN_HEADING = re.compile(r'\(firmware (\d+\.\d+\.\d+)\)')
-# The generator (tools/generate_packages.py) turns fonts/<file> into a raw GitHub URL on main.
+# The published entries (packages/<board>.yaml) point ${FONT_DIR} at the raw GitHub URL of fonts/ on main.
 FONT_URL = re.compile(r'https://raw\.githubusercontent\.com/MaxGramser/homeassistant_espscreen/[^/\s"\']+/(fonts/[^"\'\s]+)')
 
 
@@ -56,13 +58,12 @@ class ReleaseVersionTests(unittest.TestCase):
 
 class PackageFontTests(unittest.TestCase):
     def test_every_font_a_package_fetches_is_in_the_tree(self):
-        packages = sorted((ROOT / 'packages').glob('*.yaml'))
-        self.assertTrue(packages, 'no packages/*.yaml')
         seen = 0
-        for package in packages:
-            for path in FONT_URL.findall(package.read_text()):
+        for package in profiles.PACKAGES:
+            # The shared core names its fonts as ${FONT_DIR}/...; the published entry says where that is (app 0.2.84+).
+            for path in FONT_URL.findall(profiles.merged(package)):
                 seen += 1
-                self.assertTrue((ROOT / path).is_file(), f'{package.name} fetches {path}, which is not in the tree')
+                self.assertTrue((ROOT / path).is_file(), f'{package} fetches {path}, which is not in the tree')
         # A changed URL form must not turn this into a test of nothing.
         self.assertGreater(seen, 0, 'no fonts/... URL found in packages/*.yaml')
 

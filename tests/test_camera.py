@@ -10,6 +10,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import camera_feed  # noqa: E402
 from core import (ALERT_FIELDS, BROADCAST_SHOW, CAMERA_MIN_FIRMWARE, alert_camera, alert_reference, entity_id,  # noqa: E402
@@ -20,7 +22,7 @@ HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:
     from server import HomeAssistant, Manager
 
-PROFILE = (ROOT / 'guition-4848s040.yaml').read_text()
+PROFILE = profiles.text('guition-4848s040.yaml')
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 
 
@@ -87,7 +89,7 @@ class Rules(unittest.TestCase):
         self.assertEqual(PROFILE.count('if (url != current) {'), 2)
         # A busy camera port leaves the rest of the app running.
         self.assertIn("except OSError as error:\n            # Everything else still works; only camera images stay away.", (ROOT / 'screen_manager/app/server.py').read_text())
-        cyd = (ROOT / 'home-like-2432s028.yaml').read_text()
+        cyd = profiles.text('home-like-2432s028.yaml')
         self.assertNotIn('online_image', cyd)
         self.assertNotIn('camera_full.load', cyd)
         # The add-on's port is published, and the Docker route passes it on with the host network.

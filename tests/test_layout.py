@@ -1,10 +1,13 @@
 """Regression checks for the 320x240 page geometry and event guards."""
 from pathlib import Path
 import re
+import sys
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-SOURCE = (ROOT / 'home-like-2432s028.yaml').read_text()
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
+SOURCE = profiles.resolved('home-like-2432s028.yaml')
 VALUES = dict(re.findall(r'^  (\w+): "([^"]*)"', SOURCE, re.M))
 
 class LayoutTests(unittest.TestCase):
@@ -40,7 +43,7 @@ class LayoutTests(unittest.TestCase):
     def test_page_keys_are_the_halves_of_the_band_under_the_tiles(self):
         """Firmware 0.2.69+: a chevron in each half of the band, the dots between them take no touches."""
         for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml'):
-            source = (ROOT / name).read_text()
+            source = profiles.resolved(name)
             values = dict(re.findall(r'^  (\w+): "([^"]*)"', source, re.M))
             band = int(values['DISPLAY_H']) - int(values['SCROLL_Y']) - int(values['SCROLL_H'])
             half = int(values['DISPLAY_W']) // 2

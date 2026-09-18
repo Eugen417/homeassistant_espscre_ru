@@ -5,10 +5,13 @@ a slider fill rounded less than its track cost 15-20 KB per frame there, and whe
 it retries inside the frame until the task watchdog resets the board.
 """
 import re
+import sys
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 PROFILES = ['home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml']
 HEADERS = sorted((ROOT / 'components/smart_display').glob('*.h'))
 
@@ -23,7 +26,7 @@ C_LAYER_STYLES = re.compile(r'lv_obj_set_style_(opa_layered|transform_rotation|t
 class LayerFreeTests(unittest.TestCase):
     def test_board_profiles_use_no_layer_styles(self):
         for name in PROFILES:
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             self.assertEqual(YAML_LAYER_STYLES.findall(text), [], name)
             self.assertEqual(re.findall(r'^\s*clip_corner: true', text, re.M), [], name)
 
@@ -50,7 +53,7 @@ class LayerFreeTests(unittest.TestCase):
 
     def test_yaml_slider_fill_keeps_the_track_radius(self):
         for name in PROFILES:
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             for match in re.finditer(r'^(\s+)- (?:slider|bar):\n((?:\1    .*\n|\s*\n)+)', text, re.M):
                 block, indent = match.group(2), match.group(1) + '    '
                 track = re.search(r'^' + indent + r'radius: (\S+)', block, re.M)

@@ -141,7 +141,8 @@ The screen's preferences hold the value, so the entity reads it in a lambda inst
 (`restore_value` cannot be combined with a lambda). A switch publishes its own changes. A number, time or
 select takes `update_interval: never` and one line in `apply_screen_settings`, which publishes it when it
 differs; that script runs after every change and on every Home Assistant connection (the time sync), so the
-entity has a value before Home Assistant reads the states. Then run `python3 tools/generate_packages.py`.
+entity has a value before Home Assistant reads the states. The entities live in `packages/core.yaml`; the
+Rotation select, which only a Guition has, in its board file (docs/PROFILES.md).
 
 ### 4. The add-on
 

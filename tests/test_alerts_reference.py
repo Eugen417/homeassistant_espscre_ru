@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 import tile_icons  # noqa: E402
@@ -22,7 +24,7 @@ class ReferenceTests(unittest.TestCase):
     def test_fields_and_limits_match_both_board_profiles(self):
         reference = alert_reference()
         for board, name in PROFILES.items():
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             block = text.split('    - action: show_alert\n', 1)[1].split('    - action: dismiss_alert\n', 1)[0]
             self.assertEqual(re.findall(r'^        (\w+): (\w+)$', block, re.M), [(f['name'], f['type']) for f in reference['fields']], name)
             for field, key in (('title', 'ALERT_TITLE_MAX'), ('subtitle', 'ALERT_SUBTITLE_MAX'), ('button_text', 'ALERT_BUTTON_MAX')):

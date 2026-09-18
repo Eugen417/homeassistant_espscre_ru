@@ -2,7 +2,7 @@
 # The release checks of docs/RELEASING.md step 2 in one command, the same on a laptop and in CI
 # (.github/workflows/ci.yml, app 0.2.78). Runs from any folder: every path is taken from this repository.
 #
-#   tools/check.sh                   the Python tests, every tests/*.cpp, both generators with --check, the editor's
+#   tools/check.sh                   the Python tests, every tests/*.cpp, the package check, the icon generator's --check, the editor's
 #                                    tests, types and build, and whether the editor bundle in Git equals that build
 #   tools/check.sh --firmware        compiles both board profiles and applies the CYD's flash budget
 #   tools/check.sh --all             both
@@ -120,7 +120,7 @@ cpp_tests() {
   ((total > 0 && good == total))
 }
 
-packages_current() { cd "$ROOT" && "$PYTHON" tools/generate_packages.py --check; }
+packages_current() { cd "$ROOT" && "$PYTHON" tools/check_packages.py; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
 editor_install() { cd "$ROOT/web" && npm ci --no-audit --no-fund; }
 editor_tests() { cd "$ROOT/web" && npm test; }
@@ -158,10 +158,12 @@ esphome_version() {
 # The builds users get come from the YAML core.installation_yaml() writes: the board's package plus the device's own
 # keys, the Wi-Fi fallback access point and captive_portal. The board profiles carry all of that (with !secret), so a
 # copy of each profile compiles in a temporary folder with placeholder secrets of the same length as real ones, next
-# to links to this tree's components and fonts: this commit's code, never GitHub's main, never the real secrets.yaml.
+# to links to this tree's components, fonts and packages (the shared core and the board files the profile includes):
+# this commit's code, never GitHub's main, never the real secrets.yaml.
 prepare_profiles() {
   local config="$WORK/config" board file
-  mkdir -p "$config" && ln -s "$ROOT/components" "$config/components" && ln -s "$ROOT/fonts" "$config/fonts" || return 1
+  mkdir -p "$config" && ln -s "$ROOT/components" "$config/components" && ln -s "$ROOT/fonts" "$config/fonts" \
+    && ln -s "$ROOT/packages" "$config/packages" || return 1
   cat > "$config/secrets.yaml" <<'EOF' || return 1
 # Placeholders for the check builds (tools/check.sh); nothing here is a real key.
 wifi_ssid: "check-wifi"
@@ -254,7 +256,7 @@ if ((want_fast)); then
   run "Python packages" python_packages
   run "Python tests" python_tests
   run "C++ tests" cpp_tests
-  run "Packages match the profiles" packages_current
+  run "Packages fit together" packages_current
   run "Icons match tile_icons.py" icons_current
   run "Editor: npm ci" editor_install
   if ((last_ok)); then

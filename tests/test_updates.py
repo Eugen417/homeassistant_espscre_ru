@@ -11,6 +11,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 from core import FIRMWARE_VERSION, discover
 import firmware
@@ -24,7 +26,7 @@ HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 class VersionSourceTests(unittest.TestCase):
     def test_app_target_matches_shipped_firmware(self):
         for name in ('packages/cyd.yaml', 'packages/guition.yaml', 'home-like-2432s028.yaml', 'guition-4848s040.yaml'):
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             self.assertIn(f'SCREEN_FIRMWARE_VERSION: "{FIRMWARE_VERSION}"', text, name)
             self.assertIn('name: "Device name"', text, name)
             self.assertIn('platform: wifi_info', text, name)

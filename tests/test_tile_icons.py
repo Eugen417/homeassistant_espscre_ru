@@ -5,6 +5,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 import test_portal
@@ -22,7 +24,7 @@ class IconSetTests(unittest.TestCase):
             self.assertRegex(code, r'^F[0-9A-F]{4}$')
         wanted = [f'\\U000{code}' for code in tile_icons.GLYPHS.values()]
         for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
-            text = (ROOT / name).read_text()
+            text = profiles.resolved(name)
             fonts = re.findall(r'materialdesignicons-webfont\.ttf["\']\n    id: (\w+)\n    size: \d+\n    bpp: 4\n    glyphs: (.*)\n', text)
             self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini', 'materialdesign_icons_big', 'watch_icon'], name)
             self.assertTrue(fonts[0][1].startswith('&tile_icons ') and all(g == '*tile_icons' for font, g in fonts[1:] if font != 'materialdesign_icons_big'), name)
@@ -43,7 +45,7 @@ class IconSetTests(unittest.TestCase):
         self.assertEqual(len(entries), len(tile_icons.GLYPHS))
 
     def test_every_glyph_the_firmware_draws_is_in_the_set(self):
-        sources = [HEADER] + [(ROOT / name).read_text().split('glyphs: &tile_icons', 1)[0] for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml')]
+        sources = [HEADER] + [profiles.text(name).split('glyphs: &tile_icons', 1)[0] for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml')]
         used = {code.upper() for source in sources for code in re.findall(r'\\U000(F[0-9A-Fa-f]{4})', source)}
         self.assertLessEqual(used, set(tile_icons.GLYPHS.values()))
 

@@ -10,6 +10,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import header_bar  # noqa: E402
 import history_card  # noqa: E402
@@ -62,7 +64,7 @@ class BinaryWords(unittest.TestCase):
         letters = set(''.join(on + off for on, off in header_bar.BINARY_STATES.values()))
         self.assertLessEqual(letters, set(header_bar.GLYPHS))
         for name in PROFILES:
-            text = (ROOT / name).read_text()
+            text = profiles.resolved(name)
             for font in ('headline', 'watch_value', 'label', 'sublabel', 'sublabel_big'):
                 block = re.search(r'id: ' + font + r'\n    size: \d+\n    bpp: 4\n    glyphs: \[(.*?)\]\n', text, re.S)
                 self.assertIsNotNone(block, (name, font))

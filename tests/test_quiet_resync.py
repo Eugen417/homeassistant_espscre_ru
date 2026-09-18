@@ -14,6 +14,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 from core import validate_settings  # noqa: E402
@@ -80,7 +82,7 @@ class SettingEvents(unittest.IsolatedAsyncioTestCase):
 
 class Firmware(unittest.TestCase):
     def setUp(self):
-        self.profiles = {name: (ROOT / name).read_text() for name in PROFILES}
+        self.profiles = {name: profiles.text(name) for name in PROFILES}
 
     def test_home_assistant_setting_the_same_value_writes_and_reports_nothing(self):
         # Firmware 0.2.49+: the setting entities change a value through settings_screen::set(), which stores,

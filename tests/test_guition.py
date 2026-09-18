@@ -4,9 +4,11 @@ import re
 import sys
 import unittest
 ROOT=Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0,str(ROOT/'tools'))
 import verify_gt911
-SOURCE=(ROOT/'guition-4848s040.yaml').read_text()
+SOURCE=profiles.resolved('guition-4848s040.yaml')
 VALUES=dict(re.findall(r'^  (\w+): "([^"]*)"',SOURCE,re.M))
 
 class GuitionTests(unittest.TestCase):
@@ -54,7 +56,7 @@ class GuitionTests(unittest.TestCase):
 
     def test_all_tiles_clip_long_titles(self):
         for i in range(1,11):
-            self.assertRegex(SOURCE,rf'id: t{i}_title\n\s+height: 24\n\s+width: 130\n\s+long_mode: DOT')
+            self.assertRegex(SOURCE,rf'id: !extend t{i}_title\n\s+height: 24\n\s+width: 130\n\s+long_mode: DOT')
         self.assertEqual(VALUES['AUTO_DIM_TIMEOUT'],'600')
 
     def test_gt911_verification_accepts_pixels_and_rejects_wrong_orientation(self):

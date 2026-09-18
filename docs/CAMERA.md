@@ -99,6 +99,6 @@ missed taps. A full-screen BMP is about 390 KB; on the LAN that takes one to thr
   (`tests/test_camera_view.cpp`).
 - `components/smart_display/runtime_tiles.h`: the full-screen view, the alert picture and the
   `camera` message.
-- `guition-4848s040.yaml`: the two `online_image` components, the alert frame, and the diagnostic
+- `packages/boards/guition-4848s040.yaml`: the two `online_image` components, the alert frame, and the diagnostic
   action `preview_camera` (an entity opens it, an empty entity closes it).
 - `tests/test_camera.py`: the app side and the words both sides share.

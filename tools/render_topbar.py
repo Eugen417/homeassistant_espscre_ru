@@ -21,6 +21,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / '.esphome' / 'render-topbar'
 PROFILES = {'guition': 'guition-4848s040.yaml', 'cyd': 'home-like-2432s028.yaml'}
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 FONTS = ('headline', 'time_label', 'sublabel_big', 'label', 'materialdesign_icons', 'materialdesign_icons_mini')
 # Hardware headers the host cannot compile; the top bar needs none of them.
 SKIP = {'guition_diagnostics.h', '__pycache__'}
@@ -39,8 +41,8 @@ SCENARIOS = (
 )
 
 def font_blocks(board):
-    """The profile's font entries, ids suffixed per board and file paths made absolute."""
-    text = (ROOT / PROFILES[board]).read_text()
+    """The shared core's font entries at this board's sizes, ids suffixed per board and file paths made absolute."""
+    text = profiles.resolve(profiles.CORE.read_text(), profiles.substitutions(PROFILES[board]))
     fonts = text[text.index('\nfont:\n'):]
     out = ''
     for font_id in FONTS:
@@ -48,7 +50,7 @@ def font_blocks(board):
         if not m:
             raise SystemExit(f'Font {font_id} not found in {PROFILES[board]}')
         block = m.group(0).replace(f'id: {font_id}\n', f'id: {font_id}_{board}\n')
-        block = re.sub(r'file: ["\']fonts/([^"\']+)["\']', lambda f: f'file: "{ROOT}/fonts/{f[1]}"', block)
+        block = re.sub(r'file: "fonts/([^"]+)"', lambda f: f'file: "{ROOT}/fonts/{f[1]}"', block)
         out += block.replace('&tile_icons', f'&tile_icons_{board}').replace('*tile_icons\n', f'*tile_icons_{board}\n')
     return out
 

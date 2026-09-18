@@ -1,0 +1,737 @@
+############################################################
+# ESP Screens - CYD board (ESP32-2432S028, "Cheap Yellow Display")
+# Built-in ILI9341 320x240 display and XPT2046 resistive touch.
+#
+# What is in here: the hardware (display, touch, backlight, LED), the sizes the
+# shared tree takes from this board, the code the shared lambdas take from this
+# board (hooks), and what only a CYD has: the calibration wizard for its
+# resistive glass and a page swipe by LVGL's gesture. Everything else (the LVGL
+# tree, the cards, the scripts, the entities) is packages/core.yaml, which every
+# board shares; docs/PROFILES.md says how the files fit together.
+#
+# Two entry files include this: home-like-2432s028.yaml (a build on this computer)
+# and packages/cyd.yaml (the package a screen builds from over GitHub).
+############################################################
+substitutions:
+  # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
+  TOUCH_MOVE_LIMIT_PX: "56"
+  # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
+  TOUCH_MIN_PRESS_MS: "60"
+  # A slider let go this close to the left or right edge of the glass meant its end when that end lies in
+  # the band. The resistive panel reports a finger up to the bezel, so only the strip's last pixels and
+  # the margin beside them count (a capacitive Guition loses a fast finger 30-50 px before its edge).
+  SLIDER_EDGE_SNAP_PX: "20"
+  DEVICE_NAME: "cyd-new"
+  DEVICE_FRIENDLY_NAME: "My CYD"
+  TOUCH_AFFINE_XX: "1.000000000"
+  TOUCH_AFFINE_XY: "0.000000000"
+  TOUCH_AFFINE_XC: "0.000000000"
+  TOUCH_AFFINE_YX: "0.000000000"
+  TOUCH_AFFINE_YY: "1.000000000"
+  TOUCH_AFFINE_YC: "0.000000000"
+
+  # ORIENTATION
+  # The panel is always driven at its native 240x320 (see display:); LVGL turns
+  # both the picture and the touch coordinates. DISPLAY_W/H are the logical canvas
+  # the layout uses. Turning a screen a quarter is a setting in ESP Screens, so
+  # these values stay as they are.
+  DISPLAY_W: "320"
+  DISPLAY_H: "240"
+  LVGL_ROTATION: "90"
+  TOUCH_SWAP_XY: "false"
+  # true on this board (resistive XPT2046) — was false on the 032c board
+  # (capacitive GT911). This is the original upstream value for this panel.
+  TOUCH_MIRROR_X: "true"
+  TOUCH_MIRROR_Y: "false"
+  # Measured on this board: median top-right raw=(523,3390),
+  # bottom-left raw=(3487,482), at screen (299,20) and (20,219).
+  # Extrapolated to panel edges; verify with the isolated corner test.
+  TOUCH_CAL_X_MIN: "280"
+  TOUCH_CAL_X_MAX: "3860"
+  TOUCH_CAL_Y_MIN: "340"
+  TOUCH_CAL_Y_MAX: "3860"
+  GRID_COL1_X: "9"
+  GRID_COL2_X: "164"
+  GRID_ROW1_Y: "0"
+  GRID_ROW2_Y: "56"
+  GRID_ROW3_Y: "112"
+  GRID_ROW4_Y: "168"
+  GRID_ROW5_Y: "224"
+  SCROLL_Y: "40"
+  SCROLL_H: "164"
+  TILE_W: "147"
+  TILE_H: "52"
+  HEADER_Y: "14"
+  # Holding the top bar opens the settings page (0.2.44+). The whole strip counts on this board;
+  # a finger that travels further than the drift limit of a tap is swiping, not holding.
+  SETTINGS_HOLD_X: "0"
+  SETTINGS_HOLD_W: "${DISPLAY_W}"
+  SETTINGS_HOLD_DRIFT_PX: "24"
+  OVERLAY_SLIDER_W: "96"
+  OVERLAY_SLIDER_H: "160"
+  OVERLAY_ICON_Y: "74"
+
+  # Alert overlay (HA action show_alert), landscape 320x240: one card centred on LVGL's top layer.
+  ALERT_CARD_W: "292"
+  ALERT_CARD_H: "196"
+  ALERT_ICON_X: "18"
+  ALERT_ICON_Y: "16"
+  ALERT_TEXT_X: "62"
+  ALERT_TEXT_W: "212"
+  ALERT_TITLE_Y: "16"
+  ALERT_TITLE_H: "21"         # one line of headline; a DOT label only ends in an ellipsis with a height
+  ALERT_SUBTITLE_Y: "44"
+  ALERT_SUBTITLE_H: "88"
+  ALERT_BUTTON_W: "100"
+  ALERT_BUTTON_H: "40"
+  ALERT_BUTTON_INSET: "14"
+  ALERT_TITLE_MAX: "48"       # bytes; the label ends one line with an ellipsis
+  ALERT_BUTTON_MAX: "12"      # bytes on the OK button
+  ALERT_SUBTITLE_MAX: "160"   # bytes; wraps over the rows the card has
+  TILE_ICON_X: "0"
+  TILE_ICON_Y: "0"
+  TILE_TITLE_X: "48"
+  TILE_TITLE_Y: "4"
+  TILE_VALUE_X: "48"
+  TILE_VALUE_Y: "18"
+
+  # ----- 90° — Portrait 240×320 (USB on bottom) -----
+  # ORIENTATION: "90"
+  # DISPLAY_W: "240"
+  # DISPLAY_H: "320"
+  # LVGL_ROTATION: "180"
+  # TOUCH_SWAP_XY: "false"
+  # TOUCH_MIRROR_X: "true"
+  # TOUCH_MIRROR_Y: "false"
+  # TOUCH_CAL_X_MIN: "280"
+  # TOUCH_CAL_X_MAX: "3860"
+  # TOUCH_CAL_Y_MIN: "340"
+  # TOUCH_CAL_Y_MAX: "3860"
+  # GRID_COL1_X: "6"
+  # GRID_COL2_X: "123"
+  # GRID_ROW1_Y: "8"
+  # GRID_ROW2_Y: "96"
+  # GRID_ROW3_Y: "184"
+  # GRID_ROW4_Y: "272"
+  # GRID_ROW5_Y: "360"
+  # SCROLL_Y: "44"
+  # SCROLL_H: "276"
+  # TILE_W: "111"
+  # TILE_H: "80"
+  # HEADER_Y: "14"
+  # OVERLAY_SLIDER_W: "96"
+  # OVERLAY_SLIDER_H: "200"
+  # OVERLAY_ICON_Y: "94"
+  # TILE_ICON_X: "0"
+  # TILE_ICON_Y: "0"
+  # TILE_TITLE_X: "4"
+  # TILE_TITLE_Y: "38"
+  # TILE_VALUE_X: "4"
+  # TILE_VALUE_Y: "52"
+
+  # ----- 180° — Landscape flipped 320×240 (USB on left) -----
+  # ORIENTATION: "180"
+  # DISPLAY_W: "320"
+  # DISPLAY_H: "240"
+  # LVGL_ROTATION: "270"
+  # TOUCH_SWAP_XY: "false"
+  # TOUCH_MIRROR_X: "true"
+  # TOUCH_MIRROR_Y: "false"
+  # TOUCH_CAL_X_MIN: "280"
+  # TOUCH_CAL_X_MAX: "3860"
+  # TOUCH_CAL_Y_MIN: "340"
+  # TOUCH_CAL_Y_MAX: "3860"
+  # GRID_COL1_X: "9"
+  # GRID_COL2_X: "164"
+  # GRID_ROW1_Y: "8"
+  # GRID_ROW2_Y: "68"
+  # GRID_ROW3_Y: "128"
+  # GRID_ROW4_Y: "188"
+  # GRID_ROW5_Y: "248"
+  # SCROLL_Y: "44"
+  # SCROLL_H: "196"
+  # TILE_W: "147"
+  # TILE_H: "52"
+  # HEADER_Y: "14"
+  # OVERLAY_SLIDER_W: "96"
+  # OVERLAY_SLIDER_H: "160"
+  # OVERLAY_ICON_Y: "74"
+  # TILE_ICON_X: "0"
+  # TILE_ICON_Y: "0"
+  # TILE_TITLE_X: "48"
+  # TILE_TITLE_Y: "4"
+  # TILE_VALUE_X: "48"
+  # TILE_VALUE_Y: "18"
+
+  # ----- 270° — Portrait flipped 240×320 (USB on top) -----
+  # ORIENTATION: "270"
+  # DISPLAY_W: "240"
+  # DISPLAY_H: "320"
+  # LVGL_ROTATION: "0"
+  # TOUCH_SWAP_XY: "false"
+  # TOUCH_MIRROR_X: "true"
+  # TOUCH_MIRROR_Y: "false"
+  # TOUCH_CAL_X_MIN: "280"
+  # TOUCH_CAL_X_MAX: "3860"
+  # TOUCH_CAL_Y_MIN: "340"
+  # TOUCH_CAL_Y_MAX: "3860"
+  # GRID_COL1_X: "6"
+  # GRID_COL2_X: "123"
+  # GRID_ROW1_Y: "8"
+  # GRID_ROW2_Y: "96"
+  # GRID_ROW3_Y: "184"
+  # GRID_ROW4_Y: "272"
+  # GRID_ROW5_Y: "360"
+  # SCROLL_Y: "44"
+  # SCROLL_H: "276"
+  # TILE_W: "111"
+  # TILE_H: "80"
+  # HEADER_Y: "14"
+  # OVERLAY_SLIDER_W: "96"
+  # OVERLAY_SLIDER_H: "200"
+  # OVERLAY_ICON_Y: "94"
+  # TILE_ICON_X: "0"
+  # TILE_ICON_Y: "0"
+  # TILE_TITLE_X: "4"
+  # TILE_TITLE_Y: "38"
+  # TILE_VALUE_X: "4"
+  # TILE_VALUE_Y: "52"
+
+  # Fonts: one size per role, the same files on every board
+  FONT_TIME_SIZE: "18"                          # the clock in the top bar
+  FONT_HEADLINE_SIZE: "18"                      # card titles
+  FONT_WATCH_VALUE_SIZE: "22"
+  FONT_CLOCK_DIGITS_SIZE: "24"
+  FONT_SETPOINT_SIZE: "40"                      # the climate card's setpoint
+  FONT_LABEL_SIZE: "11"                         # tile titles
+  FONT_SUBLABEL_SIZE: "11"                      # tile values and small text
+  FONT_SUBLABEL_BIG_SIZE: "14"                  # the top bar and settings rows
+  FONT_ICON_SIZE: "28"                          # tile icons
+  FONT_ICON_MINI_SIZE: "18"                     # the top bar and card keys
+  FONT_ICON_BIG_SIZE: "40"                      # full-page tiles
+  FONT_WATCH_ICON_SIZE: "12"
+
+  # Tiles and the top bar
+  TILE_RADIUS: "18"                             # corner of a tile
+  TILE_PAD: "8"                                 # inside a tile
+  TILE_ICON_SIZE: "36"                          # the icon circle
+  HEADER_INSET: "11"                            # the room name and the clock from the glass edge
+
+  # The page bar under the tiles
+  PAGE_KEY_W: "160"                             # the previous/next keys under the tiles
+  PAGE_BAR_H: "36"                              # the page bar
+  PAGE_NUMBER_W: "104"                          # the dots in the middle
+  PAGE_CHEVRON_INSET: "14"                      # the chevrons from the outer edge
+
+  # Cards: the round keys and the brightness card
+  CARD_KEY_X: "10"                              # a card's round key from the side
+  CARD_KEY_Y: "8"                               # from the top
+  CARD_KEY_SIZE: "40"                           # its diameter
+  OVERLAY_TITLE_Y: "19"                         # the brightness card's title
+  OVERLAY_VALUE_Y: "42"                         # its percentage
+  OVERLAY_SLIDER_Y: "24"                        # its slider below the centre
+  OVERLAY_SLIDER_RADIUS: "28"                   # the slider's corners
+  OVERLAY_KNOB_PAD: "10"                        # the knob
+  COLOR_KEY_X: "-13"                            # the colour wheel key from the bottom right corner
+  COLOR_KEY_Y: "-13"
+  COLOR_KEY_SIZE: "44"                          # its diameter
+  COLOR_ARC_SIZE: "40"                          # the eight arcs in it
+  COLOR_ARC_W: "10"
+  COLOR_TITLE_W: "210"                          # the colour card's title
+  COLOR_TITLE_Y: "21"
+
+  # The climate card
+  CLIMATE_TITLE_Y: "18"                         # the title
+  CLIMATE_TITLE_W: "210"
+  CLIMATE_STATUS_Y: "54"                        # the status line
+  CLIMATE_CARD_Y: "80"                          # the setpoint card
+  CLIMATE_CARD_H: "92"
+  CLIMATE_CARD_RADIUS: "16"
+  CLIMATE_KEY_INSET: "10"                       # the -/+ keys from the card edge
+  CLIMATE_KEY_SIZE: "72"                        # their diameter
+  CLIMATE_KEY_RADIUS: "36"
+  CLIMATE_NUMBER_Y: "-8"                        # the setpoint number
+  CLIMATE_CAPTION_Y: "26"                       # the word under it
+  CLIMATE_MODES_Y: "184"                        # the row of mode keys
+  CLIMATE_MODES_H: "46"
+  CLIMATE_MODES_GAP: "6"
+  CLIMATE_MODE_RADIUS: "23"
+
+  # The mode picker
+  PICKER_TITLE_Y: "21"                          # the "Mode" title
+  PICKER_LIST_Y: "44"                           # the list of choices
+  PICKER_LIST_H: "178"
+  PICKER_PAD: "3"
+  PICKER_ROW_GAP: "3"
+  PICKER_COL_GAP: "4"
+  PICKER_MODE_W: "88"                           # a mode chip
+  PICKER_MODE_H: "26"
+  PICKER_MODE_RADIUS: "13"
+  PICKER_TITLE_H: "11"                          # the Fan and Swing captions
+  PICKER_CHIP_W: "62"                           # a fan or swing chip
+  PICKER_CHIP_H: "22"
+  PICKER_CHIP_RADIUS: "11"
+  PICKER_CHIP_FONT: "sublabel"                  # the words on them
+
+  # The touch test page
+  TOUCH_TEST_PAGE_PAINT: "paint_calibration"    # the page
+  TOUCH_TEST_TITLE: "Follow the calibration wizard"# the words at the top
+  TOUCH_TEST_TITLE_FONT: "sublabel"
+  TOUCH_TEST_TITLE_Y: "65"
+  TOUCH_TEST_INSET: "10"                        # the corner crosses from the edge
+  TOUCH_TEST_FAR_X: "289"                       # the right crosses: width - inset - size - 1
+  TOUCH_TEST_FAR_Y: "209"                       # the bottom crosses
+  TOUCH_TEST_MID_X: "150"                       # the middle cross
+  TOUCH_TEST_MID_Y: "110"
+  TOUCH_TEST_SIZE: "20"                         # a cross
+  TOUCH_TEST_PAINT: "paint_calibration"         # the crosses
+
+  # What the shared scripts do differently on this board
+  LVGL_DEFAULT_FONT: "sublabel_big"             # LVGL's default font: every label names its own, so this only keeps Montserrat out of the build
+  LVGL_BUFFER_SIZE: "12%"                       # LVGL's draw buffer as a share of the screen
+  PAGE_DOTS_LARGE: "false"                      # bigger page dots
+  EFFECTS_ROW_FONT: "sublabel_big"              # the effects page's rows
+  ROTATION_SUPPORTED: "false"                   # the screen turns a quarter from the settings
+  STANDBY_DIM_MS: "300"                         # how long the backlight takes to dim into standby (waking takes 300)
+  ALERT_FLASH_FADE_MS: "0"                      # an alert's flash: the fade of each step
+  ALERT_FLASH_DARK_MS: "120"                    # how long it stays dark
+  ALERT_FLASH_LIT_MS: "170"                     # how long it stays lit
+
+  # Code the shared lambdas of packages/core.yaml take from this board, at the place named ${...}: the
+  # exact lines the old profile had there. Empty when this board adds nothing at that place; every board
+  # must name every hook, or ESPHome stops at the undefined one.
+  # the first boot step: the touch guard, and what this board's panel needs
+  BOOT_TOUCH: |-
+    // Per-panel affine correction; shared defaults are neutral.
+    id(ts_touch).set_raw_correction(${TOUCH_AFFINE_XX}f, ${TOUCH_AFFINE_XY}f, ${TOUCH_AFFINE_XC}f, ${TOUCH_AFFINE_YX}f, ${TOUCH_AFFINE_YY}f, ${TOUCH_AFFINE_YC}f);
+    cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
+    cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
+    id(last_touch_ms) = millis();
+    id(last_use_ms) = millis();
+    id(display_dimmed) = false;
+  # right after runtime_tiles::enabled = true, before the settings load
+  BOOT_ENABLED_HOOK: ""
+  # the paint style only this board has (theme::paints)
+  BOARD_PAINT_FILL: "theme::fill(id(paint_calibration), Paint::calibration);"
+  # in runtime_tiles::dismiss, after the detail card closes
+  CLOSE_CARDS_HOOK: ""
+  # what LVGL's gesture over the tiles does on this board
+  BOOT_PAGE_GESTURE: |-
+    lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *event) {
+      if(!runtime_tiles::enabled || !runtime_tiles::swipe_pages || id(display_dimmed) || id(calibration_active) ||
+         !id(active_entity).empty() || (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root,LV_OBJ_FLAG_HIDDEN)))return;
+      auto *input=lv_indev_active();if(!input)return;
+      auto direction=lv_indev_get_gesture_dir(input);
+      if(direction!=LV_DIR_LEFT && direction!=LV_DIR_RIGHT)return;
+      // A quick drag on a slider is that slider's, never a page swipe (firmware 0.2.68+).
+      if(runtime_tiles::captured_slider){ESP_LOGI("touch","page swipe ignored: a slider is being dragged");return;}
+      cyd::touch_guard.consume();
+      lv_indev_wait_release(input);
+      ESP_LOGI("touch","page swipe: page %d -> %d",id(tile_page),id(tile_page)+(direction==LV_DIR_LEFT?1:-1));
+      id(tile_page)+=direction==LV_DIR_LEFT?1:-1;
+      id(show_tile_page).execute();
+    }, LV_EVENT_GESTURE, nullptr);
+  # after the gesture: the camera images of a board that shows them
+  BOOT_CAMERA_HOOKS: ""
+  # after the cards' hooks, before the settings page's: the calibration wizard of a resistive panel, the fan and swing card of a big one
+  BOOT_CARDS_TAIL: |-
+    if (!runtime_tiles::enabled) return;
+    screen_calibration::apply = [](const screen_calibration::Calibration &cal) {
+      id(ts_touch).set_raw_correction(cal.c[0],cal.c[1],cal.c[2],cal.c[3],cal.c[4],cal.c[5]);
+    };
+    screen_calibration::isolation = [](bool active) { id(calibration_active) = active; };
+    screen_calibration::setup(id(home_page)->obj, id(sublabel)->get_lv_font(), id(headline)->get_lv_font(),
+      ${TOUCH_CAL_X_MIN}, ${TOUCH_CAL_X_MAX}, ${TOUCH_CAL_Y_MIN}, ${TOUCH_CAL_Y_MAX});
+  # what else keeps the settings page closed (inline, in the condition)
+  MAY_OPEN_EXTRA: ""
+  # the log line of a boot onto the touch test page
+  TOUCH_TEST_READY_LOG: "USB calibration ready; no tile actions"
+  # one more line of the ui_state diagnostics
+  UI_STATE_HOOK: ""
+  # every 250 ms after runtime_tiles::tick()
+  TICK_HOOK: ""
+  # apply_screen_settings: turning the screen, before the standby logic
+  APPLY_ROTATION: ""
+  # apply_screen_settings: how the backlight takes its level
+  APPLY_BACKLIGHT: "id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();"
+  # apply_screen_settings: the Rotation entity in Home Assistant follows
+  APPLY_ROTATION_ENTITY: ""
+  # back_to_page_1_when_due: what else counts as away from page 1 (inline)
+  AWAY_EXTRA: ""
+  # alert_show: after the settings page closed, before the card is made
+  ALERT_SHOW_HOOK: ""
+  # set_climate_fan_mode and set_climate_swing_mode: after the choice is stored
+  CLIMATE_MODE_CHOSEN_HOOK: ""
+  # open_value_overlay: the climate card of a panel in portrait, before its refresh
+  OPEN_VALUE_OVERLAY_TAIL: |-
+    // A portrait panel (240 x 320) keeps the same card, a little lower and with more air.
+    if (atoi("${DISPLAY_W}") < atoi("${DISPLAY_H}")) {
+      lv_obj_set_y(id(climate_current_label), 60);
+      lv_obj_set_y(id(climate_setpoint_card), 96);
+      lv_obj_set_y(id(climate_mode_keys), 222);
+      for (lv_obj_t *key : {id(climate_minus_button), id(climate_plus_button)}) {
+        lv_obj_set_size(key, 56, 56);
+        lv_obj_set_style_radius(key, 28, LV_PART_MAIN);
+      }
+      lv_obj_set_x(id(climate_minus_button), 6);
+      lv_obj_set_x(id(climate_plus_button), -6);
+    }
+
+# ============================================================
+# No need to edit below this line.
+# ============================================================
+
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+    advanced:
+      # ESPHome recommends this itself in the boot log. Yields ~40KB extra IRAM
+      # and a smaller binary, and every KB counts on this board.
+      sram1_as_iram: true
+      # minimum_chip_revision deliberately left out: that was here for the
+      # 032c board (rev 3.1 confirmed), but this is a different physical board
+      # with an unknown chip revision. With an unjustifiably high minimum
+      # the firmware simply refuses to boot.
+    version: recommended
+  variant: esp32
+
+# Two SPI buses used by the CYD:
+# - lcd: built-in display
+# - my_touchscreen: built-in touch controller
+# Two SPI buses on the 2432S028: one for the display, a separate one for the
+# resistive XPT2046 touch (no I2C on this board, unlike the 032c).
+spi:
+  - id: lcd
+    clk_pin: GPIO14
+    mosi_pin: GPIO13
+
+  - id: my_touchscreen
+    clk_pin: GPIO25
+    mosi_pin: GPIO32
+    miso_pin: GPIO39
+
+output:
+  - platform: ledc
+    pin: GPIO21
+    id: gpio_backlight_pwm
+    # ESPHome's ledc default is 1kHz. You don't see that while still (well
+    # above what the eye perceives as flicker), but moving the screen reveals
+    # motion blur turning the on/off pulses into streaks (the same effect as
+    # a PWM LED that "judders" when you move it). 20kHz sits well above the
+    # speed at which motion still makes that visible, and still leaves ample
+    # duty-cycle resolution left over for smooth dimming.
+    frequency: 20000Hz
+
+  - platform: ledc
+    id: output_red
+    pin: GPIO4
+    inverted: true
+  - platform: ledc
+    id: output_green
+    pin: GPIO16
+    inverted: true
+  - platform: ledc
+    id: output_blue
+    pin: GPIO17
+    inverted: true
+
+light:
+  # The firmware owns the backlight: brightness, standby, night and alerts set it, and the minute tick
+  # restores it. Home Assistant uses the brightness numbers and the Wake and Sleep buttons (0.2.46+).
+  - platform: monochromatic
+    output: gpio_backlight_pwm
+    name: "Power Display Backlight"
+    id: back_light
+    internal: true
+    restore_mode: ALWAYS_ON
+
+  - platform: rgb
+    name: LED
+    red: output_red
+    id: led
+    green: output_green
+    blue: output_blue
+    restore_mode: ALWAYS_OFF
+
+# Touchscreen configuration (XPT2046, resistive, via SPI)
+# XPT2046 calibration is board-specific. Poll at 50Hz; LVGL rotates touch
+# with the display. GPIO36 IRQ is deliberately unused (driver requests a
+# pull-up that this input-only pin cannot provide).
+touchscreen:
+  platform: xpt2046
+  id: ts_touch
+  spi_id: my_touchscreen
+  cs_pin: 33
+  # Polling avoids GPIO36 pull-up errors and noisy PENIRQ edges.
+  update_interval: 20ms
+  # Diagnosis caught a false corner contact at pressure 422. Deliberate
+  # contacts measured 936-2643; reject the low-pressure tail on release.
+  threshold: 800
+
+  calibration:
+    x_min: ${TOUCH_CAL_X_MIN}
+    x_max: ${TOUCH_CAL_X_MAX}
+    y_min: ${TOUCH_CAL_Y_MIN}
+    y_max: ${TOUCH_CAL_Y_MAX}
+
+  transform:
+    swap_xy: ${TOUCH_SWAP_XY}
+    mirror_x: ${TOUCH_MIRROR_X}
+    mirror_y: ${TOUCH_MIRROR_Y}
+
+  on_touch:
+    - lambda: |-
+        id(last_touch_ms) = millis();
+        id(last_use_ms) = millis();
+        id(touch_down) = true;
+        cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
+        screen_calibration::press();
+        ESP_LOGI("touch", "press native=%u,%u raw=%d,%d pressure=%d calibration=%d", touch.x, touch.y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y(), touch.z_raw, id(calibration_active));
+  on_update:
+    - lambda: |-
+        id(last_touch_ms) = millis();
+        id(last_use_ms) = millis();
+        // Only the contact that started the touch counts; the guard ignores other ids.
+        for (const auto &point : touches) {
+          cyd::touch_guard.update(point.x, point.y, point.id);
+        }
+  on_release:
+    - lambda: |-
+        id(last_touch_ms) = millis();
+        id(last_use_ms) = millis();
+        id(touch_down) = false;
+        screen_calibration::release(id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
+
+# Display configuration (ILI9341)
+display:
+  - platform: mipi_spi
+    id: my_display
+    spi_id: lcd
+    # Standard single-Micro-USB CYD; 40MHz matches ESPHome's board preset.
+    model: ILI9341
+    data_rate: 40MHz
+    cs_pin: 15
+    dc_pin: 2
+    invert_colors: false
+    update_interval: never
+    auto_clear_enabled: false
+
+    # Panel tuning, appended after ESPHome's built-in ILI9341 sequence. With the
+    # defaults (line inversion, 79 Hz) the cheap CYD panel shows a fine vertical
+    # stripe pattern that flickers when you move your eyes or the board: the
+    # two polarities of adjacent columns differ in brightness. Frame inversion
+    # (0xB4 = 0x07) removes the stripes; the maximum frame rate (0xB1 = 0x10,
+    # 119 Hz) keeps the resulting whole-frame flicker above what the eye sees.
+    # VCOM (0xC5) stayed at the default; sweeping it changed contrast, not the
+    # stripes. Checked on the bench CYD on 2026-09-15.
+    init_sequence:
+      - [0xB4, 0x07]
+      - [0xB1, 0x00, 0x10]
+
+    # Native panel dimensions (portrait). Do NOT swap these per orientation and
+    # do NOT add a display transform — rotation is handled by LVGL below.
+    # ESPHome 2026.6+ rejects a swapped transform here with "Invalid offsets".
+    dimensions:
+      width: 240
+      height: 320
+
+lvgl:
+  style_definitions:
+    # The calibration wizard's page and crosses (theme::paints fills it: BOARD_PAINT_FILL).
+    - id: paint_calibration
+
+button:
+  - platform: template
+    name: "Calibrate touch"
+    internal: ${DASHBOARD_INBOX_INTERNAL}
+    entity_category: config
+    on_press:
+      - lambda: 'if (runtime_tiles::enabled) screen_calibration::begin();'
+
+script:
+  # Render every overlay and both pages repeatedly without controlling devices.
+  - id: ui_self_test
+    mode: single
+    then:
+      - logger.log: "UI_TEST START: page/overlay render stress, no HA actions"
+      - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
+      - lambda: 'id(calibration_active) = false;'
+      - lvgl.page.show: home_page
+      - script.execute: wake_display
+      - repeat:
+          count: 10
+          then:
+            - lambda: |-
+                id(last_touch_ms) = millis();
+                id(last_use_ms) = millis();
+                static unsigned test_page=0;
+                id(tile_page) = runtime_tiles::enabled ? test_page++ % runtime_tiles::page_count() : 1;
+            - script.execute: show_tile_page
+            - delay: 300ms
+            - lambda: |-
+                lv_obj_update_layout(id(tile_scroll));
+                const int count = runtime_tiles::model.count;
+                // Wide cards take two slots, so visibility follows the runtime packing.
+                const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
+                lv_obj_t* tiles[] = {id(tile1), id(tile2), id(tile3), id(tile4), id(tile5),
+                                     id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
+                bool ok = true;
+                for (int i = 0; i < 10; ++i) {
+                  bool visible = runtime_tiles::enabled ? i<6 && runtime_tiles::widgets[i].index<runtime_tiles::model.count : i < count && (paginated ? i >= 6 : i < 6);
+                  ok = ok && (lv_obj_has_flag(tiles[i], LV_OBJ_FLAG_HIDDEN) != visible);
+                }
+                // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
+                const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);
+                for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})
+                  ok = ok && (lv_obj_has_flag(control, LV_OBJ_FLAG_HIDDEN) != bar);
+                lv_area_t nav, grid;
+                lv_obj_get_coords(id(page_next), &nav);
+                lv_obj_get_coords(id(tile_scroll), &grid);
+                ok = ok && (!bar || grid.y2 < nav.y1);
+                if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
+                ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), grid.y2, nav.y1);
+                id(tile_page) = 0;
+            - script.execute: show_tile_page
+            - delay: 150ms
+            - lvgl.widget.show: brightness_overlay
+            - delay: 150ms
+            - lvgl.widget.hide: brightness_overlay
+            - lvgl.widget.show: color_detail_overlay
+            - delay: 150ms
+            - lvgl.widget.hide: color_detail_overlay
+            - lvgl.widget.show: climate_detail_overlay
+            - delay: 150ms
+            - lvgl.widget.hide: climate_detail_overlay
+            - lvgl.widget.show: climate_mode_overlay
+            - delay: 150ms
+            - lvgl.widget.hide: climate_mode_overlay
+            - lvgl.widget.show: alert_overlay
+            - delay: 150ms
+            - lvgl.widget.hide: alert_overlay
+      - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+      - logger.log: "UI_TEST COMPLETE"
+
+  # The two scripts that drive the backlight as a light action; the Guition drives it through its set_backlight script.
+  - id: alert_dismiss
+    parameters:
+      reason: string
+    then:
+      - if:
+          condition:
+            lambda: 'return id(alert_active);'
+          then:
+            - lambda: |-
+                id(alert_active) = false;
+                id(last_touch_ms) = millis();
+                ESP_LOGI("alert", "dismissed: %s", reason.c_str());
+            - lvgl.widget.hide: alert_overlay
+            - script.stop: alert_timeout
+            - script.stop: alert_flash
+            - light.turn_on:
+                id: back_light
+                transition_length: 80ms
+                brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
+            - script.execute:
+                id: alert_report
+                action: !lambda 'return reason;'
+
+  # Four backlight blinks when the alert arrives; the screen then stays on as usual.
+  - id: alert_flash
+    mode: restart
+    then:
+      - repeat:
+          count: 4
+          then:
+            - light.turn_off:
+                id: back_light
+                transition_length: 0s
+            - delay: 120ms
+            - light.turn_on:
+                id: back_light
+                transition_length: 0s
+                brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
+            - delay: 170ms
+
+  - id: wake_display
+    mode: restart
+    then:
+      - lambda: |-
+          id(last_touch_ms) = millis();
+          id(display_dimmed) = false;
+          id(sleep_requested) = false;
+      - light.turn_on:
+          id: back_light
+          # Almost instant brightness-up. ESPHome's default is 1s, and that feels sluggish
+          # when you touch the screen and are waiting on light.
+          transition_length: 80ms
+          brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
+      - lvgl.widget.hide: dim_wake_overlay
+      - script.execute: close_cards
+
+  # The climate card as the small panel lays it out: the Guition has its own copy with a fan and swing card.
+  - id: climate_card_refresh
+    then:
+      - lambda: |-
+          auto lower = [](std::string v) {
+            for (char &c : v) { if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a'); }
+            return v;
+          };
+          std::string mode = lower(id(active_climate_mode));
+          bool off = mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable";
+          // What the device does (Heating), else its mode (Heat); then the room.
+          std::string status = off ? std::string("Off") : std::string(tile_controls::climate_action_text(lower(id(active_climate_action))));
+          if (status.empty()) status = tile_controls::climate_mode_text(mode);
+          char part[32];
+          if (std::isfinite(id(active_climate_current))) { snprintf(part, sizeof(part), " · Now %.1f°", id(active_climate_current)); status += part; }
+          if (id(active_climate_humidity) >= 0) { snprintf(part, sizeof(part), " · %d%%", id(active_climate_humidity)); status += part; }
+          lv_label_set_text(id(climate_current_label), status.c_str());
+
+          int target = id(active_climate_target_x10);
+          std::string value = id(active_climate_target_known)
+              ? tile_controls::format_value(target / 10.0f, id(active_climate_step_x10) / 10.0f, "°") : std::string("--");
+          lv_label_set_text(id(climate_target_label), value.c_str());
+          lv_obj_set_style_text_color(id(climate_target_label), theme::color(off ? theme::OFF : theme::INK), LV_PART_MAIN);
+          auto enable = [](lv_obj_t *key, bool on) {
+            if (on) lv_obj_remove_state(key, LV_STATE_DISABLED); else lv_obj_add_state(key, LV_STATE_DISABLED);
+          };
+          enable(id(climate_minus_button), !id(active_climate_target_known) || target > id(active_climate_min_x10));
+          enable(id(climate_plus_button), !id(active_climate_target_known) || target < id(active_climate_max_x10));
+
+          // One key per supported mode, in Home Assistant's order. Fan and swing add "more"; with it
+          // five mode keys fit, and when a sixth mode is in use it takes the last place.
+          std::string supported = lower(id(active_climate_supported_modes));
+          auto has = [&](const char *m) {
+            return supported.find(std::string("\"") + m + "\"") != std::string::npos ||
+                   supported.find(std::string("'") + m + "'") != std::string::npos;
+          };
+          struct Key { lv_obj_t *obj; const char *mode; };
+          const Key keys[] = {{id(cmkey_auto), "auto"}, {id(cmkey_heat_cool), "heat_cool"}, {id(cmkey_heat), "heat"},
+                              {id(cmkey_cool), "cool"}, {id(cmkey_dry), "dry"}, {id(cmkey_fan_only), "fan_only"}};
+          bool more = !id(active_climate_fan_modes).empty() || !id(active_climate_swing_modes).empty();
+          const Key *visible[6];
+          unsigned count = 0, room = more ? 5 : 6;
+          for (const auto &k : keys) if (has(k.mode)) visible[count++] = &k;
+          if (count > room) {
+            for (unsigned i = room; i < count; ++i) if (mode == visible[i]->mode) visible[room - 1] = visible[i];
+            count = room;
+          }
+          for (const auto &k : keys) {
+            bool show = false;
+            for (unsigned i = 0; i < count; ++i) show = show || visible[i] == &k;
+            if (show) lv_obj_remove_flag(k.obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(k.obj, LV_OBJ_FLAG_HIDDEN);
+            bool selected = show && !off && mode == k.mode;
+            uint32_t color = tile_controls::mode_color(k.mode);
+            lv_obj_set_style_bg_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::CARD), LV_PART_MAIN);
+            lv_obj_set_style_border_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::LINE), LV_PART_MAIN);
+            lv_obj_set_style_text_color(lv_obj_get_child(k.obj, 0), theme::color(selected ? theme::ON_ACCENT : theme::SLATE), LV_PART_MAIN);
+          }
+          if (more) lv_obj_remove_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN);
+          // One mode is no choice: the power key already turns it on and off. Without keys the
+          // setpoint card moves to the middle of the room below the status line.
+          const bool show_keys = count > 1 || more;
+          if (show_keys) lv_obj_remove_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
+          else lv_obj_add_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
+          const bool landscape = atoi("${DISPLAY_W}") >= atoi("${DISPLAY_H}");
+          lv_obj_set_y(id(climate_setpoint_card), show_keys ? (landscape ? 80 : 96) : (landscape ? 108 : 140));
+          id(climate_power_refresh).execute();

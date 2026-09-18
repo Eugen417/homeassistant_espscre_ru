@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import header_bar  # noqa: E402
 import tile_icons  # noqa: E402
@@ -20,7 +22,7 @@ class OffLook(unittest.TestCase):
     def test_the_fonts_carry_the_bulb_that_is_off(self):
         self.assertEqual(tile_icons.GLYPHS['lightbulb-off'], 'F0E4F')
         for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
-            self.assertIn('"\\U000F0E4F" # lightbulb-off', (ROOT / name).read_text(), name)
+            self.assertIn('"\\U000F0E4F" # lightbulb-off', profiles.text(name), name)
 
     def test_the_screen_crosses_out_its_own_bulb_and_greys_what_is_off(self):
         self.assertIn('if (d == "light" && tile.state == "off") return "\\U000F0E4F";', TILES)

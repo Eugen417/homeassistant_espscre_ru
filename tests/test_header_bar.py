@@ -10,6 +10,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import header_bar  # noqa: E402
 import tile_icons  # noqa: E402
@@ -191,7 +193,7 @@ class MessageTests(unittest.TestCase):
 class ParityTests(unittest.TestCase):
     def test_text_font_carries_exactly_the_glyphs_the_add_on_sends(self):
         for name in PROFILES + ('packages/cyd.yaml', 'packages/guition.yaml'):
-            text = (ROOT / name).read_text()
+            text = profiles.resolved(name)
             block = re.search(r'id: sublabel_big\n    size: \d+\n    bpp: 4\n    glyphs: \[(.*?)\]\n', text, re.S)
             self.assertIsNotNone(block, name)
             glyphs = set(re.findall(r"'([^'])'|\"(')\"", block.group(1)))
@@ -213,7 +215,7 @@ class ParityTests(unittest.TestCase):
 
     def test_profiles_draw_the_bar_from_the_runtime(self):
         for name in PROFILES:
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             self.assertIn('runtime_tiles::header_text_font = id(sublabel_big)->get_lv_font();', text, name)
             self.assertIn('runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();', text, name)
             self.assertIn('runtime_tiles::time_label = id(lbl_time);', text, name)
@@ -224,10 +226,10 @@ class ParityTests(unittest.TestCase):
 
     def test_second_hand_runs_only_while_the_screen_is_awake(self):
         for name in PROFILES:
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             self.assertIn('runtime_tiles::screen_awake = []() { return !id(display_dimmed); };', text, name)
         for name in ('packages/cyd.yaml', 'packages/guition.yaml'):
-            self.assertIn('runtime_tiles::screen_awake', (ROOT / name).read_text(), name)
+            self.assertIn('runtime_tiles::screen_awake', profiles.text(name), name)
         self.assertIn('inline bool awake() { return !screen_awake || screen_awake(); }', TILES)
         second_hand = TILES.split('inline void second_hand(', 1)[1].split('\n}', 1)[0]
         self.assertIn('set_hidden(p,!(awake() && now.is_valid()));', second_hand)

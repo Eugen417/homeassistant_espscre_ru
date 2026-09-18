@@ -21,6 +21,8 @@ from pathlib import Path
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 from core import (FIRMWARE_VERSION, SETTING_ENTITIES, SETTING_ENTITIES_MIN_FIRMWARE, SETTING_RULES, forecast_kinds,  # noqa: E402
@@ -33,8 +35,8 @@ if HAS_AIOHTTP:
     from aiohttp.test_utils import TestClient, TestServer
     from server import ANSWER_RETRY_SECONDS, HomeAssistant, Manager, Refused, create_app
 
-PROFILES = {'cyd': ROOT / 'home-like-2432s028.yaml', 'guition': ROOT / 'guition-4848s040.yaml'}
-PACKAGES = {'cyd': ROOT / 'packages/cyd.yaml', 'guition': ROOT / 'packages/guition.yaml'}
+PROFILES = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml'}
+PACKAGES = {'cyd': 'packages/cyd.yaml', 'guition': 'packages/guition.yaml'}
 RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 SCREEN_PAGE = (ROOT / 'components/smart_display/settings_screen.h').read_text()
 STATIC = ROOT / 'screen_manager/app/static'
@@ -114,18 +116,18 @@ class CoreSettings(unittest.TestCase):
     def test_the_entities_are_named_as_in_both_board_profiles(self):
         blocks = {'switch': 'switch', 'number': 'number', 'time': 'datetime', 'select': 'select'}
         for board, path in [*PROFILES.items(), *PACKAGES.items()]:
-            text = path.read_text()
+            text = profiles.text(path)
             for key, (domain, name) in SETTING_ENTITIES.items():
                 block = top_block(text, blocks[domain])
                 if key == 'rotation' and board == 'cyd':
-                    self.assertNotIn(f'name: "{name}"', block, f'{path.name}: the CYD cannot turn')
+                    self.assertNotIn(f'name: "{name}"', block, f'{path}: the CYD cannot turn')
                     continue
-                self.assertIn(f'name: "{name}"', block, f'{path.name}: {key}')
+                self.assertIn(f'name: "{name}"', block, f'{path}: {key}')
                 at = block.index(f'name: "{name}"')
                 entry = block[max(0, at - 200):at + 900]
-                self.assertIn('entity_category: config', entry, f'{path.name}: {key}')
-                self.assertRegex(entry, rf'settings_screen::set\("{key}"', f'{path.name}: {key} changes through set()')
-            self.assertIn('type: time', top_block(text, 'datetime'), path.name)
+                self.assertIn('entity_category: config', entry, f'{path}: {key}')
+                self.assertRegex(entry, rf'settings_screen::set\("{key}"', f'{path}: {key} changes through set()')
+            self.assertIn('type: time', top_block(text, 'datetime'), path)
 
     def test_a_screen_owns_its_settings_only_with_firmware_0_2_49_entities(self):
         old = [{'entity_id': ENTITY_IDS['brightness'], 'platform': 'esphome', 'original_name': 'Normal brightness'},
@@ -590,15 +592,15 @@ class Editor(unittest.TestCase):
 class Firmware(unittest.TestCase):
     def test_the_message_action_answers_a_caller_that_asks(self):
         for path in [*PROFILES.values(), *PACKAGES.values()]:
-            text = path.read_text()
+            text = profiles.text(path)
             action = text[text.index('- action: screen_message'):]
             # Up to the next key of the api block or the next top-level block (the packages carry no keys).
             action = action[:re.search(r'\n(?:  [a-z_]+:|[a-z_]+:)', action).start()]
-            self.assertIn('supports_response: optional', action, path.name)
-            self.assertIn("lambda: 'return call_id != 0;'", action, f'{path.name}: no answer, no warning, for a caller without a call id')
-            self.assertIn('api.respond:', action, path.name)
-            self.assertIn('root["status"] = id(dashboard_inbox).state;', action, path.name)
-            self.assertIn('root["rev"] = runtime_tiles::layout_rev;', action, path.name)
+            self.assertIn('supports_response: optional', action, path)
+            self.assertIn("lambda: 'return call_id != 0;'", action, f'{path}: no answer, no warning, for a caller without a call id')
+            self.assertIn('api.respond:', action, path)
+            self.assertIn('root["status"] = id(dashboard_inbox).state;', action, path)
+            self.assertIn('root["rev"] = runtime_tiles::layout_rev;', action, path)
 
     def test_the_settings_tile_opens_without_home_assistant(self):
         event = RUNTIME[RUNTIME.index('inline void event(lv_event_t *event) {'):]
@@ -609,23 +611,24 @@ class Firmware(unittest.TestCase):
 
     def test_home_assistant_sees_every_setting_change(self):
         for board, path in PROFILES.items():
-            script = path.read_text()
-            script = script[script.index('- id: apply_screen_settings'):]
+            text = profiles.text(path)
+            script = text[text.index('- id: apply_screen_settings'):]
             script = script[:script.index('\n  - id: ', 10)]
             for entity in ('setting_brightness', 'setting_standby_brightness', 'setting_night_brightness', 'setting_standby_seconds',
                            'setting_auto_home_seconds'):
                 # One loop publishes every number that lacks a state or changed (firmware 0.2.50, see test_cover_card).
-                self.assertIn(f'std::make_pair(id({entity}),', script, f'{path.name}: {entity}')
-            self.assertIn('if (!entity->has_state() || entity->state != value) entity->publish_state(value);', script, path.name)
-            self.assertIn('std::make_pair(id(setting_night_start), settings.night_start)', script, path.name)
-            self.assertIn('settings_screen::refresh();', script, f'{path.name}: an open settings page follows Home Assistant')
-            self.assertEqual('id(setting_rotation)->update();' in script, board == 'guition', path.name)
+                self.assertIn(f'std::make_pair(id({entity}),', script, f'{path}: {entity}')
+            self.assertIn('if (!entity->has_state() || entity->state != value) entity->publish_state(value);', script, path)
+            self.assertIn('std::make_pair(id(setting_night_start), settings.night_start)', script, path)
+            self.assertIn('settings_screen::refresh();', script, f'{path}: an open settings page follows Home Assistant')
+            # The Guition's board file extends the script with the rotation (docs/PROFILES.md).
+            self.assertEqual('id(setting_rotation)->update();' in text, board == 'guition', path)
 
     def test_the_page_and_every_entity_change_settings_the_same_way(self):
         self.assertRegex(SCREEN_PAGE, r'enum class SetResult : uint8_t \{ unknown, same, changed \};')
         for path in PROFILES.values():
-            text = path.read_text()
-            self.assertNotIn('settings_preference.save(&s)', text, f'{path.name}: saving goes through settings_screen::set()')
+            text = profiles.text(path)
+            self.assertNotIn('settings_preference.save(&s)', text, f'{path}: saving goes through settings_screen::set()')
             self.assertNotIn('update_interval: never\n    lambda: return settings_screen::swipe_pages', text, 'a template switch has no update_interval')
 
 

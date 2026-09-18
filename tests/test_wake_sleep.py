@@ -12,6 +12,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 from core import FIRMWARE_VERSION, WAKE_SLEEP_MIN_FIRMWARE  # noqa: E402
 
@@ -20,13 +22,19 @@ PROFILES = ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.ya
 
 def section(text, top):
     """One top-level YAML section of a profile, up to the next one."""
-    match = re.search(rf'^{top}:\n(.*?)(?=^[a-z_]+:|\Z)', text, re.M | re.S)
-    return match[1] if match else ''
+    # The core and the board file may both carry the section (app 0.2.84+).
+    return '\n'.join(re.findall(rf'^{top}:\n(.*?)(?=^[a-z_]+:|\Z)', text, re.M | re.S))
 
 
 def item(text, key, value):
     """The list item in a section that carries `key: value`, up to the next item at the same depth."""
-    for chunk in re.split(r'^  - ', text, flags=re.M)[1:]:
+    chunks = re.split(r'^  - ', text, flags=re.M)[1:]
+    # The item that starts with `key: value` first: a script that names another one (`id: alert_dismiss` in
+    # alert_timeout) may come before that one's own block now that the board file adds scripts of its own.
+    for chunk in chunks:
+        if re.match(rf'{key}: "?{re.escape(value)}"?$', chunk, re.M):
+            return chunk
+    for chunk in chunks:
         if re.search(rf'^\s*{key}: "?{re.escape(value)}"?$', chunk, re.M):
             return chunk
     return ''
@@ -38,7 +46,7 @@ def script(text, name):
 
 class Profiles(unittest.TestCase):
     def setUp(self):
-        self.profiles = {name: (ROOT / name).read_text() for name in PROFILES}
+        self.profiles = {name: profiles.text(name) for name in PROFILES}
 
     def test_the_firmware_that_carries_the_buttons_is_this_release_or_older(self):
         version = lambda text: tuple(int(part) for part in text.split('.'))

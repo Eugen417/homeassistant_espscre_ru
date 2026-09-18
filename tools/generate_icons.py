@@ -6,7 +6,7 @@ list as a YAML anchor, the smaller sizes reuse it); the big font of the full-pag
 card (id ending in _big) gets tile_icons.BIG_GLYPHS as its own anchor, and the editor gets a subset
 of the same TTF so its mockup shows the glyphs the screen draws. The top bar
 mockup also gets Roboto 400/500 with the glyphs of header_bar.GLYPHS, so text
-widths in the editor match the screen. Run tools/generate_packages.py afterwards;
+widths in the editor match the screen. The fonts live in packages/core.yaml, shared by every board;
 --check changes nothing and fails when anything is out of date.
 """
 import argparse
@@ -24,12 +24,12 @@ import header_bar  # noqa: E402
 import tile_icons  # noqa: E402
 
 TTF = ROOT / 'fonts/materialdesignicons-webfont.ttf'
-PROFILES = [ROOT / 'home-like-2432s028.yaml', ROOT / 'guition-4848s040.yaml']
+PROFILES = [ROOT / 'packages/core.yaml']  # the fonts every board shares (app 0.2.84+); the sizes are the boards' substitutions
 WEB_FONT = ROOT / 'web/src/assets/tile-icons.woff'
 BAR_FONTS = {weight: ROOT / f'web/src/assets/bar-roboto-{weight}.woff' for weight in (400, 500)}
 NAME_TABLE = ROOT / 'components/smart_display/tile_icon_names.h'
 # Four bits per pixel: the default of one draws a thin ring like mdi:power as a lumpy circle on the CYD.
-FONT_BLOCK = re.compile(r"(  - file: 'fonts/materialdesignicons-webfont\.ttf'\n    id: \w+\n    size: \d+\n    bpp: 4\n)    glyphs:.*\n(?:      .*\n)*")
+FONT_BLOCK = re.compile(r"(  - file: \"\$\{FONT_DIR\}/materialdesignicons-webfont\.ttf\"\n    id: \w+\n    size: [^\n]+\n    bpp: 4\n)    glyphs:.*\n(?:      .*\n)*")
 
 def verify():
     """Names and codepoints must match the TTF the firmware is built from."""

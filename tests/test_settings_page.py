@@ -13,6 +13,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 import test_portal
@@ -85,7 +87,7 @@ class Firmware(unittest.TestCase):
     """The board profiles have to carry the page, its way in, and the timer that closes it."""
 
     def setUp(self):
-        self.profiles = {name: (ROOT / name).read_text()
+        self.profiles = {name: profiles.text(name)
                          for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml')}
 
     def test_both_boards_wire_the_page_and_its_gesture(self):

@@ -15,6 +15,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 import history_card as hc  # noqa: E402
@@ -397,7 +399,7 @@ class Firmware(unittest.TestCase):
                      'lv_obj_add_event_cb(area,history_scrub,LV_EVENT_ALL,nullptr);'):
             self.assertIn(flag, touch)
         for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml'):
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             self.assertEqual(len(re.findall(r'runtime_tiles::small_font = id\(sublabel\)->get_lv_font\(\);', text)), 1, name)
 
 

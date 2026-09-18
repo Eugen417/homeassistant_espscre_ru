@@ -63,10 +63,10 @@ you set), and a palette pass that overwrote a colour the sun path had chosen its
 1. **A role**: one line in `enum Role` and one row in `ROLES`, in the same order (the tests read
    both). The light value is the design; choose the dark value on a render, not in the table.
 2. **In firmware code**: `theme::color(theme::YOUR_ROLE)`. Never `lv_color_hex(0x...)`.
-3. **In a board profile**: the widget takes a paint. For a new combination add it to `enum class
-   Paint` and `PAINTS`, a colourless `- id: paint_<name>` in the `style_definitions` of both profiles,
-   and `theme::fill(id(paint_<name>), Paint::<name>);` in their `theme::paints` list. Then
-   `python3 tools/generate_packages.py`.
+3. **In the profiles**: the widget takes a paint. For a new combination add it to `enum class
+   Paint` and `PAINTS`, a colourless `- id: paint_<name>` in the `style_definitions` of `packages/core.yaml`
+   (or of one board file, for a paint only that board uses), and `theme::fill(id(paint_<name>), Paint::<name>);`
+   in the core's `theme::paints` list (a board-only paint goes into the board's `BOARD_PAINT_FILL` hook).
 4. **Something drawn once and kept that changes colour by state**: set it where the state is drawn,
    and make sure the redraw above reaches that code.
 5. A local colour always wins over a paint: an object that takes a paint must not also get a local

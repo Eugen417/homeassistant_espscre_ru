@@ -6,7 +6,11 @@ persistent add-on data; Wi-Fi/API/OTA stay in the device's own ESPHome YAML. Rea
 docs/RELEASING.md before publishing updates. Main distributes both boards.
 Every push to GitHub is a release: always also bump the add-on version in
 screen_manager/config.yaml (with a CHANGELOG line), otherwise HA won't see an update.
-Generate packages with tools/generate_packages.py; don't edit them by hand.
+A screen's YAML is packages/core.yaml (shared by every board) plus one file under packages/boards/;
+packages/<board>.yaml and the two profiles in the root only include them. Read docs/PROFILES.md before
+touching them: a board-dependent number is a `${NAME}` in the board file, board-only code inside a shared
+lambda is a hook substitution there, and `tools/check_packages.py` (run by tools/check.sh) keeps the boards
+complete.
 A screen gets its tiles from the add-on while it runs: every card works in all
 48 positions (eight pages of six, firmware 0.2.62+), and no Home Assistant entity
 belongs in a board profile.
@@ -16,9 +20,9 @@ a migration. Production Ingress needs no long-lived token or public port.
 
 ## Guition board
 
-The Guition 4848S040 has a separate profile `guition-4848s040.yaml` with
-480×480, ST7701S RGB, and GT911. Read docs/GUITION.md. Don't carry over the CYD
-layout or the XPT2046 calibration.
+The Guition 4848S040 has its own board file `packages/boards/guition-4848s040.yaml` with
+480×480, ST7701S RGB, and GT911 (`guition-4848s040.yaml` in the root only includes it). Read
+docs/GUITION.md. Don't carry over the CYD layout or the XPT2046 calibration.
 Verify touch with tools/verify_gt911.py and keep the CYD regressions green.
 Don't configure wallbox relays as part of display support.
 
@@ -53,8 +57,8 @@ and screens for lookups and tests. If that file is missing you are not on his ma
 
 ## Code and regressions
 
-- Keep base hardware and UI in `home-like-2432s028.yaml`; personal data belongs
-  in the gitignored local profiles.
+- Keep the shared UI in `packages/core.yaml` and a board's hardware and sizes in its file under
+  `packages/boards/`; personal data belongs in the gitignored local profiles.
 - The editor is `web/` (Vue 3 + Vite, TypeScript; app 0.2.73+). `screen_manager/app/static` is its build
   output: change `web/src`, run `cd web && npm test && npm run build`, and commit both. Keep every URL the page asks for
   relative (`api/...`), so it works behind Home Assistant's ingress path. Tests read the source through

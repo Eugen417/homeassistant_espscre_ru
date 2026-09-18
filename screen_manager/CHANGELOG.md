@@ -1,3 +1,12 @@
+## 0.2.84 (firmware 0.2.70)
+
+One shared screen for every board: the two board profiles became one core plus a small file per board.
+
+- **`packages/core.yaml` is the screen, every board builds from it.** Before, the CYD and the Guition each had a 5,000-line profile of which 87 % was the same text; every change had to be made twice, and the two had drifted apart in small ways. Now the LVGL tree, the cards, the scripts, the API actions, the entities and the fonts live once. A board file under `packages/boards/` holds what is that board's: its hardware, a table with its 84 sizes and font sizes, the lines of C++ only it adds to a shared lambda (named *hooks*, 18 of them), and its own parts (the CYD's calibration wizard, the Guition's camera images and Rotation). docs/PROFILES.md explains the files and how a new board is added: copy the nearest board file, fill the table, go through the hooks.
+- **Nothing changes on a screen.** `packages/cyd.yaml` and `packages/guition.yaml` keep their names and places, so a screen installed from ESP Screens builds as before, and the firmware stays 0.2.70: the C++ ESPHome generates for each board was compared line by line with that of the old profiles, through the checkout profiles and through the GitHub route the add-on uses. Every value, every lambda and every component is the same; what differs is whitespace, line numbers, the order in which ESPHome lists fonts, entities and scripts, one boot lambda on the CYD that now holds the calibration setup together with the effects page's hooks (the same statements in the same order), and the alert's picture frame on a Guition being created after the OK button (they never overlap). docs/TEST_RESULTS_0284.md has the method and the figures.
+- `tools/check_packages.py` (run by `tools/check.sh` and CI) fails when a board file leaves out a name the core uses, so a new board cannot forget a size or a hook; `tools/generate_packages.py` is gone, there is nothing to generate any more.
+- No firmware update: press nothing on the screens. A screen that is built again anyway gets the same code: the CYD image is 1,676,912 bytes, 91.4 % of the update slot, 1,440 bytes more than the same 0.2.83 built on the same computer (the Guition 1,536 bytes more), all of it in ESPHome's generated `setup()` where the components are now registered in the merge's order; every lambda, every string and every font is the same size as before.
+
 ## 0.2.83 (firmware 0.2.70)
 
 A lamp's modes on the screen: effects, palettes and presets of a WLED, and the effect of any light that has one.

@@ -18,14 +18,15 @@
 
 ## For every release
 
-1. Update the source profiles and shared components. Run
-   `python3 tools/generate_packages.py`; never edit `packages/*.yaml` directly.
+1. Update `packages/core.yaml` (shared by every board), the board files under `packages/boards/` and the
+   shared components; docs/PROFILES.md says what goes where. `python3 tools/check_packages.py` checks that the
+   boards define every name the core uses (tools/check.sh runs it).
    The editor is the Vue app in `web/`: after a change under `web/src`, run
    `cd web && npm ci && npm test && npm run check && npm run build` and commit
    `screen_manager/app/static` with it (that folder is the build output; never edit it by hand).
 2. Run `tools/check.sh` (with `PYTHON=.venv-portal/bin/python` on a development machine). It runs all
    Python tests with aiohttp, PyYAML, Pillow and fontTools installed, every `tests/*.cpp` with
-   `clang++ -std=c++17 -Wall -Wextra -Werror -I.`, both generators with `--check`, and the editor's
+   `clang++ -std=c++17 -Wall -Wextra -Werror -I.`, `tools/check_packages.py`, `tools/generate_icons.py --check`, and the editor's
    `npm ci`, `npm test`, `npm run check` and `npm run build`, and fails when that fresh build differs from the
    `screen_manager/app/static` in Git (committed or staged). For a firmware change, `tools/check.sh --firmware`
    compiles both board profiles with placeholder secrets from a temporary folder (never the real `secrets.yaml`) and
@@ -209,9 +210,9 @@ font and otherwise falls back to the domain icon. Hence no `min_firmware`.
 An old editor that omits `icon` keeps the stored choice.
 
 `tile_icons.py` is the single source list. `tools/generate_icons.py` writes the glyphs
-as a YAML anchor into the three MDI fonts of both board profiles and builds
+as a YAML anchor into the three MDI fonts of `packages/core.yaml` (both boards build from it) and builds
 `web/src/assets/tile-icons.woff` for the editor (with left bearing equal to xMin, otherwise
-icons sit off-center in the browser); run `generate_packages.py` afterward.
+icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 

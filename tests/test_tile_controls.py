@@ -7,6 +7,8 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 from core import CONTROLS, controls_catalogue, min_firmware, packets, resolve_controls, screen_options, state_message, validate_layout
@@ -75,7 +77,7 @@ class ControlChoices(unittest.TestCase):
         self.assertTrue(set(tile_icons.CONTROL_GLYPHS) <= set(tile_icons.GLYPHS))
         self.assertEqual(set(tile_icons.editor()['controls']), set(tile_icons.CONTROL_GLYPHS))
         for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml'):
-            text = (ROOT / name).read_text()
+            text = profiles.text(name)
             for code in used:
                 self.assertIn(f'"\\U000{code}"', text, (name, code))
             self.assertIn('runtime_tiles::control_font = id(sublabel_big)->get_lv_font();', text, name)

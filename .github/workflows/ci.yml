@@ -64,7 +64,7 @@ jobs:
           path: |
             ~/.platformio
             .esphome/check
-          key: firmware-${{ runner.os }}-esphome-${{ steps.esphome.outputs.version }}-${{ hashFiles('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'components/**') }}
+          key: firmware-${{ runner.os }}-esphome-${{ steps.esphome.outputs.version }}-${{ hashFiles('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/**', 'components/**') }}
           restore-keys: |
             firmware-${{ runner.os }}-esphome-${{ steps.esphome.outputs.version }}-
       - name: tools/check.sh --firmware

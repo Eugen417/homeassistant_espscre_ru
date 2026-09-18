@@ -15,13 +15,15 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 from core import ATTRS, cover_related, discover_screens, extras, state_message  # noqa: E402
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
-PROFILES = {name: (ROOT / name).read_text() for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml')}
+PROFILES = {name: profiles.text(name) for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml')}
 BLIND = 'cover.venetianblind_0001'
 
 
