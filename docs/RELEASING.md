@@ -189,6 +189,32 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.74 / firmware 0.2.62
+
+Forty-eight tiles per screen, a tile over the whole page (`size: full`) and navigation tiles (`screen.page_1` to
+`screen.page_8`). The app sends any of the three only to firmware 0.2.62+ (`FULL_PAGE_MIN_FIRMWARE`); an older screen
+gets "Install screen firmware 0.2.62 or newer first". Older apps keep working with this firmware: they never send
+`full` or a page tile, and the firmware still packs `wide` as before.
+
+- Firmware: `MAX_TILES` is `MAX_SLOTS` (48). `Model::tiles` is a `std::vector` sized to the layout (a `TileAllocator`
+  over ESPHome's `RAMAllocator`, so a Guition keeps the list in PSRAM; the CYD's falls back to its heap); nothing may
+  index `tiles` beyond `count`. A `Tile` has `full` next to `wide` (a full tile is also wide) and `cells()`; `pack()`
+  and `place()` give a full tile a page of its own (`slot - slot % 6`). `screen.page_<n>` is a built-in entity
+  (`Tile::is_page()`, `page_target()`); a tap calls `go_to_page`, which drives the profile's `tile_page` through
+  `show_page`. `Widgets` carries `full`, `base_height`, `title_font`, `panel_full` and 36 parts (the forecast's hours).
+  `render_full()` draws the page-sized card: one big button (128/64 px circle, the domain icon from the new
+  `materialdesign_icons_big` font, 64 px Guition / 40 px CYD, `tile_icons.BIG_GLYPHS` only), or the wide card's head with
+  the small slider, the control panel (`panel_metrics_full`, bottom-centred) or the graph at the bottom; a full card
+  that is on takes `theme::tint(state, 51)` as its surface. `check_tile_geometry` knows the full layout.
+- Wire: a state message's `o.size` may be `full`. Built-in tiles now send their options through `screen_options`, so a
+  chosen icon travels as its codepoint (older firmware ignored the name it got before). No `page` option: the page a
+  navigation tile opens is its entity.
+- App: `core.MAX_TILES` 48 (`LEGACY_MAX_TILES` 20 for `min_firmware`), `tile_size()`/`footprint(slot, size)` replace the
+  boolean `is_wide` in placement, `BUILTIN` gains the eight page tiles, `layout_snapshot` reports `size` and
+  `to_page`, `TILE_SIZES` accepts "full screen"/"whole page". The editor's tile limit is 48 from firmware 0.2.62
+  (`tileLimit()`), the tile sheet has Size Normal / Double-width / Full page and, for a page tile, "Goes to page"
+  (which swaps the entity). Storage unchanged: `size` is one more value of an existing option.
+
 ### Compatibility 0.2.72 / firmware 0.2.61
 
 Firmware only (both board profiles; `cyd_ui.h` gains a comment); the app raises `FIRMWARE_VERSION`. No protocol,

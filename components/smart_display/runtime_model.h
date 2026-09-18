@@ -7,13 +7,24 @@
 #include <vector>
 #include <cmath>
 #include <cstdint>
+// The tiles of a screen live on the heap, as many as the layout has (firmware 0.2.62+): a screen with twelve
+// tiles pays for twelve. On a board with PSRAM ESPHome's allocator puts them there, so the internal RAM the
+// WiFi stack and LVGL need stays free; without PSRAM it falls back to the internal heap. The host tests
+// and the host render build have neither, so they take the standard allocator.
+#if __has_include("esphome/core/defines.h")
+#include "esphome/core/defines.h"
+#endif
+#ifdef USE_ESP32
+#include "esphome/core/helpers.h"
+#endif
 
 namespace runtime_tiles {
-constexpr size_t MAX_TILES = 20;
+// Eight pages of six slots: a screen holds at most one tile per slot (firmware 0.2.62+; twenty before).
 constexpr size_t SLOTS_PER_PAGE = 6;
 // Explicit grid positions (0.2.26+) address at most eight pages of six slots.
 constexpr size_t MAX_PAGES = 8;
 constexpr size_t MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
+constexpr size_t MAX_TILES = MAX_SLOTS;
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
   auto dot = entity.find('.');
@@ -22,8 +33,12 @@ inline bool valid_entity(const std::string &entity) {
     if (i != dot && !(entity[i] >= 'a' && entity[i] <= 'z') &&
         !(entity[i] >= '0' && entity[i] <= '9') && entity[i] != '_') return false;
   std::string domain = entity.substr(0, dot);
-  // screen.* are built-in cards without a Home Assistant entity behind them.
-  if (domain == "screen") return entity == "screen.clock" || entity == "screen.settings";
+  // screen.* are built-in cards without a Home Assistant entity behind them; screen.page_<n> (firmware 0.2.62+)
+  // only goes to page n, one such tile per page, so an entity still appears once on a screen.
+  if (domain == "screen") {
+    if (entity == "screen.clock" || entity == "screen.settings") return true;
+    return entity.size() == 13 && entity.compare(0, 12, "screen.page_") == 0 && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + MAX_PAGES);
+  }
   for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person", "camera", "image"})
     if (domain == allowed) return true;
   return false;
@@ -123,7 +138,8 @@ struct Tile {
   bool has_hs_color = false;
   int saturation = 0;
   std::string tap = "auto", display = "standard", inline_control = "none";
-  bool wide = false;
+  // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
+  bool wide = false, full = false;
   // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.
   std::string controls, device_class;
   bool muted = false;
@@ -237,6 +253,11 @@ struct Tile {
   // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
   bool is_clock() const { return entity == "screen.clock"; }
   bool is_settings() const { return entity == "screen.settings"; }
+  // A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it goes to, counted from one.
+  bool is_page() const { return entity.size() == 13 && entity.compare(0, 12, "screen.page_") == 0; }
+  int page_target() const { return is_page() ? entity[12] - '0' : 0; }
+  // Slots a tile takes: one, a row of two, or the six of a page.
+  unsigned cells() const { return full ? SLOTS_PER_PAGE : wide ? 2u : 1u; }
   // A scene, button or input button that never ran is "unknown" in Home Assistant, which still lets you press it
   // (hui-button-entity-row disables only an unavailable one): its state is the moment it last ran (firmware 0.2.58+).
   bool available() const {
@@ -263,14 +284,32 @@ struct Tile {
 };
 // Slot position of a tile within the fixed two-column, three-row pages.
 struct Placement { uint8_t page = 0, slot = 0; };
-// Wide tiles start in the left column and take the whole row; a right-column
-// gap before them stays empty. Returns the page count (at least one).
-inline unsigned pack(const std::array<Tile, MAX_TILES> &tiles, size_t count, std::array<Placement, MAX_TILES> &out) {
+#ifdef USE_ESP32
+// ESPHome's allocator prefers PSRAM and falls back to the internal heap; this wrapper only gives it the
+// comparison std::vector wants.
+template<class T> struct TileAllocator {
+  using value_type = T;
+  TileAllocator() = default;
+  template<class U> TileAllocator(const TileAllocator<U> &) {}
+  T *allocate(size_t n) { return esphome::RAMAllocator<T>().allocate(n); }
+  void deallocate(T *p, size_t n) { esphome::RAMAllocator<T>().deallocate(p, n); }
+  bool operator==(const TileAllocator &) const { return true; }
+  bool operator!=(const TileAllocator &) const { return false; }
+};
+using TileList = std::vector<Tile, TileAllocator<Tile>>;
+#else
+using TileList = std::vector<Tile>;
+#endif
+// Wide tiles start in the left column and take the whole row; a right-column gap before them stays
+// empty. A full tile starts a page of its own; the slots it leaves behind stay empty. Returns the page
+// count (at least one).
+inline unsigned pack(const TileList &tiles, size_t count, std::array<Placement, MAX_TILES> &out) {
   unsigned position = 0;
   for (size_t i = 0; i < count && i < MAX_TILES; ++i) {
-    if (tiles[i].wide && position % 2 == 1) ++position;
+    if (tiles[i].full && position % SLOTS_PER_PAGE) position += SLOTS_PER_PAGE - position % SLOTS_PER_PAGE;
+    else if (tiles[i].wide && position % 2 == 1) ++position;
     out[i] = {static_cast<uint8_t>(position / SLOTS_PER_PAGE), static_cast<uint8_t>(position % SLOTS_PER_PAGE)};
-    position += tiles[i].wide ? 2 : 1;
+    position += tiles[i].cells();
   }
   unsigned pages = (position + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE;
   return pages ? pages : 1;
@@ -281,7 +320,7 @@ inline unsigned pack(const std::array<Tile, MAX_TILES> &tiles, size_t count, std
 struct Model;
 inline unsigned place(const Model &m, std::array<Placement, MAX_TILES> &out);
 struct Model {
-  std::array<Tile, MAX_TILES> tiles;
+  TileList tiles;
   // Absolute grid slot per tile when the manager sent `slots` (0.2.26+): gaps stay
   // empty and a tile keeps its place. Without them the tiles pack in order.
   std::array<uint8_t, MAX_TILES> slots{};
@@ -312,13 +351,16 @@ struct Model {
       }
     }
     changed = !configured || count != entities.size();
-    for (size_t i = 0; i < entities.size(); ++i) if (tiles[i].entity != entities[i]) changed = true;
+    for (size_t i = 0; i < entities.size() && i < tiles.size(); ++i) if (tiles[i].entity != entities[i]) changed = true;
     moved = !changed && (explicit_slots != !positions.empty());
     for (size_t i = 0; i < positions.size() && !changed; ++i) if (slots[i] != positions[i]) moved = true;
     // A title-only update must not interrupt an open control card.
     title = name.empty() ? "Home" : name;
     if (changed) {
-      for (auto &tile : tiles) tile = Tile{};
+      // Freed before the new list is made, so the heap never holds both.
+      tiles.clear();
+      tiles.shrink_to_fit();
+      tiles.resize(entities.size());
       count = entities.size();
       for (size_t i = 0; i < count; ++i) tiles[i].entity = entities[i];
     }
@@ -342,9 +384,10 @@ inline unsigned place(const Model &m, std::array<Placement, MAX_TILES> &out) {
   unsigned last = 0;
   for (size_t i = 0; i < m.count && i < MAX_TILES; ++i) {
     unsigned slot = m.slots[i];
-    if (m.tiles[i].wide) slot &= ~1u;
+    if (m.tiles[i].full) slot -= slot % SLOTS_PER_PAGE;
+    else if (m.tiles[i].wide) slot &= ~1u;
     out[i] = {static_cast<uint8_t>(slot / SLOTS_PER_PAGE), static_cast<uint8_t>(slot % SLOTS_PER_PAGE)};
-    last = std::max(last, slot + (m.tiles[i].wide ? 2u : 1u));
+    last = std::max(last, slot + m.tiles[i].cells());
   }
   unsigned pages = (last + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE;
   return std::max({pages, 1u, std::min<unsigned>(m.pages, MAX_PAGES)});

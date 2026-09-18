@@ -23,10 +23,14 @@ class IconSetTests(unittest.TestCase):
         for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
             text = (ROOT / name).read_text()
             fonts = re.findall(r'materialdesignicons-webfont\.ttf["\']\n    id: (\w+)\n    size: \d+\n    glyphs: (.*)\n', text)
-            self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini', 'watch_icon'], name)
-            self.assertTrue(fonts[0][1].startswith('&tile_icons') and all(g == '*tile_icons' for _, g in fonts[1:]), name)
-            block = text.split('glyphs: &tile_icons', 1)[1].split('\n\n', 1)[0]
+            self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini', 'materialdesign_icons_big', 'watch_icon'], name)
+            self.assertTrue(fonts[0][1].startswith('&tile_icons ') and all(g == '*tile_icons' for font, g in fonts[1:] if font != 'materialdesign_icons_big'), name)
+            block = text.split('glyphs: &tile_icons ', 1)[1].split('\n\n', 1)[0]
             self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', block), wanted, name)
+            # The big font of the full-page card (firmware 0.2.62+) carries the subset the screen draws on its own.
+            self.assertEqual(fonts[2][1].split('  #')[0].strip(), '&tile_icons_big', name)
+            big = text.split('glyphs: &tile_icons_big', 1)[1].split('\n\n', 1)[0]
+            self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', big), [f'\\U000{tile_icons.GLYPHS[n]}' for n in tile_icons.BIG_GLYPHS], name)
             self.assertNotIn('MDI_GLYPH', text, name)
         self.assertTrue((ROOT / 'web/src/assets/tile-icons.woff').exists())
 
@@ -48,11 +52,11 @@ class IconSetTests(unittest.TestCase):
         for domains, code in re.findall(r'if \((d == "\w+"(?: \|\| d == "\w+")*)\) return "\\U000(F[0-9A-F]{4})";', body):
             for domain in re.findall(r'"(\w+)"', domains):
                 native[domain] = code
-        # The built-in cards pick per entity, not per domain: a clock or the settings page.
-        settings, clock = re.search(
-            r'if \(d == "screen"\) return tile\.is_settings\(\) \? "\\U000(F[0-9A-F]{4})" : "\\U000(F[0-9A-F]{4})";', body).groups()
+        # The built-in cards pick per entity, not per domain: a clock, the settings page or a page to go to.
+        settings, page, clock = re.search(
+            r'if \(d == "screen"\) return tile\.is_settings\(\) \? "\\U000(F[0-9A-F]{4})" : tile\.is_page\(\) \? "\\U000(F[0-9A-F]{4})" : "\\U000(F[0-9A-F]{4})";', body).groups()
         builtin = {entity: tile_icons.GLYPHS[name] for entity, name in tile_icons.BUILTIN_TILES.items()}
-        self.assertEqual({'screen.settings': settings, 'screen.clock': clock}, builtin)
+        self.assertEqual({'screen.settings': settings, 'screen.clock': clock, **{f'screen.page_{n}': page for n in range(1, 9)}}, builtin)
         self.assertEqual(tile_icons.editor()['builtin'], builtin)
         self.assertEqual(tile_icons.GLYPHS[tile_icons.DEFAULTS['screen']], clock)
         expected = {domain: tile_icons.GLYPHS[name] for domain, name in tile_icons.DEFAULTS.items() if domain != 'screen'}

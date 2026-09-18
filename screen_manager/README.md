@@ -1,6 +1,6 @@
 # ESP Screen Manager
 
-Find your Home Assistant entities, arrange up to twenty tiles, and push changes
+Find your Home Assistant entities, arrange up to 48 tiles, and push changes
 to a CYD or Guition screen without reflashing. Includes installation help,
 a unique per-device YAML, and support for multiple screens.
 

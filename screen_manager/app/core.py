@@ -11,16 +11,26 @@ import tile_icons
 
 DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
-BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings'}
+BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
+# A navigation tile (firmware 0.2.62+): screen.page_<n> goes to page n; one per page it goes to, so an entity still appears once.
+PAGE_TILE = 'screen.page_'
+
+def page_target(entity):
+    """The page a navigation tile opens, counted from one; 0 for any other entity."""
+    return int(entity[len(PAGE_TILE):]) if isinstance(entity, str) and entity in BUILTIN and entity.startswith(PAGE_TILE) else 0
 NEW_DOMAINS = frozenset('sun timer person screen'.split())
 # A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
 CAMERA_DOMAINS = frozenset(('camera', 'image'))
 CAMERA_MIN_FIRMWARE = (0, 2, 57)
+# Forty-eight tiles (one per slot), a tile over the whole page and the screen.page tile (firmware 0.2.62+).
+MAX_TILES = 48
+LEGACY_MAX_TILES = 20
+FULL_PAGE_MIN_FIRMWARE = (0, 2, 62)
 WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.61'
+FIRMWARE_VERSION = '0.2.62'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -63,22 +73,44 @@ SLOTS_PER_PAGE = 6
 MAX_PAGES = 8
 MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE
 
-def is_wide(tile):
-    return tile.get('options', {}).get('size') == 'wide'
+TILE_SIZES_ON_SCREEN = ('single', 'wide', 'full')
 
-def footprint(slot, wide):
-    return (slot, slot + 1) if wide else (slot,)
+def tile_size(tile):
+    """'single', 'wide' (a row) or 'full' (the whole page, firmware 0.2.62+)."""
+    size = tile.get('options', {}).get('size', 'single')
+    return size if size in TILE_SIZES_ON_SCREEN else 'single'
+
+def is_wide(tile):
+    """Double width or the whole page: the card spans both columns."""
+    return tile_size(tile) != 'single'
+
+def is_full(tile):
+    return tile_size(tile) == 'full'
+
+def cells_of(size):
+    return SLOTS_PER_PAGE if size == 'full' else 2 if size in ('wide', True) else 1
+
+def page_start(slot):
+    return slot - slot % SLOTS_PER_PAGE
+
+def footprint(slot, size):
+    """The cells a tile of `size` takes from `slot` (True still means wide)."""
+    if size == 'full':
+        return tuple(range(page_start(slot), page_start(slot) + SLOTS_PER_PAGE))
+    return (slot, slot + 1) if size in ('wide', True) else (slot,)
 
 def pack_slots(tiles):
     """In-order packing, the rule before explicit positions and what firmware without
-    `slots` still does: fill left to right, a wide card starts a new row."""
+    `slots` still does: fill left to right, a wide card starts a new row, a full one a new page."""
     position, slots = 0, []
     for tile in tiles:
-        wide = is_wide(tile)
-        if wide and position % 2:
+        size = tile_size(tile)
+        if size == 'full' and position % SLOTS_PER_PAGE:
+            position += SLOTS_PER_PAGE - position % SLOTS_PER_PAGE
+        elif size == 'wide' and position % 2:
             position += 1
         slots.append(position)
-        position += 2 if wide else 1
+        position += cells_of(size)
     return slots
 
 def has_gaps(tiles):
@@ -118,9 +150,10 @@ def resolve_controls(tile):
     """Control set a card shows on the screen, or None: only wide cards in the standard layout have room for one."""
     options = tile.get('options', {})
     domain = tile['entity'].split('.')[0]
-    if domain not in CONTROLS or options.get('size') != 'wide' or options.get('display', 'standard') != 'standard' or options.get('inline') == 'slider':
+    if domain not in CONTROLS or options.get('size') not in ('wide', 'full') or options.get('display', 'standard') != 'standard' or options.get('inline') == 'slider':
         return None
-    choice = options.get('controls', CONTROLS[domain][0][0])
+    # A full-page card is one big button unless a control was chosen for it; a wide card shows its usual one.
+    choice = options.get('controls', 'none' if options.get('size') == 'full' else CONTROLS[domain][0][0])
     return None if choice == 'none' else choice
 
 # Diagnostic entities every ESP Screens firmware exposes; the manager watches them for screens.
@@ -353,6 +386,8 @@ def validate_header(data):
 
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
+    if len(layout['tiles']) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in layout['tiles']):
+        return FULL_PAGE_MIN_FIRMWARE
     if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']):
         return CAMERA_MIN_FIRMWARE
     if any(t['entity'] == 'screen.settings' for t in layout['tiles']):
@@ -381,7 +416,8 @@ TILE_RESULT_EVENT = 'esp_screens_tile_result'
 TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'display', 'icon': 'icon',
                       'color': 'background', 'background': 'background', 'tap': 'tap', 'inline': 'inline',
                       'history_hours': 'history_hours'}
-TILE_SIZES = {'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
+TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
+              'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single'}
 
 def loose(text):
@@ -412,34 +448,43 @@ def occupied_cells(tiles, skip=None):
     for tile in tiles:
         if tile is skip or 'slot' not in tile:
             continue
-        cells.update(footprint(tile['slot'], is_wide(tile)))
+        cells.update(footprint(tile['slot'], tile_size(tile)))
     return cells
 
-def free_slot(tiles, wide, page=None, skip=None):
-    """The first cell a tile of this width fits in, on `page` or anywhere; None when there is no room."""
+def free_slot(tiles, size, page=None, skip=None):
+    """The first cell a tile of this size fits in, on `page` or anywhere; None when there is no room."""
     cells = occupied_cells(tiles, skip)
+    size = 'wide' if size is True else size
     first = 0 if page is None else page * SLOTS_PER_PAGE
     last = MAX_SLOTS if page is None else min(MAX_SLOTS, first + SLOTS_PER_PAGE)
     for slot in range(first, last):
-        if wide and (slot % 2 or slot + 1 >= last):
+        if size == 'full' and slot % SLOTS_PER_PAGE:
             continue
-        if not set(footprint(slot, wide)) & cells:
+        if size == 'wide' and (slot % 2 or slot + 1 >= last):
+            continue
+        if not set(footprint(slot, size)) & cells:
             return slot
     return None
 
 def place_tile(tile, tiles, page=None, slot=None):
     """Give a tile its cell: the one asked for when it is free, else the first free one (on `page`)."""
-    wide = is_wide(tile)
+    size = tile_size(tile)
     if slot is not None:
-        if wide and slot % 2:
+        if size == 'full':
+            slot = page_start(slot)
+        elif size == 'wide' and slot % 2:
             slot -= 1
-        taken = next((t for t in tiles if t is not tile and slot in footprint(t.get('slot', -9), is_wide(t))), None)
+        wanted = set(footprint(slot, size))
+        taken = next((t for t in tiles if t is not tile and 'slot' in t and wanted & set(footprint(t['slot'], tile_size(t)))), None)
         if taken:
             raise ValueError(f"That spot is taken by {taken['entity']}; give another spot or move that one first.")
         tile['slot'] = slot
         return
-    free = free_slot(tiles, wide, page, skip=tile)
+    free = free_slot(tiles, size, page, skip=tile)
     if free is None:
+        if size == 'full':
+            raise ValueError(f'Page {page + 1} is not empty; a full-page tile needs a page of its own.' if page is not None
+                             else 'No page is empty; a full-page tile needs a page of its own.')
         raise ValueError(f'Page {page + 1} is full.' if page is not None else 'This screen has no room left.')
     tile['slot'] = free
 
@@ -462,7 +507,7 @@ def tile_options(data, current=None):
         options['action'] = {'action': str(data['action']).strip(), **({'data': data['data']} if isinstance(data.get('data'), dict) and data['data'] else {})}
         if data.get('tap') in (None, ''):
             options['tap'] = 'action'
-    if options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY:
+    if (options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY) and options.get('size') != 'full':
         options['size'] = 'wide'
     return {key: value for key, value in options.items() if value not in (None, '')}
 
@@ -501,13 +546,15 @@ def pack_page(tiles, page):
     position = page * SLOTS_PER_PAGE
     last = position + SLOTS_PER_PAGE
     for tile in tiles:
-        wide = is_wide(tile)
-        if wide and position % 2:
+        size = tile_size(tile)
+        if size == 'full' and (position != page * SLOTS_PER_PAGE or len(tiles) > 1):
+            raise ValueError(f'A full-page tile takes all of page {page + 1}; nothing else fits there.')
+        if size == 'wide' and position % 2:
             position += 1
-        if position + (2 if wide else 1) > last:
+        if position + cells_of(size) > last:
             raise ValueError(f'That does not fit on page {page + 1}; a double-width tile takes two spots.')
         tile['slot'] = position
-        position += 2 if wide else 1
+        position += cells_of(size)
 
 def apply_tile_event(layout, action, data):
     """The layout after one tile event. Raises ValueError with the sentence the log and the answer show."""
@@ -559,7 +606,7 @@ def apply_tile_event(layout, action, data):
     else:
         if not entity_id(entity) and entity not in BUILTIN:
             raise ValueError(f'{entity} cannot go on a screen.')
-        was_wide, had_slot = bool(found) and is_wide(found), (found or {}).get('slot')
+        was_size, had_slot = tile_size(found) if found else 'single', (found or {}).get('slot')
         options = tile_options(data, (found or {}).get('options'))
         tile = found or {'entity': entity, 'name': ''}
         if data.get('name') not in (None, ''):
@@ -569,17 +616,25 @@ def apply_tile_event(layout, action, data):
         elif found:
             tile.pop('options', None)
         if found is None:
-            if len(tiles) >= 20:
-                raise ValueError('This screen already has twenty tiles; remove one first.')
+            if len(tiles) >= MAX_TILES:
+                raise ValueError(f'This screen already has {MAX_TILES} tiles; remove one first.')
             tiles.append(tile)
-        wide = is_wide(tile)
+        size = tile_size(tile)
         move = found is None or had_slot is None or page is not None or slot is not None
-        if not move and wide != was_wide:
-            # A tile that just grew keeps its spot when the cell beside it is free.
-            move = (wide and had_slot % 2) or bool(set(footprint(had_slot, wide)) & occupied_cells([t for t in tiles if t is not tile]))
+        if not move and size != was_size:
+            # A tile that just grew keeps its spot when the cells it needs are free.
+            start = page_start(had_slot) if size == 'full' else had_slot - had_slot % 2 if size == 'wide' else had_slot
+            move = start != had_slot or bool(set(footprint(start, size)) & occupied_cells([t for t in tiles if t is not tile]))
         if move:
             tile.pop('slot', None)
-            place_tile(tile, tiles, page, slot)
+            if size == 'full' and had_slot is not None and page is None and slot is None:
+                # A tile that grew to the whole page stays on its page when the page is otherwise empty.
+                try:
+                    place_tile(tile, tiles, had_slot // SLOTS_PER_PAGE)
+                except ValueError:
+                    place_tile(tile, tiles)
+            else:
+                place_tile(tile, tiles, page, slot)
     result['tiles'] = tiles
     return result
 
@@ -594,7 +649,8 @@ def layout_snapshot(screen, layout):
                       'column': 'right' if slot % 2 else 'left', 'slot': slot,
                       'size': options.get('size', 'single'), 'controls': options.get('controls', ''),
                       'display': options.get('display', 'standard'), 'tap': options.get('tap', 'auto'),
-                      **({'action': options['action']} if options.get('tap') == 'action' and 'action' in options else {})})
+                      **({'action': options['action']} if options.get('tap') == 'action' and 'action' in options else {}),
+                      **({'to_page': page_target(tile['entity'])} if page_target(tile['entity']) else {})})
     return {'screen': screen.get('name', ''), 'node': screen.get('node') or '', 'title': layout.get('title', ''),
             'pages': max([tile['page'] for tile in tiles], default=1), 'tiles': tiles}
 
@@ -653,8 +709,8 @@ def validate_layout(data, stored=False):
     title, tiles = data.get('title'), data.get('tiles')
     if not isinstance(title, str) or not title.strip() or len(title.encode()) > 96:
         raise ValueError('Give the screen a title of at most 96 bytes.')
-    if not isinstance(tiles, list) or len(tiles) > 20:
-        raise ValueError('Choose at most 20 tiles.')
+    if not isinstance(tiles, list) or len(tiles) > MAX_TILES:
+        raise ValueError(f'Choose at most {MAX_TILES} tiles.')
     clean, seen = [], set()
     for tile in tiles:
         if not isinstance(tile, dict) or not entity_id(tile.get('entity')):
@@ -678,18 +734,23 @@ def validate_layout(data, stored=False):
             options = tile['options']
             if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action'}:
                 raise ValueError('Unknown tile settings.')
+            # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
+            if page_target(tile['entity']):
+                if options.get('size') == 'full':
+                    raise ValueError('A navigation tile is single or double width.')
+                options = {k: v for k, v in options.items() if k not in ('display', 'inline', 'controls', 'history_hours')}
             if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
                 raise ValueError('Choose a pastel background color from the palette.')
             if 'icon' in options and not (options['icon'] == 'auto' or isinstance(options['icon'], str) and options['icon'] in tile_icons.ICONS):
                 raise ValueError('Choose an icon from the list.')
             domain = tile['entity'].split('.')[0]
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
-            choices = {'tap': ('auto', 'detail', 'toggle', 'none', 'action'), 'display': displays, 'inline': ('none', 'slider'), 'size': ('single', 'wide')}
+            choices = {'tap': ('auto', 'detail', 'toggle', 'none', 'action'), 'display': displays, 'inline': ('none', 'slider'), 'size': TILE_SIZES_ON_SCREEN}
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError('Invalid tile setting: ' + key)
-            # The five-day strip and the sun path only fit a double-width card.
-            if options.get('display') in WIDE_ONLY:
+            # The five-day strip and the sun path only fit a double-width card (or the whole page).
+            if options.get('display') in WIDE_ONLY and options.get('size') != 'full':
                 options = {**options, 'size': 'wide'}
             # On / off sends <domain>.toggle. Whether Home Assistant offers that for the entity is checked when saving
             # (Manager.check_supported, app 0.2.67); the built-in cards have nothing to switch.
@@ -721,9 +782,12 @@ def validate_layout(data, stored=False):
         for item, slot in zip(clean, given):
             if type(slot) is not int or not 0 <= slot < MAX_SLOTS:
                 raise ValueError('Invalid tile position; refresh the management page.')
-            if is_wide(item) and slot % 2:
+            size = tile_size(item)
+            if size == 'full' and slot % SLOTS_PER_PAGE:
+                raise ValueError('A full-page tile starts at the top of its page.')
+            if size == 'wide' and slot % 2:
                 raise ValueError('A double-width tile starts in the left column.')
-            for cell in footprint(slot, is_wide(item)):
+            for cell in footprint(slot, size):
                 if cell in occupied:
                     raise ValueError('Two tiles are in the same spot.')
                 occupied.add(cell)
@@ -1040,8 +1104,10 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None):
     if tile['entity'] in BUILTIN:
         message = {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
                    'name': short(tile['name'] or BUILTIN[tile['entity']], 80), 'state': 'ok', 'a': {}}
-        if 'options' in tile:
-            message['o'] = tile['options']
+        # The same wire form as any tile, so a chosen icon travels as its codepoint (app 0.2.74+).
+        options = screen_options(tile, {})
+        if options is not None:
+            message['o'] = options
         return message
     state = states.get(tile['entity'], {})
     attrs = state.get('attributes', {})

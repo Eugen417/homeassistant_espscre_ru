@@ -1,3 +1,13 @@
+## 0.2.74 (firmware 0.2.62)
+
+Forty-eight tiles, a tile over the whole page, and tiles that go to a page.
+
+- **Up to 48 tiles per screen**, one for every slot of the eight pages (twenty before). A screen only pays for the tiles it has: the firmware keeps a list as long as the layout instead of a fixed twenty, and on a Guition that list lives in PSRAM.
+- **Full page.** A tile's size can now be *Full page*: it takes all six slots of a page and is one big button, so a screen on the wall next to the door switches the light when you push anywhere on it, without looking. While the light is on the whole card lights up in the state colour (amber for a lamp, purple for a scene, blue for a blind), so you see from across the room whether it is on. Holding it still opens the card. A small slider, direct controls or a graph sit at the bottom of the page, big enough for a thumb; the room above them is still the button. The clock, the weather (now with the next hours under the days) and the sun path fill the page. A tile you make full-page keeps its page: the other tiles there move to the first free spots after it.
+- **Go to page.** A new built-in tile, *Go to page*, opens the page you choose: an arrow (or an icon of your own), its name and the page number, with a chevron like the rows in Home Assistant's settings. Put a full-page light switch on page 1 and a menu of *Heating*, *Blinds* and *Vacuum* on page 2, each with its own page.
+- Claude in Home Assistant can do the same: `size: full` on a tile, and `screen.page` with `to_page` for a navigation tile. The screen's sensor reports both.
+- Needs firmware 0.2.62: press **Update** on the screen. Includes everything from 0.2.73.
+
 ## 0.2.73 (firmware 0.2.61)
 
 A new editor, built as a Vue app, with the same firmware.

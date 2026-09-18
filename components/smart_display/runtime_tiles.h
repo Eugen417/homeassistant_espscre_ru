@@ -39,6 +39,11 @@ inline Model model;
 inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
 inline const lv_font_t *mini_icon_font = nullptr;
+// The large icon font of a full-page card (firmware 0.2.62+): the domain icons only, so the flash stays free.
+inline const lv_font_t *big_icon_font = nullptr;
+// Page shown by the navigation bar and the swipe (the profile's tile_page), remembered by show_page.
+inline int *shown_page = nullptr;
+inline void go_to_page(int page);
 inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
 // Big digits for the clock card; the board profile sets it with the local time source.
 inline const lv_font_t *clock_font = nullptr;
@@ -172,14 +177,17 @@ struct Widgets {
   lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}, *unit{};
   int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
   // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
-  bool wide=false; int base_width=0; lv_obj_t *extra{}; std::string extra_mode; std::array<lv_obj_t *, 20> parts{}; lv_point_precise_t *points{};
+  // Full (firmware 0.2.62+) takes the whole page: the double-width card's head on top, a control at the bottom.
+  bool wide=false, full=false; int base_width=0, base_height=0; const lv_font_t *title_font{};
+  // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
+  lv_obj_t *extra{}; std::string extra_mode; bool extra_full=false; std::array<lv_obj_t *, 36> parts{}; lv_point_precise_t *points{};
   // Analog clock: centre and radius of the dial, so the second hand can move without a card redraw.
   int hand_cx=0, hand_cy=0, hand_r=0, hand_width=1;
   // Soft area under a polyline (graph, sun path), painted by the extra container's draw event.
   const lv_point_precise_t *fill_points{}; unsigned fill_count=0; int fill_x=0, fill_y=0, fill_base=0; lv_color_t fill_color{}; lv_opa_t fill_opa=0;
   // Direct controls on a wide card: a panel at the right with pill keys, a -/+ pill,
   // a slider or a toggle. Objects are rebuilt only when the control set changes.
-  lv_obj_t *panel{}; std::string panel_mode; bool panel_dirty=false; int panel_w=0;
+  lv_obj_t *panel{}; std::string panel_mode; bool panel_dirty=false, panel_full=false; int panel_w=0;
   std::array<lv_obj_t *,3> keys{}, key_icons{}; std::array<int,3> key_commands{}; std::array<std::string,3> key_args; std::array<int,3> key_checked{};
   lv_obj_t *pill{}, *pill_value{}, *knob{}, *control_slider{}; int knob_on=-1;
   lv_color_t panel_accent{}, panel_text{};
@@ -194,6 +202,13 @@ inline std::array<Widgets, 10> widgets;
 inline bool has_icon_glyph(uint32_t codepoint) {
   for (auto &w : widgets) if (w.icon_font) { lv_font_glyph_dsc_t dsc; return lv_font_get_glyph_dsc(w.icon_font, &dsc, codepoint, 0); }
   return false;
+}
+// Whether `font` draws the glyph a label's UTF-8 text starts with (a four-byte Material Design icon).
+inline bool font_has(const lv_font_t *font, const std::string &utf8) {
+  if (!font || utf8.size() < 4) return false;
+  const auto *b = reinterpret_cast<const unsigned char *>(utf8.data());
+  uint32_t cp = (uint32_t(b[0] & 7) << 18) | (uint32_t(b[1] & 0x3F) << 12) | (uint32_t(b[2] & 0x3F) << 6) | (b[3] & 0x3F);
+  lv_font_glyph_dsc_t dsc; return lv_font_get_glyph_dsc(font, &dsc, cp, 0);
 }
 // Home Assistant's API link as ESPHome itself tracks it: gone the moment the socket drops,
 // back the moment HA reconnects, no guessing from message age.
@@ -478,9 +493,11 @@ inline std::string receive(const std::string &payload) {
     // Direct controls (0.2.19+): the manager sends only the set a wide card really shows.
     tile.controls = string(options["controls"], 16);
     // Width arrives with the state, after the layout: re-pack the pages when it changes.
-    bool was_wide = tile.wide;
-    tile.wide = string(options["size"]) == "wide";
-    bool repack = was_wide != tile.wide;
+    bool was_wide = tile.wide, was_full = tile.full;
+    std::string size = string(options["size"]);
+    tile.full = size == "full";
+    tile.wide = tile.full || size == "wide";
+    bool repack = was_wide != tile.wide || was_full != tile.full;
     // Pre-computed extras: the manager converts time zones and fetches forecasts. What only some tiles
     // carry is collected in `next` and replaces the tile's Extra at the end (see Tile::set_extra).
     auto extra = root["x"];
@@ -1829,7 +1846,7 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "sun") return tile.state == "above_horizon" ? "\U000F059B" : "\U000F059C";
   if (d == "timer") return "\U000F051B";
   if (d == "person") return "\U000F0004";
-  if (d == "screen") return tile.is_settings() ? "\U000F0493" : "\U000F0150";
+  if (d == "screen") return tile.is_settings() ? "\U000F0493" : tile.is_page() ? "\U000F0054" : "\U000F0150";
   if (d == "camera" || d == "image") return "\U000F07AE";
   return "\U000F0425";
 }
@@ -1886,6 +1903,12 @@ inline void event(lv_event_t *event) {
   // the link down too, as its card says (firmware 0.2.49+), and the clock card does nothing under a finger.
   if (model.tiles[w.index].builtin()) {
     auto &card = model.tiles[w.index];
+    if (card.is_page()) {
+      // A navigation tile goes to its page on a short tap, with the link down too; holding does nothing.
+      if (code != LV_EVENT_SHORT_CLICKED || card.tap == "none" || card.page_target() < 1) return;
+      if (allowed(esphome::millis(), 100 + w.index, card.entity)) go_to_page(card.page_target() - 1);
+      return;
+    }
     if (!card.is_settings() || card.tap == "none" || (settings_screen::may_open && !settings_screen::may_open())) return;
     if (allowed(esphome::millis(), 100 + w.index, card.entity)) settings_screen::open();
     return;
@@ -1973,11 +1996,15 @@ inline int tile_width(const Widgets &w) {
   int32_t width = lv_obj_get_style_width(w.tile, LV_PART_MAIN);
   return LV_COORD_IS_PX(width) ? width : lv_obj_get_width(w.tile);
 }
+inline int tile_height(const Widgets &w) {
+  int32_t height = lv_obj_get_style_height(w.tile, LV_PART_MAIN);
+  return LV_COORD_IS_PX(height) ? height : lv_obj_get_height(w.tile);
+}
 inline int content_width(const Widgets &w) {
   return tile_width(w) - lv_obj_get_style_space_left(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_right(w.tile, LV_PART_MAIN);
 }
 inline int content_height(const Widgets &w) {
-  return lv_obj_get_height(w.tile) - lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
+  return tile_height(w) - lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
 }
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
   lv_obj_update_layout(tile);
@@ -1987,9 +2014,11 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
-  w.base_width=lv_obj_get_width(tile);
+  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);
+  w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   w.unit=lv_label_create(tile);lv_obj_set_style_text_font(w.unit,w.value_font,0);lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
+  lv_label_set_long_mode(w.unit,LV_LABEL_LONG_DOT);
   // Fixed one-line boxes prevent wrapped names from overlapping the state on both boards.
   lv_obj_set_height(title,lv_font_get_line_height(lv_obj_get_style_text_font(title,LV_PART_MAIN)));
   lv_obj_set_height(value,lv_font_get_line_height(w.value_font));
@@ -2082,7 +2111,7 @@ inline void begin_extra(Widgets &w,const char *mode,int width,int height) {
     w.extra=lv_obj_create(w.tile);lv_obj_remove_style_all(w.extra);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_add_event_cb(w.extra,extra_draw,LV_EVENT_DRAW_MAIN,&w);
   }
-  if(w.extra_mode!=mode){end_extra(w);w.extra_mode=mode;w.points=new lv_point_precise_t[POINT_BUFFER];w.cached_active=-1;}
+  if(w.extra_mode!=mode || w.extra_full!=w.full){end_extra(w);w.extra_mode=mode;w.extra_full=w.full;w.points=new lv_point_precise_t[POINT_BUFFER];w.cached_active=-1;}
   w.fill_points=nullptr;w.fill_count=0;
   // Parts that were hidden kept the colours of the card they last showed.
   if(lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN)){w.cached_active=-1;lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_HIDDEN);}
@@ -2151,7 +2180,8 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
     return;
   }
   // The dial keeps the same size with or without a card behind it.
-  int dial=std::min(height,width),cx=dial/2,cy=height/2,outer=dial/2-1,radius=dial/2-(large?4:2);
+  // A full-page card centres its dial; the digital time and date beside a wide dial stay off it.
+  int dial=std::min(height,width),cx=(w.full?(width-dial)/2:0)+dial/2,cy=height/2,outer=dial/2-1,radius=dial/2-(large?4:2);
   for(int i=0;i<12;++i){
     float a=i*3.14159265f/6;bool cardinal=i%3==0;
     if(cardinal && large){
@@ -2177,6 +2207,11 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   second_hand(w,now);
   if(new_hand)lv_obj_move_to_index(w.parts[18],lv_obj_get_index(w.parts[14]));
   std::string day=now.is_valid()?std::to_string(now.day_of_month):"--";
+  if(w.full){
+    part_label(w,15,big,0,0,1,LV_TEXT_ALIGN_CENTER,"");
+    part_label(w,16,small,0,0,1,LV_TEXT_ALIGN_CENTER,"");
+    return;
+  }
   if(w.wide){
     int x=dial+(large?16:8),y=std::max(0,(height-text_h)/2);
     part_label(w,15,big,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
@@ -2203,19 +2238,41 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   int month_y=day_y+(big->line_height-big->base_line)-(small->line_height-small->base_line);
   part_label(w,17,small,sx+day_size.x+gap,std::max(0,month_y),std::max(1,int(x+room-(sx+day_size.x+gap))),LV_TEXT_ALIGN_LEFT,month);
 }
+inline int block_min(int icon_h,int temp_h,int text_h){return std::max(icon_h,temp_h)+2+text_h;}
 // Current conditions on the left, five day columns on the right (wide cards only).
 inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int height) {
   begin_extra(w,"forecast",width,height);
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   const lv_font_t *temp_font=watch_value_font?watch_value_font:w.value_font,*day_icon=mini_icon_font?mini_icon_font:w.icon_font;
   int left=large?150:96,icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
+  // A full-page card (firmware 0.2.62+) adds the next hours under the days: time, icon and temperature per column.
+  int day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
+  unsigned hours=w.full?std::min<size_t>(t.extra().hours.size(),large?6:4):0;
+  int hours_h=hours?day_h+icon_col+text_h:0;
+  int top_h=hours?std::max(block_min(icon_h,temp_h,text_h),height-hours_h-(large?12:6)):height;
+  for(unsigned j=0;j<6;++j){
+    if(j<hours)continue;
+    for(unsigned k=18+3*j;k<21+3*j;++k)if(w.parts[k])lv_obj_add_flag(w.parts[k],LV_OBJ_FLAG_HIDDEN);
+  }
+  if(hours){
+    int column=width/hours,y0=height-hours_h;
+    for(unsigned j=0;j<hours;++j){
+      const auto &h=t.extra().hours[j];int x=j*column;
+      char temp[16];if(std::isfinite(h.temp))snprintf(temp,sizeof(temp),"%.0f°",h.temp);else temp[0]=0;
+      for(unsigned k=18+3*j;k<21+3*j;++k)if(w.parts[k])lv_obj_remove_flag(w.parts[k],LV_OBJ_FLAG_HIDDEN);
+      part_label(w,18+3*j,day_icon,x,y0+day_h,column,LV_TEXT_ALIGN_CENTER,weather_icon(h.condition));
+      part_label(w,19+3*j,w.value_font,x,y0+day_h+icon_col,column,LV_TEXT_ALIGN_CENTER,temp);
+      part_label(w,20+3*j,title_font,x,y0,column,LV_TEXT_ALIGN_CENTER,h.time);
+    }
+  }
+  height=top_h;
   int block=std::max(icon_h,temp_h)+2+text_h,y=std::max(0,(height-block)/2);
   char b[24];snprintf(b,sizeof(b),"%.0f°",t.current);
   auto *icon=part_label(w,0,w.icon_font,0,y+(std::max(icon_h,temp_h)-icon_h)/2,icon_h+4,LV_TEXT_ALIGN_LEFT,t.available()?weather_icon(t.state):"\U000F0595");
   lv_obj_set_width(icon,lv_font_get_line_height(w.icon_font)+4);
   part_label(w,1,temp_font,icon_h+6,y+(std::max(icon_h,temp_h)-temp_h)/2,left-icon_h-6,LV_TEXT_ALIGN_LEFT,std::isfinite(t.current)?b:"");
   part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
-  int column=(width-left)/5,day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
+  int column=(width-left)/5;
   for(unsigned k=0;k<5;++k){
     static const Forecast no_day;int x=left+k*column;bool has=k<t.extra().forecast.size();const auto &f=has?t.extra().forecast[k]:no_day;
     char temps[24];if(has && std::isfinite(f.high))snprintf(temps,sizeof(temps),std::isfinite(f.low)?"%.0f/%.0f":"%.0f",f.high,f.low);else temps[0]=0;
@@ -2295,6 +2352,10 @@ struct PanelMetrics { int key_w, key_h, radius, gap, pill_w, pill_key, slider_w,
 inline PanelMetrics panel_metrics(bool large) {
   return large ? PanelMetrics{60,46,14,8,196,52,140,44,76,40,22,8,4} : PanelMetrics{40,34,9,4,128,36,90,30,48,26,14,6,6};
 }
+// The same controls at the bottom of a full-page card (firmware 0.2.62+): keys a thumb finds without looking.
+inline PanelMetrics panel_metrics_full(bool big) {
+  return big ? PanelMetrics{120,84,24,16,300,84,400,56,120,60,30,8,4} : PanelMetrics{80,44,12,8,200,48,260,34,76,40,18,6,4};
+}
 inline lv_obj_t *panel_obj(lv_obj_t *parent,bool clickable) {
   auto *o=lv_obj_create(parent);lv_obj_remove_style_all(o);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);
   if(clickable)lv_obj_add_flag(o,LV_OBJ_FLAG_CLICKABLE);else lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);
@@ -2339,13 +2400,13 @@ inline lv_obj_t *panel_icon(Widgets &w,unsigned n,const lv_font_t *font) {
 // from the text, including the gap, or 0 when the card shows no panel.
 inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int content_h) {
   std::string mode=tile_controls::panel_kind(t);
-  const PanelMetrics m=panel_metrics(large);
-  const lv_font_t *icon_font=mini_icon_font?mini_icon_font:w.icon_font;
+  const PanelMetrics m=w.full?panel_metrics_full(w.base_height>80):panel_metrics(large);
+  const lv_font_t *icon_font=w.full?w.icon_font:mini_icon_font?mini_icon_font:w.icon_font;
   const lv_font_t *text_font=control_font?control_font:lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   auto d=t.domain();
   if(!w.panel){w.panel=panel_obj(w.tile,false);}
-  if(w.panel_mode!=mode){
-    end_panel(w);w.panel_mode=mode;w.panel_dirty=true;
+  if(w.panel_mode!=mode || w.panel_full!=w.full){
+    end_panel(w);w.panel_mode=mode;w.panel_full=w.full;w.panel_dirty=true;
     if(tile_controls::is_key_row(mode)){
       for(unsigned n=0;n<3;++n){panel_key(w,n,w.panel,m,m.key_w,m.key_h,false);panel_icon(w,n,icon_font);}
     }else if(mode=="setpoint"||mode=="stepper"){
@@ -2444,7 +2505,9 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   if(!panel_w){hide_panel(w);return 0;}
   // A panel shown again kept the colours of the card it last served.
   if(lv_obj_has_flag(w.panel,LV_OBJ_FLAG_HIDDEN)){lv_obj_remove_flag(w.panel,LV_OBJ_FLAG_HIDDEN);w.panel_dirty=true;}
-  lv_obj_set_size(w.panel,panel_w,panel_h);lv_obj_set_pos(w.panel,content_w-panel_w,std::max(0,(content_h-panel_h)/2));
+  lv_obj_set_size(w.panel,panel_w,panel_h);
+  if(w.full)lv_obj_set_pos(w.panel,std::max(0,(content_w-panel_w)/2),std::max(0,content_h-panel_h));
+  else lv_obj_set_pos(w.panel,content_w-panel_w,std::max(0,(content_h-panel_h)/2));
   w.panel_w=panel_w+m.text_gap;
   return w.panel_w;
 }
@@ -2522,10 +2585,91 @@ inline void set_busy(Widgets &w,bool busy,bool large){
   // Cover the whole card, padding included, at the width the card asks for: a slot that just turned
   // wide is still single width in LVGL's own coordinates. Unchanged sizes cost LVGL nothing.
   lv_obj_set_pos(w.busy,-lv_obj_get_style_pad_left(w.tile,LV_PART_MAIN),-lv_obj_get_style_pad_top(w.tile,LV_PART_MAIN));
-  lv_obj_set_size(w.busy,tile_width(w),lv_obj_get_height(w.tile));
+  lv_obj_set_size(w.busy,tile_width(w),tile_height(w));
   lv_obj_remove_flag(w.busy,LV_OBJ_FLAG_HIDDEN);
   // Controls and custom parts created after the sheet would otherwise paint over its right side.
   if(lv_obj_get_index(w.busy)!=(int32_t)lv_obj_get_child_count(w.tile)-1)lv_obj_move_foreground(w.busy);
+}
+// The card that takes a whole page (firmware 0.2.62+). Without a control it is one big button: the icon in a
+// large circle with the name and the state under it, and the whole card lights up in the state colour while
+// on (see the palette below), so a wall switch reads from across the room and a push anywhere works. With a
+// small slider, direct controls or a graph the double-width card's head stays on top and the control takes
+// a strip at the bottom, so a tap anywhere else still does what a tap on the tile does. The built-in cards
+// (clock, forecast, sun path) simply get the whole page.
+inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sunpath,bool graph,bool mini,bool with_panel,bool large,
+                        const std::string &value,const std::string &unit,int content_w,int content_h) {
+  const bool big=w.base_height>80;  // the board: a Guition card is large, a CYD card small
+  lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
+  if(custom){
+    lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);
+    // The forecast and the sun path keep their board's layout (the CYD's two-row days); a taller dial is fine.
+    if(clock)render_clock(w,t,large,content_w,content_h);
+    else if(sunpath)render_sunpath(w,t,big,content_w,content_h);
+    else render_forecast(w,t,big,content_w,content_h);
+    return;
+  }
+  int value_h=lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN));
+  int gap=big?12:6;
+  if(!mini && !with_panel && !graph){
+    hide_extra(w);hide_panel(w);lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+    const lv_font_t *name_font=room_label?lv_obj_get_style_text_font(room_label,LV_PART_MAIN):w.title_font;
+    int name_h=lv_font_get_line_height(name_font),circle=big?128:64;
+    int block=circle+gap+name_h+2+value_h,top=std::max(0,(content_h-block)/2);
+    lv_obj_set_size(w.circle,circle,circle);lv_obj_set_pos(w.circle,std::max(0,(content_w-circle)/2),top);
+    // The big icon font carries the domain icons; another chosen icon keeps its usual size in the big circle.
+    const lv_font_t *icon_font=big_icon_font && font_has(big_icon_font,icon_for(t))?big_icon_font:w.icon_font;
+    if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
+    set_font(w.title,name_font);set_text_align(w.title,LV_TEXT_ALIGN_CENTER);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);
+    lv_obj_set_height(w.title,name_h);
+    lv_obj_set_pos(w.title,0,top+circle+gap);lv_obj_set_width(w.title,content_w);
+    lv_obj_set_pos(w.value,0,top+circle+gap+name_h+2);lv_obj_set_width(w.value,content_w);
+    if(!unit.empty())label(w.value,value+" "+unit);
+    return;
+  }
+  // The head as on the double-width card: the circle at the left, name and state beside it.
+  set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
+  int title_h=lv_font_get_line_height(w.title_font);
+  lv_obj_set_height(w.title,title_h);
+  int head_h=std::max<int>(1,w.base_height-lv_obj_get_style_space_top(w.tile,LV_PART_MAIN)-lv_obj_get_style_space_bottom(w.tile,LV_PART_MAIN));
+  int circle=big?54:36,line_gap=big?2:1,text_y=std::max(0,(head_h-(title_h+line_gap+value_h))/2);
+  lv_obj_set_size(w.circle,circle,circle);
+  if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font){set_font(w.icon,w.icon_font);lv_obj_center(w.icon);}
+  lv_obj_set_pos(w.circle,0,big?12:std::max(0,(head_h-circle)/2));
+  lv_obj_set_pos(w.title,w.title_x,big?w.title_y:text_y);
+  lv_obj_set_pos(w.value,w.value_x,big?w.value_y:text_y+title_h+line_gap);
+  lv_obj_set_width(w.title,std::max(1,content_w-w.title_x));lv_obj_set_width(w.value,std::max(1,content_w-w.value_x));
+  if(mini){
+    // The small slider becomes a strip a thumb finds at the bottom; the room above it is the button.
+    hide_extra(w);hide_panel(w);
+    int strip=big?64:40;
+    lv_obj_set_size(w.slider,content_w,strip);
+    slider_handle(w.slider,content_w,strip);
+    lv_obj_remove_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+    if(!lv_obj_has_state(w.slider,LV_STATE_PRESSED) && lv_slider_get_value(w.slider)!=slider_value(t))lv_slider_set_value(w.slider,slider_value(t),LV_ANIM_OFF);
+    return;
+  }
+  lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
+  if(graph){
+    hide_panel(w);
+    render_graph(w,t,large,0,head_h+gap,content_w,std::max(8,content_h-head_h-gap));
+    return;
+  }
+  // Direct controls at the bottom, centred; the room between shows what the double-width card had no room for.
+  hide_extra(w);
+  if(!layout_panel(w,t,large,content_w,content_h)){hide_panel(w);return;}
+  int panel_h=lv_obj_get_style_height(w.panel,LV_PART_MAIN);
+  int mid_top=head_h,mid_h=content_h-head_h-gap-panel_h;
+  // The large value font carries digits, the degree sign and the percent sign; the clock font only digits and a colon.
+  std::string middle;const lv_font_t *mid_font=watch_value_font?watch_value_font:w.value_font;
+  auto d=t.domain();
+  if(d=="climate" && std::isfinite(t.current)){char b[32];snprintf(b,sizeof(b),"%.1f°",t.current);middle=b;}
+  else if(d=="cover" && std::isfinite(t.position)){middle=std::to_string(static_cast<int>(std::lround(t.position)))+" %";}
+  else if(d=="media_player" && !t.extra().media_title.empty()){middle=t.extra().media_title;mid_font=room_label?lv_obj_get_style_text_font(room_label,LV_PART_MAIN):w.title_font;}
+  int mid_font_h=lv_font_get_line_height(mid_font);
+  if(middle.empty() || mid_h<mid_font_h)return;
+  set_font(w.unit,mid_font);set_text_align(w.unit,LV_TEXT_ALIGN_CENTER);label(w.unit,middle);
+  lv_obj_set_pos(w.unit,0,mid_top+std::max(0,(mid_h-mid_font_h)/2));lv_obj_set_size(w.unit,content_w,mid_font_h);
+  lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
 }
 // One card: name, status, icon, layout and palette. Everything reads the model; nothing is created
 // unless the card's custom parts or controls change kind.
@@ -2543,6 +2687,7 @@ inline void render_slot(size_t slot) {
   std::string value = t.state;
   // Nothing in Home Assistant stands behind the settings card, so it says the same with the link down.
   if (t.is_settings()) value = "Tap to open";
+  else if (t.is_page()) value = "Page " + std::to_string(t.page_target());
   else if (!fresh() || !t.available()) value = "Unavailable";
   else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = "Refused";
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
@@ -2569,7 +2714,7 @@ inline void render_slot(size_t slot) {
   if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty())value=status;}
   label(w.value, value);
   bool mini=t.inline_control=="slider" && !watch && t.available();
-  bool large_tile=lv_obj_get_height(w.tile)>80;
+  bool large_tile=tile_height(w)>80;
   lap(swipe_profile::TEXT);
   // Cards that replace the name/status layout entirely.
   bool clock=t.is_clock(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.extra().forecast.size()>0 && fresh() && t.available();
@@ -2588,7 +2733,11 @@ inline void render_slot(size_t slot) {
   set_busy(w,w.busy_drawn,large_tile);
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);
-  if(custom){
+  if(w.full){
+    lap(swipe_profile::GEOMETRY);
+    render_full(w,t,custom,clock,sunpath,graph,mini,with_panel,large_tile,value,unit,content_w,content_h);
+    lap(swipe_profile::CUSTOM);
+  }else if(custom){
     lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);
     lap(swipe_profile::GEOMETRY);
     if(clock)render_clock(w,t,large_tile,content_w,content_h);
@@ -2596,6 +2745,9 @@ inline void render_slot(size_t slot) {
     else render_forecast(w,t,large_tile,content_w,content_h);
     lap(swipe_profile::CUSTOM);
   }else{
+  // A slot that just held a full card gets its own name font, one-line box and left-aligned text back.
+  set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
+  title_height=lv_font_get_line_height(w.title_font);lv_obj_set_height(w.title,title_height);
   int line_gap=large_tile?2:1,text_height=title_height+line_gap+value_height;
   int slider_height=large_tile?28:8;
   // A single-width graph takes the slider strip; a wide graph takes the right half.
@@ -2619,6 +2771,10 @@ inline void render_slot(size_t slot) {
   // Use the requested coordinates: LVGL getters still return the previous
   // layout until its next pass when a slot changes from watch/slider to normal.
   int text_room=content_w-chart_w-(graph_side?(large_tile?10:6):0)-panel_w;
+  // A navigation tile ends in a chevron, as a row in Home Assistant's settings does.
+  const lv_font_t *chevron_font=mini_icon_font?mini_icon_font:w.icon_font;
+  int chevron_w=t.is_page() && !watch?lv_font_get_line_height(chevron_font):0;
+  if(chevron_w)text_room-=chevron_w+(large_tile?8:4);
   lv_obj_set_width(w.title,std::max(1,text_room-text_x));
   lv_obj_set_width(w.value,std::max(1,text_room-(watch?0:(mini||graph_strip)?text_x:w.value_x)));
   if(watch){
@@ -2628,6 +2784,7 @@ inline void render_slot(size_t slot) {
     lv_obj_set_pos(w.circle,0,group_y+(header-circle_size)/2);
     lv_obj_set_pos(w.title,circle_size+(large_tile?6:4),group_y+(header-title_height)/2);
     lv_obj_set_width(w.title,text_room-circle_size-(large_tile?6:4));
+    set_font(w.unit,w.value_font);set_text_align(w.unit,LV_TEXT_ALIGN_LEFT);
     label(w.unit,unit);
     lv_point_t size;lv_text_get_size(&size,unit.c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
     int unit_width=unit.empty()?0:std::min((int)size.x,text_room-20);
@@ -2636,6 +2793,10 @@ inline void render_slot(size_t slot) {
     lv_obj_set_pos(w.unit,text_room-unit_width,value_y+value_height-lv_font_get_line_height(w.value_font));
     lv_obj_set_size(w.unit,unit_width,lv_font_get_line_height(w.value_font));
     set_hidden(w.unit,!unit_width);
+  }else if(chevron_w){
+    set_font(w.unit,chevron_font);set_text_align(w.unit,LV_TEXT_ALIGN_RIGHT);label(w.unit,"\U000F0142");
+    lv_obj_set_pos(w.unit,content_w-chevron_w,std::max(0,(header_height-chevron_w)/2));lv_obj_set_size(w.unit,chevron_w,chevron_w);
+    lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
   }else lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
   lv_obj_set_size(w.slider,content_w,slider_height);
   slider_handle(w.slider,content_w,slider_height);
@@ -2669,18 +2830,20 @@ inline void render_slot(size_t slot) {
   set_color(w.slider,LV_STYLE_BG_COLOR,fill_color,LV_PART_INDICATOR);
   set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_hex(theme::tint(fill,51)),LV_PART_MAIN);
   slider_bar(w.slider,slider_bar_shown(t,slider_on));
-  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(theme::surface(t.background)));
+  // A full-page card lights up in its state colour while on (firmware 0.2.62+): an amber lamp, a purple scene.
+  bool lit=w.full && on && available && !t.transparent;
+  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(lit?theme::tint(state_color,51):theme::surface(t.background)));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
   // "Background: none" hides only the card; geometry and padding stay identical,
   // and the pressed flash still shows because it lives on the PRESSED state.
   set_number(w.tile,LV_STYLE_BG_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
   set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
-  set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));
+  set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(lit?theme::tint(state_color,110):theme::outline(t.background)));
   set_color(w.circle,LV_STYLE_BG_COLOR,circle_color);
   set_color(w.icon,LV_STYLE_TEXT_COLOR,icon_color);
   auto title_color=theme::color(theme::INK);
   auto value_color=theme::color(t.background ? theme::SLATE : theme::MUTED);
-  set_color(w.unit,LV_STYLE_TEXT_COLOR,theme::color(theme::SLATE));
+  set_color(w.unit,LV_STYLE_TEXT_COLOR,theme::color(t.is_page()?theme::CHEVRON:theme::SLATE));
   set_color(w.title,LV_STYLE_TEXT_COLOR,title_color);
   set_color(w.value,LV_STYLE_TEXT_COLOR,value_color);
   style_panel(w,t,color,title_color);
@@ -2942,7 +3105,22 @@ inline bool check_tile_geometry() {
       fits=lv_obj_get_width(w.tile)==expected;
       if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,lv_obj_get_width(w.tile),expected);
     }
-    if(!custom){
+    if(w.full && widgets[4].tile){
+      // A full card ends exactly where the third row ends.
+      int expected=lv_obj_get_y(widgets[4].tile)-lv_obj_get_y(widgets[0].tile)+w.base_height;
+      if(lv_obj_get_height(w.tile)!=expected){fits=false;ESP_LOGE("ui_test","Full height FAIL slot=%u height=%d expected=%d",(unsigned)w.index,lv_obj_get_height(w.tile),expected);}
+    }
+    if(!custom && w.full){
+      // Everything inside the card, the name above the state, a slider or the controls below them.
+      fits=fits && title.x1>=content.x1 && title.x2<=content.x2 && value.x1>=content.x1 && value.x2<=content.x2 &&
+        title.y1>=content.y1 && title.y2<value.y1 && value.y2<=content.y2;
+      lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
+      fits=fits && circle.x1>=content.x1 && circle.x2<=content.x2 && circle.y1>=content.y1 && circle.y2<=content.y2;
+      if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
+        lv_obj_get_coords(w.slider,&track);
+        fits=fits && value.y2<track.y1 && track.y2<=content.y2;
+      }
+    }else if(!custom){
       fits=fits && title.x1>=content.x1 && title.x2<=content.x2 &&
         value.x1>=content.x1 && value.x2<=content.x2 && title.y2<value.y1 && value.y2<=content.y2;
       if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
@@ -2966,14 +3144,16 @@ inline bool check_tile_geometry() {
         }
       }
       if(!lv_obj_has_flag(w.unit,LV_OBJ_FLAG_HIDDEN)){
+        // A large value's unit sits under the name beside the number; a navigation tile's chevron beside both.
         lv_area_t unit;lv_obj_get_coords(w.unit,&unit);
-        fits=fits && value.x2<unit.x1 && unit.x2<=content.x2 && unit.y2<=content.y2 && unit.y1>title.y2;
+        bool chevron=w.index<model.count && model.tiles[w.index].is_page();
+        fits=fits && value.x2<unit.x1 && unit.x2<=content.x2 && unit.y2<=content.y2 && unit.y1>=content.y1 && (chevron ? title.x2<unit.x1 : unit.y1>title.y2);
       }
     }
     if(w.panel && !lv_obj_has_flag(w.panel,LV_OBJ_FLAG_HIDDEN)){
       // Direct controls stay inside the card, right of the name and status, and inside their panel.
       lv_area_t panel;lv_obj_get_coords(w.panel,&panel);
-      bool inside=panel.x1>=content.x1 && panel.x2<=content.x2 && panel.y1>=content.y1 && panel.y2<=content.y2 && (custom || (title.x2<panel.x1 && value.x2<panel.x1));
+      bool inside=panel.x1>=content.x1 && panel.x2<=content.x2 && panel.y1>=content.y1 && panel.y2<=content.y2 && (custom || (w.full ? value.y2<panel.y1 : title.x2<panel.x1 && value.x2<panel.x1));
       for(uint32_t i=0;i<lv_obj_get_child_count(w.panel);++i){
         auto *child=lv_obj_get_child(w.panel,i);if(lv_obj_has_flag(child,LV_OBJ_FLAG_HIDDEN))continue;
         lv_area_t part;lv_obj_get_coords(child,&part);
@@ -2992,7 +3172,7 @@ inline bool check_tile_geometry() {
         bool inside=part.x1>=content.x1 && part.x2<=content.x2 && part.y1>=content.y1 && part.y2<=content.y2;
         if(!inside)ESP_LOGE("ui_test","Part bounds slot=%u mode=%s part=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),part.x1,part.y1,part.x2,part.y2,content.x1,content.y1,content.x2,content.y2);
         fits=fits && inside;
-        if(w.extra_mode=="graph" && !custom)fits=fits && (w.wide?part.x1>value.x2:part.y1>value.y2);
+        if(w.extra_mode=="graph" && !custom)fits=fits && (w.wide && !w.full?part.x1>value.x2:part.y1>value.y2);
       }
     }
     if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u mode=%s wide=%d title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,w.extra_mode.c_str(),w.wide,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
@@ -3031,11 +3211,13 @@ inline int place_page(int page) {
   int pages=place(model,placement);
   page=std::clamp(page,0,pages-1);
   int wide_width=widgets[0].tile && widgets[1].tile ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)+widgets[0].base_width : 2*widgets[0].base_width;
-  for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=MAX_TILES;widgets[slot].wide=false;widgets[slot].cached_active=-1;}
-  for(size_t i=0;i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;}
+  // A full card (firmware 0.2.62+) reaches from the first row to the end of the third.
+  int full_height=widgets[0].tile && widgets[4].tile ? lv_obj_get_y(widgets[4].tile)-lv_obj_get_y(widgets[0].tile)+widgets[0].base_height : 3*widgets[0].base_height;
+  for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=MAX_TILES;widgets[slot].wide=false;widgets[slot].full=false;widgets[slot].cached_active=-1;}
+  for(size_t i=0;i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;w.full=model.tiles[i].full;}
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
-    if(slot<SLOTS_PER_PAGE && w.index<model.count){lv_obj_set_width(w.tile,w.wide?wide_width:w.base_width);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);}
+    if(slot<SLOTS_PER_PAGE && w.index<model.count){lv_obj_set_size(w.tile,w.wide?wide_width:w.base_width,w.full?full_height:w.base_height);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);}
     else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}
   }
   for(auto *control:{nav_prev,nav_next,nav_number})set_hidden(control,pages<=1);
@@ -3103,7 +3285,6 @@ inline void apply_page(int page) {
   for(auto &w:widgets)drop_veil(w);
   if(room_label){dirty_all=true;render(room_label);}else refresh_all();
 }
-inline int *shown_page=nullptr;
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
   nav_prev=previous;nav_next=next;nav_number=number;shown_page=&page;
   int requested=page;
@@ -3132,6 +3313,12 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
       lv_display_add_event_cb(display,[](lv_event_t *){fill_refreshed=true;},LV_EVENT_REFR_READY,nullptr);
   }
   lv_timer_resume(fill_timer);
+}
+// A navigation tile (screen.page, firmware 0.2.62+): the page it names, kept within the pages the screen has.
+inline void go_to_page(int page) {
+  if(!shown_page || !nav_number)return;
+  *shown_page=std::clamp(page,0,int(page_count())-1);
+  show_page(*shown_page,nav_prev,nav_next,nav_number);
 }
 
 #ifdef SWIPE_PROFILE
@@ -3231,8 +3418,10 @@ inline void tick() {
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
       if((t.is_clock() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
-      // The second hand moves on its own: only its line is redrawn, and it hides during standby.
-      else if(w.parts[18] && w.points && t.is_clock() && t.display=="analog")second_hand(w,now);
+      // The second hand moves on its own: only its line is redrawn, and it hides during standby. Only while the
+      // slot's parts are a dial: right after a page switch the slot already names the clock while its parts still
+      // belong to the card drawn before (a forecast's hour labels take part 18 too), until the fill draws the dial.
+      else if(w.parts[18] && w.points && w.extra_mode=="analog" && t.is_clock() && t.display=="analog")second_hand(w,now);
     }
   }
   if(redraw && refresh)refresh();

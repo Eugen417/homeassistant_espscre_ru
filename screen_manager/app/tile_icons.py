@@ -371,8 +371,16 @@ DEFAULTS = {'light': 'lightbulb', 'climate': 'air-conditioner', 'vacuum': 'robot
             'cover': 'window-shutter', 'scene': 'sofa', 'script': 'sofa', 'sensor': 'gauge', 'binary_sensor': 'gauge',
             'timer': 'timer-outline', 'person': 'account', 'camera': 'cctv', 'image': 'cctv', 'screen': 'clock-outline'}
 # The cards the screen brings itself: one icon per entity, not per domain.
-BUILTIN_TILES = {'screen.clock': 'clock-outline', 'screen.settings': 'cog'}
+BUILTIN_TILES = {'screen.clock': 'clock-outline', 'screen.settings': 'cog', **{f'screen.page_{n}': 'arrow-right' for n in range(1, 9)}}
 FALLBACK = 'power'
+# The large icon font of a card that takes the whole page (firmware 0.2.62+): what the screen draws on its own for a
+# domain, a state or a built-in card, at 64 px on the Guition and 40 px on the CYD. Kept to these so the CYD's flash
+# stays free; a chosen icon outside this set shows at its usual size in the big circle.
+BIG_GLYPHS = tuple(dict.fromkeys(list(DEFAULTS.values()) + list(BUILTIN_TILES.values()) + ['lightbulb-off', FALLBACK] +
+                                 ['weather-sunny', 'weather-night', 'weather-cloudy', 'weather-partly-cloudy', 'weather-rainy',
+                                  'weather-pouring', 'weather-snowy', 'weather-snowy-rainy', 'weather-fog', 'weather-hail',
+                                  'weather-lightning', 'weather-lightning-rainy', 'weather-windy', 'alert-circle-outline',
+                                  'weather-sunset-up', 'weather-sunset-down']))
 CONTROL_GLYPHS = ('play', 'pause', 'stop', 'skip-next', 'skip-previous', 'volume-high', 'volume-off', 'arrow-up', 'arrow-down',
                   'arrow-expand-horizontal', 'arrow-collapse-horizontal', 'home-map-marker', 'plus', 'minus', 'chevron-left',
                   'chevron-right', 'close', 'power', 'fire', 'snowflake')

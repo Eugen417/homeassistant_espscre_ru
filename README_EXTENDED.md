@@ -15,8 +15,8 @@ on the screen itself, and how updates work.
 
 ## What you can configure
 
-- **Up to twenty tiles**, spread across up to four fixed pages of six
-  tiles each. Search by entity, device, or room, and drag to reorder.
+- **Up to 48 tiles**, spread across up to eight fixed pages of six
+  tiles each (firmware 0.2.62+; twenty before). Search by entity, device, or room, and drag to reorder.
 - **Per-tile settings:** a custom name, click behavior, a small slider where
   supported, or a large value for things like temperature and power usage.
   From firmware 0.2.13, the large value shows a small domain icon next to the
@@ -41,7 +41,22 @@ on the screen itself, and how updates work.
   a **sun path** (`sun.sun`: horizon with the sun between sunrise and
   sunset), a **timer** (`timer.*`, tapping starts or pauses it), and
   **presence** (`person.*`). Pick them in the picker like any other tile, or
-  drag them straight into the screen mockup; **Double-width** is an option for every tile.
+  drag them straight into the screen mockup; **Double-width** is an option for every tile, and so is
+  **Full page** (firmware 0.2.62+): the tile takes the whole page and is one big button that lights up
+  in its state colour while on, so a screen by the door switches the light when you push anywhere on it.
+  Its small slider, direct controls or graph sit at the bottom of the page. A **Go to page** tile
+  (`screen.page_2` to `screen.page_8`) opens another page: a full-page light switch on page 1, a menu on page 2.
+
+<p align="center">
+  <img src="docs/images/guition-full-light.png" width="32%" alt="A full-page tile on the Guition: one big amber light switch">
+  <img src="docs/images/guition-full-menu.png" width="32%" alt="Navigation tiles on the Guition: Heating, Blinds and Weather open their own pages">
+  <img src="docs/images/guition-full-fan.png" width="32%" alt="A full-page fan tile with its speed slider along the bottom">
+</p>
+<p align="center">
+  <img src="docs/images/cyd-full-light.png" width="32%" alt="The same full-page light switch on the CYD">
+  <img src="docs/images/cyd-full-menu.png" width="32%" alt="Navigation tiles on the CYD">
+  <img src="docs/images/cyd-full-climate.png" width="32%" alt="A full-page heating tile on the CYD with the mode keys at the bottom">
+</p>
 - **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
   Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,
   light, fan), start/stop/dock (vacuum), open/stop/close or a

@@ -23,10 +23,14 @@ int main() {
   assert(!m.accepts(0, "light.a"));
   assert(m.set_layout({}, "Empty", changed)); assert(changed && m.ready() && m.count == 0);
   std::vector<std::string> many;
-  for (int i = 0; i < 21; ++i) many.push_back("light.a" + std::to_string(i));
+  // Eight pages of six slots (firmware 0.2.62+): 48 tiles fit, a 49th is refused.
+  for (int i = 0; i < 49; ++i) many.push_back("light.a" + std::to_string(i));
   assert(!m.set_layout(many, "Too many", changed)); assert(m.count == 0);
-  many.pop_back(); assert(m.set_layout(many,"Twenty",changed));
-  assert(m.count==20 && m.accepts(19,"light.a19"));
+  many.pop_back(); assert(m.set_layout(many,"Forty-eight",changed));
+  assert(m.count==48 && m.tiles.size()==48 && m.accepts(47,"light.a47"));
+  // A screen pays only for the tiles it has: twelve tiles, twelve on the heap.
+  assert(m.set_layout({"light.a0","light.a1","light.a2","light.a3","light.a4","light.a5","light.a6","light.a7","light.a8","light.a9","light.a10","light.a11"},"Twelve",changed));
+  assert(changed && m.count==12 && m.tiles.size()==12);
   for(size_t i=0;i<m.count;++i){m.tiles[i].received=true;m.tiles[i].state="off";}
   assert(m.ready());
 }
@@ -63,6 +67,17 @@ static void test_domains_and_packing() {
   assert(pack(m.tiles, 3, p) == 1 && p[0].slot == 0 && p[1].slot == 2 && p[2].slot == 4);
   m.tiles[3].wide = true;
   assert(pack(m.tiles, 4, p) == 2 && p[3].page == 1 && p[3].slot == 0);
+  // A full tile (firmware 0.2.62+) takes a page of its own: it starts one when its page is in use, and the
+  // tiles after it start the next page. Tiles at page starts keep their page.
+  for (auto &t : m.tiles) { t.wide = false; t.full = false; }
+  m.tiles[1].full = true; m.tiles[1].wide = true;
+  assert(m.tiles[1].cells() == 6 && m.tiles[0].cells() == 1);
+  assert(pack(m.tiles, 3, p) == 3 && p[0].page == 0 && p[1].page == 1 && p[1].slot == 0 && p[2].page == 2 && p[2].slot == 0);
+  m.tiles[0].full = true; m.tiles[0].wide = true;
+  assert(pack(m.tiles, 3, p) == 3 && p[0].page == 0 && p[0].slot == 0 && p[1].page == 1 && p[2].page == 2);
+  m.tiles[1].full = m.tiles[1].wide = false;
+  assert(pack(m.tiles, 3, p) == 2 && p[1].page == 1 && p[1].slot == 0 && p[2].page == 1 && p[2].slot == 1);
+  for (auto &t : m.tiles) { t.wide = false; t.full = false; }
 }
 struct RunExtra { RunExtra() { test_domains_and_packing(); } } run_extra;
 // Explicit grid positions (0.2.26+): gaps stay empty, a wide card starts in the left column.
@@ -104,6 +119,15 @@ static void test_explicit_slots() {
   assert(place(m, p) == 1 && p[0].slot == 0 && p[1].slot == 1 && p[2].slot == 2);
   assert(m.set_layout({"light.a", "light.b", "light.c"}, "Home", changed, {}, moved));
   assert(!changed && !moved);
+  // A full tile (firmware 0.2.62+) on any slot of a page snaps to that page's first slot and fills the page.
+  assert(valid_entity("screen.page_1") && valid_entity("screen.page_8") && !valid_entity("screen.page_9") && !valid_entity("screen.page") && !valid_entity("screen.page_"));
+  { Tile nav; nav.entity = "screen.page_3"; assert(nav.is_page() && nav.page_target() == 3 && nav.builtin() && nav.available()); }
+  m.tiles[1].full = true; m.tiles[1].wide = true;
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Home", changed, {0, 9, 12}, moved));
+  assert(!changed && moved && place(m, p) == 3 && p[1].page == 1 && p[1].slot == 0 && p[2].page == 2 && p[2].slot == 0);
+  assert(m.set_layout({"light.a", "light.b", "light.c"}, "Home", changed, {0, 47, 1}, moved));
+  assert(place(m, p) == 8 && p[1].page == 7 && p[1].slot == 0);
+  m.tiles[1].full = m.tiles[1].wide = false;
   // Changing the tiles resets everything, including the positions.
   assert(m.set_layout({"light.a", "light.z"}, "Home", changed, {1, 6}, moved));
   assert(changed && !moved && !m.ready() && place(m, p) == 2 && p[0].slot == 1 && p[1].page == 1);

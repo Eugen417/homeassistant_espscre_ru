@@ -12,8 +12,9 @@ panel costs a fraction of that, sits on a table or in a wall box, and is always 
 lights, the heating or the vacuum.
 
 **What.** Firmware for two affordable panels, the 2.8-inch CYD and the 4-inch Guition, with up to
-twenty tiles over four pages: lights, climate, blinds and curtains, the vacuum, media, the weather,
-history graphs, clocks and timers. An automation can put an alert on every screen when someone rings
+48 tiles over eight pages: lights, climate, blinds and curtains, the vacuum, media, the weather,
+history graphs, clocks and timers. A tile can take the whole page, one big switch you push without
+looking, and a tile can go to another page. An automation can put an alert on every screen when someone rings
 the bell, and a Guition shows who is there with the doorbell camera's picture. A tap can run any
 action Home Assistant has for a tile, and Dark mode suits a screen beside the bed.
 
@@ -30,6 +31,11 @@ also be changed on the screen or by an automation, and your own YAML for one scr
   <img src="docs/images/guition-home.png" width="32%" alt="Guition 4-inch screen: an analog clock with the date, a temperature graph, the weather forecast, a lamp and presence">
   <img src="docs/images/guition-controls.png" width="32%" alt="Double-width tiles with direct control: the heating setpoint, a dimmer and the Sonos volume">
   <img src="docs/images/guition-page-4.png" width="32%" alt="An energy graph, the robot vacuum, a coffee machine, a fan and a good-night script with pastel backgrounds">
+</p>
+<p align="center">
+  <img src="docs/images/guition-full-light.png" width="32%" alt="A full-page tile: one big amber light switch that fills the screen, so you push anywhere without looking">
+  <img src="docs/images/guition-full-menu.png" width="32%" alt="Navigation tiles: Heating, Blinds and Weather each open their own page, next to a person and a lamp">
+  <img src="docs/images/guition-full-climate.png" width="32%" alt="A full-page heating tile: the room temperature big in the middle, the mode keys at the bottom">
 </p>
 <p align="center">
   <img src="docs/images/guition-weather.png" width="32%" alt="Weather card: current weather, the coming hours and the coming days with chance of rain">

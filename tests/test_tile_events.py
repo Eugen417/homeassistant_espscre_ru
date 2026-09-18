@@ -93,8 +93,8 @@ class AddAndUpdate(unittest.TestCase):
                               ({'entity': 'light.a', 'page': 1, 'column': 'middle'}, 'column is left or right')):
             with self.assertRaisesRegex(ValueError, message):
                 apply_tile_event(layout(), 'add', data)
-        full = layout(*[tile(f'light.a{n}', n) for n in range(20)])
-        with self.assertRaisesRegex(ValueError, 'twenty tiles'):
+        full = layout(*[tile(f'light.a{n}', n) for n in range(48)])
+        with self.assertRaisesRegex(ValueError, '48 tiles'):
             apply_tile_event(full, 'add', {'entity': 'light.extra'})
 
 
