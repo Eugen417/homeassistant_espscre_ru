@@ -5,7 +5,7 @@ ARG BUILD_ARCH
 LABEL io.hass.version="${BUILD_VERSION}" io.hass.type="app" io.hass.arch="${BUILD_ARCH}"
 RUN pip install --no-cache-dir 'aiohttp>=3.12,<4' PyYAML
 COPY app /app
-# The Update badge shows what's new from the changelog (app 0.2.74).
+# The Update badge shows what's new from the changelog (app 0.2.73).
 COPY CHANGELOG.md /app/CHANGELOG.md
 WORKDIR /app
 ENTRYPOINT []

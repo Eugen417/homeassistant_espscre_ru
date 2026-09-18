@@ -165,7 +165,7 @@ export async function loadEntityActions(entity: string) {
   }
 }
 
-// ---- Live values on the mockup (app 0.2.74): what the screen shows right now ----
+// ---- Live values on the mockup (app 0.2.73): what the screen shows right now ----
 let statesFlight = false;
 export async function loadStates() {
   const entities = [...new Set((state.layout?.tiles || []).map((t) => t.entity).filter((id) => !id.startsWith("screen.")))];
@@ -347,7 +347,7 @@ export async function save() {
   }
 }
 
-// ---- Identify and the test alert (app 0.2.74): a screen's own show_alert action ----
+// ---- Identify and the test alert (app 0.2.73): a screen's own show_alert action ----
 export const canAlert = (screen: Screen | undefined) =>
   Boolean(screen && screen.alert_action && versionAtLeast(screen.firmware, state.inventory.alerts?.min_firmware || "0.2.31"));
 export async function identify(screen: Screen) {
@@ -362,7 +362,7 @@ export async function sendTestAlert(target: string, data: Record<string, unknown
   return (await send("alerts/test", "POST", { screen: target, data })) as { sent: number; failed: number; skipped: number; unusable?: string[] };
 }
 
-// ---- Copying and sharing a layout (app 0.2.74) ----
+// ---- Copying and sharing a layout (app 0.2.73) ----
 const LAYOUT_KEYS = ["title", "tiles", "header", "pages"] as const;
 function adopt(source: Partial<Layout>, what: string) {
   const layout = state.layout;
@@ -418,7 +418,7 @@ export function importLayout(text: string) {
   adopt(data, "Layout imported");
 }
 
-// ---- Updates with content (app 0.2.74): what a screen gets, and how far its update is ----
+// ---- Updates with content (app 0.2.73): what a screen gets, and how far its update is ----
 export function whatsNew(screen: Screen): string[] {
   const target = state.inventory.updates?.target;
   const sections = (state.inventory.updates as any)?.changelog as { app: string; firmware: string; lines: string[] }[] | undefined;

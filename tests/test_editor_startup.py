@@ -8,7 +8,7 @@ fills in what was missing.
 App 0.2.65: the page no longer opens the first screen by itself; the owner picks one. Until then a card asks for
 that, or offers the install when there are no screens yet.
 
-App 0.2.74: the page is the Vue app in web/; these tests read its source (tests/editor_sources.py).
+App 0.2.73: the page is the Vue app in web/; these tests read its source (tests/editor_sources.py).
 """
 import re
 import sys

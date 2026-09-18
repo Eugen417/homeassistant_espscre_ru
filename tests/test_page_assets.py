@@ -1,4 +1,4 @@
-"""The page loads its own script and styles by content hash (app 0.2.58, Vite build since 0.2.74).
+"""The page loads its own script and styles by content hash (app 0.2.58, Vite build since 0.2.73).
 
 After updating to 0.2.57, Safari showed an empty Screen settings panel: it kept a cached script from before
 the update. Vite names every built file after a hash of its content and index.html asks for those names, so a

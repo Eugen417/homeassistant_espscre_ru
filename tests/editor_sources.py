@@ -1,6 +1,6 @@
 """The editor's source, for the tests that read it.
 
-The page is a Vue app in web/ (app 0.2.74); `npm run build` writes it to screen_manager/app/static. Tests look at
+The page is a Vue app in web/ (app 0.2.73); `npm run build` writes it to screen_manager/app/static. Tests look at
 the source, not the build: every .ts and .vue file under web/src as one text (SCRIPT, which is also the markup:
 a .vue file carries its template), and the stylesheets as another (CSS).
 """

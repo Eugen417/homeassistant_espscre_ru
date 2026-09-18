@@ -32,7 +32,7 @@ class Updater:
         self.manager, self.path = manager, Path(path)
         self.auto, self.hosts, self.results, self.last_round = False, {}, {}, None
         self.task, self.current, self.queue, self.phase = None, None, [], None
-        # What's new since a screen's firmware, for the Update badge (app 0.2.74).
+        # What's new since a screen's firmware, for the Update badge (app 0.2.73).
         self.changelog = changelog.load()
         if self.path.exists():
             raw = json.loads(self.path.read_text())

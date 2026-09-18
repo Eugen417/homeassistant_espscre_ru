@@ -1,5 +1,5 @@
 """Settings (app 0.2.45): New screen, Firmware & USB, firmware updates, Alerts and Claude moved off the main
-page into a view of their own. App 0.2.74: the sidebar carries the way in (New screen, Firmware & USB, Alerts,
+page into a view of their own. App 0.2.73: the sidebar carries the way in (New screen, Firmware & USB, Alerts,
 Settings), each once; the Settings page keeps the updates and Claude."""
 import re
 import sys

@@ -1624,7 +1624,7 @@ def create_app(manager, development=False):
                       'attributes':state_message(i,t,manager.ha.states)['a'],
                       'options':t.get('options',{})} for i,t in enumerate(layout['tiles'])]})
     async def states(request):
-        """Live values for the editor's mockup (app 0.2.74): the state, Home Assistant's word and the attributes a
+        """Live values for the editor's mockup (app 0.2.73): the state, Home Assistant's word and the attributes a
         card shows, for the tiles on the page, saved or not. At most sixty entities per request."""
         index = manager.registry_index()
         result = {}
@@ -1647,14 +1647,14 @@ def create_app(manager, development=False):
             raise ValueError(f"{screen['name']} can't show an alert: {skipped[0][1] if skipped else 'not ready'}.")
         return ready[0]
     async def identify(request):
-        """Identify (app 0.2.74): the screen shows a short card and blinks its backlight, so you know which one it is."""
+        """Identify (app 0.2.73): the screen shows a short card and blinks its backlight, so you know which one it is."""
         screen = one_alert_target(request.match_info['inbox'])
         data, _ = alert_data({'title': f"This is {screen['name']}", 'subtitle': 'Identify, from ESP Screens', 'icon': 'bell-ring',
                               'color': 'blue', 'button_text': 'OK', 'timeout': 8, 'flash': True})
         await manager.ha.call(alert_service(screen['node']), data)
         return web.json_response({'ok': True})
     async def test_alert(request):
-        """Alerts → Try it (app 0.2.74): one alert to one screen or to every screen, with the fields an automation sends."""
+        """Alerts → Try it (app 0.2.73): one alert to one screen or to every screen, with the fields an automation sends."""
         body = await request.json()
         if not isinstance(body, dict):
             raise ValueError('Invalid alert.')

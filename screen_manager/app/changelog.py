@@ -1,4 +1,4 @@
-"""What's new for the Update badge (app 0.2.74): the CHANGELOG sections since a screen's firmware.
+"""What's new for the Update badge (app 0.2.73): the CHANGELOG sections since a screen's firmware.
 
 The Dockerfile copies CHANGELOG.md next to this file; a development checkout has it one folder up.
 Each `## <app> (firmware <fw>)` section gives its bullet lines as plain text, newest first.

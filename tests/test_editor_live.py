@@ -1,4 +1,4 @@
-"""Live values on the mockup, Identify, the test alert and the changelog for the Update badge (app 0.2.74).
+"""Live values on the mockup, Identify, the test alert and the changelog for the Update badge (app 0.2.73).
 
 The editor asks /api/states for the tiles it shows and draws Home Assistant's values on the mockup; Identify and
 Try it call a screen's own show_alert action, with the same field rules as an alert event; the update summary
