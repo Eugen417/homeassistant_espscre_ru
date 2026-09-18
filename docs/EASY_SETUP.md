@@ -117,7 +117,7 @@ Home Assistant without Wi-Fi sleep delay.
 
 Select your screen, tap the bar at the top of a page to give the screen its name,
 and search for entities in the **Library** on the right. It has domain filters with
-colored icons. You can add up to 48 tiles, one for every slot
+colored icons, a room filter, and **Hide placed**. You can add up to 48 tiles, one for every slot
 (firmware 0.2.62+; see below for older firmware).
 The screen preview shows their placement: two columns, six slots per page,
 up to eight pages. Every tile has a fixed slot that only changes if
@@ -125,14 +125,15 @@ you drag it; empty slots stay empty, wherever you leave them. Drag a tile
 onto an empty slot and it stays there; drag it onto another tile and the two
 swap (the other tile takes the freed-up slot, or otherwise the nearest free
 slot); everything else stays put. While dragging, the preview already shows where
-everything will land; an empty page then stands ready below the last page. **Add
-page** creates an empty page that's kept; an empty page gets
-**Remove page**. Click an empty slot to place the next tile from the library
+everything will land; drop a tile on the page after the last one to start a new page.
+The pages stand side by side; **+ Add page** after the last one creates an empty page that's kept,
+and an empty page gets **Remove page**. Click an empty slot to place the next tile from the library
 there. Use the arrow keys to move a focused tile.
 Click a tile and its settings open in a drawer on the right, with the preview
 still in view: a custom name, click behavior, a mini-slider, a large value, a graph
-(sensors), a weather forecast (weather), or the size: **Double-width** or **Full
-page** (firmware 0.2.62+). A double-width tile for a climate, switch, light, fan,
+(sensors), a weather forecast (weather), the size: **Double-width** or **Full
+page** (firmware 0.2.62+), and on a screen with more pages the **Page** it is on, to move it without dragging.
+A double-width tile for a climate, switch, light, fan,
 vacuum, cover, media player, number, select, timer, scene, script, or button gets **direct
 control** on the right, like the rows in Home Assistant (for example temperature − / +,
 open/stop/close, volume with mute, a toggle); under **Direct control
@@ -161,6 +162,9 @@ Click **Save & send** to send your changes.
   (firmware 0.2.58+).
 - Long press a fan: speed, if the device supports percentages.
 - Scene/script: tap to run; button/input_button: tap to press.
+- Media player: tap for the media card with the cover (Guition), the keys, and the volume.
+- Camera or image (Guition): tap for the picture full screen, refreshed every four seconds.
+- A *Go to page* tile: tap to open its page.
 - Sensor, number, binary sensor, and person: tap for the history card, for 1 hour,
   24 hours, or 1 week. Long press a switch for its history. A sensor's graph on the tile
   shows 1, 6, or 24 hours.
@@ -258,7 +262,8 @@ in your own YAML with an earlier release tag, without changing the keys.
   automatically imported into the new management page.
 
 HA Container without Supervisor has no App store. This installation guide
-targets Home Assistant OS; the development server is not a production route for
+targets Home Assistant OS; for Home Assistant Container, run the app next to it as in
+[ESP Screens with Docker](DOCKER.md). The development server is not a production route for
 a standalone public portal.
 
 HA mechanisms used: [Ingress](https://developers.home-assistant.io/docs/apps/presentation/),
@@ -266,33 +271,33 @@ HA mechanisms used: [Ingress](https://developers.home-assistant.io/docs/apps/pre
 [ESPHome packages](https://esphome.io/components/packages/).
 
 
-## Adjusting screen settings (from 0.1.2)
+## Adjusting screen settings
 
-Update ESP Screen Manager to 0.1.2 and install the new firmware once
-via your **existing** ESPHome device → Install → Wirelessly. Keep your own YAML
-with Wi-Fi and keys. Then open the screen in ESP Screen Manager and its
-**Screen settings** tab. A change there applies at once; there is nothing to save.
-After this, changes to these settings don't need a new firmware flash.
+Open the screen in ESP Screens and its **Screen settings** tab. A change there applies at
+once; there is nothing to save, and no firmware flash is needed. The same settings are on the
+screen itself (hold the top bar, firmware 0.2.44+) and, with firmware 0.2.49+, on the screen's
+device in Home Assistant ([SETTINGS.md](SETTINGS.md)).
 
 | Setting | Options | Default |
 |---|---|---|
-| Auto standby | On/off | On |
-| Standby after | 1–1440 minutes after the last touch | 10 minutes |
 | Normal brightness | 5–100% | 100% |
 | Dark mode | On/off: black page, graphite cards, firmware 0.2.54+ | Off |
+| Auto standby | On/off | On |
+| Standby after | 1–1440 minutes after the last touch | 10 minutes |
 | Standby brightness | 0–100%, capped at normal brightness | 20% |
 | Night mode | On/off; applies during standby | On |
 | Night start/end | Hour and minute, can span midnight | 22:00–07:00 |
 | Night brightness | 0–100%, capped at normal brightness | 10% |
-| Show clock | On/off | On |
-| Time format | 24 or 12 hour, without AM/PM | 24 hour |
-| Return to page 1 | Also closes detail menus on standby | Off |
+| Clock | 24 or 12 hour; the clock shows no AM/PM | 24 hour |
+| Back to page 1 | Closes an open card and goes back to page 1 after 30 seconds to 60 minutes without a touch, firmware 0.2.44+ | On, 2 minutes |
+| Also on standby | Standby goes back to page 1 too (it always closes an open card) | Off |
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
 | Page buttons | Off: no buttons under the tiles, the tiles take their room, firmware 0.2.69+ | On |
 | Guition rotation | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
 
-Home Assistant shows the same settings on each screen's ESPHome device: the switch
-**Auto standby** (firmware 0.2.41+) and the numbers **Standby after**, **Normal brightness**,
+Home Assistant shows these settings on each screen's ESPHome device, under *Configuration*:
+with firmware 0.2.49+ every one of them, older firmware the switch **Auto standby**
+(firmware 0.2.41+) and the numbers **Standby after**, **Normal brightness**,
 **Standby brightness** and **Night brightness**. Changing them there, for example from an
 automation, also changes them in ESP Screens and keeps them after a restart. Turning Auto
 standby off wakes the screen and keeps it on; turning it on counts the standby time from
@@ -330,18 +335,18 @@ Night hours use the ESPHome device's timezone and the time from HA.
 Without a valid time, the screen uses the regular standby brightness; matching
 start and end times turn the night window off. At 0%, only the
 backlight turns off: this is not deep sleep and not a screensaver.
-The first tap wakes the screen without controlling a device.
+The first tap wakes the screen without controlling a device, except on a page that is
+one full-page switch (firmware 0.2.65+): there the waking push also switches it.
 
-The add-on stores everything per screen in its persistent data. The screen also
-stores the last received settings in preferences; ESPHome batches those
-write operations (normally up to a minute). So don't unplug the power right after
-saving. Existing CYD calibration, tiles, API, and OTA keys are preserved.
-An offline screen gets the changes as soon as it comes back. Regular HA status
-updates don't wake the screen and don't reset the standby timer.
+With firmware 0.2.49+ the screen owns its settings and keeps them in its preferences;
+an offline screen shows them as unknown in ESP Screens and takes no changes until it is back.
+Older firmware gets them from the add-on's persistent data, also as soon as it comes back.
+ESPHome batches the preference writes (normally up to a minute), so don't unplug the power
+right after a change. Existing CYD calibration, tiles, API, and OTA keys are preserved.
+Regular HA status updates don't wake the screen and don't reset the standby timer.
 
-With older firmware, the management page shows that an update is needed first.
-The tiles remain usable. Manual YAML profiles keep using their substitutions;
-to manage through this app, use the Easy Setup package.
+A setting that needs newer firmware than the screen has doesn't show in ESP Screens until
+the screen is updated. The tiles remain usable.
 
 The current Guition uses the native ST7701S configuration; see
 [the hardware comparison](GUITION_FACTORY_REFERENCE.md). Settings and

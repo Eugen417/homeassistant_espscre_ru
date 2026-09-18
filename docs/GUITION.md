@@ -1,6 +1,6 @@
 # Guition ESP32-S3 4-inch wallbox — 480 × 480
 
-This branch adds a separate profile for the **Guition 4848S040** with an
+The **Guition 4848S040** has a board file of its own, next to the CYD's, for its
 ST7701S RGB display and **GT911 capacitive touch**, ESP32-S3, 16 MB flash, and
 8 MB octal PSRAM. The name/2mm wall plate also describes the enclosure; always
 check the electronics. This profile doesn't configure any relay.
@@ -32,7 +32,9 @@ Install Guition firmware 0.2.9 and ESP Screen Manager 0.2.9. Open the screen
 in the management page, open the **Screen settings** tab, and choose 0°, 90°,
 180°, or 270° (clockwise) under **Rotation**. It applies at once; there is
 nothing to save. After that, a firmware flash is no longer needed to change the
-angle. The setting is kept in the app data and on the screen after a restart.
+angle. The screen keeps the angle after a restart; it can also be changed on the
+screen's own settings page (Screen) and, with firmware 0.2.49+, as
+`select.<screen>_rotation` in Home Assistant.
 
 This uses native ESPHome/LVGL rotation for both display and touch, with no changes
 to the panel initialization or GT911 mirroring. After mounting, physically check the
@@ -40,11 +42,13 @@ four corners and navigation; a render test doesn't test touches. The option is
 only visible for the Guition once its new firmware has been discovered by HA.
 The CYD stays on its existing orientation with its own calibration.
 
-Six tiles of **218 × 108 pixels** per page, 12px spacing, and a
-separate navigation strip. In ESP Screen Manager, up to 48 tiles fit across up to
-eight pages (firmware 0.2.62+; twenty over four pages before); navigation disappears
-at six or fewer. The current interface has a light gray background, white cards,
-and colored domain icons. From 0.2.10, you can choose a pastel background with
+Six tiles of **218 × 108 pixels** per page, 12px spacing, and the page buttons
+below them. In ESP Screen Manager, up to 48 tiles fit across up to
+eight pages (firmware 0.2.62+; twenty over four pages before); the page buttons disappear
+at six or fewer, or with **Page buttons** off, and the tiles then grow to 218 × 122
+(firmware 0.2.69+). The interface has a light gray background, white cards,
+and colored domain icons; **Dark mode** (firmware 0.2.54+) turns it black with graphite
+cards. From 0.2.10, you can choose a pastel background with
 dark text per tile. Standby starts after ten minutes without touch by default and
 is adjustable in the management page.
 The backlight dims through ESPHome's own light transition (1.5 s to standby, 80 ms to
@@ -103,20 +107,20 @@ which shows the GT911 measurement screen right after the USB upload. After
 checking, rebuild/reflash without that override. This compatibility name only
 opens a pixel test; it doesn't perform any ADC calibration.
 
-On the tested panel, both GT911 axes are mirrored: `TOUCH_MIRROR_X` and
-`TOUCH_MIRROR_Y` are set to `true`. The default is `LVGL_ROTATION: "0"`. For a different mounting, set the
-desired LVGL rotation and give the wizard the same value, for example
-`--rotation 90`. Check every corner; only change the GT911 `TOUCH_SWAP_XY` /
-`TOUCH_MIRROR_X` / `TOUCH_MIRROR_Y` if the physical measurement requires it.
+On the tested panel, the GT911 needs no transform: `TOUCH_SWAP_XY`, `TOUCH_MIRROR_X` and
+`TOUCH_MIRROR_Y` are all `false` in the board file, and the default is `LVGL_ROTATION: "0"`.
+For a different mounting, choose the rotation under **Screen settings** (or on the screen) and
+give the wizard the same value, for example `--rotation 90`. Check every corner; only change
+the GT911 `TOUCH_SWAP_XY` / `TOUCH_MIRROR_X` / `TOUCH_MIRROR_Y` if the physical measurement requires it.
 
 ## HA and acceptance
 
-Add the new device via the ESPHome integration (name/IP, port 6053,
-API key from secrets), then choose its tiles in ESP Screens.
+Add the new device via the ESPHome integration (name/IP, port 6053, the
+API key from the screen's profile, which the New screen window also shows), then choose its tiles in ESP Screens.
 
 ```sh
 python diagnostics/run_ui_test.py --host wallbox-kitchen.local --name wallbox-kitchen
-python -m unittest discover -s tests -p 'test_*.py'
+tools/check.sh
 ```
 
 Also go through the physical checks, using the GT911 wizard instead of the XPT2046
@@ -157,9 +161,12 @@ committed or exported. Recovery happens at address 0, with the same
 ## RGB memory settings
 
 The pixel clock is set to 16 MHz: on the test board, this removed the faint
-flicker seen at the 12MHz setting. For the RGB bounce buffer, code and
-constant data run from octal PSRAM, with a 64KB data cache and 64-byte
-cache lines; RGB stream recovery happens on VSYNC. These settings
-follow [Espressif's RGB LCD recommendations](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32s3/api-reference/peripherals/lcd/rgb_lcd.html).
+flicker seen at the 12MHz setting. Code runs from the octal PSRAM (80 MHz,
+`execute_from_psram`), and the panel otherwise uses ESPHome's own `st7701s`
+defaults with the manufacturer's timings. The first profile also set a 64KB data
+cache, 64-byte cache lines and RGB stream recovery on VSYNC, after
+[Espressif's RGB LCD recommendations](https://docs.espressif.com/projects/esp-idf/en/v5.5.4/esp32s3/api-reference/peripherals/lcd/rgb_lcd.html);
+those went when the native configuration proved clean without them
+([the comparison](GUITION_FACTORY_REFERENCE.md)).
 Physically check for occasional glitches under Wi-Fi/render load; a
 software snapshot can't prove a disturbance in the panel signal.

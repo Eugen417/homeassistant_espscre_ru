@@ -121,7 +121,7 @@ that still fits a 480x480 board in one go.
 
 ### 3. The entity
 
-In both board profiles, with the same name as the row:
+In `packages/core.yaml`, which every board builds from, with the same name as the row:
 
 ```yaml
 switch:
@@ -141,18 +141,19 @@ The screen's preferences hold the value, so the entity reads it in a lambda inst
 (`restore_value` cannot be combined with a lambda). A switch publishes its own changes. A number, time or
 select takes `update_interval: never` and one line in `apply_screen_settings`, which publishes it when it
 differs; that script runs after every change and on every Home Assistant connection (the time sync), so the
-entity has a value before Home Assistant reads the states. The entities live in `packages/core.yaml`; the
-Rotation select, which only a Guition has, in its board file (docs/PROFILES.md).
+entity has a value before Home Assistant reads the states. A setting only some boards have goes into their board
+files instead, like the Rotation select of the Guition (docs/PROFILES.md).
 
 ### 4. The add-on
 
 - `screen_manager/app/core.py`: one line in `SETTING_RULES` (`'beep': (False, None, None)`) for validation,
-  one in `SETTING_ENTITIES` (`'beep': ('switch', 'Beep on touch')`, the entity name exactly as in the
-  profiles), and the key in `SETTINGS_BESIDE_BLOCK` so it never enters the frozen block.
+  one in `SETTING_ENTITIES` (`'beep': ('switch', 'Beep on touch')`, the entity name exactly as in
+  `packages/core.yaml`), and the key in `SETTINGS_BESIDE_BLOCK` so it never enters the frozen block.
 - `screen_manager/app/server.py`: `settings_view` already leaves a key out for a screen whose device has no
-  entity for it. Leave it out for a screen that does not own its settings too (`owner` `'layout'`), like
-  `auto_home` below firmware 0.2.44: such firmware cannot have it.
-- `screen_manager/app/static/app.js`: one row in `SETTING_GROUPS`, with the label the screen uses.
+  entity for it. Leave it out for a screen that does not own its settings too (`owner` `'layout'`), as
+  `dark_mode` and `page_buttons` are: such firmware cannot have it.
+- `web/src/store.ts`: one row in `SETTING_GROUPS`, with the label the screen uses; then build the editor
+  (`cd web && npm test && npm run build`, AGENTS.md).
 - `screen_manager/app/claude_skill.py`: a row in the table of screen entities.
 
 ### 5. Tests and proof

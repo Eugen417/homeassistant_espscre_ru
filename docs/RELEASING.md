@@ -6,7 +6,7 @@
   The old Guition branch is no longer updated; all board work goes to main.
 - `screen_manager/config.yaml` holds the app version. Bump it on every app release.
   A Git push alone isn't enough to offer an existing app an update.
-- The app image contains only code. Layouts live in `/data/screens.json`
+- The app image contains only code (and the CHANGELOG, for the Update badge's What's new). Layouts live in `/data/screens.json`
   (`version: 1`, `screens: {...}`). An update/rebuild preserves this volume data.
 - The device's own ESPHome YAML contains the name, Wi-Fi references, and unique API/OTA keys.
   Shared packages contain no secrets, fixed owner entities, or Wi-Fi.
@@ -61,10 +61,12 @@
    firmware against `FIRMWARE_VERSION`, keeps the CHANGELOG headings unique and newest first, and checks
    that every `fonts/...` file the packages fetch from GitHub is in the tree.
 5. Commit and push main (the only release branch). Create an immutable tag
-   `screens-vX.Y.Z` from the same commit. Test the remote YAML in an empty folder:
+   `screens-vX.Y.Z` from the same commit, and a GitHub release on that tag with the release notes in English
+   (`gh release create screens-vX.Y.Z --notes-file ...`). Test the remote YAML in an empty folder:
    all components/fonts must be fetchable via GitHub.
 6. The user checks the App store for updates and updates ESP Screen Manager.
-   For new screen features: existing ESPHome device → Install → Wirelessly.
+   For new screen features: **Update** on the screen in ESP Screens (or the nightly round); ESPHome Device
+   Builder's Install → Wirelessly on the existing device works too.
    The existing YAML stays in place; `refresh: 0s` fetches current code on every build.
 
 ## Local development
@@ -183,7 +185,8 @@ new field is needed for it. No changed preferences or keys.
 
 `FIRMWARE_VERSION` in `screen_manager/app/core.py` is the firmware that belongs to this
 app; `tests/test_updates.py` requires it to equal
-`SCREEN_FIRMWARE_VERSION` in both board profiles and packages. Bump them together.
+`SCREEN_FIRMWARE_VERSION` in both board profiles and packages (since app 0.2.84 one line in
+`packages/core.yaml` that every board and package takes). Bump them together.
 A screen with a lower `Schermfirmware` gets an update offer; a build
 fetches `main`, so publish firmware and app in the same commit.
 
@@ -216,6 +219,42 @@ icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.85 / firmware 0.2.71
+
+Tile colours as Home Assistant draws them. No protocol, storage or editor change: the state messages are the same as
+0.2.84's, and the firmware works the colours out from what it already receives.
+
+- Firmware: `Tile::active()` is a port of Home Assistant's `stateActive()` for the domains a tile shows, and
+  `render_slot` greys every tile that is not active (`Tile::slider_active()` keeps a closed blind's slider coloured).
+  Only `Tile::lights_up()` tiles, those that can be off, light up over a whole page. `tile_controls::accent()` replaces
+  `runtime_tiles::domain_accent()` and follows `stateColorCss()`; `theme.h` gained the extra Home Assistant colours. An
+  airco that is off reads "Off", with the current temperature when it reports one.
+- App: `header_bar.ALARM_CLASSES` is Home Assistant's list of eleven red classes, the same list the firmware uses.
+- The editor's mockup still draws icons in one colour. Details: docs/TEST_RESULTS_0285.md.
+
+### Compatibility 0.2.84 (firmware stays 0.2.70)
+
+The two board profiles became `packages/core.yaml` plus a board file under `packages/boards/`, put together by the
+entry files (docs/PROFILES.md). No firmware, protocol or storage change: `packages/cyd.yaml` and `packages/guition.yaml`
+keep their names and places, so every screen's own YAML (`files: [packages/<board>.yaml]`) builds as before, to the same
+code (the one-to-one check in docs/TEST_RESULTS_0284.md). `SCREEN_FIRMWARE_VERSION` is one line in the core.
+`tools/check_packages.py` replaces `tools/generate_packages.py`, and `tools/profiles.py` gives the tests and tools the
+three files as one text.
+
+### Compatibility 0.2.83 / firmware 0.2.70
+
+A light's effects page. Additive in protocol version 1; storage unchanged.
+
+- Wire: a light's state carries `effect`, and its `x` block `rows` (the select entities of the light's device:
+  `e`, `n`, `s`, `c`, `i`) and `nums` (its number entities: `e`, `n`, `lo`, `hi`, `st`, `v`, `i`), built by
+  `light_effects.rows` from what Home Assistant lists for the device. Older firmware ignores them.
+- A picker asks for its names with the event `esphome.screen_options` (`entity`, `page`). The app answers only then,
+  and only for a light on that screen's layout or a select on its device, with `{op: options, e, i, n, o}`: one page of
+  names per message, under the 4096-byte limit. Firmware before 0.2.70 never asks, so it never gets an `options`
+  message.
+- Firmware: `effects_page.h`; `Extra` gains `effect`, `option_rows` and `number_rows`. A hidden `roller_seed` makes
+  ESPHome compile LVGL's roller (CYD +20,288 bytes). Details: docs/TEST_RESULTS_0283.md.
+
 ### Compatibility 0.2.82 / firmware 0.2.69
 
 Page buttons (GitHub issue #9): a setting the screen owns, `page_buttons`, on by default. It has a preference record
@@ -238,6 +277,15 @@ without the entity shows no row for it.
 - Editor: `strandedPages()` (`model/layout.ts`) and `pageReachWarning()` (`store.ts`) warn when page buttons and
   swiping are both off and the Go to page tiles leave a page out of reach, or give it no way back to page 1. The
   warning shows above the pages and under the Screen card.
+
+### Compatibility 0.2.79 to 0.2.81 / firmware 0.2.66 to 0.2.68
+
+Firmware only (the app raises `FIRMWARE_VERSION`); no protocol or storage change, and an older app drives this firmware
+as before. 0.2.79 fills a blind's small slider with its closed part, on the screen and in the editor's mockup. 0.2.80
+takes a slider let go within `SLIDER_EDGE_SNAP_PX` of the left or right glass edge as its end (a size in the board file:
+Guition 67 px, CYD 20 px since 0.2.81; 0 turns it off). 0.2.81 gives a compact card's whole area to its small slider,
+keeps a slider's drag from turning the page, and no longer drops a second slider send within the 600 ms tap window.
+The CHANGELOG has the details.
 
 ### Compatibility 0.2.78 / firmware 0.2.65
 
@@ -266,6 +314,26 @@ The app sends a repeat only to 0.2.65+ (`PAGE_TILE_REPEAT_MIN_FIRMWARE` in `min_
   immutable`; the page and `/api` keep `no-store`. `config.yaml` drops `init: false` (tini is PID 1 again) and the server
   uses aiohttp's `handle_signals`.
 - Editor: `npm run build` type-checks first (`vue-tsc --noEmit`), `devEngines` pins Node. Storage unchanged.
+
+### Compatibility 0.2.77 / firmware 0.2.64
+
+The media card. Additive in protocol version 1; storage unchanged.
+
+- Wire: a media player's `x` block carries `artist`, `album`, `dur` and `pos` (seconds), `at` (the epoch of
+  `media_position_updated_at`) and `pic`, a short mark of the picture (`core.media_extras`). Older firmware ignores them.
+- A Guition on 0.2.64+ asks for a cover with the event `esphome.screen_camera` plus `size` (48-320 px) and `bg` (six hex
+  digits of the colour behind the rounded corners). The app answers `{op: camera, t: cover, e, u}` with a link on port
+  8098, or an empty `u` for a player without a picture. It serves covers only to a Guition on 0.2.64+
+  (`COVER_MIN_FIRMWARE`) and only for players on that screen's layout; the CYD never asks.
+- Firmware: `media_card.h` (the card's geometry, free of LVGL), `render_media_detail` and `render_media_full`, and one
+  image buffer shared by the camera, the alert's picture and the cover, so one picture loads at a time. Details:
+  docs/TEST_RESULTS_0277.md and docs/CAMERA.md.
+
+### Compatibility 0.2.75 and 0.2.76 / firmware 0.2.63
+
+0.2.75 draws the icon fonts at four bits per pixel (`bpp: 4`), like the text fonts: firmware only, 108 KB more flash
+on the CYD. 0.2.76 changes only the editor's mockup, which now draws a tile's icon on the left as the screens do. No
+protocol or storage change.
 
 ### Compatibility 0.2.74 / firmware 0.2.62
 
@@ -297,6 +365,14 @@ Supervisor restores the version and its data together).
   `to_page`, `TILE_SIZES` accepts "full screen"/"whole page". The editor's tile limit is 48 from firmware 0.2.62
   (`tileLimit()`), the tile sheet has Size Normal / Double-width / Full page and, for a page tile, "Goes to page"
   (which swaps the entity). Storage unchanged: `size` is one more value of an existing option.
+
+### Compatibility 0.2.73 (firmware stays 0.2.61)
+
+The editor became a Vue 3 + Vite app in `web/`, built into `screen_manager/app/static` (see Local development). The
+add-on's API only gained `GET /api/states` (the mockup's live values, at most sixty entities per request),
+`POST /api/screens/{inbox}/identify` and `POST /api/alerts/test`, both through a screen's own `show_alert`; data and
+firmware are unchanged. The built files carry a hash of their content in their names, so a browser never combines an
+old script with a new page.
 
 ### Compatibility 0.2.72 / firmware 0.2.61
 

@@ -28,8 +28,8 @@ Don't configure wallbox relays as part of display support.
 
 # Working instructions for LLMs and developers
 
-This project drives an ESP32-2432S028 with ILI9341 + XPT2046 (320×240,
-LVGL 90°). Read README.md, README_EXTENDED.md and docs/ before installing. The owner can
+This project drives two boards: the CYD ESP32-2432S028 with ILI9341 + XPT2046 (320×240,
+LVGL 90°) and the Guition above. Read README.md, README_EXTENDED.md and docs/ before installing. The owner can
 physically tap; an agent cannot replace that with software coordinates.
 
 ## Installing a new screen
@@ -69,7 +69,7 @@ and screens for lookups and tests. If that file is missing you are not on his ma
   another header; docs/THEME.md is the recipe, tests/test_theme.py and tests/test_theme.cpp guard it.
 - Screen settings live in one table: `components/smart_display/settings_screen.h` draws the
   page on the screen, `SETTING_RULES` in the add-on validates the same keys. Firmware 0.2.49+
-  owns them: every writer (the page, the entities in both profiles) goes through
+  owns them: every writer (the page, the entities in `packages/core.yaml`) goes through
   `settings_screen::set()`, and the add-on changes them through the entities in
   `SETTING_ENTITIES`, never through the layout message. docs/SETTINGS.md is the end-to-end
   recipe for adding one; never widen the eleven-key `settings` block older firmware insists on.
@@ -80,8 +80,8 @@ and screens for lookups and tests. If that file is missing you are not on his ma
   filtered physical ADC values. Don't apply the affine correction twice, in both the driver and the UI.
 - The calibration wizard assumes swap_xy=false, mirror_x=true, mirror_y=false,
   and LVGL 90°. A changed orientation also requires a new projection/tests.
-- Run `tools/check.sh` on code changes (the Python tests, every C++ test, both generators, the
-  editor's tests, types and build); on a firmware change also `tools/check.sh --firmware`, which
+- Run `tools/check.sh` on code changes (the Python tests, every C++ test, the package check, the icon
+  generator's check, the editor's tests, types and build); on a firmware change also `tools/check.sh --firmware`, which
   compiles both boards and applies the CYD's flash budget (docs/RELEASING.md step 2). CI runs the
   same script. Firmware tests and hardware acceptance are different checks.
 - `diagnostics/run_ui_test.py` renders without HA actions; don't touch the screen

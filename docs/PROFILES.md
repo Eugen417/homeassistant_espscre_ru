@@ -40,8 +40,10 @@ the board file replaces the core's. `esphome config home-like-2432s028.yaml` sho
    with capacitive touch: the Guition) to `packages/boards/<board>.yaml` and change its hardware sections.
 2. Fill the sizes table for the new resolution, and go through the hooks: keep, change or empty each one.
 3. Add `packages/<board>.yaml` and `<board>.yaml` after the existing entries, `<board>` to `ENTRIES` in
-   `tools/profiles.py` and to `installation_yaml()` in `screen_manager/app/core.py`, and a `BANDS` entry to
-   `tools/render_topbar.py`.
+   `tools/profiles.py` and to `REFS` in `screen_manager/app/core.py` (the boards `installation_yaml()` writes a
+   profile for), and a `BANDS` entry to `tools/render_topbar.py`. The add-on and the editor still know two boards,
+   a Guition or not: the board a screen is (`core.py`), `ALERT_LIMITS`, the camera sizes in `camera_feed.py`, and
+   the editor's New screen choices and `BAR_METRICS` (`web/src`) need the new board too.
 4. `python3 tools/check_packages.py`, `esphome config <board>.yaml`, `tools/check.sh --firmware`.
 
 The tiles per page (two columns of three) are still fixed in the firmware, the add-on and the editor

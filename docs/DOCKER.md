@@ -83,8 +83,8 @@ under **Settings → Devices & services** in Home Assistant, and then choose the
   ESPHome folder. `data/build` and `data/platformio` are caches.
 - **Claude:** **Install for Claude Code** is meant for the Claude Code app on Home Assistant
   OS. Use **Download for claude.ai** instead.
-- **Camera images (Guition, app 0.2.66+):** the screens load camera pictures from port **8098**
-  of this host, on all its addresses, so keep that port open to the screens. The app uses Home
+- **Camera images (Guition, app 0.2.66+):** the screens load camera pictures, and from app 0.2.77 the
+  album covers of the media card, from port **8098** of this host, on all its addresses, so keep that port open to the screens. The app uses Home
   Assistant's own LAN address; when the screens reach this host under another one, set
   `SCREEN_CAMERA_URL` (see below). The links are random and short-lived. [docs/CAMERA.md](CAMERA.md)
 

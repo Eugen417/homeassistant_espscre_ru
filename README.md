@@ -202,8 +202,9 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 </p>
 <p align="center"><sub>New screen (step 3) and choosing your tiles (step 5).</sub></p>
 
-You can install new firmware later from **Firmware & USB → Wi-Fi / OTA** in the sidebar.
-For an existing screen, always use the existing profile; creating a new
+New firmware goes on over Wi-Fi with the **Update** button of a screen in ESP Screens, or by itself
+every night if you turn that on under **Settings**; **Firmware & USB → Wi-Fi / OTA** in the sidebar
+installs it by hand. For an existing screen, always use the existing profile; creating a new
 installation profile generates new keys.
 
 The [complete installation guide](docs/EASY_SETUP.md) walks through every step in more detail.

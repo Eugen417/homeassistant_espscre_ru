@@ -17,7 +17,8 @@ panel, a loose connection, unstable power, or random outliers.
 
 ```yaml
 packages:
-  display: ...        # what ESP Screens put there
+  display: ...                                   # what ESP Screens put there
+  local_overrides: !include kitchen.local.yaml   # idem
   calibration: !include calibration.yaml
 ```
 2. Check the data cable and the USB port with `python -m serial.tools.list_ports`.
@@ -122,8 +123,9 @@ No `-s CALIBRATION_ON_BOOT true` is given here; the profile keeps it `false`.
 Then check the real thing: the tiles, the navigation and a few taps in the corners.
 
 Most screens never need this. A CYD shows its calibration on the screen itself when
-it first starts, and ESP Screens has **Calibrate touch** for a repeat. This USB route
-is for a panel that stays off after that, or for a measurement report.
+it first starts, and its **Calibrate touch** button in Home Assistant (on the screen's
+ESPHome device) starts it again. This USB route is for a panel that stays off after that,
+or for a measurement report.
 
 If calibration mode was opened only via the API, you can close it:
 

@@ -23,13 +23,15 @@ on the screen itself, and how updates work.
   title; a number that's too long is truncated with an ellipsis, the unit stays visible.
 - **Pastel backgrounds per tile:** choose red for an all-off script,
   green for all-on, or any other color. The title and status stay dark and
-  readable. The color also appears in the screen preview; **Default** restores
+  readable; in Dark mode the colour turns deep and the text light. The color also
+  appears in the screen preview; **Default** restores
   the normal colors. Requires firmware 0.2.10 or newer. **None** drops the card
   entirely: the content then sits at the same size directly on the screen background
   (firmware 0.2.16).
-- **Clock:** digital or analog. The analog clock has tick marks at 12, 3, 6, and 9
-  and, on a single tile, shows a calendar block (weekday, day, month) next to the
-  dial; double-width shows the digital time with the date beside it.
+- **Clock:** digital or analog. The analog clock has a mark for every hour (numerals at 12, 3, 6,
+  and 9 on the Guition) and a red second hand while the screen is awake. On a single tile it shows
+  a calendar block next to the dial (weekday, day and month; the CYD the day and month); double-width
+  shows the digital time with the date beside it, and a full-page clock is the dial alone.
 - **Light control:** brightness, rainbow color, and white temperature according to
   the light's capabilities. Open the detailed control with a long touch.
 - **Effects (firmware 0.2.70+):** a light that offers effects (a WLED, a Hue with
@@ -50,8 +52,9 @@ on the screen itself, and how updates work.
   sunset), a **timer** (`timer.*`, tapping starts or pauses it), and
   **presence** (`person.*`). Pick them in the library like any other tile, or
   drag them straight into the screen mockup; **Double-width** is an option for every tile, and so is
-  **Full page** (firmware 0.2.62+): the tile takes the whole page and is one big button that lights up
-  in its state colour while on, so a screen by the door switches the light when you push anywhere on it.
+  **Full page** (firmware 0.2.62+; not for a Go to page tile): the tile takes the whole page and is
+  one big button that lights up in its state colour while on, so a screen by the door switches the
+  light when you push anywhere on it.
   Only something that can be off lights up: a light, switch, airco, fan, blind, speaker, robot, script,
   timer, camera, person or binary sensor. Sensors, numbers, selects, scenes, the weather and the sun stay plain
   (firmware 0.2.71+).
@@ -71,6 +74,7 @@ on the screen itself, and how updates work.
   <img src="docs/images/cyd-full-menu.png" width="32%" alt="Navigation tiles on the CYD">
   <img src="docs/images/cyd-full-climate.png" width="32%" alt="A full-page heating tile on the CYD with the mode keys at the bottom">
 </p>
+
 - **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
   Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,
   light, fan), start/stop/dock (vacuum), open/stop/close or a
@@ -101,12 +105,18 @@ on the screen itself, and how updates work.
   cleans: **vacuum, vacuum and mop, or mop only** for robots that offer a cleaning mode in
   Home Assistant (such as Roborock), then suction and water. Only the rows the chosen mode
   uses are shown (app 0.2.46 / firmware 0.2.39).
-  Scenes, scripts, and buttons show when they last ran. A tile that's waiting on
-  Home Assistant shows a small spinner on a light overlay.
+  Scenes, scripts, and buttons show when they last ran. A tile that waits longer than
+  a moment on Home Assistant shows a small spinner over the tile (see below).
 - **Cover card** for blinds, curtains, shutters, and garage doors, like Home Assistant's own:
   a tall position slider on which the blind hangs from the top, a tilt slider over slats for
   venetian blinds, open, stop, and close, and the battery of a battery-powered blind
   (such as Motionblinds). A cover shows only what it supports (app 0.2.58 / firmware 0.2.50).
+- **Media card** like a phone's "now playing" (app 0.2.77 / firmware 0.2.64): the album cover, the
+  title, artist and album, a progress bar with the elapsed and total time, previous, play or pause
+  and next, and a volume row with mute. Keys the player doesn't offer are faded, and a player that is
+  off shows a power key. A Guition fetches the cover through ESP Screens, like a camera picture
+  ([docs/CAMERA.md](docs/CAMERA.md)); the CYD shows the player's icon in its place. A media tile of
+  size **Full page** is the same card on the page, with the keys and the volume working on the tile.
 - **History card** for sensors, numbers, binary sensors, people, and switches, the way Home
   Assistant shows history: a line with an axis in round steps and clock times for numbers,
   with the highest and lowest moment, and a timeline with the time in each state for on/off,
@@ -118,9 +128,10 @@ on the screen itself, and how updates work.
   (open/closed), the alarm, who's home, or when something or someone last
   changed ("5 min ago", "Yesterday"). See [Top bar](#top-bar).
 - **Screen settings:** standby time, normal and dimmed brightness,
-  night hours, **Dark mode** (firmware 0.2.54+), 24- or 12-hour clock, return to the home page,
-  and optional swiping between pages. Change them in ESP Screens, where they apply at once, or on the screen
-  itself. With firmware 0.2.49+ the screen keeps them, and every one of them is also an
+  night hours, **Dark mode** (firmware 0.2.54+), 24- or 12-hour clock, back to page 1 by itself
+  and on standby, optional swiping between pages, and **Page buttons** (firmware 0.2.69+): switched
+  off, the bar under the tiles goes and the tiles take its room. Change them in ESP Screens, where
+  they apply at once, or on the screen itself. With firmware 0.2.49+ the screen keeps them, and every one of them is also an
   entity in Home Assistant, so an automation can switch **Night mode** or **Auto standby**
   (firmware 0.2.41+), for example to keep a screen on while someone is home, turn **Dark mode**
   on at bedtime (firmware 0.2.54+), and
@@ -128,14 +139,16 @@ on the screen itself, and how updates work.
   See [Wake and sleep](#wake-and-sleep-from-an-automation).
 - **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
   second and a half and the screen opens its own settings page — brightness, night,
-  the clock, swiping, rotation, and what this screen is (name, IP address, firmware,
-  whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
+  the clock, back to page 1, swiping, the page buttons, rotation, and what this screen is
+  (name, IP address, firmware, whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
   within a second. See [Settings on the screen](#settings-on-the-screen).
 - **Guition rotation:** 0°, 90°, 180°, or 270°, directly from the management page.
   Native LVGL rotation turns the display and touch together. The CYD keeps its fixed
   orientation and its own calibration.
 - **Read current data** (the ··· menu of a screen): what Home Assistant reports for every tile right now,
-  and how each tile is set.
+  and how each tile is set. The same menu has **Identify**, which blinks the screen so you know which one
+  it is (firmware 0.2.31+), **Copy layout from…** another screen, and **Export** and **Import** of a
+  layout as JSON (app 0.2.73); nothing reaches the screen before **Save & send**.
 - **Override YAML per screen** (app 0.2.61): your own ESPHome YAML for one screen, such as another
   display controller, kept through updates. See
   [Updates and keeping your settings](#updates-and-keeping-your-settings).
@@ -230,7 +243,9 @@ data:
 - **`flash`**: `true` makes the backlight blink four times when the alert arrives.
 
 In ESP Screens, **Alerts** in the sidebar opens a cheatsheet with the exact action name for each screen,
-a ready-to-paste example, and all fields, icons, and colors. Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false`) if you
+a ready-to-paste example, and all fields, icons, and colors. It starts with **Try it** (app 0.2.73): fill in
+the same seven fields, choose one screen or all of them, and send a test alert.
+Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false`) if you
 don't use it. A new alert replaces the current one. Every end is reported as the event
 **`esphome.screen_alert`** with `action` (`ok`, `timeout`, `replaced`, or `remote`), `title`,
 `screen`, and the `device_id` that Home Assistant adds, so an automation can wait for OK.
@@ -334,9 +349,10 @@ the Wake and Sleep of the same screen included.
 
 ## Customizing tiles and colors
 
-Click a tile in the screen preview. Under **Pastel background**, choose a color,
-such as red or green. Optionally adjust the name, click action, mini-slider, or large
-value. Click **Save & send** to apply the changes.
+Click a tile in the screen preview and its settings open in a drawer beside it. Under
+**Pastel background**, choose a color, such as red or green. Optionally adjust the name, the
+size, what a tap does (**On tap**), the small slider, or a large value. Click **Save & send**
+to apply the changes.
 After the first supporting firmware update, this requires no new flash.
 
 <p align="center">
@@ -351,8 +367,9 @@ stay separately visible.
 
 ## Top bar
 
-At the top of the editor, each screen has its **Top bar**: the name on the left, up to
-six items on the right. **＋ Add** offers the time, an analog clock, and the date (which
+Tap the top bar of any page in the editor's preview and the drawer shows the screen's **Top bar**:
+the name on the left, up to six items on the right. **＋ Add** offers the time, an analog clock,
+and the date (which
 keep ticking on the screen itself, even without Home Assistant), suggestions from your own
 home (temperature and power usage from the screen's room, the weather, how many people are home,
 sunrise and sunset), and a search field for any entity, including a phone
@@ -396,7 +413,7 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 |---|---|
 | Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
-| Screen | 12/24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages, rotation (boards that turn) |
+| Screen | 12/24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages, page buttons, rotation (boards that turn) |
 | This screen | Name, IP address, firmware version, Home Assistant connected, Restart |
 
 <p align="center">
@@ -474,14 +491,19 @@ See the [release history](screen_manager/CHANGELOG.md) and
 **If you publish your own fork:** every push to GitHub is a release. Always also
 bump the add-on version in `screen_manager/config.yaml` and log the change in
 the CHANGELOG, otherwise the HA App store won't offer an update. A change to the
-screen also gets a new `SCREEN_FIRMWARE_VERSION` in both board profiles.
+screen also gets a new `SCREEN_FIRMWARE_VERSION` in `packages/core.yaml`, the one place both boards
+take it from, and the same `FIRMWARE_VERSION` in `screen_manager/app/core.py`.
 
 ## Guides and installation help
 
 - [Complete installation from ESP Screens](docs/EASY_SETUP.md)
+- [ESP Screens with Home Assistant Container (Docker)](docs/DOCKER.md)
 - [Guition hardware, mounting, and rotation](docs/GUITION.md)
 - [CYD calibration and USB diagnostics](docs/CALIBRATING.md)
-- [Instructions for developers and LLMs](AGENTS.md)
+- [Camera images and album covers](docs/CAMERA.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Instructions for developers and LLMs](AGENTS.md), with [how a screen's YAML is put together](docs/PROFILES.md),
+  [settings](docs/SETTINGS.md), [colours and Dark mode](docs/THEME.md) and [releases](docs/RELEASING.md)
 
 Give a developer or LLM a clean copy of this repository and, for example:
 

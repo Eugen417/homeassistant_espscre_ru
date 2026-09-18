@@ -27,10 +27,11 @@ temperature, a door, the alarm, or "last changed"). Drag to reorder, tap
 to configure; firmware 0.2.32 or newer renders them.
 
 After pairing via the HA ESPHome integration, choose the tiles in ESP Screens.
-Tap a tile and its settings open in a drawer on the right, with the mockup still in view: click behavior, larger values, mini-sliders, a wider tile, backgrounds.
+Tap a tile and its settings open in a drawer on the right, with the mockup still in view: click behavior, larger values, mini-sliders, a wider tile or one over the whole page, backgrounds.
 The mockup shows what Home Assistant reports right now: values, On or Off, positions, the song that plays. **Identify** in the ··· menu blinks a screen so you know which one it is; the same menu copies the layout of another screen, or exports and imports one as JSON. ⌘K searches screens, entities and actions.
-**Screen settings**, the tab next to Layout, has brightness and standby. **Read current data** in the ··· menu of a screen helps with
-missing attributes or an offline screen. New cards require firmware 0.2.0.
+**Screen settings**, the tab next to Layout, has brightness, Dark mode and standby, the night hours, and the
+clock, back to page 1, swiping, the page buttons and the rotation. **Read current data** in the ··· menu of a screen helps with
+missing attributes or an offline screen. A new card needs new firmware on the screen: press **Update** on it.
 The ··· menu of a screen also has **Override YAML** for a persistent, hardware-specific
 `<screen>.local.yaml` file. It is loaded after the shared package and does not
 replace the managed name, credentials, Wi-Fi, OTA or package connection.

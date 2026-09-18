@@ -13,12 +13,12 @@
 | No measurements | Five crosshairs visible, other log reader closed, correct port. Press Enter in the wizard first, then tap the requested point three times, releasing in between. |
 | Tap jumps to a different spot | Check the independent `verify`, your own `calibration.yaml`, and a fixed orientation. Don't use the same taps to both fit and verify. |
 | Fit reports spread/error | Measure again following the prompts. Don't fix unstable ADC readings by raising the tolerance; check power, cable, and touch hardware. |
-| Duplicate HA action | Check both the touch logs and HA automations. Don't use direct actions together with an automation on the action sensor for the same operation. |
+| Duplicate HA action | Check both the touch logs and your HA automations: an automation that reacts to the same entity can repeat or undo what the tile did. |
 | Wi-Fi doesn't connect | 2.4GHz, correct local secrets, network range. USB calibration doesn't need HA. |
 | HA doesn't see the board | Manually use the IP from the logs; port 6053 reachable, correct encryption key, no guest network isolation. |
 | Status works but action doesn't | Check the HA option for allowed device actions, the real entity ID, and a supported action. |
 | Vacuum/climate partly usable | Supported modes/attributes differ per integration; test the same action in Home Assistant first. |
-| Wrong pagination | `TILE_COUNT` is 1–10; hidden buttons up to six, two pages from seven on. Reflash after changing it. |
+| Wrong pagination | Tiles keep the slot you gave them in ESP Screens: six per page, up to eight pages, and a Save & send applies it without a reflash. The page buttons hide on a screen with one page, and **Page buttons** off hides them everywhere; then only swiping and Go to page tiles change the page, and the editor warns about a page nothing leads to. Firmware older than 0.2.26 packs the tiles in order instead. |
 | Freeze/reset | Keep the USB log, check the reset reason/power, and run the render test. Note the action and time. |
 
 For a USB log (stop other readers):
@@ -27,7 +27,6 @@ For a USB log (stop other readers):
 python diagnostics/capture_serial.py --port <USB_PORT> --seconds 120
 ```
 
-The existing `CYD_STABILITY.md` and `TEST_RESULTS.md` describe earlier
-investigation on one specific board. Their measurements are not calibration for
-a new board. Start at [README.md](../README.md), keep a working
+The `docs/TEST_RESULTS_*.md` files describe tests on the owner's own boards. Their
+measurements are not calibration for a new board. Start at [README.md](../README.md), keep a working
 local configuration, and change one cause at a time.
