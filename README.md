@@ -69,21 +69,21 @@ also be changed on the screen or by an automation, and your own YAML for one scr
 ## Managed from Home Assistant
 
 <p align="center">
-  <img src="docs/images/editor.png" width="98%" alt="ESP Screens in Home Assistant: the screens on the left, the top bar and tiles of the selected screen on the right">
+  <img src="docs/images/editor.png" width="98%" alt="ESP Screens in Home Assistant: your screens in the sidebar, the pages of the living room screen side by side with their top bar, and the entity library on the right">
 </p>
 <p align="center"><sub>ESP Screens, a page in Home Assistant: every screen on the left, its top bar and tiles on the right.</sub></p>
 <p align="center">
-  <img src="docs/images/editor-tiles.png" width="63%" alt="Choosing tiles: every page in the screen preview, next to the entity picker with filters">
-  <img src="docs/images/editor-tile-settings.png" width="33%" alt="Tile settings of the curtains: double-width with open, stop and close on the tile, and on tap Perform action with Set cover position at 50 %">
+  <img src="docs/images/editor-tiles.png" width="63%" alt="Choosing tiles: the pages of the screen side by side, next to the library with its search and filters">
+  <img src="docs/images/editor-tile-settings.png" width="33%" alt="Tile settings of the curtains in the drawer: double-width with open, stop and close on the tile, what a tap does, and the pastel background">
 </p>
 <p align="center"><sub>Search your home, drop a tile on the preview, tap it for its name, width, control and color, and for what a tap does: open its card, switch it, or run any action Home Assistant has for it, such as the curtains to 50 %. Save, and the screen has it.</sub></p>
 <p align="center">
-  <img src="docs/images/editor-top-bar.png" width="31%" alt="Add to the top bar: the time, an analog clock, the date and suggestions from your own home">
+  <img src="docs/images/editor-top-bar.png" width="31%" alt="Add to the top bar, in the drawer: the time, an analog clock, the date, suggestions from your own home and any entity">
   <img src="docs/images/editor-settings.png" width="65%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">
 </p>
 <p align="center"><sub>A top bar built from your own home, firmware updates over Wi-Fi (every night if you like), and a skill so Claude can rearrange your screens.</sub></p>
 <p align="center">
-  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping and the rotation">
+  <img src="docs/images/editor-screen-settings.png" width="98%" alt="The Screen settings tab in ESP Screens: Brightness with standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping and the rotation">
 </p>
 <p align="center"><sub>Screen settings apply at once, and a change made on the screen or by an automation shows up here too.</sub></p>
 <p align="center">
@@ -173,7 +173,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 
 <p align="center">
   <img src="docs/images/editor-new-screen.png" width="37%" alt="New screen in ESP Screens: choose the board, give it a name, pick the USB port and install">
-  <img src="docs/images/editor-tiles.png" width="59%" alt="Choosing tiles: every page in the screen preview, next to the entity picker with filters">
+  <img src="docs/images/editor-tiles.png" width="59%" alt="Choosing tiles: the pages of the screen side by side, next to the library with its search and filters">
 </p>
 <p align="center"><sub>New screen (step 3) and choosing your tiles (step 5).</sub></p>
 
