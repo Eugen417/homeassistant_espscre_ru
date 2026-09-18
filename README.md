@@ -1,5 +1,9 @@
 # Home Assistant ESP Screens
 
+Thank you! I work on this project with a lot of love, and every bit of support helps. I truly love the Home Assistant community.
+
+<a href="https://buymeacoffee.com/f5j9jnkmhpv"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=f5j9jnkmhpv&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="42"></a>
+
 <p align="center">
   <img src="docs/images/photo-guition-page-2.jpg" width="49%" alt="The Guition 4-inch screen on a table: the second page with scenes and scripts, the robot vacuum and a table lamp with a brightness slider">
   <img src="docs/images/photo-guition-vacuum.jpg" width="49%" alt="The vacuum card on the Guition: start cleaning, return to dock, find my robot and the suction power">

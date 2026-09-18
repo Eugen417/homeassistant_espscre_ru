@@ -1,5 +1,9 @@
 # ESP Screen Manager
 
+Thank you! I work on this project with a lot of love, and every bit of support helps. I truly love the Home Assistant community.
+
+<a href="https://buymeacoffee.com/f5j9jnkmhpv"><img src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=f5j9jnkmhpv&button_colour=FFDD00&font_colour=000000&font_family=Cookie&outline_colour=000000&coffee_colour=ffffff" alt="Buy me a coffee" height="42"></a>
+
 Find your Home Assistant entities, arrange up to 48 tiles, and push changes
 to a CYD or Guition screen without reflashing. Includes installation help,
 a unique per-device YAML, and support for multiple screens.
