@@ -29,6 +29,9 @@ what plays, with the title, the artist and the album, a progress bar and the key
 - A player without a picture (a radio station, a player that is off) keeps the player's icon in
   the cover's place; the app answers with an empty link and the screen stops asking.
 - The CYD shows the same card without the picture: its icon stands in for the cover.
+- One picture loads at a time. An alert closes an open card and its cover. Under a media tile of
+  size *Full page* the alert's picture goes first: the tile's cover waits until the alert's picture
+  is there, and a cover already on its way finishes before the alert's picture starts.
 
 ## A doorbell
 

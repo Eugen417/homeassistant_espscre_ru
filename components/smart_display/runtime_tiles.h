@@ -3756,10 +3756,22 @@ inline lv_obj_t *camera_root = nullptr, *camera_picture = nullptr, *camera_note 
 inline lv_obj_t *alert_frame = nullptr, *alert_picture = nullptr, *alert_frame_icon = nullptr;
 inline std::function<void(bool)> alert_room;  // the board makes the card taller for the frame, or back
 inline std::string alert_announced, alert_camera, alert_url;
-inline uint32_t alert_announced_at = 0, alert_retry_at = 0;
+inline uint32_t alert_announced_at = 0, alert_retry_at = 0, alert_shown_at = 0;
 inline uint8_t alert_retries = 0;
 inline bool alert_thumb_loading = false;
 constexpr uint8_t ALERT_IMAGE_RETRIES = 3;  // an alert's picture is worth another try after a failed connection
+// One picture loads at a time (firmware 0.2.64+): a download shares ESPHome's loop with touch and drawing, and two at
+// once (a cover and an alert's picture) would double the time a tap can wait. An alert closes every card (wake_display
+// runs close_cards), so the card's cover goes with it; a media tile over the whole page stays under the alert. Its
+// cover waits while the alert's picture is announced, on its way or about to be tried again; a cover already on its
+// way finishes and the alert's picture starts right after it. A full camera and the cover share one image, so they
+// never load together. Memory is not the limit here: the pictures live in PSRAM (a cover ~70 KB, the alert's 172 KB).
+inline bool alert_image_due() {
+  if (alert_camera.empty() || alert_picture) return false;
+  if (alert_thumb_loading || alert_retry_at) return true;
+  // The link has not come yet: wait for it as long as an announced camera still belongs to its alert.
+  return alert_url.empty() && esphome::millis() - alert_shown_at < camera_view::PENDING_MS;
+}
 
 inline bool camera_supported() { return static_cast<bool>(camera_full.load); }
 inline bool camera_visible() { return camera_root != nullptr; }
@@ -3835,6 +3847,7 @@ inline void cover_tick(uint32_t now) {
   if (!cover_visible()) { cover_drop(); return; }
   if (!awake()) return;
   if (!cover.open()) cover.open(cover_wish.entity, true);
+  if (alert_image_due()) return;  // the alert's picture first
   if (cover.should_ask(now)) {
     if (!fresh()) return;
     cover.ask(now);
@@ -3843,6 +3856,7 @@ inline void cover_tick(uint32_t now) {
     auto *input = lv_indev_get_next(nullptr);
     if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
     cover.start(now);
+    ESP_LOGI("camera", "cover load %s", cover.entity.c_str());
     camera_full.load(cover.url);
   }
 }
@@ -3950,10 +3964,12 @@ inline void camera_open(const std::string &entity, const std::string &name) {
 inline void camera_tick() {
   const uint32_t now = esphome::millis();
   if (camera_release_due && !camera_root) camera_release();
-  if (alert_retry_at && now >= alert_retry_at) {
+  // A retry, or an alert's picture that waited for a cover on its way (one picture at a time).
+  if (alert_retry_at && now >= alert_retry_at && !cover.loading) {
     alert_retry_at = 0;
     if (!alert_camera.empty() && !alert_url.empty() && camera_thumb.load) {
       alert_thumb_loading = true;
+      ESP_LOGI("camera", "alert picture load");
       camera_thumb.load(alert_url);
     }
   }
@@ -3987,6 +4003,7 @@ inline void alert_prepare() {
   const bool with_image = camera_supported() && alert_frame && !alert_announced.empty() &&
                           esphome::millis() - alert_announced_at < camera_view::PENDING_MS;
   alert_camera = with_image ? alert_announced : std::string();
+  alert_shown_at = esphome::millis();
   alert_url.clear();
   alert_announced.clear();
   if (alert_frame) {
@@ -4027,7 +4044,15 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
   alert_picture_clear();
   alert_url = url;
   alert_retries = 0;
+  // A cover on its way finishes first, and a dropped one is closed first (on the next tick); camera_tick starts this
+  // one right after.
+  if (cover.loading || camera_release_due) {
+    alert_retry_at = esphome::millis() | 1;
+    ESP_LOGI("camera", "alert picture waits for the cover");
+    return;
+  }
   alert_thumb_loading = true;
+  ESP_LOGI("camera", "alert picture load");
   camera_thumb.load(url);
 }
 
@@ -4059,11 +4084,12 @@ inline void camera_loaded(bool thumb, bool cached) {
     if (alert_camera.empty() || !alert_frame) return;
     camera_show(alert_frame, alert_picture, camera_thumb.source(), !cached);
     if (alert_picture && alert_frame_icon) lv_obj_add_flag(alert_frame_icon, LV_OBJ_FLAG_HIDDEN);
+    ESP_LOGI("camera", "alert picture shown");
     return;
   }
   if (!camera_root) {
     // The media card's cover (firmware 0.2.64+): the same online_image, loaded once.
-    if (cover.loading) { cover.finish(esphome::millis(), true); cover_arrived(); }
+    if (cover.loading) { cover.finish(esphome::millis(), true); ESP_LOGI("camera", "cover loaded"); cover_arrived(); }
     return;
   }
   if (!camera.loading) return;  // a cover's download that ended after the camera opened: not this camera's picture
@@ -4080,6 +4106,7 @@ inline void camera_loaded(bool thumb, bool cached) {
 inline void camera_failed(bool thumb) {
   if (thumb) {
     alert_thumb_loading = false;
+    ESP_LOGI("camera", "alert picture failed");
     if (!alert_camera.empty() && !alert_picture && alert_retries < ALERT_IMAGE_RETRIES) {
       ++alert_retries;
       alert_retry_at = esphome::millis() + 1500;
@@ -4087,7 +4114,7 @@ inline void camera_failed(bool thumb) {
     return;
   }
   if (!camera_root) {
-    if (cover.loading) cover.finish(esphome::millis(), false);  // tried again after the gap, three times at most
+    if (cover.loading) { cover.finish(esphome::millis(), false); ESP_LOGI("camera", "cover failed"); }  // tried again after the gap, three times at most
     return;
   }
   if (!camera.loading) return;

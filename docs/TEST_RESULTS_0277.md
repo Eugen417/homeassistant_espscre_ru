@@ -21,6 +21,13 @@ See CHANGELOG 0.2.77. Built on 0.2.76 (`bdb1f12`).
   screen takes the shared image buffer and the cover comes back after. The camera answer parser accepts `t: cover`.
   The palette pass leaves the media tile's parts alone (it painted them the card's grey). A player's state falls
   back to the screen's own word ("Playing") when Home Assistant sent none.
+- One picture at a time (asked by Max after approving the renders: "two images at once, is that too much?"). An
+  alert already closes every card (`wake_display` runs `close_cards`), so the card's cover is dropped with it. A
+  media tile over the whole page stays under the alert: `alert_image_due()` holds its cover while the alert's
+  picture is announced, loading or due for a retry, and an alert picture that arrives while a cover is on its way
+  (or while a dropped cover's download is still being closed) waits for it (`alert_retry_at`, started by
+  `camera_tick`). Memory was never the limit: the pictures live in PSRAM (cover ~70 KB, alert 172 KB); the rule
+  keeps the main loop, where touch waits, to one download.
 - `runtime_model.h`: `Extra` carries artist, album, picture mark, duration, position and its moment.
 - `camera_view.h`: `open(entity, once)`, `loaded`; an empty answer to a one-time feed stops the asking.
 - `theme.h`: `theme::of(lv_color_t)` (the 24-bit value of a drawn colour, for the cover's corner colour).
@@ -39,7 +46,7 @@ See CHANGELOG 0.2.77. Built on 0.2.76 (`bdb1f12`).
   fetch-on-change and links, the app's answer through `Manager.answer_camera` (Guition 0.2.64 gets a link, a stream
   an empty one, a stranger nothing, older firmware and a CYD nothing). Whole Python suite: 409 + 14, pass.
 - Host harness (`.esphome/readme-render/media/media_host.py`, real ESPHome API, virtual finger, the app's own
-  `answer_camera` behind `/dev/cover`): **Guition 57/57, CYD 42/42.** Covered: the card of a playing player (title,
+  `answer_camera` behind `/dev/cover`): **Guition 64/64, CYD 42/42.** Covered: the card of a playing player (title,
   artist · album, elapsed from the reported position and running on, keys enabled, slider at 32 %, bar track and
   fill), the cover asked for with size and page colour and loaded once over the placeholder, pause → `media_play_pause`
   with the keys faded during the wait and back after, next, mute (`is_volume_muted: true`), the slider drag →
@@ -52,6 +59,10 @@ See CHANGELOG 0.2.77. Built on 0.2.76 (`bdb1f12`).
   card which takes the cover at its own size, closing gives it back to the tile); a stream over the page (no times,
   no cover, the study cover dropped); an idle player ("Not playing"); a wide media tile with a volume control keeps
   its panel; no errors in the firmware log. The CYD asks for no cover anywhere.
+  Alerts with a camera (Guition): an alert closes the open media card and drops its cover, and its picture loads
+  alone; under a full-page media tile whose cover is not loaded yet, the cover waits until the alert's picture is
+  shown and loads after it; a cover on its way (a link that answers after 1.5 s) finishes first and the alert's
+  picture ("waits for the cover") follows. The firmware log shows the downloads one after the other in all three.
 - Renders (`render_media.py`, both boards, light and dark): card of a playing player, a stream, a paused TV, an off
   player, tiles over the page (study, radio, idle). Sent to Max for approval.
 - ESP32 builds of both Easy Setup profiles: see the sizes below.
@@ -59,12 +70,12 @@ See CHANGELOG 0.2.77. Built on 0.2.76 (`bdb1f12`).
 
 ## Sizes
 
-Both Easy Setup profiles compile with ESPHome 2026.6.2 (on Python 3.11, see the pitfalls), no warnings.
+Both Easy Setup profiles compile with ESPHome 2026.6.2, no warnings (see the pitfalls for this Mac's Python).
 
 | Build | Flash | RAM |
 |---|---|---|
-| Guition (easy-guition-device) | 1,971,583 B, 24.3 % of 8 MB | 76,844 B, 23.5 % |
-| CYD (easy-cyd-device) | 1,582,063 B, 86.2 % of the 1.835 MB update slot | 71,276 B, 21.8 % |
+| Guition (easy-guition-device) | 1,971,975 B, 24.3 % of 8 MB | 76,852 B, 23.5 % |
+| CYD (easy-cyd-device) | 1,582,183 B, 86.2 % of the 1.835 MB update slot | 71,276 B, 21.8 % |
 
 ## Hardware
 
@@ -77,9 +88,11 @@ Pending at the time of writing.
 - LVGL's `LV_LABEL_LONG_DOT` writes the dots into the label's text: a probe sees "Miles Davis · Kin...".
 - `tick()` re-enables every object in `detail_actions` after a wait: a key the player lacks must stay out of it.
 - The tile palette pass paints every custom part; a mode that paints its own parts must be skipped there.
-- Homebrew's python@3.14.7 on this Mac has a broken `pyexpat` (it wants a libexpat symbol macOS 26.2 lacks), so
-  `platform.mac_ver()` returns '' and both pip's truststore and `uv` refuse the interpreter. The pioarduino platform
-  recreates `~/.platformio/penv` from the running Python and then cannot install into it. The ESP32 builds of this
-  release ran from an ESPHome 2026.6.2 environment on PlatformIO's own bundled Python 3.11 (`.esphome/venv311`,
-  local); `brew reinstall python@3.14` (or expat) is the real fix. Also: never run two ESPHome builds at once, the
-  second one clears the penv the first one uses.
+- Homebrew's python@3.14.7 on this Mac has a broken `pyexpat` (it loads macOS's `/usr/lib/libexpat.1.dylib`, which
+  lacks `_XML_SetAllocTrackerActivationThreshold`), so `platform.mac_ver()` returns '' and pip's truststore and `uv`
+  refuse the interpreter. The pioarduino platform then cannot rebuild `~/.platformio/penv` ("Failed to install Python
+  dependencies into penv"). Setting `DYLD_LIBRARY_PATH=/opt/homebrew/opt/expat/lib` is not enough, because
+  pioarduino starts `uv` without it. What works: ESPHome 2026.6.2 in a venv on PlatformIO's own bundled Python 3.11
+  (`~/.platformio/python3`), where `mac_ver()` is fine. Every session must build with that same Python: pioarduino
+  recreates the penv whenever the Python version changes, so a build on another Python breaks the next one elsewhere.
+  `brew reinstall python@3.14` (or expat) is the real fix. Never run two ESPHome builds at once.
