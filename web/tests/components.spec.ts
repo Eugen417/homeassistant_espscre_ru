@@ -65,6 +65,21 @@ describe("TileCard", () => {
     expect(gone.find(".st").text()).toBe("Unavailable");
     expect(gone.find(".st").classes()).toContain("off");
   });
+  it("draws a single tile as the screen does: the icon left, the name and value beside it", () => {
+    state.liveStates["sensor.t"] = { state: "1249", word: null, a: { unit_of_measurement: "W" } };
+    const plain = placed({ entity: "sensor.t", name: "Power", slot: 0 });
+    expect(plain.find(".head > .ic").exists()).toBe(true);
+    expect(plain.find(".head > .tx > .nm").text()).toBe("Power");
+    expect(plain.find(".head > .tx > .st").text()).toBe("1249 W");
+    // A watch card keeps the name next to the icon and puts the big value underneath.
+    const watch = placed({ entity: "sensor.t", name: "Power", slot: 1, options: { display: "watch" } });
+    expect(watch.find(".head").classes()).toContain("top");
+    expect(watch.find(".head .big").exists()).toBe(false);
+    expect(watch.find(".head + .big").text()).toBe("1249W");
+    state.liveStates["light.a"] = { state: "on", word: "On", a: { brightness: 255 } };
+    const lamp = placed({ entity: "light.a", name: "", slot: 2, options: { inline: "slider" } });
+    expect(lamp.find(".head + .mini-slider").exists()).toBe(true);
+  });
   it("shows the display name when Home Assistant has no value, and nothing for a scene", () => {
     const graph = placed({ entity: "sensor.x", name: "Unknown sensor", slot: 0, options: { display: "graph" } });
     expect(graph.find(".st").text()).toBe("graph");

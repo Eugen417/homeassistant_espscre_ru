@@ -149,12 +149,18 @@ a:hover { text-decoration: underline; }
 .tile .ic { font-size: 18px; line-height: 1; color: #1b1b1b; flex: none; }
 .tile .lead { display: grid; gap: 2px; min-width: 0; flex: 1; align-content: end; }
 .tile.wide .lead { display: flex; align-items: center; gap: 8px; align-content: initial; }
-.tile.wide .lead .tx { display: grid; min-width: 0; gap: 1px; }
+.tile .tx { display: grid; min-width: 0; gap: 1px; }
+.tile .head { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; }
+.tile .head.top { flex: none; }
 .tile .nm { font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .st { font-size: 10.5px; color: #5a5f66; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .device.cyd .tile { padding: 6px 7px; }
 .device.cyd .tile .nm { font-size: 10.5px; }
 .device.cyd .tile .ic { font-size: 15px; }
+.device.cyd .tile .head { gap: 6px; }
+/* The screen's own numbers on its short tiles: 4 px above and below, an 8 px slider. */
+.device.cyd .tile:has(> .mini-slider) { padding-block: 4px; gap: 3px; }
+.device.cyd .tile .mini-slider { height: 8px; }
 .tile .mini-slider { height: 10px; border-radius: 5px; background: linear-gradient(to right, #ffbf38 60%, #fff1d3 60%); flex: none; width: 100%; }
 .tile.wide .mini-slider { width: 70px; }
 .tile .ctl { flex: none; display: flex; align-items: center; gap: 4px; color: #1b1b1b; }

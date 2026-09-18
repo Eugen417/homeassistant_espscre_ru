@@ -1,3 +1,10 @@
+## 0.2.76 (firmware 0.2.63)
+
+The CYD in the editor shows the whole tile again.
+
+- **A tile on the mockup looks like the tile on the screen.** Both boards draw a normal tile with the icon on the left and the name and value beside it; the editor stacked the icon, the name and the value on top of each other. On a CYD's short tiles that did not fit, so the value under the name was cut in half (*26.0 °C*, *Cleaning*, *Off*) and a large value hid the name. Now the mockup uses the screen's layout on both boards: icon left, name and value next to it, the small slider underneath, and for a large value the name at the top with the number below it.
+- Only the editor changed. There is no new firmware: 0.2.63 stays current. Includes everything from 0.2.75.
+
 ## 0.2.75 (firmware 0.2.63)
 
 Smooth icons on the CYD: the power ring is a ring again.

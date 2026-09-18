@@ -154,14 +154,18 @@ async function onKey(e: KeyboardEvent) {
       </span>
     </template>
     <template v-else>
-      <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
-      <span class="lead">
-        <span v-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
-        <span class="nm">{{ name }}</span>
-        <span v-if="goesTo" class="goto">Page {{ goesTo }} ›</span>
-        <span v-else-if="display !== 'watch' && status" class="st" :class="{ off: gone }">{{ status }}</span>
-        <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
+      <!-- As the screen draws it: the icon on the left, the name and the value beside it. A watch
+           card puts the name on top and the big value under it; the small slider runs underneath. -->
+      <span class="head" :class="{ top: display === 'watch' }">
+        <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
+        <span class="tx">
+          <span class="nm">{{ name }}</span>
+          <span v-if="goesTo" class="goto">Page {{ goesTo }} ›</span>
+          <span v-else-if="display !== 'watch' && status" class="st" :class="{ off: gone }">{{ status }}</span>
+        </span>
       </span>
+      <span v-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
+      <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
     </template>
     <button v-if="live" type="button" class="remove" title="Remove tile" :aria-label="`Remove ${name}`" @click.stop="removeTile(tile)">✕</button>
   </div>
