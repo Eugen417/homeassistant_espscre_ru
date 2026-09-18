@@ -15,7 +15,7 @@ for existing profiles: check, build or reinstall via USB, the IP address (OTA) o
 Download. Existing ESPHome profiles in the HA config folder are
 found automatically.
 
-**Settings** in the sidebar has the nightly firmware updates, the **Alerts** cheatsheet
+**Settings** in the sidebar has the nightly firmware updates (the Update badge of a screen lists what's new, a running update shows its progress), the **Alerts** cheatsheet with a form to try an alert
 (an alert on one screen, or on every screen with the `esp_screens_show_alert` event)
 and **Claude**: install the ESP Screens skill for Claude Code in Home Assistant, or
 download it for claude.ai, and ask Claude for the alert automation.
@@ -27,6 +27,7 @@ to configure; firmware 0.2.32 or newer renders them.
 
 After pairing via the HA ESPHome integration, choose the tiles in ESP Screens.
 Tap a tile and its settings open in a drawer on the right, with the mockup still in view: click behavior, larger values, mini-sliders, a wider tile, backgrounds.
+The mockup shows what Home Assistant reports right now: values, On or Off, positions, the song that plays. **Identify** in the ··· menu blinks a screen so you know which one it is; the same menu copies the layout of another screen, or exports and imports one as JSON. ⌘K searches screens, entities and actions.
 **Screen settings**, the tab next to Layout, has brightness and standby. **Read current data** in the ··· menu of a screen helps with
 missing attributes or an offline screen. New cards require firmware 0.2.0.
 The ··· menu of a screen also has **Override YAML** for a persistent, hardware-specific

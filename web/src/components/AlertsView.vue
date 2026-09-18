@@ -1,11 +1,32 @@
 <script setup lang="ts">
 // Alerts: the cheatsheet for esphome.<node>_show_alert, built from the inventory.
-import { computed, ref } from "vue";
+import { computed, reactive, ref } from "vue";
 import { versionAtLeast } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { copyText, go, state } from "../store";
+import { canAlert, copyText, go, sendTestAlert, state } from "../store";
 
 const alerts = computed(() => state.inventory.alerts);
+// Try it: the same seven fields an automation sends, to one screen or to all of them.
+const tryForm = reactive({ screen: "all", title: "Someone is at the door", subtitle: "Door 3, back", icon: "doorbell", color: "orange", button_text: "Coming", timeout: 30, flash: true });
+const trying = ref(false);
+const tryResult = ref("");
+const readyScreens = computed(() => state.inventory.screens.filter((s) => canAlert(s) && s.online));
+async function tryAlert() {
+  trying.value = true;
+  tryResult.value = "";
+  try {
+    const { screen, ...data } = tryForm;
+    const result = await sendTestAlert(screen, data);
+    const where = screen === "all" ? `${result.sent} screen${result.sent === 1 ? "" : "s"}` : state.inventory.screens.find((s) => s.id === screen)?.name || "the screen";
+    tryResult.value = result.sent
+      ? `Sent to ${where}.${result.skipped ? ` ${result.skipped} skipped (offline or old firmware).` : ""}${result.unusable?.length ? ` Left empty: ${result.unusable.join(", ")}.` : ""}`
+      : "No screen could show it: check that a screen is online with firmware " + (alerts.value?.min_firmware || "0.2.31") + " or newer.";
+  } catch (e: any) {
+    tryResult.value = e.message;
+  } finally {
+    trying.value = false;
+  }
+}
 const icons = computed(() => state.inventory.icons);
 const exampleAction = ref("");
 const iconQuery = ref("");
@@ -60,7 +81,7 @@ const doorbell = computed(() => alerts.value?.suggested_icons?.find((i: any) => 
 const orange = computed(() => alerts.value?.colors?.find((c: any) => c.name === "orange"));
 const types: Record<string, string> = { string: "text", int: "number", bool: "on / off" };
 function jump(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }
-const sections = [["alerts-screens", "Your screens"], ["alerts-howto", "In an automation"], ["alerts-all", "All screens"], ["alerts-fields", "The fields"], ["alerts-icons", "Icons"], ["alerts-colors", "Colors"], ["alerts-behaviour", "Behavior"], ["alerts-events", "Events"], ["alerts-tips", "Tips"]];
+const sections = [["alerts-try", "Try it"], ["alerts-screens", "Your screens"], ["alerts-howto", "In an automation"], ["alerts-all", "All screens"], ["alerts-fields", "The fields"], ["alerts-icons", "Icons"], ["alerts-colors", "Colors"], ["alerts-behaviour", "Behavior"], ["alerts-events", "Events"], ["alerts-tips", "Tips"]];
 </script>
 
 <template>
@@ -88,6 +109,30 @@ const sections = [["alerts-screens", "Your screens"], ["alerts-howto", "In an au
           <button v-for="[id, label] in sections" :key="id" type="button" :data-jump="id" @click="jump(id)">{{ label }}</button>
         </nav>
       </div>
+      <section id="alerts-try" class="card">
+        <h2>Try it</h2>
+        <p>Send one alert now, with the same fields an automation sends. The screen shows the card and, with blinking on, flashes its backlight.</p>
+        <form class="try-grid" @submit.prevent="tryAlert">
+          <div class="field"><label class="f-label" for="try-screen">Screen</label>
+            <select id="try-screen" v-model="tryForm.screen">
+              <option value="all">All screens ({{ readyScreens.length }} ready)</option>
+              <option v-for="screen in state.inventory.screens" :key="screen.id" :value="screen.id" :disabled="!canAlert(screen) || !screen.online">{{ screen.name }}{{ canAlert(screen) && screen.online ? "" : " · not ready" }}</option>
+            </select></div>
+          <div class="field"><label class="f-label" for="try-title">Title</label><input id="try-title" v-model="tryForm.title" maxlength="64" /></div>
+          <div class="field"><label class="f-label" for="try-subtitle">Subtitle</label><input id="try-subtitle" v-model="tryForm.subtitle" maxlength="240" /></div>
+          <div class="field"><label class="f-label" for="try-icon">Icon</label><input id="try-icon" v-model="tryForm.icon" list="try-icons" placeholder="doorbell" />
+            <datalist id="try-icons"><option v-for="icon in alerts.suggested_icons" :key="icon.name" :value="icon.name">{{ icon.label || icon.name }}</option></datalist></div>
+          <div class="field"><label class="f-label" for="try-color">Color</label>
+            <select id="try-color" v-model="tryForm.color"><option value="">White (default)</option><option v-for="colour in alerts.colors" :key="colour.name" :value="colour.name">{{ colour.label }}</option></select></div>
+          <div class="field"><label class="f-label" for="try-button">Button text</label><input id="try-button" v-model="tryForm.button_text" maxlength="16" /></div>
+          <div class="field"><label class="f-label" for="try-timeout">Timeout (seconds, 0 waits for the button)</label><input id="try-timeout" v-model.number="tryForm.timeout" type="number" min="0" max="86400" /></div>
+          <label class="check field"><input type="checkbox" id="try-flash" v-model="tryForm.flash" /><span>Blink the backlight<small>Four times when the alert arrives.</small></span></label>
+          <div class="actions field wide">
+            <button type="submit" class="btn primary" id="try-send" :disabled="trying || !readyScreens.length">{{ trying ? "Sending…" : "Send alert" }}</button>
+            <span class="status-line" id="try-result" role="status">{{ tryResult }}</span>
+          </div>
+        </form>
+      </section>
       <section id="alerts-screens" class="card">
         <h2>Your screens</h2>
         <p>Every screen has its own action, with the device name in it. From firmware <code id="alerts-min-firmware">{{ alerts.min_firmware }}</code>; update an older screen with its Update button under Screens.</p>

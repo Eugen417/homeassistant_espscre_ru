@@ -25,9 +25,10 @@ STORE = editor_sources.source('store.ts')
 class Startup(unittest.TestCase):
     def test_no_screen_opens_by_itself(self):
         self.assertNotIn('inventory.screens[0]', SCRIPT)
-        # The one way into a screen is its button in the list.
-        self.assertEqual(re.findall(r'(?<![\w.])(?<!function )select\(([^)]*)\)', SCRIPT), ['screen.id'])
+        # The ways into a screen are its button in the list and its row in the ⌘K search; both pass the chosen screen.
+        self.assertEqual(set(re.findall(r'(?<![\w.])(?<!function )select\(([^)]*)\)', SCRIPT)), {'screen.id'})
         self.assertIn('@click="select(screen.id)"', editor_sources.component('Sidebar'))
+        self.assertIn('run: () => select(screen.id)', editor_sources.component('CommandPalette'))
         for name in ('refresh', 'applyLive'):
             body = STORE[STORE.index(f'function {name}('):]
             self.assertNotRegex(body[:body.index('\n}\n')], r'(?<![\w.])select\(', name)

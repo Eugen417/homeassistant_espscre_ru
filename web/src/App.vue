@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, onBeforeUnmount, onMounted } from "vue";
 import Sidebar from "./components/Sidebar.vue";
 import Toast from "./components/Toast.vue";
+import CommandPalette from "./components/CommandPalette.vue";
 import ScreenView from "./components/ScreenView.vue";
 import EmptyState from "./components/EmptyState.vue";
 import AppSettingsView from "./components/AppSettingsView.vue";
@@ -19,6 +20,12 @@ const view = computed(() => {
   if (route.value === "#override") return OverrideView;
   return currentScreen.value && state.layout ? ScreenView : EmptyState;
 });
+// ⌘K (Ctrl+K) opens the search from anywhere.
+function onKey(e: KeyboardEvent) {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); state.palette = !state.palette; }
+}
+onMounted(() => document.addEventListener("keydown", onKey));
+onBeforeUnmount(() => document.removeEventListener("keydown", onKey));
 </script>
 
 <template>
@@ -28,5 +35,6 @@ const view = computed(() => {
       <component :is="view" />
     </main>
     <Toast />
+    <CommandPalette />
   </div>
 </template>

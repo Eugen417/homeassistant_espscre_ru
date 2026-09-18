@@ -71,12 +71,12 @@ also be changed on the screen or by an automation, and your own YAML for one scr
 <p align="center">
   <img src="docs/images/editor.png" width="98%" alt="ESP Screens in Home Assistant: your screens in the sidebar, the pages of the living room screen side by side with their top bar, and the entity library on the right">
 </p>
-<p align="center"><sub>ESP Screens, a page in Home Assistant: every screen on the left, its top bar and tiles on the right.</sub></p>
+<p align="center"><sub>ESP Screens, a page in Home Assistant: your screens on the left, the pages of the chosen screen in the middle with the values Home Assistant reports right now, the library on the right.</sub></p>
 <p align="center">
   <img src="docs/images/editor-tiles.png" width="63%" alt="Choosing tiles: the pages of the screen side by side, next to the library with its search and filters">
   <img src="docs/images/editor-tile-settings.png" width="33%" alt="Tile settings of the curtains in the drawer: double-width with open, stop and close on the tile, what a tap does, and the pastel background">
 </p>
-<p align="center"><sub>Search your home, drop a tile on the preview, tap it for its name, width, control and color, and for what a tap does: open its card, switch it, or run any action Home Assistant has for it, such as the curtains to 50 %. Save, and the screen has it.</sub></p>
+<p align="center"><sub>Search your home, drop a tile on the preview, tap it for its name, width, control and color, and for what a tap does: open its card, switch it, or run any action Home Assistant has for it, such as the curtains to 50 %. Save, and the screen has it. ⌘K searches screens, entities and actions; Identify blinks a screen so you know which one it is.</sub></p>
 <p align="center">
   <img src="docs/images/editor-top-bar.png" width="31%" alt="Add to the top bar, in the drawer: the time, an analog clock, the date, suggestions from your own home and any entity">
   <img src="docs/images/editor-settings.png" width="65%" alt="Settings in ESP Screens: New screen and Firmware & USB, the firmware updates, the Alerts cheatsheet, and the Claude skill">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Everything around the screens: firmware updates, alerts, Claude.
 import { computed, ref } from "vue";
-import { go, installClaudeSkill, runUpdateAll, setAutoUpdate, state } from "../store";
+import { anyUpdating, go, installClaudeSkill, runUpdateAll, setAutoUpdate, state, updateProgress } from "../store";
 
 const u = computed(() => state.inventory.updates);
 const outdated = computed(() => state.inventory.screens.filter((s) => s.update?.available).length);
@@ -12,6 +12,16 @@ const updatesHint = computed(() => !u.value ? "" : u.value.busy
     : outdated.value
       ? `Firmware ${u.value.target} is available for ${outdated.value} screen${outdated.value === 1 ? "" : "s"}.`
       : `All screens have firmware ${u.value.target}.`);
+const running = computed(() => state.inventory.screens.find((s) => s.update?.state === "running" || state.updating.includes(s.id)));
+const progress = computed(() => (running.value ? updateProgress(running.value) : null));
+const logTail = computed(() => (state.firmwareJob?.logs || []).slice(-12).join("\n"));
+// What the current firmware brings: the changelog sections that mention it.
+const targetNotes = computed(() => {
+  const sections = (u.value as any)?.changelog as { app: string; firmware: string; lines: string[] }[] | undefined;
+  const target = u.value?.target;
+  if (!sections || !target) return [];
+  return sections.filter((s) => s.firmware === target).flatMap((s) => s.lines).slice(0, 10);
+});
 const skill = computed(() => state.inventory.claude_skill);
 const installing = ref(false);
 async function install() {
@@ -41,7 +51,16 @@ async function install() {
       <section v-if="u" class="card updates" id="updates">
         <h2>Firmware updates</h2>
         <p id="updates-hint">{{ updatesHint }}</p>
+        <template v-if="running && progress">
+          <div class="progress" role="progressbar" :aria-valuenow="progress.percent" aria-valuemin="0" aria-valuemax="100"><i :style="{ width: progress.percent + '%' }"></i></div>
+          <div class="progress-text"><span>{{ running.name }} · {{ progress.percent }} %</span><span>{{ progress.text }}</span></div>
+          <pre v-if="logTail" class="log-lines">{{ logTail }}</pre>
+        </template>
         <button v-if="u.pending && !u.busy && u.pending >= 2" id="update-all" type="button" class="btn primary" @click="runUpdateAll">Update all {{ u.pending }} screens</button>
+        <details v-if="targetNotes.length && !anyUpdating()" class="whatsnew">
+          <summary>What's new in firmware {{ u.target }}</summary>
+          <ul><li v-for="line in targetNotes" :key="line">{{ line }}</li></ul>
+        </details>
         <label class="check">
           <input type="checkbox" id="auto-update" :checked="Boolean(u.auto)" @change="setAutoUpdate(($event.target as HTMLInputElement).checked)" />
           <span>Update automatically every night<small>Between 03:00 and 06:00, one screen at a time. Stops on an error and reports it in Home Assistant.</small></span>
@@ -49,7 +68,7 @@ async function install() {
       </section>
       <section class="card">
         <h2>Alerts</h2>
-        <p>A card over the whole screen from an automation, on one screen or on all of them. The cheatsheet has the action names, fields, icons, and colors.</p>
+        <p>A card over the whole screen from an automation, on one screen or on all of them. The cheatsheet has the action names, fields, icons, and colors, and a form to try one.</p>
         <div class="tools">
           <button type="button" class="tool" @click="go('#alerts')"><span class="tool-icon">!</span><span class="tx"><b>Alerts</b><small>Full-screen notifications, from an automation</small></span></button>
         </div>

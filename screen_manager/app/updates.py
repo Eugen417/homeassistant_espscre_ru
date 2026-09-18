@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import re
 import time
+import changelog
 from core import FIRMWARE_VERSION
 
 LOG = logging.getLogger('screen_manager')
@@ -31,6 +32,8 @@ class Updater:
         self.manager, self.path = manager, Path(path)
         self.auto, self.hosts, self.results, self.last_round = False, {}, {}, None
         self.task, self.current, self.queue, self.phase = None, None, [], None
+        # What's new since a screen's firmware, for the Update badge (app 0.2.74).
+        self.changelog = changelog.load()
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             if raw.get('version') != 1:
@@ -103,7 +106,7 @@ class Updater:
 
     def summary(self, screens=None, profiles=None):
         return {'auto': self.auto, 'target': FIRMWARE_VERSION, 'busy': self.current,
-                'pending': len(self.pending(screens, profiles)), 'last_round': self.last_round}
+                'pending': len(self.pending(screens, profiles)), 'last_round': self.last_round, 'changelog': self.changelog}
 
     def pending(self, screens=None, profiles=None):
         # Callers that already hold the inventory and profile list pass them in; the inventory

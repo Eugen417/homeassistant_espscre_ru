@@ -1623,6 +1623,48 @@ def create_app(manager, development=False):
                                         manager.registry_index().get(t['entity']),getattr(manager.ha,'state_words',None)),
                       'attributes':state_message(i,t,manager.ha.states)['a'],
                       'options':t.get('options',{})} for i,t in enumerate(layout['tiles'])]})
+    async def states(request):
+        """Live values for the editor's mockup (app 0.2.74): the state, Home Assistant's word and the attributes a
+        card shows, for the tiles on the page, saved or not. At most sixty entities per request."""
+        index = manager.registry_index()
+        result = {}
+        for eid in request.query.getall('entity', [])[:60]:
+            if not isinstance(eid, str) or eid not in manager.ha.states:
+                continue
+            state = manager.ha.states.get(eid, {})
+            entry = index.get(eid)
+            message = state_message(0, {'entity': eid, 'name': ''}, manager.ha.states,
+                                    precision=header_bar.precision_of(entry) if eid.startswith('sensor.') else None)
+            result[eid] = {'state': message['state'], 'a': message['a'],
+                           'word': state_word(eid, state.get('state'), state.get('attributes'), entry, getattr(manager.ha, 'state_words', None))}
+        return web.json_response({'states': result})
+    def one_alert_target(inbox):
+        screen = manager.screen(inbox)
+        if screen is None:
+            raise ValueError('Unknown screen.')
+        ready, skipped = alert_targets([screen])
+        if not ready:
+            raise ValueError(f"{screen['name']} can't show an alert: {skipped[0][1] if skipped else 'not ready'}.")
+        return ready[0]
+    async def identify(request):
+        """Identify (app 0.2.74): the screen shows a short card and blinks its backlight, so you know which one it is."""
+        screen = one_alert_target(request.match_info['inbox'])
+        data, _ = alert_data({'title': f"This is {screen['name']}", 'subtitle': 'Identify, from ESP Screens', 'icon': 'bell-ring',
+                              'color': 'blue', 'button_text': 'OK', 'timeout': 8, 'flash': True})
+        await manager.ha.call(alert_service(screen['node']), data)
+        return web.json_response({'ok': True})
+    async def test_alert(request):
+        """Alerts → Try it (app 0.2.74): one alert to one screen or to every screen, with the fields an automation sends."""
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise ValueError('Invalid alert.')
+        data = body.get('data') if isinstance(body.get('data'), dict) else {}
+        if body.get('screen') == 'all':
+            return web.json_response(await manager.broadcast(BROADCAST_SHOW, data))
+        screen = one_alert_target(str(body.get('screen', '')))
+        service, unusable = alert_data(data)
+        await manager.ha.call(alert_service(screen['node']), service)
+        return web.json_response({'sent': 1, 'failed': 0, 'skipped': 0, 'unusable': unusable})
     async def install_claude_skill(request):
         """Settings → Claude → Install: writes the skill into Home Assistant's configuration folder, only on request."""
         return web.json_response(claude_skill.install(manager.skill_dir))
@@ -1667,6 +1709,9 @@ def create_app(manager, development=False):
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/capabilities', capabilities)
+    app.router.add_get('/api/states', states)
+    app.router.add_post('/api/screens/{inbox}/identify', identify)
+    app.router.add_post('/api/alerts/test', test_alert)
     app.router.add_get('/api/entity-actions', entity_actions)
     app.router.add_post('/api/header-preview', header_preview)
     app.router.add_post('/api/claude-skill', install_claude_skill)

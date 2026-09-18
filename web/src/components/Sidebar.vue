@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { glyph } from "../model/topbar";
-import { copyText, go, openIntegrations, PHASES, refresh, route, select, startUpdate, state } from "../store";
+import { copyText, go, openIntegrations, PHASES, refresh, route, select, startUpdate, state, updateProgress, whatsNew } from "../store";
 import type { Screen } from "../types";
 
 const hostFor = ref<string | null>(null);
@@ -25,6 +25,10 @@ function startWithHost(screen: Screen) {
   hostFor.value = null;
   startUpdate(screen, address);
 }
+const lastLog = () => {
+  const lines = state.firmwareJob?.logs || [];
+  return lines.length ? lines[lines.length - 1] : "";
+};
 const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: string }) => p.installed
   ? "Installed, but not yet in Home Assistant. Add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and turn on “Allow the device to perform Home Assistant actions” under Configure."
   : p.downloaded
@@ -38,6 +42,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
     <span id="connection" class="conn" :class="{ online: state.connected }" role="status">
       {{ !state.reachable ? "Management page unreachable · retrying…" : state.connected ? "Home Assistant connected" : "Reconnecting to Home Assistant…" }}
     </span>
+    <button type="button" class="search-btn" id="open-palette" @click="state.palette = true">⌕ Search<kbd>⌘K</kbd></button>
     <div class="label">Screens</div>
     <div id="screens">
       <div v-for="screen in state.inventory.screens" :key="screen.id" class="screen-item" :class="{ selected: screen.id === state.selected && route === '' }">
@@ -64,6 +69,16 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
               <small>{{ updateState(screen)!.text }}</small>
               <button type="button" class="btn mini primary" :disabled="!screen.update?.profile" :title="screen.update?.profile ? '' : 'No ESPHome profile found with this device name.'" @click="update(screen)">Update</button>
             </template>
+            <details v-if="whatsNew(screen).length" class="whatsnew">
+              <summary>What's new</summary>
+              <ul><li v-for="line in whatsNew(screen).slice(0, 8)" :key="line">{{ line }}</li></ul>
+            </details>
+          </template>
+          <template v-else-if="updateState(screen)!.kind === 'running' && updateProgress(screen)">
+            <div class="progress" role="progressbar" :aria-valuenow="updateProgress(screen)!.percent" aria-valuemin="0" aria-valuemax="100"><i :style="{ width: updateProgress(screen)!.percent + '%' }"></i></div>
+            <div class="progress-text"><span>{{ updateProgress(screen)!.percent }} %</span><span :title="lastLog()">{{ updateProgress(screen)!.text }}</span></div>
+            <small v-if="lastLog()" :title="lastLog()" style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{ lastLog() }}</small>
+            <button type="button" class="btn link mini" style="justify-self: start" @click="go('#firmware')">Full log</button>
           </template>
           <small v-else :class="{ failed: updateState(screen)!.kind === 'failed' }">{{ updateState(screen)!.text }}</small>
         </div>

@@ -7,6 +7,7 @@ import {
   rowStart, SLOTS_PER_PAGE, supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
 import { agoText, BAR_METRICS, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
+import { versionAtLeast } from "./model/layout";
 import type { Capability, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile } from "./types";
 
 export type Inspector =
@@ -15,6 +16,8 @@ export type Inspector =
   | { kind: "bar-add" }
   | { kind: "inspect"; entity?: string };
 export type DragState = { active: boolean; moving: Tile | null; preview: { tile: Tile; slot: number }[] | null };
+// What Home Assistant reports for an entity right now: the state, its word and the attributes a card shows.
+export type Live = { state: string; word?: string | null; a: Record<string, any> };
 
 export const state = reactive({
   inventory: { screens: [], entities: [] } as Inventory,
@@ -50,6 +53,11 @@ export const state = reactive({
   overrideFriendly: "",
   drag: { active: false, moving: null, preview: null } as DragState,
   menuOpen: false,
+  liveStates: {} as Record<string, Live>,
+  room: "",
+  hidePlaced: false,
+  palette: false,
+  firmwareJob: null as null | { job: any; logs: string[] },
 });
 
 export const currentScreen = computed<Screen | undefined>(() => state.inventory.screens.find((s) => s.id === state.selected));
@@ -157,6 +165,31 @@ export async function loadEntityActions(entity: string) {
   }
 }
 
+// ---- Live values on the mockup (app 0.2.74): what the screen shows right now ----
+let statesFlight = false;
+export async function loadStates() {
+  const entities = [...new Set((state.layout?.tiles || []).map((t) => t.entity).filter((id) => !id.startsWith("screen.")))];
+  if (!entities.length || statesFlight) return;
+  statesFlight = true;
+  try {
+    for (let i = 0; i < entities.length; i += 60) {
+      const query = entities.slice(i, i + 60).map((id) => `entity=${encodeURIComponent(id)}`).join("&");
+      Object.assign(state.liveStates, (await getJson(`states?${query}`)).states || {});
+    }
+  } catch {
+    // The next tick tries again; the mockup keeps the last values.
+  } finally {
+    statesFlight = false;
+  }
+}
+// The live value, else what the inventory knew when it was fetched, else nothing.
+export function liveOf(entity: string): Live | null {
+  const live = state.liveStates[entity];
+  if (live) return live;
+  const known = state.inventory.entities.find((e) => e.id === entity);
+  return known?.state ? { state: known.state, word: null, a: {} } : null;
+}
+
 // ---- Selecting a screen and editing its layout ----
 export function markDirty() {
   state.dirty = true;
@@ -176,14 +209,16 @@ export function select(id: string | null) {
   const screen = state.inventory.screens.find((s) => s.id === id);
   if (!screen) { state.layout = null; return; }
   // A plain copy: the inventory is reactive, and structuredClone refuses a proxy.
-  state.layout = JSON.parse(JSON.stringify(screen.layout));
-  normalize(state.layout);
-  state.layout.pages = pageCount(entriesOf(state.layout), state.layout.pages);
+  const layout: Layout = JSON.parse(JSON.stringify(screen.layout));
+  normalize(layout);
+  layout.pages = pageCount(entriesOf(layout), layout.pages);
+  state.layout = layout;
   state.insertAt = -1;
   state.dirty = false;
   state.saved = 0;
   loadTopbarPreview(0);
-  loadCapabilities(state.layout.tiles.map((t) => t.entity));
+  loadCapabilities(layout.tiles.map((t) => t.entity));
+  loadStates();
   go("");
 }
 export const liveEntries = () => (state.layout ? entriesOf(state.layout) : []);
@@ -202,7 +237,9 @@ export function placeTile(tile: Tile, target: number) {
   if (!state.layout) return false;
   loadCapabilities([tile.entity]);
   const result = arrange(state.layout.tiles, tile, target);
-  return result ? commit(result) : false;
+  const placed = result ? commit(result) : false;
+  if (placed && !state.liveStates[tile.entity]) loadStates();
+  return placed;
 }
 // A click in the picker: the marked empty cell, else the first free cell.
 export function addTile(id: string) {
@@ -308,6 +345,120 @@ export async function save() {
   } finally {
     state.busy = false;
   }
+}
+
+// ---- Identify and the test alert (app 0.2.74): a screen's own show_alert action ----
+export const canAlert = (screen: Screen | undefined) =>
+  Boolean(screen && screen.alert_action && versionAtLeast(screen.firmware, state.inventory.alerts?.min_firmware || "0.2.31"));
+export async function identify(screen: Screen) {
+  try {
+    await send(`screens/${encodeURIComponent(screen.id)}/identify`, "POST");
+    toast(`${screen.name} blinks and shows a card for a few seconds.`);
+  } catch (e: any) {
+    toast(e.message);
+  }
+}
+export async function sendTestAlert(target: string, data: Record<string, unknown>) {
+  return (await send("alerts/test", "POST", { screen: target, data })) as { sent: number; failed: number; skipped: number; unusable?: string[] };
+}
+
+// ---- Copying and sharing a layout (app 0.2.74) ----
+const LAYOUT_KEYS = ["title", "tiles", "header", "pages"] as const;
+function adopt(source: Partial<Layout>, what: string) {
+  const layout = state.layout;
+  if (!layout) return;
+  const tiles = (Array.isArray(source.tiles) ? source.tiles : [])
+    .filter((t): t is Tile => Boolean(t && typeof t === "object" && typeof t.entity === "string" && t.entity.includes(".")))
+    .map((t) => ({ entity: t.entity, name: typeof t.name === "string" ? t.name : "", slot: Number.isInteger(t.slot) ? t.slot : -1,
+                   ...(t.options && typeof t.options === "object" ? { options: { ...t.options } } : {}) }) as Tile);
+  const seen = new Set<string>();
+  const unique = tiles.filter((t) => !seen.has(t.entity) && seen.add(t.entity));
+  const kept = unique.slice(0, tileLimit.value);
+  layout.tiles = kept;
+  if (source.header && Array.isArray(source.header.items)) layout.header = { items: source.header.items.map((i) => ({ ...i })) };
+  else delete layout.header;
+  layout.pages = Number.isInteger(source.pages) ? (source.pages as number) : 1;
+  normalize(layout);
+  layout.pages = pageCount(entriesOf(layout), layout.pages);
+  closeInspector();
+  markDirty();
+  loadCapabilities(kept.map((t) => t.entity));
+  loadStates();
+  loadTopbarPreview(0);
+  toast(kept.length < unique.length
+    ? `${what}: ${kept.length} of ${unique.length} tiles fit this screen's firmware. Save & send when it looks right.`
+    : `${what}. Save & send when it looks right.`);
+}
+export function copyLayoutFrom(id: string) {
+  const other = state.inventory.screens.find((s) => s.id === id);
+  if (!other || !state.layout) return;
+  adopt(JSON.parse(JSON.stringify(other.layout)), `Layout of ${other.name} copied`);
+}
+export function layoutJson() {
+  const layout = state.layout;
+  if (!layout) return "";
+  const out: Record<string, unknown> = { esp_screens_layout: 1 };
+  for (const key of LAYOUT_KEYS) if (layout[key] !== undefined) out[key] = layout[key];
+  return JSON.stringify(out, null, 2);
+}
+export function exportLayout() {
+  const text = layoutJson();
+  if (!text) return;
+  const name = `${(currentScreen.value?.name || "screen").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.layout.json`;
+  const url = URL.createObjectURL(new Blob([text], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url; a.download = name; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  copyText(text, undefined, "Layout JSON");
+}
+export function importLayout(text: string) {
+  let data: any;
+  try { data = JSON.parse(text); } catch { toast("That isn't JSON. Export a layout first, or paste one from another ESP Screens."); return; }
+  if (!data || typeof data !== "object" || !Array.isArray(data.tiles)) { toast("No tiles in this file. Expected a layout exported from ESP Screens."); return; }
+  adopt(data, "Layout imported");
+}
+
+// ---- Updates with content (app 0.2.74): what a screen gets, and how far its update is ----
+export function whatsNew(screen: Screen): string[] {
+  const target = state.inventory.updates?.target;
+  const sections = (state.inventory.updates as any)?.changelog as { app: string; firmware: string; lines: string[] }[] | undefined;
+  if (!sections || !target) return [];
+  const since = screen.firmware;
+  const lines: string[] = [];
+  for (const section of sections) {
+    if (versionAtLeast(section.firmware, target) && section.firmware !== target) continue;
+    if (since && versionAtLeast(since, section.firmware)) continue;
+    for (const line of section.lines) if (!lines.includes(line)) lines.push(line);
+  }
+  return lines;
+}
+let firmwareFlight = false;
+export async function loadFirmwareJob() {
+  if (firmwareFlight) return;
+  firmwareFlight = true;
+  try {
+    const data = await getJson("firmware");
+    state.firmwareJob = { job: data.job, logs: data.logs || [] };
+  } catch {
+    // Keep what we have.
+  } finally {
+    firmwareFlight = false;
+  }
+}
+export const anyUpdating = () => state.inventory.screens.some((s) => s.update?.state === "running") || state.updating.length > 0;
+// Progress of a running update, from its phase and the ESPHome stage of the build.
+export function updateProgress(screen: Screen): { percent: number; text: string } | null {
+  const u = screen.update || {};
+  if (!(u.state === "running" || state.updating.includes(screen.id))) return null;
+  const stage = state.firmwareJob?.job?.stage as string | undefined;
+  if (u.phase === "verify") return { percent: 78, text: PHASES.verify };
+  if (u.phase === "settle") return { percent: 92, text: PHASES.settle };
+  if (u.phase === "install" || !u.phase) {
+    if (stage === "upload") return { percent: 66, text: "Writing the firmware over Wi-Fi…" };
+    if (stage) return { percent: 40, text: "Building the firmware…" };
+    return { percent: 12, text: PHASES.install };
+  }
+  return { percent: 12, text: PHASES[u.phase] || "Starting update…" };
 }
 
 // ---- Top bar ----
@@ -608,6 +759,14 @@ export function boot() {
     state.now = Date.now();
     loadTopbarPreview(0);
   }, 30000);
+  // The mockup follows Home Assistant while it is on screen; a running update reports its stage every few seconds.
+  setInterval(() => {
+    if (!document.hidden && state.layout && state.tab === "layout" && route.value === "") loadStates();
+  }, 8000);
+  setInterval(() => {
+    if (!document.hidden && anyUpdating()) loadFirmwareJob();
+    else if (state.firmwareJob && !anyUpdating()) state.firmwareJob = null;
+  }, 3000);
   document.addEventListener("visibilitychange", async () => {
     if (document.hidden) return;
     lastFull = Date.now();
