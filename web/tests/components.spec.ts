@@ -59,6 +59,11 @@ describe("TileCard", () => {
     expect(lamp.find(".ic").classes()).toContain("lit");
     expect(lamp.find(".mini-slider").attributes("style")).toContain("50%");
   });
+  it("fills a blind's bar with its closed part, like the screen and its card", () => {
+    state.liveStates["cover.c"] = { state: "open", word: "Open", a: { current_position: 30 } };
+    const blind = placed({ entity: "cover.c", name: "", slot: 2, options: { inline: "slider" } });
+    expect(blind.find(".mini-slider").attributes("style")).toContain("70%");
+  });
   it("draws the large value, the wide card's toggle and an unavailable entity in grey", () => {
     state.liveStates["sensor.t"] = { state: "1249", word: null, a: { unit_of_measurement: "W" } };
     const big = placed({ entity: "sensor.t", name: "Power", slot: 0, options: { display: "watch" } });

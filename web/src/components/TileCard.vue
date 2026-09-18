@@ -61,7 +61,8 @@ const fill = computed(() => {
   const a = c.a || {};
   if (domain.value === "light") return c.state === "on" ? (a.brightness !== undefined ? Math.round((a.brightness / 255) * 100) : 100) : 0;
   if (domain.value === "fan") return c.state === "on" ? (a.percentage ?? 100) : 0;
-  if (domain.value === "cover") return a.current_position ?? (c.state === "open" ? 100 : 0);
+  // A blind's bar fills with its closed part, as on the screen (firmware 0.2.66+) and in Home Assistant's cover dialog.
+  if (domain.value === "cover") return 100 - (a.current_position ?? (c.state === "open" ? 100 : 0));
   if (domain.value === "media_player") return Math.round((a.volume_level ?? 0) * 100);
   if (domain.value === "number" || domain.value === "input_number") {
     const value = Number(c.state), min = Number(a.min ?? 0), max = Number(a.max ?? 100);

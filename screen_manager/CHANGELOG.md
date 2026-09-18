@@ -1,3 +1,10 @@
+## 0.2.79 (firmware 0.2.66)
+
+A blind's bar reads the same way on the tile and on its card.
+
+- **The small slider of a blind fills with the closed part.** A closed blind is a full bar, an open one an empty bar, and dragging to the right closes it, as on the blind's card and in Home Assistant's own cover dialog, where the blind hangs down from the top. Before, the tile filled with the open part, so a closed blind looked open next to its card. The editor's mockup draws it the same way. The position in the text stays how far the blind is open, as Home Assistant says it.
+- Needs firmware 0.2.66: press **Update** on the screen. Includes everything from 0.2.78.
+
 ## 0.2.78 (firmware 0.2.65)
 
 Fixes from a full test round of 0.2.72 to 0.2.76, a light switch that works in the dark, and a way back to the menu.

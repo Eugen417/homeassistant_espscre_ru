@@ -848,7 +848,9 @@ inline int slider_value(const Tile &t){
   auto d=t.domain();float value=0;
   if(d=="light")value=std::isfinite(t.brightness)?t.brightness/255:0;
   if(d=="fan")value=std::isfinite(t.percentage)?t.percentage/100:0;
-  if(d=="cover")value=std::isfinite(t.position)?t.position/100:0;
+  // A blind's bar is the blind itself: the closed part is filled, so a closed cover is a full bar, as on its card and in
+  // Home Assistant's own cover dialog (firmware 0.2.66+; before, the bar filled with the open part, the other way round).
+  if(d=="cover")value=std::isfinite(t.position)?(100-t.position)/100:1;
   if(d=="media_player")value=std::isfinite(t.volume)?t.volume:0;
   if(d=="number"||d=="input_number") {char *end;float state=strtof(t.state.c_str(),&end);if(end!=t.state.c_str() && t.maximum>t.minimum)value=(state-t.minimum)/(t.maximum-t.minimum);}
   return std::clamp((int)std::lround(value*1000),0,1000);
@@ -864,7 +866,7 @@ inline void commit_slider(unsigned i,int raw){
   // The slider stays where the finger left it while the light fades towards it (Tile::hold_slider).
   if(d=="light"){int sent=std::max(3,(int)std::lround(value*255));action("light.turn_on",t.entity,"brightness",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
   if(d=="fan"){int sent=(int)std::lround(value*100);action("fan.set_percentage",t.entity,"percentage",std::to_string(sent));t.hold_slider(esphome::millis(),sent);}
-  if(d=="cover")action("cover.set_cover_position",t.entity,"position",std::to_string((int)std::lround(value*100)));
+  if(d=="cover")action("cover.set_cover_position",t.entity,"position",std::to_string(100-(int)std::lround(value*100)));
   if(d=="media_player"){action("media_player.volume_set",t.entity,"volume_level",std::to_string(value));t.hold_slider(esphome::millis(),value);}
   if(d=="number"||d=="input_number") {
     if(!std::isfinite(t.minimum)||!std::isfinite(t.maximum)||t.maximum<=t.minimum||t.step<=0)return;
