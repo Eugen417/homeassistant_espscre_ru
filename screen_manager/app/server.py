@@ -1,7 +1,6 @@
 """HA Ingress app. HA writes: text.set_value on discovered inboxes (or the screen_message action on firmware 0.2.33+), each screen's alert actions when an alert event for every screen fires, and one persistent notification when a nightly update stops."""
 import asyncio
 import contextlib
-import hashlib
 import json
 import logging
 import os
@@ -1495,12 +1494,13 @@ def create_app(manager, development=False):
     app = web.Application(middlewares=[guard], client_max_size=16*1024)
     static = Path(__file__).parent / 'static'
 
-    # The page asks for its script and styles with a stamp of their content, so a browser that keeps old copies
-    # anyway (Safari did after an update) never runs an old script against a new page.
-    stamp = hashlib.sha1(b''.join((static / name).read_bytes() for name in ('app.js', 'style.css'))).hexdigest()[:12]
-    page = (static / 'index.html').read_text().replace('"static/app.js"', f'"static/app.js?v={stamp}"').replace('"static/style.css"', f'"static/style.css?v={stamp}"')
+    # The page is the Vite build of web/ (npm run build writes it here): index.html names its script and styles
+    # by a hash of their content, so a browser that keeps old copies anyway (Safari did after an update) never
+    # runs an old script against a new page.
+    page = (static / 'index.html').read_text()
     async def index(request):
-        return web.Response(text=page, content_type='text/html')
+        # SCREEN_DEV reads the file every time, so a fresh `npm run build` shows up without a restart.
+        return web.Response(text=(static / 'index.html').read_text() if development else page, content_type='text/html')
     def light_payload(screens=None):
         """Screens and update status: everything that changes while the page is open."""
         if screens is None:
@@ -1674,7 +1674,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
     app.router.add_put('/api/screens/{inbox}/settings', change_settings)
-    app.router.add_static('/static/', static)
+    app.router.add_static('/assets/', static / 'assets')
     return app
 
 async def main():

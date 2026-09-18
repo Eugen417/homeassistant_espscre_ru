@@ -1,26 +1,25 @@
 """Opening ESP Screens.
 
 App 0.2.58: the page asks for the full inventory and opens the live stream at the same time. An add-on that is
-building firmware answers the stream first, whose light payload has screens but no entities, so a screen opened
-then had an empty catalogue: the entity list said "No entities found" and the tiles showed entity ids until a
-filter chip was pressed. The first full inventory now draws those parts again.
+building firmware answers the stream first, whose light payload has screens but no entities. The page keeps the
+catalogue it has on a light poll and every name on the page follows the inventory, so the first full inventory
+fills in what was missing.
 
 App 0.2.65: the page no longer opens the first screen by itself; the owner picks one. Until then a card asks for
-that, or offers the install when there are no screens yet. A screen picked before the full inventory arrives
-still gets its entity names from the redraw above.
+that, or offers the install when there are no screens yet.
+
+App 0.2.74: the page is the Vue app in web/; these tests read its source (tests/editor_sources.py).
 """
 import re
+import sys
 import unittest
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = (ROOT / 'screen_manager/app/static/app.js').read_text()
-PAGE = (ROOT / 'screen_manager/app/static/index.html').read_text()
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import editor_sources  # noqa: E402
 
-
-def function(name):
-    start = SCRIPT.index(f'function {name}(')
-    return SCRIPT[start:SCRIPT.index('\n}\n', start)]
+SCRIPT = editor_sources.SCRIPT
+STORE = editor_sources.source('store.ts')
 
 
 class Startup(unittest.TestCase):
@@ -28,33 +27,28 @@ class Startup(unittest.TestCase):
         self.assertNotIn('inventory.screens[0]', SCRIPT)
         # The one way into a screen is its button in the list.
         self.assertEqual(re.findall(r'(?<![\w.])(?<!function )select\(([^)]*)\)', SCRIPT), ['screen.id'])
+        self.assertIn('@click="select(screen.id)"', editor_sources.component('Sidebar'))
         for name in ('refresh', 'applyLive'):
-            self.assertNotRegex(function(name), r'(?<![\w.])select\(', name)
+            body = STORE[STORE.index(f'function {name}('):]
+            self.assertNotRegex(body[:body.index('\n}\n')], r'(?<![\w.])select\(', name)
 
     def test_the_right_side_asks_for_a_screen_until_one_is_chosen(self):
-        choose = re.search(r'<section id="choose" class="empty" hidden>(.*?)</section>', PAGE, re.S)
-        self.assertTrue(choose, 'hidden until the first inventory')
+        empty = editor_sources.component('EmptyState')
+        choose = re.search(r'<section v-if="state.inventory.screens.length" id="choose" class="empty">(.*?)</section>', empty, re.S)
+        self.assertTrue(choose, 'the card asks for a screen while there are screens')
         self.assertIn('<h2>Choose a screen</h2>', choose[1])
         self.assertNotIn('<button', choose[1], 'the list beside it is the choice')
-        self.assertIn('<section id="empty" class="empty" hidden>', PAGE, 'no install card flashing while the page loads')
-        self.assertIn('<section id="editor" hidden>', PAGE)
-        body = function('renderScreens')
-        self.assertIn('if (!selected) {\n    $("#choose").hidden = !inventory.screens.length;\n'
-                      '    $("#empty").hidden = !!inventory.screens.length;\n  }', body)
-        self.assertLess(body.index('$("#choose").hidden'), body.index('if ($("#screens .screen-host"))'),
-                        'also while an address form keeps the list')
-        opened = function('select')
-        for part in ('$("#editor").hidden = false;', '$("#empty").hidden = true;', '$("#choose").hidden = true;'):
-            self.assertIn(part, opened)
+        self.assertIn('id="empty" class="empty"', empty, 'the install card when there are no screens yet')
+        self.assertIn('id="start"', empty)
+        app = editor_sources.source('App.vue')
+        self.assertIn('currentScreen.value && state.layout ? ScreenView : EmptyState', app)
 
-    def test_the_first_full_inventory_draws_what_needs_entities_again(self):
-        body = function('refresh')
-        first = body.index('const firstCatalogue = full && !inventory.entities?.length;')
-        self.assertLess(first, body.index('inventory = full ? data'), 'decided before the catalogue is replaced')
-        redraw = re.search(r'if \(firstCatalogue && selected && layout && !drag\.active && !chipDrag\.active\) '
-                           r'\{ renderTopbar\(\); renderTiles\(\); renderResults\(\); \}', body)
-        self.assertTrue(redraw, 'tiles, top bar and entity list are drawn again, never in the middle of a drag')
-        self.assertRegex(function('select'), r'renderTopbar\(\);\s+renderTiles\(\);\s+renderResults\(\);')
+    def test_a_light_poll_keeps_the_catalogue_and_names_follow_the_inventory(self):
+        self.assertIn('state.inventory = full ? data : { ...state.inventory, ...data };', STORE)
+        self.assertIn('inventory?light=1', STORE)
+        # Names come from the inventory at render time, so they appear as soon as the full inventory does.
+        self.assertIn('state.inventory.entities.find((e) => e.id === id)?.name', STORE)
+        self.assertIn('entityName(props.tile.entity)', editor_sources.component('TileCard'))
 
 
 if __name__ == '__main__':

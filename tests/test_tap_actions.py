@@ -220,16 +220,19 @@ class SavingAndTheEditor(unittest.IsolatedAsyncioTestCase):
 
 
 class Editor(unittest.TestCase):
-    SCRIPT = (ROOT / 'screen_manager/app/static/app.js').read_text()
+    def setUp(self):
+        import editor_sources
+        self.SCRIPT = editor_sources.SCRIPT
+        self.PICKER = editor_sources.component('ActionPicker')
 
     def test_perform_action_is_a_tap_choice_with_home_assistants_list(self):
-        self.assertIn('taps.push(["action", "Perform action"]);', self.SCRIPT)
-        self.assertIn('api(`entity-actions?entity=${encodeURIComponent(entity)}`)', self.SCRIPT)
-        self.assertIn('if (tap === "action") body.append(actionPicker(tile));', self.SCRIPT)
+        self.assertIn('list.push(["action", "Perform action"]);', self.SCRIPT)
+        self.assertIn('getJson(`entity-actions?entity=${encodeURIComponent(entity)}`)', self.SCRIPT)
+        self.assertIn('<ActionPicker v-if="domain !== \'screen\' && tap === \'action\'" :tile="tile" />', self.SCRIPT)
         # Fields follow Home Assistant's selectors; an empty field is left out of the data.
-        for marker in ('kind === "boolean"', 'kind === "number" || kind === "color_temp"', 'config.options', 'delete data[field.key]'):
-            self.assertIn(marker, self.SCRIPT)
-        self.assertIn('supportsFirmware(0, 2, 58)', self.SCRIPT)
+        for marker in ("kindOf(field) === 'boolean'", "kindOf(field) === 'number' || kindOf(field) === 'color_temp'", 'config.options', 'delete data[key]'):
+            self.assertIn(marker, self.PICKER, marker)
+        self.assertIn('supports(0, 2, 58)', self.PICKER)
 
 
 if __name__ == '__main__':

@@ -1,3 +1,15 @@
+## 0.2.73 (firmware 0.2.61)
+
+A new editor, built as a Vue app, with the same firmware.
+
+- **One workspace instead of one long page.** Your screens sit in a sidebar on the left, the screen you chose fills the middle, and the entity library sits on the right. The big title, the separate Settings view and the sticky save bar are gone: **Save & send** appears in the head the moment something changed, and says *Saved · sent to screen* when it is done.
+- **Tile settings in a drawer.** Tap a tile and its settings slide in from the right; the mockup stays visible, so a wider tile, another background or a direct control shows up on the page while you choose. Tap another tile and the drawer follows. Esc or a tap beside the pages closes it.
+- **Pages side by side.** The pages of a screen stand next to each other, at the screen's own shape (square for a Guition, 4:3 for a CYD), the way you swipe through them. Dragging from the library onto a page and between cells works as before, with mouse and touch; drop past the last page for a new one.
+- **The top bar is part of the mockup.** Tap the bar on any page to name the screen and choose its items; the drawer shows every item as the screen draws it. Adding the time, the date, the dial or an entity happens in the same drawer.
+- **Screen settings as a tab** next to Layout, with the same rows as the settings page on the screen. **Read current data** and **Override YAML** live in the ··· menu of the screen; New screen, Firmware & USB, Alerts and the app Settings are pages of their own, reached from the sidebar.
+- **Dark mode follows your browser**, as Home Assistant's own Auto theme does.
+- Same add-on API, same data, same firmware: nothing to update on the screens. The page is now built with Vue and Vite (`web/`); its files carry a hash of their content, so an update never runs an old script against a new page.
+
 ## 0.2.72 (firmware 0.2.61)
 
 Next, Next, Next: the page buttons keep up with your finger.

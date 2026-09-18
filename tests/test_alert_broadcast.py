@@ -182,14 +182,13 @@ class Broadcast(unittest.IsolatedAsyncioTestCase):
 
 class Page(unittest.TestCase):
     def test_cheatsheet_explains_the_event(self):
-        html = (STATIC / 'index.html').read_text()
-        cheatsheet = html.split('id="alerts-dialog"', 1)[1]
-        for marker in ('id="alerts-all"', 'data-jump="alerts-all"', 'id="alerts-all-example"', 'id="alerts-all-copy"',
+        import editor_sources
+        cheatsheet = editor_sources.component('AlertsView')
+        for marker in ('id="alerts-all"', '["alerts-all", "All screens"]', 'id="alerts-all-example"', 'id="alerts-all-copy"',
                        'esp_screens_show_alert', 'esp_screens_dismiss_alert', 'Settings → Claude'):
             self.assertIn(marker, cheatsheet, marker)
-        script = (STATIC / 'app.js').read_text()
-        for marker in ('function alertAllYaml', 'broadcast?.show', 'renderAlertBroadcast();', '#alerts-all-copy").onclick'):
-            self.assertIn(marker, script, marker)
+        for marker in ('const allYaml = computed', 'broadcast?.show', 'copyText(allYaml, undefined, \'YAML\')'):
+            self.assertIn(marker, cheatsheet, marker)
 
 
 if __name__ == '__main__':

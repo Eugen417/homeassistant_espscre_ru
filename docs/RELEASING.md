@@ -20,6 +20,9 @@
 
 1. Update the source profiles and shared components. Run
    `python3 tools/generate_packages.py`; never edit `packages/*.yaml` directly.
+   The editor is the Vue app in `web/`: after a change under `web/src`, run
+   `cd web && npm ci && npm run build` and commit `screen_manager/app/static` with it
+   (that folder is the build output; never edit it by hand).
 2. Run all Python tests with aiohttp installed, all `tests/*.cpp`, the
    generator with `--check`, and compile both Easy Setup profiles. Do that
    sequentially: profiles with the same `DEVICE_NAME` share one build folder, and a
@@ -52,6 +55,15 @@ python3 -m venv .venv-portal
 .venv-portal/bin/pip install aiohttp PyYAML
 .venv-portal/bin/python -m unittest discover -s tests
 ```
+
+For the editor (`web/`, Vue 3 + Vite + TypeScript): `cd web && npm ci`, then `npm run dev` serves
+http://localhost:5173 with hot reload and proxies `/api` to a server on 127.0.0.1:8099 (SCREEN_DEV or a demo
+home). `npm run check` type-checks, `npm run build` writes the page into `screen_manager/app/static`
+(clearing `assets/` first). Vite names every file after a hash of its content, which is what keeps a browser
+from combining an old script with a new page; `server.py` serves `index.html` as built and `/assets/`.
+Everything the page asks for is a relative URL (`api/...`, `./assets/...`), so it works under Home
+Assistant's ingress path as well as on a bare localhost. The Python tests read the source through
+`tests/editor_sources.py`.
 
 A temporary development server supports `SCREEN_DEV=1`, `HA_API` (ending in
 `/api`), `HA_TOKEN_FILE`, and `SCREEN_DATA`. It only binds on localhost. Never put a
@@ -171,7 +183,7 @@ An old editor that omits `icon` keeps the stored choice.
 
 `tile_icons.py` is the single source list. `tools/generate_icons.py` writes the glyphs
 as a YAML anchor into the three MDI fonts of both board profiles and builds
-`static/tile-icons.woff` for the editor (with left bearing equal to xMin, otherwise
+`web/src/assets/tile-icons.woff` for the editor (with left bearing equal to xMin, otherwise
 icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.

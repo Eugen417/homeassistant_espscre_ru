@@ -55,13 +55,13 @@ class ReferenceTests(unittest.TestCase):
         self.assertLessEqual(parse_version(ALERT_MIN_FIRMWARE), parse_version(FIRMWARE_VERSION))
 
     def test_page_carries_the_cheatsheet(self):
-        html = (STATIC / 'index.html').read_text()
+        import editor_sources
+        html = editor_sources.PAGE
         for marker in ('id="open-alerts"', 'id="alerts-dialog"', 'id="close-alerts"', 'id="alerts-screens"', 'id="alerts-icons"', 'id="alerts-colors"', 'id="alerts-fields"', 'id="alerts-example"'):
             self.assertIn(marker, html, marker)
-        script = (STATIC / 'app.js').read_text()
-        for marker in ('inventory.alerts', 'alert_action', 'dismiss_action', 'function renderAlerts', '#open-alerts'):
-            self.assertIn(marker, script, marker)
-        self.assertIn('#alerts-dialog', (STATIC / 'style.css').read_text())
+        for marker in ('inventory.alerts', 'alert_action', 'dismiss_action', 'AlertsView', 'go(\'#alerts\')'):
+            self.assertIn(marker, editor_sources.SCRIPT, marker)
+        self.assertIn('.alert-icon-grid', editor_sources.CSS)
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:

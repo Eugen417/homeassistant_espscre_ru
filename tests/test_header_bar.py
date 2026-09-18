@@ -17,7 +17,7 @@ from core import FIRMWARE_VERSION, HEADER_MIN_FIRMWARE, discover, header_items, 
 
 FIRMWARE = (ROOT / 'components/smart_display/header_bar.h').read_text()
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
-EDITOR = (ROOT / 'screen_manager/app/static/app.js').read_text()
+EDITOR = (ROOT / 'web/src/model/topbar.ts').read_text()
 PROFILES = ('guition-4848s040.yaml', 'home-like-2432s028.yaml')
 
 def state(value, last_changed='2026-09-13T14:00:00+00:00', **attributes):

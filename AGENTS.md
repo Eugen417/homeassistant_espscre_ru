@@ -54,6 +54,10 @@ and screens for lookups and tests. If that file is missing you are not on his ma
 
 - Keep base hardware and UI in `home-like-2432s028.yaml`; personal data belongs
   in the gitignored local profiles.
+- The editor is `web/` (Vue 3 + Vite, TypeScript; app 0.2.74+). `screen_manager/app/static` is its build
+  output: change `web/src`, run `cd web && npm run build`, and commit both. Keep every URL the page asks for
+  relative (`api/...`), so it works behind Home Assistant's ingress path. Tests read the source through
+  `tests/editor_sources.py`; docs/RELEASING.md "Local development" has the dev-server recipe.
 - Colours live in one table: `components/smart_display/theme.h` (firmware 0.2.54+). Every role has a
   light and a dark value, board profiles name paints (`styles: paint_card`) instead of writing a colour,
   and firmware code asks for a role (`theme::color(theme::INK)`). Never write a hex colour in a profile or

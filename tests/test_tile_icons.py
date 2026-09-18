@@ -28,7 +28,7 @@ class IconSetTests(unittest.TestCase):
             block = text.split('glyphs: &tile_icons', 1)[1].split('\n\n', 1)[0]
             self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', block), wanted, name)
             self.assertNotIn('MDI_GLYPH', text, name)
-        self.assertTrue((ROOT / 'screen_manager/app/static/tile-icons.woff').exists())
+        self.assertTrue((ROOT / 'web/src/assets/tile-icons.woff').exists())
 
     def test_firmware_name_table_mirrors_the_set(self):
         header = (ROOT / 'components/smart_display/tile_icon_names.h').read_text()

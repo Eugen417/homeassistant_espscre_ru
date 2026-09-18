@@ -68,7 +68,7 @@ the sidebar panel; here, open Home Assistant yourself.
 
 ## Using it
 
-From here it works like the app: **Settings → New screen** installs a screen, you pair it
+From here it works like the app: **New screen** installs a screen, you pair it
 under **Settings → Devices & services** in Home Assistant, and then choose the tiles. See the
 [installation guide](EASY_SETUP.md).
 

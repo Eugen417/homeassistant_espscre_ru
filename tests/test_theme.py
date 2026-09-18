@@ -151,7 +151,7 @@ class Setting(unittest.TestCase):
         page = (COMPONENT / 'settings_screen.h').read_text()
         self.assertIn('toggle("Dark mode", []() -> int32_t { return dark_mode; },', page)
         self.assertIn('else if (key == "dark_mode") reported = dark_mode = flag(value);', page)
-        editor = (ROOT / 'screen_manager/app/static/app.js').read_text()
+        editor = (ROOT / 'web/src/store.ts').read_text()
         self.assertIn('{ key: "dark_mode", label: "Dark mode", kind: "toggle" },', editor)
         brightness = editor.split('{ title: "Brightness"', 1)[1].split('] },', 1)[0]
         self.assertLess(brightness.index('"brightness"'), brightness.index('"dark_mode"'), 'right under Brightness, as on the screen')

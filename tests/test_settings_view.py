@@ -1,51 +1,53 @@
 """Settings (app 0.2.45): New screen, Firmware & USB, firmware updates, Alerts and Claude moved off the main
-page into a view of their own, so the header keeps one button and My screens keeps the editor."""
-from pathlib import Path
+page into a view of their own. App 0.2.74: the sidebar carries the way in (New screen, Firmware & USB, Alerts,
+Settings), each once; the Settings page keeps the updates and Claude."""
 import re
+import sys
 import unittest
+from pathlib import Path
 
-STATIC = Path(__file__).resolve().parents[1] / 'screen_manager/app/static'
-
-
-def between(text, start, end):
-    return text.split(start, 1)[1].split(end, 1)[0]
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import editor_sources  # noqa: E402
 
 
 class SettingsView(unittest.TestCase):
     def setUp(self):
-        self.html = (STATIC / 'index.html').read_text()
-        self.script = (STATIC / 'app.js').read_text()
-        self.css = (STATIC / 'style.css').read_text()
+        self.sidebar = editor_sources.component('Sidebar')
+        self.settings = editor_sources.component('AppSettingsView')
+        self.script = editor_sources.SCRIPT
+        self.css = editor_sources.CSS
 
-    def test_header_keeps_only_the_settings_button(self):
-        header = between(self.html, '<header>', '</header>')
-        self.assertEqual(re.findall(r'<button id="([\w-]+)"', header), ['open-settings'])
+    def test_the_sidebar_is_the_one_way_to_the_tools(self):
+        more = self.sidebar.split('<div class="more">', 1)[1]
+        self.assertEqual(re.findall(r'<button id="([\w-]+)"', more), ['open-firmware', 'open-alerts', 'open-settings', 'refresh'])
+        self.assertEqual(self.sidebar.count('id="new-screen"'), 1)
+        for element in ('new-screen', 'open-firmware', 'open-alerts', 'open-settings'):
+            self.assertEqual(editor_sources.PAGE.count(f'id="{element}"'), 1, element)
 
     def test_every_tool_lives_in_the_settings_view_once(self):
-        settings = between(self.html, '<section id="settings-view"', '</main>')
-        home = between(self.html, '<div id="home-view">', '<section id="settings-view"')
-        for element in ('new-screen', 'open-firmware', 'updates', 'update-all', 'auto-update', 'open-alerts',
-                        'claude-install', 'claude-status', 'claude-path', 'claude-download', 'close-settings'):
-            self.assertEqual(self.html.count(f'id="{element}"'), 1, element)
-            self.assertIn(f'id="{element}"', settings, element)
-            self.assertNotIn(f'id="{element}"', home, element)
+        for element in ('updates', 'update-all', 'auto-update', 'claude-install', 'claude-status', 'claude-path', 'claude-download', 'close-settings'):
+            self.assertEqual(editor_sources.PAGE.count(f'id="{element}"'), 1, element)
+            self.assertIn(f'id="{element}"', self.settings, element)
         # The first-run button stays where a new user starts.
-        self.assertIn('id="start"', home)
-        self.assertIn('href="api/claude-skill.zip"', settings)
+        self.assertIn('id="start"', editor_sources.component('EmptyState'))
+        self.assertIn('href="api/claude-skill.zip"', self.settings)
 
     def test_the_view_switches_by_hash_and_renders_what_it_shows(self):
-        for marker in ('function showView', 'location.hash === "#settings"', 'window.addEventListener("hashchange", showView)',
-                       '$("#home-view").hidden = settings', 'function renderClaude', 'api("claude-skill", { method: "POST" })',
-                       'if (full) renderClaude();', '$("#new-screen").onclick = $("#start").onclick = openInstaller'):
-            self.assertIn(marker, self.script, marker)
-        self.assertNotIn('Not flashed yet? Firmware & USB', self.script, 'texts point to Settings')
-        for marker in ('.settings-groups', '.settings-group', '.claude-skill', '.screen:hover:not(.selected)'):
+        store = editor_sources.source('store.ts')
+        for marker in ('export const routes = ["", "#settings", "#new-screen", "#firmware", "#alerts", "#override"] as const;',
+                       'window.addEventListener("hashchange"', 'export async function installClaudeSkill', 'send("claude-skill", "POST")'):
+            self.assertIn(marker, store, marker)
+        app = editor_sources.source('App.vue')
+        for marker in ('route.value === "#settings") return AppSettingsView', 'route.value === "#new-screen") return InstallerView',
+                       'route.value === "#firmware") return FirmwareView', 'route.value === "#alerts") return AlertsView'):
+            self.assertIn(marker, app, marker)
+        for marker in ('.side', '.nav-item[aria-current="true"]', '.panel', '.card'):
             self.assertIn(marker, self.css, marker)
 
-    def test_unselected_screens_get_a_grey_card(self):
-        rule = between(self.css, '\n.screen {', '}')
-        self.assertIn('background: #e9ecf1', rule)
-        self.assertIn('background: white', between(self.css, '\n.screen.selected {', '}'))
+    def test_the_chosen_screen_is_marked_in_the_list(self):
+        self.assertIn(':aria-current="screen.id === state.selected && route === \'\' ? \'true\' : \'false\'"', self.sidebar)
+        rule = self.css.split('\n.nav-item[aria-current="true"] {', 1)[1].split('}', 1)[0]
+        self.assertIn('background: var(--seg)', rule)
 
 
 if __name__ == '__main__':

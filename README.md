@@ -18,7 +18,7 @@ the bell, and a Guition shows who is there with the doorbell camera's picture. A
 action Home Assistant has for a tile, and Dark mode suits a screen beside the bed.
 
 **How.** ESP Screen Manager is an app inside Home Assistant. It flashes a new screen over USB, updates
-it over Wi-Fi and sends it your tiles. Changing a screen is pick, drag and **Save & send to screen**:
+it over Wi-Fi and sends it your tiles. Changing a screen is pick, drag and **Save & send**:
 no reflash, no YAML to write, no blueprint, MQTT or token. Brightness, night hours and Dark mode can
 also be changed on the screen or by an automation, and your own YAML for one screen survives every update.
 
@@ -153,7 +153,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 2. Install **ESP Screen Manager**, start the app, and open **ESP Screens**.
    ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
 3. Connect the screen with a USB data cable to the **Home Assistant machine**
-   and choose **Settings → New screen**: CYD or Guition, a name, the USB port, and
+   and choose **New screen** in the sidebar: CYD or Guition, a name, the USB port, and
    **Install**. If Wi-Fi is missing from the ESPHome `secrets.yaml`, the window
    asks for it once and ESP Screens only adds the missing lines. The profile
    with unique API and OTA keys goes into the ESPHome folder; the build
@@ -169,7 +169,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
    shows after installation (copy button). Grant the device permission to
    perform Home Assistant actions.
 5. Select the screen in ESP Screens, choose your tiles, and click
-   **Save & send to screen**. Then test the physical controls.
+   **Save & send**. Then test the physical controls.
 
 <p align="center">
   <img src="docs/images/editor-new-screen.png" width="37%" alt="New screen in ESP Screens: choose the board, give it a name, pick the USB port and install">
@@ -177,7 +177,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 </p>
 <p align="center"><sub>New screen (step 3) and choosing your tiles (step 5).</sub></p>
 
-You can install new firmware later from **Settings → Firmware & USB → Wi-Fi / OTA**.
+You can install new firmware later from **Firmware & USB → Wi-Fi / OTA** in the sidebar.
 For an existing screen, always use the existing profile; creating a new
 installation profile generates new keys.
 

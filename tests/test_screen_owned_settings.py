@@ -545,21 +545,23 @@ class SettingsRoute(unittest.IsolatedAsyncioTestCase):
 
 class Editor(unittest.TestCase):
     def setUp(self):
-        self.html = (STATIC / 'index.html').read_text()
-        self.script = (STATIC / 'app.js').read_text()
-        self.css = (STATIC / 'style.css').read_text()
+        import editor_sources
+        self.html = editor_sources.PAGE
+        self.script = editor_sources.SCRIPT
+        self.css = editor_sources.CSS
+        self.tab = editor_sources.component('SettingsTab')
 
     def test_the_panel_replaces_the_form(self):
-        self.assertIn('<section class="screen-settings" id="general-settings"', self.html)
+        self.assertIn('<div class="settings" id="general-settings"', self.tab)
         for element in ('settings-groups', 'settings-status'):
             self.assertEqual(self.html.count(f'id="{element}"'), 1)
         self.assertNotIn('settings-fields', self.html + self.script)
         self.assertNotIn('settingDefinitions', self.script)
-        for rule in ('.settings-card', '.setting-row', '.switch[aria-checked="true"]', '.switch.unknown::after', '.step', '.setting-value'):
+        for rule in ('.set-card', '.srow', '.switch[aria-checked="true"]', '.switch.unknown::after', '.step', '.step output'):
             self.assertIn(rule, self.css)
         # A value Home Assistant does not have (offline, entity off) shows as unknown, not as a default.
         self.assertIn('if (value === null || value === undefined) return "—";', self.script)
-        self.assertIn('refs.toggle.classList.toggle("unknown", values[key] === null || values[key] === undefined);', self.script)
+        self.assertIn(':class="{ unknown: values[row.key] === null || values[row.key] === undefined }"', self.tab)
 
     def test_the_rows_are_the_settings_of_the_screen_page(self):
         keys = re.findall(r'\{ key: "(\w+)", label: "[^"]+", kind: "(\w+)"', self.script)
@@ -567,21 +569,21 @@ class Editor(unittest.TestCase):
         self.assertEqual({key for key, _ in keys}, set(SETTING_RULES) - {'show_clock'})
         # Labels and steps as on the screen: the same rows, the same -/+ steps, the same duration ladder.
         page_labels = set(re.findall(r'(?:number|toggle|duration|moment|choice)\("([^"]+)"', SCREEN_PAGE))
-        groups = self.script[self.script.index('const SETTING_GROUPS = ['):self.script.index('const SETTING_ROWS =')]
+        groups = self.script[self.script.index('const SETTING_GROUPS = ['):self.script.index('export type SettingRow')]
         script_labels = set(re.findall(r'label: "([^"]+)"', groups))
         self.assertEqual(page_labels, script_labels)
         for key, step in (('brightness', 5), ('standby_brightness', 5), ('night_brightness', 5)):
             self.assertRegex(self.script, rf'key: "{key}", [^}}]*step: {step}')
         ladder = re.search(r'if \(seconds < 300\) return 30;\s+if \(seconds < 900\) return 60;\s+if \(seconds < 3600\) return 300;\s+'
                            r'if \(seconds < 7200\) return 900;\s+return 1800;', SCREEN_PAGE)
-        self.assertTrue(ladder, 'the ladder in settings_screen.h changed: change ladderStep in app.js with it')
+        self.assertTrue(ladder, 'the ladder in settings_screen.h changed: change ladderStep in web/src/store.ts with it')
         self.assertIn('seconds < 300 ? 30 : seconds < 900 ? 60 : seconds < 3600 ? 300 : seconds < 7200 ? 900 : 1800', self.script)
 
     def test_settings_have_their_own_call_and_save_leaves_them_out(self):
         self.assertIn('api(`screens/${encodeURIComponent(screen)}/settings`', self.script)
-        self.assertIn('const { settings: _settings, ...tiles } = layout;', self.script)
-        self.assertIn('body: JSON.stringify(tiles)', self.script)
-        self.assertIn('setSetting("clock_24h", v === "24", 150);', self.script, 'the top bar clock format is the same setting')
+        self.assertIn('const { settings: _settings, ...tiles } = state.layout;', self.script)
+        self.assertIn('await send(`screens/${encodeURIComponent(state.selected)}`, "PUT", tiles);', self.script)
+        self.assertIn("setSetting('clock_24h', v === '24', 150)", self.script, 'the top bar clock format is the same setting')
 
 
 class Firmware(unittest.TestCase):

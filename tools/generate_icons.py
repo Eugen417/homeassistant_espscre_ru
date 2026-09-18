@@ -24,8 +24,8 @@ import tile_icons  # noqa: E402
 
 TTF = ROOT / 'fonts/materialdesignicons-webfont.ttf'
 PROFILES = [ROOT / 'home-like-2432s028.yaml', ROOT / 'guition-4848s040.yaml']
-WEB_FONT = ROOT / 'screen_manager/app/static/tile-icons.woff'
-BAR_FONTS = {weight: ROOT / f'screen_manager/app/static/bar-roboto-{weight}.woff' for weight in (400, 500)}
+WEB_FONT = ROOT / 'web/src/assets/tile-icons.woff'
+BAR_FONTS = {weight: ROOT / f'web/src/assets/bar-roboto-{weight}.woff' for weight in (400, 500)}
 NAME_TABLE = ROOT / 'components/smart_display/tile_icon_names.h'
 FONT_BLOCK = re.compile(r"(  - file: 'fonts/materialdesignicons-webfont\.ttf'\n    id: \w+\n    size: \d+\n)    glyphs:.*\n(?:      .*\n)*")
 

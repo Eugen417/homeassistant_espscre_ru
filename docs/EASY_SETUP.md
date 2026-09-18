@@ -4,7 +4,7 @@ A new screen, from USB to everyday use
 
 With **ESP Screen Manager**, you choose your tiles in Home Assistant. You search by
 name, device, room, or entity ID, arrange them in the order you want, and click
-**Save & send to screen**. After that, the status stays automatically up to date.
+**Save & send**. After that, the status stays automatically up to date.
 You don't need to **reflash** for different tiles.
 
 This works with Home Assistant OS on a 64-bit Raspberry Pi or an amd64 machine,
@@ -77,7 +77,7 @@ within reach at all. Then put the firmware on the screen from your own computer:
 
 The file holds your Wi-Fi password and the screen's keys: keep it to yourself. Pairing works
 as in chapter 3, and every later update goes over Wi-Fi, so the cable is only needed once.
-For an existing profile, the same file is under **Settings → Firmware & USB**: choose the
+For an existing profile, the same file is under **Firmware & USB** (in the sidebar): choose the
 profile and **Download · flash from your own computer**, then **Build & download**.
 
 **CYD:** calibration appears on first boot. Calmly tap the visible crosshair
@@ -146,7 +146,7 @@ Adding without a chosen slot fills the first free slot. Fixed slots and empty
 slots work on the screen from firmware 0.2.26 on; older firmware shifts the
 tiles up to the first free slot, and the editor notes that below the preview.
 The preview shows the layout, not live sensor values.
-Click **Save & send to screen** to send your changes.
+Click **Save & send** to send your changes.
 
 - Light, switch, input_boolean, and fan: tap to turn on/off.
 - Long press a light: brightness, rainbow color, and white temperature, as far as
@@ -189,7 +189,7 @@ as soon as the screen comes back. The app must keep running for current tile dat
 | --- | --- | --- |
 | Different entities, names, or order | Save in ESP Screens | Wi-Fi, keys, calibration |
 | New management page/app version | App store → ESP Screen Manager → Update | All layouts in `/data/screens.json` |
-| New screen feature/card | The **Update** button on the screen, or **Update automatically every night** under Settings (manually: Settings → Firmware & USB → Wi-Fi / OTA) | Own YAML, keys, and CYD calibration; the app resends tiles |
+| New screen feature/card | The **Update** button on the screen, or **Update automatically every night** under Settings (manually: Firmware & USB → Wi-Fi / OTA) | Own YAML, keys, and CYD calibration; the app resends tiles |
 
 The device's own YAML references the firmware packages on `main`. On a new build,
 ESPHome fetches the latest published package and component code. So you don't
@@ -264,7 +264,7 @@ HA mechanisms used: [Ingress](https://developers.home-assistant.io/docs/apps/pre
 Update ESP Screen Manager to 0.1.2 and install the new firmware once
 via your **existing** ESPHome device → Install → Wirelessly. Keep your own YAML
 with Wi-Fi and keys. Then open the screen in ESP Screen Manager and expand
-**Screen settings**. After adjusting, click **Save & send to screen**.
+**Screen settings**. After adjusting, click **Save & send**.
 After this, changes to these settings don't need a new firmware flash.
 
 | Setting | Options | Default |
