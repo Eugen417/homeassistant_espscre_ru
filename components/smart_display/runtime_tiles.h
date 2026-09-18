@@ -301,7 +301,13 @@ inline std::string receive(const std::string &payload) {
       bool changed = false, moved = false, was_configured = model.configured;
       const std::string previous_title = model.title;
       const uint8_t previous_pages = model.pages;
-      if (!model.set_layout(entities, string(root["title"], 96), changed, positions, moved)) return false;
+      if (!model.set_layout(entities, string(root["title"], 96), changed, positions, moved)) {
+        if (!model.refusal.empty()) {
+          ESP_LOGW("runtime", "Layout of %u tiles refused: %s", static_cast<unsigned>(entities.size()), model.refusal.c_str());
+          result = model.refusal;
+        }
+        return false;
+      }
       // Empty pages the user keeps on purpose; absent on older managers.
       model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, MAX_PAGES)) : 1;
       if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
@@ -2084,11 +2090,29 @@ inline std::string date_text(const esphome::ESPTime &now) {
   if (!now.is_valid() || now.day_of_week < 1 || now.day_of_week > 7 || now.month < 1 || now.month > 12) return "";
   return weekday_text(now) + " " + std::to_string(now.day_of_month) + " " + months[now.month - 1];
 }
+// Where the finger is, or where it let go, in the screen's coordinates; false without a finger (a test's event).
+inline bool finger_at(lv_point_t &point) {
+  auto *indev = lv_indev_active();
+  if (!indev || lv_indev_get_type(indev) != LV_INDEV_TYPE_POINTER) return false;
+  lv_indev_get_point(indev, &point);
+  return true;
+}
 inline void event(lv_event_t *event) {
   auto &w = *static_cast<Widgets *>(lv_event_get_user_data(event));
   if (!enabled || w.index >= model.count) return;
   auto code = lv_event_get_code(event);
   if (code != LV_EVENT_SHORT_CLICKED && code != LV_EVENT_LONG_PRESSED) return;
+  // A finger that slid off the card is not a tap or a hold on it (the Guition, firmware 0.2.65+). LVGL keeps the press
+  // on the object it started on (LV_OBJ_FLAG_PRESS_LOCK, which LVGL 9.5 sets on every child) and clicks it on release
+  // wherever the finger is. The CYD's drift limit already drops such a tap; the Guition has none (TOUCH_MOVE_LIMIT_PX 0,
+  // so a firm press that drifts still counts) and asks where the finger let go instead. The lock itself stays: without
+  // it a finger that slides on to a slider would press and drag that slider.
+  lv_point_t point;
+  if (cyd::touch_guard.move_limit() <= 0 && finger_at(point) && !lv_obj_hit_test(w.tile, &point)) {
+    ESP_LOGI("touch", "tap on %s ignored: %s outside the tile", model.tiles[w.index].entity.c_str(),
+             code == LV_EVENT_LONG_PRESSED ? "held" : "let go");
+    return;
+  }
   // The built-in cards need nothing from Home Assistant: the settings card opens the screen's own page with
   // the link down too, as its card says (firmware 0.2.49+), and the clock card does nothing under a finger.
   if (model.tiles[w.index].builtin()) {
@@ -2136,6 +2160,22 @@ inline void event(lv_event_t *event) {
     default:
       return;
   }
+}
+// The push that wakes a screen in standby only wakes it (dim_wake_overlay), with one exception (firmware 0.2.65+): on a
+// page that is one full tile which switches something on or off, the push also switches it, as a light switch on the
+// wall does in the dark. It is handed to the tile as its own tap, so it goes the way a tap on a lit screen goes (the
+// touch guard, the busy sheet, the new stand at once) and counts once. A push on the tile's slider or keys, the top bar
+// or the page bar only wakes, as does a flick. Called by both boards' dim_wake_overlay; true when it tapped the tile.
+inline bool wake_tap() {
+  auto &w = widgets[0];
+  if (!enabled || !fresh() || !w.tile || !w.full || w.index >= model.count || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN)) return false;
+  const auto &t = model.tiles[w.index];
+  const auto route = tile_controls::tap_route(t, false);
+  if (t.builtin() || route.route != tile_controls::TapRoute::ACTION || route.service != t.domain() + ".toggle") return false;
+  lv_point_t point;
+  if (!finger_at(point) || lv_indev_search_obj(w.tile, &point) != w.tile) return false;
+  lv_obj_send_event(w.tile, LV_EVENT_SHORT_CLICKED, nullptr);
+  return true;
 }
 // The same guard for any local style: a page switch mostly hands a slot the colours it already has,
 // and each real set refreshes the style and invalidates the object (about 0.3 ms on the Guition).
@@ -3150,9 +3190,10 @@ inline void render_slot(size_t slot) {
 // What the next render() draws besides the name and the top bar: the cards of the tiles a state
 // message or a tick named, or every card. A refresh that names nothing (the board's own triggers,
 // such as the minute tick and time sync) draws every card.
-inline uint32_t dirty_tiles=0;
+inline uint64_t dirty_tiles=0;
 inline bool dirty_all=false, dirty_header=false;
-inline void refresh_tile(size_t index) { if(index<32)dirty_tiles|=1u<<index; else dirty_all=true; if(refresh)refresh(); }
+inline void mark_tile(size_t index) { if(uint64_t bit=tile_bit(index))dirty_tiles|=bit; else dirty_all=true; }
+inline void refresh_tile(size_t index) { mark_tile(index); if(refresh)refresh(); }
 inline void refresh_header_only() { dirty_header=true; if(refresh)refresh(); }
 inline void refresh_all() { dirty_all=true; if(refresh)refresh(); }
 // Slots whose new page content is still to come: the page fill draws them, render() leaves them.
@@ -3173,12 +3214,12 @@ inline void render(lv_obj_t *room) {
   render_header();
   lap(swipe_profile::HEADER);
   bool all=dirty_all || (!dirty_tiles && !dirty_header);
-  uint32_t tiles=dirty_tiles;
+  uint64_t tiles=dirty_tiles;
   dirty_all=dirty_header=false;dirty_tiles=0;
   for (size_t slot = 0; slot < SLOTS_PER_PAGE; ++slot) {
     const auto &w=widgets[slot];
     if(slot_pending[slot] || w.index>=model.count)continue;
-    if(all || (w.index<32 && (tiles>>w.index)&1))render_slot(slot);
+    if(all || (tiles & tile_bit(w.index)))render_slot(slot);
   }
 }
 
@@ -3664,7 +3705,7 @@ inline void tick() {
   if(!enabled)return;
   // Only the cards that change are drawn again: a clock or a finished command redraws its own card.
   bool redraw=false;
-  auto card=[&](size_t index){ if(index<32)dirty_tiles|=1u<<index; else dirty_all=true; redraw=true; };
+  auto card=[&](size_t index){ mark_tile(index); redraw=true; };
   // HA dropping or returning and the feed timing out change every card at once.
   bool now_fresh=fresh();
   if(now_fresh!=was_fresh){was_fresh=now_fresh;dirty_all=true;redraw=true;}
@@ -3712,7 +3753,10 @@ inline void tick() {
       // The second hand moves on its own: only its line is redrawn, and it hides during standby. Only while the
       // slot's parts are a dial: right after a page switch the slot already names the clock while its parts still
       // belong to the card drawn before (a forecast's hour labels take part 18 too), until the fill draws the dial.
-      else if(w.parts[18] && w.points && w.extra_mode=="analog" && t.is_clock() && t.display=="analog")second_hand(w,now);
+      // A single dial is drawn as "calendar", a wide or full one as "analog"; firmware 0.2.62-0.2.64 moved only the
+      // latter, so the hand of a single clock stood still (0.2.65). Part 18 must be the hand's own line either way.
+      else if(w.parts[18] && lv_obj_check_type(w.parts[18],&lv_line_class) && w.points &&
+              (w.extra_mode=="analog" || w.extra_mode=="calendar") && t.is_clock() && t.display=="analog")second_hand(w,now);
     }
   }
   if(redraw && refresh)refresh();

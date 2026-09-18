@@ -129,18 +129,23 @@ class Clock:
 @unittest.skipUnless(HAS_PIL, 'Pillow comes with ESPHome in the add-on image')
 class Feed(unittest.IsolatedAsyncioTestCase):
     def feed(self, answers):
-        self.fetched = []
+        self.fetched, self.gate = [], None
         clock = Clock()
 
         async def fetch(entity):
             self.fetched.append(entity)
             answer = answers[min(len(self.fetched), len(answers)) - 1]
+            if self.gate is not None:
+                # A camera that takes its time: the fetch stays on its way until the test opens the gate.
+                await self.gate.wait()
             if isinstance(answer, Exception):
                 raise answer
             return answer
         return camera_feed.CameraFeed(fetch, clock=clock), clock
 
     async def settle(self):
+        """Let the fetch a load started run before counting fetches: whether it already ran when serve() returns
+        depends on whether serve() had to wait for anything itself."""
         for _ in range(5):
             await asyncio.sleep(0)
 
@@ -163,18 +168,23 @@ class Feed(unittest.IsolatedAsyncioTestCase):
         feed, clock = self.feed([first, second, third])
         token = feed.link('camera.max', (480, 480))
         _, one, tag_one = await feed.serve(token)
-        self.assertEqual(self.fetched, ['camera.max'] * 2, 'the first picture, and the next one started at once')
         await self.settle()
+        self.assertEqual(self.fetched, ['camera.max'] * 2, 'the first picture, and the next one started at once')
         await asyncio.sleep(0.05)
         self.assertEqual(len(self.fetched), 2, 'nobody loads, nothing is fetched')
         clock.now += 4
         _, two, tag_two = await feed.serve(token, tag_one)
+        await self.settle()
         self.assertNotEqual(tag_two, tag_one, 'the picture fetched after the last load')
         self.assertEqual(len(self.fetched), 3)
-        # Two screens loading at once share one fetch.
+        # Two screens loading while the next picture is on its way share that one fetch.
+        self.gate = asyncio.Event()
         await feed.serve(token, tag_two)
         await feed.serve(token, tag_two)
-        self.assertLessEqual(len(self.fetched), 4)
+        await self.settle()
+        self.assertEqual(len(self.fetched), 4)
+        self.gate.set()
+        await self.settle()
 
     async def test_a_camera_that_fails_is_asked_again_after_a_pause(self):
         feed, clock = self.feed([ConnectionError('500'), ConnectionError('500'), picture('JPEG', (640, 360))])
@@ -182,22 +192,27 @@ class Feed(unittest.IsolatedAsyncioTestCase):
         with self.assertLogs(camera_feed.LOG, 'INFO'):
             self.assertEqual((await feed.serve(token))[0], 503)
             self.assertEqual((await feed.serve(token))[0], 503)
+            await self.settle()
             self.assertEqual(len(self.fetched), 1, 'no second try within the pause')
             clock.now += 5
             self.assertEqual((await feed.serve(token))[0], 503)
+            await self.settle()
             self.assertEqual(len(self.fetched), 2)
             clock.now += 10
             self.assertEqual((await feed.serve(token))[0], 200)
+            await self.settle()
         self.assertEqual(len(self.fetched), 4, 'the good picture, then the next one')
 
     async def test_an_alert_gets_a_snapshot_of_its_own_moment(self):
         first, second = picture('JPEG', (640, 360)), picture('PNG', (640, 360))
         feed, clock = self.feed([first, second])
         tag_first, _ = await feed.frame('camera.front_door', (392, 220), fresh=False)
+        await self.settle()
         self.assertEqual(len(self.fetched), 1)
         clock.now += 20
         # The bell rings 20 s later: the kept snapshot is not the moment, a new fetch is.
         tag_alert, _ = await feed.frame('camera.front_door', (392, 220), fresh=False, now=True)
+        await self.settle()
         self.assertEqual(len(self.fetched), 2)
         self.assertNotEqual(tag_alert, tag_first)
 
@@ -236,6 +251,7 @@ class Feed(unittest.IsolatedAsyncioTestCase):
         self.assertIn(tokens[-1], feed.links)
         self.assertTrue(all(re.fullmatch(r'[A-Za-z0-9_-]{24}', token) for token in tokens))
 
+    @unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
     async def test_the_http_port(self):
         from aiohttp.test_utils import TestClient, TestServer
         feed, _ = self.feed([picture('JPEG', (1920, 1080))])

@@ -33,8 +33,11 @@ Measured by compiling the same profile twice at the same commit (0.2.72, `9f5694
 | 4 bpp (this release) | 1 632 736 bytes | 89.0 % |
 | difference | +94 704 bytes | +5.2 points |
 
-On 0.2.74 (`bb25353`, which added the 40 px full-page font and the 48-tile code) the release build is 1 655 568 bytes,
-90.2 % of the slot, static RAM 21.7 % (71 188 of 327 680 bytes); about 180 KB stay free for later rounds.
+Correction (after the release): that table was measured at 0.2.72, before 0.2.74's 40 px full-page icon font, which
+also went to 4 bpp. The released CYD build of this commit (`261fa82`) is 1 655 584 bytes, 90.2 % of the 1 835 008-byte
+slot: +107 744 bytes against 0.2.74 (1 547 840 bytes, 84.4 %), matching ESPHome's own glyph count (+107 756 bytes).
+So the release costs 108 KB, not 95 KB, and the slot is 90 % full, not 89 %. Static RAM 21.7 % (71 188 of 327 680
+bytes); about 180 KB stay free for later rounds.
 
 The glyph bitmaps alone grow by 108 KB (309 icons at three sizes plus the big font, counted with freetype); the
 linker's alignment takes a little of that back. Fonts live in flash, so RAM does not move (24.1 % static in both

@@ -103,6 +103,9 @@ describe("defaults, controls and versions", () => {
     expect(versionAtLeast("1.0.0", "0.9.9")).toBe(true);
     expect(versionAtLeast(undefined, "0.2.1")).toBe(false);
     expect(versionAtLeast("unknown", "0.2.1")).toBe(false);
+    // Strict X.Y.Z: anything else is not a firmware release (the add-on works out firmware_known, app 0.2.78).
+    expect(versionAtLeast("0.2.63 (ESPHome 2026.6.2)", "0.2.1")).toBe(false);
+    expect(versionAtLeast(null, "0.2.1")).toBe(false);
     expect(tileLimit("0.2.6")).toBe(10);
     expect(tileLimit("0.2.7")).toBe(20);
     expect(tileLimit("0.2.60")).toBe(20);

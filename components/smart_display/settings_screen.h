@@ -664,7 +664,9 @@ inline void draw() {
                        side ? LV_TEXT_ALIGN_RIGHT : LV_TEXT_ALIGN_LEFT);
     lv_obj_set_width(label, half - 12);
     lv_obj_set_pos(label, 6, (m.pager - label_h) / 2);
-    lv_obj_add_event_cb(bar, pager_event, LV_EVENT_SHORT_CLICKED,
+    // CLICKED, not SHORT_CLICKED: LVGL sends no short click after a press of long_press_time (400 ms), so a firm or
+    // slow press did nothing (firmware 0.2.65+). The bar has no hold of its own.
+    lv_obj_add_event_cb(bar, pager_event, LV_EVENT_CLICKED,
                         (void *) (intptr_t) (side ? per_page : -per_page));
   }
   auto *counter = text(root, std::to_string(page_number) + " / " + std::to_string(page_total), row_font, theme::MUTED,

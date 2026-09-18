@@ -19,6 +19,8 @@ import re
 import secrets
 import time
 
+from core import screen_firmware
+
 LOG = logging.getLogger(__name__)
 
 DOMAINS = ('camera', 'image')
@@ -55,17 +57,9 @@ def supported(entity):
             and entity.split('.')[0] in DOMAINS)
 
 
-def version(text):
-    try:
-        parts = tuple(int(part) for part in str(text or '').split('.'))
-    except ValueError:
-        return ()
-    return parts if len(parts) == 3 else ()
-
-
 def can_show(screen):
-    """A paired Guition with firmware that draws camera images."""
-    return bool(screen) and screen.get('board') in BOXES and version(screen.get('firmware')) >= MIN_FIRMWARE
+    """A paired Guition with firmware that draws camera images (the version feature gates go by, core.screen_firmware)."""
+    return bool(screen) and screen.get('board') in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= MIN_FIRMWARE
 
 
 def cover_supported(entity):
@@ -76,7 +70,7 @@ def cover_supported(entity):
 
 def can_show_cover(screen):
     """A paired Guition with firmware that draws the media card's cover."""
-    return bool(screen) and screen.get('board') in BOXES and version(screen.get('firmware')) >= COVER_MIN_FIRMWARE
+    return bool(screen) and screen.get('board') in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= COVER_MIN_FIRMWARE
 
 
 def cover_request(request):

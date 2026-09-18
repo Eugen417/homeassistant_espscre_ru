@@ -38,9 +38,9 @@ Use the GitHub version for updates; a local test add-on is a separate app.
 1. Connect the screen with a **USB data cable** to the machine running Home
    Assistant. With multiple boards: connect them one at a time for the first
    installation, or check which port belongs to this screen.
-2. Open **Settings** at the top right of ESP Screens and click **New screen**. Choose CYD or Guition and give the screen a name,
-   for example `Kitchen`. The device name (`kitchen`) follows from that; use
-   **customize** to choose a different one.
+2. Click **New screen** in the sidebar of ESP Screens, under your screens. Choose CYD
+   or Guition and give the screen a name, for example `Kitchen`. The device name
+   (`kitchen`) follows from that; use **customize** to choose a different one.
 3. Wi-Fi: if `wifi_ssid` and `wifi_password` are already in the ESPHome `secrets.yaml`,
    the screen uses them automatically. If they're missing, or the file doesn't
    exist yet, the window asks for them once and ESP Screens only adds the
@@ -93,7 +93,7 @@ USB, see [CALIBRATING.md](CALIBRATING.md).
 ## 3. Pair the screen with Home Assistant
 
 This happens in Home Assistant itself, outside ESP Screens. As long as a profile
-hasn't been added to Home Assistant yet, it appears on the left under **My screens**
+hasn't been added to Home Assistant yet, it appears in the sidebar under **Screens**
 as a *not yet in Home Assistant* card, with an **Open Devices & services**
 button and **Copy API key**; the done screen of **New screen** has the same
 button. The card disappears once the screen is in the list.
@@ -115,8 +115,10 @@ Tip: in your ESPHome YAML, add the line `power_save_mode: none` under `wifi:` (n
 wizard YAMLs already have it); the screen is mains-powered, so this keeps it responding to
 Home Assistant without Wi-Fi sleep delay.
 
-Select your screen, fill in the title, and search for entities. The picker has
-domain filters with colored icons. You can add up to twenty tiles.
+Select your screen, tap the bar at the top of a page to give the screen its name,
+and search for entities in the **Library** on the right. It has domain filters with
+colored icons. You can add up to 48 tiles, one for every slot
+(firmware 0.2.62+; see below for older firmware).
 The screen preview shows their placement: two columns, six slots per page,
 up to eight pages. Every tile has a fixed slot that only changes if
 you drag it; empty slots stay empty, wherever you leave them. Drag a tile
@@ -125,27 +127,27 @@ swap (the other tile takes the freed-up slot, or otherwise the nearest free
 slot); everything else stays put. While dragging, the preview already shows where
 everything will land; an empty page then stands ready below the last page. **Add
 page** creates an empty page that's kept; an empty page gets
-**Remove page**. Click an empty slot to place the next tile from the picker
+**Remove page**. Click an empty slot to place the next tile from the library
 there. Use the arrow keys to move a focused tile.
-Click a tile for a custom name and **Configure control & display**:
-click behavior, a mini-slider, a large value, a graph (sensors), a
-weather forecast (weather), or the **Double-width** setting. A double-width tile for
-a climate, switch, light, fan, vacuum, cover, media player,
-number, select, timer, scene, script, or button gets **direct
+Click a tile and its settings open in a drawer on the right, with the preview
+still in view: a custom name, click behavior, a mini-slider, a large value, a graph
+(sensors), a weather forecast (weather), or the size: **Double-width** or **Full
+page** (firmware 0.2.62+). A double-width tile for a climate, switch, light, fan,
+vacuum, cover, media player, number, select, timer, scene, script, or button gets **direct
 control** on the right, like the rows in Home Assistant (for example temperature − / +,
 open/stop/close, volume with mute, a toggle); under **Direct control
 on the tile**, choose which set, or **None** (firmware 0.2.19+). **Open control** on
 a weather tile shows the weather card with the coming hours and days (rain included);
 on a climate tile, the card with an on/off button and the mode, fan, and
 swing settings. The built-in **Clock**
-sits at the top of the picker; find sun, timers, and people via the filters. Under
+sits at the top of the library; find sun, timers, and people via the filters. Under
 **Pastel background**, choose a custom color with dark text; **Default** restores
 the normal look, and **None** drops the card, so the content sits the same size
 directly on the screen background (firmware 0.2.16+). This requires firmware 0.2.10+.
 Adding without a chosen slot fills the first free slot. Fixed slots and empty
 slots work on the screen from firmware 0.2.26 on; older firmware shifts the
 tiles up to the first free slot, and the editor notes that below the preview.
-The preview shows the layout, not live sensor values.
+The preview shows the values Home Assistant reports right now (app 0.2.73+).
 Click **Save & send** to send your changes.
 
 - Light, switch, input_boolean, and fan: tap to turn on/off.
@@ -164,11 +166,11 @@ Click **Save & send** to send your changes.
   shows 1, 6, or 24 hours.
 - Select/input_select: open the picker menu.
 
-From firmware 0.2.7, twenty tiles fit across up to four pages. Older
-firmware keeps the limit of ten until you update. Under **General settings
-→ Swipe between pages**, you can enable swiping. On the Guition (firmware
-0.2.24+), you then swipe inward from the left or right edge, like the
-back-swipe gesture on a phone; slow or fast, and a swipe starting in the
+From firmware 0.2.62, 48 tiles fit across up to eight pages. Firmware 0.2.7 to
+0.2.61 keeps the limit of twenty (four pages) and older firmware ten, until you
+update. In the **Screen settings** tab, **Swipe between pages** turns on swiping.
+On the Guition (firmware 0.2.24+), you then swipe inward from the left or right
+edge, like the back-swipe gesture on a phone; slow or fast, and a swipe starting in the
 middle of the screen does nothing, so tapping and dragging tiles never
 accidentally changes pages. On the CYD, it stays a quick swipe across the screen. Sliders
 only control their value; detail menus and standby don't change pages.
@@ -263,8 +265,8 @@ HA mechanisms used: [Ingress](https://developers.home-assistant.io/docs/apps/pre
 
 Update ESP Screen Manager to 0.1.2 and install the new firmware once
 via your **existing** ESPHome device → Install → Wirelessly. Keep your own YAML
-with Wi-Fi and keys. Then open the screen in ESP Screen Manager and expand
-**Screen settings**. After adjusting, click **Save & send**.
+with Wi-Fi and keys. Then open the screen in ESP Screen Manager and its
+**Screen settings** tab. A change there applies at once; there is nothing to save.
 After this, changes to these settings don't need a new firmware flash.
 
 | Setting | Options | Default |

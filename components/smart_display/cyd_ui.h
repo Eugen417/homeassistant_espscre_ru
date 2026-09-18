@@ -29,9 +29,11 @@ class TouchGuard {
  public:
   enum Reject { NONE, MOVED, TOO_SHORT, USED, BOUNCE };
   // Board tuning, set from the profile on boot: how far the finger may drift (pixels) before
-  // a tap is dropped, 0 for no limit at all (LVGL then decides: releasing inside the tile is a
-  // tap, leaving it is not), and the shortest contact that counts. A resistive panel (CYD)
-  // bounces on landing and lift-off and needs both; a capacitive one (Guition) needs neither.
+  // a tap is dropped, 0 for no limit at all, and the shortest contact that counts. A resistive
+  // panel (CYD) bounces on landing and lift-off and needs both; a capacitive one (Guition) needs
+  // neither. Without a limit a tile checks itself that the finger let go on it (runtime_tiles::event:
+  // LVGL keeps the press on the tile and clicks it wherever the finger lets go), and a quick flick
+  // is LVGL's gesture, which consume()s the contact (firmware 0.2.65+).
   void configure(int move_limit_px, uint32_t min_press_ms) {
     move_limit_ = move_limit_px;
     min_press_ = min_press_ms;

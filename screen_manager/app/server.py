@@ -1,5 +1,6 @@
 """HA Ingress app. HA writes: text.set_value on discovered inboxes (or the screen_message action on firmware 0.2.33+), each screen's alert actions when an alert event for every screen fires, and one persistent notification when a nightly update stops."""
 import asyncio
+from collections import Counter
 import contextlib
 import json
 import logging
@@ -17,8 +18,9 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, apply_tile_event, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, pack_slots, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
+from core import PAGE_TILE_REPEAT_MIN_FIRMWARE, SLOTS_PER_PAGE, firmware_features, packed_slots, run_tile_event, screen_firmware, version_text
 import header_bar
 import history_card
 from zoneinfo import ZoneInfo
@@ -635,13 +637,11 @@ class Manager:
             self.notify()
 
     def firmware_version(self, inbox, screen=None):
+        """The firmware a screen's features go by: its sensor, or while that has no version (offline, restarting) the
+        one Home Assistant's device registry kept (app 0.2.78); None when neither says (core.screen_firmware)."""
         if screen is None:
             screen = self.screen(inbox) or {}
-        try:
-            version=tuple(int(part) for part in screen.get('firmware','').split('.'))
-            return version if len(version)==3 else None
-        except (ValueError, TypeError):
-            return None
+        return screen_firmware(screen)
 
     def supports_twenty(self, inbox):
         version=self.firmware_version(inbox)
@@ -963,7 +963,11 @@ class Manager:
             layout['settings']['rotation']=self.layouts.get(inbox,{}).get('settings',{}).get('rotation',0)
         if layout.get('settings',{}).get('rotation',0) and screen.get('board')!='guition':
             raise ValueError('Rotation requires a Guition with firmware 0.2.9 or newer.')
-        old_tiles = {t['entity']:t for t in self.layouts.get(inbox,{}).get('tiles',[])}
+        # A page from before an option existed sends its tiles without it. It never sends a navigation tile twice
+        # (firmware 0.2.65+), so a copy keeps exactly what it was sent with.
+        old_list = self.layouts.get(inbox,{}).get('tiles',[])
+        old_counts, new_counts = Counter(t['entity'] for t in old_list), Counter(t['entity'] for t in layout['tiles'])
+        old_tiles = {t['entity']:t for t in old_list if old_counts[t['entity']] == 1 and new_counts[t['entity']] == 1}
         for tile in layout['tiles']:
             old_options=old_tiles.get(tile['entity'],{}).get('options',{})
             for key in ('background', 'icon', 'controls'):
@@ -974,7 +978,7 @@ class Manager:
         # Restored options can widen a tile: an editor without positions packs again with
         # the real widths, and explicit positions are checked once more for overlap.
         if not any(isinstance(t, dict) and 'slot' in t for t in data.get('tiles', [])):
-            for tile, slot in zip(layout['tiles'], pack_slots(layout['tiles'])):
+            for tile, slot in zip(layout['tiles'], packed_slots(layout['tiles'])):
                 tile['slot'] = slot
         layout = validate_layout(layout)
         known = {e['id'] for e in entities} | set(BUILTIN)
@@ -982,6 +986,13 @@ class Manager:
             raise ValueError('A chosen entity no longer exists. Look up the new entity.')
         if any(item['type'] == 'entity' and item['entity'] not in known and item['entity'] not in self.ha.states for item in header_items(layout)):
             raise ValueError('An entity in the top bar no longer exists. Choose a different one.')
+        # The screen takes the layout in one message of at most 4096 bytes, which lists every tile's entity id: 48 tiles
+        # with long ids can pass every rule above and still never reach the screen (app 0.2.78).
+        try:
+            encode(self.layout_message(inbox, layout, screen))
+        except ValueError:
+            raise ValueError("These tiles' entity IDs are too long together to fit in one message to the screen; "
+                             "remove a few tiles.") from None
         updated = {**self.layouts, inbox: layout}
         self.write_layouts(updated)
         self.layouts = updated
@@ -1132,6 +1143,12 @@ class Manager:
             return False
         tiles = layout['tiles']
         layout_msg = self.layout_message(inbox, layout, screen)
+        try:
+            encode(layout_msg)
+        except ValueError:
+            # Saved by an app before 0.2.78, which didn't check this: nothing to retry until the layout changes.
+            self.status[inbox] = 'Layout saved; too large for one message to the screen, remove a few tiles'
+            return False
         previous = self.sent.get(inbox)
         full = force or not previous or previous['layout'] != layout_msg or dirty is None
         # The top bar right after the layout (firmware 0.2.32+; older firmware draws the clock of show_clock).
@@ -1459,13 +1476,16 @@ class Manager:
         return {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
 
     async def tile_event(self, event_type, data):
-        """One tile event: the screen it names, the changed layout, saved and pushed like the editor does."""
+        """One tile event: the screen it names, the changed layout, saved and pushed like the editor does. Returns the
+        screen and the tile the event acted on (None for an order)."""
         screen = match_screen(self.screens(), data.get('screen'), self.layouts)
         inbox = self.aliases.get(screen['id'], screen['id'])
-        layout = apply_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data)
+        # Firmware 0.2.65+ takes a navigation tile on several pages; an older screen keeps one per page it goes to.
+        repeat = (self.firmware_version(inbox, screen) or (0, 0, 0)) >= PAGE_TILE_REPEAT_MIN_FIRMWARE
+        layout, tile = run_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data, repeat)
         await self.check_supported(inbox, layout)
         self.save(inbox, layout)
-        return screen
+        return screen, tile
 
     async def tile_loop(self):
         """Tile events (app 0.2.51+) in arrival order, apart from the sync loop, which can be busy for a
@@ -1475,8 +1495,11 @@ class Manager:
             event_type, data = await queue.get()
             answer = {'event': event_type, 'screen': data.get('screen') or '', 'entity': data.get('entity') or ''}
             try:
-                screen = await self.tile_event(event_type, data)
+                screen, tile = await self.tile_event(event_type, data)
                 answer.update(ok=True, screen=screen['name'])
+                if tile is not None and 'slot' in tile:
+                    # Which tile it was, which matters for a navigation tile that is on several pages (app 0.2.78).
+                    answer.update(page=tile['slot'] // SLOTS_PER_PAGE + 1, slot=tile['slot'])
                 LOG.info('%s: %s on %s', event_type, answer['entity'] or 'order', screen['name'])
                 await self.publish_layouts()
             except Exception as error:
@@ -1529,8 +1552,14 @@ def create_app(manager, development=False):
             response = await handler(request)
         except ValueError as error:
             return web.json_response({'error': str(error)}, status=400)
+        # Home Assistant said no, or can't be reached (Identify, Try it, a setting): a sentence the page shows, never a
+        # bare 500 with a traceback in the log (app 0.2.78). Refused is a ConnectionError, so it comes first.
+        except Refused as error:
+            return web.json_response({'error': f"Home Assistant didn't take it: {error.detail or 'no reason given'}."}, status=400)
+        except (ConnectionError, TimeoutError):
+            return web.json_response({'error': "Home Assistant isn't reachable right now. Try again in a moment."}, status=503)
         except web.HTTPRequestEntityTooLarge:
-            return web.json_response({'error': 'That is too much text for one request. Keep it below 12 KB.'}, status=413)
+            return web.json_response({'error': 'That request is too large.'}, status=413)
         except (TypeError, KeyError):
             return web.json_response({'error': 'Invalid input. Check the name, board, and chosen tiles.'}, status=400)
         if response.prepared:
@@ -1540,8 +1569,18 @@ def create_app(manager, development=False):
         response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'"
         return response
 
-    app = web.Application(middlewares=[guard], client_max_size=16*1024)
+    # A layout of 48 tiles with actions on their taps passes 16 KB, the limit from the twenty-tile days; the largest the
+    # rules allow stays under about 75 KB (app 0.2.78). The YAML override keeps its own 12 KB limit (firmware.py).
+    app = web.Application(middlewares=[guard], client_max_size=128*1024)
     static = Path(__file__).parent / 'static'
+
+    async def cache_assets(request, response):
+        """The built script, styles and fonts under /assets/ never change under their name (Vite names each file after a
+        hash of its content), so a browser keeps them instead of fetching about 310 KB on every open (app 0.2.78).
+        `private`: behind ingress the request carries Home Assistant's session. index.html and api/ stay no-store."""
+        if request.path.startswith('/assets/') and response.status in (200, 304):
+            response.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    app.on_response_prepare.append(cache_assets)
 
     # The page is the Vite build of web/ (npm run build writes it here): index.html names its script and styles
     # by a hash of their content, so a browser that keeps old copies anyway (Safari did after an update) never
@@ -1562,6 +1601,11 @@ def create_app(manager, development=False):
             screen['update'] = manager.updates.state_for(screen, profiles)
             screen['alert_action'] = alert_service(screen.get('node'))
             screen['dismiss_action'] = alert_service(screen.get('node'), 'dismiss_alert')
+            # What the editor may offer this screen, by the firmware the app's own checks go by (app 0.2.78): an offline
+            # screen keeps its 48 tiles, and the editor needn't know the version rules.
+            version = manager.firmware_version(screen['id'], screen)
+            screen['firmware_known'] = version_text(version)
+            screen.update(firmware_features(version))
         return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
                 'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles)}
@@ -1576,6 +1620,8 @@ def create_app(manager, development=False):
         payload['controls'] = controls_catalogue()
         payload['icons'] = tile_icons.editor()
         payload['alerts'] = alert_reference()
+        # What's new for the Update badge: here only, not in every live update (app 0.2.78).
+        payload['changelog'] = manager.updates.changelog
         payload['claude_skill'] = claude_skill.status(manager.skill_dir)
         payload['builtin'] = [{'id': key, 'name': name, 'device': 'Built into the screen', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
         payload['header'] = {**header_bar.catalogue(), 'suggestions': {
@@ -1781,7 +1827,9 @@ async def main():
     async with ClientSession(timeout=ClientTimeout(total=20)) as session:
         ha = HomeAssistant(session, os.environ.get('HA_API', 'http://supervisor/core/api'), token)
         manager = Manager(ha, Path(os.environ.get('SCREEN_DATA', '/data')) / 'screens.json')
-        runner = web.AppRunner(create_app(manager, development), access_log=None)
+        # handle_signals: SIGTERM (the Supervisor stopping the app, `docker stop`) and SIGINT end the app through the
+        # cleanup below, which also stops a running build, instead of waiting ten seconds for SIGKILL (app 0.2.78).
+        runner = web.AppRunner(create_app(manager, development), access_log=None, handle_signals=True)
         await runner.setup()
         await web.TCPSite(runner, '127.0.0.1' if development else '0.0.0.0', 8099).start()
         # Camera images for the screens: their own port on the LAN, not the ingress page (docs/CAMERA.md).
@@ -1801,4 +1849,6 @@ async def main():
 
 if __name__ == '__main__':
     logging.basicConfig(level=logging.INFO, format='%(levelname)s %(message)s')
-    asyncio.run(main())
+    # The signal arrives as GracefulExit once everything is cleaned up, as in aiohttp's own run_app: a normal stop.
+    with contextlib.suppress(web.GracefulExit):
+        asyncio.run(main())

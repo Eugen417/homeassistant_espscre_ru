@@ -27,10 +27,10 @@ carry over `calibration.yaml` or the XPT2046 correction.
 ### Mounting and screen rotation (runtime 0.2.9+)
 
 Install Guition firmware 0.2.9 and ESP Screen Manager 0.2.9. Open the screen
-in the management page, go to **Screen settings**, and choose 0°, 90°, 180°,
-or 270° (clockwise) under **Rotate screen**. Click save. After that, a
-firmware flash is no longer needed to change the angle. The setting is kept
-in the app data and on the screen after a restart.
+in the management page, open the **Screen settings** tab, and choose 0°, 90°,
+180°, or 270° (clockwise) under **Rotation**. It applies at once; there is
+nothing to save. After that, a firmware flash is no longer needed to change the
+angle. The setting is kept in the app data and on the screen after a restart.
 
 This uses native ESPHome/LVGL rotation for both display and touch, with no changes
 to the panel initialization or GT911 mirroring. After mounting, physically check the
@@ -39,18 +39,19 @@ only visible for the Guition once its new firmware has been discovered by HA.
 The CYD stays on its existing orientation with its own calibration.
 
 Six tiles of **218 × 108 pixels** per page, 12px spacing, and a
-separate navigation strip. In ESP Screen Manager, twenty tiles fit across up to
-four pages; navigation disappears at six or fewer. The current interface has a
-light gray background, white cards, and colored domain icons. From 0.2.10, you
-can choose a pastel background with dark text per tile. Standby starts
-after ten minutes without touch by default and is adjustable in the management page.
+separate navigation strip. In ESP Screen Manager, up to 48 tiles fit across up to
+eight pages (firmware 0.2.62+; twenty over four pages before); navigation disappears
+at six or fewer. The current interface has a light gray background, white cards,
+and colored domain icons. From 0.2.10, you can choose a pastel background with
+dark text per tile. Standby starts after ten minutes without touch by default and
+is adjustable in the management page.
 The backlight dims through ESPHome's own light transition (1.5 s to standby, 80 ms to
 wake). Firmware 0.2.13-0.2.56 used the LEDC hardware fader (`backlight_fade.h`) instead;
 0.2.57 went back to ESPHome's transition, because that fader reached into ESPHome's LEDC
 output, which ESPHome 2026.8 no longer allows.
 
 The existing tile actions, climate control, and vacuum card are preserved.
-Every card type works in all twenty positions.
+Every card type works in all 48 positions.
 
 ## New installation
 

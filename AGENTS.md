@@ -8,7 +8,8 @@ Every push to GitHub is a release: always also bump the add-on version in
 screen_manager/config.yaml (with a CHANGELOG line), otherwise HA won't see an update.
 Generate packages with tools/generate_packages.py; don't edit them by hand.
 A screen gets its tiles from the add-on while it runs: every card works in all
-twenty positions, and no Home Assistant entity belongs in a board profile.
+48 positions (eight pages of six, firmware 0.2.62+), and no Home Assistant entity
+belongs in a board profile.
 Preserve the data schema, protocol compatibility, unique keys, and CYD preferences.
 Test updates against existing data. Don't publish an unknown storage version without
 a migration. Production Ingress needs no long-lived token or public port.
@@ -75,8 +76,10 @@ and screens for lookups and tests. If that file is missing you are not on his ma
   filtered physical ADC values. Don't apply the affine correction twice, in both the driver and the UI.
 - The calibration wizard assumes swap_xy=false, mirror_x=true, mirror_y=false,
   and LVGL 90°. A changed orientation also requires a new projection/tests.
-- Run the Python tests, both C++ test suites, and ESPHome validation/build on code changes.
-  Firmware tests and hardware acceptance are different checks.
+- Run `tools/check.sh` on code changes (the Python tests, every C++ test, both generators, the
+  editor's tests, types and build); on a firmware change also `tools/check.sh --firmware`, which
+  compiles both boards and applies the CYD's flash budget (docs/RELEASING.md step 2). CI runs the
+  same script. Firmware tests and hardware acceptance are different checks.
 - `diagnostics/run_ui_test.py` renders without HA actions; don't touch the screen
   during that test. Use `--name` for the expected device identity.
   `diagnostics/send_layout.py` pushes a demo layout with every card type to a

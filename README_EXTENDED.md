@@ -40,12 +40,15 @@ on the screen itself, and how updates work.
   double-width card, a **graph** of the sensor history in the tile,
   a **sun path** (`sun.sun`: horizon with the sun between sunrise and
   sunset), a **timer** (`timer.*`, tapping starts or pauses it), and
-  **presence** (`person.*`). Pick them in the picker like any other tile, or
+  **presence** (`person.*`). Pick them in the library like any other tile, or
   drag them straight into the screen mockup; **Double-width** is an option for every tile, and so is
   **Full page** (firmware 0.2.62+): the tile takes the whole page and is one big button that lights up
   in its state colour while on, so a screen by the door switches the light when you push anywhere on it.
   Its small slider, direct controls or graph sit at the bottom of the page. A **Go to page** tile
-  (`screen.page_2` to `screen.page_8`) opens another page: a full-page light switch on page 1, a menu on page 2.
+  (`screen.page_1` to `screen.page_8`) opens another page: a full-page light switch on page 1, a menu on page 2.
+  Under **Goes to page** the editor offers the pages the screen has and the next, empty one, where a new sub-page
+  starts. From firmware 0.2.65 the same page tile may sit on several pages of a screen, such as a tile back to the
+  menu on every sub-page; older firmware takes each page tile once.
 
 <p align="center">
   <img src="docs/images/guition-full-light.png" width="32%" alt="A full-page tile on the Guition: one big amber light switch">
@@ -114,8 +117,8 @@ on the screen itself, and how updates work.
 - **Guition rotation:** 0°, 90°, 180°, or 270°, directly from the management page.
   Native LVGL rotation turns the display and touch together. The CYD keeps its fixed
   orientation and its own calibration.
-- **Inspector:** check entities, status, and configuration in ESP Screens.
-  Action feedback shows that a command is on its way.
+- **Read current data** (the ··· menu of a screen): what Home Assistant reports for every tile right now,
+  and how each tile is set.
 - **Override YAML per screen** (app 0.2.61): your own ESPHome YAML for one screen, such as another
   display controller, kept through updates. See
   [Updates and keeping your settings](#updates-and-keeping-your-settings).
@@ -167,9 +170,10 @@ The app must keep running to keep the screens supplied with current data.
 
 A short tap on a switch switches immediately; the off state gets a gray icon. A long press
 opens its history card with the toggle at the top right (firmware 0.2.51+).
-The feedback stops as soon as Home Assistant reports the changed state, with a
-minimum of 150 ms for switches. Tiles with a mini-slider keep their
-icon; on the CYD, the icon and text block are vertically centered.
+The tile shows the new state at once and Home Assistant's own report confirms it; a refusal
+puts the old state back. A spinner only appears when Home Assistant takes longer than about
+0.4 seconds, and no wait lasts longer than three (firmware 0.2.59+). Tiles with a mini-slider
+keep their icon; on the CYD, the icon and text block are vertically centered.
 
 ## Alert from an automation
 
@@ -208,7 +212,7 @@ data:
   night mode wait as long as the card is showing.
 - **`flash`**: `true` makes the backlight blink four times when the alert arrives.
 
-In ESP Screens, **Settings → Alerts** opens a cheatsheet with the exact action name for each screen,
+In ESP Screens, **Alerts** in the sidebar opens a cheatsheet with the exact action name for each screen,
 a ready-to-paste example, and all fields, icons, and colors. Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false`) if you
 don't use it. A new alert replaces the current one. Every end is reported as the event
 **`esphome.screen_alert`** with `action` (`ok`, `timeout`, `replaced`, or `remote`), `title`,
@@ -315,7 +319,7 @@ the Wake and Sleep of the same screen included.
 
 Click a tile in the screen preview. Under **Pastel background**, choose a color,
 such as red or green. Optionally adjust the name, click action, mini-slider, or large
-value. Click **Save & send to screen** to apply the changes.
+value. Click **Save & send** to apply the changes.
 After the first supporting firmware update, this requires no new flash.
 
 <p align="center">
@@ -416,7 +420,7 @@ with the built-in CLI, installs it wirelessly, and waits until the screen is bac
 With the checkbox enabled, that happens automatically at night, one screen at a time; a
 failure stops the round and posts a notification in Home Assistant. Firmware
 0.2.17+ reports its own device name and IP address for this; an older screen asks
-for the IP address once. You can still do it manually via Settings → Firmware & USB → Wi-Fi / OTA.
+for the IP address once. You can still do it manually via **Firmware & USB** in the sidebar → **Wi-Fi / OTA**.
 
 The device's own YAML and Wi-Fi/API/OTA settings stay in the ESPHome config folder.
 Tile layouts and options live in the app's persistent data. CYD calibration and

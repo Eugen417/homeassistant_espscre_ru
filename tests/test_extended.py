@@ -5,10 +5,12 @@ import tempfile
 import unittest
 from unittest.mock import patch
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'screen_manager/app'))
+sys.path.insert(0,str(Path(__file__).resolve().parent))
 from server import KEEPALIVE_SECONDS
 from core import validate_layout, state_message, packets
 from firmware import Firmware
-from test_portal import ManagerTests
+# The module, not the class: a TestCase imported by name runs its tests a second time in this module.
+import test_portal
 
 class ExtendedTests(unittest.TestCase):
  def test_options_validation_and_new_domains(self):
@@ -53,7 +55,7 @@ class FirmwareJobs(unittest.IsolatedAsyncioTestCase):
     except asyncio.CancelledError:pass
  async def test_old_browser_preserves_new_tile_options(self):
   with tempfile.TemporaryDirectory() as tmp:
-   m=ManagerTests().setup_manager(Path(tmp)/'screens.json')
+   m=test_portal.ManagerTests().setup_manager(Path(tmp)/'screens.json')
    m.save('text.screen',{'title':'Home','tiles':[{'entity':'light.a','name':'Lamp','options':{'inline':'slider'}}]})
    m.save('text.screen',{'title':'New','tiles':[{'entity':'light.a','name':'Lamp'}]})
    self.assertEqual(m.layouts['text.screen']['tiles'][0]['options'],{'inline':'slider'})
@@ -92,7 +94,7 @@ class SpecialTiles(unittest.TestCase):
 class SpecialTileSync(unittest.IsolatedAsyncioTestCase):
  async def test_new_domains_need_firmware_and_send_extras(self):
   with tempfile.TemporaryDirectory() as tmp:
-   m=ManagerTests().setup_manager(Path(tmp)/'screens.json')
+   m=test_portal.ManagerTests().setup_manager(Path(tmp)/'screens.json')
    layout={'title':'Home','tiles':[{'entity':'screen.clock','name':''},{'entity':'sun.sun','name':''}]}
    m.ha.states['sun.sun']={'state':'above_horizon','attributes':{'friendly_name':'Sun','next_rising':'2026-09-14T05:15:00+00:00','next_setting':'2026-09-13T17:50:12+00:00'}}
    with self.assertRaises(ValueError):m.save('text.screen',layout)

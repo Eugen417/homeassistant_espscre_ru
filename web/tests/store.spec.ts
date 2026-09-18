@@ -1,8 +1,8 @@
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addTile, canAlert, copyLayoutFrom, importLayout, layoutJson, liveOf, PHASES, removeTile, retargetPageTile, select, setTileOption, state, tileLimit,
-  topbarItems, topbarView, updateProgress, whatsNew,
+  addTile, canAlert, copyLayoutFrom, fullPage, importLayout, layoutJson, liveOf, moveTileToPage, pageTilesRepeat, PHASES, removeTile,
+  retargetPageTile, save, select, setTileOption, state, supports, tileLimit, topbarItems, topbarView, updateProgress, whatsNew,
 } from "../src/store";
 import type { Inventory, Screen } from "../src/types";
 
@@ -22,11 +22,13 @@ function inventory(): Inventory {
       { id: "light.a", name: "Lamp A", state: "on", area: "Living room" }, { id: "sensor.t", name: "Temperature", state: "21.5", area: "Living room" },
       { id: "switch.c", name: "Coffee", state: "off", area: "Kitchen" }, { id: "light.b", name: "Lamp B", state: "off", area: "Kitchen" },
     ],
-    updates: { target: "0.2.62", changelog: [
+    updates: { target: "0.2.62" },
+    // The full inventory carries the changelog next to the screens, not in the update summary (app 0.2.78).
+    changelog: [
       { app: "0.2.74", firmware: "0.2.62", lines: ["Full-page tiles.", "Live values."] },
       { app: "0.2.71", firmware: "0.2.60", lines: ["Slider stays put."] },
       { app: "0.2.40", firmware: "0.2.34", lines: ["English."] },
-    ] } as any,
+    ],
     alerts: { min_firmware: "0.2.31" },
     controls: { light: { default: "toggle", choices: [{ key: "toggle", label: "On/off" }, { key: "brightness", label: "Brightness" }, { key: "none", label: "None" }] } },
     backgrounds: { auto: { label: "Default" }, orange: { label: "Orange", color: "#ffe1c6" } },
@@ -186,5 +188,223 @@ describe("full-page and navigation tiles", () => {
     expect(retargetPageTile(nav, 4)).toBe(false);
     expect(state.toast?.message).toMatch(/already has a tile that goes to page 4/);
     expect(retargetPageTile(nav, 9)).toBe(false);
+  });
+});
+
+describe("the open screen chosen again (app 0.2.78)", () => {
+  it("keeps unsaved edits and only brings the layout back into view", () => {
+    select("living");
+    addTile("light.b");
+    state.tab = "settings";
+    state.route = "#firmware";
+    select("living");
+    expect(state.layout!.tiles.map((t) => t.entity)).toEqual(["light.a", "sensor.t", "light.b"]);
+    expect(state.dirty).toBe(true);
+    expect(state.tab).toBe("layout");
+    expect(state.inspector).toBeNull();
+    expect(state.route).toBe("");
+    expect(window.confirm).not.toHaveBeenCalled();
+  });
+  it("reads the stored layout again when nothing is unsaved, so a change from Claude or another tab shows up", () => {
+    select("living");
+    state.inventory.screens[0].layout.tiles.push({ entity: "light.b", name: "", slot: 2 });
+    select("living");
+    expect(state.layout!.tiles.map((t) => t.entity)).toEqual(["light.a", "sensor.t", "light.b"]);
+    expect(state.dirty).toBe(false);
+  });
+});
+
+describe("saving while you keep editing (app 0.2.78)", () => {
+  // The PUT waits until the test answers it; every other request fails, which the store shrugs off.
+  function slowServer() {
+    const control = { answer: () => {} };
+    const fetchMock = vi.fn((_url: string, init?: RequestInit) => init?.method !== "PUT"
+      ? Promise.reject(new Error("offline"))
+      : new Promise((resolve) => { control.answer = () => resolve({ ok: true, status: 200, text: async () => "{}", json: async () => ({}) }); }));
+    vi.stubGlobal("fetch", fetchMock);
+    return { control, fetchMock };
+  }
+  it("marks the layout saved when nothing changed while the request was on its way", async () => {
+    select("living");
+    addTile("light.b");
+    const { control } = slowServer();
+    const saving = save();
+    control.answer();
+    await saving;
+    expect(state.dirty).toBe(false);
+    expect(state.saved).toBeGreaterThan(0);
+    expect(state.toast?.message).toBe("Saved. Your screen is being updated.");
+  });
+  it("keeps a change made during the save unsaved and says so", async () => {
+    select("living");
+    addTile("light.b");
+    const { control, fetchMock } = slowServer();
+    const saving = save();
+    setTileOption(state.layout!.tiles[0], "background", "orange");
+    control.answer();
+    await saving;
+    expect(state.dirty).toBe(true);
+    expect(state.saved).toBe(0);
+    expect(state.toast?.message).toBe("Saved. Your newest change isn't sent yet: press Save & send again.");
+    // What went out is the layout from before that change.
+    const body = JSON.parse((fetchMock.mock.calls[0] as any[])[1].body);
+    expect(body.tiles.map((t: any) => t.entity)).toEqual(["light.a", "sensor.t", "light.b"]);
+    expect(body.tiles[0].options?.background).toBeUndefined();
+  });
+  it("leaves the unsaved flag of a screen opened meanwhile alone", async () => {
+    select("living");
+    addTile("light.b");
+    const { control } = slowServer();
+    const saving = save();
+    select("kitchen");
+    addTile("light.b");
+    control.answer();
+    await saving;
+    expect(state.selected).toBe("kitchen");
+    expect(state.dirty).toBe(true);
+    expect(state.toast?.message).toBe("Saved. Living room is being updated.");
+  });
+});
+
+describe("moving a tile to another page without dragging (app 0.2.78)", () => {
+  it("takes the first free cell of that page, or a new page after the last one", () => {
+    select("living");
+    const [lamp, sensor] = state.layout!.tiles;
+    state.layout!.pages = 2;
+    expect(moveTileToPage(sensor, 1)).toBe(true);
+    expect(sensor.slot).toBe(6);
+    expect(moveTileToPage(lamp, 1)).toBe(true);
+    expect(lamp.slot).toBe(7);
+    expect(moveTileToPage(lamp, 2)).toBe(true);
+    expect(lamp.slot).toBe(12);
+    expect(state.layout!.pages).toBe(3);
+    expect(state.dirty).toBe(true);
+    expect(moveTileToPage(lamp, 2)).toBe(false);
+    expect(moveTileToPage(lamp, 8)).toBe(false);
+  });
+  it("swaps with the first tile of a full page, as a drop there does", () => {
+    select("living");
+    state.layout!.tiles = [
+      ...Array.from({ length: 6 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i })),
+      { entity: "light.b", name: "", slot: 6 },
+    ];
+    const b = state.layout!.tiles[6];
+    expect(moveTileToPage(b, 0)).toBe(true);
+    expect(b.slot).toBe(0);
+    expect(state.layout!.tiles.find((t) => t.entity === "light.l0")!.slot).toBe(6);
+  });
+  it("moves a full-page tile to a page of its own and says so when a tile finds no room", () => {
+    select("living");
+    state.layout!.tiles = [
+      { entity: "light.big", name: "", slot: 0, options: { size: "full" } },
+      { entity: "light.w", name: "", slot: 6, options: { size: "wide" } },
+      ...[8, 9, 10, 11].map((slot) => ({ entity: `light.p${slot}`, name: "", slot })),
+      ...Array.from({ length: 36 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: 12 + i })),
+    ];
+    const [big, wide] = state.layout!.tiles;
+    // Page 1 holds the full-page tile and every other page is taken: the wide tile would have to push it off.
+    expect(moveTileToPage(wide, 0)).toBe(false);
+    expect(wide.slot).toBe(6);
+    expect(state.toast?.message).toBe("There is no room for this tile on page 1.");
+    // The full-page tile and the tiles of page 2 change places.
+    expect(moveTileToPage(big, 1)).toBe(true);
+    expect(big.slot).toBe(6);
+    expect(state.layout!.tiles.filter((t) => t.slot < 6).map((t) => t.entity).sort()).toEqual(["light.p10", "light.p11", "light.p8", "light.p9", "light.w"]);
+  });
+});
+
+describe("what the add-on says about a screen's firmware (app 0.2.78)", () => {
+  it("takes the tile limit and the features from the screen entry", () => {
+    const living = state.inventory.screens[0];
+    Object.assign(living, { firmware: "unknown", firmware_known: null, tile_limit: 48, full_page: true, page_tiles_repeat: true });
+    select("living");
+    expect(tileLimit.value).toBe(48);
+    expect(fullPage.value).toBe(true);
+    expect(pageTilesRepeat.value).toBe(true);
+    // A version Home Assistant can't report right now no longer cuts a copied or imported layout to ten.
+    const many = Array.from({ length: 30 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i }));
+    importLayout(JSON.stringify({ tiles: many }));
+    expect(state.layout!.tiles).toHaveLength(30);
+    expect(state.toast?.message).toBe("Layout imported. Save & send when it looks right.");
+  });
+  it("goes by firmware_known for the version and the notes", () => {
+    const living = state.inventory.screens[0];
+    Object.assign(living, { firmware: "unknown", firmware_known: "0.2.60" });
+    select("living");
+    expect(supports(0, 2, 60)).toBe(true);
+    expect(supports(0, 2, 61)).toBe(false);
+    expect(whatsNew(living)).toEqual(["Full-page tiles.", "Live values."]);
+    expect(canAlert(living)).toBe(true);
+    Object.assign(living, { firmware: "0.2.63", firmware_known: null });
+    expect(supports(0, 2, 31)).toBe(false);
+    expect(canAlert(living)).toBe(false);
+  });
+  it("keeps today's rule, with a strict X.Y.Z, for a screen entry without the fields", () => {
+    select("living");
+    expect(tileLimit.value).toBe(20);
+    expect(fullPage.value).toBe(false);
+    expect(pageTilesRepeat.value).toBe(false);
+    state.inventory.screens[0].firmware = "0.2.65";
+    expect(tileLimit.value).toBe(48);
+    expect(fullPage.value).toBe(true);
+    expect(pageTilesRepeat.value).toBe(true);
+    state.inventory.screens[0].firmware = "0.2.65 (ESPHome 2026.6.2)";
+    expect(tileLimit.value).toBe(10);
+    expect(fullPage.value).toBe(false);
+    state.inventory.screens[0].firmware = "unknown";
+    expect(tileLimit.value).toBe(10);
+  });
+});
+
+describe("the changelog from the full inventory (app 0.2.78)", () => {
+  it("reads the notes next to the screens and ignores an update summary that still has them", () => {
+    const living = state.inventory.screens[0];
+    state.inventory.updates = { target: "0.2.62", changelog: [{ app: "0.2.1", firmware: "0.2.62", lines: ["Old place."] }] } as any;
+    expect(whatsNew(living)).toEqual(["Full-page tiles.", "Live values."]);
+  });
+  it("shows nothing without a changelog", () => {
+    delete state.inventory.changelog;
+    expect(whatsNew(state.inventory.screens[1])).toEqual([]);
+  });
+});
+
+describe("several tiles that go to the same page (firmware 0.2.65)", () => {
+  it("adds, retargets and imports another copy when the screen takes them", () => {
+    Object.assign(state.inventory.screens[0], { firmware: "0.2.65", page_tiles_repeat: true });
+    select("living");
+    addTile("screen.page_1");
+    addTile("screen.page_1");
+    expect(state.layout!.tiles.filter((t) => t.entity === "screen.page_1")).toHaveLength(2);
+    addTile("screen.page_2");
+    const nav = state.layout!.tiles.find((t) => t.entity === "screen.page_2")!;
+    expect(retargetPageTile(nav, 1)).toBe(true);
+    expect(state.layout!.tiles.filter((t) => t.entity === "screen.page_1")).toHaveLength(3);
+    // Only a navigation tile repeats; any other entity still appears once.
+    addTile("light.a");
+    expect(state.layout!.tiles.filter((t) => t.entity === "light.a")).toHaveLength(1);
+    importLayout(JSON.stringify({ tiles: [
+      { entity: "screen.page_1", slot: 0 }, { entity: "screen.page_1", slot: 6 }, { entity: "light.a", slot: 1 }, { entity: "light.a", slot: 2 },
+    ] }));
+    expect(state.layout!.tiles.map((t) => t.entity)).toEqual(["screen.page_1", "light.a", "screen.page_1"]);
+  });
+  it("keeps one tile per page when the screen doesn't", () => {
+    Object.assign(state.inventory.screens[0], { firmware: "0.2.65", page_tiles_repeat: false });
+    select("living");
+    addTile("screen.page_1");
+    addTile("screen.page_1");
+    expect(state.layout!.tiles.filter((t) => t.entity === "screen.page_1")).toHaveLength(1);
+    addTile("screen.page_2");
+    expect(retargetPageTile(state.layout!.tiles.find((t) => t.entity === "screen.page_2")!, 1)).toBe(false);
+    expect(state.toast?.message).toMatch(/already has a tile that goes to page 1/);
+  });
+  it("starts the empty page after the last one when a tile goes there", () => {
+    select("living");
+    addTile("screen.page_1");
+    const nav = state.layout!.tiles.find((t) => t.entity === "screen.page_1")!;
+    expect(state.layout!.pages).toBe(1);
+    expect(retargetPageTile(nav, 1)).toBe(false);
+    expect(retargetPageTile(nav, 2)).toBe(true);
+    expect(state.layout!.pages).toBe(2);
+    expect(state.dirty).toBe(true);
   });
 });

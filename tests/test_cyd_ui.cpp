@@ -27,8 +27,9 @@ int main() {
   pager.begin(2000); assert(pager.accept_repeat(2080, 12));
   pager.begin(2250); assert(pager.accept_repeat(2330, 12));                              // 250 ms after the last
   pager.begin(2500); assert(pager.accept_repeat(2580, 12));                              // and again
-  pager.begin(2600); assert(!pager.accept(2680, 12));                                    // the old rule: bounce window
-  pager.begin(2700); assert(pager.accept_repeat(2780, 11));                              // Previous right after Next
+  pager.begin(2800); assert(!pager.accept(2880, 12));                                    // 300 ms after the last Next: the old
+  assert(pager.accept_repeat(2880, 12));                                                 // rule's 600 ms window drops it, this takes it
+  pager.begin(2950); assert(pager.accept_repeat(3030, 11));                              // Previous right after Next
   cyd::TouchGuard g;
   g.begin(100);
   assert(!g.accept(120, 1)); // resistive noise pulse
@@ -84,7 +85,8 @@ int main() {
   wide.begin(3200, 200, 200, 3);
   assert(!wide.accept(3260, 2)); // same tile within 600 ms
   assert(wide.reason() == "same button within the debounce window");
-  // No movement limit (0): a capacitive board leaves the drift decision to LVGL's press-lost.
+  // No movement limit (0, the Guition): drift never drops a tap. The tile checks that the finger let go on it
+  // (runtime_tiles::event, firmware 0.2.65+), and a quick flick is LVGL's gesture, which consumes the contact.
   cyd::TouchGuard free;
   free.configure(0, 20);
   free.begin(100, 200, 200, 3);
@@ -96,6 +98,9 @@ int main() {
   free.update(205, 200, 3); free.update(205, 200, 3); free.update(205, 200, 3);
   free.update(400, 200, 3);
   assert(free.accept_repeat(1060, 7));  // -/+ keys follow the same rule
+  free.begin(2000, 200, 200, 3);
+  free.consume();                        // a flick (the Guition's gesture handler)
+  assert(!free.accept(2100, 1) && !free.accept_repeat(2100, 7) && !free.accept_slider(2100, 201));
   cyd::TouchGuard resistive;
   resistive.configure(56, 60);
   resistive.begin(100, 50, 50);

@@ -43,7 +43,7 @@ watch(() => props.entity, load);
     <div id="inspection-summary">
       <p v-if="error" class="hint warn">{{ error }}</p>
       <p v-else-if="!summary" class="hint">Fetching current HA status...</p>
-      <article v-for="tile in summary || []" :key="tile.entity" class="inspection-tile">
+      <article v-for="(tile, i) in summary || []" :key="i" class="inspection-tile">
         <strong>{{ tile.entity }}</strong>
         <span>Status: {{ tile.word || tile.state }}</span>
         <small>{{ optionsText(tile.entity) }}</small>

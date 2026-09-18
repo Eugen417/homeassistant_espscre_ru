@@ -29,7 +29,11 @@ export type Screen = {
   id: string; name: string; online: boolean; area?: string; firmware?: string; board?: string;
   layout: Layout; update?: UpdateInfo; settings?: SettingsView; delivery?: string; status?: string;
   alert_action?: string; dismiss_action?: string;
+  // What the add-on reads from the firmware (app 0.2.78): its X.Y.Z (null when unknown), how many tiles it holds,
+  // whether it draws full-page tiles, and whether it takes several tiles that go to the same page.
+  firmware_known?: string | null; tile_limit?: number; full_page?: boolean; page_tiles_repeat?: boolean;
 };
+export type ChangelogSection = { app: string; firmware: string; lines: string[] };
 export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean };
 export type IconInfo = { name: string; cp: string; label: string };
 export type Inventory = {
@@ -40,6 +44,8 @@ export type Inventory = {
   builtin?: Entity[];
   pending?: { friendly: string; file: string; installed?: boolean; downloaded?: boolean; api_key?: string }[];
   updates?: { target: string; busy?: boolean; pending?: number; auto?: boolean };
+  // The CHANGELOG by release, newest first: only in the full inventory, not in the live payload (app 0.2.78).
+  changelog?: ChangelogSection[];
   claude_skill?: { path: string; installed: boolean; current: boolean; restart?: boolean };
   icons?: {
     groups: { label: string; icons: IconInfo[] }[];

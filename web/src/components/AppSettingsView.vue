@@ -17,9 +17,8 @@ const progress = computed(() => (running.value ? updateProgress(running.value) :
 const logTail = computed(() => (state.firmwareJob?.logs || []).slice(-12).join("\n"));
 // What the current firmware brings: the changelog sections that mention it.
 const targetNotes = computed(() => {
-  const sections = (u.value as any)?.changelog as { app: string; firmware: string; lines: string[] }[] | undefined;
-  const target = u.value?.target;
-  if (!sections || !target) return [];
+  const sections = state.inventory.changelog, target = u.value?.target;
+  if (!Array.isArray(sections) || !target) return [];
   return sections.filter((s) => s.firmware === target).flatMap((s) => s.lines).slice(0, 10);
 });
 const skill = computed(() => state.inventory.claude_skill);

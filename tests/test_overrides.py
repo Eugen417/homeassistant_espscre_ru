@@ -8,6 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'screen_manager/app'))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from firmware import Firmware  # noqa: E402
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
@@ -149,9 +150,12 @@ class OverrideRoutes(unittest.IsolatedAsyncioTestCase):
                 response = await client.put(url, json={'content': 'api:\n  reboot_timeout: 0s\n'}, headers=headers)
                 self.assertEqual(response.status, 400)
                 self.assertIn('api', (await response.json())['error'])
+                # The override keeps its own 12 KB limit; the request limit is far above it (app 0.2.78).
                 response = await client.put(url, json={'content': 'logger:\n' + '  # p\n' * 4000}, headers=headers)
-                self.assertEqual(response.status, 413)
+                self.assertEqual(response.status, 400)
                 self.assertIn('12 KB', (await response.json())['error'])
+                response = await client.put(url, json={'content': 'logger:\n' + '  # p\n' * 40000}, headers=headers)
+                self.assertEqual((response.status, (await response.json())['error']), (413, 'That request is too large.'))
                 self.assertEqual((await (await client.get(url)).json())['content'], 'display:\n  - id: !extend my_display\n    model: ST7789V\n')
                 self.assertEqual((await (await client.get('/api/firmware')).json())['profiles'], [{'file': 'kitchen.yaml'}])
 

@@ -7,15 +7,19 @@
 #include <vector>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 // The tiles of a screen live on the heap, as many as the layout has (firmware 0.2.62+): a screen with twelve
-// tiles pays for twelve. On a board with PSRAM ESPHome's allocator puts them there, so the internal RAM the
-// WiFi stack and LVGL need stays free; without PSRAM it falls back to the internal heap. The host tests
-// and the host render build have neither, so they take the standard allocator.
+// tiles pays for twelve. On a board with PSRAM ESPHome's allocator puts that list, the fixed part of every
+// tile, in PSRAM; without PSRAM it takes the internal heap. What a tile holds beyond it, its strings and its
+// Extra, comes from plain malloc and new, which ESPHome's psram setup (CONFIG_SPIRAM_USE_CAPS_ALLOC) keeps in
+// the internal heap on both boards. The host tests and the host render build have neither, so they take the
+// standard allocator.
 #if __has_include("esphome/core/defines.h")
 #include "esphome/core/defines.h"
 #endif
 #ifdef USE_ESP32
 #include "esphome/core/helpers.h"
+#include "esphome/core/log.h"
 #endif
 
 namespace runtime_tiles {
@@ -25,6 +29,12 @@ constexpr size_t SLOTS_PER_PAGE = 6;
 constexpr size_t MAX_PAGES = 8;
 constexpr size_t MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
 constexpr size_t MAX_TILES = MAX_SLOTS;
+// One bit per tile for the cards the next render draws again (firmware 0.2.65+). Firmware 0.2.62-0.2.64 kept 32 bits
+// while a screen holds 48 tiles, so a state for tile 33 to 48 redrew the whole page. 0 beyond them: draw everything.
+static_assert(MAX_TILES <= 64, "one dirty bit per tile");
+constexpr uint64_t tile_bit(size_t index) { return index < 64 ? uint64_t{1} << index : 0; }
+// A navigation tile (screen.page_<n>, firmware 0.2.62+).
+inline bool page_entity(const std::string &entity) { return entity.size() == 13 && entity.compare(0, 12, "screen.page_") == 0; }
 inline bool valid_entity(const std::string &entity) {
   if (entity.size() > 120) return false;
   auto dot = entity.find('.');
@@ -34,10 +44,10 @@ inline bool valid_entity(const std::string &entity) {
         !(entity[i] >= '0' && entity[i] <= '9') && entity[i] != '_') return false;
   std::string domain = entity.substr(0, dot);
   // screen.* are built-in cards without a Home Assistant entity behind them; screen.page_<n> (firmware 0.2.62+)
-  // only goes to page n, one such tile per page, so an entity still appears once on a screen.
+  // only goes to page n. Several pages may each carry the same one (firmware 0.2.65+, Model::set_layout).
   if (domain == "screen") {
     if (entity == "screen.clock" || entity == "screen.settings") return true;
-    return entity.size() == 13 && entity.compare(0, 12, "screen.page_") == 0 && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + MAX_PAGES);
+    return page_entity(entity) && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + MAX_PAGES);
   }
   for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person", "camera", "image"})
     if (domain == allowed) return true;
@@ -260,7 +270,7 @@ struct Tile {
   bool is_clock() const { return entity == "screen.clock"; }
   bool is_settings() const { return entity == "screen.settings"; }
   // A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it goes to, counted from one.
-  bool is_page() const { return entity.size() == 13 && entity.compare(0, 12, "screen.page_") == 0; }
+  bool is_page() const { return page_entity(entity); }
   int page_target() const { return is_page() ? entity[12] - '0' : 0; }
   // Slots a tile takes: one, a row of two, or the six of a page.
   unsigned cells() const { return full ? SLOTS_PER_PAGE : wide ? 2u : 1u; }
@@ -291,13 +301,22 @@ struct Tile {
 // Slot position of a tile within the fixed two-column, three-row pages.
 struct Placement { uint8_t page = 0, slot = 0; };
 #ifdef USE_ESP32
-// ESPHome's allocator prefers PSRAM and falls back to the internal heap; this wrapper only gives it the
-// comparison std::vector wants.
+// ESPHome's allocator prefers PSRAM and falls back to the internal heap; this wrapper gives it the comparison
+// std::vector wants. RAMAllocator answers nullptr when neither has room, and std::vector (no exceptions on the
+// ESP32) would write the tiles through it: set_layout checks the room first (tile_room), and anything that still
+// gets here stops with a log line instead of corrupting memory (firmware 0.2.65+).
 template<class T> struct TileAllocator {
   using value_type = T;
   TileAllocator() = default;
   template<class U> TileAllocator(const TileAllocator<U> &) {}
-  T *allocate(size_t n) { return esphome::RAMAllocator<T>().allocate(n); }
+  T *allocate(size_t n) {
+    T *p = esphome::RAMAllocator<T>().allocate(n);
+    if (!p) {
+      ESP_LOGE("runtime", "No memory for %u tiles (%u bytes)", static_cast<unsigned>(n), static_cast<unsigned>(n * sizeof(T)));
+      abort();
+    }
+    return p;
+  }
   void deallocate(T *p, size_t n) { esphome::RAMAllocator<T>().deallocate(p, n); }
   bool operator==(const TileAllocator &) const { return true; }
   bool operator!=(const TileAllocator &) const { return false; }
@@ -305,6 +324,14 @@ template<class T> struct TileAllocator {
 using TileList = std::vector<Tile, TileAllocator<Tile>>;
 #else
 using TileList = std::vector<Tile>;
+#endif
+// The largest block the tile list could get: ESPHome's own answer on the ESP32 (PSRAM or the internal heap,
+// whichever has the larger one). Nothing on the host, which has room; the tests put in a figure of their own.
+#ifdef USE_ESP32
+inline size_t largest_tile_block() { return esphome::RAMAllocator<Tile>().get_max_free_block_size(); }
+inline size_t (*tile_room)() = largest_tile_block;
+#else
+inline size_t (*tile_room)() = nullptr;
 #endif
 // Wide tiles start in the left column and take the whole row; a right-column gap before them stays
 // empty. A full tile starts a page of its own; the slots it leaves behind stay empty. Returns the page
@@ -336,6 +363,9 @@ struct Model {
   size_t count = 0;
   std::string title = "Choose tiles in HA";
   bool configured = false;
+  // Why the last set_layout refused a layout, for the manager's inbox status; empty when it took the layout or the
+  // message itself was wrong (the status then says "invalid message", as before).
+  std::string refusal;
   bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed) {
     bool moved = false;
     return set_layout(entities, name, changed, {}, moved);
@@ -344,9 +374,13 @@ struct Model {
   // positions, the pages re-place without touching states or an open card.
   bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed,
                   const std::vector<uint8_t> &positions, bool &moved) {
+    refusal.clear();
     if (entities.size() > MAX_TILES || name.size() > 96) return false;
     for (size_t i = 0; i < entities.size(); ++i) {
       if (!valid_entity(entities[i])) return false;
+      // A Home Assistant entity appears once on a screen; a navigation tile may sit on several pages (firmware 0.2.65+).
+      // Everything that reaches a tile goes by its index (Model::accepts), so each copy gets its own options.
+      if (page_entity(entities[i])) continue;
       for (size_t j = 0; j < i; ++j) if (entities[i] == entities[j]) return false;
     }
     if (!positions.empty()) {
@@ -360,6 +394,12 @@ struct Model {
     for (size_t i = 0; i < entities.size() && i < tiles.size(); ++i) if (tiles[i].entity != entities[i]) changed = true;
     moved = !changed && (explicit_slots != !positions.empty());
     for (size_t i = 0; i < positions.size() && !changed; ++i) if (slots[i] != positions[i]) moved = true;
+    // A longer list needs one block that holds every tile. Without it the layout is refused before anything changes, so
+    // the screen keeps the tiles it shows and the manager hears why (firmware 0.2.65+).
+    if (entities.size() > tiles.capacity() && tile_room && tile_room() < entities.size() * sizeof(Tile)) {
+      refusal = "Error: no memory for " + std::to_string(entities.size()) + " tiles";
+      return false;
+    }
     // A title-only update must not interrupt an open control card.
     title = name.empty() ? "Home" : name;
     if (changed) {

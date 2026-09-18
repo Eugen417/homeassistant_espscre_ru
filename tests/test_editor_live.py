@@ -1,9 +1,10 @@
 """Live values on the mockup, Identify, the test alert and the changelog for the Update badge (app 0.2.73).
 
 The editor asks /api/states for the tiles it shows and draws Home Assistant's values on the mockup; Identify and
-Try it call a screen's own show_alert action, with the same field rules as an alert event; the update summary
+Try it call a screen's own show_alert action, with the same field rules as an alert event; the full inventory
 carries the CHANGELOG sections so the badge can say what a screen gets.
 """
+import contextlib
 import importlib.util
 import sys
 import tempfile
@@ -36,6 +37,58 @@ class Changelog(unittest.TestCase):
         self.assertEqual([(s['app'], s['firmware']) for s in sections], [('0.2.74', '0.2.62'), ('0.2.71', '0.2.60')])
         self.assertEqual(sections[0]['lines'], ['One workspace. Sidebar, pages, library with code.', 'Second line.'])
         self.assertEqual(changelog.parse(SAMPLE, limit=1)[0]['app'], '0.2.74')
+
+    def test_italics_go_and_lone_asterisks_and_code_stay(self):
+        # What's new showed "*Full page*" (app 0.2.78).
+        self.assertEqual(changelog.plain('A size can be *Full page*: (*26.0 °C*, *Off*).'), 'A size can be Full page: (26.0 °C, Off).')
+        self.assertEqual(changelog.plain('5 * 3 * 2, a*b*c, snake_case_name, camera.* or image.*'), '5 * 3 * 2, a*b*c, snake_case_name, camera.* or image.*')
+        self.assertEqual(changelog.plain('**Bold** with `code *x*` and [a *link*](docs/X.md)'), 'Bold with code *x* and a link')
+
+    def test_other_headings_star_bullets_and_wrapped_lines(self):
+        text = '''# Changelog
+
+## 0.2.80 (firmware 0.2.66)
+
+Intro, not a bullet.
+
+- **First.** It goes on
+  on an indented line
+and on a line right under it.
+* A star bullet.
+- Third.
+
+  A second paragraph of the third one.
+
+A paragraph after the list, not a bullet.
+
+### Details
+
+- Under a smaller heading, still this release.
+
+## Unreleased
+
+- Not in any release.
+
+## 0.2.79 (firmware 0.2.65)
+
+- Older.
+'''
+        sections = changelog.parse(text)
+        self.assertEqual([s['app'] for s in sections], ['0.2.80', '0.2.79'])
+        self.assertEqual(sections[0]['lines'], ['First. It goes on on an indented line and on a line right under it.', 'A star bullet.',
+                                                'Third. A second paragraph of the third one.', 'Under a smaller heading, still this release.'])
+        self.assertEqual(sections[1]['lines'], ['Older.'], 'a bullet under an unknown heading belongs to no release')
+
+    def test_a_changelog_that_cant_be_read_leaves_the_notes_empty(self):
+        # Updater() reads it when the app starts; a broken file must never stop the app (app 0.2.78).
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / 'CHANGELOG.md'
+            folder.mkdir()
+            latin = Path(tmp) / 'latin.md'
+            latin.write_bytes('## 0.2.80 (firmware 0.2.66)\n\n- caf\xe9\n'.encode('latin-1'))
+            for path in (folder, latin, Path(tmp) / 'missing.md'):
+                with self.assertLogs('screen_manager', 'WARNING') if path.exists() else contextlib.nullcontext():
+                    self.assertEqual(changelog.load(path), [], path)
 
     def test_the_real_changelog_is_found_and_shipped(self):
         sections = changelog.load()
@@ -100,11 +153,33 @@ class Endpoints(unittest.IsolatedAsyncioTestCase):
         bad = await self.client.post('/api/alerts/test', headers=self.headers, json={'screen': 'text.nope'})
         self.assertEqual(bad.status, 400)
 
-    async def test_the_update_summary_carries_the_changelog(self):
-        inventory = await (await self.client.get('/api/inventory?light=1')).json()
-        sections = inventory['updates']['changelog']
+    async def test_home_assistant_saying_no_or_not_answering_is_a_sentence_not_a_500(self):
+        # Identify and Try it answered a bare 500 with a traceback in the log (app 0.2.78).
+        from server import Refused
+        cases = ((Refused('Action esphome.office_1_show_alert not found'), 400,
+                  "Home Assistant didn't take it: Action esphome.office_1_show_alert not found."),
+                 (Refused(''), 400, "Home Assistant didn't take it: no reason given."),
+                 (ConnectionError("Home Assistant isn't connected."), 503, "Home Assistant isn't reachable right now. Try again in a moment."),
+                 (TimeoutError(), 503, "Home Assistant isn't reachable right now. Try again in a moment."))
+        for error, status, sentence in cases:
+            async def call(action, data, error=error):
+                raise error
+            self.ha.call = call
+            for response in (await self.client.post(f"/api/screens/{self.screen['id']}/identify", headers=self.headers),
+                             await self.client.post('/api/alerts/test', headers=self.headers,
+                                                    json={'screen': self.screen['id'], 'data': {'title': 'Door'}})):
+                self.assertEqual((response.status, await response.json()), (status, {'error': sentence}), repr(error))
+
+    async def test_the_full_inventory_carries_the_changelog(self):
+        # Only the full inventory (app 0.2.78): the live payload goes out every few seconds and needs no notes.
+        inventory = await (await self.client.get('/api/inventory')).json()
+        sections = inventory['changelog']
         self.assertTrue(sections)
         self.assertEqual(set(sections[0]), {'app', 'firmware', 'lines'})
+        self.assertNotIn('changelog', inventory['updates'])
+        light = await (await self.client.get('/api/inventory?light=1')).json()
+        self.assertNotIn('changelog', light)
+        self.assertNotIn('changelog', light['updates'])
 
 
 class Editor(unittest.TestCase):

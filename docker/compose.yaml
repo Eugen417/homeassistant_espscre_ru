@@ -11,6 +11,8 @@ services:
       # The same image as the Home Assistant app, built from the main branch.
       context: https://github.com/MaxGramser/homeassistant_espscreen.git#main:screen_manager
     restart: unless-stopped
+    # A small init as process 1, like the Home Assistant app gets: it passes on docker stop and reaps finished builds.
+    init: true
     # Home Assistant reaches the page on 127.0.0.1:8099, and .local names resolve.
     network_mode: host
     environment:

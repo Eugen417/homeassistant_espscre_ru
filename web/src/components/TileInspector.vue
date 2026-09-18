@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // One tile's settings. Every change applies live, so the card on the mockup shows the result while you pick.
-import { computed } from "vue";
-import { domainInfo, MAX_PAGES, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
+import { computed, toRaw } from "vue";
+import { domainInfo, entriesOf, MAX_PAGES, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { automaticIcon, closeInspector, entityName, markDirty, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { automaticIcon, closeInspector, entityName, fullPage, markDirty, moveTileToPage, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -14,9 +14,31 @@ const domain = computed(() => props.tile.entity.split(".")[0]);
 const name = computed(() => entityName(props.tile.entity));
 // A navigation tile (screen.page_<n>): the page it opens, its size, icon and colour; nothing else applies.
 const goesTo = computed(() => pageTarget(props.tile.entity));
-const pages = Array.from({ length: MAX_PAGES }, (_, i) => [i + 1, String(i + 1)] as [number, string]);
+// Pages counted from 1. "Goes to page" offers the pages the screen has and the empty one after them, where a sub-page
+// starts (app 0.2.78), and keeps a target beyond those so the choice stays visible.
+const pageTotal = computed(() => (state.layout ? pageCount(entriesOf(state.layout), state.layout.pages) : 1));
+const pageHere = computed(() => pageOf(props.tile.slot) + 1);
+const emptyPage = (n: number) => !state.layout?.tiles.some((t) => pageOf(t.slot) === n - 1);
+const pages = computed(() => {
+  const list = Array.from({ length: Math.min(MAX_PAGES, pageTotal.value + 1) }, (_, i) => i + 1);
+  if (goesTo.value > list.length) list.push(goesTo.value);
+  return list.map((n) => [n, emptyPage(n) ? `${n} (empty)` : String(n)] as [number, string]);
+});
+const goesToHint = computed(() => !fullPage.value
+  ? { text: "Navigation tiles need firmware 0.2.62: press Update on the screen first.", warn: false }
+  : goesTo.value > pageTotal.value
+    ? { text: `This screen has no page ${goesTo.value}, so a tap opens its last page. Choose another page.`, warn: true }
+    : { text: "A tap on the tile opens that page.", warn: false });
+// Moving the tile without a drag (app 0.2.78): another page, or a new one after the last. A tile alone on the last page
+// gets no "New page", which would only leave an empty page behind; with nowhere to go the row stays hidden.
+const alone = computed(() => !state.layout?.tiles.some((t) => toRaw(t) !== toRaw(props.tile) && pageOf(t.slot) === pageHere.value - 1));
+const onPage = computed(() => {
+  const list = Array.from({ length: pageTotal.value }, (_, i) => [i + 1, String(i + 1)] as [number, string]);
+  if (pageTotal.value < MAX_PAGES && !(alone.value && pageHere.value === pageTotal.value)) list.push([pageTotal.value + 1, "New page"]);
+  return list;
+});
 const sizes = computed<[string, string][]>(() => goesTo.value ? [["single", "Normal"], ["wide", "Double-width"]] : [["single", "Normal"], ["wide", "Double-width"], ["full", "Full page"]]);
-const sizeHint = computed(() => goesTo.value ? "" : supports(0, 2, 62)
+const sizeHint = computed(() => goesTo.value ? "" : fullPage.value
   ? "Full page: one big button that lights up while on; a slider, controls or a graph sit at the bottom of it."
   : "A full-page tile needs firmware 0.2.62: press Update on the screen first.");
 const caps = computed(() => state.capabilities[props.tile.entity]);
@@ -100,7 +122,7 @@ function inspect() {
     <div v-if="goesTo" class="f">
       <span class="f-label">Goes to page</span>
       <Segmented :choices="pages" :value="goesTo" @pick="(v) => retargetPageTile(tile, Number(v))" />
-      <small>{{ supports(0, 2, 62) ? "A tap on the tile opens that page." : "Navigation tiles need firmware 0.2.62: press Update on the screen first." }}</small>
+      <small :class="{ warn: goesToHint.warn }">{{ goesToHint.text }}</small>
     </div>
     <div v-else class="f">
       <span class="f-label">Display</span>
@@ -111,6 +133,10 @@ function inspect() {
       <span class="f-label">Size</span>
       <Segmented :choices="sizes" :value="size" @pick="(v) => setTileOption(tile, 'size', v)" />
       <small v-if="sizeHint">{{ sizeHint }}</small>
+    </div>
+    <div v-if="onPage.length > 1" class="f">
+      <span class="f-label">Page</span>
+      <Segmented :choices="onPage" :value="pageHere" @pick="(v) => moveTileToPage(tile, Number(v) - 1)" />
     </div>
     <div v-if="catalogue && size !== 'single' && !goesTo" class="f">
       <span class="f-label">Direct control on the tile</span>

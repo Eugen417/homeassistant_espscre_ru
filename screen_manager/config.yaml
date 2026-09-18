@@ -1,12 +1,11 @@
 name: ESP Screen Manager
-version: "0.2.77"
+version: "0.2.78"
 slug: esp_screen_manager
 description: Choose tiles for your CYD and Guition touchscreen, without reflashing.
 url: https://github.com/MaxGramser/homeassistant_espscreen
 arch: [aarch64, amd64]
 startup: application
 boot: auto
-init: false
 homeassistant_api: true
 ingress: true
 ingress_port: 8099

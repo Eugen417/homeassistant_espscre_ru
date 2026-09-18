@@ -18,7 +18,7 @@
 ############################################################
 
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.64"
+  SCREEN_FIRMWARE_VERSION: "0.2.65"
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
@@ -1623,6 +1623,9 @@ display:
       height: 320
 
 lvgl:
+  # The theme's font for text without a font of its own. Every label names its font, so this only keeps
+  # ESPHome from building LVGL's Montserrat 14 (about 14 KB of flash) for nothing (firmware 0.2.65+).
+  default_font: sublabel_big
   on_draw_start:
     - lambda: 'id(rendered_frames)++;'
   displays:
@@ -2380,7 +2383,9 @@ lvgl:
             pressed:
               styles: paint_page_pressed
               bg_opa: COVER
-            on_short_click:
+            # on_click: LVGL sends no short click after a press of 400 ms, so a firm or slow press did nothing
+            # (firmware 0.2.65+). The bar has no hold of its own; accept_repeat still drops bounce and a swipe.
+            on_click:
               - if:
                   condition:
                     lambda: 'return cyd::touch_guard.accept_repeat(millis(), 11);'
@@ -2421,7 +2426,7 @@ lvgl:
             pressed:
               styles: paint_page_pressed
               bg_opa: COVER
-            on_short_click:
+            on_click:
               - if:
                   condition:
                     lambda: 'return cyd::touch_guard.accept_repeat(millis(), 12);'
@@ -3580,6 +3585,9 @@ lvgl:
             clickable: true
             on_click:
               - script.execute: wake_display
+              # A page that is one full tile switching something on or off switches with this push as well
+              # (firmware 0.2.65+, runtime_tiles::wake_tap); on every other page the first touch only wakes.
+              - lambda: 'runtime_tiles::wake_tap();'
 
     - id: touch_cal_page
       styles: paint_calibration

@@ -3,7 +3,7 @@
 import { computed, reactive, ref } from "vue";
 import { versionAtLeast } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { canAlert, copyText, go, sendTestAlert, state } from "../store";
+import { canAlert, copyText, firmwareVersion, go, sendTestAlert, state } from "../store";
 
 const alerts = computed(() => state.inventory.alerts);
 // Try it: the same seven fields an automation sends, to one screen or to all of them.
@@ -141,8 +141,8 @@ const sections = [["alerts-try", "Try it"], ["alerts-screens", "Your screens"], 
           <div v-for="screen in state.inventory.screens" :key="screen.id" class="alert-screen">
             <div class="alert-screen-head">
               <strong>{{ screen.name }}</strong>
-              <span class="chip" :class="versionAtLeast(screen.firmware, alerts.min_firmware) && screen.alert_action ? 'good' : 'update'">
-                {{ versionAtLeast(screen.firmware, alerts.min_firmware) && screen.alert_action ? `● firmware ${screen.firmware}` : screen.alert_action ? `Update needed · firmware ${screen.firmware || "unknown"}` : "Device name unknown · update the screen" }}
+              <span class="chip" :class="versionAtLeast(firmwareVersion(screen), alerts.min_firmware) && screen.alert_action ? 'good' : 'update'">
+                {{ versionAtLeast(firmwareVersion(screen), alerts.min_firmware) && screen.alert_action ? `● firmware ${screen.firmware}` : screen.alert_action ? `Update needed · firmware ${screen.firmware || "unknown"}` : "Device name unknown · update the screen" }}
               </span>
             </div>
             <div v-for="[label, action] in [['Show alert', screen.alert_action], ['Dismiss alert', screen.dismiss_action]]" :key="label" class="copy-line">

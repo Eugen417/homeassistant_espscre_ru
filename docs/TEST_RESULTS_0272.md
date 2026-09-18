@@ -72,5 +72,8 @@ the sizes differ from the bench profiles by the length of those strings; the cod
 
 - Real hardware: neither bench screen ran this firmware before the release. Max's own screens get it through Update;
   the tap that started this is the one to try there, on the Guition and on the CYD.
-- A resistive panel's lift-off bounce on the CYD is covered by the 40 ms minimum contact and the 150 ms gap, the same
-  net the -/+ keys have had since 0.2.25 (physically tested then), not by a new measurement.
+- A resistive panel's lift-off bounce on the CYD, not measured again. Correction (2026-09-18, touch analysis): the
+  first net for that bounce is the XPT2046 filter (`components/xpt2046/touchscreen/touch_filter.h`), which starts a
+  contact only after three matching samples, ignores one empty sample and releases after two, so a bounce never
+  reaches LVGL as a new tap. `accept_repeat`'s 40 ms minimum contact and 150 ms same-button gap are backup nets
+  behind it, the same the -/+ keys have had since 0.2.25 (physically tested then).

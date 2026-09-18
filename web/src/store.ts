@@ -1,6 +1,6 @@
 // One reactive state for the whole editor. The Python API (server.py) is unchanged: this file is the
 // former app.js state and its calls, with the DOM work moved into the components.
-import { computed, reactive } from "vue";
+import { computed, reactive, toRaw } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
@@ -8,7 +8,7 @@ import {
 } from "./model/layout";
 import { agoText, BAR_METRICS, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { versionAtLeast } from "./model/layout";
-import type { Capability, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile } from "./types";
+import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile } from "./types";
 
 export type Inspector =
   | { kind: "tile" }
@@ -29,7 +29,8 @@ export const state = reactive({
   busy: false,
   saved: 0,
   tab: "layout" as "layout" | "settings",
-  selectedTile: null as string | null,
+  // The tile itself, not its entity: several tiles can go to the same page (firmware 0.2.65).
+  selectedTile: null as Tile | null,
   inspector: null as Inspector | null,
   iconPickerOpen: false,
   actionPickerOpen: false,
@@ -61,13 +62,35 @@ export const state = reactive({
 });
 
 export const currentScreen = computed<Screen | undefined>(() => state.inventory.screens.find((s) => s.id === state.selected));
-export const firmwareOf = computed(() => currentScreen.value?.firmware || "");
+// The firmware version a screen's features go by, as the add-on works it out (firmware_known, app 0.2.78; null when it
+// can't tell). A screen entry without the field goes by the firmware text, as before.
+export const firmwareVersion = (screen: Screen | undefined) =>
+  (screen && "firmware_known" in screen ? screen.firmware_known : screen?.firmware) || "";
+export const firmwareOf = computed(() => firmwareVersion(currentScreen.value));
 export const supports = (major: number, minor: number, patch: number) => supportsVersion(firmwareOf.value, major, minor, patch);
-export const tileLimit = computed(() => limitFor(firmwareOf.value));
+// What the screen holds and draws, as the add-on says (app 0.2.78), so a screen whose version Home Assistant can't
+// report for a moment keeps its 48 tiles instead of dropping to ten, and a copied or imported layout isn't cut to ten.
+export const tileLimit = computed(() => {
+  const limit = currentScreen.value?.tile_limit;
+  return typeof limit === "number" && Number.isInteger(limit) && limit > 0 ? limit : limitFor(firmwareOf.value);
+});
+export const fullPage = computed(() => {
+  const full = currentScreen.value?.full_page;
+  return typeof full === "boolean" ? full : supports(0, 2, 62);
+});
+// Several tiles that go to the same page, such as a way back to page 1 on every sub-page (firmware 0.2.65); every
+// other entity stays once per screen.
+export const pageTilesRepeat = computed(() => {
+  const repeat = currentScreen.value?.page_tiles_repeat;
+  return typeof repeat === "boolean" ? repeat : supports(0, 2, 65);
+});
+export const repeatable = (id: string) => pageTilesRepeat.value && pageTarget(id) > 0;
 export const isGuition = computed(() => currentScreen.value?.board === "guition");
 export const barMetrics = computed(() => BAR_METRICS[isGuition.value ? "guition" : "cyd"]);
 export const currentTile = computed<Tile | undefined>(() =>
-  state.selectedTile && state.layout ? state.layout.tiles.find((t) => t.entity === state.selectedTile) : undefined);
+  state.selectedTile && state.layout?.tiles.includes(state.selectedTile) ? state.selectedTile : undefined);
+// The reactive copy and the plain object are the same tile.
+export const isSelected = (tile: Tile) => Boolean(state.selectedTile) && toRaw(state.selectedTile) === toRaw(tile);
 
 // ---- Toasts ----
 let toastTimer = 0;
@@ -191,11 +214,23 @@ export function liveOf(entity: string): Live | null {
 }
 
 // ---- Selecting a screen and editing its layout ----
+// Every edit counts, so a save only clears the edits it sent (app 0.2.78).
+let edits = 0;
 export function markDirty() {
   state.dirty = true;
   state.saved = 0;
+  edits++;
 }
 export function select(id: string | null) {
+  // The open screen again, the way back from Firmware & USB, Alerts or Settings: its unsaved edits stay (app 0.2.78).
+  // Without edits it reads the stored layout again, which picks up what Claude or another tab changed meanwhile.
+  if (id === state.selected && state.layout && state.dirty) {
+    closeInspector();
+    state.tab = "layout";
+    state.menuOpen = false;
+    go("");
+    return;
+  }
   if (id !== state.selected && state.dirty && !confirm("You have unsaved changes. Open a different screen anyway?")) return;
   if (id !== state.selected) {
     flushSettings();
@@ -244,11 +279,11 @@ export function placeTile(tile: Tile, target: number) {
 // A click in the picker: the marked empty cell, else the first free cell.
 export function addTile(id: string) {
   const layout = state.layout;
-  if (!layout || layout.tiles.some((t) => t.entity === id) || layout.tiles.length >= tileLimit.value) return;
+  if (!layout || (!repeatable(id) && layout.tiles.some((t) => t.entity === id)) || layout.tiles.length >= tileLimit.value) return;
   const tile = newTile(id);
   const slot = state.insertAt >= 0 ? state.insertAt : firstFree(occupied(entriesOf(layout)), sizeOf(tile));
   state.insertAt = -1;
-  if (slot >= 0 && placeTile(tile, slot)) openTile(id);
+  if (slot >= 0 && placeTile(tile, slot)) openTile(tile);
 }
 export function removeTile(tile: Tile) {
   const layout = state.layout;
@@ -256,7 +291,7 @@ export function removeTile(tile: Tile) {
   const index = layout.tiles.indexOf(tile);
   if (index < 0) return;
   layout.tiles.splice(index, 1);
-  if (state.selectedTile === tile.entity) closeInspector();
+  if (isSelected(tile)) closeInspector();
   markDirty();
   layout.pages = pageCount(entriesOf(layout), layout.pages);
   toast(`${tile.name || entityName(tile.entity)} removed`, { label: "Undo", run: () => placeTile(tile, tile.slot) });
@@ -274,6 +309,17 @@ export function removePage(page: number) {
   for (const tile of layout.tiles) if (pageOf(tile.slot) > page) tile.slot -= SLOTS_PER_PAGE;
   layout.pages = Math.max(1, pageCount(entriesOf(layout), layout.pages) - 1);
   markDirty();
+}
+// Moving a tile without dragging it (app 0.2.78), for a finger on a phone and for anyone who can't drag: the first
+// free cell of that page, else its first cell, where the tile in the way swaps places as it does for a drop or an
+// arrow key. `page` counts from 0; the page after the last one starts a new page.
+export function moveTileToPage(tile: Tile, page: number) {
+  const layout = state.layout;
+  if (!layout || !Number.isInteger(page) || page < 0 || page >= MAX_PAGES || page === pageOf(tile.slot)) return false;
+  const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), sizeOf(tile), page * SLOTS_PER_PAGE);
+  const moved = placeTile(tile, slot >= 0 && pageOf(slot) === page ? slot : page * SLOTS_PER_PAGE);
+  if (!moved) toast(`There is no room for this tile on page ${page + 1}.`);
+  return moved;
 }
 export function pagesShown() {
   const layout = state.layout;
@@ -326,23 +372,24 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
   normalize(layout);
   layout.pages = pageCount(entriesOf(layout), layout.pages);
 }
-// A navigation tile goes to another page: its entity changes (screen.page_<n>), one tile per page it goes to.
+// A navigation tile goes to another page: its entity changes (screen.page_<n>). One tile per page it goes to, unless
+// the firmware takes several (0.2.65). The page after the last one becomes a new, empty page to fill (app 0.2.78).
 export function retargetPageTile(tile: Tile, page: number) {
-  const entity = `screen.page_${page}`;
-  if (!state.layout || entity === tile.entity || !pageTarget(entity)) return false;
-  if (state.layout.tiles.some((t) => t.entity === entity)) { toast(`This screen already has a tile that goes to page ${page}.`); return false; }
+  const entity = `screen.page_${page}`, layout = state.layout;
+  if (!layout || entity === tile.entity || !pageTarget(entity)) return false;
+  if (!repeatable(entity) && layout.tiles.some((t) => t.entity === entity)) { toast(`This screen already has a tile that goes to page ${page}.`); return false; }
   tile.entity = entity;
-  if (state.selectedTile) state.selectedTile = entity;
+  layout.pages = Math.max(pageCount(entriesOf(layout), layout.pages), page);
   markDirty();
   return true;
 }
 
 // ---- Inspector (the drawer) ----
-export function openTile(entity: string) {
-  if (state.selectedTile !== entity) { state.iconPickerOpen = false; state.actionPickerOpen = false; state.actionSearch = ""; }
-  state.selectedTile = entity;
+export function openTile(tile: Tile) {
+  if (!isSelected(tile)) { state.iconPickerOpen = false; state.actionPickerOpen = false; state.actionSearch = ""; }
+  state.selectedTile = tile;
   state.inspector = { kind: "tile" };
-  loadCapabilities([entity]);
+  loadCapabilities([tile.entity]);
 }
 export function openBar(index: number) {
   if (!(state.inspector?.kind === "bar" && state.inspector.index === index)) state.iconPickerOpen = false;
@@ -362,13 +409,19 @@ export function closeInspector() {
 export async function save() {
   if (state.busy || !state.layout || !state.selected) return;
   state.busy = true;
+  // The layout as it leaves: a drag, the drawer or Add still work while the request is on its way (the add-on's check
+  // can take seconds after Copy or Import), and those changes aren't in it (app 0.2.78).
+  const sent = edits, screen = state.selected;
   try {
     // Screen settings apply on their own (flushSettings); the stored ones stay as they are.
     const { settings: _settings, ...tiles } = state.layout;
     await send(`screens/${encodeURIComponent(state.selected)}`, "PUT", tiles);
-    state.dirty = false;
-    state.saved = Date.now();
-    toast("Saved. Your screen is being updated.");
+    if (state.selected !== screen) toast(`Saved. ${state.inventory.screens.find((s) => s.id === screen)?.name || "The screen"} is being updated.`);
+    else if (edits === sent) {
+      state.dirty = false;
+      state.saved = Date.now();
+      toast("Saved. Your screen is being updated.");
+    } else toast("Saved. Your newest change isn't sent yet: press Save & send again.");
     await refresh();
   } catch (e: any) {
     toast(e.message);
@@ -379,7 +432,7 @@ export async function save() {
 
 // ---- Identify and the test alert (app 0.2.73): a screen's own show_alert action ----
 export const canAlert = (screen: Screen | undefined) =>
-  Boolean(screen && screen.alert_action && versionAtLeast(screen.firmware, state.inventory.alerts?.min_firmware || "0.2.31"));
+  Boolean(screen && screen.alert_action && versionAtLeast(firmwareVersion(screen), state.inventory.alerts?.min_firmware || "0.2.31"));
 export async function identify(screen: Screen) {
   try {
     await send(`screens/${encodeURIComponent(screen.id)}/identify`, "POST");
@@ -402,7 +455,7 @@ function adopt(source: Partial<Layout>, what: string) {
     .map((t) => ({ entity: t.entity, name: typeof t.name === "string" ? t.name : "", slot: Number.isInteger(t.slot) ? t.slot : -1,
                    ...(t.options && typeof t.options === "object" ? { options: { ...t.options } } : {}) }) as Tile);
   const seen = new Set<string>();
-  const unique = tiles.filter((t) => !seen.has(t.entity) && seen.add(t.entity));
+  const unique = tiles.filter((t) => repeatable(t.entity) || (!seen.has(t.entity) && seen.add(t.entity)));
   const kept = unique.slice(0, tileLimit.value);
   layout.tiles = kept;
   if (source.header && Array.isArray(source.header.items)) layout.header = { items: source.header.items.map((i) => ({ ...i })) };
@@ -449,11 +502,12 @@ export function importLayout(text: string) {
 }
 
 // ---- Updates with content (app 0.2.73): what a screen gets, and how far its update is ----
+// The changelog comes with the full inventory only (app 0.2.78): the live payload goes out every few seconds.
 export function whatsNew(screen: Screen): string[] {
   const target = state.inventory.updates?.target;
-  const sections = (state.inventory.updates as any)?.changelog as { app: string; firmware: string; lines: string[] }[] | undefined;
-  if (!sections || !target) return [];
-  const since = screen.firmware;
+  const sections: ChangelogSection[] | undefined = state.inventory.changelog;
+  if (!Array.isArray(sections) || !target) return [];
+  const since = firmwareVersion(screen);
   const lines: string[] = [];
   for (const section of sections) {
     if (versionAtLeast(section.firmware, target) && section.firmware !== target) continue;

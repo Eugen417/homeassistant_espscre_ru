@@ -186,3 +186,68 @@ static void test_slider_colours() {
   setpoint.state = "55.0"; assert(setpoint.slider_active());
 }
 struct RunSliderColours { RunSliderColours() { test_slider_colours(); } } run_slider_colours;
+// A navigation tile may sit on several pages of one screen (firmware 0.2.65+); a Home Assistant entity still appears once.
+static void test_repeated_page_tiles() {
+  using namespace runtime_tiles;
+  Model m; bool changed = false, moved = false;
+  std::array<Placement, MAX_TILES> p;
+  assert(m.set_layout({"light.x", "screen.page_1", "screen.page_1", "sensor.y"}, "Home", changed, {0, 6, 12, 13}, moved));
+  assert(changed && m.count == 4 && place(m, p) == 3 && p[1].page == 1 && p[2].page == 2);
+  assert(m.tiles[1].is_page() && m.tiles[2].is_page() && m.tiles[1].page_target() == 1 && m.tiles[2].page_target() == 1);
+  // Each copy is its own tile: a state message reaches it by its index, so both get their options.
+  assert(m.accepts(1, "screen.page_1") && m.accepts(2, "screen.page_1") && !m.accepts(3, "screen.page_1"));
+  m.tiles[1].icon = "a"; m.tiles[2].icon = "b";
+  assert(m.tiles[1].icon != m.tiles[2].icon);
+  for (size_t i = 0; i < m.count; ++i) m.tiles[i].received = true;
+  assert(m.ready());
+  assert(m.set_layout({"light.x", "screen.page_1", "screen.page_1", "sensor.y"}, "Home", changed, {0, 6, 12, 13}, moved));
+  assert(!changed && !moved && m.ready());  // the repeat of the same layout keeps everything
+  assert(m.set_layout({"screen.page_2", "screen.page_2", "screen.page_2"}, "Menu", changed));
+  // Every Home Assistant entity and the other built-in cards stay unique.
+  assert(!m.set_layout({"light.x", "screen.page_1", "light.x"}, "Home", changed, {0, 6, 12}, moved));
+  assert(!m.set_layout({"screen.clock", "screen.clock"}, "Home", changed));
+  assert(!m.set_layout({"screen.settings", "screen.page_1", "screen.settings"}, "Home", changed));
+  assert(!m.set_layout({"screen.page_9", "screen.page_9"}, "Home", changed));
+  assert(m.count == 3 && m.title == "Menu");  // a refused layout leaves the one on screen alone
+}
+struct RunRepeatedPages { RunRepeatedPages() { test_repeated_page_tiles(); } } run_repeated_pages;
+// A longer list needs one block for every tile (firmware 0.2.65+): without it the layout is refused before anything
+// changes, with a reason for the manager, instead of std::vector writing tiles through a null pointer on the ESP32.
+static size_t test_room = 0;
+static void test_tile_room() {
+  using namespace runtime_tiles;
+  assert(!tile_room);  // the host has room and asks nothing
+  Model m; bool changed = false;
+  std::vector<std::string> twelve, forty_eight;
+  for (int i = 0; i < 48; ++i) (i < 12 ? twelve : forty_eight).push_back("light.r" + std::to_string(i));
+  for (int i = 0; i < 12; ++i) forty_eight.push_back("light.r" + std::to_string(i));
+  assert(m.set_layout(twelve, "Twelve", changed) && m.count == 12 && m.refusal.empty());
+  for (size_t i = 0; i < m.count; ++i) { m.tiles[i].received = true; m.tiles[i].state = "on"; }
+  tile_room = [] { return test_room; };
+  test_room = 48 * sizeof(Tile) - 1;
+  assert(!m.set_layout(forty_eight, "Forty-eight", changed));
+  assert(m.refusal == "Error: no memory for 48 tiles");
+  assert(m.configured && m.count == 12 && m.title == "Twelve" && m.ready() && m.tiles[0].state == "on");
+  // Fewer tiles than the list already holds need no new block, and a malformed layout is no memory question.
+  assert(m.set_layout({"light.r0", "light.r1"}, "Two", changed) && changed && m.count == 2 && m.refusal.empty());
+  assert(!m.set_layout({"light.r0", "light.r0"}, "Twice", changed) && m.refusal.empty());
+  test_room = 48 * sizeof(Tile);
+  assert(m.set_layout(forty_eight, "Forty-eight", changed) && m.count == 48 && m.refusal.empty());
+  // An empty screen asks for its first tiles the same way.
+  Model fresh;
+  test_room = 0;
+  assert(!fresh.set_layout({"light.a"}, "One", changed) && !fresh.configured && fresh.refusal == "Error: no memory for 1 tiles");
+  assert(fresh.set_layout({}, "None", changed) && fresh.configured);
+  tile_room = nullptr;
+}
+struct RunTileRoom { RunTileRoom() { test_tile_room(); } } run_tile_room;
+// One redraw bit for each of the 48 tiles (firmware 0.2.65+); 32 bits sent tiles 33-48 through a full redraw.
+static void test_tile_bits() {
+  using namespace runtime_tiles;
+  assert(tile_bit(0) == 1 && tile_bit(31) == (uint64_t{1} << 31) && tile_bit(47) == (uint64_t{1} << 47));
+  assert(tile_bit(MAX_TILES - 1) && !tile_bit(64) && !tile_bit(MAX_TILES + 100));
+  uint64_t dirty = tile_bit(33) | tile_bit(47);
+  assert((dirty & tile_bit(33)) && (dirty & tile_bit(47)) && !(dirty & tile_bit(1)) && !(dirty & tile_bit(32)));
+  for (size_t a = 0; a < MAX_TILES; ++a) for (size_t b = a + 1; b < MAX_TILES; ++b) assert(!(tile_bit(a) & tile_bit(b)));
+}
+struct RunTileBits { RunTileBits() { test_tile_bits(); } } run_tile_bits;

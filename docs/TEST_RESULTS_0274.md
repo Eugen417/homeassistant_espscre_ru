@@ -24,7 +24,8 @@ CHANGELOG 0.2.74 and the compatibility note in docs/RELEASING.md. Built on 0.2.7
 
 - Python (`.venv-portal`): 396 tests OK, including the new `tests/test_full_page_tiles.py` (sizes and footprints,
   in-order packing, free slots, validation of full and page tiles, the firmware they need, the layout sensor, the wire
-  form of built-in tiles, tile events for Claude in Home Assistant, the 48 limit).
+  form of built-in tiles, tile events for Claude in Home Assistant, the 48 limit). Correction: the committed 0.2.74
+  runs 409 tests; 396 was counted on the branch before the rebase onto the Vue editor.
 - C++ (`c++ -std=c++17 -Wall -Wextra -pedantic`): 17/17 PASS. `tests/test_runtime_model.cpp` now covers 48 tiles, a
   list sized to the layout, `screen.page_<n>` validation and page targets, and full tiles in `pack()` and `place()`
   (a page of their own, snapping to the page start, the page count).
@@ -77,7 +78,9 @@ the harness follows each board's demo layout). What the checks cover:
 Both bench boards were OTA-flashed with firmware 0.2.62 from the Mac (`esphome upload easy-<board>-device.yaml
 --device <ip>`), the Guition first, and report 0.2.62 in Home Assistant. Heap right after boot (HA sensors): Guition
 89 KB free / 60 KB minimum / 45 KB largest block (0.2.59: 76 / 57 / 33), CYD 116 KB / 107 KB / 59 KB (0.2.59: 106 /
-96 / 51).
+96 / 51). Correction: the after-boot figures are not the steady state. With 48 populated tiles the CYD has about
+97 KB free, a 49 KB largest block and a 78.6 KB minimum; a 13-tile steady state is about 98 KB free / 49 KB largest
+block, so compare against those, not against 116 / 59.
 
 - `hw_push.py <scene> [cyd]` pushes one full-page scene straight to a board's `screen_message` action and, on the
   Guition, snapshots the LVGL render through `ui_snapshot`: the big button (lit amber, in Max's dark look a brown

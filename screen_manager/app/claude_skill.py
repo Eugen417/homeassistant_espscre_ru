@@ -14,11 +14,13 @@ import zipfile
 import tile_icons
 from core import (ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
-                  CONTROLS, DISPLAYS, FULL_PAGE_MIN_FIRMWARE, MAX_PAGES, MAX_TILES, SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS,
-                  TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE,
-                  DARK_MODE_MIN_FIRMWARE)
+                  CONTROLS, DISPLAYS, FULL_PAGE_MIN_FIRMWARE, MAX_PAGES, MAX_SLOTS, MAX_TILES, PAGE_TILE_REPEAT_MIN_FIRMWARE,
+                  SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE,
+                  SETTING_ENTITIES_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE)
 # Full-page tiles, navigation tiles and forty-eight tiles per screen.
 FULL_PAGE_VERSION = '.'.join(str(part) for part in FULL_PAGE_MIN_FIRMWARE)
+# The same navigation tile on several pages (app 0.2.78).
+PAGE_TILE_REPEAT_VERSION = '.'.join(str(part) for part in PAGE_TILE_REPEAT_MIN_FIRMWARE)
 
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
@@ -92,6 +94,8 @@ actions:
 | `name` | A name of your own on the tile; leave it out to keep Home Assistant's. |
 | `page` | Page, counted from 1. Without a spot the tile takes the first free one on that page. |
 | `row`, `column` | An exact spot on that page: row 1 to {SLOTS_PER_PAGE // 2}, column `left` or `right`. |
+| `slot` | An exact spot as the screen's sensor counts it, 0 to {MAX_SLOTS - 1}: instead of `page`, `row` and `column`. |
+| `from_page`, `from_slot` | Only for `esp_screens_move_tile`: which copy of a navigation tile that is on several pages to move (see below). |
 | `size` | `single`, `wide` or `full` (the whole page; firmware {FULL_PAGE_VERSION} or newer). |
 | `controls` | What you can operate on the tile itself (see below). |
 | `display` | How the tile draws itself (see below). |
@@ -102,7 +106,11 @@ actions:
 
 A tile with a control, a forecast or a sun path is drawn double-width on its own; you don't have to ask for that.
 
-A navigation tile goes to another page: add the entity `screen.page_3` (for page 3, `screen.page_1` to `screen.page_{MAX_PAGES}`) with a `name` such as "Heating"; it shows an arrow (or an `icon`), its name and the page number, and a tap opens that page. Handy as a menu on page 2 when page 1 is one full-page light switch. One such tile per page it goes to; it is single or double width, never full-page.
+A navigation tile goes to another page: add the entity `screen.page_3` (for page 3, `screen.page_1` to `screen.page_{MAX_PAGES}`) with a `name` such as "Heating"; it shows an arrow (or an `icon`), its name and the page number, and a tap opens that page. Handy as a menu on page 2 when page 1 is one full-page light switch. It is single or double width, never full-page.
+
+On firmware {PAGE_TILE_REPEAT_VERSION} or newer the same navigation tile can be on several pages, such as a `screen.page_1` named "Back" on every other page: add it with the `page` (or spot) it goes on, and a page without a copy gets a new one. Older firmware has one per page it goes to, and adding it again moves that one. Every other entity is on a screen once.
+
+When a navigation tile is on several pages, say which copy you mean: `page` or `slot` for `esp_screens_add_tile` (change that copy) and `esp_screens_remove_tile`, `from_page` or `from_slot` for `esp_screens_move_tile` (its `page` and `slot` say where to), and in `esp_screens_order_tiles` each time you name it takes the next copy. An event that doesn't say acts on the first copy, the one with the lowest `slot` in the sensor.
 
 ### What a tile can do, per kind of entity
 
@@ -118,7 +126,7 @@ Everything else shows its name and state, and opens a card of its own on a long 
 
 ### Reading a screen first
 
-Every screen also publishes what it shows, as `sensor.esp_screens_<device name>`: the state is the number of tiles, and the attributes hold `title`, `pages` and `tiles` with `entity`, `name`, `page`, `row`, `column`, `size`, `controls` and `display` per tile (and `to_page` for a `screen.page_<n>` tile). Read that before moving things around, so you know what is already there and where.
+Every screen also publishes what it shows, as `sensor.esp_screens_<device name>`: the state is the number of tiles, and the attributes hold `title`, `pages` and `tiles` with `entity`, `name`, `page`, `row`, `column`, `slot`, `size`, `controls` and `display` per tile (and `to_page` for a `screen.page_<n>` tile), every copy of a navigation tile on its own. Read that before moving things around, so you know what is already there and where.
 
 Ordering a page means naming the tiles that are on it, in the order you want:
 
@@ -135,7 +143,7 @@ A tile from another page has to be moved there first (`esp_screens_move_tile` wi
 
 ### What comes back
 
-ESP Screens answers every event with `{TILE_RESULT_EVENT}`, carrying `ok`, the `screen`, the `entity` and, when it refused, an `error` that says why ("No screen called ...", "That spot is taken by ...", "This screen already has {MAX_TILES} tiles", "No page is empty; a full-page tile needs a page of its own"). The add-on log says the same. Nothing changes on a refused event.
+ESP Screens answers every event with `{TILE_RESULT_EVENT}`, carrying `ok`, the `screen`, the `entity`, the `page` and `slot` of the tile it placed, changed, moved or removed (not for an order) and, when it refused, an `error` that says why ("No screen called ...", "That spot is taken by ...", "This screen already has {MAX_TILES} tiles", "No page is empty; a full-page tile needs a page of its own"). The add-on log says the same. Nothing changes on a refused event.
 
 ### How to work
 

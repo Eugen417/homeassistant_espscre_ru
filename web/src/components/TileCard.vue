@@ -5,7 +5,7 @@ import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
 import { displayNames, effectiveControls, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { entityName, liveOf, openTile, placeTile, removeTile, state, tileIconCp } from "../store";
+import { entityName, isSelected, liveOf, openTile, placeTile, removeTile, state, tileIconCp } from "../store";
 import type { Tile } from "../types";
 
 const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean }>();
@@ -21,7 +21,7 @@ const controls = computed(() => effectiveControls(props.tile, state.inventory));
 const domain = computed(() => props.tile.entity.split(".")[0]);
 const cp = computed(() => state.inventory.icons?.controls || {});
 const key = (n: string) => (cp.value[n] ? glyph(cp.value[n]) : "");
-const chosen = computed(() => state.selectedTile === props.tile.entity && state.inspector?.kind === "tile");
+const chosen = computed(() => isSelected(props.tile) && state.inspector?.kind === "tile");
 const live = computed(() => !props.placeholder && state.layout?.tiles.includes(props.tile));
 const label = computed(() => `${name.value}, slot ${(props.slot % SLOTS_PER_PAGE) + 1} on page ${pageOf(props.slot) + 1}. Enter: configure, arrow keys: move`);
 const now = computed(() => new Date(state.now));
@@ -77,7 +77,7 @@ const setpoint = computed(() => {
 });
 
 async function onKey(e: KeyboardEvent) {
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTile(props.tile.entity); return; }
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTile(props.tile); return; }
   const step = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 } as Record<string, number>)[e.key];
   if (!step) return;
   e.preventDefault();
@@ -93,7 +93,7 @@ async function onKey(e: KeyboardEvent) {
   <div class="tile" :class="{ wide, full, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot"
     :style="background && !bare ? { backgroundColor: background } : undefined"
     :tabindex="live ? 0 : -1" :role="live ? 'button' : undefined" :aria-label="live ? label : undefined"
-    v-drag="{ kind: 'tile', tile }" @click="live && openTile(tile.entity)" @keydown="live && onKey($event)">
+    v-drag="{ kind: 'tile', tile }" @click="live && openTile(tile)" @keydown="live && onKey($event)">
     <template v-if="display === 'analog'">
       <svg class="clockface" viewBox="0 0 60 60" aria-hidden="true">
         <circle cx="30" cy="30" r="27" fill="#fff" stroke="#c9ccd1" />

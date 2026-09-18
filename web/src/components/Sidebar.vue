@@ -52,6 +52,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
             <span>{{ screen.name }}</span>
             <small>{{ screen.online ? "Online" : "Offline" }}{{ screen.area ? " · " + screen.area : "" }} · {{ screen.firmware || "unknown" }}</small>
           </span>
+          <span v-if="screen.id === state.selected && state.dirty" class="unsaved" role="img" aria-label="Unsaved changes" title="Unsaved changes"></span>
           <span v-if="updateState(screen)?.kind === 'available'" class="pill">Update</span>
           <span v-else-if="updateState(screen)?.kind === 'running'" class="spin small"></span>
         </button>

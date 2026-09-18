@@ -12,8 +12,10 @@ import tile_icons
 DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
 BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
-# A navigation tile (firmware 0.2.62+): screen.page_<n> goes to page n; one per page it goes to, so an entity still appears once.
+# A navigation tile (firmware 0.2.62+): screen.page_<n> goes to page n. Firmware 0.2.65+ takes the same one on several
+# pages (a "Back to page 1" on every page); every other entity still appears once on a screen.
 PAGE_TILE = 'screen.page_'
+PAGE_TILE_REPEAT_MIN_FIRMWARE = (0, 2, 65)
 
 def page_target(entity):
     """The page a navigation tile opens, counted from one; 0 for any other entity."""
@@ -28,11 +30,14 @@ COVER_MIN_FIRMWARE = (0, 2, 64)
 MAX_TILES = 48
 LEGACY_MAX_TILES = 20
 FULL_PAGE_MIN_FIRMWARE = (0, 2, 62)
+# Twenty tiles from firmware 0.2.7, ten before.
+TWENTY_TILES_MIN_FIRMWARE = (0, 2, 7)
+FIRST_MAX_TILES = 10
 WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.64'
+FIRMWARE_VERSION = '0.2.65'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -115,6 +120,15 @@ def pack_slots(tiles):
         position += cells_of(size)
     return slots
 
+def packed_slots(tiles):
+    """pack_slots for tiles that must fit on the screen: ValueError when the packing runs past the last page (48
+    tiles with one of them double-width, or 43 with one full-page tile), before a save or an event stores it (app
+    0.2.78; the save used to fail later with "Invalid tile position")."""
+    slots = pack_slots(tiles)
+    if any(footprint(slot, tile_size(tile))[-1] >= MAX_SLOTS for tile, slot in zip(tiles, slots)):
+        raise ValueError("These tiles don't fit on eight pages; remove a tile or make one smaller.")
+    return slots
+
 def has_gaps(tiles):
     """True when the stored positions differ from the in-order packing, so firmware
     before 0.2.26 (which ignores `slots`) would show another arrangement."""
@@ -167,6 +181,50 @@ NAME_GUITION_TYPE = ('Guition screen type', 'Guition schermtype')
 NAME_DEVICE_NAME = ('Device name', 'Apparaatnaam')
 NAME_IP_ADDRESS = ('IP address', 'IP-adres')
 SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS)
+
+def parse_firmware(text):
+    """(major, minor, patch) of a screen firmware version such as "0.2.63"; None for anything else. Strict on purpose:
+    the firmware reports exactly its project version, and anything with a suffix is not a release."""
+    match = re.fullmatch(r'([0-9]+)\.([0-9]+)\.([0-9]+)', text) if isinstance(text, str) else None
+    return tuple(int(part) for part in match.groups()) if match else None
+
+# Home Assistant's device registry keeps an ESPHome device's version while the device is offline or restarting. With
+# `esphome: project:` (both board profiles) the ESPHome integration writes "<project version> (ESPHome <version>)".
+REGISTRY_FIRMWARE = re.compile(r'^([0-9]+\.[0-9]+\.[0-9]+) \(ESPHome ')
+
+def registry_firmware(sw_version):
+    """The screen firmware in a device registry sw_version, or None. Firmware built without a project has only
+    ESPHome's own version there, which must never read as a screen firmware."""
+    match = REGISTRY_FIRMWARE.match(sw_version) if isinstance(sw_version, str) else None
+    return match.group(1) if match else None
+
+def known_firmware(sensor, sw_version):
+    """The version text discover_screens gives a screen as `firmware_known`: the "Screen firmware" sensor when it holds
+    one, else the device registry's; None when neither does."""
+    return sensor if parse_firmware(sensor) else registry_firmware(sw_version)
+
+def screen_firmware(screen):
+    """The firmware a screen's feature gates go by (app 0.2.78): its "Screen firmware" sensor, or while that has no
+    version (the screen is offline or restarting) the one Home Assistant's device registry kept; None when neither
+    says. Before, an offline screen counted as firmware 0.0.0 and a save of more than ten tiles was refused."""
+    screen = screen or {}
+    return parse_firmware(screen.get('firmware_known')) or parse_firmware(screen.get('firmware'))
+
+def version_text(version):
+    """"0.2.65" for (0, 2, 65); None for None."""
+    return '.'.join(str(part) for part in version) if version else None
+
+def tile_limit(version):
+    """How many tiles firmware `version` (a tuple, or None when unknown) takes."""
+    version = version or (0, 0, 0)
+    return MAX_TILES if version >= FULL_PAGE_MIN_FIRMWARE else LEGACY_MAX_TILES if version >= TWENTY_TILES_MIN_FIRMWARE else FIRST_MAX_TILES
+
+def firmware_features(version):
+    """What the editor may offer a screen with firmware `version` (a tuple, or None): the tile limit, full-page and
+    navigation tiles, and the same navigation tile on several pages."""
+    version = version or (0, 0, 0)
+    return {'tile_limit': tile_limit(version), 'full_page': version >= FULL_PAGE_MIN_FIRMWARE,
+            'page_tiles_repeat': version >= PAGE_TILE_REPEAT_MIN_FIRMWARE}
 
 def entity_slug(name):
     """The end of an entity id Home Assistant derives from an entity name (ASCII names)."""
@@ -386,8 +444,15 @@ def validate_header(data):
         items.append(clean)
     return {'items': items}
 
+def repeated_page_tiles(tiles):
+    """True when a navigation tile to the same page is on the screen more than once (firmware 0.2.65+)."""
+    pages = [tile['entity'] for tile in tiles if page_target(tile['entity'])]
+    return len(pages) != len(set(pages))
+
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
+    if repeated_page_tiles(layout['tiles']):
+        return PAGE_TILE_REPEAT_MIN_FIRMWARE
     if len(layout['tiles']) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in layout['tiles']):
         return FULL_PAGE_MIN_FIRMWARE
     if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']):
@@ -398,8 +463,8 @@ def min_firmware(layout):
         return (0, 2, 16)
     if any(t['entity'].split('.')[0] in NEW_DOMAINS for t in layout['tiles']):
         return (0, 2, 14)
-    if len(layout['tiles']) > 10:
-        return (0, 2, 7)
+    if len(layout['tiles']) > FIRST_MAX_TILES:
+        return TWENTY_TILES_MIN_FIRMWARE
     return None
 
 def short(value, limit):
@@ -543,6 +608,29 @@ def event_slot(data, page):
 def page_of(tile):
     return tile.get('slot', 0) // SLOTS_PER_PAGE
 
+def copies_of(tiles, entity):
+    """The tiles of one entity in slot order: one, or several copies of a navigation tile (firmware 0.2.65+)."""
+    return sorted((tile for tile in tiles if tile['entity'] == entity), key=lambda tile: tile.get('slot', 0))
+
+def pick_copy(found, page=None, slot=None):
+    """The copy an event means: the one covering `slot`, else the first on `page`, else the first; None when none is
+    there. Only a navigation tile has several; an event that doesn't say which acts on the first (app 0.2.78)."""
+    if slot is not None:
+        return next((tile for tile in found if 'slot' in tile and slot in footprint(tile['slot'], tile_size(tile))), None)
+    if page is not None:
+        return next((tile for tile in found if page_of(tile) == page), None)
+    return found[0] if found else None
+
+def event_source(data):
+    """(page, slot) of the copy a move event means: `from_page` counted from one, or `from_slot`; None when not named."""
+    page = event_page({'page': data.get('from_page')})
+    slot = event_slot({'slot': data.get('from_slot')}, None)
+    return (slot // SLOTS_PER_PAGE if slot is not None else page), slot
+
+def where(page, slot):
+    """The place an event named, as its answer says it: "spot 12" or "page 3"."""
+    return f'spot {slot}' if slot is not None else f'page {page + 1}'
+
 def pack_page(tiles, page):
     """Give these tiles the cells of one page, in the order they are in."""
     position = page * SLOTS_PER_PAGE
@@ -558,12 +646,18 @@ def pack_page(tiles, page):
         tile['slot'] = position
         position += cells_of(size)
 
-def apply_tile_event(layout, action, data):
-    """The layout after one tile event. Raises ValueError with the sentence the log and the answer show."""
+def run_tile_event(layout, action, data, repeat_pages=False):
+    """(layout, tile): the layout after one tile event and the tile it placed, changed, moved or removed (None for an
+    order). Raises ValueError with the sentence the log and the answer show.
+
+    Only a navigation tile can be on a screen more than once, and only when its firmware takes that (`repeat_pages`,
+    0.2.65+). An event then names the copy it means by a spot it covers or by its page: `slot` or `page` for add and
+    remove, `from_slot` or `from_page` for a move (whose `slot` and `page` say where to), and each mention in an order
+    takes the next copy. Without that it acts on the first copy in spot order (app 0.2.78)."""
     result = {key: value for key, value in layout.items() if key != 'tiles'}
     tiles = [dict(tile) for tile in layout.get('tiles', [])]
     entity = str(data.get('entity') or '').strip()
-    page, slot = event_page(data), None
+    page = event_page(data)
     slot = event_slot(data, page)
     if slot is not None and page is None:
         page = slot // SLOTS_PER_PAGE
@@ -574,33 +668,57 @@ def apply_tile_event(layout, action, data):
         wanted = [str(item).strip() for item in wanted if str(item).strip()]
         if not wanted:
             raise ValueError('Give the entities in the order you want them.')
-        known = {tile['entity']: tile for tile in tiles}
-        missing = [name for name in wanted if name not in known]
+        picked, taken, missing, elsewhere, extra = [], set(), [], [], []
+        for name in wanted:
+            copies = copies_of(tiles, name)
+            here = [tile for tile in copies if page is None or page_of(tile) == page]
+            free = [tile for tile in here if id(tile) not in taken]
+            if not copies:
+                missing.append(name)
+            elif not here:
+                elsewhere.append(name)
+            elif not free:
+                extra.append(name)
+            else:
+                picked.append(free[0])
+                taken.add(id(free[0]))
         if missing:
             raise ValueError('Not on this screen: ' + ', '.join(missing) + '.')
+        if elsewhere:
+            raise ValueError('Not on page %d: %s. Move it there first.' % (page + 1, ', '.join(elsewhere)))
+        if extra:
+            raise ValueError('Named more often than it is on %s: %s.' % ('this screen' if page is None else f'page {page + 1}',
+                                                                        ', '.join(dict.fromkeys(extra))))
         if page is None:
-            rest = [tile for tile in tiles if tile['entity'] not in wanted]
-            tiles = [known[name] for name in wanted] + rest
-            for tile, cell in zip(tiles, pack_slots(tiles)):
+            tiles = picked + [tile for tile in tiles if id(tile) not in taken]
+            for tile, cell in zip(tiles, packed_slots(tiles)):
                 tile['slot'] = cell
         else:
-            elsewhere = [name for name in wanted if page_of(known[name]) != page]
-            if elsewhere:
-                raise ValueError('Not on page %d: %s. Move it there first.' % (page + 1, ', '.join(elsewhere)))
-            on_page = [known[name] for name in wanted] + [t for t in tiles if page_of(t) == page and t['entity'] not in wanted]
-            pack_page(on_page, page)
+            pack_page(picked + [tile for tile in tiles if page_of(tile) == page and id(tile) not in taken], page)
         result['tiles'] = tiles
-        return result
+        return result, None
     if not entity:
         raise ValueError('Name the entity.')
-    found = next((tile for tile in tiles if tile['entity'] == entity), None)
+    copies = copies_of(tiles, entity)
+    found = copies[0] if copies else None
     if action == 'remove':
+        source_page, source_slot = event_source(data)
+        if source_page is None:
+            source_page, source_slot = page, slot
         if not found:
             raise ValueError(f'{entity} is not on this screen.')
-        tiles.remove(found)
+        found = pick_copy(copies, source_page, source_slot)
+        if not found:
+            raise ValueError(f'{entity} is not on {where(source_page, source_slot)}.')
+        # The copy that was named itself, not the first tile equal to it.
+        tiles = [tile for tile in tiles if tile is not found]
     elif action == 'move':
         if not found:
             raise ValueError(f'{entity} is not on this screen; add it first.')
+        source_page, source_slot = event_source(data)
+        found = pick_copy(copies, source_page, source_slot)
+        if not found:
+            raise ValueError(f'{entity} is not on {where(source_page, source_slot)}.')
         if page is None and slot is None:
             raise ValueError('Name the page or the spot to move it to.')
         found.pop('slot', None)
@@ -608,6 +726,12 @@ def apply_tile_event(layout, action, data):
     else:
         if not entity_id(entity) and entity not in BUILTIN:
             raise ValueError(f'{entity} cannot go on a screen.')
+        # A navigation tile the firmware takes more than once: the copy on the named spot or page changes, and anywhere
+        # else a new copy goes (app 0.2.78). Every other tile, or one without a place, is the one that is there.
+        chosen = False
+        if copies and repeat_pages and page_target(entity) and (page is not None or slot is not None):
+            found = pick_copy(copies, page, slot)
+            chosen = found is not None
         was_size, had_slot = tile_size(found) if found else 'single', (found or {}).get('slot')
         options = tile_options(data, (found or {}).get('options'))
         tile = found or {'entity': entity, 'name': ''}
@@ -622,23 +746,30 @@ def apply_tile_event(layout, action, data):
                 raise ValueError(f'This screen already has {MAX_TILES} tiles; remove one first.')
             tiles.append(tile)
         size = tile_size(tile)
-        move = found is None or had_slot is None or page is not None or slot is not None
+        move = found is None or had_slot is None or (not chosen and (page is not None or slot is not None))
         if not move and size != was_size:
             # A tile that just grew keeps its spot when the cells it needs are free.
             start = page_start(had_slot) if size == 'full' else had_slot - had_slot % 2 if size == 'wide' else had_slot
             move = start != had_slot or bool(set(footprint(start, size)) & occupied_cells([t for t in tiles if t is not tile]))
         if move:
             tile.pop('slot', None)
-            if size == 'full' and had_slot is not None and page is None and slot is None:
+            if size == 'full' and had_slot is not None and ((page is None and slot is None) or chosen):
                 # A tile that grew to the whole page stays on its page when the page is otherwise empty.
                 try:
                     place_tile(tile, tiles, had_slot // SLOTS_PER_PAGE)
                 except ValueError:
                     place_tile(tile, tiles)
+            elif chosen:
+                place_tile(tile, tiles, page_of({'slot': had_slot}))
             else:
                 place_tile(tile, tiles, page, slot)
+        found = tile
     result['tiles'] = tiles
-    return result
+    return result, found
+
+def apply_tile_event(layout, action, data, repeat_pages=False):
+    """The layout after one tile event (run_tile_event without the tile it acted on)."""
+    return run_tile_event(layout, action, data, repeat_pages)[0]
 
 def layout_snapshot(screen, layout):
     """What a screen shows, for the sensor the app publishes in Home Assistant: one entry per tile with
@@ -717,7 +848,8 @@ def validate_layout(data, stored=False):
     for tile in tiles:
         if not isinstance(tile, dict) or not entity_id(tile.get('entity')):
             raise ValueError("This entity isn't supported.")
-        if tile['entity'] in seen:
+        # A navigation tile may go on several pages (min_firmware asks 0.2.65 for that); anything else appears once.
+        if tile['entity'] in seen and not page_target(tile['entity']):
             raise ValueError('An entity can only appear once on a screen.')
         name = tile.get('name', '')
         if not isinstance(name, str) or len(name.encode()) > 80:
@@ -796,7 +928,7 @@ def validate_layout(data, stored=False):
             item['slot'] = slot
         clean.sort(key=lambda item: item['slot'])
     else:
-        for item, slot in zip(clean, pack_slots(clean)):
+        for item, slot in zip(clean, packed_slots(clean)):
             item['slot'] = slot
     result = {'title': title.strip(), 'tiles': clean}
     # Pages kept on purpose, empty ones included; the screen shows at least what the tiles need.
@@ -1300,13 +1432,10 @@ def alert_targets(screens):
     """(ready, skipped): the paired screens that can show an alert now, and the others with the reason.
 
     One call per device: a screen that shows up twice (an old inbox next to a renamed one) counts once."""
-    minimum = tuple(int(part) for part in ALERT_MIN_FIRMWARE.split('.'))
+    minimum = parse_firmware(ALERT_MIN_FIRMWARE)
     ready, skipped, nodes = [], [], set()
     for screen in screens:
-        try:
-            version = tuple(int(part) for part in str(screen.get('firmware') or '').split('.'))
-        except ValueError:
-            version = ()
+        version = screen_firmware(screen)
         node = screen.get('node')
         if node in nodes:
             continue
@@ -1314,7 +1443,7 @@ def alert_targets(screens):
             skipped.append((screen, 'device name unknown'))
         elif not screen.get('online'):
             skipped.append((screen, 'offline'))
-        elif len(version) != 3 or version < minimum:
+        elif version is None or version < minimum:
             skipped.append((screen, f"firmware {screen.get('firmware') or 'unknown'}"))
         else:
             ready.append(screen)
@@ -1352,9 +1481,13 @@ def discover_screens(registry, states, devices, areas):
         device = device_map.get(item.get('device_id'), {})
         state = states.get(eid, {})
         area = area_map.get(item.get('area_id') or device.get('area_id'), '')
+        firmware = versions.get(item.get('device_id'), 'unknown')
         screens.append({'id': eid, 'name': device.get('name_by_user') or device.get('name') or eid,
                         'device_id': item.get('device_id'),
-                        'firmware': versions.get(item.get('device_id'), 'unknown'),
+                        'firmware': firmware,
+                        # What feature gates go by: the sensor, or Home Assistant's device registry while the screen is
+                        # offline or restarting (app 0.2.78).
+                        'firmware_known': known_firmware(firmware, device.get('sw_version')),
                         'board': boards.get(item.get('device_id'), 'unknown'),
                         'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
                         'device': device.get('name') or '',

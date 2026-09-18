@@ -130,18 +130,19 @@ export function controlsLabel(tile: Tile, inventory: Inventory) {
   return inventory.controls?.[tile.entity.split(".")[0]]?.choices.find((c) => c.key === key)?.label.toLocaleLowerCase() || key;
 }
 
-export const parseVersion = (v: string | undefined) => (/^(\d+)\.(\d+)\.(\d+)$/.exec(v || "") || []).slice(1).map(Number);
-export function versionAtLeast(version: string | undefined, minimum: string) {
+export const parseVersion = (v: string | undefined | null) => (/^(\d+)\.(\d+)\.(\d+)$/.exec(v || "") || []).slice(1).map(Number);
+export function versionAtLeast(version: string | undefined | null, minimum: string) {
   const [a, b] = [parseVersion(version), parseVersion(minimum)];
   if (a.length !== 3 || b.length !== 3) return false;
   for (let i = 0; i < 3; i++) if (a[i] !== b[i]) return a[i] > b[i];
   return true;
 }
-export const supportsFirmware = (firmware: string | undefined, major: number, minor: number, patch: number) =>
+export const supportsFirmware = (firmware: string | undefined | null, major: number, minor: number, patch: number) =>
   versionAtLeast(firmware, `${major}.${minor}.${patch}`);
-// Firmware 0.2.62 holds one tile per slot (48); 0.2.7 twenty; older firmware ten.
+// Firmware 0.2.62 holds one tile per slot (48); 0.2.7 twenty; older firmware ten. The add-on tells the editor per
+// screen (tile_limit, app 0.2.78); this rule stays for a screen entry without it.
 export const MAX_TILES = MAX_SLOTS;
-export function tileLimit(firmware: string | undefined) {
+export function tileLimit(firmware: string | undefined | null) {
   if (parseVersion(firmware).length !== 3) return 10;
   return versionAtLeast(firmware, "0.2.62") ? MAX_TILES : versionAtLeast(firmware, "0.2.7") ? 20 : 10;
 }

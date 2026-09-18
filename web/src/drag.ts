@@ -66,18 +66,46 @@ function beginDrag(e: PointerEvent) {
   try { drag.element.releasePointerCapture(drag.pointerId!); } catch {}
   try { document.documentElement.setPointerCapture(drag.pointerId!); } catch {}
   document.addEventListener("touchmove", blockScroll, { passive: false });
-  // Near the edges of the canvas the pages scroll along, so every page can be reached.
+  // Near the edges the pages scroll along, so every page can be reached.
   drag.scroller = window.setInterval(() => {
     if (!drag.last) return;
-    const canvas = document.querySelector<HTMLElement>(".canvas");
-    if (!canvas) return;
-    const r = canvas.getBoundingClientRect();
-    const dx = drag.last.x < r.left + 60 ? -12 : drag.last.x > r.right - 60 ? 12 : 0;
-    const dy = drag.last.y < r.top + 60 ? -12 : drag.last.y > r.bottom - 60 ? 12 : 0;
-    if (dx || dy) { canvas.scrollBy(dx, dy); setTarget(slotAt(drag.last.x, drag.last.y)); }
+    const { x, y } = dragScrollers(document);
+    const dx = x ? edgeStep(drag.last.x, visibleSpan(x, "x")) : 0;
+    const dy = y ? edgeStep(drag.last.y, visibleSpan(y, "y")) : 0;
+    if (dx) x!.scrollBy(dx, 0);
+    if (dy) y!.scrollBy(0, dy);
+    if (dx || dy) setTarget(slotAt(drag.last.x, drag.last.y));
   }, 16);
   setTarget(-1);
   moveDrag(e);
+}
+// True when the element scrolls along that axis: more content than room, and an overflow that lets it scroll.
+export function scrollsAlong(element: Element | null, axis: "x" | "y") {
+  if (!element) return false;
+  const more = axis === "x" ? element.scrollWidth > element.clientWidth : element.scrollHeight > element.clientHeight;
+  const overflow = getComputedStyle(element)[axis === "x" ? "overflowX" : "overflowY"];
+  return more && (overflow === "auto" || overflow === "scroll");
+}
+// What a drag near an edge scrolls, per axis (app 0.2.78). A wide window scrolls the canvas both ways. At 960 px and
+// narrower (a phone, also in the Home Assistant app) the canvas grows with its content: the row of pages scrolls
+// sideways and the page itself up and down, so a tile can still reach page 2 and beyond.
+export function dragScrollers(doc: Document): { x: Element | null; y: Element | null } {
+  const pages = doc.querySelector(".pages"), canvas = doc.querySelector(".canvas");
+  return {
+    x: scrollsAlong(pages, "x") ? pages : canvas,
+    y: scrollsAlong(canvas, "y") ? canvas : doc.scrollingElement,
+  };
+}
+// The part of a scroller on screen along one axis; the page itself is the whole window.
+function visibleSpan(element: Element, axis: "x" | "y"): [number, number] {
+  const view = axis === "x" ? window.innerWidth : window.innerHeight;
+  if (element === element.ownerDocument.scrollingElement) return [0, view];
+  const r = element.getBoundingClientRect();
+  return axis === "x" ? [Math.max(r.left, 0), Math.min(r.right, view)] : [Math.max(r.top, 0), Math.min(r.bottom, view)];
+}
+// Within 60 px of either end the scroller moves 12 px per step towards that end.
+export function edgeStep(position: number, [start, end]: [number, number]) {
+  return position < start + 60 ? -12 : position > end - 60 ? 12 : 0;
 }
 function blockScroll(e: TouchEvent) { if (state.drag.active) e.preventDefault(); }
 function finishDrag(e: PointerEvent) { if (e.pointerId === drag.pointerId) endDrag(e.type === "pointerup"); }
@@ -122,11 +150,13 @@ function endDrag(drop: boolean) {
   state.drag.moving = null;
   if (drop && preview && moving && state.layout) {
     const before = state.layout.tiles.map((t) => `${t.entity}@${t.slot}`).join();
+    // By the tile itself, not its entity: a screen can have several tiles that go to the same page (firmware 0.2.65).
+    const added = !state.layout.tiles.includes(moving);
     for (const { tile, slot } of preview) { tile.slot = slot; if (!state.layout.tiles.includes(tile)) state.layout.tiles.push(tile); }
     state.layout.tiles.sort((a, b) => a.slot - b.slot);
     if (state.layout.tiles.map((t) => `${t.entity}@${t.slot}`).join() !== before) markDirty();
     // Placing goes through the same rules as a click; a new tile also asks for its capabilities.
-    if (!before.includes(`${moving.entity}@`)) placeTile(moving, moving.slot);
+    if (added) placeTile(moving, moving.slot);
   }
 }
 window.addEventListener("click", (e) => { if (Date.now() < drag.suppressUntil) { e.stopPropagation(); e.preventDefault(); } }, true);

@@ -6,7 +6,7 @@ import { computed } from "vue";
 import { vDrag } from "../drag";
 import { domainInfo } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { addTile, automaticIcon, isGuition, state, tileLimit } from "../store";
+import { addTile, automaticIcon, isGuition, repeatable, state, tileLimit } from "../store";
 
 const FILTERS: [string, string][] = [
   ["", "All"], ["light", "Lights"], ["climate", "Climate"], ["switch", "Switches"], ["binary_sensor", "Status"], ["button", "Actions"],
@@ -15,6 +15,8 @@ const FILTERS: [string, string][] = [
 ];
 const ALIAS: Record<string, string> = { switch: "input_boolean", number: "input_number", select: "input_select", weather: "sun", button: "input_button" };
 const chosen = computed(() => new Set(state.layout?.tiles.map((t) => t.entity) || []));
+// On the screen and not to be added again; a page tile can be, when the firmware takes several (0.2.65).
+const placed = (id: string) => chosen.value.has(id) && !repeatable(id);
 const rooms = computed(() => [...new Set(state.inventory.entities.map((e) => e.area).filter((a): a is string => Boolean(a)))].sort((a, b) => a.localeCompare(b)));
 const matches = computed(() => {
   const query = state.search.toLocaleLowerCase(), filter = state.filter, room = state.room;
@@ -24,7 +26,7 @@ const matches = computed(() => {
     (isGuition.value || !["camera", "image"].includes(e.id.split(".")[0])) &&
     (!filter || e.id.startsWith(filter + ".") || ALIAS[filter] === e.id.split(".")[0]) &&
     (!room || e.area === room) &&
-    (!state.hidePlaced || !chosen.value.has(e.id)) &&
+    (!state.hidePlaced || !placed(e.id)) &&
     `${e.name} ${e.id} ${e.device || ""} ${e.area || ""}`.toLocaleLowerCase().includes(query));
 });
 const full = computed(() => (state.layout?.tiles.length || 0) >= tileLimit.value);
@@ -58,13 +60,13 @@ const tone = (e: { id: string; state?: string }) => {
     </div>
     <div class="lib-list" id="results" aria-live="polite">
       <button v-for="entity in matches.slice(0, 80)" :key="entity.id" type="button" class="ent" :title="entity.id"
-        :disabled="chosen.has(entity.id) || full" v-drag="{ kind: 'entity', id: entity.id }" @click="addTile(entity.id)">
+        :disabled="placed(entity.id) || full" v-drag="{ kind: 'entity', id: entity.id }" @click="addTile(entity.id)">
         <span class="av mdi" :class="tone(entity)" :style="{ color: domainInfo(entity.id)[2], background: domainInfo(entity.id)[3] }">{{ state.inventory.icons ? glyph(automaticIcon(entity.id)) : domainInfo(entity.id)[1] }}</span>
         <span class="tx">
           <b>{{ entity.name }}</b>
           <small>{{ [domainInfo(entity.id)[0], entity.area, entity.device].filter(Boolean).join(" · ") }}</small>
         </span>
-        <span class="add" :class="{ done: chosen.has(entity.id) }">{{ chosen.has(entity.id) ? "✓" : "+" }}</span>
+        <span class="add" :class="{ done: placed(entity.id) }">{{ placed(entity.id) ? "✓" : "+" }}</span>
       </button>
       <p v-if="!matches.length" class="hint">{{ state.hidePlaced && !state.search && !state.filter && !state.room ? "Everything here is already on this screen." : "No entities found. Try a different name, room or filter." }}</p>
       <p v-else-if="matches.length > 80" class="hint">{{ matches.length }} results. Keep typing to narrow it down.</p>

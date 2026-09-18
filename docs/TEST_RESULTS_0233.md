@@ -1,15 +1,20 @@
 # Testresultaten app 0.2.33 / firmware 0.2.28 (2026-09-14)
 
-Alleen firmware: op de Guition beslist LVGL of een tik doorgaat (loslaten binnen de tegel
-telt), de verplaatsingsgrens van de tap-guard staat daar uit. Max koos dit na een live
-geweigerde druk van 73 px op Studio 1.
+Alleen firmware: op de Guition zou LVGL beslissen of een tik doorgaat (loslaten binnen de
+tegel telt; zie de correctie hieronder), de verplaatsingsgrens van de tap-guard staat daar
+uit. Max koos dit na een live geweigerde druk van 73 px op Studio 1.
 
 ## Wat veranderde
 
 - `TouchGuard::configure(move_limit_px, ...)` met 0 betekent geen grens: `moved_` wordt nooit
   gezet, `accept()` en `accept_repeat()` kijken alleen nog naar duur, dubbel gebruik en
-  dender. LVGL's press-lost (vinger verlaat het object) bepaalt of de klik doorgaat.
+  dender. LVGL's press-lost (vinger verlaat het object) zou bepalen of de klik doorgaat.
 - Guition-profiel `TOUCH_MOVE_LIMIT_PX: "0"`; CYD blijft 56 (resistief paneel springt).
+- Correctie (2026-09-18): LVGL beslist dat niet. Een tegel houdt LVGL's `LV_OBJ_FLAG_PRESS_LOCK`
+  (standaard aan), dus een vinger die van de tegel schuift stuurt nooit `LV_EVENT_PRESS_LOST`, en
+  loslaten buiten de tegel telde op de Guition nog steeds als tik. Vanaf firmware 0.2.65 controleert
+  de tegel dat zelf (`runtime_tiles::event`): een tik of vasthouden waarbij de vinger buiten de tegel
+  loslaat, doet niets. PRESS_LOCK blijft aan.
 
 ## Geautomatiseerd
 
@@ -24,6 +29,7 @@ geweigerde druk van 73 px op Studio 1.
 ## Nog te controleren op Studio 1
 
 - Een stevige, schuivende druk op een tegel voert de actie uit zolang je binnen de tegel
-  loslaat; over de rand van de tegel loslaten doet niets (LVGL press-lost).
+  loslaat; over de rand van de tegel loslaten doet niets (zo bedoeld; waar vanaf firmware 0.2.65,
+  zie de correctie hierboven).
 - De randveeg (0.2.27) na een update zonder eerst een kaart te sluiten, en de eerste veeg
   na een paginawissel; het log meldt `randveeg niet gevuurd: …` als hij te kort was.

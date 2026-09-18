@@ -10,6 +10,7 @@ import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+sys.path.insert(0, str(ROOT / 'tests'))
 from core import (ALERT_FIELDS, ALERT_MAX_TIMEOUT, BROADCAST_DISMISS, BROADCAST_EVENTS, BROADCAST_SHOW,  # noqa: E402
                   alert_data, alert_reference, alert_targets)
 

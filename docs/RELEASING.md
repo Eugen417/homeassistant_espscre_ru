@@ -23,16 +23,42 @@
    The editor is the Vue app in `web/`: after a change under `web/src`, run
    `cd web && npm ci && npm test && npm run check && npm run build` and commit
    `screen_manager/app/static` with it (that folder is the build output; never edit it by hand).
-2. Run all Python tests with aiohttp installed, all `tests/*.cpp`, the
-   generator with `--check`, and compile both Easy Setup profiles. Do that
-   sequentially: profiles with the same `DEVICE_NAME` share one build folder, and a
-   parallel build can make an upload pick the wrong `firmware.bin`. Check that no
-   secrets are in Git.
+2. Run `tools/check.sh` (with `PYTHON=.venv-portal/bin/python` on a development machine). It runs all
+   Python tests with aiohttp, PyYAML, Pillow and fontTools installed, every `tests/*.cpp` with
+   `clang++ -std=c++17 -Wall -Wextra -Werror -I.`, both generators with `--check`, and the editor's
+   `npm ci`, `npm test`, `npm run check` and `npm run build`, and fails when that fresh build differs from the
+   `screen_manager/app/static` in Git (committed or staged). For a firmware change, `tools/check.sh --firmware`
+   compiles both board profiles with placeholder secrets from a temporary folder (never the real `secrets.yaml`) and
+   applies the flash budget below; `--all` does both. CI (`.github/workflows/ci.yml`) runs the same script on every
+   push and pull request to main. Compile sequentially: profiles with the same `DEVICE_NAME` share one build folder,
+   and a parallel build can make an upload pick the wrong `firmware.bin` (the check builds are called `check-cyd` and
+   `check-guition` and build under `.esphome/check`, apart from the bench profiles). Check that no secrets are in Git.
+
+   **Flash budget of the CYD** (Max's rule, app 0.2.78). The CYD has 4 MB of flash and two update slots of
+   1,835,008 bytes; the Guition's 16 MB leave it far from any limit. Measure the CYD on the build users get: the YAML
+   `core.installation_yaml()` writes has the Wi-Fi fallback access point (`wifi: ap:`) and `captive_portal:`, about
+   84 KB more than a profile without them. The board profiles carry both, so `tools/check.sh --firmware` measures
+   that shape; it reads the slot from the build's `partitions.csv` (`app0`, `ota_0`) and the image from
+   `firmware.ota.bin`, and `--baseline <bytes>` prints the delta against the last release. The check-profile tables
+   in earlier test results left both out and read about 84 KB low (0.2.72: 1,453,647 bytes, 79.2 %, where the
+   user-shaped build was 1,538,032 bytes, 83.8 %). Build with the add-on's pinned ESPHome (`screen_manager/Dockerfile`)
+   and, when the ESPHome Device Builder ships a newer ESPHome, with that one too (`ESPHOME=<its esphome command>`),
+   because users build their updates there.
+
+   | CYD image, share of 1,835,008 bytes | Rule |
+   |---|---|
+   | up to 90 % | normal |
+   | 90-93 % | tight: every release states its flash delta; a delta over 8 KB needs a matching saving or Max's OK |
+   | 93-95 % | only fixes ship |
+   | over 95 % | never: that keeps about 90 KB for ESPHome upgrades and users' own overrides |
 3. Test app start, saving, restarting/updating with existing layouts,
    reconnecting to HA, and an ESP restart. Test a new card on real
    hardware. A good build doesn't replace physical touch acceptance.
 4. Bump the app version and firmware project version; write the CHANGELOG and concrete
-   test results. Only publish compatible changes directly to main.
+   test results. Only publish compatible changes directly to main. `tests/test_release_lint.py`
+   (part of `tools/check.sh`) holds `config.yaml`'s version, the first CHANGELOG heading and its
+   firmware against `FIRMWARE_VERSION`, keeps the CHANGELOG headings unique and newest first, and checks
+   that every `fonts/...` file the packages fetch from GitHub is in the tree.
 5. Commit and push main (the only release branch). Create an immutable tag
    `screens-vX.Y.Z` from the same commit. Test the remote YAML in an empty folder:
    all components/fonts must be fetchable via GitHub.
@@ -52,7 +78,7 @@ For backend tests on a development machine:
 
 ```sh
 python3 -m venv .venv-portal
-.venv-portal/bin/pip install aiohttp PyYAML
+.venv-portal/bin/pip install aiohttp PyYAML Pillow fonttools
 .venv-portal/bin/python -m unittest discover -s tests
 ```
 
@@ -189,12 +215,45 @@ icons sit off-center in the browser); run `generate_packages.py` afterward.
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.78 / firmware 0.2.65
+
+Repeated navigation tiles: the same `screen.page_<n>` may sit on several pages of one screen. Firmware 0.2.65 accepts
+repeats of `screen.page_*` only (`Model::set_layout`, `page_entity()`); every Home Assistant entity still appears once.
+The app sends a repeat only to 0.2.65+ (`PAGE_TILE_REPEAT_MIN_FIRMWARE` in `min_firmware`); an older screen gets
+"Install screen firmware 0.2.65 or newer first". Tile events from Claude in HA pick a copy by `slot`/`page` (move:
+`from_slot`/`from_page`); without one they act on the first copy in slot order, and the answer names its page and slot.
+
+- Firmware: `dirty_tiles` is 64 bits (`tile_bit`, `mark_tile`, `static_assert(MAX_TILES <= 64)`). `set_layout` refuses a
+  layout whose tile list does not fit the largest free block (`tile_room`, ESP32 only) and reports it through
+  `Model::refusal`; `TileAllocator` logs and aborts on a null block instead of writing through it. The second hand
+  moves on `analog` and `calendar` dials while part 18 is an `lv_line` (`lv_obj_check_type`). Guition: an
+  `LV_EVENT_GESTURE` handler on `home_page` consumes the contact (no page flip; LVGL needs speed and 50 px), and
+  `runtime_tiles::event` drops a tap or hold released outside the tile (`lv_obj_hit_test`); LVGL's `PRESS_LOCK` stays so
+  a finger that slides on to a slider never drags it. `dim_wake_overlay` calls `runtime_tiles::wake_tap()` after
+  `wake_display`: on a page that is one full tile whose tap is `<domain>.toggle`, the waking push also taps it. Page
+  bars (tile pages and the settings page) react to `on_click`/`LV_EVENT_CLICKED`. `lvgl: default_font` is a Roboto font
+  of each board, so ESPHome no longer builds Montserrat 14 (CYD -13.9 KB).
+- App: `Manager.save` encodes the real layout message and refuses one over 4096 bytes; `core.packed_slots` refuses tiles
+  that don't fit eight pages. `discover_screens` adds `firmware_known`: the "Screen firmware" sensor when it holds a
+  strict X.Y.Z, else the device registry's `sw_version` in the form `X.Y.Z (ESPHome …)`. Every screen in the inventory
+  carries `firmware_known`, `tile_limit`, `full_page` and `page_tiles_repeat`; the changelog moved from the update
+  summary (and the live stream) to the full inventory's top-level `changelog`. HA refusals answer 400 and an unreachable
+  HA 503, both JSON `{"error"}`. `client_max_size` 128 KB. Hashed `/assets/` files get `private, max-age=31536000,
+  immutable`; the page and `/api` keep `no-store`. `config.yaml` drops `init: false` (tini is PID 1 again) and the server
+  uses aiohttp's `handle_signals`.
+- Editor: `npm run build` type-checks first (`vue-tsc --noEmit`), `devEngines` pins Node. Storage unchanged.
+
 ### Compatibility 0.2.74 / firmware 0.2.62
 
 Forty-eight tiles per screen, a tile over the whole page (`size: full`) and navigation tiles (`screen.page_1` to
 `screen.page_8`). The app sends any of the three only to firmware 0.2.62+ (`FULL_PAGE_MIN_FIRMWARE`); an older screen
 gets "Install screen firmware 0.2.62 or newer first". Older apps keep working with this firmware: they never send
 `full` or a page tile, and the firmware still packs `wide` as before.
+
+Downgrade: an app older than 0.2.74 stops at startup on a stored layout with more than 20 tiles or a page tile
+(`validate_layout` raises "Choose at most 20 tiles." or "This entity isn't supported." even with `stored=True`);
+`screens.json` stays untouched. Before going back, trim the layout to 20 normal tiles, or restore the app backup (the
+Supervisor restores the version and its data together).
 
 - Firmware: `MAX_TILES` is `MAX_SLOTS` (48). `Model::tiles` is a `std::vector` sized to the layout (a `TileAllocator`
   over ESPHome's `RAMAllocator`, so a Guition keeps the list in PSRAM; the CYD's falls back to its heap); nothing may
@@ -227,6 +286,9 @@ storage or editor change, and an older app drives this firmware as before.
   the Guition), a contact that moved, a contact that already counted, and a tap within 150 ms of the last accepted
   tap on the same button (bounce). `show_page` already drops a fill still under way when the next page is asked for,
   so nothing else changed. `tests/test_cyd_ui.cpp` covers the page buttons.
+- On the CYD a lift-off bounce is stopped first by the XPT2046 filter (`components/xpt2046/touchscreen/touch_filter.h`:
+  three matching samples start a contact, two empty samples release it, one empty sample is ignored); the 40 ms
+  minimum and the 150 ms same-button gap of `accept_repeat` are backup nets behind it (noted 2026-09-18).
 - The settings page's own pager (`settings_screen.h`) never used the guard and is unchanged. Tile taps, cards, keys,
   chips and sliders keep `accept()` and its window.
 
@@ -1138,8 +1200,15 @@ rotation mapping, `update()`, `end()`); the indev callback is gone. Otherwise un
 ### Compatibility 0.2.33 / firmware 0.2.28
 
 Firmware only. `TouchGuard::configure(0, ...)` disables the movement limit
-(`moved_` is then never set; LVGL's press-lost decides whether a tap goes through). The
-Guition profile sets `TOUCH_MOVE_LIMIT_PX` to 0, the CYD keeps 56. Otherwise unchanged.
+(`moved_` is then never set). The Guition profile sets `TOUCH_MOVE_LIMIT_PX` to 0, the
+CYD keeps 56. Otherwise unchanged.
+
+Correction (2026-09-18): this note said LVGL's press-lost then decides whether a tap goes
+through. It doesn't: a tile keeps LVGL's `LV_OBJ_FLAG_PRESS_LOCK` (on by default), so a
+finger that slides off never sends `LV_EVENT_PRESS_LOST`, and on the Guition a release
+outside the tile still counted as a tap. From firmware 0.2.65 a tile without a movement limit
+checks it itself (`runtime_tiles::event`): a tap or hold whose finger lets go outside the tile
+does nothing. PRESS_LOCK stays on.
 
 ### Compatibility 0.2.32 / firmware 0.2.27
 

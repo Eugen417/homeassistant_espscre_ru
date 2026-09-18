@@ -2,9 +2,11 @@
 # Source profile for packages/guition.yaml (tools/generate_packages.py); see docs/GUITION.md.
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs. The CYD is its own profile.
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.64"
-  # 0: no drift limit; LVGL decides, releasing inside the tile is a tap, leaving it is not
-  # (like iOS). The CYD keeps a limit because its resistive panel jumps.
+  SCREEN_FIRMWARE_VERSION: "0.2.65"
+  # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
+  # (runtime_tiles::event checks where it let go: LVGL keeps the press on the tile and would click it
+  # anywhere), and a quick flick is LVGL's gesture, never a tap (the home_page gesture handler in on_boot).
+  # The CYD keeps a limit because its resistive panel jumps.
   TOUCH_MOVE_LIMIT_PX: "0"
   # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
   TOUCH_MIN_PRESS_MS: "20"
@@ -222,6 +224,19 @@ esphome:
             lv_obj_add_flag(id(climate_mode_overlay), LV_OBJ_FLAG_HIDDEN);
           };
           runtime_tiles::layout_changed = []() { id(show_tile_page).execute(); };
+          // A quick flick or wipe over the tiles is never a tap (firmware 0.2.65+). LVGL reports it as a gesture that
+          // bubbles up to this page (a tile's slider keeps its own, runtime_tiles::bind): the tap under the finger is
+          // consumed and LVGL waits for the release. No page flip: pages change with the edge swipe (on_update). LVGL
+          // wants speed as well as 50 px of travel, so a firm press that drifts slowly is still a tap. Cards and the
+          // settings page keep their drags; in standby the push still wakes the screen, it only switches nothing.
+          lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *) {
+            if (!runtime_tiles::enabled || id(calibration_active) || !id(active_entity).empty() || settings_screen::visible() ||
+                (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN))) return;
+            cyd::touch_guard.consume();
+            ESP_LOGI("touch", "flick: no tap");
+            if (id(display_dimmed)) return;
+            if (auto *input = lv_indev_active()) lv_indev_wait_release(input);
+          }, LV_EVENT_GESTURE, nullptr);
           // Camera images (firmware 0.2.57+): the two online_images and the alert's frame.
           // set_url() forgets the ETag, so it is only called for a new link: an unchanged picture then answers 304.
           runtime_tiles::camera_full.load = [](const std::string &url) {
@@ -1627,6 +1642,9 @@ display:
 
 lvgl:
   id: screen_lvgl
+  # The theme's font for text without a font of its own. Every label names its font, so this only keeps
+  # ESPHome from building LVGL's Montserrat 14 for nothing (firmware 0.2.65+).
+  default_font: sublabel
   on_draw_start:
     - lambda: 'id(rendered_frames)++;'
   displays:
@@ -2478,7 +2496,9 @@ lvgl:
             pressed:
               styles: paint_page_pressed
               bg_opa: COVER
-            on_short_click:
+            # on_click: LVGL sends no short click after a press of 400 ms, so a firm or slow press did nothing
+            # (firmware 0.2.65+). The bar has no hold of its own; accept_repeat still drops bounce and a swipe.
+            on_click:
               - if:
                   condition:
                     lambda: 'return cyd::touch_guard.accept_repeat(millis(), 11);'
@@ -2519,7 +2539,7 @@ lvgl:
             pressed:
               styles: paint_page_pressed
               bg_opa: COVER
-            on_short_click:
+            on_click:
               - if:
                   condition:
                     lambda: 'return cyd::touch_guard.accept_repeat(millis(), 12);'
@@ -3693,6 +3713,9 @@ lvgl:
             clickable: true
             on_click:
               - script.execute: wake_display
+              # A page that is one full tile switching something on or off switches with this push as well
+              # (firmware 0.2.65+, runtime_tiles::wake_tap); on every other page the first touch only wakes.
+              - lambda: 'runtime_tiles::wake_tap();'
 
     - id: touch_cal_page
       styles: paint_page_soft

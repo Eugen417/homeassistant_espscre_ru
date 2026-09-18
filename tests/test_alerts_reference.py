@@ -9,6 +9,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
+sys.path.insert(0, str(ROOT / 'tests'))
 import tile_icons  # noqa: E402
 from core import (ALERT_LIMITS, ALERT_MIN_FIRMWARE, FIRMWARE_VERSION, TILE_BACKGROUNDS, alert_reference,  # noqa: E402
                   alert_service)

@@ -10,14 +10,15 @@ build and flash run in the same window; it then shows the API key
 for pairing. Is the Home Assistant machine out of reach of the screen, such as a server or a
 virtual machine? Choose **Download** under **Install via**: ESP Screens builds the firmware and
 you put it on the screen from your own computer with [ESPHome Web](https://web.esphome.io) in
-Chrome or Edge. Pairing itself happens in Home Assistant under **Settings → Devices & services** (a button in the window and on the *not yet in Home Assistant* card under My screens). Each screen has its own profile. **Firmware & USB** in the sidebar is
+Chrome or Edge. Pairing itself happens in Home Assistant under **Settings → Devices & services** (a button in the window and on the *not yet in Home Assistant* card under Screens in the sidebar). Each screen has its own profile. **Firmware & USB** in the sidebar is
 for existing profiles: check, build or reinstall via USB, the IP address (OTA) or
 Download. Existing ESPHome profiles in the HA config folder are
 found automatically.
 
-**Settings** in the sidebar has the nightly firmware updates (the Update badge of a screen lists what's new, a running update shows its progress), the **Alerts** cheatsheet with a form to try an alert
-(an alert on one screen, or on every screen with the `esp_screens_show_alert` event)
-and **Claude**: install the ESP Screens skill for Claude Code in Home Assistant, or
+**Alerts** in the sidebar is the cheatsheet, with a form to try an alert
+(an alert on one screen, or on every screen with the `esp_screens_show_alert` event).
+**Settings** in the sidebar has the nightly firmware updates (the Update badge of a screen lists what's new, a
+running update shows its progress) and **Claude**: install the ESP Screens skill for Claude Code in Home Assistant, or
 download it for claude.ai, and ask Claude for the alert automation.
 
 Tap the bar at the top of any page in the mockup to set the **Top bar** of a screen: the name on the left, up

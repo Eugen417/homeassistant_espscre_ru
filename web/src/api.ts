@@ -16,9 +16,12 @@ export async function api(path: string, options: RequestInit = {}): Promise<Resp
     },
   });
   if (!response.ok) {
+    // Any answer with a JSON {"error": "..."} says what went wrong, such as Home Assistant refusing an action (400) or
+    // not answering in time (503, app 0.2.78); anything else, like an error page of the ingress proxy, gets this one.
     let message = "That didn't work. Refresh the page and try again.";
     try {
-      message = (await response.json()).error || message;
+      const error = (await response.json())?.error;
+      if (typeof error === "string" && error.trim()) message = error;
     } catch {}
     throw new Error(message);
   }

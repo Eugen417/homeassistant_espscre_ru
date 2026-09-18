@@ -1,3 +1,20 @@
+## 0.2.78 (firmware 0.2.65)
+
+Fixes from a full test round of 0.2.72 to 0.2.76, a light switch that works in the dark, and a way back to the menu.
+
+- **The analog clock on a single tile ticks again.** Since 0.2.74 its second hand stood still; only the wide and full-page clocks moved.
+- **A full-page light switch works with one push in standby.** On a dimmed screen the first touch only woke it, so the switch by the door needed two pushes most of the day. On a page that is one full tile switching something on or off, the waking push now switches it too; every other page still only wakes.
+- **A swipe is never a tap (Guition).** A quick flick or wipe across a tile, a full-page light above all, switched it. A swipe now only swipes, and a finger that slides off a tile before letting go no longer taps it, as 0.2.33 meant. A firm press that drifts a little still counts.
+- **Previous and Next react to a firm or slow press.** A press longer than about half a second did nothing; the pages of the screen's settings page too.
+- **The same Go to page tile can sit on several pages**, such as a way back to page 1 on every sub-page. *Goes to page* lists the pages the screen has plus the next one, marked *(empty)*. Claude in Home Assistant names each copy by its page or spot. Needs firmware 0.2.65.
+- **Save refuses what could never reach the screen**, with a sentence that says why: tiles whose entity IDs together are too long for one message, or tiles that don't fit on eight pages. Before, such a layout saved and then kept failing to send. Big layouts with actions on their taps save again (the request limit went from 16 to 128 KB).
+- **A screen that is offline or restarting keeps its 48 tiles** in the editor and can still be saved: ESP Screens uses the firmware version Home Assistant remembers for the device instead of treating it as a very old screen.
+- **Editor:** clicking the open screen in the sidebar (the way back from Firmware & USB, Alerts or Settings) no longer throws away unsaved changes, and a change made while *Save & send* is on its way stays unsaved. Every tile's settings have a *Page* row to move it without dragging, and on a phone the pages scroll sideways and a dragged tile reaches page 2 and beyond. When Home Assistant refuses *Identify* or *Try it*, the editor says so instead of "That didn't work". *What's new* no longer shows asterisks. The editor opens faster: the browser keeps its scripts and fonts.
+- **The app stops in a moment** instead of ten seconds, and a firmware build that is running stops cleanly. An unreadable changelog no longer stops the app from starting.
+- **The screen stays up when memory runs out:** a layout the screen has no room for is refused with a message instead of crashing it. Tiles 33 to 48 no longer redraw the whole page on every change. The CYD firmware is about 14 KB smaller (LVGL's unused Montserrat font is no longer built in).
+- Every push now runs the release checks on GitHub (`tools/check.sh`), including a compile of both firmwares and a flash budget for the CYD. The guides match the current editor (48 tiles, the sidebar), and the 0.2.75 notes now give the real cost of the smoother icons: 108 KB, 90 % of the CYD's update slot.
+- Needs firmware 0.2.65: press **Update** on the screen. Includes everything from 0.2.77.
+
 ## 0.2.77 (firmware 0.2.64)
 
 A media card like a phone's "now playing", with the album cover on a Guition.
@@ -22,7 +39,7 @@ The CYD in the editor shows the whole tile again.
 Smooth icons on the CYD: the power ring is a ring again.
 
 - **Every icon is drawn with sixteen shades instead of two.** The icon fonts of both boards were rendered at one bit per pixel, the default ESPHome falls back to when a font does not say otherwise, while the text fonts already had four. On the CYD, at 18 and 28 pixels, that made a thin stroke such as the ring of the power icon lumpy and uneven; the edges of every other icon were ragged too. The icons now get the same four bits per pixel as the text, on the Guition as well, so both brands look alike.
-- **Costs the CYD 95 KB of flash** (89 % of its update slot is in use now, was 84 %) and no memory: fonts live in flash.
+- **Costs the CYD 108 KB of flash** (90 % of its update slot is in use now, was 84 %) and no memory: fonts live in flash. The first count, 95 KB, was taken before 0.2.74 added the big icon font of the full-page tile.
 - Needs firmware 0.2.63: press **Update** on the screen. Includes everything from 0.2.74.
 
 ## 0.2.74 (firmware 0.2.62)
@@ -34,6 +51,7 @@ Forty-eight tiles, a tile over the whole page, and tiles that go to a page.
 - **Go to page.** A new built-in tile, *Go to page*, opens the page you choose: an arrow (or an icon of your own), its name and the page number, with a chevron like the rows in Home Assistant's settings. Put a full-page light switch on page 1 and a menu of *Heating*, *Blinds* and *Vacuum* on page 2, each with its own page.
 - Claude in Home Assistant can do the same: `size: full` on a tile, and `screen.page` with `to_page` for a navigation tile. The screen's sensor reports both.
 - Needs firmware 0.2.62: press **Update** on the screen. Includes everything from 0.2.73.
+- Going back to an app older than 0.2.74 after using more than 20 tiles or a *Go to page* tile: that app stops at startup ("Choose at most 20 tiles." or "This entity isn't supported."), and the saved layouts (`screens.json`) stay untouched. Before going back, trim the layout to 20 normal tiles, or restore the app's backup (the Supervisor restores the version and its data together).
 
 ## 0.2.73 (firmware 0.2.61)
 

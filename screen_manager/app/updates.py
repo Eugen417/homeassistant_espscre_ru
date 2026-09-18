@@ -8,17 +8,13 @@ from pathlib import Path
 import re
 import time
 import changelog
-from core import FIRMWARE_VERSION
+from core import FIRMWARE_VERSION, parse_firmware
 
 LOG = logging.getLogger('screen_manager')
 NIGHT_HOURS = range(3, 6)
 
-def parse_version(text):
-    try:
-        parts = tuple(int(part) for part in str(text).split('.'))
-    except ValueError:
-        return None
-    return parts if len(parts) == 3 else None
+# Strict X.Y.Z, the one rule the feature gates follow too: an update goes by what the screen's sensor reports now.
+parse_version = parse_firmware
 
 TARGET = parse_version(FIRMWARE_VERSION)
 
@@ -105,8 +101,9 @@ class Updater:
                 'result': self.results.get(screen['id'])}
 
     def summary(self, screens=None, profiles=None):
+        # The changelog goes with the full inventory only (app 0.2.78): this summary is in every live update of the page.
         return {'auto': self.auto, 'target': FIRMWARE_VERSION, 'busy': self.current,
-                'pending': len(self.pending(screens, profiles)), 'last_round': self.last_round, 'changelog': self.changelog}
+                'pending': len(self.pending(screens, profiles)), 'last_round': self.last_round}
 
     def pending(self, screens=None, profiles=None):
         # Callers that already hold the inventory and profile list pass them in; the inventory

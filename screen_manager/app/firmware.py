@@ -39,7 +39,7 @@ def profile_meta(text):
 
 class Firmware:
     OVERRIDE_SUFFIX = '.local.yaml'
-    OVERRIDE_LIMIT = 12 * 1024  # bytes; the request body limit is 16 KB and JSON escaping grows the text
+    OVERRIDE_LIMIT = 12 * 1024  # bytes; checked here, far below the request body limit (128 KB since app 0.2.78)
     PROTECTED_OVERRIDE_KEYS = frozenset({'esphome', 'api', 'ota', 'wifi', 'packages',
                                          'external_components', 'captive_portal'})
     PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION'})
