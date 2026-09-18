@@ -77,9 +77,23 @@ Both Easy Setup profiles compile with ESPHome 2026.6.2, no warnings (see the pit
 | Guition (easy-guition-device) | 1,971,975 B, 24.3 % of 8 MB | 76,852 B, 23.5 % |
 | CYD (easy-cyd-device) | 1,582,183 B, 86.2 % of the 1.835 MB update slot | 71,276 B, 21.8 % |
 
-## Hardware
+## Hardware (Studio 1, Guition on the studio's Home Assistant, 2026-09-18 17:20)
 
-Pending at the time of writing.
+- Released as `079ffcf`, tag `screens-v0.2.77`. The add-on on the studio's Home Assistant went 0.2.75 → 0.2.77 from the
+  store; Studio 1 got firmware 0.2.64 over OTA, built from GitHub main (so the published package and its fonts and
+  components resolve; both packages also pass `esphome config` from an empty folder). It came back on the same address,
+  Home Assistant reports firmware 0.2.64 and the tile settings read *Synced*.
+- Two Sonos tiles were added through the `esp_screens_add_tile` event: `media_player.office_rukbunker` as a full-page
+  tile on page 4 and `media_player.keuken_bar` as a single tile on page 5 (the Sonos group plays in the studio).
+- The card of the Keuken Bar tile (opened with `preview_runtime_card`): the app answered one cover request (the screen
+  asked a second time after 10 s, its normal retry, because the first event arrived while the app reconnected), the
+  real Spotify cover (69 KB BMP) loaded in one download and showed with the title, the artist, the running bar, the
+  keys and the muted volume row.
+- Media card open with its cover, then `esp_screens_show_alert` with `camera.amcrest_camera`: the card closed, the
+  alert's picture (182 KB) loaded alone and showed 2.2 s after the event; the alert timed out by itself.
+- Heap after these tests: 96 KB free, 55 KB largest block, lowest free 91 KB (0.2.63 before the update: 86 / 32 / 61 KB).
+- Not tested on hardware: the full-page tile (a page change needs a finger) and the keys and slider on a real player
+  (they play music in the studio): Max checks those himself.
 
 ## Pitfalls
 
