@@ -28,7 +28,8 @@ PROFILES = [ROOT / 'home-like-2432s028.yaml', ROOT / 'guition-4848s040.yaml']
 WEB_FONT = ROOT / 'web/src/assets/tile-icons.woff'
 BAR_FONTS = {weight: ROOT / f'web/src/assets/bar-roboto-{weight}.woff' for weight in (400, 500)}
 NAME_TABLE = ROOT / 'components/smart_display/tile_icon_names.h'
-FONT_BLOCK = re.compile(r"(  - file: 'fonts/materialdesignicons-webfont\.ttf'\n    id: \w+\n    size: \d+\n)    glyphs:.*\n(?:      .*\n)*")
+# Four bits per pixel: the default of one draws a thin ring like mdi:power as a lumpy circle on the CYD.
+FONT_BLOCK = re.compile(r"(  - file: 'fonts/materialdesignicons-webfont\.ttf'\n    id: \w+\n    size: \d+\n    bpp: 4\n)    glyphs:.*\n(?:      .*\n)*")
 
 def verify():
     """Names and codepoints must match the TTF the firmware is built from."""

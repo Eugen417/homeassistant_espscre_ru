@@ -1,3 +1,11 @@
+## 0.2.75 (firmware 0.2.63)
+
+Smooth icons on the CYD: the power ring is a ring again.
+
+- **Every icon is drawn with sixteen shades instead of two.** The icon fonts of both boards were rendered at one bit per pixel, the default ESPHome falls back to when a font does not say otherwise, while the text fonts already had four. On the CYD, at 18 and 28 pixels, that made a thin stroke such as the ring of the power icon lumpy and uneven; the edges of every other icon were ragged too. The icons now get the same four bits per pixel as the text, on the Guition as well, so both brands look alike.
+- **Costs the CYD 95 KB of flash** (89 % of its update slot is in use now, was 84 %) and no memory: fonts live in flash.
+- Needs firmware 0.2.63: press **Update** on the screen. Includes everything from 0.2.74.
+
 ## 0.2.74 (firmware 0.2.62)
 
 Forty-eight tiles, a tile over the whole page, and tiles that go to a page.

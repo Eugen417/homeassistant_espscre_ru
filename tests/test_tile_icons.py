@@ -22,7 +22,7 @@ class IconSetTests(unittest.TestCase):
         wanted = [f'\\U000{code}' for code in tile_icons.GLYPHS.values()]
         for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
             text = (ROOT / name).read_text()
-            fonts = re.findall(r'materialdesignicons-webfont\.ttf["\']\n    id: (\w+)\n    size: \d+\n    glyphs: (.*)\n', text)
+            fonts = re.findall(r'materialdesignicons-webfont\.ttf["\']\n    id: (\w+)\n    size: \d+\n    bpp: 4\n    glyphs: (.*)\n', text)
             self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini', 'materialdesign_icons_big', 'watch_icon'], name)
             self.assertTrue(fonts[0][1].startswith('&tile_icons ') and all(g == '*tile_icons' for font, g in fonts[1:] if font != 'materialdesign_icons_big'), name)
             block = text.split('glyphs: &tile_icons ', 1)[1].split('\n\n', 1)[0]
