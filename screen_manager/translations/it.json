@@ -389,5 +389,850 @@
     }
   },
   "addon": {},
-  "editor": {}
+  "editor": {
+    "common": {
+      "undo": "Annulla",
+      "online": "Online",
+      "offline": "Offline",
+      "unknown": "sconosciuto",
+      "unsaved": "Modifiche non salvate",
+      "cancel": "Annulla",
+      "open_integrations": "Apri Dispositivi e servizi",
+      "save_send": "Salva e invia",
+      "saving": "Salvataggio…",
+      "read_current_data": "Leggi i dati attuali",
+      "results": "1 risultato. Continua a scrivere per restringere l'elenco. | {n} risultati. Continua a scrivere per restringere l'elenco.",
+      "close": "Chiudi",
+      "remove": "Rimuovi",
+      "change": "Cambia",
+      "loading": "Caricamento…",
+      "back": "← Indietro",
+      "copy": "Copia"
+    },
+    "nav": {
+      "new_screen": "Nuovo schermo",
+      "firmware": "Firmware e USB",
+      "alerts": "Avvisi",
+      "settings": "Impostazioni",
+      "new_screen_detail": "Collega e installa"
+    },
+    "api": {
+      "failed": "Non ha funzionato. Ricarica la pagina e riprova."
+    },
+    "copy": {
+      "api_key": {
+        "copied": "Chiave API copiata.",
+        "selected": "La chiave API è selezionata. Copiala con Ctrl+C o Command+C."
+      },
+      "layout_json": {
+        "copied": "JSON della disposizione copiato.",
+        "selected": "Il JSON della disposizione è selezionato. Copialo con Ctrl+C o Command+C."
+      },
+      "action_name": {
+        "copied": "Nome dell'azione copiato.",
+        "selected": "Il nome dell'azione è selezionato. Copialo con Ctrl+C o Command+C."
+      },
+      "yaml": {
+        "copied": "YAML copiato.",
+        "selected": "Lo YAML è selezionato. Copialo con Ctrl+C o Command+C."
+      },
+      "icon_name": {
+        "copied": "Nome dell'icona copiato.",
+        "selected": "Il nome dell'icona è selezionato. Copialo con Ctrl+C o Command+C."
+      },
+      "empty_color": {
+        "copied": "Colore vuoto copiato.",
+        "selected": "Il colore vuoto è selezionato. Copialo con Ctrl+C o Command+C."
+      },
+      "color_name": {
+        "copied": "Nome del colore copiato.",
+        "selected": "Il nome del colore è selezionato. Copialo con Ctrl+C o Command+C."
+      }
+    },
+    "sidebar": {
+      "connection": {
+        "unreachable": "Pagina di gestione non raggiungibile · nuovo tentativo…",
+        "connected": "Home Assistant connesso",
+        "reconnecting": "Riconnessione a Home Assistant…"
+      },
+      "search": "Cerca",
+      "screens": "Schermi",
+      "more": "Altro",
+      "refresh": "Ricarica",
+      "update": {
+        "pill": "Aggiornamento",
+        "button": "Aggiorna",
+        "queued": "In coda per l'aggiornamento",
+        "available": "Aggiornamento {version}",
+        "no_profile": "Nessun profilo ESPHome trovato con questo nome dispositivo.",
+        "whats_new": "Novità",
+        "full_log": "Registro completo"
+      },
+      "host": {
+        "hint": "L'indirizzo IP, una sola volta; poi il nuovo firmware lo comunica da solo.",
+        "placeholder": "Indirizzo IP, es. 192.168.1.50",
+        "label": "Indirizzo IP",
+        "start": "Avvia"
+      },
+      "pending": {
+        "installed": "Installato, ma non ancora in Home Assistant. Aggiungi il dispositivo ESPHome rilevato in Impostazioni → Dispositivi e servizi, incolla lì la chiave API e attiva «Allow the device to perform Home Assistant actions» in Configura.",
+        "downloaded": "Firmware scaricato, non ancora in Home Assistant. Mettilo sullo schermo con ESPHome Web, poi aggiungi il dispositivo ESPHome rilevato in Impostazioni → Dispositivi e servizi, incolla lì la chiave API e consenti le azioni di Home Assistant in Configura.",
+        "not_flashed": "Non ancora in Home Assistant. Firmware già installato? Aggiungi il dispositivo ESPHome in Impostazioni → Dispositivi e servizi, poi consenti le azioni di Home Assistant in Configura. Non ancora installato? Firmware e USB → {file}."
+      },
+      "copy_api_key": "Copia chiave API"
+    },
+    "palette": {
+      "groups": {
+        "screens": "Schermi",
+        "actions": "Azioni",
+        "add": "Aggiungi a questo schermo"
+      },
+      "alerts_detail": "Guida rapida e avviso di prova",
+      "settings_detail": "Aggiornamenti, Claude",
+      "nothing_to_save": "Niente da salvare",
+      "identify": "Identifica questo schermo",
+      "identify_detail": "Fa lampeggiare la retroilluminazione e mostra una scheda",
+      "identify_needs": "Richiede un firmware più recente",
+      "export": "Esporta disposizione",
+      "export_detail": "Scarica e copia come JSON",
+      "placeholder": "Cerca schermi, entità, azioni…",
+      "empty": "Nessun risultato. Scrivi parte del nome di uno schermo, di un'entità o di un'azione."
+    },
+    "empty": {
+      "choose": {
+        "title": "Scegli uno schermo",
+        "text": "Scegli uno dei tuoi schermi a sinistra per modificarne i riquadri, la barra superiore e le impostazioni."
+      },
+      "start": {
+        "title": "Inizia con uno schermo",
+        "text": "Collega un CYD o un Guition via USB alla macchina di Home Assistant. Profilo, firmware e prima installazione in un colpo solo.",
+        "button": "Installa un nuovo schermo"
+      }
+    },
+    "screen_view": {
+      "confirm": {
+        "switch": "Hai modifiche non salvate. Aprire comunque un altro schermo?",
+        "copy": "Sostituire la disposizione non salvata con una copia di quella dell'altro schermo?",
+        "import": "Sostituire la disposizione non salvata con quella importata?"
+      },
+      "saved": {
+        "current": "Salvato. Il tuo schermo si sta aggiornando.",
+        "other": "Salvato. {name} si sta aggiornando.",
+        "other_unnamed": "Salvato. Lo schermo si sta aggiornando.",
+        "newer_edit": "Salvato. La tua ultima modifica non è ancora stata inviata: premi di nuovo Salva e invia."
+      },
+      "identified": "{name} lampeggia e mostra una scheda per qualche secondo.",
+      "offline": "Offline · modifiche salvate",
+      "tabs": {
+        "layout": "Disposizione",
+        "settings": "Impostazioni schermo"
+      },
+      "sent": "Salvato · inviato allo schermo",
+      "all_saved": "Tutto salvato",
+      "more": "Altro",
+      "menu": {
+        "identify": "Identifica",
+        "identify_hint": "fa lampeggiare lo schermo",
+        "identify_needs": "Richiede il firmware 0.2.31 o più recente",
+        "inspect_hint": "da Home Assistant",
+        "copy": "Copia disposizione da…",
+        "copy_screens": "{n} schermo | {n} schermi",
+        "copy_none": "nessun altro schermo",
+        "copy_tiles": "{n} riquadro | {n} riquadri",
+        "export": "Esporta disposizione",
+        "import": "Importa disposizione…",
+        "override": "YAML personalizzato",
+        "override_hint": "avanzato",
+        "override_none": "Nessun profilo ESPHome trovato per questo schermo",
+        "update": "Aggiorna firmware"
+      }
+    },
+    "layout": {
+      "removed": "Riquadro rimosso: {name}",
+      "no_room": "Non c'è spazio per questo riquadro a pagina {page}.",
+      "no_free_page": "Nessuna pagina è libera per un riquadro a pagina intera. Libera prima una pagina.",
+      "page_taken": "Questo schermo ha già un riquadro che porta a pagina {page}.",
+      "copied": "Disposizione di {name} copiata. Salva e invia quando ti sembra giusta.",
+      "copied_part": "Disposizione di {name} copiata. Riquadri compatibili con il firmware di questo schermo: {kept} su {total}. Salva e invia quando ti sembra giusta.",
+      "imported": "Disposizione importata. Salva e invia quando ti sembra giusta.",
+      "imported_part": "Disposizione importata. Riquadri compatibili con il firmware di questo schermo: {kept} su {total}. Salva e invia quando ti sembra giusta.",
+      "not_json": "Questo non è JSON. Esporta prima una disposizione, oppure incollane una da un altro ESP Screens.",
+      "no_tiles_in_file": "Nessun riquadro in questo file. Serve una disposizione esportata da ESP Screens.",
+      "count": "{n} pagina · {tiles} / {limit} riquadri | {n} pagine · {tiles} / {limit} riquadri",
+      "no_tiles": "Aggiungi la tua prima luce, scena o dispositivo dalla libreria.",
+      "how_to": "Tocca la barra superiore o un riquadro per cambiarne le impostazioni. Trascina per spostare; rilascia sulla pagina successiva per crearne una nuova.",
+      "positions_hint": "Gli spazi vuoti e le posizioni fisse funzionano a partire dal firmware 0.2.26. Fino a quell'aggiornamento, questo schermo (firmware {firmware}) sposta i riquadri verso il primo spazio libero.",
+      "aria": "Disposizione dello schermo",
+      "add_page": "+ Aggiungi pagina",
+      "max_pages": "Al massimo 1 pagina | Al massimo {n} pagine"
+    },
+    "page": {
+      "label": "Pagina {page}",
+      "remove": "Rimuovi pagina",
+      "remove_title": "Le pagine successive scalano di un posto",
+      "edit_bar": "Modifica barra superiore",
+      "cell": {
+        "title": "Spazio vuoto. Fai clic per aggiungere un riquadro qui, o trascinane uno.",
+        "aria": "Spazio vuoto {slot} a pagina {page}: aggiungi qui il prossimo riquadro",
+        "next": "Il prossimo riquadro va qui",
+        "empty": "Vuoto"
+      }
+    },
+    "library": {
+      "title": "Libreria",
+      "entities": "{n} entità | {n} entità",
+      "search": "Cerca per nome, dispositivo o area…",
+      "search_label": "Aggiungi un'entità",
+      "filters": {
+        "all": "Tutti",
+        "light": "Luci",
+        "climate": "Clima",
+        "switch": "Interruttori",
+        "binary_sensor": "Stato",
+        "button": "Azioni",
+        "script": "Script",
+        "fan": "Ventilatori",
+        "cover": "Coperture",
+        "scene": "Scene",
+        "vacuum": "Aspirapolvere",
+        "sensor": "Sensori",
+        "media_player": "Media",
+        "weather": "Meteo",
+        "number": "Valori",
+        "select": "Selezioni",
+        "person": "Persone",
+        "timer": "Timer",
+        "screen": "Schermo"
+      },
+      "room": "Area",
+      "all_rooms": "Tutte le aree",
+      "hide_placed": "Nascondi quelle già inserite",
+      "hide_placed_title": "Nascondi ciò che è già su questo schermo",
+      "all_placed": "Tutto ciò che è qui è già su questo schermo.",
+      "none_found": "Nessuna entità trovata. Prova un altro nome, un'altra area o un altro filtro.",
+      "full": "Questo schermo può contenere 1 riquadro. | Questo schermo può contenere {n} riquadri.",
+      "full_update": "Questo schermo può contenere 1 riquadro; aggiorna il suo firmware per averne 48. | Questo schermo può contenere {n} riquadri; aggiorna il suo firmware per averne 48.",
+      "hint": "Trascina su una pagina, o tocca + per aggiungere al primo spazio libero. ⌘K cerca ovunque."
+    },
+    "domains": {
+      "light": "Luce",
+      "climate": "Clima",
+      "vacuum": "Aspirapolvere",
+      "fan": "Ventilatore",
+      "cover": "Copertura",
+      "media_player": "Media",
+      "sensor": "Sensore",
+      "binary_sensor": "Stato",
+      "switch": "Interruttore",
+      "input_boolean": "Interruttore",
+      "scene": "Scena",
+      "script": "Script",
+      "weather": "Meteo",
+      "number": "Valore",
+      "input_number": "Valore",
+      "select": "Selezione",
+      "input_select": "Selezione",
+      "button": "Azione",
+      "input_button": "Azione",
+      "screen": "Schermo",
+      "sun": "Sole",
+      "timer": "Timer",
+      "person": "Persona",
+      "camera": "Telecamera",
+      "image": "Immagine",
+      "entity": "Entità"
+    },
+    "displays": {
+      "standard": "standard",
+      "watch": "valore grande",
+      "forecast": "previsioni meteo",
+      "graph": "grafico",
+      "digital": "orologio digitale",
+      "analog": "orologio analogico",
+      "sunpath": "percorso del sole"
+    },
+    "sizes": {
+      "single": "normale",
+      "wide": "doppia",
+      "full": "pagina intera"
+    },
+    "tile": {
+      "name": "Nome sullo schermo",
+      "icon": {
+        "auto_ha": "Automatica (da Home Assistant)",
+        "auto_default": "Automatica (predefinita)",
+        "needs_firmware": "Lo schermo mostra l'icona scelta a partire dal firmware 0.2.18."
+      },
+      "goes_to": {
+        "label": "Porta alla pagina",
+        "empty": "{page} (vuota)",
+        "needs_firmware": "I riquadri di navigazione richiedono il firmware 0.2.62: premi prima Aggiorna per questo schermo.",
+        "no_page": "Questo schermo non ha la pagina {page}, quindi un tocco apre la sua ultima pagina. Scegli un'altra pagina.",
+        "hint": "Un tocco sul riquadro apre quella pagina."
+      },
+      "display": {
+        "label": "Visualizzazione",
+        "digital": "Orologio digitale",
+        "analog": "Orologio analogico",
+        "standard": "Nome e stato",
+        "watch": "Valore grande",
+        "forecast": "Previsioni meteo",
+        "graph": "Grafico",
+        "sunpath": "Percorso del sole",
+        "no_graph": "Home Assistant non ha valori numerici per questa entità, quindi il grafico resta vuoto. Scegli un'altra visualizzazione.",
+        "no_forecast": "Questo servizio meteo non ha previsioni giornaliere in Home Assistant. Scegli un'altra visualizzazione."
+      },
+      "size": {
+        "label": "Dimensione",
+        "single": "Normale",
+        "wide": "Larghezza doppia",
+        "full": "Pagina intera",
+        "full_hint": "Pagina intera: un grande pulsante che si illumina quando è acceso; in basso trovano posto un cursore, i comandi o un grafico.",
+        "needs_firmware": "Un riquadro a pagina intera richiede il firmware 0.2.62: premi prima Aggiorna per questo schermo."
+      },
+      "page": {
+        "label": "Pagina",
+        "new": "Nuova pagina"
+      },
+      "controls": {
+        "label": "Controllo diretto sul riquadro",
+        "not_offered": "Home Assistant non offre questo controllo per questa entità, quindi sullo schermo resta vuoto. Scegline un altro.",
+        "full_hint": "In basso nel riquadro a pagina intera; un tocco altrove funziona come impostato qui sotto.",
+        "wide_hint": "A destra del riquadro a larghezza doppia, come le righe in Home Assistant. Un tocco sul nome funziona come impostato qui sotto.",
+        "needs_firmware": "Lo schermo mostra il controllo diretto a partire dal firmware 0.2.19; fino ad allora il riquadro resta com'era."
+      },
+      "tap": {
+        "label": "Al tocco",
+        "auto": "Automatico",
+        "detail": "Apri i controlli",
+        "none": "Solo visualizzazione",
+        "toggle": "Accendi / spegni",
+        "action": "Esegui azione",
+        "no_toggle": "Home Assistant non può accendere e spegnere questa entità, quindi un tocco non fa nulla. Scegli un'altra opzione.",
+        "toggle_needs_firmware": "Lo schermo accende e spegne questa entità a partire dal firmware 0.2.58: premi Aggiorna per questo schermo. Fino ad allora un tocco apre la sua scheda.",
+        "hold": "Tieni premuto il riquadro per aprire la sua scheda."
+      },
+      "slider": {
+        "label": "Piccolo cursore sul riquadro",
+        "no": "No",
+        "yes": "Sì, controllo diretto",
+        "nothing": "Home Assistant non ha nulla che un cursore possa regolare per questa entità. Scegli No."
+      },
+      "history": {
+        "label": "Storico",
+        "hours": "{n} ora | {n} ore"
+      },
+      "background": {
+        "label": "Sfondo pastello",
+        "aria": "Sfondo: {name}"
+      }
+    },
+    "tile_card": {
+      "label": "{name}, spazio {slot} a pagina {page}. Enter: configura, tasti freccia: sposta",
+      "remove": "Rimuovi riquadro",
+      "remove_named": "Rimuovi {name}"
+    },
+    "action": {
+      "label": "Azione",
+      "asking": "Chiedo a Home Assistant quali azioni ha questa entità…",
+      "not_answering": "Home Assistant non risponde al momento. Riprova tra poco.",
+      "choose": "Scegli un'azione",
+      "search": "Cerca, per esempio toggle, position o play",
+      "search_label": "Cerca un'azione",
+      "none_found": "Nessuna azione trovata.",
+      "gone": "Home Assistant non offre più questa azione per questa entità, quindi un tocco non fa nulla. Scegline un'altra.",
+      "optional": "{name} (facoltativo)",
+      "not_set": "Non impostato",
+      "on": "Attivo",
+      "off": "Disattivo",
+      "needs": "Home Assistant richiede: {fields}.",
+      "needs_firmware": "Lo schermo esegue un'azione a partire dal firmware 0.2.58: premi Aggiorna per questo schermo. Fino ad allora un tocco funziona come Automatico."
+    },
+    "icon": {
+      "label": "Icona",
+      "none": "Nessuna icona",
+      "search": "Cerca, per esempio lampada, musica o porta",
+      "search_label": "Cerca un'icona",
+      "none_text_only": "Nessuna icona, solo testo",
+      "aria": "Icona: {name}",
+      "none_found": "Nessuna icona trovata."
+    },
+    "inspect": {
+      "title": "Dati attuali",
+      "subtitle": "Connessione, stato e proprietà supportate",
+      "reading": "Lettura…",
+      "fetching": "Recupero dello stato attuale da HA…",
+      "status": "Stato: {status}",
+      "options": "Piccolo cursore: {slider} · Visualizzazione: {display} · Dimensione: {size} · Controllo: {control} · Sfondo: {background}",
+      "yes": "sì",
+      "no": "no",
+      "control_none": "nessuno",
+      "background_default": "Predefinito",
+      "read_again": "Leggi di nuovo"
+    },
+    "topbar": {
+      "removed": "Rimosso dalla barra superiore: {name}",
+      "full": "La barra superiore ha spazio per 1 elemento. | La barra superiore ha spazio per {n} elementi.",
+      "already": "È già nella barra superiore.",
+      "title": "Barra superiore",
+      "aria": "Barra superiore: {name}",
+      "builtin": "Dallo schermo stesso, funziona anche senza Home Assistant",
+      "items": "{used} di {n} elemento | {used} di {n} elementi",
+      "name": "Sinistra: nome",
+      "name_placeholder": "Per esempio: Soggiorno",
+      "right": "Destra: ora, sensori o orologio",
+      "item_label": "{name}, spazio {slot}. Enter: configura, frecce: sposta",
+      "remove_named": "Rimuovi {name} dalla barra superiore",
+      "max": "Massimo 1 elemento | Massimo {n} elementi",
+      "add_title": "Aggiungi l'ora, la data, l'orologio analogico o un'entità",
+      "add_button": "＋ Aggiungi ora, data o un'entità",
+      "hint": {
+        "overflow": "Non tutto sta accanto al nome: lo schermo tralascia gli elementi tratteggiati. Rimuovine uno o scegli un nome più corto.",
+        "reorder": "Trascina per riordinare; tocca un elemento per configurarlo.",
+        "needs_firmware": "Sensori, data e orologio analogico compaiono a partire dal firmware {version}; fino a quell'aggiornamento questo schermo mostra il nome e, se l'ora è nella barra, l'orologio."
+      },
+      "detail": {
+        "hidden": "Nascosto: non attivo al momento",
+        "overflow": "Non sta accanto al nome",
+        "dial": "Quadrante"
+      },
+      "live": {
+        "hidden": "Nascosto al momento: non attivo",
+        "overflow": "Al momento non sta accanto al nome",
+        "looks": "Come appare sullo schermo"
+      },
+      "analog_sample": "Piccolo quadrante con l'ora",
+      "content": {
+        "label": "Cosa mostrare",
+        "hint": "«Ultima modifica» continua a contare sullo schermo stesso: «Proprio ora», «5 min fa», «Ieri»."
+      },
+      "auto_icon": "Automatica (come Home Assistant)",
+      "show": {
+        "label": "Mostra",
+        "hint": "«Solo quando attivo» nasconde l'elemento finché è spento, chiuso, fuori casa o a 0. Utile per una porta aperta, una lavatrice in funzione o per sapere chi è a casa."
+      },
+      "clock_24": "Orologio a 24 ore · si cambia in {settings}",
+      "clock_12": "Orologio a 12 ore · si cambia in {settings}",
+      "clock_settings": "Impostazioni → Lingua e regione",
+      "date_hint": "Oggi: {date}. La data segue l'orologio dello schermo stesso.",
+      "up": "↑ Su",
+      "down": "↓ Giù",
+      "add": {
+        "title": "Aggiungi alla barra superiore",
+        "slots": "{used} di {n} spazio usato | {used} di {n} spazi usati",
+        "builtin": "Dallo schermo stesso",
+        "added": "Già aggiunto",
+        "suggestions": "Suggerimenti da Home Assistant",
+        "entity": "Un'entità",
+        "search": "Cerca per nome, area o entità, es. temperatura o porta",
+        "search_label": "Cerca un'entità per la barra superiore",
+        "none_found": "Nessuna entità trovata."
+      }
+    },
+    "screen_settings": {
+      "groups": {
+        "brightness": "Luminosità",
+        "night": "Notte",
+        "screen": "Schermo"
+      },
+      "rows": {
+        "brightness": "Luminosità",
+        "dark_mode": "Modalità scura",
+        "standby_enabled": "Standby automatico",
+        "standby_seconds": "Standby dopo",
+        "standby_brightness": "Luminosità standby",
+        "night_enabled": "Modalità notte",
+        "night_start": "Inizio",
+        "night_end": "Fine",
+        "night_brightness": "Luminosità notte",
+        "auto_home": "Torna a pagina 1",
+        "auto_home_seconds": "Dopo",
+        "home_on_standby": "Anche in standby",
+        "swipe_pages": "Scorri tra le pagine",
+        "page_buttons": "Pulsanti pagina",
+        "rotation": "Rotazione"
+      },
+      "duration": {
+        "seconds": "{n} s",
+        "minutes": "{n} min",
+        "hours": "{n} h",
+        "hours_minutes": "{h} h {m}"
+      },
+      "time": {
+        "am": "{time} AM",
+        "pm": "{time} PM"
+      },
+      "other_screen_busy": "Sto ancora salvando le impostazioni dell'altro schermo. Riprova tra poco.",
+      "reach": {
+        "intro": "I pulsanti pagina e lo scorrimento sono disattivati, quindi solo i riquadri «Vai alla pagina» cambiano pagina.",
+        "pages": "pagina {list} | pagine {list}",
+        "tiles": "Hai {n} riquadro «Vai alla pagina», che porta a {targets}. | Hai {n} riquadri «Vai alla pagina», che portano a {targets}.",
+        "tiles_missing_one": "Hai {n} riquadro «Vai alla pagina», che porta a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerla. | Hai {n} riquadri «Vai alla pagina», che portano a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerla.",
+        "tiles_missing_more": "Hai {n} riquadro «Vai alla pagina», che porta a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerle. | Hai {n} riquadri «Vai alla pagina», che portano a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerle.",
+        "none": "Non hai riquadri «Vai alla pagina».",
+        "none_missing_one": "Non hai riquadri «Vai alla pagina» che portano a {missing}, quindi non puoi raggiungerla.",
+        "none_missing_more": "Non hai riquadri «Vai alla pagina» che portano a {missing}, quindi non puoi raggiungerle.",
+        "cut_off": "I riquadri che portano a {pages} sono solo su pagine che non puoi raggiungere.",
+        "no_way_back": "Da {pages} nessun riquadro riporta a pagina 1."
+      },
+      "status": {
+        "offline": "Questo schermo è offline. Le sue impostazioni si potranno cambiare quando torna online.",
+        "screen": "Le modifiche si applicano subito sullo schermo, e quelle fatte sullo schermo compaiono qui.",
+        "app": "Le modifiche si applicano subito. A partire dal firmware 0.2.49 lo schermo le conserva da solo."
+      },
+      "unavailable": "Questa entità è disattivata in Home Assistant, oppure lo schermo si sta riavviando.",
+      "lower": "{name}: diminuisci",
+      "higher": "{name}: aumenta"
+    },
+    "update": {
+      "starting": "Avvio dell'aggiornamento…",
+      "building": "Compilazione del firmware…",
+      "writing": "Scrittura del firmware via Wi-Fi…",
+      "phases": {
+        "install": "Compilazione e installazione…",
+        "verify": "In attesa che lo schermo torni online…",
+        "settle": "Verifica della stabilità…"
+      },
+      "new_language": "Nuova lingua: {name}"
+    },
+    "settings": {
+      "updates": {
+        "auto_on": "Gli schermi ora si aggiorneranno automaticamente di notte.",
+        "auto_off": "Gli aggiornamenti automatici sono disattivati.",
+        "title": "Aggiornamenti del firmware",
+        "busy": "Aggiornamento al firmware {version}…",
+        "no_screens": "Nessuno schermo associato finora. I nuovi schermi ricevono il firmware {version}.",
+        "available": "Il firmware {version} è disponibile per {n} schermo. | Il firmware {version} è disponibile per {n} schermi.",
+        "current": "Tutti gli schermi hanno il firmware {version}.",
+        "all": "Aggiorna 1 schermo | Aggiorna tutti i {n} schermi",
+        "whats_new": "Novità del firmware {version}",
+        "auto_label": "Aggiorna automaticamente ogni notte",
+        "auto_hint": "Tra le 03:00 e le 06:00, uno schermo alla volta. Si ferma in caso di errore e lo segnala in Home Assistant."
+      },
+      "claude": {
+        "installed": "Skill installata. Claude Code la rileva subito.",
+        "installed_restart": "Skill installata. Riavvia Claude Code una volta perché trovi la nuova cartella delle skill.",
+        "text": "Insegna ESP Screens a Claude, poi chiedi: «Mostra un avviso su tutti i miei schermi quando la cassetta della posta è piena». Claude conosce gli eventi degli avvisi, ogni campo, colore e icona.",
+        "install": "Installa per Claude Code",
+        "install_again": "Installa di nuovo",
+        "update": "Aggiorna la skill",
+        "not_installed": "Non installata",
+        "installed_chip": "● Installata",
+        "newer": "Installata · è pronta una versione più recente",
+        "writes": "Per Claude Code in Home Assistant. Scrive un file in {path}; installando di nuovo lo sostituisci.",
+        "download": "Scarica per claude.ai",
+        "upload": "Carica lo zip in Claude, in Personalizza → Skill."
+      },
+      "title": "Tutto ciò che riguarda i tuoi schermi.",
+      "back": "← I miei schermi",
+      "screens": {
+        "title": "Schermi",
+        "text": "Aggiungi uno schermo, oppure compila e reinstalla il firmware di uno che hai già.",
+        "firmware_detail": "Compila e installa via USB o Wi-Fi"
+      },
+      "language": {
+        "title": "Lingua e regione",
+        "screen_language": "Lingua degli schermi",
+        "auto": "Lingua di Home Assistant ({name})",
+        "auto_plain": "Lingua di Home Assistant",
+        "ha_missing": "Gli schermi usano l'inglese finché la lingua di Home Assistant non è disponibile.",
+        "unchecked": "{name} · non ancora verificato, aiuto benvenuto",
+        "help": "{name} non è ancora verificato, ogni aiuto è benvenuto: {guide}",
+        "guide": "come tradurre",
+        "update_hint": "Dopo una modifica ogni schermo ha bisogno di un aggiornamento del firmware, una compilazione per schermo: con il suo pulsante Aggiorna, o con gli aggiornamenti notturni.",
+        "time": "Formato orario",
+        "time_auto": "Automatico, segue la lingua ({clock})",
+        "clock_24": "24 ore",
+        "clock_12": "12 ore",
+        "numbers": "Formato numerico",
+        "numbers_auto": "Automatico, segue la lingua ({example})",
+        "profile": "Il tuo profilo Home Assistant: {formats}",
+        "use_profile": "Usa questi",
+        "editor_hint": "L'editor segue la lingua del tuo profilo Home Assistant.",
+        "saved": "Salvato.",
+        "saved_language": "Salvato. Ogni schermo passa alla nuova lingua con il suo prossimo aggiornamento."
+      },
+      "alerts": {
+        "text": "Una scheda a tutto schermo da un'automazione, su uno schermo o su tutti. La guida rapida contiene i nomi delle azioni, i campi, le icone e i colori, e un modulo per provarne uno.",
+        "detail": "Notifiche a schermo intero, da un'automazione"
+      }
+    },
+    "firmware": {
+      "title": "Compila e installa il firmware degli schermi",
+      "intro": "La CLI di ESPHome integrata usa il tuo profilo (YAML con le chiavi) e i tuoi segreti. Scegli il profilo dello schermo, poi una porta USB (schermo collegato alla macchina di Home Assistant), {ota} con il nome host, oppure {download} per mettere il firmware sullo schermo dal tuo computer. {check} verifica soltanto, {build} compila, {install} mette il firmware sullo schermo. I tuoi riquadri restano come sono in ESP Screens. La prima compilazione richiede qualche minuto.",
+      "ota": "Wi-Fi / OTA",
+      "download": "Scarica",
+      "check": "Verifica",
+      "build": "Solo compilazione",
+      "install": "Compila e installa",
+      "build_download": "Compila e scarica",
+      "no_cli": "Manca la CLI di ESPHome. Aggiorna l'app alla versione 0.2.0.",
+      "choose": "Scegli il profilo giusto, poi una porta USB, un indirizzo IP o Scarica.",
+      "profile": "Profilo ESPHome",
+      "install_to": "Installa su",
+      "no_board": "USB · nessuno schermo rilevato finora sulla macchina di Home Assistant",
+      "download_target": "Scarica · installa dal tuo computer",
+      "host": "Indirizzo IP o nome host",
+      "download_file": "Scarica {name}",
+      "download_how": "Mettilo sullo schermo con {esphome_web} in Chrome o Edge: Connect, scegli la porta USB dello schermo, Install e seleziona questo file. Contiene la tua password Wi-Fi e le chiavi dello schermo: tienilo per te."
+    },
+    "installer": {
+      "title": {
+        "setup": "Collega e installa.",
+        "saved": "Profilo salvato.",
+        "running": "Un attimo…",
+        "ready": "Pronto da scaricare.",
+        "done": "Fatto.",
+        "failed": "Non ha funzionato."
+      },
+      "intro": "ESP Screens crea il profilo dello schermo con chiavi uniche e compila il firmware. Collega lo schermo con un cavo USB dati alla macchina su cui gira Home Assistant, oppure scarica il firmware e mettilo sullo schermo dal tuo computer.",
+      "board": "Quale schermo hai?",
+      "board_cyd": "CYD · 2,8 pollici",
+      "board_guition": "Guition · 4 pollici",
+      "name": "Nome",
+      "name_placeholder": "Schermo del soggiorno",
+      "device_name": "Nome dispositivo",
+      "customize": "personalizza",
+      "name_hint": "Ogni schermo ha il suo profilo con le sue chiavi. Quattro schermi? Ripeti questi passaggi quattro volte con un nome diverso.",
+      "device_name_hint": "Lettere minuscole, cifre e trattini. Un nome diverso per ogni schermo.",
+      "wifi": {
+        "title": "Wi-Fi",
+        "ssid": "Nome Wi-Fi (2,4 GHz)",
+        "password": "Password Wi-Fi",
+        "new": "Da compilare una sola volta: ESP Screens lo salva nel secrets.yaml di ESPHome e gli schermi successivi lo usano automaticamente.",
+        "missing": "Nel tuo secrets.yaml di ESPHome mancano ancora i dati Wi-Fi. ESP Screens compila solo le righe mancanti.",
+        "ready": "Il Wi-Fi viene dal tuo secrets.yaml di ESPHome.",
+        "invalid": "Il secrets.yaml nella cartella di ESPHome non è YAML valido. Correggi prima il file; non verrà sovrascritto."
+      },
+      "install_via": "Installa tramite",
+      "later": "Più tardi · salva solo il profilo",
+      "target": {
+        "usb": "Collega lo schermo con un cavo USB dati alla macchina di Home Assistant; l'elenco si aggiorna da solo. Oppure scegli Scarica per usare il tuo computer.",
+        "download": "Scarica il firmware e mettilo sullo schermo dal tuo computer, in Chrome o Edge. Dopo, gli aggiornamenti arrivano via Wi-Fi.",
+        "later": "Il profilo va nella cartella di ESPHome. Puoi installarlo più tardi da Firmware e USB, o da ESPHome Device Builder.",
+        "several": "Più schermi collegati: scegli la porta di questo schermo.",
+        "once": "Una sola volta via USB; dopo, tutto senza fili."
+      },
+      "install": "Installa",
+      "save_profile": "Salva profilo",
+      "busy": "È già in corso una compilazione o un'installazione ({file}). Attendi che finisca.",
+      "no_cli": "In questa installazione manca la CLI di ESPHome; puoi solo salvare il profilo.",
+      "progress": {
+        "saved": "{file} è nella cartella di ESPHome",
+        "writing": "Scrittura del firmware su {name}…",
+        "building": "Compilazione del firmware…",
+        "ready": "Il firmware per {name} è pronto",
+        "installed": "Il firmware è su {name}",
+        "build_failed": "Compilazione non riuscita",
+        "install_failed": "Installazione non riuscita"
+      },
+      "detail": {
+        "saved": "Installalo più tardi da Firmware e USB: scegli questo profilo, poi la porta USB della macchina di Home Assistant, oppure Scarica per mettere il firmware sullo schermo dal tuo computer. Conserva la chiave API per l'associazione:",
+        "uploading": "Non scollegare ancora il cavo USB.",
+        "building": "Una prima compilazione richiede qualche minuto su un Raspberry Pi. Puoi lasciare questa pagina: l'installazione continua e la ritrovi in Nuovo schermo.",
+        "building_download": "Una prima compilazione richiede qualche minuto su un Raspberry Pi. Puoi lasciare questa pagina: la compilazione continua e la ritrovi in Nuovo schermo.",
+        "downloaded": "Mettilo sullo schermo dal tuo computer, poi associa lo schermo a Home Assistant.",
+        "booted": "Lo schermo si avvia e si collega al tuo Wi-Fi. Ora associalo a Home Assistant:",
+        "booted_cyd": "Lo schermo si avvia e si collega al tuo Wi-Fi. Il CYD chiede prima una calibrazione del touch: tocca le croci. Ora associalo a Home Assistant:",
+        "see_log": "Vedi il registro qui sotto."
+      },
+      "download_steps": {
+        "plug": "{bold} con un cavo USB dati.",
+        "plug_bold": "Collega lo schermo al tuo computer",
+        "open": "{bold} in Chrome o Edge, fai clic su Connect e scegli la porta USB dello schermo.",
+        "open_bold": "Apri {esphome_web}",
+        "install": "{bold} e seleziona {file}. Lo schermo si riavvia e si collega al tuo Wi-Fi.",
+        "install_cyd": "{bold} e seleziona {file}. Lo schermo si riavvia e si collega al tuo Wi-Fi. Il CYD chiede prima una calibrazione del touch: tocca le croci.",
+        "install_bold": "Fai clic su Install"
+      },
+      "download_keep": "Il file contiene la tua password Wi-Fi e le chiavi dello schermo: tienilo per te.",
+      "api_key": "Chiave API",
+      "pairing": {
+        "ha": "{bold} Questo avviene fuori da ESP Screens. Home Assistant rileva {name} come dispositivo ESPHome; fai clic su Aggiungi. Non rilevato? Aggiungi ESPHome manualmente con l'indirizzo IP dello schermo.",
+        "ha_bold": "Vai in Home Assistant → Impostazioni → Dispositivi e servizi.",
+        "key": "{bold} qui sopra quando Home Assistant chiede una chiave di cifratura.",
+        "key_bold": "Incolla la chiave API",
+        "actions": "{bold} integrazione ESPHome → Configura → «Allow the device to perform Home Assistant actions». Senza questo, lo schermo vede tutto ma non controlla nulla.",
+        "actions_bold": "Consenti le azioni di HA:",
+        "tiles": "{bold} In ESP Screens lo schermo compare nell'elenco a sinistra entro una trentina di secondi; fino ad allora è indicato lì come «non ancora in Home Assistant».",
+        "tiles_bold": "Scegli i tuoi riquadri."
+      },
+      "log": "Registro ESPHome",
+      "retry": "Riprova",
+      "another": "Installa un altro schermo",
+      "start_over": "Ricomincia",
+      "done": "Fatto"
+    },
+    "alerts": {
+      "eyebrow": "Avvisi · guida rapida",
+      "title": "Una notifica a schermo intero, da un'automazione.",
+      "intro": "Ogni schermo ha l'azione {action}. Mette una scheda sopra tutto, riattiva lo schermo e mantiene la retroilluminazione a luminosità normale finché qualcuno non tocca il pulsante o non scade il timeout. Home Assistant da solo non mostra spiegazioni né menu a tendina per le azioni ESPHome; qui trovi tutto quello che puoi compilare.",
+      "loading": "La guida rapida si sta ancora caricando; un attimo.",
+      "example": {
+        "title": "C'è qualcuno alla porta",
+        "subtitle": "Porta 3, retro",
+        "button": "Arrivo"
+      },
+      "sections": "Sezioni",
+      "nav": {
+        "try": "Prova",
+        "screens": "I tuoi schermi",
+        "howto": "In un'automazione",
+        "all": "Tutti gli schermi",
+        "fields": "I campi",
+        "icons": "Icone",
+        "colors": "Colori",
+        "behaviour": "Comportamento",
+        "events": "Eventi",
+        "tips": "Suggerimenti"
+      },
+      "try": {
+        "text": "Invia subito un avviso, con gli stessi campi che invia un'automazione. Lo schermo mostra la scheda e, con il lampeggio attivo, fa lampeggiare la retroilluminazione.",
+        "screen": "Schermo",
+        "all": "Tutti gli schermi (pronti: {ready})",
+        "not_ready": "{name} · non pronto",
+        "title": "Titolo",
+        "subtitle": "Sottotitolo",
+        "icon": "Icona",
+        "color": "Colore",
+        "button": "Testo del pulsante",
+        "timeout": "Timeout (secondi, 0 aspetta il pulsante)",
+        "flash": "Fai lampeggiare la retroilluminazione",
+        "flash_hint": "Quattro volte all'arrivo dell'avviso.",
+        "sending": "Invio…",
+        "send": "Invia avviso",
+        "sent_all": "Inviato a {n} schermo. | Inviato a {n} schermi.",
+        "sent_to": "Inviato a {name}.",
+        "sent_one": "Inviato allo schermo.",
+        "skipped": "1 schermo saltato (offline o firmware troppo vecchio). | {n} schermi saltati (offline o firmware troppo vecchio).",
+        "left_empty": "Campi lasciati vuoti: {fields}.",
+        "nothing": "Nessuno schermo ha potuto mostrarlo: verifica che uno schermo sia online con il firmware {version} o più recente."
+      },
+      "white": "Bianco (predefinito)",
+      "screens": {
+        "text": "Ogni schermo ha la sua azione, con il nome del dispositivo. A partire dal firmware {version}; aggiorna uno schermo più vecchio con il suo pulsante Aggiorna in Schermi.",
+        "none": "Nessuno schermo associato finora. Installane uno da Nuovo schermo; l'azione compare appena Home Assistant vede lo schermo.",
+        "ready": "● firmware {version}",
+        "update": "Aggiornamento necessario · firmware {version}",
+        "unknown": "Nome dispositivo sconosciuto · aggiorna lo schermo",
+        "show": "Mostra avviso",
+        "dismiss": "Chiudi avviso"
+      },
+      "howto": {
+        "add": "{add} e cerca {esphome}. Scegli l'azione del tuo schermo: Home Assistant la chiama «Performs the action show_alert of the node {device}».",
+        "add_bold": "Aggiungi azione",
+        "device": "nome dispositivo",
+        "fields": "{bold} Home Assistant li chiede tutti e sette; lascia vuoto ciò che non usi ({empty}, {zero}, disattivo).",
+        "fields_bold": "Compila i campi.",
+        "yaml": "Preferisci lo YAML? Scegli {edit} sull'azione e incolla l'esempio qui sotto.",
+        "example_for": "Esempio per",
+        "no_screen": "uno schermo (non ancora associato)"
+      },
+      "edit_yaml": "Modifica in YAML",
+      "copy_yaml": "Copia YAML",
+      "all": {
+        "title": "Tutti gli schermi insieme",
+        "text": "Attiva l'evento {show} con gli stessi campi ed ESP Screens inoltra l'avviso a ogni schermo online, compresi quelli che aggiungerai in seguito. {dismiss} lo rimuove ovunque. In un'automazione, aggiungi l'azione {event} o incolla l'esempio in {edit}. Tralascia i campi che non usi. Perché funzioni, ESP Screens deve essere in esecuzione.",
+        "event": "Attiva manualmente evento"
+      },
+      "fields": {
+        "text": "Il testo è libero; il limite è in byte e una lettera accentata conta per due. Ciò che non ci sta finisce con i puntini di sospensione (titolo) o viene tagliato (sottotitolo).",
+        "field": "Campo",
+        "type": "Tipo",
+        "what": "Cosa fa",
+        "example": "Esempio",
+        "limit": "Limite",
+        "types": {
+          "string": "testo",
+          "int": "numero",
+          "bool": "attivo / disattivo",
+          "entity": "entità"
+        },
+        "bytes": "CYD {cyd} · Guition {guition} byte",
+        "seconds": "da 0 a 86400 s",
+        "camera_limit": "Guition, firmware 0.2.57+"
+      },
+      "icons": {
+        "text": "Inserisci il nome in {field}, per esempio {example}. Funzionano anche {mdi} e il codice esadecimale ({hex}). Nel firmware ci sono solo queste icone; qualsiasi altro nome mostra il triangolo di avvertimento. Tocca un'icona per copiarne il nome.",
+        "handy": "Utili per le notifiche",
+        "search_label": "Cerca un'icona",
+        "search": "Cerca per nome o descrizione…",
+        "extra": "Disponibili anche: icone di controllo e meteo",
+        "copy": "Copia {name}",
+        "none": "Nessuna icona per «{query}». I nomi sconosciuti mostrano il triangolo di avvertimento ({fallback})."
+      },
+      "colors": {
+        "text": "Inserisci il nome in {field}. Sono le tonalità pastello dei riquadri, con testo scuro. Un nome vuoto o sconosciuto dà la scheda bianca. Tocca per copiare."
+      },
+      "behaviour": {
+        "wakes": "{bold} Un avviso riattiva subito uno schermo attenuato o spento e compare sopra ogni pagina, ogni scheda luce aperta e il livello di standby.",
+        "wakes_bold": "Riattiva lo schermo.",
+        "on": "{bold} Finché la scheda è visibile, la retroilluminazione resta a luminosità normale. Standby e ore notturne aspettano. Dopo il pulsante, riparte il normale tempo di standby.",
+        "on_bold": "Acceso fino al pulsante.",
+        "timeout": "{bold} {zero} aspetta il pulsante, per tutto il tempo necessario. Con {minute} la scheda sparisce dopo un minuto, ma il pulsante la chiude prima.",
+        "timeout_bold": "Timeout.",
+        "blinking": "{bold} {flash} fa lampeggiare la retroilluminazione quattro volte all'arrivo dell'avviso (circa un secondo) e poi lascia lo schermo acceso.",
+        "blinking_bold": "Lampeggio.",
+        "replacing": "{bold} Un nuovo avviso sostituisce quello attuale; gli avvisi non si accumulano. L'avviso sostituito si segnala come {replaced}.",
+        "replacing_bold": "Sostituzione.",
+        "closing": "{bold} {dismiss} rimuove la scheda, per esempio se la porta è già aperta. Senza un avviso, quell'azione non fa nulla.",
+        "closing_bold": "Chiusura a distanza.",
+        "beside": "{bold} non fa nulla; solo il pulsante la chiude. Così un tocco per riattivare lo schermo non chiude mai l'avviso per sbaglio.",
+        "beside_bold": "Toccare accanto alla scheda"
+      },
+      "events": {
+        "text": "Ogni volta che un avviso termina, parte l'evento {event} con {action}, {title}, {screen} (il nome del dispositivo) e il {device_id} che aggiunge Home Assistant. Visibile in Impostazioni → Strumenti → Eventi.",
+        "when": "Quando",
+        "wait": "Aspettare che qualcuno prema il pulsante"
+      },
+      "tips": {
+        "color": "Usa un {bold}: arancione per la porta, rosso per fumo o acqua, verde per «fatto». Il testo resta sempre scuro e leggibile.",
+        "color_bold": "colore per ogni tipo di notifica",
+        "short": "Tieni il titolo {bold}: uno schermo mostra circa venti caratteri su una riga e chiude un titolo più lungo con i puntini di sospensione. Metti i dettagli nel sottotitolo.",
+        "short_bold": "breve",
+        "button": "Un {bold} trasforma la notifica in una domanda: «Arrivo», «Visto», «Spegni». L'evento poi ti dice chi ha risposto.",
+        "button_bold": "testo del pulsante personalizzato",
+        "resolve": "Per un avviso che si risolve da solo (la porta si apre, il bucato viene ritirato), chiudilo nella stessa automazione con {dismiss}.",
+        "every": "Tutti gli schermi? Attiva {event} una sola volta (vedi Tutti gli schermi insieme). Gli schermi restano indipendenti e ognuno risponde con il proprio {screen}.",
+        "claude": "Preferisci {bold} l'automazione? Installa la skill di ESP Screens in Impostazioni → Claude.",
+        "claude_bold": "chiedere a Claude"
+      }
+    },
+    "override": {
+      "eyebrow": "Avanzate · personalizzazione locale",
+      "title": "YAML personalizzato",
+      "title_named": "YAML personalizzato · {name}",
+      "intro": "Questo piccolo file è tuo. Viene caricato dopo il pacchetto condiviso degli schermi e resta al suo posto quando ESP Screens si aggiorna. Cambia qui i dettagli specifici dell'hardware, come il modello del display.",
+      "safe_title": "Cosa si può cambiare senza rischi?",
+      "safe_text": "Display, touchscreen, substitutions, pin e altri dettagli del dispositivo. Nome, Wi-Fi, API, OTA e collegamenti ai package restano gestiti automaticamente.",
+      "active": "Attivo",
+      "ready": "Pronto da collegare",
+      "editor_label": "YAML personalizzato locale",
+      "use_example": "Usa l'esempio",
+      "clear": "Cancella",
+      "characters": "1 carattere | {n} caratteri",
+      "lines": "1 riga | {n} righe",
+      "save_check": "Salva e verifica",
+      "save": "Salva YAML personalizzato",
+      "no_profile": "Non è stato trovato nessun profilo ESPHome per questo schermo.",
+      "attached": "Le modifiche fatte qui valgono dalla prossima compilazione.",
+      "not_attached": "Salva una volta per collegare questo file al profilo.",
+      "saving": "Verifica e salvataggio…",
+      "saved": "Salvato. Lo YAML personalizzato viene mantenuto negli aggiornamenti del firmware.",
+      "saved_toast": "YAML personalizzato salvato.",
+      "checking": "Salvato. ESPHome sta verificando il profilo completo…",
+      "checking_profile": "ESPHome sta verificando il profilo…",
+      "checking_stage": "ESPHome sta verificando il profilo… {stage}",
+      "valid": "Il profilo completo è valido. Puoi compilare e installare senza rischi.",
+      "rejected": "ESPHome ha rifiutato il profilo completo. Vedi Firmware e USB per il registro completo.",
+      "confirm_example": "Sostituire il testo attuale con l'esempio?",
+      "example_loaded": "Esempio caricato. Salvalo quando vuoi.",
+      "confirm_clear": "Cancellare lo YAML personalizzato locale?",
+      "cleared": "Lo YAML personalizzato sarà vuoto dopo il salvataggio."
+    },
+    "mockup": {
+      "home": "Casa",
+      "unknown": "Sconosciuto"
+    }
+  }
 }

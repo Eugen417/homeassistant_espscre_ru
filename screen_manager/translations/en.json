@@ -1319,7 +1319,7 @@
       "title": "Current data",
       "subtitle": "Connection, status, and supported properties",
       "reading": "Reading…",
-      "fetching": "Fetching current HA status...",
+      "fetching": "Fetching current HA status…",
       "status": "Status: {status}",
       "options": "Small slider: {slider} · Display: {display} · Size: {size} · Control: {control} · Background: {background}",
       "yes": "yes",
@@ -1691,7 +1691,7 @@
       "all": {
         "title": "All screens at once",
         "text": "Fire the event {show} with the same fields, and ESP Screens passes the alert on to every screen that is online, including screens you add later. {dismiss} clears it everywhere. In an automation, add the {event} action or paste the example under {edit}. Leave out the fields you don't use. ESP Screens has to be running for this.",
-        "event": "Event"
+        "event": "Fire manual event"
       },
       "fields": {
         "text": "Text is free-form; the limit is in bytes, and an accented letter counts as two. What doesn't fit gets an ellipsis (title) or is dropped (subtitle).",
@@ -1760,7 +1760,7 @@
       "eyebrow": "Advanced · local override",
       "title": "Override YAML",
       "title_named": "Override YAML · {name}",
-      "intro": "This small file is yours. It is loaded after the shared screen package and stays in place when ESP Screen Manager updates. Change hardware-specific details here, such as a display model.",
+      "intro": "This small file is yours. It is loaded after the shared screen package and stays in place when ESP Screens updates. Change hardware-specific details here, such as a display model.",
       "safe_title": "What is safe to change?",
       "safe_text": "Display, touchscreen, substitutions, pins and other device details. Name, Wi-Fi, API, OTA and package links remain managed.",
       "active": "Active",
