@@ -219,6 +219,16 @@ icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.88 / firmware 0.2.74
+
+Firmware only, one setting: `packages/core.yaml` has `wifi: power_save_mode: none`, the first `wifi:` key in a package.
+ESPHome merges it under the screen's own `wifi:` block, which keeps the network, the password and the fallback hotspot,
+and the screen's own YAML wins on the mode as on any key (`merge_config`: the main config over every package). The
+YAML ESP Screens writes has had the same line since app 0.2.24; screens with an older or hand-written YAML ran ESPHome's
+ESP32 default `light` (`WIFI_PS_MIN_MODEM`). The app's Override YAML still refuses `wifi:` (`PROTECTED_OVERRIDE_KEYS`).
+No protocol, storage, preference or key change. `tests/test_easy_package.py` keeps the core's `wifi:` block to that one
+key and every other package without one. Details: docs/TEST_RESULTS_0288.md.
+
 ### Compatibility 0.2.87 / firmware 0.2.73
 
 Firmware only, plus README pictures and docs/CAMERA.md. No protocol, storage, preference or key change: an older app
@@ -235,7 +245,7 @@ drives this firmware as before, and the camera messages are the same; only when 
   4 s refresh and the retries. `camera_spinner` turns until the first picture or a note; its ring is the new theme
   role `CAMERA_TRACK` (0x393D42 in both looks). "Loading image" is gone.
 - Guition `online_image` `buffer_size` 16384 (was 4096) for `camera_image` and `alert_image`: the full picture in
-  about 1.8 s instead of 2.8 s on the bench; without Wi-Fi power save no loop over 50 ms. 32 KB held a loop 0.1 s.
+  about 1.8 s instead of 2.8 s on the bench; a loop over 50 ms is rare with Wi-Fi awake. 32 KB held a loop 0.1 s.
 - Alert picture: `alert_image_frame` has the alert card's radius (18) and `camera_show()` gives the alert's picture the
   frame's radius. LVGL 9.5 clips an image to its own radius row by row (`radius_only` in `lv_draw_sw_img.c`) without a
   layer, so `clip_corner` stays out (`tests/test_layer_free.py`). About 5 % more render time for the picture on the

@@ -57,6 +57,21 @@ class PackageTests(unittest.TestCase):
                 block = re.search(r'^' + section + r':\n.*?(?=^[a-zA-Z_]+:|\Z)', text, re.M | re.S)
                 self.assertFalse(block and re.search(r'^  - platform: homeassistant$', block[0], re.M), f'{path.name}: a {section} subscribes to Home Assistant')
 
+    def test_the_wifi_never_dozes_but_stays_the_owners(self):
+        # Firmware 0.2.74+: the core keeps Wi-Fi awake for every screen, and nothing else of Wi-Fi lives in a package;
+        # the network, its password and the fallback hotspot stay in the screen's own YAML, which also wins on the mode.
+        for path in sorted((ROOT / 'packages').rglob('*.yaml')):
+            text = path.read_text()
+            block = re.search(r'^wifi:\n(.*?)(?=^[a-zA-Z_]+:|\Z)', text, re.M | re.S)
+            if path == profiles.CORE:
+                self.assertIsNotNone(block, 'packages/core.yaml has no wifi: block')
+                lines = [line for line in block[1].split('\n') if line.strip() and not line.lstrip().startswith('#')]
+                self.assertEqual(lines, ['  power_save_mode: none'])
+            else:
+                self.assertIsNone(block, f'{path.name} has a wifi: block')
+        # The YAML ESP Screens writes says so too (since app 0.2.24), so an older package changes nothing for those.
+        self.assertIn('  power_save_mode: none\n', (ROOT / 'screen_manager/app/core.py').read_text())
+
     def test_the_manual_profile_is_gone_from_profiles_and_packages(self):
         for board, name in BOARDS.items():
             for entry in (name, f'packages/{board}.yaml'):

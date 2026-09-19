@@ -1,3 +1,10 @@
+## 0.2.88 (firmware 0.2.74)
+
+Wi-Fi that never dozes, on every screen.
+
+- **A screen keeps its Wi-Fi awake.** ESPHome lets an ESP32's Wi-Fi doze between the router's beacons unless the screen's YAML says otherwise. Then everything Home Assistant sends to the screen waits at the router for the next beacon: 76-117 ms on the bench screens against about 20 ms awake. That wait shows in the confirmation after a tap and in a lamp reporting its brightness. With the Wi-Fi awake, the screen also stalls less often for a moment while a camera picture comes in. The YAML ESP Screens writes has said `power_save_mode: none` since app 0.2.24, but older screens and YAMLs written by hand still dozed. The firmware now keeps the Wi-Fi awake itself; the screens hang on the mains, and it costs a few tenths of a watt. The network and its password stay in the screen's own YAML, and a `power_save_mode` there still wins.
+- Needs firmware 0.2.74: press **Update** on the screen. Includes everything from 0.2.87. CYD firmware: 1,678,816 bytes, 91.5 % of the update slot, the same as 0.2.87.
+
 ## 0.2.87 (firmware 0.2.73)
 
 A starting screen with a spinner, a camera that opens sooner with a spinner, and round corners on an alert's camera picture.

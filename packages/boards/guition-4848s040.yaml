@@ -372,9 +372,9 @@ api:
 # Camera images (firmware 0.2.57+): ESP Screen Manager serves each image already sized for this screen, as an uncompressed
 # BMP on its own port on the LAN (screen_manager/app/camera_feed.py). ESPHome decodes a BMP piece by piece as it arrives,
 # one `buffer_size` per loop, where a JPEG of the full screen held the loop for 0.6 s; touch and drawing keep their turn.
-# 16 KB a loop (firmware 0.2.73+): the full picture came in 1.8 s instead of 2.8 s with 4 KB. Without Wi-Fi power save no
-# loop waited over 50 ms for it (with power save now and then 0.1 s, against 65 ms with 4 KB); 32 KB saved 0.3 s more but
-# held a loop 0.1 s even without power save (docs/TEST_RESULTS_0287.md). One image full screen and one in an alert's
+# 16 KB a loop (firmware 0.2.73+): the full picture came in 1.8 s instead of 2.8 s with 4 KB. A loop waited over 50 ms
+# for it in one of eleven opens with Wi-Fi awake (0.1 s), in five of twelve with power save; 32 KB saved 0.3 s more but
+# held a loop 0.1 s more often (docs/TEST_RESULTS_0287.md, 0288). One image full screen and one in an alert's
 # frame; runtime_tiles.h decides when they load and frees them when they close. Plain HTTP on the LAN, no certificates.
 http_request:
   timeout: 4s

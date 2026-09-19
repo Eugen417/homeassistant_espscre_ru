@@ -111,9 +111,10 @@ button. The card disappears once the screen is in the list.
 
 ## 4. Choose and edit your tiles
 
-Tip: in your ESPHome YAML, add the line `power_save_mode: none` under `wifi:` (new
-wizard YAMLs already have it); the screen is mains-powered, so this keeps it responding to
-Home Assistant without Wi-Fi sleep delay.
+A screen keeps its Wi-Fi awake (`power_save_mode: none`): it is mains-powered, and this way
+Home Assistant's messages reach it without waiting for the router. Firmware 0.2.74 and later
+do this by themselves; an older screen gets it with its next **Update**. A `power_save_mode`
+under `wifi:` in the screen's own ESPHome YAML still wins.
 
 Select your screen, tap the bar at the top of a page to give the screen its name,
 and search for entities in the **Library** on the right. It has domain filters with

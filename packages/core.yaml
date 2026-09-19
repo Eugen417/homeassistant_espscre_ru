@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.73"
+  SCREEN_FIRMWARE_VERSION: "0.2.74"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -260,6 +260,13 @@ logger:
     xpt2046: WARN
     homeassistant.sensor: WARN
     homeassistant.text_sensor: WARN
+
+# A screen hangs on the mains, so its Wi-Fi never dozes (firmware 0.2.74+). With ESPHome's default for the ESP32,
+# `light`, every message from Home Assistant waits at the router for the next beacon: 76-117 ms on the bench screens
+# against about 20 ms, and an image download held a loop up to 0.1 s now and then (docs/TEST_RESULTS_0287.md). The
+# network and its password stay in the screen's own YAML, and a `power_save_mode` there wins over this one.
+wifi:
+  power_save_mode: none
 
 
 # Credentials are loaded from secrets.yaml — copy secrets.yaml.example to secrets.yaml and fill in your values.
