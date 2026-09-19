@@ -422,8 +422,11 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 |---|---|
 | Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
-| Screen | 12/24-hour clock, back to page 1 by itself and after how long, also on standby, swiping between pages, page buttons, rotation (boards that turn) |
+| Screen | Back to page 1 by itself and after how long, also on standby, swiping between pages, page buttons, rotation (boards that turn) |
 | This screen | Name, IP address, firmware version, Home Assistant connected, Restart |
+
+The language, the 12 or 24-hour clock and how numbers are written are the same on every screen: Settings → Language &
+region in ESP Screens (app 0.2.90, firmware 0.2.76). They follow Home Assistant's language unless you choose otherwise.
 
 <p align="center">
   <img src="docs/images/guition-settings-menu.png" width="32%" alt="The settings menu on the Guition: Brightness, Night, Screen and This screen">

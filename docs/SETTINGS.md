@@ -23,12 +23,15 @@ changes them with the entity's own action, and leaves them out of the layout mes
 | Night mode | `switch.<screen>_night_mode` | `night_enabled` |
 | Starts, Ends | `time.<screen>_night_starts`, `time.<screen>_night_ends` | `night_start`, `night_end` |
 | Night brightness | `number.<screen>_night_brightness` | `night_brightness` |
-| Clock | `switch.<screen>_24_hour_clock` | `clock_24h` |
 | Back to page 1, After | `switch.<screen>_back_to_page_1`, `number.<screen>_back_to_page_1_after` | `auto_home`, `auto_home_seconds` |
 | Also on standby | `switch.<screen>_back_to_page_1_on_standby` | `home_on_standby` |
 | Swipe between pages | `switch.<screen>_swipe_between_pages` | `swipe_pages` |
 | Page buttons (0.2.69+) | `switch.<screen>_page_buttons` | `page_buttons` |
 | Rotation (Guition) | `select.<screen>_rotation` | `rotation` |
+
+The 12 or 24-hour clock was a row and an entity of its own (`switch.<screen>_24_hour_clock`) from firmware 0.2.49 to
+0.2.75. Since app 0.2.90 and firmware 0.2.76 it is one setting for every screen, with the language and the number format:
+Settings → Language & region in ESP Screens, which sends `clock_24h` and `numbers` in the layout message.
 
 The first four entities and Auto standby existed before 0.2.49; ESP Screens recognizes a screen that owns
 its settings by one of the others (`OWNED_SETTINGS_MARKERS` in `core.py`). Dark mode came with firmware 0.2.54:

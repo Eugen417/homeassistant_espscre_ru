@@ -105,7 +105,7 @@ https://github.com/user-attachments/assets/f9f6a933-d388-4c8b-9c9a-011dfa37617b
 </p>
 <p align="center"><sub>Dark mode, for a screen beside the bed: the same pages, darker. It is a switch on the screen, in ESP Screens and in Home Assistant, so an automation can turn it on at bedtime.</sub></p>
 <p align="center">
-  <img src="docs/images/guition-settings-screen.png" width="32%" alt="The settings page on the Guition, Screen: the 12 or 24-hour clock, back to page 1 by itself and after how long, also on standby and swiping between pages, with the page buttons and the rotation on its second page">
+  <img src="docs/images/guition-settings-screen.png" width="32%" alt="The settings page on the Guition, Screen: back to page 1 by itself and after how long, also on standby and swiping between pages, with the page buttons and the rotation on its second page">
   <img src="docs/images/guition-settings.png" width="32%" alt="The settings page on the Guition, Brightness: the brightness with minus and plus, Dark mode off, Auto standby on, standby after 10 minutes and the standby brightness">
   <img src="docs/images/guition-dark-settings.png" width="32%" alt="The same Brightness page right after turning Dark mode on: a black page with graphite rows and soft white text">
 </p>

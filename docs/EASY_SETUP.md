@@ -289,7 +289,7 @@ device in Home Assistant ([SETTINGS.md](SETTINGS.md)).
 | Night mode | On/off; applies during standby | On |
 | Night start/end | Hour and minute, can span midnight | 22:00–07:00 |
 | Night brightness | 0–100%, capped at normal brightness | 10% |
-| Clock | 24 or 12 hour; the clock shows no AM/PM | 24 hour |
+| Clock | 24 or 12 hour, the same on every screen: Settings → Language & region in ESP Screens (firmware 0.2.76+); the clock shows no AM/PM | Follows the language |
 | Back to page 1 | Closes an open card and goes back to page 1 after 30 seconds to 60 minutes without a touch, firmware 0.2.44+ | On, 2 minutes |
 | Also on standby | Standby goes back to page 1 too (it always closes an open card) | Off |
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
