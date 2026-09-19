@@ -136,6 +136,14 @@ https://github.com/user-attachments/assets/f9f6a933-d388-4c8b-9c9a-011dfa37617b
 </p>
 <p align="center"><sub>Other hardware, such as a different display controller? Every screen has an Override YAML of its own, checked by ESPHome before a build and kept through every update.</sub></p>
 
+## In your language
+
+The screens, the editor and the app speak English (US and UK), Dutch, German, French, Italian, Spanish, Portuguese and
+Polish. ESP Screens takes Home Assistant's language and uses its words, so a door says what it says in the Home
+Assistant app. Settings → Language & region picks another language, the clock and how numbers are written, for every
+screen at once. Most languages still need someone who speaks them to check the texts:
+[Translating ESP Screens](docs/TRANSLATING.md) says how, and how to add a language.
+
 ## Alerts
 
 <p align="center">

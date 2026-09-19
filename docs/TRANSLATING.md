@@ -1,55 +1,156 @@
 # Translating ESP Screens
 
-Every text of ESP Screens lives in one file per language: `screen_manager/translations/<code>.json`. The screens, the
-app and the editor all read the same file. English (`en.json`) is the source: every other file has the same keys, and a
-key a language doesn't have yet shows in English.
+ESP Screens speaks every language it has a file for: the screens, the editor in Home Assistant and the messages of the
+app. Each language is one JSON file in [`screen_manager/translations/`](../screen_manager/translations/). English
+(`en.json`) is the source. Every other file has the same keys, and a text a language doesn't have yet shows in English,
+so a language can grow bit by bit.
 
-The code is the one Home Assistant uses for the language: `nl`, `de`, `fr`, `pt-BR`, `zh-Hans`. A screen takes Home
-Assistant's language unless someone picks another one under Settings in ESP Screens; the editor follows the language of
-your own Home Assistant profile.
+You can help in two ways, and neither needs you to write code:
 
-## The sections
+- **Check a language** that is already there. Most were drafted by Claude and need someone who speaks the language.
+- **Add a language** that isn't there yet.
 
-| Section | Where it shows | Keep in mind |
+## Where the texts show
+
+| Section | Where you see it | Keep in mind |
 | --- | --- | --- |
-| `screen` | On the screen itself: built into its firmware when it is installed or updated | Small screens: keep it as short as the English. One language per screen, so this costs almost no room. |
-| `addon` | Messages of the ESP Screens app, and the texts it sends to the screens | Error messages are whole sentences. |
-| `editor` | The ESP Screens editor in Home Assistant | |
-| `_meta` | The language itself | `name` in the language itself, `english` in English, `plural` (below), `checked` |
+| `screen` | On the screens themselves | Screens are small, especially the CYD. Keep it as short as the English. A screen gets new texts with its next firmware update. |
+| `addon` | Messages of the app, and texts it sends to the screens (tile names, the top bar) | Error messages are whole sentences. |
+| `editor` | The ESP Screens editor in Home Assistant | Shows up as soon as the app is updated. |
+| `_meta` | The language itself | See [The `_meta` block](#the-_meta-block). |
 
-`screen.ha` holds Home Assistant's own words (on, off, open, heating, ...). They come from Home Assistant's translations
-through `tools/i18n.py`; don't change them by hand, change them in Home Assistant's translations instead.
-`screen.date` holds day and month names and date orders from the Unicode CLDR, the same data browsers use.
+Three parts fill themselves. Don't change them by hand:
+
+- `screen.ha` holds Home Assistant's own words for states: on and off, open and closed, heating, the weather.
+  `tools/i18n.py ha-words` copies them from Home Assistant's translations, so a screen says exactly what the Home
+  Assistant app says. To improve one of these words, change it in
+  [Home Assistant's translations](https://developers.home-assistant.io/docs/translations/); we pick it up from there.
+- `screen.date` holds day and month names and the order of a date. `screen.number` says how numbers are written.
+  `screen.time.am` and `.pm` are the day periods. All of this comes from the Unicode CLDR, the same data every browser
+  uses, through `tools/i18n.py cldr`.
+- `_meta.clock`, 12 or 24 hours, also comes from the CLDR.
+
+## Check a language
+
+1. Open the file of your language, for example
+   [`nl.json`](../screen_manager/translations/nl.json), next to [`en.json`](../screen_manager/translations/en.json).
+   `_meta.checked` says whether someone checked it already.
+2. Read it through. Look for three things:
+   - wrong words;
+   - words that differ from the ones the Home Assistant app uses in your language (the Home Assistant app is the
+     reference: *Dashboard*, *Automation*, *Entity* are what people know);
+   - texts that are too long for a small screen.
+3. Look at it for real, if you can. In ESP Screens open **Settings → Language & region** and choose your language. The
+   editor itself follows the language of your Home Assistant profile. The screens show the new texts after their
+   firmware update.
+4. Change what needs changing. When the whole file is checked, set `"checked": true` in `_meta`.
+5. Send it in (see [Sending your work](#sending-your-work)). Say in the pull request which parts you checked.
+
+A partial check helps too. Say which sections you went through, and leave `checked` at `false`.
+
+## Add a language
+
+1. Pick the code Home Assistant uses for your language (`sv`, `da`, `cs`, `pt-BR`); ESP Screens follows Home Assistant's
+   language setting by that code. A variant such as `pt-BR` may be a small file with only the texts that differ from
+   `pt`. That is how `en-GB` works: it holds the 24-hour clock and British spelling, and the rest falls back to `en`.
+2. Create the file. If you have Node.js and Python:
+
+   ```bash
+   python3 tools/i18n.py new sv Svenska Swedish one_other
+   ```
+
+   This writes `sv.json` with its `_meta` and the calendar from the CLDR. The last word is the plural rule (see
+   [Plurals](#plurals)). Without these tools, copy `en.json`, keep only `_meta` and the texts you translate, and a
+   maintainer adds the calendar.
+3. Translate. Keep the keys and the structure of `en.json`. Translate the text values only. Start with `screen`, which
+   is short and what people see every day, then `editor` and `addon`.
+4. Check it:
+
+   ```bash
+   python3 tools/i18n.py check
+   ```
+
+5. Send it in. A maintainer fills `screen.ha` from Home Assistant (`tools/i18n.py ha-words`).
+
+### Which languages fit
+
+| Script | Languages | Screens |
+| --- | --- | --- |
+| Latin | English, Dutch, German, French, Italian, Spanish, Portuguese, Polish, Czech, the Nordic languages, Turkish, ... | Every screen: the fonts carry every letter European languages use |
+| Cyrillic, Greek | Russian, Ukrainian, Bulgarian, Greek | Possible: those letters go only onto the screens that speak the language. Ask first: a maintainer adds them. |
+| Chinese, Japanese, Korean | | Only on a Guition, with the characters the texts need; a CYD has too little room and shows English |
+| Right-to-left, or letters that join | Arabic, Hebrew, Persian, Thai, Hindi | Not yet: the screens' graphics library doesn't write them without extra work |
+
+The editor and the app's messages work in any language, whatever the screens can draw.
 
 ## The format
 
-- **Placeholders** such as `{n}` or `{name}` stay exactly as they are; move them where the sentence needs them.
-- **Plurals** are the forms of a sentence separated by ` | `, in the order of the file's `_meta.plural` rule:
+- **Placeholders** such as `{n}`, `{name}` or `{time}` stay exactly as they are. Move them to where your sentence needs
+  them: `"Last {time}"` can become `"Zuletzt {time}"` or `"{time} geleden"`.
+- **Plurals** are the forms of one sentence, separated by ` | `, in the order of your language's rule:
+  `"1 hour ago | {n} hours ago"`.
+- **Brand names stay:** ESP Screens, Home Assistant, ESPHome, Claude, Guition, CYD.
+- **Keep the characters `{ } | @` out of ordinary text:** the editor reads them as instructions.
+- **Match the tone:** short and plain, like the English. The screens and the editor talk to people at home, not to
+  engineers.
 
-  | Rule | Languages | Forms |
-  | --- | --- | --- |
-  | `one_other` | English, Dutch, German, Italian, Spanish, the Nordic languages | `1 hour ago \| {n} hours ago` |
-  | `one_upto_1` | French, Portuguese | the first form for 0 and 1 |
-  | `slavic_pl` | Polish | one \| few (2-4, 22-24, ...) \| many |
-  | `east_slavic` | Russian, Ukrainian | one \| few \| many |
-  | `none` | Chinese, Japanese, Korean | one form |
+### Plurals
 
-- Don't use `{`, `}`, `|` or `@` as ordinary characters.
-- `_meta.checked` is `true` once someone who speaks the language has checked the whole file. The settings in ESP Screens
-  show a language that isn't checked yet with a request for help.
+| Rule | Languages | Forms |
+| --- | --- | --- |
+| `one_other` | English, Dutch, German, Italian, Spanish, the Nordic languages | one \| other: `1 hour ago \| {n} hours ago` |
+| `one_upto_1` | French, Portuguese | the first form for 0 and 1 |
+| `slavic_pl` | Polish | one \| few (2-4, 22-24, ...) \| many |
+| `east_slavic` | Russian, Ukrainian | one \| few \| many |
+| `none` | Chinese, Japanese, Korean | one form |
 
-## Letters the screens can draw
+### The `_meta` block
 
-The screens carry every letter European languages write with the Latin alphabet. A language in another script
-(Cyrillic, Greek, Chinese) gets its letters added only on the screens that use it, and only where they fit: a CYD has
-too little room for Chinese and shows English then. `tools/i18n.py check` says when a text uses a letter the screens
-can't draw.
+| Field | Meaning |
+| --- | --- |
+| `name` | The language in itself: `Nederlands`, `Deutsch` |
+| `english` | The language in English |
+| `script` | `latin`, `cyrillic`, `greek`, `han`, ... |
+| `plural` | One of the plural rules above |
+| `clock` | `12` or `24`: what *Automatic* means for the clock (from the CLDR) |
+| `checked` | `true` once someone who speaks the language has checked the whole file |
 
-## Checking your work
+## Sending your work
 
-```bash
-python3 tools/i18n.py check
-```
+- **On GitHub, without Git:** open the file on GitHub and press the pencil. GitHub makes a copy and a pull request for
+  you.
+- **With Git:** fork the repository, change the file, run `python3 tools/i18n.py check`, open a pull request.
+- **No GitHub account?** Open an issue or mail the file. We'll take it from there.
 
-It lists missing keys, placeholders that differ from English, the wrong number of plural forms, letters the screens
-can't draw, and screen texts that are much longer than the English.
+Translations ship with the next release of ESP Screens: the editor and messages right away, the screens with their next
+firmware update.
+
+## For maintainers
+
+- **A new English text:**
+  - Screen texts: add the key to `en.json` and run `python3 tools/i18n.py header`. That writes
+    `components/smart_display/screen_text_keys.h`, which the build checks against the JSON. The code uses
+    `screen_text::tr(txt::...)`.
+  - App texts: use `i18n.t(...)` (the editor's language) or `i18n.screen_t(...)` (the screens' language).
+  - Editor texts: go through vue-i18n.
+- **Every release:** Claude drafts the new texts for every language, with Home Assistant's own words as the glossary,
+  and leaves them unchecked for a speaker of the language. A missing text shows in English and never blocks a release.
+- **Before a release:**
+  - `python3 tools/i18n.py check`: keys, placeholders, plurals, letters the screens can't draw, long screen texts.
+  - `python3 tools/i18n.py lint`: English left in the firmware's code. What stays English on purpose is listed in
+    `LINT_KEEP`, with the reason.
+  - `python3 tools/i18n.py header --check`.
+- **Refreshing the words from Home Assistant and the calendar:**
+
+  ```bash
+  python3 tools/i18n.py ha-words --write
+  python3 tools/i18n.py cldr --write
+  ```
+
+  `ha-words` needs a Home Assistant: `HA_URL` and `HA_TOKEN` in the environment.
+- **What stays English everywhere:**
+  - the names of the screens' own entities in Home Assistant (renaming one gives it a new entity id);
+  - log lines;
+  - the statuses the app reads from a screen;
+  - release notes;
+  - the Claude skill.

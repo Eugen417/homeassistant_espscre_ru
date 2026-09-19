@@ -122,6 +122,9 @@ cpp_tests() {
 
 packages_current() { cd "$ROOT" && "$PYTHON" tools/check_packages.py; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
+# The translations (app 0.2.90, docs/TRANSLATING.md): every language against English, the key header the firmware
+# builds against, and no English left in the firmware's code.
+translations_check() { cd "$ROOT" && "$PYTHON" tools/i18n.py check > "$WORK/i18n.txt" && "$PYTHON" tools/i18n.py header --check && "$PYTHON" tools/i18n.py lint; }
 editor_install() { cd "$ROOT/web" && npm ci --no-audit --no-fund; }
 editor_tests() { cd "$ROOT/web" && npm test; }
 editor_types() { cd "$ROOT/web" && npm run check; }
@@ -258,6 +261,7 @@ if ((want_fast)); then
   run "C++ tests" cpp_tests
   run "Packages fit together" packages_current
   run "Icons match tile_icons.py" icons_current
+  run "Translations" translations_check
   run "Editor: npm ci" editor_install
   if ((last_ok)); then
     run "Editor: tests (Vitest)" editor_tests
