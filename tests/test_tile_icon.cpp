@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 #include "components/smart_display/tile_icon.h"
 #include <cassert>
 int main() {

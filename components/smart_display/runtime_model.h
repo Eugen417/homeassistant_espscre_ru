@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "screen_text.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -429,7 +430,7 @@ struct Model {
   // Pages the manager wants shown even when the last ones are still empty (0.2.26+).
   uint8_t pages = 1;
   size_t count = 0;
-  std::string title = "Choose tiles in HA";
+  std::string title = screen_text::tr(screen_text::txt::status_choose_tiles);
   bool configured = false;
   // Why the last set_layout refused a layout, for the manager's inbox status; empty when it took the layout or the
   // message itself was wrong (the status then says "invalid message", as before).
@@ -469,7 +470,7 @@ struct Model {
       return false;
     }
     // A title-only update must not interrupt an open control card.
-    title = name.empty() ? "Home" : name;
+    title = name.empty() ? std::string(screen_text::tr(screen_text::txt::status_home)) : name;
     if (changed) {
       // Freed before the new list is made, so the heap never holds both.
       tiles.clear();

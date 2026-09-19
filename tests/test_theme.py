@@ -151,7 +151,7 @@ class Setting(unittest.TestCase):
         self.assertEqual(DARK_MODE_MIN_FIRMWARE, '0.2.54')
         self.assertLessEqual(tuple(map(int, DARK_MODE_MIN_FIRMWARE.split('.'))), tuple(map(int, FIRMWARE_VERSION.split('.'))))
         page = (COMPONENT / 'settings_screen.h').read_text()
-        self.assertIn('toggle("Dark mode", []() -> int32_t { return dark_mode; },', page)
+        self.assertIn('toggle(screen_text::txt::settings_dark_mode, []() -> int32_t { return dark_mode; },', page)
         self.assertIn('else if (key == "dark_mode") reported = dark_mode = flag(value);', page)
         editor = (ROOT / 'web/src/store.ts').read_text()
         self.assertIn('{ key: "dark_mode", label: "Dark mode", kind: "toggle" },', editor)

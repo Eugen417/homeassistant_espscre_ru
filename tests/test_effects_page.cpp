@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 // c++ -std=c++17 -Wall -Wextra -pedantic tests/test_effects_page.cpp -o /tmp/test_effects_page && /tmp/test_effects_page
 // The model of a light's effects page (firmware 0.2.70+): what it can show, how a number maps to its slider, the texts.
 #define EFFECTS_PAGE_TEST

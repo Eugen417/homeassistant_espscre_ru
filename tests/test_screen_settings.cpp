@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 #include "components/smart_display/screen_settings.h"
 #include <cassert>
 int main() {

@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 // The colour table (firmware 0.2.54): the light look stays the design it was, the dark look reads well beside a bed.
 // clang++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_theme.cpp -o /tmp/test_theme && /tmp/test_theme
 #define THEME_TEST

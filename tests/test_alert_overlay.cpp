@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 #define THEME_TEST
 #include "components/smart_display/alert_overlay.h"
 #include <cassert>

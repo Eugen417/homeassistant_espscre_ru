@@ -4,6 +4,7 @@
 // a -/+ step lands on the entity's grid, and the status line beside them. The
 // LVGL drawing lives in runtime_tiles.h; tests/test_tile_controls.cpp covers this.
 #include "runtime_model.h"
+#include "screen_text.h"
 #include "theme.h"
 #include <array>
 #include <cmath>
@@ -157,69 +158,88 @@ inline float step_value(float current, float step, float minimum, float maximum,
   if (has_max) next = std::fmin(next, maximum);
   return next;
 }
-// Whole degrees when the entity steps by whole units, one decimal otherwise.
+// Whole degrees when the entity steps by whole units, one decimal otherwise, with the language's decimal mark.
 inline std::string format_value(float value, float step, const char *suffix) {
   if (!std::isfinite(value)) return "--";
-  char b[24]; snprintf(b, sizeof(b), step >= 1 ? "%.0f%s" : "%.1f%s", value, suffix); return b;
+  return screen_text::decimal(value, step >= 1 ? 0 : 1) + suffix;
 }
 inline const char *climate_mode_text(const std::string &mode) {
-  if (mode == "off") return "Off";
-  if (mode == "heat") return "Heat";
-  if (mode == "cool") return "Cool";
-  if (mode == "heat_cool") return "Heat/Cool";
-  if (mode == "auto") return "Auto";
-  if (mode == "dry") return "Dry";
-  if (mode == "fan_only") return "Fan only";
+  if (mode == "off") return screen_text::tr(screen_text::txt::ha_climate_off);
+  if (mode == "heat") return screen_text::tr(screen_text::txt::ha_climate_heat);
+  if (mode == "cool") return screen_text::tr(screen_text::txt::ha_climate_cool);
+  if (mode == "heat_cool") return screen_text::tr(screen_text::txt::ha_climate_heat_cool);
+  if (mode == "auto") return screen_text::tr(screen_text::txt::ha_climate_auto);
+  if (mode == "dry") return screen_text::tr(screen_text::txt::ha_climate_dry);
+  if (mode == "fan_only") return screen_text::tr(screen_text::txt::ha_climate_fan_only);
   return mode.c_str();
 }
 inline const char *climate_action_text(const std::string &action) {
-  if (action == "heating") return "Heating";
-  if (action == "cooling") return "Cooling";
-  if (action == "idle") return "Idle";
-  if (action == "off") return "Off";
-  if (action == "drying") return "Drying";
-  if (action == "fan") return "Fan";
-  if (action == "preheating") return "Preheating";
-  if (action == "defrosting") return "Defrosting";
+  if (action == "heating") return screen_text::tr(screen_text::txt::ha_hvac_action_heating);
+  if (action == "cooling") return screen_text::tr(screen_text::txt::ha_hvac_action_cooling);
+  if (action == "idle") return screen_text::tr(screen_text::txt::ha_hvac_action_idle);
+  if (action == "off") return screen_text::tr(screen_text::txt::ha_hvac_action_off);
+  if (action == "drying") return screen_text::tr(screen_text::txt::ha_hvac_action_drying);
+  if (action == "fan") return screen_text::tr(screen_text::txt::ha_hvac_action_fan);
+  if (action == "preheating") return screen_text::tr(screen_text::txt::ha_hvac_action_preheating);
+  if (action == "defrosting") return screen_text::tr(screen_text::txt::ha_hvac_action_defrosting);
   return "";
 }
 inline const char *cover_state_text(const std::string &state) {
-  if (state == "open") return "Open";
-  if (state == "closed") return "Closed";
-  if (state == "opening") return "Opening";
-  if (state == "closing") return "Closing";
+  if (state == "open") return screen_text::tr(screen_text::txt::ha_cover_open);
+  if (state == "closed") return screen_text::tr(screen_text::txt::ha_cover_closed);
+  if (state == "opening") return screen_text::tr(screen_text::txt::ha_cover_opening);
+  if (state == "closing") return screen_text::tr(screen_text::txt::ha_cover_closing);
   return state.c_str();
 }
 inline const char *media_state_text(const std::string &state) {
-  if (state == "playing") return "Playing";
-  if (state == "paused") return "Paused";
-  if (state == "idle") return "Idle";
-  if (state == "standby") return "Standby";
-  if (state == "buffering") return "Loading";
-  if (state == "on") return "On";
-  if (state == "off") return "Off";
+  if (state == "playing") return screen_text::tr(screen_text::txt::ha_media_playing);
+  if (state == "paused") return screen_text::tr(screen_text::txt::ha_media_paused);
+  if (state == "idle") return screen_text::tr(screen_text::txt::ha_media_idle);
+  if (state == "standby") return screen_text::tr(screen_text::txt::ha_media_standby);
+  if (state == "buffering") return screen_text::tr(screen_text::txt::media_loading);
+  if (state == "on") return screen_text::tr(screen_text::txt::ha_on);
+  if (state == "off") return screen_text::tr(screen_text::txt::ha_off);
   return state.c_str();
 }
 // A binary sensor's state in Home Assistant's words for its device class: a door is Open or Closed, a leak sensor
-// Wet or Dry. The same words as the add-on's header_bar.BINARY_STATES, which the top bar and the history card show;
-// tests/test_binary_words.py keeps the two tables equal. Without a class, or with one this table lacks: On and Off.
-struct BinaryWords { const char *device_class, *on, *off; };
+// Wet or Dry, in the screen's language (screen.ha.binary, taken from Home Assistant's own translations). The add-on's
+// header_bar.BINARY_STATES reads the same words from the same file for the top bar and the history card. Without a
+// class, or with one this table lacks: On and Off.
+struct BinaryWords { const char *device_class; uint16_t on, off; };
 constexpr BinaryWords BINARY_WORDS[] = {
-    {"battery", "Low", "Normal"}, {"battery_charging", "Charging", "Not charging"},
-    {"carbon_monoxide", "Danger", "Safe"}, {"cold", "Cold", "Normal"}, {"connectivity", "Connected", "Disconnected"},
-    {"door", "Open", "Closed"}, {"garage_door", "Open", "Closed"}, {"gas", "Danger", "Safe"},
-    {"heat", "Hot", "Normal"}, {"light", "Light", "Dark"}, {"lock", "Open", "Locked"}, {"moisture", "Wet", "Dry"},
-    {"motion", "Motion", "No motion"}, {"moving", "Moving", "Still"}, {"occupancy", "Occupied", "Clear"},
-    {"opening", "Open", "Closed"}, {"plug", "Plugged in", "Unplugged"}, {"power", "On", "Off"},
-    {"presence", "Home", "Away"}, {"problem", "Problem", "OK"}, {"running", "Active", "Inactive"},
-    {"safety", "Unsafe", "Safe"}, {"smoke", "Smoke", "No smoke"}, {"sound", "Sound", "Silent"},
-    {"tamper", "Tampering", "OK"}, {"update", "Update", "Up to date"}, {"vibration", "Vibration", "Still"},
-    {"window", "Open", "Closed"},
+    {"battery", screen_text::txt::ha_binary_battery_on, screen_text::txt::ha_binary_battery_off},
+    {"battery_charging", screen_text::txt::ha_binary_battery_charging_on, screen_text::txt::ha_binary_battery_charging_off},
+    {"carbon_monoxide", screen_text::txt::ha_binary_carbon_monoxide_on, screen_text::txt::ha_binary_carbon_monoxide_off},
+    {"cold", screen_text::txt::ha_binary_cold_on, screen_text::txt::ha_binary_cold_off},
+    {"connectivity", screen_text::txt::ha_binary_connectivity_on, screen_text::txt::ha_binary_connectivity_off},
+    {"door", screen_text::txt::ha_binary_door_on, screen_text::txt::ha_binary_door_off},
+    {"garage_door", screen_text::txt::ha_binary_garage_door_on, screen_text::txt::ha_binary_garage_door_off},
+    {"gas", screen_text::txt::ha_binary_gas_on, screen_text::txt::ha_binary_gas_off},
+    {"heat", screen_text::txt::ha_binary_heat_on, screen_text::txt::ha_binary_heat_off},
+    {"light", screen_text::txt::ha_binary_light_on, screen_text::txt::ha_binary_light_off},
+    {"lock", screen_text::txt::ha_binary_lock_on, screen_text::txt::ha_binary_lock_off},
+    {"moisture", screen_text::txt::ha_binary_moisture_on, screen_text::txt::ha_binary_moisture_off},
+    {"motion", screen_text::txt::ha_binary_motion_on, screen_text::txt::ha_binary_motion_off},
+    {"moving", screen_text::txt::ha_binary_moving_on, screen_text::txt::ha_binary_moving_off},
+    {"occupancy", screen_text::txt::ha_binary_occupancy_on, screen_text::txt::ha_binary_occupancy_off},
+    {"opening", screen_text::txt::ha_binary_opening_on, screen_text::txt::ha_binary_opening_off},
+    {"plug", screen_text::txt::ha_binary_plug_on, screen_text::txt::ha_binary_plug_off},
+    {"power", screen_text::txt::ha_binary_power_on, screen_text::txt::ha_binary_power_off},
+    {"presence", screen_text::txt::ha_binary_presence_on, screen_text::txt::ha_binary_presence_off},
+    {"problem", screen_text::txt::ha_binary_problem_on, screen_text::txt::ha_binary_problem_off},
+    {"running", screen_text::txt::ha_binary_running_on, screen_text::txt::ha_binary_running_off},
+    {"safety", screen_text::txt::ha_binary_safety_on, screen_text::txt::ha_binary_safety_off},
+    {"smoke", screen_text::txt::ha_binary_smoke_on, screen_text::txt::ha_binary_smoke_off},
+    {"sound", screen_text::txt::ha_binary_sound_on, screen_text::txt::ha_binary_sound_off},
+    {"tamper", screen_text::txt::ha_binary_tamper_on, screen_text::txt::ha_binary_tamper_off},
+    {"update", screen_text::txt::ha_binary_update_on, screen_text::txt::ha_binary_update_off},
+    {"vibration", screen_text::txt::ha_binary_vibration_on, screen_text::txt::ha_binary_vibration_off},
+    {"window", screen_text::txt::ha_binary_window_on, screen_text::txt::ha_binary_window_off},
 };
 inline const char *binary_state_text(const std::string &device_class, bool on) {
   for (const auto &words : BINARY_WORDS)
-    if (device_class == words.device_class) return on ? words.on : words.off;
-  return on ? "On" : "Off";
+    if (device_class == words.device_class) return screen_text::tr(on ? words.on : words.off);
+  return screen_text::tr(on ? screen_text::txt::ha_on : screen_text::txt::ha_off);
 }
 // Status line beside a control panel: what Home Assistant shows under the name.
 inline std::string status_text(const Tile &t) {
@@ -227,7 +247,7 @@ inline std::string status_text(const Tile &t) {
   if (d == "climate") {
     std::string text = climate_action_text(t.extra().hvac_action);
     if (text.empty()) text = climate_mode_text(t.state);
-    if (std::isfinite(t.current)) { snprintf(b, sizeof(b), " · %.1f°", t.current); text += b; }
+    if (std::isfinite(t.current)) text += " · " + screen_text::decimal(t.current, 1) + "°";
     return text;
   }
   if (d == "cover") {
@@ -261,7 +281,7 @@ inline CoverCard cover_card(const Tile &t) {
 inline std::string cover_card_status(const Tile &t) {
   std::string text = status_text(t);
   if ((t.supported & feature::COVER_TILT_POSITION) && std::isfinite(t.extra().tilt)) {
-    char b[24]; snprintf(b, sizeof(b), " · Tilt %d%%", (int) std::lround(t.extra().tilt)); text += b;
+    text += " · " + screen_text::fill(screen_text::txt::cover_tilt_value, "n", (int) std::lround(t.extra().tilt));
   }
   return text;
 }
@@ -328,9 +348,9 @@ inline std::string neighbour_option(const Tile &t, int direction) {
   return options[(current + direction + count) % count];
 }
 inline const char *run_label(const std::string &domain) {
-  if (domain == "scene") return "Activate";
-  if (domain == "script") return "Run";
-  return "Press";
+  if (domain == "scene") return screen_text::tr(screen_text::txt::button_activate);
+  if (domain == "script") return screen_text::tr(screen_text::txt::button_run);
+  return screen_text::tr(screen_text::txt::button_press);
 }
 // The Home Assistant action behind a key. STEP_* are handled locally (debounced) and return nothing.
 inline Action key_action(const Tile &t, int command, const std::string &arg = "") {
@@ -403,10 +423,10 @@ inline VacuumRows vacuum_rows(const Tile &t, uint32_t now) {
 }
 // Labels for a manager that sends no suction row (app before 0.2.46): the vacuum's own speed names.
 inline std::string speed_label(const std::string &speed) {
-  if (speed == "quiet") return "Quiet";
-  if (speed == "balanced") return "Normal";
-  if (speed == "turbo") return "Turbo";
-  if (speed == "max") return "Max";
+  if (speed == "quiet") return screen_text::tr(screen_text::txt::vacuum_speed_quiet);
+  if (speed == "balanced") return screen_text::tr(screen_text::txt::vacuum_speed_balanced);
+  if (speed == "turbo") return screen_text::tr(screen_text::txt::vacuum_speed_turbo);
+  if (speed == "max") return screen_text::tr(screen_text::txt::vacuum_speed_max);
   return speed;
 }
 // The suction row a vacuum card shows: the manager's (filtered, labelled) speeds, else the first four

@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 #include "../components/smart_display/cyd_ui.h"
 #include <cassert>
 #include <limits>

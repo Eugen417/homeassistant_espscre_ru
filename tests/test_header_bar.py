@@ -18,6 +18,8 @@ import tile_icons  # noqa: E402
 from core import FIRMWARE_VERSION, HEADER_MIN_FIRMWARE, discover, header_items, validate_header, validate_layout  # noqa: E402
 
 FIRMWARE = (ROOT / 'components/smart_display/header_bar.h').read_text()
+# The firmware's words live in the translations since app 0.2.90 (screen.time in English, the language of reference).
+FIRMWARE += json.dumps(json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['time'])
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 EDITOR = (ROOT / 'web/src/model/topbar.ts').read_text()
 PROFILES = ('guition-4848s040.yaml', 'home-like-2432s028.yaml')
@@ -109,8 +111,10 @@ class TextTests(unittest.TestCase):
             self.assertEqual(header_bar.value(eid, value, registry.get(eid), {'temperature': '°C'}, tz), expected, eid)
 
     def test_text_keeps_to_the_font_and_its_length(self):
-        self.assertEqual(header_bar.clean_text('Café “Sun” 25 m³'), 'Café Sun 25 m³')
-        self.assertEqual(header_bar.clean_text('Ångström ✓'), 'Angström')
+        # Every letter European languages write with stays (app 0.2.90); anything else folds to its base letter or goes.
+        self.assertEqual(header_bar.clean_text('Café “Sun” 25 m³'), 'Café “Sun” 25 m³')
+        self.assertEqual(header_bar.clean_text('Ångström ✓'), 'Ångström')
+        self.assertEqual(header_bar.clean_text('Ǻngström'), 'Angström')
         self.assertLessEqual(len(header_bar.clean_text('é' * 60).encode()), header_bar.TEXT_BYTES)
 
     def test_active_colour_and_icon(self):
@@ -228,10 +232,10 @@ class ParityTests(unittest.TestCase):
         # Firmware 0.2.73+: until the first layout the text and a spinner stand in the middle and the name stays empty;
         # the first layout deletes them, so no spinner turns behind the tiles.
         render = TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n}', 1)[0]
-        self.assertIn('if (!model.configured) boot_status(lv_obj_get_parent(room), !ha_connected() ? '
-                      '"Connecting to Home Assistant" : "Waiting for ESP Screens");', render)
+        self.assertIn('if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? '
+                      'txt::status_connecting : txt::status_waiting));', render)
         self.assertIn('else if (boot_panel) { lv_obj_delete(boot_panel);', render)
-        self.assertIn('label(room, !model.configured ? "" :', render)
+        self.assertIn('label(room, !model.configured ? std::string() :', render)
         boot = TILES.split('inline void boot_status(', 1)[1].split('\n}', 1)[0]
         self.assertIn('boot_spinner = spinner_create(boot_panel,', boot)
         # Under the tiles, the cards and an alert, in the name's place.

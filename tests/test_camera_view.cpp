@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 // clang++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_camera_view.cpp -o /tmp/test_camera_view && /tmp/test_camera_view
 #include "../components/smart_display/camera_view.h"
 #include <cassert>

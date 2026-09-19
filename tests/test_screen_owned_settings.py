@@ -47,14 +47,14 @@ ENTITY_IDS = {
     'standby_seconds': 'number.office_1_standby_after', 'standby_brightness': 'number.office_1_standby_brightness',
     'night_enabled': 'switch.office_1_night_mode', 'night_start': 'time.office_1_night_starts',
     'night_end': 'time.office_1_night_ends', 'night_brightness': 'number.office_1_night_brightness',
-    'clock_24h': 'switch.office_1_24_hour_clock', 'auto_home': 'switch.office_1_back_to_page_1',
+    'auto_home': 'switch.office_1_back_to_page_1',
     'auto_home_seconds': 'number.office_1_back_to_page_1_after', 'home_on_standby': 'switch.office_1_back_to_page_1_on_standby',
     'swipe_pages': 'switch.office_1_swipe_between_pages', 'rotation': 'select.office_1_rotation',
     'dark_mode': 'switch.office_1_dark_mode', 'page_buttons': 'switch.office_1_page_buttons',
 }
 STATES = {'brightness': '80.0', 'standby_enabled': 'on', 'standby_seconds': '600.0', 'standby_brightness': '20.0',
           'night_enabled': 'on', 'night_start': '22:30:00', 'night_end': '07:00:00', 'night_brightness': '5.0',
-          'clock_24h': 'on', 'auto_home': 'on', 'auto_home_seconds': '120.0', 'home_on_standby': 'off',
+          'auto_home': 'on', 'auto_home_seconds': '120.0', 'home_on_standby': 'off',
           'swipe_pages': 'on', 'rotation': '90°', 'dark_mode': 'off', 'page_buttons': 'on'}
 
 
@@ -109,7 +109,8 @@ def fake_ha(firmware=FIRMWARE_VERSION, owned=True, guition=True):
 
 class CoreSettings(unittest.TestCase):
     def test_every_setting_the_editor_offers_has_an_entity(self):
-        self.assertEqual(set(SETTING_ENTITIES), set(SETTING_RULES) - {'show_clock'})
+        # 12 or 24 hours is Settings -> Language & region's, for every screen at once (app 0.2.90).
+        self.assertEqual(set(SETTING_ENTITIES), set(SETTING_RULES) - {'show_clock', 'clock_24h'})
         self.assertEqual(SETTING_ENTITIES_MIN_FIRMWARE, '0.2.49')
         self.assertLessEqual(tuple(map(int, SETTING_ENTITIES_MIN_FIRMWARE.split('.'))), tuple(map(int, FIRMWARE_VERSION.split('.'))))
 
@@ -179,7 +180,7 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('settings', m.layouts['text.screen'], 'a screen that owns its settings has none stored')
             view = m.settings_view(m.screen('text.screen'))
             self.assertEqual((view['owner'], view['unavailable']), ('screen', []))
-            self.assertEqual(view['keys'], [key for key in SETTING_RULES if key != 'show_clock'])
+            self.assertEqual(view['keys'], [key for key in SETTING_RULES if key not in ('show_clock', 'clock_24h')])
             self.assertEqual({key: view['values'][key] for key in ('brightness', 'night_start', 'rotation', 'home_on_standby')},
                              {'brightness': 80, 'night_start': 1350, 'rotation': 90, 'home_on_standby': False})
             m.ha.states[ENTITY_IDS['night_end']] = {'state': 'unavailable'}
@@ -225,12 +226,11 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
             await m.change_settings('text.screen', {'brightness': 10})
             self.assertEqual(m.ha.calls, [('number.set_value', {'entity_id': ENTITY_IDS['brightness'], 'value': 10})])
             m.ha.calls.clear()
-            await m.change_settings('text.screen', {'night_start': 1320, 'rotation': 270, 'clock_24h': False})
+            await m.change_settings('text.screen', {'night_start': 1320, 'rotation': 270})
             self.assertEqual(m.ha.calls, [('time.set_value', {'entity_id': ENTITY_IDS['night_start'], 'time': '22:00:00'}),
-                                          ('switch.turn_off', {'entity_id': ENTITY_IDS['clock_24h']}),
                                           ('select.select_option', {'entity_id': ENTITY_IDS['rotation'], 'option': '270°'})])
             m.ha.calls.clear()
-            for bad in ({'standby_brightness': 95}, {'show_clock': False}, {'beep': True}, {}, None, {'brightness': '50'}):
+            for bad in ({'standby_brightness': 95}, {'show_clock': False}, {'clock_24h': False}, {'beep': True}, {}, None, {'brightness': '50'}):
                 with self.assertRaises(ValueError):
                     await m.change_settings('text.screen', bad)
             m.ha.states[ENTITY_IDS['night_end']] = {'state': 'unavailable'}
@@ -569,9 +569,12 @@ class Editor(unittest.TestCase):
     def test_the_rows_are_the_settings_of_the_screen_page(self):
         keys = re.findall(r'\{ key: "(\w+)", label: "[^"]+", kind: "(\w+)"', self.script)
         self.assertEqual([key for key, _ in keys], [key for key in SETTING_RULES if key != 'show_clock'][:0] or [key for key, _ in keys])
-        self.assertEqual({key for key, _ in keys}, set(SETTING_RULES) - {'show_clock'})
+        # 12 or 24 hours is Settings -> Language & region's, for every screen at once (app 0.2.90).
+        self.assertEqual({key for key, _ in keys}, set(SETTING_RULES) - {'show_clock', 'clock_24h'})
         # Labels and steps as on the screen: the same rows, the same -/+ steps, the same duration ladder.
-        page_labels = set(re.findall(r'(?:number|toggle|duration|moment|choice)\("([^"]+)"', SCREEN_PAGE))
+        # The page's labels are keys into the translations since app 0.2.90; English is the reference.
+        english = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['settings']
+        page_labels = {english[key] for key in re.findall(r'(?:number|toggle|duration|moment|choice)\(screen_text::txt::settings_(\w+)', SCREEN_PAGE)}
         groups = self.script[self.script.index('const SETTING_GROUPS = ['):self.script.index('export type SettingRow')]
         script_labels = set(re.findall(r'label: "([^"]+)"', groups))
         self.assertEqual(page_labels, script_labels)

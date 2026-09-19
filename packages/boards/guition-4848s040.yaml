@@ -167,7 +167,7 @@ substitutions:
 
   # The touch test page
   TOUCH_TEST_PAGE_PAINT: "paint_page_soft"      # the page
-  TOUCH_TEST_TITLE: "GT911 touch check"         # the words at the top
+  TOUCH_TEST_TITLE: "calibration_touch_check"         # the words at the top
   TOUCH_TEST_TITLE_FONT: "headline"
   TOUCH_TEST_TITLE_Y: "110"
   TOUCH_TEST_INSET: "12"                        # the corner crosses from the edge
@@ -923,10 +923,10 @@ script:
           std::string mode = lower(id(active_climate_mode));
           bool off = mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable";
           // What the device does (Heating), else its mode (Heat); then the room.
-          std::string status = off ? std::string("Off") : std::string(tile_controls::climate_action_text(lower(id(active_climate_action))));
+          std::string status = off ? std::string(screen_text::tr(screen_text::txt::ha_off)) : std::string(tile_controls::climate_action_text(lower(id(active_climate_action))));
           if (status.empty()) status = tile_controls::climate_mode_text(mode);
           char part[32];
-          if (std::isfinite(id(active_climate_current))) { snprintf(part, sizeof(part), " · Now %.1f°", id(active_climate_current)); status += part; }
+          if (std::isfinite(id(active_climate_current))) status += " · " + screen_text::fill(screen_text::txt::climate_now, "value", screen_text::decimal(id(active_climate_current), 1) + "°");
           if (id(active_climate_humidity) >= 0) { snprintf(part, sizeof(part), " · %d%%", id(active_climate_humidity)); status += part; }
           lv_label_set_text(id(climate_current_label), status.c_str());
 

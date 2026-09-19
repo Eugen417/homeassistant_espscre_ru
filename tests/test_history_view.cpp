@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 // clang++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_history_view.cpp -o /tmp/test_history_view && /tmp/test_history_view
 #include "../components/smart_display/history_view.h"
 #include <cassert>

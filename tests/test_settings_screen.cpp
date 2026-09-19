@@ -1,4 +1,5 @@
 #define SETTINGS_SCREEN_TEST
+#include "screen_text_en.h"
 #include "../components/smart_display/settings_screen.h"
 #include <cassert>
 #include <string>
@@ -8,7 +9,7 @@ using namespace settings_screen;
 // The row of a page by its label, so a test says what it means.
 static const Row &row_named(const Page &page, const std::string &label) {
   for (uint8_t i = 0; i < page.count; ++i)
-    if (label == page.rows[i].label) return page.rows[i];
+    if (label == label_text(page.rows[i])) return page.rows[i];
   assert(false);
   return page.rows[0];
 }
@@ -17,7 +18,7 @@ int main() {
   // ---- the duration ladder: seconds low down, quarters of an hour up top, and symmetric ----
   assert(ladder_step(60) == 30 && ladder_step(600) == 60 && ladder_step(1800) == 300);
   assert(ladder_step(3600) == 900 && ladder_step(36000) == 1800);
-  Row timeout = duration("After", nullptr, nullptr, 30, 3600);
+  Row timeout = duration(screen_text::txt::settings_after, nullptr, nullptr, 30, 3600);
   assert(stepped(timeout, 120, 1) == 150 && stepped(timeout, 120, -1) == 90);
   assert(stepped(timeout, 300, 1) == 360 && stepped(timeout, 360, -1) == 300);
   assert(stepped(timeout, 300, -1) == 270 && stepped(timeout, 270, 1) == 300);
@@ -25,9 +26,9 @@ int main() {
   assert(at_end(timeout, 30, -1) && at_end(timeout, 3600, 1) && !at_end(timeout, 120, -1));
 
   // ---- a number stops at its ends, a moment walks around midnight ----
-  Row percent = number("Brightness", nullptr, nullptr, 5, 100, 5, "%");
+  Row percent = number(screen_text::txt::settings_brightness, nullptr, nullptr, 5, 100, 5, "%");
   assert(stepped(percent, 100, 1) == 100 && stepped(percent, 5, -1) == 5 && stepped(percent, 95, 1) == 100);
-  Row start = moment("Starts", nullptr, nullptr);
+  Row start = moment(screen_text::txt::settings_starts, nullptr, nullptr);
   assert(stepped(start, 1320, 1) == 1335 && stepped(start, 1425, 1) == 0 && stepped(start, 0, -1) == 1425);
   assert(!at_end(start, 0, -1));
   // Holding the key walks whole hours, and first lands on the hour it is in.
@@ -64,7 +65,7 @@ int main() {
   assert(screen_settings::current.standby_brightness == 30);  // never above the normal brightness
   assert(screen_settings::current.valid());
   // Dark mode (firmware 0.2.54+) sits right under Brightness, a switch of its own outside the frozen block.
-  assert(light.count == 5 && light.rows[1].kind == Kind::toggle && std::string(light.rows[1].label) == "Dark mode");
+  assert(light.count == 5 && light.rows[1].kind == Kind::toggle && std::string(label_text(light.rows[1])) == "Dark mode");
   const Row &dark = row_named(light, "Dark mode");
   assert(value_text(dark) == "Off");
   dark.write(1);
@@ -84,10 +85,11 @@ int main() {
     buttons.write(1);
     assert(page_buttons == 1);
   }
-  const Row &clock = row_named(screen, "Clock");
-  assert(clock.option_count == 2 && value_text(clock) == "24 hour");
-  clock.write(0);
-  assert(screen_settings::current.clock_24h == 0 && value_text(clock) == "12 hour");
+  // 12 or 24 hours is chosen for every screen at once in ESP Screens (app 0.2.90): the page has no row for it, and
+  // the value still arrives through set() and the layout message.
+  for (uint8_t i = 0; i < screen.count; ++i) assert(std::string(label_text(screen.rows[i])) != "Clock");
+  set("clock_24h", 0);
+  assert(screen_settings::current.clock_24h == 0);
   const Row &home = row_named(screen, "Back to page 1");
   home.write(0);
   assert(auto_home == 0 && value_text(home) == "Off");
@@ -107,17 +109,17 @@ int main() {
   assert(PAGE_COUNT == 5);
   for (uint8_t p = 0; p < PAGE_COUNT; ++p) {
     const Page &page = pages[p];
-    assert(page.title && page.count && page.count <= 8);
+    assert(page.title != NO_TEXT && *screen_text::tr(page.title) && page.count && page.count <= 8);
     for (uint8_t i = 0; i < page.count; ++i) {
       const Row &row = page.rows[i];
-      assert(row.label && *row.label);
+      assert(row.label != NO_TEXT && *label_text(row));
       if (row.kind == Kind::page) assert(row.opens > 0 && row.opens < PAGE_COUNT && *row.icon);
       if (row.kind == Kind::toggle || row.kind == Kind::choice || row.kind == Kind::number ||
           row.kind == Kind::duration || row.kind == Kind::moment)
         assert(row.read && row.write);
       if (row.kind == Kind::number) assert(row.step > 0 && row.high > row.low);
       if (row.kind == Kind::duration) assert(row.high > row.low);
-      if (row.kind == Kind::choice) assert(row.options && row.option_count);
+      if (row.kind == Kind::choice) assert((row.options || row.option_keys != NO_TEXT) && row.option_count);
       if (row.kind == Kind::info) assert(row.text);
       if (row.kind == Kind::action) assert(row.run && *row.icon);
     }

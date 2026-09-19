@@ -1,12 +1,395 @@
 {
   "_meta": {
-    "name": "English",
-    "english": "English",
+    "name": "English (US)",
+    "english": "English (US)",
     "script": "latin",
     "plural": "one_other",
+    "clock": "12",
     "checked": true
   },
-  "screen": {},
-  "addon": {},
+  "screen": {
+    "number": {
+      "decimal": ".",
+      "group": ","
+    },
+    "time": {
+      "just_now": "Just now",
+      "minutes_ago": "{n} min ago",
+      "hours_ago": "1 hour ago | {n} hours ago",
+      "yesterday": "Yesterday",
+      "days_ago": "1 day ago | {n} days ago",
+      "weeks_ago": "1 week ago | {n} weeks ago",
+      "months_ago": "1 month ago | {n} months ago",
+      "years_ago": "1 year ago | {n} years ago",
+      "in_minutes": "In {n} min",
+      "in_hours": "In 1 hour | In {n} hours",
+      "tomorrow": "Tomorrow",
+      "in_days": "In 1 day | In {n} days",
+      "am": "AM",
+      "pm": "PM"
+    },
+    "date": {
+      "weekdays": [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday"
+      ],
+      "weekdays_short": [
+        "Sun",
+        "Mon",
+        "Tue",
+        "Wed",
+        "Thu",
+        "Fri",
+        "Sat"
+      ],
+      "weekdays_min": [
+        "Su",
+        "Mo",
+        "Tu",
+        "We",
+        "Th",
+        "Fr",
+        "Sa"
+      ],
+      "months": [
+        "January",
+        "February",
+        "March",
+        "April",
+        "May",
+        "June",
+        "July",
+        "August",
+        "September",
+        "October",
+        "November",
+        "December"
+      ],
+      "months_short": [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ],
+      "top_bar": "{weekday} {day} {month}",
+      "full": "{weekday} {day} {month}",
+      "day_month": "{day} {month}",
+      "weekday_time": "{weekday} {time}"
+    },
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} h",
+      "hours_minutes": "{h} h {m} min",
+      "days": "{n} d",
+      "days_hours": "{d} d {h} h"
+    },
+    "status": {
+      "connecting": "Connecting to Home Assistant",
+      "waiting": "Waiting for ESP Screens",
+      "loading_tiles": "Loading tiles...",
+      "ha_not_connected": "HA not connected",
+      "manager_not_active": "ESP Screens not active",
+      "choose_tiles": "Choose tiles in HA",
+      "home": "Home",
+      "no_network": "No network"
+    },
+    "settings": {
+      "title": "Settings",
+      "brightness": "Brightness",
+      "night": "Night",
+      "screen": "Screen",
+      "this_screen": "This screen",
+      "dark_mode": "Dark mode",
+      "auto_standby": "Auto standby",
+      "standby_after": "Standby after",
+      "standby_brightness": "Standby brightness",
+      "night_mode": "Night mode",
+      "starts": "Starts",
+      "ends": "Ends",
+      "night_brightness": "Night brightness",
+      "back_to_page_1": "Back to page 1",
+      "after": "After",
+      "also_on_standby": "Also on standby",
+      "swipe_between_pages": "Swipe between pages",
+      "page_buttons": "Page buttons",
+      "rotation": "Rotation",
+      "address": "Address",
+      "firmware": "Firmware",
+      "home_assistant": "Home Assistant",
+      "restart": "Restart",
+      "tap_again_to_restart": "Tap again to restart",
+      "seconds": "{n} sec",
+      "minutes": "{n} min",
+      "hours": "{n} h",
+      "hours_minutes": "{h} h {m}"
+    },
+    "tile": {
+      "tap_to_open": "Tap to open",
+      "page": "Page {n}",
+      "unavailable": "Unavailable",
+      "refused": "Refused",
+      "command_sent": "Command sent...",
+      "confirmed": "Confirmed by Home Assistant"
+    },
+    "alert": {
+      "notification": "Notification",
+      "ok": "OK"
+    },
+    "light": {
+      "color": "Color",
+      "color_temperature": "Color temperature",
+      "brightness": "Brightness",
+      "waiting": "Waiting..."
+    },
+    "effects": {
+      "effect": "Effect",
+      "nothing": "Nothing to choose",
+      "loading": "Loading...",
+      "not_connected": "Not connected"
+    },
+    "climate": {
+      "target": "Target",
+      "mode": "Mode",
+      "fan": "Fan",
+      "swing": "Swing",
+      "now": "Now {value}"
+    },
+    "vacuum": {
+      "check_robot": "Check the robot in HA",
+      "auto_suction": "Automatic suction power",
+      "robot_chooses": "The robot chooses suction and water",
+      "per_room": "Suction and water as set per room",
+      "speed_quiet": "Quiet",
+      "speed_balanced": "Normal",
+      "speed_turbo": "Turbo",
+      "speed_max": "Max",
+      "pause_cleaning": "Pause cleaning",
+      "pause": "Pause",
+      "resume": "Resume",
+      "start_cleaning": "Start cleaning",
+      "clean": "Clean",
+      "dock": "Dock"
+    },
+    "cover": {
+      "position": "Position",
+      "tilt": "Tilt",
+      "tilt_value": "Tilt {n}%"
+    },
+    "weather": {
+      "feels_like": "Feels like {n}°",
+      "no_forecast": "No daily forecast from Home Assistant",
+      "coming_days": "Coming days"
+    },
+    "history": {
+      "no_data": "No data",
+      "average": "average",
+      "average_of": "average of {duration}",
+      "now": "Now",
+      "range_hour": "1 hour",
+      "range_day": "24 hours",
+      "range_week": "1 week",
+      "high": "High {value}",
+      "low": "Low {value}",
+      "times": "once | {n} times",
+      "loading": "Loading history...",
+      "empty": "No history in this period",
+      "unavailable": "No history available"
+    },
+    "media": {
+      "muted": "Muted",
+      "not_playing": "Not playing",
+      "loading": "Loading"
+    },
+    "timer": {
+      "running": "Running",
+      "paused": "Paused",
+      "stopped": "Stopped",
+      "pause": "Pause",
+      "start": "Start",
+      "cancel": "Cancel",
+      "paused_left": "Paused {time}"
+    },
+    "sun": {
+      "name": "Sun",
+      "sunrise": "Sunrise {time}",
+      "sunset": "Sunset {time}",
+      "rise": "rise {time}",
+      "set": "set {time}"
+    },
+    "script": {
+      "running": "Running...",
+      "never_run": "Never run",
+      "last_time": "Last {time}",
+      "yesterday_time": "Yesterday {time}",
+      "last_date": "Last {date}"
+    },
+    "camera": {
+      "no_image": "No image from this camera",
+      "loading": "Loading image",
+      "live": "Live",
+      "recording": "Recording",
+      "tap_to_view": "Tap to view",
+      "no_image_yet": "No image yet"
+    },
+    "button": {
+      "activate": "Activate",
+      "run": "Run",
+      "press": "Press"
+    },
+    "calibration": {
+      "title": "Follow the calibration wizard",
+      "touch_check": "GT911 touch check",
+      "hold": "Hold each tap for a moment",
+      "crosshair": "Tap the crosshair\nPoint {point}/5 - tap {tap}/3",
+      "gently": "Tap gently, a bit longer",
+      "same": "Tap the same crosshair 3 times",
+      "rejected": "Measurement rejected; try again",
+      "save_failed": "Save failed; try again"
+    },
+    "ha": {
+      "on": "On",
+      "off": "Off",
+      "climate": {
+        "off": "Off",
+        "heat": "Heat",
+        "cool": "Cool",
+        "heat_cool": "Heat/Cool",
+        "auto": "Auto",
+        "dry": "Dry",
+        "fan_only": "Fan only"
+      },
+      "hvac_action": {
+        "heating": "Heating",
+        "cooling": "Cooling",
+        "idle": "Idle",
+        "off": "Off",
+        "drying": "Drying",
+        "fan": "Fan",
+        "preheating": "Preheating",
+        "defrosting": "Defrosting"
+      },
+      "cover": {
+        "open": "Open",
+        "closed": "Closed",
+        "opening": "Opening",
+        "closing": "Closing"
+      },
+      "media": {
+        "playing": "Playing",
+        "paused": "Paused",
+        "idle": "Idle",
+        "standby": "Standby"
+      },
+      "person": {
+        "home": "Home",
+        "not_home": "Away"
+      },
+      "sun": {
+        "above_horizon": "Above the horizon",
+        "below_horizon": "Below the horizon"
+      },
+      "vacuum": {
+        "docked": "Docked",
+        "cleaning": "Cleaning",
+        "paused": "Paused",
+        "returning": "Returning to dock",
+        "idle": "Idle"
+      },
+      "weather": {
+        "sunny": "Sunny",
+        "clear_night": "Clear, night",
+        "cloudy": "Cloudy",
+        "partlycloudy": "Partly cloudy",
+        "rainy": "Rainy",
+        "pouring": "Pouring",
+        "snowy": "Snowy",
+        "snowy_rainy": "Snowy, rainy",
+        "fog": "Fog",
+        "hail": "Hail",
+        "lightning": "Lightning",
+        "lightning_rainy": "Lightning, rainy",
+        "windy": "Windy",
+        "exceptional": "Exceptional"
+      },
+      "binary": {
+        "battery_on": "Low",
+        "battery_off": "Normal",
+        "battery_charging_on": "Charging",
+        "battery_charging_off": "Not charging",
+        "carbon_monoxide_on": "Danger",
+        "carbon_monoxide_off": "Safe",
+        "cold_on": "Cold",
+        "cold_off": "Normal",
+        "connectivity_on": "Connected",
+        "connectivity_off": "Disconnected",
+        "door_on": "Open",
+        "door_off": "Closed",
+        "garage_door_on": "Open",
+        "garage_door_off": "Closed",
+        "gas_on": "Danger",
+        "gas_off": "Safe",
+        "heat_on": "Hot",
+        "heat_off": "Normal",
+        "light_on": "Light",
+        "light_off": "Dark",
+        "lock_on": "Open",
+        "lock_off": "Locked",
+        "moisture_on": "Wet",
+        "moisture_off": "Dry",
+        "motion_on": "Motion",
+        "motion_off": "No motion",
+        "moving_on": "Moving",
+        "moving_off": "Still",
+        "occupancy_on": "Occupied",
+        "occupancy_off": "Clear",
+        "opening_on": "Open",
+        "opening_off": "Closed",
+        "plug_on": "Plugged in",
+        "plug_off": "Unplugged",
+        "power_on": "On",
+        "power_off": "Off",
+        "presence_on": "Home",
+        "presence_off": "Away",
+        "problem_on": "Problem",
+        "problem_off": "OK",
+        "running_on": "Active",
+        "running_off": "Inactive",
+        "safety_on": "Unsafe",
+        "safety_off": "Safe",
+        "smoke_on": "Smoke",
+        "smoke_off": "No smoke",
+        "sound_on": "Sound",
+        "sound_off": "Silent",
+        "tamper_on": "Tampering",
+        "tamper_off": "OK",
+        "update_on": "Update",
+        "update_off": "Up to date",
+        "vibration_on": "Vibration",
+        "vibration_off": "Still",
+        "window_on": "Open",
+        "window_off": "Closed"
+      }
+    }
+  },
+  "addon": {
+    "errors": {
+      "language_choice": "Choose a language from the list.",
+      "region_choice": "Choose a clock and a number format from the lists."
+    }
+  },
   "editor": {}
 }

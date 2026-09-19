@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 // clang++ -std=c++17 -Wall -Wextra -Werror -I. tests/test_media_card.cpp -o /tmp/test_media_card && /tmp/test_media_card
 #include "../components/smart_display/media_card.h"
 #include <cassert>

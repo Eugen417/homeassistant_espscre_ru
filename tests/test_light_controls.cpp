@@ -1,3 +1,4 @@
+#include "screen_text_en.h"
 #define LIGHT_CONTROLS_TEST
 #include "../components/smart_display/light_controls.h"
 #include <cassert>

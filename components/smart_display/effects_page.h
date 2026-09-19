@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 #include "runtime_model.h"
+#include "screen_text.h"
 
 // A light's effects page (firmware 0.2.70+, app 0.2.83+): the modes of a lamp such as a WLED, reached from the
 // sparkles key at the top right of the light's colour card. One card of rows, each the name of something the lamp
@@ -273,7 +274,7 @@ inline void received(const std::string &for_entity, unsigned page, unsigned page
   options.pages = std::max(1u, pages);
   if (options.next < options.pages && options.names.size() < MAX_NAMES) { options.asked_at = clock(); if (ask) ask(options.entity, options.next); return; }
   options.complete = true;
-  if (options.names.empty()) { if (roller_note) lv_label_set_text(roller_note, "Nothing to choose"); return; }
+  if (options.names.empty()) { if (roller_note) lv_label_set_text(roller_note, screen_text::tr(screen_text::txt::effects_nothing)); return; }
   show_roller();
 }
 inline void picker_back(lv_event_t *) { if (steady()) close_picker(); }
@@ -287,7 +288,7 @@ inline void open_picker(int index) {
   top_bar(picker, m, row.name, picker_back, "\U000F012C", confirm_event);
   const int w = m.width - 2 * m.pad, h = m.roller_rows * m.roller_row_h + 2 * m.roller_pad;
   auto *holder = card(picker, m.pad, m.rows_y, w, h, m.radius);
-  roller_note = text(holder, "Loading...", row_font, theme::MUTED, LV_TEXT_ALIGN_CENTER);
+  roller_note = text(holder, screen_text::tr(screen_text::txt::effects_loading), row_font, theme::MUTED, LV_TEXT_ALIGN_CENTER);
   lv_obj_set_width(roller_note, w - 2 * m.inset);
   lv_obj_center(roller_note);
   // The names of the same entity from a moment ago serve again; anything else is asked for afresh.
@@ -296,7 +297,7 @@ inline void open_picker(int index) {
   options.entity = row.entity;
   options.asked_at = clock();
   if (ask) ask(row.entity, 0);
-  else lv_label_set_text(roller_note, "Not connected");
+  else lv_label_set_text(roller_note, screen_text::tr(screen_text::txt::effects_not_connected));
 }
 
 // ---- the page ----
@@ -331,7 +332,7 @@ inline void draw() {
   // The rows: the light's effect first, then the selects of its device.
   struct Spec { std::string entity, name, current, fallback; uint32_t icon; bool light; };
   std::vector<Spec> specs;
-  if (t && (t->supported & EFFECT_FEATURE)) specs.push_back({t->entity, "Effect", t->extra().effect, "\U000F0674", 0, true});
+  if (t && (t->supported & EFFECT_FEATURE)) specs.push_back({t->entity, screen_text::tr(screen_text::txt::effects_effect), t->extra().effect, "\U000F0674", 0, true});
   if (t) for (auto &r : t->extra().option_rows) specs.push_back({r.entity, r.name, r.current, "\U000F0411", r.icon, false});
   int y = m.rows_y;
   if (!specs.empty()) {

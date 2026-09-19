@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "name": "English (UK)",
+    "english": "English (UK)",
+    "script": "latin",
+    "plural": "one_other",
+    "clock": "24",
+    "checked": true
+  },
+  "screen": {
+    "light": {
+      "color": "Colour",
+      "color_temperature": "Colour temperature"
+    }
+  }
+}

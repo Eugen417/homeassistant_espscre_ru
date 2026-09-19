@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include "screen_text.h"
 
 namespace history_view {
 constexpr int PARTS = 24;
@@ -22,18 +23,20 @@ struct Run {
 };
 
 // A clock time of a unix time in the screen's time zone (`offset` seconds east of UTC), as the screen's 12- or
-// 24-hour setting writes it; `weekday` puts the day in front ("Tue 14:05") for a week.
+// 24-hour setting writes it; `weekday` puts the day in front ("Tue 14:05") for a week, in the screen's language.
 inline std::string clock(int64_t epoch, int32_t offset, bool h24, bool weekday) {
+  using namespace screen_text;
   int64_t local = epoch + offset;
   int64_t days = local >= 0 ? local / 86400 : (local - 86399) / 86400;
   int seconds = static_cast<int>(local - days * 86400);
   int hour = seconds / 3600, minute = seconds % 3600 / 60;
-  static const char *const names[] = {"Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"};
   char b[24];
   if (h24) snprintf(b, sizeof(b), "%02d:%02d", hour, minute);
-  else snprintf(b, sizeof(b), "%d:%02d %s", hour % 12 ? hour % 12 : 12, minute, hour < 12 ? "AM" : "PM");
+  else snprintf(b, sizeof(b), "%d:%02d %s", hour % 12 ? hour % 12 : 12, minute, tr(hour < 12 ? txt::time_am : txt::time_pm));
   if (!weekday) return b;
-  return std::string(names[((days % 7) + 7) % 7]) + " " + b;
+  // Day 0 of the unix epoch was a Thursday; the names count from Sunday.
+  int sunday_first = static_cast<int>((((days + 4) % 7) + 7) % 7);
+  return fill(fill(txt::date_weekday_time, "weekday", tr(txt::date_weekdays_short + sunday_first)), "time", b);
 }
 
 // A time under a graph: "06:00" on a 24-hour clock, "6 AM" or "6:15 AM" on a 12-hour one.
@@ -45,25 +48,25 @@ inline std::string axis_clock(int64_t epoch, int32_t offset, bool h24) {
   return text;
 }
 
-// "45 s", "12 min", "3 h 20 min", "2 d 4 h": the time spent in a state.
+// "45 s", "12 min", "3 h 20 min", "2 d 4 h": the time spent in a state, in the screen's language (screen.duration).
 inline std::string duration(uint32_t seconds) {
-  char b[32];
-  if (seconds < 60) snprintf(b, sizeof(b), "%u s", static_cast<unsigned>(seconds));
-  else if (seconds < 3600) snprintf(b, sizeof(b), "%u min", static_cast<unsigned>(seconds / 60));
-  else if (seconds < 86400) {
-    unsigned minutes = seconds / 60 % 60;
-    if (minutes) snprintf(b, sizeof(b), "%u h %u min", static_cast<unsigned>(seconds / 3600), minutes);
-    else snprintf(b, sizeof(b), "%u h", static_cast<unsigned>(seconds / 3600));
-  } else {
-    unsigned hours = seconds / 3600 % 24;
-    if (hours) snprintf(b, sizeof(b), "%u d %u h", static_cast<unsigned>(seconds / 86400), hours);
-    else snprintf(b, sizeof(b), "%u d", static_cast<unsigned>(seconds / 86400));
+  using namespace screen_text;
+  const int s = static_cast<int>(seconds);
+  if (s < 60) return fill(txt::duration_seconds, "n", s);
+  if (s < 3600) return fill(txt::duration_minutes, "n", s / 60);
+  if (s < 86400) {
+    int minutes = s / 60 % 60;
+    if (!minutes) return fill(txt::duration_hours, "n", s / 3600);
+    return fill(fill(txt::duration_hours_minutes, "h", s / 3600), "m", std::to_string(minutes));
   }
-  return b;
+  int hours = s / 3600 % 24;
+  if (!hours) return fill(txt::duration_days, "n", s / 86400);
+  return fill(fill(txt::duration_days_hours, "d", s / 86400), "h", std::to_string(hours));
 }
 
-// A value as Home Assistant writes it: fixed decimals, commas between thousands, "%" and "°" on the number and
-// any other unit after a space.
+// A value as Home Assistant writes it: fixed decimals, the language's separator between thousands and its decimal
+// mark (screen.number: "1,234.5" in English, "1.234,5" in Dutch), "%" and "°" on the number and any other unit after
+// a space.
 inline std::string number(float value, int decimals, const std::string &unit) {
   if (!std::isfinite(value)) return "--";
   char b[40];
@@ -72,8 +75,10 @@ inline std::string number(float value, int decimals, const std::string &unit) {
   if (text[0] == '-') { sign = "-"; text.erase(0, 1); }
   auto dot = text.find('.');
   std::string whole = text.substr(0, dot), rest = dot == std::string::npos ? "" : text.substr(dot);
-  for (int i = static_cast<int>(whole.size()) - 3; i > 0; i -= 3) whole.insert(static_cast<size_t>(i), ",");
-  bool zero = whole.find_first_not_of("0,") == std::string::npos && rest.find_first_not_of(".0") == std::string::npos;
+  bool zero = whole.find_first_not_of('0') == std::string::npos && rest.find_first_not_of(".0") == std::string::npos;
+  const std::string group = screen_text::group_mark();
+  for (int i = static_cast<int>(whole.size()) - 3; i > 0; i -= 3) whole.insert(static_cast<size_t>(i), group);
+  if (!rest.empty()) rest[0] = screen_text::decimal_mark();
   text = (zero ? "" : sign) + whole + rest;
   if (unit.empty()) return text;
   if (unit == "%" || unit == "°") return text + unit;

@@ -182,6 +182,8 @@ NAME_SCREEN_FIRMWARE = ('Screen firmware', 'Schermfirmware')
 NAME_GUITION_TYPE = ('Guition screen type', 'Guition schermtype')
 NAME_DEVICE_NAME = ('Device name', 'Apparaatnaam')
 NAME_IP_ADDRESS = ('IP address', 'IP-adres')
+# The language a screen's firmware was built in (firmware 0.2.76+, app 0.2.90); older firmware speaks English.
+NAME_SCREEN_LANGUAGE = ('Screen language',)
 SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS)
 
 def parse_firmware(text):
@@ -304,7 +306,6 @@ SETTING_ENTITIES = {
     'night_start': ('time', 'Night starts'),
     'night_end': ('time', 'Night ends'),
     'night_brightness': ('number', 'Night brightness'),
-    'clock_24h': ('switch', '24-hour clock'),
     'auto_home': ('switch', 'Back to page 1'),
     'auto_home_seconds': ('number', 'Back to page 1 after'),
     'home_on_standby': ('switch', 'Back to page 1 on standby'),
@@ -315,6 +316,8 @@ SETTING_ENTITIES = {
 }
 # Entities firmware 0.2.49 added; one of them on a device means the screen owns its settings. The first five
 # existed before, so they cannot tell.
+# The 12 or 24 hours is Settings -> Language & region's since app 0.2.90, for every screen at once: firmware 0.2.76 has no
+# "24-hour clock" entity any more, and the one of older firmware is only a marker.
 OWNED_SETTINGS_MARKERS = frozenset(('Night mode', 'Night starts', 'Night ends', '24-hour clock', 'Back to page 1',
                                     'Back to page 1 after', 'Back to page 1 on standby', 'Swipe between pages'))
 ROTATION_OPTIONS = ('0°', '90°', '180°', '270°')
@@ -1485,6 +1488,7 @@ def discover_screens(registry, states, devices, areas):
         return found
     nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')
     addresses = diagnostic(NAME_IP_ADDRESS, r'\d{1,3}(\.\d{1,3}){3}')
+    languages = diagnostic(NAME_SCREEN_LANGUAGE, r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?')
     screens = []
     for item in registry:
         eid = item['entity_id']
@@ -1502,6 +1506,7 @@ def discover_screens(registry, states, devices, areas):
                         'firmware_known': known_firmware(firmware, device.get('sw_version')),
                         'board': boards.get(item.get('device_id'), 'unknown'),
                         'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
+                        'language': languages.get(item.get('device_id')),
                         'device': device.get('name') or '',
                         'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
                         'status': state.get('state', 'Not connected')})
@@ -1544,6 +1549,8 @@ def installation_yaml(data):
     if not isinstance(friendly, str) or not friendly.strip() or len(friendly) > 60:
         raise ValueError('Give the screen a recognizable name (60 characters max).')
     quote = lambda s: json.dumps(s, ensure_ascii=False)
+    # The language of the screen's texts (app 0.2.90): Settings -> Language & region, which ESP Screens passes in.
+    language = data.get('language') if isinstance(data.get('language'), str) and re.fullmatch(r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?', data.get('language')) else 'en'
     # An OTA password, not yet `ota: encryption:` with the api key: ESPHome before 2026.9 refuses that, and the owner's
     # ESPHome Device Builder may still be older (docs/RELEASING.md, Compatibility 0.2.89).
     key, ota, ap = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24), secrets.token_urlsafe(12)
@@ -1552,6 +1559,7 @@ def installation_yaml(data):
 substitutions:
   DEVICE_NAME: {quote(name)}
   DEVICE_FRIENDLY_NAME: {quote(friendly.strip())}
+  LANGUAGE: {quote(language)}
 
 esphome:
   name: {quote(name)}

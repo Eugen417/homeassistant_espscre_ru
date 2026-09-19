@@ -4,6 +4,7 @@ The screen maps the device class itself (`tile_controls::binary_state_text`), fr
 state message has carried since app 0.2.23: nothing new on the wire, so it works with older apps too. These tests keep
 its table equal to the add-on's `header_bar.BINARY_STATES`, which the top bar and the history card use.
 """
+import json
 import re
 import sys
 import unittest
@@ -22,9 +23,17 @@ TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 PROFILES = ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
 
 
+ENGLISH = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))
+
+
 def firmware_words():
+    """The firmware's table (app 0.2.90: keys into screen.ha.binary, in the screen's language) in English."""
     block = re.search(r'constexpr BinaryWords BINARY_WORDS\[\] = \{(.*?)\n\};', CONTROLS, re.S)
-    return {device_class: (on, off) for device_class, on, off in re.findall(r'\{"(\w+)", "([^"]*)", "([^"]*)"\}', block.group(1))}
+    words = ENGLISH['screen']['ha']['binary']
+    found = {}
+    for device_class, on, off in re.findall(r'\{"(\w+)", screen_text::txt::ha_binary_(\w+), screen_text::txt::ha_binary_(\w+)\}', block.group(1)):
+        found[device_class] = (words[on], words[off])
+    return found
 
 
 class BinaryWords(unittest.TestCase):
@@ -41,7 +50,8 @@ class BinaryWords(unittest.TestCase):
         for attrs in ({}, {'device_class': 'future_class'}):
             self.assertEqual(header_bar.value('binary_sensor.x', {'state': 'on', 'attributes': attrs}), ('On', None))
             self.assertEqual(history_card.state_label('binary_sensor', 'off', attrs), 'Off')
-        self.assertIn('return on ? "On" : "Off";', CONTROLS)
+        self.assertIn('return screen_text::tr(on ? screen_text::txt::ha_on : screen_text::txt::ha_off);', CONTROLS)
+        self.assertEqual((ENGLISH['screen']['ha']['on'], ENGLISH['screen']['ha']['off']), ('On', 'Off'))
 
     def test_the_state_message_already_carries_the_class(self):
         tile = {'entity': 'binary_sensor.front_door', 'name': ''}

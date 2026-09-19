@@ -25,6 +25,11 @@
 #include <algorithm>
 
 namespace runtime_tiles {
+// What the screen says, in the language its firmware was built for (screen_text.h, app 0.2.90).
+using screen_text::fill;
+using screen_text::plural;
+using screen_text::tr;
+namespace txt = screen_text::txt;
 inline bool enabled = false;
 // Swiping, rotation and going back to page 1 live in settings_screen, next to the other settings the
 // screen can change itself; these names stay as the way the rest of the firmware reaches them.
@@ -39,6 +44,8 @@ inline esphome::ESPPreferenceObject buttons_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
 inline esphome::ESPPreferenceObject home_preference;
 inline esphome::ESPPreferenceObject dark_preference;
+// The number format of Settings -> Language & region (app 0.2.90), kept for the next start: screen_text::number_style.
+inline esphome::ESPPreferenceObject numbers_preference;
 inline Model model;
 inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
@@ -144,6 +151,9 @@ inline void load_settings() {
   home_preference = esphome::global_preferences->make_preference<HomeTimeout>(0x484F4D31);
   dark_preference = esphome::global_preferences->make_preference<uint32_t>(0x44524B31);
   buttons_preference = esphome::global_preferences->make_preference<uint32_t>(0x50474231);
+  numbers_preference = esphome::global_preferences->make_preference<uint32_t>(0x4E554D31);
+  uint32_t numbers_saved=0;
+  if(numbers_preference.load(&numbers_saved) && numbers_saved<=3)screen_text::number_style=(uint8_t)numbers_saved;
   uint32_t swipe_saved=0;
   if(swipe_preference.load(&swipe_saved))swipe_pages=swipe_saved==1;
   uint32_t dark_saved=0;
@@ -296,6 +306,10 @@ inline std::string receive(const std::string &payload) {
           root["auto_home_seconds"].as<unsigned>()<30 || root["auto_home_seconds"].as<unsigned>()>3600))return false;
       if(!root["rotation"].isNull() && (!root["rotation"].is<unsigned>() ||
           root["rotation"].as<unsigned>()>270 || root["rotation"].as<unsigned>()%90!=0))return false;
+      // The clock and the number format of Settings -> Language & region (app 0.2.90), the same for every screen.
+      if(!root["clock_24h"].isNull() && !root["clock_24h"].is<bool>())return false;
+      if(!root["numbers"].isNull() && (!root["numbers"].is<const char*>() ||
+          screen_text::number_style_of(root["numbers"].as<std::string>())<0))return false;
       if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
           root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
       // Explicit grid positions (0.2.26+), one absolute slot per entity; absent on older managers.
@@ -330,6 +344,12 @@ inline std::string receive(const std::string &payload) {
         HomeTimeout home{(uint32_t)(auto_home?1:0),(uint32_t)auto_home_seconds};home_preference.save(&home);
       }
       bool rotation_changed=false;
+      if(root["clock_24h"].is<bool>())settings.clock_24h=root["clock_24h"].as<bool>()?1:0;
+      bool format_changed=false;
+      if(root["numbers"].is<const char*>()){
+        int style=screen_text::number_style_of(root["numbers"].as<std::string>());
+        if(style!=screen_text::number_style){screen_text::number_style=(uint8_t)style;uint32_t saved=(uint32_t)style;numbers_preference.save(&saved);format_changed=true;}
+      }
       if(rotation_supported && root["rotation"].is<unsigned>() && rotation!=root["rotation"].as<unsigned>()){
         rotation=root["rotation"].as<unsigned>();rotation_preference.save(&rotation);rotation_changed=true;
       }
@@ -347,7 +367,7 @@ inline std::string receive(const std::string &payload) {
       // A repeat of the layout on screen (the hourly repeat, a save that changed nothing here) only
       // refreshes the feed: drawing the whole page again stalls touch input for a few hundred ms,
       // long enough to spoil a slider drag. The tile states that follow redraw their own tiles.
-      if (changed || moved || !was_configured || rotation_changed || model.pages != previous_pages || model.title != previous_title) {
+      if (changed || moved || !was_configured || rotation_changed || format_changed || model.pages != previous_pages || model.title != previous_title) {
         if (layout_changed) layout_changed();
         refresh_all();
       }
@@ -887,20 +907,20 @@ inline lv_obj_t *detail_label(lv_obj_t *parent,const std::string &text,int x,int
   lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);lv_obj_set_height(label,lv_font_get_line_height(detail_font));return label;
 }
 inline std::string detail_state(const Tile &t){
-  if(t.domain()=="person")return t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
-  if(t.domain()=="sun")return t.state=="above_horizon"?"Above the horizon":"Below the horizon";
+  if(t.domain()=="person")return t.state=="home"?tr(txt::ha_person_home):t.state=="not_home"?tr(txt::ha_person_not_home):t.state;
+  if(t.domain()=="sun")return tr(t.state=="above_horizon"?txt::ha_sun_above_horizon:txt::ha_sun_below_horizon);
   if(t.domain()=="timer")return timer_text(t);
-  if(t.domain()=="script"||t.domain()=="scene"||t.domain()=="button"||t.domain()=="input_button")return t.state=="on"?"Running...":last_run_text(t.last_run);
+  if(t.domain()=="script"||t.domain()=="scene"||t.domain()=="button"||t.domain()=="input_button")return t.state=="on"?tr(txt::script_running):last_run_text(t.last_run);
   if(t.domain()=="binary_sensor"&&(t.state=="on"||t.state=="off"))return tile_controls::binary_state_text(t.device_class,t.state=="on");
-  if(t.state=="on")return "On";
-  if(t.state=="off")return "Off";
-  if(t.state=="docked")return "Docked";
-  if(t.state=="cleaning")return "Cleaning";
-  if(t.state=="paused")return "Paused";
-  if(t.state=="returning")return "Returning to dock";
-  if(t.state=="idle")return "Idle";
-  if(t.state=="error")return "Check the robot in HA";
-  if(!t.available())return "Unavailable";
+  if(t.state=="on")return tr(txt::ha_on);
+  if(t.state=="off")return tr(txt::ha_off);
+  if(t.state=="docked")return tr(txt::ha_vacuum_docked);
+  if(t.state=="cleaning")return tr(txt::ha_vacuum_cleaning);
+  if(t.state=="paused")return tr(txt::ha_vacuum_paused);
+  if(t.state=="returning")return tr(txt::ha_vacuum_returning);
+  if(t.state=="idle")return tr(txt::ha_vacuum_idle);
+  if(t.state=="error")return tr(txt::vacuum_check_robot);
+  if(!t.available())return tr(txt::tile_unavailable);
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+).
   if(!t.extra().state_word.empty())return t.extra().state_word;
   return t.state;
@@ -1068,10 +1088,10 @@ inline lv_obj_t *detail_text(lv_obj_t *parent,const std::string &text,int x,int 
 inline std::string rain_text(float chance,float mm,bool with_mm){
   char b[32];
   if(std::isfinite(chance) && chance>=0){
-    if(with_mm && std::isfinite(mm) && mm>=0.05f){snprintf(b,sizeof(b),"%d%% · %.1f mm",(int)std::lround(chance),mm);return b;}
+    if(with_mm && std::isfinite(mm) && mm>=0.05f){snprintf(b,sizeof(b),"%d%% · ",(int)std::lround(chance));return b+screen_text::decimal(mm,1)+" mm";}
     snprintf(b,sizeof(b),"%d%%",(int)std::lround(chance));return b;
   }
-  if(std::isfinite(mm) && mm>=0.05f){snprintf(b,sizeof(b),mm<10?"%.1f mm":"%.0f mm",mm);return b;}
+  if(std::isfinite(mm) && mm>=0.05f)return screen_text::decimal(mm,mm<10?1:0)+" mm";
   return "";
 }
 inline std::string degrees(float value){ if(!std::isfinite(value))return "--"; char b[16];snprintf(b,sizeof(b),"%.0f°",value);return b; }
@@ -1111,9 +1131,9 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   detail_text(now,degrees(t.current),temp_x,cy+(hero-big_h)/2,temp_w,big,LV_TEXT_ALIGN_LEFT,ink);
   int text_x=temp_x+temp_w+(large?4:2),text_w=width-2*pad-card_pad-text_x;
   int lines_h=text_h+small_h+(large?2:0);
-  detail_text(now,t.available()?weather_text(t.state):"Unavailable",text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
+  detail_text(now,t.available()?weather_text(t.state):tr(txt::tile_unavailable),text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
   std::string details;
-  if(std::isfinite(weather.feels)){snprintf(b,sizeof(b),"Feels like %.0f°",weather.feels);details=b;}
+  if(std::isfinite(weather.feels))details=fill(txt::weather_feels_like,"n",(int)std::lround(weather.feels));
   if(std::isfinite(t.humidity)){snprintf(b,sizeof(b),"%d%%",(int)std::lround(t.humidity));details+=(details.empty()?"":" · ")+std::string(b);}
   if(std::isfinite(weather.wind)){snprintf(b,sizeof(b),"%.0f %s",weather.wind,weather.wind_unit.empty()?"km/h":weather.wind_unit.c_str());details+=(details.empty()?"":" · ")+std::string(b);}
   detail_text(now,details,text_x,cy+(hero-lines_h)/2+text_h+(large?2:0),text_w,small,LV_TEXT_ALIGN_LEFT,muted);
@@ -1130,8 +1150,8 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   }
   y+=card_a_h+(large?12:6);
   // Coming days: a heading and a card with one row per day.
-  if(!weather.forecast.size()){detail_text(detail_root,"No daily forecast from Home Assistant",pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
-  if(large){detail_text(detail_root,"Coming days",pad+4,y,width-2*pad,detail_font,LV_TEXT_ALIGN_LEFT,muted);y+=text_h+8;}
+  if(!weather.forecast.size()){detail_text(detail_root,tr(txt::weather_no_forecast),pad,y,width-2*pad,small,LV_TEXT_ALIGN_LEFT,muted);return;}
+  if(large){detail_text(detail_root,tr(txt::weather_coming_days),pad+4,y,width-2*pad,detail_font,LV_TEXT_ALIGN_LEFT,muted);y+=text_h+8;}
   int card_b_h=height-y-(large?10:4);
   auto *days=detail_card(pad,y,width-2*pad,card_b_h);
   int row_pad=large?8:4,row=(card_b_h-2*row_pad)/(int)weather.forecast.size();
@@ -1275,7 +1295,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   bool cleaning=t.state=="cleaning",paused=t.state=="paused";
   bool battery=std::isfinite(t.battery),on_the_way=cleaning||paused||t.state=="returning";
   int inner=width-2*pad,gap=large?12:6,radius=lv_obj_get_style_radius(widgets[0].tile,LV_PART_MAIN);
-  std::string state=t.loading(now)?"Command sent...":detail_state(t);
+  std::string state=t.loading(now)?tr(txt::tile_command_sent):detail_state(t);
   // A robot with little to set gets a hero on the small screen too; one with mode and water rows uses a status row.
   bool small_hero=!large && !mode && !t.choice('w');
   int y=large?92:52;
@@ -1314,12 +1334,12 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   }
   // Start (or pause, or resume) as the one blue button, dock beside it.
   int action_h=large?54:(small_hero?40:36),start_w=large?(inner-gap)*2/3:(inner-gap)/2;
-  vacuum_command(cleaning?"\U000F03E4":"\U000F040A",cleaning?(large?"Pause cleaning":"Pause"):paused?"Resume":(large?"Start cleaning":"Clean"),
+  vacuum_command(cleaning?"\U000F03E4":"\U000F040A",tr(cleaning?(large?txt::vacuum_pause_cleaning:txt::vacuum_pause):paused?txt::vacuum_resume:(large?txt::vacuum_start_cleaning:txt::vacuum_clean)),
                  pad,y,start_w,action_h,cleaning?1:0,true,text,icons,large?radius:action_h/2);
-  vacuum_command("\U000F05F8","Dock",pad+start_w+gap,y,inner-start_w-gap,action_h,2,false,text,icons,large?radius:action_h/2);
+  vacuum_command("\U000F05F8",tr(txt::vacuum_dock),pad+start_w+gap,y,inner-start_w-gap,action_h,2,false,text,icons,large?radius:action_h/2);
   y+=action_h+gap;
   if(!mode && !suction && !water){
-    auto *note=detail_text(detail_root,"Automatic suction power",pad,y+gap,inner,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);(void)note;
+    auto *note=detail_text(detail_root,tr(txt::vacuum_auto_suction),pad,y+gap,inner,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);(void)note;
     return;
   }
   // How it cleans. The Guition groups the rows on one white card; the small screen has no room for a card.
@@ -1340,7 +1360,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   if(water)level(*water,60,"\U000F058C");
   if(automatic){
     bool smart=tile_controls::shown_value(t,*mode,now).find("smart")!=std::string::npos;
-    detail_text(detail_root,smart?"The robot chooses suction and water":"Suction and water as set per room",x,y,w,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
+    detail_text(detail_root,tr(smart?txt::vacuum_robot_chooses:txt::vacuum_per_room),x,y,w,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
   }
 }
 // ---- Cover card (firmware 0.2.50+): Home Assistant's cover dialog in the style of the vacuum and climate cards ----
@@ -1353,7 +1373,7 @@ inline constexpr uint32_t COVER_ACCENT = theme::ha::PURPLE;
 inline uint32_t cover_track(){return theme::tint(COVER_ACCENT,37);}
 inline uint32_t cover_slats(){return theme::tint(COVER_ACCENT,80);}
 inline lv_obj_t *cover_values[2]{};
-inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):"Unavailable";}
+inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):tr(txt::tile_unavailable);}
 inline void cover_slider_event(lv_event_t *e){
   auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
   const bool tilt=(uintptr_t)lv_event_get_user_data(e)==1;
@@ -1462,8 +1482,8 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
     detail_card(pad,top,inner,box_h);
     struct Part{bool tilt;float value;const char *caption;};
     Part parts[2];int n=0;
-    if(card.position)parts[n++]={false,t.position,"Position"};
-    if(card.tilt)parts[n++]={true,t.extra().tilt,"Tilt"};
+    if(card.position)parts[n++]={false,t.position,tr(txt::cover_position)};
+    if(card.tilt)parts[n++]={true,t.extra().tilt,tr(txt::cover_tilt)};
     int value_h=lv_font_get_line_height(big),caption_h=lv_font_get_line_height(text);
     auto percent=[](float value){return std::isfinite(value)?std::to_string((int)std::lround(std::clamp(value,0.0f,100.0f)))+"%":std::string("--");};
     if(large){
@@ -1550,7 +1570,7 @@ inline bool history_fits(const Tile &t){
 // Home Assistant's word for the state now: from this entity's history words, else the card's own. The history can
 // still be the previous card's while this one waits for its answer.
 inline std::string history_words(const Tile &t){
-  if(!t.available())return "Unavailable";
+  if(!t.available())return tr(txt::tile_unavailable);
   if(history.entity==t.entity)for(const auto &pair:history.words)if(pair.first==t.state)return pair.second;
   return detail_state(t);
 }
@@ -1602,16 +1622,16 @@ inline void history_scrub(lv_event_t *e){
     const int i=history_view::part_at(fraction);
     const uint64_t span=h.end-h.start;
     const uint32_t begin=h.start+static_cast<uint32_t>(span*i/history_view::PARTS),finish=h.start+static_cast<uint32_t>(span*(i+1)/history_view::PARTS);
-    label(c.value,h.has[i]?history_view::number(h.values[i],h.decimals,h.unit):"No data");
+    label(c.value,h.has[i]?history_view::number(h.values[i],h.decimals,h.unit):std::string(tr(txt::history_no_data)));
     lv_obj_set_style_text_color(c.value,lv_color_hex(h.has[i]?theme::foreground(c.accent):theme::hex(theme::SUBTLE)),0);
     if(c.first)label(c.first,history_clock(begin,week)+" \u2013 "+history_clock(finish,false));
-    if(c.second)label(c.second,!h.has[i]?"":h.hours==1?"average":"average of "+history_view::duration(finish-begin));
+    if(c.second)label(c.second,!h.has[i]?std::string():h.hours==1?std::string(tr(txt::history_average)):fill(txt::history_average_of,"duration",history_view::duration(finish-begin)));
   }else{
     // A run reads the real times of its state, not the slots it covers: a door open for 5 minutes says 5 min.
     const int r=history_view::run_at(h.runs,h.slots,fraction);if(r<0)return;
     const auto &run=h.runs[r];
     const uint32_t begin=h.start+run.begin,finish=h.start+run.end;
-    label(c.value,run.state<0||run.state>=static_cast<int>(h.states.size())?"No data":h.states[run.state].label);
+    label(c.value,run.state<0||run.state>=static_cast<int>(h.states.size())?std::string(tr(txt::history_no_data)):h.states[run.state].label);
     if(c.first)label(c.first,history_clock(begin,week)+" \u2013 "+history_clock(finish,week&&finish-begin>=43200));
     if(c.second)label(c.second,history_view::duration(run.seconds));
   }
@@ -1627,8 +1647,8 @@ inline void history_touch(int x,int y,int w,int h){
 inline void history_times(int x,int w,int y,const lv_font_t *font,bool large){
   const auto &h=history;
   const lv_font_t *bold=detail_font?detail_font:font;
-  const int now_w=text_width("Now",bold),gap=large?10:6;
-  detail_text(detail_root,"Now",x+w-now_w,y,now_w+2,bold,LV_TEXT_ALIGN_LEFT,theme::INK);
+  const int now_w=text_width(tr(txt::history_now),bold),gap=large?10:6;
+  detail_text(detail_root,tr(txt::history_now),x+w-now_w,y,now_w+2,bold,LV_TEXT_ALIGN_LEFT,theme::INK);
   int last=x-1000;
   for(uint32_t at:h.times){
     if(at<=h.start||at>=h.end)continue;
@@ -1751,7 +1771,7 @@ inline void render_history_timeline(bool large,int card_x,int card_y,int card_w,
 // waiting for a command does not lock it.
 inline void history_ranges(int x,int y,int w,int h){
   static const uint32_t hours[]={1,24,168};
-  static const char *const words[]={"1 hour","24 hours","1 week"};
+  const char *const words[]={tr(txt::history_range_hour),tr(txt::history_range_day),tr(txt::history_range_week)};
   const lv_font_t *font=control_font?control_font:detail_font;
   auto *track=detail_shape(detail_root,x,y,w,h,theme::CARD,h/2);
   lv_obj_set_style_border_width(track,1,0);lv_obj_set_style_border_color(track,theme::color(theme::LINE),0);
@@ -1789,7 +1809,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   if(line){
     int decimals=0;const auto dot=t.state.find('.');if(dot!=std::string::npos)decimals=static_cast<int>(std::min<size_t>(4,t.state.size()-dot-1));
     if(c.ready)decimals=h.decimals;
-    c.value_text=!t.available()?"Unavailable":numeric?history_view::number(current,decimals,t.unit):t.state;
+    c.value_text=!t.available()?std::string(tr(txt::tile_unavailable)):numeric?history_view::number(current,decimals,t.unit):t.state;
     if(c.ready){
       // The value now counts too: it can lie beyond the history (the running hour is not in the statistics yet).
       if(h.has_high){c.high=h.high;c.high_at=h.high_at;}
@@ -1797,13 +1817,13 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
       if(std::isfinite(current)&&std::isfinite(c.high)&&current>c.high){c.high=current;c.high_at=h.end;}
       if(std::isfinite(current)&&std::isfinite(c.low)&&current<c.low){c.low=current;c.low_at=h.end;}
     }
-    if(std::isfinite(c.high))c.first_text="High "+history_view::number(c.high,h.decimals,h.unit)+" \u00B7 "+history_clock(c.high_at,h.hours==168);
-    if(std::isfinite(c.low))c.second_text="Low "+history_view::number(c.low,h.decimals,h.unit)+" \u00B7 "+history_clock(c.low_at,h.hours==168);
+    if(std::isfinite(c.high))c.first_text=fill(txt::history_high,"value",history_view::number(c.high,h.decimals,h.unit))+" \u00B7 "+history_clock(c.high_at,h.hours==168);
+    if(std::isfinite(c.low))c.second_text=fill(txt::history_low,"value",history_view::number(c.low,h.decimals,h.unit))+" \u00B7 "+history_clock(c.low_at,h.hours==168);
   }else{
     c.value_text=history_words(t);
     if(c.ready&&h.active>=0){
       c.first_text=h.states[h.active].label+" \u00B7 "+history_view::duration(h.states[h.active].seconds);
-      c.second_text=h.began==1?"once":h.began?std::to_string(h.began)+" times":"";
+      c.second_text=h.began?plural(txt::history_times,h.began):"";
     }
   }
   const int row=large?84:50,row_h=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text);
@@ -1832,7 +1852,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   }
   // The value column fits the widest text a finger can show there, so a readout never runs into the texts beside it.
   int widest=text_width(c.value_text,big);
-  if(c.ready)widest=std::max(widest,text_width("No data",big));
+  if(c.ready)widest=std::max(widest,text_width(tr(txt::history_no_data),big));
   if(c.ready&&line){for(int i=0;i<history_view::PARTS;++i)if(h.has[i])widest=std::max(widest,text_width(history_view::number(h.values[i],h.decimals,h.unit),big));}
   else if(c.ready){for(const auto &s:h.states)widest=std::max(widest,text_width(s.label,big));}
   const int value_x=pad+(large?8:4),value_w=std::min(widest+6,(width-2*pad)*11/20);
@@ -1853,7 +1873,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   detail_card(pad,top,width-2*pad,card_h);
   const bool empty=c.ready&&(line?std::none_of(h.has,h.has+history_view::PARTS,[](bool v){return v;}):h.states.empty());
   if(!c.ready||empty){
-    c.status=detail_text(detail_root,!c.ready?"Loading history...":"No history in this period",pad,top+(card_h-text_h)/2,width-2*pad,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
+    c.status=detail_text(detail_root,tr(!c.ready?txt::history_loading:txt::history_empty),pad,top+(card_h-text_h)/2,width-2*pad,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
   }else if(line){
     render_history_line(large,pad,top,width-2*pad,card_h,small,current);
   }else{
@@ -1889,7 +1909,7 @@ inline void media_action(Tile &t,int cmd){
 // An off or standby player shows one key: power, when the player can be turned on from here.
 inline bool media_off(const Tile &t){return t.state=="off" || t.state=="standby";}
 inline std::string media_volume_text(const Tile &t){
-  if(t.muted)return "Muted";
+  if(t.muted)return tr(txt::media_muted);
   if(!std::isfinite(t.volume))return "";
   return std::to_string((int)std::lround(std::clamp(t.volume,0.0f,1.0f)*100))+" %";
 }
@@ -2069,12 +2089,12 @@ inline void show_detail(unsigned index){
   }else if(d=="weather"){
     render_weather_detail(t,large,width,height,pad);
   }else if(d=="timer"){
-    detail_label(detail_root,t.state=="active"?"Running":t.state=="paused"?"Paused":"Stopped",pad,top,width-2*pad);
-    detail_button(t.state=="active"?"Pause":"Start",pad,top+(large?50:30),cw,bh,40);
-    detail_button("Cancel",pad+cw+gap,top+(large?50:30),cw,bh,41);
+    detail_label(detail_root,tr(t.state=="active"?txt::timer_running:t.state=="paused"?txt::timer_paused:txt::timer_stopped),pad,top,width-2*pad);
+    detail_button(tr(t.state=="active"?txt::timer_pause:txt::timer_start),pad,top+(large?50:30),cw,bh,40);
+    detail_button(tr(txt::timer_cancel),pad+cw+gap,top+(large?50:30),cw,bh,41);
   }else if(d=="sun"){
-    detail_label(detail_root,"Sunrise "+t.extra().sunrise,pad,top,width-2*pad);
-    detail_label(detail_root,"Sunset "+t.extra().sunset,pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
+    detail_label(detail_root,fill(txt::sun_sunrise,"time",t.extra().sunrise),pad,top,width-2*pad);
+    detail_label(detail_root,fill(txt::sun_sunset,"time",t.extra().sunset),pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
   }
 }
 }
@@ -2108,20 +2128,20 @@ inline const char *weather_icon(const std::string &condition) {
   return "\U000F0595";
 }
 inline const char *weather_text(const std::string &condition) {
-  if (condition == "sunny") return "Sunny";
-  if (condition == "clear-night") return "Clear, night";
-  if (condition == "cloudy") return "Cloudy";
-  if (condition == "partlycloudy") return "Partly cloudy";
-  if (condition == "rainy") return "Rainy";
-  if (condition == "pouring") return "Pouring";
-  if (condition == "snowy") return "Snowy";
-  if (condition == "snowy-rainy") return "Snowy, rainy";
-  if (condition == "fog") return "Fog";
-  if (condition == "hail") return "Hail";
-  if (condition == "lightning") return "Lightning";
-  if (condition == "lightning-rainy") return "Lightning, rainy";
-  if (condition == "windy" || condition == "windy-variant") return "Windy";
-  if (condition == "exceptional") return "Exceptional";
+  if (condition == "sunny") return tr(txt::ha_weather_sunny);
+  if (condition == "clear-night") return tr(txt::ha_weather_clear_night);
+  if (condition == "cloudy") return tr(txt::ha_weather_cloudy);
+  if (condition == "partlycloudy") return tr(txt::ha_weather_partlycloudy);
+  if (condition == "rainy") return tr(txt::ha_weather_rainy);
+  if (condition == "pouring") return tr(txt::ha_weather_pouring);
+  if (condition == "snowy") return tr(txt::ha_weather_snowy);
+  if (condition == "snowy-rainy") return tr(txt::ha_weather_snowy_rainy);
+  if (condition == "fog") return tr(txt::ha_weather_fog);
+  if (condition == "hail") return tr(txt::ha_weather_hail);
+  if (condition == "lightning") return tr(txt::ha_weather_lightning);
+  if (condition == "lightning-rainy") return tr(txt::ha_weather_lightning_rainy);
+  if (condition == "windy" || condition == "windy-variant") return tr(txt::ha_weather_windy);
+  if (condition == "exceptional") return tr(txt::ha_weather_exceptional);
   return condition.c_str();
 }
 inline const char *icon_for(const Tile &tile) {
@@ -2150,36 +2170,38 @@ inline std::string countdown(uint32_t seconds) {
   else snprintf(b, sizeof(b), "%u:%02u", seconds / 60, seconds % 60);
   return b;
 }
-// "Last 14:32" today, "Yesterday 14:32", else "Last 13 Sep"; scripts and scenes have no useful on/off.
+// "Last 14:32" today, "Yesterday 14:32", else "Last 13 Sep", in the screen's language; scripts and scenes have no
+// useful on/off.
 inline std::string month_short(const esphome::ESPTime &now);
 inline std::string last_run_text(uint32_t epoch) {
-  if (!epoch) return "Never run";
+  if (!epoch) return tr(txt::script_never_run);
   auto when = esphome::ESPTime::from_epoch_local(epoch);
   auto now = now_time ? now_time() : esphome::ESPTime{};
-  if (!when.is_valid()) return "Never run";
+  if (!when.is_valid()) return tr(txt::script_never_run);
   char clock[8]; snprintf(clock, sizeof(clock), "%02d:%02d", when.hour, when.minute);
-  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year) return std::string("Last ") + clock;
-  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year + 1) return std::string("Yesterday ") + clock;
-  return "Last " + std::to_string(when.day_of_month) + " " + month_short(when);
+  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year) return fill(txt::script_last_time, "time", clock);
+  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year + 1) return fill(txt::script_yesterday_time, "time", clock);
+  std::string date = fill(fill(txt::date_day_month, "day", std::to_string(when.day_of_month)), "month", month_short(when));
+  return fill(txt::script_last_date, "date", date);
 }
 inline std::string timer_text(const Tile &t) {
   const Extra &x = t.extra();
   if (t.state == "active") return countdown(timer_left(x.timer_end, now_epoch(), x.duration));
-  if (t.state == "paused") return "Paused " + countdown(duration_seconds(x.remaining));
-  return x.duration.empty() ? "Off" : countdown(duration_seconds(x.duration));
+  if (t.state == "paused") return fill(txt::timer_paused_left, "time", countdown(duration_seconds(x.remaining)));
+  return x.duration.empty() ? std::string(tr(txt::ha_off)) : countdown(duration_seconds(x.duration));
 }
 inline std::string weekday_text(const esphome::ESPTime &now) {
-  static const char *days[] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
-  return now.is_valid() && now.day_of_week >= 1 && now.day_of_week <= 7 ? days[now.day_of_week - 1] : "";
+  return now.is_valid() && now.day_of_week >= 1 && now.day_of_week <= 7 ? tr(txt::date_weekdays + now.day_of_week - 1) : "";
 }
 inline std::string month_short(const esphome::ESPTime &now) {
-  static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
-  return now.is_valid() && now.month >= 1 && now.month <= 12 ? months[now.month - 1] : "";
+  return now.is_valid() && now.month >= 1 && now.month <= 12 ? tr(txt::date_months_short + now.month - 1) : "";
 }
+// "Monday 14 September" in English, "maandag 14 september" in Dutch (screen.date.full).
 inline std::string date_text(const esphome::ESPTime &now) {
-  static const char *months[] = {"January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"};
   if (!now.is_valid() || now.day_of_week < 1 || now.day_of_week > 7 || now.month < 1 || now.month > 12) return "";
-  return weekday_text(now) + " " + std::to_string(now.day_of_month) + " " + months[now.month - 1];
+  std::string text = fill(txt::date_full, "weekday", weekday_text(now));
+  text = fill(text, "day", std::to_string(now.day_of_month));
+  return fill(text, "month", tr(txt::date_months + now.month - 1));
 }
 // Where the finger is, or where it let go, in the screen's coordinates; false without a finger (a test's event).
 inline bool finger_at(lv_point_t &point) {
@@ -2615,9 +2637,9 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   int title_h=lv_font_get_line_height(title_font),text_h=lv_font_get_line_height(w.value_font);
   int horizon=height-text_h-(large?4:2),top=title_h+(large?4:2),x0=large?14:8,x1=width-x0;
-  part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?"Sun":t.name);
-  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,"rise "+t.extra().sunrise);
-  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,"set "+t.extra().sunset);
+  part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?std::string(tr(txt::sun_name)):t.name);
+  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,fill(txt::sun_rise,"time",t.extra().sunrise));
+  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,fill(txt::sun_set,"time",t.extra().sunset));
   auto now=now_time?now_time():esphome::ESPTime{};
   int rise=minutes_of(t.extra().sunrise),set=minutes_of(t.extra().sunset),minute=now.is_valid()?now.hour*60+now.minute:-1;
   bool day=t.state=="above_horizon";float fraction=0.5f;
@@ -3068,7 +3090,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   // The large value font carries digits, the degree sign and the percent sign; the clock font only digits and a colon.
   std::string middle;const lv_font_t *mid_font=watch_value_font?watch_value_font:w.value_font;
   auto d=t.domain();
-  if(d=="climate" && std::isfinite(t.current)){char b[32];snprintf(b,sizeof(b),"%.1f°",t.current);middle=b;}
+  if(d=="climate" && std::isfinite(t.current))middle=screen_text::decimal(t.current,1)+"°";
   else if(d=="cover" && std::isfinite(t.position)){middle=std::to_string(static_cast<int>(std::lround(t.position)))+" %";}
   else if(d=="media_player" && !t.extra().media_title.empty()){middle=t.extra().media_title;mid_font=room_label?lv_obj_get_style_text_font(room_label,LV_PART_MAIN):w.title_font;}
   int mid_font_h=lv_font_get_line_height(mid_font);
@@ -3092,34 +3114,34 @@ inline void render_slot(size_t slot) {
   std::string unit=watch?t.unit:"";
   std::string value = t.state;
   // Nothing in Home Assistant stands behind the settings card, so it says the same with the link down.
-  if (t.is_settings()) value = "Tap to open";
-  else if (t.is_page()) value = "Page " + std::to_string(t.page_target());
-  else if (!fresh() || !t.available()) value = "Unavailable";
-  else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = "Refused";
+  if (t.is_settings()) value = tr(txt::tile_tap_to_open);
+  else if (t.is_page()) value = fill(txt::tile_page, "n", t.page_target());
+  else if (!fresh() || !t.available()) value = tr(txt::tile_unavailable);
+  else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = tr(txt::tile_refused);
   else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
   // An airco that is off says so, with the room's temperature when it knows it, as Home Assistant's tile does
   // (firmware 0.2.71+); while it runs, the tile shows the temperature it is set to.
-  else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) { char b[32]; snprintf(b, sizeof(b), " · %.1f°", t.current); value += b; } }
-  else if (d == "climate" && std::isfinite(t.target)) { char b[32]; snprintf(b, sizeof(b), "%.1f°", t.target); value = b; }
-  else if (d == "person") value = t.state=="home"?"Home":t.state=="not_home"?"Away":t.state;
-  else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? t.extra().sunrise+" - "+t.extra().sunset : t.state=="above_horizon"?"Above the horizon":"Below the horizon";
+  else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) value += " · " + screen_text::decimal(t.current, 1) + "°"; }
+  else if (d == "climate" && std::isfinite(t.target)) value = screen_text::decimal(t.target, 1) + "°";
+  else if (d == "person") value = t.state=="home"?tr(txt::ha_person_home):t.state=="not_home"?tr(txt::ha_person_not_home):t.state;
+  else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? t.extra().sunrise+" - "+t.extra().sunset : tr(t.state=="above_horizon"?txt::ha_sun_above_horizon:txt::ha_sun_below_horizon);
   else if (d == "timer") value = timer_text(t);
-  else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? "Running..." : last_run_text(t.last_run);
-  else if (d == "camera") value = t.state == "streaming" ? "Live" : t.state == "recording" ? "Recording" : "Tap to view";
-  else if (d == "image") value = t.last_run ? "Tap to view" : "No image yet";
+  else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? std::string(tr(txt::script_running)) : last_run_text(t.last_run);
+  else if (d == "camera") value = tr(t.state == "streaming" ? txt::camera_live : t.state == "recording" ? txt::camera_recording : txt::camera_tap_to_view);
+  else if (d == "image") value = tr(t.last_run ? txt::camera_tap_to_view : txt::camera_no_image_yet);
   else if (d == "binary_sensor" && (value == "on" || value == "off")) value = tile_controls::binary_state_text(t.device_class, value == "on");
-  else if (value == "on") value = "On";
-  else if (value == "off") value = "Off";
-  else if (value == "cleaning") value = "Cleaning";
-  else if (value == "docked") value = "Docked";
+  else if (value == "on") value = tr(txt::ha_on);
+  else if (value == "off") value = tr(txt::ha_off);
+  else if (value == "cleaning") value = tr(txt::ha_vacuum_cleaning);
+  else if (value == "docked") value = tr(txt::ha_vacuum_docked);
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+): a cover says Open, a washer Rinsing.
   else if (!t.extra().state_word.empty()) value = t.extra().state_word;
   // A player's state in the screen's own words where Home Assistant sent none (firmware 0.2.64+).
   else if (d == "media_player") value = tile_controls::media_state_text(t.state);
   else if (!t.unit.empty() && !watch) value += " " + t.unit;
   bool pending=t.loading(esphome::millis());
-  if(d=="weather" && std::isfinite(t.current)) {char b[32];snprintf(b,sizeof(b),"%.1f %s",t.current,t.unit.c_str());value=b;if(watch){snprintf(b,sizeof(b),"%.1f",t.current);value=b;}}
+  if(d=="weather" && std::isfinite(t.current)) {value=screen_text::decimal(t.current,1);if(!watch)value+=" "+t.unit;}
   if(d=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
   // Direct controls: only a wide card in the standard layout has room for the panel.
   bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
@@ -3338,9 +3360,9 @@ inline void boot_status(lv_obj_t *page, const char *text) {
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room; swipe_profile::Lap lap;
-  if (!model.configured) boot_status(lv_obj_get_parent(room), !ha_connected() ? "Connecting to Home Assistant" : "Waiting for ESP Screens");
+  if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : txt::status_waiting));
   else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
-  label(room, !model.configured ? "" : !model.ready() ? "Loading tiles..." : !ha_connected() ? "HA not connected" : !feed_alive() ? "ESP Screens not active" : model.title);
+  label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title);
   render_header();
   lap(swipe_profile::HEADER);
   bool all=dirty_all || (!dirty_tiles && !dirty_header);
@@ -3856,15 +3878,15 @@ inline void tick() {
       const uint32_t now=esphome::millis();
       if(history_fits(t))refresh_detail(detail_index);
       else if(now-history_asked_at>30000)history_request(t.entity,history_hours);
-      else if(now-history_asked_at>8000)label(history_chart.status,"No history available");
+      else if(now-history_asked_at>8000)label(history_chart.status,tr(txt::history_unavailable));
     }
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
-    std::string status=waiting?(t.confirmed?"Confirmed by Home Assistant":"Command sent..."):t.domain()=="cover"?cover_status_line(t):detail_state(t);
+    std::string status=waiting?std::string(tr(t.confirmed?txt::tile_confirmed:txt::tile_command_sent)):t.domain()=="cover"?cover_status_line(t):detail_state(t);
     if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));
     // The vacuum card lays its state out with the room and battery beside it, so a new text draws the
     // card again; once Home Assistant answered, the new state says enough.
     if(detail_badge_status && t.domain()=="vacuum"){
-      status=waiting && !t.confirmed?"Command sent...":detail_state(t);
+      status=waiting && !t.confirmed?std::string(tr(txt::tile_command_sent)):detail_state(t);
       if(status!=lv_label_get_text(detail_badge_status))refresh_detail(detail_index);
     }else if(detail_badge_status)label(detail_badge_status,status);
     if(detail_switch && !lv_obj_has_state(detail_switch,LV_STATE_PRESSED)){
@@ -4261,7 +4283,7 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
     if (!camera_root || camera.entity != entity) return;
     camera.link(url);
     if (url.empty()) {
-      if (!camera.shown) camera_note_text("No image from this camera");
+      if (!camera.shown) camera_note_text(tr(txt::camera_no_image));
       return;
     }
     // Loaded now rather than on the next tick (firmware 0.2.73+), as an alert's image is.
@@ -4364,6 +4386,6 @@ inline void camera_failed(bool thumb) {
   }
   if (!camera.loading) return;
   camera.finish(esphome::millis(), false);
-  if (!camera.shown) camera_note_text("No image from this camera");
+  if (!camera.shown) camera_note_text(tr(txt::camera_no_image));
 }
 }  // namespace runtime_tiles

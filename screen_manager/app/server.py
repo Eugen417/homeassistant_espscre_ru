@@ -24,6 +24,8 @@ from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entiti
 from core import PAGE_TILE_REPEAT_MIN_FIRMWARE, SLOTS_PER_PAGE, firmware_features, packed_slots, run_tile_event, screen_firmware, version_text
 import header_bar
 import history_card
+import i18n
+from i18n import REQUEST_LANGUAGE, TRANSLATIONS, Region, t
 from zoneinfo import ZoneInfo
 
 
@@ -106,6 +108,12 @@ class HomeAssistant:
         self.time_zone = None
         # Home Assistant's unit system; a climate entity's temperature carries no unit of its own.
         self.units = {}
+        # Home Assistant's own language (get_config), and the one the screens speak (Settings -> Language & region,
+        # app 0.2.90), in which the words for states are fetched; the manager binds `language_of`.
+        self.ha_language = None
+        self.language_of = lambda: 'en'
+        self.config_stale = False
+        self.on_config = lambda: None
         # (event type, data) of alert events for every screen, for Manager.alert_loop.
         self.broadcasts = asyncio.Queue()
         # (event type, data) of tile events (app 0.2.51+), for Manager.tile_loop.
@@ -118,11 +126,12 @@ class HomeAssistant:
         # 0.2.67); `services_rev` counts the refreshes. `targets` keeps Home Assistant's answer per entity, and
         # `target_lookup` stays None until it is known whether Home Assistant answers get_services_for_target (2025.12+).
         self.services, self.services_rev, self.targets, self.target_lookup = {}, 0, {}, None
-        # Home Assistant's own names and descriptions of actions and their fields (frontend/get_translations, English
-        # like the editor), for Perform action (app 0.2.67). `get_services` has carried no translated names since 2025.10.
-        self.service_names = {}
-        # Home Assistant's words for states (frontend/get_translations `entity_component` and `entity`, English), which a
-        # tile shows where it would show the raw state (app 0.2.67).
+        # Home Assistant's own names and descriptions of actions and their fields (frontend/get_translations), for Perform
+        # action (app 0.2.67); `get_services` has carried no translated names since 2025.10. Per language (app 0.2.90): the
+        # screens' one first, an editor in another language asks for its own (service_names_in).
+        self.service_names, self.service_names_by_language = {}, {}
+        # Home Assistant's words for states (frontend/get_translations `entity_component` and `entity`), in the screens'
+        # language (app 0.2.90), which a tile shows where it would show the raw state (app 0.2.67).
         self.state_words = {}
         self.esphome_services = False
         self._platforms_source, self._platforms = None, {}
@@ -182,6 +191,10 @@ class HomeAssistant:
                         self.changed.set()
                 elif event.get('event_type') in REGISTRY_EVENTS:
                     self.registry_changed.set()
+                elif event.get('event_type') == 'core_config_updated':
+                    # Settings -> System -> General in Home Assistant, such as its language (app 0.2.90).
+                    self.config_stale = True
+                    self.services_changed.set()
                 elif event.get('event_type') in SERVICE_EVENTS:
                     # Every action counts for what the editor offers (app 0.2.67); a screen's own actions also decide
                     # how the app talks to it.
@@ -216,12 +229,14 @@ class HomeAssistant:
         if isinstance(services, dict):
             self.services, self.services_rev, self.targets = services, self.services_rev + 1, {}
         try:
-            names = await self.request('frontend/get_translations', language='en', category='services')
+            language = self.language_of()
+            names = await self.request('frontend/get_translations', language=language, category='services')
             if isinstance((names or {}).get('resources'), dict):
                 self.service_names = names['resources']
+                self.service_names_by_language = {language: names['resources']}
             words = {}
             for category in ('entity_component', 'entity'):
-                found = await self.request('frontend/get_translations', language='en', category=category)
+                found = await self.request('frontend/get_translations', language=language, category=category)
                 if isinstance((found or {}).get('resources'), dict):
                     words.update(found['resources'])
             if words:
@@ -236,6 +251,34 @@ class HomeAssistant:
         except (Refused, TimeoutError) as error:
             # The editor then shows the names services.yaml still carries, and tiles keep their raw states.
             LOG.info('No action names or state words from Home Assistant (%s)', type(error).__name__)
+
+    async def service_names_in(self, language):
+        """Home Assistant's names of actions in `language` (the editor's), fetched once per language; the screens' own
+        when Home Assistant doesn't answer."""
+        if language == self.language_of() or not self.service_names_by_language:
+            return self.service_names
+        if language not in self.service_names_by_language:
+            try:
+                names = await self.request('frontend/get_translations', language=language, category='services')
+                self.service_names_by_language[language] = (names or {}).get('resources') or self.service_names
+            except (Refused, TimeoutError, ConnectionError):
+                return self.service_names
+        return self.service_names_by_language[language]
+
+    async def read_config(self):
+        """Units, time zone and language from Home Assistant's core config; again when someone changes them there."""
+        self.config_stale = False
+        try:
+            config = await self.request('get_config')
+            self.units = config.get('unit_system') or {}
+            self.time_zone = ZoneInfo(config.get('time_zone') or 'UTC')
+            language = config.get('language')
+            changed = isinstance(language, str) and language != self.ha_language
+            self.ha_language = language if isinstance(language, str) else self.ha_language
+            if changed:
+                self.on_config()
+        except (Refused, TimeoutError, ConnectionError, ValueError, TypeError, AttributeError, KeyError):
+            self.time_zone = self.time_zone or timezone.utc
 
     async def refresh_services(self):
         """fetch_services for the connection loop: a list that cannot be read only means no answers are asked for."""
@@ -310,13 +353,10 @@ class HomeAssistant:
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
+                    # The config first: its language decides the language of the words for states (app 0.2.90).
+                    await self.request('subscribe_events', event_type='core_config_updated')
+                    await self.read_config()
                     await self.refresh_services()
-                    try:
-                        config = await self.request('get_config')
-                        self.units = config.get('unit_system') or {}
-                        self.time_zone = ZoneInfo(config.get('time_zone') or 'UTC')
-                    except Exception:
-                        self.time_zone = timezone.utc
                     self.online = True
                     self.changed.set()
                     connected = time.monotonic()
@@ -337,6 +377,8 @@ class HomeAssistant:
                             # A screen that reconnects registers its actions one after the other.
                             await asyncio.sleep(1)
                             self.services_changed.clear()
+                            if self.config_stale:
+                                await self.read_config()
                             await self.refresh_services()
                             if self.esphome_services:
                                 self.esphome_services = False
@@ -524,6 +566,11 @@ class Manager:
         self.listeners = set()  # asyncio.Event per open /api/events stream
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
         self.updates = Updater(self, self.path.parent / 'updates.json')
+        # Settings -> Language & region (app 0.2.90): the language, clock and numbers of every screen.
+        self.region = Region(self.path.parent / 'language.json', ha_language=lambda: getattr(self.ha, 'ha_language', None))
+        self.ha.language_of = self.region.language
+        self.ha.on_config = self.language_changed
+        self.pin_clock = False
         self.skill_dir = claude_skill.skill_dir()
         self._registry_source, self._registry_index = None, {}
         self._items_source, self._items = None, []
@@ -556,6 +603,12 @@ class Manager:
                 raise ValueError('Unknown storage version; data stays unchanged.')
             # Loaded leniently: a tile setting this version doesn't know (saved by a newer one) never stops the app.
             self.layouts = {key: validate_layout(value, stored=True) for key, value in raw['screens'].items()}
+        # An app from before Language & region (app 0.2.90): its screens keep the 24 hours they show; language_changed
+        # makes it 12 once Home Assistant says every screen's own clock setting was 12 hours.
+        if not self.region.stored and self.layouts:
+            self.region.clock = '24'
+            self.region.save()
+            self.pin_clock = True
 
     def inventory(self):
         """(screens, every tile/top-bar entity): the full walk over the registry, for the editor and saving."""
@@ -1085,6 +1138,38 @@ class Manager:
         for listener in self.listeners:
             listener.set()
 
+    # ----- Language & region (app 0.2.90) -----
+    def language_changed(self):
+        """The screens' language may have changed (Settings -> Language & region, or Home Assistant's own): the words for
+        states come again in it, every screen gets all its messages anew, and each screen's YAML gets the language its
+        next firmware update builds in, which makes that update show."""
+        if self.pin_clock:
+            self.pin_clock = False
+            clocks = [self.ha.states.get(item['entity_id'], {}).get('state') for item in getattr(self.ha, 'registry', [])
+                      if item.get('platform') == 'esphome' and item.get('original_name') == '24-hour clock']
+            known = [state for state in clocks if state in ('on', 'off')]
+            if known and all(state == 'off' for state in known):
+                self.region.clock = '12'
+                self.region.save()
+        self.ha.services_changed.set()
+        self.sent.clear()
+        self.write_languages()
+        self.ha.changed.set()
+        self.notify()
+
+    def write_languages(self):
+        """Every paired screen's YAML says the language of its next build (the LANGUAGE substitution)."""
+        language, profiles = self.region.language(), self.firmware.profile_names()
+        for screen in self.screens():
+            profile, _ = self.updates.resolve(screen, profiles)
+            if not profile:
+                continue
+            try:
+                if self.firmware.set_language(profile, language):
+                    LOG.info('%s builds in %s from its next update', profile, language)
+            except (OSError, ValueError) as error:
+                LOG.warning('Could not write the language into %s (%s)', profile, error)
+
     def pending_profiles(self, screens, profiles):
         """ESP Screens profiles without a paired screen: flashed but not yet added in Home Assistant, or not flashed yet.
 
@@ -1182,6 +1267,12 @@ class Manager:
             message['auto_home_seconds'] = layout['settings'].get('auto_home_seconds',120)
             if screen.get('board')=='guition':
                 message['rotation'] = layout['settings'].get('rotation',0)
+        # The clock and the number format of Settings -> Language & region (app 0.2.90), the same on every screen; firmware
+        # before 0.2.76 ignores both and keeps a clock setting of its own.
+        message['clock_24h'] = self.region.clock_24h()
+        message['numbers'] = self.region.number_style()
+        if 'settings' in message:
+            message['settings']['clock_24h'] = message['clock_24h']
         # The revision the screen echoes on every ping (firmware 0.2.33+; older firmware ignores it).
         message['rev'] = revision(message)
         return message
@@ -1600,6 +1691,8 @@ def create_app(manager, development=False):
     csrf = secrets.token_urlsafe(32)
     @web.middleware
     async def guard(request, handler):
+        # The editor's language for the messages this request answers with (app 0.2.90).
+        REQUEST_LANGUAGE.set(TRANSLATIONS.resolve(request.headers.get('X-ESP-Screens-Language') or 'en'))
         allowed = {'127.0.0.1', '::1'} if development else {'172.30.32.2'}
         if request.remote not in allowed:
             raise web.HTTPForbidden(text='Open this page through Home Assistant.')
@@ -1665,7 +1758,8 @@ def create_app(manager, development=False):
             screen.update(firmware_features(version))
         return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
                 'pending': manager.pending_profiles(screens, profiles),
-                'updates': manager.updates.summary(screens, profiles)}
+                'updates': manager.updates.summary(screens, profiles),
+                'language': manager.region.view()}
     async def inventory(request):
         if request.query.get('light') == '1':
             # The page polls the light form; entities, backgrounds and icons (~100 KB) only on demand.
@@ -1742,8 +1836,18 @@ def create_app(manager, development=False):
         actions = await ha.entity_actions(entity) if entity_id(entity) and hasattr(ha, 'entity_actions') else None
         if actions is None:
             return web.json_response({'actions': None})
+        # Home Assistant's names in the editor's own language (app 0.2.90).
+        names = await ha.service_names_in(REQUEST_LANGUAGE.get()) if hasattr(ha, 'service_names_in') else getattr(ha, 'service_names', {})
         return web.json_response({'actions': ha_catalogue.action_choices(entity, actions, ha.states.get(entity), ha.services,
-                                                                         getattr(ha, 'service_names', {}), ha.platform_of(entity))})
+                                                                         names, ha.platform_of(entity))})
+    async def change_language(request):
+        """Settings -> Language & region (app 0.2.90): the language, clock and number format of every screen."""
+        data = await request.json()
+        before = (manager.region.language(), manager.region.clock_24h(), manager.region.number_style())
+        manager.region.change({key: data[key] for key in ('setting', 'clock', 'numbers') if isinstance(data, dict) and key in data})
+        if before != (manager.region.language(), manager.region.clock_24h(), manager.region.number_style()):
+            manager.language_changed()
+        return web.json_response({'language': manager.region.view()})
     async def change_settings(request):
         """Screen settings apply one change at a time, like the settings page on the screen (app 0.2.57)."""
         data = await request.json()
@@ -1834,8 +1938,12 @@ def create_app(manager, development=False):
             raise ValueError('Invalid override data.')
         return web.json_response(manager.firmware.save_override(request.match_info['file'], data.get('content')))
     async def firmware_create(request):
-        # Profile, missing wifi secrets and (with a USB port or the download) the build and flash in one request.
-        return web.json_response(manager.firmware.install(await request.json()))
+        # Profile, missing wifi secrets and (with a USB port or the download) the build and flash in one request; the
+        # screen speaks the language of Settings -> Language & region from its first build (app 0.2.90).
+        data = await request.json()
+        if isinstance(data, dict):
+            data['language'] = manager.region.language()
+        return web.json_response(manager.firmware.install(data))
     async def firmware_download(request):
         """New screen and Firmware & USB → Download: the factory image this app just built, for ESPHome Web on
         the owner's own computer. Like the profile it came from, it holds the Wi-Fi password and the screen's keys."""
@@ -1852,6 +1960,7 @@ def create_app(manager, development=False):
     app.router.add_post('/api/screens/{inbox}/update', update_screen)
     app.router.add_post('/api/updates/run', update_all)
     app.router.add_put('/api/updates', update_settings)
+    app.router.add_put('/api/language', change_language)
     app.router.add_get('/api/firmware', firmware_status)
     app.router.add_post('/api/firmware/jobs', firmware_start)
     app.router.add_get('/api/firmware/profiles/{file}/override', firmware_override)

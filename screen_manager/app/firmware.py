@@ -42,7 +42,8 @@ class Firmware:
     OVERRIDE_LIMIT = 12 * 1024  # bytes; checked here, far below the request body limit (128 KB since app 0.2.78)
     PROTECTED_OVERRIDE_KEYS = frozenset({'esphome', 'api', 'ota', 'wifi', 'packages',
                                          'external_components', 'captive_portal'})
-    PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION'})
+    # LANGUAGE follows Settings -> Language & region (app 0.2.90), which writes it into the profile itself.
+    PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION', 'LANGUAGE'})
     # ESPHome's "Factory format" (bootloader, partition table and app from address 0), the file ESPHome Web
     # flashes on a board. A build writes it next to firmware.bin: under .pioenvs/<node>/ with PlatformIO,
     # under build/ with ESPHome's native ESP-IDF toolchain.
@@ -186,6 +187,32 @@ class Firmware:
         key = yaml.load(content, Loader=LenientLoader)['api']['encryption']['key']
         # The key is what Home Assistant asks for when pairing; the page shows it once.
         return {'file': profile.name, 'node': data['name'], 'api_key': key}
+
+    def set_language(self, name, language):
+        """Let the screen's next build speak `language` (app 0.2.90): the LANGUAGE line of the profile's substitutions,
+        changed or added without reformatting the user's YAML. A profile that doesn't build from ESP Screens' packages is
+        left alone, as is an English one without the line (English is the packages' own default). True when it changed."""
+        profile = self.profile(name)
+        text = profile.read_text()
+        if 'homeassistant_espscreen' not in text and 'packages/core.yaml' not in text:
+            return False
+        line = f'  LANGUAGE: {json.dumps(language)}'
+        block = re.search(r'(?m)^substitutions:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)', text)
+        if block and re.search(r'(?m)^[ \t]+LANGUAGE:', block.group(1)):
+            start = block.start(1)
+            body = re.sub(r'(?m)^[ \t]+LANGUAGE:.*$', line, block.group(1), count=1)
+            updated = text[:start] + body + text[block.end(1):]
+        elif language == 'en':
+            return False
+        elif block:
+            updated = text[:block.start(1)] + line + '\n' + text[block.start(1):]
+        else:
+            updated = f'substitutions:\n{line}\n\n' + text
+        if updated == text:
+            return False
+        self._atomic_write(profile, updated)
+        self._names.pop(profile.name, None)
+        return True
 
     def _override_path(self, name):
         profile = self.profile(name)

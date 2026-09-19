@@ -12,6 +12,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include "screen_text.h"
 
 namespace media_card {
 struct Rect {
@@ -145,11 +146,11 @@ inline std::string subtitle(const std::string &artist, const std::string &album)
 }
 // What the card says instead of a title when nothing plays.
 inline const char *idle_text(const std::string &state) {
-  if (state == "off") return "Off";
-  if (state == "standby") return "Standby";
-  if (state == "buffering") return "Loading";
-  if (state == "unavailable") return "Unavailable";
-  return "Not playing";
+  if (state == "off") return screen_text::tr(screen_text::txt::ha_off);
+  if (state == "standby") return screen_text::tr(screen_text::txt::ha_media_standby);
+  if (state == "buffering") return screen_text::tr(screen_text::txt::media_loading);
+  if (state == "unavailable") return screen_text::tr(screen_text::txt::tile_unavailable);
+  return screen_text::tr(screen_text::txt::media_not_playing);
 }
 inline bool playing(const std::string &state) { return state == "playing" || state == "buffering"; }
 inline bool has_track(const std::string &state) { return state == "playing" || state == "paused" || state == "buffering"; }

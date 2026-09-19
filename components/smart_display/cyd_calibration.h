@@ -4,6 +4,7 @@
 #include "esphome/core/hal.h"
 #include "lvgl.h"
 #include "theme.h"
+#include "screen_text.h"
 #include <functional>
 namespace screen_calibration {
 inline bool active = false, pressed = false;
@@ -15,9 +16,10 @@ inline std::array<std::array<Point,3>,5> samples;
 inline esphome::ESPPreferenceObject preference;
 inline std::function<void(const Calibration &)> apply;
 inline std::function<void(bool)> isolation;
-inline void prompt(const char *message = "Hold each tap for a moment") {
+inline void prompt(const char *message = nullptr) {
+  if (!message) message = screen_text::tr(screen_text::txt::calibration_hold);
   lv_obj_set_pos(cross, TARGETS[point].x-12, TARGETS[point].y-12);
-  lv_label_set_text_fmt(instructions, "Tap the crosshair\nPoint %u/5 - tap %u/3", point+1, sample+1);
+  lv_label_set_text(instructions, screen_text::fill(screen_text::fill(screen_text::txt::calibration_crosshair, "point", (int) point + 1), "tap", std::to_string(sample + 1)).c_str());
   lv_label_set_text(status, message);
 }
 inline void begin() {
@@ -55,13 +57,13 @@ inline void press() { if (active) { down_at = esphome::millis(); pressed = true;
 inline void release(int raw_x, int raw_y) {
   if (!active || !pressed) return;
   pressed = false;
-  if (esphome::millis()-down_at < 80 || raw_x < 0 || raw_x > 4095 || raw_y < 0 || raw_y > 4095) { prompt("Tap gently, a bit longer"); return; }
+  if (esphome::millis()-down_at < 80 || raw_x < 0 || raw_x > 4095 || raw_y < 0 || raw_y > 4095) { prompt(screen_text::tr(screen_text::txt::calibration_gently)); return; }
   samples[point][sample++] = {double(raw_x), double(raw_y)};
   if (sample < 3) { prompt(); return; }
   double xs[3], ys[3];
   for (int i=0;i<3;++i) { xs[i]=samples[point][i].x; ys[i]=samples[point][i].y; }
   std::sort(xs,xs+3); std::sort(ys,ys+3);
-  if (xs[2]-xs[0]>180 || ys[2]-ys[0]>180) { sample=0; prompt("Tap the same crosshair 3 times"); return; }
+  if (xs[2]-xs[0]>180 || ys[2]-ys[0]>180) { sample=0; prompt(screen_text::tr(screen_text::txt::calibration_same)); return; }
   point++; sample=0;
   if (point < 5) { prompt(); return; }
   std::array<Point,5> raw;
@@ -70,8 +72,8 @@ inline void release(int raw_x, int raw_y) {
     std::sort(xs,xs+3);std::sort(ys,ys+3);raw[n]={xs[1],ys[1]};
   }
   Calibration next = calibration;
-  if (!fit(raw,next)) { point=0;prompt("Measurement rejected; try again");return; }
-  if (!preference.save(&next) || !esphome::global_preferences->sync()) { point=0;prompt("Save failed; try again");return; }
+  if (!fit(raw,next)) { point=0;prompt(screen_text::tr(screen_text::txt::calibration_rejected));return; }
+  if (!preference.save(&next) || !esphome::global_preferences->sync()) { point=0;prompt(screen_text::tr(screen_text::txt::calibration_save_failed));return; }
   calibration=next;
   if (apply) apply(calibration);
   active=false;

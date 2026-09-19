@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include "screen_text.h"
 #include "tile_icon.h"
 #include "tile_icon_names.h"
 #include "tile_palette.h"
@@ -11,7 +12,6 @@
 // tests/test_alert_overlay.cpp can check them; the profiles do the LVGL work.
 namespace screen_alert {
 constexpr const char *FALLBACK_ICON = "alert-outline";
-constexpr const char *FALLBACK_TITLE = "Notification";
 constexpr const char *FALLBACK_BUTTON = "OK";
 constexpr uint32_t DEFAULT_CARD_COLOR = 0;  // the normal card: theme::surface(0)
 constexpr int MAX_TIMEOUT_SECONDS = 86400;
@@ -59,7 +59,7 @@ inline Alert make(const std::string &title, const std::string &subtitle, const s
                   size_t title_max, size_t subtitle_max, size_t button_max) {
   Alert alert;
   alert.title = clipped(trimmed(title), title_max);
-  if (alert.title.empty()) alert.title = FALLBACK_TITLE;
+  if (alert.title.empty()) alert.title = screen_text::tr(screen_text::txt::alert_notification);
   alert.subtitle = clipped(trimmed(subtitle), subtitle_max);
   alert.button = clipped(trimmed(button), button_max);
   if (alert.button.empty()) alert.button = FALLBACK_BUTTON;

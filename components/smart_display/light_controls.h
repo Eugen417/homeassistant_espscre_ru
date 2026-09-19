@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include "screen_text.h"
 
 namespace light_controls {
 inline int clamp(int value, int low, int high) { return std::max(low, std::min(high, value)); }
@@ -93,7 +94,7 @@ inline void preview(Row &row) {
     lv_obj_set_style_bg_opa(row.slider, row.off ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_INDICATOR);
     lv_obj_set_style_bg_opa(row.slider, row.off ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_KNOB);
     lv_obj_set_style_bg_color(row.slider, theme::color(row.off ? theme::TRACK : theme::AMBER_TRACK), LV_PART_MAIN);
-    if (row.off) lv_label_set_text(row.value, "Off");
+    if (row.off) lv_label_set_text(row.value, screen_text::tr(screen_text::txt::ha_off));
     else lv_label_set_text_fmt(row.value, "%d %%", value);
   }
 }
@@ -182,7 +183,7 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
   int margin = large ? 20 : 12, w = width - 2 * margin, card_h = spacing - (large ? 12 : 5);
   int inset = large ? 18 : 10, text_y = large ? 14 : 5, track_h = large ? 32 : 18;
   int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (large ? 2 : 3) - track_h, radius = track_h / 2;
-  const char *names[] = {"Color", "Color temperature", "Brightness"};
+  const char *names[] = {screen_text::tr(screen_text::txt::light_color), screen_text::tr(screen_text::txt::light_color_temperature), screen_text::tr(screen_text::txt::light_brightness)};
   const char *icons[] = {"\U000F03D8", "\U000F050F", "\U000F0335"};
   for (unsigned i = 0; i < 3; ++i) {
     auto &row = rows[i]; row.index = i;
@@ -287,7 +288,7 @@ inline void open(const std::string &entity, bool color, bool temperature, int br
     lv_slider_set_value(row.slider, i == 0 ? active->hue : i == 1 ? active->kelvin : clamp(brightness, 1, 100), LV_ANIM_OFF);
     row.off = i == 2 && brightness <= 0;
     preview(row); row.dirty = false;
-    if (i == 1 && !active->temperature_ready()) lv_label_set_text(row.value, "Waiting...");
+    if (i == 1 && !active->temperature_ready()) lv_label_set_text(row.value, screen_text::tr(screen_text::txt::light_waiting));
   }
 }
 inline bool self_test() {

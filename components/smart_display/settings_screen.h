@@ -6,6 +6,7 @@
 #include <cstdio>
 #include <string>
 #include "screen_settings.h"
+#include "screen_text.h"
 
 // The settings page on the screen itself (firmware 0.2.44+). It changes the same values ESP Screen
 // Manager writes, for the moments you stand in front of the panel instead of behind a browser.
@@ -34,15 +35,19 @@ using Text = std::string (*)();
 using Shown = bool (*)();
 using Run = void (*)();
 
+// The page's words are keys into the screen's language (screen.settings in screen_manager/translations, app 0.2.90):
+// the table stays constexpr, the text is looked up when a row is drawn.
+constexpr uint16_t NO_TEXT = 0xFFFF;
 struct Row {
   Kind kind = Kind::info;
-  const char *label = "";
+  uint16_t label = NO_TEXT;
   const char *icon = "";              // page rows and actions; a Material Design Icons glyph
   Read read = nullptr;                // toggle, number, duration, moment, choice
   Write write = nullptr;
   int32_t low = 0, high = 0, step = 0;  // number: fixed step; duration: seconds, step from the ladder
   const char *unit = "";              // straight after a number ("%")
-  const char *const *options = nullptr;  // choice
+  const char *const *options = nullptr;  // choice with the same words in every language ("90째")
+  uint16_t option_keys = NO_TEXT;     // choice in words: the key of its first option, the others follow it
   uint8_t option_count = 0;
   Text text = nullptr;                // info
   Run run = nullptr;                  // action
@@ -51,35 +56,40 @@ struct Row {
   uint8_t opens = 0;                  // page rows: the page they open
 };
 
-constexpr Row page_row(const char *label, const char *icon, uint8_t opens) {
+constexpr Row page_row(uint16_t label, const char *icon, uint8_t opens) {
   Row r{}; r.kind = Kind::page; r.label = label; r.icon = icon; r.opens = opens; return r;
 }
-constexpr Row toggle(const char *label, Read read, Write write, Shown shown = nullptr) {
+constexpr Row toggle(uint16_t label, Read read, Write write, Shown shown = nullptr) {
   Row r{}; r.kind = Kind::toggle; r.label = label; r.read = read; r.write = write; r.shown = shown; return r;
 }
-constexpr Row number(const char *label, Read read, Write write, int32_t low, int32_t high, int32_t step,
+constexpr Row number(uint16_t label, Read read, Write write, int32_t low, int32_t high, int32_t step,
                      const char *unit = "", Shown enabled = nullptr) {
   Row r{}; r.kind = Kind::number; r.label = label; r.read = read; r.write = write;
   r.low = low; r.high = high; r.step = step; r.unit = unit; r.enabled = enabled; return r;
 }
-constexpr Row duration(const char *label, Read read, Write write, int32_t low, int32_t high,
+constexpr Row duration(uint16_t label, Read read, Write write, int32_t low, int32_t high,
                        Shown enabled = nullptr) {
   Row r{}; r.kind = Kind::duration; r.label = label; r.read = read; r.write = write;
   r.low = low; r.high = high; r.enabled = enabled; return r;
 }
-constexpr Row moment(const char *label, Read read, Write write, Shown enabled = nullptr) {
+constexpr Row moment(uint16_t label, Read read, Write write, Shown enabled = nullptr) {
   Row r{}; r.kind = Kind::moment; r.label = label; r.read = read; r.write = write;
   r.low = 0; r.high = 1439; r.step = 15; r.enabled = enabled; return r;
 }
-constexpr Row choice(const char *label, Read read, Write write, const char *const *options, uint8_t count,
+constexpr Row choice(uint16_t label, Read read, Write write, const char *const *options, uint8_t count,
                      Shown shown = nullptr) {
   Row r{}; r.kind = Kind::choice; r.label = label; r.read = read; r.write = write;
   r.options = options; r.option_count = count; r.shown = shown; return r;
 }
-constexpr Row info(const char *label, Text text) {
+constexpr Row choice(uint16_t label, Read read, Write write, uint16_t option_keys, uint8_t count, Shown shown = nullptr) {
+  Row r{}; r.kind = Kind::choice; r.label = label; r.read = read; r.write = write;
+  r.option_keys = option_keys; r.option_count = count; r.shown = shown; return r;
+}
+inline const char *label_text(const Row &row) { return screen_text::tr(row.label); }
+constexpr Row info(uint16_t label, Text text) {
   Row r{}; r.kind = Kind::info; r.label = label; r.text = text; return r;
 }
-constexpr Row action(const char *label, const char *icon, Run run) {
+constexpr Row action(uint16_t label, const char *icon, Run run) {
   Row r{}; r.kind = Kind::action; r.label = label; r.icon = icon; r.run = run; return r;
 }
 
@@ -169,26 +179,28 @@ inline int knob_x(int w, int h, bool on) {
 }
 
 inline std::string duration_text(int32_t seconds) {
-  char buffer[24];
-  if (seconds < 60) { snprintf(buffer, sizeof(buffer), "%d sec", (int) seconds); return buffer; }
-  if (seconds < 3600) { snprintf(buffer, sizeof(buffer), "%d min", (int) (seconds / 60)); return buffer; }
+  using namespace screen_text;
+  if (seconds < 60) return fill(txt::settings_seconds, "n", (int) seconds);
+  if (seconds < 3600) return fill(txt::settings_minutes, "n", (int) (seconds / 60));
   int hours = seconds / 3600, minutes = (seconds % 3600) / 60;
-  if (minutes) snprintf(buffer, sizeof(buffer), "%d h %02d", hours, minutes);
-  else snprintf(buffer, sizeof(buffer), "%d h", hours);
-  return buffer;
+  if (!minutes) return fill(txt::settings_hours, "n", hours);
+  char two[4];
+  snprintf(two, sizeof(two), "%02d", minutes);
+  return fill(fill(txt::settings_hours_minutes, "h", hours), "m", two);
 }
 // Minutes since midnight as the clock on this screen shows them.
 inline std::string moment_text(int32_t minutes, bool clock_24h) {
   char buffer[16];
   int hour = minutes / 60, minute = minutes % 60;
   if (clock_24h) snprintf(buffer, sizeof(buffer), "%02d:%02d", hour, minute);
-  else snprintf(buffer, sizeof(buffer), "%d:%02d %s", hour % 12 ? hour % 12 : 12, minute, hour < 12 ? "AM" : "PM");
+  else snprintf(buffer, sizeof(buffer), "%d:%02d %s", hour % 12 ? hour % 12 : 12, minute,
+                screen_text::tr(hour < 12 ? screen_text::txt::time_am : screen_text::txt::time_pm));
   return buffer;
 }
 // What the right-hand side of a row says. A toggle draws a switch instead, its text is for the tests.
 inline std::string value_text(const Row &row) {
   switch (row.kind) {
-    case Kind::toggle: return row.read && row.read() ? "On" : "Off";
+    case Kind::toggle: return screen_text::tr(row.read && row.read() ? screen_text::txt::ha_on : screen_text::txt::ha_off);
     case Kind::number: {
       char buffer[24];
       snprintf(buffer, sizeof(buffer), "%d%s", row.read ? (int) row.read() : 0, row.unit);
@@ -198,7 +210,8 @@ inline std::string value_text(const Row &row) {
     case Kind::moment: return moment_text(row.read ? row.read() : 0, screen_settings::current.clock_24h != 0);
     case Kind::choice: {
       int32_t index = row.read ? row.read() : 0;
-      return index >= 0 && index < row.option_count ? row.options[index] : "";
+      if (index < 0 || index >= row.option_count) return "";
+      return row.option_keys != NO_TEXT ? screen_text::tr(row.option_keys + index) : row.options[index];
     }
     case Kind::info: return row.text ? row.text() : "";
     default: return "";
@@ -208,7 +221,7 @@ inline bool visible_row(const Row &row) { return !row.shown || row.shown(); }
 inline bool live_row(const Row &row) { return !row.enabled || row.enabled(); }
 
 struct Page {
-  const char *title;
+  uint16_t title;
   const Row *rows;
   uint8_t count;
 };
@@ -223,7 +236,6 @@ inline uint8_t fitting_rows(int span, int row_height, int gap, int pager, uint8_
 }
 
 // ------------------------------------------------------------------ the pages
-inline constexpr const char *clock_options[] = {"12 hour", "24 hour"};
 inline constexpr const char *rotation_options[] = {"0째", "90째", "180째", "270째"};
 
 // Brightness, the dark look for a screen beside a bed, and when the screen dims by itself.
@@ -231,52 +243,51 @@ inline constexpr const char *rotation_options[] = {"0째", "90째", "180째", "270�
 // plain `int` (a ternary, say) then does not convert to Read at all. The Mac's host build accepts it,
 // the board does not.
 inline constexpr Row light_rows[] = {
-  number("Brightness", []() -> int32_t { return screen_settings::current.brightness; },
+  number(screen_text::txt::settings_brightness, []() -> int32_t { return screen_settings::current.brightness; },
          [](int32_t value) { set("brightness", value); }, 5, 100, 5, "%"),
-  toggle("Dark mode", []() -> int32_t { return dark_mode; },
+  toggle(screen_text::txt::settings_dark_mode, []() -> int32_t { return dark_mode; },
          [](int32_t value) { set("dark_mode", value); }),
-  toggle("Auto standby", []() -> int32_t { return screen_settings::current.standby_enabled; },
+  toggle(screen_text::txt::settings_auto_standby, []() -> int32_t { return screen_settings::current.standby_enabled; },
          [](int32_t value) { set("standby_enabled", value); }),
-  duration("Standby after", []() -> int32_t { return screen_settings::current.standby_seconds; },
+  duration(screen_text::txt::settings_standby_after, []() -> int32_t { return screen_settings::current.standby_seconds; },
            [](int32_t value) { set("standby_seconds", value); }, 60, 86400,
            [] { return screen_settings::current.standby_enabled != 0; }),
-  number("Standby brightness", []() -> int32_t { return screen_settings::current.standby_brightness; },
+  number(screen_text::txt::settings_standby_brightness, []() -> int32_t { return screen_settings::current.standby_brightness; },
          [](int32_t value) { set("standby_brightness", value); }, 0, 100, 5, "%",
          [] { return screen_settings::current.standby_enabled != 0; }),
 };
 
 // Darker between two times, so a panel in a hallway does not light up the bedroom.
 inline constexpr Row night_rows[] = {
-  toggle("Night mode", []() -> int32_t { return screen_settings::current.night_enabled; },
+  toggle(screen_text::txt::settings_night_mode, []() -> int32_t { return screen_settings::current.night_enabled; },
          [](int32_t value) { set("night_enabled", value); }),
-  moment("Starts", []() -> int32_t { return screen_settings::current.night_start; },
+  moment(screen_text::txt::settings_starts, []() -> int32_t { return screen_settings::current.night_start; },
          [](int32_t value) { set("night_start", value); },
          [] { return screen_settings::current.night_enabled != 0; }),
-  moment("Ends", []() -> int32_t { return screen_settings::current.night_end; },
+  moment(screen_text::txt::settings_ends, []() -> int32_t { return screen_settings::current.night_end; },
          [](int32_t value) { set("night_end", value); },
          [] { return screen_settings::current.night_enabled != 0; }),
-  number("Night brightness", []() -> int32_t { return screen_settings::current.night_brightness; },
+  number(screen_text::txt::settings_night_brightness, []() -> int32_t { return screen_settings::current.night_brightness; },
          [](int32_t value) { set("night_brightness", value); }, 0, 100, 5, "%",
          [] { return screen_settings::current.night_enabled != 0; }),
 };
 
-// How the screen behaves under your finger: the clock, going back to the first page, swiping, the page buttons,
-// turning.
+// How the screen behaves under your finger: going back to the first page, swiping, the page buttons, turning. The
+// clock's 12 or 24 hours is no longer a setting of each screen (app 0.2.90): ESP Screens sends it with the number
+// format, from Settings -> Language & region, the one place for every screen.
 inline constexpr Row screen_rows[] = {
-  choice("Clock", []() -> int32_t { return screen_settings::current.clock_24h ? 1 : 0; },
-         [](int32_t value) { set("clock_24h", value); }, clock_options, 2),
-  toggle("Back to page 1", []() -> int32_t { return auto_home; },
+  toggle(screen_text::txt::settings_back_to_page_1, []() -> int32_t { return auto_home; },
          [](int32_t value) { set("auto_home", value); }),
-  duration("After", []() -> int32_t { return auto_home_seconds; },
+  duration(screen_text::txt::settings_after, []() -> int32_t { return auto_home_seconds; },
            [](int32_t value) { set("auto_home_seconds", value); }, 30, 3600,
            [] { return auto_home != 0; }),
-  toggle("Also on standby", []() -> int32_t { return screen_settings::current.home_on_standby; },
+  toggle(screen_text::txt::settings_also_on_standby, []() -> int32_t { return screen_settings::current.home_on_standby; },
          [](int32_t value) { set("home_on_standby", value); }),
-  toggle("Swipe between pages", []() -> int32_t { return swipe_pages; },
+  toggle(screen_text::txt::settings_swipe_between_pages, []() -> int32_t { return swipe_pages; },
          [](int32_t value) { set("swipe_pages", value); }),
-  toggle("Page buttons", []() -> int32_t { return page_buttons; },
+  toggle(screen_text::txt::settings_page_buttons, []() -> int32_t { return page_buttons; },
          [](int32_t value) { set("page_buttons", value); }),
-  choice("Rotation", []() -> int32_t { return rotation / 90; },
+  choice(screen_text::txt::settings_rotation, []() -> int32_t { return rotation / 90; },
          [](int32_t value) { set("rotation", std::clamp<int32_t>(value, 0, 3) * 90); },
          rotation_options, 4, [] { return rotation_supported; }),
 };
@@ -288,26 +299,26 @@ inline std::string (*firmware_text)() = nullptr;
 inline std::string (*link_text)() = nullptr;
 inline void (*restart_device)() = nullptr;
 inline constexpr Row about_rows[] = {
-  info("Screen", [] { return name_text ? name_text() : std::string(); }),
-  info("Address", [] { return address_text ? address_text() : std::string(); }),
-  info("Firmware", [] { return firmware_text ? firmware_text() : std::string(); }),
-  info("Home Assistant", [] { return link_text ? link_text() : std::string(); }),
-  action("Restart", "\U000F0709", [] { if (restart_device) restart_device(); }),
+  info(screen_text::txt::settings_screen, [] { return name_text ? name_text() : std::string(); }),
+  info(screen_text::txt::settings_address, [] { return address_text ? address_text() : std::string(); }),
+  info(screen_text::txt::settings_firmware, [] { return firmware_text ? firmware_text() : std::string(); }),
+  info(screen_text::txt::settings_home_assistant, [] { return link_text ? link_text() : std::string(); }),
+  action(screen_text::txt::settings_restart, "\U000F0709", [] { if (restart_device) restart_device(); }),
 };
 
 inline constexpr Row menu_rows[] = {
-  page_row("Brightness", "\U000F0599", 1),
-  page_row("Night", "\U000F0594", 2),
-  page_row("Screen", "\U000F0379", 3),
-  page_row("This screen", "\U000F02FD", 4),
+  page_row(screen_text::txt::settings_brightness, "\U000F0599", 1),
+  page_row(screen_text::txt::settings_night, "\U000F0594", 2),
+  page_row(screen_text::txt::settings_screen, "\U000F0379", 3),
+  page_row(screen_text::txt::settings_this_screen, "\U000F02FD", 4),
 };
 
 inline constexpr Page pages[] = {
-  {"Settings", menu_rows, (uint8_t) std::size(menu_rows)},
-  {"Brightness", light_rows, (uint8_t) std::size(light_rows)},
-  {"Night", night_rows, (uint8_t) std::size(night_rows)},
-  {"Screen", screen_rows, (uint8_t) std::size(screen_rows)},
-  {"This screen", about_rows, (uint8_t) std::size(about_rows)},
+  {screen_text::txt::settings_title, menu_rows, (uint8_t) std::size(menu_rows)},
+  {screen_text::txt::settings_brightness, light_rows, (uint8_t) std::size(light_rows)},
+  {screen_text::txt::settings_night, night_rows, (uint8_t) std::size(night_rows)},
+  {screen_text::txt::settings_screen, screen_rows, (uint8_t) std::size(screen_rows)},
+  {screen_text::txt::settings_this_screen, about_rows, (uint8_t) std::size(about_rows)},
 };
 constexpr uint8_t PAGE_COUNT = (uint8_t) std::size(pages);
 
@@ -587,7 +598,7 @@ inline void draw() {
   lv_obj_center(arrow);
   lv_obj_add_event_cb(back, back_event, LV_EVENT_SHORT_CLICKED, nullptr);
   const lv_font_t *heading = title_font ? title_font : row_font;
-  auto *title = text(root, page.title, heading, theme::INK, LV_TEXT_ALIGN_CENTER);
+  auto *title = text(root, screen_text::tr(page.title), heading, theme::INK, LV_TEXT_ALIGN_CENTER);
   lv_obj_set_width(title, m.width - 2 * (m.pad + m.bar + 8));
   lv_obj_set_pos(title, m.pad + m.bar + 8, m.bar_y + (m.bar - lv_font_get_line_height(heading)) / 2);
 
@@ -628,7 +639,8 @@ inline void draw() {
       lv_obj_set_pos(glyph, left, (m.row_h - icon_h) / 2);
       left += icon_h + (m.large ? 12 : 8);
     }
-    d.label = text(d.card, asking ? "Tap again to restart" : row.label, row_font, asking ? theme::ON_ACCENT : theme::INK);
+    d.label = text(d.card, screen_text::tr(asking ? screen_text::txt::settings_tap_again_to_restart : row.label), row_font,
+                   asking ? theme::ON_ACCENT : theme::INK);
     lv_obj_set_pos(d.label, left, (m.row_h - label_h) / 2);
 
     int right = m.width - 2 * m.pad - m.inset;  // free space from the right edge of the card

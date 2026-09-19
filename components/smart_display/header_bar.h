@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include "screen_text.h"
 
 namespace header_bar {
 // The top bar right of the screen name (firmware 0.2.32+). ESP Screen Manager decides what shows
@@ -65,33 +66,35 @@ inline uint32_t next_codepoint(const std::string &s, size_t &i) {
 }
 
 // Relative time in the editor's words (app.js agoText): "Just now", "5 min ago", "Yesterday",
-// "In 2 hours". `now` 0 means the clock is not set yet.
+// "In 2 hours", in the screen's language (screen.time, app 0.2.90). `now` 0 means the clock is not set yet.
 inline std::string ago_text(int64_t then, int64_t now) {
+  using namespace screen_text;
   if (now <= 0 || then <= 0) return "—";
   int64_t seconds = now - then, span = seconds < 0 ? -seconds : seconds;
-  auto n = [&](int64_t unit) { return std::to_string(span / unit); };
+  auto n = [&](int64_t unit) { return static_cast<int>(span / unit); };
   if (seconds < 0) {
-    if (span < 3600) return "In " + std::to_string(std::max<int64_t>(1, span / 60)) + " min";
-    if (span < 86400) return span / 3600 == 1 ? "In 1 hour" : "In " + n(3600) + " hours";
-    if (span < 172800) return "Tomorrow";
-    return "In " + n(86400) + " days";
+    if (span < 3600) return fill(txt::time_in_minutes, "n", std::max(1, n(60)));
+    if (span < 86400) return plural(txt::time_in_hours, n(3600));
+    if (span < 172800) return tr(txt::time_tomorrow);
+    return plural(txt::time_in_days, n(86400));
   }
-  if (span < 60) return "Just now";
-  if (span < 3600) return n(60) + " min ago";
-  if (span < 86400) return span / 3600 == 1 ? "1 hour ago" : n(3600) + " hours ago";
-  if (span < 172800) return "Yesterday";
-  if (span < 604800) return n(86400) + " days ago";
-  if (span < 2592000) return span / 604800 == 1 ? "1 week ago" : n(604800) + " weeks ago";
-  if (span < 31536000) return span / 2592000 == 1 ? "1 month ago" : n(2592000) + " months ago";
-  return span / 31536000 == 1 ? "1 year ago" : n(31536000) + " years ago";
+  if (span < 60) return tr(txt::time_just_now);
+  if (span < 3600) return fill(txt::time_minutes_ago, "n", n(60));
+  if (span < 86400) return plural(txt::time_hours_ago, n(3600));
+  if (span < 172800) return tr(txt::time_yesterday);
+  if (span < 604800) return plural(txt::time_days_ago, n(86400));
+  if (span < 2592000) return plural(txt::time_weeks_ago, n(604800));
+  if (span < 31536000) return plural(txt::time_months_ago, n(2592000));
+  return plural(txt::time_years_ago, n(31536000));
 }
 
-// "Mo 14 Sep"; day_of_week 1 is Sunday, as ESPHome counts.
+// "Mo 14 Sep" in English, "ma 14 sep" in Dutch (screen.date.top_bar); day_of_week 1 is Sunday, as ESPHome counts.
 inline std::string date_text(int day_of_week, int day_of_month, int month) {
-  static const char *days[] = {"Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"};
-  static const char *months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+  using namespace screen_text;
   if (day_of_week < 1 || day_of_week > 7 || month < 1 || month > 12) return "—";
-  return std::string(days[day_of_week - 1]) + " " + std::to_string(day_of_month) + " " + months[month - 1];
+  std::string text = fill(txt::date_top_bar, "weekday", tr(txt::date_weekdays_min + day_of_week - 1));
+  text = fill(text, "day", std::to_string(day_of_month));
+  return fill(text, "month", tr(txt::date_months_short + month - 1));
 }
 
 // What you see between icon and value, between two items and after the name, from the height of
