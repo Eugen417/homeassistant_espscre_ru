@@ -29,6 +29,20 @@ also be changed on the screen or by an automation, and your own YAML for one scr
 
 **[Install it](#installing-from-home-assistant)** · [Full reference](README_EXTENDED.md) · [What's new](screen_manager/CHANGELOG.md)
 
+## In real life
+
+A Guition in the living room, 37 seconds in one take: tapping tiles, swiping through the pages,
+opening cards and a history graph, while the lamp behind it goes from purple to orange.
+
+https://github.com/user-attachments/assets/f9f6a933-d388-4c8b-9c9a-011dfa37617b
+
+<p align="center">
+  <img src="docs/images/photo-guition-home.jpg" width="32%" alt="The Guition on a wooden sideboard beside a glowing purple lamp: the living room page with the airco, an analog clock with the date, two scenes and a dimmer at 36 percent">
+  <img src="docs/images/photo-guition-history.jpg" width="32%" alt="The same screen showing a temperature history over 24 hours, with its highest and lowest point marked and the 1 hour, 24 hours and 1 week keys">
+  <img src="docs/images/photo-guition-light.jpg" width="32%" alt="The light card of the purple lamp: the colour slider at 304 degrees, the brightness slider at 20 percent and the effects key at the top right">
+</p>
+<p align="center"><sub>Real photos, not renders: the 4-inch Guition next to the lamp it controls.</sub></p>
+
 ## On the screen
 
 <p align="center">
