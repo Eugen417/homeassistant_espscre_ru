@@ -386,6 +386,25 @@
         "activate": "Activar",
         "run": "Ejecutar",
         "press": "Pulsa"
+      },
+      "climate_fan": {
+        "auto": "Auto",
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto",
+        "middle": "Moderado",
+        "focus": "Enfoque",
+        "diffuse": "Difuso",
+        "top": "Parte superior",
+        "on": "Encendido",
+        "off": "Apagado"
+      },
+      "climate_swing": {
+        "on": "Encendido",
+        "off": "Apagado",
+        "both": "Ambos",
+        "vertical": "Vertical",
+        "horizontal": "Horizontal"
       }
     }
   },

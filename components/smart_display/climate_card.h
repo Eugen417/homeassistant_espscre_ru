@@ -8,6 +8,7 @@
 #include "esphome/core/log.h"
 #include "lvgl.h"
 #include "theme.h"
+#include "tile_controls.h"
 #include <algorithm>
 #include <functional>
 #include <string>
@@ -26,12 +27,6 @@ inline Row rows[2];
 inline int row_count = 0;
 inline bool queued = false;
 
-// Home Assistant's raw mode names read as words: "fan_only" -> "Fan only", "high" -> "High".
-inline std::string pretty(std::string raw) {
-  for (char &c : raw) if (c == '_') c = ' ';
-  if (!raw.empty() && raw[0] >= 'a' && raw[0] <= 'z') raw[0] = static_cast<char>(raw[0] - 'a' + 'A');
-  return raw;
-}
 inline unsigned choices(const std::string &modes) {
   unsigned n = 0;
   while (n < MAX_CHOICES && !cyd::list_item(modes, n).empty()) ++n;
@@ -95,7 +90,7 @@ inline void build() {
     std::string labels[MAX_CHOICES];
     int widths[MAX_CHOICES], words = 0;
     for (unsigned i = 0; i < n; ++i) {
-      labels[i] = pretty(cyd::list_item(row.modes, i));
+      labels[i] = tile_controls::climate_setting_text(row.kind, cyd::list_item(row.modes, i));
       widths[i] = text_width(labels[i], look.font);
       words += widths[i];
     }

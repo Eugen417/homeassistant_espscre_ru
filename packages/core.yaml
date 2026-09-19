@@ -3697,15 +3697,14 @@ script:
           apply(id(cmode_auto), "auto");
           apply(id(cmode_dry), "dry");
           apply(id(cmode_fan_only), "fan_only");
-          // Fan and swing rows: the entity's own mode names, at most four each, as Home Assistant reports them.
-          auto pretty = [](std::string raw) { if (!raw.empty() && raw[0] >= 'a' && raw[0] <= 'z') raw[0] = (char)(raw[0] - 'a' + 'A'); return raw; };
-          auto fill = [&](lv_obj_t *title, lv_obj_t *chips[4], const std::string &modes, const std::string &current_mode) {
+          // Fan and swing rows: the entity's own modes, at most four each, in Home Assistant's words where it names them.
+          auto fill = [&](char kind, lv_obj_t *title, lv_obj_t *chips[4], const std::string &modes, const std::string &current_mode) {
             unsigned shown = 0;
             for (unsigned i = 0; i < 4; ++i) {
               std::string raw = cyd::list_item(modes, i);
               if (raw.empty()) { lv_obj_add_flag(chips[i], LV_OBJ_FLAG_HIDDEN); continue; }
               lv_obj_clear_flag(chips[i], LV_OBJ_FLAG_HIDDEN); ++shown;
-              lv_label_set_text(lv_obj_get_child(chips[i], 0), pretty(raw).c_str());
+              lv_label_set_text(lv_obj_get_child(chips[i], 0), tile_controls::climate_setting_text(kind, raw).c_str());
               lv_obj_set_style_bg_color(chips[i], theme::color(raw == current_mode ? theme::ACCENT_BRIGHT : theme::CARD), LV_PART_MAIN);
               lv_obj_set_style_text_color(lv_obj_get_child(chips[i], 0), theme::color(raw == current_mode ? theme::ON_ACCENT : theme::INK), LV_PART_MAIN);
             }
@@ -3713,8 +3712,8 @@ script:
           };
           lv_obj_t *fan_chips[4] = {id(cfan_0), id(cfan_1), id(cfan_2), id(cfan_3)};
           lv_obj_t *swing_chips[4] = {id(cswing_0), id(cswing_1), id(cswing_2), id(cswing_3)};
-          fill(id(cfan_title), fan_chips, id(active_climate_fan_modes), id(active_climate_fan_mode));
-          fill(id(cswing_title), swing_chips, id(active_climate_swing_modes), id(active_climate_swing_mode));
+          fill('f', id(cfan_title), fan_chips, id(active_climate_fan_modes), id(active_climate_fan_mode));
+          fill('s', id(cswing_title), swing_chips, id(active_climate_swing_modes), id(active_climate_swing_mode));
       - lvgl.widget.show: climate_mode_overlay
 
   # Sets exactly one mode. No intermediate steps, so no unwanted

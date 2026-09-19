@@ -163,6 +163,25 @@ inline std::string format_value(float value, float step, const char *suffix) {
   if (!std::isfinite(value)) return "--";
   return screen_text::decimal(value, step >= 1 ? 0 : 1) + suffix;
 }
+// Home Assistant's word for a climate fan ('f') or swing ('s') setting that Home Assistant names itself ("low" is
+// "Laag" in Dutch); an integration's own mode reads as its name ("fan_only" -> "Fan only").
+inline std::string climate_setting_text(char kind, std::string raw) {
+  using namespace screen_text;
+  struct Word { const char *value; uint16_t id; };
+  static const Word fan[] = {{"auto", txt::ha_climate_fan_auto}, {"low", txt::ha_climate_fan_low},
+                             {"medium", txt::ha_climate_fan_medium}, {"high", txt::ha_climate_fan_high},
+                             {"middle", txt::ha_climate_fan_middle}, {"focus", txt::ha_climate_fan_focus},
+                             {"diffuse", txt::ha_climate_fan_diffuse}, {"top", txt::ha_climate_fan_top},
+                             {"on", txt::ha_climate_fan_on}, {"off", txt::ha_climate_fan_off}};
+  static const Word swing[] = {{"on", txt::ha_climate_swing_on}, {"off", txt::ha_climate_swing_off},
+                               {"both", txt::ha_climate_swing_both}, {"vertical", txt::ha_climate_swing_vertical},
+                               {"horizontal", txt::ha_climate_swing_horizontal}};
+  if (kind == 'f') { for (const auto &w : fan) if (raw == w.value) return tr(w.id); }
+  if (kind == 's') { for (const auto &w : swing) if (raw == w.value) return tr(w.id); }
+  for (char &c : raw) if (c == '_') c = ' ';
+  if (!raw.empty() && raw[0] >= 'a' && raw[0] <= 'z') raw[0] = static_cast<char>(raw[0] - 'a' + 'A');
+  return raw;
+}
 inline const char *climate_mode_text(const std::string &mode) {
   if (mode == "off") return screen_text::tr(screen_text::txt::ha_climate_off);
   if (mode == "heat") return screen_text::tr(screen_text::txt::ha_climate_heat);

@@ -386,6 +386,25 @@
         "activate": "Aktywuj",
         "run": "Uruchom",
         "press": "Naciśnij"
+      },
+      "climate_fan": {
+        "auto": "Auto",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "middle": "pośredni",
+        "focus": "skupiony nawiew",
+        "diffuse": "rozproszony nawiew",
+        "top": "nawiew górny",
+        "on": "włączono",
+        "off": "wyłączono"
+      },
+      "climate_swing": {
+        "on": "włączono",
+        "off": "wyłączono",
+        "both": "ruch w obu płaszczyznach",
+        "vertical": "ruch pionowy",
+        "horizontal": "ruch poziomy"
       }
     }
   },

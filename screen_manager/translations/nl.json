@@ -386,6 +386,25 @@
         "activate": "Inschakelen",
         "run": "Uitvoeren",
         "press": "Klik"
+      },
+      "climate_fan": {
+        "auto": "Automatisch",
+        "low": "Laag",
+        "medium": "Gemiddeld",
+        "high": "Hoog",
+        "middle": "Midden",
+        "focus": "Concentratie",
+        "diffuse": "Diffuus",
+        "top": "Boven",
+        "on": "Aan",
+        "off": "Uit"
+      },
+      "climate_swing": {
+        "on": "Aan",
+        "off": "Uit",
+        "both": "Beide",
+        "vertical": "Verticaal",
+        "horizontal": "Horizontaal"
       }
     }
   },

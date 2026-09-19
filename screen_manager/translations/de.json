@@ -386,6 +386,25 @@
         "activate": "Aktivieren",
         "run": "Ausführen",
         "press": "Drücken"
+      },
+      "climate_fan": {
+        "auto": "Auto",
+        "low": "Niedrig",
+        "medium": "Mittel",
+        "high": "Hoch",
+        "middle": "Mittig",
+        "focus": "Fokus",
+        "diffuse": "Diffus",
+        "top": "Oben",
+        "on": "Ein",
+        "off": "Aus"
+      },
+      "climate_swing": {
+        "on": "Ein",
+        "off": "Aus",
+        "both": "Beides",
+        "vertical": "Vertikal",
+        "horizontal": "Horizontal"
       }
     }
   },

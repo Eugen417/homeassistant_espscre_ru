@@ -231,6 +231,11 @@ def ha_sources():
         sources[f'climate.{mode}'] = f'component.climate.entity_component._.state.{mode}'
     for action in ('heating', 'cooling', 'idle', 'off', 'drying', 'fan', 'preheating', 'defrosting'):
         sources[f'hvac_action.{action}'] = f'component.climate.entity_component._.state_attributes.hvac_action.state.{action}'
+    # The fan and swing settings Home Assistant names itself; an integration's own modes stay as it reports them.
+    for mode in ('auto', 'low', 'medium', 'high', 'middle', 'focus', 'diffuse', 'top', 'on', 'off'):
+        sources[f'climate_fan.{mode}'] = f'component.climate.entity_component._.state_attributes.fan_mode.state.{mode}'
+    for mode in ('on', 'off', 'both', 'vertical', 'horizontal'):
+        sources[f'climate_swing.{mode}'] = f'component.climate.entity_component._.state_attributes.swing_mode.state.{mode}'
     for state in ('open', 'closed', 'opening', 'closing'):
         sources[f'cover.{state}'] = f'component.cover.entity_component._.state.{state}'
     for state in ('playing', 'paused', 'idle', 'standby'):
@@ -334,7 +339,8 @@ def ha_words(write):
         before = json.dumps(data, ensure_ascii=False)
         merge(data.setdefault('screen', {}).setdefault('ha', {}), tree)
         if json.dumps(data, ensure_ascii=False) != before:
-            print(f'{code}: {"wrote" if write else "would change"} {len(own)} words from Home Assistant')
+            changed = sum(1 for key, word in own.items() if reference.get(key) != word)
+            print(f'{code}: {"wrote" if write else "would change"} {changed} of {len(own)} words from Home Assistant')
             if write:
                 write_language(code, data)
     return status

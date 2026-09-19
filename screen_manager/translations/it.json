@@ -386,6 +386,25 @@
         "activate": "Attiva",
         "run": "Esegui",
         "press": "Premi"
+      },
+      "climate_fan": {
+        "auto": "Automatico",
+        "low": "Basso/a",
+        "medium": "Medio/a",
+        "high": "Alto/a",
+        "middle": "Mezzo",
+        "focus": "Focalizzato",
+        "diffuse": "Diffuso",
+        "top": "Superiore",
+        "on": "Acceso",
+        "off": "Spento"
+      },
+      "climate_swing": {
+        "on": "Acceso",
+        "off": "Spento",
+        "both": "Entrambi",
+        "vertical": "Verticale",
+        "horizontal": "Orizzontale"
       }
     }
   },

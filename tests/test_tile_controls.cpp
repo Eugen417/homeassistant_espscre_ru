@@ -287,5 +287,8 @@ int main() {
     assert(weather_color("windy") == GREEN && weather_color("windy-variant") == GREEN && weather_color("exceptional") == RED);
     assert(weather_color("something-new") == AMBER && colour("weather.a", "pouring") == INDIGO);
   }
+  // Fan and swing settings in Home Assistant's words where it names them, an integration's own as its name.
+  assert(climate_setting_text('f', "low") == "Low" && climate_setting_text('s', "both") == "Both");
+  assert(climate_setting_text('f', "quiet_night") == "Quiet night" && climate_setting_text('s', "low") == "Low");
   return 0;
 }
