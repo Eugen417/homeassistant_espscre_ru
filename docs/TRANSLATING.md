@@ -47,7 +47,9 @@ there is a `sv.json`, but already the Swedish 24-hour clock and `1 234,5`.
    - words that differ from the ones the Home Assistant app uses in your language (the Home Assistant app is the
      reference: *Dashboard*, *Automation*, *Entity* are what people know);
    - texts that are too long for a small screen. `tools/i18n.py check` measures the line under a tile's name with the
-     screens' own font and says when it doesn't fit; for the rest, compare with the English.
+     screens' own font (a `{time}` in it as a 12-hour clock, the widest a screen writes) and says when it doesn't fit;
+     for the rest, compare with the English. `screen.script.yesterday_time_short` is that line's short wording, which
+     a tile falls back to when `yesterday_time` doesn't fit there: keep both the same where your word is short enough.
 3. Look at it for real, if you can. In ESP Screens open **Settings → Language & region** and choose your language. The
    editor itself follows the language of your Home Assistant profile. The screens show the new texts after their
    firmware update.
