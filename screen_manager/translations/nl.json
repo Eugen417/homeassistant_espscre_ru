@@ -560,7 +560,15 @@
       "too_large": "Indeling bewaard; te groot voor één bericht aan het scherm, verwijder een paar tegels",
       "sent": "Verstuurd naar Home Assistant",
       "offline": "Scherm offline; wijzigingen bewaard",
-      "retrying": "Versturen mislukt; automatisch opnieuw proberen"
+      "retrying": "Versturen mislukt; automatisch opnieuw proberen",
+      "screen": {
+        "synced": "Gesynchroniseerd",
+        "loading_tiles": "Tegels laden",
+        "layout_received": "Indeling ontvangen",
+        "resend_needed": "Indeling opnieuw nodig",
+        "ready": "Klaar voor tegelconfiguratie",
+        "error": "Fout: {reason}"
+      }
     },
     "updates": {
       "offline": "Scherm was offline; volgende keer opnieuw.",
@@ -1755,6 +1763,10 @@
         "every": "Alle schermen? Vuur {event} één keer af (zie Alle schermen tegelijk). De schermen werken nog steeds los van elkaar en melden zich elk met hun eigen {screen}.",
         "claude": "Liever {bold} om de automatisering te schrijven? Installeer de ESP Screens-skill onder Instellingen → Claude.",
         "claude_bold": "Claude vragen"
+      },
+      "wait_yaml": {
+        "comment": "Deurbel: toon de alert en wacht tot iemand op de knop drukt.",
+        "message": "Er komt iemand naar de deur."
       }
     },
     "override": {

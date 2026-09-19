@@ -560,7 +560,15 @@
       "too_large": "Diseño guardado; es demasiado grande para un mensaje a la pantalla, elimina algunos mosaicos",
       "sent": "Enviado a Home Assistant",
       "offline": "Pantalla sin conexión; cambios guardados",
-      "retrying": "Error al enviar; se reintenta automáticamente"
+      "retrying": "Error al enviar; se reintenta automáticamente",
+      "screen": {
+        "synced": "Sincronizado",
+        "loading_tiles": "Cargando mosaicos",
+        "layout_received": "Diseño recibido",
+        "resend_needed": "Hay que volver a enviar",
+        "ready": "Listo para los mosaicos",
+        "error": "Error: {reason}"
+      }
     },
     "updates": {
       "offline": "La pantalla estaba sin conexión; se volverá a intentar la próxima vez.",
@@ -1755,6 +1763,10 @@
         "every": "¿Todas las pantallas? Dispara {event} una vez (consulta «Todas las pantallas a la vez»). Las pantallas siguen funcionando por separado y cada una informa con su propio {screen}.",
         "claude": "¿Prefieres {bold} que te haga la automatización? Instala la habilidad de ESP Screens en Configuración → Claude.",
         "claude_bold": "pedirle a Claude"
+      },
+      "wait_yaml": {
+        "comment": "Timbre: muestra la alerta y espera a que alguien pulse el botón.",
+        "message": "Alguien va a abrir la puerta."
       }
     },
     "override": {

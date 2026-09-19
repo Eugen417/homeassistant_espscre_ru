@@ -560,7 +560,15 @@
       "too_large": "Layout saved; too large for one message to the screen, remove a few tiles",
       "sent": "Sent to Home Assistant",
       "offline": "Screen offline; changes saved",
-      "retrying": "Sending failed; retrying automatically"
+      "retrying": "Sending failed; retrying automatically",
+      "screen": {
+        "synced": "Synced",
+        "loading_tiles": "Loading tiles",
+        "layout_received": "Layout received",
+        "resend_needed": "Resend needed",
+        "ready": "Ready for tile configuration",
+        "error": "Error: {reason}"
+      }
     },
     "updates": {
       "offline": "Screen was offline; will retry next time.",
@@ -1755,6 +1763,10 @@
         "every": "Every screen? Fire {event} once (see All screens at once). The screens still work independently and each reports with its own {screen}.",
         "claude": "Rather {bold} for the automation? Install the ESP Screens skill under Settings → Claude.",
         "claude_bold": "ask Claude"
+      },
+      "wait_yaml": {
+        "comment": "Doorbell: show the alert and wait until someone presses the button.",
+        "message": "Someone is coming to the door."
       }
     },
     "override": {

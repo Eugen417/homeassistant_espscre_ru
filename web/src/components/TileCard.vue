@@ -6,11 +6,12 @@ import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
 import { displayName, effectiveControls, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
-import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenText, state, tileIconCp } from "../store";
+import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
 import type { Tile } from "../types";
 
 const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean }>();
-const name = computed(() => props.tile.name || entityName(props.tile.entity));
+// A built-in card is named as the screens name it, in their language (app 0.2.90).
+const name = computed(() => props.tile.name || (domain.value === "screen" && screenBuiltinName(props.tile.entity)) || entityName(props.tile.entity));
 const full = computed(() => isFull(props.tile));
 const wide = computed(() => isWide(props.tile) && !full.value);
 const goesTo = computed(() => pageTarget(props.tile.entity));
@@ -36,8 +37,11 @@ const on = computed(() => Boolean(current.value) && !gone.value && current.value
 const isOn = computed(() => ["light", "switch", "input_boolean", "fan"].includes(domain.value) && current.value?.state === "on");
 const unit = computed(() => current.value?.a?.unit_of_measurement as string | undefined);
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");
-// Numbers as the screens write them, "1,234.5" or "1.234,5" (app 0.2.90).
+// Numbers as the screens write them, "1,234.5" or "1.234,5" (app 0.2.90): a state only with a unit, or of an entity
+// that is a number itself, as the firmware does (value_text); an id-like "1234" without a unit stays as it is.
 const num = (value: unknown) => numberText(value as string | number, numberMarks.value);
+const NUMERIC = ["number", "input_number", "counter"];
+const value = (state: string) => (unit.value || NUMERIC.includes(domain.value) ? `${num(state)}${unitSuffix(unit.value)}` : state);
 // The screens' own words for a state where Home Assistant hands us none (screen.ha, Home Assistant's words in the
 // screens' language, app 0.2.90): a binary sensor's by its device class, on and off, and the states of the domains
 // the screen names itself. A weather's windy-variant is windy there too.
@@ -60,12 +64,13 @@ const status = computed(() => {
   const word = c.word || haWord(c) || capital(c.state);
   if (domain.value === "climate") return `${a.current_temperature !== undefined ? `${num(a.current_temperature)}° · ` : ""}${word}`;
   if (domain.value === "weather") return `${word}${a.temperature !== undefined ? ` · ${num(a.temperature)}°` : ""}`;
-  if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${word} · ${a.current_position} %`;
+  if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${word} · ${a.current_position}${unitSuffix("%")}`;
   if (domain.value === "media_player" && a.media_title) return `${word} · ${a.media_title}`;
-  if (domain.value === "sensor") return `${num(c.state)}${unit.value ? ` ${unit.value}` : ""}`;
+  if (domain.value === "sensor" || NUMERIC.includes(domain.value)) return value(c.state);
   return word;
 });
-const bigValue = computed(() => (current.value && !gone.value ? num(current.value.state) : "—"));
+// The big value of the watch display; its unit sits beside it in small letters.
+const bigValue = computed(() => (current.value && !gone.value ? (unit.value || NUMERIC.includes(domain.value) ? num(current.value.state) : current.value.state) : "—"));
 // The small slider's fill, from what the entity reports; off is empty, like the screen's grey fill.
 const fill = computed(() => {
   const c = current.value;

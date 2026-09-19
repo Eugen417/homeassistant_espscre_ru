@@ -560,7 +560,15 @@
       "too_large": "Układ zapisany; za duży na jedną wiadomość do ekranu, usuń kilka kafelków",
       "sent": "Wysłano do Home Assistant",
       "offline": "Ekran offline; zmiany zapisane",
-      "retrying": "Wysyłanie nieudane; automatyczne ponawianie"
+      "retrying": "Wysyłanie nieudane; automatyczne ponawianie",
+      "screen": {
+        "synced": "Zsynchronizowano",
+        "loading_tiles": "Ładowanie kafelków",
+        "layout_received": "Odebrano układ",
+        "resend_needed": "Wymagane ponowne wysłanie",
+        "ready": "Gotowy na kafelki",
+        "error": "Błąd: {reason}"
+      }
     },
     "updates": {
       "offline": "Ekran był offline; kolejna próba następnym razem.",
@@ -1755,6 +1763,10 @@
         "every": "Wszystkie ekrany? Wywołaj {event} raz (zobacz „Wszystkie ekrany naraz”). Ekrany nadal działają niezależnie i każdy zgłasza się z własnym polem {screen}.",
         "claude": "Wolisz {bold} o automatyzację? Zainstaluj umiejętność ESP Screens w sekcji Ustawienia → Claude.",
         "claude_bold": "poprosić Claude"
+      },
+      "wait_yaml": {
+        "comment": "Dzwonek: pokaż alert i poczekaj, aż ktoś naciśnie przycisk.",
+        "message": "Ktoś idzie do drzwi."
       }
     },
     "override": {

@@ -45,9 +45,13 @@ export type Languages = {
   setting: string; effective: string; ha: string | null; languages: LanguageInfo[];
   clock?: "auto" | "24" | "12"; clock_effective?: "24" | "12";
   numbers?: "auto" | "point" | "comma" | "space"; numbers_effective?: "point" | "comma" | "space";
+  /** From how many digits a whole number gets separators: 2 is 1234 but 12.345 (CLDR); a space before "%". */
+  group_min?: number; percent_space?: boolean;
+  /** What Automatic means now: the clock and numbers of Home Assistant's language (or the chosen one). */
+  clock_auto?: "24" | "12"; numbers_auto?: "point" | "comma" | "space"; group_min_auto?: number;
 };
 export type ChangelogSection = { app: string; firmware: string; lines: string[] };
-export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean };
+export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean; screen_name?: string };
 export type IconInfo = { name: string; cp: string; label: string };
 export type Inventory = {
   csrf?: string;

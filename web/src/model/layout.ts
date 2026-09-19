@@ -156,7 +156,8 @@ export function effectiveControls(tile: Tile, inventory: Inventory): string | nu
 export function controlsLabel(tile: Tile, inventory: Inventory) {
   const key = effectiveControls(tile, inventory);
   if (!key) return t("editor.inspect.control_none");
-  return inventory.controls?.[tile.entity.split(".")[0]]?.choices.find((c) => c.key === key)?.label.toLocaleLowerCase() || key;
+  // As the choice itself is labelled, like the other values in the summary: German writes its nouns with a capital.
+  return inventory.controls?.[tile.entity.split(".")[0]]?.choices.find((c) => c.key === key)?.label || key;
 }
 
 export const parseVersion = (v: string | undefined | null) => (/^(\d+)\.(\d+)\.(\d+)$/.exec(v || "") || []).slice(1).map(Number);

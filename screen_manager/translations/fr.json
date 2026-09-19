@@ -560,7 +560,15 @@
       "too_large": "Mise en page enregistrée ; trop grande pour un seul message à l'écran, retirez quelques tuiles",
       "sent": "Envoyé à Home Assistant",
       "offline": "Écran hors ligne ; modifications enregistrées",
-      "retrying": "Échec de l'envoi ; nouvel essai automatique"
+      "retrying": "Échec de l'envoi ; nouvel essai automatique",
+      "screen": {
+        "synced": "Synchronisé",
+        "loading_tiles": "Chargement des tuiles",
+        "layout_received": "Disposition reçue",
+        "resend_needed": "Nouvel envoi nécessaire",
+        "ready": "Prêt pour les tuiles",
+        "error": "Erreur : {reason}"
+      }
     },
     "updates": {
       "offline": "L'écran était hors ligne ; nouvel essai la prochaine fois.",
@@ -1755,6 +1763,10 @@
         "every": "Tous les écrans ? Déclenchez {event} une seule fois (voir Tous les écrans à la fois). Les écrans restent indépendants et chacun répond avec son propre {screen}.",
         "claude": "Vous préférez {bold} pour l'automatisation ? Installez la compétence ESP Screens dans Paramètres → Claude.",
         "claude_bold": "demander à Claude"
+      },
+      "wait_yaml": {
+        "comment": "Sonnette : afficher l’alerte et attendre qu’on appuie sur le bouton.",
+        "message": "Quelqu’un arrive à la porte."
       }
     },
     "override": {

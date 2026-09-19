@@ -181,7 +181,8 @@ describe("the mockup speaks the screens' language", () => {
     }, meta("one_other"));
     state.inventory = {
       screens: [], entities: [{ id: "light.b", name: "Lamp B", state: "unavailable" }],
-      language: { setting: "td", effective: "td", ha: "en", languages: [], numbers: "auto" },
+      // The add-on says how the screens write numbers: Automatic, worked out for their language (1.234,5).
+      language: { setting: "td", effective: "td", ha: "en", languages: [], numbers: "auto", numbers_effective: "comma", group_min: 2 },
       controls: { script: { default: "run", choices: [{ key: "run", label: "Run" }, { key: "none", label: "None" }] } },
     } as any;
     state.layout = { title: "Living room", tiles: [] };

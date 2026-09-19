@@ -13,6 +13,7 @@ const GUIDE = "https://github.com/MaxGramser/homeassistant_espscreen/blob/main/d
 function language(extra: Partial<Languages> = {}): Languages {
   return {
     setting: "auto", effective: "nl", ha: "nl", clock: "auto", clock_effective: "24", numbers: "auto", numbers_effective: "comma",
+    clock_auto: "24", numbers_auto: "comma", group_min: 1, group_min_auto: 1, percent_space: false,
     languages: [
       { code: "en", name: "English (US)", english: "English (US)", checked: true },
       { code: "en-GB", name: "English (UK)", english: "English (UK)", checked: true },

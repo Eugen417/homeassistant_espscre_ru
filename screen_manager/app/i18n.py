@@ -344,7 +344,10 @@ class Region:
                 'ha': self.ha_language(), 'languages': self.tr.languages(),
                 'clock': self.clock, 'clock_effective': '24' if self.clock_24h() else '12',
                 'numbers': self.numbers, 'numbers_effective': self.number_style(),
-                'group_min': self.group_min(), 'percent_space': self.percent_space()}
+                'group_min': self.group_min(), 'percent_space': self.percent_space(),
+                # What Automatic means now, for its label: the clock and the numbers of the language.
+                'clock_auto': '12' if self.written().get('clock') == '12' else '24',
+                'numbers_auto': self.written().get('numbers', 'point'), 'group_min_auto': int(self.written().get('group_min', 1))}
 
 
 

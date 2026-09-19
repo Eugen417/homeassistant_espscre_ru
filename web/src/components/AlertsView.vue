@@ -47,16 +47,18 @@ const exampleYaml = computed(() => {
   const lines = (alerts.value?.fields || []).map((f: any) => `  ${f.name}: ${fieldValue(f)}`);
   return `action: ${chosenAction.value || "esphome.<device_name>_show_alert"}\ndata:\n${lines.join("\n")}`;
 });
+// The doorbell example in the editor's language: the fields' own examples, and two lines of its own.
+const example = (name: string, fallback: string) => yamlString((alerts.value?.fields || []).find((f: any) => f.name === name)?.example || fallback);
 const waitYaml = computed(() => [
-  `# Doorbell: show the alert and wait until someone presses the button.`,
+  `# ${t("editor.alerts.wait_yaml.comment")}`,
   `actions:`,
   `  - action: ${chosenAction.value || "esphome.<device_name>_show_alert"}`,
   `    data:`,
-  `      title: "Someone is at the door"`,
-  `      subtitle: "Door 3, back"`,
+  `      title: ${example("title", "Someone is at the door")}`,
+  `      subtitle: ${example("subtitle", "Door 3, back")}`,
   `      icon: doorbell`,
   `      color: orange`,
-  `      button_text: "Coming"`,
+  `      button_text: ${example("button_text", "Coming")}`,
   `      timeout: 0`,
   `      flash: true`,
   `  - wait_for_trigger:`,
@@ -71,7 +73,7 @@ const waitYaml = computed(() => [
   `    then:`,
   `      - action: notify.notify`,
   `        data:`,
-  `          message: "Someone is coming to the door."`,
+  `          message: ${yamlString(t("editor.alerts.wait_yaml.message"))}`,
 ].join("\n"));
 // One event for every screen (app 0.2.45): an action for "Edit in YAML" of the Event action.
 const allYaml = computed(() => {

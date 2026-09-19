@@ -2,7 +2,7 @@
 // Everything around the screens: firmware updates, language and region, alerts, Claude.
 import { computed, ref } from "vue";
 import { haProfile, matchLanguage, numberText, type NumberMarks, type NumberStyle, STYLE_MARKS, t } from "../i18n";
-import { anyUpdating, go, installClaudeSkill, runUpdateAll, saveLanguage, screenLanguageMarks, setAutoUpdate, state, updateProgress } from "../store";
+import { anyUpdating, autoMarks, go, installClaudeSkill, runUpdateAll, saveLanguage, setAutoUpdate, state, updateProgress } from "../store";
 
 const u = computed(() => state.inventory.updates);
 const outdated = computed(() => state.inventory.screens.filter((s) => s.update?.available).length);
@@ -125,7 +125,7 @@ async function useProfile() {
         <div class="field">
           <label class="f-label" for="time-format">{{ t("editor.settings.language.time") }}</label>
           <select id="time-format" :value="lang.clock || 'auto'" :disabled="saving" @change="choose('clock', $event)">
-            <option value="auto">{{ t("editor.settings.language.time_auto", { clock: clockName(lang.clock_effective) }) }}</option>
+            <option value="auto">{{ t("editor.settings.language.time_auto", { clock: clockName(lang.clock_auto || lang.clock_effective) }) }}</option>
             <option value="24">{{ clockName("24") }}</option>
             <option value="12">{{ clockName("12") }}</option>
           </select>
@@ -133,7 +133,7 @@ async function useProfile() {
         <div class="field">
           <label class="f-label" for="number-format">{{ t("editor.settings.language.numbers") }}</label>
           <select id="number-format" :value="lang.numbers || 'auto'" :disabled="saving" @change="choose('numbers', $event)">
-            <option value="auto">{{ t("editor.settings.language.numbers_auto", { example: example(screenLanguageMarks) }) }}</option>
+            <option value="auto">{{ t("editor.settings.language.numbers_auto", { example: example(autoMarks) }) }}</option>
             <option v-for="style in STYLES" :key="style" :value="style">{{ example(STYLE_MARKS[style]) }}</option>
           </select>
         </div>

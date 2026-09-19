@@ -2,7 +2,7 @@
 // former app.js state and its calls, with the DOM work moved into the components.
 import { computed, reactive, toRaw, watch } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
-import { andList, editorLanguage, languageMarks, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
+import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
   pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
@@ -832,14 +832,27 @@ export const languageName = (code: string | null | undefined) =>
 export const needsUpdate = (screen: Screen) => Boolean(screen.update?.available || screen.update?.language);
 export const newLanguageText = () => t("editor.update.new_language", { name: languageName(state.inventory.language?.effective) });
 // Time and number format, for every screen at once under Settings → Language & region: a 24-hour clock and "1,234.5"
-// until the add-on says otherwise. The mockup's clocks and numbers follow them; "auto" numbers are the screens'
-// language's own (screen.number), as the firmware writes them.
+// until the add-on says otherwise. The mockup's clocks and numbers follow what the add-on sends the screens: the style,
+// from how many digits a number is grouped, and the space before "%" (Home Assistant's language decides "auto").
 export const clock24 = computed(() => state.inventory.language?.clock_effective !== "12");
-export const screenLanguageMarks = computed<NumberMarks>(() => languageMarks(screenLanguage.value));
 export const numberMarks = computed<NumberMarks>(() => {
-  const choice = state.inventory.language ? state.inventory.language.numbers || "auto" : "point";
-  return choice === "auto" ? screenLanguageMarks.value : STYLE_MARKS[choice];
+  const language = state.inventory.language;
+  const marks = STYLE_MARKS[language?.numbers_effective || "point"] || STYLE_MARKS.point;
+  return { ...marks, from: (language?.group_min || 1) >= 2 ? 5 : 4 };
 });
+/** How Automatic writes numbers: the marks of the language that decides, for the label of that choice. */
+export const autoMarks = computed<NumberMarks>(() => {
+  const language = state.inventory.language;
+  return { ...(STYLE_MARKS[language?.numbers_auto || "point"] || STYLE_MARKS.point), from: (language?.group_min_auto || 1) >= 2 ? 5 : 4 };
+});
+/** What follows a number for its unit, as Home Assistant spaces it: "°", "%" or " %" by the language, " kWh". */
+export function unitSuffix(unit: string | undefined | null) {
+  if (!unit || unit === "°") return unit || "";
+  if (unit === "%") return state.inventory.language?.percent_space ? " %" : "%";
+  return ` ${unit}`;
+}
+/** A built-in card's name as the screens show it (Settings, Clock, Go to page 2), in their language. */
+export const screenBuiltinName = (id: string) => state.inventory.builtin?.find((e) => e.id === id)?.screen_name;
 /** Saves any of the screen language, the time format and the number format. */
 export async function saveLanguage(changes: { setting?: string; clock?: string; numbers?: string }) {
   try {

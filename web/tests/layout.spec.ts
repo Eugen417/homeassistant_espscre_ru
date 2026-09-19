@@ -94,7 +94,7 @@ describe("defaults, controls and versions", () => {
     expect(effectiveControls(tile("light.a", 0, { size: "wide", inline: "slider" }), inventory)).toBeNull();
     expect(effectiveControls(tile("light.a", 0, { size: "wide", display: "watch" }), inventory)).toBeNull();
     expect(effectiveControls(tile("light.a", 0), inventory)).toBeNull();
-    expect(controlsLabel(tile("light.a", 0, { size: "wide" }), inventory)).toBe("on/off switch");
+    expect(controlsLabel(tile("light.a", 0, { size: "wide" }), inventory)).toBe("On/off switch");
     expect(controlsLabel(tile("sensor.t", 0, { size: "wide" }), inventory)).toBe("none");
   });
   it("compares firmware versions and knows the tile limit", () => {

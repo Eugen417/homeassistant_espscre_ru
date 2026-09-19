@@ -560,7 +560,15 @@
       "too_large": "Layout guardado; demasiado grande para uma mensagem para o ecrã, remova alguns mosaicos",
       "sent": "Enviado para o Home Assistant",
       "offline": "Ecrã offline; alterações guardadas",
-      "retrying": "O envio falhou; a tentar novamente automaticamente"
+      "retrying": "O envio falhou; a tentar novamente automaticamente",
+      "screen": {
+        "synced": "Sincronizado",
+        "loading_tiles": "A carregar mosaicos",
+        "layout_received": "Layout recebido",
+        "resend_needed": "É preciso reenviar",
+        "ready": "Pronto para os mosaicos",
+        "error": "Erro: {reason}"
+      }
     },
     "updates": {
       "offline": "O ecrã estava offline; vai tentar novamente da próxima vez.",
@@ -1755,6 +1763,10 @@
         "every": "Todos os ecrãs? Dispare {event} uma vez (ver «Todos os ecrãs de uma vez»). Os ecrãs continuam a funcionar de forma independente e cada um reporta com o seu próprio {screen}.",
         "claude": "Prefere {bold} que faça a automatização? Instale a habilidade do ESP Screens em Definições → Claude.",
         "claude_bold": "pedir ao Claude"
+      },
+      "wait_yaml": {
+        "comment": "Campainha: mostra o alerta e espera que alguém prima o botão.",
+        "message": "Vem alguém à porta."
       }
     },
     "override": {

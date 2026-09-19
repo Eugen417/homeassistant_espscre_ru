@@ -251,6 +251,9 @@ class ClockPinTests(unittest.IsolatedAsyncioTestCase):
                 view = (await answer.json())['language']
                 self.assertEqual((view['effective'], view['numbers_effective'], view['group_min'], view['percent_space']),
                                  ('de', 'point', 1, True))
+                # What the screen reports stays English (the app reads it); the editor shows it in its own language.
+                dutch = await (await client.get('/api/inventory?light=1', headers={'X-ESP-Screens-Language': 'nl'})).json()
+                self.assertEqual((m.screens()[0]['status'], dutch['screens'][0]['status']), ('Synced', 'Gesynchroniseerd'))
                 refused = await client.put('/api/language', json={'clock': '13'}, headers={'X-Screen-CSRF': csrf, 'X-ESP-Screens-Language': 'nl'})
                 self.assertEqual(refused.status, 400)
                 self.assertEqual((await refused.json())['error'], i18n.TRANSLATIONS.text('addon.errors.region_choice', 'nl'))

@@ -560,7 +560,15 @@
       "too_large": "Disposizione salvata; troppo grande per un solo messaggio allo schermo, rimuovi qualche riquadro",
       "sent": "Inviato a Home Assistant",
       "offline": "Schermo offline; modifiche salvate",
-      "retrying": "Invio non riuscito; nuovo tentativo automatico"
+      "retrying": "Invio non riuscito; nuovo tentativo automatico",
+      "screen": {
+        "synced": "Sincronizzato",
+        "loading_tiles": "Caricamento dei riquadri",
+        "layout_received": "Layout ricevuto",
+        "resend_needed": "Serve un nuovo invio",
+        "ready": "Pronto per i riquadri",
+        "error": "Errore: {reason}"
+      }
     },
     "updates": {
       "offline": "Lo schermo era offline; nuovo tentativo la prossima volta.",
@@ -1755,6 +1763,10 @@
         "every": "Tutti gli schermi? Attiva {event} una sola volta (vedi Tutti gli schermi insieme). Gli schermi restano indipendenti e ognuno risponde con il proprio {screen}.",
         "claude": "Preferisci {bold} l'automazione? Installa la skill di ESP Screens in Impostazioni → Claude.",
         "claude_bold": "chiedere a Claude"
+      },
+      "wait_yaml": {
+        "comment": "Campanello: mostra l’avviso e aspetta che qualcuno prema il pulsante.",
+        "message": "Qualcuno sta arrivando alla porta."
       }
     },
     "override": {

@@ -560,7 +560,15 @@
       "too_large": "Layout gespeichert; zu groß für eine Nachricht an den Bildschirm, entferne ein paar Kacheln",
       "sent": "An Home Assistant gesendet",
       "offline": "Bildschirm offline; Änderungen gespeichert",
-      "retrying": "Senden fehlgeschlagen; wird automatisch wiederholt"
+      "retrying": "Senden fehlgeschlagen; wird automatisch wiederholt",
+      "screen": {
+        "synced": "Synchronisiert",
+        "loading_tiles": "Kacheln werden geladen",
+        "layout_received": "Layout empfangen",
+        "resend_needed": "Erneutes Senden nötig",
+        "ready": "Bereit für die Kacheln",
+        "error": "Fehler: {reason}"
+      }
     },
     "updates": {
       "offline": "Bildschirm war offline; neuer Versuch beim nächsten Mal.",
@@ -1755,6 +1763,10 @@
         "every": "Alle Bildschirme? Löse {event} einmal aus (siehe „Alle Bildschirme auf einmal“). Die Bildschirme arbeiten trotzdem unabhängig, und jeder meldet sich mit seinem eigenen {screen}.",
         "claude": "Für die Automation lieber {bold}? Installiere den ESP Screens-Skill unter Einstellungen → Claude.",
         "claude_bold": "Claude fragen"
+      },
+      "wait_yaml": {
+        "comment": "Türklingel: die Meldung zeigen und warten, bis jemand die Taste drückt.",
+        "message": "Jemand kommt zur Tür."
       }
     },
     "override": {

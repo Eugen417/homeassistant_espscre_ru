@@ -53,6 +53,20 @@ RESEND_STATES = frozenset({
     'Klaar voor tegelconfiguratie', 'Indeling opnieuw nodig', 'Tegels laden',
 })
 RESEND_GUARD_SECONDS = 120
+# What a screen reports stays English, the app reads it (protocol); the editor shows it in its own language (app 0.2.90).
+SCREEN_STATUS_WORDS = {'Synced': 'synced', 'Loading tiles': 'loading_tiles', 'Layout received': 'layout_received',
+                       'Resend needed': 'resend_needed', 'Ready for tile configuration': 'ready'}
+
+
+def status_text(status):
+    """A screen's status for the editor: its protocol words in the editor's language, ours as they were made."""
+    status = shown(status)
+    if isinstance(status, str) and not isinstance(status, i18n.Text):
+        if status in SCREEN_STATUS_WORDS:
+            return t(f'addon.status.screen.{SCREEN_STATUS_WORDS[status]}')
+        if status.startswith('Error: '):
+            return t('addon.status.screen.error', reason=status[len('Error: '):])
+    return status
 FORECAST_SECONDS = 1800
 # A screen that answers its ping (firmware 0.2.49+) is asked with this timeout, so a busy screen never holds
 # up the others. An answer that the screen lacks something repeats everything, after this many seconds right
@@ -1794,7 +1808,7 @@ def create_app(manager, development=False):
             # The delivery and our own word for a screen that reports nothing, in the editor's language (app 0.2.90).
             status = manager.status.get(screen['id'])
             screen['delivery'] = shown(status) if status else t('addon.status.first_tiles')
-            screen['status'] = shown(screen.get('status'))
+            screen['status'] = status_text(screen.get('status'))
             screen['update'] = manager.updates.state_for(screen, profiles)
             screen['alert_action'] = alert_service(screen.get('node'))
             screen['dismiss_action'] = alert_service(screen.get('node'), 'dismiss_alert')
@@ -1822,8 +1836,9 @@ def create_app(manager, development=False):
         # What's new for the Update badge: here only, not in every live update (app 0.2.78).
         payload['changelog'] = manager.updates.changelog
         payload['claude_skill'] = claude_skill.status(manager.skill_dir)
-        payload['builtin'] = [{'id': key, 'name': builtin_name(key, t), 'device': t('addon.labels.built_into_screen'), 'area': '', 'state': 'ok'}
-                              for key in BUILTIN]
+        # The name in the editor's language for the library, and as the screens show it for the mockup (app 0.2.90).
+        payload['builtin'] = [{'id': key, 'name': builtin_name(key, t), 'screen_name': builtin_name(key),
+                               'device': t('addon.labels.built_into_screen'), 'area': '', 'state': 'ok'} for key in BUILTIN]
         payload['header'] = {**header_bar.catalogue(), 'suggestions': {
             screen['id']: header_bar.suggestions(screen, entities, manager.ha.states, manager.registry_index()) for screen in payload['screens']}}
         return web.json_response(payload)
@@ -1920,7 +1935,7 @@ def create_app(manager, development=False):
         inbox=manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
         if screen is None: raise ValueError(t('addon.errors.unknown_screen'))
         layout=manager.layouts.get(inbox,{'tiles':[]})
-        return web.json_response({'screen':{**screen, 'status':shown(screen.get('status'))},
+        return web.json_response({'screen':{**screen, 'status':status_text(screen.get('status'))},
             'delivery':shown(manager.status.get(inbox)), 'layout':layout,
             'tiles':[{'entity':t['entity'],'state':manager.ha.states.get(t['entity'],{}).get('state'),
                       # Home Assistant's word for the state, as its own pages show it ("Heat/Cool", app 0.2.67).
