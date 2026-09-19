@@ -3925,9 +3925,7 @@ script:
             } else if (pct >= 100) {
               value_text = open_label;
             } else {
-              char buf[40];
-              snprintf(buf, sizeof(buf), "%s - %d%%", open_label.c_str(), pct);
-              value_text = buf;
+              value_text = open_label + " - " + screen_text::percent(pct);
             }
           } else {
             if (pct <= 0) {
@@ -4075,7 +4073,7 @@ script:
           if (mode == "none") return;
 
           id(active_entity) = entity;
-          id(active_value_suffix) = " %";
+          id(active_value_suffix) = screen_text::percent_sign();
           id(active_label_off) = label_off;
           id(active_label_on) = label_on;
           id(active_title) = title;
@@ -4184,9 +4182,7 @@ script:
             } else if (pct >= 100) {
               value_text = label_on;
             } else {
-              char buf[40];
-              snprintf(buf, sizeof(buf), "%s - %d%%", label_on.c_str(), pct);
-              value_text = buf;
+              value_text = label_on + " - " + screen_text::percent(pct);
             }
           } else {
             if (pct <= 0) {

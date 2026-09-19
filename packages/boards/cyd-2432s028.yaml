@@ -691,9 +691,8 @@ script:
           // What the device does (Heating), else its mode (Heat); then the room.
           std::string status = off ? std::string(screen_text::tr(screen_text::txt::ha_off)) : std::string(tile_controls::climate_action_text(lower(id(active_climate_action))));
           if (status.empty()) status = tile_controls::climate_mode_text(mode);
-          char part[32];
           if (std::isfinite(id(active_climate_current))) status += " · " + screen_text::fill(screen_text::txt::climate_now, "value", screen_text::decimal(id(active_climate_current), 1) + "°");
-          if (id(active_climate_humidity) >= 0) { snprintf(part, sizeof(part), " · %d%%", id(active_climate_humidity)); status += part; }
+          if (id(active_climate_humidity) >= 0) status += " · " + screen_text::percent(id(active_climate_humidity));
           lv_label_set_text(id(climate_current_label), status.c_str());
 
           int target = id(active_climate_target_x10);
