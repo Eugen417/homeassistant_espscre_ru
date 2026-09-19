@@ -11,7 +11,8 @@
     "number": {
       "decimal": ",",
       "group": " ",
-      "group_min": "2"
+      "group_min": "2",
+      "percent": "%"
     },
     "time": {
       "just_now": "Przed chwilą",
@@ -49,13 +50,13 @@
         "sob."
       ],
       "weekdays_min": [
-        "niedz.",
-        "pon.",
-        "wt.",
-        "śr.",
-        "czw.",
-        "pt.",
-        "sob."
+        "nie",
+        "pon",
+        "wt",
+        "śr",
+        "czw",
+        "pt",
+        "sob"
       ],
       "months": [
         "stycznia",

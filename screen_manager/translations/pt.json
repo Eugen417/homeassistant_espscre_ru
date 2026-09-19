@@ -11,7 +11,8 @@
     "number": {
       "decimal": ",",
       "group": " ",
-      "group_min": "2"
+      "group_min": "2",
+      "percent": "%"
     },
     "time": {
       "just_now": "Agora mesmo",
@@ -49,13 +50,13 @@
         "sábado"
       ],
       "weekdays_min": [
-        "domingo",
-        "segunda",
-        "terça",
-        "quarta",
-        "quinta",
-        "sexta",
-        "sábado"
+        "dom",
+        "seg",
+        "ter",
+        "qua",
+        "qui",
+        "sex",
+        "sáb"
       ],
       "months": [
         "janeiro",

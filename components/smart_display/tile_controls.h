@@ -243,7 +243,7 @@ inline const char *binary_state_text(const std::string &device_class, bool on) {
 }
 // Status line beside a control panel: what Home Assistant shows under the name.
 inline std::string status_text(const Tile &t) {
-  auto d = t.domain(); char b[48];
+  auto d = t.domain();
   if (d == "climate") {
     std::string text = climate_action_text(t.extra().hvac_action);
     if (text.empty()) text = climate_mode_text(t.state);
@@ -252,13 +252,13 @@ inline std::string status_text(const Tile &t) {
   }
   if (d == "cover") {
     std::string text = cover_state_text(t.state);
-    if (std::isfinite(t.position)) { snprintf(b, sizeof(b), " · %d%%", (int) std::lround(t.position)); text += b; }
+    if (std::isfinite(t.position)) text += " · " + screen_text::percent((int) std::lround(t.position));
     return text;
   }
   if (d == "media_player") {
     const std::string &title = t.extra().media_title;
     std::string text = (t.state == "playing" || t.state == "paused") && !title.empty() ? title : media_state_text(t.state);
-    if (std::isfinite(t.volume) && (t.supported & feature::MEDIA_VOLUME_SET)) { snprintf(b, sizeof(b), " · %d%%", (int) std::lround(t.volume * 100)); text += b; }
+    if (std::isfinite(t.volume) && (t.supported & feature::MEDIA_VOLUME_SET)) text += " · " + screen_text::percent((int) std::lround(t.volume * 100));
     return text;
   }
   return {};

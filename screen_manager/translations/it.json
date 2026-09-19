@@ -11,7 +11,8 @@
     "number": {
       "decimal": ",",
       "group": ".",
-      "group_min": "2"
+      "group_min": "2",
+      "percent": "%"
     },
     "time": {
       "just_now": "Proprio ora",

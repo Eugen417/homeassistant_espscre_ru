@@ -42,6 +42,23 @@ int main() {
          number_style_of("space") == 3 && number_style_of("dot") == -1);
   number_style = 0;
 
+  // Grouping from five digits where the language does (CLDR: Spanish, Polish write 1234 but 12.345), as the app says.
+  number_group_min = 2;
+  assert(localize("1234") == "1234" && localize("12345") == "12,345" && localize("-1234.5") == "-1234.5");
+  number_group_min = 1;
+  assert(localize("1234") == "1,234");
+  number_group_min = 0;
+
+  // Units spaced as Home Assistant spaces them: none before "%" or "°" in English, one before any other unit; German
+  // and French put one before "%" too (the app sends it).
+  assert(with_unit("54", "%") == "54%" && with_unit("18", "\u00B0") == "18\u00B0" && with_unit("21.5", "\u00B0C") == "21.5 \u00B0C");
+  assert(with_unit("7", "") == "7" && unit_suffix("kWh") == " kWh" && percent(71) == "71%");
+  number_percent = 2;
+  assert(with_unit("54", "%") == "54 %" && percent(71) == "71 %");
+  number_percent = 1;
+  assert(percent(71) == "71%");
+  number_percent = 0;
+
   // Times the screen gets as "HH:MM" (the sun, the forecast), written for its clock.
   assert(clock_text("07:12", true) == "07:12" && clock_text("19:05", false) == "7:05 PM");
   assert(clock_text("00:00", false) == "12:00 AM" && clock_text("14:00", false, true) == "2 PM");

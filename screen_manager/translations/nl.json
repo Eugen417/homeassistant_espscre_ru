@@ -11,7 +11,8 @@
     "number": {
       "decimal": ",",
       "group": ".",
-      "group_min": "1"
+      "group_min": "1",
+      "percent": "%"
     },
     "time": {
       "just_now": "Zojuist",

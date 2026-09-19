@@ -304,11 +304,19 @@ class Editor(unittest.IsolatedAsyncioTestCase):
             i18n.set_screens('xx', 'point')
             async with TestClient(TestServer(create_app(manager, True))) as client:
                 csrf = (await (await client.get('/api/inventory?light=1')).json())['csrf']
+                # Firmware from before the languages speaks English, whatever the screens' language is.
                 answer = await client.post('/api/screens/text.screen/identify', headers={'X-Screen-CSRF': csrf})
                 self.assertEqual(answer.status, 200)
-            action, data = ha.calls[0]
-            self.assertEqual((action, data['title'], data['subtitle'], data['button_text']),
-                             ('esphome.office_1_show_alert', '[xx] This is Office 1', '[xx] Identify, from ESP Screens', '[xx] OK'))
+                # Firmware that says it speaks the screens' language gets the card in it.
+                ha.registry = ha.registry + [{'entity_id': 'sensor.language', 'platform': 'esphome', 'original_name': 'Screen language',
+                                              'device_id': 'd1'}]
+                ha.states['sensor.language'] = {'state': 'xx'}
+                answer = await client.post('/api/screens/text.screen/identify', headers={'X-Screen-CSRF': csrf})
+                self.assertEqual(answer.status, 200)
+            texts = [(action, data['title'], data['subtitle'], data['button_text']) for action, data in ha.calls]
+            self.assertEqual(texts, [('esphome.office_1_show_alert', 'This is Office 1', 'Identify, from ESP Screens', 'OK'),
+                                     ('esphome.office_1_show_alert', '[xx] This is Office 1', '[xx] Identify, from ESP Screens', '[xx] OK')])
+            i18n.set_screens('en', 'point')
 
     async def test_a_tile_event_answers_home_assistant_in_english(self):
         with tempfile.TemporaryDirectory() as tmp, Language('addon.'):

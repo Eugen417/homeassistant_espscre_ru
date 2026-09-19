@@ -129,11 +129,14 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             with self.assertRaises(ValueError): fresh.save('text.screen',{**saved,'settings':{'brightness':0}})
             self.assertEqual(path.read_bytes(),before)
             await fresh.sync_one('text.screen',saved)
-            self.assertEqual(fresh.ha.messages[0][1]['settings'],{k:v for k,v in settings.items() if k not in SETTINGS_BESIDE_BLOCK})
+            # The clock is the one of Settings -> Language & region (app 0.2.90), the rest what the screen kept.
+            self.assertEqual(fresh.ha.messages[0][1]['settings'],{**{k:v for k,v in settings.items() if k not in SETTINGS_BESIDE_BLOCK},
+                                                                   'clock_24h':fresh.region.clock_24h()})
             await fresh.sync_one('text.screen',saved)
             self.assertEqual(len(fresh.ha.messages),2)
             await fresh.sync_one('text.screen',saved,True)
-            self.assertEqual(fresh.ha.messages[2][1]['settings'],{k:v for k,v in settings.items() if k not in SETTINGS_BESIDE_BLOCK})
+            self.assertEqual(fresh.ha.messages[2][1]['settings'],{**{k:v for k,v in settings.items() if k not in SETTINGS_BESIDE_BLOCK},
+                                                                   'clock_24h':fresh.region.clock_24h()})
 
     async def test_reorder_aborts_old_batch(self):
         with tempfile.TemporaryDirectory() as temp:

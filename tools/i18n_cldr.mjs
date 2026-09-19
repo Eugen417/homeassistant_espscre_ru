@@ -39,7 +39,9 @@ for (const code of codes) {
     date: {
       weekdays: [0, 1, 2, 3, 4, 5, 6].map((i) => long.format(day(i))),
       weekdays_short: [0, 1, 2, 3, 4, 5, 6].map((i) => short.format(day(i))),
-      weekdays_min: [0, 1, 2, 3, 4, 5, 6].map((i) => short.format(day(i))),
+      // The narrow columns of the weather card: the short name without its dot, at most three letters ("mié", "sáb",
+      // "czw", "dom"); a screen shows no more.
+      weekdays_min: [0, 1, 2, 3, 4, 5, 6].map((i) => [...short.format(day(i)).replace(/\.$/, '')].slice(0, 3).join('')),
       months: [...Array(12).keys()].map(monthLong),
       months_short: [...Array(12).keys()].map(numericMonth ? standalone : monthShort),
       top_bar: withNames(pattern(code, { weekday: 'short', day: 'numeric', month: 'short' }, { weekday: 'weekday', day: 'day', month: 'month' })),

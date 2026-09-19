@@ -38,7 +38,7 @@ int main() {
   assert(number_text(128) == "128");
   assert(number_text(12.5f) == "12.5");
   assert(number_text(0) == "0");
-  assert(percent_text(50) == "50 %");
+  assert(percent_text(50) == "50%");  // "50 %" where the language writes it so (screen_text::percent_sign)
 
   // The roller's text and the row that is chosen in it.
   std::vector<std::string> names = {"Solid", "Akemi", "TV Simulator"};

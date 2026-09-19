@@ -95,7 +95,7 @@ inline void preview(Row &row) {
     lv_obj_set_style_bg_opa(row.slider, row.off ? LV_OPA_TRANSP : LV_OPA_COVER, LV_PART_KNOB);
     lv_obj_set_style_bg_color(row.slider, theme::color(row.off ? theme::TRACK : theme::AMBER_TRACK), LV_PART_MAIN);
     if (row.off) lv_label_set_text(row.value, screen_text::tr(screen_text::txt::ha_off));
-    else lv_label_set_text_fmt(row.value, "%d %%", value);
+    else lv_label_set_text(row.value, screen_text::percent(value).c_str());
   }
 }
 inline void event(lv_event_t *e) {

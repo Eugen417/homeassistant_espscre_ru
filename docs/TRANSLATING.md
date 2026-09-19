@@ -27,8 +27,13 @@ Three parts fill themselves. Don't change them by hand:
   [Home Assistant's translations](https://developers.home-assistant.io/docs/translations/); we pick it up from there.
 - `screen.date` holds day and month names and the order of a date. `screen.number` says how numbers are written.
   `screen.time.am` and `.pm` are the day periods. All of this comes from the Unicode CLDR, the same data every browser
-  uses, through `tools/i18n.py cldr`.
+  uses, through `tools/i18n.py cldr`. `screen.number.percent` follows Home Assistant's own rule: a space before `%` in
+  Czech, German, Finnish, French, Slovak and Swedish, none in the other languages.
 - `_meta.clock`, 12 or 24 hours, also comes from the CLDR.
+
+How the clock and numbers are written doesn't wait for a translation: `screen_manager/app/regions.json` holds them for
+every language Home Assistant offers, also from the CLDR. A Swedish Home Assistant gets English texts on the screens until
+there is a `sv.json`, but already the Swedish 24-hour clock and `1 234,5`.
 
 ## Check a language
 
@@ -130,11 +135,15 @@ firmware update.
 - **A new English text:**
   - Screen texts: add the key to `en.json` and run `python3 tools/i18n.py header`. That writes
     `components/smart_display/screen_text_keys.h`, which the build checks against the JSON. The code uses
-    `screen_text::tr(txt::...)`.
+    `screen_text::tr(txt::...)`. A number with a unit goes through `screen_text::with_unit`, a percentage through
+    `screen_text::percent`, so the spacing is Home Assistant's.
   - App texts: use `i18n.t(...)` for the editor's language, and `i18n.screen_t(...)` for the screens' language.
   - A text that is stored or made outside a request uses `i18n.english(...)`. That covers a delivery status and an
     update result. `i18n.shown(...)` puts it in the language of the editor that asks. Numbers and times for the
-    screens go through `i18n.screen_number(...)` and `i18n.screen_clock(...)`.
+    screens go through `i18n.screen_number(...)` and `i18n.screen_clock(...)`, units through `i18n.unit_suffix(...)`.
+  - A screen gets the app's words in the language its firmware speaks (its "Screen language" sensor), so a screen that
+    isn't updated yet stays in one language; firmware from before the languages gets English and its own letters.
+    `Manager.sync_one` sets that screen for the texts it writes (`i18n.SCREEN`).
   - Editor texts: go through vue-i18n.
 - **Every release:** Claude drafts the new texts for every language, with Home Assistant's own words as the glossary,
   and leaves them unchecked for a speaker of the language. A missing text shows in English and never blocks a release.
@@ -150,7 +159,8 @@ firmware update.
   python3 tools/i18n.py cldr --write
   ```
 
-  `ha-words` needs a Home Assistant: `HA_URL` and `HA_TOKEN` in the environment.
+  `ha-words` needs a Home Assistant: `HA_URL` and `HA_TOKEN` in the environment. When Home Assistant adds a language,
+  add its code to `HA_LANGUAGES` in `tools/i18n.py` and run `cldr --write` for its clock and numbers.
 - **What stays English everywhere:**
   - the names of the screens' own entities in Home Assistant (renaming one gives it a new entity id);
   - log lines;

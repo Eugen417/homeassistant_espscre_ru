@@ -11,6 +11,7 @@ changed their profile: the clock and the numbers follow the language.
 """
 import contextvars
 import json
+import math
 import logging
 import os
 import re
@@ -28,7 +29,8 @@ PLACEHOLDER = re.compile(r'\{([a-z_]+)\}')
 # Which form of a plural text ("1 hour ago | {n} hours ago") fits n; the firmware (screen_text_gen.py) and the editor
 # (web/src/i18n.ts) have the same rules, docs/TRANSLATING.md says which languages use which.
 def _slavic(n, one):
-    t, h = n % 10, n % 100
+    # C++'s remainder (the sign of n), as the firmware and the editor count.
+    t, h = int(math.fmod(n, 10)), int(math.fmod(n, 100))
     if one:
         return 0
     return 1 if 2 <= t <= 4 and not 12 <= h <= 14 else 2
@@ -37,7 +39,7 @@ PLURAL = {
     'one_other': lambda n: 0 if n == 1 else 1,
     'one_upto_1': lambda n: 0 if abs(n) <= 1 else 1,
     'slavic_pl': lambda n: _slavic(n, n == 1),
-    'east_slavic': lambda n: _slavic(n, n % 10 == 1 and n % 100 != 11),
+    'east_slavic': lambda n: _slavic(n, math.fmod(n, 10) == 1 and math.fmod(n, 100) != 11),
     'none': lambda n: 0,
 }
 
@@ -88,7 +90,12 @@ class Translations:
         return 'en'
 
     def meta(self, code):
-        return self.data.get(self.resolve(code), {}).get('_meta', {})
+        """A language's `_meta`, its base language's for what a small variant file (en-GB) leaves out."""
+        language = self.resolve(code)
+        merged = {}
+        for name in reversed(list(dict.fromkeys([language, self.resolve(language.split('-')[0])]))):
+            merged.update(self.data.get(name, {}).get('_meta', {}))
+        return merged
 
     def languages(self):
         """Every language for the settings: English first, then by English name."""
@@ -97,14 +104,20 @@ class Translations:
                  for code in self.data]
         return sorted(found, key=lambda item: (not item['code'].startswith('en'), item['code'] != 'en', item['english']))
 
-    def text(self, key, language='en', **params):
-        """`key` in `language`, English where it has none, with {placeholders} filled; `n` picks a plural form."""
+    def chain(self, language):
+        """The files a language's texts come from, most specific first: pt-BR, then pt, then English."""
         language = self.resolve(language)
-        text = self.flat.get(language, {}).get(key)
+        base = self.resolve(language.split('-')[0])
+        return list(dict.fromkeys([language, base, 'en']))
+
+    def text(self, key, language='en', **params):
+        """`key` in `language`, else in its base language (pt-BR -> pt), else in English, with {placeholders} filled;
+        `n` picks a plural form."""
+        language = self.resolve(language)
         # Only an empty text is missing: a separator of one space (French thousands) is a text.
-        if not isinstance(text, str) or text == '':
-            text = self.flat['en'].get(key)
-        if not isinstance(text, str) or text == '':
+        text = next((found for found in (self.flat.get(code, {}).get(key) for code in self.chain(language))
+                     if isinstance(found, str) and found != ''), None)
+        if text is None:
             return key
         if '|' in text and 'n' in params:
             forms = [form.strip() for form in text.split('|')]
@@ -169,32 +182,76 @@ def shown(value):
     return value.into(REQUEST_LANGUAGE.get()) if isinstance(value, Text) else value
 
 
+# How every Home Assistant language writes the clock and numbers (tools/i18n.py cldr writes it from the Unicode CLDR):
+# Automatic in Settings -> Language & region follows it, also for a language ESP Screens has no texts for yet.
+try:
+    REGIONS = {code: value for code, value in json.loads((HERE / 'regions.json').read_text(encoding='utf-8')).items()
+               if isinstance(value, dict)}
+except (OSError, ValueError):
+    REGIONS = {}
+
 # The screens' language and number format (Settings -> Language & region), for the words the app sends to the screens
 # itself: tile names, the top bar, the history card. The manager keeps it current (Manager.language_changed).
-SCREENS = {'language': 'en', 'numbers': 'point', 'clock_24h': True}
+SCREENS = {'language': 'en', 'numbers': 'point', 'clock_24h': True, 'group_min': 1, 'percent_space': False}
+# The screen whose messages the app is writing now (Manager.sync_one), for the words that go to that screen alone: the
+# language its firmware speaks, which can still be the one before an update, and whether that firmware predates the
+# languages (English, fewer letters, numbers of its own).
+SCREEN = contextvars.ContextVar('screen', default=None)
+LEGACY = {'language': 'en', 'legacy': True, 'numbers': 'point', 'group_min': 1, 'percent_space': False}
 
 
-def set_screens(language, numbers, clock_24h=True):
-    SCREENS.update(language=language, numbers=numbers, clock_24h=clock_24h)
+def set_screens(language, numbers, clock_24h=True, group_min=1, percent_space=False):
+    SCREENS.update(language=language, numbers=numbers, clock_24h=clock_24h, group_min=group_min, percent_space=percent_space)
+
+
+def screen_context(screen):
+    """What SCREEN holds for a screen: firmware without the "Screen language" sensor predates the languages; one whose
+    sensor has no state yet (restarting) counts as speaking the screens' language."""
+    if not screen:
+        return None
+    if not screen.get('language_sensor'):
+        return LEGACY
+    return {'language': TRANSLATIONS.resolve(screen.get('language') or SCREENS['language']), 'legacy': False}
+
+
+def _screen(name):
+    """A property of the screen being written for, else of all screens."""
+    screen = SCREEN.get()
+    return screen[name] if screen and name in screen else SCREENS[name]
+
+
+def legacy_screen():
+    screen = SCREEN.get()
+    return bool(screen and screen.get('legacy'))
 
 
 def screen_t(key, **params):
     """A text in the screens' language, for what the app sends to them (and the notification it leaves in Home
     Assistant); a param that is a Text goes into that language too."""
-    return _render(key, SCREENS['language'], params)
+    return _render(key, _screen('language'), params)
 
 
 def screen_clock(hour, minute):
     """A time of day as the screens write it: "07:30" on 24 hours, "7:30 AM" on 12, in the language's day periods."""
     if SCREENS.get('clock_24h', True):
         return f'{hour:02d}:{minute:02d}'
-    period = TRANSLATIONS.text('screen.time.am' if hour < 12 else 'screen.time.pm', SCREENS['language'])
+    period = TRANSLATIONS.text('screen.time.am' if hour < 12 else 'screen.time.pm', _screen('language'))
     return f'{hour % 12 or 12}:{minute:02d} {period}'
 
 
 def screen_number(text):
     """A number as Home Assistant sends it, written as the screens write numbers ("1.234,5" in Dutch)."""
-    return format_number(text, SCREENS['numbers'])
+    return format_number(text, _screen('numbers'), _screen('group_min'))
+
+
+def unit_suffix(unit):
+    """What follows a number for its unit, spaced as Home Assistant spaces them (blankBeforeUnit): nothing before "°",
+    " %" or "%" by the language, one space before any other unit."""
+    if not unit or unit == '°':
+        return unit or ''
+    if unit == '%':
+        return ' %' if _screen('percent_space') else '%'
+    return ' ' + unit
 
 
 class Region:
@@ -204,6 +261,8 @@ class Region:
     def __init__(self, path, translations=TRANSLATIONS, ha_language=None):
         self.path, self.tr = Path(path), translations
         self.setting, self.clock, self.numbers = 'auto', 'auto', 'auto'
+        # The 24 hours an app from before Language & region pinned, until Home Assistant tells what the screens showed.
+        self.pinned = False
         # Home Assistant's own language (get_config), once connected.
         self.ha_language = ha_language or (lambda: None)
         self.stored = self.path.exists()
@@ -216,13 +275,15 @@ class Region:
                 self.setting = raw.get('language') if raw.get('language') == 'auto' or raw.get('language') in self.tr.data else 'auto'
                 self.clock = raw.get('clock') if raw.get('clock') in CLOCKS else 'auto'
                 self.numbers = raw.get('numbers') if raw.get('numbers') in NUMBERS else 'auto'
+                self.pinned = raw.get('pinned') is True
 
     def save(self):
         self.path.parent.mkdir(parents=True, exist_ok=True)
         temporary = self.path.with_suffix('.tmp')
         with open(temporary, 'w', encoding='utf-8') as handle:
             os.chmod(temporary, 0o600)
-            json.dump({'version': 1, 'language': self.setting, 'clock': self.clock, 'numbers': self.numbers}, handle)
+            json.dump({'version': 1, 'language': self.setting, 'clock': self.clock, 'numbers': self.numbers,
+                       **({'pinned': True} if self.pinned else {})}, handle)
             handle.flush()
             os.fsync(handle.fileno())
         temporary.replace(self.path)
@@ -239,36 +300,63 @@ class Region:
             raise ValueError(t('addon.errors.language_choice'))
         if clock not in CLOCKS or numbers not in NUMBERS:
             raise ValueError(t('addon.errors.region_choice'))
+        # The owner choosing a clock ends the pin.
         self.setting, self.clock, self.numbers = setting, clock, numbers
+        self.pinned = self.pinned and 'clock' not in data
         self.save()
 
     def language(self):
         """The language of every screen: the chosen one, else Home Assistant's, else English."""
         return self.setting if self.setting != 'auto' else self.tr.resolve(self.ha_language() or 'en')
 
+    def written(self):
+        """How the language writes the clock and numbers: Home Assistant's own language (sv, pt-BR) even when ESP Screens
+        shows it English or Portuguese texts, the chosen language when there is one. From regions.json, else from the
+        language's file."""
+        code = self.setting if self.setting != 'auto' else (self.ha_language() or 'en')
+        for candidate in (code, str(code).split('-')[0]):
+            found = REGIONS.get(candidate)
+            if found:
+                return found
+        language = self.tr.resolve(code)
+        return {'clock': '24' if self.tr.clock_24h(language) else '12', 'numbers': self.tr.number_style(language),
+                'group_min': 2 if self.tr.text('screen.number.group_min', language) == '2' else 1,
+                'percent_space': self.tr.text('screen.number.percent', language).startswith(' ')}
+
     def clock_24h(self):
-        return self.tr.clock_24h(self.language()) if self.clock == 'auto' else self.clock == '24'
+        return self.written().get('clock') != '12' if self.clock == 'auto' else self.clock == '24'
 
     def number_style(self):
-        return self.tr.number_style(self.language()) if self.numbers == 'auto' else self.numbers
+        return self.written().get('numbers', 'point') if self.numbers == 'auto' else self.numbers
+
+    def group_min(self):
+        """CLDR's minimum grouping digits of the numbers the screens write: 2 is 1234 but 12.345. A chosen format is
+        Home Assistant's for it (en, de or fr), which groups from 1,234."""
+        return int(self.written().get('group_min', 1)) if self.numbers == 'auto' else 1
+
+    def percent_space(self):
+        """Whether the language puts a space before "%" (Home Assistant's rule, whatever the number format)."""
+        return bool(self.written().get('percent_space'))
 
     def view(self):
         """What the editor's Language & region card shows."""
         return {'setting': self.setting, 'effective': self.language(),
                 'ha': self.ha_language(), 'languages': self.tr.languages(),
                 'clock': self.clock, 'clock_effective': '24' if self.clock_24h() else '12',
-                'numbers': self.numbers, 'numbers_effective': self.number_style()}
+                'numbers': self.numbers, 'numbers_effective': self.number_style(),
+                'group_min': self.group_min(), 'percent_space': self.percent_space()}
 
 
 
-def format_number(text, style):
-    """A number as Home Assistant sends it ("1234.5") written in `style` ("1.234,5" for comma); anything else unchanged."""
+def format_number(text, style, group_min=1):
+    """A number as Home Assistant sends it ("1234.5") written in `style` ("1.234,5" for comma); anything else unchanged.
+    `group_min` 2 leaves four digits whole (1234, but 12.345), as the language itself does."""
     if not isinstance(text, str) or not re.fullmatch(r'-?\d+(\.\d+)?', text):
         return text
     sign, body = ('-', text[1:]) if text.startswith('-') else ('', text)
     whole, _, rest = body.partition('.')
     group, decimal = {'point': (',', '.'), 'comma': ('.', ','), 'space': (' ', ',')}.get(style, (',', '.'))
-    if len(whole) > 3:
+    if len(whole) > (4 if group_min == 2 else 3):
         head = len(whole) % 3 or 3
         whole = whole[:head] + ''.join(group + whole[index:index + 3] for index in range(head, len(whole), 3))
     return sign + whole + (decimal + rest if rest else '')

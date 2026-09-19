@@ -440,12 +440,12 @@ takes effect at once, and appears in ESP Screens within a second, so both sides 
 the same value. The **Screen settings** cards in ESP Screens have the same rows.
 
 <p align="center">
-  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with the clock, back to page 1, swiping, the page buttons and the rotation">
+  <img src="docs/images/editor-screen-settings.png" width="98%" alt="Screen settings in ESP Screens: Brightness with Dark mode and standby, Night with its hours and brightness, and Screen with back to page 1, swiping, the page buttons and the rotation">
 </p>
 
 **In Home Assistant** (firmware 0.2.49+), every setting is an entity on the screen's device, under
 *Configuration*: `number.<screen>_normal_brightness`, `switch.<screen>_night_mode`,
-`time.<screen>_night_starts`, `switch.<screen>_24_hour_clock`, `select.<screen>_rotation` on a
+`time.<screen>_night_starts`, `switch.<screen>_dark_mode`, `select.<screen>_rotation` on a
 Guition, and the rest. An automation, the settings page and ESP Screens all change the same value,
 and setting a value the screen already has costs nothing. The full list is in
 [docs/SETTINGS.md](docs/SETTINGS.md#who-owns-a-setting).

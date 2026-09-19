@@ -94,19 +94,29 @@ def cpp_string(text):
     return '"' + ''.join(out) + '"'
 
 
+def chain(language, folder=TRANSLATIONS):
+    """The files a language's texts come from, most specific first: pt-BR, then pt, then English."""
+    found = [language]
+    base = language.split('-')[0]
+    if base != language and load(base, folder) is not None:
+        found.append(base)
+    return found + ([] if 'en' in found else ['en'])
+
+
 def table(code, folder=TRANSLATIONS):
-    """(language, keys, texts, plural rule) of a build: every English key, in its language where it has one."""
+    """(language, keys, texts, plural rule) of a build: every English key, in its language where it has one, else in its
+    base language (a small pt-BR file takes the rest from pt), else in English."""
     english = load('en', folder)
     language = resolve(code, folder)
-    own = dict(screen_pairs(load(language, folder))) if language != 'en' else {}
+    files = [load(name, folder) or {} for name in chain(language, folder)]
+    texts_of = [dict(screen_pairs(data)) for data in files]
     keys, texts = [], []
     for key, text in screen_pairs(english):
         keys.append(key)
-        translated = own.get(key)
         # Only an empty text is missing: a separator of one space (French thousands) is a text.
-        texts.append(translated if isinstance(translated, str) and translated != '' else text)
-    meta = (load(language, folder) or {}).get('_meta', {})
-    rule = meta.get('plural') if meta.get('plural') in PLURAL_RULES else 'one_other'
+        texts.append(next((own[key] for own in texts_of if isinstance(own.get(key), str) and own[key] != ''), text))
+    plural = next((data.get('_meta', {}).get('plural') for data in files if data.get('_meta', {}).get('plural')), None)
+    rule = plural if plural in PLURAL_RULES else 'one_other'
     return language, keys, texts, rule
 
 

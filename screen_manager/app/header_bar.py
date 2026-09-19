@@ -24,6 +24,8 @@ from i18n import TRANSLATIONS, screen_number, screen_t, t
 # The characters the screen's text fonts carry (the sublabel_big glyph list; tests/test_header_bar.py keeps them equal):
 # every letter European languages write with since app 0.2.90.
 GLYPHS = frozenset('<>—&@!,.?"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz/…·\'#*=;²³µ–ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿĄąĆćĘęŁłŃńŚśŹźŻżČčĎďĚěŇňŘřŠšŤťŮůŽžĹĺĽľŔŕŐőŰűĂăȘșȚțĐđĀāĒēĢģĪīĶķĻļŅņŪūĖėĮįŲųĞğİıŞşĊċĠġĦħŴŵŶŷĿŀŒœŸ„“”‘’«»‹›¿¡€£')
+# The letters of firmware from before the languages (0.2.75 and older), which gets what it can draw.
+LEGACY_GLYPHS = frozenset("<>—&@!,.?\"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyzäöüÄÖÜß/…·'#*=;²³µéèëêïîóôàáâçñúû–")
 TEXT_BYTES = 40
 # The months in English, the language of reference (tests/test_header_bar.py); a screen gets them in its own language
 # (short_date, app 0.2.90).
@@ -115,13 +117,14 @@ ALARM_CLASSES = frozenset(['battery', 'carbon_monoxide', 'gas', 'heat', 'lock', 
 
 def clean_text(text):
     """Text the screen can draw: known glyphs, accents folded to the base letter, at most TEXT_BYTES."""
+    glyphs = LEGACY_GLYPHS if i18n.legacy_screen() else GLYPHS
     out = []
     for char in unicodedata.normalize('NFC', str(text)):
-        if char in GLYPHS:
+        if char in glyphs:
             out.append(char)
             continue
         base = unicodedata.normalize('NFKD', char)[0]
-        if base in GLYPHS:
+        if base in glyphs:
             out.append(base)
     return short(''.join(out).strip(), TEXT_BYTES)
 
@@ -142,10 +145,8 @@ def number_text(value, precision=None):
     return screen_number(text)
 
 def with_unit(text, unit):
-    """Home Assistant's spacing: "21.3 °C", "65%", "18°"."""
-    if not unit:
-        return text
-    return text + unit if unit in ('%', '°') else f'{text} {unit}'
+    """Home Assistant's spacing: "21.3 °C", "65%" ("65 %" in German and French), "18°"."""
+    return text + i18n.unit_suffix(unit)
 
 def precision_of(entry):
     options = ((entry or {}).get('options') or {}).get('sensor') or {}

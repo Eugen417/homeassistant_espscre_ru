@@ -190,21 +190,17 @@ inline std::string duration_text(int32_t seconds) {
 }
 // Minutes since midnight as the clock on this screen shows them.
 inline std::string moment_text(int32_t minutes, bool clock_24h) {
-  char buffer[16];
-  int hour = minutes / 60, minute = minutes % 60;
-  if (clock_24h) snprintf(buffer, sizeof(buffer), "%02d:%02d", hour, minute);
-  else snprintf(buffer, sizeof(buffer), "%d:%02d %s", hour % 12 ? hour % 12 : 12, minute,
-                screen_text::tr(hour < 12 ? screen_text::txt::time_am : screen_text::txt::time_pm));
-  return buffer;
+  char buffer[8];
+  snprintf(buffer, sizeof(buffer), "%02d:%02d", (int) (minutes / 60 % 24), (int) (minutes % 60));
+  return screen_text::clock_text(buffer, clock_24h);
 }
 // What the right-hand side of a row says. A toggle draws a switch instead, its text is for the tests.
 inline std::string value_text(const Row &row) {
   switch (row.kind) {
     case Kind::toggle: return screen_text::tr(row.read && row.read() ? screen_text::txt::ha_on : screen_text::txt::ha_off);
     case Kind::number: {
-      char buffer[24];
-      snprintf(buffer, sizeof(buffer), "%d%s", row.read ? (int) row.read() : 0, row.unit);
-      return buffer;
+      int value = row.read ? (int) row.read() : 0;
+      return strcmp(row.unit, "%") == 0 ? screen_text::percent(value) : std::to_string(value) + row.unit;
     }
     case Kind::duration: return duration_text(row.read ? row.read() : 0);
     case Kind::moment: return moment_text(row.read ? row.read() : 0, screen_settings::current.clock_24h != 0);

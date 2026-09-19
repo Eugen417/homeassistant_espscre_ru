@@ -3,6 +3,7 @@ import asyncio
 from collections import deque
 import glob
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -12,6 +13,8 @@ import time
 import yaml
 from core import REPO, installation_yaml
 from i18n import t
+
+LOG = logging.getLogger('screen_manager')
 
 # libyaml parses a 300 KB profile roughly ten times faster than the pure-Python loader.
 class LenientLoader(yaml.CSafeLoader if getattr(yaml, '__with_libyaml__', False) else yaml.SafeLoader):
@@ -65,6 +68,7 @@ class Firmware:
         self.images = {}
         self.downloaded = set()
         self._names = {}  # file -> (stat signature, meta or None); parsed only when the file changes
+        self.language = None  # the language builds speak: the manager's Settings -> Language & region (app 0.2.90)
 
     def profiles(self):
         if not self.root.exists(): return []
@@ -192,26 +196,57 @@ class Firmware:
     def set_language(self, name, language):
         """Let the screen's next build speak `language` (app 0.2.90): the LANGUAGE line of the profile's substitutions,
         changed or added without reformatting the user's YAML. A profile that doesn't build from ESP Screens' packages is
-        left alone, as is an English one without the line (English is the packages' own default). True when it changed."""
+        left alone, as is an English one without the line (English is the packages' own default), and one whose
+        substitutions this can't edit safely (an !include, a {...} mapping). The result is read back, and written only
+        when LANGUAGE is the one thing that changed. True when it changed."""
         profile = self.profile(name)
-        text = profile.read_text()
-        if 'homeassistant_espscreen' not in text and 'packages/core.yaml' not in text:
+        raw = profile.read_bytes().decode('utf-8')
+        if 'homeassistant_espscreen' not in raw and 'packages/core.yaml' not in raw:
             return False
-        line = f'  LANGUAGE: {json.dumps(language)}'
-        block = re.search(r'(?m)^substitutions:[ \t]*(?:#.*)?\n((?:[ \t]+.*\n|[ \t]*\n)*)', text)
-        if block and re.search(r'(?m)^[ \t]+LANGUAGE:', block.group(1)):
-            start = block.start(1)
-            body = re.sub(r'(?m)^[ \t]+LANGUAGE:.*$', line, block.group(1), count=1)
-            updated = text[:start] + body + text[block.end(1):]
-        elif language == 'en':
+        newline = '\r\n' if '\r\n' in raw else '\n'
+        text = raw.replace('\r\n', '\n')
+        if not text.endswith('\n'):
+            text += '\n'
+        before = yaml.load(text, Loader=LenientLoader)
+        if not isinstance(before, dict):
             return False
-        elif block:
-            updated = text[:block.start(1)] + line + '\n' + text[block.start(1):]
+        substitutions = before.get('substitutions')
+        if 'substitutions' in before and not isinstance(substitutions, dict):
+            LOG.warning('%s: its substitutions are not a plain block, so its language stays as it is', profile.name)
+            return False
+        substitutions = substitutions or {}
+        if substitutions.get('LANGUAGE') == language or (language == 'en' and 'LANGUAGE' not in substitutions):
+            return False
+        line = f'LANGUAGE: {json.dumps(language)}'
+        block = re.search(r'(?m)^substitutions:[ \t]*(?:#.*)?\n', text)
+        if block:
+            # The block: indented lines, blank ones and comments, up to the next key at the start of a line.
+            body = re.compile(r'(?:(?:[ \t]+.*|[ \t]*|#.*)\n)*').match(text, block.end())
+            indent = re.search(r'(?m)^([ \t]+)\S', body.group(0))
+            indent = indent.group(1) if indent else '  '
+            current = re.search(r'(?m)^[ \t]+["\']?LANGUAGE["\']?[ \t]*:.*$', body.group(0))
+            if current:
+                lines = body.group(0)[:current.start()] + indent + line + body.group(0)[current.end():]
+            else:
+                lines = indent + line + '\n' + body.group(0)
+            updated = text[:body.start()] + lines + text[body.end():]
+        elif 'substitutions' in before:
+            LOG.warning('%s: its substitutions are not a plain block, so its language stays as it is', profile.name)
+            return False
         else:
-            updated = f'substitutions:\n{line}\n\n' + text
-        if updated == text:
+            # After the comments (and a document start) at the top of the file.
+            head = re.match(r'(?:(?:#.*|[ \t]*|---[ \t]*)\n)*', text)
+            updated = text[:head.end()] + f'substitutions:\n  {line}\n\n' + text[head.end():]
+        after = yaml.load(updated, Loader=LenientLoader)
+        def rest(data):
+            data = dict(data)
+            rest_substitutions = {k: v for k, v in (data.get('substitutions') or {}).items() if k != 'LANGUAGE'}
+            data.pop('substitutions', None)
+            return data, rest_substitutions
+        if not isinstance(after, dict) or (after.get('substitutions') or {}).get('LANGUAGE') != language or rest(after) != rest(before):
+            LOG.warning('%s: its language could not be written without changing more, so it stays as it is', profile.name)
             return False
-        self._atomic_write(profile, updated)
+        self._atomic_write(profile, updated.replace('\n', newline))
         self._names.pop(profile.name, None)
         return True
 
@@ -356,6 +391,13 @@ class Firmware:
         profile = self.profile(data.get('file'))
         action = data.get('action')
         if action not in ('validate','build','install','download'): raise ValueError(t('addon.errors.firmware.unknown_action'))
+        # Every build speaks the language of Settings -> Language & region, also for a profile made or changed since
+        # that language was set (app 0.2.90).
+        if action != 'validate' and callable(self.language):
+            try:
+                self.set_language(profile.name, self.language())
+            except (OSError, ValueError, yaml.YAMLError) as error:
+                LOG.warning('Could not write the language into %s (%s)', profile.name, error)
         if not shutil.which('esphome'): raise ValueError(t('addon.errors.firmware.no_esphome'))
         target = data.get('target','')
         if action == 'install':

@@ -103,9 +103,19 @@ class Updater:
 
     def language_due(self, screen):
         """True when a screen speaks another language than Settings -> Language & region says (app 0.2.90): its
-        "Screen language" sensor, or English for firmware from before that sensor."""
+        "Screen language" sensor, or English for firmware from before that sensor. A sensor without a state yet (the
+        screen restarts) says nothing."""
         region = getattr(self.manager, 'region', None)
-        return bool(region) and (screen.get('language') or 'en') != region.language()
+        if not region or (screen.get('language_sensor') and not screen.get('language')):
+            return False
+        return (screen.get('language') or 'en') != region.language()
+
+    def speaks_region(self, screen):
+        """Whether the screen says it speaks the language of Settings -> Language & region: what an update waits for."""
+        region = getattr(self.manager, 'region', None)
+        if not region:
+            return True
+        return (screen.get('language') if screen.get('language_sensor') else 'en') == region.language()
 
     def state_for(self, screen, profiles=None):
         version = parse_version(screen.get('firmware'))
@@ -251,7 +261,7 @@ class Updater:
         while time.monotonic() < deadline:
             screen = self.screen(inbox)
             version = parse_version(screen.get('firmware')) if screen else None
-            if screen and screen['online'] and version and version >= TARGET and not self.language_due(screen):
+            if screen and screen['online'] and version and version >= TARGET and self.speaks_region(screen):
                 return True
             await asyncio.sleep(self.poll_seconds)
         return False

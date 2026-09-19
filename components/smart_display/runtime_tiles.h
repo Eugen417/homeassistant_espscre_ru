@@ -44,8 +44,17 @@ inline esphome::ESPPreferenceObject buttons_preference;
 inline esphome::ESPPreferenceObject swipe_preference;
 inline esphome::ESPPreferenceObject home_preference;
 inline esphome::ESPPreferenceObject dark_preference;
-// The number format of Settings -> Language & region (app 0.2.90), kept for the next start: screen_text::number_style.
+// The number format of Settings -> Language & region (app 0.2.90), kept for the next start: screen_text::number_style
+// (bits 0-3), number_group_min (4-5) and number_percent (6-7) in one word.
 inline esphome::ESPPreferenceObject numbers_preference;
+inline uint32_t screen_text_numbers() {
+  return screen_text::number_style | (uint32_t) screen_text::number_group_min << 4 | (uint32_t) screen_text::number_percent << 6;
+}
+inline void screen_text_numbers(uint32_t word) {
+  screen_text::number_style = (word & 0xF) <= 3 ? word & 0xF : 0;
+  screen_text::number_group_min = (word >> 4 & 3) <= 2 ? word >> 4 & 3 : 0;
+  screen_text::number_percent = (word >> 6 & 3) <= 2 ? word >> 6 & 3 : 0;
+}
 inline Model model;
 inline std::string inbox;
 inline const lv_font_t *watch_font = nullptr;
@@ -91,6 +100,11 @@ inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
 inline std::string last_run_text(uint32_t epoch);
+// "07:12": a time of day as Home Assistant and ESP Screens send it, for screen_text::clock_text.
+inline std::string hhmm(const esphome::ESPTime &time) {
+  char b[8]; snprintf(b, sizeof(b), "%02d:%02d", time.hour, time.minute);
+  return b;
+}
 inline void history_received();
 // Camera images full screen and on an alert (firmware 0.2.57+, the Guition binds them; see the end of this file).
 inline void camera_open(const std::string &entity, const std::string &name);
@@ -153,7 +167,7 @@ inline void load_settings() {
   buttons_preference = esphome::global_preferences->make_preference<uint32_t>(0x50474231);
   numbers_preference = esphome::global_preferences->make_preference<uint32_t>(0x4E554D31);
   uint32_t numbers_saved=0;
-  if(numbers_preference.load(&numbers_saved) && numbers_saved<=3)screen_text::number_style=(uint8_t)numbers_saved;
+  if(numbers_preference.load(&numbers_saved))screen_text_numbers(numbers_saved);
   uint32_t swipe_saved=0;
   if(swipe_preference.load(&swipe_saved))swipe_pages=swipe_saved==1;
   uint32_t dark_saved=0;
@@ -308,8 +322,6 @@ inline std::string receive(const std::string &payload) {
           root["rotation"].as<unsigned>()>270 || root["rotation"].as<unsigned>()%90!=0))return false;
       // The clock and the number format of Settings -> Language & region (app 0.2.90), the same for every screen.
       if(!root["clock_24h"].isNull() && !root["clock_24h"].is<bool>())return false;
-      if(!root["numbers"].isNull() && (!root["numbers"].is<const char*>() ||
-          screen_text::number_style_of(root["numbers"].as<std::string>())<0))return false;
       if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
           root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
       // Explicit grid positions (0.2.26+), one absolute slot per entity; absent on older managers.
@@ -345,11 +357,16 @@ inline std::string receive(const std::string &payload) {
       }
       bool rotation_changed=false;
       if(root["clock_24h"].is<bool>())settings.clock_24h=root["clock_24h"].as<bool>()?1:0;
+      // How numbers are written; a value this firmware doesn't know is left out, never the layout (a newer app may
+      // know more styles).
       bool format_changed=false;
-      if(root["numbers"].is<const char*>()){
-        int style=screen_text::number_style_of(root["numbers"].as<std::string>());
-        if(style!=screen_text::number_style){screen_text::number_style=(uint8_t)style;uint32_t saved=(uint32_t)style;numbers_preference.save(&saved);format_changed=true;}
-      }
+      int style=root["numbers"].is<const char*>()?screen_text::number_style_of(root["numbers"].as<std::string>()):-1;
+      uint32_t numbers=screen_text_numbers();
+      if(style>=0)numbers=(numbers&~0xFu)|(uint32_t)style;
+      if(root["group_min"].is<unsigned>() && root["group_min"].as<unsigned>()>=1 && root["group_min"].as<unsigned>()<=2)
+        numbers=(numbers&~0x30u)|(root["group_min"].as<unsigned>()<<4);
+      if(root["percent_space"].is<bool>())numbers=(numbers&~0xC0u)|((root["percent_space"].as<bool>()?2u:1u)<<6);
+      if(numbers!=screen_text_numbers()){screen_text_numbers(numbers);numbers_preference.save(&numbers);format_changed=true;}
       if(rotation_supported && root["rotation"].is<unsigned>() && rotation!=root["rotation"].as<unsigned>()){
         rotation=root["rotation"].as<unsigned>();rotation_preference.save(&rotation);rotation_changed=true;
       }
@@ -591,7 +608,7 @@ inline std::string receive(const std::string &payload) {
     if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
       if (next.forecast.size() == 5) break;
       next.forecast.emplace_back(); auto &f = next.forecast.back();
-      f.day = string(day["d"], 3); f.condition = string(day["c"], 20); f.high = number(day["h"]); f.low = number(day["l"]);
+      f.day = string(day["d"], 8); f.condition = string(day["c"], 20); f.high = number(day["h"]); f.low = number(day["l"]);
       f.rain = number(day["p"]); f.mm = number(day["r"]);
     }
     if (extra["hours"].is<JsonArray>()) for (JsonVariant hour : extra["hours"].as<JsonArray>()) {
@@ -1086,10 +1103,9 @@ inline lv_obj_t *detail_text(lv_obj_t *parent,const std::string &text,int x,int 
 }
 // "30%", "30% · 1.7 mm" or "1.7 mm": whatever the provider reports; empty when dry.
 inline std::string rain_text(float chance,float mm,bool with_mm){
-  char b[32];
   if(std::isfinite(chance) && chance>=0){
-    if(with_mm && std::isfinite(mm) && mm>=0.05f){snprintf(b,sizeof(b),"%d%% · ",(int)std::lround(chance));return b+screen_text::decimal(mm,1)+" mm";}
-    snprintf(b,sizeof(b),"%d%%",(int)std::lround(chance));return b;
+    if(with_mm && std::isfinite(mm) && mm>=0.05f)return screen_text::percent((int)std::lround(chance))+" · "+screen_text::with_unit(screen_text::decimal(mm,1),"mm");
+    return screen_text::percent((int)std::lround(chance));
   }
   if(std::isfinite(mm) && mm>=0.05f)return screen_text::decimal(mm,mm<10?1:0)+" mm";
   return "";
@@ -1134,7 +1150,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   detail_text(now,t.available()?weather_text(t.state):tr(txt::ha_unavailable),text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
   std::string details;
   if(std::isfinite(weather.feels))details=fill(txt::weather_feels_like,"n",(int)std::lround(weather.feels));
-  if(std::isfinite(t.humidity)){snprintf(b,sizeof(b),"%d%%",(int)std::lround(t.humidity));details+=(details.empty()?"":" · ")+std::string(b);}
+  if(std::isfinite(t.humidity))details+=(details.empty()?"":" · ")+screen_text::percent((int)std::lround(t.humidity));
   if(std::isfinite(weather.wind)){snprintf(b,sizeof(b),"%.0f %s",weather.wind,weather.wind_unit.empty()?"km/h":weather.wind_unit.c_str());details+=(details.empty()?"":" · ")+std::string(b);}
   detail_text(now,details,text_x,cy+(hero-lines_h)/2+text_h+(large?2:0),text_w,small,LV_TEXT_ALIGN_LEFT,muted);
   // Next hours inside the same card: time, icon, temperature, rain per column.
@@ -1221,7 +1237,7 @@ inline void vacuum_battery(lv_obj_t *parent,int x,int y,int w,int h,float level)
 // Without a parent it only measures.
 inline int vacuum_power(lv_obj_t *parent,const Tile &t,int x,int y,const lv_font_t *font,bool large){
   const lv_font_t *bolt_font=large && watch_icon_font?watch_icon_font:mini_icon_font;
-  std::string percent=std::to_string((int)std::lround(t.battery))+"%";
+  std::string percent=screen_text::percent((int)std::lround(t.battery));
   int h=lv_font_get_line_height(font),meter_w=large?30:22,meter_h=large?15:11,gap=large?10:6,words=text_width(percent,font);
   int bolt_w=t.extra().charging && bolt_font?text_width("\U000F0241",bolt_font):0;
   int width=meter_w+3+gap+words+(bolt_w?gap/2+bolt_w:0);
@@ -1382,7 +1398,7 @@ inline void cover_slider_event(lv_event_t *e){
     int raw=lv_slider_get_value(slider);
     if(raw<0||raw>1000){raw=std::clamp(raw,0,1000);lv_slider_set_value(slider,raw,LV_ANIM_OFF);}
     int percent=(int)std::lround(raw/10.0f);
-    if(auto *value=cover_values[tilt?1:0])label(value,std::to_string(tilt?percent:100-percent)+"%");
+    if(auto *value=cover_values[tilt?1:0])label(value,screen_text::percent(tilt?percent:100-percent));
     return;
   }
   if(code!=LV_EVENT_RELEASED||detail_index>=model.count)return;
@@ -1462,7 +1478,7 @@ inline void cover_battery(const Tile &t,bool large,int width){
   int level=(int)std::lround(std::clamp(t.battery,0.0f,100.0f));
   int line=lv_font_get_line_height(font),block=meter_h+gap+line,cx=width-bar_x-bar/2,y=bar_y+(bar-block)/2;
   vacuum_battery(detail_root,cx-meter_w/2-1,y,meter_w,meter_h,t.battery);
-  detail_text(detail_root,std::to_string(level)+"%",cx-bar/2-8,y+meter_h+gap,bar+16,font,LV_TEXT_ALIGN_CENTER,theme::MUTED);
+  detail_text(detail_root,screen_text::percent(level),cx-bar/2-8,y+meter_h+gap,bar+16,font,LV_TEXT_ALIGN_CENTER,theme::MUTED);
 }
 inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad){
   auto card=tile_controls::cover_card(t);
@@ -1485,7 +1501,7 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
     if(card.position)parts[n++]={false,t.position,tr(txt::cover_position)};
     if(card.tilt)parts[n++]={true,t.extra().tilt,tr(txt::cover_tilt)};
     int value_h=lv_font_get_line_height(big),caption_h=lv_font_get_line_height(text);
-    auto percent=[](float value){return std::isfinite(value)?std::to_string((int)std::lround(std::clamp(value,0.0f,100.0f)))+"%":std::string("--");};
+    auto percent=[](float value){return std::isfinite(value)?screen_text::percent((int)std::lround(std::clamp(value,0.0f,100.0f))):std::string("--");};
     if(large){
       // Columns: the slider with its value and name below.
       int edge=16,slider_h=box_h-2*edge-value_h-caption_h+4,slider_w=n==2?120:140,column_gap=48;
@@ -1911,7 +1927,7 @@ inline bool media_off(const Tile &t){return t.state=="off" || t.state=="standby"
 inline std::string media_volume_text(const Tile &t){
   if(t.muted)return tr(txt::media_muted);
   if(!std::isfinite(t.volume))return "";
-  return std::to_string((int)std::lround(std::clamp(t.volume,0.0f,1.0f)*100))+" %";
+  return screen_text::percent((int)std::lround(std::clamp(t.volume,0.0f,1.0f)*100));
 }
 // A rounded box without a style of its own: the art's placeholder, the bar's track and its fill.
 inline lv_obj_t *media_box(lv_obj_t *parent,lv_obj_t *existing,const media_card::Rect &r,uint32_t color,int radius){
@@ -2072,7 +2088,7 @@ inline void show_detail(unsigned index){
   std::string state=d=="cover"?cover_status_line(t):detail_state(t);
   // The vacuum and history cards draw their own state.
   const bool with_history=history_card(t);
-  if(d!="vacuum"&&d!="media_player"&&!with_history){detail_status=detail_label(detail_root,state+(t.unit.empty()?"":" "+t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
+  if(d!="vacuum"&&d!="media_player"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,large?80:50,width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
@@ -2178,7 +2194,7 @@ inline std::string last_run_text(uint32_t epoch) {
   auto when = esphome::ESPTime::from_epoch_local(epoch);
   auto now = now_time ? now_time() : esphome::ESPTime{};
   if (!when.is_valid()) return tr(txt::script_never_run);
-  char clock[8]; snprintf(clock, sizeof(clock), "%02d:%02d", when.hour, when.minute);
+  std::string clock = screen_text::clock_text(hhmm(when), screen_settings::current.clock_24h != 0);
   if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year) return fill(txt::script_last_time, "time", clock);
   if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year + 1) return fill(txt::script_yesterday_time, "time", clock);
   std::string date = fill(fill(txt::date_day_month, "day", std::to_string(when.day_of_month)), "month", month_short(when));
@@ -2470,8 +2486,12 @@ inline lv_obj_t *part_line(Widgets &w,unsigned i,lv_point_precise_t *points,unsi
   if(!p){p=lv_line_create(w.extra);lv_obj_remove_flag(p,LV_OBJ_FLAG_CLICKABLE);lv_obj_set_style_line_rounded(p,true,0);}
   set_line_width(p,width);lv_line_set_points(p,points,count);lv_obj_set_pos(p,x,y);return p;
 }
+// The big digits of the clock card: "07:12" on 24 hours, "7:12" on 12 (the clock font has no letters for AM and PM).
 inline std::string time_text(esphome::ESPTime now) {
-  return now.is_valid() ? now.strftime(screen_settings::current.clock_24h ? "%H:%M" : "%I:%M") : "--:--";
+  if (!now.is_valid()) return "--:--";
+  if (screen_settings::current.clock_24h) return hhmm(now);
+  char b[8]; snprintf(b, sizeof(b), "%d:%02d", now.hour % 12 ? now.hour % 12 : 12, now.minute);
+  return b;
 }
 // Digital: big time over the date. Analog: index strokes (numerals at 12/3/6/9 on
 // large cards) with hour and minute hands. A single card adds a calendar block
@@ -2794,7 +2814,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     panel_w=count?count*m.key_w+(count-1)*m.gap:0;
   }else if(mode=="setpoint"||mode=="stepper"){
     float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
-    std::string suffix=d=="climate"?"°":t.unit.empty()?"":" "+t.unit;
+    std::string suffix=d=="climate"?"°":screen_text::unit_suffix(t.unit);
     label(w.pill_value,tile_controls::format_value(shown,tile_controls::edit_step(t),suffix.c_str()));
     panel_w=m.pill_w;panel_h=m.key_h+2;
   }else if(tile_controls::is_slider(mode)){
@@ -2881,7 +2901,7 @@ inline void control_event(lv_event_t *e) {
     float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
     t.edit_value=tile_controls::step_value(current,tile_controls::edit_step(t),t.minimum,t.maximum,command==tile_controls::STEP_UP?1:-1);
     t.edit_since=now;t.edit_sent=false;
-    if(w.pill_value){std::string suffix=t.domain()=="climate"?"°":t.unit.empty()?"":" "+t.unit;label(w.pill_value,tile_controls::format_value(t.edit_value,tile_controls::edit_step(t),suffix.c_str()));}
+    if(w.pill_value){std::string suffix=t.domain()=="climate"?"°":screen_text::unit_suffix(t.unit);label(w.pill_value,tile_controls::format_value(t.edit_value,tile_controls::edit_step(t),suffix.c_str()));}
     return;
   }
   if(t.waiting(now))return;
@@ -3047,7 +3067,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
     lv_obj_set_height(w.title,name_h);
     lv_obj_set_pos(w.title,0,top+circle+gap);lv_obj_set_width(w.title,content_w);
     lv_obj_set_pos(w.value,0,top+circle+gap+name_h+2);lv_obj_set_width(w.value,content_w);
-    if(!unit.empty())label(w.value,value+" "+unit);
+    if(!unit.empty())label(w.value,screen_text::with_unit(value,unit));
     return;
   }
   // The head as on the double-width card: the circle at the left, name and state beside it.
@@ -3092,7 +3112,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   std::string middle;const lv_font_t *mid_font=watch_value_font?watch_value_font:w.value_font;
   auto d=t.domain();
   if(d=="climate" && std::isfinite(t.current))middle=screen_text::decimal(t.current,1)+"°";
-  else if(d=="cover" && std::isfinite(t.position)){middle=std::to_string(static_cast<int>(std::lround(t.position)))+" %";}
+  else if(d=="cover" && std::isfinite(t.position)){middle=screen_text::percent(static_cast<int>(std::lround(t.position)));}
   else if(d=="media_player" && !t.extra().media_title.empty()){middle=t.extra().media_title;mid_font=room_label?lv_obj_get_style_text_font(room_label,LV_PART_MAIN):w.title_font;}
   int mid_font_h=lv_font_get_line_height(mid_font);
   if(middle.empty() || mid_h<mid_font_h)return;
@@ -3120,7 +3140,7 @@ inline void render_slot(size_t slot) {
   else if (!fresh() || !t.available()) value = tr(txt::ha_unavailable);
   else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = tr(txt::tile_refused);
   else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
-  else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";
+  else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = screen_text::percent(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255)));
   // An airco that is off says so, with the room's temperature when it knows it, as Home Assistant's tile does
   // (firmware 0.2.71+); while it runs, the tile shows the temperature it is set to.
   else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) value += " · " + screen_text::decimal(t.current, 1) + "°"; }
@@ -3145,8 +3165,8 @@ inline void render_slot(size_t slot) {
   else if (!t.unit.empty() && !watch) value = screen_text::localize(value) + " " + t.unit;
   else if (!t.unit.empty() || d == "number" || d == "input_number" || d == "counter") value = screen_text::localize(value);
   bool pending=t.loading(esphome::millis());
-  if(d=="weather" && std::isfinite(t.current)) {value=screen_text::decimal(t.current,1);if(!watch)value+=" "+t.unit;}
-  if(d=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
+  if(d=="weather" && std::isfinite(t.current)) {value=screen_text::decimal(t.current,1);if(!watch)value=screen_text::with_unit(value,t.unit);}
+  if(d=="vacuum" && std::isfinite(t.battery))value += " / "+screen_text::percent((int)t.battery);
   // Direct controls: only a wide card in the standard layout has room for the panel.
   bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
   if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty())value=status;}
@@ -3488,7 +3508,7 @@ inline void draw_header(bool live) {
     p.item = i;
     if (item.kind == Kind::analog) { p.dial = true; p.width = dial; }
     else {
-      p.text = item.kind == Kind::clock ? (now.is_valid() ? now.strftime(screen_settings::current.clock_24h ? "%H:%M" : "%I:%M") : std::string("--:--"))
+      p.text = item.kind == Kind::clock ? (now.is_valid() ? screen_text::clock_text(hhmm(now), screen_settings::current.clock_24h != 0) : std::string("--:--"))
              : item.kind == Kind::date ? (now.is_valid() ? header_bar::date_text(now.day_of_week, now.day_of_month, now.month) : std::string("—"))
              : item.kind == Kind::ago ? header_bar::ago_text(item.epoch, now_epoch()) : item.text;
       lv_font_glyph_dsc_t g;
@@ -3886,7 +3906,7 @@ inline void tick() {
     }
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
     std::string status=waiting?std::string(tr(t.confirmed?txt::tile_confirmed:txt::tile_command_sent)):t.domain()=="cover"?cover_status_line(t):detail_state(t);
-    if(detail_status)label(detail_status,status+(!waiting && !t.unit.empty()?" "+t.unit:""));
+    if(detail_status)label(detail_status,waiting?status:screen_text::with_unit(status,t.unit));
     // The vacuum card lays its state out with the room and battery beside it, so a new text draws the
     // card again; once Home Assistant answered, the new state says enough.
     if(detail_badge_status && t.domain()=="vacuum"){

@@ -47,9 +47,12 @@ inline std::string plural(uint16_t id, int n) {
   return fill(form, "n", std::to_string(n));
 }
 
-// How numbers are written (app 0.2.90): ESP Screens sends the choice of Settings -> Language & region, the one place
-// for every screen. 0 follows the language (screen.number), 1 is "1,234.5", 2 "1.234,5" and 3 "1 234,5".
-inline uint8_t number_style = 0;
+// How numbers are written (app 0.2.90): ESP Screens sends the choice of Settings -> Language & region with every layout,
+// the one place for every screen, worked out for the language Home Assistant speaks. Until a screen has it (and with an
+// app that doesn't send it), the screen writes numbers the way its own language does (screen.number); 0 means that.
+inline uint8_t number_style = 0;       // 1 "1,234.5", 2 "1.234,5", 3 "1 234,5"
+inline uint8_t number_group_min = 0;   // CLDR's minimum grouping digits: 2 writes 1234 but 12.345 (Spanish, Polish)
+inline uint8_t number_percent = 0;     // 1 "54%", 2 "54 %" (German, French: Home Assistant's own rule)
 inline char decimal_mark() {
   if (number_style == 1) return '.';
   if (number_style == 2 || number_style == 3) return ',';
@@ -66,8 +69,7 @@ inline const char *group_mark() {
 // How many digits a whole number needs before it gets separators: 4 ("1,234") in most languages, 5 in Italian, Spanish
 // and Polish, which write 1234 but 12.345 (CLDR's minimum grouping digits, as Home Assistant's own numbers do).
 inline size_t group_from() {
-  if (number_style) return 4;
-  int minimum = atoi(tr(txt::number_group_min));
+  int minimum = number_group_min ? number_group_min : atoi(tr(txt::number_group_min));
   return minimum >= 2 ? 5 : 4;
 }
 // A number the way this screen writes numbers: `whole` digits (no sign) and the digits after the point.
@@ -93,6 +95,23 @@ inline std::string localize(const std::string &state) {
   std::string fraction = dot == std::string::npos ? std::string() : state.substr(dot + 1);
   return state.substr(0, start) + write_number(whole, fraction);
 }
+// What follows a number for a percentage: "%" or " %".
+inline const char *percent_sign() {
+  if (number_percent == 1) return "%";
+  if (number_percent == 2) return " %";
+  return tr(txt::number_percent);
+}
+// What follows a number for its unit, spaced as Home Assistant spaces them: " °C", "%" (" %" in German and French),
+// "°" (Home Assistant's blankBeforeUnit).
+inline std::string unit_suffix(const std::string &unit) {
+  if (unit.empty() || unit == "\u00B0") return unit;
+  if (unit == "%") return percent_sign();
+  return " " + unit;
+}
+// A value with its unit: "21.5 °C", "54%", "18°".
+inline std::string with_unit(const std::string &value, const std::string &unit) { return value + unit_suffix(unit); }
+// A whole percentage: "54%", "54 %" in German and French.
+inline std::string percent(int value) { return std::to_string(value) + percent_sign(); }
 // A time "HH:MM" as Home Assistant or ESP Screens sends it, written for the screen's clock: "07:12" on 24 hours,
 // "7:12 AM" on 12 (in the language's day periods); `compact` leaves out ":00" ("2 PM"), as under a graph. Anything
 // else stays as it is.

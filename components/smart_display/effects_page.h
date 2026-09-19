@@ -56,7 +56,7 @@ inline std::string number_text(float value) {
   if (text.back() == '.') text.pop_back();
   return text;
 }
-inline std::string percent_text(int percent) { return std::to_string(percent) + " %"; }
+inline std::string percent_text(int percent) { return screen_text::percent(percent); }
 // The roller takes its names as one string, a line per name.
 inline std::string joined(const std::vector<std::string> &names) {
   std::string out;

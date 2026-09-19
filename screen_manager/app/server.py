@@ -570,9 +570,9 @@ class Manager:
         # Settings -> Language & region (app 0.2.90): the language, clock and numbers of every screen.
         self.region = Region(self.path.parent / 'language.json', ha_language=lambda: getattr(self.ha, 'ha_language', None))
         self.ha.language_of = self.region.language
+        self.firmware.language = self.region.language
         self.ha.on_config = self.language_changed
-        self.pin_clock = False
-        i18n.set_screens(self.region.language(), self.region.number_style(), self.region.clock_24h())
+        self.set_screens()
         self.skill_dir = claude_skill.skill_dir()
         self._registry_source, self._registry_index = None, {}
         self._items_source, self._items = None, []
@@ -605,12 +605,36 @@ class Manager:
                 raise ValueError('Unknown storage version; data stays unchanged.')
             # Loaded leniently: a tile setting this version doesn't know (saved by a newer one) never stops the app.
             self.layouts = {key: validate_layout(value, stored=True) for key, value in raw['screens'].items()}
-        # An app from before Language & region (app 0.2.90): its screens keep the 24 hours they show; language_changed
-        # makes it 12 once Home Assistant says every screen's own clock setting was 12 hours.
-        if not self.region.stored and self.layouts:
-            self.region.clock = '24'
+        # An app from before Language & region (app 0.2.90): its screens keep the 24 hours they show, until Home Assistant
+        # says every screen's own clock setting was 12 hours (resolve_clock_pin). A new install starts on Automatic, and
+        # is stored right away so a restart never takes it for an old one.
+        if not self.region.stored:
+            if self.layouts:
+                self.region.clock, self.region.pinned = '24', True
             self.region.save()
-            self.pin_clock = True
+
+    def resolve_clock_pin(self):
+        """The pinned 24 hours of an app from before Language & region become 12 when every screen's own "24-hour clock"
+        switch (firmware before 0.2.76) was off; they stay 24 when one was on or none is left. Waits while a switch has no
+        state yet (a screen restarts). True when the clock changed."""
+        if not self.region.pinned or not self.ha.online or not getattr(self.ha, 'registry', None):
+            return False
+        switches = [item['entity_id'] for item in self.ha.registry if item.get('platform') == 'esphome'
+                    and item.get('original_name') == '24-hour clock' and not item.get('disabled_by')]
+        states = [self.ha.states.get(entity, {}).get('state') for entity in switches]
+        if any(state not in ('on', 'off') for state in states):
+            return False
+        self.region.pinned = False
+        twelve = bool(states) and all(state == 'off' for state in states)
+        if twelve:
+            self.region.clock = '12'
+        self.region.save()
+        return twelve
+
+    def set_screens(self):
+        """What the app writes for the screens follows Settings -> Language & region (i18n.SCREENS)."""
+        region = self.region
+        i18n.set_screens(region.language(), region.number_style(), region.clock_24h(), region.group_min(), region.percent_space())
 
     def inventory(self):
         """(screens, every tile/top-bar entity): the full walk over the registry, for the editor and saving."""
@@ -953,11 +977,17 @@ class Manager:
         action = self.transport(inbox, screen)
         if what is None or not action:
             return
-        await self.ha.send(inbox, await self.card_history(entity, hours, what), action)
+        # Its words in the language of this screen's firmware (app 0.2.90).
+        token = i18n.SCREEN.set(i18n.screen_context(screen))
+        try:
+            await self.ha.send(inbox, await self.card_history(entity, hours, what), action)
+        finally:
+            i18n.SCREEN.reset(token)
 
     async def card_history(self, entity, hours, what):
-        """The history message, from a short cache; screens asking at the same time share one fetch."""
-        key = (entity, hours)
+        """The history message, from a short cache; screens asking at the same time share one fetch, per language."""
+        context = i18n.SCREEN.get() or {}
+        key = (entity, hours, context.get('language'), bool(context.get('legacy')))
         cached = self.card_histories.get(key)
         if cached and time.monotonic() - cached[0] < history_card.CACHE_SECONDS[hours]:
             return cached[1]
@@ -1145,15 +1175,8 @@ class Manager:
         """The screens' language may have changed (Settings -> Language & region, or Home Assistant's own): the words for
         states come again in it, every screen gets all its messages anew, and each screen's YAML gets the language its
         next firmware update builds in, which makes that update show."""
-        if self.pin_clock:
-            self.pin_clock = False
-            clocks = [self.ha.states.get(item['entity_id'], {}).get('state') for item in getattr(self.ha, 'registry', [])
-                      if item.get('platform') == 'esphome' and item.get('original_name') == '24-hour clock']
-            known = [state for state in clocks if state in ('on', 'off')]
-            if known and all(state == 'off' for state in known):
-                self.region.clock = '12'
-                self.region.save()
-        i18n.set_screens(self.region.language(), self.region.number_style(), self.region.clock_24h())
+        self.resolve_clock_pin()
+        self.set_screens()
         self.ha.services_changed.set()
         self.sent.clear()
         self.write_languages()
@@ -1274,6 +1297,9 @@ class Manager:
         # before 0.2.76 ignores both and keeps a clock setting of its own.
         message['clock_24h'] = self.region.clock_24h()
         message['numbers'] = self.region.number_style()
+        # From 1234 or 12.345 on, and the space before "%" of the language (firmware 0.2.76+, app 0.2.90).
+        message['group_min'] = self.region.group_min()
+        message['percent_space'] = self.region.percent_space()
         if 'settings' in message:
             message['settings']['clock_24h'] = message['clock_24h']
         # The revision the screen echoes on every ping (firmware 0.2.33+; older firmware ignores it).
@@ -1288,6 +1314,15 @@ class Manager:
         sent. None rebuilds every message and sends the differences; `force` sends everything."""
         if screen is None:
             screen = self.screen(inbox) or {}
+        # The words go in the language this screen's firmware speaks, which is the old one until its update (app 0.2.90).
+        context = i18n.screen_context(screen)
+        token = i18n.SCREEN.set(context)
+        try:
+            return await self._sync_one(inbox, layout, force, screen, dirty, context)
+        finally:
+            i18n.SCREEN.reset(token)
+
+    async def _sync_one(self, inbox, layout, force, screen, dirty, context):
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             self.status[inbox]=english('addon.status.firmware_needed', version=needed)
@@ -1301,7 +1336,9 @@ class Manager:
             self.status[inbox] = english('addon.status.too_large')
             return False
         previous = self.sent.get(inbox)
-        full = force or not previous or previous['layout'] != layout_msg or dirty is None
+        # A screen that now speaks another language (an update, or its sensor reporting after a restart) gets every
+        # message written anew.
+        full = force or not previous or previous['layout'] != layout_msg or dirty is None or previous.get('context') != context
         # The top bar right after the layout (firmware 0.2.32+; older firmware draws the clock of show_clock).
         header_msg = None
         if self.supports_header(inbox, screen):
@@ -1335,7 +1372,7 @@ class Manager:
         # sent (settings the screen reported itself, see store_settings) keeps the one it had.
         sent_layout = any(message is layout_msg for message in outgoing)
         rev = layout_msg['rev'] if sent_layout or not previous else previous.get('rev', layout_msg['rev'])
-        self.sent[inbox] = {'layout': layout_msg, 'header': header_msg, 'states': states, 'rev': rev}
+        self.sent[inbox] = {'layout': layout_msg, 'header': header_msg, 'states': states, 'rev': rev, 'context': context}
         # The hourly timer follows a real full transmission; any message refreshes the screen's
         # feed window, so the ping timer follows whatever went out (a rebuild without differences,
         # after a registry refresh, must not postpone the ping).
@@ -1414,6 +1451,8 @@ class Manager:
                                 event.get('inbox') if isinstance(event, dict) else '?', error)
             if hasattr(self.ha,'setting_events'): self.ha.setting_events.clear()
             dirty = self.take_dirty()
+            if self.region.pinned and self.resolve_clock_pin():
+                self.language_changed()
             screens_key = self._screens_key
             screens = self.screens()
             changed = self._screens_key != screens_key
@@ -1915,11 +1954,15 @@ def create_app(manager, development=False):
         return ready[0]
     async def identify(request):
         """Identify (app 0.2.73): the screen shows a short card and blinks its backlight, so you know which one it is. The
-        card speaks the screens' language (app 0.2.90)."""
+        card speaks the language of the screen's firmware (app 0.2.90)."""
         screen = one_alert_target(request.match_info['inbox'])
-        data, _ = alert_data({'title': screen_t('addon.screen.identify.title', name=screen['name']),
-                              'subtitle': screen_t('addon.screen.identify.subtitle'), 'icon': 'bell-ring',
-                              'color': 'blue', 'button_text': screen_t('screen.alert.ok'), 'timeout': 8, 'flash': True})
+        token = i18n.SCREEN.set(i18n.screen_context(screen))
+        try:
+            data, _ = alert_data({'title': screen_t('addon.screen.identify.title', name=screen['name']),
+                                  'subtitle': screen_t('addon.screen.identify.subtitle'), 'icon': 'bell-ring',
+                                  'color': 'blue', 'button_text': screen_t('screen.alert.ok'), 'timeout': 8, 'flash': True})
+        finally:
+            i18n.SCREEN.reset(token)
         await manager.ha.call(alert_service(screen['node']), data)
         return web.json_response({'ok': True})
     async def test_alert(request):

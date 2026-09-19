@@ -65,8 +65,7 @@ inline std::string duration(uint32_t seconds) {
 }
 
 // A value as Home Assistant writes it: fixed decimals, the language's separator between thousands and its decimal
-// mark (screen.number: "1,234.5" in English, "1.234,5" in Dutch), "%" and "°" on the number and any other unit after
-// a space.
+// mark (screen.number: "1,234.5" in English, "1.234,5" in Dutch), the unit spaced as Home Assistant spaces it.
 inline std::string number(float value, int decimals, const std::string &unit) {
   if (!std::isfinite(value)) return "--";
   char b[40];
@@ -77,9 +76,7 @@ inline std::string number(float value, int decimals, const std::string &unit) {
   std::string whole = text.substr(0, dot), rest = dot == std::string::npos ? "" : text.substr(dot);
   bool zero = whole.find_first_not_of('0') == std::string::npos && rest.find_first_not_of(".0") == std::string::npos;
   text = (zero ? "" : sign) + screen_text::write_number(whole, rest.empty() ? std::string() : rest.substr(1));
-  if (unit.empty()) return text;
-  if (unit == "%" || unit == "°") return text + unit;
-  return text + " " + unit;
+  return screen_text::with_unit(text, unit);
 }
 
 // Where part `i` of 24 is drawn and read: the middle of its stretch of the range, as a fraction of the width.

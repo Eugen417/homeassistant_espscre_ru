@@ -283,12 +283,13 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 | `switch.<screen>_dark_mode` | On: the dark look, a black page with graphite cards and soft white text, for a screen beside a bed or in a dark room. Off: the light look. Firmware {DARK_MODE_MIN_FIRMWARE} or newer. |
 | `switch.<screen>_night_mode` | Night mode: the night brightness between the two times below. Firmware {SETTING_ENTITIES_MIN_FIRMWARE} or newer, like every row below it. |
 | `time.<screen>_night_starts`, `time.<screen>_night_ends` | The night hours; set them with `time.set_value`. |
-| `switch.<screen>_24_hour_clock` | On: 24-hour clock. Off: 12-hour clock. |
 | `switch.<screen>_back_to_page_1` | On: after `number.<screen>_back_to_page_1_after` seconds without a touch (30 to 3600) the screen closes a card and goes back to page 1. Pressing Wake, an alert or Auto standby don't count as a touch. |
 | `switch.<screen>_back_to_page_1_on_standby` | On: going into standby also goes back to page 1. |
 | `switch.<screen>_swipe_between_pages` | On: swipe between pages. |
 | `switch.<screen>_page_buttons` | On: the Previous and Next bar under the tiles on a screen with more than one page. Off: no bar, the tiles take its room, and only swiping or Go to page tiles change the page. Firmware {PAGE_BUTTONS_MIN_FIRMWARE} or newer. |
 | `select.<screen>_rotation` | Guition only: `0°`, `90°`, `180°` or `270°`. |
+
+The 12 or 24-hour clock, the language and how numbers are written are one choice for every screen, in ESP Screens under Settings → Language & region; no entity changes them (firmware 0.2.76 or newer; older firmware still has `switch.<screen>_24_hour_clock`).
 
 Wake and Sleep are buttons: press them with the `button.press` action. They save nothing, so an automation may press them as often as it likes, on every motion too. To reach several screens at once, list their buttons under `entity_id`. Don't target an area or a device with `button.press`: that presses every other button there as well, the Wake and Sleep of the same screen included.
 

@@ -1533,6 +1533,9 @@ def discover_screens(registry, states, devices, areas):
     nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')
     addresses = diagnostic(NAME_IP_ADDRESS, r'\d{1,3}(\.\d{1,3}){3}')
     languages = diagnostic(NAME_SCREEN_LANGUAGE, r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?')
+    # Firmware from before the languages (0.2.75 and older) has no such sensor: it speaks English, with fewer letters.
+    speaks = {item.get('device_id') for item in registry
+              if item.get('platform') == 'esphome' and item.get('original_name') in NAME_SCREEN_LANGUAGE}
     screens = []
     for item in registry:
         eid = item['entity_id']
@@ -1551,6 +1554,7 @@ def discover_screens(registry, states, devices, areas):
                         'board': boards.get(item.get('device_id'), 'unknown'),
                         'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
                         'language': languages.get(item.get('device_id')),
+                        'language_sensor': item.get('device_id') in speaks,
                         'device': device.get('name') or '',
                         'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
                         # What the screen reports (a word of the firmware's protocol), or ours in English, which the editor
