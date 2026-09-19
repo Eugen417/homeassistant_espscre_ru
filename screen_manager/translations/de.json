@@ -14,6 +14,18 @@
       "group_min": "1"
     },
     "time": {
+      "just_now": "Gerade eben",
+      "minutes_ago": "Vor {n} Min.",
+      "hours_ago": "Vor 1 Stunde | Vor {n} Stunden",
+      "yesterday": "Gestern",
+      "days_ago": "Vor 1 Tag | Vor {n} Tagen",
+      "weeks_ago": "Vor 1 Woche | Vor {n} Wochen",
+      "months_ago": "Vor 1 Monat | Vor {n} Monaten",
+      "years_ago": "Vor 1 Jahr | Vor {n} Jahren",
+      "in_minutes": "In {n} Min.",
+      "in_hours": "In 1 Stunde | In {n} Stunden",
+      "tomorrow": "Morgen",
+      "in_days": "In 1 Tag | In {n} Tagen",
       "am": "AM",
       "pm": "PM"
     },
@@ -78,9 +90,177 @@
       "day_month": "{day}. {month}",
       "weekday_time": "{weekday}, {time}"
     },
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{n} Min.",
+      "hours": "{n} Std.",
+      "hours_minutes": "{h} Std. {m} Min.",
+      "days": "{n} T.",
+      "days_hours": "{d} T. {h} Std."
+    },
+    "status": {
+      "connecting": "Verbinde mit Home Assistant",
+      "waiting": "Warte auf ESP Screens",
+      "loading_tiles": "Kacheln werden geladen...",
+      "ha_not_connected": "HA nicht verbunden",
+      "manager_not_active": "ESP Screens nicht aktiv",
+      "choose_tiles": "Kacheln in HA wählen",
+      "home": "Zuhause",
+      "no_network": "Kein Netzwerk"
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "brightness": "Helligkeit",
+      "night": "Nacht",
+      "screen": "Bildschirm",
+      "this_screen": "Dieser Bildschirm",
+      "dark_mode": "Dunkler Modus",
+      "auto_standby": "Auto-Standby",
+      "standby_after": "Standby nach",
+      "standby_brightness": "Helligkeit Standby",
+      "night_mode": "Nachtmodus",
+      "starts": "Beginnt",
+      "ends": "Endet",
+      "night_brightness": "Helligkeit nachts",
+      "back_to_page_1": "Zurück zu Seite 1",
+      "after": "Nach",
+      "also_on_standby": "Auch im Standby",
+      "swipe_between_pages": "Zwischen Seiten wischen",
+      "page_buttons": "Seitentasten",
+      "rotation": "Drehung",
+      "address": "Adresse",
+      "firmware": "Firmware",
+      "home_assistant": "Home Assistant",
+      "restart": "Neu starten",
+      "connected": "Verbunden",
+      "not_connected": "Nicht verbunden",
+      "tap_again_to_restart": "Zum Neustart erneut tippen",
+      "seconds": "{n} Sek.",
+      "minutes": "{n} Min.",
+      "hours": "{n} Std.",
+      "hours_minutes": "{h} Std. {m}"
+    },
+    "tile": {
+      "tap_to_open": "Zum Öffnen tippen",
+      "page": "Seite {n}",
+      "refused": "Abgelehnt",
+      "command_sent": "Befehl gesendet...",
+      "confirmed": "Von Home Assistant bestätigt"
+    },
+    "alert": {
+      "notification": "Benachrichtigung",
+      "ok": "OK"
+    },
+    "light": {
+      "color": "Farbe",
+      "color_temperature": "Farbtemperatur",
+      "brightness": "Helligkeit",
+      "waiting": "Warte..."
+    },
+    "effects": {
+      "effect": "Effekt",
+      "nothing": "Nichts zur Auswahl",
+      "loading": "Wird geladen...",
+      "not_connected": "Nicht verbunden"
+    },
+    "climate": {
+      "target": "Ziel",
+      "mode": "Modus",
+      "fan": "Lüfter",
+      "swing": "Schwenken",
+      "now": "Jetzt {value}"
+    },
+    "vacuum": {
+      "check_robot": "Roboter in HA prüfen",
+      "auto_suction": "Automatische Saugkraft",
+      "robot_chooses": "Der Roboter wählt Saugkraft und Wasser",
+      "per_room": "Saugkraft und Wasser je Raum",
+      "speed_quiet": "Leise",
+      "speed_balanced": "Normal",
+      "speed_turbo": "Turbo",
+      "speed_max": "Max",
+      "pause_cleaning": "Reinigung pausieren",
+      "pause": "Pause",
+      "resume": "Fortsetzen",
+      "start_cleaning": "Reinigung starten",
+      "clean": "Reinigen",
+      "dock": "Station"
+    },
+    "cover": {
+      "position": "Position",
+      "tilt": "Neigung",
+      "tilt_value": "Neigung {n}%"
+    },
+    "weather": {
+      "feels_like": "Gefühlt {n}°",
+      "no_forecast": "Keine Tagesvorhersage von Home Assistant",
+      "coming_days": "Nächste Tage"
+    },
+    "history": {
+      "no_data": "Keine Daten",
+      "average": "Durchschnitt",
+      "average_of": "Durchschnitt über {duration}",
+      "now": "Jetzt",
+      "range_hour": "1 Stunde",
+      "range_day": "24 Stunden",
+      "range_week": "1 Woche",
+      "high": "Hoch {value}",
+      "low": "Tief {value}",
+      "times": "einmal | {n}-mal",
+      "loading": "Verlauf wird geladen...",
+      "empty": "Kein Verlauf in diesem Zeitraum",
+      "unavailable": "Kein Verlauf verfügbar"
+    },
+    "media": {
+      "muted": "Stumm",
+      "not_playing": "Keine Wiedergabe",
+      "loading": "Wird geladen"
+    },
+    "timer": {
+      "running": "Läuft",
+      "paused": "Pausiert",
+      "stopped": "Gestoppt",
+      "pause": "Pause",
+      "start": "Starten",
+      "cancel": "Abbrechen",
+      "paused_left": "Pausiert {time}"
+    },
+    "sun": {
+      "name": "Sonne",
+      "sunrise": "Sonnenaufgang {time}",
+      "sunset": "Sonnenuntergang {time}",
+      "rise": "auf {time}",
+      "set": "unter {time}"
+    },
+    "script": {
+      "running": "Läuft...",
+      "never_run": "Nie ausgeführt",
+      "last_time": "Zuletzt {time}",
+      "yesterday_time": "Gestern {time}",
+      "last_date": "Zuletzt {date}"
+    },
+    "camera": {
+      "no_image": "Kein Bild von dieser Kamera",
+      "loading": "Bild wird geladen",
+      "live": "Live",
+      "recording": "Aufnahme",
+      "tap_to_view": "Zum Ansehen tippen",
+      "no_image_yet": "Noch kein Bild"
+    },
+    "calibration": {
+      "title": "Folge der Kalibrierung",
+      "touch_check": "GT911-Touchtest",
+      "hold": "Jedes Tippen kurz halten",
+      "crosshair": "Tippe auf das Kreuz\nPunkt {point}/5 - Tippen {tap}/3",
+      "gently": "Sanft tippen, etwas länger",
+      "same": "Dreimal auf dasselbe Kreuz tippen",
+      "rejected": "Messung verworfen; bitte erneut",
+      "save_failed": "Speichern fehlgeschlagen; bitte erneut"
+    },
     "ha": {
       "on": "Ein",
       "off": "Aus",
+      "unavailable": "Nicht verfügbar",
       "climate": {
         "off": "Aus",
         "heat": "Heizbetrieb",
@@ -201,7 +381,6 @@
         "window_on": "Geöffnet",
         "window_off": "Geschlossen"
       },
-      "unavailable": "Nicht verfügbar",
       "button": {
         "activate": "Aktivieren",
         "run": "Ausführen",

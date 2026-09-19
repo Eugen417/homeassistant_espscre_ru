@@ -14,6 +14,18 @@
       "group_min": "2"
     },
     "time": {
+      "just_now": "Przed chwilą",
+      "minutes_ago": "{n} min temu",
+      "hours_ago": "1 godzinę temu | {n} godziny temu | {n} godzin temu",
+      "yesterday": "Wczoraj",
+      "days_ago": "1 dzień temu | {n} dni temu | {n} dni temu",
+      "weeks_ago": "1 tydzień temu | {n} tygodnie temu | {n} tygodni temu",
+      "months_ago": "1 miesiąc temu | {n} miesiące temu | {n} miesięcy temu",
+      "years_ago": "1 rok temu | {n} lata temu | {n} lat temu",
+      "in_minutes": "Za {n} min",
+      "in_hours": "Za 1 godzinę | Za {n} godziny | Za {n} godzin",
+      "tomorrow": "Jutro",
+      "in_days": "Za 1 dzień | Za {n} dni | Za {n} dni",
       "am": "AM",
       "pm": "PM"
     },
@@ -78,9 +90,177 @@
       "day_month": "{day} {month}",
       "weekday_time": "{weekday}, {time}"
     },
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} godz.",
+      "hours_minutes": "{h} godz. {m} min",
+      "days": "{n} d",
+      "days_hours": "{d} d {h} godz."
+    },
+    "status": {
+      "connecting": "Łączenie z Home Assistant",
+      "waiting": "Czekam na ESP Screens",
+      "loading_tiles": "Ładowanie kafelków...",
+      "ha_not_connected": "HA niepołączony",
+      "manager_not_active": "ESP Screens nieaktywny",
+      "choose_tiles": "Wybierz kafelki w HA",
+      "home": "Dom",
+      "no_network": "Brak sieci"
+    },
+    "settings": {
+      "title": "Ustawienia",
+      "brightness": "Jasność",
+      "night": "Noc",
+      "screen": "Ekran",
+      "this_screen": "Ten ekran",
+      "dark_mode": "Tryb ciemny",
+      "auto_standby": "Auto czuwanie",
+      "standby_after": "Czuwanie po",
+      "standby_brightness": "Jasność czuwania",
+      "night_mode": "Tryb nocny",
+      "starts": "Początek",
+      "ends": "Koniec",
+      "night_brightness": "Jasność nocna",
+      "back_to_page_1": "Wróć do strony 1",
+      "after": "Po",
+      "also_on_standby": "Także w czuwaniu",
+      "swipe_between_pages": "Przesuwanie stron",
+      "page_buttons": "Przyciski stron",
+      "rotation": "Obrót",
+      "address": "Adres",
+      "firmware": "Firmware",
+      "home_assistant": "Home Assistant",
+      "restart": "Uruchom ponownie",
+      "connected": "Połączono",
+      "not_connected": "Brak połączenia",
+      "tap_again_to_restart": "Dotknij ponownie, aby uruchomić ponownie",
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} godz.",
+      "hours_minutes": "{h} godz. {m}"
+    },
+    "tile": {
+      "tap_to_open": "Dotknij, aby otworzyć",
+      "page": "Strona {n}",
+      "refused": "Odrzucono",
+      "command_sent": "Wysłano polecenie...",
+      "confirmed": "Potwierdzone przez Home Assistant"
+    },
+    "alert": {
+      "notification": "Powiadomienie",
+      "ok": "OK"
+    },
+    "light": {
+      "color": "Kolor",
+      "color_temperature": "Temperatura barwy",
+      "brightness": "Jasność",
+      "waiting": "Czekam..."
+    },
+    "effects": {
+      "effect": "Efekt",
+      "nothing": "Brak wyboru",
+      "loading": "Ładowanie...",
+      "not_connected": "Brak połączenia"
+    },
+    "climate": {
+      "target": "Cel",
+      "mode": "Tryb",
+      "fan": "Wentylator",
+      "swing": "Wahadło",
+      "now": "Teraz {value}"
+    },
+    "vacuum": {
+      "check_robot": "Sprawdź robota w HA",
+      "auto_suction": "Automatyczna siła ssania",
+      "robot_chooses": "Robot wybiera ssanie i wodę",
+      "per_room": "Ssanie i woda według pokoju",
+      "speed_quiet": "Cichy",
+      "speed_balanced": "Normalny",
+      "speed_turbo": "Turbo",
+      "speed_max": "Maks.",
+      "pause_cleaning": "Wstrzymaj sprzątanie",
+      "pause": "Pauza",
+      "resume": "Wznów",
+      "start_cleaning": "Rozpocznij sprzątanie",
+      "clean": "Sprzątaj",
+      "dock": "Stacja"
+    },
+    "cover": {
+      "position": "Pozycja",
+      "tilt": "Nachylenie",
+      "tilt_value": "Nachylenie {n}%"
+    },
+    "weather": {
+      "feels_like": "Odczuwalna {n}°",
+      "no_forecast": "Brak prognozy dziennej z Home Assistant",
+      "coming_days": "Najbliższe dni"
+    },
+    "history": {
+      "no_data": "Brak danych",
+      "average": "średnia",
+      "average_of": "średnia z {duration}",
+      "now": "Teraz",
+      "range_hour": "1 godzina",
+      "range_day": "24 godziny",
+      "range_week": "1 tydzień",
+      "high": "Maks. {value}",
+      "low": "Min. {value}",
+      "times": "raz | {n} razy | {n} razy",
+      "loading": "Ładowanie historii...",
+      "empty": "Brak historii w tym okresie",
+      "unavailable": "Brak dostępnej historii"
+    },
+    "media": {
+      "muted": "Wyciszony",
+      "not_playing": "Nic nie gra",
+      "loading": "Ładowanie"
+    },
+    "timer": {
+      "running": "Działa",
+      "paused": "Wstrzymany",
+      "stopped": "Zatrzymany",
+      "pause": "Pauza",
+      "start": "Start",
+      "cancel": "Anuluj",
+      "paused_left": "Wstrzymany {time}"
+    },
+    "sun": {
+      "name": "Słońce",
+      "sunrise": "Wschód {time}",
+      "sunset": "Zachód {time}",
+      "rise": "wschód {time}",
+      "set": "zachód {time}"
+    },
+    "script": {
+      "running": "Działa...",
+      "never_run": "Nigdy nie uruchomiono",
+      "last_time": "Ostatnio {time}",
+      "yesterday_time": "Wczoraj {time}",
+      "last_date": "Ostatnio {date}"
+    },
+    "camera": {
+      "no_image": "Brak obrazu z tej kamery",
+      "loading": "Ładowanie obrazu",
+      "live": "Na żywo",
+      "recording": "Nagrywanie",
+      "tap_to_view": "Dotknij, aby zobaczyć",
+      "no_image_yet": "Brak obrazu"
+    },
+    "calibration": {
+      "title": "Postępuj według kalibracji",
+      "touch_check": "Test dotyku GT911",
+      "hold": "Przytrzymaj każde dotknięcie chwilę",
+      "crosshair": "Dotknij krzyżyka\nPunkt {point}/5 - dotknięcie {tap}/3",
+      "gently": "Dotykaj delikatnie, nieco dłużej",
+      "same": "Dotknij 3 razy ten sam krzyżyk",
+      "rejected": "Pomiar odrzucony; spróbuj ponownie",
+      "save_failed": "Zapis nieudany; spróbuj ponownie"
+    },
     "ha": {
       "on": "włączono",
       "off": "wyłączono",
+      "unavailable": "niedostępny",
       "climate": {
         "off": "wyłączono",
         "heat": "grzanie",
@@ -201,7 +381,6 @@
         "window_on": "otwarto",
         "window_off": "zamknięto"
       },
-      "unavailable": "niedostępny",
       "button": {
         "activate": "Aktywuj",
         "run": "Uruchom",

@@ -14,6 +14,18 @@
       "group_min": "1"
     },
     "time": {
+      "just_now": "À l'instant",
+      "minutes_ago": "Il y a {n} min",
+      "hours_ago": "Il y a {n} heure | Il y a {n} heures",
+      "yesterday": "Hier",
+      "days_ago": "Il y a {n} jour | Il y a {n} jours",
+      "weeks_ago": "Il y a {n} semaine | Il y a {n} semaines",
+      "months_ago": "Il y a {n} mois | Il y a {n} mois",
+      "years_ago": "Il y a {n} an | Il y a {n} ans",
+      "in_minutes": "Dans {n} min",
+      "in_hours": "Dans {n} heure | Dans {n} heures",
+      "tomorrow": "Demain",
+      "in_days": "Dans {n} jour | Dans {n} jours",
       "am": "AM",
       "pm": "PM"
     },
@@ -78,9 +90,177 @@
       "day_month": "{day} {month}",
       "weekday_time": "{weekday} {time}"
     },
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} h",
+      "hours_minutes": "{h} h {m} min",
+      "days": "{n} j",
+      "days_hours": "{d} j {h} h"
+    },
+    "status": {
+      "connecting": "Connexion à Home Assistant",
+      "waiting": "En attente d'ESP Screens",
+      "loading_tiles": "Chargement des tuiles...",
+      "ha_not_connected": "HA non connecté",
+      "manager_not_active": "ESP Screens inactif",
+      "choose_tiles": "Choisissez les tuiles dans HA",
+      "home": "Accueil",
+      "no_network": "Pas de réseau"
+    },
+    "settings": {
+      "title": "Paramètres",
+      "brightness": "Luminosité",
+      "night": "Nuit",
+      "screen": "Écran",
+      "this_screen": "Cet écran",
+      "dark_mode": "Mode sombre",
+      "auto_standby": "Veille auto",
+      "standby_after": "Veille après",
+      "standby_brightness": "Luminosité en veille",
+      "night_mode": "Mode nuit",
+      "starts": "Début",
+      "ends": "Fin",
+      "night_brightness": "Luminosité de nuit",
+      "back_to_page_1": "Retour à la page 1",
+      "after": "Après",
+      "also_on_standby": "Aussi en veille",
+      "swipe_between_pages": "Balayer entre les pages",
+      "page_buttons": "Boutons de page",
+      "rotation": "Rotation",
+      "address": "Adresse",
+      "firmware": "Firmware",
+      "home_assistant": "Home Assistant",
+      "restart": "Redémarrer",
+      "connected": "Connecté",
+      "not_connected": "Non connecté",
+      "tap_again_to_restart": "Touchez encore pour redémarrer",
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} h",
+      "hours_minutes": "{h} h {m}"
+    },
+    "tile": {
+      "tap_to_open": "Touchez pour ouvrir",
+      "page": "Page {n}",
+      "refused": "Refusé",
+      "command_sent": "Commande envoyée...",
+      "confirmed": "Confirmé par Home Assistant"
+    },
+    "alert": {
+      "notification": "Notification",
+      "ok": "OK"
+    },
+    "light": {
+      "color": "Couleur",
+      "color_temperature": "Température de couleur",
+      "brightness": "Luminosité",
+      "waiting": "Attente..."
+    },
+    "effects": {
+      "effect": "Effet",
+      "nothing": "Rien à choisir",
+      "loading": "Chargement...",
+      "not_connected": "Non connecté"
+    },
+    "climate": {
+      "target": "Consigne",
+      "mode": "Mode",
+      "fan": "Ventilation",
+      "swing": "Oscillation",
+      "now": "Actuel {value}"
+    },
+    "vacuum": {
+      "check_robot": "Vérifiez le robot dans HA",
+      "auto_suction": "Aspiration automatique",
+      "robot_chooses": "Le robot choisit l'aspiration et l'eau",
+      "per_room": "Aspiration et eau par pièce",
+      "speed_quiet": "Silencieux",
+      "speed_balanced": "Normal",
+      "speed_turbo": "Turbo",
+      "speed_max": "Max",
+      "pause_cleaning": "Mettre en pause",
+      "pause": "Pause",
+      "resume": "Reprendre",
+      "start_cleaning": "Démarrer le nettoyage",
+      "clean": "Nettoyer",
+      "dock": "Base"
+    },
+    "cover": {
+      "position": "Position",
+      "tilt": "Inclinaison",
+      "tilt_value": "Inclinaison {n}%"
+    },
+    "weather": {
+      "feels_like": "Ressenti {n}°",
+      "no_forecast": "Pas de prévisions journalières de Home Assistant",
+      "coming_days": "Prochains jours"
+    },
+    "history": {
+      "no_data": "Pas de données",
+      "average": "moyenne",
+      "average_of": "moyenne sur {duration}",
+      "now": "Maintenant",
+      "range_hour": "1 heure",
+      "range_day": "24 heures",
+      "range_week": "1 semaine",
+      "high": "Max {value}",
+      "low": "Min {value}",
+      "times": "une fois | {n} fois",
+      "loading": "Chargement de l'historique...",
+      "empty": "Pas d'historique pour cette période",
+      "unavailable": "Aucun historique disponible"
+    },
+    "media": {
+      "muted": "Muet",
+      "not_playing": "Aucune lecture",
+      "loading": "Chargement"
+    },
+    "timer": {
+      "running": "En cours",
+      "paused": "En pause",
+      "stopped": "Arrêté",
+      "pause": "Pause",
+      "start": "Démarrer",
+      "cancel": "Annuler",
+      "paused_left": "En pause {time}"
+    },
+    "sun": {
+      "name": "Soleil",
+      "sunrise": "Lever {time}",
+      "sunset": "Coucher {time}",
+      "rise": "lever {time}",
+      "set": "coucher {time}"
+    },
+    "script": {
+      "running": "En cours...",
+      "never_run": "Jamais lancé",
+      "last_time": "Dernier {time}",
+      "yesterday_time": "Hier {time}",
+      "last_date": "Dernier {date}"
+    },
+    "camera": {
+      "no_image": "Pas d'image de cette caméra",
+      "loading": "Chargement de l'image",
+      "live": "En direct",
+      "recording": "Enregistrement",
+      "tap_to_view": "Touchez pour voir",
+      "no_image_yet": "Pas encore d'image"
+    },
+    "calibration": {
+      "title": "Suivez l'étalonnage",
+      "touch_check": "Test tactile GT911",
+      "hold": "Maintenez chaque toucher un instant",
+      "crosshair": "Touchez la croix\nPoint {point}/5 - toucher {tap}/3",
+      "gently": "Touchez doucement, un peu plus longtemps",
+      "same": "Touchez 3 fois la même croix",
+      "rejected": "Mesure rejetée ; réessayez",
+      "save_failed": "Échec de l'enregistrement ; réessayez"
+    },
     "ha": {
       "on": "Activé",
       "off": "Désactivé",
+      "unavailable": "Indisponible",
       "climate": {
         "off": "Éteint",
         "heat": "Chauffage",
@@ -201,7 +381,6 @@
         "window_on": "Ouvert",
         "window_off": "Fermé"
       },
-      "unavailable": "Indisponible",
       "button": {
         "activate": "Activer",
         "run": "Exécuter",

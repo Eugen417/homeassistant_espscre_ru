@@ -14,6 +14,18 @@
       "group_min": "2"
     },
     "time": {
+      "just_now": "Agora mesmo",
+      "minutes_ago": "Há {n} min",
+      "hours_ago": "Há {n} hora | Há {n} horas",
+      "yesterday": "Ontem",
+      "days_ago": "Há {n} dia | Há {n} dias",
+      "weeks_ago": "Há {n} semana | Há {n} semanas",
+      "months_ago": "Há {n} mês | Há {n} meses",
+      "years_ago": "Há {n} ano | Há {n} anos",
+      "in_minutes": "Daqui a {n} min",
+      "in_hours": "Daqui a {n} hora | Daqui a {n} horas",
+      "tomorrow": "Amanhã",
+      "in_days": "Daqui a {n} dia | Daqui a {n} dias",
       "am": "da manhã",
       "pm": "da tarde"
     },
@@ -78,9 +90,177 @@
       "day_month": "{day} {month}",
       "weekday_time": "{weekday}, {time}"
     },
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} h",
+      "hours_minutes": "{h} h {m} min",
+      "days": "{n} d",
+      "days_hours": "{d} d {h} h"
+    },
+    "status": {
+      "connecting": "A ligar ao Home Assistant",
+      "waiting": "À espera do ESP Screens",
+      "loading_tiles": "A carregar mosaicos...",
+      "ha_not_connected": "HA sem ligação",
+      "manager_not_active": "ESP Screens inativo",
+      "choose_tiles": "Escolha os mosaicos no HA",
+      "home": "Casa",
+      "no_network": "Sem rede"
+    },
+    "settings": {
+      "title": "Configuração",
+      "brightness": "Brilho",
+      "night": "Noite",
+      "screen": "Ecrã",
+      "this_screen": "Este ecrã",
+      "dark_mode": "Modo escuro",
+      "auto_standby": "Espera automática",
+      "standby_after": "Espera após",
+      "standby_brightness": "Brilho em espera",
+      "night_mode": "Modo noturno",
+      "starts": "Início",
+      "ends": "Fim",
+      "night_brightness": "Brilho noturno",
+      "back_to_page_1": "Voltar à página 1",
+      "after": "Após",
+      "also_on_standby": "Também em espera",
+      "swipe_between_pages": "Deslizar entre páginas",
+      "page_buttons": "Botões de página",
+      "rotation": "Rotação",
+      "address": "Endereço",
+      "firmware": "Firmware",
+      "home_assistant": "Home Assistant",
+      "restart": "Reiniciar",
+      "connected": "Ligado",
+      "not_connected": "Sem ligação",
+      "tap_again_to_restart": "Toque de novo para reiniciar",
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} h",
+      "hours_minutes": "{h} h {m}"
+    },
+    "tile": {
+      "tap_to_open": "Toque para abrir",
+      "page": "Página {n}",
+      "refused": "Recusado",
+      "command_sent": "Comando enviado...",
+      "confirmed": "Confirmado pelo Home Assistant"
+    },
+    "alert": {
+      "notification": "Notificação",
+      "ok": "OK"
+    },
+    "light": {
+      "color": "Cor",
+      "color_temperature": "Temperatura de cor",
+      "brightness": "Brilho",
+      "waiting": "A aguardar..."
+    },
+    "effects": {
+      "effect": "Efeito",
+      "nothing": "Nada para escolher",
+      "loading": "A carregar...",
+      "not_connected": "Sem ligação"
+    },
+    "climate": {
+      "target": "Alvo",
+      "mode": "Modo",
+      "fan": "Ventilador",
+      "swing": "Oscilação",
+      "now": "Agora {value}"
+    },
+    "vacuum": {
+      "check_robot": "Verifique o robô no HA",
+      "auto_suction": "Sucção automática",
+      "robot_chooses": "O robô escolhe a sucção e a água",
+      "per_room": "Sucção e água por divisão",
+      "speed_quiet": "Silencioso",
+      "speed_balanced": "Normal",
+      "speed_turbo": "Turbo",
+      "speed_max": "Máx.",
+      "pause_cleaning": "Pausar limpeza",
+      "pause": "Pausa",
+      "resume": "Retomar",
+      "start_cleaning": "Iniciar limpeza",
+      "clean": "Limpar",
+      "dock": "Base"
+    },
+    "cover": {
+      "position": "Posição",
+      "tilt": "Inclinação",
+      "tilt_value": "Inclinação {n}%"
+    },
+    "weather": {
+      "feels_like": "Sensação {n}°",
+      "no_forecast": "Sem previsão diária do Home Assistant",
+      "coming_days": "Próximos dias"
+    },
+    "history": {
+      "no_data": "Sem dados",
+      "average": "média",
+      "average_of": "média de {duration}",
+      "now": "Agora",
+      "range_hour": "1 hora",
+      "range_day": "24 horas",
+      "range_week": "1 semana",
+      "high": "Máx. {value}",
+      "low": "Mín. {value}",
+      "times": "uma vez | {n} vezes",
+      "loading": "A carregar histórico...",
+      "empty": "Sem histórico neste período",
+      "unavailable": "Sem histórico disponível"
+    },
+    "media": {
+      "muted": "Sem som",
+      "not_playing": "Nada a reproduzir",
+      "loading": "A carregar"
+    },
+    "timer": {
+      "running": "Em curso",
+      "paused": "Em pausa",
+      "stopped": "Parado",
+      "pause": "Pausa",
+      "start": "Iniciar",
+      "cancel": "Cancelar",
+      "paused_left": "Em pausa {time}"
+    },
+    "sun": {
+      "name": "Sol",
+      "sunrise": "Nascer {time}",
+      "sunset": "Pôr {time}",
+      "rise": "nasce {time}",
+      "set": "põe-se {time}"
+    },
+    "script": {
+      "running": "Em curso...",
+      "never_run": "Nunca executado",
+      "last_time": "Última {time}",
+      "yesterday_time": "Ontem {time}",
+      "last_date": "Última {date}"
+    },
+    "camera": {
+      "no_image": "Sem imagem desta câmara",
+      "loading": "A carregar imagem",
+      "live": "Em direto",
+      "recording": "A gravar",
+      "tap_to_view": "Toque para ver",
+      "no_image_yet": "Ainda sem imagem"
+    },
+    "calibration": {
+      "title": "Siga a calibração",
+      "touch_check": "Teste de toque GT911",
+      "hold": "Mantenha cada toque um momento",
+      "crosshair": "Toque na cruz\nPonto {point}/5 - toque {tap}/3",
+      "gently": "Toque suave, um pouco mais",
+      "same": "Toque 3 vezes na mesma cruz",
+      "rejected": "Medição rejeitada; tente de novo",
+      "save_failed": "Falha ao guardar; tente de novo"
+    },
     "ha": {
       "on": "Ligado",
       "off": "Desligado",
+      "unavailable": "Indisponível",
       "climate": {
         "off": "Desligado",
         "heat": "Aquecer",
@@ -201,7 +381,6 @@
         "window_on": "Aberto",
         "window_off": "Fechada"
       },
-      "unavailable": "Indisponível",
       "button": {
         "activate": "Ativar",
         "run": "Executar",

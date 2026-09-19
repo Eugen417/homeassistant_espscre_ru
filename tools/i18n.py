@@ -109,6 +109,11 @@ def check():
             plural = ' | ' in source
             if plural and forms and len(text.split('|')) not in (1, forms):
                 problems.append(f'{code}: {key} needs {forms} forms separated by " | "')
+            if not plural and '|' in text:
+                problems.append(f'{code}: {key} has a | that isn\'t a plural form')
+            # The editor's vue-i18n reads { } and @ as instructions: only placeholders and its {'x'} literals are allowed.
+            if key.startswith('editor.') and re.search(r"[{}@]", re.sub(r"\{'[^']*'\}", '', PLACEHOLDER.sub('', text))):
+                problems.append(f'{code}: {key} has {{, }} or @ outside a placeholder; the editor would misread it')
             if key.startswith('screen.') and drawable:
                 shown = PLACEHOLDER.sub('', text).replace('|', '')
                 unknown = sorted(set(shown) - drawable - {'\n'})
