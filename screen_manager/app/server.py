@@ -19,13 +19,13 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TILE_BACKGROUNDS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
 from core import PAGE_TILE_REPEAT_MIN_FIRMWARE, SLOTS_PER_PAGE, firmware_features, packed_slots, run_tile_event, screen_firmware, version_text
 import header_bar
 import history_card
 import i18n
-from i18n import REQUEST_LANGUAGE, TRANSLATIONS, Region, t
+from i18n import REQUEST_LANGUAGE, TRANSLATIONS, Region, english, screen_t, shown, t
 from zoneinfo import ZoneInfo
 
 
@@ -556,8 +556,9 @@ class HomeAssistant:
 class Manager:
     def __init__(self, ha, path):
         self.ha, self.path = ha, Path(path)
-        # sent: per inbox what the screen holds ({'layout', 'header', 'states', 'rev'}); last: the
-        # last full send; pinged: the last keepalive ping.
+        # sent: per inbox what the screen holds ({'layout', 'header', 'states', 'rev'}); status: how the
+        # delivery went, in English with its key (the editor shows it in its own language, app 0.2.90);
+        # last: the last full send; pinged: the last keepalive ping.
         self.layouts, self.sent, self.status, self.last, self.pinged = {}, {}, {}, {}, {}
         # (entity, hours) -> (monotonic, 24 samples); filled by history_loop, read by sync_one.
         self.histories = {}
@@ -785,7 +786,7 @@ class Manager:
         `on_screen`: the screen reported them itself. The layout message it holds is then brought in step
         without sending it back, which could undo a change it made after reporting this one; its revision
         stays, so the next ping still matches."""
-        base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or 'Home', 'tiles': []}
+        base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or screen_t('screen.status.home'), 'tiles': []}
         layout = validate_layout({**base, 'settings': settings})
         updated = {**self.layouts, inbox: layout}
         self.write_layouts(updated)
@@ -825,15 +826,16 @@ class Manager:
         inbox = self.aliases.get(inbox, inbox)
         screen = self.screen(inbox)
         if screen is None:
-            raise ValueError("This isn't a paired ESP screen. Refresh the overview.")
+            raise ValueError(t('addon.errors.not_paired'))
         view = self.settings_view(screen)
         if not isinstance(changes, dict) or not changes or set(changes) - set(view['keys']):
-            raise ValueError('Unknown screen settings; refresh the management page.')
+            raise ValueError(t('addon.errors.settings.unknown'))
         if view['owner'] == 'screen' and not screen.get('online'):
-            raise ValueError('This screen is offline. You can change its settings once it is back.')
+            raise ValueError(t('addon.errors.settings.offline'))
+        # The entities' names, as Home Assistant shows them (the firmware names them in English).
         missing = [SETTING_ENTITIES[key][1] for key in changes if key in view['unavailable']]
         if missing:
-            raise ValueError(f"{', '.join(missing)} can't be changed now: the entity is off in Home Assistant, or the screen is restarting.")
+            raise ValueError(t('addon.errors.settings.unavailable', names=', '.join(missing)))
         # A setting Home Assistant cannot read (its entity is off) is checked at its default.
         wanted = {**{key: value for key, value in view['values'].items() if value is not None}, **changes}
         if 'brightness' in changes and type(changes['brightness']) is int:
@@ -843,7 +845,7 @@ class Manager:
                     wanted[dim] = min(wanted.get(dim, SETTING_RULES[dim][0]), changes['brightness'])
         merged = validate_settings(wanted)
         if merged['rotation'] and screen.get('board') != 'guition':
-            raise ValueError('Rotation requires a Guition with firmware 0.2.9 or newer.')
+            raise ValueError(t('addon.errors.settings.rotation'))
         if view['owner'] == 'layout':
             self.store_settings(inbox, merged, screen)
             self.ha.changed.set()
@@ -1043,14 +1045,14 @@ class Manager:
         inbox = self.aliases.get(inbox, inbox)
         screen=next((s for s in screens if s['id']==inbox), None)
         if screen is None:
-            raise ValueError("This isn't a paired ESP screen. Refresh the overview.")
+            raise ValueError(t('addon.errors.not_paired'))
         layout = validate_layout(data)
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
         if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and screen.get('board') not in camera_feed.BOXES:
-            raise ValueError('Camera images need a Guition screen.')
+            raise ValueError(t('addon.errors.layout.camera_guition'))
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
-            raise ValueError(f"Install screen firmware {needed} or newer first for these tiles.")
+            raise ValueError(t('addon.errors.layout.firmware_first', version=needed))
         # Settings change through their own call (change_settings). A page from before app 0.2.57 still sends them
         # with the tiles: a screen that owns its settings ignores them, so a stale form never undoes a change
         # made on the screen; other screens keep taking them, as before.
@@ -1069,7 +1071,7 @@ class Manager:
         if 'settings' in layout and 'rotation' not in data.get('settings',{}):
             layout['settings']['rotation']=self.layouts.get(inbox,{}).get('settings',{}).get('rotation',0)
         if layout.get('settings',{}).get('rotation',0) and screen.get('board')!='guition':
-            raise ValueError('Rotation requires a Guition with firmware 0.2.9 or newer.')
+            raise ValueError(t('addon.errors.settings.rotation'))
         # A page from before an option existed sends its tiles without it. It never sends a navigation tile twice
         # (firmware 0.2.65+), so a copy keeps exactly what it was sent with.
         old_list = self.layouts.get(inbox,{}).get('tiles',[])
@@ -1090,21 +1092,20 @@ class Manager:
         layout = validate_layout(layout)
         known = {e['id'] for e in entities} | set(BUILTIN)
         if any(t['entity'] not in known for t in layout['tiles']):
-            raise ValueError('A chosen entity no longer exists. Look up the new entity.')
+            raise ValueError(t('addon.errors.layout.entity_gone'))
         if any(item['type'] == 'entity' and item['entity'] not in known and item['entity'] not in self.ha.states for item in header_items(layout)):
-            raise ValueError('An entity in the top bar no longer exists. Choose a different one.')
+            raise ValueError(t('addon.errors.top_bar.entity_gone'))
         # The screen takes the layout in one message of at most 4096 bytes, which lists every tile's entity id: 48 tiles
         # with long ids can pass every rule above and still never reach the screen (app 0.2.78).
         try:
             encode(self.layout_message(inbox, layout, screen))
         except ValueError:
-            raise ValueError("These tiles' entity IDs are too long together to fit in one message to the screen; "
-                             "remove a few tiles.") from None
+            raise ValueError(t('addon.errors.layout.ids_too_long')) from None
         updated = {**self.layouts, inbox: layout}
         self.write_layouts(updated)
         self.layouts = updated
         self.sent.pop(inbox, None)
-        self.status[inbox] = 'Saved; waiting for sync'
+        self.status[inbox] = english('addon.status.saved')
         self.history_wake.set()
         self.ha.changed.set()
         self.notify()
@@ -1289,7 +1290,7 @@ class Manager:
             screen = self.screen(inbox) or {}
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
-            self.status[inbox]=f"Layout saved; firmware {needed}+ needed for these tiles"
+            self.status[inbox]=english('addon.status.firmware_needed', version=needed)
             return False
         tiles = layout['tiles']
         layout_msg = self.layout_message(inbox, layout, screen)
@@ -1297,7 +1298,7 @@ class Manager:
             encode(layout_msg)
         except ValueError:
             # Saved by an app before 0.2.78, which didn't check this: nothing to retry until the layout changes.
-            self.status[inbox] = 'Layout saved; too large for one message to the screen, remove a few tiles'
+            self.status[inbox] = english('addon.status.too_large')
             return False
         previous = self.sent.get(inbox)
         full = force or not previous or previous['layout'] != layout_msg or dirty is None
@@ -1342,7 +1343,7 @@ class Manager:
             self.last[inbox] = time.monotonic()
         if outgoing:
             self.pinged[inbox] = time.monotonic()
-        self.status[inbox] = 'Sent to Home Assistant'
+        self.status[inbox] = english('addon.status.sent')
         # A screen that answers confirms a new layout at once: a ping after the batch says whether it holds
         # the layout and every tile, or which part is missing (firmware 0.2.49+).
         if sent_layout and self.answers(inbox, screen):
@@ -1426,7 +1427,7 @@ class Manager:
                 before = self.status.get(inbox)
                 if not screen['online']:
                     self.sent.pop(inbox, None)
-                    self.status[inbox] = 'Screen offline; changes saved'
+                    self.status[inbox] = english('addon.status.offline')
                     changed = changed or self.status[inbox] != before
                     continue
                 if inbox not in self.layouts:
@@ -1448,7 +1449,7 @@ class Manager:
                         await self.ping(inbox, screen)
                 except Exception as error:
                     self.sent.pop(inbox, None)
-                    self.status[inbox] = 'Sending failed; retrying automatically'
+                    self.status[inbox] = english('addon.status.retrying')
                     LOG.warning('Retrying screen sync (%s)', type(error).__name__)
                     await asyncio.sleep(1)
                 changed = changed or self.status.get(inbox) != before
@@ -1693,13 +1694,14 @@ def create_app(manager, development=False):
     csrf = secrets.token_urlsafe(32)
     @web.middleware
     async def guard(request, handler):
-        # The editor's language for the messages this request answers with (app 0.2.90).
-        REQUEST_LANGUAGE.set(TRANSLATIONS.resolve(request.headers.get('X-ESP-Screens-Language') or 'en'))
+        # The editor's language for the messages this request answers with (app 0.2.90). An EventSource sends no headers of
+        # its own, so the live updates (/api/events) carry it in the address.
+        REQUEST_LANGUAGE.set(TRANSLATIONS.resolve(request.headers.get('X-ESP-Screens-Language') or request.query.get('language') or 'en'))
         allowed = {'127.0.0.1', '::1'} if development else {'172.30.32.2'}
         if request.remote not in allowed:
-            raise web.HTTPForbidden(text='Open this page through Home Assistant.')
+            raise web.HTTPForbidden(text=t('addon.errors.open_through_ha'))
         if request.method not in {'GET', 'HEAD'} and request.headers.get('X-Screen-CSRF') != csrf:
-            raise web.HTTPForbidden(text='Refresh this page and try again.')
+            raise web.HTTPForbidden(text=t('addon.errors.refresh_page'))
         try:
             response = await handler(request)
         except ValueError as error:
@@ -1707,13 +1709,13 @@ def create_app(manager, development=False):
         # Home Assistant said no, or can't be reached (Identify, Try it, a setting): a sentence the page shows, never a
         # bare 500 with a traceback in the log (app 0.2.78). Refused is a ConnectionError, so it comes first.
         except Refused as error:
-            return web.json_response({'error': f"Home Assistant didn't take it: {error.detail or 'no reason given'}."}, status=400)
+            return web.json_response({'error': t('addon.errors.ha_refused', reason=error.detail or t('addon.errors.no_reason'))}, status=400)
         except (ConnectionError, TimeoutError):
-            return web.json_response({'error': "Home Assistant isn't reachable right now. Try again in a moment."}, status=503)
+            return web.json_response({'error': t('addon.errors.ha_unreachable')}, status=503)
         except web.HTTPRequestEntityTooLarge:
-            return web.json_response({'error': 'That request is too large.'}, status=413)
+            return web.json_response({'error': t('addon.errors.too_large')}, status=413)
         except (TypeError, KeyError):
-            return web.json_response({'error': 'Invalid input. Check the name, board, and chosen tiles.'}, status=400)
+            return web.json_response({'error': t('addon.errors.invalid_input')}, status=400)
         if response.prepared:
             return response  # streamed (SSE) responses set their headers before prepare()
         response.headers['Cache-Control'] = 'no-store'
@@ -1747,9 +1749,13 @@ def create_app(manager, development=False):
             screens = manager.screens()
         profiles = manager.firmware.profile_names()
         for screen in screens:
-            screen['layout'] = manager.layouts.get(screen['id'], {'title': 'Home', 'tiles': []})
+            # A screen without tiles yet: the title the screen itself shows without one, in its language (app 0.2.90).
+            screen['layout'] = manager.layouts.get(screen['id'], {'title': screen_t('screen.status.home'), 'tiles': []})
             screen['settings'] = manager.settings_view(screen)
-            screen['delivery'] = manager.status.get(screen['id'], 'Choose your first tiles')
+            # The delivery and our own word for a screen that reports nothing, in the editor's language (app 0.2.90).
+            status = manager.status.get(screen['id'])
+            screen['delivery'] = shown(status) if status else t('addon.status.first_tiles')
+            screen['status'] = shown(screen.get('status'))
             screen['update'] = manager.updates.state_for(screen, profiles)
             screen['alert_action'] = alert_service(screen.get('node'))
             screen['dismiss_action'] = alert_service(screen.get('node'), 'dismiss_alert')
@@ -1769,14 +1775,16 @@ def create_app(manager, development=False):
         screens, entities = manager.inventory()
         payload = light_payload(screens)
         payload['entities'] = entities
-        payload['backgrounds'] = TILE_BACKGROUNDS
+        # Labels and help in the editor's language (app 0.2.90); ids and keys stay as they are.
+        payload['backgrounds'] = backgrounds()
         payload['controls'] = controls_catalogue()
         payload['icons'] = tile_icons.editor()
         payload['alerts'] = alert_reference()
         # What's new for the Update badge: here only, not in every live update (app 0.2.78).
         payload['changelog'] = manager.updates.changelog
         payload['claude_skill'] = claude_skill.status(manager.skill_dir)
-        payload['builtin'] = [{'id': key, 'name': name, 'device': 'Built into the screen', 'area': '', 'state': 'ok'} for key, name in BUILTIN.items()]
+        payload['builtin'] = [{'id': key, 'name': builtin_name(key, t), 'device': t('addon.labels.built_into_screen'), 'area': '', 'state': 'ok'}
+                              for key in BUILTIN]
         payload['header'] = {**header_bar.catalogue(), 'suggestions': {
             screen['id']: header_bar.suggestions(screen, entities, manager.ha.states, manager.registry_index()) for screen in payload['screens']}}
         return web.json_response(payload)
@@ -1856,9 +1864,9 @@ def create_app(manager, development=False):
         try:
             view = await manager.change_settings(request.match_info['inbox'], data.get('settings') if isinstance(data, dict) else None)
         except Refused as error:
-            raise ValueError(f"Home Assistant didn't take the change: {error.detail or 'no reason given'}.") from error
+            raise ValueError(t('addon.errors.ha_refused_change', reason=error.detail or t('addon.errors.no_reason'))) from error
         except (ConnectionError, TimeoutError) as error:
-            raise ValueError("Home Assistant isn't reachable right now. Try again in a moment.") from error
+            raise ValueError(t('addon.errors.ha_unreachable')) from error
         return web.json_response(view)
     async def update_screen(request):
         data = await request.json() if request.can_read_body else {}
@@ -1871,10 +1879,10 @@ def create_app(manager, development=False):
     async def inspector(request):
         screen=manager.screen(request.match_info['inbox'])
         inbox=manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
-        if screen is None: raise ValueError('Unknown screen.')
+        if screen is None: raise ValueError(t('addon.errors.unknown_screen'))
         layout=manager.layouts.get(inbox,{'tiles':[]})
-        return web.json_response({'screen':screen,
-            'delivery':manager.status.get(inbox), 'layout':layout,
+        return web.json_response({'screen':{**screen, 'status':shown(screen.get('status'))},
+            'delivery':shown(manager.status.get(inbox)), 'layout':layout,
             'tiles':[{'entity':t['entity'],'state':manager.ha.states.get(t['entity'],{}).get('state'),
                       # Home Assistant's word for the state, as its own pages show it ("Heat/Cool", app 0.2.67).
                       'word':state_word(t['entity'],manager.ha.states.get(t['entity'],{}).get('state'),manager.ha.states.get(t['entity'],{}).get('attributes'),
@@ -1899,23 +1907,26 @@ def create_app(manager, development=False):
     def one_alert_target(inbox):
         screen = manager.screen(inbox)
         if screen is None:
-            raise ValueError('Unknown screen.')
+            raise ValueError(t('addon.errors.unknown_screen'))
         ready, skipped = alert_targets([screen])
         if not ready:
-            raise ValueError(f"{screen['name']} can't show an alert: {skipped[0][1] if skipped else 'not ready'}.")
+            raise ValueError(t('addon.errors.alerts.cannot_show', name=screen['name'],
+                               reason=skipped[0][1] if skipped else t('addon.errors.alerts.not_ready')))
         return ready[0]
     async def identify(request):
-        """Identify (app 0.2.73): the screen shows a short card and blinks its backlight, so you know which one it is."""
+        """Identify (app 0.2.73): the screen shows a short card and blinks its backlight, so you know which one it is. The
+        card speaks the screens' language (app 0.2.90)."""
         screen = one_alert_target(request.match_info['inbox'])
-        data, _ = alert_data({'title': f"This is {screen['name']}", 'subtitle': 'Identify, from ESP Screens', 'icon': 'bell-ring',
-                              'color': 'blue', 'button_text': 'OK', 'timeout': 8, 'flash': True})
+        data, _ = alert_data({'title': screen_t('addon.screen.identify.title', name=screen['name']),
+                              'subtitle': screen_t('addon.screen.identify.subtitle'), 'icon': 'bell-ring',
+                              'color': 'blue', 'button_text': screen_t('screen.alert.ok'), 'timeout': 8, 'flash': True})
         await manager.ha.call(alert_service(screen['node']), data)
         return web.json_response({'ok': True})
     async def test_alert(request):
         """Alerts → Try it (app 0.2.73): one alert to one screen or to every screen, with the fields an automation sends."""
         body = await request.json()
         if not isinstance(body, dict):
-            raise ValueError('Invalid alert.')
+            raise ValueError(t('addon.errors.alerts.invalid'))
         data = body.get('data') if isinstance(body.get('data'), dict) else {}
         if body.get('screen') == 'all':
             return web.json_response(await manager.broadcast(BROADCAST_SHOW, data))
@@ -1937,7 +1948,7 @@ def create_app(manager, development=False):
     async def firmware_override_save(request):
         data = await request.json()
         if not isinstance(data, dict):
-            raise ValueError('Invalid override data.')
+            raise ValueError(t('addon.errors.firmware.override_invalid'))
         return web.json_response(manager.firmware.save_override(request.match_info['file'], data.get('content')))
     async def firmware_create(request):
         # Profile, missing wifi secrets and (with a USB port or the download) the build and flash in one request; the

@@ -391,7 +391,560 @@
   "addon": {
     "errors": {
       "language_choice": "Choose a language from the list.",
-      "region_choice": "Choose a clock and a number format from the lists."
+      "region_choice": "Choose a clock and a number format from the lists.",
+      "open_through_ha": "Open this page through Home Assistant.",
+      "refresh_page": "Refresh this page and try again.",
+      "ha_refused": "Home Assistant didn't take it: {reason}.",
+      "ha_refused_change": "Home Assistant didn't take the change: {reason}.",
+      "no_reason": "no reason given",
+      "ha_unreachable": "Home Assistant isn't reachable right now. Try again in a moment.",
+      "too_large": "That request is too large.",
+      "invalid_input": "Invalid input. Check the name, board, and chosen tiles.",
+      "unknown_screen": "Unknown screen.",
+      "not_paired": "This isn't a paired ESP screen. Refresh the overview.",
+      "choose_icon": "Choose an icon from the list.",
+      "skill_not_written": "Couldn't write the skill to {folder} ({reason}).",
+      "settings": {
+        "unknown": "Unknown screen settings; refresh the management page.",
+        "invalid_value": "Invalid value for {setting}.",
+        "dim_above_normal": "Standby and night brightness may not be higher than normal.",
+        "offline": "This screen is offline. You can change its settings once it is back.",
+        "unavailable": "{names} can't be changed now: the entity is off in Home Assistant, or the screen is restarting.",
+        "rotation": "Rotation requires a Guition with firmware 0.2.9 or newer."
+      },
+      "layout": {
+        "invalid": "Invalid layout.",
+        "title": "Give the screen a title of at most 96 bytes.",
+        "tiles_max": "Choose at most 1 tile. | Choose at most {n} tiles.",
+        "unsupported": "This entity isn't supported.",
+        "once": "An entity can only appear once on a screen.",
+        "tile_name": "A tile name may contain at most 80 bytes.",
+        "unknown_settings": "Unknown tile settings.",
+        "navigation_size": "A navigation tile is single or double width.",
+        "background": "Choose a pastel background color from the palette.",
+        "invalid_setting": "Invalid tile setting: {setting}",
+        "no_toggle": "This entity doesn't support an on/off action.",
+        "builtin_action": "A built-in card can't perform an action.",
+        "no_mini_slider": "This entity doesn't support a mini-slider.",
+        "history_hours": "History: choose 1, 6, or 24 hours.",
+        "watch_or_slider": "Choose large value or mini-slider.",
+        "no_direct_control": "This entity doesn't support that direct control.",
+        "position": "Invalid tile position; refresh the management page.",
+        "full_page_top": "A full-page tile starts at the top of its page.",
+        "wide_left": "A double-width tile starts in the left column.",
+        "same_spot": "Two tiles are in the same spot.",
+        "pages": "A screen has 1 page. | A screen has 1 to {n} pages.",
+        "eight_pages": "These tiles don't fit on eight pages; remove a tile or make one smaller.",
+        "camera_guition": "Camera images need a Guition screen.",
+        "firmware_first": "Install screen firmware {version} or newer first for these tiles.",
+        "entity_gone": "A chosen entity no longer exists. Look up the new entity.",
+        "ids_too_long": "These tiles' entity IDs are too long together to fit in one message to the screen; remove a few tiles."
+      },
+      "top_bar": {
+        "invalid": "Invalid top bar; refresh the management page.",
+        "full": "The top bar has room for at most 1 item. | The top bar has room for at most {n} items.",
+        "invalid_setting": "Invalid setting in the top bar.",
+        "unknown_setting": "Unknown setting in the top bar; refresh the management page.",
+        "entity": "This entity can't go in the top bar.",
+        "unknown_item": "Unknown item in the top bar; refresh the management page.",
+        "twice": "This item is already in the top bar.",
+        "entity_gone": "An entity in the top bar no longer exists. Choose a different one."
+      },
+      "tap_action": {
+        "choose": "Choose an action from the list.",
+        "fields_max": "An action on a tap sets at most 1 field. | An action on a tap sets at most {n} fields.",
+        "field_not_allowed": "{field} is not a field an action on a tap can set.",
+        "unsendable": "A value of the action is something the screen cannot send.",
+        "too_long": "The values of the action are too long for the screen."
+      },
+      "events": {
+        "none_paired": "none yet",
+        "name_the_screen": "Name the screen. Paired: {screens}.",
+        "no_such_screen": "No screen called \"{name}\". Paired: {screens}.",
+        "several_screens": "\"{name}\" fits more than one screen: {screens}.",
+        "name_the_entity": "Name the entity.",
+        "not_for_a_screen": "{entity} cannot go on a screen.",
+        "not_on_screen": "{entity} is not on this screen.",
+        "add_it_first": "{entity} is not on this screen; add it first.",
+        "not_on_spot": "{entity} is not on spot {slot}.",
+        "not_on_page": "{entity} is not on page {page}.",
+        "move_where": "Name the page or the spot to move it to.",
+        "spot_taken": "That spot is taken by {entity}; give another spot or move that one first.",
+        "page_not_empty": "Page {page} is not empty; a full-page tile needs a page of its own.",
+        "no_empty_page": "No page is empty; a full-page tile needs a page of its own.",
+        "page_full": "Page {page} is full.",
+        "no_room": "This screen has no room left.",
+        "screen_full": "This screen already has 1 tile; remove one first. | This screen already has {n} tiles; remove one first.",
+        "page_range": "Choose a page between 1 and {last}.",
+        "spot_range": "Choose a spot between 0 and {last}.",
+        "row_needs_page": "Name the page for that row or column.",
+        "row_range": "Choose a row between 1 and {last}.",
+        "column": "The column is left or right.",
+        "full_page_alone": "A full-page tile takes all of page {page}; nothing else fits there.",
+        "does_not_fit": "That does not fit on page {page}; a double-width tile takes two spots.",
+        "order_needed": "Give the entities in the order you want them.",
+        "order_not_on_screen": "Not on this screen: {entities}.",
+        "order_not_on_page": "Not on page {page}: {entities}. Move it there first.",
+        "named_too_often": "Named more often than it is on this screen: {entities}.",
+        "named_too_often_page": "Named more often than it is on page {page}: {entities}."
+      },
+      "home_assistant": {
+        "action_not_offered": "Home Assistant doesn't offer {action} for {name}. Choose an action from the list.",
+        "action_answers_only": "{action} only answers with data, which a screen can't show.",
+        "no_such_field": "Home Assistant has no field {field} in {action} for {name}.",
+        "field_needed": "{action} needs a value for {field}.",
+        "no_on_off": "Home Assistant can't turn {name} on and off, so On / off would do nothing. Choose another tap action.",
+        "no_small_slider": "{name} has nothing a small slider can change in Home Assistant.",
+        "no_graph": "{name} has no numbers to draw a graph of.",
+        "no_forecast": "{name} has no daily forecast in Home Assistant.",
+        "no_control": "Home Assistant doesn't offer that direct control for {name}."
+      },
+      "alerts": {
+        "invalid": "Invalid alert.",
+        "cannot_show": "{name} can't show an alert: {reason}.",
+        "no_device_name": "device name unknown",
+        "offline": "offline",
+        "firmware": "firmware {version}",
+        "unknown_version": "unknown",
+        "not_ready": "not ready"
+      },
+      "firmware": {
+        "board_and_name": "Choose a board and a unique name (lowercase letters, digits, dashes; 30 characters max).",
+        "friendly_name": "Give the screen a recognizable name (60 characters max).",
+        "choose_profile": "Choose an existing YAML profile.",
+        "profile_missing": "Profile doesn't exist in the ESPHome folder.",
+        "secrets_invalid": "secrets.yaml in the ESPHome folder isn't valid YAML. Fix the file first; it won't be overwritten.",
+        "wifi_needed": "Fill in the Wi-Fi name and password; they'll be saved in ESPHome secrets.yaml.",
+        "wifi_not_set": "Wi-Fi couldn't be set in secrets.yaml. Fill in wifi_ssid and wifi_password there yourself.",
+        "name_exists": "This name already exists. Use the existing profile for updates.",
+        "override_exists": "This name already has a local override. Restore or remove it before creating a new screen with this name.",
+        "override_symlink": "The local override is a symbolic link; replace it with a regular file first.",
+        "other_include": "This profile already has a different local_overrides include.",
+        "profile_invalid": "The screen profile isn't valid YAML; fix it before adding an override.",
+        "no_packages": "This profile has no packages section that ESP Screens can extend.",
+        "override_invalid": "Invalid override data.",
+        "yaml_needed": "Enter YAML text first.",
+        "override_too_large": "The override is too large. Keep it below 12 KB.",
+        "yaml_error_line": "YAML error on line {line}: {problem}.",
+        "yaml_error": "YAML error: {problem}.",
+        "invalid_yaml": "invalid YAML",
+        "override_object": "The override must contain a YAML object, for example display: or substitutions:.",
+        "sections_managed": "These sections stay managed by ESP Screens: {names}.",
+        "substitutions_managed": "These substitutions stay managed by ESP Screens: {names}.",
+        "usb_port": "Choose the connected USB port from the list.",
+        "busy_wait": "A build or installation is already running. Wait for it to finish.",
+        "busy": "A build or installation is already running.",
+        "no_esphome": "The ESPHome CLI is missing from this installation.",
+        "still_building": "The firmware is still being built. Download it when the build has finished.",
+        "build_first": "Build the firmware first; the download appears when the build has finished.",
+        "unknown_action": "Unknown firmware action.",
+        "host": "Enter the IP address or hostname of the intended screen."
+      },
+      "updates": {
+        "automatic": "Choose on or off for automatic updates.",
+        "busy": "An update is already running. Wait for it to finish.",
+        "unknown_screen": "Unknown screen. Refresh the overview.",
+        "offline": "This screen is offline; updating is possible once it's back.",
+        "latest": "This screen already has the latest firmware.",
+        "enter_ip": "Enter this screen's IP address.",
+        "no_profile": "No ESPHome profile found for this screen. Check the name in the ESPHome folder.",
+        "ip_unknown": "IP address unknown. Enter it once; new firmware reports it itself after that.",
+        "all_updated": "All reachable screens are already updated."
+      }
+    },
+    "status": {
+      "first_tiles": "Choose your first tiles",
+      "saved": "Saved; waiting for sync",
+      "firmware_needed": "Layout saved; firmware {version}+ needed for these tiles",
+      "too_large": "Layout saved; too large for one message to the screen, remove a few tiles",
+      "sent": "Sent to Home Assistant",
+      "offline": "Screen offline; changes saved",
+      "retrying": "Sending failed; retrying automatically"
+    },
+    "updates": {
+      "offline": "Screen was offline; will retry next time.",
+      "unknown_target": "Profile or IP address unknown; update this screen manually.",
+      "build_failed": "Build or install failed; see the log under Firmware & USB.",
+      "no_report": "Screen didn't report back with firmware {version}; check the screen.",
+      "dropped_off": "Screen dropped off after the update; check the screen.",
+      "updated": "Updated to firmware {version}."
+    },
+    "notify": {
+      "update_stopped": "Automatic update stopped at {name}: {reason} The remaining screens were not touched."
+    },
+    "labels": {
+      "built_into_screen": "Built into the screen",
+      "backgrounds": {
+        "auto": "Default",
+        "none": "None",
+        "red": "Red",
+        "orange": "Orange",
+        "yellow": "Yellow",
+        "green": "Green",
+        "mint": "Mint",
+        "blue": "Blue",
+        "purple": "Purple",
+        "pink": "Pink",
+        "gray": "Gray"
+      },
+      "controls": {
+        "none": "None",
+        "climate": {
+          "setpoint": "Temperature − / +",
+          "mode": "Off, heat, cool"
+        },
+        "switch": {
+          "toggle": "On/off switch"
+        },
+        "input_boolean": {
+          "toggle": "On/off switch"
+        },
+        "light": {
+          "toggle": "On/off switch",
+          "brightness": "Brightness slider"
+        },
+        "fan": {
+          "toggle": "On/off switch",
+          "speed": "Speed slider"
+        },
+        "vacuum": {
+          "buttons": "Start, stop, dock"
+        },
+        "cover": {
+          "buttons": "Open, stop, close",
+          "position": "Position slider"
+        },
+        "media_player": {
+          "volume": "Volume and mute",
+          "playback": "Previous, play/pause, next"
+        },
+        "number": {
+          "stepper": "Value − / +",
+          "slider": "Slider"
+        },
+        "input_number": {
+          "stepper": "Value − / +",
+          "slider": "Slider"
+        },
+        "select": {
+          "stepper": "Previous / next choice"
+        },
+        "input_select": {
+          "stepper": "Previous / next choice"
+        },
+        "timer": {
+          "buttons": "Start/pause and cancel"
+        },
+        "scene": {
+          "run": "Activate button"
+        },
+        "script": {
+          "run": "Run button"
+        },
+        "button": {
+          "run": "Press button"
+        },
+        "input_button": {
+          "run": "Press button"
+        }
+      },
+      "top_bar": {
+        "builtin": {
+          "clock": "Time",
+          "analog": "Analog clock",
+          "date": "Date"
+        },
+        "contents": {
+          "state": "Status",
+          "last_changed": "Last changed"
+        },
+        "shows": {
+          "always": "Always",
+          "active": "Only when active"
+        },
+        "suggestions": {
+          "temperature": "Temperature",
+          "humidity": "Humidity",
+          "power": "Power usage",
+          "motion": "Last motion",
+          "weather": "Weather",
+          "people_home": "People home",
+          "sun": "Sunrise and sunset",
+          "co2": "CO₂"
+        }
+      }
+    },
+    "alerts": {
+      "fields": {
+        "title": {
+          "label": "Title",
+          "help": "A single line at the top of the card; what doesn't fit gets an ellipsis. Empty becomes \"Notification\".",
+          "example": "Someone is at the door"
+        },
+        "subtitle": {
+          "label": "Subtitle",
+          "help": "Explanation under the title, across multiple lines; a line break is fine. Empty is fine.",
+          "example": "Door 3, back"
+        },
+        "icon": {
+          "label": "Icon",
+          "help": "A name from the list, also as mdi:name or as a hex codepoint (F12E6). Unknown or empty gives the warning triangle."
+        },
+        "color": {
+          "label": "Color",
+          "help": "One of the nine pastel colors of the tiles. Empty gives the white card."
+        },
+        "button_text": {
+          "label": "Button text",
+          "help": "The text on the button. Empty is \"OK\".",
+          "example": "Coming"
+        },
+        "timeout": {
+          "label": "Timeout",
+          "help": "Seconds after which the card disappears on its own. 0 waits for the button, however long that takes. The button always closes it immediately, even with a timeout."
+        },
+        "flash": {
+          "label": "Blinking",
+          "help": "On makes the backlight blink four times when the alert arrives; the screen then just stays on."
+        },
+        "camera": {
+          "label": "Camera",
+          "help": "A camera or image entity. A Guition with firmware 0.2.57+ shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. Other screens show the alert without it. Only through the esp_screens_show_alert event."
+        }
+      },
+      "endings": {
+        "ok": "The button was pressed",
+        "timeout": "The timeout ran out",
+        "replaced": "A new alert came over it",
+        "remote": "dismiss_alert from Home Assistant"
+      }
+    },
+    "icons": {
+      "groups": {
+        "lighting": "Lighting",
+        "rooms": "Rooms",
+        "climate": "Climate",
+        "weather": "Weather",
+        "media_and_music": "Media and music",
+        "security": "Security",
+        "appliances": "Appliances",
+        "energy": "Energy",
+        "window_coverings": "Window coverings",
+        "garden_and_pets": "Garden and pets",
+        "people_and_travel": "People and travel",
+        "other": "Other"
+      },
+      "names": {
+        "lightbulb": "Light bulb",
+        "lightbulb_group": "Lights",
+        "ceiling_light": "Ceiling light",
+        "chandelier": "Chandelier",
+        "lamp": "Table lamp",
+        "floor_lamp": "Floor lamp",
+        "desk_lamp": "Desk lamp",
+        "wall_sconce_flat": "Wall light",
+        "light_recessed": "Recessed light",
+        "spotlight_beam": "Spotlight",
+        "led_strip_variant": "LED strip",
+        "outdoor_lamp": "Outdoor light",
+        "home": "House",
+        "sofa": "Living room",
+        "bed": "Bedroom",
+        "silverware_fork_knife": "Dining room",
+        "chef_hat": "Kitchen",
+        "shower": "Shower",
+        "bathtub": "Bathroom",
+        "toilet": "Toilet",
+        "desk": "Office",
+        "garage": "Garage",
+        "fireplace": "Fireplace",
+        "thermometer": "Temperature",
+        "thermostat": "Thermostat",
+        "air_conditioner": "AC",
+        "radiator": "Radiator",
+        "heat_pump": "Heat pump",
+        "fire": "Heating",
+        "snowflake": "Cooling",
+        "water_percent": "Humidity",
+        "fan": "Fan",
+        "ceiling_fan": "Ceiling fan",
+        "air_purifier": "Air purifier",
+        "molecule_co2": "CO₂",
+        "weather_sunny": "Sun",
+        "weather_partly_cloudy": "Partly cloudy",
+        "weather_cloudy": "Cloudy",
+        "weather_rainy": "Rain",
+        "weather_snowy": "Snow",
+        "weather_windy": "Wind",
+        "weather_night": "Night",
+        "weather_sunset_up": "Sunrise",
+        "music_note": "Music",
+        "music": "Music notes",
+        "playlist_music": "Playlist",
+        "album": "Album",
+        "record_player": "Record player",
+        "spotify": "Spotify",
+        "radio": "Radio",
+        "podcast": "Podcast",
+        "speaker": "Speaker",
+        "speaker_multiple": "Speakers",
+        "soundbar": "Soundbar",
+        "headphones": "Headphones",
+        "piano": "Piano",
+        "guitar_acoustic": "Guitar",
+        "television": "TV",
+        "projector": "Projector",
+        "movie_open": "Movie",
+        "cast": "Cast",
+        "gamepad_variant": "Game console",
+        "remote_tv": "Remote control",
+        "lock": "Lock",
+        "lock_open_variant": "Lock open",
+        "shield_home": "Alarm",
+        "alarm_light": "Alarm light",
+        "bell": "Bell",
+        "doorbell": "Doorbell",
+        "cctv": "Camera",
+        "motion_sensor": "Motion sensor",
+        "door_closed": "Door",
+        "door_open": "Door open",
+        "window_closed_variant": "Window",
+        "smoke_detector": "Smoke detector",
+        "water_alert": "Water leak",
+        "washing_machine": "Washing machine",
+        "tumble_dryer": "Dryer",
+        "dishwasher": "Dishwasher",
+        "fridge": "Fridge",
+        "stove": "Stove",
+        "microwave": "Microwave",
+        "toaster_oven": "Oven",
+        "coffee_maker": "Coffee",
+        "kettle": "Kettle",
+        "robot_vacuum": "Robot vacuum",
+        "robot_mower": "Robot mower",
+        "printer_3d": "3D printer",
+        "power_plug": "Plug",
+        "power_socket_eu": "Socket",
+        "laptop": "Laptop",
+        "router_wireless": "Router",
+        "flash": "Power",
+        "solar_power": "Solar power",
+        "solar_panel": "Solar panels",
+        "home_battery": "Home battery",
+        "battery_high": "Battery",
+        "ev_station": "Charging station",
+        "car_electric": "Electric car",
+        "meter_electric": "Power meter",
+        "meter_gas": "Gas meter",
+        "water": "Water",
+        "water_boiler": "Boiler",
+        "gauge": "Meter",
+        "window_shutter": "Shutter",
+        "window_shutter_open": "Shutter open",
+        "blinds": "Blinds",
+        "blinds_open": "Blinds open",
+        "roller_shade_closed": "Roller blind",
+        "curtains": "Curtains",
+        "curtains_closed": "Curtains closed",
+        "awning_outline": "Awning",
+        "flower": "Flower",
+        "tree": "Tree",
+        "sprout": "Plant",
+        "grass": "Lawn",
+        "sprinkler": "Sprinkler",
+        "pool": "Pool",
+        "grill": "Barbecue",
+        "mailbox": "Mailbox",
+        "trash_can": "Trash",
+        "recycle": "Recycling",
+        "dog": "Dog",
+        "cat": "Cat",
+        "account": "Person",
+        "account_group": "Family",
+        "account_child": "Child",
+        "home_account": "Home",
+        "sleep": "Sleeping",
+        "run": "Exercising",
+        "briefcase": "Work",
+        "car": "Car",
+        "bike": "Bike",
+        "airplane": "Vacation",
+        "map_marker": "Location",
+        "power": "On/off",
+        "toggle_switch": "Switch",
+        "gesture_tap_button": "Button",
+        "play": "Start",
+        "script_text": "Script",
+        "palette": "Scene",
+        "alarm": "Alarm clock",
+        "clock_outline": "Clock",
+        "timer_outline": "Timer",
+        "calendar": "Calendar",
+        "bell_ring": "Notification",
+        "heart": "Favorite",
+        "alert_outline": "Warning",
+        "cog": "Settings",
+        "broom": "Cleaning"
+      }
+    },
+    "screen": {
+      "builtin": {
+        "clock": "Clock",
+        "page": "Go to page {page}"
+      },
+      "identify": {
+        "title": "This is {name}",
+        "subtitle": "Identify, from ESP Screens"
+      },
+      "script_running": "Running",
+      "states": {
+        "locking": "Locking",
+        "unlocking": "Unlocking",
+        "jammed": "Jammed",
+        "buffering": "Buffering",
+        "returning": "Returning",
+        "error": "Error",
+        "disarmed": "Disarmed",
+        "armed_home": "Armed home",
+        "armed_away": "Armed away",
+        "armed_night": "Armed night",
+        "armed_vacation": "Armed vacation",
+        "armed": "Armed",
+        "arming": "Arming",
+        "pending": "Pending",
+        "triggered": "Triggered",
+        "active": "Active",
+        "up": "Up",
+        "down": "Down",
+        "unknown": "Unknown"
+      },
+      "history": {
+        "other": "Other"
+      },
+      "vacuum": {
+        "vacuum": "Vacuum",
+        "vac_and_mop": "Vac & mop",
+        "vac_then_mop": "Vac, then mop",
+        "mop": "Mop",
+        "custom": "Custom",
+        "smart": "Smart",
+        "min": "Min",
+        "slight": "Slight",
+        "low": "Low",
+        "mild": "Mild",
+        "medium": "Medium",
+        "moderate": "Moderate",
+        "standard": "Standard",
+        "high": "High",
+        "intense": "Intense",
+        "extreme": "Extreme",
+        "ultra_high": "Ultra high",
+        "silent": "Silent",
+        "gentle": "Gentle",
+        "strong": "Strong",
+        "max_plus": "Max+",
+        "auto": "Auto"
+      }
     }
   },
   "editor": {

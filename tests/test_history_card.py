@@ -246,7 +246,7 @@ class Messages(unittest.TestCase):
         message = hc.timeline('binary_sensor.hallway_motion', 168, changes, 0, end, AMSTERDAM, {'device_class': 'motion'})
         self.assertLess(time.monotonic() - began, 2.0)
         self.assertLessEqual(len(message['seg']), 96)
-        self.assertEqual([(label, seconds) for label, _, seconds in message['states']], [('Motion', end // 2), ('No motion', end // 2)])
+        self.assertEqual([(label, seconds) for label, _, seconds in message['states']], [('Detected', end // 2), ('Clear', end // 2)])
         self.assertEqual(message['began'], end // 60 - 1, 'the motion already on at the start did not begin in the range')
         self.assertLess(len(core.encode(message).encode()), 1024)
 

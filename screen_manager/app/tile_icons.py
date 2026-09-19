@@ -8,7 +8,10 @@ fonts/materialdesignicons-webfont.ttf. Firmware 0.2.18+ carries every glyph here
 
 import re
 
-# (group, ((MDI name, codepoint, label), ...)) in picker order.
+from i18n import t
+
+# (group, ((MDI name, codepoint, label), ...)) in picker order. The labels in English, as the Claude skill writes them; the
+# editor's picker gets them in its language (editor(), app 0.2.90).
 GROUPS = (
     ('Lighting', (
         ('lightbulb', 'F0335', 'Light bulb'),
@@ -493,9 +496,15 @@ def ha_icon(attributes):
     icon = attributes.get('icon') if isinstance(attributes, dict) else None
     return GLYPHS.get(icon[4:]) if isinstance(icon, str) and icon.startswith('mdi:') else None
 
+def label_key(name):
+    """The translation key of an icon's label ('ceiling-light'), or of a group's ('Media and music')."""
+    return re.sub(r'[^a-z0-9]+', '_', name.lower()).strip('_')
+
 def editor():
-    """Picker groups plus what the mockup needs to predict the screen's own icons."""
-    return {'groups': [{'label': group, 'icons': [{'name': name, 'cp': codepoint, 'label': label} for name, codepoint, label in icons]}
+    """Picker groups plus what the mockup needs to predict the screen's own icons; the labels in the editor's language."""
+    return {'groups': [{'label': t(f'addon.icons.groups.{label_key(group)}'),
+                        'icons': [{'name': name, 'cp': codepoint, 'label': t(f'addon.icons.names.{label_key(name)}')}
+                                  for name, codepoint, _ in icons]}
                        for group, icons in GROUPS],
             'defaults': {domain: GLYPHS[name] for domain, name in DEFAULTS.items()}, 'fallback': GLYPHS[FALLBACK],
             'builtin': {entity: GLYPHS[name] for entity, name in BUILTIN_TILES.items()},

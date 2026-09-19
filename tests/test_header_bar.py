@@ -90,7 +90,8 @@ class TextTests(unittest.TestCase):
             ('sensor.h', state('unavailable', unit_of_measurement='%'), ('—', None)),
             ('binary_sensor.door', state('on', device_class='door'), ('Open', None)),
             ('binary_sensor.door', state('off', device_class='door'), ('Closed', None)),
-            ('binary_sensor.smoke', state('on', device_class='smoke'), ('Smoke', None)),
+            # Home Assistant's own words for the class (screen.ha.binary), as the screen's tiles say them (app 0.2.90).
+            ('binary_sensor.smoke', state('on', device_class='smoke'), ('Detected', None)),
             ('binary_sensor.something', state('off'), ('Off', None)),
             ('alarm_control_panel.house', state('armed_away'), ('Armed away', None)),
             ('alarm_control_panel.house', state('disarmed'), ('Disarmed', None)),

@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import zipfile
 
+from i18n import t
 import tile_icons
 from core import (ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
@@ -433,5 +434,5 @@ def install(directory):
         temp.write_text(text(), encoding='utf8')
         temp.replace(directory / 'SKILL.md')
     except OSError as error:
-        raise ValueError(f"Couldn't write the skill to {directory} ({error.strerror or type(error).__name__}).") from error
+        raise ValueError(t('addon.errors.skill_not_written', folder=directory, reason=error.strerror or type(error).__name__)) from error
     return {**status(directory), 'restart': restart}

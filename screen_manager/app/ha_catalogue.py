@@ -13,6 +13,7 @@ import core
 from core import attribute_word, state_word
 import header_bar
 import history_card
+from i18n import t
 
 # Screen widgets and the Home Assistant action behind them: (action, field or None). A widget fits an entity when Home
 # Assistant lists one of its actions for it, and, where a field is named, offers that field for the entity.
@@ -253,20 +254,20 @@ def action_problem(entity_id, label, action, state, actions, services):
     if actions is None:
         return None
     if name not in actions:
-        return f"Home Assistant doesn't offer {name} for {label}. Choose an action from the list."
+        return t('addon.errors.home_assistant.action_not_offered', action=name, name=label)
     action_domain, service = name.split('.', 1)
     description = ((services or {}).get(action_domain) or {}).get(service)
     if description is None:
         return None
     if answers_only(description):
-        return f"{name} only answers with data, which a screen can't show."
+        return t('addon.errors.home_assistant.action_answers_only', action=name)
     fields = dict(fields_for(description, (state or {}).get('attributes') or {}))
     for key in data:
         if key not in fields:
-            return f"Home Assistant has no field {key} in {name} for {label}."
+            return t('addon.errors.home_assistant.no_such_field', field=key, action=name, name=label)
     for key, field in fields.items():
         if field.get('required') and key not in data:
-            return f"{name} needs a value for {key}."
+            return t('addon.errors.home_assistant.field_needed', action=name, field=key)
     return None
 
 
@@ -274,14 +275,14 @@ def refusal(entity_id, name, key, value):
     """The sentence a save or a tile event gets for a setting Home Assistant doesn't support for this entity."""
     label = name or entity_id
     if key == 'tap':
-        return f"Home Assistant can't turn {label} on and off, so On / off would do nothing. Choose another tap action."
+        return t('addon.errors.home_assistant.no_on_off', name=label)
     if key == 'inline':
-        return f"{label} has nothing a small slider can change in Home Assistant."
+        return t('addon.errors.home_assistant.no_small_slider', name=label)
     if key == 'display' and value == 'graph':
-        return f"{label} has no numbers to draw a graph of."
+        return t('addon.errors.home_assistant.no_graph', name=label)
     if key == 'display' and value == 'forecast':
-        return f"{label} has no daily forecast in Home Assistant."
-    return f"Home Assistant doesn't offer that direct control for {label}."
+        return t('addon.errors.home_assistant.no_forecast', name=label)
+    return t('addon.errors.home_assistant.no_control', name=label)
 
 
 def unsupported(tile, previous, caps):
