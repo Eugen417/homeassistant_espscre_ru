@@ -200,6 +200,28 @@ def ha_sources():
     return sources
 
 
+# The words Home Assistant's frontend itself shows (its own translation files, not the backend's).
+FRONTEND_SOURCES = {'unavailable': 'state.default.unavailable', 'button.activate': 'ui.card.scene.activate',
+                    'button.run': 'ui.card.script.run', 'button.press': 'ui.card.button.press'}
+
+
+def frontend_words(url, codes):
+    """{code: {key: word}} from the translation files Home Assistant's frontend loads (their names carry a hash that the
+    frontend's app script lists)."""
+    import urllib.request
+    page = urllib.request.urlopen(url + '/', timeout=20).read().decode('utf-8', 'replace')
+    found = {}
+    for script in dict.fromkeys(re.findall(r'(/frontend_latest/app\.[\w.]+\.js)', page)):
+        text = urllib.request.urlopen(url + script, timeout=30).read().decode('utf-8', 'replace')
+        for code in codes:
+            match = re.search(r'"' + re.escape(code) + r'":\{"nativeName":"[^"]*","hash":"([0-9a-f]+)"', text)
+            if match and code not in found:
+                data = json.loads(urllib.request.urlopen(f'{url}/static/translations/{code}-{match.group(1)}.json', timeout=30).read())
+                flat = dict(generator().flatten(data))
+                found[code] = {key: flat[source] for key, source in FRONTEND_SOURCES.items() if isinstance(flat.get(source), str)}
+    return found
+
+
 def ha_words(write):
     """screen.ha of every language from a Home Assistant (HA_URL and HA_TOKEN, or .esphome/ha_url and ha_token): its own
     words for states, English included, so a screen says what Home Assistant says (Max, app 0.2.90)."""
@@ -236,6 +258,7 @@ def ha_words(write):
 
     langs = languages()
     found = asyncio.run(fetch(list(langs)))
+    frontend = frontend_words(url, list(langs))
     status = 0
     for code, data in langs.items():
         words = found.get(code) or {}
@@ -245,6 +268,7 @@ def ha_words(write):
                 own[key] = words[source]
             else:
                 print(f'{code}: Home Assistant has no {source}')
+        own.update(frontend.get(code, {}))
         reference = dict(generator().flatten(data.get('screen', {}).get('ha', {})))
         if code == 'en':
             for key, word in own.items():

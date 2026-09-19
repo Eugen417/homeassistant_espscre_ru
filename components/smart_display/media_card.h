@@ -149,7 +149,7 @@ inline const char *idle_text(const std::string &state) {
   if (state == "off") return screen_text::tr(screen_text::txt::ha_off);
   if (state == "standby") return screen_text::tr(screen_text::txt::ha_media_standby);
   if (state == "buffering") return screen_text::tr(screen_text::txt::media_loading);
-  if (state == "unavailable") return screen_text::tr(screen_text::txt::tile_unavailable);
+  if (state == "unavailable") return screen_text::tr(screen_text::txt::ha_unavailable);
   return screen_text::tr(screen_text::txt::media_not_playing);
 }
 inline bool playing(const std::string &state) { return state == "playing" || state == "buffering"; }

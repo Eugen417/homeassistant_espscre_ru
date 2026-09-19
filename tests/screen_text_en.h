@@ -3,7 +3,7 @@
 #pragma once
 #include "components/smart_display/screen_text.h"
 
-static_assert(screen_text::KEYS_HASH == 0x8971C0EBu && screen_text::KEY_COUNT == 305,
+static_assert(screen_text::KEYS_HASH == 0xC6B1A3EDu && screen_text::KEY_COUNT == 305,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -118,7 +118,6 @@ const char *const screen_text::TABLE[] = {
     "{h} h {m}",
     "Tap to open",
     "Page {n}",
-    "Unavailable",
     "Refused",
     "Command sent...",
     "Confirmed by Home Assistant",
@@ -196,9 +195,6 @@ const char *const screen_text::TABLE[] = {
     "Recording",
     "Tap to view",
     "No image yet",
-    "Activate",
-    "Run",
-    "Press",
     "Follow the calibration wizard",
     "GT911 touch check",
     "Hold each tap for a moment",
@@ -209,6 +205,7 @@ const char *const screen_text::TABLE[] = {
     "Save failed; try again",
     "On",
     "Off",
+    "Unavailable",
     "Off",
     "Heat",
     "Cool",
@@ -310,7 +307,10 @@ const char *const screen_text::TABLE[] = {
     "Detected",
     "Clear",
     "Open",
-    "Closed"
+    "Closed",
+    "Activate",
+    "Run",
+    "Press"
 };
 const char *const screen_text::LANGUAGE = "en";
 int screen_text::plural_index(int n) { return n == 1 ? 0 : 1; }

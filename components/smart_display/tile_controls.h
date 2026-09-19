@@ -348,9 +348,9 @@ inline std::string neighbour_option(const Tile &t, int direction) {
   return options[(current + direction + count) % count];
 }
 inline const char *run_label(const std::string &domain) {
-  if (domain == "scene") return screen_text::tr(screen_text::txt::button_activate);
-  if (domain == "script") return screen_text::tr(screen_text::txt::button_run);
-  return screen_text::tr(screen_text::txt::button_press);
+  if (domain == "scene") return screen_text::tr(screen_text::txt::ha_button_activate);
+  if (domain == "script") return screen_text::tr(screen_text::txt::ha_button_run);
+  return screen_text::tr(screen_text::txt::ha_button_press);
 }
 // The Home Assistant action behind a key. STEP_* are handled locally (debounced) and return nothing.
 inline Action key_action(const Tile &t, int command, const std::string &arg = "") {

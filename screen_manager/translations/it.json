@@ -200,6 +200,12 @@
         "vibration_off": "Assente",
         "window_on": "Aperto",
         "window_off": "Chiuso"
+      },
+      "unavailable": "Non disponibile",
+      "button": {
+        "activate": "Attiva",
+        "run": "Esegui",
+        "press": "Premi"
       }
     }
   },

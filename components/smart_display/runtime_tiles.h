@@ -920,7 +920,7 @@ inline std::string detail_state(const Tile &t){
   if(t.state=="returning")return tr(txt::ha_vacuum_returning);
   if(t.state=="idle")return tr(txt::ha_vacuum_idle);
   if(t.state=="error")return tr(txt::vacuum_check_robot);
-  if(!t.available())return tr(txt::tile_unavailable);
+  if(!t.available())return tr(txt::ha_unavailable);
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+).
   if(!t.extra().state_word.empty())return t.extra().state_word;
   return t.unit.empty()?t.state:screen_text::localize(t.state);
@@ -1131,7 +1131,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   detail_text(now,degrees(t.current),temp_x,cy+(hero-big_h)/2,temp_w,big,LV_TEXT_ALIGN_LEFT,ink);
   int text_x=temp_x+temp_w+(large?4:2),text_w=width-2*pad-card_pad-text_x;
   int lines_h=text_h+small_h+(large?2:0);
-  detail_text(now,t.available()?weather_text(t.state):tr(txt::tile_unavailable),text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
+  detail_text(now,t.available()?weather_text(t.state):tr(txt::ha_unavailable),text_x,cy+(hero-lines_h)/2,text_w,detail_font,LV_TEXT_ALIGN_LEFT,ink);
   std::string details;
   if(std::isfinite(weather.feels))details=fill(txt::weather_feels_like,"n",(int)std::lround(weather.feels));
   if(std::isfinite(t.humidity)){snprintf(b,sizeof(b),"%d%%",(int)std::lround(t.humidity));details+=(details.empty()?"":" · ")+std::string(b);}
@@ -1373,7 +1373,7 @@ inline constexpr uint32_t COVER_ACCENT = theme::ha::PURPLE;
 inline uint32_t cover_track(){return theme::tint(COVER_ACCENT,37);}
 inline uint32_t cover_slats(){return theme::tint(COVER_ACCENT,80);}
 inline lv_obj_t *cover_values[2]{};
-inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):tr(txt::tile_unavailable);}
+inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):tr(txt::ha_unavailable);}
 inline void cover_slider_event(lv_event_t *e){
   auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
   const bool tilt=(uintptr_t)lv_event_get_user_data(e)==1;
@@ -1570,7 +1570,7 @@ inline bool history_fits(const Tile &t){
 // Home Assistant's word for the state now: from this entity's history words, else the card's own. The history can
 // still be the previous card's while this one waits for its answer.
 inline std::string history_words(const Tile &t){
-  if(!t.available())return tr(txt::tile_unavailable);
+  if(!t.available())return tr(txt::ha_unavailable);
   if(history.entity==t.entity)for(const auto &pair:history.words)if(pair.first==t.state)return pair.second;
   return detail_state(t);
 }
@@ -1809,7 +1809,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   if(line){
     int decimals=0;const auto dot=t.state.find('.');if(dot!=std::string::npos)decimals=static_cast<int>(std::min<size_t>(4,t.state.size()-dot-1));
     if(c.ready)decimals=h.decimals;
-    c.value_text=!t.available()?std::string(tr(txt::tile_unavailable)):numeric?history_view::number(current,decimals,t.unit):t.state;
+    c.value_text=!t.available()?std::string(tr(txt::ha_unavailable)):numeric?history_view::number(current,decimals,t.unit):t.state;
     if(c.ready){
       // The value now counts too: it can lie beyond the history (the running hour is not in the statistics yet).
       if(h.has_high){c.high=h.high;c.high_at=h.high_at;}
@@ -3117,7 +3117,7 @@ inline void render_slot(size_t slot) {
   // Nothing in Home Assistant stands behind the settings card, so it says the same with the link down.
   if (t.is_settings()) value = tr(txt::tile_tap_to_open);
   else if (t.is_page()) value = fill(txt::tile_page, "n", t.page_target());
-  else if (!fresh() || !t.available()) value = tr(txt::tile_unavailable);
+  else if (!fresh() || !t.available()) value = tr(txt::ha_unavailable);
   else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = tr(txt::tile_refused);
   else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = std::to_string(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255))) + " %";

@@ -134,6 +134,12 @@
         "vibration_off": "Clear",
         "window_on": "Open",
         "window_off": "Closed"
+      },
+      "unavailable": "Unavailable",
+      "button": {
+        "activate": "Activate",
+        "run": "Run",
+        "press": "Press"
       }
     }
   }

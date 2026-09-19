@@ -200,6 +200,12 @@
         "vibration_off": "brak",
         "window_on": "otwarto",
         "window_off": "zamknięto"
+      },
+      "unavailable": "niedostępny",
+      "button": {
+        "activate": "Aktywuj",
+        "run": "Uruchom",
+        "press": "Naciśnij"
       }
     }
   },

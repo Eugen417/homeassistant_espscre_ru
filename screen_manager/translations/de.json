@@ -200,6 +200,12 @@
         "vibration_off": "Frei",
         "window_on": "Geöffnet",
         "window_off": "Geschlossen"
+      },
+      "unavailable": "Nicht verfügbar",
+      "button": {
+        "activate": "Aktivieren",
+        "run": "Ausführen",
+        "press": "Drücken"
       }
     }
   },

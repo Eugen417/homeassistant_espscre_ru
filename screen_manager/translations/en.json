@@ -143,7 +143,6 @@
     "tile": {
       "tap_to_open": "Tap to open",
       "page": "Page {n}",
-      "unavailable": "Unavailable",
       "refused": "Refused",
       "command_sent": "Command sent...",
       "confirmed": "Confirmed by Home Assistant"
@@ -248,11 +247,6 @@
       "tap_to_view": "Tap to view",
       "no_image_yet": "No image yet"
     },
-    "button": {
-      "activate": "Activate",
-      "run": "Run",
-      "press": "Press"
-    },
     "calibration": {
       "title": "Follow the calibration wizard",
       "touch_check": "GT911 touch check",
@@ -266,6 +260,7 @@
     "ha": {
       "on": "On",
       "off": "Off",
+      "unavailable": "Unavailable",
       "climate": {
         "off": "Off",
         "heat": "Heat",
@@ -385,6 +380,11 @@
         "vibration_off": "Clear",
         "window_on": "Open",
         "window_off": "Closed"
+      },
+      "button": {
+        "activate": "Activate",
+        "run": "Run",
+        "press": "Press"
       }
     }
   },

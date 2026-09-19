@@ -143,7 +143,6 @@
     "tile": {
       "tap_to_open": "Tik om te openen",
       "page": "Pagina {n}",
-      "unavailable": "Niet beschikbaar",
       "refused": "Geweigerd",
       "command_sent": "Opdracht verstuurd...",
       "confirmed": "Bevestigd door Home Assistant"
@@ -247,11 +246,6 @@
       "recording": "Neemt op",
       "tap_to_view": "Tik om te bekijken",
       "no_image_yet": "Nog geen beeld"
-    },
-    "button": {
-      "activate": "Activeren",
-      "run": "Uitvoeren",
-      "press": "Indrukken"
     },
     "calibration": {
       "title": "Volg de kalibratie",
@@ -385,6 +379,12 @@
         "vibration_off": "Niet gedetecteerd",
         "window_on": "Open",
         "window_off": "Dicht"
+      },
+      "unavailable": "Niet beschikbaar",
+      "button": {
+        "activate": "Inschakelen",
+        "run": "Uitvoeren",
+        "press": "Klik"
       }
     }
   },
