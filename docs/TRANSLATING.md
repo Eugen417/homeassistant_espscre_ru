@@ -51,7 +51,11 @@ there is a `sv.json`, but already the Swedish 24-hour clock and `1 234,5`.
 3. Look at it for real, if you can. In ESP Screens open **Settings → Language & region** and choose your language. The
    editor itself follows the language of your Home Assistant profile. The screens show the new texts after their
    firmware update.
-4. Change what needs changing. When the whole file is checked, set `"checked": true` in `_meta`.
+4. Change what needs changing. To find a word you saw, search for it in the file: the key it sits under says where it
+   shows (`screen`, `addon`, `editor`), and the same key in `en.json` holds the English. A word under `screen.ha` is
+   Home Assistant's own: change it in [Home Assistant's translations](https://developers.home-assistant.io/docs/translations/)
+   instead, or the next `tools/i18n.py ha-words` puts Home Assistant's word back. When the whole file is checked, set
+   `"checked": true` in `_meta`.
 5. Send it in (see [Sending your work](#sending-your-work)). Say in the pull request which parts you checked.
 
 A partial check helps too. Say which sections you went through, and leave `checked` at `false`.
