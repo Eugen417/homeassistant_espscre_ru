@@ -198,6 +198,32 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn(FIRMWARE_VERSION, m.updates.results['text.screen1']['message'])
             m.firmware.run = original
 
+    async def test_language_update_is_verified_by_the_screen_language(self):
+        """A screen on the current firmware that speaks another language than Settings -> Language & region gets an
+        update, and the update counts once its "Screen language" sensor says the new language (app 0.2.90). The cached
+        screen list must see that sensor: without it the check waited in vain and every night rebuilt the screen."""
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.setup_manager(tmp)
+            m.ha.registry = m.ha.registry + [{'entity_id': 'sensor.lang1', 'platform': 'esphome', 'original_name': 'Screen language',
+                                              'device_id': 'd1'}]
+            m.ha.states.update({'text.fw1': {'state': FIRMWARE_VERSION}, 'sensor.lang1': {'state': 'en'}})
+            m.ha.ha_language = 'nl'
+            first = m.screen('text.screen1')
+            self.assertEqual(first['language'], 'en')
+            self.assertEqual(m.updates.state_for(first)['language'], True)
+            self.assertIn('sensor.lang1', m.watched_entities())
+            self.assertEqual(m.updates.pending(), ['text.screen1'])
+            async def speaks_dutch(data):
+                await asyncio.sleep(0)
+                m.ha.states['sensor.lang1'] = {'state': 'nl'}
+                m.firmware.job['state'] = 'success'
+            m.firmware.run = speaks_dutch
+            m.updates.start('text.screen1')
+            await m.updates.task
+            self.assertEqual(m.updates.results['text.screen1']['state'], 'success')
+            self.assertEqual(m.screen('text.screen1')['language'], 'nl')
+            self.assertEqual(m.updates.pending(), [])
+
     async def test_nightly_window_and_persistence(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = self.setup_manager(tmp)

@@ -200,7 +200,8 @@ NAME_DEVICE_NAME = ('Device name', 'Apparaatnaam')
 NAME_IP_ADDRESS = ('IP address', 'IP-adres')
 # The language a screen's firmware was built in (firmware 0.2.76+, app 0.2.90); older firmware speaks English.
 NAME_SCREEN_LANGUAGE = ('Screen language',)
-SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS)
+SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS
+                                + NAME_SCREEN_LANGUAGE)
 
 def parse_firmware(text):
     """(major, minor, patch) of a screen firmware version such as "0.2.63"; None for anything else. Strict on purpose:
