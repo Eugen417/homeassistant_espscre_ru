@@ -388,7 +388,565 @@
       }
     }
   },
-  "addon": {},
+  "addon": {
+    "errors": {
+      "language_choice": "Wybierz język z listy.",
+      "region_choice": "Wybierz z list format czasu i format liczbowy.",
+      "open_through_ha": "Otwórz tę stronę przez Home Assistant.",
+      "refresh_page": "Odśwież tę stronę i spróbuj ponownie.",
+      "ha_refused": "Home Assistant tego nie przyjął: {reason}.",
+      "ha_refused_change": "Home Assistant nie przyjął zmiany: {reason}.",
+      "no_reason": "nie podano powodu",
+      "ha_unreachable": "Home Assistant jest teraz nieosiągalny. Spróbuj ponownie za chwilę.",
+      "too_large": "To żądanie jest za duże.",
+      "invalid_input": "Nieprawidłowe dane. Sprawdź nazwę, płytkę i wybrane kafelki.",
+      "unknown_screen": "Nieznany ekran.",
+      "not_paired": "To nie jest sparowany ekran ESP. Odśwież listę ekranów.",
+      "choose_icon": "Wybierz ikonę z listy.",
+      "skill_not_written": "Nie udało się zapisać umiejętności w {folder} ({reason}).",
+      "settings": {
+        "unknown": "Nieznane ustawienia ekranu; odśwież stronę zarządzania.",
+        "invalid_value": "Nieprawidłowa wartość: {setting}.",
+        "dim_above_normal": "Jasność czuwania i jasność nocna nie mogą być wyższe niż normalna.",
+        "offline": "Ten ekran jest offline. Jego ustawienia zmienisz, gdy wróci.",
+        "unavailable": "Nie można teraz zmienić: {names}. Encja jest wyłączona w Home Assistant albo ekran uruchamia się ponownie.",
+        "rotation": "Obrót wymaga ekranu Guition z firmware 0.2.9 lub nowszym."
+      },
+      "layout": {
+        "invalid": "Nieprawidłowy układ.",
+        "title": "Nazwa ekranu może mieć najwyżej 96 bajtów.",
+        "tiles_max": "Wybierz najwyżej 1 kafelek. | Wybierz najwyżej {n} kafelki. | Wybierz najwyżej {n} kafelków.",
+        "unsupported": "Ta encja nie jest obsługiwana.",
+        "once": "Encja może się pojawić na ekranie tylko raz.",
+        "tile_name": "Nazwa kafelka może mieć najwyżej 80 bajtów.",
+        "unknown_settings": "Nieznane ustawienia kafelka.",
+        "navigation_size": "Kafelek nawigacji ma pojedynczą lub podwójną szerokość.",
+        "background": "Wybierz pastelowy kolor tła z palety.",
+        "invalid_setting": "Nieprawidłowe ustawienie kafelka: {setting}",
+        "no_toggle": "Ta encja nie obsługuje włączania i wyłączania.",
+        "builtin_action": "Wbudowana karta nie może wykonać akcji.",
+        "no_mini_slider": "Ta encja nie obsługuje małego suwaka.",
+        "history_hours": "Historia: wybierz 1, 6 lub 24 godziny.",
+        "watch_or_slider": "Wybierz dużą wartość albo mały suwak.",
+        "no_direct_control": "Ta encja nie obsługuje takiego bezpośredniego sterowania.",
+        "position": "Nieprawidłowa pozycja kafelka; odśwież stronę zarządzania.",
+        "full_page_top": "Kafelek na całą stronę zaczyna się na górze swojej strony.",
+        "wide_left": "Kafelek podwójnej szerokości zaczyna się w lewej kolumnie.",
+        "same_spot": "Dwa kafelki są w tym samym miejscu.",
+        "pages": "Ekran ma 1 stronę. | Ekran ma od 1 do {n} stron. | Ekran ma od 1 do {n} stron.",
+        "eight_pages": "Te kafelki nie mieszczą się na ośmiu stronach; usuń kafelek albo zmniejsz któryś z nich.",
+        "camera_guition": "Obraz z kamery wymaga ekranu Guition.",
+        "firmware_first": "Dla tych kafelków najpierw zainstaluj na ekranie firmware {version} lub nowszy.",
+        "entity_gone": "Wybrana encja już nie istnieje. Wyszukaj nową encję.",
+        "ids_too_long": "Identyfikatory encji tych kafelków są razem za długie, by zmieścić się w jednej wiadomości do ekranu; usuń kilka kafelków."
+      },
+      "top_bar": {
+        "invalid": "Nieprawidłowy górny pasek; odśwież stronę zarządzania.",
+        "full": "Górny pasek mieści najwyżej 1 element. | Górny pasek mieści najwyżej {n} elementy. | Górny pasek mieści najwyżej {n} elementów.",
+        "invalid_setting": "Nieprawidłowe ustawienie górnego paska.",
+        "unknown_setting": "Nieznane ustawienie górnego paska; odśwież stronę zarządzania.",
+        "entity": "Tej encji nie można umieścić na górnym pasku.",
+        "unknown_item": "Nieznany element górnego paska; odśwież stronę zarządzania.",
+        "twice": "Ten element już jest na górnym pasku.",
+        "entity_gone": "Encja z górnego paska już nie istnieje. Wybierz inną."
+      },
+      "tap_action": {
+        "choose": "Wybierz akcję z listy.",
+        "fields_max": "Akcja po dotknięciu ustawia najwyżej 1 pole. | Akcja po dotknięciu ustawia najwyżej {n} pola. | Akcja po dotknięciu ustawia najwyżej {n} pól.",
+        "field_not_allowed": "Akcja po dotknięciu nie może ustawić pola {field}.",
+        "unsendable": "Ekran nie może wysłać jednej z wartości tej akcji.",
+        "too_long": "Wartości tej akcji są za długie dla ekranu."
+      },
+      "events": {
+        "none_paired": "jeszcze brak",
+        "name_the_screen": "Podaj nazwę ekranu. Sparowane: {screens}.",
+        "no_such_screen": "Nie ma ekranu o nazwie „{name}”. Sparowane: {screens}.",
+        "several_screens": "„{name}” pasuje do więcej niż jednego ekranu: {screens}.",
+        "name_the_entity": "Podaj encję.",
+        "not_for_a_screen": "{entity} nie może trafić na ekran.",
+        "not_on_screen": "Encji {entity} nie ma na tym ekranie.",
+        "add_it_first": "Encji {entity} nie ma na tym ekranie; najpierw ją dodaj.",
+        "not_on_spot": "Encji {entity} nie ma w miejscu {slot}.",
+        "not_on_page": "Encji {entity} nie ma na stronie {page}.",
+        "move_where": "Podaj stronę lub miejsce, do którego ją przenieść.",
+        "spot_taken": "To miejsce zajmuje {entity}; podaj inne miejsce albo najpierw przenieś tamtą encję.",
+        "page_not_empty": "Strona {page} nie jest pusta; kafelek na całą stronę potrzebuje własnej strony.",
+        "no_empty_page": "Żadna strona nie jest pusta; kafelek na całą stronę potrzebuje własnej strony.",
+        "page_full": "Strona {page} jest pełna.",
+        "no_room": "Na tym ekranie nie ma już miejsca.",
+        "screen_full": "Ten ekran ma już 1 kafelek; najpierw go usuń. | Ten ekran ma już {n} kafelki; najpierw usuń jeden z nich. | Ten ekran ma już {n} kafelków; najpierw usuń jeden z nich.",
+        "page_range": "Wybierz stronę od 1 do {last}.",
+        "spot_range": "Wybierz miejsce od 0 do {last}.",
+        "row_needs_page": "Podaj stronę dla tego wiersza lub kolumny.",
+        "row_range": "Wybierz wiersz od 1 do {last}.",
+        "column": "Kolumna musi być left albo right.",
+        "full_page_alone": "Kafelek na całą stronę zajmuje całą stronę {page}; nic więcej się tam nie zmieści.",
+        "does_not_fit": "To nie mieści się na stronie {page}; kafelek podwójnej szerokości zajmuje dwa miejsca.",
+        "order_needed": "Podaj encje w kolejności, w jakiej mają być.",
+        "order_not_on_screen": "Brak na tym ekranie: {entities}.",
+        "order_not_on_page": "Brak na stronie {page}: {entities}. Najpierw je tam przenieś.",
+        "named_too_often": "Podane więcej razy, niż są na tym ekranie: {entities}.",
+        "named_too_often_page": "Podane więcej razy, niż są na stronie {page}: {entities}."
+      },
+      "home_assistant": {
+        "action_not_offered": "Home Assistant nie oferuje akcji {action} dla {name}. Wybierz akcję z listy.",
+        "action_answers_only": "Akcja {action} tylko zwraca dane, których ekran nie umie pokazać.",
+        "no_such_field": "Home Assistant nie ma pola {field} w akcji {action} dla {name}.",
+        "field_needed": "Akcja {action} wymaga wartości pola {field}.",
+        "no_on_off": "Home Assistant nie może włączać ani wyłączać {name}, więc „Włącz / wyłącz” nic by nie dało. Wybierz inną opcję w „Po dotknięciu”.",
+        "no_small_slider": "{name} nie ma w Home Assistant niczego, co mógłby zmieniać mały suwak.",
+        "no_graph": "{name} nie ma wartości liczbowych, z których można narysować wykres.",
+        "no_forecast": "{name} nie ma prognozy dziennej w Home Assistant.",
+        "no_control": "Home Assistant nie oferuje takiego bezpośredniego sterowania dla {name}."
+      },
+      "alerts": {
+        "invalid": "Nieprawidłowy alert.",
+        "cannot_show": "{name} nie może pokazać alertu: {reason}.",
+        "no_device_name": "nieznana nazwa urządzenia",
+        "offline": "offline",
+        "firmware": "firmware {version}",
+        "unknown_version": "nieznany",
+        "not_ready": "niegotowy"
+      },
+      "firmware": {
+        "board_and_name": "Wybierz płytkę i unikalną nazwę (małe litery, cyfry, myślniki; najwyżej 30 znaków).",
+        "friendly_name": "Nadaj ekranowi rozpoznawalną nazwę (najwyżej 60 znaków).",
+        "choose_profile": "Wybierz istniejący profil YAML.",
+        "profile_missing": "Tego profilu nie ma w folderze ESPHome.",
+        "secrets_invalid": "Plik secrets.yaml w folderze ESPHome nie jest poprawnym YAML. Najpierw popraw plik; nie zostanie nadpisany.",
+        "wifi_needed": "Wpisz nazwę sieci Wi-Fi i hasło; zostaną zapisane w pliku secrets.yaml ESPHome.",
+        "wifi_not_set": "Nie udało się ustawić Wi-Fi w secrets.yaml. Wpisz tam samodzielnie wifi_ssid i wifi_password.",
+        "name_exists": "Ta nazwa już istnieje. Do aktualizacji użyj istniejącego profilu.",
+        "override_exists": "Ta nazwa ma już lokalne nadpisanie. Przywróć je lub usuń, zanim utworzysz nowy ekran o tej nazwie.",
+        "override_symlink": "Lokalne nadpisanie jest dowiązaniem symbolicznym; najpierw zastąp je zwykłym plikiem.",
+        "other_include": "Ten profil ma już inne dołączenie local_overrides.",
+        "profile_invalid": "Profil ekranu nie jest poprawnym YAML; popraw go przed dodaniem nadpisania.",
+        "no_packages": "Ten profil nie ma sekcji packages, którą ESP Screens może rozszerzyć.",
+        "override_invalid": "Nieprawidłowe dane nadpisania.",
+        "yaml_needed": "Najpierw wpisz tekst YAML.",
+        "override_too_large": "Nadpisanie jest za duże. Musi mieć mniej niż 12 KB.",
+        "yaml_error_line": "Błąd YAML w wierszu {line}: {problem}.",
+        "yaml_error": "Błąd YAML: {problem}.",
+        "invalid_yaml": "nieprawidłowy YAML",
+        "override_object": "Nadpisanie musi zawierać obiekt YAML, na przykład display: lub substitutions:.",
+        "sections_managed": "Tymi sekcjami nadal zarządza ESP Screens: {names}.",
+        "substitutions_managed": "Tymi podstawieniami (substitutions) nadal zarządza ESP Screens: {names}.",
+        "usb_port": "Wybierz z listy podłączony port USB.",
+        "busy_wait": "Kompilacja lub instalacja już trwa. Poczekaj, aż się zakończy.",
+        "busy": "Kompilacja lub instalacja już trwa.",
+        "no_esphome": "W tej instalacji brakuje narzędzia ESPHome CLI.",
+        "still_building": "Firmware jest jeszcze kompilowany. Pobierz go, gdy kompilacja się zakończy.",
+        "build_first": "Najpierw skompiluj firmware; pobieranie pojawi się po zakończeniu kompilacji.",
+        "unknown_action": "Nieznana operacja firmware.",
+        "host": "Wpisz adres IP lub nazwę hosta właściwego ekranu."
+      },
+      "updates": {
+        "automatic": "Włącz lub wyłącz automatyczne aktualizacje.",
+        "busy": "Aktualizacja już trwa. Poczekaj, aż się zakończy.",
+        "unknown_screen": "Nieznany ekran. Odśwież listę ekranów.",
+        "offline": "Ten ekran jest offline; aktualizacja będzie możliwa, gdy wróci.",
+        "latest": "Ten ekran ma już najnowszy firmware.",
+        "enter_ip": "Wpisz adres IP tego ekranu.",
+        "no_profile": "Nie znaleziono profilu ESPHome dla tego ekranu. Sprawdź nazwę w folderze ESPHome.",
+        "ip_unknown": "Nieznany adres IP. Wpisz go raz; potem nowy firmware sam go zgłasza.",
+        "all_updated": "Wszystkie osiągalne ekrany są już zaktualizowane."
+      }
+    },
+    "status": {
+      "first_tiles": "Wybierz pierwsze kafelki",
+      "saved": "Zapisano; oczekiwanie na synchronizację",
+      "firmware_needed": "Układ zapisany; te kafelki wymagają firmware {version}+",
+      "too_large": "Układ zapisany; za duży na jedną wiadomość do ekranu, usuń kilka kafelków",
+      "sent": "Wysłano do Home Assistant",
+      "offline": "Ekran offline; zmiany zapisane",
+      "retrying": "Wysyłanie nieudane; automatyczne ponawianie"
+    },
+    "updates": {
+      "offline": "Ekran był offline; kolejna próba następnym razem.",
+      "unknown_target": "Nieznany profil lub adres IP; zaktualizuj ten ekran ręcznie.",
+      "build_failed": "Kompilacja lub instalacja nieudana; zobacz log w sekcji „Firmware i USB”.",
+      "no_report": "Ekran nie zgłosił się z firmware {version}; sprawdź ekran.",
+      "dropped_off": "Ekran rozłączył się po aktualizacji; sprawdź ekran.",
+      "updated": "Zaktualizowano do firmware {version}."
+    },
+    "notify": {
+      "update_stopped": "Automatyczna aktualizacja zatrzymała się na ekranie {name}: {reason} Pozostałe ekrany pozostały bez zmian."
+    },
+    "labels": {
+      "built_into_screen": "Wbudowane w ekran",
+      "backgrounds": {
+        "auto": "Domyślne",
+        "none": "Brak",
+        "red": "Czerwony",
+        "orange": "Pomarańczowy",
+        "yellow": "Żółty",
+        "green": "Zielony",
+        "mint": "Miętowy",
+        "blue": "Niebieski",
+        "purple": "Fioletowy",
+        "pink": "Różowy",
+        "gray": "Szary"
+      },
+      "controls": {
+        "none": "Brak",
+        "climate": {
+          "setpoint": "Temperatura − / +",
+          "mode": "Wył., grzanie, chłodzenie"
+        },
+        "switch": {
+          "toggle": "Przełącznik wł./wył."
+        },
+        "input_boolean": {
+          "toggle": "Przełącznik wł./wył."
+        },
+        "light": {
+          "toggle": "Przełącznik wł./wył.",
+          "brightness": "Suwak jasności"
+        },
+        "fan": {
+          "toggle": "Przełącznik wł./wył.",
+          "speed": "Suwak prędkości"
+        },
+        "vacuum": {
+          "buttons": "Start, stop, stacja"
+        },
+        "cover": {
+          "buttons": "Otwórz, stop, zamknij",
+          "position": "Suwak pozycji"
+        },
+        "media_player": {
+          "volume": "Głośność i wyciszenie",
+          "playback": "Poprzedni, odtwórz/pauza, następny"
+        },
+        "number": {
+          "stepper": "Wartość − / +",
+          "slider": "Suwak"
+        },
+        "input_number": {
+          "stepper": "Wartość − / +",
+          "slider": "Suwak"
+        },
+        "select": {
+          "stepper": "Poprzednia / następna opcja"
+        },
+        "input_select": {
+          "stepper": "Poprzednia / następna opcja"
+        },
+        "timer": {
+          "buttons": "Start/pauza i anuluj"
+        },
+        "scene": {
+          "run": "Przycisk Aktywuj"
+        },
+        "script": {
+          "run": "Przycisk Uruchom"
+        },
+        "button": {
+          "run": "Przycisk Naciśnij"
+        },
+        "input_button": {
+          "run": "Przycisk Naciśnij"
+        }
+      },
+      "top_bar": {
+        "builtin": {
+          "clock": "Godzina",
+          "analog": "Zegar analogowy",
+          "date": "Data"
+        },
+        "contents": {
+          "state": "Stan",
+          "last_changed": "Ostatnia zmiana"
+        },
+        "shows": {
+          "always": "Zawsze",
+          "active": "Tylko gdy aktywne"
+        },
+        "suggestions": {
+          "temperature": "Temperatura",
+          "humidity": "Wilgotność",
+          "power": "Pobór mocy",
+          "motion": "Ostatni ruch",
+          "weather": "Pogoda",
+          "people_home": "Osoby w domu",
+          "sun": "Wschód i zachód słońca",
+          "co2": "CO₂"
+        }
+      }
+    },
+    "alerts": {
+      "fields": {
+        "title": {
+          "label": "Tytuł",
+          "help": "Jeden wiersz na górze karty; to, co się nie zmieści, kończy się wielokropkiem. Pusty daje „Powiadomienie”.",
+          "example": "Ktoś jest przy drzwiach"
+        },
+        "subtitle": {
+          "label": "Podtytuł",
+          "help": "Objaśnienie pod tytułem, w kilku wierszach; można przejść do nowego wiersza. Może być pusty.",
+          "example": "Drzwi 3, tylne"
+        },
+        "icon": {
+          "label": "Ikona",
+          "help": "Nazwa z listy, także jako mdi:nazwa albo kod szesnastkowy (F12E6). Nieznana lub pusta daje trójkąt ostrzegawczy."
+        },
+        "color": {
+          "label": "Kolor",
+          "help": "Jeden z dziewięciu pastelowych kolorów kafelków. Pusty daje białą kartę."
+        },
+        "button_text": {
+          "label": "Tekst przycisku",
+          "help": "Tekst na przycisku. Pusty to „OK”.",
+          "example": "Idę"
+        },
+        "timeout": {
+          "label": "Limit czasu",
+          "help": "Liczba sekund, po której karta sama znika. 0 czeka na przycisk bez względu na to, jak długo to trwa. Przycisk zawsze zamyka ją od razu, także przy limicie czasu."
+        },
+        "flash": {
+          "label": "Miganie",
+          "help": "Włączone sprawia, że podświetlenie mignie cztery razy, gdy przychodzi alert; potem ekran po prostu pozostaje włączony."
+        },
+        "camera": {
+          "label": "Kamera",
+          "help": "Encja kamery lub obrazu. Guition z firmware 0.2.57+ pokazuje jej zdjęcie z tej chwili u góry karty; dotknięcie go otwiera kamerę na pełnym ekranie. Inne ekrany pokazują alert bez zdjęcia. Tylko przez zdarzenie esp_screens_show_alert."
+        }
+      },
+      "endings": {
+        "ok": "Naciśnięto przycisk",
+        "timeout": "Upłynął limit czasu",
+        "replaced": "Zastąpił go nowy alert",
+        "remote": "dismiss_alert z Home Assistant"
+      }
+    },
+    "icons": {
+      "groups": {
+        "lighting": "Oświetlenie",
+        "rooms": "Pomieszczenia",
+        "climate": "Klimat",
+        "weather": "Pogoda",
+        "media_and_music": "Media i muzyka",
+        "security": "Bezpieczeństwo",
+        "appliances": "Sprzęt domowy",
+        "energy": "Energia",
+        "window_coverings": "Osłony okienne",
+        "garden_and_pets": "Ogród i zwierzęta",
+        "people_and_travel": "Ludzie i podróże",
+        "other": "Inne"
+      },
+      "names": {
+        "lightbulb": "Żarówka",
+        "lightbulb_group": "Światła",
+        "ceiling_light": "Lampa sufitowa",
+        "chandelier": "Żyrandol",
+        "lamp": "Lampa stołowa",
+        "floor_lamp": "Lampa stojąca",
+        "desk_lamp": "Lampa biurkowa",
+        "wall_sconce_flat": "Kinkiet",
+        "light_recessed": "Oczko sufitowe",
+        "spotlight_beam": "Reflektor",
+        "led_strip_variant": "Taśma LED",
+        "outdoor_lamp": "Lampa zewnętrzna",
+        "home": "Dom",
+        "sofa": "Salon",
+        "bed": "Sypialnia",
+        "silverware_fork_knife": "Jadalnia",
+        "chef_hat": "Kuchnia",
+        "shower": "Prysznic",
+        "bathtub": "Łazienka",
+        "toilet": "Toaleta",
+        "desk": "Gabinet",
+        "garage": "Garaż",
+        "fireplace": "Kominek",
+        "thermometer": "Temperatura",
+        "thermostat": "Termostat",
+        "air_conditioner": "Klimatyzacja",
+        "radiator": "Grzejnik",
+        "heat_pump": "Pompa ciepła",
+        "fire": "Ogrzewanie",
+        "snowflake": "Chłodzenie",
+        "water_percent": "Wilgotność",
+        "fan": "Wentylator",
+        "ceiling_fan": "Wentylator sufitowy",
+        "air_purifier": "Oczyszczacz powietrza",
+        "molecule_co2": "CO₂",
+        "weather_sunny": "Słońce",
+        "weather_partly_cloudy": "Częściowe zachmurzenie",
+        "weather_cloudy": "Pochmurno",
+        "weather_rainy": "Deszcz",
+        "weather_snowy": "Śnieg",
+        "weather_windy": "Wiatr",
+        "weather_night": "Noc",
+        "weather_sunset_up": "Wschód słońca",
+        "music_note": "Muzyka",
+        "music": "Nuty",
+        "playlist_music": "Playlista",
+        "album": "Album",
+        "record_player": "Gramofon",
+        "spotify": "Spotify",
+        "radio": "Radio",
+        "podcast": "Podcast",
+        "speaker": "Głośnik",
+        "speaker_multiple": "Głośniki",
+        "soundbar": "Soundbar",
+        "headphones": "Słuchawki",
+        "piano": "Pianino",
+        "guitar_acoustic": "Gitara",
+        "television": "Telewizor",
+        "projector": "Projektor",
+        "movie_open": "Film",
+        "cast": "Przesyłanie",
+        "gamepad_variant": "Konsola do gier",
+        "remote_tv": "Pilot",
+        "lock": "Zamek",
+        "lock_open_variant": "Zamek otwarty",
+        "shield_home": "Alarm",
+        "alarm_light": "Lampa alarmowa",
+        "bell": "Dzwonek",
+        "doorbell": "Dzwonek do drzwi",
+        "cctv": "Kamera",
+        "motion_sensor": "Czujnik ruchu",
+        "door_closed": "Drzwi",
+        "door_open": "Drzwi otwarte",
+        "window_closed_variant": "Okno",
+        "smoke_detector": "Czujnik dymu",
+        "water_alert": "Wyciek wody",
+        "washing_machine": "Pralka",
+        "tumble_dryer": "Suszarka",
+        "dishwasher": "Zmywarka",
+        "fridge": "Lodówka",
+        "stove": "Kuchenka",
+        "microwave": "Mikrofalówka",
+        "toaster_oven": "Piekarnik",
+        "coffee_maker": "Kawa",
+        "kettle": "Czajnik",
+        "robot_vacuum": "Robot sprzątający",
+        "robot_mower": "Robot koszący",
+        "printer_3d": "Drukarka 3D",
+        "power_plug": "Wtyczka",
+        "power_socket_eu": "Gniazdko",
+        "laptop": "Laptop",
+        "router_wireless": "Router",
+        "flash": "Prąd",
+        "solar_power": "Energia słoneczna",
+        "solar_panel": "Panele słoneczne",
+        "home_battery": "Magazyn energii",
+        "battery_high": "Bateria",
+        "ev_station": "Stacja ładowania",
+        "car_electric": "Samochód elektryczny",
+        "meter_electric": "Licznik prądu",
+        "meter_gas": "Licznik gazu",
+        "water": "Woda",
+        "water_boiler": "Bojler",
+        "gauge": "Wskaźnik",
+        "window_shutter": "Roleta zewnętrzna",
+        "window_shutter_open": "Roleta zewnętrzna otwarta",
+        "blinds": "Żaluzje",
+        "blinds_open": "Żaluzje otwarte",
+        "roller_shade_closed": "Roleta",
+        "curtains": "Zasłony",
+        "curtains_closed": "Zasłony zasunięte",
+        "awning_outline": "Markiza",
+        "flower": "Kwiat",
+        "tree": "Drzewo",
+        "sprout": "Roślina",
+        "grass": "Trawnik",
+        "sprinkler": "Zraszacz",
+        "pool": "Basen",
+        "grill": "Grill",
+        "mailbox": "Skrzynka na listy",
+        "trash_can": "Śmieci",
+        "recycle": "Recykling",
+        "dog": "Pies",
+        "cat": "Kot",
+        "account": "Osoba",
+        "account_group": "Rodzina",
+        "account_child": "Dziecko",
+        "home_account": "W domu",
+        "sleep": "Sen",
+        "run": "Ćwiczenia",
+        "briefcase": "Praca",
+        "car": "Samochód",
+        "bike": "Rower",
+        "airplane": "Wakacje",
+        "map_marker": "Lokalizacja",
+        "power": "Wł./wył.",
+        "toggle_switch": "Przełącznik",
+        "gesture_tap_button": "Przycisk",
+        "play": "Start",
+        "script_text": "Skrypt",
+        "palette": "Scena",
+        "alarm": "Budzik",
+        "clock_outline": "Zegar",
+        "timer_outline": "Minutnik",
+        "calendar": "Kalendarz",
+        "bell_ring": "Powiadomienie",
+        "heart": "Ulubione",
+        "alert_outline": "Ostrzeżenie",
+        "cog": "Ustawienia",
+        "broom": "Sprzątanie"
+      }
+    },
+    "screen": {
+      "builtin": {
+        "clock": "Zegar",
+        "page": "Przejdź do strony {page}"
+      },
+      "identify": {
+        "title": "To jest {name}",
+        "subtitle": "Identyfikacja z ESP Screens"
+      },
+      "script_running": "Działa",
+      "states": {
+        "locking": "blokowanie",
+        "unlocking": "odblokowywanie",
+        "jammed": "zacięcie",
+        "buffering": "buforowanie",
+        "returning": "wraca",
+        "error": "błąd",
+        "disarmed": "rozbrojony",
+        "armed_home": "uzbrojony (w domu)",
+        "armed_away": "uzbrojony (poza domem)",
+        "armed_night": "uzbrojony (noc)",
+        "armed_vacation": "uzbrojony (wakacje)",
+        "armed": "uzbrojony",
+        "arming": "uzbrajanie",
+        "pending": "oczekiwanie",
+        "triggered": "wyzwolony",
+        "active": "aktywny",
+        "up": "wzeszło",
+        "down": "zaszło",
+        "unknown": "nieznany"
+      },
+      "history": {
+        "other": "Inne"
+      },
+      "vacuum": {
+        "vacuum": "Odkurzanie",
+        "vac_and_mop": "Z mopem",
+        "vac_then_mop": "Mop na końcu",
+        "mop": "Mop",
+        "custom": "Własny",
+        "smart": "Smart",
+        "min": "Min.",
+        "slight": "Lekki",
+        "low": "Niski",
+        "mild": "Łagodny",
+        "medium": "Średni",
+        "moderate": "Umiarkowany",
+        "standard": "Standard",
+        "high": "Wysoki",
+        "intense": "Intensywny",
+        "extreme": "Ekstremalny",
+        "ultra_high": "Ultrawysoki",
+        "silent": "Wyciszony",
+        "gentle": "Delikatny",
+        "strong": "Mocny",
+        "max_plus": "Maks.+",
+        "auto": "Auto"
+      }
+    }
+  },
   "editor": {
     "common": {
       "undo": "Cofnij",
@@ -761,7 +1319,7 @@
       "title": "Bieżące dane",
       "subtitle": "Połączenie, stan i obsługiwane właściwości",
       "reading": "Odczytywanie…",
-      "fetching": "Pobieranie bieżącego stanu z HA...",
+      "fetching": "Pobieranie bieżącego stanu z HA…",
       "status": "Stan: {status}",
       "options": "Mały suwak: {slider} · Widok: {display} · Rozmiar: {size} · Sterowanie: {control} · Tło: {background}",
       "yes": "tak",
@@ -1202,7 +1760,7 @@
       "eyebrow": "Zaawansowane · lokalne nadpisanie",
       "title": "Nadpisanie YAML",
       "title_named": "Nadpisanie YAML · {name}",
-      "intro": "Ten mały plik należy do Ciebie. Jest wczytywany po wspólnym pakiecie ekranu i zostaje na miejscu, gdy ESP Screen Manager się aktualizuje. Zmieniaj tu szczegóły sprzętu, na przykład model wyświetlacza.",
+      "intro": "Ten mały plik należy do Ciebie. Jest wczytywany po wspólnym pakiecie ekranu i zostaje na miejscu, gdy ESP Screens się aktualizuje. Zmieniaj tu szczegóły sprzętu, na przykład model wyświetlacza.",
       "safe_title": "Co można bezpiecznie zmieniać?",
       "safe_text": "Wyświetlacz, ekran dotykowy, substitutions, piny i inne szczegóły urządzenia. Nazwa, Wi-Fi, API, OTA i odnośniki do pakietów pozostają zarządzane przez aplikację.",
       "active": "Aktywne",
