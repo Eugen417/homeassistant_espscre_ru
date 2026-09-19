@@ -1,7 +1,8 @@
 // One reactive state for the whole editor. The Python API (server.py) is unchanged: this file is the
 // former app.js state and its calls, with the DOM work moved into the components.
-import { computed, reactive, toRaw } from "vue";
+import { computed, reactive, toRaw, watch } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
+import { andList, languageMeta, loadLanguage, type NumberStyle, pickLanguage, t } from "./i18n";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
   pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
@@ -102,11 +103,13 @@ export function toast(message: string, action?: { label: string; run: () => void
 export function dismissToast() {
   state.toast = null;
 }
-export async function copyText(text: string, element?: Element | null, what = "API key") {
+// What was copied, each with its own sentences so every language can say it its own way.
+export type Copied = "api_key" | "layout_json" | "action_name" | "yaml" | "icon_name" | "empty_color" | "color_name";
+export async function copyText(text: string, element?: Element | null, what: Copied = "api_key") {
   try {
     if (!navigator.clipboard || !window.isSecureContext) throw new Error();
     await navigator.clipboard.writeText(text);
-    toast(`${what} copied.`);
+    toast(t(`editor.copy.${what}.copied`));
   } catch {
     if (element) {
       const range = document.createRange();
@@ -115,7 +118,7 @@ export async function copyText(text: string, element?: Element | null, what = "A
       selection?.removeAllRanges();
       selection?.addRange(range);
     }
-    toast(document.execCommand("copy") ? `${what} copied.` : `${what} is selected. Copy with Ctrl+C or Command+C.`);
+    toast(t(document.execCommand("copy") ? `editor.copy.${what}.copied` : `editor.copy.${what}.selected`));
   }
 }
 export function openIntegrations() {
@@ -231,7 +234,7 @@ export function select(id: string | null) {
     go("");
     return;
   }
-  if (id !== state.selected && state.dirty && !confirm("You have unsaved changes. Open a different screen anyway?")) return;
+  if (id !== state.selected && state.dirty && !confirm(t("editor.screen_view.confirm.switch"))) return;
   if (id !== state.selected) {
     flushSettings();
     state.settingEdits = {};
@@ -294,7 +297,7 @@ export function removeTile(tile: Tile) {
   if (isSelected(tile)) closeInspector();
   markDirty();
   layout.pages = pageCount(entriesOf(layout), layout.pages);
-  toast(`${tile.name || entityName(tile.entity)} removed`, { label: "Undo", run: () => placeTile(tile, tile.slot) });
+  toast(t("editor.layout.removed", { name: tile.name || entityName(tile.entity) }), { label: t("editor.common.undo"), run: () => placeTile(tile, tile.slot) });
 }
 export function addPage() {
   const layout = state.layout;
@@ -318,7 +321,7 @@ export function moveTileToPage(tile: Tile, page: number) {
   if (!layout || !Number.isInteger(page) || page < 0 || page >= MAX_PAGES || page === pageOf(tile.slot)) return false;
   const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), sizeOf(tile), page * SLOTS_PER_PAGE);
   const moved = placeTile(tile, slot >= 0 && pageOf(slot) === page ? slot : page * SLOTS_PER_PAGE);
-  if (!moved) toast(`There is no room for this tile on page ${page + 1}.`);
+  if (!moved) toast(t("editor.layout.no_room", { page: page + 1 }));
   return moved;
 }
 export function pagesShown() {
@@ -362,7 +365,7 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
     else {
       const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), "full");
       if (slot >= 0) tile.slot = slot;
-      else { tile.options.size = wasSize; toast("No page is free for a full-page tile. Free a page first."); }
+      else { tile.options.size = wasSize; toast(t("editor.layout.no_free_page")); }
     }
   } else if (isWide(tile) && !wasWide) {
     const taken = occupied(entriesOf(layout).filter((e) => e.tile !== tile)), own = rowStart(tile.slot);
@@ -377,7 +380,7 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
 export function retargetPageTile(tile: Tile, page: number) {
   const entity = `screen.page_${page}`, layout = state.layout;
   if (!layout || entity === tile.entity || !pageTarget(entity)) return false;
-  if (!repeatable(entity) && layout.tiles.some((t) => t.entity === entity)) { toast(`This screen already has a tile that goes to page ${page}.`); return false; }
+  if (!repeatable(entity) && layout.tiles.some((t) => t.entity === entity)) { toast(t("editor.layout.page_taken", { page })); return false; }
   tile.entity = entity;
   layout.pages = Math.max(pageCount(entriesOf(layout), layout.pages), page);
   markDirty();
@@ -416,12 +419,14 @@ export async function save() {
     // Screen settings apply on their own (flushSettings); the stored ones stay as they are.
     const { settings: _settings, ...tiles } = state.layout;
     await send(`screens/${encodeURIComponent(state.selected)}`, "PUT", tiles);
-    if (state.selected !== screen) toast(`Saved. ${state.inventory.screens.find((s) => s.id === screen)?.name || "The screen"} is being updated.`);
-    else if (edits === sent) {
+    if (state.selected !== screen) {
+      const name = state.inventory.screens.find((s) => s.id === screen)?.name;
+      toast(name ? t("editor.screen_view.saved.other", { name }) : t("editor.screen_view.saved.other_unnamed"));
+    } else if (edits === sent) {
       state.dirty = false;
       state.saved = Date.now();
-      toast("Saved. Your screen is being updated.");
-    } else toast("Saved. Your newest change isn't sent yet: press Save & send again.");
+      toast(t("editor.screen_view.saved.current"));
+    } else toast(t("editor.screen_view.saved.newer_edit"));
     await refresh();
   } catch (e: any) {
     toast(e.message);
@@ -436,7 +441,7 @@ export const canAlert = (screen: Screen | undefined) =>
 export async function identify(screen: Screen) {
   try {
     await send(`screens/${encodeURIComponent(screen.id)}/identify`, "POST");
-    toast(`${screen.name} blinks and shows a card for a few seconds.`);
+    toast(t("editor.screen_view.identified", { name: screen.name }));
   } catch (e: any) {
     toast(e.message);
   }
@@ -447,7 +452,8 @@ export async function sendTestAlert(target: string, data: Record<string, unknown
 
 // ---- Copying and sharing a layout (app 0.2.73) ----
 const LAYOUT_KEYS = ["title", "tiles", "header", "pages"] as const;
-function adopt(source: Partial<Layout>, what: string) {
+// `said` tells what happened, with how many tiles fit when not all of them do.
+function adopt(source: Partial<Layout>, said: (fit?: { kept: number; total: number }) => string) {
   const layout = state.layout;
   if (!layout) return;
   const tiles = (Array.isArray(source.tiles) ? source.tiles : [])
@@ -468,14 +474,13 @@ function adopt(source: Partial<Layout>, what: string) {
   loadCapabilities(kept.map((t) => t.entity));
   loadStates();
   loadTopbarPreview(0);
-  toast(kept.length < unique.length
-    ? `${what}: ${kept.length} of ${unique.length} tiles fit this screen's firmware. Save & send when it looks right.`
-    : `${what}. Save & send when it looks right.`);
+  toast(said(kept.length < unique.length ? { kept: kept.length, total: unique.length } : undefined));
 }
 export function copyLayoutFrom(id: string) {
   const other = state.inventory.screens.find((s) => s.id === id);
   if (!other || !state.layout) return;
-  adopt(JSON.parse(JSON.stringify(other.layout)), `Layout of ${other.name} copied`);
+  adopt(JSON.parse(JSON.stringify(other.layout)), (fit) =>
+    fit ? t("editor.layout.copied_part", { name: other.name, ...fit }) : t("editor.layout.copied", { name: other.name }));
 }
 export function layoutJson() {
   const layout = state.layout;
@@ -492,13 +497,13 @@ export function exportLayout() {
   const a = document.createElement("a");
   a.href = url; a.download = name; a.click();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
-  copyText(text, undefined, "Layout JSON");
+  copyText(text, undefined, "layout_json");
 }
 export function importLayout(text: string) {
   let data: any;
-  try { data = JSON.parse(text); } catch { toast("That isn't JSON. Export a layout first, or paste one from another ESP Screens."); return; }
-  if (!data || typeof data !== "object" || !Array.isArray(data.tiles)) { toast("No tiles in this file. Expected a layout exported from ESP Screens."); return; }
-  adopt(data, "Layout imported");
+  try { data = JSON.parse(text); } catch { toast(t("editor.layout.not_json")); return; }
+  if (!data || typeof data !== "object" || !Array.isArray(data.tiles)) { toast(t("editor.layout.no_tiles_in_file")); return; }
+  adopt(data, (fit) => (fit ? t("editor.layout.imported_part", fit) : t("editor.layout.imported")));
 }
 
 // ---- Updates with content (app 0.2.73): what a screen gets, and how far its update is ----
@@ -535,14 +540,14 @@ export function updateProgress(screen: Screen): { percent: number; text: string 
   const u = screen.update || {};
   if (!(u.state === "running" || state.updating.includes(screen.id))) return null;
   const stage = state.firmwareJob?.job?.stage as string | undefined;
-  if (u.phase === "verify") return { percent: 78, text: PHASES.verify };
-  if (u.phase === "settle") return { percent: 92, text: PHASES.settle };
+  if (u.phase === "verify") return { percent: 78, text: phaseText("verify") };
+  if (u.phase === "settle") return { percent: 92, text: phaseText("settle") };
   if (u.phase === "install" || !u.phase) {
-    if (stage === "upload") return { percent: 66, text: "Writing the firmware over Wi-Fi…" };
-    if (stage) return { percent: 40, text: "Building the firmware…" };
-    return { percent: 12, text: PHASES.install };
+    if (stage === "upload") return { percent: 66, text: t("editor.update.writing") };
+    if (stage) return { percent: 40, text: t("editor.update.building") };
+    return { percent: 12, text: phaseText("install") };
   }
-  return { percent: 12, text: PHASES[u.phase] || "Starting update…" };
+  return { percent: 12, text: phaseText(u.phase) };
 }
 
 // ---- Top bar ----
@@ -578,12 +583,12 @@ export function topbarLabel(item: HeaderItem) {
 // What the item shows right now: { icon, text, color, shown }. Entities wait for the add-on's preview.
 export function topbarView(item: HeaderItem): ItemView {
   const now = new Date(state.now);
-  if (item.type === "clock") return { text: clockText(settingValues().clock_24h !== false, now), shown: true };
-  if (item.type === "date") return { text: dateText(now), shown: true };
+  if (item.type === "clock") return { text: clockText(clock24.value, now), shown: true };
+  if (item.type === "date") return { text: dateText(now, screenLanguage.value), shown: true };
   if (item.type === "analog") return { analog: true, shown: true };
   const p = state.topbarPreviews[itemKey(item)];
   if (!p) return { icon: item.icon === "none" ? null : iconNamed(item.icon)?.cp || automaticIcon(item.entity!), text: "…", shown: true, loading: true };
-  return { icon: p.i || null, text: p.k === "ago" ? agoText(p.e, Math.floor(state.now / 1000)) : p.t, color: p.c ? `#${p.c}` : null, shown: p.shown };
+  return { icon: p.i || null, text: p.k === "ago" ? agoText(p.e, Math.floor(state.now / 1000), screenLanguage.value) : p.t, color: p.c ? `#${p.c}` : null, shown: p.shown };
 }
 export function moveTopbarItem(from: number, to: number) {
   const items = [...topbarItems()];
@@ -598,15 +603,15 @@ export function removeTopbarItem(index: number) {
   if (!item) return;
   if (state.inspector?.kind === "bar") closeInspector();
   setTopbarItems(items);
-  toast(`${topbarLabel(item)} removed from the top bar`, {
-    label: "Undo",
+  toast(t("editor.topbar.removed", { name: topbarLabel(item) }), {
+    label: t("editor.common.undo"),
     run: () => { const back = [...topbarItems()]; back.splice(Math.min(index, back.length), 0, item); setTopbarItems(back); },
   });
 }
 export function addTopbarItem(item: HeaderItem) {
   const items = topbarItems();
-  if (items.length >= topbarMax()) return toast(`The top bar has room for ${topbarMax()} items.`);
-  if (items.some((other) => itemKey(other) === itemKey(item))) return toast("This is already in the top bar.");
+  if (items.length >= topbarMax()) return toast(t("editor.topbar.full", topbarMax()));
+  if (items.some((other) => itemKey(other) === itemKey(item))) return toast(t("editor.topbar.already"));
   // The new chip lights up briefly so the eye finds it.
   state.topbarAdded = { key: itemKey(item), time: Date.now() };
   setTopbarItems([...items, item]);
@@ -615,32 +620,36 @@ export function addTopbarItem(item: HeaderItem) {
 
 // ---- Screen settings: the same groups and rows as the settings page on the screen itself ----
 // Every change applies at once, like on the screen; no Save needed. A screen with firmware 0.2.49+ owns its
-// settings and ESP Screens changes them through its entities in Home Assistant.
+// settings and ESP Screens changes them through its entities in Home Assistant. A group's title and a row's label
+// are the texts editor.screen_settings.groups.<group> and editor.screen_settings.rows.<key> (app 0.2.90).
 export const SETTING_GROUPS = [
-  { title: "Brightness", icon: "F0599", rows: [
-    { key: "brightness", label: "Brightness", kind: "number", min: 5, max: 100, step: 5, unit: "%" },
-    { key: "dark_mode", label: "Dark mode", kind: "toggle" },
-    { key: "standby_enabled", label: "Auto standby", kind: "toggle" },
-    { key: "standby_seconds", label: "Standby after", kind: "duration", min: 60, max: 86400, needs: "standby_enabled" },
-    { key: "standby_brightness", label: "Standby brightness", kind: "number", min: 0, max: 100, step: 5, unit: "%", needs: "standby_enabled", cap: "brightness" },
+  { group: "brightness", icon: "F0599", rows: [
+    { key: "brightness", kind: "number", min: 5, max: 100, step: 5, unit: "%" },
+    { key: "dark_mode", kind: "toggle" },
+    { key: "standby_enabled", kind: "toggle" },
+    { key: "standby_seconds", kind: "duration", min: 60, max: 86400, needs: "standby_enabled" },
+    { key: "standby_brightness", kind: "number", min: 0, max: 100, step: 5, unit: "%", needs: "standby_enabled", cap: "brightness" },
   ] },
-  { title: "Night", icon: "F0594", rows: [
-    { key: "night_enabled", label: "Night mode", kind: "toggle" },
-    { key: "night_start", label: "Starts", kind: "moment", needs: "night_enabled" },
-    { key: "night_end", label: "Ends", kind: "moment", needs: "night_enabled" },
-    { key: "night_brightness", label: "Night brightness", kind: "number", min: 0, max: 100, step: 5, unit: "%", needs: "night_enabled", cap: "brightness" },
+  { group: "night", icon: "F0594", rows: [
+    { key: "night_enabled", kind: "toggle" },
+    { key: "night_start", kind: "moment", needs: "night_enabled" },
+    { key: "night_end", kind: "moment", needs: "night_enabled" },
+    { key: "night_brightness", kind: "number", min: 0, max: 100, step: 5, unit: "%", needs: "night_enabled", cap: "brightness" },
   ] },
-  { title: "Screen", icon: "F0379", rows: [
-    { key: "clock_24h", label: "Clock", kind: "choice", options: [[false, "12 hour"], [true, "24 hour"]] },
-    { key: "auto_home", label: "Back to page 1", kind: "toggle" },
-    { key: "auto_home_seconds", label: "After", kind: "duration", min: 30, max: 3600, needs: "auto_home" },
-    { key: "home_on_standby", label: "Also on standby", kind: "toggle" },
-    { key: "swipe_pages", label: "Swipe between pages", kind: "toggle" },
-    { key: "page_buttons", label: "Page buttons", kind: "toggle" },
-    { key: "rotation", label: "Rotation", kind: "choice", options: [[0, "0°"], [90, "90°"], [180, "180°"], [270, "270°"]] },
+  { group: "screen", icon: "F0379", rows: [
+    { key: "auto_home", kind: "toggle" },
+    { key: "auto_home_seconds", kind: "duration", min: 30, max: 3600, needs: "auto_home" },
+    { key: "home_on_standby", kind: "toggle" },
+    { key: "swipe_pages", kind: "toggle" },
+    { key: "page_buttons", kind: "toggle" },
+    { key: "rotation", kind: "choice", options: [0, 90, 180, 270] },
   ] },
 ] as const;
-export type SettingRow = (typeof SETTING_GROUPS)[number]["rows"][number] & { min?: number; max?: number; step?: number; unit?: string; needs?: string; cap?: string; options?: readonly (readonly [unknown, string])[] };
+export type SettingRow = (typeof SETTING_GROUPS)[number]["rows"][number] & { min?: number; max?: number; step?: number; unit?: string; needs?: string; cap?: string; options?: readonly unknown[] };
+export const settingLabel = (row: SettingRow) => t(`editor.screen_settings.rows.${row.key}`);
+// A choice in the same words in every language: the rotation's angle. The clock left this page for Settings → Language
+// & region, one choice for every screen (app 0.2.90).
+export const choiceText = (_row: SettingRow, value: unknown) => `${value}°`;
 // Page buttons and swiping both off (firmware 0.2.69+): only Go to page tiles change the page, so the editor says which
 // pages the Go to page tiles lead to and which page that leaves out, or has no way back to page 1. Empty when either
 // is on or still unknown, or every page can be reached and left.
@@ -649,15 +658,20 @@ export function pageReachWarning(entries = liveEntries(), pages = state.layout ?
   if (pages < 2 || values.page_buttons !== false || values.swipe_pages !== false) return "";
   const { tiles, targets, unreachable, noWayBack } = strandedPages(entries, pages);
   if (!unreachable.length && !noWayBack.length) return "";
-  const named = (list: number[]) => (list.length === 1 ? `page ${list[0]}` : `pages ${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`);
+  // "page 2" or "pages 2, 3 and 4", in the editor's language.
+  const named = (list: number[]) => t("editor.screen_settings.reach.pages", { list: andList(list) }, list.length);
   // A page that tiles lead to but only from pages that can't be reached themselves.
   const missing = unreachable.filter((page) => !targets.includes(page)), cutOff = unreachable.filter((page) => targets.includes(page));
-  let text = "Page buttons and swiping are off, so only Go to page tiles change the page. ";
-  text += tiles ? `You have ${tiles} Go to page ${tiles === 1 ? "tile" : "tiles"}, to ${named(targets)}` : "You have no Go to page tiles";
-  text += missing.length ? `${tiles ? ", but none" : ""} to ${named(missing)}, so you can't reach ${missing.length === 1 ? "it" : "them"}.` : ".";
-  if (cutOff.length) text += ` The tiles to ${named(cutOff)} are only on pages you can't reach.`;
-  if (noWayBack.length) text += ` From ${named(noWayBack)} no tile leads back to page 1.`;
-  return text;
+  // Whole sentences: "it" or "them" follows how many pages are out of reach.
+  const lost = missing.length === 1 ? "one" : "more";
+  const sentences = [t("editor.screen_settings.reach.intro")];
+  if (tiles && missing.length) sentences.push(t(`editor.screen_settings.reach.tiles_missing_${lost}`, { targets: named(targets), missing: named(missing) }, tiles));
+  else if (tiles) sentences.push(t("editor.screen_settings.reach.tiles", { targets: named(targets) }, tiles));
+  else if (missing.length) sentences.push(t(`editor.screen_settings.reach.none_missing_${lost}`, { missing: named(missing) }));
+  else sentences.push(t("editor.screen_settings.reach.none"));
+  if (cutOff.length) sentences.push(t("editor.screen_settings.reach.cut_off", { pages: named(cutOff) }));
+  if (noWayBack.length) sentences.push(t("editor.screen_settings.reach.no_way_back", { pages: named(noWayBack) }));
+  return sentences.join(" ");
 }
 // Changes made here that the screen has not reported back yet win over what Home Assistant still shows for a
 // few seconds, so a value never flicks back while it travels.
@@ -683,14 +697,17 @@ export function steppedSetting(row: SettingRow, value: number, direction: number
   return Math.min(max, Math.max(row.min!, value + direction * step));
 }
 export function durationText(seconds: number) {
-  if (seconds < 60) return `${seconds} sec`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+  if (seconds < 60) return t("editor.screen_settings.duration.seconds", { n: seconds });
+  if (seconds < 3600) return t("editor.screen_settings.duration.minutes", { n: Math.floor(seconds / 60) });
   const hours = Math.floor(seconds / 3600), minutes = Math.floor((seconds % 3600) / 60);
-  return minutes ? `${hours} h ${String(minutes).padStart(2, "0")}` : `${hours} h`;
+  return minutes
+    ? t("editor.screen_settings.duration.hours_minutes", { h: hours, m: String(minutes).padStart(2, "0") })
+    : t("editor.screen_settings.duration.hours", { n: hours });
 }
 export function momentText(minutes: number, clock24: boolean) {
   const hour = Math.floor(minutes / 60), minute = String(minutes % 60).padStart(2, "0");
-  return clock24 ? `${String(hour).padStart(2, "0")}:${minute}` : `${hour % 12 || 12}:${minute} ${hour < 12 ? "AM" : "PM"}`;
+  if (clock24) return `${String(hour).padStart(2, "0")}:${minute}`;
+  return t(hour < 12 ? "editor.screen_settings.time.am" : "editor.screen_settings.time.pm", { time: `${hour % 12 || 12}:${minute}` });
 }
 export function settingText(row: SettingRow, values: Record<string, any>) {
   const value = values[row.key];
@@ -698,14 +715,14 @@ export function settingText(row: SettingRow, values: Record<string, any>) {
   if (value === null || value === undefined) return "—";
   if (row.kind === "number") return `${value}${row.unit || ""}`;
   if (row.kind === "duration") return durationText(value);
-  if (row.kind === "moment") return momentText(value, values.clock_24h !== false);
+  if (row.kind === "moment") return momentText(value, clock24.value);
   return "";
 }
 export function setSetting(key: string, value: any, delay: number) {
   // One screen's changes at a time: the ones for the screen shown before go out first.
   if (settingTarget && settingTarget !== state.selected && Object.keys(settingQueue).length) {
     flushSettings();
-    toast("Still saving the other screen's settings. Try again in a moment.");
+    toast(t("editor.screen_settings.other_screen_busy"));
     return;
   }
   settingTarget = state.selected;
@@ -761,11 +778,9 @@ export function settleSettings() {
 }
 
 // ---- Updates ----
-export const PHASES: Record<string, string> = {
-  install: "Building and installing…",
-  verify: "Waiting for the screen to come back…",
-  settle: "Checking that it stays stable…",
-};
+// What a running update is doing, by its phase.
+export const phaseText = (phase: string | undefined) =>
+  ["install", "verify", "settle"].includes(phase || "") ? t(`editor.update.phases.${phase}`) : t("editor.update.starting");
 export async function startUpdate(screen: Screen, host?: string) {
   state.updating.push(screen.id);
   try {
@@ -788,7 +803,7 @@ export async function setAutoUpdate(auto: boolean) {
   try {
     await send("updates", "PUT", { auto });
     if (state.inventory.updates) state.inventory.updates.auto = auto;
-    toast(auto ? "Screens will now update automatically at night." : "Automatic updates are off.");
+    toast(t(auto ? "editor.settings.updates.auto_on" : "editor.settings.updates.auto_off"));
   } catch (e: any) {
     toast(e.message);
   }
@@ -796,11 +811,43 @@ export async function setAutoUpdate(auto: boolean) {
 export async function installClaudeSkill() {
   try {
     state.inventory.claude_skill = await send("claude-skill", "POST");
-    toast(state.inventory.claude_skill?.restart
-      ? "Skill installed. Restart Claude Code once so it finds the new skills folder."
-      : "Skill installed. Claude Code picks it up right away.");
+    toast(t(state.inventory.claude_skill?.restart ? "editor.settings.claude.installed_restart" : "editor.settings.claude.installed"));
   } catch (e: any) {
     toast(e.message);
+  }
+}
+
+// ---- Languages (app 0.2.90) ----
+// The editor speaks the language of the user's Home Assistant profile (i18n.ts). The screens have one language for all
+// of them, Home Assistant's unless the setting says another; the mockup draws their words in it, and in English until
+// the add-on tells which one it is.
+export const screenLanguage = computed(() => pickLanguage(state.inventory.language?.effective));
+watch(screenLanguage, (code) => loadLanguage(code), { immediate: true });
+/** A text as the screens show it: in their language, not the editor's. */
+export const screenText = (key: string, named: Record<string, unknown> = {}) => t(key, named, { locale: screenLanguage.value });
+/** A language by its own name ("Nederlands"), as the add-on lists it. */
+export const languageName = (code: string | null | undefined) =>
+  state.inventory.language?.languages?.find((l) => l.code === code)?.name || languageMeta(code || "")?.name || code || "";
+// A screen that doesn't run the chosen language yet needs its update as well.
+export const needsUpdate = (screen: Screen) => Boolean(screen.update?.available || screen.update?.language);
+export const newLanguageText = () => t("editor.update.new_language", { name: languageName(state.inventory.language?.effective) });
+// Time and number format, for every screen at once under Settings → Language & region: a 24-hour clock and "1,234.5"
+// until the add-on says otherwise. The mockup's clocks and numbers follow them.
+export const clock24 = computed(() => state.inventory.language?.clock_effective !== "12");
+export const numberStyle = computed<NumberStyle>(() => state.inventory.language?.numbers_effective || "point");
+/** Saves any of the screen language, the time format and the number format. */
+export async function saveLanguage(changes: { setting?: string; clock?: string; numbers?: string }) {
+  try {
+    const answer = await send("language", "PUT", changes);
+    if (answer?.language) state.inventory.language = answer.language;
+    // A language is built into the firmware; the time and number format are not.
+    toast(t(changes.setting === undefined ? "editor.settings.language.saved" : "editor.settings.language.saved_language"));
+    // Every screen now wants an update, which the inventory reports.
+    await refresh();
+    return true;
+  } catch (e: any) {
+    toast(e.message);
+    return false;
   }
 }
 

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // ⌘K: screens, entities for the open screen, and the editor's actions, from one search field.
 import { computed, nextTick, ref, watch } from "vue";
+import { t } from "../i18n";
 import { domainInfo } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { addTile, automaticIcon, canAlert, currentScreen, exportLayout, go, identify, save, select, state, tileLimit } from "../store";
@@ -12,22 +13,23 @@ const input = ref<HTMLInputElement | null>(null);
 const items = computed<Item[]>(() => {
   const q = query.value.trim().toLocaleLowerCase();
   const list: Item[] = [];
+  const screens = t("editor.palette.groups.screens"), actionsGroup = t("editor.palette.groups.actions");
   for (const screen of state.inventory.screens)
-    list.push({ group: "Screens", label: screen.name, detail: `${screen.online ? "Online" : "Offline"} · ${screen.firmware || "unknown"}`, glyphText: "▦", run: () => select(screen.id) });
+    list.push({ group: screens, label: screen.name, detail: `${screen.online ? t("editor.common.online") : t("editor.common.offline")} · ${screen.firmware || t("editor.common.unknown")}`, glyphText: "▦", run: () => select(screen.id) });
   const screen = currentScreen.value;
   const actions: Item[] = [
-    { group: "Actions", label: "New screen", detail: "Connect and install", glyphText: "+", run: () => go("#new-screen") },
-    { group: "Actions", label: "Firmware & USB", icon: "F0241", run: () => go("#firmware") },
-    { group: "Actions", label: "Alerts", detail: "Cheatsheet and a test alert", icon: "F0594", run: () => go("#alerts") },
-    { group: "Actions", label: "Settings", detail: "Updates, Claude", icon: "F0493", run: () => go("#settings") },
+    { group: actionsGroup, label: t("editor.nav.new_screen"), detail: t("editor.nav.new_screen_detail"), glyphText: "+", run: () => go("#new-screen") },
+    { group: actionsGroup, label: t("editor.nav.firmware"), icon: "F0241", run: () => go("#firmware") },
+    { group: actionsGroup, label: t("editor.nav.alerts"), detail: t("editor.palette.alerts_detail"), icon: "F0594", run: () => go("#alerts") },
+    { group: actionsGroup, label: t("editor.nav.settings"), detail: t("editor.palette.settings_detail"), icon: "F0493", run: () => go("#settings") },
   ];
   if (screen && state.layout) {
     actions.unshift(
-      { group: "Actions", label: "Save & send", detail: state.dirty ? "Unsaved changes" : "Nothing to save", key: "⌘S", run: () => save() },
-      { group: "Actions", label: "Layout", detail: screen.name, run: () => { go(""); state.tab = "layout"; } },
-      { group: "Actions", label: "Screen settings", detail: screen.name, run: () => { go(""); state.tab = "settings"; } },
-      { group: "Actions", label: "Identify this screen", detail: canAlert(screen) ? "Blinks the backlight and shows a card" : "Needs a newer firmware", run: () => { if (canAlert(screen)) identify(screen); } },
-      { group: "Actions", label: "Export layout", detail: "Download and copy as JSON", run: exportLayout },
+      { group: actionsGroup, label: t("editor.common.save_send"), detail: state.dirty ? t("editor.common.unsaved") : t("editor.palette.nothing_to_save"), key: "⌘S", run: () => save() },
+      { group: actionsGroup, label: t("editor.screen_view.tabs.layout"), detail: screen.name, run: () => { go(""); state.tab = "layout"; } },
+      { group: actionsGroup, label: t("editor.screen_view.tabs.settings"), detail: screen.name, run: () => { go(""); state.tab = "settings"; } },
+      { group: actionsGroup, label: t("editor.palette.identify"), detail: canAlert(screen) ? t("editor.palette.identify_detail") : t("editor.palette.identify_needs"), run: () => { if (canAlert(screen)) identify(screen); } },
+      { group: actionsGroup, label: t("editor.palette.export"), detail: t("editor.palette.export_detail"), run: exportLayout },
     );
   }
   list.push(...actions);
@@ -37,7 +39,7 @@ const items = computed<Item[]>(() => {
     for (const e of state.inventory.entities) {
       if (e.tile === false || chosen.has(e.id)) continue;
       if (!`${e.name} ${e.id} ${e.area || ""} ${e.device || ""}`.toLocaleLowerCase().includes(q)) continue;
-      list.push({ group: "Add to this screen", label: e.name, detail: [domainInfo(e.id)[0], e.area].filter(Boolean).join(" · "), icon: state.inventory.icons ? automaticIcon(e.id) : undefined,
+      list.push({ group: t("editor.palette.groups.add"), label: e.name, detail: [domainInfo(e.id)[0], e.area].filter(Boolean).join(" · "), icon: state.inventory.icons ? automaticIcon(e.id) : undefined,
         run: () => { if (!full) addTile(e.id); } });
       if (list.length > 60) break;
     }
@@ -66,8 +68,8 @@ watch(() => state.palette, async (open) => { if (open) { query.value = ""; activ
 
 <template>
   <div v-if="state.palette" class="palette-backdrop" @click="close">
-    <div class="palette" role="dialog" aria-label="Search" @click.stop @keydown="onKey">
-      <input ref="input" v-model="query" id="palette-input" placeholder="Search screens, entities, actions…" aria-label="Search" autocomplete="off" />
+    <div class="palette" role="dialog" :aria-label="t('editor.sidebar.search')" @click.stop @keydown="onKey">
+      <input ref="input" v-model="query" id="palette-input" :placeholder="t('editor.palette.placeholder')" :aria-label="t('editor.sidebar.search')" autocomplete="off" />
       <div class="palette-list">
         <template v-for="g in grouped" :key="g.group">
           <div class="palette-group">{{ g.group }}</div>
@@ -78,7 +80,7 @@ watch(() => state.palette, async (open) => { if (open) { query.value = ""; activ
             <kbd v-if="item.key" class="hint-key">{{ item.key }}</kbd>
           </button>
         </template>
-        <p v-if="!items.length" class="palette-empty">Nothing matches. Type part of a screen, entity or action.</p>
+        <p v-if="!items.length" class="palette-empty">{{ t("editor.palette.empty") }}</p>
       </div>
     </div>
   </div>

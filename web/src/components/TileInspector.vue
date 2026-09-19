@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // One tile's settings. Every change applies live, so the card on the mockup shows the result while you pick.
 import { computed, toRaw } from "vue";
+import { t } from "../i18n";
 import { domainInfo, entriesOf, MAX_PAGES, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { automaticIcon, closeInspector, entityName, fullPage, markDirty, moveTileToPage, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
@@ -22,42 +23,38 @@ const emptyPage = (n: number) => !state.layout?.tiles.some((t) => pageOf(t.slot)
 const pages = computed(() => {
   const list = Array.from({ length: Math.min(MAX_PAGES, pageTotal.value + 1) }, (_, i) => i + 1);
   if (goesTo.value > list.length) list.push(goesTo.value);
-  return list.map((n) => [n, emptyPage(n) ? `${n} (empty)` : String(n)] as [number, string]);
+  return list.map((n) => [n, emptyPage(n) ? t("editor.tile.goes_to.empty", { page: n }) : String(n)] as [number, string]);
 });
 const goesToHint = computed(() => !fullPage.value
-  ? { text: "Navigation tiles need firmware 0.2.62: press Update on the screen first.", warn: false }
+  ? { text: t("editor.tile.goes_to.needs_firmware"), warn: false }
   : goesTo.value > pageTotal.value
-    ? { text: `This screen has no page ${goesTo.value}, so a tap opens its last page. Choose another page.`, warn: true }
-    : { text: "A tap on the tile opens that page.", warn: false });
+    ? { text: t("editor.tile.goes_to.no_page", { page: goesTo.value }), warn: true }
+    : { text: t("editor.tile.goes_to.hint"), warn: false });
 // Moving the tile without a drag (app 0.2.78): another page, or a new one after the last. A tile alone on the last page
 // gets no "New page", which would only leave an empty page behind; with nowhere to go the row stays hidden.
 const alone = computed(() => !state.layout?.tiles.some((t) => toRaw(t) !== toRaw(props.tile) && pageOf(t.slot) === pageHere.value - 1));
 const onPage = computed(() => {
   const list = Array.from({ length: pageTotal.value }, (_, i) => [i + 1, String(i + 1)] as [number, string]);
-  if (pageTotal.value < MAX_PAGES && !(alone.value && pageHere.value === pageTotal.value)) list.push([pageTotal.value + 1, "New page"]);
+  if (pageTotal.value < MAX_PAGES && !(alone.value && pageHere.value === pageTotal.value)) list.push([pageTotal.value + 1, t("editor.tile.page.new")]);
   return list;
 });
-const sizes = computed<[string, string][]>(() => goesTo.value ? [["single", "Normal"], ["wide", "Double-width"]] : [["single", "Normal"], ["wide", "Double-width"], ["full", "Full page"]]);
-const sizeHint = computed(() => goesTo.value ? "" : fullPage.value
-  ? "Full page: one big button that lights up while on; a slider, controls or a graph sit at the bottom of it."
-  : "A full-page tile needs firmware 0.2.62: press Update on the screen first.");
+const sizes = computed<[string, string][]>(() => (goesTo.value ? ["single", "wide"] : ["single", "wide", "full"]).map((key) => [key, t(`editor.tile.size.${key}`)]));
+const sizeHint = computed(() => goesTo.value ? "" : fullPage.value ? t("editor.tile.size.full_hint") : t("editor.tile.size.needs_firmware"));
 const caps = computed(() => state.capabilities[props.tile.entity]);
 const current = (key: string, fallback: unknown) => props.tile.options?.[key] ?? fallback;
 const display = computed(() => current("display", domain.value === "screen" ? "digital" : "standard") as string);
 const displays = computed(() => {
-  const list: [string, string][] = domain.value === "screen"
-    ? [["digital", "Digital clock"], ["analog", "Analog clock"]]
-    : [["standard", "Name and status"], ["watch", "Large value"]];
+  const keys = domain.value === "screen" ? ["digital", "analog"] : ["standard", "watch"];
   const c = caps.value;
-  if (domain.value === "weather" && (!c || c.displays.includes("forecast") || display.value === "forecast")) list.push(["forecast", "Weather forecast"]);
-  if (domain.value === "sensor" && (!c || c.displays.includes("graph") || display.value === "graph")) list.push(["graph", "Graph"]);
-  if (domain.value === "sun") list.push(["sunpath", "Sun path"]);
-  return list;
+  if (domain.value === "weather" && (!c || c.displays.includes("forecast") || display.value === "forecast")) keys.push("forecast");
+  if (domain.value === "sensor" && (!c || c.displays.includes("graph") || display.value === "graph")) keys.push("graph");
+  if (domain.value === "sun") keys.push("sunpath");
+  return keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]);
 });
 const displayHint = computed(() => {
   const c = caps.value;
-  if (c && display.value === "graph" && !c.displays.includes("graph")) return "Home Assistant has no numbers for this entity, so the graph stays empty. Choose another display.";
-  if (c && display.value === "forecast" && !c.displays.includes("forecast")) return "This weather service has no daily forecast in Home Assistant. Choose another display.";
+  if (c && display.value === "graph" && !c.displays.includes("graph")) return t("editor.tile.display.no_graph");
+  if (c && display.value === "forecast" && !c.displays.includes("forecast")) return t("editor.tile.display.no_forecast");
   return "";
 });
 const size = computed(() => current("size", "single") as string);
@@ -69,23 +66,23 @@ const controlChoices = computed(() => {
 });
 const controlHint = computed(() => {
   const c = caps.value;
-  if (c && controls.value !== "none" && !c.controls.includes(controls.value)) return { text: "Home Assistant doesn't offer this control for this entity, so it stays empty on the screen. Choose another one.", warn: true };
+  if (c && controls.value !== "none" && !c.controls.includes(controls.value)) return { text: t("editor.tile.controls.not_offered"), warn: true };
   return { text: supports(0, 2, 19)
-    ? (size.value === "full" ? "At the bottom of the full-page tile; a tap anywhere else works as set below." : "On the right of the double-width tile, like the rows in Home Assistant. Tapping the name works as set below.")
-    : "The screen shows direct control from firmware 0.2.19; until then the tile stays as it was.", warn: false };
+    ? t(size.value === "full" ? "editor.tile.controls.full_hint" : "editor.tile.controls.wide_hint")
+    : t("editor.tile.controls.needs_firmware"), warn: false };
 });
 const tap = computed(() => current("tap", "auto") as string);
 const taps = computed(() => {
-  const list: [string, string][] = [["auto", "Automatic"], ["detail", "Open control"], ["none", "View only"]];
+  const keys = ["auto", "detail", "none"];
   // On / off where Home Assistant can toggle the entity, such as a cover; a speaker without on and off gets none.
-  if ((caps.value ? caps.value.toggle : TOGGLE_BEFORE.includes(domain.value)) || tap.value === "toggle") list.push(["toggle", "On / off"]);
-  list.push(["action", "Perform action"]);
-  return list;
+  if ((caps.value ? caps.value.toggle : TOGGLE_BEFORE.includes(domain.value)) || tap.value === "toggle") keys.push("toggle");
+  keys.push("action");
+  return keys.map((key) => [key, t(`editor.tile.tap.${key}`)] as [string, string]);
 });
 const tapHint = computed(() => {
-  if (tap.value === "toggle" && caps.value && !caps.value.toggle) return { text: "Home Assistant can't turn this on and off, so a tap does nothing. Choose another option.", warn: true };
-  if (tap.value === "toggle" && !TOGGLE_BEFORE.includes(domain.value) && !supports(0, 2, 58)) return { text: "The screen switches this from firmware 0.2.58: press Update on the screen. Until then a tap opens its card.", warn: false };
-  if (tap.value === "toggle") return { text: "Hold the tile to open its card.", warn: false };
+  if (tap.value === "toggle" && caps.value && !caps.value.toggle) return { text: t("editor.tile.tap.no_toggle"), warn: true };
+  if (tap.value === "toggle" && !TOGGLE_BEFORE.includes(domain.value) && !supports(0, 2, 58)) return { text: t("editor.tile.tap.toggle_needs_firmware"), warn: false };
+  if (tap.value === "toggle") return { text: t("editor.tile.tap.hold"), warn: false };
   return null;
 });
 const inline = computed(() => current("inline", "none") as string);
@@ -108,60 +105,60 @@ function inspect() {
   <div class="dr-head">
     <span class="av mdi" :style="{ color: domainInfo(tile.entity)[2], background: domainInfo(tile.entity)[3] }">{{ glyph(tileIconCp(tile)) }}</span>
     <span class="tx"><b>{{ tile.name || name }}</b><small class="mono">{{ tile.entity }}</small></span>
-    <button type="button" class="icon-btn" aria-label="Close" @click="closeInspector">✕</button>
+    <button type="button" class="icon-btn" :aria-label="t('editor.common.close')" @click="closeInspector">✕</button>
   </div>
   <div class="dr-body">
     <div class="f">
-      <label class="f-label" for="tile-name">Name on the screen</label>
+      <label class="f-label" for="tile-name">{{ t("editor.tile.name") }}</label>
       <input id="tile-name" :value="tile.name" :placeholder="name" maxlength="60" @input="rename(($event.target as HTMLInputElement).value)" />
     </div>
     <IconPicker v-if="showIcon" :selected="tile.options?.icon || 'auto'" :automatic="automaticIcon(tile.entity)"
-      :auto-label="`Automatic (${fromHA ? 'from Home Assistant' : 'default'})`"
-      :note="supports(0, 2, 18) ? '' : 'The screen shows a chosen icon from firmware 0.2.18.'"
+      :auto-label="t(fromHA ? 'editor.tile.icon.auto_ha' : 'editor.tile.icon.auto_default')"
+      :note="supports(0, 2, 18) ? '' : t('editor.tile.icon.needs_firmware')"
       @pick="(n) => setTileOption(tile, 'icon', n)" />
     <div v-if="goesTo" class="f">
-      <span class="f-label">Goes to page</span>
+      <span class="f-label">{{ t("editor.tile.goes_to.label") }}</span>
       <Segmented :choices="pages" :value="goesTo" @pick="(v) => retargetPageTile(tile, Number(v))" />
       <small :class="{ warn: goesToHint.warn }">{{ goesToHint.text }}</small>
     </div>
     <div v-else class="f">
-      <span class="f-label">Display</span>
+      <span class="f-label">{{ t("editor.tile.display.label") }}</span>
       <Segmented :choices="displays" :value="display" @pick="(v) => setTileOption(tile, 'display', v)" />
       <small v-if="displayHint" class="warn">{{ displayHint }}</small>
     </div>
     <div class="f">
-      <span class="f-label">Size</span>
+      <span class="f-label">{{ t("editor.tile.size.label") }}</span>
       <Segmented :choices="sizes" :value="size" @pick="(v) => setTileOption(tile, 'size', v)" />
       <small v-if="sizeHint">{{ sizeHint }}</small>
     </div>
     <div v-if="onPage.length > 1" class="f">
-      <span class="f-label">Page</span>
+      <span class="f-label">{{ t("editor.tile.page.label") }}</span>
       <Segmented :choices="onPage" :value="pageHere" @pick="(v) => moveTileToPage(tile, Number(v) - 1)" />
     </div>
     <div v-if="catalogue && size !== 'single' && !goesTo" class="f">
-      <span class="f-label">Direct control on the tile</span>
+      <span class="f-label">{{ t("editor.tile.controls.label") }}</span>
       <Segmented :choices="controlChoices" :value="controls" @pick="(v) => setTileOption(tile, 'controls', v)" />
       <small :class="{ warn: controlHint.warn }">{{ controlHint.text }}</small>
     </div>
     <div v-if="domain !== 'screen' && !goesTo" class="f">
-      <span class="f-label">On tap</span>
+      <span class="f-label">{{ t("editor.tile.tap.label") }}</span>
       <Segmented :choices="taps" :value="tap" @pick="(v) => setTileOption(tile, 'tap', v)" />
       <small v-if="tapHint" :class="{ warn: tapHint.warn }">{{ tapHint.text }}</small>
     </div>
     <ActionPicker v-if="domain !== 'screen' && !goesTo && tap === 'action'" :tile="tile" />
     <div v-if="showSlider && !goesTo" class="f">
-      <span class="f-label">Small slider on the tile</span>
-      <Segmented :choices="[['none', 'No'], ['slider', 'Yes, control directly']]" :value="inline" @pick="(v) => setTileOption(tile, 'inline', v)" />
-      <small v-if="sliderWarn" class="warn">Home Assistant has nothing a slider can change for this entity. Choose No.</small>
+      <span class="f-label">{{ t("editor.tile.slider.label") }}</span>
+      <Segmented :choices="[['none', t('editor.tile.slider.no')], ['slider', t('editor.tile.slider.yes')]]" :value="inline" @pick="(v) => setTileOption(tile, 'inline', v)" />
+      <small v-if="sliderWarn" class="warn">{{ t("editor.tile.slider.nothing") }}</small>
     </div>
     <div v-if="domain === 'sensor' && !goesTo" class="f">
-      <span class="f-label">History</span>
-      <Segmented :choices="[[1, '1 hour'], [6, '6 hours'], [24, '24 hours']]" :value="history" @pick="(v) => setTileOption(tile, 'history_hours', Number(v))" />
+      <span class="f-label">{{ t("editor.tile.history.label") }}</span>
+      <Segmented :choices="[1, 6, 24].map((hours) => [hours, t('editor.tile.history.hours', hours)] as [number, string])" :value="history" @pick="(v) => setTileOption(tile, 'history_hours', Number(v))" />
     </div>
     <div class="f">
-      <span class="f-label">Pastel background</span>
+      <span class="f-label">{{ t("editor.tile.background.label") }}</span>
       <div class="sw">
-        <button v-for="[key, choice] in backgrounds" :key="key" type="button" :aria-label="`Background: ${choice.label}`"
+        <button v-for="[key, choice] in backgrounds" :key="key" type="button" :aria-label="t('editor.tile.background.aria', { name: choice.label })"
           :aria-pressed="(tile.options?.background || 'auto') === key ? 'true' : 'false'" @click="setTileOption(tile, 'background', key)">
           <i :class="choice.color ? '' : key === 'none' ? 'none' : 'auto'" :style="choice.color ? { background: choice.color } : undefined"></i>{{ choice.label }}
         </button>
@@ -169,8 +166,8 @@ function inspect() {
     </div>
   </div>
   <div class="dr-foot">
-    <button type="button" class="btn danger" @click="removeTile(tile)">Remove</button>
+    <button type="button" class="btn danger" @click="removeTile(tile)">{{ t("editor.common.remove") }}</button>
     <span class="spacer"></span>
-    <button v-if="domain !== 'screen'" type="button" class="btn quiet" @click="inspect">Read current data</button>
+    <button v-if="domain !== 'screen'" type="button" class="btn quiet" @click="inspect">{{ t("editor.common.read_current_data") }}</button>
   </div>
 </template>

@@ -67,7 +67,8 @@ describe("TileCard", () => {
   it("draws the large value, the wide card's toggle and an unavailable entity in grey", () => {
     state.liveStates["sensor.t"] = { state: "1249", word: null, a: { unit_of_measurement: "W" } };
     const big = placed({ entity: "sensor.t", name: "Power", slot: 0, options: { display: "watch" } });
-    expect(big.find(".big").text()).toBe("1249W");
+    // Numbers as the screens write them (app 0.2.90): "1,234.5" until the add-on names another format.
+    expect(big.find(".big").text()).toBe("1,249W");
     state.liveStates["light.a"] = { state: "off", word: "Off", a: {} };
     const wide = placed({ entity: "light.a", name: "", slot: 2, options: { size: "wide" } });
     expect(wide.classes()).toContain("wide");
@@ -82,12 +83,12 @@ describe("TileCard", () => {
     const plain = placed({ entity: "sensor.t", name: "Power", slot: 0 });
     expect(plain.find(".head > .ic").exists()).toBe(true);
     expect(plain.find(".head > .tx > .nm").text()).toBe("Power");
-    expect(plain.find(".head > .tx > .st").text()).toBe("1249 W");
+    expect(plain.find(".head > .tx > .st").text()).toBe("1,249 W");
     // A watch card keeps the name next to the icon and puts the big value underneath.
     const watch = placed({ entity: "sensor.t", name: "Power", slot: 1, options: { display: "watch" } });
     expect(watch.find(".head").classes()).toContain("top");
     expect(watch.find(".head .big").exists()).toBe(false);
-    expect(watch.find(".head + .big").text()).toBe("1249W");
+    expect(watch.find(".head + .big").text()).toBe("1,249W");
     state.liveStates["light.a"] = { state: "on", word: "On", a: { brightness: 255 } };
     const lamp = placed({ entity: "light.a", name: "", slot: 2, options: { inline: "slider" } });
     expect(lamp.find(".head + .mini-slider").exists()).toBe(true);

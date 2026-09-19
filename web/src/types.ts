@@ -23,6 +23,8 @@ export type Layout = {
 export type UpdateInfo = {
   available?: boolean; target?: string; state?: string; phase?: string; host?: string; profile?: string;
   result?: { state: string; message: string; time: number };
+  // The screen still runs another language than the one chosen for the screens (app 0.2.90).
+  language?: boolean;
 };
 export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[] };
 export type Screen = {
@@ -32,6 +34,17 @@ export type Screen = {
   // What the add-on reads from the firmware (app 0.2.78): its X.Y.Z (null when unknown), how many tiles it holds,
   // whether it draws full-page tiles, and whether it takes several tiles that go to the same page.
   firmware_known?: string | null; tile_limit?: number; full_page?: boolean; page_tiles_repeat?: boolean;
+  // The language its firmware was built in (app 0.2.90); null for older firmware, which is English.
+  language?: string | null;
+};
+// Language & region of the screens (app 0.2.90): the language setting ("auto" follows Home Assistant), the language that
+// gives, Home Assistant's own, and every language there is, by its own name; the time and number format, each "auto"
+// (as the language writes it) or a choice, and what that gives.
+export type LanguageInfo = { code: string; name: string; english: string; checked: boolean };
+export type Languages = {
+  setting: string; effective: string; ha: string | null; languages: LanguageInfo[];
+  clock?: "auto" | "24" | "12"; clock_effective?: "24" | "12";
+  numbers?: "auto" | "point" | "comma" | "space"; numbers_effective?: "point" | "comma" | "space";
 };
 export type ChangelogSection = { app: string; firmware: string; lines: string[] };
 export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean };
@@ -62,6 +75,8 @@ export type Inventory = {
     suggestions?: Record<string, { item: HeaderItem; label: string; name?: string; area?: string; icon?: string }[]>;
   };
   alerts?: any;
+  // Missing from an add-on before 0.2.90: English everywhere, and no Language card.
+  language?: Languages;
   [key: string]: unknown;
 };
 export type Capability = { toggle: boolean; inline: boolean; controls: string[]; displays: string[] };

@@ -2,10 +2,11 @@
 // The top bar: the name on the left; on the right up to six items: the time, an analog clock, the date, or an
 // entity's state or last change. Choices apply live; the bar on every page follows.
 import { computed, ref } from "vue";
+import { t } from "../i18n";
 import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from "../model/topbar";
 import {
-  automaticIcon, barMetrics, closeInspector, entityName, iconNamed, markDirty, moveTopbarItem, openBar, openBarAdd,
-  removeTopbarItem, setSetting, settingValues, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView,
+  automaticIcon, barMetrics, clock24, closeInspector, entityName, iconNamed, markDirty, moveTopbarItem, openBar, openBarAdd,
+  removeTopbarItem, screenLanguage, screenText, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView,
 } from "../store";
 import type { HeaderItem } from "../types";
 import IconPicker from "./IconPicker.vue";
@@ -17,17 +18,17 @@ const items = computed(() => topbarItems());
 const item = computed<HeaderItem | undefined>(() => items.value[props.index]);
 const lay = computed(() => {
   void state.fontsVersion; void state.now; void state.topbarPreviews;
-  return barLayout(items.value, barMetrics.value, state.layout?.title || "Home", topbarView);
+  return barLayout(items.value, barMetrics.value, state.layout?.title || screenText("editor.mockup.home"), topbarView);
 });
 const overflow = computed(() => lay.value.dropped);
 const needed = computed(() => state.inventory.header?.min_firmware || "0.2.32");
 const supported = computed(() => { const [a, b, c] = needed.value.split(".").map(Number); return supports(a, b, c); });
 const hint = computed(() => supported.value
-  ? overflow.value.size ? "Not everything fits next to the name: the screen drops the dashed items. Remove one or choose a shorter name." : "Drag to reorder; tap an item to configure it."
-  : `Sensors, the date, and the analog clock appear from firmware ${needed.value}; until that update, this screen shows the name and, if the time is in the bar, the clock.`);
+  ? t(overflow.value.size ? "editor.topbar.hint.overflow" : "editor.topbar.hint.reorder")
+  : t("editor.topbar.hint.needs_firmware", { version: needed.value }));
 const detail = (it: HeaderItem, i: number) => {
   const view = topbarView(it);
-  return !view.shown ? "Hidden: not active right now" : overflow.value.has(i) ? "Doesn't fit next to the name" : view.analog ? "Dial" : view.text;
+  return !view.shown ? t("editor.topbar.detail.hidden") : overflow.value.has(i) ? t("editor.topbar.detail.overflow") : view.analog ? t("editor.topbar.detail.dial") : view.text;
 };
 const iconOf = (it: HeaderItem) => {
   const view = topbarView(it);
@@ -47,10 +48,13 @@ function update(patch: Partial<HeaderItem>) {
 const liveNote = computed(() => {
   if (!item.value) return "";
   const view = topbarView(item.value);
-  return !view.shown ? "Hidden right now: not active" : overflow.value.has(props.index) ? "Doesn't currently fit next to the name" : "How it looks on the screen";
+  return !view.shown ? t("editor.topbar.live.hidden") : overflow.value.has(props.index) ? t("editor.topbar.live.overflow") : t("editor.topbar.live.looks");
 });
-const clock24 = computed(() => settingValues().clock_24h !== false);
-const samples = computed(() => ({ clock: clockText(clock24.value, new Date(state.now)), analog: "Small dial with the time", date: dateText(new Date(state.now)) } as Record<string, string>));
+const samples = computed(() => ({
+  clock: clockText(clock24.value, new Date(state.now)),
+  analog: t("editor.topbar.analog_sample"),
+  date: dateText(new Date(state.now), screenLanguage.value),
+} as Record<string, string>));
 
 // Pointer drag between the rows, mouse and touch (touch after a short hold, so the list still scrolls). The order
 // updates while dragging, the mockup follows, and a finished drag is not a click.
@@ -128,29 +132,29 @@ function onKey(e: KeyboardEvent, i: number) {
   <div class="dr-head">
     <span class="av mdi" style="background: var(--seg); color: var(--ink-2)">{{ item ? glyph(iconOf(item) || "F0150") : glyph("F0150") }}</span>
     <span class="tx">
-      <b>{{ item ? (item.type === "entity" ? entityName(item.entity!) : topbarLabel(item)) : "Top bar" }}</b>
-      <small :class="{ mono: item?.type === 'entity' }">{{ item ? (item.type === "entity" ? item.entity : "From the screen itself, also works without Home Assistant") : `${items.length} of ${topbarMax()} items` }}</small>
+      <b>{{ item ? (item.type === "entity" ? entityName(item.entity!) : topbarLabel(item)) : t("editor.topbar.title") }}</b>
+      <small :class="{ mono: item?.type === 'entity' }">{{ item ? (item.type === "entity" ? item.entity : t("editor.topbar.builtin")) : t("editor.topbar.items", { used: items.length }, topbarMax()) }}</small>
     </span>
-    <button type="button" class="icon-btn" aria-label="Close" @click="closeInspector">✕</button>
+    <button type="button" class="icon-btn" :aria-label="t('editor.common.close')" @click="closeInspector">✕</button>
   </div>
   <div class="dr-body">
     <div class="f">
-      <label class="f-label" for="title">Left: name</label>
-      <input id="title" :value="state.layout?.title" maxlength="60" placeholder="For example: Living room" @input="rename(($event.target as HTMLInputElement).value)" />
+      <label class="f-label" for="title">{{ t("editor.topbar.name") }}</label>
+      <input id="title" :value="state.layout?.title" maxlength="60" :placeholder="t('editor.topbar.name_placeholder')" @input="rename(($event.target as HTMLInputElement).value)" />
     </div>
     <div class="f">
-      <span class="f-label" id="topbar-caption">Right: time, sensors, or a clock <span style="text-transform: none; letter-spacing: 0; font-weight: 500"> · {{ items.length }} / {{ topbarMax() }}</span></span>
+      <span class="f-label" id="topbar-caption">{{ t("editor.topbar.right") }} <span style="text-transform: none; letter-spacing: 0; font-weight: 500"> · {{ items.length }} / {{ topbarMax() }}</span></span>
       <div class="items" id="topbar-chips" role="list" aria-labelledby="topbar-caption">
         <div v-for="(it, i) in items" :key="itemKey(it) + i" class="item" role="listitem" tabindex="0" :data-index="i"
           :class="{ selected: i === index, 'is-hidden': !topbarView(it).shown, 'is-overflow': overflow.has(i), 'just-added': justAdded(it), 'dragging-chip': drag.active && drag.index === i }"
-          :aria-label="`${topbarLabel(it)}, slot ${i + 1}. Enter: configure, arrows: move`"
+          :aria-label="t('editor.topbar.item_label', { name: topbarLabel(it), slot: i + 1 })"
           @pointerdown="down($event, i)" @click="pick(i)" @keydown="onKey($event, i)">
           <span class="grip" aria-hidden="true">⋮⋮</span>
           <span class="av mdi" :style="topbarView(it).color ? { color: topbarView(it).color! } : undefined">{{ iconOf(it) ? glyph(iconOf(it)!) : "" }}</span>
           <span class="tx"><b>{{ topbarLabel(it) }}</b><small>{{ detail(it, i) }}</small></span>
-          <button type="button" class="x" :aria-label="`Remove ${topbarLabel(it)} from the top bar`" @click.stop="removeTopbarItem(i)">✕</button>
+          <button type="button" class="x" :aria-label="t('editor.topbar.remove_named', { name: topbarLabel(it) })" @click.stop="removeTopbarItem(i)">✕</button>
         </div>
-        <button type="button" class="ghost-btn" id="topbar-add" :disabled="items.length >= topbarMax()" :title="items.length >= topbarMax() ? `Maximum ${topbarMax()} items` : 'Add the time, date, analog clock, or an entity'" @click="openBarAdd">＋ Add time, date, or an entity</button>
+        <button type="button" class="ghost-btn" id="topbar-add" :disabled="items.length >= topbarMax()" :title="items.length >= topbarMax() ? t('editor.topbar.max', topbarMax()) : t('editor.topbar.add_title')" @click="openBarAdd">{{ t("editor.topbar.add_button") }}</button>
       </div>
       <small id="topbar-hint" :class="{ warn: overflow.size > 0 && supported }">{{ hint }}</small>
     </div>
@@ -161,29 +165,28 @@ function onKey(e: KeyboardEvent, i: number) {
       </div>
       <template v-if="item.type === 'entity'">
         <div class="f">
-          <span class="f-label">What to show</span>
+          <span class="f-label">{{ t("editor.topbar.content.label") }}</span>
           <Segmented :choices="(state.inventory.header?.contents || []).map((c) => [c.key, c.label] as [string, string])" :value="item.content" @pick="(v) => update({ content: v })" />
-          <small>Last changed keeps counting on the screen itself: “Just now”, “5 min ago”, “Yesterday”.</small>
+          <small>{{ t("editor.topbar.content.hint") }}</small>
         </div>
-        <IconPicker :selected="item.icon || 'auto'" :automatic="state.topbarPreviews[itemKey(item)]?.auto_icon || automaticIcon(item.entity!)" auto-label="Automatic (like Home Assistant)" allow-none @pick="(n) => update({ icon: n })" />
+        <IconPicker :selected="item.icon || 'auto'" :automatic="state.topbarPreviews[itemKey(item)]?.auto_icon || automaticIcon(item.entity!)" :auto-label="t('editor.topbar.auto_icon')" allow-none @pick="(n) => update({ icon: n })" />
         <div class="f">
-          <span class="f-label">Show</span>
+          <span class="f-label">{{ t("editor.topbar.show.label") }}</span>
           <Segmented :choices="(state.inventory.header?.shows || []).map((s) => [s.key, s.label] as [string, string])" :value="item.show" @pick="(v) => update({ show: v })" />
-          <small>Only when active hides the item as long as it's off, closed, away, or 0. Handy for an open door, a running washing machine, or who's home.</small>
+          <small>{{ t("editor.topbar.show.hint") }}</small>
         </div>
       </template>
-      <div v-else-if="item.type !== 'date'" class="f">
-        <span class="f-label">Format</span>
-        <Segmented :choices="[['24', '24 hour'], ['12', '12 hour']]" :value="clock24 ? '24' : '12'" @pick="(v) => setSetting('clock_24h', v === '24', 150)" />
-        <small>The screen's own clock setting: it applies at once to every clock on this screen, including the clock tiles.</small>
-      </div>
-      <small v-else>{{ samples.date }} today. The date follows the screen's own clock.</small>
+      <!-- The clock's format is one choice for every screen, under Settings → Language & region (app 0.2.90). -->
+      <i18n-t v-else-if="item.type !== 'date'" :keypath="clock24 ? 'editor.topbar.clock_24' : 'editor.topbar.clock_12'" tag="small" id="topbar-clock" scope="global">
+        <template #settings><a href="#settings">{{ t("editor.topbar.clock_settings") }}</a></template>
+      </i18n-t>
+      <small v-else>{{ t("editor.topbar.date_hint", { date: samples.date }) }}</small>
     </template>
   </div>
   <div v-if="item" class="dr-foot">
-    <button type="button" class="btn danger" @click="removeTopbarItem(index)">Remove</button>
+    <button type="button" class="btn danger" @click="removeTopbarItem(index)">{{ t("editor.common.remove") }}</button>
     <span class="spacer"></span>
-    <button type="button" class="btn quiet" :disabled="index === 0" @click="moveTopbarItem(index, index - 1) && openBar(index - 1)">↑ Up</button>
-    <button type="button" class="btn quiet" :disabled="index >= items.length - 1" @click="moveTopbarItem(index, index + 1) && openBar(index + 1)">↓ Down</button>
+    <button type="button" class="btn quiet" :disabled="index === 0" @click="moveTopbarItem(index, index - 1) && openBar(index - 1)">{{ t("editor.topbar.up") }}</button>
+    <button type="button" class="btn quiet" :disabled="index >= items.length - 1" @click="moveTopbarItem(index, index + 1) && openBar(index + 1)">{{ t("editor.topbar.down") }}</button>
   </div>
 </template>

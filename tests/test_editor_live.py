@@ -225,10 +225,12 @@ class Editor(unittest.TestCase):
         for marker in ('export const SIZES: Size[] = ["single", "wide", "full"];', 'export const pageTarget', 'versionAtLeast(firmware, "0.2.62") ? MAX_TILES'):
             self.assertIn(marker, layout, marker)
         drawer = editor_sources.component('TileInspector')
-        for marker in ('["full", "Full page"]', 'Goes to page', 'retargetPageTile(tile, Number(v))'):
+        for marker in ('["single", "wide", "full"]', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):
             self.assertIn(marker, drawer, marker)
+        self.assertEqual((editor_sources.text('tile.size.full'), editor_sources.text('tile.goes_to.label')), ('Full page', 'Goes to page'))
         self.assertIn(':class="{ wide, full, bare, placeholder: placeholder || !live, chosen }"', editor_sources.component('TileCard'))
-        self.assertIn('["screen", "Screen"]', editor_sources.component('Library'))
+        self.assertIn('"timer", "screen",', editor_sources.component('Library'))
+        self.assertEqual(editor_sources.text('library.filters.screen'), 'Screen')
 
 
 if __name__ == '__main__':

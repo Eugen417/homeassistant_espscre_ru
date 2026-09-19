@@ -185,10 +185,13 @@ class Page(unittest.TestCase):
     def test_cheatsheet_explains_the_event(self):
         import editor_sources
         cheatsheet = editor_sources.component('AlertsView')
-        for marker in ('id="alerts-all"', '["alerts-all", "All screens"]', 'id="alerts-all-example"', 'id="alerts-all-copy"',
-                       'esp_screens_show_alert', 'esp_screens_dismiss_alert', 'Settings → Claude'):
+        for marker in ('id="alerts-all"', '"alerts-all",', 'id="alerts-all-example"', 'id="alerts-all-copy"',
+                       'esp_screens_show_alert', 'esp_screens_dismiss_alert', 'editor.alerts.tips.claude'):
             self.assertIn(marker, cheatsheet, marker)
-        for marker in ('const allYaml = computed', 'broadcast?.show', 'copyText(allYaml, undefined, \'YAML\')'):
+        # The words are in en.json (app 0.2.90).
+        self.assertEqual(editor_sources.text('alerts.nav.all'), 'All screens')
+        self.assertIn('Settings → Claude', editor_sources.text('alerts.tips.claude'))
+        for marker in ('const allYaml = computed', 'broadcast?.show', 'copyText(allYaml, undefined, \'yaml\')'):
             self.assertIn(marker, cheatsheet, marker)
 
 

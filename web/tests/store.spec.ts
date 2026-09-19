@@ -1,7 +1,7 @@
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addTile, canAlert, copyLayoutFrom, fullPage, importLayout, layoutJson, liveOf, moveTileToPage, pageReachWarning, pageTilesRepeat, PHASES, removeTile,
+  addTile, canAlert, copyLayoutFrom, fullPage, importLayout, layoutJson, liveOf, moveTileToPage, pageReachWarning, pageTilesRepeat, phaseText, removeTile,
   retargetPageTile, save, select, setTileOption, state, supports, tileLimit, topbarItems, topbarView, updateProgress, whatsNew,
 } from "../src/store";
 import type { Inventory, Screen } from "../src/types";
@@ -141,7 +141,8 @@ describe("updates with content", () => {
     expect(updateProgress(living)).toBeNull();
     living.update!.state = "running";
     living.update!.phase = "install";
-    expect(updateProgress(living)).toEqual({ percent: 12, text: PHASES.install });
+    expect(updateProgress(living)).toEqual({ percent: 12, text: phaseText("install") });
+    expect(phaseText("install")).toBe("Building and installing…");
     state.firmwareJob = { job: { stage: "compile" }, logs: [] };
     expect(updateProgress(living)!.percent).toBe(40);
     state.firmwareJob = { job: { stage: "upload" }, logs: [] };

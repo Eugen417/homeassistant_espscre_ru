@@ -2,8 +2,12 @@
 // Screen settings: the same groups and rows as the settings page on the screen itself. Every change applies at
 // once, like on the screen; no Save needed.
 import { computed } from "vue";
+import { t } from "../i18n";
 import { glyph } from "../model/topbar";
-import { currentScreen, pageReachWarning, SETTING_GROUPS, setSetting, settingText, settingValues, settingsView, state, steppedSetting, type SettingRow } from "../store";
+import {
+  choiceText, currentScreen, pageReachWarning, SETTING_GROUPS, setSetting, settingLabel, settingText, settingValues, settingsView, state, steppedSetting,
+  type SettingRow,
+} from "../store";
 
 const view = computed(() => settingsView());
 const values = computed(() => settingValues());
@@ -14,12 +18,12 @@ const reachWarning = computed(() => pageReachWarning());
 const unavailable = (row: SettingRow) => offline.value || Boolean(view.value?.unavailable.includes(row.key));
 const needs = (row: SettingRow) => (row.needs ? Boolean(values.value[row.needs]) : true);
 const status = computed(() => offline.value
-  ? "This screen is offline. Its settings can change once it's back."
+  ? t("editor.screen_settings.status.offline")
   : state.settingPending
-    ? "Saving…"
+    ? t("editor.common.saving")
     : view.value?.owner === "screen"
-      ? "Changes apply on the screen at once, and show up here when they change there."
-      : "Changes apply at once. Firmware 0.2.49 lets the screen keep them itself.");
+      ? t("editor.screen_settings.status.screen")
+      : t("editor.screen_settings.status.app"));
 const stepDisabled = (row: SettingRow, direction: number) => {
   const value = values.value[row.key];
   if (unavailable(row) || !needs(row) || value === null || value === undefined) return true;
@@ -60,23 +64,23 @@ function click(e: MouseEvent, row: SettingRow, direction: number) {
   <div class="settings" id="general-settings" :class="{ offline }">
     <span class="status" id="settings-status" role="status">{{ status }}</span>
     <div v-if="view" class="set-grid" id="settings-groups">
-      <section v-for="group in groups" :key="group.title" class="set-card">
-        <h4><span class="mdi">{{ glyph(group.icon) }}</span>{{ group.title }}</h4>
+      <section v-for="group in groups" :key="group.group" class="set-card">
+        <h4><span class="mdi">{{ glyph(group.icon) }}</span>{{ t(`editor.screen_settings.groups.${group.group}`) }}</h4>
         <div v-for="row in group.rows" :key="row.key" class="srow" :class="[`setting-${row.kind}`, { inactive: !needs(row) || unavailable(row) }]" :data-setting="row.key"
-          :title="unavailable(row) && !offline ? 'This entity is off in Home Assistant, or the screen is restarting.' : ''"
+          :title="unavailable(row) && !offline ? t('editor.screen_settings.unavailable') : ''"
           @click="row.kind === 'toggle' && ($event.target as HTMLElement).closest('.srow') === $event.currentTarget && !($event.target as HTMLElement).closest('button') && !unavailable(row) && setSetting(row.key, !values[row.key], 150)">
-          <span class="s-label" :id="`setting-label-${row.key}`">{{ row.label }}</span>
+          <span class="s-label" :id="`setting-label-${row.key}`">{{ settingLabel(row) }}</span>
           <div class="s-control">
             <button v-if="row.kind === 'toggle'" type="button" class="switch" :class="{ unknown: values[row.key] === null || values[row.key] === undefined }" role="switch"
               :id="`setting-${row.key}`" :aria-checked="Boolean(values[row.key]) ? 'true' : 'false'" :aria-labelledby="`setting-label-${row.key}`"
               :disabled="unavailable(row)" @click.stop="setSetting(row.key, !values[row.key], 150)"></button>
             <div v-else-if="row.kind === 'choice'" class="seg" role="group" :aria-labelledby="`setting-label-${row.key}`">
-              <button v-for="[value, text] in row.options!" :key="String(value)" type="button" :aria-pressed="values[row.key] === value ? 'true' : 'false'" :disabled="unavailable(row)" @click="setSetting(row.key, value, 150)">{{ text }}</button>
+              <button v-for="value in row.options!" :key="String(value)" type="button" :aria-pressed="values[row.key] === value ? 'true' : 'false'" :disabled="unavailable(row)" @click="setSetting(row.key, value, 150)">{{ choiceText(row, value) }}</button>
             </div>
             <div v-else class="step">
-              <button type="button" :aria-label="`${row.label} lower`" :disabled="stepDisabled(row, -1)" @pointerdown="down($event, row, -1)" @pointerup="up" @pointercancel="up" @pointerleave="up" @click="click($event, row, -1)"><span class="mdi">{{ glyph("F0374") }}</span></button>
+              <button type="button" :aria-label="t('editor.screen_settings.lower', { name: settingLabel(row) })" :disabled="stepDisabled(row, -1)" @pointerdown="down($event, row, -1)" @pointerup="up" @pointercancel="up" @pointerleave="up" @click="click($event, row, -1)"><span class="mdi">{{ glyph("F0374") }}</span></button>
               <output :id="`setting-${row.key}`" :aria-labelledby="`setting-label-${row.key}`">{{ settingText(row, values) }}</output>
-              <button type="button" :aria-label="`${row.label} higher`" :disabled="stepDisabled(row, 1)" @pointerdown="down($event, row, 1)" @pointerup="up" @pointercancel="up" @pointerleave="up" @click="click($event, row, 1)"><span class="mdi">{{ glyph("F0415") }}</span></button>
+              <button type="button" :aria-label="t('editor.screen_settings.higher', { name: settingLabel(row) })" :disabled="stepDisabled(row, 1)" @pointerdown="down($event, row, 1)" @pointerup="up" @pointercancel="up" @pointerleave="up" @click="click($event, row, 1)"><span class="mdi">{{ glyph("F0415") }}</span></button>
             </div>
           </div>
         </div>

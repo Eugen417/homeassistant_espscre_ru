@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // One screen: the head with its status, the Layout and Settings tabs, and the drawer over the right side.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
-import { canAlert, closeInspector, copyLayoutFrom, currentScreen, exportLayout, go, identify, importLayout, save, startUpdate, state } from "../store";
+import { t } from "../i18n";
+import {
+  canAlert, closeInspector, copyLayoutFrom, currentScreen, exportLayout, go, identify, importLayout, needsUpdate, save, screenText, startUpdate, state,
+} from "../store";
 import LayoutView from "./LayoutView.vue";
 import SettingsTab from "./SettingsTab.vue";
 import Drawer from "./Drawer.vue";
@@ -9,8 +12,8 @@ import Drawer from "./Drawer.vue";
 const screen = computed(() => currentScreen.value!);
 const statusText = computed(() => screen.value.online
   ? `${screen.value.delivery} · ${screen.value.status}`
-  : "Offline · changes are saved");
-const updateReady = computed(() => screen.value.update?.available && screen.value.online && screen.value.update?.profile && screen.value.update?.host);
+  : t("editor.screen_view.offline"));
+const updateReady = computed(() => needsUpdate(screen.value) && screen.value.online && screen.value.update?.profile && screen.value.update?.host);
 const others = computed(() => state.inventory.screens.filter((s) => s.id !== screen.value.id && s.layout?.tiles?.length));
 const copyOpen = ref(false);
 const fileInput = ref<HTMLInputElement | null>(null);
@@ -28,7 +31,7 @@ function inspectAll() {
 }
 function copyFrom(id: string) {
   closeMenu();
-  if (state.dirty && !confirm("Replace the unsaved layout with a copy of the other screen's?")) return;
+  if (state.dirty && !confirm(t("editor.screen_view.confirm.copy"))) return;
   copyLayoutFrom(id);
 }
 function pickFile() { closeMenu(); fileInput.value?.click(); }
@@ -37,7 +40,7 @@ async function onFile(e: Event) {
   const file = input.files?.[0];
   input.value = "";
   if (!file) return;
-  if (state.dirty && !confirm("Replace the unsaved layout with the imported one?")) return;
+  if (state.dirty && !confirm(t("editor.screen_view.confirm.import"))) return;
   importLayout(await file.text());
 }
 function onKey(e: KeyboardEvent) {
@@ -61,34 +64,34 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKey); document
   <header class="main-head">
     <div>
       <span class="eyebrow" id="screen-name">{{ screen.name }}</span>
-      <h1>{{ state.layout?.title || "Home" }}</h1>
+      <h1>{{ state.layout?.title || screenText("editor.mockup.home") }}</h1>
     </div>
     <span id="delivery" class="chip" :class="{ off: !screen.online }" :title="statusText"><span class="dot"></span>{{ statusText }}</span>
     <div class="head-right">
       <div class="seg" role="tablist">
-        <button type="button" id="tab-layout" role="tab" :aria-pressed="state.tab === 'layout' ? 'true' : 'false'" @click="state.tab = 'layout'">Layout</button>
-        <button type="button" id="tab-settings" role="tab" :aria-pressed="state.tab === 'settings' ? 'true' : 'false'" @click="state.tab = 'settings'; closeInspector()">Screen settings</button>
+        <button type="button" id="tab-layout" role="tab" :aria-pressed="state.tab === 'layout' ? 'true' : 'false'" @click="state.tab = 'layout'">{{ t("editor.screen_view.tabs.layout") }}</button>
+        <button type="button" id="tab-settings" role="tab" :aria-pressed="state.tab === 'settings' ? 'true' : 'false'" @click="state.tab = 'settings'; closeInspector()">{{ t("editor.screen_view.tabs.settings") }}</button>
       </div>
-      <span v-if="!state.dirty" id="dirty" class="chip" :class="{ sent: state.saved }">{{ state.saved ? "Saved · sent to screen" : "All saved" }}</span>
-      <span v-else id="dirty" class="chip dirty">Unsaved changes</span>
+      <span v-if="!state.dirty" id="dirty" class="chip" :class="{ sent: state.saved }">{{ state.saved ? t("editor.screen_view.sent") : t("editor.screen_view.all_saved") }}</span>
+      <span v-else id="dirty" class="chip dirty">{{ t("editor.common.unsaved") }}</span>
       <button v-if="state.dirty" id="save" type="button" class="btn primary" :disabled="state.busy" title="⌘S" @click="save()">
-        <span v-if="state.busy" class="spin small"></span>{{ state.busy ? "Saving…" : "Save & send" }}
+        <span v-if="state.busy" class="spin small"></span>{{ state.busy ? t("editor.common.saving") : t("editor.common.save_send") }}
       </button>
-      <button id="more" type="button" class="icon-btn" aria-label="More" aria-haspopup="menu" :aria-expanded="state.menuOpen ? 'true' : 'false'" @click.stop="state.menuOpen = !state.menuOpen; copyOpen = false">···</button>
+      <button id="more" type="button" class="icon-btn" :aria-label="t('editor.screen_view.more')" aria-haspopup="menu" :aria-expanded="state.menuOpen ? 'true' : 'false'" @click.stop="state.menuOpen = !state.menuOpen; copyOpen = false">···</button>
       <div v-if="state.menuOpen" class="menu" role="menu">
-        <button type="button" role="menuitem" id="identify" :disabled="!canAlert(screen) || !screen.online" :title="canAlert(screen) ? '' : 'Needs firmware 0.2.31 or newer'" @click="closeMenu(); identify(screen)">Identify <small>blink the screen</small></button>
-        <button type="button" role="menuitem" id="inspect" @click="inspectAll">Read current data <small>from Home Assistant</small></button>
+        <button type="button" role="menuitem" id="identify" :disabled="!canAlert(screen) || !screen.online" :title="canAlert(screen) ? '' : t('editor.screen_view.menu.identify_needs')" @click="closeMenu(); identify(screen)">{{ t("editor.screen_view.menu.identify") }} <small>{{ t("editor.screen_view.menu.identify_hint") }}</small></button>
+        <button type="button" role="menuitem" id="inspect" @click="inspectAll">{{ t("editor.common.read_current_data") }} <small>{{ t("editor.screen_view.menu.inspect_hint") }}</small></button>
         <div class="sep"></div>
-        <button type="button" role="menuitem" id="copy-layout" :disabled="!others.length" :aria-expanded="copyOpen ? 'true' : 'false'" @click.stop="copyOpen = !copyOpen">Copy layout from… <small>{{ others.length ? `${others.length} screen${others.length === 1 ? "" : "s"}` : "no other screen" }}</small></button>
+        <button type="button" role="menuitem" id="copy-layout" :disabled="!others.length" :aria-expanded="copyOpen ? 'true' : 'false'" @click.stop="copyOpen = !copyOpen">{{ t("editor.screen_view.menu.copy") }} <small>{{ others.length ? t("editor.screen_view.menu.copy_screens", others.length) : t("editor.screen_view.menu.copy_none") }}</small></button>
         <div v-if="copyOpen" class="sub">
-          <button v-for="other in others" :key="other.id" type="button" role="menuitem" @click="copyFrom(other.id)">{{ other.name }} <small>{{ other.layout.tiles.length }} tiles</small></button>
+          <button v-for="other in others" :key="other.id" type="button" role="menuitem" @click="copyFrom(other.id)">{{ other.name }} <small>{{ t("editor.screen_view.menu.copy_tiles", other.layout.tiles.length) }}</small></button>
         </div>
-        <button type="button" role="menuitem" id="export-layout" @click="closeMenu(); exportLayout()">Export layout <small>JSON</small></button>
-        <button type="button" role="menuitem" id="import-layout" @click="pickFile">Import layout… <small>JSON</small></button>
+        <button type="button" role="menuitem" id="export-layout" @click="closeMenu(); exportLayout()">{{ t("editor.screen_view.menu.export") }} <small>JSON</small></button>
+        <button type="button" role="menuitem" id="import-layout" @click="pickFile">{{ t("editor.screen_view.menu.import") }} <small>JSON</small></button>
         <div class="sep"></div>
-        <button type="button" role="menuitem" id="open-override" :disabled="!screen.update?.profile" :title="screen.update?.profile ? '' : 'No ESPHome profile found for this screen'" @click="openOverride">Override YAML <small>advanced</small></button>
-        <button type="button" role="menuitem" @click="closeMenu(); go('#firmware')">Firmware &amp; USB</button>
-        <button v-if="updateReady" type="button" role="menuitem" @click="closeMenu(); startUpdate(screen)">Update firmware <small>{{ screen.update?.target }}</small></button>
+        <button type="button" role="menuitem" id="open-override" :disabled="!screen.update?.profile" :title="screen.update?.profile ? '' : t('editor.screen_view.menu.override_none')" @click="openOverride">{{ t("editor.screen_view.menu.override") }} <small>{{ t("editor.screen_view.menu.override_hint") }}</small></button>
+        <button type="button" role="menuitem" @click="closeMenu(); go('#firmware')">{{ t("editor.nav.firmware") }}</button>
+        <button v-if="updateReady" type="button" role="menuitem" @click="closeMenu(); startUpdate(screen)">{{ t("editor.screen_view.menu.update") }} <small>{{ screen.update?.target }}</small></button>
       </div>
       <input ref="fileInput" type="file" accept="application/json,.json" hidden @change="onFile" />
     </div>
