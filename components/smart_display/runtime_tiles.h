@@ -2144,13 +2144,6 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "camera" || d == "image") return "\U000F07AE";
   return "\U000F0425";
 }
-// HA duration strings ("0:05:00") to seconds; 0 when unusable.
-inline uint32_t duration_seconds(const std::string &text) {
-  unsigned h = 0, m = 0, s = 0;
-  if (sscanf(text.c_str(), "%u:%u:%u", &h, &m, &s) == 3) return h * 3600 + m * 60 + s;
-  if (sscanf(text.c_str(), "%u:%u", &m, &s) == 2) return m * 60 + s;
-  return 0;
-}
 inline std::string countdown(uint32_t seconds) {
   char b[16];
   if (seconds >= 3600) snprintf(b, sizeof(b), "%u:%02u:%02u", seconds / 3600, seconds / 60 % 60, seconds % 60);
@@ -2171,7 +2164,7 @@ inline std::string last_run_text(uint32_t epoch) {
 }
 inline std::string timer_text(const Tile &t) {
   const Extra &x = t.extra();
-  if (t.state == "active") { uint32_t now = now_epoch(); return countdown(x.timer_end > now && now ? x.timer_end - now : 0); }
+  if (t.state == "active") return countdown(timer_left(x.timer_end, now_epoch(), x.duration));
   if (t.state == "paused") return "Paused " + countdown(duration_seconds(x.remaining));
   return x.duration.empty() ? "Off" : countdown(duration_seconds(x.duration));
 }
@@ -2617,9 +2610,6 @@ inline void render_graph(Widgets &w,const Tile &t,bool large,int x,int y,int wid
 }
 // Sun path: horizon, an arc from sunrise to sunset and the sun at the current
 // position (or below the horizon at night). Wide cards only.
-inline int minutes_of(const std::string &clock) {
-  unsigned h=0,m=0;return sscanf(clock.c_str(),"%u:%u",&h,&m)==2 && h<24 && m<60 ? int(h*60+m) : -1;
-}
 inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int height) {
   begin_extra(w,"sunpath",width,height);
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);

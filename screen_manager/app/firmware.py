@@ -47,6 +47,9 @@ class Firmware:
     # flashes on a board. A build writes it next to firmware.bin: under .pioenvs/<node>/ with PlatformIO,
     # under build/ with ESPHome's native ESP-IDF toolchain.
     FACTORY_IMAGES = ('*/.pioenvs/*/firmware.factory.bin', '*/build/firmware.factory.bin')
+    # The compiler cache's limit (app 0.2.89+); past it ccache drops the oldest entries. Some seventeen full builds of
+    # both boards took 0.6 GB on a Mac (docs/TEST_RESULTS_0289.md).
+    CCACHE_SIZE = '1G'
 
     def __init__(self, root, data):
         self.root, self.data = Path(root).resolve(), Path(data)
@@ -356,9 +359,42 @@ class Firmware:
         self.task=asyncio.create_task(self.run(profile,action,target))
         return dict(self.job)
 
+    def build_env(self, profile):
+        """The ESPHome CLI's environment: everything it downloads or builds goes in the app's own /data, which an app
+        update or restart keeps and a backup leaves out (config.yaml backup_exclude), none of it in the ESPHome folder.
+
+        - build/<profile>: the screen's build folder.
+        - esphome: ESPHome's memory of each build (storage/) and what it fetched from GitHub (app 0.2.89+). It used to
+          be the ESPHome folder's .esphome, which the ESPHome Device Builder app deletes whenever it starts, so every
+          screen's next update was built from scratch.
+        - idf: ESP-IDF, its tools and the compiler cache, with which ESPHome 2026.7+ builds an ESP32 instead of
+          PlatformIO (app 0.2.89+); by default they would go in the container's own cache, gone at every restart.
+        - platformio: PlatformIO, for anything ESPHome still builds with it.
+
+        As many compilers at once as the machine has cores, as PlatformIO ran them: ESP-IDF's ninja would start two
+        more, and each takes a few hundred MB next to Home Assistant on a small Raspberry Pi (ESPHome's own limit, which
+        the official ESPHome app sets too)."""
+        return {**os.environ, 'ESPHOME_BUILD_PATH': str(self.data / 'build' / profile.stem),
+                'ESPHOME_DATA_DIR': str(self.data / 'esphome'), 'ESPHOME_ESP_IDF_PREFIX': str(self.data / 'idf'),
+                'CCACHE_MAXSIZE': os.environ.get('CCACHE_MAXSIZE', self.CCACHE_SIZE),
+                'ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT': os.environ.get('ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT',
+                                                                        str(os.cpu_count() or 1)),
+                'PLATFORMIO_CORE_DIR': str(self.data / 'platformio'), 'NO_COLOR': '1'}
+
+    async def retire_platformio(self):
+        """PlatformIO's ESP32 toolchains and ESP-IDF, with which ESPHome built the screens before 2026.7 (app 0.2.88 and
+        older), take gigabytes that no screen uses any more. They go once: before the first build with ESPHome's own
+        ESP-IDF, which creates /data/idf. Anything that still needs PlatformIO downloads its own part again."""
+        old = self.data / 'platformio'
+        if old.is_dir() and not (self.data / 'idf').exists():
+            self.logs.append('Removing PlatformIO from before ESPHome 2026.7: the screens build with ESP-IDF now.')
+            await asyncio.to_thread(shutil.rmtree, old, True)
+
     async def run(self, profile, action, target):
-        env={**os.environ, 'PLATFORMIO_CORE_DIR':str(self.data/'platformio'), 'ESPHOME_BUILD_PATH':str(self.data/'build'/profile.stem), 'NO_COLOR':'1'}
+        env = self.build_env(profile)
         try:
+            if action != 'validate':
+                await self.retire_platformio()
             stages = ['config'] if action=='validate' else ['compile'] + (['upload'] if action=='install' else [])
             for stage in stages:
                 cmd=['esphome']+(['--quiet'] if stage=='config' else [])+[stage,str(profile)]

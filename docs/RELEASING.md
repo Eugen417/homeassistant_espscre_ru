@@ -131,8 +131,8 @@ don't replace these folders. Native number settings report changes via
 `esphome.screen_setting`; the manager validates the inbox, key, and value.
 
 The built-in CLI stores re-downloadable caches under `/data/build` and
-`/data/platformio`. Only these folders are excluded from app backups via
-`backup_exclude`. `/data/screens.json` and the device's own ESPHome configurations remain
+`/data/platformio` (0.2.89 adds `/data/esphome` and `/data/idf`, see Compatibility 0.2.89). Only these folders are
+excluded from app backups via `backup_exclude`. `/data/screens.json` and the device's own ESPHome configurations remain
 backup data; never exclude `/data` as a whole.
 
 ### Compatibility 0.2.7
@@ -218,6 +218,68 @@ as a YAML anchor into the three MDI fonts of `packages/core.yaml` (both boards b
 icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
+
+### Compatibility 0.2.89 / firmware 0.2.75
+
+ESPHome 2026.9.0 in the add-on (`screen_manager/Dockerfile`, `requirements.txt`); the packages' `min_version` stays
+2026.6.2. No protocol, storage, preference or key change; the firmware behaves the same apart from its log level and
+the timer countdown.
+
+- **Staged on purpose.** Screens build their firmware from the packages on main (`refresh: 0s`), whatever ESPHome
+  builds them: this add-on, an add-on not yet updated (2026.6.2), or the owner's ESPHome Device Builder (2026.8.1 on
+  Max's HA that day). A `min_version` of 2026.9.0 would have failed all of those builds, the nightly round included,
+  until each owner updated. So this release uses nothing the packages' `min_version` lacks: the Guition keeps the
+  top-level `online_image:` and new screens keep an OTA password. The next step is a release of its own: raise
+  `min_version` to 2026.9.0, move to `image: - platform: online_image` (ESPHome 2027.1 removes the top-level form) and
+  write `ota: - platform: esphome` with `encryption: {}` in `installation_yaml()` (ESPHome 2026.9 takes the api key;
+  about 0.9 KB less on the CYD). CI (`.github/workflows/ci.yml`) builds both boards with the add-on's ESPHome and with
+  the packages' `min_version`, so a form newer than `min_version` fails there.
+- **Toolchain.** ESPHome 2026.7+ builds an ESP32 with ESP-IDF itself (native toolchain) instead of PlatformIO, and uses
+  ccache when it is on the PATH (the ESPHome image ships it). Its ESP-IDF, tools and ccache go in the user cache folder
+  unless `ESPHOME_ESP_IDF_PREFIX` says otherwise; inside the add-on's container that folder is gone at every restart.
+- **Where the add-on's CLI keeps things** (`Firmware.build_env`): `ESPHOME_BUILD_PATH=/data/build/<profile>` as before,
+  `ESPHOME_DATA_DIR=/data/esphome` (ESPHome's storage JSON, `packages/` and `external_components/` clones; before, this
+  was `/homeassistant/esphome/.esphome`, which the ESPHome Device Builder app `rm -rf`s on every start, and a missing
+  storage JSON makes ESPHome wipe the build folder), `ESPHOME_ESP_IDF_PREFIX=/data/idf` (as the official ESPHome app does
+  with `/data/cache/idf`), `CCACHE_MAXSIZE=1G` unless the environment sets one, and `PLATFORMIO_CORE_DIR=/data/platformio`
+  for whatever ESPHome still builds with PlatformIO. `backup_exclude` adds `*/esphome/` and `*/idf/`.
+  `ESPHOME_DEFAULT_COMPILE_PROCESS_LIMIT` is the machine's core count (unless the environment sets one), the
+  parallelism PlatformIO used: ESP-IDF's ninja defaults to cores + 2, and each compiler takes a few hundred MB next to
+  Home Assistant on a small Raspberry Pi (the add-on showed 1.2 GB in use while the Yellow built with ninja's default).
+- **The first build after the update** has no storage JSON in `/data/esphome` and a new toolchain, so ESPHome wipes
+  that screen's build folder (`storage_should_clean`, `clean_build(full=True)`) and builds it completely, once per
+  screen; the old PlatformIO build trees go with it. Before the first build with ESP-IDF (no `/data/idf` yet),
+  `Firmware.retire_platformio()` removes `/data/platformio`: PlatformIO's ESP32 toolchains and ESP-IDF, unused from now
+  on. A check of the YAML (validate) leaves it. `tests/test_build_env.py` covers the environment, the backup list and
+  the one-time removal.
+- **Firmware size** (`packages/boards/*.yaml`, `esp32: framework: advanced: assertion_level: SILENT` in every board,
+  checked by `tests/test_easy_package.py`): ESP-IDF's assert messages are left out (49.0 KB on the CYD, measured alone
+  on 2026.6.2); an assert still aborts, and the backtrace still decodes to the line. `CONFIG_ESP_ERR_TO_NAME_LOOKUP`
+  stays on: without it `esp_err_to_name()` returns "UNKNOWN ERROR", and ESPHome's own error lines (30 in its Wi-Fi code)
+  print only that name, not the number. `logger: level: INFO` in the core (8.9 KB): `ESP_LOGCONFIG` and `ESP_LOGD`
+  compile away; the UI self-test's `logger.log` lines say `level: INFO`. A screen's Override YAML may still set
+  `logger: level: DEBUG`.
+- **sscanf.** `duration_seconds()` and `minutes_of()` moved from `runtime_tiles.h` to `runtime_model.h` and read their
+  numbers with `clock_parts()` instead of `sscanf` (9.5 KB of newlib's scanf on the CYD). The same answers as the
+  `sscanf` forms for any text, white space before a number included (compared on two million random strings);
+  `tests/test_runtime_model.cpp` holds the cases.
+- **Timer countdown.** `timer_left()` (`runtime_model.h`) caps a running timer's countdown at its `duration`: the
+  screen's clock (Home Assistant's whole `epoch_seconds`, synced every minute) runs up to a second behind, so
+  `finishes_at - now` could read one more than the timer lasts.
+- **Build flags stay under `platformio_options`.** ESPHome 2026.9 warns that `esphome: platformio_options: build_flags`
+  is deprecated (removed in 2026.12) in favour of `esphome: build_flags`, but its LVGL component reads only the former
+  when it writes `lv_conf.h` (`generate_lv_conf_h`, since ESPHome PR #16362) and writes `#define LV_USE_SWITCH 0` over
+  `-DLV_USE_SWITCH=1` given the new way: `lv_switch_create` is then undeclared. Move `LV_USE_SWITCH` (core) and
+  `LV_USE_SNAPSHOT` (Guition) once ESPHome's LVGL reads `esphome: build_flags`; `tools/check.sh --firmware` fails if
+  the move is early.
+- **OTA.** Profiles keep `password:`. ESPHome 2026.9's CLI tries the api key first and falls back to the password for
+  firmware that doesn't offer encryption yet (both bench screens: "The device did not offer OTA encryption; continuing
+  in plaintext"); every 2026.9 build with an api key offers it, and ESPHome 2026.6.2's uploader still gets in with the
+  password. ESPHome removes the fallback in 2027.3; a password profile then uploads in plaintext with its password.
+  ESPHome 2026.9 warns about the password at every build of such a profile.
+- **Tooling.** Repository builds need Python 3.12-3.14 for ESPHome 2026.9 (`.esphome/venv313` on the owner's Mac);
+  CI caches `~/.cache/esphome` (ESP-IDF and ccache) instead of `~/.platformio` and installs ccache. Details and
+  measurements: docs/TEST_RESULTS_0289.md.
 
 ### Compatibility 0.2.88 / firmware 0.2.74
 

@@ -294,3 +294,22 @@ static void test_tile_bits() {
   for (size_t a = 0; a < MAX_TILES; ++a) for (size_t b = a + 1; b < MAX_TILES; ++b) assert(!(tile_bit(a) & tile_bit(b)));
 }
 struct RunTileBits { RunTileBits() { test_tile_bits(); } } run_tile_bits;
+// Clock texts without sscanf (firmware 0.2.75+): the same answers the sscanf versions gave.
+static void test_clock_texts() {
+  using namespace runtime_tiles;
+  assert(duration_seconds("0:05:00") == 300 && duration_seconds("1:02:03") == 3723 && duration_seconds("12:00:00") == 43200);
+  assert(duration_seconds("5:30") == 330 && duration_seconds("0:00:05.5") == 5 && duration_seconds("5:00:") == 300);
+  assert(duration_seconds("1:2:3:4") == 3723);
+  assert(duration_seconds("") == 0 && duration_seconds("12") == 0 && duration_seconds("1 day, 2:03:04") == 0);
+  assert(duration_seconds("idle") == 0 && duration_seconds(":05") == 0);
+  assert(minutes_of("06:45") == 405 && minutes_of("0:00") == 0 && minutes_of("23:59") == 1439 && minutes_of("07:30:00") == 450);
+  assert(minutes_of("24:00") == -1 && minutes_of("12:60") == -1 && minutes_of("12") == -1 && minutes_of("") == -1);
+  assert(minutes_of("x6:45") == -1 && minutes_of(" 6: 45") == 405 && duration_seconds("1: 59:") == 119);
+  // A running timer never shows more than its duration, whatever the clocks' whole seconds make of it.
+  assert(timer_left(1003, 999, "0:00:03") == 3 && timer_left(1003, 1000, "0:00:03") == 3 && timer_left(1003, 1001, "0:00:03") == 2);
+  assert(timer_left(1003, 1003, "0:00:03") == 0 && timer_left(1003, 1010, "0:00:03") == 0 && timer_left(1003, 0, "0:00:03") == 0);
+  assert(timer_left(1300, 1000, "0:05:00") == 300 && timer_left(1300, 1000, "") == 300 && timer_left(1300, 1000, "idle") == 300);
+  unsigned v[3] = {9, 9, 9};
+  assert(clock_parts("7:8", v, 3) == 2 && v[0] == 7 && v[1] == 8 && v[2] == 9);
+}
+struct RunClockTexts { RunClockTexts() { test_clock_texts(); } } run_clock_texts;

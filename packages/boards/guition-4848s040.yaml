@@ -324,7 +324,7 @@ substitutions:
 # ============================================================
 
 esphome:
-  platformio_options:
+  platformio_options:  # not `build_flags:` yet, see packages/core.yaml
     build_flags:
       - -DLV_USE_SNAPSHOT=1
   includes:
@@ -339,6 +339,11 @@ esp32:
     type: esp-idf
     version: recommended
     advanced:
+      # ESP-IDF's assert texts (file, line and condition of every check) stay out of the firmware (0.2.75+), 49 KB on
+      # the CYD: a failed assert still stops and restarts the screen, and its backtrace still points at the line.
+      # Every board sets it (tests/test_easy_package.py). ESP-IDF's error names stay: without them ESPHome's own
+      # error lines only say "UNKNOWN ERROR".
+      assertion_level: SILENT
       execute_from_psram: true
 
 psram:
@@ -381,7 +386,7 @@ http_request:
   verify_ssl: false
 
 # The top-level online_image form that ESPHome 2026.6.2 (min_version) knows; 2026.7+ still reads it and suggests
-# `image: - platform: online_image`, which this profile can use once min_version reaches 2026.7.
+# `image: - platform: online_image`, and 2027.1 drops it: move with the min_version raise (docs/RELEASING.md, 0.2.89).
 online_image:
   - id: camera_image
     url: "http://127.0.0.1/camera.bmp"  # set when a camera opens
@@ -783,7 +788,9 @@ script:
   - id: ui_self_test
     mode: single
     then:
-      - logger.log: "UI_TEST START: page/overlay render stress, no HA actions"
+      - logger.log:
+          format: "UI_TEST START: page/overlay render stress, no HA actions"
+          level: INFO  # the core logs from INFO; logger.log is DEBUG by default
       - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
       - lambda: 'id(calibration_active) = false;'
       - lvgl.page.show: home_page
@@ -843,7 +850,9 @@ script:
             - delay: 150ms
             - lvgl.widget.hide: alert_overlay
       - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
-      - logger.log: "UI_TEST COMPLETE"
+      - logger.log:
+          format: "UI_TEST COMPLETE"
+          level: INFO
 
   # The two scripts that drive the backlight through set_backlight; the CYD drives it as a light action.
   - id: alert_dismiss

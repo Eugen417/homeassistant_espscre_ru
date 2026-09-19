@@ -37,7 +37,9 @@ the board file replaces the core's. `esphome config home-like-2432s028.yaml` sho
 ## Adding a board
 
 1. Copy the board file of the panel that resembles the new one most (a small SPI panel: the CYD; a big RGB panel
-   with capacitive touch: the Guition) to `packages/boards/<board>.yaml` and change its hardware sections.
+   with capacitive touch: the Guition) to `packages/boards/<board>.yaml` and change its hardware sections. Keep
+   `assertion_level: SILENT` in its `esp32:` block (firmware 0.2.75+): every board builds its firmware the same way,
+   and `tests/test_easy_package.py` checks it.
 2. Fill the sizes table for the new resolution, and go through the hooks: keep, change or empty each one.
 3. Add `packages/<board>.yaml` and `<board>.yaml` after the existing entries, `<board>` to `ENTRIES` in
    `tools/profiles.py` and to `REFS` in `screen_manager/app/core.py` (the boards `installation_yaml()` writes a

@@ -1,2 +1,2 @@
 # Tested toolchain; do not silently upgrade during commissioning.
-esphome==2026.6.2
+esphome==2026.9.0

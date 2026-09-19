@@ -160,7 +160,8 @@ https://github.com/user-attachments/assets/f9f6a933-d388-4c8b-9c9a-011dfa37617b
 
 Use these exact board variants: similar-looking product names can have different
 controllers or connectors. Wallbox relays are not controlled.
-The firmware and built-in CLI are tested with **ESPHome 2026.6.2**.
+ESP Screens builds with its own **ESPHome 2026.9.0**. The firmware also builds in your own ESPHome Device Builder
+with ESPHome 2026.6.2 or newer.
 
 ### Do I need ESPHome?
 

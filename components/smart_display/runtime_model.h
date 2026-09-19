@@ -144,6 +144,44 @@ struct Extra {
            action_templates.empty() && state_word.empty() && effect.empty() && option_rows.empty() && number_rows.empty();
   }
 };
+// The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the
+// first character that is not a digit or a colon after one: what sscanf's "%u:%u:%u" reads. Read by hand (firmware
+// 0.2.75+): sscanf brought newlib's whole scanf into the firmware, 9.5 KB on the CYD.
+inline int clock_parts(const std::string &text, unsigned *out, int max) {
+  int n = 0;
+  const char *p = text.c_str();
+  while (n < max) {
+    while (*p == ' ' || (*p >= '\t' && *p <= '\r')) ++p;
+    if (*p < '0' || *p > '9') break;
+    unsigned value = 0;
+    while (*p >= '0' && *p <= '9') value = value * 10 + unsigned(*p++ - '0');
+    out[n++] = value;
+    if (*p != ':') break;
+    ++p;
+  }
+  return n;
+}
+// A timer's duration or remaining time as Home Assistant writes it ("0:05:00", or "5:00") in seconds; 0 when unusable.
+inline uint32_t duration_seconds(const std::string &text) {
+  unsigned v[3] = {0, 0, 0};
+  const int n = clock_parts(text, v, 3);
+  if (n == 3) return v[0] * 3600 + v[1] * 60 + v[2];
+  if (n == 2) return v[0] * 60 + v[1];
+  return 0;
+}
+// Seconds a running timer has left, from Home Assistant's end time and the screen's clock. Both are whole seconds and
+// the clock runs up to a second behind Home Assistant's (it syncs in whole seconds), so the difference can be one more
+// than the timer holds: never more than its duration (firmware 0.2.75+; a 3 s timer started early in a second read 0:04).
+inline uint32_t timer_left(uint32_t end, uint32_t now, const std::string &duration) {
+  const uint32_t left = end > now && now ? end - now : 0;
+  const uint32_t full = duration_seconds(duration);
+  return full && left > full ? full : left;
+}
+// A sun time from the add-on ("06:45") in minutes after midnight; -1 when unusable.
+inline int minutes_of(const std::string &clock) {
+  unsigned v[2] = {0, 0};
+  return clock_parts(clock, v, 2) == 2 && v[0] < 24 && v[1] < 60 ? int(v[0] * 60 + v[1]) : -1;
+}
 // The Extra of a tile on the heap, copied along with the tile like an ordinary member.
 struct ExtraBox {
   std::unique_ptr<Extra> ptr;

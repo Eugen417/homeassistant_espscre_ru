@@ -274,7 +274,7 @@ if ((want_firmware)); then
   run "ESPHome" esphome_version
   if ((last_ok)); then run "Check profiles" prepare_profiles; fi
   if ((last_ok)); then
-    # One after the other: parallel ESP-IDF builds race on PlatformIO's shared cache.
+    # One after the other: parallel builds race on ESPHome's shared ESP-IDF install (and on PlatformIO's, before 2026.7).
     run "Firmware: CYD" compile_board cyd
     if ((last_ok)); then run "CYD flash budget" cyd_budget; else skip "CYD flash budget" "no CYD build"; fi
     run "Firmware: Guition" compile_board guition

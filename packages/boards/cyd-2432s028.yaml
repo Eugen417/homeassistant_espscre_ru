@@ -386,6 +386,11 @@ esp32:
   framework:
     type: esp-idf
     advanced:
+      # ESP-IDF's assert texts (file, line and condition of every check) stay out of the firmware (0.2.75+), 49 KB on
+      # the CYD: a failed assert still stops and restarts the screen, and its backtrace still points at the line.
+      # Every board sets it (tests/test_easy_package.py). ESP-IDF's error names stay: without them ESPHome's own
+      # error lines only say "UNKNOWN ERROR".
+      assertion_level: SILENT
       # ESPHome recommends this itself in the boot log. Yields ~40KB extra IRAM
       # and a smaller binary, and every KB counts on this board.
       sram1_as_iram: true
@@ -554,7 +559,9 @@ script:
   - id: ui_self_test
     mode: single
     then:
-      - logger.log: "UI_TEST START: page/overlay render stress, no HA actions"
+      - logger.log:
+          format: "UI_TEST START: page/overlay render stress, no HA actions"
+          level: INFO  # the core logs from INFO; logger.log is DEBUG by default
       - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
       - lambda: 'id(calibration_active) = false;'
       - lvgl.page.show: home_page
@@ -610,7 +617,9 @@ script:
             - delay: 150ms
             - lvgl.widget.hide: alert_overlay
       - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
-      - logger.log: "UI_TEST COMPLETE"
+      - logger.log:
+          format: "UI_TEST COMPLETE"
+          level: INFO
 
   # The two scripts that drive the backlight as a light action; the Guition drives it through its set_backlight script.
   - id: alert_dismiss

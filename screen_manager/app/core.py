@@ -37,7 +37,7 @@ WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.74'
+FIRMWARE_VERSION = '0.2.75'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -1544,6 +1544,8 @@ def installation_yaml(data):
     if not isinstance(friendly, str) or not friendly.strip() or len(friendly) > 60:
         raise ValueError('Give the screen a recognizable name (60 characters max).')
     quote = lambda s: json.dumps(s, ensure_ascii=False)
+    # An OTA password, not yet `ota: encryption:` with the api key: ESPHome before 2026.9 refuses that, and the owner's
+    # ESPHome Device Builder may still be older (docs/RELEASING.md, Compatibility 0.2.89).
     key, ota, ap = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24), secrets.token_urlsafe(12)
     return f'''# Keep this file safe: it contains the unique keys for this screen.
 # Wi-Fi comes from the secrets.yaml of ESPHome Device Builder.

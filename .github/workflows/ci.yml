@@ -43,25 +43,41 @@ jobs:
           CXX: clang++
 
   firmware:
-    name: firmware
+    name: firmware (${{ matrix.esphome }})
     needs: checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # The ESPHome the add-on ships, and the oldest one the packages promise (`min_version` in packages/core.yaml):
+        # every screen builds from main with whichever its owner has (docs/RELEASING.md, Compatibility 0.2.89).
+        esphome: [add-on, min_version]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
-      # The ESPHome the add-on ships and builds every screen's update with.
-      - name: ESPHome version of the add-on
+      - name: ESPHome version
         id: esphome
-        run: echo "version=$(sed -n 's|^FROM ghcr.io/esphome/esphome:||p' screen_manager/Dockerfile)" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ "${{ matrix.esphome }}" = add-on ]; then
+            version=$(sed -n 's|^FROM ghcr.io/esphome/esphome:||p' screen_manager/Dockerfile)
+          else
+            version=$(sed -n 's/^  min_version: //p' packages/core.yaml)
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: ESPHome
         run: python -m pip install "esphome==${{ steps.esphome.outputs.version }}"
-      # PlatformIO's toolchains and ESP-IDF, and the two check builds (tools/check.sh builds under .esphome/check).
+      # ESPHome 2026.7+ builds with ESP-IDF itself and reuses what it compiled before when ccache is on the PATH.
+      - name: ccache
+        run: ccache --version || (sudo apt-get update && sudo apt-get install -y ccache)
+      # ESP-IDF, its tools and ccache's cache (ESPHome 2026.7+ keeps them in ~/.cache/esphome), PlatformIO's toolchains
+      # (ESPHome before 2026.7), and the two check builds (tools/check.sh builds under .esphome/check).
       - uses: actions/cache@v4
         with:
           path: |
+            ~/.cache/esphome
             ~/.platformio
             .esphome/check
           key: firmware-${{ runner.os }}-esphome-${{ steps.esphome.outputs.version }}-${{ hashFiles('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/**', 'components/**') }}

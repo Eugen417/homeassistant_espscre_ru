@@ -1,3 +1,14 @@
+## 0.2.89 (firmware 0.2.75)
+
+ESPHome 2026.9 in ESP Screens, updates that no longer start from scratch without reason, and 94 KB more room on a CYD.
+
+- **ESP Screens builds with ESPHome 2026.9.0** (was 2026.6.2). ESPHome now compiles an ESP32 with Espressif's own ESP-IDF instead of PlatformIO, and keeps what it compiled before in a cache. Before the first update of a screen, ESP Screens downloads ESP-IDF once (about 1.7 GB on disk) and removes PlatformIO, which only the old builds used, with the disk space it took. That first update builds each screen completely, once: on a Home Assistant Yellow 17 minutes for a CYD (about as long as before) and 23 minutes for a Guition, the download included. After it, a screen whose firmware didn't change is done in under a minute.
+- **An update no longer starts from scratch because of the ESPHome Device Builder.** ESP Screens kept its memory of each build in the ESPHome folder, which the ESPHome Device Builder app empties every time it starts. The next update of every screen then rebuilt everything, 15 to 18 minutes on a Yellow. That memory now lives in ESP Screens' own storage, with ESP-IDF and the compiler's cache. Backups leave all of it out; it is downloaded or built again when needed.
+- **94 KB more room on a CYD.** Its firmware is 1,585,136 bytes, 86.4 % of its update slot (was 91.5 %). That makes room for more languages and later ESPHome versions. Three changes: ESP-IDF's texts for failed internal checks are left out (49 KB; a failed check still restarts the screen), the screen logs from INFO instead of DEBUG (9 KB), and a small piece of our code no longer pulls in C's whole text scanner (9.5 KB). ESPHome 2026.9 itself saves the rest. A Guition's firmware is 110 KB smaller too.
+- **Fewer log lines from the screen itself.** The screen's own log now starts at INFO: ESPHome's configuration dump and its debug lines for every state are no longer in the firmware. Nothing changes on the screen or in Home Assistant. To look closer at one screen, put `logger:` with `level: DEBUG` in its **Override YAML** and press **Update**.
+- **A running timer never shows more than it lasts.** A 3-second timer could start at 0:04 on its tile. The screen counts down from Home Assistant's end time with its own clock, both in whole seconds, and its clock can be up to a second behind. The countdown now stops at the timer's duration.
+- **Nothing to do in a particular order.** The firmware still builds with ESPHome 2026.6.2 or newer, so an ESP Screens that isn't updated yet, or your own ESPHome Device Builder, keeps building every screen. Update ESP Screens, then press **Update** on each screen (or let the nightly round do it): firmware 0.2.75. Includes everything from 0.2.88.
+
 ## 0.2.88 (firmware 0.2.74)
 
 Wi-Fi that never dozes, on every screen.

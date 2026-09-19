@@ -95,6 +95,9 @@ class PackageTests(unittest.TestCase):
         for needle in ('esp32:', 'platform: xpt2046', 'platform: gt911', 'platform: st7701s', 'platform: mipi_spi', 'psram:',
                        'set_raw_correction', 'camera_image', 'GPIO'):
             self.assertNotIn(needle, core, f'{needle} is a board\'s, not the core\'s')
+        # How the firmware is built is the same on every board, in the board's own esp32: block (firmware 0.2.75+).
+        for board, path in profiles.BOARDS.items():
+            self.assertIn('      assertion_level: SILENT\n', path.read_text(), board)
         names = {board: set(profiles.substitutions_of(path)) for board, path in profiles.BOARDS.items()}
         shared = set.intersection(*names.values())
         self.assertGreater(len(shared), 100)

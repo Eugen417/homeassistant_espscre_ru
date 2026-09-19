@@ -29,7 +29,7 @@ The wallbox relays are not used.
 3. Install and start **ESP Screen Manager**. Turn on **Start on boot**
    and **Show in sidebar**. Open the **ESP Screens** web interface.
 
-This app includes the tested ESPHome 2026.6.2 CLI and runs within your HA login.
+This app includes the tested ESPHome 2026.9.0 CLI and runs within your HA login.
 A second ESPHome management page, MQTT, blueprint, or long-lived token is not needed.
 Use the GitHub version for updates; a local test add-on is a separate app.
 

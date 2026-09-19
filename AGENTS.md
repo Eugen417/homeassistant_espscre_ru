@@ -38,7 +38,8 @@ physically tap; an agent cannot replace that with software coordinates.
    own ESPHome YAML with its name, Wi-Fi reference and unique keys, and flashes it
    over USB. Identify the USB port and board variant first, and check whether a
    profile for this screen already exists; never overwrite a working one.
-   Use ESPHome 2026.6.2 with Python 3.11-3.14. Don't show keys in logs or chat.
+   The add-on builds with ESPHome 2026.9.0 (`screen_manager/Dockerfile`, Python 3.12-3.14); the packages also build with
+   their `min_version` (2026.6.2). Don't show keys in logs or chat.
 2. CYD: the screen shows its calibration on first boot; the owner taps the
    crosshairs. `tools/calibrate.py` with docs/CALIBRATING.md is the USB route for a
    panel that needs measuring; ask for physical taps per target, and wait for

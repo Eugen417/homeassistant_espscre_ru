@@ -63,6 +63,10 @@ class ProtocolTests(unittest.TestCase):
         self.assertIn('!secret wifi_password',first)
         import re
         self.assertEqual(len(base64.b64decode(re.search(r'key: "([^"]+)"',first)[1])),32)
+        # An OTA password until the packages' min_version reaches ESPHome 2026.9: an older Device Builder refuses
+        # `ota: encryption:` (app 0.2.89).
+        self.assertRegex(first, r'ota:\n  - platform: esphome\n    password: "[^"]{20,}"\nwifi:')
+        self.assertNotIn('encryption: {}', first)
         for name in ['../bad','Bad Name','a\napi:']:
             with self.assertRaises(ValueError): installation_yaml({**data,'name':name})
 

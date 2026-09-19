@@ -80,7 +80,7 @@ under **Settings → Devices & services** in Home Assistant, and then choose the
   [ESPHome Web](https://web.esphome.io) in Chrome or Edge on the computer the screen is plugged into.
 - **Backups:** Home Assistant backups don't include this container. Keep a copy of
   `data/screens.json` and `data/updates.json` (layouts and update settings) and of the
-  ESPHome folder. `data/build` and `data/platformio` are caches.
+  ESPHome folder. `data/build`, `data/esphome`, `data/idf` and `data/platformio` are caches.
 - **Claude:** **Install for Claude Code** is meant for the Claude Code app on Home Assistant
   OS. Use **Download for claude.ai** instead.
 - **Camera images (Guition, app 0.2.66+):** the screens load camera pictures, and from app 0.2.77 the
