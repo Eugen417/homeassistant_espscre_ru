@@ -144,9 +144,10 @@ class HomeAssistant:
         # action (app 0.2.67); `get_services` has carried no translated names since 2025.10. Per language (app 0.2.90): the
         # screens' one first, an editor in another language asks for its own (service_names_in).
         self.service_names, self.service_names_by_language = {}, {}
-        # Home Assistant's words for states (frontend/get_translations `entity_component` and `entity`), in the screens'
-        # language (app 0.2.90), which a tile shows where it would show the raw state (app 0.2.67).
-        self.state_words = {}
+        # Home Assistant's words for states (frontend/get_translations `entity_component` and `entity`), which a tile shows
+        # where it would show the raw state (app 0.2.67): per language, the screens' and English (app 0.2.90), so a screen
+        # whose firmware predates the languages keeps English words (state_words).
+        self.words_by_language = {}
         self.esphome_services = False
         self._platforms_source, self._platforms = None, {}
         # History a detail card asks for when it opens (firmware 0.2.51+): {inbox, entity, hours}, for Manager.card_history_loop.
@@ -230,6 +231,20 @@ class HomeAssistant:
         return ' after %d s, close code %s%s' % (time.monotonic() - connected, ws.close_code if ws is not None else None,
                                             f', {type(reason).__name__}' if reason else '')
 
+    @property
+    def state_words(self):
+        """Home Assistant's words for states in the language of the screen being written for (i18n.SCREEN), else in the
+        screens' language."""
+        context = i18n.SCREEN.get()
+        language = context.get('language') if context else None
+        words = self.words_by_language
+        return words.get(language) or words.get(self.language_of()) or words.get('*') or {}
+
+    @state_words.setter
+    def state_words(self, words):
+        """One set of words for every language (tests, a Home Assistant that answers in one language only)."""
+        self.words_by_language = {'*': dict(words or {})}
+
     async def registries(self):
         self.registry, self.devices, self.areas = await asyncio.gather(
             self.request('config/entity_registry/list'), self.request('config/device_registry/list'), self.request('config/area_registry/list'))
@@ -248,13 +263,17 @@ class HomeAssistant:
             if isinstance((names or {}).get('resources'), dict):
                 self.service_names = names['resources']
                 self.service_names_by_language = {language: names['resources']}
-            words = {}
-            for category in ('entity_component', 'entity'):
-                found = await self.request('frontend/get_translations', language=language, category=category)
-                if isinstance((found or {}).get('resources'), dict):
-                    words.update(found['resources'])
-            if words:
-                self.state_words = words
+            by_language = {}
+            for code in dict.fromkeys((language, 'en')):
+                words = {}
+                for category in ('entity_component', 'entity'):
+                    found = await self.request('frontend/get_translations', language=code, category=category)
+                    if isinstance((found or {}).get('resources'), dict):
+                        words.update(found['resources'])
+                if words:
+                    by_language[code] = words
+            if by_language:
+                self.words_by_language = by_language
             icons = {}
             for category in ('entity_component', 'entity'):
                 found = await self.request('frontend/get_icons', category=category)

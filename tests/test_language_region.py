@@ -240,6 +240,22 @@ class ClockPinTests(unittest.IsolatedAsyncioTestCase):
             chosen.region.change({'clock': 'auto'})
             self.assertFalse(chosen.region.pinned, 'the owner chose a clock')
 
+    async def test_home_assistants_words_follow_the_screen(self):
+        """Old firmware keeps English words from Home Assistant too, a new one its language's (found in the second test pass:
+        a playing media player said "Speelt" among English words on firmware 0.2.75)."""
+        from server import HomeAssistant
+        ha = HomeAssistant(None, 'http://127.0.0.1:1/api', 'token')
+        ha.language_of = lambda: 'nl'
+        ha.words_by_language = {'nl': {'state': 'Speelt'}, 'en': {'state': 'Playing'}}
+        self.assertEqual(ha.state_words, {'state': 'Speelt'})
+        for context, word in ((i18n.LEGACY, 'Playing'), ({'language': 'nl', 'legacy': False}, 'Speelt'),
+                              ({'language': 'de', 'legacy': False}, 'Speelt')):
+            token = i18n.SCREEN.set(context)
+            try:
+                self.assertEqual(ha.state_words, {'state': word})
+            finally:
+                i18n.SCREEN.reset(token)
+
     async def test_language_and_region_over_http(self):
         from server import create_app
         from aiohttp.test_utils import TestClient, TestServer
