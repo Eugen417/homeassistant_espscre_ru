@@ -238,6 +238,7 @@
       "never_run": "Jamais lancé",
       "last_time": "Dernier {time}",
       "yesterday_time": "Hier {time}",
+      "yesterday_time_short": "Hier {time}",
       "last_date": "Dernier {date}"
     },
     "camera": {

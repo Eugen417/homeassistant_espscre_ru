@@ -99,7 +99,7 @@ inline void refresh_detail(unsigned index);
 inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
-inline std::string last_run_text(uint32_t epoch);
+inline std::string last_run_text(uint32_t epoch, bool compact = false);
 // "07:12": a time of day as Home Assistant and ESP Screens send it, for screen_text::clock_text.
 inline std::string hhmm(const esphome::ESPTime &time) {
   char b[8]; snprintf(b, sizeof(b), "%02d:%02d", time.hour, time.minute);
@@ -1204,6 +1204,31 @@ inline lv_obj_t *detail_shape(lv_obj_t *parent,int x,int y,int w,int h,theme::Ro
 inline int text_width(const std::string &text,const lv_font_t *font){
   lv_point_t size;lv_text_get_size(&size,text.c_str(),font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);return size.x;
 }
+// The status line under a tile's name, once its room is known. LVGL cuts the end of a line that doesn't fit, which
+// is where this line carries its news, so (firmware 0.2.76+):
+//   `shorter`  another wording of the whole line, taken when the full one doesn't fit ("Yest. 9:15 PM");
+//   `tail`     the end that has to stay readable (a robot's battery): the words in front of it take the dots,
+//              "Angedockt / 10 %" becomes "Angedo… / 10 %".
+// A line that fits, or a room too small for the tail itself, is left to LVGL as before.
+inline void fit_value(lv_obj_t *obj,const std::string &value,const std::string &shorter,const std::string &tail,int room){
+  const lv_font_t *font=lv_obj_get_style_text_font(obj,LV_PART_MAIN);
+  if(!font||room<=0||text_width(value,font)<=room)return;
+  if(!shorter.empty()&&shorter!=value&&text_width(shorter,font)<=room){label(obj,shorter);return;}
+  if(tail.empty()||value.size()<=tail.size())return;
+  static const std::string dots="…";
+  const int head_room=room-text_width(dots+tail,font);
+  if(head_room<=0)return;
+  const std::string head=value.substr(0,value.size()-tail.size());
+  std::string cut;
+  for(size_t i=0;i<head.size();){
+    size_t next=i+1;
+    while(next<head.size()&&(static_cast<unsigned char>(head[next])&0xC0)==0x80)++next;
+    if(text_width(head.substr(0,next),font)>head_room)break;
+    cut=head.substr(0,next);i=next;
+  }
+  while(!cut.empty()&&cut.back()==' ')cut.pop_back();
+  label(obj,cut+dots+tail);
+}
 // The state colour, as Home Assistant colours a vacuum: teal while cleaning, blue on the way back, amber
 // when paused, red on an error; a docked or idle robot keeps the card's own blue. `tint` is the halo.
 struct VacuumLook { uint32_t accent, tint; };
@@ -2187,16 +2212,18 @@ inline std::string countdown(uint32_t seconds) {
   return b;
 }
 // "Last 14:32" today, "Yesterday 14:32", else "Last 13 Sep", in the screen's language; scripts and scenes have no
-// useful on/off.
+// useful on/off. `compact` takes the short wording of yesterday a tile has room for ("Yest. 9:15 PM"); every
+// language that needs no shorter word keeps the same text there.
 inline std::string month_short(const esphome::ESPTime &now);
-inline std::string last_run_text(uint32_t epoch) {
+inline std::string last_run_text(uint32_t epoch, bool compact) {
   if (!epoch) return tr(txt::script_never_run);
   auto when = esphome::ESPTime::from_epoch_local(epoch);
   auto now = now_time ? now_time() : esphome::ESPTime{};
   if (!when.is_valid()) return tr(txt::script_never_run);
   std::string clock = screen_text::clock_text(hhmm(when), screen_settings::current.clock_24h != 0);
   if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year) return fill(txt::script_last_time, "time", clock);
-  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year + 1) return fill(txt::script_yesterday_time, "time", clock);
+  if (now.is_valid() && now.year == when.year && now.day_of_year == when.day_of_year + 1)
+    return fill(compact ? txt::script_yesterday_time_short : txt::script_yesterday_time, "time", clock);
   std::string date = fill(fill(txt::date_day_month, "day", std::to_string(when.day_of_month)), "month", month_short(when));
   return fill(txt::script_last_date, "date", date);
 }
@@ -3168,10 +3195,14 @@ inline void render_slot(size_t slot) {
   else if (!t.unit.empty() || d == "number" || d == "input_number" || d == "counter") value = screen_text::localize(value);
   bool pending=t.loading(esphome::millis());
   if(d=="weather" && std::isfinite(t.current)) {value=screen_text::decimal(t.current,1);if(!watch)value=screen_text::with_unit(value,t.unit);}
-  if(d=="vacuum" && std::isfinite(t.battery))value += " / "+screen_text::percent((int)t.battery);
+  // What a narrow tile falls back to once its room is known (fit_value): another wording of the whole line, and the
+  // end that must stay readable whatever happens to the words in front of it.
+  std::string value_short,value_tail;
+  if((d=="script"||d=="scene"||d=="button"||d=="input_button") && t.state!="on")value_short=last_run_text(t.last_run,true);
+  if(d=="vacuum" && std::isfinite(t.battery)){value_tail=" / "+screen_text::percent((int)t.battery);value+=value_tail;}
   // Direct controls: only a wide card in the standard layout has room for the panel.
   bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
-  if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty())value=status;}
+  if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
   label(w.value, value);
   bool mini=t.inline_control=="slider" && !watch && t.available();
   bool large_tile=tile_height(w)>80;
@@ -3239,7 +3270,9 @@ inline void render_slot(size_t slot) {
   int chevron_w=t.is_page() && !watch?lv_font_get_line_height(chevron_font):0;
   if(chevron_w)text_room-=chevron_w+(large_tile?8:4);
   lv_obj_set_width(w.title,std::max(1,text_room-text_x));
-  lv_obj_set_width(w.value,std::max(1,text_room-(watch?0:(mini||graph_strip)?text_x:w.value_x)));
+  int value_room=std::max(1,text_room-(watch?0:(mini||graph_strip)?text_x:w.value_x));
+  lv_obj_set_width(w.value,value_room);
+  fit_value(w.value,value,value_short,value_tail,value_room);
   if(watch){
     int gap=large_tile?6:2,header=std::max(circle_size,title_height);
     int group_y=std::max(0,(content_h-header-gap-value_height)/2);

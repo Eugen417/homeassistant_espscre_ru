@@ -133,10 +133,13 @@ def check():
                 if ours and code != 'en' and len(text) > max(8, len(source) * 1.6) and not plural:
                     notes.append(f'{code}: {key} is much longer than the English ({len(text)} vs {len(source)})')
                 if width and key in TILE_LINES:
+                    shown_text = text
+                    for name, sample in TILE_SAMPLES.items():
+                        shown_text = shown_text.replace('{' + name + '}', sample)
                     for board, (size, room) in TILE_LINES[key].items():
-                        if width(size, text) > room:
-                            problems.append(f'{code}: {key} "{text}" is too wide for a tile on the {board} '
-                                            f'({width(size, text):.0f} of {room} px); make it shorter')
+                        if width(size, shown_text) > room:
+                            problems.append(f'{code}: {key} "{shown_text}" is too wide for a tile on the {board} '
+                                            f'({width(size, shown_text):.0f} of {room} px); make it shorter')
                 # The weather columns of the CYD hold a day of two letters beside its icon.
                 if key.startswith('screen.date.weekdays_min.') and len(text) > 2:
                     problems.append(f'{code}: {key} "{text}" is longer than two letters; the CYD\'s weather columns cut it')
@@ -154,8 +157,12 @@ TILE_ROOM = {'CYD': (11, 88), 'Guition': (16, 128)}
 # Camera tiles are the Guition's alone.
 TILE_LINES = {'screen.tile.tap_to_open': TILE_ROOM, 'screen.script.never_run': TILE_ROOM, 'screen.script.running': TILE_ROOM,
               'screen.media.not_playing': TILE_ROOM, 'screen.timer.paused': TILE_ROOM,
+              'screen.script.last_time': TILE_ROOM, 'screen.script.yesterday_time_short': TILE_ROOM,
               'screen.camera.tap_to_view': {'Guition': TILE_ROOM['Guition']},
               'screen.camera.no_image_yet': {'Guition': TILE_ROOM['Guition']}}
+# What a placeholder stands for while a tile line is measured: the widest clock a screen writes is a 12-hour one
+# with its AM/PM ("Yesterday 9:15 PM" is why screen.script.yesterday_time_short exists).
+TILE_SAMPLES = {'time': '9:15 PM'}
 
 
 def text_width():

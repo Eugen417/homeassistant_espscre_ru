@@ -238,6 +238,7 @@
       "never_run": "Nunca executado",
       "last_time": "Última {time}",
       "yesterday_time": "Ontem {time}",
+      "yesterday_time_short": "Ontem {time}",
       "last_date": "Última {date}"
     },
     "camera": {

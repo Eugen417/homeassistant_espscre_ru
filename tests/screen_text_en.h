@@ -3,7 +3,7 @@
 #pragma once
 #include "components/smart_display/screen_text.h"
 
-static_assert(screen_text::KEYS_HASH == 0x8FB53847u && screen_text::KEY_COUNT == 321,
+static_assert(screen_text::KEYS_HASH == 0x6D3912FFu && screen_text::KEY_COUNT == 322,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -189,6 +189,7 @@ const char *const screen_text::TABLE[] = {
     "Never run",
     "Last {time}",
     "Yesterday {time}",
+    "Yest. {time}",
     "Last {date}",
     "No image from this camera",
     "Loading image",

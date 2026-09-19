@@ -238,6 +238,7 @@
       "never_run": "Never run",
       "last_time": "Last {time}",
       "yesterday_time": "Yesterday {time}",
+      "yesterday_time_short": "Yest. {time}",
       "last_date": "Last {date}"
     },
     "camera": {
