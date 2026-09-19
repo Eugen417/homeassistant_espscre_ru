@@ -388,7 +388,565 @@
       }
     }
   },
-  "addon": {},
+  "addon": {
+    "errors": {
+      "language_choice": "Kies een taal uit de lijst.",
+      "region_choice": "Kies een tijdnotatie en een getalnotatie uit de lijsten.",
+      "open_through_ha": "Open deze pagina via Home Assistant.",
+      "refresh_page": "Vernieuw deze pagina en probeer het opnieuw.",
+      "ha_refused": "Home Assistant heeft het geweigerd: {reason}.",
+      "ha_refused_change": "Home Assistant heeft de wijziging geweigerd: {reason}.",
+      "no_reason": "geen reden opgegeven",
+      "ha_unreachable": "Home Assistant is nu niet bereikbaar. Probeer het zo nog eens.",
+      "too_large": "Dat verzoek is te groot.",
+      "invalid_input": "Ongeldige invoer. Controleer de naam, het bord en de gekozen tegels.",
+      "unknown_screen": "Onbekend scherm.",
+      "not_paired": "Dit is geen gekoppeld ESP-scherm. Vernieuw het overzicht.",
+      "choose_icon": "Kies een icoon uit de lijst.",
+      "skill_not_written": "Kon de skill niet naar {folder} schrijven ({reason}).",
+      "settings": {
+        "unknown": "Onbekende scherminstellingen; vernieuw de beheerpagina.",
+        "invalid_value": "Ongeldige waarde voor {setting}.",
+        "dim_above_normal": "De helderheid bij stand-by en 's nachts mag niet hoger zijn dan normaal.",
+        "offline": "Dit scherm is offline. Je kunt de instellingen wijzigen zodra het terug is.",
+        "unavailable": "Nu niet te wijzigen: {names}. De entiteit is uitgeschakeld in Home Assistant, of het scherm herstart.",
+        "rotation": "Rotatie vereist een Guition met firmware 0.2.9 of nieuwer."
+      },
+      "layout": {
+        "invalid": "Ongeldige indeling.",
+        "title": "Geef het scherm een titel van maximaal 96 bytes.",
+        "tiles_max": "Kies maximaal 1 tegel. | Kies maximaal {n} tegels.",
+        "unsupported": "Deze entiteit wordt niet ondersteund.",
+        "once": "Een entiteit kan maar één keer op een scherm staan.",
+        "tile_name": "Een tegelnaam mag maximaal 80 bytes bevatten.",
+        "unknown_settings": "Onbekende tegelinstellingen.",
+        "navigation_size": "Een navigatietegel is normaal of dubbelbreed.",
+        "background": "Kies een pastelkleur voor de achtergrond uit het palet.",
+        "invalid_setting": "Ongeldige tegelinstelling: {setting}",
+        "no_toggle": "Deze entiteit ondersteunt geen aan/uit-actie.",
+        "builtin_action": "Een ingebouwde kaart kan geen actie uitvoeren.",
+        "no_mini_slider": "Deze entiteit ondersteunt geen kleine slider.",
+        "history_hours": "Geschiedenis: kies 1, 6 of 24 uur.",
+        "watch_or_slider": "Kies een grote waarde of een kleine slider, niet allebei.",
+        "no_direct_control": "Deze entiteit ondersteunt die directe bediening niet.",
+        "position": "Ongeldige tegelpositie; vernieuw de beheerpagina.",
+        "full_page_top": "Een paginavullende tegel begint bovenaan zijn pagina.",
+        "wide_left": "Een dubbelbrede tegel begint in de linkerkolom.",
+        "same_spot": "Twee tegels staan op dezelfde plek.",
+        "pages": "Een scherm heeft 1 pagina. | Een scherm heeft 1 tot {n} pagina's.",
+        "eight_pages": "Deze tegels passen niet op acht pagina's; verwijder een tegel of maak er een kleiner.",
+        "camera_guition": "Camerabeelden hebben een Guition-scherm nodig.",
+        "firmware_first": "Installeer eerst schermfirmware {version} of nieuwer voor deze tegels.",
+        "entity_gone": "Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.",
+        "ids_too_long": "De entiteits-ID's van deze tegels zijn samen te lang voor één bericht aan het scherm; verwijder een paar tegels."
+      },
+      "top_bar": {
+        "invalid": "Ongeldige bovenbalk; vernieuw de beheerpagina.",
+        "full": "De bovenbalk heeft plaats voor maximaal 1 onderdeel. | De bovenbalk heeft plaats voor maximaal {n} onderdelen.",
+        "invalid_setting": "Ongeldige instelling in de bovenbalk.",
+        "unknown_setting": "Onbekende instelling in de bovenbalk; vernieuw de beheerpagina.",
+        "entity": "Deze entiteit kan niet in de bovenbalk.",
+        "unknown_item": "Onbekend onderdeel in de bovenbalk; vernieuw de beheerpagina.",
+        "twice": "Dit onderdeel staat al in de bovenbalk.",
+        "entity_gone": "Een entiteit in de bovenbalk bestaat niet meer. Kies een andere."
+      },
+      "tap_action": {
+        "choose": "Kies een actie uit de lijst.",
+        "fields_max": "Een actie bij aantikken vult maximaal 1 veld. | Een actie bij aantikken vult maximaal {n} velden.",
+        "field_not_allowed": "{field} is geen veld dat een actie bij aantikken kan invullen.",
+        "unsendable": "Een waarde van de actie kan het scherm niet versturen.",
+        "too_long": "De waarden van de actie zijn te lang voor het scherm."
+      },
+      "events": {
+        "none_paired": "nog geen",
+        "name_the_screen": "Noem het scherm. Gekoppeld: {screens}.",
+        "no_such_screen": "Geen scherm met de naam “{name}”. Gekoppeld: {screens}.",
+        "several_screens": "“{name}” past bij meer dan één scherm: {screens}.",
+        "name_the_entity": "Noem de entiteit.",
+        "not_for_a_screen": "{entity} kan niet op een scherm.",
+        "not_on_screen": "{entity} staat niet op dit scherm.",
+        "add_it_first": "{entity} staat niet op dit scherm; voeg die eerst toe.",
+        "not_on_spot": "{entity} staat niet op plek {slot}.",
+        "not_on_page": "{entity} staat niet op pagina {page}.",
+        "move_where": "Noem de pagina of de plek waar die heen moet.",
+        "spot_taken": "Op die plek staat al {entity}; geef een andere plek of verplaats die eerst.",
+        "page_not_empty": "Pagina {page} is niet leeg; een paginavullende tegel heeft een eigen pagina nodig.",
+        "no_empty_page": "Er is geen lege pagina; een paginavullende tegel heeft een eigen pagina nodig.",
+        "page_full": "Pagina {page} is vol.",
+        "no_room": "Er is geen plek meer op dit scherm.",
+        "screen_full": "Dit scherm heeft al 1 tegel; verwijder er eerst een. | Dit scherm heeft al {n} tegels; verwijder er eerst een.",
+        "page_range": "Kies een pagina tussen 1 en {last}.",
+        "spot_range": "Kies een plek tussen 0 en {last}.",
+        "row_needs_page": "Noem de pagina voor die rij of kolom.",
+        "row_range": "Kies een rij tussen 1 en {last}.",
+        "column": "Geef als kolom “left” of “right”.",
+        "full_page_alone": "Een paginavullende tegel neemt heel pagina {page} in; daar past verder niets.",
+        "does_not_fit": "Dat past niet op pagina {page}; een dubbelbrede tegel neemt twee plekken in.",
+        "order_needed": "Geef de entiteiten in de volgorde waarin je ze wilt.",
+        "order_not_on_screen": "Niet op dit scherm: {entities}.",
+        "order_not_on_page": "Niet op pagina {page}: {entities}. Verplaats die er eerst heen.",
+        "named_too_often": "Vaker genoemd dan op dit scherm aanwezig: {entities}.",
+        "named_too_often_page": "Vaker genoemd dan op pagina {page} aanwezig: {entities}."
+      },
+      "home_assistant": {
+        "action_not_offered": "Home Assistant biedt {action} niet aan voor {name}. Kies een actie uit de lijst.",
+        "action_answers_only": "{action} antwoordt alleen met gegevens, en die kan een scherm niet tonen.",
+        "no_such_field": "Home Assistant heeft geen veld {field} in {action} voor {name}.",
+        "field_needed": "{action} heeft een waarde voor {field} nodig.",
+        "no_on_off": "Home Assistant kan {name} niet aan- en uitzetten, dus Aan / uit zou niets doen. Kies een andere actie bij aantikken.",
+        "no_small_slider": "{name} heeft in Home Assistant niets wat een kleine slider kan aanpassen.",
+        "no_graph": "{name} heeft geen getallen om een grafiek van te tekenen.",
+        "no_forecast": "{name} heeft geen dagverwachting in Home Assistant.",
+        "no_control": "Home Assistant biedt die directe bediening niet voor {name}."
+      },
+      "alerts": {
+        "invalid": "Ongeldige alert.",
+        "cannot_show": "{name} kan geen alert tonen: {reason}.",
+        "no_device_name": "apparaatnaam onbekend",
+        "offline": "offline",
+        "firmware": "firmware {version}",
+        "unknown_version": "onbekend",
+        "not_ready": "niet klaar"
+      },
+      "firmware": {
+        "board_and_name": "Kies een bord en een unieke naam (kleine letters, cijfers, streepjes; maximaal 30 tekens).",
+        "friendly_name": "Geef het scherm een herkenbare naam (maximaal 60 tekens).",
+        "choose_profile": "Kies een bestaand YAML-profiel.",
+        "profile_missing": "Profiel bestaat niet in de ESPHome-map.",
+        "secrets_invalid": "secrets.yaml in de ESPHome-map is geen geldige YAML. Herstel het bestand eerst; het wordt niet overschreven.",
+        "wifi_needed": "Vul de Wi-Fi-naam en het wachtwoord in; ze worden in ESPHome secrets.yaml bewaard.",
+        "wifi_not_set": "Wi-Fi kon niet in secrets.yaml worden gezet. Vul wifi_ssid en wifi_password daar zelf in.",
+        "name_exists": "Deze naam bestaat al. Gebruik het bestaande profiel voor updates.",
+        "override_exists": "Deze naam heeft al een lokale override. Herstel of verwijder die voordat je een nieuw scherm met deze naam maakt.",
+        "override_symlink": "De lokale override is een symbolische link; vervang die eerst door een gewoon bestand.",
+        "other_include": "Dit profiel heeft al een andere include voor local_overrides.",
+        "profile_invalid": "Het schermprofiel is geen geldige YAML; herstel het voordat je een override toevoegt.",
+        "no_packages": "Dit profiel heeft geen packages-sectie die ESP Screens kan uitbreiden.",
+        "override_invalid": "Ongeldige override-gegevens.",
+        "yaml_needed": "Vul eerst YAML-tekst in.",
+        "override_too_large": "De override is te groot. Houd hem onder 12 KB.",
+        "yaml_error_line": "YAML-fout op regel {line}: {problem}.",
+        "yaml_error": "YAML-fout: {problem}.",
+        "invalid_yaml": "ongeldige YAML",
+        "override_object": "De override moet een YAML-object bevatten, bijvoorbeeld display: of substitutions:.",
+        "sections_managed": "Deze secties blijven in beheer van ESP Screens: {names}.",
+        "substitutions_managed": "Deze substitutions blijven in beheer van ESP Screens: {names}.",
+        "usb_port": "Kies de aangesloten USB-poort uit de lijst.",
+        "busy_wait": "Er loopt al een build of installatie. Wacht tot die klaar is.",
+        "busy": "Er loopt al een build of installatie.",
+        "no_esphome": "De ESPHome CLI ontbreekt in deze installatie.",
+        "still_building": "De firmware wordt nog gebouwd. Download hem zodra de build klaar is.",
+        "build_first": "Bouw eerst de firmware; de download verschijnt zodra de build klaar is.",
+        "unknown_action": "Onbekende firmwareactie.",
+        "host": "Vul het IP-adres of de hostnaam van het bedoelde scherm in."
+      },
+      "updates": {
+        "automatic": "Kies aan of uit voor automatisch bijwerken.",
+        "busy": "Er loopt al een update. Wacht tot die klaar is.",
+        "unknown_screen": "Onbekend scherm. Vernieuw het overzicht.",
+        "offline": "Dit scherm is offline; bijwerken kan zodra het terug is.",
+        "latest": "Dit scherm heeft al de nieuwste firmware.",
+        "enter_ip": "Vul het IP-adres van dit scherm in.",
+        "no_profile": "Geen ESPHome-profiel gevonden voor dit scherm. Controleer de naam in de ESPHome-map.",
+        "ip_unknown": "IP-adres onbekend. Vul het eenmalig in; nieuwe firmware meldt het daarna zelf.",
+        "all_updated": "Alle bereikbare schermen zijn al bijgewerkt."
+      }
+    },
+    "status": {
+      "first_tiles": "Kies je eerste tegels",
+      "saved": "Opgeslagen; wacht op synchronisatie",
+      "firmware_needed": "Indeling bewaard; firmware {version}+ nodig voor deze tegels",
+      "too_large": "Indeling bewaard; te groot voor één bericht aan het scherm, verwijder een paar tegels",
+      "sent": "Verstuurd naar Home Assistant",
+      "offline": "Scherm offline; wijzigingen bewaard",
+      "retrying": "Versturen mislukt; automatisch opnieuw proberen"
+    },
+    "updates": {
+      "offline": "Scherm was offline; volgende keer opnieuw.",
+      "unknown_target": "Profiel of IP-adres onbekend; werk dit scherm handmatig bij.",
+      "build_failed": "Bouwen of installeren mislukt; bekijk het log onder Firmware & USB.",
+      "no_report": "Scherm meldde zich niet met firmware {version}; controleer het scherm.",
+      "dropped_off": "Scherm viel weg na de update; controleer het scherm.",
+      "updated": "Bijgewerkt naar firmware {version}."
+    },
+    "notify": {
+      "update_stopped": "Automatisch bijwerken is gestopt bij {name}: {reason} De overige schermen zijn niet aangeraakt."
+    },
+    "labels": {
+      "built_into_screen": "Ingebouwd in het scherm",
+      "backgrounds": {
+        "auto": "Standaard",
+        "none": "Geen",
+        "red": "Rood",
+        "orange": "Oranje",
+        "yellow": "Geel",
+        "green": "Groen",
+        "mint": "Mint",
+        "blue": "Blauw",
+        "purple": "Paars",
+        "pink": "Roze",
+        "gray": "Grijs"
+      },
+      "controls": {
+        "none": "Geen",
+        "climate": {
+          "setpoint": "Temperatuur − / +",
+          "mode": "Uit, verwarmen, koelen"
+        },
+        "switch": {
+          "toggle": "Aan/uit-schakelaar"
+        },
+        "input_boolean": {
+          "toggle": "Aan/uit-schakelaar"
+        },
+        "light": {
+          "toggle": "Aan/uit-schakelaar",
+          "brightness": "Helderheidsslider"
+        },
+        "fan": {
+          "toggle": "Aan/uit-schakelaar",
+          "speed": "Snelheidsslider"
+        },
+        "vacuum": {
+          "buttons": "Start, stop, naar dock"
+        },
+        "cover": {
+          "buttons": "Open, stop, dicht",
+          "position": "Positieslider"
+        },
+        "media_player": {
+          "volume": "Volume en dempen",
+          "playback": "Vorige, play/pauze, volgende"
+        },
+        "number": {
+          "stepper": "Waarde − / +",
+          "slider": "Slider"
+        },
+        "input_number": {
+          "stepper": "Waarde − / +",
+          "slider": "Slider"
+        },
+        "select": {
+          "stepper": "Vorige / volgende keuze"
+        },
+        "input_select": {
+          "stepper": "Vorige / volgende keuze"
+        },
+        "timer": {
+          "buttons": "Start/pauze en annuleren"
+        },
+        "scene": {
+          "run": "Knop Inschakelen"
+        },
+        "script": {
+          "run": "Knop Uitvoeren"
+        },
+        "button": {
+          "run": "Knop Klik"
+        },
+        "input_button": {
+          "run": "Knop Klik"
+        }
+      },
+      "top_bar": {
+        "builtin": {
+          "clock": "Tijd",
+          "analog": "Analoge klok",
+          "date": "Datum"
+        },
+        "contents": {
+          "state": "Status",
+          "last_changed": "Laatst gewijzigd"
+        },
+        "shows": {
+          "always": "Altijd",
+          "active": "Alleen als actief"
+        },
+        "suggestions": {
+          "temperature": "Temperatuur",
+          "humidity": "Luchtvochtigheid",
+          "power": "Stroomverbruik",
+          "motion": "Laatste beweging",
+          "weather": "Weer",
+          "people_home": "Aantal thuis",
+          "sun": "Zon op en onder",
+          "co2": "CO₂"
+        }
+      }
+    },
+    "alerts": {
+      "fields": {
+        "title": {
+          "label": "Titel",
+          "help": "Eén regel bovenaan de kaart; wat niet past krijgt puntjes. Leeg wordt “Melding”.",
+          "example": "Iemand belt aan"
+        },
+        "subtitle": {
+          "label": "Ondertitel",
+          "help": "Toelichting onder de titel, over meerdere regels; een regeleinde mag. Leeg mag ook.",
+          "example": "Deur 3, achterkant"
+        },
+        "icon": {
+          "label": "Icoon",
+          "help": "Een naam uit de lijst, ook als mdi:naam of als hex-codepoint (F12E6). Onbekend of leeg geeft de waarschuwingsdriehoek."
+        },
+        "color": {
+          "label": "Kleur",
+          "help": "Een van de negen pastelkleuren van de tegels. Leeg geeft de witte kaart."
+        },
+        "button_text": {
+          "label": "Knoptekst",
+          "help": "De tekst op de knop. Leeg is “OK”.",
+          "example": "Ik kom"
+        },
+        "timeout": {
+          "label": "Timeout",
+          "help": "Seconden waarna de kaart vanzelf verdwijnt. 0 wacht op de knop, hoe lang dat ook duurt. De knop sluit de kaart altijd meteen, ook met een timeout."
+        },
+        "flash": {
+          "label": "Knipperen",
+          "help": "Aan laat de backlight vier keer knipperen als de alert binnenkomt; daarna blijft het scherm gewoon aan."
+        },
+        "camera": {
+          "label": "Camera",
+          "help": "Een camera- of afbeeldingsentiteit. Een Guition met firmware 0.2.57+ toont het beeld van dat moment bovenaan de kaart; een tik erop opent de camera schermvullend. Andere schermen tonen de alert zonder beeld. Alleen via de gebeurtenis esp_screens_show_alert."
+        }
+      },
+      "endings": {
+        "ok": "De knop is ingedrukt",
+        "timeout": "De timeout is verstreken",
+        "replaced": "Een nieuwe alert kwam eroverheen",
+        "remote": "dismiss_alert vanuit Home Assistant"
+      }
+    },
+    "icons": {
+      "groups": {
+        "lighting": "Verlichting",
+        "rooms": "Ruimtes",
+        "climate": "Klimaat",
+        "weather": "Weer",
+        "media_and_music": "Media en muziek",
+        "security": "Beveiliging",
+        "appliances": "Apparaten",
+        "energy": "Energie",
+        "window_coverings": "Zonwering",
+        "garden_and_pets": "Tuin en huisdieren",
+        "people_and_travel": "Mensen en onderweg",
+        "other": "Overig"
+      },
+      "names": {
+        "lightbulb": "Lamp",
+        "lightbulb_group": "Lampen",
+        "ceiling_light": "Plafondlamp",
+        "chandelier": "Kroonluchter",
+        "lamp": "Tafellamp",
+        "floor_lamp": "Vloerlamp",
+        "desk_lamp": "Bureaulamp",
+        "wall_sconce_flat": "Wandlamp",
+        "light_recessed": "Inbouwspot",
+        "spotlight_beam": "Spot",
+        "led_strip_variant": "Ledstrip",
+        "outdoor_lamp": "Buitenlamp",
+        "home": "Huis",
+        "sofa": "Woonkamer",
+        "bed": "Slaapkamer",
+        "silverware_fork_knife": "Eetkamer",
+        "chef_hat": "Keuken",
+        "shower": "Douche",
+        "bathtub": "Badkamer",
+        "toilet": "Toilet",
+        "desk": "Werkkamer",
+        "garage": "Garage",
+        "fireplace": "Open haard",
+        "thermometer": "Temperatuur",
+        "thermostat": "Thermostaat",
+        "air_conditioner": "Airco",
+        "radiator": "Radiator",
+        "heat_pump": "Warmtepomp",
+        "fire": "Verwarming",
+        "snowflake": "Koelen",
+        "water_percent": "Luchtvochtigheid",
+        "fan": "Ventilator",
+        "ceiling_fan": "Plafondventilator",
+        "air_purifier": "Luchtreiniger",
+        "molecule_co2": "CO₂",
+        "weather_sunny": "Zon",
+        "weather_partly_cloudy": "Half bewolkt",
+        "weather_cloudy": "Bewolkt",
+        "weather_rainy": "Regen",
+        "weather_snowy": "Sneeuw",
+        "weather_windy": "Wind",
+        "weather_night": "Nacht",
+        "weather_sunset_up": "Zonsopkomst",
+        "music_note": "Muziek",
+        "music": "Muzieknoten",
+        "playlist_music": "Afspeellijst",
+        "album": "Album",
+        "record_player": "Platenspeler",
+        "spotify": "Spotify",
+        "radio": "Radio",
+        "podcast": "Podcast",
+        "speaker": "Speaker",
+        "speaker_multiple": "Speakers",
+        "soundbar": "Soundbar",
+        "headphones": "Koptelefoon",
+        "piano": "Piano",
+        "guitar_acoustic": "Gitaar",
+        "television": "Televisie",
+        "projector": "Beamer",
+        "movie_open": "Film",
+        "cast": "Casten",
+        "gamepad_variant": "Gameconsole",
+        "remote_tv": "Afstandsbediening",
+        "lock": "Slot",
+        "lock_open_variant": "Slot open",
+        "shield_home": "Alarm",
+        "alarm_light": "Alarmlicht",
+        "bell": "Bel",
+        "doorbell": "Deurbel",
+        "cctv": "Camera",
+        "motion_sensor": "Bewegingsmelder",
+        "door_closed": "Deur",
+        "door_open": "Deur open",
+        "window_closed_variant": "Raam",
+        "smoke_detector": "Rookmelder",
+        "water_alert": "Waterlek",
+        "washing_machine": "Wasmachine",
+        "tumble_dryer": "Droger",
+        "dishwasher": "Vaatwasser",
+        "fridge": "Koelkast",
+        "stove": "Fornuis",
+        "microwave": "Magnetron",
+        "toaster_oven": "Oven",
+        "coffee_maker": "Koffie",
+        "kettle": "Waterkoker",
+        "robot_vacuum": "Robotstofzuiger",
+        "robot_mower": "Robotmaaier",
+        "printer_3d": "3D-printer",
+        "power_plug": "Stekker",
+        "power_socket_eu": "Stopcontact",
+        "laptop": "Laptop",
+        "router_wireless": "Router",
+        "flash": "Stroom",
+        "solar_power": "Zonne-energie",
+        "solar_panel": "Zonnepanelen",
+        "home_battery": "Thuisbatterij",
+        "battery_high": "Batterij",
+        "ev_station": "Laadpaal",
+        "car_electric": "Elektrische auto",
+        "meter_electric": "Stroommeter",
+        "meter_gas": "Gasmeter",
+        "water": "Water",
+        "water_boiler": "Boiler",
+        "gauge": "Meter",
+        "window_shutter": "Rolluik",
+        "window_shutter_open": "Rolluik open",
+        "blinds": "Jaloezie",
+        "blinds_open": "Jaloezie open",
+        "roller_shade_closed": "Rolgordijn",
+        "curtains": "Gordijnen",
+        "curtains_closed": "Gordijnen dicht",
+        "awning_outline": "Zonnescherm",
+        "flower": "Bloem",
+        "tree": "Boom",
+        "sprout": "Plant",
+        "grass": "Gazon",
+        "sprinkler": "Sproeier",
+        "pool": "Zwembad",
+        "grill": "Barbecue",
+        "mailbox": "Brievenbus",
+        "trash_can": "Afval",
+        "recycle": "Recycling",
+        "dog": "Hond",
+        "cat": "Kat",
+        "account": "Persoon",
+        "account_group": "Gezin",
+        "account_child": "Kind",
+        "home_account": "Thuis",
+        "sleep": "Slapen",
+        "run": "Sporten",
+        "briefcase": "Werk",
+        "car": "Auto",
+        "bike": "Fiets",
+        "airplane": "Vakantie",
+        "map_marker": "Locatie",
+        "power": "Aan/uit",
+        "toggle_switch": "Schakelaar",
+        "gesture_tap_button": "Knop",
+        "play": "Start",
+        "script_text": "Script",
+        "palette": "Scène",
+        "alarm": "Wekker",
+        "clock_outline": "Klok",
+        "timer_outline": "Timer",
+        "calendar": "Agenda",
+        "bell_ring": "Melding",
+        "heart": "Favoriet",
+        "alert_outline": "Waarschuwing",
+        "cog": "Instellingen",
+        "broom": "Schoonmaken"
+      }
+    },
+    "screen": {
+      "builtin": {
+        "clock": "Klok",
+        "page": "Ga naar pagina {page}"
+      },
+      "identify": {
+        "title": "Dit is {name}",
+        "subtitle": "Identificeren, vanuit ESP Screens"
+      },
+      "script_running": "Bezig",
+      "states": {
+        "locking": "Vergrendelen",
+        "unlocking": "Ontgrendelen",
+        "jammed": "Vastgelopen",
+        "buffering": "Bufferen",
+        "returning": "Naar dock",
+        "error": "Fout",
+        "disarmed": "Uit",
+        "armed_home": "Thuis",
+        "armed_away": "Afwezig",
+        "armed_night": "Nacht",
+        "armed_vacation": "Vakantie",
+        "armed": "Aan",
+        "arming": "Schakelt in",
+        "pending": "Wachten",
+        "triggered": "Geactiveerd",
+        "active": "Actief",
+        "up": "Op",
+        "down": "Onder",
+        "unknown": "Onbekend"
+      },
+      "history": {
+        "other": "Overig"
+      },
+      "vacuum": {
+        "vacuum": "Zuigen",
+        "vac_and_mop": "Zuig & dweil",
+        "vac_then_mop": "Zuig, dan dweil",
+        "mop": "Dweilen",
+        "custom": "Aangepast",
+        "smart": "Slim",
+        "min": "Min",
+        "slight": "Licht",
+        "low": "Laag",
+        "mild": "Mild",
+        "medium": "Gemiddeld",
+        "moderate": "Matig",
+        "standard": "Standaard",
+        "high": "Hoog",
+        "intense": "Intensief",
+        "extreme": "Extreem",
+        "ultra_high": "Ultrahoog",
+        "silent": "Stil",
+        "gentle": "Zacht",
+        "strong": "Sterk",
+        "max_plus": "Max+",
+        "auto": "Auto"
+      }
+    }
+  },
   "editor": {
     "common": {
       "undo": "Ongedaan maken",
@@ -1133,7 +1691,7 @@
       "all": {
         "title": "Alle schermen tegelijk",
         "text": "Vuur de gebeurtenis {show} af met dezelfde velden, en ESP Screens geeft de alert door aan elk scherm dat online is, ook aan schermen die je later toevoegt. {dismiss} haalt hem overal weg. Voeg in een automatisering de actie {event} toe, of plak het voorbeeld onder {edit}. Laat de velden die je niet gebruikt weg. ESP Screens moet hiervoor draaien.",
-        "event": "Gebeurtenis"
+        "event": "Handmatige gebeurtenis activeren"
       },
       "fields": {
         "text": "Tekst is vrij in te vullen; de limiet is in bytes en een letter met accent telt voor twee. Wat niet past krijgt puntjes (titel) of valt weg (ondertitel).",
