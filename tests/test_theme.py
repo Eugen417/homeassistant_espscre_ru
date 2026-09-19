@@ -111,7 +111,7 @@ class Paints(unittest.TestCase):
         tiles = (COMPONENT / 'runtime_tiles.h').read_text()
         for needle in ('lv_obj_add_style(w.slider,theme::style(theme::Paint::knob),LV_PART_KNOB);',
                        'lv_obj_add_style(w.busy,theme::style(theme::Paint::veil),0);',
-                       'lv_obj_add_style(w.spinner,theme::style(theme::Paint::spinner),LV_PART_MAIN);',
+                       'lv_obj_add_style(spinner, theme::style(theme::Paint::spinner), LV_PART_MAIN);',
                        'lv_obj_add_style(part, theme::style(theme::Paint::slate), 0);',
                        'inline void restyle() {'):
             self.assertIn(needle, tiles)

@@ -2875,6 +2875,26 @@ inline void control_event(lv_event_t *e) {
   auto a=tile_controls::press_key(t,command,w.key_args[n]);
   if(a.valid())action(a.service,t.entity,a.key,a.value);
 }
+// The one spinner of the firmware: a busy card, the starting screen and a camera that loads (firmware 0.2.73+). The
+// ring in the spinner paint, the arc in Home Assistant's blue. Null where the board builds no spinner.
+inline lv_obj_t *spinner_create(lv_obj_t *parent, int size, int arc) {
+#if LV_USE_SPINNER
+  auto *spinner = lv_spinner_create(parent);
+  lv_spinner_set_anim_params(spinner, 900, 200);
+  lv_obj_set_size(spinner, size, size);
+  lv_obj_remove_flag(spinner, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_arc_width(spinner, arc, LV_PART_MAIN);
+  lv_obj_set_style_arc_width(spinner, arc, LV_PART_INDICATOR);
+  lv_obj_add_style(spinner, theme::style(theme::Paint::spinner), LV_PART_MAIN);
+  lv_obj_set_style_arc_color(spinner, lv_color_hex(theme::ha::RAIN), LV_PART_INDICATOR);
+  lv_obj_set_style_bg_opa(spinner, LV_OPA_TRANSP, LV_PART_KNOB);
+  lv_obj_set_style_pad_all(spinner, 0, LV_PART_KNOB);
+  return spinner;
+#else
+  (void) parent; (void) size; (void) arc;
+  return nullptr;
+#endif
+}
 // A busy card is covered by a translucent white sheet with a small spinner until
 // Home Assistant confirms; the sheet also swallows taps meanwhile.
 inline void set_busy(Widgets &w,bool busy,bool large){
@@ -2883,13 +2903,8 @@ inline void set_busy(Widgets &w,bool busy,bool large){
     w.busy=lv_obj_create(w.tile);lv_obj_remove_style_all(w.busy);lv_obj_remove_flag(w.busy,LV_OBJ_FLAG_SCROLLABLE);lv_obj_add_flag(w.busy,LV_OBJ_FLAG_CLICKABLE);
     lv_obj_add_style(w.busy,theme::style(theme::Paint::veil),0);lv_obj_set_style_bg_opa(w.busy,LV_OPA_60,0);
     lv_obj_set_style_radius(w.busy,lv_obj_get_style_radius(w.tile,LV_PART_MAIN),0);
-#if LV_USE_SPINNER
-    w.spinner=lv_spinner_create(w.busy);lv_spinner_set_anim_params(w.spinner,900,200);
-    int size=large?30:20;lv_obj_set_size(w.spinner,size,size);lv_obj_center(w.spinner);lv_obj_remove_flag(w.spinner,LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_style_arc_width(w.spinner,large?4:3,LV_PART_MAIN);lv_obj_set_style_arc_width(w.spinner,large?4:3,LV_PART_INDICATOR);
-    lv_obj_add_style(w.spinner,theme::style(theme::Paint::spinner),LV_PART_MAIN);lv_obj_set_style_arc_color(w.spinner,lv_color_hex(theme::ha::RAIN),LV_PART_INDICATOR);
-    lv_obj_set_style_bg_opa(w.spinner,LV_OPA_TRANSP,LV_PART_KNOB);lv_obj_set_style_pad_all(w.spinner,0,LV_PART_KNOB);
-#endif
+    w.spinner=spinner_create(w.busy,large?30:20,large?4:3);
+    if(w.spinner)lv_obj_center(w.spinner);
   }
   // Cover the whole card, padding included, at the width the card asks for: a slot that just turned
   // wide is still single width in LVGL's own coordinates. Unchanged sizes cost LVGL nothing.
@@ -3297,11 +3312,45 @@ inline lv_timer_t *fill_timer=nullptr;
 inline bool fill_refreshed=false;
 inline uint32_t fill_step_ms=0;
 inline bool fill_cards(size_t cards);
+// The starting screen (firmware 0.2.73+): what the screen waits for in the middle of the page with a spinner under it,
+// until the first layout arrives. The first render() makes it and the first layout deletes it, spinner and all.
+inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr;
+inline void boot_status(lv_obj_t *page, const char *text) {
+  const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(page));
+  const bool large = width >= 480;
+  const int ring = large ? 48 : 32, gap = large ? 24 : 16, text_width = width - 2 * lv_obj_get_style_x(room_label, LV_PART_MAIN);
+  const lv_font_t *font = watch_font ? watch_font : lv_obj_get_style_text_font(room_label, LV_PART_MAIN);
+  if (!boot_panel) {
+    boot_panel = lv_obj_create(page);
+    lv_obj_remove_style_all(boot_panel);
+    lv_obj_remove_flag(boot_panel, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(boot_panel, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_size(boot_panel, lv_pct(100), lv_pct(100));
+    // The name's place in the drawing order: under the tiles, the cards and an alert.
+    lv_obj_move_to_index(boot_panel, lv_obj_get_index(room_label));
+    boot_text = lv_label_create(boot_panel);
+    lv_obj_add_style(boot_text, theme::style(theme::Paint::ink), 0);
+    lv_obj_set_style_text_font(boot_text, font, 0);
+    lv_obj_set_style_text_align(boot_text, LV_TEXT_ALIGN_CENTER, 0);
+    lv_label_set_long_mode(boot_text, LV_LABEL_LONG_WRAP);
+    lv_obj_set_width(boot_text, text_width);
+    boot_spinner = spinner_create(boot_panel, ring, large ? 5 : 4);
+  }
+  if (strcmp(lv_label_get_text(boot_text), text) == 0) return;
+  lv_label_set_text(boot_text, text);
+  // The text and the spinner as one block in the middle of the page.
+  lv_point_t size;
+  lv_text_get_size(&size, text, font, 0, 0, text_width, LV_TEXT_FLAG_NONE);
+  lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, -(ring + gap) / 2);
+  if (boot_spinner) lv_obj_align(boot_spinner, LV_ALIGN_CENTER, 0, (size.y + gap) / 2);
+}
 // Before the first layout the screen is starting: HA connects, then ESP Screens sends the tiles.
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room; swipe_profile::Lap lap;
-  label(room, !model.configured ? (!ha_connected() ? "Connecting to Home Assistant..." : "Waiting for ESP Screens...") : !model.ready() ? "Loading tiles..." : !ha_connected() ? "HA not connected" : !feed_alive() ? "ESP Screens not active" : model.title);
+  if (!model.configured) boot_status(lv_obj_get_parent(room), !ha_connected() ? "Connecting to Home Assistant" : "Waiting for ESP Screens");
+  else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
+  label(room, !model.configured ? "" : !model.ready() ? "Loading tiles..." : !ha_connected() ? "HA not connected" : !feed_alive() ? "ESP Screens not active" : model.title);
   render_header();
   lap(swipe_profile::HEADER);
   bool all=dirty_all || (!dirty_tiles && !dirty_header);
@@ -3927,6 +3976,8 @@ inline camera_view::Feed camera;
 // show the page below at once.
 inline bool camera_release_due = false;
 inline lv_obj_t *camera_root = nullptr, *camera_picture = nullptr, *camera_note = nullptr, *camera_back = nullptr, *camera_title = nullptr;
+// Turns in the middle until the first image is there (firmware 0.2.73+); a note (no image) takes its place.
+inline lv_obj_t *camera_spinner = nullptr;
 // The alert's image: the board's frame at the bottom left of the card, the camera the app announced for the next alert
 // and the one the card on screen shows.
 inline lv_obj_t *alert_frame = nullptr, *alert_picture = nullptr, *alert_frame_icon = nullptr;
@@ -4061,6 +4112,7 @@ inline void camera_request(const std::string &entity, int size, uint32_t backgro
 
 inline void camera_note_text(const char *text) {
   if (!camera_note) return;
+  if (camera_spinner) { lv_obj_delete(camera_spinner); camera_spinner = nullptr; }
   lv_label_set_text(camera_note, text);
   if (text[0]) lv_obj_remove_flag(camera_note, LV_OBJ_FLAG_HIDDEN);
   else lv_obj_add_flag(camera_note, LV_OBJ_FLAG_HIDDEN);
@@ -4074,7 +4126,7 @@ inline void camera_release() {
 inline void camera_close() {
   if (!camera_root) return;
   lv_obj_delete(camera_root);
-  camera_root = camera_picture = camera_note = camera_back = camera_title = nullptr;
+  camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = nullptr;
   camera_release_due = true;
   ESP_LOGI("camera", "closed %s", camera.entity.c_str());
   camera = camera_view::Feed{};
@@ -4102,7 +4154,13 @@ inline void camera_open(const std::string &entity, const std::string &name) {
   if (detail_font) lv_obj_set_style_text_font(camera_note, detail_font, 0);
   lv_obj_set_style_text_color(camera_note, theme::color(theme::CAMERA_NOTE), 0);
   lv_obj_center(camera_note);
-  camera_note_text("Loading image");
+  camera_note_text("");
+  // The starting screen's spinner, its ring dark on the black page in both looks.
+  camera_spinner = spinner_create(camera_root, large ? 48 : 32, large ? 5 : 4);
+  if (camera_spinner) {
+    lv_obj_set_style_arc_color(camera_spinner, theme::color(theme::CAMERA_TRACK), LV_PART_MAIN);
+    lv_obj_center(camera_spinner);
+  }
   // The same top bar as a tile's card: a round back arrow at the left, the name centred.
   const int bar = large ? 60 : 40, bar_x = large ? 16 : 10, bar_y = large ? 16 : 8;
   camera_back = lv_obj_create(camera_root);
@@ -4133,6 +4191,20 @@ inline void camera_open(const std::string &entity, const std::string &name) {
   lv_obj_set_size(camera_title, width - 2 * (bar_x + bar + 8), title_font ? lv_font_get_line_height(title_font) : 20);
   lv_label_set_text(camera_title, name.c_str());
   ESP_LOGI("camera", "open %s", entity.c_str());
+  // Asked for now rather than on the next tick (firmware 0.2.73+): the answer is most of the wait.
+  const uint32_t now = esphome::millis();
+  if (awake() && fresh() && camera.should_ask(now)) {
+    camera.ask(now);
+    camera_request(entity);
+  }
+}
+
+// The next image, never under a finger: a load that starts now would hold up the tap on its way.
+inline void camera_load(uint32_t now) {
+  auto *input = lv_indev_get_next(nullptr);
+  if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
+  camera.start(now);
+  camera_full.load(camera.url);
 }
 
 // The board's interval (250 ms): ask for a link, or load the image again when it is time. Loading happens here, in
@@ -4156,11 +4228,7 @@ inline void camera_tick() {
     camera.ask(now);
     camera_request(camera.entity);
   } else if (camera.should_load(now)) {
-    // Not under a finger: a load that starts now would hold up the tap that is on its way.
-    auto *input = lv_indev_get_next(nullptr);
-    if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
-    camera.start(now);
-    camera_full.load(camera.url);
+    camera_load(now);
   }
 }
 
@@ -4202,7 +4270,13 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
   if (view == "full") {
     if (!camera_root || camera.entity != entity) return;
     camera.link(url);
-    if (url.empty() && !camera.shown) camera_note_text("No image from this camera");
+    if (url.empty()) {
+      if (!camera.shown) camera_note_text("No image from this camera");
+      return;
+    }
+    // Loaded now rather than on the next tick (firmware 0.2.73+), as an alert's image is.
+    const uint32_t now = esphome::millis();
+    if (awake() && camera.should_load(now)) camera_load(now);
     return;
   }
   if (view == "cover") {  // the media card's album cover (firmware 0.2.64+)
@@ -4233,12 +4307,16 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
 }
 
 // LVGL's image widget is only built for a board whose profile draws images (the Guition's hidden seed); the CYD's has none.
-inline void camera_show(lv_obj_t *parent, lv_obj_t *&picture, lv_image_dsc_t *source, bool fresh_pixels) {
+// `radius` rounds the picture's corners (the alert's, firmware 0.2.73+): LVGL 9.5's software renderer clips an image
+// to its own radius row by row with a one-row mask (radius_only in lv_draw_sw_img.c), without a layer; clip_corner on
+// the frame would draw the frame into a layer of its size instead.
+inline void camera_show(lv_obj_t *parent, lv_obj_t *&picture, lv_image_dsc_t *source, bool fresh_pixels, int32_t radius = 0) {
 #if LV_USE_IMAGE
   if (!source || !source->data) return;
   if (!picture) {
     picture = lv_image_create(parent);
     lv_obj_remove_flag(picture, LV_OBJ_FLAG_CLICKABLE);
+    if (radius > 0) lv_obj_set_style_radius(picture, radius, LV_PART_MAIN);
     lv_image_set_src(picture, source);
     lv_obj_center(picture);
     return;
@@ -4249,7 +4327,7 @@ inline void camera_show(lv_obj_t *parent, lv_obj_t *&picture, lv_image_dsc_t *so
   lv_image_set_src(picture, source);
   lv_obj_invalidate(picture);
 #else
-  (void) parent; (void) picture; (void) source; (void) fresh_pixels;
+  (void) parent; (void) picture; (void) source; (void) fresh_pixels; (void) radius;
 #endif
 }
 
@@ -4258,7 +4336,8 @@ inline void camera_loaded(bool thumb, bool cached) {
   if (thumb) {
     alert_thumb_loading = false;
     if (alert_camera.empty() || !alert_frame) return;
-    camera_show(alert_frame, alert_picture, camera_thumb.source(), !cached);
+    // The picture takes the frame's radius, the alert card's own (the board profile sets it on the frame).
+    camera_show(alert_frame, alert_picture, camera_thumb.source(), !cached, lv_obj_get_style_radius(alert_frame, LV_PART_MAIN));
     if (alert_picture && alert_frame_icon) lv_obj_add_flag(alert_frame_icon, LV_OBJ_FLAG_HIDDEN);
     ESP_LOGI("camera", "alert picture shown");
     return;

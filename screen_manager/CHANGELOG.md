@@ -1,3 +1,13 @@
+## 0.2.87 (firmware 0.2.73)
+
+A starting screen with a spinner, a camera that opens sooner with a spinner, and round corners on an alert's camera picture.
+
+- **A starting screen with a spinner.** Until the tiles arrive, a screen says in the middle what it waits for, *Connecting to Home Assistant* and then *Waiting for ESP Screens*, with a turning spinner under it. Before, that was a line of text in the top bar. The text and the spinner go as soon as the tiles come, so nothing keeps turning behind them.
+- **A camera opens sooner, with a spinner.** The camera full screen shows the spinner until the first picture is there, instead of the words *Loading image*; a camera without a picture still says so. The first picture also comes sooner on a Guition. The screen asks for it the moment the camera opens and starts loading it the moment ESP Screens answers, where it used to wait for its next quarter-second tick each time. It also loads 16 KB of the picture at a time instead of 4 KB. On the bench Guition a camera the add-on had just shown opened in 2.1 s instead of 3.4 s, and a camera it had to ask Home Assistant for first in 4.6 s instead of 5.8 s. The rest of that wait is the camera itself: the EZVIZ answers in 2.4 s.
+- **The picture in an alert has round corners**, the same as the alert card around it, on a Guition. LVGL rounds the picture itself while it draws it, row by row, without an extra buffer. Drawing the picture takes about 5 % longer than a square one, and only when it is drawn (the alert appearing, or coming back after the camera full screen); a picture that stays up costs nothing more. The camera full screen keeps its square picture from edge to edge.
+- **Cameras are in the README**, as tiles of their own and not only in an alert: a page with a camera, a live camera and a doorbell's last ring, the picture full screen, and the same camera in an alert.
+- Needs firmware 0.2.73: press **Update** on the screen. The starting screen is on both boards; the camera changes are the Guition's. Includes everything from 0.2.86. CYD firmware: 1,678,816 bytes, 91.5 % of the update slot (1,312 bytes more than 0.2.86).
+
 ## 0.2.86 (firmware 0.2.72)
 
 The on/off switch on a wide tile switches again.

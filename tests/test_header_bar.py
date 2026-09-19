@@ -221,8 +221,23 @@ class ParityTests(unittest.TestCase):
             self.assertIn('runtime_tiles::time_label = id(lbl_time);', text, name)
             refresh = text.split('  - id: ui_refresh', 1)[1].split('return;', 1)[0]
             self.assertNotIn('lbl_time', refresh, name)
-        self.assertIn('render_header();', TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n', 5)[4])
+        self.assertIn('render_header();', TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n}', 1)[0])
         self.assertLessEqual(HEADER_MIN_FIRMWARE, tuple(int(p) for p in FIRMWARE_VERSION.split('.')))
+
+    def test_a_starting_screen_says_what_it_waits_for_in_the_middle(self):
+        # Firmware 0.2.73+: until the first layout the text and a spinner stand in the middle and the name stays empty;
+        # the first layout deletes them, so no spinner turns behind the tiles.
+        render = TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n}', 1)[0]
+        self.assertIn('if (!model.configured) boot_status(lv_obj_get_parent(room), !ha_connected() ? '
+                      '"Connecting to Home Assistant" : "Waiting for ESP Screens");', render)
+        self.assertIn('else if (boot_panel) { lv_obj_delete(boot_panel);', render)
+        self.assertIn('label(room, !model.configured ? "" :', render)
+        boot = TILES.split('inline void boot_status(', 1)[1].split('\n}', 1)[0]
+        self.assertIn('boot_spinner = spinner_create(boot_panel,', boot)
+        # Under the tiles, the cards and an alert, in the name's place.
+        self.assertIn('lv_obj_move_to_index(boot_panel, lv_obj_get_index(room_label));', boot)
+        for name in PROFILES:
+            self.assertNotIn('Choose tiles in HA', profiles.text(name), name)
 
     def test_second_hand_runs_only_while_the_screen_is_awake(self):
         for name in PROFILES:

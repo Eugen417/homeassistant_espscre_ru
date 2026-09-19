@@ -219,6 +219,32 @@ icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.87 / firmware 0.2.73
+
+Firmware only, plus README pictures and docs/CAMERA.md. No protocol, storage, preference or key change: an older app
+drives this firmware as before, and the camera messages are the same; only when the screen sends and loads changed.
+
+- Starting screen: while `!model.configured`, `render()` calls `boot_status()`, which keeps a text in `watch_font`
+  (paint `ink`) and a spinner as one block in the middle of the page, at the room label's index in the drawing order;
+  the room label is empty meanwhile. The first layout deletes the block (`boot_panel`), spinner and all.
+  `ROOM_NAME` defaults to "" (was "Choose tiles in HA").
+- `spinner_create(parent, size, arc)` makes every spinner: the busy sheet (30/20 px, unchanged), the starting screen
+  and the camera (48/32 px).
+- Camera full screen: `camera_open()` asks at once (awake and fresh); `camera_answer()` loads a new link at once
+  through `camera_load()`, which like `camera_tick()` never starts under a finger. `camera_tick()` still does the
+  4 s refresh and the retries. `camera_spinner` turns until the first picture or a note; its ring is the new theme
+  role `CAMERA_TRACK` (0x393D42 in both looks). "Loading image" is gone.
+- Guition `online_image` `buffer_size` 16384 (was 4096) for `camera_image` and `alert_image`: the full picture in
+  about 1.8 s instead of 2.8 s on the bench; without Wi-Fi power save no loop over 50 ms. 32 KB held a loop 0.1 s.
+- Alert picture: `alert_image_frame` has the alert card's radius (18) and `camera_show()` gives the alert's picture the
+  frame's radius. LVGL 9.5 clips an image to its own radius row by row (`radius_only` in `lv_draw_sw_img.c`) without a
+  layer, so `clip_corner` stays out (`tests/test_layer_free.py`). About 5 % more render time for the picture on the
+  host, only when it is drawn.
+- Tests: `test_camera` (the first picture waits for no tick), `test_header_bar` (the starting screen;
+  `render_header()` anywhere in `render()`), `test_theme` (the spinner paint in `spinner_create()`).
+
+Details: docs/TEST_RESULTS_0287.md.
+
 ### Compatibility 0.2.85 / firmware 0.2.71
 
 Tile colours as Home Assistant draws them. No protocol, storage or editor change: the state messages are the same as

@@ -3,11 +3,13 @@
 App 0.2.66 with firmware 0.2.57 shows camera images on a Guition 4848S040:
 
 - **A camera tile.** Add a `camera.*` or `image.*` entity as a tile. A tap opens the image full
-  screen, with the round back key at the top left like every card. The image is refreshed every
-  four seconds while it is open. It is not video: ESPHome has no video decoder.
+  screen, with the round back key at the top left like every card, and a spinner until the first
+  image is there (firmware 0.2.73). The image is refreshed every four seconds while it is open. It
+  is not video: ESPHome has no video decoder.
 - **An alert with a picture.** Add `camera: camera.front_door` to the `esp_screens_show_alert`
-  event. The card shows the picture of that moment across its top (it stays that picture); a tap
-  on it opens the camera full screen over the alert, and Back returns to the alert.
+  event. The card shows the picture of that moment across its top (it stays that picture), with
+  the card's round corners (firmware 0.2.73); a tap on it opens the camera full screen over the
+  alert, and Back returns to the alert.
 
 The CYD has no memory for images (a 320×180 image needs 115 KB in one piece, the CYD's largest
 free block is about 45 KB). It shows the alert without the picture, and the editor doesn't offer
@@ -70,9 +72,10 @@ screen's made the picture change after 1.5 s one time and 6 s the next.) A slow 
 images older, never the screen slower, and nothing queues up. Nobody loading means nothing fetched.
 A link that nobody loads for two minutes stops working; an alert's picture stays for half an hour.
 
-**Why BMP.** ESPHome decodes a BMP piece by piece while it downloads (4 KB per round of its main
-loop). A JPEG of the full screen took 0.6 s in one piece on the Guition, during which the screen
-missed taps. A full-screen BMP is about 390 KB; on the LAN that takes one to three seconds.
+**Why BMP.** ESPHome decodes a BMP piece by piece while it downloads (16 KB per round of its main
+loop since firmware 0.2.73, 4 KB before). A JPEG of the full screen took 0.6 s in one piece on the
+Guition, during which the screen missed taps. A full-screen BMP is about 390 KB; on the bench
+Guition it comes in about 1.8 s (2.8 s with 4 KB).
 
 ## Network
 
@@ -91,6 +94,13 @@ missed taps. A full-screen BMP is about 390 KB; on the LAN that takes one to thr
 - The internal heap stays level while a camera refreshes: 77.2 KB free after 91 images in six minutes,
   and PSRAM unchanged.
 - Standby, **Back to page 1** and a new layout close the camera; nothing loads in standby.
+- The first image (firmware 0.2.73, measured 2026-09-19 with an EZVIZ camera): the screen asks when
+  the camera opens and loads the link as soon as it comes. About 2 s when the app still has the
+  camera's last snapshot (it keeps one for 30 s after the last load), 4.5 s when it must ask Home
+  Assistant first, of which 2.4 s is the camera's own snapshot. Firmware 0.2.72 took 3.4 s and
+  5.8 s. Details in docs/TEST_RESULTS_0287.md.
+- `power_save_mode: none` under `wifi:` (the YAML ESP Screens writes has it since app 0.2.24) keeps
+  the screen from waiting on its Wi-Fi now and then while an image comes in.
 
 ## For developers
 

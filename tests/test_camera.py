@@ -96,6 +96,21 @@ class Rules(unittest.TestCase):
         config = (ROOT / 'screen_manager/config.yaml').read_text()
         self.assertIn(f'{camera_feed.PORT}/tcp: {camera_feed.PORT}', config)
 
+    def test_the_first_picture_waits_for_no_tick(self):
+        # Firmware 0.2.73+: the camera asks when it opens and loads the link when it comes, not on the next 250 ms tick;
+        # the spinner turns until the first picture or a note is there.
+        opened = TILES.split('inline void camera_open(const std::string &entity, const std::string &name) {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('camera_spinner = spinner_create(camera_root,', opened)
+        self.assertIn('if (awake() && fresh() && camera.should_ask(now)) {', opened)
+        answer = TILES.split('inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url) {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('if (awake() && camera.should_load(now)) camera_load(now);', answer)
+        # Never under a finger, from the answer or from the tick.
+        load = TILES.split('inline void camera_load(uint32_t now) {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;', load)
+        note = TILES.split('inline void camera_note_text(const char *text) {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('lv_obj_delete(camera_spinner);', note)
+        self.assertNotIn('Loading image', TILES)
+
 
 @unittest.skipUnless(HAS_PIL, 'Pillow comes with ESPHome in the add-on image')
 class Encoding(unittest.TestCase):

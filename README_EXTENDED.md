@@ -117,6 +117,11 @@ on the screen itself, and how updates work.
   off shows a power key. A Guition fetches the cover through ESP Screens, like a camera picture
   ([docs/CAMERA.md](docs/CAMERA.md)); the CYD shows the player's icon in its place. A media tile of
   size **Full page** is the same card on the page, with the keys and the volume working on the tile.
+- **Cameras** on a Guition (app 0.2.66 / firmware 0.2.57): a `camera.*` entity, or an `image.*` one such
+  as a doorbell's last ring, is a tile like any other. A tap opens the picture full screen, refreshed every
+  four seconds, with the round back key; standby and **Back to page 1** close it. The same camera can bring its
+  picture to an alert ([With a camera picture](#with-a-camera-picture)). The CYD has no memory for pictures and
+  the editor doesn't offer it camera tiles. How the picture travels: [docs/CAMERA.md](docs/CAMERA.md).
 - **History card** for sensors, numbers, binary sensors, people, and switches, the way Home
   Assistant shows history: a line with an axis in round steps and clock times for numbers,
   with the highest and lowest moment, and a timeline with the time in each state for on/off,
@@ -296,6 +301,10 @@ actions:
       button_text: "Coming"
       camera: camera.front_door
 ```
+
+<p align="center">
+  <img src="docs/images/guition-camera-tiles.png" width="41%" alt="Cameras as tiles on the Guition: the front door camera, the garden camera live, the doorbell's last ring, next to the door, the porch light and the garage door">
+</p>
 
 A camera or image entity also works as a **tile** on a Guition: a tap opens it full screen, refreshed
 every four seconds. How the image travels (port 8098 of the app, no token on the screen) is in

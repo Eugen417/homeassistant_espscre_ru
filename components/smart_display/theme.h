@@ -76,7 +76,8 @@ enum Role : uint8_t {
   // ---- a camera image: dark in both looks, like a photo viewer (firmware 0.2.57+)
   CAMERA_PAGE,          // behind the image full screen and in the alert's image frame
   CAMERA_INK,           // the camera's name over the image
-  CAMERA_NOTE,          // "Loading image", "No image from this camera"
+  CAMERA_NOTE,          // "No image from this camera"
+  CAMERA_TRACK,         // the ring of the spinner while the first image loads (firmware 0.2.73+)
   // ---- the CYD's touch calibration: dark in both looks, a yellow crosshair
   CALIBRATION_PAGE,
   CALIBRATION_INK,
@@ -144,6 +145,7 @@ inline constexpr Pair ROLES[ROLE_COUNT] = {
   /* CAMERA_PAGE */              {0x000000, 0x000000},
   /* CAMERA_INK */               {0xF2F2F2, 0xDADADA},
   /* CAMERA_NOTE */              {0x9E9E9E, 0x8A8A8A},
+  /* CAMERA_TRACK */             {0x393D42, 0x393D42},
   /* CALIBRATION_PAGE */         {0x101820, 0x101820},
   /* CALIBRATION_INK */          {0xFFFFFF, 0xFFFFFF},
   /* CALIBRATION_MARK */         {0xFFD34D, 0xFFD34D},

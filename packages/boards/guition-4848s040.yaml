@@ -371,9 +371,11 @@ api:
 
 # Camera images (firmware 0.2.57+): ESP Screen Manager serves each image already sized for this screen, as an uncompressed
 # BMP on its own port on the LAN (screen_manager/app/camera_feed.py). ESPHome decodes a BMP piece by piece as it arrives,
-# 4 KB per loop, where a JPEG of the full screen held the loop for 0.6 s; touch and drawing keep their turn. One image full
-# screen and one in an alert's frame; runtime_tiles.h decides when they load and frees them when they close. Plain HTTP
-# on the LAN, no certificates.
+# one `buffer_size` per loop, where a JPEG of the full screen held the loop for 0.6 s; touch and drawing keep their turn.
+# 16 KB a loop (firmware 0.2.73+): the full picture came in 1.8 s instead of 2.8 s with 4 KB. Without Wi-Fi power save no
+# loop waited over 50 ms for it (with power save now and then 0.1 s, against 65 ms with 4 KB); 32 KB saved 0.3 s more but
+# held a loop 0.1 s even without power save (docs/TEST_RESULTS_0287.md). One image full screen and one in an alert's
+# frame; runtime_tiles.h decides when they load and frees them when they close. Plain HTTP on the LAN, no certificates.
 http_request:
   timeout: 4s
   verify_ssl: false
@@ -385,7 +387,7 @@ online_image:
     url: "http://127.0.0.1/camera.bmp"  # set when a camera opens
     format: BMP
     type: RGB565
-    buffer_size: 4096
+    buffer_size: 16384
     on_download_finished:
       - lambda: 'runtime_tiles::camera_loaded(false, cached);'
     on_error:
@@ -394,7 +396,7 @@ online_image:
     url: "http://127.0.0.1/camera.bmp"  # set when an alert brings an image
     format: BMP
     type: RGB565
-    buffer_size: 4096
+    buffer_size: 16384
     on_download_finished:
       - lambda: 'runtime_tiles::camera_loaded(true, cached);'
     on_error:
@@ -574,6 +576,7 @@ lvgl:
                 widgets:
                   # The alert's camera image (firmware 0.2.57+) across the top of the card, shown when the app announced
                   # one; a tap opens the camera full screen over the alert. runtime_tiles.h puts the image in it.
+                  # Rounded like the alert card itself (firmware 0.2.73+); the image takes this radius (camera_loaded).
                   - obj:
                       id: alert_image_frame
                       x: ${ALERT_IMAGE_INSET}
@@ -583,7 +586,7 @@ lvgl:
                       hidden: true
                       styles: paint_camera
                       bg_opa: COVER
-                      radius: 0
+                      radius: 18
                       border_width: 0
                       shadow_width: 0
                       pad_all: 0
