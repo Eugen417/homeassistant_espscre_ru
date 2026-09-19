@@ -1,0 +1,12 @@
+{
+  "_meta": {
+    "name": "English",
+    "english": "English",
+    "script": "latin",
+    "plural": "one_other",
+    "checked": true
+  },
+  "screen": {},
+  "addon": {},
+  "editor": {}
+}
