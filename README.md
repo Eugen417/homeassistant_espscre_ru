@@ -9,7 +9,7 @@ Thank you! I work on this project with a lot of love, and every bit of support h
   <img src="docs/images/photo-guition-vacuum.jpg" width="49%" alt="The vacuum card on the Guition: docked and charging, start cleaning and dock, the cleaning mode, suction and water">
 </p>
 
-**A touch screen for every room that you lay out yourself, and manage from Home Assistant.**
+**A touch screen for every room that you lay out yourself, and manage from Home Assistant. Incredibly easy to set up and to use.**
 
 **Why.** Your phone is in the other room and a tablet on the wall is expensive. A small ESP32 touch
 panel costs a fraction of that, sits on a table or in a wall box, and is always at hand for the
