@@ -98,8 +98,8 @@ The editor and the app's messages work in any language, whatever the screens can
 
 | Rule | Languages | Forms |
 | --- | --- | --- |
-| `one_other` | English, Dutch, German, Italian, Spanish, the Nordic languages | one \| other: `1 hour ago \| {n} hours ago` |
-| `one_upto_1` | French, Portuguese | the first form for 0 and 1 |
+| `one_other` | English, Dutch, German, Italian, Spanish, Portuguese (Portugal), the Nordic languages | one \| other: `1 hour ago \| {n} hours ago` |
+| `one_upto_1` | French, Brazilian Portuguese | the first form for 0 and 1 |
 | `slavic_pl` | Polish | one \| few (2-4, 22-24, ...) \| many |
 | `east_slavic` | Russian, Ukrainian | one \| few \| many |
 | `none` | Chinese, Japanese, Korean | one form |
