@@ -3,10 +3,10 @@
 // dragged, drawn where it will land.
 import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
-import { numberText, t } from "../i18n";
+import { numberText, t, te } from "../i18n";
 import { displayName, effectiveControls, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
-import { clock24, entityName, isSelected, liveOf, numberStyle, openTile, placeTile, removeTile, screenText, state, tileIconCp } from "../store";
+import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenText, state, tileIconCp } from "../store";
 import type { Tile } from "../types";
 
 const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean }>();
@@ -37,25 +37,33 @@ const isOn = computed(() => ["light", "switch", "input_boolean", "fan"].includes
 const unit = computed(() => current.value?.a?.unit_of_measurement as string | undefined);
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");
 // Numbers as the screens write them, "1,234.5" or "1.234,5" (app 0.2.90).
-const num = (value: unknown) => numberText(value as string | number, numberStyle.value);
-// Home Assistant's words for the weather states, for a Home Assistant that hands us none (editor.mockup.weather).
-const WEATHER = ["clear-night", "cloudy", "exceptional", "fog", "hail", "lightning", "lightning-rainy", "partlycloudy", "pouring", "rainy", "snowy", "snowy-rainy", "sunny", "windy", "windy-variant"];
-const weatherWord = (value: string) => (WEATHER.includes(value) ? screenText(`editor.mockup.weather.${value.replace(/-/g, "_")}`) : "");
+const num = (value: unknown) => numberText(value as string | number, numberMarks.value);
+// The screens' own words for a state where Home Assistant hands us none (screen.ha, Home Assistant's words in the
+// screens' language, app 0.2.90): a binary sensor's by its device class, on and off, and the states of the domains
+// the screen names itself. A weather's windy-variant is windy there too.
+const HA_WORDS: Record<string, string> = { climate: "climate", cover: "cover", media_player: "media", person: "person", sun: "sun", vacuum: "vacuum", weather: "weather" };
+function haWord(c: { state: string; a: Record<string, any> }) {
+  const key = (path: string) => (te(`screen.ha.${path}`) ? screenText(`screen.ha.${path}`) : "");
+  const value = c.state === "windy-variant" ? "windy" : c.state.replace(/-/g, "_");
+  if (domain.value === "binary_sensor" && ["on", "off"].includes(value)) return key(`binary.${c.a?.device_class}_${value}`) || key(value);
+  if (HA_WORDS[domain.value]) return key(`${HA_WORDS[domain.value]}.${value}`) || (["on", "off"].includes(value) ? key(value) : "");
+  return ["on", "off"].includes(value) ? key(value) : "";
+}
 // A scene, script or button has no state worth a word: its state is the moment it last ran.
 const NO_STATUS = ["scene", "script", "button", "input_button"];
 // The text under the name: Home Assistant's word where it has one, the value with its unit for a sensor.
 const status = computed(() => {
   const c = current.value;
   if (!c || NO_STATUS.includes(domain.value)) return note.value;
-  if (gone.value) return screenText(c.state === "unknown" ? "editor.mockup.unknown" : "editor.mockup.unavailable");
+  if (gone.value) return screenText(c.state === "unknown" ? "editor.mockup.unknown" : "screen.ha.unavailable");
   const a = c.a || {};
-  if (domain.value === "climate") return `${a.current_temperature !== undefined ? `${num(a.current_temperature)}° · ` : ""}${c.word || capital(c.state)}`;
-  if (domain.value === "weather") return `${c.word || weatherWord(c.state) || capital(c.state)}${a.temperature !== undefined ? ` · ${num(a.temperature)}°` : ""}`;
-  if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${c.word || capital(c.state)} · ${a.current_position} %`;
-  if (domain.value === "media_player" && a.media_title) return `${c.word || capital(c.state)} · ${a.media_title}`;
+  const word = c.word || haWord(c) || capital(c.state);
+  if (domain.value === "climate") return `${a.current_temperature !== undefined ? `${num(a.current_temperature)}° · ` : ""}${word}`;
+  if (domain.value === "weather") return `${word}${a.temperature !== undefined ? ` · ${num(a.temperature)}°` : ""}`;
+  if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${word} · ${a.current_position} %`;
+  if (domain.value === "media_player" && a.media_title) return `${word} · ${a.media_title}`;
   if (domain.value === "sensor") return `${num(c.state)}${unit.value ? ` ${unit.value}` : ""}`;
-  if (domain.value === "timer") return c.word || capital(c.state);
-  return c.word || capital(c.state);
+  return word;
 });
 const bigValue = computed(() => (current.value && !gone.value ? num(current.value.state) : "—"));
 // The small slider's fill, from what the entity reports; off is empty, like the screen's grey fill.
@@ -74,8 +82,9 @@ const fill = computed(() => {
   }
   return 0;
 });
-// The key on a scene, script or button, as the screen labels it.
-const runText = computed(() => screenText(`editor.mockup.run.${["scene", "script"].includes(domain.value) ? domain.value : "press"}`));
+// The key on a scene, script or button, and the page a navigation tile opens, as the screen labels them.
+const runText = computed(() => screenText(`screen.ha.button.${({ scene: "activate", script: "run" } as Record<string, string>)[domain.value] || "press"}`));
+const pageLink = computed(() => `${screenText("screen.tile.page", { n: goesTo.value })} ›`);
 const sliderStyle = computed(() => ({ background: `linear-gradient(to right, ${fill.value ? "#ffbf38" : "#c9ccd1"} ${fill.value}%, ${fill.value ? "#fff1d3" : "#e6e8ec"} ${fill.value}%)` }));
 const volumeStyle = computed(() => ({ background: `linear-gradient(to right, #2196f3 ${fill.value}%, #d3e8fb ${fill.value}%)` }));
 const setpoint = computed(() => {
@@ -119,7 +128,7 @@ async function onKey(e: KeyboardEvent) {
       <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
       <span class="lead">
         <span class="nm">{{ name }}</span>
-        <span v-if="goesTo" class="goto">{{ screenText("editor.mockup.page_link", { page: goesTo }) }}</span>
+        <span v-if="goesTo" class="goto">{{ pageLink }}</span>
         <span v-else-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
         <span v-else-if="status" class="st" :class="{ off: gone }">{{ status }}</span>
       </span>
@@ -139,7 +148,7 @@ async function onKey(e: KeyboardEvent) {
         <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
         <span class="tx">
           <span class="nm">{{ name }}</span>
-          <span v-if="goesTo" class="goto">{{ screenText("editor.mockup.page_link", { page: goesTo }) }}</span>
+          <span v-if="goesTo" class="goto">{{ pageLink }}</span>
           <span v-else-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
           <span v-else-if="status" class="st" :class="{ off: gone }">{{ status }}</span>
         </span>
@@ -167,7 +176,7 @@ async function onKey(e: KeyboardEvent) {
         <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
         <span class="tx">
           <span class="nm">{{ name }}</span>
-          <span v-if="goesTo" class="goto">{{ screenText("editor.mockup.page_link", { page: goesTo }) }}</span>
+          <span v-if="goesTo" class="goto">{{ pageLink }}</span>
           <span v-else-if="display !== 'watch' && status" class="st" :class="{ off: gone }">{{ status }}</span>
         </span>
       </span>

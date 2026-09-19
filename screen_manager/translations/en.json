@@ -1236,72 +1236,8 @@
       "cleared": "The override will be empty after you save."
     },
     "mockup": {
-      "date": {
-        "weekdays_min": [
-          "Su",
-          "Mo",
-          "Tu",
-          "We",
-          "Th",
-          "Fr",
-          "Sa"
-        ],
-        "months_short": [
-          "Jan",
-          "Feb",
-          "Mar",
-          "Apr",
-          "May",
-          "Jun",
-          "Jul",
-          "Aug",
-          "Sep",
-          "Oct",
-          "Nov",
-          "Dec"
-        ],
-        "top_bar": "{weekday} {day} {month}"
-      },
-      "time": {
-        "just_now": "Just now",
-        "minutes_ago": "{n} min ago",
-        "hours_ago": "1 hour ago | {n} hours ago",
-        "yesterday": "Yesterday",
-        "days_ago": "1 day ago | {n} days ago",
-        "weeks_ago": "1 week ago | {n} weeks ago",
-        "months_ago": "1 month ago | {n} months ago",
-        "years_ago": "1 year ago | {n} years ago",
-        "in_minutes": "In {n} min",
-        "in_hours": "In 1 hour | In {n} hours",
-        "tomorrow": "Tomorrow",
-        "in_days": "In 1 day | In {n} days"
-      },
       "home": "Home",
-      "page_link": "Page {page} ›",
-      "unknown": "Unknown",
-      "unavailable": "Unavailable",
-      "run": {
-        "scene": "Activate",
-        "script": "Run",
-        "press": "Press"
-      },
-      "weather": {
-        "clear_night": "Clear, night",
-        "cloudy": "Cloudy",
-        "exceptional": "Exceptional",
-        "fog": "Fog",
-        "hail": "Hail",
-        "lightning": "Lightning",
-        "lightning_rainy": "Lightning, rainy",
-        "partlycloudy": "Partly cloudy",
-        "pouring": "Pouring",
-        "rainy": "Rainy",
-        "snowy": "Snowy",
-        "snowy_rainy": "Snowy, rainy",
-        "sunny": "Sunny",
-        "windy": "Windy",
-        "windy_variant": "Windy"
-      }
+      "unknown": "Unknown"
     }
   }
 }

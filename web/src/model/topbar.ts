@@ -6,8 +6,8 @@
 import { t } from "../i18n";
 import type { HeaderItem } from "../types";
 
-// The words are the screens' (app 0.2.90): editor.mockup.date and editor.mockup.time, in the language the screens have,
-// which `locale` names; English where none is given.
+// The words are the screens' own (app 0.2.90): screen.date and screen.time of the translations, in the language the
+// screens have, which `locale` names; English where none is given.
 export const BUILTIN_ICONS: Record<string, string> = { clock: "clock-outline", analog: "clock-outline", date: "calendar" };
 export const itemKey = (item: HeaderItem) => JSON.stringify(item);
 export const glyph = (cp: string) => String.fromCodePoint(parseInt(cp, 16));
@@ -18,15 +18,15 @@ export function clockText(clock24: boolean, now = new Date()) {
   if (!clock24) hours = hours % 12 || 12;
   return `${String(hours).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
-export const dateText = (now = new Date(), locale = "en") => t("editor.mockup.date.top_bar", {
-  weekday: t(`editor.mockup.date.weekdays_min.${now.getDay()}`, {}, { locale }),
+export const dateText = (now = new Date(), locale = "en") => t("screen.date.top_bar", {
+  weekday: t(`screen.date.weekdays_min.${now.getDay()}`, {}, { locale }),
   day: now.getDate(),
-  month: t(`editor.mockup.date.months_short.${now.getMonth()}`, {}, { locale }),
+  month: t(`screen.date.months_short.${now.getMonth()}`, {}, { locale }),
 }, { locale });
 // Same thresholds as header_bar::ago_text() in the firmware, and the same words.
 export function agoText(then: number, now = Math.floor(Date.now() / 1000), locale = "en") {
   const seconds = now - then, span = Math.abs(seconds), per = (unit: number) => Math.floor(span / unit);
-  const say = (key: string, n?: number) => (n === undefined ? t(`editor.mockup.time.${key}`, {}, { locale }) : t(`editor.mockup.time.${key}`, n, { locale }));
+  const say = (key: string, n?: number) => (n === undefined ? t(`screen.time.${key}`, {}, { locale }) : t(`screen.time.${key}`, n, { locale }));
   if (seconds < 0) {
     if (span < 3600) return say("in_minutes", Math.max(1, per(60)));
     if (span < 86400) return say("in_hours", per(3600));

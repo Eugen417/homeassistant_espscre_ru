@@ -22,8 +22,6 @@ FIRMWARE = (ROOT / 'components/smart_display/header_bar.h').read_text()
 FIRMWARE += json.dumps(json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['time'])
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 EDITOR = (ROOT / 'web/src/model/topbar.ts').read_text()
-# The mockup's words, in the editor's part of the translations since app 0.2.90.
-EDITOR_WORDS = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['editor']['mockup']
 PROFILES = ('guition-4848s040.yaml', 'home-like-2432s028.yaml')
 
 def state(value, last_changed='2026-09-13T14:00:00+00:00', **attributes):
@@ -209,7 +207,9 @@ class ParityTests(unittest.TestCase):
         for phrase in ('Just now', ' min ago', ' hour ago', ' hours ago', 'Yesterday', ' days ago', '1 week ago', ' weeks ago',
                        '1 month ago', ' months ago', ' year ago', ' years ago', 'In ', 'Tomorrow'):
             self.assertIn(phrase, FIRMWARE)
-            self.assertIn(phrase, json.dumps(EDITOR_WORDS['time']))
+        # The editor's mockup draws the screens' own words since app 0.2.90: screen.time and screen.date of the translations.
+        for key in ('screen.time.${key}', 'screen.date.top_bar', 'screen.date.weekdays_min.${now.getDay()}', 'screen.date.months_short.${now.getMonth()}'):
+            self.assertIn(key, EDITOR)
         for threshold in ('3600', '86400', '172800', '604800', '2592000', '31536000'):
             self.assertIn(threshold, FIRMWARE)
             self.assertIn(threshold, EDITOR)
@@ -217,7 +217,8 @@ class ParityTests(unittest.TestCase):
         self.assertIn('Math.max(2, Math.floor((cap * 4 + 5) / 10)), item: Math.max(6, Math.floor((cap * 125 + 50) / 100)), name: Math.max(8, Math.floor((cap * 16 + 5) / 10))', EDITOR)
         self.assertIn('width * 35 / 100', FIRMWARE)
         self.assertIn('(metrics.width * 35) / 100', EDITOR)
-        self.assertEqual(header_bar.MONTHS, tuple(EDITOR_WORDS['date']['months_short']))
+        english = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']
+        self.assertEqual(header_bar.MONTHS, tuple(english['date']['months_short']))
 
     def test_profiles_draw_the_bar_from_the_runtime(self):
         for name in PROFILES:

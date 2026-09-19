@@ -1,10 +1,11 @@
 // Language & region (app 0.2.90): one place for every screen's language, clock and numbers, the update it takes, and
 // the top bar that points there.
 import { flushPromises, mount } from "@vue/test-utils";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import AppSettingsView from "../src/components/AppSettingsView.vue";
 import Sidebar from "../src/components/Sidebar.vue";
 import TopbarInspector from "../src/components/TopbarInspector.vue";
+import { loadLanguage } from "../src/i18n";
 import { state } from "../src/store";
 import type { Languages } from "../src/types";
 
@@ -33,6 +34,8 @@ function addOn(answer: (body: any) => Response) {
 }
 const options = (view: ReturnType<typeof mount>, id: string) => view.findAll(`#${id} option`).map((o) => o.text());
 
+// The screens' language here is Dutch: its own number marks come with its file.
+beforeAll(() => loadLanguage("nl"));
 beforeEach(() => {
   vi.unstubAllGlobals();
   state.inventory = { screens: [], entities: [], updates: { target: "0.2.80", pending: 0 }, language: language() } as any;

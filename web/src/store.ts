@@ -2,7 +2,7 @@
 // former app.js state and its calls, with the DOM work moved into the components.
 import { computed, reactive, toRaw, watch } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
-import { andList, languageMeta, loadLanguage, type NumberStyle, pickLanguage, t } from "./i18n";
+import { andList, editorLanguage, languageMarks, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
   pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
@@ -832,9 +832,14 @@ export const languageName = (code: string | null | undefined) =>
 export const needsUpdate = (screen: Screen) => Boolean(screen.update?.available || screen.update?.language);
 export const newLanguageText = () => t("editor.update.new_language", { name: languageName(state.inventory.language?.effective) });
 // Time and number format, for every screen at once under Settings → Language & region: a 24-hour clock and "1,234.5"
-// until the add-on says otherwise. The mockup's clocks and numbers follow them.
+// until the add-on says otherwise. The mockup's clocks and numbers follow them; "auto" numbers are the screens'
+// language's own (screen.number), as the firmware writes them.
 export const clock24 = computed(() => state.inventory.language?.clock_effective !== "12");
-export const numberStyle = computed<NumberStyle>(() => state.inventory.language?.numbers_effective || "point");
+export const screenLanguageMarks = computed<NumberMarks>(() => languageMarks(screenLanguage.value));
+export const numberMarks = computed<NumberMarks>(() => {
+  const choice = state.inventory.language ? state.inventory.language.numbers || "auto" : "point";
+  return choice === "auto" ? screenLanguageMarks.value : STYLE_MARKS[choice];
+});
 /** Saves any of the screen language, the time format and the number format. */
 export async function saveLanguage(changes: { setting?: string; clock?: string; numbers?: string }) {
   try {
@@ -875,7 +880,8 @@ function applyLive(data: Partial<Inventory>) {
 let pollTimer = 0, lastFull = Date.now(), live = false, stream: EventSource | null = null;
 function listen() {
   if (stream || typeof EventSource === "undefined") return;
-  stream = new EventSource("api/events");
+  // An EventSource sends no headers of its own: the editor's language goes along in the address (app 0.2.90).
+  stream = new EventSource(`api/events?language=${encodeURIComponent(editorLanguage())}`);
   stream.onopen = () => { live = true; poll(); };
   stream.onmessage = (e) => { if (!document.hidden) applyLive(JSON.parse(e.data)); };
   stream.onerror = () => { live = false; poll(); };

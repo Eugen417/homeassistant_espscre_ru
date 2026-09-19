@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Everything around the screens: firmware updates, language and region, alerts, Claude.
 import { computed, ref } from "vue";
-import { haProfile, matchLanguage, numberText, type NumberStyle, t } from "../i18n";
-import { anyUpdating, go, installClaudeSkill, runUpdateAll, saveLanguage, setAutoUpdate, state, updateProgress } from "../store";
+import { haProfile, matchLanguage, numberText, type NumberMarks, type NumberStyle, STYLE_MARKS, t } from "../i18n";
+import { anyUpdating, go, installClaudeSkill, runUpdateAll, saveLanguage, screenLanguageMarks, setAutoUpdate, state, updateProgress } from "../store";
 
 const u = computed(() => state.inventory.updates);
 const outdated = computed(() => state.inventory.screens.filter((s) => s.update?.available).length);
@@ -42,7 +42,7 @@ const haName = computed(() => {
 });
 const unchecked = computed(() => lang.value?.languages.find((own) => own.code === lang.value!.effective && !own.checked));
 const clockName = (clock: string | undefined) => t(clock === "12" ? "editor.settings.language.clock_12" : "editor.settings.language.clock_24");
-const example = (style: NumberStyle) => numberText("1234.5", style);
+const example = (marks: NumberMarks) => numberText("1234.5", marks);
 // The user's own Home Assistant profile, where it names a clock or a number format that the screens don't use.
 const profile = haProfile();
 const different = computed(() => {
@@ -53,7 +53,7 @@ const different = computed(() => {
     ...(profile.numbers && profile.numbers !== (l.numbers_effective || "point") ? { numbers: profile.numbers } : {}),
   };
 });
-const profileText = computed(() => [different.value.clock && clockName(different.value.clock), different.value.numbers && example(different.value.numbers)]
+const profileText = computed(() => [different.value.clock && clockName(different.value.clock), different.value.numbers && example(STYLE_MARKS[different.value.numbers])]
   .filter(Boolean).join(" · "));
 const saving = ref(false);
 async function choose(field: "setting" | "clock" | "numbers", event: Event) {
@@ -133,8 +133,8 @@ async function useProfile() {
         <div class="field">
           <label class="f-label" for="number-format">{{ t("editor.settings.language.numbers") }}</label>
           <select id="number-format" :value="lang.numbers || 'auto'" :disabled="saving" @change="choose('numbers', $event)">
-            <option value="auto">{{ t("editor.settings.language.numbers_auto", { example: example(lang.numbers_effective || "point") }) }}</option>
-            <option v-for="style in STYLES" :key="style" :value="style">{{ example(style) }}</option>
+            <option value="auto">{{ t("editor.settings.language.numbers_auto", { example: example(screenLanguageMarks) }) }}</option>
+            <option v-for="style in STYLES" :key="style" :value="style">{{ example(STYLE_MARKS[style]) }}</option>
           </select>
         </div>
         <div v-if="profileText" class="actions" id="language-profile">
