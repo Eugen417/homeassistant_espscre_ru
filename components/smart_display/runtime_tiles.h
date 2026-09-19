@@ -1142,7 +1142,7 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
     int hy=cy+hero+(large?14:8),col=inner/(int)columns;
     for(unsigned i=0;i<columns;++i){
       const auto &h=weather.hours[i];int x=card_pad+i*col;
-      detail_text(now,h.time,x,hy,col,small,LV_TEXT_ALIGN_CENTER,muted);
+      detail_text(now,screen_text::clock_text(h.time,screen_settings::current.clock_24h!=0,true),x,hy,col,small,LV_TEXT_ALIGN_CENTER,muted);
       detail_text(now,weather_icon(h.condition),x,hy+small_h+(large?4:1),col,mini,LV_TEXT_ALIGN_CENTER,weather_accent(h.condition));
       detail_text(now,std::isfinite(h.temp)?degrees(h.temp):"",x,hy+small_h+mini_h+(large?8:2),col,detail_font,LV_TEXT_ALIGN_CENTER,ink);
       detail_text(now,rain_text(h.rain,h.mm,false),x,hy+small_h+mini_h+text_h+(large?8:3),col,small,LV_TEXT_ALIGN_CENTER,rain);
@@ -2093,8 +2093,8 @@ inline void show_detail(unsigned index){
     detail_button(tr(t.state=="active"?txt::timer_pause:txt::timer_start),pad,top+(large?50:30),cw,bh,40);
     detail_button(tr(txt::timer_cancel),pad+cw+gap,top+(large?50:30),cw,bh,41);
   }else if(d=="sun"){
-    detail_label(detail_root,fill(txt::sun_sunrise,"time",t.extra().sunrise),pad,top,width-2*pad);
-    detail_label(detail_root,fill(txt::sun_sunset,"time",t.extra().sunset),pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
+    detail_label(detail_root,fill(txt::sun_sunrise,"time",screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0)),pad,top,width-2*pad);
+    detail_label(detail_root,fill(txt::sun_sunset,"time",screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0)),pad,top+lv_font_get_line_height(detail_font)+(large?10:4),width-2*pad);
   }
 }
 }
@@ -2588,7 +2588,7 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
       for(unsigned k=18+3*j;k<21+3*j;++k)if(w.parts[k])lv_obj_remove_flag(w.parts[k],LV_OBJ_FLAG_HIDDEN);
       part_label(w,18+3*j,day_icon,x,y0+day_h,column,LV_TEXT_ALIGN_CENTER,weather_icon(h.condition));
       part_label(w,19+3*j,w.value_font,x,y0+day_h+icon_col,column,LV_TEXT_ALIGN_CENTER,temp);
-      part_label(w,20+3*j,title_font,x,y0,column,LV_TEXT_ALIGN_CENTER,h.time);
+      part_label(w,20+3*j,title_font,x,y0,column,LV_TEXT_ALIGN_CENTER,screen_text::clock_text(h.time,screen_settings::current.clock_24h!=0,true));
     }
   }
   height=top_h;
@@ -2639,8 +2639,8 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
   int title_h=lv_font_get_line_height(title_font),text_h=lv_font_get_line_height(w.value_font);
   int horizon=height-text_h-(large?4:2),top=title_h+(large?4:2),x0=large?14:8,x1=width-x0;
   part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?std::string(tr(txt::sun_name)):t.name);
-  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,fill(txt::sun_rise,"time",t.extra().sunrise));
-  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,fill(txt::sun_set,"time",t.extra().sunset));
+  part_label(w,1,w.value_font,0,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_LEFT,fill(txt::sun_rise,"time",screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0,true)));
+  part_label(w,2,w.value_font,width/2,horizon+(large?3:1),width/2,LV_TEXT_ALIGN_RIGHT,fill(txt::sun_set,"time",screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0,true)));
   auto now=now_time?now_time():esphome::ESPTime{};
   int rise=minutes_of(t.extra().sunrise),set=minutes_of(t.extra().sunset),minute=now.is_valid()?now.hour*60+now.minute:-1;
   bool day=t.state=="above_horizon";float fraction=0.5f;
@@ -3126,7 +3126,7 @@ inline void render_slot(size_t slot) {
   else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) value += " · " + screen_text::decimal(t.current, 1) + "°"; }
   else if (d == "climate" && std::isfinite(t.target)) value = screen_text::decimal(t.target, 1) + "°";
   else if (d == "person") value = t.state=="home"?tr(txt::ha_person_home):t.state=="not_home"?tr(txt::ha_person_not_home):t.state;
-  else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? t.extra().sunrise+" - "+t.extra().sunset : tr(t.state=="above_horizon"?txt::ha_sun_above_horizon:txt::ha_sun_below_horizon);
+  else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0,true)+" - "+screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0,true) : tr(t.state=="above_horizon"?txt::ha_sun_above_horizon:txt::ha_sun_below_horizon);
   else if (d == "timer") value = timer_text(t);
   else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? std::string(tr(txt::script_running)) : last_run_text(t.last_run);
   else if (d == "camera") value = tr(t.state == "streaming" ? txt::camera_live : t.state == "recording" ? txt::camera_recording : txt::camera_tap_to_view);

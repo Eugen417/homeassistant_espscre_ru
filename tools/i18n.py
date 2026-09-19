@@ -114,7 +114,8 @@ def check():
             # The editor's vue-i18n reads { } and @ as instructions: only placeholders and its {'x'} literals are allowed.
             if key.startswith('editor.') and re.search(r"[{}@]", re.sub(r"\{'[^']*'\}", '', PLACEHOLDER.sub('', text))):
                 problems.append(f'{code}: {key} has {{, }} or @ outside a placeholder; the editor would misread it')
-            if key.startswith('screen.') and drawable:
+            # The app's own words for the screens (addon.screen) are drawn by the same fonts.
+            if key.startswith(('screen.', 'addon.screen.')) and drawable:
                 shown = PLACEHOLDER.sub('', text).replace('|', '')
                 unknown = sorted(set(shown) - drawable - {'\n'})
                 if unknown:

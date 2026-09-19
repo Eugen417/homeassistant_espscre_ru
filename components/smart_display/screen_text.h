@@ -93,6 +93,19 @@ inline std::string localize(const std::string &state) {
   std::string fraction = dot == std::string::npos ? std::string() : state.substr(dot + 1);
   return state.substr(0, start) + write_number(whole, fraction);
 }
+// A time "HH:MM" as Home Assistant or ESP Screens sends it, written for the screen's clock: "07:12" on 24 hours,
+// "7:12 AM" on 12 (in the language's day periods); `compact` leaves out ":00" ("2 PM"), as under a graph. Anything
+// else stays as it is.
+inline std::string clock_text(const std::string &hhmm, bool h24, bool compact = false) {
+  if (h24 || hhmm.size() != 5 || hhmm[2] != ':') return hhmm;
+  int hour = atoi(hhmm.substr(0, 2).c_str()), minute = atoi(hhmm.substr(3, 2).c_str());
+  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return hhmm;
+  char buffer[24];
+  const char *period = tr(hour < 12 ? txt::time_am : txt::time_pm);
+  if (compact && minute == 0) snprintf(buffer, sizeof(buffer), "%d %s", hour % 12 ? hour % 12 : 12, period);
+  else snprintf(buffer, sizeof(buffer), "%d:%02d %s", hour % 12 ? hour % 12 : 12, minute, period);
+  return buffer;
+}
 // "point", "comma", "space" or "auto" as its number_style; -1 for anything else.
 inline int number_style_of(const std::string &name) {
   if (name == "auto") return 0;

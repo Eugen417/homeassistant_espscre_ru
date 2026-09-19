@@ -171,17 +171,25 @@ def shown(value):
 
 # The screens' language and number format (Settings -> Language & region), for the words the app sends to the screens
 # itself: tile names, the top bar, the history card. The manager keeps it current (Manager.language_changed).
-SCREENS = {'language': 'en', 'numbers': 'point'}
+SCREENS = {'language': 'en', 'numbers': 'point', 'clock_24h': True}
 
 
-def set_screens(language, numbers):
-    SCREENS.update(language=language, numbers=numbers)
+def set_screens(language, numbers, clock_24h=True):
+    SCREENS.update(language=language, numbers=numbers, clock_24h=clock_24h)
 
 
 def screen_t(key, **params):
     """A text in the screens' language, for what the app sends to them (and the notification it leaves in Home
     Assistant); a param that is a Text goes into that language too."""
     return _render(key, SCREENS['language'], params)
+
+
+def screen_clock(hour, minute):
+    """A time of day as the screens write it: "07:30" on 24 hours, "7:30 AM" on 12, in the language's day periods."""
+    if SCREENS.get('clock_24h', True):
+        return f'{hour:02d}:{minute:02d}'
+    period = TRANSLATIONS.text('screen.time.am' if hour < 12 else 'screen.time.pm', SCREENS['language'])
+    return f'{hour % 12 or 12}:{minute:02d} {period}'
 
 
 def screen_number(text):
@@ -251,9 +259,6 @@ class Region:
                 'clock': self.clock, 'clock_effective': '24' if self.clock_24h() else '12',
                 'numbers': self.numbers, 'numbers_effective': self.number_style()}
 
-    def screen_text(self, key, **params):
-        """A `screen` or `addon` text in the screens' language, for what the app itself sends to them."""
-        return self.tr.text(key, self.language(), **params)
 
 
 def format_number(text, style):

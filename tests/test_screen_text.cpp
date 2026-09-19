@@ -41,6 +41,11 @@ int main() {
   assert(number_style_of("auto") == 0 && number_style_of("point") == 1 && number_style_of("comma") == 2 &&
          number_style_of("space") == 3 && number_style_of("dot") == -1);
   number_style = 0;
+
+  // Times the screen gets as "HH:MM" (the sun, the forecast), written for its clock.
+  assert(clock_text("07:12", true) == "07:12" && clock_text("19:05", false) == "7:05 PM");
+  assert(clock_text("00:00", false) == "12:00 AM" && clock_text("14:00", false, true) == "2 PM");
+  assert(clock_text("14:30", false, true) == "2:30 PM" && clock_text("7:12", false) == "7:12" && clock_text("", false).empty());
   std::puts("test_screen_text: PASS");
   return 0;
 }

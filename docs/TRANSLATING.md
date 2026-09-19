@@ -131,7 +131,10 @@ firmware update.
   - Screen texts: add the key to `en.json` and run `python3 tools/i18n.py header`. That writes
     `components/smart_display/screen_text_keys.h`, which the build checks against the JSON. The code uses
     `screen_text::tr(txt::...)`.
-  - App texts: use `i18n.t(...)` (the editor's language) or `i18n.screen_t(...)` (the screens' language).
+  - App texts: use `i18n.t(...)` for the editor's language, and `i18n.screen_t(...)` for the screens' language.
+  - A text that is stored or made outside a request uses `i18n.english(...)`. That covers a delivery status and an
+    update result. `i18n.shown(...)` puts it in the language of the editor that asks. Numbers and times for the
+    screens go through `i18n.screen_number(...)` and `i18n.screen_clock(...)`.
   - Editor texts: go through vue-i18n.
 - **Every release:** Claude drafts the new texts for every language, with Home Assistant's own words as the glossary,
   and leaves them unchecked for a speaker of the language. A missing text shows in English and never blocks a release.

@@ -572,7 +572,7 @@ class Manager:
         self.ha.language_of = self.region.language
         self.ha.on_config = self.language_changed
         self.pin_clock = False
-        i18n.set_screens(self.region.language(), self.region.number_style())
+        i18n.set_screens(self.region.language(), self.region.number_style(), self.region.clock_24h())
         self.skill_dir = claude_skill.skill_dir()
         self._registry_source, self._registry_index = None, {}
         self._items_source, self._items = None, []
@@ -1153,7 +1153,7 @@ class Manager:
             if known and all(state == 'off' for state in known):
                 self.region.clock = '12'
                 self.region.save()
-        i18n.set_screens(self.region.language(), self.region.number_style())
+        i18n.set_screens(self.region.language(), self.region.number_style(), self.region.clock_24h())
         self.ha.services_changed.set()
         self.sent.clear()
         self.write_languages()

@@ -16,6 +16,7 @@ from datetime import datetime, time
 
 import tile_icons
 from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE, HEADER_SHOWS, epoch, header_items, local_clock, short, state_word
+import i18n
 from i18n import TRANSLATIONS, screen_number, screen_t, t
 
 # Characters the top bar's text font carries on both boards (`sublabel_big` in the profiles;
@@ -183,6 +184,8 @@ def value(entity, state, entry=None, units=None, tz=None, words=None):
     if domain == 'sun':
         # The next event: sunset while the sun is up, sunrise while it is down.
         clock = local_clock(attrs.get('next_setting' if raw == 'above_horizon' else 'next_rising'), tz)
+        if clock:
+            clock = i18n.screen_clock(int(clock[:2]), int(clock[3:]))
         return (clock or state_text(raw) or raw), None
     if domain == 'weather':
         temperature = numeric(attrs.get('temperature'))
@@ -204,9 +207,10 @@ def value(entity, state, entry=None, units=None, tz=None, words=None):
             moment = datetime.fromisoformat(raw) if attrs.get('has_date') else datetime.combine(datetime.min, time.fromisoformat(raw))
         except ValueError:
             return raw, None
+        # A time of day as the screens' clock writes it (Settings -> Language & region, app 0.2.90).
         if attrs.get('has_date') and attrs.get('has_time'):
-            return f'{short_date(moment)} {moment:%H:%M}', None
-        return (short_date(moment) if attrs.get('has_date') else f'{moment:%H:%M}'), None
+            return f'{short_date(moment)} {i18n.screen_clock(moment.hour, moment.minute)}', None
+        return (short_date(moment) if attrs.get('has_date') else i18n.screen_clock(moment.hour, moment.minute)), None
     if domain == 'sensor' and attrs.get('device_class') == 'timestamp':
         return (None, epoch(raw)) if epoch(raw) else (raw, None)
     if domain == 'sensor' and attrs.get('device_class') == 'date':

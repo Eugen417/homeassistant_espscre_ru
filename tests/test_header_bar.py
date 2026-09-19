@@ -81,6 +81,9 @@ class TextTests(unittest.TestCase):
         self.assertEqual(header_bar.with_unit('4', None), '4')
 
     def test_values_per_domain(self):
+        # The screens' clock is Settings -> Language & region's (app 0.2.90); these values are on 24 hours.
+        import i18n
+        i18n.set_screens('en', 'point', True)
         tz = ZoneInfo('Europe/Amsterdam')
         registry = {'sensor.t': {'options': {'sensor': {'suggested_display_precision': 1}}},
                     'sensor.p': {'options': {'sensor': {'suggested_display_precision': 2, 'display_precision': 0}}}}
@@ -110,6 +113,19 @@ class TextTests(unittest.TestCase):
         ]
         for eid, value, expected in cases:
             self.assertEqual(header_bar.value(eid, value, registry.get(eid), {'temperature': '°C'}, tz), expected, eid)
+
+    def test_times_follow_the_screens_clock(self):
+        import i18n
+        try:
+            i18n.set_screens('en', 'point', False)
+            self.assertEqual(i18n.screen_clock(19, 57), '7:57 PM')
+            self.assertEqual(i18n.screen_clock(0, 5), '12:05 AM')
+            i18n.set_screens('nl', 'comma', False)
+            self.assertEqual(i18n.screen_clock(9, 30), '9:30 a.m.')
+            i18n.set_screens('nl', 'comma', True)
+            self.assertEqual(i18n.screen_clock(9, 30), '09:30')
+        finally:
+            i18n.set_screens('en', 'point', True)
 
     def test_text_keeps_to_the_font_and_its_length(self):
         # Every letter European languages write with stays (app 0.2.90); anything else folds to its base letter or goes.
