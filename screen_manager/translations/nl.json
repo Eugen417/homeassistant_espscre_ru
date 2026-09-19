@@ -14,6 +14,18 @@
       "group_min": "1"
     },
     "time": {
+      "just_now": "Zojuist",
+      "minutes_ago": "{n} min geleden",
+      "hours_ago": "1 uur geleden | {n} uur geleden",
+      "yesterday": "Gisteren",
+      "days_ago": "1 dag geleden | {n} dagen geleden",
+      "weeks_ago": "1 week geleden | {n} weken geleden",
+      "months_ago": "1 maand geleden | {n} maanden geleden",
+      "years_ago": "1 jaar geleden | {n} jaar geleden",
+      "in_minutes": "Over {n} min",
+      "in_hours": "Over 1 uur | Over {n} uur",
+      "tomorrow": "Morgen",
+      "in_days": "Over 1 dag | Over {n} dagen",
       "am": "a.m.",
       "pm": "p.m."
     },
@@ -77,6 +89,179 @@
       "full": "{weekday} {day} {month}",
       "day_month": "{day} {month}",
       "weekday_time": "{weekday} {time}"
+    },
+    "duration": {
+      "seconds": "{n} s",
+      "minutes": "{n} min",
+      "hours": "{n} u",
+      "hours_minutes": "{h} u {m} min",
+      "days": "{n} d",
+      "days_hours": "{d} d {h} u"
+    },
+    "status": {
+      "connecting": "Verbinden met Home Assistant",
+      "waiting": "Wachten op ESP Screens",
+      "loading_tiles": "Tegels laden...",
+      "ha_not_connected": "HA niet verbonden",
+      "manager_not_active": "ESP Screens niet actief",
+      "choose_tiles": "Kies tegels in HA",
+      "home": "Thuis",
+      "no_network": "Geen netwerk"
+    },
+    "settings": {
+      "title": "Instellingen",
+      "brightness": "Helderheid",
+      "night": "Nacht",
+      "screen": "Scherm",
+      "this_screen": "Dit scherm",
+      "dark_mode": "Donkere modus",
+      "auto_standby": "Automatisch stand-by",
+      "standby_after": "Stand-by na",
+      "standby_brightness": "Helderheid stand-by",
+      "night_mode": "Nachtmodus",
+      "starts": "Begint",
+      "ends": "Eindigt",
+      "night_brightness": "Helderheid nacht",
+      "back_to_page_1": "Terug naar pagina 1",
+      "after": "Na",
+      "also_on_standby": "Ook bij stand-by",
+      "swipe_between_pages": "Vegen tussen pagina's",
+      "page_buttons": "Paginaknoppen",
+      "rotation": "Rotatie",
+      "address": "Adres",
+      "firmware": "Firmware",
+      "home_assistant": "Home Assistant",
+      "restart": "Herstarten",
+      "connected": "Verbonden",
+      "not_connected": "Niet verbonden",
+      "tap_again_to_restart": "Tik nog eens om te herstarten",
+      "seconds": "{n} sec",
+      "minutes": "{n} min",
+      "hours": "{n} u",
+      "hours_minutes": "{h} u {m}"
+    },
+    "tile": {
+      "tap_to_open": "Tik om te openen",
+      "page": "Pagina {n}",
+      "unavailable": "Niet beschikbaar",
+      "refused": "Geweigerd",
+      "command_sent": "Opdracht verstuurd...",
+      "confirmed": "Bevestigd door Home Assistant"
+    },
+    "alert": {
+      "notification": "Melding",
+      "ok": "OK"
+    },
+    "light": {
+      "color": "Kleur",
+      "color_temperature": "Kleurtemperatuur",
+      "brightness": "Helderheid",
+      "waiting": "Wachten..."
+    },
+    "effects": {
+      "effect": "Effect",
+      "nothing": "Niets om te kiezen",
+      "loading": "Laden...",
+      "not_connected": "Niet verbonden"
+    },
+    "climate": {
+      "target": "Ingesteld",
+      "mode": "Modus",
+      "fan": "Ventilator",
+      "swing": "Zwenken",
+      "now": "Nu {value}"
+    },
+    "vacuum": {
+      "check_robot": "Kijk bij de robot in HA",
+      "auto_suction": "Automatische zuigkracht",
+      "robot_chooses": "De robot kiest zuigkracht en water",
+      "per_room": "Zuigkracht en water per ruimte",
+      "speed_quiet": "Stil",
+      "speed_balanced": "Normaal",
+      "speed_turbo": "Turbo",
+      "speed_max": "Max",
+      "pause_cleaning": "Schoonmaken pauzeren",
+      "pause": "Pauze",
+      "resume": "Hervatten",
+      "start_cleaning": "Schoonmaken starten",
+      "clean": "Schoonmaken",
+      "dock": "Dock"
+    },
+    "cover": {
+      "position": "Positie",
+      "tilt": "Kanteling",
+      "tilt_value": "Kanteling {n}%"
+    },
+    "weather": {
+      "feels_like": "Voelt als {n}°",
+      "no_forecast": "Geen dagverwachting van Home Assistant",
+      "coming_days": "Komende dagen"
+    },
+    "history": {
+      "no_data": "Geen gegevens",
+      "average": "gemiddeld",
+      "average_of": "gemiddelde over {duration}",
+      "now": "Nu",
+      "range_hour": "1 uur",
+      "range_day": "24 uur",
+      "range_week": "1 week",
+      "high": "Hoogst {value}",
+      "low": "Laagst {value}",
+      "times": "één keer | {n} keer",
+      "loading": "Geschiedenis laden...",
+      "empty": "Geen geschiedenis in deze periode",
+      "unavailable": "Geen geschiedenis beschikbaar"
+    },
+    "media": {
+      "muted": "Gedempt",
+      "not_playing": "Speelt niet",
+      "loading": "Laden"
+    },
+    "timer": {
+      "running": "Loopt",
+      "paused": "Gepauzeerd",
+      "stopped": "Gestopt",
+      "pause": "Pauze",
+      "start": "Start",
+      "cancel": "Annuleren",
+      "paused_left": "Gepauzeerd {time}"
+    },
+    "sun": {
+      "name": "Zon",
+      "sunrise": "Zonsopkomst {time}",
+      "sunset": "Zonsondergang {time}",
+      "rise": "op {time}",
+      "set": "onder {time}"
+    },
+    "script": {
+      "running": "Bezig...",
+      "never_run": "Nooit uitgevoerd",
+      "last_time": "Laatst {time}",
+      "yesterday_time": "Gisteren {time}",
+      "last_date": "Laatst {date}"
+    },
+    "camera": {
+      "no_image": "Geen beeld van deze camera",
+      "loading": "Beeld laden",
+      "live": "Live",
+      "recording": "Neemt op",
+      "tap_to_view": "Tik om te bekijken",
+      "no_image_yet": "Nog geen beeld"
+    },
+    "button": {
+      "activate": "Activeren",
+      "run": "Uitvoeren",
+      "press": "Indrukken"
+    },
+    "calibration": {
+      "title": "Volg de kalibratie",
+      "touch_check": "GT911-aanraaktest",
+      "hold": "Houd elke tik even vast",
+      "crosshair": "Tik op het kruisje\nPunt {point}/5 - tik {tap}/3",
+      "gently": "Tik zacht, iets langer",
+      "same": "Tik 3 keer op hetzelfde kruisje",
+      "rejected": "Meting afgekeurd; probeer het opnieuw",
+      "save_failed": "Opslaan mislukt; probeer het opnieuw"
     },
     "ha": {
       "on": "Aan",
