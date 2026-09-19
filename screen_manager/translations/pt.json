@@ -50,13 +50,13 @@
         "sábado"
       ],
       "weekdays_min": [
-        "dom",
-        "seg",
-        "ter",
-        "qua",
-        "qui",
-        "sex",
-        "sáb"
+        "do",
+        "sg",
+        "te",
+        "qu",
+        "qi",
+        "sx",
+        "sb"
       ],
       "months": [
         "janeiro",
@@ -214,7 +214,7 @@
     },
     "media": {
       "muted": "Sem som",
-      "not_playing": "Nada a reproduzir",
+      "not_playing": "Inativo",
       "loading": "A carregar"
     },
     "timer": {
@@ -246,7 +246,7 @@
       "live": "Em direto",
       "recording": "A gravar",
       "tap_to_view": "Toque para ver",
-      "no_image_yet": "Ainda sem imagem"
+      "no_image_yet": "Sem imagem"
     },
     "calibration": {
       "title": "Siga a calibração",

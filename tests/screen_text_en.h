@@ -69,7 +69,7 @@ const char *const screen_text::TABLE[] = {
     "Oct",
     "Nov",
     "Dec",
-    "{weekday} {day} {month}",
+    "{weekday_min} {day} {month}",
     "{weekday} {day} {month}",
     "{day} {month}",
     "{weekday} {time}",

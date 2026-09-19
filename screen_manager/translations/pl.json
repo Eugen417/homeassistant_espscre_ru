@@ -50,13 +50,13 @@
         "sob."
       ],
       "weekdays_min": [
-        "nie",
-        "pon",
+        "nd",
+        "pn",
         "wt",
         "śr",
-        "czw",
+        "cz",
         "pt",
-        "sob"
+        "sb"
       ],
       "months": [
         "stycznia",
@@ -142,7 +142,7 @@
       "hours_minutes": "{h} godz. {m}"
     },
     "tile": {
-      "tap_to_open": "Dotknij, aby otworzyć",
+      "tap_to_open": "Otwórz",
       "page": "Strona {n}",
       "refused": "Odrzucono",
       "command_sent": "Wysłano polecenie...",
@@ -235,7 +235,7 @@
     },
     "script": {
       "running": "Działa...",
-      "never_run": "Nigdy nie uruchomiono",
+      "never_run": "Nie uruchamiano",
       "last_time": "Ostatnio {time}",
       "yesterday_time": "Wczoraj {time}",
       "last_date": "Ostatnio {date}"
@@ -245,7 +245,7 @@
       "loading": "Ładowanie obrazu",
       "live": "Na żywo",
       "recording": "Nagrywanie",
-      "tap_to_view": "Dotknij, aby zobaczyć",
+      "tap_to_view": "Zobacz",
       "no_image_yet": "Brak obrazu"
     },
     "calibration": {

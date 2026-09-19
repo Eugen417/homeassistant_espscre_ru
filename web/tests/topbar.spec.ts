@@ -28,8 +28,13 @@ describe("clock and date", () => {
   const evening = new Date(2026, 8, 15, 19, 5);
   it("formats the clock the way the screen does", () => {
     expect(clockText(true, evening)).toBe("19:05");
-    expect(clockText(false, evening)).toBe("07:05");
+    // The clock card's big digits: no leading zero, no day period (its font has no letters).
+    expect(clockText(false, evening)).toBe("7:05");
     expect(clockText(false, new Date(2026, 8, 15, 0, 30))).toBe("12:30");
+    // The top bar: with the language's day period, as screen_text::clock_text writes it.
+    expect(clockText(false, evening, "en")).toBe("7:05 PM");
+    expect(clockText(false, new Date(2026, 8, 15, 0, 30), "en")).toBe("12:30 AM");
+    expect(clockText(true, evening, "en")).toBe("19:05");
   });
   it("writes the date short", () => {
     expect(dateText(evening)).toBe("Tu 15 Sep");

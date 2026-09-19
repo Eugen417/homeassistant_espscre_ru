@@ -51,7 +51,7 @@ const liveNote = computed(() => {
   return !view.shown ? t("editor.topbar.live.hidden") : overflow.value.has(props.index) ? t("editor.topbar.live.overflow") : t("editor.topbar.live.looks");
 });
 const samples = computed(() => ({
-  clock: clockText(clock24.value, new Date(state.now)),
+  clock: clockText(clock24.value, new Date(state.now), screenLanguage.value),
   analog: t("editor.topbar.analog_sample"),
   date: dateText(new Date(state.now), screenLanguage.value),
 } as Record<string, string>));

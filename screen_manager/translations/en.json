@@ -86,7 +86,7 @@
         "Nov",
         "Dec"
       ],
-      "top_bar": "{weekday} {day} {month}",
+      "top_bar": "{weekday_min} {day} {month}",
       "full": "{weekday} {day} {month}",
       "day_month": "{day} {month}",
       "weekday_time": "{weekday} {time}"

@@ -9,7 +9,7 @@ import type { HeaderItem } from "../types";
 const query = ref("");
 const taken = computed(() => new Set(topbarItems().map(itemKey)));
 const samples = computed(() => ({
-  clock: clockText(clock24.value, new Date(state.now)),
+  clock: clockText(clock24.value, new Date(state.now), screenLanguage.value),
   analog: t("editor.topbar.analog_sample"),
   date: dateText(new Date(state.now), screenLanguage.value),
 } as Record<string, string>));

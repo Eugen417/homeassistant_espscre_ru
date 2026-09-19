@@ -50,13 +50,13 @@
         "sam."
       ],
       "weekdays_min": [
-        "dim",
-        "lun",
-        "mar",
-        "mer",
-        "jeu",
-        "ven",
-        "sam"
+        "di",
+        "lu",
+        "ma",
+        "me",
+        "je",
+        "ve",
+        "sa"
       ],
       "months": [
         "janvier",
@@ -142,7 +142,7 @@
       "hours_minutes": "{h} h {m}"
     },
     "tile": {
-      "tap_to_open": "Touchez pour ouvrir",
+      "tap_to_open": "Ouvrir",
       "page": "Page {n}",
       "refused": "Refusé",
       "command_sent": "Commande envoyée...",
@@ -246,7 +246,7 @@
       "live": "En direct",
       "recording": "Enregistrement",
       "tap_to_view": "Touchez pour voir",
-      "no_image_yet": "Pas encore d'image"
+      "no_image_yet": "Pas d'image"
     },
     "calibration": {
       "title": "Suivez l'étalonnage",

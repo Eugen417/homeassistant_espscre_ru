@@ -583,7 +583,7 @@ export function topbarLabel(item: HeaderItem) {
 // What the item shows right now: { icon, text, color, shown }. Entities wait for the add-on's preview.
 export function topbarView(item: HeaderItem): ItemView {
   const now = new Date(state.now);
-  if (item.type === "clock") return { text: clockText(clock24.value, now), shown: true };
+  if (item.type === "clock") return { text: clockText(clock24.value, now, screenLanguage.value), shown: true };
   if (item.type === "date") return { text: dateText(now, screenLanguage.value), shown: true };
   if (item.type === "analog") return { analog: true, shown: true };
   const p = state.topbarPreviews[itemKey(item)];

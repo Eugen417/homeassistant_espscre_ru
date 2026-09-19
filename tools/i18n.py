@@ -87,6 +87,9 @@ def check():
     problems, notes = [], []
     base = dict(gen.flatten({k: v for k, v in english.items() if k != '_meta'}))
     drawable = font_letters()
+    width = text_width()
+    if width is None:
+        notes.append('Pillow is missing: tile texts were not measured')
     for code, data in langs.items():
         meta = data.get('_meta', {})
         for field in ('name', 'english', 'script', 'plural', 'checked'):
@@ -105,7 +108,10 @@ def check():
             if key not in base or not isinstance(text, str):
                 continue
             source = base[key]
-            if set(PLACEHOLDER.findall(text)) != set(PLACEHOLDER.findall(source)):
+            if key in EITHER_PLACEHOLDER:
+                if not set(PLACEHOLDER.findall(text)) <= EITHER_PLACEHOLDER[key]:
+                    problems.append(f'{code}: {key} has placeholders beyond {sorted(EITHER_PLACEHOLDER[key])}')
+            elif set(PLACEHOLDER.findall(text)) != set(PLACEHOLDER.findall(source)):
                 problems.append(f'{code}: {key} has placeholders {sorted(set(PLACEHOLDER.findall(text)))}, '
                                 f'English {sorted(set(PLACEHOLDER.findall(source)))}')
             plural = ' | ' in source
@@ -126,6 +132,14 @@ def check():
                 ours = not key.startswith(('screen.ha.', 'screen.date.', 'screen.number.'))
                 if ours and code != 'en' and len(text) > max(8, len(source) * 1.6) and not plural:
                     notes.append(f'{code}: {key} is much longer than the English ({len(text)} vs {len(source)})')
+                if width and key in TILE_LINES:
+                    for board, (size, room) in TILE_LINES[key].items():
+                        if width(size, text) > room:
+                            problems.append(f'{code}: {key} "{text}" is too wide for a tile on the {board} '
+                                            f'({width(size, text):.0f} of {room} px); make it shorter')
+                # The weather columns of the CYD hold a day of two letters beside its icon.
+                if key.startswith('screen.date.weekdays_min.') and len(text) > 2:
+                    problems.append(f'{code}: {key} "{text}" is longer than two letters; the CYD\'s weather columns cut it')
     for line in notes:
         print('note:', line)
     for line in problems:
@@ -133,6 +147,34 @@ def check():
     print(f'{len(langs)} languages, {len(base)} texts: {len(problems)} problems')
     return 1 if problems else 0
 
+
+# One line under a tile's name, and the room it has there: Roboto 400 at the CYD's 11 px in about 88 px, at the
+# Guition's 16 px in about 128 px (packages/boards: TILE_W, FONT_SUBLABEL_SIZE). A longer text is cut; `check` fails.
+TILE_ROOM = {'CYD': (11, 88), 'Guition': (16, 128)}
+# Camera tiles are the Guition's alone.
+TILE_LINES = {'screen.tile.tap_to_open': TILE_ROOM, 'screen.script.never_run': TILE_ROOM, 'screen.script.running': TILE_ROOM,
+              'screen.media.not_playing': TILE_ROOM, 'screen.timer.paused': TILE_ROOM,
+              'screen.camera.tap_to_view': {'Guition': TILE_ROOM['Guition']},
+              'screen.camera.no_image_yet': {'Guition': TILE_ROOM['Guition']}}
+
+
+def text_width():
+    """(size, text) -> pixels in the screens' Roboto 400, or None without Pillow (the check then skips widths)."""
+    try:
+        from PIL import ImageFont
+    except ImportError:
+        return None
+    fonts = {}
+    def width(size, text):
+        if size not in fonts:
+            fonts[size] = ImageFont.truetype(str(ROOT / 'fonts' / 'Roboto-400.ttf'), size)
+        return fonts[size].getlength(text)
+    return width
+
+
+# Texts whose placeholders a language picks from a set: the top bar's date takes the weekday's abbreviation ({weekday},
+# "sam.") or its two letters ({weekday_min}, "Sa" in English).
+EITHER_PLACEHOLDER = {'screen.date.top_bar': {'weekday', 'weekday_min', 'day', 'month'}}
 
 # English that stays in the firmware on purpose, with why. Everything else a screen shows comes from the translations,
 # and `lint` fails on a new English text in the code, so it never slips back in.
@@ -397,7 +439,12 @@ def cldr_dates(write, codes=None):
         before = json.dumps(data, ensure_ascii=False)
         data.setdefault('_meta', {})['clock'] = cldr['clock']
         number = {**cldr['number'], 'percent': ' %' if percent_space(code) else '%'}
-        merge(data.setdefault('screen', {}), {'number': number, 'time': cldr['time'], 'date': cldr['date']})
+        date = dict(cldr['date'])
+        # The two letters of the weather columns are the language's own choice once it has them (the CLDR's short
+        # width, which Node's Intl doesn't give): only a new language starts from the abbreviation.
+        if data.get('screen', {}).get('date', {}).get('weekdays_min'):
+            date.pop('weekdays_min')
+        merge(data.setdefault('screen', {}), {'number': number, 'time': cldr['time'], 'date': date})
         if json.dumps(data, ensure_ascii=False) != before:
             print(f'{code}: {"wrote" if write else "would change"} the CLDR texts')
             if write:

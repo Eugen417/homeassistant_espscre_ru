@@ -2617,7 +2617,9 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   auto *icon=part_label(w,0,w.icon_font,0,y+(std::max(icon_h,temp_h)-icon_h)/2,icon_h+4,LV_TEXT_ALIGN_LEFT,t.available()?weather_icon(t.state):"\U000F0595");
   lv_obj_set_width(icon,lv_font_get_line_height(w.icon_font)+4);
   part_label(w,1,temp_font,icon_h+6,y+(std::max(icon_h,temp_h)-temp_h)/2,left-icon_h-6,LV_TEXT_ALIGN_LEFT,std::isfinite(t.current)?b:"");
-  part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
+  // Home Assistant's word for the weather can be long ("częściowe zachmurzenie"): it ends in an ellipsis before the days.
+  auto *condition=part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
+  if(lv_label_get_long_mode(condition)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(condition,LV_LABEL_LONG_DOT);
   int column=(width-left)/5;
   for(unsigned k=0;k<5;++k){
     static const Forecast no_day;int x=left+k*column;bool has=k<t.extra().forecast.size();const auto &f=has?t.extra().forecast[k]:no_day;

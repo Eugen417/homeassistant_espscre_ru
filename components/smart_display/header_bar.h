@@ -88,11 +88,13 @@ inline std::string ago_text(int64_t then, int64_t now) {
   return plural(txt::time_years_ago, n(31536000));
 }
 
-// "Mo 14 Sep" in English, "ma 14 sep" in Dutch (screen.date.top_bar); day_of_week 1 is Sunday, as ESPHome counts.
+// "Mo 14 Sep" in English, "za 19 sep" in Dutch, "sam. 19 sept." in French (screen.date.top_bar, with the language's
+// abbreviation as {weekday} or its two letters as {weekday_min}); day_of_week 1 is Sunday, as ESPHome counts.
 inline std::string date_text(int day_of_week, int day_of_month, int month) {
   using namespace screen_text;
   if (day_of_week < 1 || day_of_week > 7 || month < 1 || month > 12) return "—";
-  std::string text = fill(txt::date_top_bar, "weekday", tr(txt::date_weekdays_min + day_of_week - 1));
+  std::string text = fill(txt::date_top_bar, "weekday", tr(txt::date_weekdays_short + day_of_week - 1));
+  text = fill(text, "weekday_min", tr(txt::date_weekdays_min + day_of_week - 1));
   text = fill(text, "day", std::to_string(day_of_month));
   return fill(text, "month", tr(txt::date_months_short + month - 1));
 }

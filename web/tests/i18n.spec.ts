@@ -175,7 +175,8 @@ describe("the mockup speaks the screens' language", () => {
         ha: { unavailable: "Nicht verfügbar", on: "An", weather: { windy: "Windig" }, binary: { door_on: "Offen" }, button: { run: "Ausführen" } },
         tile: { page: "Seite {n}" },
         time: { hours_ago: "Vor 1 Stunde | Vor {n} Stunden", just_now: "Gerade eben" },
-        date: { weekdays_min: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"], months_short: ["Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sept.", "Okt.", "Nov.", "Dez."], top_bar: "{weekday}., {day}. {month}" },
+        date: { weekdays_min: ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"], weekdays_short: ["So.", "Mo.", "Di.", "Mi.", "Do.", "Fr.", "Sa."],
+                months_short: ["Jan.", "Feb.", "März", "Apr.", "Mai", "Juni", "Juli", "Aug.", "Sept.", "Okt.", "Nov.", "Dez."], top_bar: "{weekday}, {day}. {month}" },
         number: { decimal: ",", group: ".", group_min: "2" },
       },
     }, meta("one_other"));

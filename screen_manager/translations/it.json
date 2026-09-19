@@ -50,13 +50,13 @@
         "sab"
       ],
       "weekdays_min": [
-        "dom",
-        "lun",
-        "mar",
-        "mer",
-        "gio",
-        "ven",
-        "sab"
+        "do",
+        "lu",
+        "ma",
+        "me",
+        "gi",
+        "ve",
+        "sa"
       ],
       "months": [
         "gennaio",
@@ -214,7 +214,7 @@
     },
     "media": {
       "muted": "Muto",
-      "not_playing": "Nessuna riproduzione",
+      "not_playing": "Inattivo",
       "loading": "Caricamento"
     },
     "timer": {
@@ -246,7 +246,7 @@
       "live": "Dal vivo",
       "recording": "Registrazione",
       "tap_to_view": "Tocca per vedere",
-      "no_image_yet": "Ancora nessuna immagine"
+      "no_image_yet": "Niente immagine"
     },
     "calibration": {
       "title": "Segui la calibrazione",

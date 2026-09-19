@@ -12,14 +12,18 @@ export const BUILTIN_ICONS: Record<string, string> = { clock: "clock-outline", a
 export const itemKey = (item: HeaderItem) => JSON.stringify(item);
 export const glyph = (cp: string) => String.fromCodePoint(parseInt(cp, 16));
 
-export function clockText(clock24: boolean, now = new Date()) {
-  let hours = now.getHours();
-  // The screen formats with %I:%M when the 24-hour clock is off.
-  if (!clock24) hours = hours % 12 || 12;
-  return `${String(hours).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+// The time as the screens write it (screen_text::clock_text): "07:12" on 24 hours; on 12 "7:12 PM" in the top bar, with
+// the language's day periods, and "7:12" in the clock card's big digits, which have no letters.
+export function clockText(clock24: boolean, now = new Date(), locale?: string) {
+  const minutes = String(now.getMinutes()).padStart(2, "0");
+  if (clock24) return `${String(now.getHours()).padStart(2, "0")}:${minutes}`;
+  const time = `${now.getHours() % 12 || 12}:${minutes}`;
+  return locale ? `${time} ${t(`screen.time.${now.getHours() < 12 ? "am" : "pm"}`, {}, { locale })}` : time;
 }
+// "Sa 19 Sep", "za 19 sep", "sam. 19 sept.": the language's pattern with its abbreviation or its two letters.
 export const dateText = (now = new Date(), locale = "en") => t("screen.date.top_bar", {
-  weekday: t(`screen.date.weekdays_min.${now.getDay()}`, {}, { locale }),
+  weekday: t(`screen.date.weekdays_short.${now.getDay()}`, {}, { locale }),
+  weekday_min: t(`screen.date.weekdays_min.${now.getDay()}`, {}, { locale }),
   day: now.getDate(),
   month: t(`screen.date.months_short.${now.getMonth()}`, {}, { locale }),
 }, { locale });

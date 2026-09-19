@@ -142,7 +142,7 @@
       "hours_minutes": "{h} Std. {m}"
     },
     "tile": {
-      "tap_to_open": "Zum Öffnen tippen",
+      "tap_to_open": "Zum Öffnen",
       "page": "Seite {n}",
       "refused": "Abgelehnt",
       "command_sent": "Befehl gesendet...",
@@ -214,7 +214,7 @@
     },
     "media": {
       "muted": "Stumm",
-      "not_playing": "Keine Wiedergabe",
+      "not_playing": "Nichts läuft",
       "loading": "Wird geladen"
     },
     "timer": {
@@ -245,7 +245,7 @@
       "loading": "Bild wird geladen",
       "live": "Live",
       "recording": "Aufnahme",
-      "tap_to_view": "Zum Ansehen tippen",
+      "tap_to_view": "Ansehen",
       "no_image_yet": "Noch kein Bild"
     },
     "calibration": {

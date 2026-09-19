@@ -27,7 +27,9 @@ Three parts fill themselves. Don't change them by hand:
   [Home Assistant's translations](https://developers.home-assistant.io/docs/translations/); we pick it up from there.
 - `screen.date` holds day and month names and the order of a date. `screen.number` says how numbers are written.
   `screen.time.am` and `.pm` are the day periods. All of this comes from the Unicode CLDR, the same data every browser
-  uses, through `tools/i18n.py cldr`. `screen.number.percent` follows Home Assistant's own rule: a space before `%` in
+  uses, through `tools/i18n.py cldr`. One list is yours: `screen.date.weekdays_min`, the days of the weather card in
+  two letters (`di`, `lu`, `ma` in French), because the small screen has room for no more. `cldr` starts a new language
+  with a guess and then leaves the list alone. `screen.number.percent` follows Home Assistant's own rule: a space before `%` in
   Czech, German, Finnish, French, Slovak and Swedish, none in the other languages.
 - `_meta.clock`, 12 or 24 hours, also comes from the CLDR.
 
@@ -44,7 +46,8 @@ there is a `sv.json`, but already the Swedish 24-hour clock and `1 234,5`.
    - wrong words;
    - words that differ from the ones the Home Assistant app uses in your language (the Home Assistant app is the
      reference: *Dashboard*, *Automation*, *Entity* are what people know);
-   - texts that are too long for a small screen.
+   - texts that are too long for a small screen. `tools/i18n.py check` measures the line under a tile's name with the
+     screens' own font and says when it doesn't fit; for the rest, compare with the English.
 3. Look at it for real, if you can. In ESP Screens open **Settings → Language & region** and choose your language. The
    editor itself follows the language of your Home Assistant profile. The screens show the new texts after their
    firmware update.
