@@ -388,7 +388,565 @@
       }
     }
   },
-  "addon": {},
+  "addon": {
+    "errors": {
+      "language_choice": "Wähle eine Sprache aus der Liste.",
+      "region_choice": "Wähle ein Uhrzeit- und ein Zahlenformat aus den Listen.",
+      "open_through_ha": "Öffne diese Seite über Home Assistant.",
+      "refresh_page": "Lade diese Seite neu und versuche es noch einmal.",
+      "ha_refused": "Home Assistant hat es nicht angenommen: {reason}.",
+      "ha_refused_change": "Home Assistant hat die Änderung nicht angenommen: {reason}.",
+      "no_reason": "kein Grund angegeben",
+      "ha_unreachable": "Home Assistant ist gerade nicht erreichbar. Versuche es gleich noch einmal.",
+      "too_large": "Diese Anfrage ist zu groß.",
+      "invalid_input": "Ungültige Eingabe. Prüfe Namen, Board und gewählte Kacheln.",
+      "unknown_screen": "Unbekannter Bildschirm.",
+      "not_paired": "Das ist kein gekoppelter ESP-Bildschirm. Lade die Übersicht neu.",
+      "choose_icon": "Wähle ein Symbol aus der Liste.",
+      "skill_not_written": "Der Skill konnte nicht nach {folder} geschrieben werden ({reason}).",
+      "settings": {
+        "unknown": "Unbekannte Bildschirmeinstellungen; lade die Verwaltungsseite neu.",
+        "invalid_value": "Ungültiger Wert für {setting}.",
+        "dim_above_normal": "Die Helligkeit im Standby und nachts darf nicht höher sein als die normale.",
+        "offline": "Dieser Bildschirm ist offline. Du kannst seine Einstellungen ändern, sobald er wieder da ist.",
+        "unavailable": "{names}: gerade nicht änderbar, weil die Entität in Home Assistant deaktiviert ist oder der Bildschirm neu startet.",
+        "rotation": "Die Drehung braucht ein Guition mit Firmware 0.2.9 oder neuer."
+      },
+      "layout": {
+        "invalid": "Ungültiges Layout.",
+        "title": "Gib dem Bildschirm einen Titel mit höchstens 96 Bytes.",
+        "tiles_max": "Wähle höchstens 1 Kachel. | Wähle höchstens {n} Kacheln.",
+        "unsupported": "Diese Entität wird nicht unterstützt.",
+        "once": "Eine Entität kann nur einmal auf einem Bildschirm vorkommen.",
+        "tile_name": "Ein Kachelname darf höchstens 80 Bytes lang sein.",
+        "unknown_settings": "Unbekannte Kacheleinstellungen.",
+        "navigation_size": "Eine Navigationskachel ist einfach oder doppelt breit.",
+        "background": "Wähle eine Pastell-Hintergrundfarbe aus der Palette.",
+        "invalid_setting": "Ungültige Kacheleinstellung: {setting}",
+        "no_toggle": "Diese Entität lässt sich nicht ein- und ausschalten.",
+        "builtin_action": "Eine eingebaute Karte kann keine Aktion ausführen.",
+        "no_mini_slider": "Diese Entität unterstützt keinen kleinen Schieberegler.",
+        "history_hours": "Verlauf: Wähle 1, 6 oder 24 Stunden.",
+        "watch_or_slider": "Wähle „Großer Wert“ oder den kleinen Schieberegler.",
+        "no_direct_control": "Diese Entität unterstützt diese direkte Steuerung nicht.",
+        "position": "Ungültige Kachelposition; lade die Verwaltungsseite neu.",
+        "full_page_top": "Eine ganzseitige Kachel beginnt oben auf ihrer Seite.",
+        "wide_left": "Eine doppelt breite Kachel beginnt in der linken Spalte.",
+        "same_spot": "Zwei Kacheln liegen auf demselben Platz.",
+        "pages": "Ein Bildschirm hat 1 Seite. | Ein Bildschirm hat 1 bis {n} Seiten.",
+        "eight_pages": "Diese Kacheln passen nicht auf acht Seiten; entferne eine Kachel oder mach eine kleiner.",
+        "camera_guition": "Kamerabilder brauchen einen Guition-Bildschirm.",
+        "firmware_first": "Installiere für diese Kacheln zuerst Bildschirm-Firmware {version} oder neuer.",
+        "entity_gone": "Eine gewählte Entität gibt es nicht mehr. Such die neue Entität heraus.",
+        "ids_too_long": "Die Entitäts-IDs dieser Kacheln sind zusammen zu lang für eine Nachricht an den Bildschirm; entferne ein paar Kacheln."
+      },
+      "top_bar": {
+        "invalid": "Ungültige Kopfleiste; lade die Verwaltungsseite neu.",
+        "full": "In der Kopfleiste ist Platz für höchstens 1 Element. | In der Kopfleiste ist Platz für höchstens {n} Elemente.",
+        "invalid_setting": "Ungültige Einstellung in der Kopfleiste.",
+        "unknown_setting": "Unbekannte Einstellung in der Kopfleiste; lade die Verwaltungsseite neu.",
+        "entity": "Diese Entität kann nicht in die Kopfleiste.",
+        "unknown_item": "Unbekanntes Element in der Kopfleiste; lade die Verwaltungsseite neu.",
+        "twice": "Dieses Element ist schon in der Kopfleiste.",
+        "entity_gone": "Eine Entität in der Kopfleiste gibt es nicht mehr. Wähle eine andere."
+      },
+      "tap_action": {
+        "choose": "Wähle eine Aktion aus der Liste.",
+        "fields_max": "Eine Aktion beim Tippen setzt höchstens 1 Feld. | Eine Aktion beim Tippen setzt höchstens {n} Felder.",
+        "field_not_allowed": "{field} ist kein Feld, das eine Aktion beim Tippen setzen kann.",
+        "unsendable": "Ein Wert der Aktion ist etwas, das der Bildschirm nicht senden kann.",
+        "too_long": "Die Werte der Aktion sind zu lang für den Bildschirm."
+      },
+      "events": {
+        "none_paired": "noch keiner",
+        "name_the_screen": "Nenne den Bildschirm. Gekoppelt: {screens}.",
+        "no_such_screen": "Kein Bildschirm namens „{name}“. Gekoppelt: {screens}.",
+        "several_screens": "„{name}“ passt zu mehr als einem Bildschirm: {screens}.",
+        "name_the_entity": "Nenne die Entität.",
+        "not_for_a_screen": "{entity} kann nicht auf einen Bildschirm.",
+        "not_on_screen": "{entity} ist nicht auf diesem Bildschirm.",
+        "add_it_first": "{entity} ist nicht auf diesem Bildschirm; füge die Entität zuerst hinzu.",
+        "not_on_spot": "{entity} ist nicht auf Platz {slot}.",
+        "not_on_page": "{entity} ist nicht auf Seite {page}.",
+        "move_where": "Nenne die Seite oder den Platz, wohin sie soll.",
+        "spot_taken": "Dieser Platz ist von {entity} belegt; gib einen anderen Platz an oder verschiebe diese Entität zuerst.",
+        "page_not_empty": "Seite {page} ist nicht leer; eine ganzseitige Kachel braucht eine eigene Seite.",
+        "no_empty_page": "Keine Seite ist leer; eine ganzseitige Kachel braucht eine eigene Seite.",
+        "page_full": "Seite {page} ist voll.",
+        "no_room": "Auf diesem Bildschirm ist kein Platz mehr.",
+        "screen_full": "Dieser Bildschirm hat schon 1 Kachel; entferne zuerst eine. | Dieser Bildschirm hat schon {n} Kacheln; entferne zuerst eine.",
+        "page_range": "Wähle eine Seite zwischen 1 und {last}.",
+        "spot_range": "Wähle einen Platz zwischen 0 und {last}.",
+        "row_needs_page": "Nenne die Seite für diese Zeile oder Spalte.",
+        "row_range": "Wähle eine Zeile zwischen 1 und {last}.",
+        "column": "Die Spalte ist links oder rechts.",
+        "full_page_alone": "Eine ganzseitige Kachel belegt die ganze Seite {page}; dort passt nichts anderes hin.",
+        "does_not_fit": "Das passt nicht auf Seite {page}; eine doppelt breite Kachel belegt zwei Plätze.",
+        "order_needed": "Gib die Entitäten in der gewünschten Reihenfolge an.",
+        "order_not_on_screen": "Nicht auf diesem Bildschirm: {entities}.",
+        "order_not_on_page": "Nicht auf Seite {page}: {entities}. Verschiebe sie zuerst dorthin.",
+        "named_too_often": "Öfter genannt, als auf diesem Bildschirm vorhanden: {entities}.",
+        "named_too_often_page": "Öfter genannt, als auf Seite {page} vorhanden: {entities}."
+      },
+      "home_assistant": {
+        "action_not_offered": "Home Assistant bietet {action} für {name} nicht an. Wähle eine Aktion aus der Liste.",
+        "action_answers_only": "{action} antwortet nur mit Daten, die ein Bildschirm nicht anzeigen kann.",
+        "no_such_field": "Home Assistant hat in {action} für {name} kein Feld {field}.",
+        "field_needed": "{action} braucht einen Wert für {field}.",
+        "no_on_off": "Home Assistant kann {name} nicht ein- und ausschalten, daher würde „Ein / Aus“ nichts bewirken. Wähle beim Tippen etwas anderes.",
+        "no_small_slider": "{name} hat in Home Assistant nichts, was ein kleiner Schieberegler ändern kann.",
+        "no_graph": "{name} hat keine Zahlen für ein Diagramm.",
+        "no_forecast": "{name} hat in Home Assistant keine Tagesvorhersage.",
+        "no_control": "Home Assistant bietet diese direkte Steuerung für {name} nicht an."
+      },
+      "alerts": {
+        "invalid": "Ungültige Meldung.",
+        "cannot_show": "{name} kann keine Meldung anzeigen: {reason}.",
+        "no_device_name": "Gerätename unbekannt",
+        "offline": "offline",
+        "firmware": "Firmware {version}",
+        "unknown_version": "unbekannt",
+        "not_ready": "nicht bereit"
+      },
+      "firmware": {
+        "board_and_name": "Wähle ein Board und einen eindeutigen Namen (Kleinbuchstaben, Ziffern, Bindestriche; höchstens 30 Zeichen).",
+        "friendly_name": "Gib dem Bildschirm einen erkennbaren Namen (höchstens 60 Zeichen).",
+        "choose_profile": "Wähle ein vorhandenes YAML-Profil.",
+        "profile_missing": "Dieses Profil gibt es im ESPHome-Ordner nicht.",
+        "secrets_invalid": "Die secrets.yaml im ESPHome-Ordner ist kein gültiges YAML. Korrigiere zuerst die Datei; sie wird nicht überschrieben.",
+        "wifi_needed": "Trage Wi-Fi-Name und Passwort ein; sie werden in der secrets.yaml von ESPHome gespeichert.",
+        "wifi_not_set": "Wi-Fi konnte nicht in der secrets.yaml eingetragen werden. Trage wifi_ssid und wifi_password dort selbst ein.",
+        "name_exists": "Diesen Namen gibt es schon. Nutze für Updates das vorhandene Profil.",
+        "override_exists": "Für diesen Namen gibt es schon eine lokale Anpassung. Stell sie wieder her oder entferne sie, bevor du einen neuen Bildschirm mit diesem Namen anlegst.",
+        "override_symlink": "Die lokale Anpassung ist ein symbolischer Link; ersetze sie zuerst durch eine normale Datei.",
+        "other_include": "Dieses Profil bindet schon eine andere local_overrides-Datei ein.",
+        "profile_invalid": "Das Bildschirmprofil ist kein gültiges YAML; korrigiere es, bevor du eine Anpassung hinzufügst.",
+        "no_packages": "Dieses Profil hat keinen packages-Abschnitt, den ESP Screens erweitern kann.",
+        "override_invalid": "Ungültige Anpassungsdaten.",
+        "yaml_needed": "Gib zuerst YAML-Text ein.",
+        "override_too_large": "Die Anpassung ist zu groß. Halte sie unter 12 KB.",
+        "yaml_error_line": "YAML-Fehler in Zeile {line}: {problem}.",
+        "yaml_error": "YAML-Fehler: {problem}.",
+        "invalid_yaml": "ungültiges YAML",
+        "override_object": "Die Anpassung muss ein YAML-Objekt enthalten, zum Beispiel display: oder substitutions:.",
+        "sections_managed": "Diese Abschnitte verwaltet weiterhin ESP Screens: {names}.",
+        "substitutions_managed": "Diese Substitutions verwaltet weiterhin ESP Screens: {names}.",
+        "usb_port": "Wähle den angeschlossenen USB-Port aus der Liste.",
+        "busy_wait": "Es wird schon eine Firmware erstellt oder installiert. Warte, bis das fertig ist.",
+        "busy": "Es wird schon eine Firmware erstellt oder installiert.",
+        "no_esphome": "In dieser Installation fehlt die ESPHome CLI.",
+        "still_building": "Die Firmware wird noch erstellt. Lade sie herunter, wenn sie fertig ist.",
+        "build_first": "Erstelle zuerst die Firmware; der Download erscheint, wenn sie fertig ist.",
+        "unknown_action": "Unbekannte Firmware-Aktion.",
+        "host": "Gib die IP-Adresse oder den Hostnamen des gewünschten Bildschirms ein."
+      },
+      "updates": {
+        "automatic": "Wähle für automatische Updates an oder aus.",
+        "busy": "Es läuft schon ein Update. Warte, bis es fertig ist.",
+        "unknown_screen": "Unbekannter Bildschirm. Lade die Übersicht neu.",
+        "offline": "Dieser Bildschirm ist offline; aktualisieren geht, sobald er wieder da ist.",
+        "latest": "Dieser Bildschirm hat schon die neueste Firmware.",
+        "enter_ip": "Gib die IP-Adresse dieses Bildschirms ein.",
+        "no_profile": "Kein ESPHome-Profil für diesen Bildschirm gefunden. Prüfe den Namen im ESPHome-Ordner.",
+        "ip_unknown": "IP-Adresse unbekannt. Gib sie einmal ein; neue Firmware meldet sie danach selbst.",
+        "all_updated": "Alle erreichbaren Bildschirme sind schon aktuell."
+      }
+    },
+    "status": {
+      "first_tiles": "Wähle deine ersten Kacheln",
+      "saved": "Gespeichert; warte auf Abgleich",
+      "firmware_needed": "Layout gespeichert; diese Kacheln brauchen Firmware {version}+",
+      "too_large": "Layout gespeichert; zu groß für eine Nachricht an den Bildschirm, entferne ein paar Kacheln",
+      "sent": "An Home Assistant gesendet",
+      "offline": "Bildschirm offline; Änderungen gespeichert",
+      "retrying": "Senden fehlgeschlagen; wird automatisch wiederholt"
+    },
+    "updates": {
+      "offline": "Bildschirm war offline; neuer Versuch beim nächsten Mal.",
+      "unknown_target": "Profil oder IP-Adresse unbekannt; aktualisiere diesen Bildschirm von Hand.",
+      "build_failed": "Erstellen oder Installieren fehlgeschlagen; siehe Protokoll unter Firmware & USB.",
+      "no_report": "Bildschirm hat sich nicht mit Firmware {version} zurückgemeldet; prüfe den Bildschirm.",
+      "dropped_off": "Bildschirm war nach dem Update nicht mehr erreichbar; prüfe den Bildschirm.",
+      "updated": "Auf Firmware {version} aktualisiert."
+    },
+    "notify": {
+      "update_stopped": "Automatisches Update bei {name} gestoppt: {reason} Die übrigen Bildschirme blieben unverändert."
+    },
+    "labels": {
+      "built_into_screen": "Im Bildschirm eingebaut",
+      "backgrounds": {
+        "auto": "Standard",
+        "none": "Keiner",
+        "red": "Rot",
+        "orange": "Orange",
+        "yellow": "Gelb",
+        "green": "Grün",
+        "mint": "Mint",
+        "blue": "Blau",
+        "purple": "Violett",
+        "pink": "Rosa",
+        "gray": "Grau"
+      },
+      "controls": {
+        "none": "Keine",
+        "climate": {
+          "setpoint": "Temperatur − / +",
+          "mode": "Aus, Heizen, Kühlen"
+        },
+        "switch": {
+          "toggle": "Ein/Aus-Schalter"
+        },
+        "input_boolean": {
+          "toggle": "Ein/Aus-Schalter"
+        },
+        "light": {
+          "toggle": "Ein/Aus-Schalter",
+          "brightness": "Helligkeitsregler"
+        },
+        "fan": {
+          "toggle": "Ein/Aus-Schalter",
+          "speed": "Drehzahlregler"
+        },
+        "vacuum": {
+          "buttons": "Start, Stopp, Station"
+        },
+        "cover": {
+          "buttons": "Öffnen, Stopp, Schließen",
+          "position": "Positionsregler"
+        },
+        "media_player": {
+          "volume": "Lautstärke und Stumm",
+          "playback": "Zurück, Wiedergabe/Pause, Weiter"
+        },
+        "number": {
+          "stepper": "Wert − / +",
+          "slider": "Schieberegler"
+        },
+        "input_number": {
+          "stepper": "Wert − / +",
+          "slider": "Schieberegler"
+        },
+        "select": {
+          "stepper": "Vorherige / nächste Option"
+        },
+        "input_select": {
+          "stepper": "Vorherige / nächste Option"
+        },
+        "timer": {
+          "buttons": "Start/Pause und Abbrechen"
+        },
+        "scene": {
+          "run": "Taste „Aktivieren“"
+        },
+        "script": {
+          "run": "Taste „Ausführen“"
+        },
+        "button": {
+          "run": "Taste „Drücken“"
+        },
+        "input_button": {
+          "run": "Taste „Drücken“"
+        }
+      },
+      "top_bar": {
+        "builtin": {
+          "clock": "Uhrzeit",
+          "analog": "Analoguhr",
+          "date": "Datum"
+        },
+        "contents": {
+          "state": "Status",
+          "last_changed": "Zuletzt geändert"
+        },
+        "shows": {
+          "always": "Immer",
+          "active": "Nur wenn aktiv"
+        },
+        "suggestions": {
+          "temperature": "Temperatur",
+          "humidity": "Luftfeuchtigkeit",
+          "power": "Stromverbrauch",
+          "motion": "Letzte Bewegung",
+          "weather": "Wetter",
+          "people_home": "Personen zu Hause",
+          "sun": "Sonnenauf- und -untergang",
+          "co2": "CO₂"
+        }
+      }
+    },
+    "alerts": {
+      "fields": {
+        "title": {
+          "label": "Titel",
+          "help": "Eine Zeile oben auf der Karte; was nicht passt, bekommt Auslassungspunkte. Leer wird zu „Benachrichtigung“.",
+          "example": "Jemand ist an der Tür"
+        },
+        "subtitle": {
+          "label": "Untertitel",
+          "help": "Erklärung unter dem Titel, über mehrere Zeilen; ein Zeilenumbruch ist erlaubt. Leer ist auch in Ordnung.",
+          "example": "Tür 3, hinten"
+        },
+        "icon": {
+          "label": "Symbol",
+          "help": "Ein Name aus der Liste, auch als mdi:name oder als Hex-Codepoint (F12E6). Unbekannt oder leer ergibt das Warndreieck."
+        },
+        "color": {
+          "label": "Farbe",
+          "help": "Eine der neun Pastellfarben der Kacheln. Leer ergibt die weiße Karte."
+        },
+        "button_text": {
+          "label": "Tastentext",
+          "help": "Der Text auf der Taste. Leer ergibt „OK“.",
+          "example": "Komme"
+        },
+        "timeout": {
+          "label": "Timeout",
+          "help": "Sekunden, nach denen die Karte von selbst verschwindet. 0 wartet auf die Taste, egal wie lange das dauert. Die Taste schließt sie immer sofort, auch mit Timeout."
+        },
+        "flash": {
+          "label": "Blinken",
+          "help": "„An“ lässt die Hintergrundbeleuchtung beim Eintreffen der Meldung viermal blinken; danach bleibt der Bildschirm einfach an."
+        },
+        "camera": {
+          "label": "Kamera",
+          "help": "Eine Kamera- oder Bild-Entität. Ein Guition mit Firmware 0.2.57+ zeigt ihr Bild von diesem Moment oben über die ganze Breite der Karte; ein Tippen darauf öffnet die Kamera im Vollbild. Andere Bildschirme zeigen die Meldung ohne Bild. Nur über das Ereignis esp_screens_show_alert."
+        }
+      },
+      "endings": {
+        "ok": "Die Taste wurde gedrückt",
+        "timeout": "Das Timeout ist abgelaufen",
+        "replaced": "Eine neue Meldung hat sie ersetzt",
+        "remote": "dismiss_alert aus Home Assistant"
+      }
+    },
+    "icons": {
+      "groups": {
+        "lighting": "Beleuchtung",
+        "rooms": "Räume",
+        "climate": "Klima",
+        "weather": "Wetter",
+        "media_and_music": "Medien und Musik",
+        "security": "Sicherheit",
+        "appliances": "Haushaltsgeräte",
+        "energy": "Energie",
+        "window_coverings": "Beschattung",
+        "garden_and_pets": "Garten und Haustiere",
+        "people_and_travel": "Personen und Reisen",
+        "other": "Sonstiges"
+      },
+      "names": {
+        "lightbulb": "Glühbirne",
+        "lightbulb_group": "Leuchten",
+        "ceiling_light": "Deckenleuchte",
+        "chandelier": "Kronleuchter",
+        "lamp": "Tischlampe",
+        "floor_lamp": "Stehlampe",
+        "desk_lamp": "Schreibtischlampe",
+        "wall_sconce_flat": "Wandleuchte",
+        "light_recessed": "Einbauleuchte",
+        "spotlight_beam": "Strahler",
+        "led_strip_variant": "LED-Streifen",
+        "outdoor_lamp": "Außenleuchte",
+        "home": "Haus",
+        "sofa": "Wohnzimmer",
+        "bed": "Schlafzimmer",
+        "silverware_fork_knife": "Esszimmer",
+        "chef_hat": "Küche",
+        "shower": "Dusche",
+        "bathtub": "Badezimmer",
+        "toilet": "Toilette",
+        "desk": "Büro",
+        "garage": "Garage",
+        "fireplace": "Kamin",
+        "thermometer": "Temperatur",
+        "thermostat": "Thermostat",
+        "air_conditioner": "Klimaanlage",
+        "radiator": "Heizkörper",
+        "heat_pump": "Wärmepumpe",
+        "fire": "Heizung",
+        "snowflake": "Kühlung",
+        "water_percent": "Luftfeuchtigkeit",
+        "fan": "Ventilator",
+        "ceiling_fan": "Deckenventilator",
+        "air_purifier": "Luftreiniger",
+        "molecule_co2": "CO₂",
+        "weather_sunny": "Sonne",
+        "weather_partly_cloudy": "Teilweise bewölkt",
+        "weather_cloudy": "Bewölkt",
+        "weather_rainy": "Regen",
+        "weather_snowy": "Schnee",
+        "weather_windy": "Wind",
+        "weather_night": "Nacht",
+        "weather_sunset_up": "Sonnenaufgang",
+        "music_note": "Musik",
+        "music": "Noten",
+        "playlist_music": "Playlist",
+        "album": "Album",
+        "record_player": "Plattenspieler",
+        "spotify": "Spotify",
+        "radio": "Radio",
+        "podcast": "Podcast",
+        "speaker": "Lautsprecher",
+        "speaker_multiple": "Mehrere Lautsprecher",
+        "soundbar": "Soundbar",
+        "headphones": "Kopfhörer",
+        "piano": "Klavier",
+        "guitar_acoustic": "Gitarre",
+        "television": "Fernseher",
+        "projector": "Beamer",
+        "movie_open": "Film",
+        "cast": "Streamen",
+        "gamepad_variant": "Spielkonsole",
+        "remote_tv": "Fernbedienung",
+        "lock": "Schloss",
+        "lock_open_variant": "Schloss offen",
+        "shield_home": "Alarmanlage",
+        "alarm_light": "Alarmleuchte",
+        "bell": "Glocke",
+        "doorbell": "Türklingel",
+        "cctv": "Kamera",
+        "motion_sensor": "Bewegungsmelder",
+        "door_closed": "Tür",
+        "door_open": "Tür offen",
+        "window_closed_variant": "Fenster",
+        "smoke_detector": "Rauchmelder",
+        "water_alert": "Wasserleck",
+        "washing_machine": "Waschmaschine",
+        "tumble_dryer": "Trockner",
+        "dishwasher": "Geschirrspüler",
+        "fridge": "Kühlschrank",
+        "stove": "Herd",
+        "microwave": "Mikrowelle",
+        "toaster_oven": "Backofen",
+        "coffee_maker": "Kaffee",
+        "kettle": "Wasserkocher",
+        "robot_vacuum": "Saugroboter",
+        "robot_mower": "Mähroboter",
+        "printer_3d": "3D-Drucker",
+        "power_plug": "Stecker",
+        "power_socket_eu": "Steckdose",
+        "laptop": "Laptop",
+        "router_wireless": "Router",
+        "flash": "Strom",
+        "solar_power": "Solarstrom",
+        "solar_panel": "Solarmodule",
+        "home_battery": "Heimspeicher",
+        "battery_high": "Batterie",
+        "ev_station": "Ladestation",
+        "car_electric": "Elektroauto",
+        "meter_electric": "Stromzähler",
+        "meter_gas": "Gaszähler",
+        "water": "Wasser",
+        "water_boiler": "Boiler",
+        "gauge": "Messgerät",
+        "window_shutter": "Rollladen",
+        "window_shutter_open": "Rollladen offen",
+        "blinds": "Jalousie",
+        "blinds_open": "Jalousie offen",
+        "roller_shade_closed": "Rollo",
+        "curtains": "Vorhänge",
+        "curtains_closed": "Vorhänge zu",
+        "awning_outline": "Markise",
+        "flower": "Blume",
+        "tree": "Baum",
+        "sprout": "Pflanze",
+        "grass": "Rasen",
+        "sprinkler": "Rasensprenger",
+        "pool": "Pool",
+        "grill": "Grill",
+        "mailbox": "Briefkasten",
+        "trash_can": "Müll",
+        "recycle": "Recycling",
+        "dog": "Hund",
+        "cat": "Katze",
+        "account": "Person",
+        "account_group": "Familie",
+        "account_child": "Kind",
+        "home_account": "Zuhause",
+        "sleep": "Schlafen",
+        "run": "Sport",
+        "briefcase": "Arbeit",
+        "car": "Auto",
+        "bike": "Fahrrad",
+        "airplane": "Urlaub",
+        "map_marker": "Ort",
+        "power": "Ein/Aus",
+        "toggle_switch": "Schalter",
+        "gesture_tap_button": "Taste",
+        "play": "Start",
+        "script_text": "Skript",
+        "palette": "Szene",
+        "alarm": "Wecker",
+        "clock_outline": "Uhr",
+        "timer_outline": "Timer",
+        "calendar": "Kalender",
+        "bell_ring": "Benachrichtigung",
+        "heart": "Favorit",
+        "alert_outline": "Warnung",
+        "cog": "Einstellungen",
+        "broom": "Reinigung"
+      }
+    },
+    "screen": {
+      "builtin": {
+        "clock": "Uhr",
+        "page": "Zu Seite {page}"
+      },
+      "identify": {
+        "title": "Das ist {name}",
+        "subtitle": "Identifizieren in ESP Screens"
+      },
+      "script_running": "Läuft",
+      "states": {
+        "locking": "Schließt ab",
+        "unlocking": "Schließt auf",
+        "jammed": "Verklemmt",
+        "buffering": "Puffern",
+        "returning": "Rückkehr",
+        "error": "Fehler",
+        "disarmed": "Deaktiviert",
+        "armed_home": "Aktiv (Zuhause)",
+        "armed_away": "Aktiv (Abwesend)",
+        "armed_night": "Aktiv (Nacht)",
+        "armed_vacation": "Aktiv (Urlaub)",
+        "armed": "Aktiv",
+        "arming": "Wird aktiviert",
+        "pending": "Anstehend",
+        "triggered": "Ausgelöst",
+        "active": "Aktiv",
+        "up": "Tag",
+        "down": "Nacht",
+        "unknown": "Unbekannt"
+      },
+      "history": {
+        "other": "Sonstige"
+      },
+      "vacuum": {
+        "vacuum": "Saugen",
+        "vac_and_mop": "Beides",
+        "vac_then_mop": "Nacheinander",
+        "mop": "Wischen",
+        "custom": "Angepasst",
+        "smart": "Smart",
+        "min": "Min",
+        "slight": "Gering",
+        "low": "Niedrig",
+        "mild": "Leicht",
+        "medium": "Mittel",
+        "moderate": "Mäßig",
+        "standard": "Standard",
+        "high": "Hoch",
+        "intense": "Intensiv",
+        "extreme": "Extrem",
+        "ultra_high": "Ultrahoch",
+        "silent": "Still",
+        "gentle": "Sanft",
+        "strong": "Stark",
+        "max_plus": "Max+",
+        "auto": "Auto"
+      }
+    }
+  },
   "editor": {
     "common": {
       "undo": "Rückgängig",
@@ -761,7 +1319,7 @@
       "title": "Aktuelle Daten",
       "subtitle": "Verbindung, Status und unterstützte Eigenschaften",
       "reading": "Wird abgerufen…",
-      "fetching": "Aktueller HA-Status wird abgerufen...",
+      "fetching": "Aktueller HA-Status wird abgerufen…",
       "status": "Status: {status}",
       "options": "Kleiner Schieberegler: {slider} · Anzeige: {display} · Größe: {size} · Steuerung: {control} · Hintergrund: {background}",
       "yes": "ja",
@@ -1202,7 +1760,7 @@
       "eyebrow": "Erweitert · lokale Anpassung",
       "title": "YAML-Anpassung",
       "title_named": "YAML-Anpassung · {name}",
-      "intro": "Diese kleine Datei gehört dir. Sie wird nach dem gemeinsamen Bildschirm-Paket geladen und bleibt erhalten, wenn ESP Screen Manager aktualisiert wird. Ändere hier hardwarespezifische Details, etwa ein Display-Modell.",
+      "intro": "Diese kleine Datei gehört dir. Sie wird nach dem gemeinsamen Bildschirm-Paket geladen und bleibt erhalten, wenn ESP Screens aktualisiert wird. Ändere hier hardwarespezifische Details, etwa ein Display-Modell.",
       "safe_title": "Was kann ich gefahrlos ändern?",
       "safe_text": "Display, Touchscreen, Substitutions, Pins und andere Gerätedetails. Name, Wi-Fi, API, OTA und Paket-Links bleiben von ESP Screens verwaltet.",
       "active": "Aktiv",
