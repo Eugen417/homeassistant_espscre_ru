@@ -128,6 +128,17 @@ int main() {
   assert(key_action(make("light.lamp", "off"), TOGGLE).service == "light.turn_on");
   assert(!key_action(make("sensor.x", "1"), TOGGLE).valid());
   assert(!key_action(make("sensor.x", "1"), RUN).valid());
+  // A toggle key sends what its tap asks for and then shows the new stand; firmware 0.2.59 to 0.2.71 showed it first
+  // and so sent an off light light.turn_off.
+  Tile off_lamp = make("light.lamp", "off");
+  assert(press_key(off_lamp, TOGGLE).service == "light.turn_on" && off_lamp.state == "on" && off_lamp.optimistic_tap);
+  off_lamp.undo_optimistic(); assert(off_lamp.state == "off");
+  Tile on_fan = make("fan.ceiling", "on");
+  assert(press_key(on_fan, TOGGLE).service == "fan.turn_off" && on_fan.state == "off");
+  Tile odd = make("sensor.x", "1");
+  assert(!press_key(odd, TOGGLE).valid() && odd.state == "1" && !odd.optimistic_tap);
+  Tile shut = make("cover.shutter", "closed", 3);
+  assert(press_key(shut, COVER_OPEN).service == "cover.open_cover" && shut.state == "closed" && !shut.optimistic_tap);
 
   // Panel kinds.
   Tile lamp = make("light.lamp", "on"); lamp.controls = "brightness";

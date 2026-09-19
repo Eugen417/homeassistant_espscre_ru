@@ -1,3 +1,10 @@
+## 0.2.86 (firmware 0.2.72)
+
+The on/off switch on a wide tile switches again.
+
+- **The switch on a wide or full-page tile does what it shows.** Since firmware 0.2.59 (app 0.2.70), a tap on the *On/off switch* of a wide card sent the opposite of what it showed. The knob moved to on, but the screen asked Home Assistant to turn the light *off*. The light already was off, so nothing happened, and a moment later the knob slid back. On a light that was on, the same happened the other way round. The switch drew its new position before it chose the action, and then chose from that new position; it now chooses first. A tap on the tile itself was never affected. This fixes lights, switches, input booleans and fans. The switch is what a wide tile of these shows unless you choose another control, so most wide tiles of them had it.
+- Needs firmware 0.2.72: press **Update** on the screen. Includes everything from 0.2.85. CYD firmware: 1,677,504 bytes, 91.4 % of the update slot (16 bytes more than 0.2.85).
+
 ## 0.2.85 (firmware 0.2.71)
 
 Off looks off on every tile, in Home Assistant's colours.

@@ -2872,8 +2872,7 @@ inline void control_event(lv_event_t *e) {
     return;
   }
   if(t.waiting(now))return;
-  if(command==tile_controls::TOGGLE)t.optimistic(t.state!="on");
-  auto a=tile_controls::key_action(t,command,w.key_args[n]);
+  auto a=tile_controls::press_key(t,command,w.key_args[n]);
   if(a.valid())action(a.service,t.entity,a.key,a.value);
 }
 // A busy card is covered by a translucent white sheet with a small spinner until

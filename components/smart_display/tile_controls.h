@@ -368,6 +368,14 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
     default: return {};
   }
 }
+// A tap on a key: the action follows the stand the tile had, and a toggle then shows its new stand at once. The order
+// matters, because Tile::optimistic writes the new stand into `state`: asked afterwards, key_action sent an off light
+// light.turn_off, so the knob flipped on and back while the light stayed off (firmware 0.2.59 to 0.2.71).
+inline Action press_key(Tile &t, int command, const std::string &arg = "") {
+  Action a = key_action(t, command, arg);
+  if (command == TOGGLE && a.valid()) t.optimistic(t.state != "on");
+  return a;
+}
 // ---- Vacuum card rows (firmware 0.2.39+) ----
 // The value a row shows as chosen: the one just tapped while Home Assistant has not answered yet.
 inline const std::string &shown_value(const Tile &t, const runtime_tiles::Choice &c, uint32_t now) {
