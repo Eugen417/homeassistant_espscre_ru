@@ -1,0 +1,208 @@
+{
+  "_meta": {
+    "name": "Nederlands",
+    "english": "Dutch",
+    "script": "latin",
+    "plural": "one_other",
+    "clock": "24",
+    "checked": false
+  },
+  "screen": {
+    "number": {
+      "decimal": ",",
+      "group": ".",
+      "group_min": "1"
+    },
+    "time": {
+      "am": "a.m.",
+      "pm": "p.m."
+    },
+    "date": {
+      "weekdays": [
+        "zondag",
+        "maandag",
+        "dinsdag",
+        "woensdag",
+        "donderdag",
+        "vrijdag",
+        "zaterdag"
+      ],
+      "weekdays_short": [
+        "zo",
+        "ma",
+        "di",
+        "wo",
+        "do",
+        "vr",
+        "za"
+      ],
+      "weekdays_min": [
+        "zo",
+        "ma",
+        "di",
+        "wo",
+        "do",
+        "vr",
+        "za"
+      ],
+      "months": [
+        "januari",
+        "februari",
+        "maart",
+        "april",
+        "mei",
+        "juni",
+        "juli",
+        "augustus",
+        "september",
+        "oktober",
+        "november",
+        "december"
+      ],
+      "months_short": [
+        "jan",
+        "feb",
+        "mrt",
+        "apr",
+        "mei",
+        "jun",
+        "jul",
+        "aug",
+        "sep",
+        "okt",
+        "nov",
+        "dec"
+      ],
+      "top_bar": "{weekday} {day} {month}",
+      "full": "{weekday} {day} {month}",
+      "day_month": "{day} {month}",
+      "weekday_time": "{weekday} {time}"
+    },
+    "ha": {
+      "on": "Aan",
+      "off": "Uit",
+      "climate": {
+        "off": "Uit",
+        "heat": "Verwarmen",
+        "cool": "Koelen",
+        "heat_cool": "Verwarmen/koelen",
+        "auto": "Automatisch",
+        "dry": "Droog",
+        "fan_only": "Alleen ventilator"
+      },
+      "hvac_action": {
+        "heating": "Verwarmen",
+        "cooling": "Koelen",
+        "idle": "Inactief",
+        "off": "Uit",
+        "drying": "Drogen",
+        "fan": "Ventilator",
+        "preheating": "Voorverwarmen",
+        "defrosting": "Ontdooien"
+      },
+      "cover": {
+        "open": "Open",
+        "closed": "Dicht",
+        "opening": "Openen",
+        "closing": "Sluiten"
+      },
+      "media": {
+        "playing": "Speelt",
+        "paused": "Gepauzeerd",
+        "idle": "Inactief",
+        "standby": "Stand-by"
+      },
+      "person": {
+        "home": "Thuis",
+        "not_home": "Afwezig"
+      },
+      "sun": {
+        "above_horizon": "Boven de horizon",
+        "below_horizon": "Onder de horizon"
+      },
+      "vacuum": {
+        "docked": "Gedockt",
+        "cleaning": "Schoonmaken",
+        "paused": "Gepauzeerd",
+        "returning": "Terugkeren naar dock",
+        "idle": "Inactief"
+      },
+      "weather": {
+        "sunny": "Zonnig",
+        "clear_night": "Helder, nacht",
+        "cloudy": "Bewolkt",
+        "partlycloudy": "Half bewolkt",
+        "rainy": "Regenachtig",
+        "pouring": "Regen",
+        "snowy": "Sneeuwachtig",
+        "snowy_rainy": "Sneeuw-, regenachtig",
+        "fog": "Mist",
+        "hail": "Hagel",
+        "lightning": "Bliksem",
+        "lightning_rainy": "Bliksem, regenachtig",
+        "windy": "Winderig",
+        "exceptional": "Uitzonderlijk"
+      },
+      "binary": {
+        "battery_on": "Laag",
+        "battery_off": "Normaal",
+        "battery_charging_on": "Opladen",
+        "battery_charging_off": "Niet aan het opladen",
+        "carbon_monoxide_on": "Gedetecteerd",
+        "carbon_monoxide_off": "Niet gedetecteerd",
+        "cold_on": "Koud",
+        "cold_off": "Normal",
+        "connectivity_on": "Verbonden",
+        "connectivity_off": "Verbroken",
+        "door_on": "Open",
+        "door_off": "Dicht",
+        "garage_door_on": "Open",
+        "garage_door_off": "Dicht",
+        "gas_on": "Gedetecteerd",
+        "gas_off": "Niet gedetecteerd",
+        "heat_on": "Heet",
+        "heat_off": "Normal",
+        "light_on": "Licht gedetecteerd",
+        "light_off": "Geen licht",
+        "lock_on": "Ontgrendeld",
+        "lock_off": "Vergrendeld",
+        "moisture_on": "Nat",
+        "moisture_off": "Droog",
+        "motion_on": "Gedetecteerd",
+        "motion_off": "Niet gedetecteerd",
+        "moving_on": "Beweging",
+        "moving_off": "Geen beweging",
+        "occupancy_on": "Gedetecteerd",
+        "occupancy_off": "Niet gedetecteerd",
+        "opening_on": "Open",
+        "opening_off": "Dicht",
+        "plug_on": "Ingeplugd",
+        "plug_off": "Losgekoppeld",
+        "power_on": "Aan",
+        "power_off": "Uit",
+        "presence_on": "Thuis",
+        "presence_off": "Afwezig",
+        "problem_on": "Probleem",
+        "problem_off": "OK",
+        "running_on": "Actief",
+        "running_off": "Niet actief",
+        "safety_on": "Onveilig",
+        "safety_off": "Veilig",
+        "smoke_on": "Gedetecteerd",
+        "smoke_off": "Niet gedetecteerd",
+        "sound_on": "Gedetecteerd",
+        "sound_off": "Niet gedetecteerd",
+        "tamper_on": "Sabotage ontdekt",
+        "tamper_off": "Niet gedetecteerd",
+        "update_on": "Update beschikbaar",
+        "update_off": "Up-to-date",
+        "vibration_on": "Gedetecteerd",
+        "vibration_off": "Niet gedetecteerd",
+        "window_on": "Open",
+        "window_off": "Dicht"
+      }
+    }
+  },
+  "addon": {},
+  "editor": {}
+}

@@ -1,0 +1,208 @@
+{
+  "_meta": {
+    "name": "Deutsch",
+    "english": "German",
+    "script": "latin",
+    "plural": "one_other",
+    "clock": "24",
+    "checked": false
+  },
+  "screen": {
+    "number": {
+      "decimal": ",",
+      "group": ".",
+      "group_min": "1"
+    },
+    "time": {
+      "am": "AM",
+      "pm": "PM"
+    },
+    "date": {
+      "weekdays": [
+        "Sonntag",
+        "Montag",
+        "Dienstag",
+        "Mittwoch",
+        "Donnerstag",
+        "Freitag",
+        "Samstag"
+      ],
+      "weekdays_short": [
+        "So",
+        "Mo",
+        "Di",
+        "Mi",
+        "Do",
+        "Fr",
+        "Sa"
+      ],
+      "weekdays_min": [
+        "So",
+        "Mo",
+        "Di",
+        "Mi",
+        "Do",
+        "Fr",
+        "Sa"
+      ],
+      "months": [
+        "Januar",
+        "Februar",
+        "März",
+        "April",
+        "Mai",
+        "Juni",
+        "Juli",
+        "August",
+        "September",
+        "Oktober",
+        "November",
+        "Dezember"
+      ],
+      "months_short": [
+        "Jan.",
+        "Feb.",
+        "März",
+        "Apr.",
+        "Mai",
+        "Juni",
+        "Juli",
+        "Aug.",
+        "Sept.",
+        "Okt.",
+        "Nov.",
+        "Dez."
+      ],
+      "top_bar": "{weekday}, {day}. {month}",
+      "full": "{weekday}, {day}. {month}",
+      "day_month": "{day}. {month}",
+      "weekday_time": "{weekday}, {time}"
+    },
+    "ha": {
+      "on": "Ein",
+      "off": "Aus",
+      "climate": {
+        "off": "Aus",
+        "heat": "Heizbetrieb",
+        "cool": "Kühlbetrieb",
+        "heat_cool": "Heizen/Kühlen",
+        "auto": "Auto",
+        "dry": "Entfeuchtung",
+        "fan_only": "Nur Lüftung"
+      },
+      "hvac_action": {
+        "heating": "Heizbetrieb",
+        "cooling": "Kühlbetrieb",
+        "idle": "Leerlauf",
+        "off": "Aus",
+        "drying": "Entfeuchtung",
+        "fan": "Lüftung",
+        "preheating": "Vorheizen",
+        "defrosting": "Enteisung"
+      },
+      "cover": {
+        "open": "Geöffnet",
+        "closed": "Geschlossen",
+        "opening": "Wird geöffnet",
+        "closing": "Wird geschlossen"
+      },
+      "media": {
+        "playing": "Wiedergabe",
+        "paused": "Pausiert",
+        "idle": "Leerlauf",
+        "standby": "Standby"
+      },
+      "person": {
+        "home": "Zuhause",
+        "not_home": "Abwesend"
+      },
+      "sun": {
+        "above_horizon": "Über dem Horizont",
+        "below_horizon": "Unter dem Horizont"
+      },
+      "vacuum": {
+        "docked": "Angedockt",
+        "cleaning": "Reinigt",
+        "paused": "Pausiert",
+        "returning": "Rückkehr zur Ladestation",
+        "idle": "Leerlauf"
+      },
+      "weather": {
+        "sunny": "Sonnig",
+        "clear_night": "Klare Nacht",
+        "cloudy": "Bewölkt",
+        "partlycloudy": "Teilweise bewölkt",
+        "rainy": "Regnerisch",
+        "pouring": "Strömender Regen",
+        "snowy": "Schneefall",
+        "snowy_rainy": "Schneeregen",
+        "fog": "Nebel",
+        "hail": "Hagel",
+        "lightning": "Gewitter",
+        "lightning_rainy": "Gewitter, regnerisch",
+        "windy": "Windig",
+        "exceptional": "Außergewöhnlich"
+      },
+      "binary": {
+        "battery_on": "Niedrig",
+        "battery_off": "Normal",
+        "battery_charging_on": "Wird geladen",
+        "battery_charging_off": "Wird nicht geladen",
+        "carbon_monoxide_on": "Erkannt",
+        "carbon_monoxide_off": "Frei",
+        "cold_on": "Kalt",
+        "cold_off": "Normal",
+        "connectivity_on": "Verbunden",
+        "connectivity_off": "Getrennt",
+        "door_on": "Geöffnet",
+        "door_off": "Geschlossen",
+        "garage_door_on": "Geöffnet",
+        "garage_door_off": "Geschlossen",
+        "gas_on": "Erkannt",
+        "gas_off": "Frei",
+        "heat_on": "Heiß",
+        "heat_off": "Normal",
+        "light_on": "Licht erkannt",
+        "light_off": "Kein Licht",
+        "lock_on": "Aufgeschlossen",
+        "lock_off": "Abgeschlossen",
+        "moisture_on": "Nass",
+        "moisture_off": "Trocken",
+        "motion_on": "Erkannt",
+        "motion_off": "Frei",
+        "moving_on": "Bewegt sich",
+        "moving_off": "Bewegt sich nicht",
+        "occupancy_on": "Erkannt",
+        "occupancy_off": "Frei",
+        "opening_on": "Geöffnet",
+        "opening_off": "Geschlossen",
+        "plug_on": "Eingesteckt",
+        "plug_off": "Ausgesteckt",
+        "power_on": "Ein",
+        "power_off": "Aus",
+        "presence_on": "Zuhause",
+        "presence_off": "Abwesend",
+        "problem_on": "Problem",
+        "problem_off": "OK",
+        "running_on": "In Betrieb",
+        "running_off": "Außer Betrieb",
+        "safety_on": "Unsicher",
+        "safety_off": "Sicher",
+        "smoke_on": "Erkannt",
+        "smoke_off": "Frei",
+        "sound_on": "Erkannt",
+        "sound_off": "Frei",
+        "tamper_on": "Manipulation erkannt",
+        "tamper_off": "Frei",
+        "update_on": "Update verfügbar",
+        "update_off": "Aktuell",
+        "vibration_on": "Erkannt",
+        "vibration_off": "Frei",
+        "window_on": "Geöffnet",
+        "window_off": "Geschlossen"
+      }
+    }
+  },
+  "addon": {},
+  "editor": {}
+}

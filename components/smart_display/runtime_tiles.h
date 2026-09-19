@@ -923,7 +923,7 @@ inline std::string detail_state(const Tile &t){
   if(!t.available())return tr(txt::tile_unavailable);
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+).
   if(!t.extra().state_word.empty())return t.extra().state_word;
-  return t.state;
+  return screen_text::localize(t.state);
 }
 inline void hide_detail(){if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
 inline int slider_value(const Tile &t){
@@ -2545,9 +2545,10 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   }
   int x=dial+(large?10:6),room=std::max(1,width-x);
   if(!large){
-    // Compact cards: "13 sep" in the large-value font beside the dial.
+    // Compact cards: "13 sep" in the large-value font beside the dial, in the language's order (screen.date.day_month).
     const lv_font_t *font=watch_value_font?watch_value_font:w.value_font;
-    part_label(w,16,font,x,std::max(0,int(height-lv_font_get_line_height(font))/2),room,LV_TEXT_ALIGN_CENTER,day+" "+month_short(now));
+    part_label(w,16,font,x,std::max(0,int(height-lv_font_get_line_height(font))/2),room,LV_TEXT_ALIGN_CENTER,
+               fill(fill(txt::date_day_month,"day",day),"month",month_short(now)));
     return;
   }
   // Calendar block: weekday over a big day number with the short month beside it.
@@ -3139,7 +3140,8 @@ inline void render_slot(size_t slot) {
   else if (!t.extra().state_word.empty()) value = t.extra().state_word;
   // A player's state in the screen's own words where Home Assistant sent none (firmware 0.2.64+).
   else if (d == "media_player") value = tile_controls::media_state_text(t.state);
-  else if (!t.unit.empty() && !watch) value += " " + t.unit;
+  else if (!t.unit.empty() && !watch) value = screen_text::localize(value) + " " + t.unit;
+  else value = screen_text::localize(value);
   bool pending=t.loading(esphome::millis());
   if(d=="weather" && std::isfinite(t.current)) {value=screen_text::decimal(t.current,1);if(!watch)value+=" "+t.unit;}
   if(d=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";

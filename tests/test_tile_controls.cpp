@@ -184,9 +184,10 @@ int main() {
   rows = vacuum_rows(old_robot2, 0);
   assert(rows.suction && !rows.water && !choice_action(old_robot2, 'm', "mop").valid());
 
-  // Binary sensors (firmware 0.2.53+) in the words of their device class; no class or an unknown one says On and Off.
+  // Binary sensors (firmware 0.2.53+) in the words of their device class, Home Assistant's own since app 0.2.90 (the
+  // English table of the tests); no class or an unknown one says On and Off.
   assert(!strcmp(binary_state_text("door", true), "Open") && !strcmp(binary_state_text("door", false), "Closed"));
-  assert(!strcmp(binary_state_text("motion", true), "Motion") && !strcmp(binary_state_text("motion", false), "No motion"));
+  assert(!strcmp(binary_state_text("motion", true), "Detected") && !strcmp(binary_state_text("motion", false), "Clear"));
   assert(!strcmp(binary_state_text("moisture", true), "Wet") && !strcmp(binary_state_text("moisture", false), "Dry"));
   assert(!strcmp(binary_state_text("battery_charging", false), "Not charging") && !strcmp(binary_state_text("battery", true), "Low"));
   assert(!strcmp(binary_state_text("", true), "On") && !strcmp(binary_state_text("", false), "Off"));

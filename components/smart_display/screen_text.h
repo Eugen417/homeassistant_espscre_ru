@@ -5,6 +5,7 @@
 // flash: no text is copied, searched for or kept in RAM, and a screen carries no language but its own.
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <string>
 #include "screen_text_keys.h"
@@ -61,6 +62,36 @@ inline const char *group_mark() {
   if (number_style == 2) return ".";
   if (number_style == 3) return " ";
   return tr(txt::number_group);
+}
+// How many digits a whole number needs before it gets separators: 4 ("1,234") in most languages, 5 in Italian, Spanish
+// and Polish, which write 1234 but 12.345 (CLDR's minimum grouping digits, as Home Assistant's own numbers do).
+inline size_t group_from() {
+  if (number_style) return 4;
+  int minimum = atoi(tr(txt::number_group_min));
+  return minimum >= 2 ? 5 : 4;
+}
+// A number the way this screen writes numbers: `whole` digits (no sign) and the digits after the point.
+inline std::string write_number(const std::string &whole, const std::string &fraction) {
+  std::string out = whole;
+  if (out.size() >= group_from()) {
+    const std::string group = group_mark();
+    for (int i = static_cast<int>(out.size()) - 3; i > 0; i -= 3) out.insert(static_cast<size_t>(i), group);
+  }
+  if (!fraction.empty()) out += std::string(1, decimal_mark()) + fraction;
+  return out;
+}
+// A state as Home Assistant sends a number ("1234.5", "-3") written the way this screen writes numbers ("1.234,5" in
+// Dutch); any other text as it is.
+inline std::string localize(const std::string &state) {
+  size_t start = !state.empty() && state[0] == '-' ? 1 : 0, dot = std::string::npos;
+  if (start == state.size()) return state;
+  for (size_t i = start; i < state.size(); ++i) {
+    if (state[i] == '.' && dot == std::string::npos && i > start && i + 1 < state.size()) dot = i;
+    else if (state[i] < '0' || state[i] > '9') return state;
+  }
+  std::string whole = state.substr(start, dot == std::string::npos ? std::string::npos : dot - start);
+  std::string fraction = dot == std::string::npos ? std::string() : state.substr(dot + 1);
+  return state.substr(0, start) + write_number(whole, fraction);
 }
 // "point", "comma", "space" or "auto" as its number_style; -1 for anything else.
 inline int number_style_of(const std::string &name) {

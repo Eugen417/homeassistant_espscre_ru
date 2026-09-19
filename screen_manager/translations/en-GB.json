@@ -11,6 +11,130 @@
     "light": {
       "color": "Colour",
       "color_temperature": "Colour temperature"
+    },
+    "ha": {
+      "on": "On",
+      "off": "Off",
+      "climate": {
+        "off": "Off",
+        "heat": "Heat",
+        "cool": "Cool",
+        "heat_cool": "Heat/Cool",
+        "auto": "Auto",
+        "dry": "Dry",
+        "fan_only": "Fan only"
+      },
+      "hvac_action": {
+        "heating": "Heating",
+        "cooling": "Cooling",
+        "idle": "Idle",
+        "off": "Off",
+        "drying": "Drying",
+        "fan": "Fan",
+        "preheating": "Preheating",
+        "defrosting": "Defrosting"
+      },
+      "cover": {
+        "open": "Open",
+        "closed": "Closed",
+        "opening": "Opening",
+        "closing": "Closing"
+      },
+      "media": {
+        "playing": "Playing",
+        "paused": "Paused",
+        "idle": "Idle",
+        "standby": "Standby"
+      },
+      "person": {
+        "home": "Home",
+        "not_home": "Away"
+      },
+      "sun": {
+        "above_horizon": "Above horizon",
+        "below_horizon": "Below horizon"
+      },
+      "vacuum": {
+        "docked": "Docked",
+        "cleaning": "Cleaning",
+        "paused": "Paused",
+        "returning": "Returning to dock",
+        "idle": "Idle"
+      },
+      "weather": {
+        "sunny": "Sunny",
+        "clear_night": "Clear, night",
+        "cloudy": "Cloudy",
+        "partlycloudy": "Partly cloudy",
+        "rainy": "Rainy",
+        "pouring": "Pouring",
+        "snowy": "Snowy",
+        "snowy_rainy": "Snowy, rainy",
+        "fog": "Fog",
+        "hail": "Hail",
+        "lightning": "Lightning",
+        "lightning_rainy": "Lightning, rainy",
+        "windy": "Windy",
+        "exceptional": "Exceptional"
+      },
+      "binary": {
+        "battery_on": "Low",
+        "battery_off": "Normal",
+        "battery_charging_on": "Charging",
+        "battery_charging_off": "Not charging",
+        "carbon_monoxide_on": "Detected",
+        "carbon_monoxide_off": "Clear",
+        "cold_on": "Cold",
+        "cold_off": "Normal",
+        "connectivity_on": "Connected",
+        "connectivity_off": "Disconnected",
+        "door_on": "Open",
+        "door_off": "Closed",
+        "garage_door_on": "Open",
+        "garage_door_off": "Closed",
+        "gas_on": "Detected",
+        "gas_off": "Clear",
+        "heat_on": "Hot",
+        "heat_off": "Normal",
+        "light_on": "Light detected",
+        "light_off": "No light",
+        "lock_on": "Unlocked",
+        "lock_off": "Locked",
+        "moisture_on": "Wet",
+        "moisture_off": "Dry",
+        "motion_on": "Detected",
+        "motion_off": "Clear",
+        "moving_on": "Moving",
+        "moving_off": "Not moving",
+        "occupancy_on": "Detected",
+        "occupancy_off": "Clear",
+        "opening_on": "Open",
+        "opening_off": "Closed",
+        "plug_on": "Plugged in",
+        "plug_off": "Unplugged",
+        "power_on": "On",
+        "power_off": "Off",
+        "presence_on": "Home",
+        "presence_off": "Away",
+        "problem_on": "Problem",
+        "problem_off": "OK",
+        "running_on": "Running",
+        "running_off": "Not running",
+        "safety_on": "Unsafe",
+        "safety_off": "Safe",
+        "smoke_on": "Detected",
+        "smoke_off": "Clear",
+        "sound_on": "Detected",
+        "sound_off": "Clear",
+        "tamper_on": "Tampering detected",
+        "tamper_off": "Clear",
+        "update_on": "Update available",
+        "update_off": "Up-to-date",
+        "vibration_on": "Detected",
+        "vibration_off": "Clear",
+        "window_on": "Open",
+        "window_off": "Closed"
+      }
     }
   }
 }

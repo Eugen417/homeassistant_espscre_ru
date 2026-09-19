@@ -76,10 +76,7 @@ inline std::string number(float value, int decimals, const std::string &unit) {
   auto dot = text.find('.');
   std::string whole = text.substr(0, dot), rest = dot == std::string::npos ? "" : text.substr(dot);
   bool zero = whole.find_first_not_of('0') == std::string::npos && rest.find_first_not_of(".0") == std::string::npos;
-  const std::string group = screen_text::group_mark();
-  for (int i = static_cast<int>(whole.size()) - 3; i > 0; i -= 3) whole.insert(static_cast<size_t>(i), group);
-  if (!rest.empty()) rest[0] = screen_text::decimal_mark();
-  text = (zero ? "" : sign) + whole + rest;
+  text = (zero ? "" : sign) + screen_text::write_number(whole, rest.empty() ? std::string() : rest.substr(1));
   if (unit.empty()) return text;
   if (unit == "%" || unit == "°") return text + unit;
   return text + " " + unit;
