@@ -133,6 +133,25 @@ def t(key, **params):
     return TRANSLATIONS.text(key, REQUEST_LANGUAGE.get(), **params)
 
 
+# The screens' language and number format (Settings -> Language & region), for the words the app sends to the screens
+# itself: tile names, the top bar, the history card. The manager keeps it current (Manager.language_changed).
+SCREENS = {'language': 'en', 'numbers': 'point'}
+
+
+def set_screens(language, numbers):
+    SCREENS.update(language=language, numbers=numbers)
+
+
+def screen_t(key, **params):
+    """A text in the screens' language, for what the app sends to them."""
+    return TRANSLATIONS.text(key, SCREENS['language'], **params)
+
+
+def screen_number(text):
+    """A number as Home Assistant sends it, written as the screens write numbers ("1.234,5" in Dutch)."""
+    return format_number(text, SCREENS['numbers'])
+
+
 class Region:
     """Settings -> Language & region, kept in /data/language.json: one language, clock and number format for every
     screen. A screen's firmware carries its language; the clock and the numbers travel in the layout message."""
