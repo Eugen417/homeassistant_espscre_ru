@@ -923,7 +923,7 @@ inline std::string detail_state(const Tile &t){
   if(!t.available())return tr(txt::tile_unavailable);
   // Home Assistant's word where the screen has none of its own (firmware 0.2.58+).
   if(!t.extra().state_word.empty())return t.extra().state_word;
-  return screen_text::localize(t.state);
+  return t.unit.empty()?t.state:screen_text::localize(t.state);
 }
 inline void hide_detail(){if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
 inline int slider_value(const Tile &t){
@@ -3140,8 +3140,10 @@ inline void render_slot(size_t slot) {
   else if (!t.extra().state_word.empty()) value = t.extra().state_word;
   // A player's state in the screen's own words where Home Assistant sent none (firmware 0.2.64+).
   else if (d == "media_player") value = tile_controls::media_state_text(t.state);
+  // A measurement in the screen's number format ("21,5 °C" in Dutch), as Home Assistant writes a state with a unit; a
+  // number without one (a code, a year) stays as it is, as there.
   else if (!t.unit.empty() && !watch) value = screen_text::localize(value) + " " + t.unit;
-  else value = screen_text::localize(value);
+  else if (!t.unit.empty() || d == "number" || d == "input_number" || d == "counter") value = screen_text::localize(value);
   bool pending=t.loading(esphome::millis());
   if(d=="weather" && std::isfinite(t.current)) {value=screen_text::decimal(t.current,1);if(!watch)value+=" "+t.unit;}
   if(d=="vacuum" && std::isfinite(t.battery))value += " / "+std::to_string((int)t.battery)+"%";
