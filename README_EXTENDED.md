@@ -427,6 +427,10 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 
 The language, the 12 or 24-hour clock and how numbers are written are the same on every screen: Settings → Language &
 region in ESP Screens (app 0.2.90, firmware 0.2.76). They follow Home Assistant's language unless you choose otherwise.
+ESP Screens writes the language into each screen's YAML (`LANGUAGE: "nl"` under `substitutions:`), and the screen shows
+it after its next firmware update. A screen whose YAML ESP Screens can't reach, such as one you build with ESPHome on
+another machine, gets that line from you: a code from [`screen_manager/translations`](screen_manager/translations);
+English is the default. [Translating ESP Screens](docs/TRANSLATING.md) says how to add or check a language.
 
 <p align="center">
   <img src="docs/images/guition-settings-menu.png" width="32%" alt="The settings menu on the Guition: Brightness, Night, Screen and This screen">
