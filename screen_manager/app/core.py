@@ -7,10 +7,12 @@ import math
 import re
 import secrets
 
+from i18n import english, screen_t, t
 import tile_icons
 
 DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image'.split())
-# Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them.
+# Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them. The names in English: a screen gets them in
+# its language and the editor in its own (builtin_name, app 0.2.90).
 BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
 # A navigation tile (firmware 0.2.62+): screen.page_<n> goes to page n. Firmware 0.2.65+ takes the same one on several
 # pages (a "Back to page 1" on every page); every other entity still appears once on a screen.
@@ -20,6 +22,14 @@ PAGE_TILE_REPEAT_MIN_FIRMWARE = (0, 2, 65)
 def page_target(entity):
     """The page a navigation tile opens, counted from one; 0 for any other entity."""
     return int(entity[len(PAGE_TILE):]) if isinstance(entity, str) and entity in BUILTIN and entity.startswith(PAGE_TILE) else 0
+
+def builtin_name(entity, text=screen_t):
+    """A built-in card's name in the screens' language, for the tile on the screen; `text=t` gives the editor's."""
+    page = page_target(entity)
+    if page:
+        return text('addon.screen.builtin.page', page=page)
+    # The settings tile is named like the settings page it opens.
+    return text('screen.settings.title' if entity == 'screen.settings' else 'addon.screen.builtin.clock')
 NEW_DOMAINS = frozenset('sun timer person screen'.split())
 # A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
 CAMERA_DOMAINS = frozenset(('camera', 'image'))
@@ -33,7 +43,6 @@ FULL_PAGE_MIN_FIRMWARE = (0, 2, 62)
 # Twenty tiles from firmware 0.2.7, ten before.
 TWENTY_TILES_MIN_FIRMWARE = (0, 2, 7)
 FIRST_MAX_TILES = 10
-WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su']
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
@@ -55,6 +64,7 @@ ATTRS = frozenset('brightness percentage current_position current_tilt_position 
 BOOL_ATTRS = frozenset(['is_volume_muted'])
 
 
+# The labels in English, as the Claude skill writes them; the editor gets them in its language (backgrounds()).
 TILE_BACKGROUNDS = {
     'auto': {'label': 'Default', 'color': None},
     # No card behind the tile: contents keep their size and place on the screen background.
@@ -69,6 +79,10 @@ TILE_BACKGROUNDS = {
     'pink': {'label': 'Pink', 'color': '#F7DDEC'},
     'gray': {'label': 'Gray', 'color': '#E5E7EB'},
 }
+
+def backgrounds():
+    """TILE_BACKGROUNDS with their labels in the editor's language (app 0.2.90)."""
+    return {name: {**item, 'label': t(f'addon.labels.backgrounds.{name}')} for name, item in TILE_BACKGROUNDS.items()}
 
 # Display modes per domain; everything else offers standard and watch (large value).
 DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath')}
@@ -128,7 +142,7 @@ def packed_slots(tiles):
     0.2.78; the save used to fail later with "Invalid tile position")."""
     slots = pack_slots(tiles)
     if any(footprint(slot, tile_size(tile))[-1] >= MAX_SLOTS for tile, slot in zip(tiles, slots)):
-        raise ValueError("These tiles don't fit on eight pages; remove a tile or make one smaller.")
+        raise ValueError(t('addon.errors.layout.eight_pages'))
     return slots
 
 def has_gaps(tiles):
@@ -138,7 +152,8 @@ def has_gaps(tiles):
 
 # Direct controls on the right half of a double-width card (firmware 0.2.19+), like
 # Home Assistant's own entity rows. The first choice is what a wide card shows
-# when the tile has no explicit choice; 'none' keeps the plain card.
+# when the tile has no explicit choice; 'none' keeps the plain card. The labels in English,
+# as the Claude skill writes them; the editor gets them in its language (controls_catalogue).
 CONTROLS = {
     'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Off, heat, cool')),
     'switch': (('toggle', 'On/off switch'),),
@@ -160,8 +175,9 @@ CONTROLS = {
 }
 
 def controls_catalogue():
-    """Editor choices per domain: the default first, then 'none'."""
-    return {domain: {'default': choices[0][0], 'choices': [{'key': key, 'label': label} for key, label in choices] + [{'key': 'none', 'label': 'None'}]}
+    """Editor choices per domain: the default first, then 'none'; labels in the editor's language (app 0.2.90)."""
+    return {domain: {'default': choices[0][0], 'choices': [{'key': key, 'label': t(f'addon.labels.controls.{domain}.{key}')} for key, _ in choices]
+                     + [{'key': 'none', 'label': t('addon.labels.controls.none')}]}
             for domain, choices in CONTROLS.items()}
 
 def resolve_controls(tile):
@@ -374,7 +390,7 @@ def setting_action(key, entity, value):
 
 def validate_settings(data):
     if not isinstance(data, dict) or set(data) - SETTING_RULES.keys():
-        raise ValueError('Unknown screen settings; refresh the management page.')
+        raise ValueError(t('addon.errors.settings.unknown'))
     clean = {}
     for key, (default, minimum, maximum) in SETTING_RULES.items():
         value = data.get(key, default)
@@ -384,10 +400,10 @@ def validate_settings(data):
             valid = type(value) is int and minimum <= value <= maximum
         if key == "rotation": valid = valid and value in (0, 90, 180, 270)
         if not valid:
-            raise ValueError(f'Invalid value for {key}.')
+            raise ValueError(t('addon.errors.settings.invalid_value', setting=key))
         clean[key] = value
     if max(clean['standby_brightness'], clean['night_brightness']) > clean['brightness']:
-        raise ValueError('Standby and night brightness may not be higher than normal.')
+        raise ValueError(t('addon.errors.settings.dim_above_normal'))
     return clean
 
 def entity_id(value):
@@ -404,8 +420,9 @@ HEADER_MIN_FIRMWARE = (0, 2, 32)
 TRANSPORT_MIN_FIRMWARE = (0, 2, 33)
 MESSAGE_ACTION = 'screen_message'
 HEADER_MAX_ITEMS = 6
-# Items the screen draws on its own clock, without Home Assistant.
-HEADER_BUILTIN = {'clock': 'Time', 'analog': 'Analog clock', 'date': 'Date'}
+# Items the screen draws on its own clock, without Home Assistant; their labels are in the translations (header_bar.catalogue,
+# app 0.2.90).
+HEADER_BUILTIN = ('clock', 'analog', 'date')
 # Only shown, never controlled: the top bar takes these besides every tile domain.
 HEADER_ONLY_DOMAINS = frozenset('device_tracker zone lock alarm_control_panel counter event input_datetime input_text water_heater humidifier'.split())
 HEADER_CONTENTS = ('state', 'last_changed')
@@ -423,32 +440,32 @@ def header_items(layout):
 
 def validate_header(data):
     if not isinstance(data, dict) or set(data) - {'items'} or not isinstance(data.get('items'), list):
-        raise ValueError('Invalid top bar; refresh the management page.')
+        raise ValueError(t('addon.errors.top_bar.invalid'))
     if len(data['items']) > HEADER_MAX_ITEMS:
-        raise ValueError(f'The top bar has room for at most {HEADER_MAX_ITEMS} items.')
+        raise ValueError(t('addon.errors.top_bar.full', n=HEADER_MAX_ITEMS))
     items, seen = [], set()
     for item in data['items']:
         kind = item.get('type') if isinstance(item, dict) else None
         if kind in HEADER_BUILTIN:
             if set(item) != {'type'}:
-                raise ValueError('Invalid setting in the top bar.')
+                raise ValueError(t('addon.errors.top_bar.invalid_setting'))
             clean = {'type': kind}
         elif kind == 'entity':
             if set(item) - {'type', 'entity', 'content', 'icon', 'show'}:
-                raise ValueError('Unknown setting in the top bar; refresh the management page.')
+                raise ValueError(t('addon.errors.top_bar.unknown_setting'))
             if not header_entity(item.get('entity')):
-                raise ValueError("This entity can't go in the top bar.")
+                raise ValueError(t('addon.errors.top_bar.entity'))
             clean = {'type': 'entity', 'entity': item['entity'], 'content': item.get('content', 'state'),
                      'icon': item.get('icon', 'auto'), 'show': item.get('show', 'always')}
             if clean['content'] not in HEADER_CONTENTS or clean['show'] not in HEADER_SHOWS:
-                raise ValueError('Invalid setting in the top bar.')
+                raise ValueError(t('addon.errors.top_bar.invalid_setting'))
             if not (clean['icon'] in ('auto', 'none') or isinstance(clean['icon'], str) and clean['icon'] in tile_icons.ICONS):
-                raise ValueError('Choose an icon from the list.')
+                raise ValueError(t('addon.errors.choose_icon'))
         else:
-            raise ValueError('Unknown item in the top bar; refresh the management page.')
+            raise ValueError(t('addon.errors.top_bar.unknown_item'))
         key = json.dumps(clean, sort_keys=True)
         if key in seen:
-            raise ValueError('This item is already in the top bar.')
+            raise ValueError(t('addon.errors.top_bar.twice'))
         seen.add(key)
         items.append(clean)
     return {'items': items}
@@ -503,20 +520,20 @@ def loose(text):
 def match_screen(screens, wanted, layouts=None):
     """The screen an event means: by its device name, the name Home Assistant shows, or its title.
     With one screen paired, an event doesn't have to name it."""
-    listing = ', '.join(sorted(screen['name'] for screen in screens)) or 'none yet'
+    listing = ', '.join(sorted(screen['name'] for screen in screens)) or t('addon.errors.events.none_paired')
     if not loose(wanted):
         if len(screens) == 1:
             return screens[0]
-        raise ValueError(f'Name the screen. Paired: {listing}.')
+        raise ValueError(t('addon.errors.events.name_the_screen', screens=listing))
     key = loose(wanted)
     def names(screen):
         title = (layouts or {}).get(screen['id'], {}).get('title', '')
         return [loose(value) for value in (screen.get('node'), screen.get('name'), screen.get('device'), title, screen.get('area')) if value]
     found = [s for s in screens if key in names(s)] or [s for s in screens if any(key in name for name in names(s))]
     if not found:
-        raise ValueError(f'No screen called "{wanted}". Paired: {listing}.')
+        raise ValueError(t('addon.errors.events.no_such_screen', name=wanted, screens=listing))
     if len(found) > 1:
-        raise ValueError(f'"{wanted}" fits more than one screen: ' + ', '.join(sorted(s['name'] for s in found)) + '.')
+        raise ValueError(t('addon.errors.events.several_screens', name=wanted, screens=', '.join(sorted(s['name'] for s in found))))
     return found[0]
 
 def occupied_cells(tiles, skip=None):
@@ -553,15 +570,15 @@ def place_tile(tile, tiles, page=None, slot=None):
         wanted = set(footprint(slot, size))
         taken = next((t for t in tiles if t is not tile and 'slot' in t and wanted & set(footprint(t['slot'], tile_size(t)))), None)
         if taken:
-            raise ValueError(f"That spot is taken by {taken['entity']}; give another spot or move that one first.")
+            raise ValueError(t('addon.errors.events.spot_taken', entity=taken['entity']))
         tile['slot'] = slot
         return
     free = free_slot(tiles, size, page, skip=tile)
     if free is None:
         if size == 'full':
-            raise ValueError(f'Page {page + 1} is not empty; a full-page tile needs a page of its own.' if page is not None
-                             else 'No page is empty; a full-page tile needs a page of its own.')
-        raise ValueError(f'Page {page + 1} is full.' if page is not None else 'This screen has no room left.')
+            raise ValueError(t('addon.errors.events.page_not_empty', page=page + 1) if page is not None
+                             else t('addon.errors.events.no_empty_page'))
+        raise ValueError(t('addon.errors.events.page_full', page=page + 1) if page is not None else t('addon.errors.events.no_room'))
     tile['slot'] = free
 
 def tile_options(data, current=None):
@@ -593,25 +610,25 @@ def event_page(data):
     if page in (None, ''):
         return None
     if not str(page).strip().isdigit() or not 1 <= int(page) <= MAX_PAGES:
-        raise ValueError(f'Choose a page between 1 and {MAX_PAGES}.')
+        raise ValueError(t('addon.errors.events.page_range', last=MAX_PAGES))
     return int(page) - 1
 
 def event_slot(data, page):
     """An exact spot: `slot` as the editor counts it, or `row` and `column` within a page."""
     if data.get('slot') not in (None, ''):
         if not str(data['slot']).strip().isdigit() or not 0 <= int(data['slot']) < MAX_SLOTS:
-            raise ValueError(f'Choose a spot between 0 and {MAX_SLOTS - 1}.')
+            raise ValueError(t('addon.errors.events.spot_range', last=MAX_SLOTS - 1))
         return int(data['slot'])
     if data.get('row') in (None, '') and data.get('column') in (None, ''):
         return None
     if page is None:
-        raise ValueError('Name the page for that row or column.')
+        raise ValueError(t('addon.errors.events.row_needs_page'))
     row = str(data.get('row', 1)).strip()
     if not row.isdigit() or not 1 <= int(row) <= SLOTS_PER_PAGE // 2:
-        raise ValueError(f'Choose a row between 1 and {SLOTS_PER_PAGE // 2}.')
+        raise ValueError(t('addon.errors.events.row_range', last=SLOTS_PER_PAGE // 2))
     column = loose(data.get('column') or 'left')
     if column not in ('left', 'right'):
-        raise ValueError('The column is left or right.')
+        raise ValueError(t('addon.errors.events.column'))
     return page * SLOTS_PER_PAGE + (int(row) - 1) * 2 + (1 if column == 'right' else 0)
 
 def page_of(tile):
@@ -636,9 +653,11 @@ def event_source(data):
     slot = event_slot({'slot': data.get('from_slot')}, None)
     return (slot // SLOTS_PER_PAGE if slot is not None else page), slot
 
-def where(page, slot):
-    """The place an event named, as its answer says it: "spot 12" or "page 3"."""
-    return f'spot {slot}' if slot is not None else f'page {page + 1}'
+def not_there(entity, page, slot):
+    """The answer to an event that named a place where the tile isn't: "... is not on spot 12" or "... on page 3"."""
+    if slot is not None:
+        return t('addon.errors.events.not_on_spot', entity=entity, slot=slot)
+    return t('addon.errors.events.not_on_page', entity=entity, page=page + 1)
 
 def pack_page(tiles, page):
     """Give these tiles the cells of one page, in the order they are in."""
@@ -647,11 +666,11 @@ def pack_page(tiles, page):
     for tile in tiles:
         size = tile_size(tile)
         if size == 'full' and (position != page * SLOTS_PER_PAGE or len(tiles) > 1):
-            raise ValueError(f'A full-page tile takes all of page {page + 1}; nothing else fits there.')
+            raise ValueError(t('addon.errors.events.full_page_alone', page=page + 1))
         if size == 'wide' and position % 2:
             position += 1
         if position + cells_of(size) > last:
-            raise ValueError(f'That does not fit on page {page + 1}; a double-width tile takes two spots.')
+            raise ValueError(t('addon.errors.events.does_not_fit', page=page + 1))
         tile['slot'] = position
         position += cells_of(size)
 
@@ -676,7 +695,7 @@ def run_tile_event(layout, action, data, repeat_pages=False):
             wanted = [part.strip() for part in wanted.split(',')]
         wanted = [str(item).strip() for item in wanted if str(item).strip()]
         if not wanted:
-            raise ValueError('Give the entities in the order you want them.')
+            raise ValueError(t('addon.errors.events.order_needed'))
         picked, taken, missing, elsewhere, extra = [], set(), [], [], []
         for name in wanted:
             copies = copies_of(tiles, name)
@@ -692,12 +711,13 @@ def run_tile_event(layout, action, data, repeat_pages=False):
                 picked.append(free[0])
                 taken.add(id(free[0]))
         if missing:
-            raise ValueError('Not on this screen: ' + ', '.join(missing) + '.')
+            raise ValueError(t('addon.errors.events.order_not_on_screen', entities=', '.join(missing)))
         if elsewhere:
-            raise ValueError('Not on page %d: %s. Move it there first.' % (page + 1, ', '.join(elsewhere)))
+            raise ValueError(t('addon.errors.events.order_not_on_page', page=page + 1, entities=', '.join(elsewhere)))
         if extra:
-            raise ValueError('Named more often than it is on %s: %s.' % ('this screen' if page is None else f'page {page + 1}',
-                                                                        ', '.join(dict.fromkeys(extra))))
+            extra = ', '.join(dict.fromkeys(extra))
+            raise ValueError(t('addon.errors.events.named_too_often', entities=extra) if page is None
+                             else t('addon.errors.events.named_too_often_page', page=page + 1, entities=extra))
         if page is None:
             tiles = picked + [tile for tile in tiles if id(tile) not in taken]
             for tile, cell in zip(tiles, packed_slots(tiles)):
@@ -707,7 +727,7 @@ def run_tile_event(layout, action, data, repeat_pages=False):
         result['tiles'] = tiles
         return result, None
     if not entity:
-        raise ValueError('Name the entity.')
+        raise ValueError(t('addon.errors.events.name_the_entity'))
     copies = copies_of(tiles, entity)
     found = copies[0] if copies else None
     if action == 'remove':
@@ -715,26 +735,26 @@ def run_tile_event(layout, action, data, repeat_pages=False):
         if source_page is None:
             source_page, source_slot = page, slot
         if not found:
-            raise ValueError(f'{entity} is not on this screen.')
+            raise ValueError(t('addon.errors.events.not_on_screen', entity=entity))
         found = pick_copy(copies, source_page, source_slot)
         if not found:
-            raise ValueError(f'{entity} is not on {where(source_page, source_slot)}.')
+            raise ValueError(not_there(entity, source_page, source_slot))
         # The copy that was named itself, not the first tile equal to it.
         tiles = [tile for tile in tiles if tile is not found]
     elif action == 'move':
         if not found:
-            raise ValueError(f'{entity} is not on this screen; add it first.')
+            raise ValueError(t('addon.errors.events.add_it_first', entity=entity))
         source_page, source_slot = event_source(data)
         found = pick_copy(copies, source_page, source_slot)
         if not found:
-            raise ValueError(f'{entity} is not on {where(source_page, source_slot)}.')
+            raise ValueError(not_there(entity, source_page, source_slot))
         if page is None and slot is None:
-            raise ValueError('Name the page or the spot to move it to.')
+            raise ValueError(t('addon.errors.events.move_where'))
         found.pop('slot', None)
         place_tile(found, tiles, page, slot)
     else:
         if not entity_id(entity) and entity not in BUILTIN:
-            raise ValueError(f'{entity} cannot go on a screen.')
+            raise ValueError(t('addon.errors.events.not_for_a_screen', entity=entity))
         # A navigation tile the firmware takes more than once: the copy on the named spot or page changes, and anywhere
         # else a new copy goes (app 0.2.78). Every other tile, or one without a place, is the one that is there.
         chosen = False
@@ -752,7 +772,7 @@ def run_tile_event(layout, action, data, repeat_pages=False):
             tile.pop('options', None)
         if found is None:
             if len(tiles) >= MAX_TILES:
-                raise ValueError(f'This screen already has {MAX_TILES} tiles; remove one first.')
+                raise ValueError(t('addon.errors.events.screen_full', n=MAX_TILES))
             tiles.append(tile)
         size = tile_size(tile)
         move = found is None or had_slot is None or (not chosen and (page is not None or slot is not None))
@@ -824,45 +844,45 @@ def action_for_screen(value):
 def validate_tap_action(value):
     """The stored form of a tap's own action; ValueError with what to change."""
     if not isinstance(value, dict) or set(value) - {'action', 'data'}:
-        raise ValueError('Choose an action from the list.')
+        raise ValueError(t('addon.errors.tap_action.choose'))
     name, data = value.get('action'), value.get('data', {})
     if not isinstance(name, str) or len(name) > 64 or not ACTION_NAME.fullmatch(name):
-        raise ValueError('Choose an action from the list.')
+        raise ValueError(t('addon.errors.tap_action.choose'))
     if not isinstance(data, dict) or len(data) > ACTION_MAX_FIELDS:
-        raise ValueError(f'An action on a tap sets at most {ACTION_MAX_FIELDS} fields.')
+        raise ValueError(t('addon.errors.tap_action.fields_max', n=ACTION_MAX_FIELDS))
     for key in data:
         if not isinstance(key, str) or not ACTION_FIELD.fullmatch(key) or key in TARGET_KEYS:
-            raise ValueError(f'{key} is not a field an action on a tap can set.')
+            raise ValueError(t('addon.errors.tap_action.field_not_allowed', field=key))
     clean = {'action': name, **({'data': dict(data)} if data else {})}
     try:
         act = action_for_screen(clean)
         size = len(json.dumps(act, ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode())
     except (TypeError, ValueError):
-        raise ValueError('A value of the action is something the screen cannot send.') from None
+        raise ValueError(t('addon.errors.tap_action.unsendable')) from None
     if size > ACTION_MAX_BYTES or any(len(item[1].encode()) > ACTION_MAX_VALUE for item in act.get('d', []) + act.get('t', [])):
-        raise ValueError('The values of the action are too long for the screen.')
+        raise ValueError(t('addon.errors.tap_action.too_long'))
     return clean
 
 def validate_layout(data, stored=False):
     """A layout as the editor, a tile event or the storage gives it. `stored`: loaded from the app's own data, where a
     tile setting this version doesn't know (saved by a newer app) stays as it is instead of stopping the app."""
     if not isinstance(data, dict):
-        raise ValueError('Invalid layout.')
+        raise ValueError(t('addon.errors.layout.invalid'))
     title, tiles = data.get('title'), data.get('tiles')
     if not isinstance(title, str) or not title.strip() or len(title.encode()) > 96:
-        raise ValueError('Give the screen a title of at most 96 bytes.')
+        raise ValueError(t('addon.errors.layout.title'))
     if not isinstance(tiles, list) or len(tiles) > MAX_TILES:
-        raise ValueError(f'Choose at most {MAX_TILES} tiles.')
+        raise ValueError(t('addon.errors.layout.tiles_max', n=MAX_TILES))
     clean, seen = [], set()
     for tile in tiles:
         if not isinstance(tile, dict) or not entity_id(tile.get('entity')):
-            raise ValueError("This entity isn't supported.")
+            raise ValueError(t('addon.errors.layout.unsupported'))
         # A navigation tile may go on several pages (min_firmware asks 0.2.65 for that); anything else appears once.
         if tile['entity'] in seen and not page_target(tile['entity']):
-            raise ValueError('An entity can only appear once on a screen.')
+            raise ValueError(t('addon.errors.layout.once'))
         name = tile.get('name', '')
         if not isinstance(name, str) or len(name.encode()) > 80:
-            raise ValueError('A tile name may contain at most 80 bytes.')
+            raise ValueError(t('addon.errors.layout.tile_name'))
         seen.add(tile['entity'])
         item = {'entity': tile['entity'], 'name': name.strip()}
         if stored and 'options' in tile:
@@ -876,46 +896,46 @@ def validate_layout(data, stored=False):
         if 'options' in tile:
             options = tile['options']
             if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action'}:
-                raise ValueError('Unknown tile settings.')
+                raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
                 if options.get('size') == 'full':
-                    raise ValueError('A navigation tile is single or double width.')
+                    raise ValueError(t('addon.errors.layout.navigation_size'))
                 options = {k: v for k, v in options.items() if k not in ('display', 'inline', 'controls', 'history_hours')}
             if 'background' in options and (not isinstance(options['background'],str) or options['background'] not in TILE_BACKGROUNDS):
-                raise ValueError('Choose a pastel background color from the palette.')
+                raise ValueError(t('addon.errors.layout.background'))
             if 'icon' in options and not (options['icon'] == 'auto' or isinstance(options['icon'], str) and options['icon'] in tile_icons.ICONS):
-                raise ValueError('Choose an icon from the list.')
+                raise ValueError(t('addon.errors.choose_icon'))
             domain = tile['entity'].split('.')[0]
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
             choices = {'tap': ('auto', 'detail', 'toggle', 'none', 'action'), 'display': displays, 'inline': ('none', 'slider'), 'size': TILE_SIZES_ON_SCREEN}
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
-                    raise ValueError('Invalid tile setting: ' + key)
+                    raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
             # The five-day strip and the sun path only fit a double-width card (or the whole page).
             if options.get('display') in WIDE_ONLY and options.get('size') != 'full':
                 options = {**options, 'size': 'wide'}
             # On / off sends <domain>.toggle. Whether Home Assistant offers that for the entity is checked when saving
             # (Manager.check_supported, app 0.2.67); the built-in cards have nothing to switch.
             if options.get('tap') == 'toggle' and domain == 'screen':
-                raise ValueError("This entity doesn't support an on/off action.")
+                raise ValueError(t('addon.errors.layout.no_toggle'))
             # Perform action (app 0.2.67) keeps its action; another tap choice leaves a stale one behind.
             if options.get('tap') == 'action':
                 if domain == 'screen':
-                    raise ValueError("A built-in card can't perform an action.")
+                    raise ValueError(t('addon.errors.layout.builtin_action'))
                 options = {**options, 'action': validate_tap_action(options.get('action'))}
             elif 'action' in options:
                 options = {key: value for key, value in options.items() if key != 'action'}
             if options.get('inline') == 'slider' and domain not in {'light','fan','cover','number','input_number','media_player'}:
-                raise ValueError("This entity doesn't support a mini-slider.")
+                raise ValueError(t('addon.errors.layout.no_mini_slider'))
             if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in (1,6,24)):
-                raise ValueError('History: choose 1, 6, or 24 hours.')
+                raise ValueError(t('addon.errors.layout.history_hours'))
             if options.get('display') == 'watch' and options.get('inline') == 'slider':
-                raise ValueError('Choose large value or mini-slider.')
+                raise ValueError(t('addon.errors.layout.watch_or_slider'))
             if 'controls' in options:
                 allowed = ('none',) + tuple(key for key, _ in CONTROLS.get(domain, ()))
                 if not isinstance(options['controls'], str) or options['controls'] not in allowed:
-                    raise ValueError("This entity doesn't support that direct control.")
+                    raise ValueError(t('addon.errors.layout.no_direct_control'))
             item['options'] = dict(options)
         clean.append(item)
     # Positions: every tile or none (an older editor sends none and keeps its order).
@@ -924,15 +944,15 @@ def validate_layout(data, stored=False):
         occupied = set()
         for item, slot in zip(clean, given):
             if type(slot) is not int or not 0 <= slot < MAX_SLOTS:
-                raise ValueError('Invalid tile position; refresh the management page.')
+                raise ValueError(t('addon.errors.layout.position'))
             size = tile_size(item)
             if size == 'full' and slot % SLOTS_PER_PAGE:
-                raise ValueError('A full-page tile starts at the top of its page.')
+                raise ValueError(t('addon.errors.layout.full_page_top'))
             if size == 'wide' and slot % 2:
-                raise ValueError('A double-width tile starts in the left column.')
+                raise ValueError(t('addon.errors.layout.wide_left'))
             for cell in footprint(slot, size):
                 if cell in occupied:
-                    raise ValueError('Two tiles are in the same spot.')
+                    raise ValueError(t('addon.errors.layout.same_spot'))
                 occupied.add(cell)
             item['slot'] = slot
         clean.sort(key=lambda item: item['slot'])
@@ -943,7 +963,7 @@ def validate_layout(data, stored=False):
     # Pages kept on purpose, empty ones included; the screen shows at least what the tiles need.
     if 'pages' in data:
         if type(data['pages']) is not int or not 1 <= data['pages'] <= MAX_PAGES:
-            raise ValueError(f'A screen has 1 to {MAX_PAGES} pages.')
+            raise ValueError(t('addon.errors.layout.pages', n=MAX_PAGES))
         result['pages'] = data['pages']
     if 'settings' in data:
         result['settings'] = validate_settings(data['settings'])
@@ -997,15 +1017,21 @@ def epoch(value):
 # battery comes from the device's battery sensor.
 VACUUM_MODE_KEYS = ('cleaning_mode', 'work_mode', 'clean_mode')
 VACUUM_WATER_KEYS = ('mop_intensity', 'water_flow', 'water_amount', 'water_flow_level', 'water_volume', 'mop_water_level')
-# Short chip labels; anything else shows its own words.
+# Short chip labels, by the key of their words in the screens' language (app 0.2.90); anything else shows its own words.
+# The suction speeds the screen names itself, and Off, are the screen's own words.
+VACUUM_CHIP = 'addon.screen.vacuum.'
 VACUUM_LABELS = {
-    'vacuum': 'Vacuum', 'sweeping': 'Vacuum', 'vac_and_mop': 'Vac & mop', 'vacuum_and_mop': 'Vac & mop',
-    'sweeping_and_mopping': 'Vac & mop', 'mop_after_vacuum': 'Vac, then mop', 'mopping_after_sweeping': 'Vac, then mop',
-    'mop': 'Mop', 'mopping': 'Mop', 'custom': 'Custom', 'smart_mode': 'Smart',
-    'off': 'Off', 'min': 'Min', 'slight': 'Slight', 'low': 'Low', 'mild': 'Mild', 'medium': 'Medium', 'moderate': 'Moderate',
-    'standard': 'Standard', 'high': 'High', 'intense': 'Intense', 'extreme': 'Extreme', 'ultrahigh': 'Ultra high',
-    'quiet': 'Quiet', 'silent': 'Silent', 'gentle': 'Gentle', 'balanced': 'Normal', 'turbo': 'Turbo', 'strong': 'Strong',
-    'max': 'Max', 'max_plus': 'Max+', 'auto': 'Auto',
+    'vacuum': VACUUM_CHIP + 'vacuum', 'sweeping': VACUUM_CHIP + 'vacuum', 'vac_and_mop': VACUUM_CHIP + 'vac_and_mop',
+    'vacuum_and_mop': VACUUM_CHIP + 'vac_and_mop', 'sweeping_and_mopping': VACUUM_CHIP + 'vac_and_mop',
+    'mop_after_vacuum': VACUUM_CHIP + 'vac_then_mop', 'mopping_after_sweeping': VACUUM_CHIP + 'vac_then_mop',
+    'mop': VACUUM_CHIP + 'mop', 'mopping': VACUUM_CHIP + 'mop', 'custom': VACUUM_CHIP + 'custom', 'smart_mode': VACUUM_CHIP + 'smart',
+    'off': 'screen.ha.off', 'min': VACUUM_CHIP + 'min', 'slight': VACUUM_CHIP + 'slight', 'low': VACUUM_CHIP + 'low',
+    'mild': VACUUM_CHIP + 'mild', 'medium': VACUUM_CHIP + 'medium', 'moderate': VACUUM_CHIP + 'moderate',
+    'standard': VACUUM_CHIP + 'standard', 'high': VACUUM_CHIP + 'high', 'intense': VACUUM_CHIP + 'intense',
+    'extreme': VACUUM_CHIP + 'extreme', 'ultrahigh': VACUUM_CHIP + 'ultra_high', 'quiet': 'screen.vacuum.speed_quiet',
+    'silent': VACUUM_CHIP + 'silent', 'gentle': VACUUM_CHIP + 'gentle', 'balanced': 'screen.vacuum.speed_balanced',
+    'turbo': 'screen.vacuum.speed_turbo', 'strong': VACUUM_CHIP + 'strong', 'max': 'screen.vacuum.speed_max',
+    'max_plus': VACUUM_CHIP + 'max_plus', 'auto': VACUUM_CHIP + 'auto',
 }
 # What a cleaning mode does, one letter per option for the firmware: v vacuum only, m mop only, b both,
 # a automatic (the robot or its app picks suction and water). Unknown modes count as both.
@@ -1016,7 +1042,8 @@ MODE_COVERED = frozenset(('off', 'off_raise_main_brush', 'custom', 'custom_water
 VACUUM_CHOICES = 6
 
 def vacuum_label(value):
-    return short(VACUUM_LABELS.get(value) or str(value).replace('_', ' ').capitalize(), 24)
+    key = VACUUM_LABELS.get(value)
+    return short(screen_t(key) if key else str(value).replace('_', ' ').capitalize(), 24)
 
 def vacuum_related(entity, device, states):
     """Entities on the vacuum's device that its card reads, by role: the 'mode' and 'water' selects, the
@@ -1159,7 +1186,8 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
             day = forecast_time(entry, tz)
             if day is None:
                 continue
-            item = {'d': WEEKDAYS[day.weekday()], 'c': short(entry.get('condition') or '', 20)}
+            # The day's short name in the screens' language (app 0.2.90); the list starts on Sunday, Python's week on Monday.
+            item = {'d': screen_t(f'screen.date.weekdays_min.{(day.weekday() + 1) % 7}'), 'c': short(entry.get('condition') or '', 20)}
             # h/l: high and low; p: chance of rain in %; r: rain in the entity's unit (mm).
             for key, name in (('h', 'temperature'), ('l', 'templow'), ('p', 'precipitation_probability'), ('r', 'precipitation')):
                 value = forecast_number(entry, name)
@@ -1284,7 +1312,7 @@ def attribute_word(entity_id, attribute, value, attributes, entry, words):
 def state_message(index, tile, states, extra=None, precision=None, entry=None):
     if tile['entity'] in BUILTIN:
         message = {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
-                   'name': short(tile['name'] or BUILTIN[tile['entity']], 80), 'state': 'ok', 'a': {}}
+                   'name': short(tile['name'] or builtin_name(tile['entity']), 80), 'state': 'ok', 'a': {}}
         # The same wire form as any tile, so a chosen icon travels as its codepoint (app 0.2.74+).
         options = screen_options(tile, {})
         if options is not None:
@@ -1341,7 +1369,8 @@ def message_action(node):
     return alert_service(node, MESSAGE_ACTION)
 
 # ----- Alerts (firmware 0.2.31+): the reference the cheatsheet shows. tests/test_alerts_reference.py
-# keeps every value here equal to what the board profiles compile. -----
+# keeps every value here equal to what the board profiles compile. The texts in English, as the Claude skill
+# writes them; the cheatsheet gets them in the editor's language (alert_reference, app 0.2.90). -----
 ALERT_MIN_FIRMWARE = '0.2.31'
 ALERT_EVENT = 'esphome.screen_alert'
 ALERT_ENDINGS = (('ok', 'The button was pressed'), ('timeout', 'The timeout ran out'),
@@ -1357,6 +1386,9 @@ ALERT_FIELDS = (
     ('timeout', 'int', 'Timeout', 'Seconds after which the card disappears on its own. 0 waits for the button, however long that takes. The button always closes it immediately, even with a timeout.', 0),
     ('flash', 'bool', 'Blinking', 'On makes the backlight blink four times when the alert arrives; the screen then just stays on.', True),
 )
+# Examples that are words for people, which the cheatsheet shows in the editor's language; an icon, a colour or a number
+# is a value to type as it is.
+ALERT_TEXT_EXAMPLES = frozenset(('title', 'subtitle', 'button_text'))
 # Bytes per field the firmware keeps (the profiles' ALERT_*_MAX); an accented letter takes two.
 ALERT_LIMITS = {'cyd': {'title': 48, 'subtitle': 160, 'button_text': 12}, 'guition': {'title': 64, 'subtitle': 240, 'button_text': 16}}
 ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alarm-light', 'lock', 'lock-open-variant', 'door-open',
@@ -1377,15 +1409,21 @@ def alert_service(node, action='show_alert'):
     return f"esphome.{node.replace('-', '_')}_{action}" if isinstance(node, str) and node else None
 
 def alert_reference():
-    """Everything the Alerts cheatsheet shows besides the screens themselves."""
+    """Everything the Alerts cheatsheet shows besides the screens themselves, in the editor's language (app 0.2.90)."""
+    def example(name, value):
+        return t(f'addon.alerts.fields.{name}.example') if name in ALERT_TEXT_EXAMPLES else value
+    camera = ALERT_CAMERA_FIELD[0]
     return {'min_firmware': ALERT_MIN_FIRMWARE, 'event': ALERT_EVENT,
             'broadcast': {'show': BROADCAST_SHOW, 'dismiss': BROADCAST_DISMISS},
-            'endings': [{'action': action, 'label': label} for action, label in ALERT_ENDINGS],
+            'endings': [{'action': action, 'label': t(f'addon.alerts.endings.{action}')} for action, _ in ALERT_ENDINGS],
             'fallback_icon': ALERT_FALLBACK_ICON, 'fallback_cp': tile_icons.GLYPHS[ALERT_FALLBACK_ICON],
-            'fields': [{'name': name, 'type': kind, 'label': label, 'help': help_, 'example': example} for name, kind, label, help_, example in ALERT_FIELDS],
-            'camera': dict(zip(('name', 'label', 'help', 'example'), ALERT_CAMERA_FIELD)),
+            'fields': [{'name': name, 'type': kind, 'label': t(f'addon.alerts.fields.{name}.label'),
+                        'help': t(f'addon.alerts.fields.{name}.help'), 'example': example(name, value)}
+                       for name, kind, _, _, value in ALERT_FIELDS],
+            'camera': {'name': camera, 'label': t(f'addon.alerts.fields.{camera}.label'), 'help': t(f'addon.alerts.fields.{camera}.help'),
+                       'example': ALERT_CAMERA_FIELD[3]},
             'limits': ALERT_LIMITS,
-            'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in TILE_BACKGROUNDS.items() if item['color']],
+            'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in backgrounds().items() if item['color']],
             'suggested_icons': [{'name': name, 'cp': tile_icons.GLYPHS[name]} for name in ALERT_SUGGESTED_ICONS],
             'extra_icons': [{'name': name, 'cp': cp} for name, cp in tile_icons.FIXED]}
 
@@ -1444,7 +1482,8 @@ def alert_camera(data):
     return (value.strip(), True) if usable else ('', False)
 
 def alert_targets(screens):
-    """(ready, skipped): the paired screens that can show an alert now, and the others with the reason.
+    """(ready, skipped): the paired screens that can show an alert now, and the others with the reason, in English for the
+    log (the editor shows it in its own language, app 0.2.90).
 
     One call per device: a screen that shows up twice (an old inbox next to a renamed one) counts once."""
     minimum = parse_firmware(ALERT_MIN_FIRMWARE)
@@ -1455,11 +1494,15 @@ def alert_targets(screens):
         if node in nodes:
             continue
         if not node:
-            skipped.append((screen, 'device name unknown'))
+            skipped.append((screen, english('addon.errors.alerts.no_device_name')))
         elif not screen.get('online'):
-            skipped.append((screen, 'offline'))
+            skipped.append((screen, english('addon.errors.alerts.offline')))
         elif version is None or version < minimum:
-            skipped.append((screen, f"firmware {screen.get('firmware') or 'unknown'}"))
+            # The sensor's own "unknown" reads as ours, which translates.
+            firmware = screen.get('firmware')
+            if firmware in (None, '', 'unknown'):
+                firmware = english('addon.errors.alerts.unknown_version')
+            skipped.append((screen, english('addon.errors.alerts.firmware', version=firmware)))
         else:
             ready.append(screen)
             nodes.add(node)
@@ -1509,7 +1552,9 @@ def discover_screens(registry, states, devices, areas):
                         'language': languages.get(item.get('device_id')),
                         'device': device.get('name') or '',
                         'area': area, 'online': state.get('state') not in (None, 'unknown', 'unavailable'),
-                        'status': state.get('state', 'Not connected')})
+                        # What the screen reports (a word of the firmware's protocol), or ours in English, which the editor
+                        # shows in its own language (app 0.2.90).
+                        'status': state.get('state', english('screen.settings.not_connected'))})
     return screens
 
 def discover(registry, states, devices, areas):
@@ -1545,9 +1590,9 @@ def discover(registry, states, devices, areas):
 def installation_yaml(data):
     board, name, friendly = data.get('board'), data.get('name'), data.get('friendly_name')
     if board not in REFS or not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,29}', name):
-        raise ValueError('Choose a board and a unique name (lowercase letters, digits, dashes; 30 characters max).')
+        raise ValueError(t('addon.errors.firmware.board_and_name'))
     if not isinstance(friendly, str) or not friendly.strip() or len(friendly) > 60:
-        raise ValueError('Give the screen a recognizable name (60 characters max).')
+        raise ValueError(t('addon.errors.firmware.friendly_name'))
     quote = lambda s: json.dumps(s, ensure_ascii=False)
     # The language of the screen's texts (app 0.2.90): Settings -> Language & region, which ESP Screens passes in.
     language = data.get('language') if isinstance(data.get('language'), str) and re.fullmatch(r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?', data.get('language')) else 'en'

@@ -11,6 +11,7 @@ import signal
 import time
 import yaml
 from core import REPO, installation_yaml
+from i18n import t
 
 # libyaml parses a 300 KB profile roughly ten times faster than the pure-Python loader.
 class LenientLoader(yaml.CSafeLoader if getattr(yaml, '__with_libyaml__', False) else yaml.SafeLoader):
@@ -101,10 +102,10 @@ class Firmware:
 
     def profile(self, name):
         if not isinstance(name,str) or not re.fullmatch(r'[a-zA-Z0-9_-]+\.yaml', name):
-            raise ValueError('Choose an existing YAML profile.')
+            raise ValueError(t('addon.errors.firmware.choose_profile'))
         p = self.root / name
         if p.is_symlink() or p.resolve().parent != self.root or not p.is_file():
-            raise ValueError("Profile doesn't exist in the ESPHome folder.")
+            raise ValueError(t('addon.errors.firmware.profile_missing'))
         return p
 
     def wifi_status(self):
@@ -136,12 +137,12 @@ class Firmware:
         if wifi['state'] == 'ready':
             return
         if wifi['state'] == 'invalid':
-            raise ValueError("secrets.yaml in the ESPHome folder isn't valid YAML. Fix the file first; it won't be overwritten.")
+            raise ValueError(t('addon.errors.firmware.secrets_invalid'))
         values = {}
         for key in wifi['missing']:
             value = data.get(key)
             if not isinstance(value, str) or (key == 'wifi_ssid' and not value.strip()):
-                raise ValueError("Fill in the Wi-Fi name and password; they'll be saved in ESPHome secrets.yaml.")
+                raise ValueError(t('addon.errors.firmware.wifi_needed'))
             values[key] = value
         path = self.root / 'secrets.yaml'
         if wifi['state'] == 'new':
@@ -160,7 +161,7 @@ class Firmware:
                 text = text + ('' if not text or text.endswith('\n') else '\n') + line + '\n'
         check = yaml.safe_load(text)
         if not isinstance(check, dict) or any(check.get(key) != value for key, value in values.items()):
-            raise ValueError("Wi-Fi couldn't be set in secrets.yaml. Fill in wifi_ssid and wifi_password there yourself.")
+            raise ValueError(t('addon.errors.firmware.wifi_not_set'))
         path.write_text(text)
 
     def create(self, data):
@@ -169,21 +170,21 @@ class Firmware:
         self.root.mkdir(parents=True,exist_ok=True)
         profile = self.root / (data['name']+'.yaml')
         if profile.exists() or profile.is_symlink():
-            raise ValueError('This name already exists. Use the existing profile for updates.')
+            raise ValueError(t('addon.errors.firmware.name_exists'))
         override = self.root / (data['name'] + self.OVERRIDE_SUFFIX)
         if override.exists() or override.is_symlink():
-            raise ValueError('This name already has a local override. Restore or remove it before creating a new screen with this name.')
+            raise ValueError(t('addon.errors.firmware.override_exists'))
         self.store_wifi(data)
         try:
             with profile.open('x') as f:
                 os.chmod(profile,0o600);f.write(content)
         except FileExistsError:
-            raise ValueError('This name already exists. Use the existing profile for updates.')
+            raise ValueError(t('addon.errors.firmware.name_exists'))
         try:
             with override.open('x') as f:
                 os.chmod(override, 0o600); f.write('{}\n')
         except FileExistsError:
-            raise ValueError('This name already has a local override. Restore or remove it before creating a new screen with this name.')
+            raise ValueError(t('addon.errors.firmware.override_exists'))
         key = yaml.load(content, Loader=LenientLoader)['api']['encryption']['key']
         # The key is what Home Assistant asks for when pairing; the page shows it once.
         return {'file': profile.name, 'node': data['name'], 'api_key': key}
@@ -218,7 +219,7 @@ class Firmware:
         profile = self.profile(name)
         path = self.root / (profile.stem + self.OVERRIDE_SUFFIX)
         if path.is_symlink():
-            raise ValueError('The local override is a symbolic link; replace it with a regular file first.')
+            raise ValueError(t('addon.errors.firmware.override_symlink'))
         return profile, path
 
     def _atomic_write(self, path, text):
@@ -237,17 +238,17 @@ class Firmware:
         if re.search(rf'(?m)^\s*local_overrides:\s*!include\s+{re.escape(filename)}\s*$', text):
             return False
         if re.search(r'(?m)^\s*local_overrides\s*:', text):
-            raise ValueError('This profile already has a different local_overrides include.')
+            raise ValueError(t('addon.errors.firmware.other_include'))
         try:
             parsed = yaml.load(text, Loader=LenientLoader)
         except yaml.YAMLError as error:
-            raise ValueError("The screen profile isn't valid YAML; fix it before adding an override.") from error
+            raise ValueError(t('addon.errors.firmware.profile_invalid')) from error
         packages = parsed.get('packages') if isinstance(parsed, dict) else None
         if not isinstance(packages, dict):
-            raise ValueError("This profile has no packages section that ESP Screens can extend.")
+            raise ValueError(t('addon.errors.firmware.no_packages'))
         match = re.search(r'(?m)^packages:\s*\n', text)
         if not match:
-            raise ValueError("This profile has no packages section that ESP Screens can extend.")
+            raise ValueError(t('addon.errors.firmware.no_packages'))
         next_top = re.search(r'(?m)^[^\s#][^\n]*\n', text[match.end():])
         if not next_top and not text.endswith('\n'):
             text += '\n'
@@ -259,28 +260,30 @@ class Firmware:
 
     def _validate_override(self, content):
         if not isinstance(content, str):
-            raise ValueError('Enter YAML text first.')
+            raise ValueError(t('addon.errors.firmware.yaml_needed'))
         if len(content.encode('utf8')) > self.OVERRIDE_LIMIT:
-            raise ValueError('The override is too large. Keep it below 12 KB.')
+            raise ValueError(t('addon.errors.firmware.override_too_large'))
         if not content.strip():
             content = '{}\n'
         try:
             parsed = yaml.load(content, Loader=LenientLoader)
         except yaml.YAMLError as error:
-            problem = getattr(error, 'problem', None) or 'invalid YAML'
+            # PyYAML's own description of the problem stays in English.
+            problem = getattr(error, 'problem', None) or t('addon.errors.firmware.invalid_yaml')
             mark = getattr(error, 'problem_mark', None)
-            where = f' on line {mark.line + 1}' if mark else ''
-            raise ValueError(f'YAML error{where}: {problem}.') from error
+            if mark:
+                raise ValueError(t('addon.errors.firmware.yaml_error_line', line=mark.line + 1, problem=problem)) from error
+            raise ValueError(t('addon.errors.firmware.yaml_error', problem=problem)) from error
         if not isinstance(parsed, dict):
-            raise ValueError('The override must contain a YAML object, for example display: or substitutions:.')
+            raise ValueError(t('addon.errors.firmware.override_object'))
         protected = sorted(set(parsed) & self.PROTECTED_OVERRIDE_KEYS)
         if protected:
-            raise ValueError('These sections stay managed by ESP Screens: ' + ', '.join(protected) + '.')
+            raise ValueError(t('addon.errors.firmware.sections_managed', names=', '.join(protected)))
         substitutions = parsed.get('substitutions')
         if isinstance(substitutions, dict):
             protected = sorted(set(substitutions) & self.PROTECTED_SUBSTITUTIONS)
             if protected:
-                raise ValueError('These substitutions stay managed by ESP Screens: ' + ', '.join(protected) + '.')
+                raise ValueError(t('addon.errors.firmware.substitutions_managed', names=', '.join(protected)))
         return content if content.endswith('\n') else content + '\n'
 
     def override(self, name):
@@ -308,11 +311,11 @@ class Firmware:
         target = data.get('target') or ''
         if target:
             if target != 'download' and (not isinstance(target, str) or target not in self.ports()):
-                raise ValueError('Choose the connected USB port from the list.')
+                raise ValueError(t('addon.errors.firmware.usb_port'))
             if self.task and not self.task.done():
-                raise ValueError('A build or installation is already running. Wait for it to finish.')
+                raise ValueError(t('addon.errors.firmware.busy_wait'))
             if not shutil.which('esphome'):
-                raise ValueError('The ESPHome CLI is missing from this installation.')
+                raise ValueError(t('addon.errors.firmware.no_esphome'))
         result = self.create(data)
         if target == 'download':
             result['job'] = self.start({'file': result['file'], 'action': 'download'})
@@ -335,10 +338,10 @@ class Firmware:
         owner never gets firmware from before a change or a failed build."""
         profile = self.profile(name)
         if self.job and self.job.get('file') == profile.name and self.job.get('state') == 'running':
-            raise ValueError('The firmware is still being built. Download it when the build has finished.')
+            raise ValueError(t('addon.errors.firmware.still_building'))
         path = self.images.get(profile.name)
         if not path or not path.is_file():
-            raise ValueError('Build the firmware first; the download appears when the build has finished.')
+            raise ValueError(t('addon.errors.firmware.build_first'))
         self.downloaded.add(profile.name)
         return path, profile.stem + '.factory.bin'
 
@@ -349,17 +352,17 @@ class Firmware:
         return re.sub(r'(?i)((?:password|encryption.key|token|ssid)\s*[:=]\s*).+',r'\1[redacted]',text)[:1500]
 
     def start(self, data):
-        if self.task and not self.task.done(): raise ValueError('A build or installation is already running.')
+        if self.task and not self.task.done(): raise ValueError(t('addon.errors.firmware.busy'))
         profile = self.profile(data.get('file'))
         action = data.get('action')
-        if action not in ('validate','build','install','download'): raise ValueError('Unknown firmware action.')
-        if not shutil.which('esphome'): raise ValueError('The ESPHome CLI is missing from this installation.')
+        if action not in ('validate','build','install','download'): raise ValueError(t('addon.errors.firmware.unknown_action'))
+        if not shutil.which('esphome'): raise ValueError(t('addon.errors.firmware.no_esphome'))
         target = data.get('target','')
         if action == 'install':
             if target.startswith('/dev/'):
-                if target not in self.ports(): raise ValueError('Choose the connected USB port from the list.')
+                if target not in self.ports(): raise ValueError(t('addon.errors.firmware.usb_port'))
             elif not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}',target):
-                raise ValueError('Enter the IP address or hostname of the intended screen.')
+                raise ValueError(t('addon.errors.firmware.host'))
         self._secret_values=set()
         # Collect scalar literals, including !secret values, without executing YAML tags.
         def collect(node):

@@ -9,6 +9,7 @@ import re
 import time
 import changelog
 from core import FIRMWARE_VERSION, parse_firmware
+from i18n import Text, english, screen_t, shown, t
 
 LOG = logging.getLogger('screen_manager')
 NIGHT_HOURS = range(3, 6)
@@ -17,6 +18,19 @@ NIGHT_HOURS = range(3, 6)
 parse_version = parse_firmware
 
 TARGET = parse_version(FIRMWARE_VERSION)
+
+def result_text(result):
+    """A kept result's message: a Text from its key where it has one (app 0.2.90+), else the English it was kept in."""
+    key, params = result.get('key'), result.get('params')
+    if isinstance(key, str) and key:
+        return Text(str(result.get('message', '')), key, params if isinstance(params, dict) else {})
+    return result.get('message', '')
+
+def shown_result(result):
+    """A kept result as the editor shows it, its message in the editor's language."""
+    if not isinstance(result, dict) or not isinstance(result.get('key'), str):
+        return result
+    return {**result, 'message': shown(result_text(result))}
 
 class Updater:
     verify_timeout = 240
@@ -106,7 +120,7 @@ class Updater:
         return {'available': bool(version and TARGET and version < TARGET) or (bool(version) and language),
                 'language': bool(version) and language, 'target': FIRMWARE_VERSION,
                 'profile': profile, 'host': host, 'state': state, 'phase': self.phase if state == 'running' else None,
-                'result': self.results.get(screen['id'])}
+                'result': shown_result(self.results.get(screen['id']))}
 
     def summary(self, screens=None, profiles=None):
         # The changelog goes with the full inventory only (app 0.2.78): this summary is in every live update of the page.
@@ -125,40 +139,40 @@ class Updater:
 
     def set_auto(self, enabled):
         if not isinstance(enabled, bool):
-            raise ValueError('Choose on or off for automatic updates.')
+            raise ValueError(t('addon.errors.updates.automatic'))
         self.auto = enabled
         self.save()
 
     def start(self, inbox, host=None):
         if self.busy():
-            raise ValueError('An update is already running. Wait for it to finish.')
+            raise ValueError(t('addon.errors.updates.busy'))
         screen = self.screen(inbox)
         inbox = self.current_id(inbox)
         if not screen:
-            raise ValueError('Unknown screen. Refresh the overview.')
+            raise ValueError(t('addon.errors.updates.unknown_screen'))
         if not screen['online']:
-            raise ValueError("This screen is offline; updating is possible once it's back.")
+            raise ValueError(t('addon.errors.updates.offline'))
         if not self.state_for(screen)['available']:
-            raise ValueError('This screen already has the latest firmware.')
+            raise ValueError(t('addon.errors.updates.latest'))
         if host is not None:
             if not isinstance(host, str) or not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,252}', host.strip()):
-                raise ValueError("Enter this screen's IP address.")
+                raise ValueError(t('addon.errors.updates.enter_ip'))
             self.hosts[inbox] = host.strip()
             self.save()
         profile, host = self.resolve(screen)
         if not profile:
-            raise ValueError('No ESPHome profile found for this screen. Check the name in the ESPHome folder.')
+            raise ValueError(t('addon.errors.updates.no_profile'))
         if not host:
-            raise ValueError('IP address unknown. Enter it once; new firmware reports it itself after that.')
+            raise ValueError(t('addon.errors.updates.ip_unknown'))
         self.launch([inbox])
         return self.state_for(screen)
 
     def start_all(self):
         if self.busy():
-            raise ValueError('An update is already running. Wait for it to finish.')
+            raise ValueError(t('addon.errors.updates.busy'))
         pending = self.pending()
         if not pending:
-            raise ValueError('All reachable screens are already updated.')
+            raise ValueError(t('addon.errors.updates.all_updated'))
         self.launch(pending)
         return pending
 
@@ -168,7 +182,12 @@ class Updater:
         self.task = asyncio.create_task(self.run_round(inboxes, automatic))
 
     def record(self, inbox, state, message):
-        self.results[self.current_id(inbox)] = {'time': time.time(), 'state': state, 'message': message, 'version': FIRMWARE_VERSION}
+        """A screen's last result. `message` keeps its key and params (a Text) next to the English, so the editor shows it
+        in its own language and an app from before 0.2.90 still reads the English."""
+        result = {'time': time.time(), 'state': state, 'message': str(message), 'version': FIRMWARE_VERSION}
+        if isinstance(message, Text) and message.key:
+            result.update(message=message.into('en'), key=message.key, params=message.params)
+        self.results[self.current_id(inbox)] = result
         self.save()
 
     async def run_round(self, inboxes, automatic=False):
@@ -180,8 +199,10 @@ class Updater:
                 outcome = await self.update_one(inbox)
                 if outcome == 'failed':
                     if automatic:
-                        await self.notify(f"Automatic update stopped at {self.name(inbox)}: "
-                                          f"{self.results[self.current_id(inbox)]['message']} The remaining screens were not touched.")
+                        # For whoever reads Home Assistant: in the screens' language, Home Assistant's own unless another was
+                        # chosen (app 0.2.90).
+                        await self.notify(screen_t('addon.notify.update_stopped', name=self.name(inbox),
+                                                   reason=result_text(self.results[self.current_id(inbox)])))
                     break
                 if self.queue and outcome == 'success':
                     await asyncio.sleep(self.pause_seconds)
@@ -195,33 +216,34 @@ class Updater:
     async def update_one(self, inbox):
         screen = self.screen(inbox)
         if not screen or not screen['online']:
-            self.record(inbox, 'skipped', 'Screen was offline; will retry next time.')
+            self.record(inbox, 'skipped', english('addon.updates.offline'))
             return 'skipped'
         profile, host = self.resolve(screen)
         if not profile or not host:
-            self.record(inbox, 'skipped', 'Profile or IP address unknown; update this screen manually.')
+            self.record(inbox, 'skipped', english('addon.updates.unknown_target'))
             return 'skipped'
         self.phase = 'install'
         try:
             self.manager.firmware.start({'file': profile, 'action': 'install', 'target': host})
             await self.manager.firmware.task
         except ValueError as error:
-            self.record(inbox, 'failed', str(error))
+            # The sentence firmware.start refused with, kept with its key.
+            self.record(inbox, 'failed', error.args[0] if len(error.args) == 1 else str(error))
             return 'failed'
         if self.manager.firmware.job.get('state') != 'success':
-            self.record(inbox, 'failed', 'Build or install failed; see the log under Firmware & USB.')
+            self.record(inbox, 'failed', english('addon.updates.build_failed'))
             return 'failed'
         self.phase = 'verify'
         if not await self.wait_for_target(inbox):
-            self.record(inbox, 'failed', f"Screen didn't report back with firmware {FIRMWARE_VERSION}; check the screen.")
+            self.record(inbox, 'failed', english('addon.updates.no_report', version=FIRMWARE_VERSION))
             return 'failed'
         self.phase = 'settle'
         await asyncio.sleep(self.settle_seconds)
         current = self.screen(inbox)
         if not current or not current['online']:
-            self.record(inbox, 'failed', 'Screen dropped off after the update; check the screen.')
+            self.record(inbox, 'failed', english('addon.updates.dropped_off'))
             return 'failed'
-        self.record(inbox, 'success', f'Updated to firmware {FIRMWARE_VERSION}.')
+        self.record(inbox, 'success', english('addon.updates.updated', version=FIRMWARE_VERSION))
         return 'success'
 
     async def wait_for_target(self, inbox):

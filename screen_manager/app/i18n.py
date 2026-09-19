@@ -128,9 +128,42 @@ class Translations:
 TRANSLATIONS = Translations()
 
 
+class Text(str):
+    """A text that keeps its key and params, so it can be written again in another language: a message made in one place
+    and shown in another, such as a delivery status the sync loop sets or an update result kept in updates.json, shows in
+    the language of whoever looks at it (app 0.2.90). Everywhere else it is the str it reads as."""
+
+    def __new__(cls, text, key=None, params=None):
+        made = super().__new__(cls, text)
+        made.key, made.params = key, dict(params or {})
+        return made
+
+    def into(self, language):
+        """This text in `language`; one without a key stays as it is."""
+        return _render(self.key, language, self.params) if self.key else str(self)
+
+
+def _render(key, language, params):
+    """`key` in `language` with its params filled in; a param that is a Text itself goes into that language too."""
+    return TRANSLATIONS.text(key, language, **{name: value.into(language) if isinstance(value, Text) else value
+                                               for name, value in params.items()})
+
+
 def t(key, **params):
-    """An `addon` text in the language of the editor that asked (REQUEST_LANGUAGE)."""
-    return TRANSLATIONS.text(key, REQUEST_LANGUAGE.get(), **params)
+    """An `addon` text in the language of the editor that asked (REQUEST_LANGUAGE). It keeps its key, so the error it is
+    raised with can still be written in another language (Updater.record)."""
+    return Text(_render(key, REQUEST_LANGUAGE.get(), params), key, params)
+
+
+def english(key, **params):
+    """A text in English that keeps its key, for a message made now and read later: a delivery status, an update result,
+    why a screen can't show an alert. Logs read the English; `shown` writes it in the editor's language."""
+    return Text(_render(key, 'en', params), key, params)
+
+
+def shown(value):
+    """A text made earlier in the language of the editor that asks now; anything but a Text as it is."""
+    return value.into(REQUEST_LANGUAGE.get()) if isinstance(value, Text) else value
 
 
 # The screens' language and number format (Settings -> Language & region), for the words the app sends to the screens
@@ -143,8 +176,9 @@ def set_screens(language, numbers):
 
 
 def screen_t(key, **params):
-    """A text in the screens' language, for what the app sends to them."""
-    return TRANSLATIONS.text(key, SCREENS['language'], **params)
+    """A text in the screens' language, for what the app sends to them (and the notification it leaves in Home
+    Assistant); a param that is a Text goes into that language too."""
+    return _render(key, SCREENS['language'], params)
 
 
 def screen_number(text):

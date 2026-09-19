@@ -95,11 +95,12 @@ class WordsBeyondTiles(unittest.TestCase):
         mode = {'state': 'vac_and_mop', 'attributes': {'options': ['vacuum', 'vac_and_mop']}}
         self.assertEqual(header_bar.value('select.s8_mode', mode, CLEANING, words=WORDS), ('Vacuum and mop', None))
         self.assertEqual(header_bar.value('select.s8_mode', mode, CLEANING), ('vac_and_mop', None), 'without words as before')
-        # The bar's own short words stay until Max chooses: Returning, Auto, Motion.
+        # The bar's own short words stay until Max chooses: Returning, Auto. A binary sensor says what its tile says, Home
+        # Assistant's word for its class from the translations (screen.ha.binary, app 0.2.90).
         self.assertEqual(header_bar.value('vacuum.s8', {'state': 'returning', 'attributes': {}}, None, words=WORDS), ('Returning', None))
         self.assertEqual(header_bar.value('climate.hall', {'state': 'heat_cool', 'attributes': {}}, None, words=WORDS), ('Auto', None))
         motion = {'state': 'on', 'attributes': {'device_class': 'motion'}}
-        self.assertEqual(header_bar.value('binary_sensor.hall', motion, None, words=WORDS), ('Motion', None))
+        self.assertEqual(header_bar.value('binary_sensor.hall', motion, None, words=WORDS), ('Detected', None))
         layout = {'header': {'items': [{'type': 'entity', 'entity': 'select.s8_mode', 'content': 'state', 'icon': 'none', 'show': 'always'}]}}
         bar = header_bar.message(layout, {'select.s8_mode': mode}, {'select.s8_mode': CLEANING}, words=WORDS)
         self.assertEqual(bar['items'], [{'k': 'text', 't': 'Vacuum and mop'}])

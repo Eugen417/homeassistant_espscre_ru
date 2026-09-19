@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 
 import header_bar
 from core import state_word
+from i18n import screen_t
 
 RANGES = (1, 24, 168)
 POINTS = 24
@@ -213,18 +214,18 @@ def line(entity, hours, changes, start, end, tz, entry=None, unit='', extreme_ch
 
 
 def state_label(domain, state, attrs, word=None):
-    """Home Assistant's words for a state, as the screen shows them elsewhere; `word` is Home Assistant's own word, for a
-    state the screen has no word of its own for (app 0.2.67)."""
+    """Home Assistant's words for a state, as the screen shows them elsewhere, in the screens' language (app 0.2.90); `word`
+    is Home Assistant's own word, for a state the screen has no word of its own for (app 0.2.67)."""
     if state in (None, 'unavailable'):
-        return 'Unavailable'
+        return screen_t('screen.ha.unavailable')
     if state == 'unknown':
-        return 'Unknown'
+        return screen_t('addon.screen.states.unknown')
     if domain == 'binary_sensor':
-        pair = header_bar.BINARY_STATES.get((attrs or {}).get('device_class'), ('On', 'Off'))
+        pair = header_bar.binary_words((attrs or {}).get('device_class'))
         return pair[0] if state == 'on' else pair[1] if state == 'off' else state
     if domain == 'person' and state not in header_bar.STATES:
         return state.replace('_', ' ')[:1].upper() + state.replace('_', ' ')[1:]
-    return header_bar.STATES.get(state) or word or (state[:1].upper() + state[1:]).replace('_', ' ')
+    return header_bar.state_text(state) or word or (state[:1].upper() + state[1:]).replace('_', ' ')
 
 
 def state_color(domain, state, others):
@@ -280,7 +281,8 @@ def timeline(entity, hours, changes, start, end, tz, attrs=None, slots=SLOTS, en
     rest = [state for state in ranked if state not in index_of]
     if rest:
         index_of.update({state: len(shown) for state in rest})
-        legend.append(['Other', '9E9E9E', int(sum(totals[state] for state in rest))])
+        other = header_bar.clean_text(screen_t('addon.screen.history.other'))[:24]
+        legend.append([other, '9E9E9E', int(sum(totals[state] for state in rest))])
     # Each slot shows the state that covers most of it, except that the active state always shows: a door that
     # stood open for five minutes stays visible on a day's timeline, as it does in Home Assistant.
     span = (end - start) / slots

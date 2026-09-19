@@ -16,6 +16,7 @@ from datetime import datetime, time
 
 import tile_icons
 from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE, HEADER_SHOWS, epoch, header_items, local_clock, short, state_word
+from i18n import TRANSLATIONS, screen_number, screen_t, t
 
 # Characters the top bar's text font carries on both boards (`sublabel_big` in the profiles;
 # tests/test_header_bar.py keeps them equal). Anything else folds to its base letter or goes.
@@ -23,35 +24,52 @@ from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_F
 # every letter European languages write with since app 0.2.90.
 GLYPHS = frozenset('<>—&@!,.?"%()+-_:°0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz/…·\'#*=;²³µ–ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿĄąĆćĘęŁłŃńŚśŹźŻżČčĎďĚěŇňŘřŠšŤťŮůŽžĹĺĽľŔŕŐőŰűĂăȘșȚțĐđĀāĒēĢģĪīĶķĻļŅņŪūĖėĮįŲųĞğİıŞşĊċĠġĦħŴŵŶŷĿŀŒœŸ„“”‘’«»‹›¿¡€£')
 TEXT_BYTES = 40
+# The months in English, the language of reference (tests/test_header_bar.py); a screen gets them in its own language
+# (short_date, app 0.2.90).
 MONTHS = ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
 UNAVAILABLE = '—'
 
-CONTENT_LABELS = {'state': 'Status', 'last_changed': 'Last changed'}
-SHOW_LABELS = {'always': 'Always', 'active': 'Only when active'}
-
-# Home Assistant's own words where they fit a small bar; the screen shows the rest as they come.
+# Home Assistant's own words where they fit a small bar; the screen shows the rest as they come. The keys of the words,
+# which go in the screens' language (app 0.2.90): Home Assistant's own (screen.ha; a lock's are those of a lock sensor)
+# where the bar says the same, else the bar's ("Up" for above the horizon).
 STATES = {
-    'on': 'On', 'off': 'Off', 'home': 'Home', 'not_home': 'Away', 'open': 'Open', 'closed': 'Closed',
-    'opening': 'Opening', 'closing': 'Closing', 'locked': 'Locked', 'unlocked': 'Unlocked', 'locking': 'Locking',
-    'unlocking': 'Unlocking', 'jammed': 'Jammed', 'playing': 'Playing', 'paused': 'Paused', 'idle': 'Idle',
-    'standby': 'Standby', 'buffering': 'Buffering', 'cleaning': 'Cleaning', 'docked': 'Docked', 'returning': 'Returning',
-    'error': 'Error', 'heat': 'Heat', 'cool': 'Cool', 'heat_cool': 'Auto', 'auto': 'Auto', 'dry': 'Dry',
-    'fan_only': 'Fan only', 'disarmed': 'Disarmed', 'armed_home': 'Armed home', 'armed_away': 'Armed away', 'armed_night': 'Armed night',
-    'armed_vacation': 'Armed vacation', 'armed_custom_bypass': 'Armed', 'arming': 'Arming', 'pending': 'Pending',
-    'triggered': 'Triggered', 'active': 'Active', 'above_horizon': 'Up', 'below_horizon': 'Down',
+    'on': 'screen.ha.on', 'off': 'screen.ha.off', 'home': 'screen.ha.person.home', 'not_home': 'screen.ha.person.not_home',
+    'open': 'screen.ha.cover.open', 'closed': 'screen.ha.cover.closed', 'opening': 'screen.ha.cover.opening',
+    'closing': 'screen.ha.cover.closing', 'locked': 'screen.ha.binary.lock_off', 'unlocked': 'screen.ha.binary.lock_on',
+    'locking': 'addon.screen.states.locking', 'unlocking': 'addon.screen.states.unlocking', 'jammed': 'addon.screen.states.jammed',
+    'playing': 'screen.ha.media.playing', 'paused': 'screen.ha.media.paused', 'idle': 'screen.ha.media.idle',
+    'standby': 'screen.ha.media.standby', 'buffering': 'addon.screen.states.buffering', 'cleaning': 'screen.ha.vacuum.cleaning',
+    'docked': 'screen.ha.vacuum.docked', 'returning': 'addon.screen.states.returning', 'error': 'addon.screen.states.error',
+    'heat': 'screen.ha.climate.heat', 'cool': 'screen.ha.climate.cool', 'heat_cool': 'screen.ha.climate.auto',
+    'auto': 'screen.ha.climate.auto', 'dry': 'screen.ha.climate.dry', 'fan_only': 'screen.ha.climate.fan_only',
+    'disarmed': 'addon.screen.states.disarmed', 'armed_home': 'addon.screen.states.armed_home',
+    'armed_away': 'addon.screen.states.armed_away', 'armed_night': 'addon.screen.states.armed_night',
+    'armed_vacation': 'addon.screen.states.armed_vacation', 'armed_custom_bypass': 'addon.screen.states.armed',
+    'arming': 'addon.screen.states.arming', 'pending': 'addon.screen.states.pending', 'triggered': 'addon.screen.states.triggered',
+    'active': 'addon.screen.states.active', 'above_horizon': 'addon.screen.states.up', 'below_horizon': 'addon.screen.states.down',
 }
-# device_class: (on, off). Tiles and cards show the same words from the screen's own copy, BINARY_WORDS in
-# components/smart_display/tile_controls.h (firmware 0.2.53+); tests/test_binary_words.py keeps the two equal.
-BINARY_STATES = {
-    'battery': ('Low', 'Normal'), 'battery_charging': ('Charging', 'Not charging'), 'carbon_monoxide': ('Danger', 'Safe'),
-    'cold': ('Cold', 'Normal'), 'connectivity': ('Connected', 'Disconnected'), 'door': ('Open', 'Closed'),
-    'garage_door': ('Open', 'Closed'), 'gas': ('Danger', 'Safe'), 'heat': ('Hot', 'Normal'), 'light': ('Light', 'Dark'),
-    'lock': ('Open', 'Locked'), 'moisture': ('Wet', 'Dry'), 'motion': ('Motion', 'No motion'),
-    'moving': ('Moving', 'Still'), 'occupancy': ('Occupied', 'Clear'), 'opening': ('Open', 'Closed'), 'plug': ('Plugged in', 'Unplugged'),
-    'power': ('On', 'Off'), 'presence': ('Home', 'Away'), 'problem': ('Problem', 'OK'), 'running': ('Active', 'Inactive'),
-    'safety': ('Unsafe', 'Safe'), 'smoke': ('Smoke', 'No smoke'), 'sound': ('Sound', 'Silent'), 'tamper': ('Tampering', 'OK'),
-    'update': ('Update', 'Up to date'), 'vibration': ('Vibration', 'Still'), 'window': ('Open', 'Closed'),
-}
+
+def state_text(raw):
+    """The bar's word for a state, in the screens' language; None for a state it has no word of its own for."""
+    return screen_t(STATES[raw]) if raw in STATES else None
+
+# The device classes with words of their own. Tiles and cards show the same words from the screen's own table, BINARY_WORDS
+# in components/smart_display/tile_controls.h (firmware 0.2.53+); tests/test_binary_words.py keeps the two equal. The words
+# are Home Assistant's, from the translations (screen.ha.binary, app 0.2.90): BINARY_STATES holds them in English, the
+# language of reference, as device_class: (on, off); binary_words gives them in the screens' language.
+BINARY_CLASSES = ('battery', 'battery_charging', 'carbon_monoxide', 'cold', 'connectivity', 'door', 'garage_door', 'gas',
+                  'heat', 'light', 'lock', 'moisture', 'motion', 'moving', 'occupancy', 'opening', 'plug', 'power',
+                  'presence', 'problem', 'running', 'safety', 'smoke', 'sound', 'tamper', 'update', 'vibration', 'window')
+BINARY_STATES = {name: (TRANSLATIONS.text(f'screen.ha.binary.{name}_on'), TRANSLATIONS.text(f'screen.ha.binary.{name}_off'))
+                 for name in BINARY_CLASSES}
+
+def binary_words(device_class):
+    """(on, off) for a binary sensor of this class in the screens' language; On and Off for a class without words of its
+    own, as the screen does."""
+    if device_class in BINARY_STATES:
+        return screen_t(f'screen.ha.binary.{device_class}_on'), screen_t(f'screen.ha.binary.{device_class}_off')
+    return screen_t('screen.ha.on'), screen_t('screen.ha.off')
+
 # Icon names from tile_icons; the fonts of both boards carry every one of them.
 BINARY_ICONS = {  # device_class: (on, off)
     'motion': ('motion-sensor', 'motion-sensor'), 'occupancy': ('home-account', 'home-account'),
@@ -107,7 +125,8 @@ def clean_text(text):
     return short(''.join(out).strip(), TEXT_BYTES)
 
 def number_text(value, precision=None):
-    """A number as Home Assistant writes it: decimal point, commas between thousands."""
+    """A number as Home Assistant writes it, in the screens' number format (app 0.2.90): "1,234.5", "1.234,5" or
+    "1 234,5"."""
     if precision is None:
         # Without a display precision HA keeps integers whole and shows at most three decimals.
         digits = 0 if float(value).is_integer() else 3
@@ -116,12 +135,10 @@ def number_text(value, precision=None):
             text = text.rstrip('0').rstrip('.')
     else:
         text = f'{value:.{precision}f}'
-    negative = text.startswith('-')
-    whole, _, fraction = text.lstrip('-').partition('.')
-    grouped = f'{int(whole):,}'
-    result = grouped + ('.' + fraction if fraction else '')
     # "-0" and "-0.0" are just zero.
-    return '-' + result if negative and any(c not in '0.,' for c in result) else result
+    if text.startswith('-') and not any(c not in '0.' for c in text[1:]):
+        text = text[1:]
+    return screen_number(text)
 
 def with_unit(text, unit):
     """Home Assistant's spacing: "21.3 °C", "65%", "18°"."""
@@ -145,7 +162,8 @@ def numeric(value):
     return number if math.isfinite(number) else None
 
 def short_date(moment):
-    return f'{moment.day} {MONTHS[moment.month - 1]}'
+    """"15 Sep", in the screens' language and in its order of day and month (app 0.2.90)."""
+    return screen_t('screen.date.day_month', day=moment.day, month=screen_t(f'screen.date.months_short.{moment.month - 1}'))
 
 def value(entity, state, entry=None, units=None, tz=None, words=None):
     """(text, unix time) an entity shows as its state; exactly one of them is set. `words` are Home Assistant's
@@ -159,11 +177,13 @@ def value(entity, state, entry=None, units=None, tz=None, words=None):
         return (None, epoch(raw)) if epoch(raw) else (UNAVAILABLE, None)
     if domain == 'script':
         moment = epoch(attrs.get('last_triggered'))
-        return ('Running', None) if raw == 'on' else (None, moment) if moment else ('Never run', None)
+        if raw == 'on':
+            return screen_t('addon.screen.script_running'), None
+        return (None, moment) if moment else (screen_t('screen.script.never_run'), None)
     if domain == 'sun':
         # The next event: sunset while the sun is up, sunrise while it is down.
         clock = local_clock(attrs.get('next_setting' if raw == 'above_horizon' else 'next_rising'), tz)
-        return (clock or STATES.get(raw, raw)), None
+        return (clock or state_text(raw) or raw), None
     if domain == 'weather':
         temperature = numeric(attrs.get('temperature'))
         if temperature is None:
@@ -174,9 +194,9 @@ def value(entity, state, entry=None, units=None, tz=None, words=None):
         if current is not None:
             return with_unit(number_text(current, 1), (units or {}).get('temperature', '°C')), None
     if domain in ('person', 'device_tracker'):
-        return STATES.get(raw, raw), None
+        return state_text(raw) or raw, None
     if domain == 'binary_sensor':
-        pair = BINARY_STATES.get(attrs.get('device_class'), ('On', 'Off'))
+        pair = binary_words(attrs.get('device_class'))
         return (pair[0] if raw == 'on' else pair[1] if raw == 'off' else raw), None
     if domain == 'input_datetime':
         # "2026-09-15 07:30:00", "2026-09-15" or just "07:30:00".
@@ -200,7 +220,7 @@ def value(entity, state, entry=None, units=None, tz=None, words=None):
     if domain in ('input_text', 'input_select', 'select'):
         return state_word(entity, raw, attrs, entry, words) or raw, None
     if raw in STATES:
-        return STATES[raw], None
+        return state_text(raw), None
     return state_word(entity, raw, attrs, entry, words) or raw[:1].upper() + raw[1:], None
 
 def active(entity, state):
@@ -306,7 +326,7 @@ def preview(header, states, registry=None, units=None, tz=None, words=None):
     result = []
     for item in header['items']:
         if item['type'] in HEADER_BUILTIN:
-            result.append({'k': item['type'], 'name': HEADER_BUILTIN[item['type']], 'shown': True})
+            result.append({'k': item['type'], 'name': t(f"addon.labels.top_bar.builtin.{item['type']}"), 'shown': True})
             continue
         wire, shown = entity_item(item, states, registry, units, tz, words)
         attrs = (states.get(item['entity']) or {}).get('attributes') or {}
@@ -334,19 +354,21 @@ def suggestions(screen, entities, states, registry=None, limit=8):
     def sensor(device_class):
         return lambda e: e['id'].startswith('sensor.') and attrs(e).get('device_class') == device_class and numeric(states[e['id']]['state']) is not None
     picks = []
-    pick('Temperature', sensor('temperature'))
-    pick('Humidity', sensor('humidity'))
-    pick('Power usage', sensor('power'))
-    pick('Last motion', lambda e: e['id'].startswith('binary_sensor.') and attrs(e).get('device_class') in ('motion', 'occupancy', 'presence'), 'last_changed')
-    pick('Weather', lambda e: e['id'].startswith('weather.'))
-    pick('People home', lambda e: e['id'] == 'zone.home')
-    pick('Sunrise and sunset', lambda e: e['id'] == 'sun.sun')
-    pick('CO₂', sensor('carbon_dioxide'))
+    # The labels in the editor's language (app 0.2.90).
+    label = lambda key: t(f'addon.labels.top_bar.suggestions.{key}')
+    pick(label('temperature'), sensor('temperature'))
+    pick(label('humidity'), sensor('humidity'))
+    pick(label('power'), sensor('power'))
+    pick(label('motion'), lambda e: e['id'].startswith('binary_sensor.') and attrs(e).get('device_class') in ('motion', 'occupancy', 'presence'), 'last_changed')
+    pick(label('weather'), lambda e: e['id'].startswith('weather.'))
+    pick(label('people_home'), lambda e: e['id'] == 'zone.home')
+    pick(label('sun'), lambda e: e['id'] == 'sun.sun')
+    pick(label('co2'), sensor('carbon_dioxide'))
     return picks[:limit]
 
 def catalogue():
-    """Choices the editor offers; labels in the order the sheet shows them."""
-    return {'builtin': [{'type': key, 'label': label} for key, label in HEADER_BUILTIN.items()],
-            'contents': [{'key': key, 'label': CONTENT_LABELS[key]} for key in HEADER_CONTENTS],
-            'shows': [{'key': key, 'label': SHOW_LABELS[key]} for key in HEADER_SHOWS],
+    """Choices the editor offers; labels in the order the sheet shows them, in the editor's language (app 0.2.90)."""
+    return {'builtin': [{'type': key, 'label': t(f'addon.labels.top_bar.builtin.{key}')} for key in HEADER_BUILTIN],
+            'contents': [{'key': key, 'label': t(f'addon.labels.top_bar.contents.{key}')} for key in HEADER_CONTENTS],
+            'shows': [{'key': key, 'label': t(f'addon.labels.top_bar.shows.{key}')} for key in HEADER_SHOWS],
             'max_items': HEADER_MAX_ITEMS, 'min_firmware': '.'.join(map(str, HEADER_MIN_FIRMWARE))}
