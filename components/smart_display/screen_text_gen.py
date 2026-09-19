@@ -103,7 +103,8 @@ def table(code, folder=TRANSLATIONS):
     for key, text in screen_pairs(english):
         keys.append(key)
         translated = own.get(key)
-        texts.append(translated if isinstance(translated, str) and translated.strip() else text)
+        # Only an empty text is missing: a separator of one space (French thousands) is a text.
+        texts.append(translated if isinstance(translated, str) and translated != '' else text)
     meta = (load(language, folder) or {}).get('_meta', {})
     rule = meta.get('plural') if meta.get('plural') in PLURAL_RULES else 'one_other'
     return language, keys, texts, rule

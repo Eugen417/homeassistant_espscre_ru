@@ -100,8 +100,11 @@ class Translations:
     def text(self, key, language='en', **params):
         """`key` in `language`, English where it has none, with {placeholders} filled; `n` picks a plural form."""
         language = self.resolve(language)
-        text = self.flat.get(language, {}).get(key) or self.flat['en'].get(key)
-        if not isinstance(text, str) or not text.strip():
+        text = self.flat.get(language, {}).get(key)
+        # Only an empty text is missing: a separator of one space (French thousands) is a text.
+        if not isinstance(text, str) or text == '':
+            text = self.flat['en'].get(key)
+        if not isinstance(text, str) or text == '':
             return key
         if '|' in text and 'n' in params:
             forms = [form.strip() for form in text.split('|')]
