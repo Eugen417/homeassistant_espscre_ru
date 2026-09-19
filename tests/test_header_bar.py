@@ -207,7 +207,9 @@ class ParityTests(unittest.TestCase):
         for phrase in ('Just now', ' min ago', ' hour ago', ' hours ago', 'Yesterday', ' days ago', '1 week ago', ' weeks ago',
                        '1 month ago', ' months ago', ' year ago', ' years ago', 'In ', 'Tomorrow'):
             self.assertIn(phrase, FIRMWARE)
-            self.assertIn(phrase, EDITOR)
+        # The editor's mockup draws the screens' own words since app 0.2.90: screen.time and screen.date of the translations.
+        for key in ('screen.time.${key}', 'screen.date.top_bar', 'screen.date.weekdays_min.${now.getDay()}', 'screen.date.months_short.${now.getMonth()}'):
+            self.assertIn(key, EDITOR)
         for threshold in ('3600', '86400', '172800', '604800', '2592000', '31536000'):
             self.assertIn(threshold, FIRMWARE)
             self.assertIn(threshold, EDITOR)
@@ -215,7 +217,8 @@ class ParityTests(unittest.TestCase):
         self.assertIn('Math.max(2, Math.floor((cap * 4 + 5) / 10)), item: Math.max(6, Math.floor((cap * 125 + 50) / 100)), name: Math.max(8, Math.floor((cap * 16 + 5) / 10))', EDITOR)
         self.assertIn('width * 35 / 100', FIRMWARE)
         self.assertIn('(metrics.width * 35) / 100', EDITOR)
-        self.assertEqual(header_bar.MONTHS, tuple(re.search(r'const MONTHS = \[(.*?)\];', EDITOR).group(1).replace('"', '').replace(' ', '').split(',')))
+        english = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']
+        self.assertEqual(header_bar.MONTHS, tuple(english['date']['months_short']))
 
     def test_profiles_draw_the_bar_from_the_runtime(self):
         for name in PROFILES:

@@ -4,14 +4,15 @@
 // exactly where it lands.
 import { computed } from "vue";
 import { vDrag } from "../drag";
+import { t } from "../i18n";
 import { domainInfo } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { addTile, automaticIcon, isGuition, repeatable, state, tileLimit } from "../store";
 
-const FILTERS: [string, string][] = [
-  ["", "All"], ["light", "Lights"], ["climate", "Climate"], ["switch", "Switches"], ["binary_sensor", "Status"], ["button", "Actions"],
-  ["script", "Scripts"], ["fan", "Fans"], ["cover", "Covers"], ["scene", "Scenes"], ["vacuum", "Vacuum"], ["sensor", "Sensors"],
-  ["media_player", "Media"], ["weather", "Weather"], ["number", "Values"], ["select", "Selects"], ["person", "People"], ["timer", "Timers"], ["screen", "Screen"],
+// The domains to filter on; the label of each is editor.library.filters.<domain>, "all" for no filter.
+const FILTERS = [
+  "", "light", "climate", "switch", "binary_sensor", "button", "script", "fan", "cover", "scene", "vacuum", "sensor",
+  "media_player", "weather", "number", "select", "person", "timer", "screen",
 ];
 const ALIAS: Record<string, string> = { switch: "input_boolean", number: "input_number", select: "input_select", weather: "sun", button: "input_button" };
 const chosen = computed(() => new Set(state.layout?.tiles.map((t) => t.entity) || []));
@@ -43,19 +44,19 @@ const tone = (e: { id: string; state?: string }) => {
 <template>
   <aside class="library" id="library">
     <div class="lib-head">
-      <div class="lib-title">Library <small>{{ count }} entities</small></div>
-      <input id="search" v-model="state.search" type="search" placeholder="Search by name, device, or room…" autocomplete="off" aria-label="Add an entity" />
+      <div class="lib-title">{{ t("editor.library.title") }} <small>{{ t("editor.library.entities", count) }}</small></div>
+      <input id="search" v-model="state.search" type="search" :placeholder="t('editor.library.search')" autocomplete="off" :aria-label="t('editor.library.search_label')" />
       <div class="filters" id="filters">
-        <button v-for="[value, label] in FILTERS" :key="value" type="button" :aria-pressed="state.filter === value ? 'true' : 'false'" @click="state.filter = value">
-          <span v-if="value" class="domain-icon" :style="{ color: domainInfo(value + '.')[2], background: domainInfo(value + '.')[3] }" aria-hidden="true">{{ domainInfo(value + ".")[1] }}</span>{{ label }}
+        <button v-for="value in FILTERS" :key="value" type="button" :aria-pressed="state.filter === value ? 'true' : 'false'" @click="state.filter = value">
+          <span v-if="value" class="domain-icon" :style="{ color: domainInfo(value + '.')[2], background: domainInfo(value + '.')[3] }" aria-hidden="true">{{ domainInfo(value + ".")[1] }}</span>{{ t(`editor.library.filters.${value || "all"}`) }}
         </button>
       </div>
       <div class="lib-row">
-        <select id="room" v-model="state.room" aria-label="Room">
-          <option value="">All rooms</option>
+        <select id="room" v-model="state.room" :aria-label="t('editor.library.room')">
+          <option value="">{{ t("editor.library.all_rooms") }}</option>
           <option v-for="room in rooms" :key="room" :value="room">{{ room }}</option>
         </select>
-        <button type="button" class="chip-toggle" id="hide-placed" :aria-pressed="state.hidePlaced ? 'true' : 'false'" title="Hide what is already on this screen" @click="state.hidePlaced = !state.hidePlaced">Hide placed</button>
+        <button type="button" class="chip-toggle" id="hide-placed" :aria-pressed="state.hidePlaced ? 'true' : 'false'" :title="t('editor.library.hide_placed_title')" @click="state.hidePlaced = !state.hidePlaced">{{ t("editor.library.hide_placed") }}</button>
       </div>
     </div>
     <div class="lib-list" id="results" aria-live="polite">
@@ -68,9 +69,9 @@ const tone = (e: { id: string; state?: string }) => {
         </span>
         <span class="add" :class="{ done: placed(entity.id) }">{{ placed(entity.id) ? "✓" : "+" }}</span>
       </button>
-      <p v-if="!matches.length" class="hint">{{ state.hidePlaced && !state.search && !state.filter && !state.room ? "Everything here is already on this screen." : "No entities found. Try a different name, room or filter." }}</p>
-      <p v-else-if="matches.length > 80" class="hint">{{ matches.length }} results. Keep typing to narrow it down.</p>
+      <p v-if="!matches.length" class="hint">{{ state.hidePlaced && !state.search && !state.filter && !state.room ? t("editor.library.all_placed") : t("editor.library.none_found") }}</p>
+      <p v-else-if="matches.length > 80" class="hint">{{ t("editor.common.results", matches.length) }}</p>
     </div>
-    <div class="lib-foot">{{ full ? `This screen holds ${tileLimit} tiles${tileLimit < 48 ? "; update its firmware for 48" : ""}.` : "Drag onto a page, or tap + to add to the first free slot. ⌘K searches everything." }}</div>
+    <div class="lib-foot">{{ full ? t(tileLimit < 48 ? "editor.library.full_update" : "editor.library.full", tileLimit) : t("editor.library.hint") }}</div>
   </aside>
 </template>

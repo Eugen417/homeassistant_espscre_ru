@@ -1,8 +1,9 @@
 <script setup lang="ts">
 // The bar at the top of a mockup page, drawn as the screen draws it: name left, items right.
 import { computed } from "vue";
+import { t } from "../i18n";
 import { barLayout, dotted, type BarPart } from "../model/topbar";
-import { barMetrics, state, topbarItems, topbarView } from "../store";
+import { barMetrics, screenText, state, topbarItems, topbarView } from "../store";
 
 const props = defineProps<{ items?: any[]; nameText?: string; single?: boolean }>();
 
@@ -11,7 +12,7 @@ const lay = computed(() => {
   void state.now;
   void state.topbarPreviews;
   const items = props.items || topbarItems();
-  return barLayout(items, barMetrics.value, props.nameText ?? (state.layout?.title || "Home"), topbarView);
+  return barLayout(items, barMetrics.value, props.nameText ?? (state.layout?.title || screenText("editor.mockup.home")), topbarView);
 });
 const m = computed(() => lay.value.metrics);
 const height = computed(() => (props.single ? Math.round(m.value.text * 1.4) : m.value.top + Math.round(m.value.name * 0.45)));
@@ -43,7 +44,7 @@ defineExpose({ lay });
 </script>
 
 <template>
-  <svg :viewBox="viewBox" role="img" :aria-label="single ? 'How it looks on the screen' : `Top bar: ${lay.nameText}`" :style="single ? { width: singleWidth } : undefined">
+  <svg :viewBox="viewBox" role="img" :aria-label="single ? t('editor.topbar.live.looks') : t('editor.topbar.aria', { name: lay.nameText })" :style="single ? { width: singleWidth } : undefined">
     <text v-if="!single" x="0" :y="m.top" fill="#1b1b1b" :style="{ font: lay.fonts.name }">{{ name }}</text>
     <g>
       <template v-for="p in parts" :key="p.index">

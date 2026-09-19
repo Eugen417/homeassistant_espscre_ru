@@ -3,9 +3,10 @@
 // dragged, drawn where it will land.
 import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
-import { displayNames, effectiveControls, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
-import { glyph } from "../model/topbar";
-import { entityName, isSelected, liveOf, openTile, placeTile, removeTile, state, tileIconCp } from "../store";
+import { numberText, t, te } from "../i18n";
+import { displayName, effectiveControls, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
+import { clockText, glyph } from "../model/topbar";
+import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenText, state, tileIconCp } from "../store";
 import type { Tile } from "../types";
 
 const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean }>();
@@ -16,14 +17,14 @@ const goesTo = computed(() => pageTarget(props.tile.entity));
 const background = computed(() => state.inventory.backgrounds?.[props.tile.options?.background || ""]?.color);
 const bare = computed(() => props.tile.options?.background === "none");
 const display = computed(() => props.tile.options?.display || "standard");
-const note = computed(() => (display.value !== "standard" ? displayNames[display.value] || display.value : ""));
+const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
 const controls = computed(() => effectiveControls(props.tile, state.inventory));
 const domain = computed(() => props.tile.entity.split(".")[0]);
 const cp = computed(() => state.inventory.icons?.controls || {});
 const key = (n: string) => (cp.value[n] ? glyph(cp.value[n]) : "");
 const chosen = computed(() => isSelected(props.tile) && state.inspector?.kind === "tile");
 const live = computed(() => !props.placeholder && state.layout?.tiles.includes(props.tile));
-const label = computed(() => `${name.value}, slot ${(props.slot % SLOTS_PER_PAGE) + 1} on page ${pageOf(props.slot) + 1}. Enter: configure, arrow keys: move`);
+const label = computed(() => t("editor.tile_card.label", { name: name.value, slot: (props.slot % SLOTS_PER_PAGE) + 1, page: pageOf(props.slot) + 1 }));
 const now = computed(() => new Date(state.now));
 const hourAngle = computed(() => (now.value.getHours() % 12 + now.value.getMinutes() / 60) * 30);
 const minuteAngle = computed(() => now.value.getMinutes() * 6);
@@ -35,25 +36,36 @@ const on = computed(() => Boolean(current.value) && !gone.value && current.value
 const isOn = computed(() => ["light", "switch", "input_boolean", "fan"].includes(domain.value) && current.value?.state === "on");
 const unit = computed(() => current.value?.a?.unit_of_measurement as string | undefined);
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");
-// Home Assistant's words for the weather states, for a Home Assistant that hands us none.
-const WEATHER_WORDS: Record<string, string> = { "clear-night": "Clear, night", cloudy: "Cloudy", exceptional: "Exceptional", fog: "Fog", hail: "Hail", lightning: "Lightning", "lightning-rainy": "Lightning, rainy", partlycloudy: "Partly cloudy", pouring: "Pouring", rainy: "Rainy", snowy: "Snowy", "snowy-rainy": "Snowy, rainy", sunny: "Sunny", windy: "Windy", "windy-variant": "Windy" };
+// Numbers as the screens write them, "1,234.5" or "1.234,5" (app 0.2.90).
+const num = (value: unknown) => numberText(value as string | number, numberMarks.value);
+// The screens' own words for a state where Home Assistant hands us none (screen.ha, Home Assistant's words in the
+// screens' language, app 0.2.90): a binary sensor's by its device class, on and off, and the states of the domains
+// the screen names itself. A weather's windy-variant is windy there too.
+const HA_WORDS: Record<string, string> = { climate: "climate", cover: "cover", media_player: "media", person: "person", sun: "sun", vacuum: "vacuum", weather: "weather" };
+function haWord(c: { state: string; a: Record<string, any> }) {
+  const key = (path: string) => (te(`screen.ha.${path}`) ? screenText(`screen.ha.${path}`) : "");
+  const value = c.state === "windy-variant" ? "windy" : c.state.replace(/-/g, "_");
+  if (domain.value === "binary_sensor" && ["on", "off"].includes(value)) return key(`binary.${c.a?.device_class}_${value}`) || key(value);
+  if (HA_WORDS[domain.value]) return key(`${HA_WORDS[domain.value]}.${value}`) || (["on", "off"].includes(value) ? key(value) : "");
+  return ["on", "off"].includes(value) ? key(value) : "";
+}
 // A scene, script or button has no state worth a word: its state is the moment it last ran.
 const NO_STATUS = ["scene", "script", "button", "input_button"];
 // The text under the name: Home Assistant's word where it has one, the value with its unit for a sensor.
 const status = computed(() => {
   const c = current.value;
   if (!c || NO_STATUS.includes(domain.value)) return note.value;
-  if (gone.value) return c.state === "unknown" ? "Unknown" : "Unavailable";
+  if (gone.value) return screenText(c.state === "unknown" ? "editor.mockup.unknown" : "screen.ha.unavailable");
   const a = c.a || {};
-  if (domain.value === "climate") return `${a.current_temperature !== undefined ? `${a.current_temperature}° · ` : ""}${c.word || capital(c.state)}`;
-  if (domain.value === "weather") return `${c.word || WEATHER_WORDS[c.state] || capital(c.state)}${a.temperature !== undefined ? ` · ${a.temperature}°` : ""}`;
-  if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${c.word || capital(c.state)} · ${a.current_position} %`;
-  if (domain.value === "media_player" && a.media_title) return `${c.word || capital(c.state)} · ${a.media_title}`;
-  if (domain.value === "sensor") return `${c.state}${unit.value ? ` ${unit.value}` : ""}`;
-  if (domain.value === "timer") return c.word || capital(c.state);
-  return c.word || capital(c.state);
+  const word = c.word || haWord(c) || capital(c.state);
+  if (domain.value === "climate") return `${a.current_temperature !== undefined ? `${num(a.current_temperature)}° · ` : ""}${word}`;
+  if (domain.value === "weather") return `${word}${a.temperature !== undefined ? ` · ${num(a.temperature)}°` : ""}`;
+  if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${word} · ${a.current_position} %`;
+  if (domain.value === "media_player" && a.media_title) return `${word} · ${a.media_title}`;
+  if (domain.value === "sensor") return `${num(c.state)}${unit.value ? ` ${unit.value}` : ""}`;
+  return word;
 });
-const bigValue = computed(() => (current.value && !gone.value ? current.value.state : "—"));
+const bigValue = computed(() => (current.value && !gone.value ? num(current.value.state) : "—"));
 // The small slider's fill, from what the entity reports; off is empty, like the screen's grey fill.
 const fill = computed(() => {
   const c = current.value;
@@ -70,11 +82,14 @@ const fill = computed(() => {
   }
   return 0;
 });
+// The key on a scene, script or button, and the page a navigation tile opens, as the screen labels them.
+const runText = computed(() => screenText(`screen.ha.button.${({ scene: "activate", script: "run" } as Record<string, string>)[domain.value] || "press"}`));
+const pageLink = computed(() => `${screenText("screen.tile.page", { n: goesTo.value })} ›`);
 const sliderStyle = computed(() => ({ background: `linear-gradient(to right, ${fill.value ? "#ffbf38" : "#c9ccd1"} ${fill.value}%, ${fill.value ? "#fff1d3" : "#e6e8ec"} ${fill.value}%)` }));
 const volumeStyle = computed(() => ({ background: `linear-gradient(to right, #2196f3 ${fill.value}%, #d3e8fb ${fill.value}%)` }));
 const setpoint = computed(() => {
-  const t = current.value?.a?.temperature;
-  return t !== undefined && t !== null ? `${t}°` : "—";
+  const temperature = current.value?.a?.temperature;
+  return temperature !== undefined && temperature !== null ? `${num(temperature)}°` : "—";
 });
 
 async function onKey(e: KeyboardEvent) {
@@ -107,13 +122,13 @@ async function onKey(e: KeyboardEvent) {
     </template>
     <template v-else-if="display === 'digital' && domain === 'screen'">
       <span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span>
-      <span class="lead"><span class="big">{{ String(now.getHours()).padStart(2, "0") }}:{{ String(now.getMinutes()).padStart(2, "0") }}</span><span class="nm">{{ name }}</span></span>
+      <span class="lead"><span class="big">{{ clockText(clock24, now) }}</span><span class="nm">{{ name }}</span></span>
     </template>
     <template v-else-if="full">
       <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
       <span class="lead">
         <span class="nm">{{ name }}</span>
-        <span v-if="goesTo" class="goto">Page {{ goesTo }} ›</span>
+        <span v-if="goesTo" class="goto">{{ pageLink }}</span>
         <span v-else-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
         <span v-else-if="status" class="st" :class="{ off: gone }">{{ status }}</span>
       </span>
@@ -124,7 +139,7 @@ async function onKey(e: KeyboardEvent) {
         <template v-else-if="controls === 'volume'"><span class="range" :style="volumeStyle"></span><span class="key mdi">{{ key("volume-high") }}</span></template>
         <template v-else-if="controls === 'playback'"><span class="key mdi">{{ key("skip-previous") }}</span><span class="key mdi">{{ key(on ? "pause" : "play") || key("play") }}</span><span class="key mdi">{{ key("skip-next") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
-        <span v-else-if="controls === 'run'" class="run">{{ ({ scene: "Activate", script: "Run" } as Record<string, string>)[domain] || "Press" }}</span>
+        <span v-else-if="controls === 'run'" class="run">{{ runText }}</span>
         <span v-else class="range" :style="{ background: `linear-gradient(to right, #2196f3 ${fill}%, #d3e8fb ${fill}%)` }"></span>
       </span>
     </template>
@@ -133,7 +148,7 @@ async function onKey(e: KeyboardEvent) {
         <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
         <span class="tx">
           <span class="nm">{{ name }}</span>
-          <span v-if="goesTo" class="goto">Page {{ goesTo }} ›</span>
+          <span v-if="goesTo" class="goto">{{ pageLink }}</span>
           <span v-else-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
           <span v-else-if="status" class="st" :class="{ off: gone }">{{ status }}</span>
         </span>
@@ -150,7 +165,7 @@ async function onKey(e: KeyboardEvent) {
         <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'vacuum'"><span class="key mdi">{{ key("play") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("home-map-marker") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'timer'"><span class="key mdi">{{ key("play") }}</span><span class="key mdi">{{ key("close") }}</span></template>
-        <span v-else-if="controls === 'run'" class="run">{{ ({ scene: "Activate", script: "Run" } as Record<string, string>)[domain] || "Press" }}</span>
+        <span v-else-if="controls === 'run'" class="run">{{ runText }}</span>
         <span v-else class="range" :style="{ background: `linear-gradient(to right, #2196f3 ${fill}%, #d3e8fb ${fill}%)` }"></span>
       </span>
     </template>
@@ -161,13 +176,13 @@ async function onKey(e: KeyboardEvent) {
         <span class="ic mdi" :class="{ lit: isOn }">{{ glyph(tileIconCp(tile)) }}</span>
         <span class="tx">
           <span class="nm">{{ name }}</span>
-          <span v-if="goesTo" class="goto">Page {{ goesTo }} ›</span>
+          <span v-if="goesTo" class="goto">{{ pageLink }}</span>
           <span v-else-if="display !== 'watch' && status" class="st" :class="{ off: gone }">{{ status }}</span>
         </span>
       </span>
       <span v-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
     </template>
-    <button v-if="live" type="button" class="remove" title="Remove tile" :aria-label="`Remove ${name}`" @click.stop="removeTile(tile)">✕</button>
+    <button v-if="live" type="button" class="remove" :title="t('editor.tile_card.remove')" :aria-label="t('editor.tile_card.remove_named', { name })" @click.stop="removeTile(tile)">✕</button>
   </div>
 </template>

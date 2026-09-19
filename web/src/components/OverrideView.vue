@@ -2,6 +2,7 @@
 // Per-screen local YAML override: a small file of the owner's, loaded after the shared screen package.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { getJson, send } from "../api";
+import { t } from "../i18n";
 import { glyph } from "../model/topbar";
 import { go, state, toast } from "../store";
 
@@ -20,25 +21,25 @@ const profile = computed(() => state.overrideProfile);
 const content = ref("");
 const file = ref("");
 const attached = ref(false);
-const status = ref("Loading…");
+const status = ref(t("editor.common.loading"));
 const kind = ref("");
 const busy = ref(false);
 const editor = ref<HTMLTextAreaElement | null>(null);
 const gutter = ref<HTMLDivElement | null>(null);
 const lines = computed(() => content.value.split("\n").length);
 const gutterText = computed(() => Array.from({ length: lines.value }, (_, i) => i + 1).join("\n"));
-const count = computed(() => `${content.value.length} characters · ${lines.value} line${lines.value === 1 ? "" : "s"}`);
+const count = computed(() => `${t("editor.override.characters", content.value.length)} · ${t("editor.override.lines", lines.value)}`);
 let alive = true;
 function setStatus(message: string, k = "") { status.value = message; kind.value = k; }
 async function load() {
-  if (!profile.value) { setStatus("No ESPHome profile was found for this screen.", "error"); return; }
-  setStatus("Loading…");
+  if (!profile.value) { setStatus(t("editor.override.no_profile"), "error"); return; }
+  setStatus(t("editor.common.loading"));
   try {
     const data = await getJson(`firmware/profiles/${encodeURIComponent(profile.value)}/override`);
     file.value = data.override_file;
     attached.value = Boolean(data.attached);
     content.value = data.exists && data.content !== "{}\n" ? data.content : "";
-    setStatus(data.attached ? "Changes here apply on the next build." : "Save once to attach this file to the profile.");
+    setStatus(t(data.attached ? "editor.override.attached" : "editor.override.not_attached"));
   } catch (error: any) {
     setStatus(error.message, "error");
   }
@@ -46,17 +47,17 @@ async function load() {
 async function saveOverride(runCheck = false) {
   if (!profile.value || busy.value) return;
   busy.value = true;
-  setStatus("Checking and saving…");
+  setStatus(t("editor.override.saving"));
   try {
     const data = await send(`firmware/profiles/${encodeURIComponent(profile.value)}/override`, "PUT", { content: content.value });
     file.value = data.override_file;
     attached.value = true;
     if (!runCheck) {
-      setStatus("Saved. The override is kept during firmware updates.", "ok");
-      toast("Override YAML saved.");
+      setStatus(t("editor.override.saved"), "ok");
+      toast(t("editor.override.saved_toast"));
       return;
     }
-    setStatus("Saved. ESPHome is checking the complete profile…");
+    setStatus(t("editor.override.checking"));
     await send("firmware/jobs", "POST", { file: profile.value, action: "validate" });
     pollCheck();
   } catch (error: any) {
@@ -73,13 +74,13 @@ function pollCheck() {
       const data = await getJson("firmware");
       const current = data.job;
       if (current && current.file === checked && current.state === "running") {
-        setStatus(`ESPHome is checking the profile… ${current.stage || ""}`.trim());
+        setStatus(current.stage ? t("editor.override.checking_stage", { stage: current.stage }) : t("editor.override.checking_profile"));
       } else if (current && current.file === checked && current.state === "success") {
-        setStatus("The complete profile is valid. Safe to build and install.", "ok");
+        setStatus(t("editor.override.valid"), "ok");
         return;
       } else if (current && current.file === checked && current.state === "failed") {
         const error = (data.logs || []).filter((line: string) => /error|failed/i.test(line)).pop();
-        setStatus(error || "ESPHome rejected the complete profile. See Firmware & USB for the full log.", "error");
+        setStatus(error || t("editor.override.rejected"), "error");
         return;
       }
       if (Date.now() - started < 7200000) setTimeout(poll, 1200);
@@ -90,16 +91,16 @@ function pollCheck() {
   poll();
 }
 function useExample() {
-  if (!content.value.trim() || confirm("Replace the current text with the example?")) {
+  if (!content.value.trim() || confirm(t("editor.override.confirm_example"))) {
     content.value = OVERRIDE_EXAMPLE;
-    setStatus("Example loaded. Save it when you are ready.");
+    setStatus(t("editor.override.example_loaded"));
     editor.value?.focus();
   }
 }
 function clear() {
-  if (!content.value.trim() || confirm("Clear the local override?")) {
+  if (!content.value.trim() || confirm(t("editor.override.confirm_clear"))) {
     content.value = "";
-    setStatus("The override will be empty after you save.");
+    setStatus(t("editor.override.cleared"));
     editor.value?.focus();
   }
 }
@@ -124,34 +125,34 @@ onBeforeUnmount(() => { alive = false; });
   <div class="panel" id="override-dialog">
     <div class="panel-head">
       <div class="tx">
-        <span class="eyebrow">Advanced · local override</span>
-        <h1 id="override-title">Override YAML{{ state.overrideFriendly ? ` · ${state.overrideFriendly}` : "" }}</h1>
-        <p>This small file is yours. It is loaded after the shared screen package and stays in place when ESP Screen Manager updates. Change hardware-specific details here, such as a display model.</p>
+        <span class="eyebrow">{{ t("editor.override.eyebrow") }}</span>
+        <h1 id="override-title">{{ state.overrideFriendly ? t("editor.override.title_named", { name: state.overrideFriendly }) : t("editor.override.title") }}</h1>
+        <p>{{ t("editor.override.intro") }}</p>
       </div>
-      <button type="button" class="btn quiet" id="close-override" @click="go('')">← Back</button>
+      <button type="button" class="btn quiet" id="close-override" @click="go('')">{{ t("editor.common.back") }}</button>
     </div>
     <div class="notice">
       <span class="mdi">{{ glyph("F0493") }}</span>
-      <div><strong>What is safe to change?</strong><span>Display, touchscreen, substitutions, pins and other device details. Name, Wi-Fi, API, OTA and package links remain managed.</span></div>
+      <div><strong>{{ t("editor.override.safe_title") }}</strong><span>{{ t("editor.override.safe_text") }}</span></div>
     </div>
     <div class="file-row">
       <code id="override-file">{{ file || profile || "" }}</code>
-      <span id="override-state" class="chip" :class="{ good: attached }">{{ attached ? "Active" : "Ready to attach" }}</span>
+      <span id="override-state" class="chip" :class="{ good: attached }">{{ attached ? t("editor.override.active") : t("editor.override.ready") }}</span>
     </div>
     <div class="yaml-editor" id="yaml-editor-wrap">
       <div ref="gutter" class="yaml-gutter" id="override-gutter" aria-hidden="true">{{ gutterText }}</div>
       <textarea ref="editor" id="override-editor" v-model="content" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off"
-        aria-label="Local override YAML" placeholder="# Example&#10;display:&#10;  - id: !extend my_display&#10;    model: ST7789V" @keydown="onKey" @scroll="syncScroll"></textarea>
+        :aria-label="t('editor.override.editor_label')" placeholder="# Example&#10;display:&#10;  - id: !extend my_display&#10;    model: ST7789V" @keydown="onKey" @scroll="syncScroll"></textarea>
     </div>
     <div class="actions">
-      <button type="button" class="btn quiet mini" id="override-example" @click="useExample">Use example</button>
-      <button type="button" class="btn quiet mini" id="override-empty" @click="clear">Clear</button>
+      <button type="button" class="btn quiet mini" id="override-example" @click="useExample">{{ t("editor.override.use_example") }}</button>
+      <button type="button" class="btn quiet mini" id="override-empty" @click="clear">{{ t("editor.override.clear") }}</button>
       <span id="override-count" class="hint">{{ count }}</span>
     </div>
     <p id="override-status" class="status-line" :class="kind" role="status">{{ status }}</p>
     <div class="actions">
-      <button type="button" class="btn quiet" id="override-check" :disabled="busy || !profile" @click="saveOverride(true)">Save &amp; check</button>
-      <button type="button" class="btn primary" id="override-save" :disabled="busy || !profile" @click="saveOverride(false)">Save override</button>
+      <button type="button" class="btn quiet" id="override-check" :disabled="busy || !profile" @click="saveOverride(true)">{{ t("editor.override.save_check") }}</button>
+      <button type="button" class="btn primary" id="override-save" :disabled="busy || !profile" @click="saveOverride(false)">{{ t("editor.override.save") }}</button>
     </div>
   </div>
 </template>

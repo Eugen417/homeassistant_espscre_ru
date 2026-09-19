@@ -2,12 +2,12 @@
 // New screen: profile, Wi-Fi, and the first flash in one go.
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
 import { getJson, send } from "../api";
+import { t } from "../i18n";
 import { copyText, go, openIntegrations, toast } from "../store";
 
 // Download: ESP Screens builds, the owner flashes the file from their own computer. ESPHome Web is ESPHome's own
 // browser flasher; this address opens it with its hint for a downloaded project (as ESPHome Device Builder does).
 const ESPHOME_WEB = "https://web.esphome.io/?dashboard_install";
-const DOWNLOAD_TARGET = "Download · flash from your own computer";
 const form = reactive({ board: "cyd", friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
 const installer = reactive({
   view: "setup" as "setup" | "progress" | "done", file: null as string | null, friendly: "", board: "cyd", target: "",
@@ -40,24 +40,22 @@ const ports = computed<string[]>(() => data.value?.ports || []);
 const wifi = computed(() => data.value?.wifi);
 const askWifi = computed(() => wifi.value?.state === "new" || wifi.value?.state === "missing");
 const wifiMissing = computed<string[]>(() => wifi.value?.missing || []);
-const wifiStatus = computed(() => wifi.value?.state === "new"
-  ? "Fill in once: ESP Screens saves this in ESPHome secrets.yaml, later screens use it automatically."
-  : "Your ESPHome secrets.yaml is still missing Wi-Fi details. ESP Screens only fills in the missing lines.");
+const wifiStatus = computed(() => t(wifi.value?.state === "new" ? "editor.installer.wifi.new" : "editor.installer.wifi.missing"));
 const wifiNote = computed(() => wifi.value?.state === "ready"
-  ? "Wi-Fi comes from your ESPHome secrets.yaml."
+  ? t("editor.installer.wifi.ready")
   : wifi.value?.state === "invalid"
-    ? "secrets.yaml in the ESPHome folder isn't valid YAML. Fix the file first; it won't be overwritten."
+    ? t("editor.installer.wifi.invalid")
     : "");
-const targetHint = computed(() => form.target === "usb"
-  ? "Connect the screen with a USB data cable to the Home Assistant machine; the list refreshes on its own. Or choose Download to use your own computer."
+const targetHint = computed(() => t(form.target === "usb"
+  ? "editor.installer.target.usb"
   : form.target === "download"
-    ? "Download the firmware and put it on the screen from your own computer, in Chrome or Edge. After that, updates go over Wi-Fi."
+    ? "editor.installer.target.download"
     : !form.target
-      ? "The profile goes into the ESPHome folder. You can install later via Firmware & USB, or from ESPHome Device Builder."
+      ? "editor.installer.target.later"
       : ports.value.length > 1
-        ? "More than one board connected: choose this screen's port."
-        : "Once over USB; after that, everything is wireless.");
-const goLabel = computed(() => (form.target === "download" ? "Build & download" : form.target ? "Install" : "Save profile"));
+        ? "editor.installer.target.several"
+        : "editor.installer.target.once"));
+const goLabel = computed(() => (form.target === "download" ? t("editor.firmware.build_download") : form.target ? t("editor.installer.install") : t("editor.installer.save_profile")));
 const busyElsewhere = computed(() => data.value?.job?.state === "running" && !(installer.file && data.value.job.file === installer.file));
 const goDisabled = computed(() => submitting.value || wifi.value?.state === "invalid" || form.target === "usb" ||
   (!!form.target && (busyElsewhere.value || !data.value?.available)));
@@ -84,9 +82,9 @@ async function installerRefresh() {
     if (ours && current.state === "running") { showProgress(current, next.logs || []); return; }
     syncTarget();
     note.value = busyElsewhere.value
-      ? `A build or installation is already running (${current.file}). Wait for it to finish.`
+      ? t("editor.installer.busy", { file: current.file })
       : !next.available && form.target
-        ? "The ESPHome CLI is missing from this installation; only saving the profile is possible."
+        ? t("editor.installer.no_cli")
         : wifiNote.value;
   } else if (installer.view === "progress" && ours) {
     job.value = current;
@@ -104,32 +102,28 @@ function showProgress(current: any, lines: string[]) {
 const running = computed(() => job.value?.state === "running");
 const ok = computed(() => installer.view === "done" || job.value?.state === "success");
 const download = computed(() => installer.action === "download");
-const title = computed(() => installer.view === "done" ? "Profile saved." : running.value ? "One moment…" : ok.value ? (download.value ? "Ready to download." : "Done.") : "That didn't work.");
+const title = computed(() => t(installer.view === "done"
+  ? "editor.installer.title.saved"
+  : running.value ? "editor.installer.title.running" : ok.value ? (download.value ? "editor.installer.title.ready" : "editor.installer.title.done") : "editor.installer.title.failed"));
 const progressTitle = computed(() => installer.view === "done"
-  ? `${installer.file} is in the ESPHome folder`
+  ? t("editor.installer.progress.saved", { file: installer.file })
   : running.value
-    ? job.value?.stage === "upload" ? `Writing firmware to ${installer.friendly}…` : "Building firmware…"
+    ? job.value?.stage === "upload" ? t("editor.installer.progress.writing", { name: installer.friendly }) : t("editor.installer.progress.building")
     : ok.value
-      ? download.value ? `Firmware for ${installer.friendly} is ready` : `Firmware is on ${installer.friendly}`
-      : download.value ? "Build failed" : "Install failed");
+      ? download.value ? t("editor.installer.progress.ready", { name: installer.friendly }) : t("editor.installer.progress.installed", { name: installer.friendly })
+      : t(download.value ? "editor.installer.progress.build_failed" : "editor.installer.progress.install_failed"));
 const progressDetail = computed(() => installer.view === "done"
-  ? "Install it later from Firmware & USB: choose this profile, then the USB port of the Home Assistant machine, or Download to put the firmware on the screen from your own computer. Save the API key for pairing:"
+  ? t("editor.installer.detail.saved")
   : running.value
     ? job.value?.stage === "upload"
-      ? "Don't disconnect the USB cable yet."
-      : `A first build takes a few minutes on a Raspberry Pi. You can leave this page: the ${download.value ? "build" : "installation"} keeps running and you'll find it again under New screen.`
+      ? t("editor.installer.detail.uploading")
+      : t(download.value ? "editor.installer.detail.building_download" : "editor.installer.detail.building")
     : ok.value
       ? download.value
-        ? "Put it on the screen from your own computer, then pair the screen with Home Assistant."
-        : `The screen boots up and connects to your Wi-Fi.${installer.board === "cyd" ? " The CYD first asks for a touch calibration: tap the crosshairs." : ""} Pair it with Home Assistant now:`
-      : logs.value.filter((l) => /error/i.test(l)).pop() || logs.value.filter((l) => /failed/i.test(l)).pop() || "See the log below.");
+        ? t("editor.installer.detail.downloaded")
+        : t(installer.board === "cyd" ? "editor.installer.detail.booted_cyd" : "editor.installer.detail.booted")
+      : logs.value.filter((l) => /error/i.test(l)).pop() || logs.value.filter((l) => /failed/i.test(l)).pop() || t("editor.installer.detail.see_log"));
 const image = computed(() => ({ href: `api/firmware/profiles/${encodeURIComponent(installer.file || "")}/download`, name: (installer.file || "").replace(/\.yaml$/, "") + ".factory.bin" }));
-const pairingSteps = computed(() => [
-  ["Go to Home Assistant → Settings → Devices & services.", ` This happens outside ESP Screens. Home Assistant discovers ${installer.friendly} as an ESPHome device; click Add. Not discovered? Add ESPHome manually with the screen's IP address. `],
-  ["Paste the API key", " above when Home Assistant asks for an encryption key."],
-  ["Allow HA actions:", " ESPHome integration → Configure → “Allow the device to perform Home Assistant actions”. Without this, the screen sees everything but controls nothing."],
-  ["Choose your tiles.", " Back in ESP Screens, the screen appears in the list on the left within about thirty seconds; until then it's shown there as “not yet in Home Assistant”."],
-]);
 async function submit(event: Event) {
   const element = event.target as HTMLFormElement;
   if (!installer.nodeEdited) form.name = slug(form.friendly_name);
@@ -183,44 +177,44 @@ onBeforeUnmount(() => clearInterval(poll));
   <div class="panel" id="installer">
     <div class="panel-head">
       <div class="tx">
-        <span class="eyebrow">New screen</span>
-        <h1 id="install-title">{{ installer.view === "setup" ? "Connect and install." : title }}</h1>
-        <p v-if="installer.view === 'setup'">ESP Screens creates the screen's own profile with unique keys and builds the firmware. Connect the screen with a USB data cable to the machine running Home Assistant, or download the firmware and put it on the screen from your own computer.</p>
+        <span class="eyebrow">{{ t("editor.nav.new_screen") }}</span>
+        <h1 id="install-title">{{ installer.view === "setup" ? t("editor.installer.title.setup") : title }}</h1>
+        <p v-if="installer.view === 'setup'">{{ t("editor.installer.intro") }}</p>
       </div>
-      <button type="button" class="btn quiet" id="close-install" aria-label="Close" @click="close">← Back</button>
+      <button type="button" class="btn quiet" id="close-install" :aria-label="t('editor.common.close')" @click="close">{{ t("editor.common.back") }}</button>
     </div>
     <form v-if="installer.view === 'setup'" id="install-form" class="card" @submit.prevent="submit">
       <fieldset>
-        <legend>Which screen do you have?</legend>
+        <legend>{{ t("editor.installer.board") }}</legend>
         <div class="boards">
-          <label class="board"><input type="radio" name="board" value="cyd" v-model="form.board" /><span><b>CYD · 2.8 inch</b><small>ESP32-2432S028 · 320 × 240</small></span></label>
-          <label class="board"><input type="radio" name="board" value="guition" v-model="form.board" /><span><b>Guition · 4 inch</b><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span></label>
+          <label class="board"><input type="radio" name="board" value="cyd" v-model="form.board" /><span><b>{{ t("editor.installer.board_cyd") }}</b><small>ESP32-2432S028 · 320 × 240</small></span></label>
+          <label class="board"><input type="radio" name="board" value="guition" v-model="form.board" /><span><b>{{ t("editor.installer.board_guition") }}</b><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span></label>
         </div>
       </fieldset>
       <div class="field">
-        <label class="f-label" for="friendly_name">Name</label>
-        <input id="friendly_name" name="friendly_name" v-model="form.friendly_name" required maxlength="60" placeholder="Living room screen" autocomplete="off" />
-        <small class="node-line">Device name <code id="node-preview">{{ nodePreview }}</code><button type="button" class="btn link mini" id="edit-node" @click="installer.nodeEdited = true; nodeVisible = true">customize</button></small>
-        <small>Every screen gets its own profile with its own keys. Four screens? Go through this four times with a different name.</small>
+        <label class="f-label" for="friendly_name">{{ t("editor.installer.name") }}</label>
+        <input id="friendly_name" name="friendly_name" v-model="form.friendly_name" required maxlength="60" :placeholder="t('editor.installer.name_placeholder')" autocomplete="off" />
+        <small class="node-line">{{ t("editor.installer.device_name") }} <code id="node-preview">{{ nodePreview }}</code><button type="button" class="btn link mini" id="edit-node" @click="installer.nodeEdited = true; nodeVisible = true">{{ t("editor.installer.customize") }}</button></small>
+        <small>{{ t("editor.installer.name_hint") }}</small>
       </div>
       <div v-if="nodeVisible" class="field" id="node-label">
-        <label class="f-label" for="node-name">Device name</label>
+        <label class="f-label" for="node-name">{{ t("editor.installer.device_name") }}</label>
         <input id="node-name" name="name" v-model="form.name" pattern="[a-z][a-z0-9\-]{0,29}" maxlength="30" autocomplete="off" @input="installer.nodeEdited = true" />
-        <small>Lowercase letters, digits, and dashes. A different name for each screen.</small>
+        <small>{{ t("editor.installer.device_name_hint") }}</small>
       </div>
       <fieldset v-if="askWifi" id="wifi-fields" class="wifi">
-        <legend>Wi-Fi</legend>
+        <legend>{{ t("editor.installer.wifi.title") }}</legend>
         <p class="hint" id="wifi-status">{{ wifiStatus }}</p>
-        <div v-if="wifiMissing.includes('wifi_ssid')" class="field" id="wifi-ssid-label"><label class="f-label" for="wifi_ssid">Wi-Fi name (2.4 GHz)</label><input id="wifi_ssid" name="wifi_ssid" v-model="form.wifi_ssid" autocomplete="off" /></div>
-        <div v-if="wifiMissing.includes('wifi_password')" class="field" id="wifi-password-label"><label class="f-label" for="wifi_password">Wi-Fi password</label><input id="wifi_password" name="wifi_password" type="password" v-model="form.wifi_password" autocomplete="new-password" /></div>
+        <div v-if="wifiMissing.includes('wifi_ssid')" class="field" id="wifi-ssid-label"><label class="f-label" for="wifi_ssid">{{ t("editor.installer.wifi.ssid") }}</label><input id="wifi_ssid" name="wifi_ssid" v-model="form.wifi_ssid" autocomplete="off" /></div>
+        <div v-if="wifiMissing.includes('wifi_password')" class="field" id="wifi-password-label"><label class="f-label" for="wifi_password">{{ t("editor.installer.wifi.password") }}</label><input id="wifi_password" name="wifi_password" type="password" v-model="form.wifi_password" autocomplete="new-password" /></div>
       </fieldset>
       <div class="field">
-        <label class="f-label" for="install-target">Install via</label>
+        <label class="f-label" for="install-target">{{ t("editor.installer.install_via") }}</label>
         <select id="install-target" name="target" v-model="form.target" @change="installer.picked = true; installerRefresh()">
-          <option v-if="!ports.length" value="usb">USB · no board found on the Home Assistant machine yet</option>
+          <option v-if="!ports.length" value="usb">{{ t("editor.firmware.no_board") }}</option>
           <option v-for="p in ports" :key="p" :value="p">{{ portLabel(p) }}</option>
-          <option value="download">{{ DOWNLOAD_TARGET }}</option>
-          <option value="">Later · save profile only</option>
+          <option value="download">{{ t("editor.firmware.download_target") }}</option>
+          <option value="">{{ t("editor.installer.later") }}</option>
         </select>
         <small id="target-hint">{{ targetHint }}</small>
       </div>
@@ -238,31 +232,39 @@ onBeforeUnmount(() => clearInterval(poll));
       </div>
       <p id="progress-detail">{{ progressDetail }}</p>
       <div v-if="ok && download && installer.view !== 'done'" id="install-download" class="card" style="background: var(--surface-2)">
-        <a class="btn primary" id="download-firmware" :href="image.href" :download="image.name">Download {{ image.name }}</a>
+        <a class="btn primary" id="download-firmware" :href="image.href" :download="image.name">{{ t("editor.firmware.download_file", { name: image.name }) }}</a>
         <ol class="steps" id="download-steps">
-          <li><b>Plug the screen into your computer</b> with a USB data cable.</li>
-          <li><b>Open <a :href="ESPHOME_WEB" target="_blank" rel="noopener">ESPHome Web</a></b> in Chrome or Edge, click Connect and choose the screen's USB port.</li>
-          <li><b>Click Install</b> and select {{ image.name }}. The screen restarts and joins your Wi-Fi.{{ installer.board === "cyd" ? " The CYD first asks for a touch calibration: tap the crosshairs." : "" }}</li>
+          <li><i18n-t keypath="editor.installer.download_steps.plug" scope="global"><template #bold><b>{{ t("editor.installer.download_steps.plug_bold") }}</b></template></i18n-t></li>
+          <li><i18n-t keypath="editor.installer.download_steps.open" scope="global">
+            <template #bold><b><i18n-t keypath="editor.installer.download_steps.open_bold" scope="global"><template #esphome_web><a :href="ESPHOME_WEB" target="_blank" rel="noopener">ESPHome Web</a></template></i18n-t></b></template>
+          </i18n-t></li>
+          <li><i18n-t :keypath="installer.board === 'cyd' ? 'editor.installer.download_steps.install_cyd' : 'editor.installer.download_steps.install'" scope="global">
+            <template #bold><b>{{ t("editor.installer.download_steps.install_bold") }}</b></template>
+            <template #file>{{ image.name }}</template>
+          </i18n-t></li>
         </ol>
-        <small>The file holds your Wi-Fi password and the screen's keys: keep it to yourself.</small>
+        <small>{{ t("editor.installer.download_keep") }}</small>
       </div>
       <div v-if="ok" id="install-result" class="field">
         <div class="key-box">
-          <span>API key</span><code id="api-key" ref="keyBox">{{ installer.apiKey || "" }}</code>
-          <button type="button" class="btn quiet mini" id="copy-key" @click="copyText(installer.apiKey || '', keyBox)">Copy</button>
+          <span>{{ t("editor.installer.api_key") }}</span><code id="api-key" ref="keyBox">{{ installer.apiKey || "" }}</code>
+          <button type="button" class="btn quiet mini" id="copy-key" @click="copyText(installer.apiKey || '', keyBox)">{{ t("editor.common.copy") }}</button>
         </div>
         <ol class="steps" id="install-steps">
-          <li v-for="([b, t], i) in pairingSteps" :key="i"><b>{{ b }}</b>{{ t }}<button v-if="i === 0" type="button" class="btn quiet mini" @click="openIntegrations">Open Devices &amp; services</button></li>
+          <li><i18n-t keypath="editor.installer.pairing.ha" scope="global"><template #bold><b>{{ t("editor.installer.pairing.ha_bold") }}</b></template><template #name>{{ installer.friendly }}</template></i18n-t> <button type="button" class="btn quiet mini" @click="openIntegrations">{{ t("editor.common.open_integrations") }}</button></li>
+          <li><i18n-t keypath="editor.installer.pairing.key" scope="global"><template #bold><b>{{ t("editor.installer.pairing.key_bold") }}</b></template></i18n-t></li>
+          <li><i18n-t keypath="editor.installer.pairing.actions" scope="global"><template #bold><b>{{ t("editor.installer.pairing.actions_bold") }}</b></template></i18n-t></li>
+          <li><i18n-t keypath="editor.installer.pairing.tiles" scope="global"><template #bold><b>{{ t("editor.installer.pairing.tiles_bold") }}</b></template></i18n-t></li>
         </ol>
       </div>
       <details v-if="installer.view !== 'done'" id="install-log-wrap" class="log-wrap" :open="logOpen" @toggle="logOpen = ($event.target as HTMLDetailsElement).open">
-        <summary>ESPHome log</summary>
+        <summary>{{ t("editor.installer.log") }}</summary>
         <pre id="install-log" class="log">{{ logs.join("\n") }}</pre>
       </details>
       <div class="actions">
-        <button v-if="!running && !ok" type="button" class="btn primary" id="install-retry" @click="retry">Retry</button>
-        <button type="button" class="btn quiet" id="install-close" @click="reset">{{ ok ? "Install another screen" : "Start over" }}</button>
-        <button type="button" class="btn" :class="ok ? 'primary' : 'quiet'" @click="close">{{ ok ? "Done" : "Close" }}</button>
+        <button v-if="!running && !ok" type="button" class="btn primary" id="install-retry" @click="retry">{{ t("editor.installer.retry") }}</button>
+        <button type="button" class="btn quiet" id="install-close" @click="reset">{{ ok ? t("editor.installer.another") : t("editor.installer.start_over") }}</button>
+        <button type="button" class="btn" :class="ok ? 'primary' : 'quiet'" @click="close">{{ ok ? t("editor.installer.done") : t("editor.common.close") }}</button>
       </div>
     </div>
   </div>

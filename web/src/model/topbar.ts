@@ -3,10 +3,11 @@
 // time too) in the same 400 Roboto on the name's baseline; icons and the dial centred on the
 // height of the digits; the gaps measured between what you see (glyph ink), not between boxes, so
 // an icon with side bearings sits exactly as close to its value as one without.
+import { t } from "../i18n";
 import type { HeaderItem } from "../types";
 
-export const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-export const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+// The words are the screens' own (app 0.2.90): screen.date and screen.time of the translations, in the language the
+// screens have, which `locale` names; English where none is given.
 export const BUILTIN_ICONS: Record<string, string> = { clock: "clock-outline", analog: "clock-outline", date: "calendar" };
 export const itemKey = (item: HeaderItem) => JSON.stringify(item);
 export const glyph = (cp: string) => String.fromCodePoint(parseInt(cp, 16));
@@ -17,24 +18,29 @@ export function clockText(clock24: boolean, now = new Date()) {
   if (!clock24) hours = hours % 12 || 12;
   return `${String(hours).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
 }
-export const dateText = (now = new Date()) => `${WEEKDAYS[now.getDay()]} ${now.getDate()} ${MONTHS[now.getMonth()]}`;
-// Same wording and thresholds as header_bar::ago_text() in the firmware.
-export function agoText(then: number, now = Math.floor(Date.now() / 1000)) {
+export const dateText = (now = new Date(), locale = "en") => t("screen.date.top_bar", {
+  weekday: t(`screen.date.weekdays_min.${now.getDay()}`, {}, { locale }),
+  day: now.getDate(),
+  month: t(`screen.date.months_short.${now.getMonth()}`, {}, { locale }),
+}, { locale });
+// Same thresholds as header_bar::ago_text() in the firmware, and the same words.
+export function agoText(then: number, now = Math.floor(Date.now() / 1000), locale = "en") {
   const seconds = now - then, span = Math.abs(seconds), per = (unit: number) => Math.floor(span / unit);
+  const say = (key: string, n?: number) => (n === undefined ? t(`screen.time.${key}`, {}, { locale }) : t(`screen.time.${key}`, n, { locale }));
   if (seconds < 0) {
-    if (span < 3600) return `In ${Math.max(1, per(60))} min`;
-    if (span < 86400) return per(3600) === 1 ? "In 1 hour" : `In ${per(3600)} hours`;
-    if (span < 172800) return "Tomorrow";
-    return `In ${per(86400)} days`;
+    if (span < 3600) return say("in_minutes", Math.max(1, per(60)));
+    if (span < 86400) return say("in_hours", per(3600));
+    if (span < 172800) return say("tomorrow");
+    return say("in_days", per(86400));
   }
-  if (span < 60) return "Just now";
-  if (span < 3600) return `${per(60)} min ago`;
-  if (span < 86400) return per(3600) === 1 ? "1 hour ago" : `${per(3600)} hours ago`;
-  if (span < 172800) return "Yesterday";
-  if (span < 604800) return `${per(86400)} days ago`;
-  if (span < 2592000) return per(604800) === 1 ? "1 week ago" : `${per(604800)} weeks ago`;
-  if (span < 31536000) return per(2592000) === 1 ? "1 month ago" : `${per(2592000)} months ago`;
-  return per(31536000) === 1 ? "1 year ago" : `${per(31536000)} years ago`;
+  if (span < 60) return say("just_now");
+  if (span < 3600) return say("minutes_ago", per(60));
+  if (span < 86400) return say("hours_ago", per(3600));
+  if (span < 172800) return say("yesterday");
+  if (span < 604800) return say("days_ago", per(86400));
+  if (span < 2592000) return say("weeks_ago", per(604800));
+  if (span < 31536000) return say("months_ago", per(2592000));
+  return say("years_ago", per(31536000));
 }
 
 export type BarMetrics = { width: number; top: number; name: number; text: number; icon: number };

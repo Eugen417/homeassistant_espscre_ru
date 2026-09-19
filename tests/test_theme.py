@@ -6,6 +6,7 @@ the firmware asks theme.h for roles, so a new look is a refill of a few styles p
 way: no colour written anywhere else, every paint defined and filled, and the look applied at boot and after
 every settings change. tests/test_theme.cpp checks the values themselves.
 """
+import json
 import re
 import sys
 import unittest
@@ -154,8 +155,10 @@ class Setting(unittest.TestCase):
         self.assertIn('toggle(screen_text::txt::settings_dark_mode, []() -> int32_t { return dark_mode; },', page)
         self.assertIn('else if (key == "dark_mode") reported = dark_mode = flag(value);', page)
         editor = (ROOT / 'web/src/store.ts').read_text()
-        self.assertIn('{ key: "dark_mode", label: "Dark mode", kind: "toggle" },', editor)
-        brightness = editor.split('{ title: "Brightness"', 1)[1].split('] },', 1)[0]
+        self.assertIn('{ key: "dark_mode", kind: "toggle" },', editor)
+        texts = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['editor']
+        self.assertEqual(texts['screen_settings']['rows']['dark_mode'], 'Dark mode')
+        brightness = editor.split('{ group: "brightness"', 1)[1].split('] },', 1)[0]
         self.assertLess(brightness.index('"brightness"'), brightness.index('"dark_mode"'), 'right under Brightness, as on the screen')
         self.assertLess(brightness.index('"dark_mode"'), brightness.index('"standby_enabled"'))
 

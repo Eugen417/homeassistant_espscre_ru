@@ -567,16 +567,15 @@ class Editor(unittest.TestCase):
         self.assertIn(':class="{ unknown: values[row.key] === null || values[row.key] === undefined }"', self.tab)
 
     def test_the_rows_are_the_settings_of_the_screen_page(self):
-        keys = re.findall(r'\{ key: "(\w+)", label: "[^"]+", kind: "(\w+)"', self.script)
-        self.assertEqual([key for key, _ in keys], [key for key in SETTING_RULES if key != 'show_clock'][:0] or [key for key, _ in keys])
+        import editor_sources
+        keys = re.findall(r'\{ key: "(\w+)", kind: "(\w+)"', self.script)
         # 12 or 24 hours is Settings -> Language & region's, for every screen at once (app 0.2.90).
         self.assertEqual({key for key, _ in keys}, set(SETTING_RULES) - {'show_clock', 'clock_24h'})
         # Labels and steps as on the screen: the same rows, the same -/+ steps, the same duration ladder.
-        # The page's labels are keys into the translations since app 0.2.90; English is the reference.
+        # The labels are keys into the translations since app 0.2.90; English is the reference.
         english = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['settings']
         page_labels = {english[key] for key in re.findall(r'(?:number|toggle|duration|moment|choice)\(screen_text::txt::settings_(\w+)', SCREEN_PAGE)}
-        groups = self.script[self.script.index('const SETTING_GROUPS = ['):self.script.index('export type SettingRow')]
-        script_labels = set(re.findall(r'label: "([^"]+)"', groups))
+        script_labels = {editor_sources.text(f'screen_settings.rows.{key}') for key, _ in keys}
         self.assertEqual(page_labels, script_labels)
         for key, step in (('brightness', 5), ('standby_brightness', 5), ('night_brightness', 5)):
             self.assertRegex(self.script, rf'key: "{key}", [^}}]*step: {step}')
@@ -589,7 +588,11 @@ class Editor(unittest.TestCase):
         self.assertIn('api(`screens/${encodeURIComponent(screen)}/settings`', self.script)
         self.assertIn('const { settings: _settings, ...tiles } = state.layout;', self.script)
         self.assertIn('await send(`screens/${encodeURIComponent(state.selected)}`, "PUT", tiles);', self.script)
-        self.assertIn("setSetting('clock_24h', v === '24', 150)", self.script, 'the top bar clock format is the same setting')
+        # The top bar's clock follows the one clock of Settings → Language & region (app 0.2.90).
+        import editor_sources
+        self.assertIn('state.inventory.language?.clock_effective !== "12"', self.script)
+        self.assertNotIn("setSetting('clock_24h'", self.script)
+        self.assertIn('<a href="#settings">', editor_sources.component('TopbarInspector'))
 
 
 class Firmware(unittest.TestCase):

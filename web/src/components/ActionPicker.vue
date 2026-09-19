@@ -2,6 +2,7 @@
 // Perform action (app 0.2.67): the actions Home Assistant offers for a tile's entity, under its own names,
 // and one field per value Home Assistant asks for (its selector). An empty field is left out.
 import { computed } from "vue";
+import { t } from "../i18n";
 import { loadEntityActions, markDirty, state, supports } from "../store";
 import type { EntityAction, Tile } from "../types";
 import Segmented from "./Segmented.vue";
@@ -64,42 +65,42 @@ const unitOf = (field: Field) => configOf(field).unit_of_measurement || (kindOf(
 
 <template>
   <div class="f">
-    <span class="f-label">Action</span>
-    <small v-if="list === undefined">Asking Home Assistant which actions this entity has…</small>
-    <small v-else-if="list === null" class="warn">Home Assistant isn't answering right now. Try again in a moment.</small>
+    <span class="f-label">{{ t("editor.action.label") }}</span>
+    <small v-if="list === undefined">{{ t("editor.action.asking") }}</small>
+    <small v-else-if="list === null" class="warn">{{ t("editor.action.not_answering") }}</small>
     <template v-else>
       <button type="button" class="row" :aria-expanded="open ? 'true' : 'false'" @click="state.actionPickerOpen = !open">
         <span class="tx">
-          <b>{{ entry ? entry.name : chosen ? chosen.action : "Choose an action" }}</b>
+          <b>{{ entry ? entry.name : chosen ? chosen.action : t("editor.action.choose") }}</b>
           <small v-if="chosen" class="mono">{{ chosen.action }}</small>
         </span>
-        <span class="link">{{ open ? "Close" : "Change" }}</span>
+        <span class="link">{{ open ? t("editor.common.close") : t("editor.common.change") }}</span>
       </button>
       <div v-if="open" class="picker">
-        <input v-model="state.actionSearch" type="search" placeholder="Search, for example toggle, position, or play" aria-label="Search for an action" />
+        <input v-model="state.actionSearch" type="search" :placeholder="t('editor.action.search')" :aria-label="t('editor.action.search_label')" />
         <div class="action-list">
           <button v-for="action in rows" :key="action.action" type="button" class="action-choice" :aria-pressed="action.action === chosen?.action ? 'true' : 'false'" @click="pick(action)">
             <strong>{{ action.name }}</strong>
             <small>{{ action.description ? `${action.action} · ${action.description}` : action.action }}</small>
           </button>
-          <p v-if="!rows.length" class="hint">No action found.</p>
+          <p v-if="!rows.length" class="hint">{{ t("editor.action.none_found") }}</p>
         </div>
       </div>
-      <small v-if="chosen && !entry" class="warn">Home Assistant doesn't offer this action for this entity any more, so a tap does nothing. Choose another one.</small>
+      <small v-if="chosen && !entry" class="warn">{{ t("editor.action.gone") }}</small>
       <template v-if="entry && !open">
         <div v-for="field in entry.fields" :key="field.key" class="f">
-          <span class="f-label">{{ field.required ? field.name : `${field.name} (optional)` }}</span>
-          <Segmented v-if="kindOf(field) === 'boolean'" :choices="[['', 'Not set'], ['true', 'On'], ['false', 'Off']]" :value="chosen?.data?.[field.key] === undefined ? '' : String(chosen?.data?.[field.key])"
+          <span class="f-label">{{ field.required ? field.name : t("editor.action.optional", { name: field.name }) }}</span>
+          <Segmented v-if="kindOf(field) === 'boolean'" :choices="[['', t('editor.action.not_set')], ['true', t('editor.action.on')], ['false', t('editor.action.off')]]" :value="chosen?.data?.[field.key] === undefined ? '' : String(chosen?.data?.[field.key])"
             @pick="(v) => setField(field.key, v === '' ? undefined : v === 'true')" />
-          <Segmented v-else-if="choicesOf(field) && choicesOf(field)!.length <= 4" :choices="[['', 'Not set'], ...choicesOf(field)!]" :value="chosen?.data?.[field.key] === undefined ? '' : String(chosen?.data?.[field.key])"
+          <Segmented v-else-if="choicesOf(field) && choicesOf(field)!.length <= 4" :choices="[['', t('editor.action.not_set')], ...choicesOf(field)!]" :value="chosen?.data?.[field.key] === undefined ? '' : String(chosen?.data?.[field.key])"
             @pick="(v) => setField(field.key, v === '' ? undefined : v)" />
           <select v-else-if="choicesOf(field)" :aria-label="field.name" :value="String(chosen?.data?.[field.key] ?? '')" @change="setField(field.key, ($event.target as HTMLSelectElement).value === '' ? undefined : ($event.target as HTMLSelectElement).value)">
-            <option value="">Not set</option>
+            <option value="">{{ t("editor.action.not_set") }}</option>
             <option v-for="[key, text] in choicesOf(field)!" :key="key" :value="key">{{ text }}</option>
           </select>
           <div v-else-if="kindOf(field) === 'color_rgb'" class="action-number">
             <input type="color" :aria-label="field.name" :value="colorValue(chosen?.data?.[field.key])" @input="setField(field.key, [1, 3, 5].map((i) => parseInt(($event.target as HTMLInputElement).value.slice(i, i + 2), 16)))" />
-            <button type="button" class="btn quiet mini" @click="setField(field.key, undefined)">Not set</button>
+            <button type="button" class="btn quiet mini" @click="setField(field.key, undefined)">{{ t("editor.action.not_set") }}</button>
           </div>
           <div v-else-if="kindOf(field) === 'number' || kindOf(field) === 'color_temp'" class="action-number">
             <input type="number" :aria-label="field.name" :min="configOf(field).min" :max="configOf(field).max" :step="configOf(field).step === 'any' ? 'any' : configOf(field).step"
@@ -109,9 +110,9 @@ const unitOf = (field: Field) => configOf(field).unit_of_measurement || (kindOf(
           <input v-else type="text" :aria-label="field.name" :value="textValue(chosen?.data?.[field.key])" :placeholder="exampleOf(field)" @input="onText(field, ($event.target as HTMLInputElement).value)" />
           <small v-if="field.description">{{ field.description }}</small>
         </div>
-        <small v-if="missing.length" class="warn">Home Assistant needs {{ missing.join(", ") }}.</small>
+        <small v-if="missing.length" class="warn">{{ t("editor.action.needs", { fields: missing.join(", ") }) }}</small>
       </template>
-      <small v-if="!supports(0, 2, 58)">The screen performs an action from firmware 0.2.58: press Update on the screen. Until then a tap works as Automatic.</small>
+      <small v-if="!supports(0, 2, 58)">{{ t("editor.action.needs_firmware") }}</small>
     </template>
   </div>
 </template>

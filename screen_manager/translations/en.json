@@ -394,5 +394,850 @@
       "region_choice": "Choose a clock and a number format from the lists."
     }
   },
-  "editor": {}
+  "editor": {
+    "common": {
+      "undo": "Undo",
+      "online": "Online",
+      "offline": "Offline",
+      "unknown": "unknown",
+      "unsaved": "Unsaved changes",
+      "cancel": "Cancel",
+      "open_integrations": "Open Devices & services",
+      "save_send": "Save & send",
+      "saving": "Saving…",
+      "read_current_data": "Read current data",
+      "results": "1 result. Keep typing to narrow it down. | {n} results. Keep typing to narrow it down.",
+      "close": "Close",
+      "remove": "Remove",
+      "change": "Change",
+      "loading": "Loading…",
+      "back": "← Back",
+      "copy": "Copy"
+    },
+    "nav": {
+      "new_screen": "New screen",
+      "firmware": "Firmware & USB",
+      "alerts": "Alerts",
+      "settings": "Settings",
+      "new_screen_detail": "Connect and install"
+    },
+    "api": {
+      "failed": "That didn't work. Refresh the page and try again."
+    },
+    "copy": {
+      "api_key": {
+        "copied": "API key copied.",
+        "selected": "API key is selected. Copy with Ctrl+C or Command+C."
+      },
+      "layout_json": {
+        "copied": "Layout JSON copied.",
+        "selected": "Layout JSON is selected. Copy with Ctrl+C or Command+C."
+      },
+      "action_name": {
+        "copied": "Action name copied.",
+        "selected": "Action name is selected. Copy with Ctrl+C or Command+C."
+      },
+      "yaml": {
+        "copied": "YAML copied.",
+        "selected": "YAML is selected. Copy with Ctrl+C or Command+C."
+      },
+      "icon_name": {
+        "copied": "Icon name copied.",
+        "selected": "Icon name is selected. Copy with Ctrl+C or Command+C."
+      },
+      "empty_color": {
+        "copied": "Empty color copied.",
+        "selected": "Empty color is selected. Copy with Ctrl+C or Command+C."
+      },
+      "color_name": {
+        "copied": "Color name copied.",
+        "selected": "Color name is selected. Copy with Ctrl+C or Command+C."
+      }
+    },
+    "sidebar": {
+      "connection": {
+        "unreachable": "Management page unreachable · retrying…",
+        "connected": "Home Assistant connected",
+        "reconnecting": "Reconnecting to Home Assistant…"
+      },
+      "search": "Search",
+      "screens": "Screens",
+      "more": "More",
+      "refresh": "Refresh",
+      "update": {
+        "pill": "Update",
+        "button": "Update",
+        "queued": "Queued for the update",
+        "available": "Update {version}",
+        "no_profile": "No ESPHome profile found with this device name.",
+        "whats_new": "What's new",
+        "full_log": "Full log"
+      },
+      "host": {
+        "hint": "The IP address, once; new firmware reports it itself.",
+        "placeholder": "IP address, e.g. 192.168.1.50",
+        "label": "IP address",
+        "start": "Start"
+      },
+      "pending": {
+        "installed": "Installed, but not yet in Home Assistant. Add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and turn on “Allow the device to perform Home Assistant actions” under Configure.",
+        "downloaded": "Firmware downloaded, not yet in Home Assistant. Put it on the screen with ESPHome Web, then add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and allow the Home Assistant actions under Configure.",
+        "not_flashed": "Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Firmware & USB → {file}."
+      },
+      "copy_api_key": "Copy API key"
+    },
+    "palette": {
+      "groups": {
+        "screens": "Screens",
+        "actions": "Actions",
+        "add": "Add to this screen"
+      },
+      "alerts_detail": "Cheatsheet and a test alert",
+      "settings_detail": "Updates, Claude",
+      "nothing_to_save": "Nothing to save",
+      "identify": "Identify this screen",
+      "identify_detail": "Blinks the backlight and shows a card",
+      "identify_needs": "Needs a newer firmware",
+      "export": "Export layout",
+      "export_detail": "Download and copy as JSON",
+      "placeholder": "Search screens, entities, actions…",
+      "empty": "Nothing matches. Type part of a screen, entity or action."
+    },
+    "empty": {
+      "choose": {
+        "title": "Choose a screen",
+        "text": "Pick one of your screens on the left to change its tiles, top bar and settings."
+      },
+      "start": {
+        "title": "Start with a screen",
+        "text": "Connect a CYD or Guition via USB to your Home Assistant machine. Profile, firmware, and the first flash happen in one go.",
+        "button": "Install new screen"
+      }
+    },
+    "screen_view": {
+      "confirm": {
+        "switch": "You have unsaved changes. Open a different screen anyway?",
+        "copy": "Replace the unsaved layout with a copy of the other screen's?",
+        "import": "Replace the unsaved layout with the imported one?"
+      },
+      "saved": {
+        "current": "Saved. Your screen is being updated.",
+        "other": "Saved. {name} is being updated.",
+        "other_unnamed": "Saved. The screen is being updated.",
+        "newer_edit": "Saved. Your newest change isn't sent yet: press Save & send again."
+      },
+      "identified": "{name} blinks and shows a card for a few seconds.",
+      "offline": "Offline · changes are saved",
+      "tabs": {
+        "layout": "Layout",
+        "settings": "Screen settings"
+      },
+      "sent": "Saved · sent to screen",
+      "all_saved": "All saved",
+      "more": "More",
+      "menu": {
+        "identify": "Identify",
+        "identify_hint": "blink the screen",
+        "identify_needs": "Needs firmware 0.2.31 or newer",
+        "inspect_hint": "from Home Assistant",
+        "copy": "Copy layout from…",
+        "copy_screens": "{n} screen | {n} screens",
+        "copy_none": "no other screen",
+        "copy_tiles": "{n} tile | {n} tiles",
+        "export": "Export layout",
+        "import": "Import layout…",
+        "override": "Override YAML",
+        "override_hint": "advanced",
+        "override_none": "No ESPHome profile found for this screen",
+        "update": "Update firmware"
+      }
+    },
+    "layout": {
+      "removed": "{name} removed",
+      "no_room": "There is no room for this tile on page {page}.",
+      "no_free_page": "No page is free for a full-page tile. Free a page first.",
+      "page_taken": "This screen already has a tile that goes to page {page}.",
+      "copied": "Layout of {name} copied. Save & send when it looks right.",
+      "copied_part": "Layout of {name} copied: {kept} of {total} tiles fit this screen's firmware. Save & send when it looks right.",
+      "imported": "Layout imported. Save & send when it looks right.",
+      "imported_part": "Layout imported: {kept} of {total} tiles fit this screen's firmware. Save & send when it looks right.",
+      "not_json": "That isn't JSON. Export a layout first, or paste one from another ESP Screens.",
+      "no_tiles_in_file": "No tiles in this file. Expected a layout exported from ESP Screens.",
+      "count": "{n} page · {tiles} / {limit} tiles | {n} pages · {tiles} / {limit} tiles",
+      "no_tiles": "Add your first light, scene, or device from the library.",
+      "how_to": "Tap the top bar or a tile to change it. Drag to move; drop on the next page for a new one.",
+      "positions_hint": "Empty slots and fixed positions work from firmware 0.2.26. This screen (firmware {firmware}) shifts the tiles up to the first free slot until that update.",
+      "aria": "Screen layout",
+      "add_page": "+ Add page",
+      "max_pages": "1 page is the most | {n} pages is the most"
+    },
+    "page": {
+      "label": "Page {page}",
+      "remove": "Remove page",
+      "remove_title": "The pages after this one shift up one slot",
+      "edit_bar": "Edit top bar",
+      "cell": {
+        "title": "Empty slot. Click to add a tile here, or drag one over.",
+        "aria": "Empty slot {slot} on page {page}: add the next tile here",
+        "next": "Next tile goes here",
+        "empty": "Empty"
+      }
+    },
+    "library": {
+      "title": "Library",
+      "entities": "{n} entity | {n} entities",
+      "search": "Search by name, device, or room…",
+      "search_label": "Add an entity",
+      "filters": {
+        "all": "All",
+        "light": "Lights",
+        "climate": "Climate",
+        "switch": "Switches",
+        "binary_sensor": "Status",
+        "button": "Actions",
+        "script": "Scripts",
+        "fan": "Fans",
+        "cover": "Covers",
+        "scene": "Scenes",
+        "vacuum": "Vacuum",
+        "sensor": "Sensors",
+        "media_player": "Media",
+        "weather": "Weather",
+        "number": "Values",
+        "select": "Selects",
+        "person": "People",
+        "timer": "Timers",
+        "screen": "Screen"
+      },
+      "room": "Room",
+      "all_rooms": "All rooms",
+      "hide_placed": "Hide placed",
+      "hide_placed_title": "Hide what is already on this screen",
+      "all_placed": "Everything here is already on this screen.",
+      "none_found": "No entities found. Try a different name, room or filter.",
+      "full": "This screen holds 1 tile. | This screen holds {n} tiles.",
+      "full_update": "This screen holds 1 tile; update its firmware for 48. | This screen holds {n} tiles; update its firmware for 48.",
+      "hint": "Drag onto a page, or tap + to add to the first free slot. ⌘K searches everything."
+    },
+    "domains": {
+      "light": "Light",
+      "climate": "Climate",
+      "vacuum": "Vacuum",
+      "fan": "Fan",
+      "cover": "Cover",
+      "media_player": "Media",
+      "sensor": "Sensor",
+      "binary_sensor": "Status",
+      "switch": "Switch",
+      "input_boolean": "Switch",
+      "scene": "Scene",
+      "script": "Script",
+      "weather": "Weather",
+      "number": "Value",
+      "input_number": "Value",
+      "select": "Select",
+      "input_select": "Select",
+      "button": "Action",
+      "input_button": "Action",
+      "screen": "Screen",
+      "sun": "Sun",
+      "timer": "Timer",
+      "person": "Person",
+      "camera": "Camera",
+      "image": "Image",
+      "entity": "Entity"
+    },
+    "displays": {
+      "standard": "standard",
+      "watch": "large value",
+      "forecast": "weather forecast",
+      "graph": "graph",
+      "digital": "digital clock",
+      "analog": "analog clock",
+      "sunpath": "sun path"
+    },
+    "sizes": {
+      "single": "normal",
+      "wide": "double",
+      "full": "full page"
+    },
+    "tile": {
+      "name": "Name on the screen",
+      "icon": {
+        "auto_ha": "Automatic (from Home Assistant)",
+        "auto_default": "Automatic (default)",
+        "needs_firmware": "The screen shows a chosen icon from firmware 0.2.18."
+      },
+      "goes_to": {
+        "label": "Goes to page",
+        "empty": "{page} (empty)",
+        "needs_firmware": "Navigation tiles need firmware 0.2.62: press Update on the screen first.",
+        "no_page": "This screen has no page {page}, so a tap opens its last page. Choose another page.",
+        "hint": "A tap on the tile opens that page."
+      },
+      "display": {
+        "label": "Display",
+        "digital": "Digital clock",
+        "analog": "Analog clock",
+        "standard": "Name and status",
+        "watch": "Large value",
+        "forecast": "Weather forecast",
+        "graph": "Graph",
+        "sunpath": "Sun path",
+        "no_graph": "Home Assistant has no numbers for this entity, so the graph stays empty. Choose another display.",
+        "no_forecast": "This weather service has no daily forecast in Home Assistant. Choose another display."
+      },
+      "size": {
+        "label": "Size",
+        "single": "Normal",
+        "wide": "Double-width",
+        "full": "Full page",
+        "full_hint": "Full page: one big button that lights up while on; a slider, controls or a graph sit at the bottom of it.",
+        "needs_firmware": "A full-page tile needs firmware 0.2.62: press Update on the screen first."
+      },
+      "page": {
+        "label": "Page",
+        "new": "New page"
+      },
+      "controls": {
+        "label": "Direct control on the tile",
+        "not_offered": "Home Assistant doesn't offer this control for this entity, so it stays empty on the screen. Choose another one.",
+        "full_hint": "At the bottom of the full-page tile; a tap anywhere else works as set below.",
+        "wide_hint": "On the right of the double-width tile, like the rows in Home Assistant. Tapping the name works as set below.",
+        "needs_firmware": "The screen shows direct control from firmware 0.2.19; until then the tile stays as it was."
+      },
+      "tap": {
+        "label": "On tap",
+        "auto": "Automatic",
+        "detail": "Open control",
+        "none": "View only",
+        "toggle": "On / off",
+        "action": "Perform action",
+        "no_toggle": "Home Assistant can't turn this on and off, so a tap does nothing. Choose another option.",
+        "toggle_needs_firmware": "The screen switches this from firmware 0.2.58: press Update on the screen. Until then a tap opens its card.",
+        "hold": "Hold the tile to open its card."
+      },
+      "slider": {
+        "label": "Small slider on the tile",
+        "no": "No",
+        "yes": "Yes, control directly",
+        "nothing": "Home Assistant has nothing a slider can change for this entity. Choose No."
+      },
+      "history": {
+        "label": "History",
+        "hours": "{n} hour | {n} hours"
+      },
+      "background": {
+        "label": "Pastel background",
+        "aria": "Background: {name}"
+      }
+    },
+    "tile_card": {
+      "label": "{name}, slot {slot} on page {page}. Enter: configure, arrow keys: move",
+      "remove": "Remove tile",
+      "remove_named": "Remove {name}"
+    },
+    "action": {
+      "label": "Action",
+      "asking": "Asking Home Assistant which actions this entity has…",
+      "not_answering": "Home Assistant isn't answering right now. Try again in a moment.",
+      "choose": "Choose an action",
+      "search": "Search, for example toggle, position, or play",
+      "search_label": "Search for an action",
+      "none_found": "No action found.",
+      "gone": "Home Assistant doesn't offer this action for this entity any more, so a tap does nothing. Choose another one.",
+      "optional": "{name} (optional)",
+      "not_set": "Not set",
+      "on": "On",
+      "off": "Off",
+      "needs": "Home Assistant needs {fields}.",
+      "needs_firmware": "The screen performs an action from firmware 0.2.58: press Update on the screen. Until then a tap works as Automatic."
+    },
+    "icon": {
+      "label": "Icon",
+      "none": "No icon",
+      "search": "Search, for example lamp, music, or door",
+      "search_label": "Search for an icon",
+      "none_text_only": "No icon, text only",
+      "aria": "Icon: {name}",
+      "none_found": "No icon found."
+    },
+    "inspect": {
+      "title": "Current data",
+      "subtitle": "Connection, status, and supported properties",
+      "reading": "Reading…",
+      "fetching": "Fetching current HA status...",
+      "status": "Status: {status}",
+      "options": "Small slider: {slider} · Display: {display} · Size: {size} · Control: {control} · Background: {background}",
+      "yes": "yes",
+      "no": "no",
+      "control_none": "none",
+      "background_default": "Default",
+      "read_again": "Read again"
+    },
+    "topbar": {
+      "removed": "{name} removed from the top bar",
+      "full": "The top bar has room for 1 item. | The top bar has room for {n} items.",
+      "already": "This is already in the top bar.",
+      "title": "Top bar",
+      "aria": "Top bar: {name}",
+      "builtin": "From the screen itself, also works without Home Assistant",
+      "items": "{used} of {n} item | {used} of {n} items",
+      "name": "Left: name",
+      "name_placeholder": "For example: Living room",
+      "right": "Right: time, sensors, or a clock",
+      "item_label": "{name}, slot {slot}. Enter: configure, arrows: move",
+      "remove_named": "Remove {name} from the top bar",
+      "max": "Maximum 1 item | Maximum {n} items",
+      "add_title": "Add the time, date, analog clock, or an entity",
+      "add_button": "＋ Add time, date, or an entity",
+      "hint": {
+        "overflow": "Not everything fits next to the name: the screen drops the dashed items. Remove one or choose a shorter name.",
+        "reorder": "Drag to reorder; tap an item to configure it.",
+        "needs_firmware": "Sensors, the date, and the analog clock appear from firmware {version}; until that update, this screen shows the name and, if the time is in the bar, the clock."
+      },
+      "detail": {
+        "hidden": "Hidden: not active right now",
+        "overflow": "Doesn't fit next to the name",
+        "dial": "Dial"
+      },
+      "live": {
+        "hidden": "Hidden right now: not active",
+        "overflow": "Doesn't currently fit next to the name",
+        "looks": "How it looks on the screen"
+      },
+      "analog_sample": "Small dial with the time",
+      "content": {
+        "label": "What to show",
+        "hint": "Last changed keeps counting on the screen itself: “Just now”, “5 min ago”, “Yesterday”."
+      },
+      "auto_icon": "Automatic (like Home Assistant)",
+      "show": {
+        "label": "Show",
+        "hint": "Only when active hides the item as long as it's off, closed, away, or 0. Handy for an open door, a running washing machine, or who's home."
+      },
+      "clock_24": "24 hour clock · change under {settings}",
+      "clock_12": "12 hour clock · change under {settings}",
+      "clock_settings": "Settings → Language & region",
+      "date_hint": "{date} today. The date follows the screen's own clock.",
+      "up": "↑ Up",
+      "down": "↓ Down",
+      "add": {
+        "title": "Add to the top bar",
+        "slots": "{used} of {n} slot used | {used} of {n} slots used",
+        "builtin": "From the screen itself",
+        "added": "Already added",
+        "suggestions": "Suggestions from Home Assistant",
+        "entity": "An entity",
+        "search": "Search by name, room, or entity, e.g. temperature or door",
+        "search_label": "Search for an entity for the top bar",
+        "none_found": "No entities found."
+      }
+    },
+    "screen_settings": {
+      "groups": {
+        "brightness": "Brightness",
+        "night": "Night",
+        "screen": "Screen"
+      },
+      "rows": {
+        "brightness": "Brightness",
+        "dark_mode": "Dark mode",
+        "standby_enabled": "Auto standby",
+        "standby_seconds": "Standby after",
+        "standby_brightness": "Standby brightness",
+        "night_enabled": "Night mode",
+        "night_start": "Starts",
+        "night_end": "Ends",
+        "night_brightness": "Night brightness",
+        "auto_home": "Back to page 1",
+        "auto_home_seconds": "After",
+        "home_on_standby": "Also on standby",
+        "swipe_pages": "Swipe between pages",
+        "page_buttons": "Page buttons",
+        "rotation": "Rotation"
+      },
+      "duration": {
+        "seconds": "{n} sec",
+        "minutes": "{n} min",
+        "hours": "{n} h",
+        "hours_minutes": "{h} h {m}"
+      },
+      "time": {
+        "am": "{time} AM",
+        "pm": "{time} PM"
+      },
+      "other_screen_busy": "Still saving the other screen's settings. Try again in a moment.",
+      "reach": {
+        "intro": "Page buttons and swiping are off, so only Go to page tiles change the page.",
+        "pages": "page {list} | pages {list}",
+        "tiles": "You have {n} Go to page tile, to {targets}. | You have {n} Go to page tiles, to {targets}.",
+        "tiles_missing_one": "You have {n} Go to page tile, to {targets}, but none to {missing}, so you can't reach it. | You have {n} Go to page tiles, to {targets}, but none to {missing}, so you can't reach it.",
+        "tiles_missing_more": "You have {n} Go to page tile, to {targets}, but none to {missing}, so you can't reach them. | You have {n} Go to page tiles, to {targets}, but none to {missing}, so you can't reach them.",
+        "none": "You have no Go to page tiles.",
+        "none_missing_one": "You have no Go to page tiles to {missing}, so you can't reach it.",
+        "none_missing_more": "You have no Go to page tiles to {missing}, so you can't reach them.",
+        "cut_off": "The tiles to {pages} are only on pages you can't reach.",
+        "no_way_back": "From {pages} no tile leads back to page 1."
+      },
+      "status": {
+        "offline": "This screen is offline. Its settings can change once it's back.",
+        "screen": "Changes apply on the screen at once, and show up here when they change there.",
+        "app": "Changes apply at once. Firmware 0.2.49 lets the screen keep them itself."
+      },
+      "unavailable": "This entity is off in Home Assistant, or the screen is restarting.",
+      "lower": "{name} lower",
+      "higher": "{name} higher"
+    },
+    "update": {
+      "starting": "Starting update…",
+      "building": "Building the firmware…",
+      "writing": "Writing the firmware over Wi-Fi…",
+      "phases": {
+        "install": "Building and installing…",
+        "verify": "Waiting for the screen to come back…",
+        "settle": "Checking that it stays stable…"
+      },
+      "new_language": "New language: {name}"
+    },
+    "settings": {
+      "updates": {
+        "auto_on": "Screens will now update automatically at night.",
+        "auto_off": "Automatic updates are off.",
+        "title": "Firmware updates",
+        "busy": "Updating to firmware {version}…",
+        "no_screens": "No screen paired yet. New screens get firmware {version}.",
+        "available": "Firmware {version} is available for {n} screen. | Firmware {version} is available for {n} screens.",
+        "current": "All screens have firmware {version}.",
+        "all": "Update 1 screen | Update all {n} screens",
+        "whats_new": "What's new in firmware {version}",
+        "auto_label": "Update automatically every night",
+        "auto_hint": "Between 03:00 and 06:00, one screen at a time. Stops on an error and reports it in Home Assistant."
+      },
+      "claude": {
+        "installed": "Skill installed. Claude Code picks it up right away.",
+        "installed_restart": "Skill installed. Restart Claude Code once so it finds the new skills folder.",
+        "text": "Teach Claude about ESP Screens, then ask: \"Show an alert on all my screens when the mailbox is full.\" Claude knows the alert events, every field, color, and icon.",
+        "install": "Install for Claude Code",
+        "install_again": "Install again",
+        "update": "Update the skill",
+        "not_installed": "Not installed",
+        "installed_chip": "● Installed",
+        "newer": "Installed · a newer version is ready",
+        "writes": "For Claude Code in Home Assistant. Writes one file to {path}; installing again replaces it.",
+        "download": "Download for claude.ai",
+        "upload": "Upload the zip in Claude under Customize → Skills."
+      },
+      "title": "Everything around your screens.",
+      "back": "← My screens",
+      "screens": {
+        "title": "Screens",
+        "text": "Add a screen, or build and reinstall the firmware of one you already have.",
+        "firmware_detail": "Build and install via USB or Wi-Fi"
+      },
+      "language": {
+        "title": "Language & region",
+        "screen_language": "Screen language",
+        "auto": "Home Assistant's language ({name})",
+        "auto_plain": "Home Assistant's language",
+        "ha_missing": "The screens use English until Home Assistant's language is available.",
+        "unchecked": "{name} · not checked yet, help welcome",
+        "help": "{name} is not checked yet, help welcome: {guide}",
+        "guide": "how to translate",
+        "update_hint": "After a change every screen needs a firmware update, one build each: with its Update button, or in the nightly updates.",
+        "time": "Time format",
+        "time_auto": "Automatic, follows the language ({clock})",
+        "clock_24": "24 hour",
+        "clock_12": "12 hour",
+        "numbers": "Number format",
+        "numbers_auto": "Automatic, follows the language ({example})",
+        "profile": "Your Home Assistant profile: {formats}",
+        "use_profile": "Use these",
+        "editor_hint": "The editor itself follows the language of your Home Assistant profile.",
+        "saved": "Saved.",
+        "saved_language": "Saved. Every screen takes the new language with its next update."
+      },
+      "alerts": {
+        "text": "A card over the whole screen from an automation, on one screen or on all of them. The cheatsheet has the action names, fields, icons, and colors, and a form to try one.",
+        "detail": "Full-screen notifications, from an automation"
+      }
+    },
+    "firmware": {
+      "title": "Build and install screen firmware",
+      "intro": "The built-in ESPHome CLI uses your own profile (YAML with keys) and secrets. Choose the screen's profile, then a USB port (screen connected to the Home Assistant machine), {ota} with the hostname, or {download} to put the firmware on the screen from your own computer. {check} only validates, {build} compiles, {install} puts the firmware on the screen. Your tiles stay as they are in ESP Screens. The first build takes a few minutes.",
+      "ota": "Wi-Fi / OTA",
+      "download": "Download",
+      "check": "Check",
+      "build": "Build only",
+      "install": "Build & install",
+      "build_download": "Build & download",
+      "no_cli": "The ESPHome CLI is missing. Update the app to 0.2.0.",
+      "choose": "Choose the intended profile, then a USB port, an IP address, or Download.",
+      "profile": "ESPHome profile",
+      "install_to": "Install to",
+      "no_board": "USB · no board found on the Home Assistant machine yet",
+      "download_target": "Download · flash from your own computer",
+      "host": "IP address or hostname",
+      "download_file": "Download {name}",
+      "download_how": "Put it on the screen with {esphome_web} in Chrome or Edge: Connect, choose the screen's USB port, Install, and select this file. It holds your Wi-Fi password and the screen's keys: keep it to yourself."
+    },
+    "installer": {
+      "title": {
+        "setup": "Connect and install.",
+        "saved": "Profile saved.",
+        "running": "One moment…",
+        "ready": "Ready to download.",
+        "done": "Done.",
+        "failed": "That didn't work."
+      },
+      "intro": "ESP Screens creates the screen's own profile with unique keys and builds the firmware. Connect the screen with a USB data cable to the machine running Home Assistant, or download the firmware and put it on the screen from your own computer.",
+      "board": "Which screen do you have?",
+      "board_cyd": "CYD · 2.8 inch",
+      "board_guition": "Guition · 4 inch",
+      "name": "Name",
+      "name_placeholder": "Living room screen",
+      "device_name": "Device name",
+      "customize": "customize",
+      "name_hint": "Every screen gets its own profile with its own keys. Four screens? Go through this four times with a different name.",
+      "device_name_hint": "Lowercase letters, digits, and dashes. A different name for each screen.",
+      "wifi": {
+        "title": "Wi-Fi",
+        "ssid": "Wi-Fi name (2.4 GHz)",
+        "password": "Wi-Fi password",
+        "new": "Fill in once: ESP Screens saves this in ESPHome secrets.yaml, later screens use it automatically.",
+        "missing": "Your ESPHome secrets.yaml is still missing Wi-Fi details. ESP Screens only fills in the missing lines.",
+        "ready": "Wi-Fi comes from your ESPHome secrets.yaml.",
+        "invalid": "secrets.yaml in the ESPHome folder isn't valid YAML. Fix the file first; it won't be overwritten."
+      },
+      "install_via": "Install via",
+      "later": "Later · save profile only",
+      "target": {
+        "usb": "Connect the screen with a USB data cable to the Home Assistant machine; the list refreshes on its own. Or choose Download to use your own computer.",
+        "download": "Download the firmware and put it on the screen from your own computer, in Chrome or Edge. After that, updates go over Wi-Fi.",
+        "later": "The profile goes into the ESPHome folder. You can install later via Firmware & USB, or from ESPHome Device Builder.",
+        "several": "More than one board connected: choose this screen's port.",
+        "once": "Once over USB; after that, everything is wireless."
+      },
+      "install": "Install",
+      "save_profile": "Save profile",
+      "busy": "A build or installation is already running ({file}). Wait for it to finish.",
+      "no_cli": "The ESPHome CLI is missing from this installation; only saving the profile is possible.",
+      "progress": {
+        "saved": "{file} is in the ESPHome folder",
+        "writing": "Writing firmware to {name}…",
+        "building": "Building firmware…",
+        "ready": "Firmware for {name} is ready",
+        "installed": "Firmware is on {name}",
+        "build_failed": "Build failed",
+        "install_failed": "Install failed"
+      },
+      "detail": {
+        "saved": "Install it later from Firmware & USB: choose this profile, then the USB port of the Home Assistant machine, or Download to put the firmware on the screen from your own computer. Save the API key for pairing:",
+        "uploading": "Don't disconnect the USB cable yet.",
+        "building": "A first build takes a few minutes on a Raspberry Pi. You can leave this page: the installation keeps running and you'll find it again under New screen.",
+        "building_download": "A first build takes a few minutes on a Raspberry Pi. You can leave this page: the build keeps running and you'll find it again under New screen.",
+        "downloaded": "Put it on the screen from your own computer, then pair the screen with Home Assistant.",
+        "booted": "The screen boots up and connects to your Wi-Fi. Pair it with Home Assistant now:",
+        "booted_cyd": "The screen boots up and connects to your Wi-Fi. The CYD first asks for a touch calibration: tap the crosshairs. Pair it with Home Assistant now:",
+        "see_log": "See the log below."
+      },
+      "download_steps": {
+        "plug": "{bold} with a USB data cable.",
+        "plug_bold": "Plug the screen into your computer",
+        "open": "{bold} in Chrome or Edge, click Connect and choose the screen's USB port.",
+        "open_bold": "Open {esphome_web}",
+        "install": "{bold} and select {file}. The screen restarts and joins your Wi-Fi.",
+        "install_cyd": "{bold} and select {file}. The screen restarts and joins your Wi-Fi. The CYD first asks for a touch calibration: tap the crosshairs.",
+        "install_bold": "Click Install"
+      },
+      "download_keep": "The file holds your Wi-Fi password and the screen's keys: keep it to yourself.",
+      "api_key": "API key",
+      "pairing": {
+        "ha": "{bold} This happens outside ESP Screens. Home Assistant discovers {name} as an ESPHome device; click Add. Not discovered? Add ESPHome manually with the screen's IP address.",
+        "ha_bold": "Go to Home Assistant → Settings → Devices & services.",
+        "key": "{bold} above when Home Assistant asks for an encryption key.",
+        "key_bold": "Paste the API key",
+        "actions": "{bold} ESPHome integration → Configure → “Allow the device to perform Home Assistant actions”. Without this, the screen sees everything but controls nothing.",
+        "actions_bold": "Allow HA actions:",
+        "tiles": "{bold} Back in ESP Screens, the screen appears in the list on the left within about thirty seconds; until then it's shown there as “not yet in Home Assistant”.",
+        "tiles_bold": "Choose your tiles."
+      },
+      "log": "ESPHome log",
+      "retry": "Retry",
+      "another": "Install another screen",
+      "start_over": "Start over",
+      "done": "Done"
+    },
+    "alerts": {
+      "eyebrow": "Alerts · cheatsheet",
+      "title": "A full-screen notification, from an automation.",
+      "intro": "Every screen has the {action} action. It places a card over everything, wakes the screen, and keeps the backlight at normal brightness until someone taps the button or the timeout runs out. Home Assistant itself shows no explanation or dropdowns for ESPHome actions; everything you can fill in is listed here.",
+      "loading": "The cheatsheet is still loading; one moment.",
+      "example": {
+        "title": "Someone is at the door",
+        "subtitle": "Door 3, back",
+        "button": "Coming"
+      },
+      "sections": "Sections",
+      "nav": {
+        "try": "Try it",
+        "screens": "Your screens",
+        "howto": "In an automation",
+        "all": "All screens",
+        "fields": "The fields",
+        "icons": "Icons",
+        "colors": "Colors",
+        "behaviour": "Behavior",
+        "events": "Events",
+        "tips": "Tips"
+      },
+      "try": {
+        "text": "Send one alert now, with the same fields an automation sends. The screen shows the card and, with blinking on, flashes its backlight.",
+        "screen": "Screen",
+        "all": "All screens ({ready} ready)",
+        "not_ready": "{name} · not ready",
+        "title": "Title",
+        "subtitle": "Subtitle",
+        "icon": "Icon",
+        "color": "Color",
+        "button": "Button text",
+        "timeout": "Timeout (seconds, 0 waits for the button)",
+        "flash": "Blink the backlight",
+        "flash_hint": "Four times when the alert arrives.",
+        "sending": "Sending…",
+        "send": "Send alert",
+        "sent_all": "Sent to {n} screen. | Sent to {n} screens.",
+        "sent_to": "Sent to {name}.",
+        "sent_one": "Sent to the screen.",
+        "skipped": "1 skipped (offline or old firmware). | {n} skipped (offline or old firmware).",
+        "left_empty": "Left empty: {fields}.",
+        "nothing": "No screen could show it: check that a screen is online with firmware {version} or newer."
+      },
+      "white": "White (default)",
+      "screens": {
+        "text": "Every screen has its own action, with the device name in it. From firmware {version}; update an older screen with its Update button under Screens.",
+        "none": "No screen paired yet. Install one via New screen; the action appears once Home Assistant sees the screen.",
+        "ready": "● firmware {version}",
+        "update": "Update needed · firmware {version}",
+        "unknown": "Device name unknown · update the screen",
+        "show": "Show alert",
+        "dismiss": "Dismiss alert"
+      },
+      "howto": {
+        "add": "{add} and search for {esphome}. Choose your screen's action: Home Assistant calls it \"Performs the action show_alert of the node {device}\".",
+        "add_bold": "Add action",
+        "device": "device name",
+        "fields": "{bold} Home Assistant asks for all seven; leave what you don't use empty ({empty}, {zero}, off).",
+        "fields_bold": "Fill in the fields.",
+        "yaml": "Prefer YAML? Choose {edit} on the action and paste the example below.",
+        "example_for": "Example for",
+        "no_screen": "a screen (not paired yet)"
+      },
+      "edit_yaml": "Edit in YAML",
+      "copy_yaml": "Copy YAML",
+      "all": {
+        "title": "All screens at once",
+        "text": "Fire the event {show} with the same fields, and ESP Screens passes the alert on to every screen that is online, including screens you add later. {dismiss} clears it everywhere. In an automation, add the {event} action or paste the example under {edit}. Leave out the fields you don't use. ESP Screens has to be running for this.",
+        "event": "Event"
+      },
+      "fields": {
+        "text": "Text is free-form; the limit is in bytes, and an accented letter counts as two. What doesn't fit gets an ellipsis (title) or is dropped (subtitle).",
+        "field": "Field",
+        "type": "Type",
+        "what": "What it does",
+        "example": "Example",
+        "limit": "Limit",
+        "types": {
+          "string": "text",
+          "int": "number",
+          "bool": "on / off",
+          "entity": "entity"
+        },
+        "bytes": "CYD {cyd} · Guition {guition} bytes",
+        "seconds": "0 to 86400 s",
+        "camera_limit": "Guition, firmware 0.2.57+"
+      },
+      "icons": {
+        "text": "Fill in the name in {field}, for example {example}. {mdi} and the hex codepoint ({hex}) also work. Only these icons are included in the firmware; any other name shows the warning triangle. Tap an icon to copy its name.",
+        "handy": "Handy for notifications",
+        "search_label": "Search for an icon",
+        "search": "Search by name or description…",
+        "extra": "Also available: control and weather icons",
+        "copy": "Copy {name}",
+        "none": "No icon for \"{query}\". Unknown names show the warning triangle ({fallback})."
+      },
+      "colors": {
+        "text": "Fill in the name in {field}. These are the pastel shades of the tiles, with dark text. Empty or unknown gives the white card. Tap to copy."
+      },
+      "behaviour": {
+        "wakes": "{bold} An alert immediately wakes a dimmed or dark screen and appears above every page, every open light card, and the standby layer.",
+        "wakes_bold": "Wakes the screen.",
+        "on": "{bold} As long as the card is showing, the backlight stays at normal brightness. Standby and night hours wait. After the button, the regular standby time starts again.",
+        "on_bold": "On until the button.",
+        "timeout": "{bold} {zero} waits for the button, however long that takes. With {minute} the card disappears after a minute, but the button closes it sooner.",
+        "timeout_bold": "Timeout.",
+        "blinking": "{bold} {flash} blinks the backlight four times when the alert arrives (about a second) and leaves the screen on afterward.",
+        "blinking_bold": "Blinking.",
+        "replacing": "{bold} A new alert replaces the current one; there's no stack. The replaced alert reports itself as {replaced}.",
+        "replacing_bold": "Replacing.",
+        "closing": "{bold} {dismiss} clears the card, for example if the door is already open. Without an alert, that action does nothing.",
+        "closing_bold": "Closing remotely.",
+        "beside": "{bold} does nothing; only the button closes it. That way a wake-up tap never accidentally dismisses the alert.",
+        "beside_bold": "Tapping beside the card"
+      },
+      "events": {
+        "text": "Every end fires the event {event} with {action}, {title}, {screen} (the device name) and the {device_id} that Home Assistant adds. Visible under Settings → Tools → Events.",
+        "when": "When",
+        "wait": "Waiting until someone presses the button"
+      },
+      "tips": {
+        "color": "Use a {bold}: orange for the door, red for smoke or water, green for \"done\". The text always stays dark and readable.",
+        "color_bold": "color per kind of notification",
+        "short": "Keep the title {bold}; a screen shows about twenty characters on one line and ends a longer title with an ellipsis. Put details in the subtitle.",
+        "short_bold": "short",
+        "button": "A {bold} turns the notification into a question: \"Coming\", \"Seen\", \"Turn off\". The event then tells you who responded.",
+        "button_bold": "custom button text",
+        "resolve": "For an alert that resolves itself (the door opens, the laundry gets taken out) close it in the same automation with {dismiss}.",
+        "every": "Every screen? Fire {event} once (see All screens at once). The screens still work independently and each reports with its own {screen}.",
+        "claude": "Rather {bold} for the automation? Install the ESP Screens skill under Settings → Claude.",
+        "claude_bold": "ask Claude"
+      }
+    },
+    "override": {
+      "eyebrow": "Advanced · local override",
+      "title": "Override YAML",
+      "title_named": "Override YAML · {name}",
+      "intro": "This small file is yours. It is loaded after the shared screen package and stays in place when ESP Screen Manager updates. Change hardware-specific details here, such as a display model.",
+      "safe_title": "What is safe to change?",
+      "safe_text": "Display, touchscreen, substitutions, pins and other device details. Name, Wi-Fi, API, OTA and package links remain managed.",
+      "active": "Active",
+      "ready": "Ready to attach",
+      "editor_label": "Local override YAML",
+      "use_example": "Use example",
+      "clear": "Clear",
+      "characters": "1 character | {n} characters",
+      "lines": "1 line | {n} lines",
+      "save_check": "Save & check",
+      "save": "Save override",
+      "no_profile": "No ESPHome profile was found for this screen.",
+      "attached": "Changes here apply on the next build.",
+      "not_attached": "Save once to attach this file to the profile.",
+      "saving": "Checking and saving…",
+      "saved": "Saved. The override is kept during firmware updates.",
+      "saved_toast": "Override YAML saved.",
+      "checking": "Saved. ESPHome is checking the complete profile…",
+      "checking_profile": "ESPHome is checking the profile…",
+      "checking_stage": "ESPHome is checking the profile… {stage}",
+      "valid": "The complete profile is valid. Safe to build and install.",
+      "rejected": "ESPHome rejected the complete profile. See Firmware & USB for the full log.",
+      "confirm_example": "Replace the current text with the example?",
+      "example_loaded": "Example loaded. Save it when you are ready.",
+      "confirm_clear": "Clear the local override?",
+      "cleared": "The override will be empty after you save."
+    },
+    "mockup": {
+      "home": "Home",
+      "unknown": "Unknown"
+    }
+  }
 }

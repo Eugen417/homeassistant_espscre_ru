@@ -226,7 +226,9 @@ class Editor(unittest.TestCase):
         self.PICKER = editor_sources.component('ActionPicker')
 
     def test_perform_action_is_a_tap_choice_with_home_assistants_list(self):
-        self.assertIn('list.push(["action", "Perform action"]);', self.SCRIPT)
+        import editor_sources
+        self.assertIn('keys.push("action");', self.SCRIPT)
+        self.assertEqual(editor_sources.text('tile.tap.action'), 'Perform action')
         self.assertIn('getJson(`entity-actions?entity=${encodeURIComponent(entity)}`)', self.SCRIPT)
         self.assertIn('<ActionPicker v-if="domain !== \'screen\' && !goesTo && tap === \'action\'" :tile="tile" />', self.SCRIPT)
         # Fields follow Home Assistant's selectors; an empty field is left out of the data.

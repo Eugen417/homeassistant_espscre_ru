@@ -3,6 +3,7 @@
 // cell (page * 6 + row * 2 + column); a wide tile starts in the left column and also covers
 // the cell to its right; a full tile (firmware 0.2.62+) starts a page and covers all six cells.
 // Empty cells are allowed and stay exactly where they are.
+import { t } from "../i18n";
 import type { Inventory, Layout, Tile } from "../types";
 
 export const SLOTS_PER_PAGE = 6;
@@ -154,7 +155,7 @@ export function effectiveControls(tile: Tile, inventory: Inventory): string | nu
 }
 export function controlsLabel(tile: Tile, inventory: Inventory) {
   const key = effectiveControls(tile, inventory);
-  if (!key) return "none";
+  if (!key) return t("editor.inspect.control_none");
   return inventory.controls?.[tile.entity.split(".")[0]]?.choices.find((c) => c.key === key)?.label.toLocaleLowerCase() || key;
 }
 
@@ -174,39 +175,43 @@ export function tileLimit(firmware: string | undefined | null) {
   if (parseVersion(firmware).length !== 3) return 10;
   return versionAtLeast(firmware, "0.2.62") ? MAX_TILES : versionAtLeast(firmware, "0.2.7") ? 20 : 10;
 }
-export const displayNames: Record<string, string> = {
-  standard: "standard", watch: "large value", forecast: "weather forecast", graph: "graph",
-  digital: "digital clock", analog: "analog clock", sunpath: "sun path",
-};
-export const sizeNames: Record<string, string> = { single: "normal", wide: "double", full: "full page" };
+// What a tile shows and how big it is, in a few words (editor.displays, editor.sizes); a key it doesn't know stays as it is.
+export const DISPLAYS = ["standard", "watch", "forecast", "graph", "digital", "analog", "sunpath"];
+export const displayName = (display: string) => (DISPLAYS.includes(display) ? t(`editor.displays.${display}`) : display);
+export const sizeName = (size: string | undefined) => t(`editor.sizes.${SIZES.includes(size as Size) ? size : "single"}`);
 export const TOGGLE_BEFORE = ["light", "switch", "input_boolean", "fan", "media_player", "climate"];
 export const SLIDER_DOMAINS = ["light", "fan", "cover", "number", "input_number", "media_player"];
 
-export const domains: Record<string, [string, string, string, string]> = {
-  light: ["Light", "☀", "#ad7600", "#fff3d3"],
-  climate: ["Climate", "❄", "#c86620", "#ffebdc"],
-  vacuum: ["Vacuum", "◉", "#008577", "#def3ed"],
-  fan: ["Fan", "✣", "#008aab", "#def5fa"],
-  cover: ["Cover", "▤", "#8053af", "#eee5f8"],
-  media_player: ["Media", "▶", "#007cad", "#def2fc"],
-  sensor: ["Sensor", "⌁", "#3476b1", "#e5effa"],
-  binary_sensor: ["Status", "◈", "#ad7600", "#fff3d3"],
-  switch: ["Switch", "⏻", "#ad7600", "#fff3d3"],
-  input_boolean: ["Switch", "⏻", "#ad7600", "#fff3d3"],
-  scene: ["Scene", "✦", "#8053af", "#eee5f8"],
-  script: ["Script", "▷", "#8053af", "#eee5f8"],
-  weather: ["Weather", "☁", "#007cad", "#def2fc"],
-  number: ["Value", "±", "#008577", "#def3ed"],
-  input_number: ["Value", "±", "#008577", "#def3ed"],
-  select: ["Select", "≡", "#5862af", "#eaecfa"],
-  input_select: ["Select", "≡", "#5862af", "#eaecfa"],
-  button: ["Action", "↗", "#5862af", "#eaecfa"],
-  input_button: ["Action", "↗", "#5862af", "#eaecfa"],
-  screen: ["Screen", "◷", "#25282c", "#e9ecf1"],
-  sun: ["Sun", "☼", "#c86620", "#ffebdc"],
-  timer: ["Timer", "⏱", "#008577", "#def3ed"],
-  person: ["Person", "☺", "#2f7d32", "#e1f2e2"],
-  camera: ["Camera", "◧", "#3d4a57", "#e6ebf0"],
-  image: ["Image", "◧", "#3d4a57", "#e6ebf0"],
+// Per domain its sign and colours; its name is the text editor.domains.<domain> (app 0.2.90).
+export const domains: Record<string, [string, string, string]> = {
+  light: ["☀", "#ad7600", "#fff3d3"],
+  climate: ["❄", "#c86620", "#ffebdc"],
+  vacuum: ["◉", "#008577", "#def3ed"],
+  fan: ["✣", "#008aab", "#def5fa"],
+  cover: ["▤", "#8053af", "#eee5f8"],
+  media_player: ["▶", "#007cad", "#def2fc"],
+  sensor: ["⌁", "#3476b1", "#e5effa"],
+  binary_sensor: ["◈", "#ad7600", "#fff3d3"],
+  switch: ["⏻", "#ad7600", "#fff3d3"],
+  input_boolean: ["⏻", "#ad7600", "#fff3d3"],
+  scene: ["✦", "#8053af", "#eee5f8"],
+  script: ["▷", "#8053af", "#eee5f8"],
+  weather: ["☁", "#007cad", "#def2fc"],
+  number: ["±", "#008577", "#def3ed"],
+  input_number: ["±", "#008577", "#def3ed"],
+  select: ["≡", "#5862af", "#eaecfa"],
+  input_select: ["≡", "#5862af", "#eaecfa"],
+  button: ["↗", "#5862af", "#eaecfa"],
+  input_button: ["↗", "#5862af", "#eaecfa"],
+  screen: ["◷", "#25282c", "#e9ecf1"],
+  sun: ["☼", "#c86620", "#ffebdc"],
+  timer: ["⏱", "#008577", "#def3ed"],
+  person: ["☺", "#2f7d32", "#e1f2e2"],
+  camera: ["◧", "#3d4a57", "#e6ebf0"],
+  image: ["◧", "#3d4a57", "#e6ebf0"],
 };
-export const domainInfo = (id: string) => domains[id.split(".")[0]] || (["Entity", "◇", "#637184", "#edf0f4"] as [string, string, string, string]);
+// [name, sign, colour, background] of an entity's domain.
+export function domainInfo(id: string): [string, string, string, string] {
+  const domain = id.split(".")[0], known = domains[domain];
+  return known ? [t(`editor.domains.${domain}`), ...known] : [t("editor.domains.entity"), "◇", "#637184", "#edf0f4"];
+}
