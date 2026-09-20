@@ -251,7 +251,15 @@ struct Widgets {
   lv_obj_t *picture{};
 };
 constexpr unsigned POINT_BUFFER = 128;
-inline std::array<Widgets, 10> widgets;
+// LAB (responsive): room for the largest grid a board may ask for; a board uses the first SLOTS_PER_PAGE.
+constexpr size_t MAX_CELLS = 20;
+static_assert(SLOTS_PER_PAGE <= MAX_CELLS, "grid larger than the bound tiles");
+inline std::array<Widgets, MAX_CELLS> widgets;
+// The grid's side margin and the gaps between cells, from the board (grid_configure at boot); -1 = sample the tiles.
+inline int grid_margin = -1, grid_gap_x = -1, grid_gap_y = -1;
+inline void grid_configure(int margin, int gap_x, int gap_y) { grid_margin = margin; grid_gap_x = gap_x; grid_gap_y = gap_y; }
+// LAB: the look's standard cell height (TILE_H_STD); a taller cell centres its content on this, a much taller one stacks it.
+inline int standard_tile_height = 0;
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
 inline bool has_icon_glyph(uint32_t codepoint) {
@@ -3244,6 +3252,22 @@ inline void render_slot(size_t slot) {
     lap(swipe_profile::GEOMETRY);
     render_full(w,t,custom,clock,sunpath,graph,mini,with_panel,large_tile,value,unit,content_w,content_h);
     lap(swipe_profile::CUSTOM);
+  }else if(!custom && !watch && !mini && !graph && !with_panel && !w.wide && standard_tile_height>0 && tile_height(w)>=2*standard_tile_height){
+    // LAB (responsive §4.8): a cell twice the look's height shows its icon above its name and state, like a full card.
+    lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);hide_extra(w);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
+    set_font(w.title,w.title_font);title_height=lv_font_get_line_height(w.title_font);lv_obj_set_height(w.title,title_height);
+    const int circle=large_tile?std::min(content_w,content_h*45/100):std::min(content_w,content_h*40/100);
+    const int gap=large_tile?10:6,line_gap=large_tile?2:1;
+    const int block=circle+gap+title_height+line_gap+value_height;
+    const int top=std::max(0,(content_h-block)/2);
+    lv_obj_set_size(w.circle,circle,circle);lv_obj_set_pos(w.circle,(content_w-circle)/2,top);
+    if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font){set_font(w.icon,w.icon_font);}
+    lv_obj_center(w.icon);live_place(w,t,circle,(content_w-circle)/2,top);
+    set_text_align(w.title,LV_TEXT_ALIGN_CENTER);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);
+    lv_obj_set_pos(w.title,0,top+circle+gap);lv_obj_set_width(w.title,content_w);
+    lv_obj_set_pos(w.value,0,top+circle+gap+title_height+line_gap);lv_obj_set_width(w.value,content_w);
+    fit_value(w.value,value,value_short,value_tail,content_w);
+    lap(swipe_profile::CUSTOM);
   }else if(custom){
     lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);
     lap(swipe_profile::GEOMETRY);
@@ -3273,7 +3297,8 @@ inline void render_slot(size_t slot) {
   int text_x=watch?0:(mini||graph_strip)?circle_size+(large_tile?8:6):w.title_x;
   // A large card keeps the profile's places for its circle, name and state, moved down by half of what a card
   // grows without the page bar, so they stay in its middle.
-  int lift=std::max(0,(tile_height(w)-w.base_height)/2);
+  const int standard_h=standard_tile_height>0?std::min(standard_tile_height,w.base_height):w.base_height;
+  int lift=std::max(0,(tile_height(w)-standard_h)/2);
   lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y+lift);
   lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
     watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y+lift);
@@ -3651,12 +3676,13 @@ inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
 struct Rows { int top=0, height=0, pitch=0; };
 inline Rows rows(bool bar) {
   const auto &first=widgets[0];
-  const int gap=widgets[2].tile?widgets[2].base_y-first.base_y-first.base_height:0;
+  const int gap=grid_gap_y>=0?grid_gap_y:(widgets[GRID_COLUMNS].tile?widgets[GRID_COLUMNS].base_y-first.base_y-first.base_height:0);
   Rows r{first.base_y,first.base_height,first.base_height+gap};
   auto *grid=first.tile?lv_obj_get_parent(first.tile):nullptr;auto *screen=grid?lv_obj_get_parent(grid):nullptr;
   if(bar || !screen)return r;
-  const int room=lv_obj_get_height(screen)-lv_obj_get_x(first.tile)-lv_obj_get_y(grid)-first.base_y;
-  const int height=(room-2*gap)/3;
+  const int margin=grid_margin>=0?grid_margin:lv_obj_get_x(first.tile);
+  const int room=lv_obj_get_height(screen)-margin-lv_obj_get_y(grid)-first.base_y;
+  const int height=(room-(int)(GRID_ROW_COUNT-1)*gap)/(int)GRID_ROW_COUNT;
   if(height>r.height){r.height=height;r.pitch=height+gap;}
   return r;
 }
@@ -3793,9 +3819,14 @@ inline int place_page(int page) {
   const bool bar=pages>1 && page_buttons;
   const Rows r=rows(bar);
   applied_rows=r;applied_bar=bar;
-  int wide_width=widgets[0].tile && widgets[1].tile ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)+widgets[0].base_width : 2*widgets[0].base_width;
-  // A full card (firmware 0.2.62+) reaches from the first row to the end of the third.
-  int full_height=2*r.pitch+r.height;
+  // LAB (responsive): every cell from the board's margin and gaps; a wide card spans two cells, a full card the page.
+  const int cell_w=widgets[0].base_width;
+  const int margin=grid_margin>=0?grid_margin:(widgets[0].tile?lv_obj_get_x(widgets[0].tile):0);
+  const int gap_x=grid_gap_x>=0?grid_gap_x:(widgets[0].tile && widgets[1].tile && GRID_COLUMNS>1 ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)-cell_w : 0);
+  int wide_width=GRID_COLUMNS>1?2*cell_w+gap_x:cell_w;
+  int full_width=(int)GRID_COLUMNS*cell_w+(int)(GRID_COLUMNS-1)*gap_x;
+  // A full card (firmware 0.2.62+) reaches from the first row to the end of the last.
+  int full_height=(int)(GRID_ROW_COUNT-1)*r.pitch+r.height;
   // The tile area ends under the third row; a card outside it would be cut off.
   if(auto *grid=widgets[0].tile?lv_obj_get_parent(widgets[0].tile):nullptr; grid && lv_obj_get_style_height(grid,LV_PART_MAIN)!=r.top+full_height)
     lv_obj_set_height(grid,r.top+full_height);
@@ -3804,9 +3835,12 @@ inline int place_page(int page) {
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
     if(slot<SLOTS_PER_PAGE && w.index<model.count){
-      const int y=r.top+static_cast<int>(slot/2)*r.pitch;
+      const int col=static_cast<int>(slot%GRID_COLUMNS),row=static_cast<int>(slot/GRID_COLUMNS);
+      const int x=margin+col*(cell_w+gap_x);
+      const int y=r.top+row*r.pitch;
+      if(lv_obj_get_style_x(w.tile,LV_PART_MAIN)!=x)lv_obj_set_x(w.tile,x);
       if(lv_obj_get_style_y(w.tile,LV_PART_MAIN)!=y)lv_obj_set_y(w.tile,y);
-      lv_obj_set_size(w.tile,w.wide?wide_width:w.base_width,w.full?full_height:r.height);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
+      lv_obj_set_size(w.tile,w.full?full_width:w.wide?wide_width:cell_w,w.full?full_height:r.height);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
     }
     else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}
   }

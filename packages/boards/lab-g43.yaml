@@ -1,3 +1,4 @@
+# LAB board g43: 480x272 at 128 dpi (4.3"), scale 0.755 from the guition, grid 3x2, tile 141x80 px.
 # ESP Screens - Guition ESP32-S3-4848S040 board: 4-inch EU wallbox, 480x480 IPS + GT911 capacitive touch.
 #
 # What is in here: the hardware (display, touch, backlight, PSRAM), the sizes the shared tree takes from
@@ -20,156 +21,155 @@ substitutions:
   TOUCH_MIN_PRESS_MS: "20"
   # Page swipe starts in this band along the left or right edge (about 5 mm) and needs
   # this much travel inward (about 6 mm); a swipe from the middle of the screen does nothing.
-  EDGE_SWIPE_BAND_PX: "32"
-  EDGE_SWIPE_TRAVEL_PX: "40"
+  EDGE_SWIPE_BAND_PX: "24"
+  EDGE_SWIPE_TRAVEL_PX: "30"
   # A slider let go this close to the left or right edge of the glass (about 1 cm) meant its end when
   # that end lies in the band: the panel loses a finger swiped off the glass 30-50 px before the edge.
-  SLIDER_EDGE_SNAP_PX: "67"
-  DEVICE_NAME: "guition-new"
-  DEVICE_FRIENDLY_NAME: "My Guition"
+  SLIDER_EDGE_SNAP_PX: "51"
+  DEVICE_NAME: "lab-g43"
+  DEVICE_FRIENDLY_NAME: "Lab g43"
 
   DISPLAY_W: "480"
-  DISPLAY_H: "480"
+  DISPLAY_H: "272"
   LVGL_ROTATION: "0"
   TOUCH_SWAP_XY: "false"
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
   # LAB (responsive): the grid as the board states it; the shared tree places the cells from these.
-  GRID_COLS: "2"
-  GRID_ROWS: "3"
+  GRID_COLS: "3"
+  GRID_ROWS: "2"
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
-  TILE_H_STD: "108"
   GRID_COL1_X: "16"
-  GRID_COL2_X: "246"
+  GRID_COL2_X: "169"
   GRID_ROW1_Y: "0"
-  GRID_ROW2_Y: "120"
-  GRID_ROW3_Y: "240"
-  GRID_ROW4_Y: "360"
-  GRID_ROW5_Y: "480"
-  SCROLL_Y: "72"
-  SCROLL_H: "348"
-  TILE_W: "218"
-  TILE_H: "108"
-  HEADER_Y: "22"
+  GRID_ROW2_Y: "92"
+  GRID_ROW3_Y: "184"
+  GRID_ROW4_Y: "276"
+  GRID_ROW5_Y: "368"
+  SCROLL_Y: "54"
+  SCROLL_H: "173"
+  TILE_W: "141"
+  TILE_H: "80"
+  HEADER_Y: "17"
   # Holding the top bar opens the settings page (0.2.44+). The two edge bands stay clear: a swipe
   # that starts up there still changes the page.
   SETTINGS_HOLD_X: "${EDGE_SWIPE_BAND_PX}"
-  SETTINGS_HOLD_W: "416"
-  SETTINGS_HOLD_DRIFT_PX: "32"
+  SETTINGS_HOLD_W: "432"
+  SETTINGS_HOLD_DRIFT_PX: "24"
 
   # Alert overlay (HA action show_alert), 480x480: one card centred on LVGL's top layer.
-  ALERT_CARD_W: "420"
-  ALERT_CARD_H: "320"
-  ALERT_ICON_X: "26"
-  ALERT_ICON_Y: "22"
-  ALERT_TEXT_X: "90"
-  ALERT_TEXT_W: "304"
-  ALERT_TITLE_Y: "26"
-  ALERT_TITLE_H: "32"         # one line of headline; a DOT label only ends in an ellipsis with a height
-  ALERT_SUBTITLE_Y: "68"
-  ALERT_SUBTITLE_H: "150"
-  ALERT_BUTTON_W: "150"
-  ALERT_BUTTON_H: "60"
-  ALERT_BUTTON_INSET: "22"
+  ALERT_CARD_W: "317"
+  ALERT_CARD_H: "240"
+  ALERT_ICON_X: "20"
+  ALERT_ICON_Y: "17"
+  ALERT_TEXT_X: "68"
+  ALERT_TEXT_W: "229"
+  ALERT_TITLE_Y: "20"
+  ALERT_TITLE_H: "24"         # one line of headline; a DOT label only ends in an ellipsis with a height
+  ALERT_SUBTITLE_Y: "51"
+  ALERT_SUBTITLE_H: "113"
+  ALERT_BUTTON_W: "113"
+  ALERT_BUTTON_H: "45"
+  ALERT_BUTTON_INSET: "17"
   ALERT_TITLE_MAX: "64"       # bytes; the label ends one line with an ellipsis
   ALERT_BUTTON_MAX: "16"      # bytes on the OK button
   ALERT_SUBTITLE_MAX: "240"   # bytes; wraps over the rows the card has
   # An alert with a camera image (firmware 0.2.57+): the image across the top of a taller card, the words under it.
-  ALERT_CARD_H_IMAGE: "452"
-  ALERT_IMAGE_INSET: "14"
-  ALERT_IMAGE_SHIFT: "236"      # the icon, title and subtitle move down by the image and a gap
-  ALERT_SUBTITLE_H_IMAGE: "62"  # two lines between the title and the button
+  ALERT_CARD_H_IMAGE: "240"
+  ALERT_IMAGE_INSET: "11"
+  ALERT_IMAGE_SHIFT: "178"      # the icon, title and subtitle move down by the image and a gap
+  ALERT_SUBTITLE_H_IMAGE: "47"  # two lines between the title and the button
   # Camera images (firmware 0.2.57+): the boxes ESP Screen Manager sizes a snapshot for (camera_feed.BOXES).
   CAMERA_FULL_W: "480"
-  CAMERA_FULL_H: "480"
-  CAMERA_THUMB_W: "392"
-  CAMERA_THUMB_H: "220"
-  OVERLAY_SLIDER_W: "144"
-  OVERLAY_SLIDER_H: "300"
-  OVERLAY_ICON_Y: "148"
+  CAMERA_FULL_H: "272"
+  CAMERA_THUMB_W: "296"
+  CAMERA_THUMB_H: "136"
+  OVERLAY_SLIDER_W: "109"
+  OVERLAY_SLIDER_H: "226"
+  OVERLAY_ICON_Y: "112"
   TILE_ICON_X: "0"
-  TILE_ICON_Y: "12"
-  TILE_TITLE_X: "64"
-  TILE_TITLE_Y: "17"
-  TILE_VALUE_X: "64"
-  TILE_VALUE_Y: "45"
+  TILE_ICON_Y: "9"
+  TILE_TITLE_X: "48"
+  TILE_TITLE_Y: "13"
+  TILE_VALUE_X: "48"
+  TILE_VALUE_Y: "34"
 
   # Fonts: one size per role, the same files on every board
-  FONT_TIME_SIZE: "27"                          # the clock in the top bar
-  FONT_HEADLINE_SIZE: "27"                      # card titles
-  FONT_WATCH_VALUE_SIZE: "38"
-  FONT_CLOCK_DIGITS_SIZE: "48"
-  FONT_SETPOINT_SIZE: "64"                      # the climate card's setpoint
-  FONT_LABEL_SIZE: "18"                         # tile titles
-  FONT_SUBLABEL_SIZE: "16"                      # tile values and small text
-  FONT_SUBLABEL_BIG_SIZE: "21"                  # the top bar and settings rows
-  FONT_ICON_SIZE: "42"                          # tile icons
-  FONT_ICON_MINI_SIZE: "26"                     # the top bar and card keys
-  FONT_ICON_BIG_SIZE: "64"                      # full-page tiles
-  FONT_WATCH_ICON_SIZE: "18"
+  FONT_TIME_SIZE: "20"                          # the clock in the top bar
+  FONT_HEADLINE_SIZE: "20"                      # card titles
+  FONT_WATCH_VALUE_SIZE: "29"
+  FONT_CLOCK_DIGITS_SIZE: "36"
+  FONT_SETPOINT_SIZE: "48"                      # the climate card's setpoint
+  FONT_LABEL_SIZE: "14"                         # tile titles
+  FONT_SUBLABEL_SIZE: "12"                      # tile values and small text
+  FONT_SUBLABEL_BIG_SIZE: "16"                  # the top bar and settings rows
+  FONT_ICON_SIZE: "32"                          # tile icons
+  FONT_ICON_MINI_SIZE: "20"                     # the top bar and card keys
+  FONT_ICON_BIG_SIZE: "48"                      # full-page tiles
+  FONT_WATCH_ICON_SIZE: "14"
 
   # Tiles and the top bar
-  TILE_RADIUS: "22"                             # corner of a tile
-  TILE_PAD: "12"                                # inside a tile
-  TILE_ICON_SIZE: "54"                          # the icon circle
-  HEADER_INSET: "16"                            # the room name and the clock from the glass edge
+  TILE_RADIUS: "17"                             # corner of a tile
+  TILE_PAD: "9"                                # inside a tile
+  TILE_ICON_SIZE: "41"                          # the icon circle
+  HEADER_INSET: "12"                            # the room name and the clock from the glass edge
 
   # The page bar under the tiles
   PAGE_KEY_W: "240"                             # the previous/next keys under the tiles
-  PAGE_BAR_H: "60"                              # the page bar
-  PAGE_NUMBER_W: "160"                          # the dots in the middle
-  PAGE_CHEVRON_INSET: "24"                      # the chevrons from the outer edge
+  PAGE_BAR_H: "45"                              # the page bar
+  PAGE_NUMBER_W: "121"                          # the dots in the middle
+  PAGE_CHEVRON_INSET: "18"                      # the chevrons from the outer edge
 
   # Cards: the round keys and the brightness card
-  CARD_KEY_X: "16"                              # a card's round key from the side
-  CARD_KEY_Y: "16"                              # from the top
-  CARD_KEY_SIZE: "60"                           # its diameter
-  OVERLAY_TITLE_Y: "30"                         # the brightness card's title
-  OVERLAY_VALUE_Y: "70"                         # its percentage
-  OVERLAY_SLIDER_Y: "36"                        # its slider below the centre
-  OVERLAY_SLIDER_RADIUS: "42"                   # the slider's corners
-  OVERLAY_KNOB_PAD: "15"                        # the knob
-  COLOR_KEY_X: "-20"                            # the colour wheel key from the bottom right corner
-  COLOR_KEY_Y: "-26"
-  COLOR_KEY_SIZE: "66"                          # its diameter
-  COLOR_ARC_SIZE: "60"                          # the eight arcs in it
-  COLOR_ARC_W: "15"
-  COLOR_TITLE_W: "310"                          # the colour card's title
-  COLOR_TITLE_Y: "35"
+  CARD_KEY_X: "12"                              # a card's round key from the side
+  CARD_KEY_Y: "12"                              # from the top
+  CARD_KEY_SIZE: "45"                           # its diameter
+  OVERLAY_TITLE_Y: "23"                         # the brightness card's title
+  OVERLAY_VALUE_Y: "53"                         # its percentage
+  OVERLAY_SLIDER_Y: "27"                        # its slider below the centre
+  OVERLAY_SLIDER_RADIUS: "32"                   # the slider's corners
+  OVERLAY_KNOB_PAD: "11"                        # the knob
+  COLOR_KEY_X: "-15"                            # the colour wheel key from the bottom right corner
+  COLOR_KEY_Y: "-20"
+  COLOR_KEY_SIZE: "50"                          # its diameter
+  COLOR_ARC_SIZE: "45"                          # the eight arcs in it
+  COLOR_ARC_W: "11"
+  COLOR_TITLE_W: "234"                          # the colour card's title
+  COLOR_TITLE_Y: "26"
 
   # The climate card
-  CLIMATE_TITLE_Y: "30"                         # the title
-  CLIMATE_TITLE_W: "300"
-  CLIMATE_STATUS_Y: "92"                        # the status line
-  CLIMATE_CARD_Y: "136"                         # the setpoint card
-  CLIMATE_CARD_H: "200"
-  CLIMATE_CARD_RADIUS: "24"
-  CLIMATE_KEY_INSET: "18"                       # the -/+ keys from the card edge
-  CLIMATE_KEY_SIZE: "116"                       # their diameter
-  CLIMATE_KEY_RADIUS: "58"
-  CLIMATE_NUMBER_Y: "-14"                       # the setpoint number
-  CLIMATE_CAPTION_Y: "46"                       # the word under it
-  CLIMATE_MODES_Y: "364"                        # the row of mode keys
-  CLIMATE_MODES_H: "76"
-  CLIMATE_MODES_GAP: "10"
-  CLIMATE_MODE_RADIUS: "38"
+  CLIMATE_TITLE_Y: "23"                         # the title
+  CLIMATE_TITLE_W: "226"
+  CLIMATE_STATUS_Y: "69"                        # the status line
+  CLIMATE_CARD_Y: "103"                         # the setpoint card
+  CLIMATE_CARD_H: "151"
+  CLIMATE_CARD_RADIUS: "18"
+  CLIMATE_KEY_INSET: "14"                       # the -/+ keys from the card edge
+  CLIMATE_KEY_SIZE: "88"                       # their diameter
+  CLIMATE_KEY_RADIUS: "44"
+  CLIMATE_NUMBER_Y: "-11"                       # the setpoint number
+  CLIMATE_CAPTION_Y: "35"                       # the word under it
+  CLIMATE_MODES_Y: "275"                        # the row of mode keys
+  CLIMATE_MODES_H: "57"
+  CLIMATE_MODES_GAP: "8"
+  CLIMATE_MODE_RADIUS: "29"
 
   # The mode picker
-  PICKER_TITLE_Y: "35"                          # the "Mode" title
-  PICKER_LIST_Y: "92"                           # the list of choices
-  PICKER_LIST_H: "372"
-  PICKER_PAD: "4"
-  PICKER_ROW_GAP: "6"
-  PICKER_COL_GAP: "6"
-  PICKER_MODE_W: "136"                          # a mode chip
-  PICKER_MODE_H: "58"
-  PICKER_MODE_RADIUS: "22"
-  PICKER_TITLE_H: "24"                          # the Fan and Swing captions
-  PICKER_CHIP_W: "98"                           # a fan or swing chip
-  PICKER_CHIP_H: "48"
-  PICKER_CHIP_RADIUS: "18"
+  PICKER_TITLE_Y: "26"                          # the "Mode" title
+  PICKER_LIST_Y: "69"                           # the list of choices
+  PICKER_LIST_H: "281"
+  PICKER_PAD: "3"
+  PICKER_ROW_GAP: "5"
+  PICKER_COL_GAP: "5"
+  PICKER_MODE_W: "103"                          # a mode chip
+  PICKER_MODE_H: "44"
+  PICKER_MODE_RADIUS: "17"
+  PICKER_TITLE_H: "18"                          # the Fan and Swing captions
+  PICKER_CHIP_W: "74"                           # a fan or swing chip
+  PICKER_CHIP_H: "36"
+  PICKER_CHIP_RADIUS: "14"
   PICKER_CHIP_FONT: "sublabel_big"              # the words on them
 
   # The touch test page
@@ -179,9 +179,9 @@ substitutions:
   TOUCH_TEST_TITLE_Y: "110"
   TOUCH_TEST_INSET: "12"                        # the corner crosses from the edge
   TOUCH_TEST_FAR_X: "443"                       # the right crosses: width - inset - size - 1
-  TOUCH_TEST_FAR_Y: "443"                       # the bottom crosses
+  TOUCH_TEST_FAR_Y: "235"                       # the bottom crosses
   TOUCH_TEST_MID_X: "228"                       # the middle cross
-  TOUCH_TEST_MID_Y: "228"
+  TOUCH_TEST_MID_Y: "124"
   TOUCH_TEST_SIZE: "24"                         # a cross
   TOUCH_TEST_PAINT: "paint_ink"                 # the crosses
 
@@ -550,7 +550,7 @@ touchscreen:
 display:
   - platform: st7701s
     id: my_display
-    dimensions: {width: 480, height: 480}
+    dimensions: {width: 480, height: 272}
     spi_id: lcd
     spi_mode: MODE0
     data_rate: 2MHz

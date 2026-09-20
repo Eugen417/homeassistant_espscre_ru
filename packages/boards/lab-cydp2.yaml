@@ -1,3 +1,4 @@
+# LAB board cydp2: 240x320 at 143 dpi (2.8"), scale 0.999 from the cyd, grid 2x4, tile 107x58 px.
 ############################################################
 # ESP Screens - CYD board (ESP32-2432S028, "Cheap Yellow Display")
 # Built-in ILI9341 320x240 display and XPT2046 resistive touch.
@@ -21,8 +22,8 @@ substitutions:
   # the band. The resistive panel reports a finger up to the bezel, so only the strip's last pixels and
   # the margin beside them count (a capacitive Guition loses a fast finger 30-50 px before its edge).
   SLIDER_EDGE_SNAP_PX: "20"
-  DEVICE_NAME: "cyd-new"
-  DEVICE_FRIENDLY_NAME: "My CYD"
+  DEVICE_NAME: "lab-cydp2"
+  DEVICE_FRIENDLY_NAME: "Lab cydp2"
   TOUCH_AFFINE_XX: "1.000000000"
   TOUCH_AFFINE_XY: "0.000000000"
   TOUCH_AFFINE_XC: "0.000000000"
@@ -35,9 +36,9 @@ substitutions:
   # both the picture and the touch coordinates. DISPLAY_W/H are the logical canvas
   # the layout uses. Turning a screen a quarter is a setting in ESP Screens, so
   # these values stay as they are.
-  DISPLAY_W: "320"
-  DISPLAY_H: "240"
-  LVGL_ROTATION: "90"
+  DISPLAY_W: "240"
+  DISPLAY_H: "320"
+  LVGL_ROTATION: "0"
   TOUCH_SWAP_XY: "false"
   # true on this board (resistive XPT2046) — was false on the 032c board
   # (capacitive GT911). This is the original upstream value for this panel.
@@ -52,22 +53,21 @@ substitutions:
   TOUCH_CAL_Y_MAX: "3860"
   # LAB (responsive): the grid as the board states it; the shared tree places the cells from these.
   GRID_COLS: "2"
-  GRID_ROWS: "3"
+  GRID_ROWS: "4"
   GRID_MARGIN: "9"
   GRID_GAP_X: "8"
   GRID_GAP_Y: "4"
-  TILE_H_STD: "52"
   GRID_COL1_X: "9"
-  GRID_COL2_X: "164"
+  GRID_COL2_X: "124"
   GRID_ROW1_Y: "0"
-  GRID_ROW2_Y: "56"
-  GRID_ROW3_Y: "112"
-  GRID_ROW4_Y: "168"
-  GRID_ROW5_Y: "224"
+  GRID_ROW2_Y: "62"
+  GRID_ROW3_Y: "124"
+  GRID_ROW4_Y: "186"
+  GRID_ROW5_Y: "248"
   SCROLL_Y: "40"
-  SCROLL_H: "164"
-  TILE_W: "147"
-  TILE_H: "52"
+  SCROLL_H: "244"
+  TILE_W: "107"
+  TILE_H: "58"
   HEADER_Y: "14"
   # Holding the top bar opens the settings page (0.2.44+). The whole strip counts on this board;
   # a finger that travels further than the drift limit of a tap is swiping, not holding.
@@ -79,7 +79,7 @@ substitutions:
   OVERLAY_ICON_Y: "74"
 
   # Alert overlay (HA action show_alert), landscape 320x240: one card centred on LVGL's top layer.
-  ALERT_CARD_W: "292"
+  ALERT_CARD_W: "222"
   ALERT_CARD_H: "196"
   ALERT_ICON_X: "18"
   ALERT_ICON_Y: "16"
@@ -225,7 +225,7 @@ substitutions:
   HEADER_INSET: "11"                            # the room name and the clock from the glass edge
 
   # The page bar under the tiles
-  PAGE_KEY_W: "160"                             # the previous/next keys under the tiles
+  PAGE_KEY_W: "120"                             # the previous/next keys under the tiles
   PAGE_BAR_H: "36"                              # the page bar
   PAGE_NUMBER_W: "104"                          # the dots in the middle
   PAGE_CHEVRON_INSET: "14"                      # the chevrons from the outer edge
@@ -286,10 +286,10 @@ substitutions:
   TOUCH_TEST_TITLE_FONT: "sublabel"
   TOUCH_TEST_TITLE_Y: "65"
   TOUCH_TEST_INSET: "10"                        # the corner crosses from the edge
-  TOUCH_TEST_FAR_X: "289"                       # the right crosses: width - inset - size - 1
-  TOUCH_TEST_FAR_Y: "209"                       # the bottom crosses
-  TOUCH_TEST_MID_X: "150"                       # the middle cross
-  TOUCH_TEST_MID_Y: "110"
+  TOUCH_TEST_FAR_X: "209"                       # the right crosses: width - inset - size - 1
+  TOUCH_TEST_FAR_Y: "289"                       # the bottom crosses
+  TOUCH_TEST_MID_X: "110"                       # the middle cross
+  TOUCH_TEST_MID_Y: "150"
   TOUCH_TEST_SIZE: "20"                         # a cross
   TOUCH_TEST_PAINT: "paint_calibration"         # the crosses
 

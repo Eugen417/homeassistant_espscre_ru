@@ -24,10 +24,20 @@
 #endif
 
 namespace runtime_tiles {
-// Eight pages of six slots: a screen holds at most one tile per slot (firmware 0.2.62+; twenty before).
-constexpr size_t SLOTS_PER_PAGE = 6;
-// Explicit grid positions (0.2.26+) address at most eight pages of six slots.
-constexpr size_t MAX_PAGES = 8;
+// LAB (responsive): the grid comes from the board as build flags; 2 x 3 when a board says nothing.
+#ifndef GRID_COLS
+#define GRID_COLS 2
+#endif
+#ifndef GRID_ROWS
+#define GRID_ROWS 3
+#endif
+constexpr size_t GRID_COLUMNS = GRID_COLS;
+constexpr size_t GRID_ROW_COUNT = GRID_ROWS;
+static_assert(GRID_COLUMNS >= 1 && GRID_ROW_COUNT >= 1, "a grid needs a cell");
+// Pages of cells: a screen holds at most one tile per slot (firmware 0.2.62+; twenty before).
+constexpr size_t SLOTS_PER_PAGE = GRID_COLUMNS * GRID_ROW_COUNT;
+// Explicit grid positions (0.2.26+) address at most eight pages; the dirty mask caps the total at 64 tiles.
+constexpr size_t MAX_PAGES = (64 / SLOTS_PER_PAGE) < 8 ? (64 / SLOTS_PER_PAGE) : 8;
 constexpr size_t MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
 constexpr size_t MAX_TILES = MAX_SLOTS;
 // One bit per tile for the cards the next render draws again (firmware 0.2.65+). Firmware 0.2.62-0.2.64 kept 32 bits
@@ -336,7 +346,7 @@ struct Tile {
   bool is_page() const { return page_entity(entity); }
   int page_target() const { return is_page() ? entity[12] - '0' : 0; }
   // Slots a tile takes: one, a row of two, or the six of a page.
-  unsigned cells() const { return full ? SLOTS_PER_PAGE : wide ? 2u : 1u; }
+  unsigned cells() const { return full ? SLOTS_PER_PAGE : wide ? (GRID_COLUMNS > 1 ? 2u : 1u) : 1u; }
   // A scene, button or input button that never ran is "unknown" in Home Assistant, which still lets you press it
   // (hui-button-entity-row disables only an unavailable one): its state is the moment it last ran (firmware 0.2.58+).
   bool available() const {
@@ -415,7 +425,7 @@ inline unsigned pack(const TileList &tiles, size_t count, std::array<Placement, 
   unsigned position = 0;
   for (size_t i = 0; i < count && i < MAX_TILES; ++i) {
     if (tiles[i].full && position % SLOTS_PER_PAGE) position += SLOTS_PER_PAGE - position % SLOTS_PER_PAGE;
-    else if (tiles[i].wide && position % 2 == 1) ++position;
+    else if (tiles[i].wide && GRID_COLUMNS > 1 && position % GRID_COLUMNS == GRID_COLUMNS - 1) ++position;
     out[i] = {static_cast<uint8_t>(position / SLOTS_PER_PAGE), static_cast<uint8_t>(position % SLOTS_PER_PAGE)};
     position += tiles[i].cells();
   }
@@ -506,7 +516,7 @@ inline unsigned place(const Model &m, std::array<Placement, MAX_TILES> &out) {
   for (size_t i = 0; i < m.count && i < MAX_TILES; ++i) {
     unsigned slot = m.slots[i];
     if (m.tiles[i].full) slot -= slot % SLOTS_PER_PAGE;
-    else if (m.tiles[i].wide) slot &= ~1u;
+    else if (m.tiles[i].wide && GRID_COLUMNS > 1 && slot % GRID_COLUMNS == GRID_COLUMNS - 1) --slot;
     out[i] = {static_cast<uint8_t>(slot / SLOTS_PER_PAGE), static_cast<uint8_t>(slot % SLOTS_PER_PAGE)};
     last = std::max(last, slot + m.tiles[i].cells());
   }

@@ -50,6 +50,8 @@ esphome:
   platformio_options:
     build_flags:
       - -DLV_USE_SWITCH=1
+      - -DGRID_COLS=${GRID_COLS}
+      - -DGRID_ROWS=${GRID_ROWS}
   includes:
     - <esphome/components/smart_display/cyd_ui.h>
     - <esphome/components/smart_display/light_controls.h>
@@ -135,6 +137,8 @@ esphome:
           ${BOOT_PAGE_GESTURE}
           ${BOOT_CAMERA_HOOKS}
           runtime_tiles::refresh = []() { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); };
+          runtime_tiles::grid_configure(atoi("${GRID_MARGIN}"), atoi("${GRID_GAP_X}"), atoi("${GRID_GAP_Y}"));
+          runtime_tiles::standard_tile_height = atoi("${TILE_H_STD}");
           runtime_tiles::bind(0, id(tile1), id(t1_title), id(t1_value), id(tile1_icon_circle), id(tile1_icon_lbl));
           runtime_tiles::bind(1, id(tile2), id(t2_title), id(t2_value), id(tile2_icon_circle), id(tile2_icon_lbl));
           runtime_tiles::bind(2, id(tile3), id(t3_title), id(t3_value), id(tile3_icon_circle), id(tile3_icon_lbl));
@@ -145,6 +149,16 @@ esphome:
           runtime_tiles::bind(7, id(tile8), id(t8_title), id(t8_value), id(tile8_icon_circle), id(tile8_icon_lbl));
           runtime_tiles::bind(8, id(tile9), id(t9_title), id(t9_value), id(tile9_icon_circle), id(tile9_icon_lbl));
           runtime_tiles::bind(9, id(tile10), id(t10_title), id(t10_value), id(tile10_icon_circle), id(tile10_icon_lbl));
+          runtime_tiles::bind(10, id(tile11), id(t11_title), id(t11_value), id(tile11_icon_circle), id(tile11_icon_lbl));
+          runtime_tiles::bind(11, id(tile12), id(t12_title), id(t12_value), id(tile12_icon_circle), id(tile12_icon_lbl));
+          runtime_tiles::bind(12, id(tile13), id(t13_title), id(t13_value), id(tile13_icon_circle), id(tile13_icon_lbl));
+          runtime_tiles::bind(13, id(tile14), id(t14_title), id(t14_value), id(tile14_icon_circle), id(tile14_icon_lbl));
+          runtime_tiles::bind(14, id(tile15), id(t15_title), id(t15_value), id(tile15_icon_circle), id(tile15_icon_lbl));
+          runtime_tiles::bind(15, id(tile16), id(t16_title), id(t16_value), id(tile16_icon_circle), id(tile16_icon_lbl));
+          runtime_tiles::bind(16, id(tile17), id(t17_title), id(t17_value), id(tile17_icon_circle), id(tile17_icon_lbl));
+          runtime_tiles::bind(17, id(tile18), id(t18_title), id(t18_value), id(tile18_icon_circle), id(tile18_icon_lbl));
+          runtime_tiles::bind(18, id(tile19), id(t19_title), id(t19_value), id(tile19_icon_circle), id(tile19_icon_lbl));
+          runtime_tiles::bind(19, id(tile20), id(t20_title), id(t20_value), id(tile20_icon_circle), id(tile20_icon_lbl));
           runtime_tiles::detail = [](runtime_tiles::Tile &t) {
             light_controls::fallback = light_controls::State{};
             light_controls::fallback.hue = t.hue;
@@ -2079,6 +2093,466 @@ lvgl:
                         clickable: false
                     - label:
                         id: t10_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 11 — lab spare cell ----------
+              - obj:
+                  id: tile11
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile11_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile11_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t11_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 11"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t11_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 12 — lab spare cell ----------
+              - obj:
+                  id: tile12
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile12_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile12_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t12_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 12"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t12_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 13 — lab spare cell ----------
+              - obj:
+                  id: tile13
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile13_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile13_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t13_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 13"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t13_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 14 — lab spare cell ----------
+              - obj:
+                  id: tile14
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile14_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile14_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t14_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 14"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t14_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 15 — lab spare cell ----------
+              - obj:
+                  id: tile15
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile15_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile15_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t15_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 15"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t15_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 16 — lab spare cell ----------
+              - obj:
+                  id: tile16
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile16_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile16_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t16_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 16"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t16_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 17 — lab spare cell ----------
+              - obj:
+                  id: tile17
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile17_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile17_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t17_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 17"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t17_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 18 — lab spare cell ----------
+              - obj:
+                  id: tile18
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile18_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile18_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t18_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 18"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t18_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 19 — lab spare cell ----------
+              - obj:
+                  id: tile19
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile19_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile19_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t19_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 19"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t19_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+
+              # ---------- TILE 20 — lab spare cell ----------
+              - obj:
+                  id: tile20
+                  hidden: true
+                  x: ${GRID_COL1_X}
+                  y: ${GRID_ROW5_Y}
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile20_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile20_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t20_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 20"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t20_value
                         x: ${TILE_VALUE_X}
                         y: ${TILE_VALUE_Y}
                         text: "—"
