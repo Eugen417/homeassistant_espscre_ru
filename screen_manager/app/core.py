@@ -50,7 +50,7 @@ FULL_PAGE_MIN_FIRMWARE = (0, 2, 62)
 TWENTY_TILES_MIN_FIRMWARE = (0, 2, 7)
 FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
-REFS = {'cyd': 'main', 'guition': 'main'}
+REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
 FIRMWARE_VERSION = '0.2.78'
 # The Auto standby switch a screen offers Home Assistant automations.
@@ -211,8 +211,12 @@ NAME_SCREEN_LANGUAGE = ('Screen language',)
 # The shape of a screen (firmware 0.2.9x, app 0.2.9x): "800x480 3x2" is its canvas and the grid of cells a page
 # holds. Firmware from before it says nothing, and then the board it was built for decides (LAYOUTS below).
 NAME_SCREEN_LAYOUT = ('Screen layout',)
+# Which board a screen is (firmware 0.2.9x, app 0.2.9x): the key of its file in packages/boards, the same key
+# boards.json is written under. Firmware from before it says nothing, and then the Guition's own sensor or the
+# YAML the screen is built from has to tell (board_of below).
+NAME_SCREEN_BOARD = ('Screen board',)
 SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS
-                                + NAME_SCREEN_LANGUAGE + NAME_SCREEN_LAYOUT)
+                                + NAME_SCREEN_LANGUAGE + NAME_SCREEN_LAYOUT + NAME_SCREEN_BOARD)
 
 # What a board looks like: the glass it draws on and the cells of one page. These come straight from the board
 # files (tools/generate_board_shapes.py writes boards.json from DISPLAY_W, GRID_COLS and the rest), so the
@@ -236,6 +240,20 @@ def parse_shape(text):
     if not (1 <= columns <= 12 and 1 <= rows <= 12 and columns * rows <= MAX_SLOTS):
         return None
     return {'width': width, 'height': height, 'columns': columns, 'rows': rows}
+
+def board_of(screen):
+    """Which board a screen is, in the order of what knows best: what it reported itself (firmware 0.2.9x, or
+    the Guition's own sensor), else the board package the YAML of its profile includes. 'unknown' for a screen
+    that says nothing and has no profile here, which is what a screen flashed by hand looks like."""
+    if not isinstance(screen, dict):
+        return 'unknown'
+    board = screen.get('board')
+    if board in SHAPES:
+        return board
+    package = screen.get('package')
+    if isinstance(package, str) and package in SHAPES:
+        return SHAPES[package].get('board', 'unknown')
+    return board or 'unknown'
 
 def shape_of(screen):
     """The shape of a screen as the editor needs it, in the order of what knows best:
@@ -1613,6 +1631,10 @@ def discover_screens(registry, states, devices, areas):
                 if isinstance(value, str) and value not in ('unknown', 'unavailable') and re.fullmatch(pattern, value):
                     found[item.get('device_id')] = value
         return found
+    # The screen's own word about its board wins over the Guition-only sensor; anything this app has never
+    # heard of is ignored, so a screen cannot name a board that has no shape here.
+    boards.update({device: board for device, board in diagnostic(NAME_SCREEN_BOARD, r'[a-z0-9][a-z0-9-]{0,30}').items()
+                   if board in SHAPES})
     nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')
     shapes = diagnostic(NAME_SCREEN_LAYOUT, r'\d{2,5}x\d{2,5} \d{1,2}x\d{1,2}')
     addresses = diagnostic(NAME_IP_ADDRESS, r'\d{1,3}(\.\d{1,3}){3}')

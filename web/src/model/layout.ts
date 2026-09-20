@@ -7,6 +7,7 @@
 //
 // `setGrid` is called when the screen being edited changes, before anything is drawn or packed: the editor then
 // places tiles the way that screen will, instead of the way the first two boards did.
+import { reactive } from "vue";
 import { t } from "../i18n";
 import type { Inventory, Layout, Tile } from "../types";
 
@@ -17,6 +18,10 @@ export let COLUMNS = DEFAULT_GRID.columns;
 export let ROWS = DEFAULT_GRID.rows;
 export let SLOTS_PER_PAGE = COLUMNS * ROWS;
 export let MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
+// The same grid as something Vue can watch. A plain `let` is a live binding for other modules, but a computed()
+// that reads one never re-runs when it changes: the mockup of a 3 x 3 screen kept drawing six cells while the
+// counter beside it already said nine. Anything reactive reads `grid`, the helpers below keep the constants.
+export const grid = reactive({ ...DEFAULT_GRID, slots: SLOTS_PER_PAGE, maxSlots: MAX_SLOTS });
 export function setGrid(columns?: number, rows?: number) {
   const cols = Math.min(12, Math.max(1, Math.round(columns || DEFAULT_GRID.columns)));
   const lines = Math.min(12, Math.max(1, Math.round(rows || DEFAULT_GRID.rows)));
@@ -24,6 +29,10 @@ export function setGrid(columns?: number, rows?: number) {
   ROWS = lines;
   SLOTS_PER_PAGE = cols * lines;
   MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
+  grid.columns = cols;
+  grid.rows = lines;
+  grid.slots = SLOTS_PER_PAGE;
+  grid.maxSlots = MAX_SLOTS;
 }
 
 export type Entry = { tile: Tile; slot: number };

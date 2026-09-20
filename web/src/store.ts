@@ -97,11 +97,22 @@ export const screenShape = computed(() => {
   return shape && shape.columns > 0 && shape.rows > 0 ? shape : SMALLEST;
 });
 // The tile grid of a page, as CSS variables: the mockup is the screen's own shape, whatever board it is.
-export const deviceStyle = computed(() => ({
-  "--screen-aspect": `${screenShape.value.width} / ${screenShape.value.height}`,
-  "--screen-columns": String(screenShape.value.columns),
-  "--screen-rows": String(screenShape.value.rows),
-}));
+// Every mockup is drawn the same height (MOCKUP_HEIGHT), so its width follows the screen's proportions: a
+// 800 x 480 page then reads as easily as a square 480 x 480 one instead of being half as tall. Wide glass is
+// capped so a page still fits beside its neighbour on a laptop; narrow glass keeps a usable minimum.
+const MOCKUP_HEIGHT = 300;
+export const deviceStyle = computed(() => {
+  const shape = screenShape.value;
+  const width = Math.round(Math.min(560, Math.max(260, (MOCKUP_HEIGHT * shape.width) / shape.height)));
+  return {
+    "--screen-aspect": `${shape.width} / ${shape.height}`,
+    "--screen-columns": String(shape.columns),
+    "--screen-rows": String(shape.rows),
+    // A wide tile is two cells, or the only one on a single-column screen (layout.ts: spanOf).
+    "--screen-wide-span": String(Math.min(2, shape.columns)),
+    "--mockup-width": `${width}px`,
+  };
+});
 // A screen smaller than a hand draws the compact look, whatever its board (the CYD and anything like it).
 export const isCompact = computed(() => screenShape.value.width < 400);
 watchEffect(() => setGrid(screenShape.value.columns, screenShape.value.rows));

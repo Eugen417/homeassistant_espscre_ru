@@ -401,19 +401,21 @@ class App(unittest.IsolatedAsyncioTestCase):
                 await m.answer_camera(request)
             self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
 
-    async def test_camera_tiles_only_on_a_guition(self):
+    async def test_camera_tiles_only_on_a_board_that_draws_them(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha()
             m = Manager(ha, Path(tmp) / 'screens.json')
             m.inventory = lambda: (m.screens(), [{'id': 'camera.max'}])
             m.write_layouts = lambda layouts: None
             m.notify = lambda: None
-            with self.assertRaisesRegex(ValueError, 'Guition'):
+            # A board whose YAML says nothing about camera sizes (the CYD) has no room for them, whatever
+            # its firmware: the message says so about the screen, not about a Guition (app 0.2.9x).
+            with self.assertRaisesRegex(ValueError, 'cannot show camera'):
                 m.save('text.d2_tiles', {'title': 'Desk', 'tiles': [{'entity': 'camera.max', 'name': ''}]})
             # A CYD on old firmware hears the same, not "update first": an update doesn't make room for images.
             ha.states['sensor.d2_fw']['state'] = '0.2.54'
             m._screens_key = None
-            with self.assertRaisesRegex(ValueError, 'Guition'):
+            with self.assertRaisesRegex(ValueError, 'cannot show camera'):
                 m.save('text.d2_tiles', {'title': 'Desk', 'tiles': [{'entity': 'camera.max', 'name': ''}]})
             with self.assertRaisesRegex(ValueError, '0.2.57'):
                 m.save('text.d3_tiles', {'title': 'Attic', 'tiles': [{'entity': 'camera.max', 'name': ''}]})

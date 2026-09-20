@@ -457,7 +457,7 @@
         "same_spot": "Deux tuiles sont au même emplacement.",
         "pages": "Un écran a {n} page. | Un écran a de 1 à {n} pages.",
         "eight_pages": "Ces tuiles ne tiennent pas sur huit pages ; retirez une tuile ou réduisez-en une.",
-        "camera_guition": "Les images de caméra nécessitent un écran Guition.",
+        "camera_unsupported": "Cet écran ne peut pas afficher d'images de caméra.",
         "firmware_first": "Pour ces tuiles, installez d'abord le firmware {version} ou plus récent sur l'écran.",
         "entity_gone": "Une entité choisie n'existe plus. Cherchez la nouvelle entité.",
         "ids_too_long": "Ensemble, les ID d'entité de ces tuiles sont trop longs pour tenir dans un seul message à l'écran ; retirez quelques tuiles."
@@ -1593,6 +1593,7 @@
       "board": "Quel écran avez-vous ?",
       "board_cyd": "CYD · 2,8 pouces",
       "board_guition": "Guition · 4 pouces",
+      "board_waveshare43": "Waveshare · 4.3 inch",
       "name": "Nom",
       "name_placeholder": "Écran du salon",
       "device_name": "Nom de l'appareil",

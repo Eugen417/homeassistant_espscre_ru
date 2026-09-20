@@ -4,7 +4,7 @@
 import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
-import { displayName, effectiveControls, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
+import { displayName, effectiveControls, grid, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
 import type { Tile } from "../types";
@@ -25,7 +25,7 @@ const cp = computed(() => state.inventory.icons?.controls || {});
 const key = (n: string) => (cp.value[n] ? glyph(cp.value[n]) : "");
 const chosen = computed(() => isSelected(props.tile) && state.inspector?.kind === "tile");
 const live = computed(() => !props.placeholder && state.layout?.tiles.includes(props.tile));
-const label = computed(() => t("editor.tile_card.label", { name: name.value, slot: (props.slot % SLOTS_PER_PAGE) + 1, page: pageOf(props.slot) + 1 }));
+const label = computed(() => t("editor.tile_card.label", { name: name.value, slot: (props.slot % grid.slots) + 1, page: pageOf(props.slot) + 1 }));
 const now = computed(() => new Date(state.now));
 const hourAngle = computed(() => (now.value.getHours() % 12 + now.value.getMinutes() / 60) * 30);
 const minuteAngle = computed(() => now.value.getMinutes() * 6);

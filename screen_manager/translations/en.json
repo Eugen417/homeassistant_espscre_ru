@@ -457,7 +457,7 @@
         "same_spot": "Two tiles are in the same spot.",
         "pages": "A screen has 1 page. | A screen has 1 to {n} pages.",
         "eight_pages": "These tiles don't fit on eight pages; remove a tile or make one smaller.",
-        "camera_guition": "Camera images need a Guition screen.",
+        "camera_unsupported": "This screen cannot show camera pictures.",
         "firmware_first": "Install screen firmware {version} or newer first for these tiles.",
         "entity_gone": "A chosen entity no longer exists. Look up the new entity.",
         "ids_too_long": "These tiles' entity IDs are too long together to fit in one message to the screen; remove a few tiles."
@@ -1593,6 +1593,7 @@
       "board": "Which screen do you have?",
       "board_cyd": "CYD · 2.8 inch",
       "board_guition": "Guition · 4 inch",
+      "board_waveshare43": "Waveshare · 4.3 inch",
       "name": "Name",
       "name_placeholder": "Living room screen",
       "device_name": "Device name",

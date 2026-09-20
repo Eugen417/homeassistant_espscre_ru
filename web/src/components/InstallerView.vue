@@ -189,6 +189,7 @@ onBeforeUnmount(() => clearInterval(poll));
         <div class="boards">
           <label class="board"><input type="radio" name="board" value="cyd" v-model="form.board" /><span><b>{{ t("editor.installer.board_cyd") }}</b><small>ESP32-2432S028 · 320 × 240</small></span></label>
           <label class="board"><input type="radio" name="board" value="guition" v-model="form.board" /><span><b>{{ t("editor.installer.board_guition") }}</b><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span></label>
+          <label class="board"><input type="radio" name="board" value="waveshare43" v-model="form.board" /><span><b>{{ t("editor.installer.board_waveshare43") }}</b><small>ESP32-S3-Touch-LCD-4.3 · 800 × 480 · GT911</small></span></label>
         </div>
       </fieldset>
       <div class="field">

@@ -19,7 +19,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import ALERT_EVENT, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
 from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, SLOTS_PER_PAGE, firmware_features, packed_slots, run_tile_event,
                   screen_firmware, shape_of, version_text)
@@ -1115,8 +1115,8 @@ class Manager:
             raise ValueError(t('addon.errors.not_paired'))
         layout = validate_layout(data)
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
-        if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and screen.get('board') not in camera_feed.BOXES:
-            raise ValueError(t('addon.errors.layout.camera_guition'))
+        if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
+            raise ValueError(t('addon.errors.layout.camera_unsupported'))
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
             raise ValueError(t('addon.errors.layout.firmware_first', version=needed))
@@ -1701,7 +1701,7 @@ class Manager:
             del self.alert_cameras[old]
         boards = {}
         for screen in screens:
-            boards.setdefault(screen['board'], []).append(screen)
+            boards.setdefault(board_of(screen), []).append(screen)
         for board, group in boards.items():
             found = await self.camera.frame(camera, camera_feed.BOXES[board]['thumb'], fresh=False, now=True)
             message = await self.camera_message(camera, 'thumb', board, found[1] if found else None)
@@ -1903,6 +1903,8 @@ def create_app(manager, development=False):
             # from (the YAML), else its board. The editor draws its mockup and places tiles on this grid.
             profile, _ = manager.updates.resolve(screen, profiles)
             screen['package'] = (profiles.get(profile) or {}).get('package') if profile else None
+            # The board too: a screen that says nothing about itself is known by the YAML its profile builds from.
+            screen['board'] = board_of(screen)
             screen['shape'] = shape_of(screen)
             screen['alert_action'] = alert_service(screen.get('node'))
             screen['dismiss_action'] = alert_service(screen.get('node'), 'dismiss_alert')

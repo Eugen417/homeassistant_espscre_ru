@@ -125,7 +125,7 @@ a:hover { text-decoration: underline; }
 .canvas-head b { color: var(--ink); font-weight: 600; font-size: 13px; }
 .canvas-head .warn { color: var(--warn); }
 .pages { display: flex; gap: 18px; align-items: flex-start; }
-.page { flex: 0 0 292px; display: grid; gap: 8px; }
+.page { flex: 0 0 var(--mockup-width, 292px); display: grid; gap: 8px; }
 .page-label { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--muted); padding: 0 4px; min-height: 22px; }
 .page-label .btn.mini { color: var(--muted); }
 .page-label .btn.mini:hover { color: var(--danger); background: var(--danger-soft); }
@@ -149,7 +149,7 @@ a:hover { text-decoration: underline; }
 .tile { position: relative; background: #fff; border: 1px solid #dcdcdc; border-radius: 12px; padding: 8px 9px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 0; cursor: pointer; text-align: left; overflow: hidden; color: #1b1b1b; touch-action: manipulation; }
 .tile:hover { border-color: #b9c4d3; }
 .tile.chosen { outline: 2px solid var(--accent); outline-offset: 1px; }
-.tile.wide { grid-column: span 2; flex-direction: row; align-items: center; gap: 8px; }
+.tile.wide { grid-column: span var(--screen-wide-span, 2); flex-direction: row; align-items: center; gap: 8px; }
 .tile.bare { background: transparent; border-style: dashed; border-color: #c3c9d0; }
 .tile.placeholder { opacity: 0.55; border: 2px dashed var(--accent); background: var(--accent-soft); cursor: default; }
 .tile .ic { font-size: 18px; line-height: 1; color: #1b1b1b; flex: none; }
@@ -494,7 +494,9 @@ td code { white-space: nowrap; }
 .try-grid .field.wide { grid-column: 1 / -1; }
 
 /* A full-page tile (firmware 0.2.62+): both columns and all three rows, one big button. */
-.tile.full { grid-column: span 2; grid-row: span 3; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
+/* A full tile is the whole page, whatever the screen's grid is: two by three on the boards that shipped
+   first, three by three on a 800 x 480. The spans follow --screen-columns / --screen-rows (store.ts). */
+.tile.full { grid-column: span var(--screen-columns, 2); grid-row: span var(--screen-rows, 3); flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; }
 .tile.full .ic { font-size: 34px; }
 .tile.full .lead { flex: 0 0 auto; align-content: center; justify-items: center; }
 .tile.full .nm { font-size: 14px; }

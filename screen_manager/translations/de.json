@@ -457,7 +457,7 @@
         "same_spot": "Zwei Kacheln liegen auf demselben Platz.",
         "pages": "Ein Bildschirm hat 1 Seite. | Ein Bildschirm hat 1 bis {n} Seiten.",
         "eight_pages": "Diese Kacheln passen nicht auf acht Seiten; entferne eine Kachel oder mach eine kleiner.",
-        "camera_guition": "Kamerabilder brauchen einen Guition-Bildschirm.",
+        "camera_unsupported": "Dieser Bildschirm kann keine Kamerabilder anzeigen.",
         "firmware_first": "Installiere für diese Kacheln zuerst Bildschirm-Firmware {version} oder neuer.",
         "entity_gone": "Eine gewählte Entität gibt es nicht mehr. Such die neue Entität heraus.",
         "ids_too_long": "Die Entitäts-IDs dieser Kacheln sind zusammen zu lang für eine Nachricht an den Bildschirm; entferne ein paar Kacheln."
@@ -1593,6 +1593,7 @@
       "board": "Welchen Bildschirm hast du?",
       "board_cyd": "CYD · 2,8 Zoll",
       "board_guition": "Guition · 4 Zoll",
+      "board_waveshare43": "Waveshare · 4.3 inch",
       "name": "Name",
       "name_placeholder": "Bildschirm Wohnzimmer",
       "device_name": "Gerätename",

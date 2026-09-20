@@ -457,7 +457,7 @@
         "same_spot": "Há dois mosaicos no mesmo espaço.",
         "pages": "Um ecrã tem {n} página. | Um ecrã tem de 1 a {n} páginas.",
         "eight_pages": "Estes mosaicos não cabem em oito páginas; remova um mosaico ou torne um mais pequeno.",
-        "camera_guition": "As imagens de câmara precisam de um ecrã Guition.",
+        "camera_unsupported": "Este ecrã não consegue mostrar imagens de câmara.",
         "firmware_first": "Para estes mosaicos, instale primeiro o firmware {version} ou mais recente no ecrã.",
         "entity_gone": "Uma das entidades escolhidas já não existe. Procure a nova entidade.",
         "ids_too_long": "Em conjunto, os IDs de entidade destes mosaicos são demasiado longos para caberem numa mensagem para o ecrã; remova alguns mosaicos."
@@ -1593,6 +1593,7 @@
       "board": "Que ecrã tem?",
       "board_cyd": "CYD · 2,8 polegadas",
       "board_guition": "Guition · 4 polegadas",
+      "board_waveshare43": "Waveshare · 4.3 inch",
       "name": "Nome",
       "name_placeholder": "Ecrã da sala",
       "device_name": "Nome do dispositivo",

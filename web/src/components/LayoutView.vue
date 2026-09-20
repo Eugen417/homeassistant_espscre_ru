@@ -35,7 +35,7 @@ function onCanvasClick(e: MouseEvent) {
     </div>
     <div class="pages" id="layout-preview" :aria-label="t('editor.layout.aria')">
       <DevicePage v-for="page in shown" :key="page" :page="page - 1" :entries="entries" :pages="pages" :moving="state.drag.moving" />
-      <div class="page ghost" :class="{ disabled: !canAdd }">
+      <div class="page ghost" :style="deviceStyle" :class="{ disabled: !canAdd }">
         <div class="page-label"><span>{{ t("editor.page.label", { page: shown + 1 }) }}</span></div>
         <div class="device" :class="{ cyd: isCompact }" :style="deviceStyle" id="add-page" role="button" :tabindex="canAdd ? 0 : -1" @click="canAdd && addPage()" @keydown.enter.prevent="canAdd && addPage()">
           {{ canAdd ? t("editor.layout.add_page") : t("editor.layout.max_pages", MAX_PAGES) }}

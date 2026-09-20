@@ -457,7 +457,7 @@
         "same_spot": "Twee tegels staan op dezelfde plek.",
         "pages": "Een scherm heeft 1 pagina. | Een scherm heeft 1 tot {n} pagina's.",
         "eight_pages": "Deze tegels passen niet op acht pagina's; verwijder een tegel of maak er een kleiner.",
-        "camera_guition": "Camerabeelden hebben een Guition-scherm nodig.",
+        "camera_unsupported": "Dit scherm kan geen camerabeelden tonen.",
         "firmware_first": "Installeer eerst schermfirmware {version} of nieuwer voor deze tegels.",
         "entity_gone": "Een gekozen entiteit bestaat niet meer. Zoek de nieuwe entiteit op.",
         "ids_too_long": "De entiteits-ID's van deze tegels zijn samen te lang voor één bericht aan het scherm; verwijder een paar tegels."
@@ -1593,6 +1593,7 @@
       "board": "Welk scherm heb je?",
       "board_cyd": "CYD · 2,8 inch",
       "board_guition": "Guition · 4 inch",
+      "board_waveshare43": "Waveshare · 4.3 inch",
       "name": "Naam",
       "name_placeholder": "Scherm woonkamer",
       "device_name": "Apparaatnaam",

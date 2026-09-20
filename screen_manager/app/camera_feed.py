@@ -20,7 +20,7 @@ import re
 import secrets
 import time
 
-from core import screen_firmware
+from core import SHAPES, board_of, screen_firmware
 
 LOG = logging.getLogger(__name__)
 
@@ -61,9 +61,12 @@ MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024
 MAX_LINKS = 64
 # What the screens load (online_image `format: BMP`).
 CONTENT_TYPE = 'image/bmp'
-# The pixel box per board and view; the image keeps its proportions inside it. Equal to the CAMERA_*
-# substitutions of packages/guition.yaml (tests/test_camera.py).
-BOXES = {'guition': {'full': (480, 480), 'thumb': (392, 220)}}
+# The pixel box per board and view; the image keeps its proportions inside it. Straight from the CAMERA_*
+# substitutions of the board's own YAML (tools/generate_board_shapes.py writes them into boards.json), so a new
+# board that draws cameras is served without a line here (tests/test_camera.py). A board without them, like the
+# CYD, has no camera: `can_show` is false and a camera tile is refused before it is saved.
+BOXES = {shape['board']: {view: tuple(box) for view, box in shape['camera'].items()}
+         for shape in SHAPES.values() if shape.get('camera')}
 
 
 def supported(entity):
@@ -74,7 +77,7 @@ def supported(entity):
 
 def can_show(screen):
     """A paired Guition with firmware that draws camera images (the version feature gates go by, core.screen_firmware)."""
-    return bool(screen) and screen.get('board') in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= MIN_FIRMWARE
+    return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= MIN_FIRMWARE
 
 
 def cover_supported(entity):
@@ -85,12 +88,12 @@ def cover_supported(entity):
 
 def can_show_cover(screen):
     """A paired Guition with firmware that draws the media card's cover."""
-    return bool(screen) and screen.get('board') in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= COVER_MIN_FIRMWARE
+    return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= COVER_MIN_FIRMWARE
 
 
 def can_show_live(screen):
     """A paired Guition with firmware that draws live pictures on camera tiles."""
-    return bool(screen) and screen.get('board') in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= LIVE_MIN_FIRMWARE
+    return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= LIVE_MIN_FIRMWARE
 
 
 def live_request(request):

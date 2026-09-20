@@ -457,7 +457,7 @@
         "same_spot": "Dwa kafelki są w tym samym miejscu.",
         "pages": "Ekran ma 1 stronę. | Ekran ma od 1 do {n} stron. | Ekran ma od 1 do {n} stron.",
         "eight_pages": "Te kafelki nie mieszczą się na ośmiu stronach; usuń kafelek albo zmniejsz któryś z nich.",
-        "camera_guition": "Obraz z kamery wymaga ekranu Guition.",
+        "camera_unsupported": "Ten ekran nie może pokazywać obrazu z kamery.",
         "firmware_first": "Dla tych kafelków najpierw zainstaluj na ekranie firmware {version} lub nowszy.",
         "entity_gone": "Wybrana encja już nie istnieje. Wyszukaj nową encję.",
         "ids_too_long": "Identyfikatory encji tych kafelków są razem za długie, by zmieścić się w jednej wiadomości do ekranu; usuń kilka kafelków."
@@ -1593,6 +1593,7 @@
       "board": "Jaki masz ekran?",
       "board_cyd": "CYD · 2,8 cala",
       "board_guition": "Guition · 4 cale",
+      "board_waveshare43": "Waveshare · 4.3 inch",
       "name": "Nazwa",
       "name_placeholder": "Ekran w salonie",
       "device_name": "Nazwa urządzenia",

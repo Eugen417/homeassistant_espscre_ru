@@ -457,7 +457,7 @@
         "same_spot": "Due riquadri sono nello stesso spazio.",
         "pages": "Uno schermo ha 1 pagina. | Uno schermo ha da 1 a {n} pagine.",
         "eight_pages": "Questi riquadri non stanno in otto pagine; rimuovi un riquadro o rimpiccioliscine uno.",
-        "camera_guition": "Le immagini delle telecamere richiedono uno schermo Guition.",
+        "camera_unsupported": "Questo schermo non può mostrare le immagini della telecamera.",
         "firmware_first": "Per questi riquadri installa prima sullo schermo il firmware {version} o più recente.",
         "entity_gone": "Un'entità scelta non esiste più. Cerca la nuova entità.",
         "ids_too_long": "Insieme, gli ID entità di questi riquadri sono troppo lunghi per stare in un solo messaggio allo schermo; rimuovi qualche riquadro."
@@ -1593,6 +1593,7 @@
       "board": "Quale schermo hai?",
       "board_cyd": "CYD · 2,8 pollici",
       "board_guition": "Guition · 4 pollici",
+      "board_waveshare43": "Waveshare · 4.3 inch",
       "name": "Nome",
       "name_placeholder": "Schermo del soggiorno",
       "device_name": "Nome dispositivo",
