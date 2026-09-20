@@ -1,3 +1,16 @@
+## 0.2.93 (firmware 0.2.79)
+
+One firmware for any board: a board says what its glass is, and the screens, the manager and the editor follow. A third board joins.
+
+- **Every board its own grid.** A board file declares how many columns and rows a page holds, its pixel density and its look; the tile area is an LVGL grid that divides the page over those cells, and the cards of that grid come from one generated file per cell count. Every size the firmware decides itself goes through one scale, so a tile, a letter and a key keep their size in millimetres on any panel. The CYD and the Guition keep their two columns of three and draw what they drew before.
+- **Waveshare ESP32-S3-Touch-LCD-4.3.** The first board added this way: 4.3 inch, 800 × 480, three by three tiles, camera pictures and album covers like a Guition. **New screen** offers it. Its backlight is a line on an expander, so it is lit or dark; the brightness settings decide when.
+- **The thermostat card on every board.** One computed card: the setpoint between its keys, a key per mode, and the fan and swing rows, fitted to the glass in a fixed order of concessions. A CYD shows all of them at once for the first time; the Mode page is gone. The blind, the robot and the light's effects page fit the same way, and the effects page stands in two columns on wide glass. A card that leaves room now sits in the middle of the glass.
+- **The manager and the editor follow the screen.** A screen reports its shape ("Screen layout": canvas, grid, density and look) and its board ("Screen board"). The editor draws the mockup at that aspect with that grid and the top bar at that density, and moves tiles by the screen's columns; saving, the tile events and the layout sensor count rows, columns, pages and the tile limit on that grid (seven pages of nine on the Waveshare, 63 tiles). The layout sensor now also says `columns`, `rows` and `max_pages`, and names a column by number on a screen with more than two; the events take a number as well as `left` and `right`. Nothing changes for a two-column screen.
+- **Camera tiles and covers on any board that draws pictures.** The manager takes the picture sizes from the board file instead of a list of one board, and the editor offers cameras and covers where the board can show them. A screen that cannot hears "This screen cannot show camera pictures".
+- **What a finger does lives in one place.** The three touchscreen triggers of a capacitive board call the shared handler; a new board takes them in one line each and cannot take half of them.
+- **For the next board:** docs/RESPONSIVE.md says how a board fits its glass and how to design a card for glass we have never seen; docs/ADDING_A_BOARD.md is the recipe (`tools/propose_grid.py`, `tools/new_board.py`, `tools/generate_cells.py`, `tools/generate_board_shapes.py`); `tools/check.sh --firmware` compiles every board.
+- Needs firmware 0.2.79: press **Update** on the screen. Includes everything from 0.2.92. CYD firmware: 1,619,168 bytes, 88.2 % of the update slot (14,592 bytes less than 0.2.92: the thermostat overlays left the YAML), built with the ESPHome this add-on ships (2026.9.0).
+
 ## 0.2.92 (firmware 0.2.78)
 
 The album cover on a media tile, the way Home Assistant's own tile shows it.
