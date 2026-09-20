@@ -15,8 +15,9 @@ on the screen itself, and how updates work.
 
 ## What you can configure
 
-- **Up to 48 tiles**, spread across up to eight fixed pages of six
-  tiles each (firmware 0.2.62+; twenty before). Search by entity, device, or room, and drag to reorder.
+- **One tile per cell**, across up to eight fixed pages: six cells a page on a CYD or a Guition (48 tiles), nine on
+  the Waveshare (63, over seven pages), whatever a board's glass holds (firmware 0.2.62+; twenty tiles before).
+  Search by entity, device, or room, and drag to reorder.
 - **Per-tile settings:** a custom name, click behavior, a small slider where
   supported, or a large value for things like temperature and power usage.
   From firmware 0.2.13, the large value shows a small domain icon next to the

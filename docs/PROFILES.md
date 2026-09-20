@@ -41,15 +41,12 @@ the board file replaces the core's. `esphome config home-like-2432s028.yaml` sho
    `assertion_level: SILENT` in its `esp32:` block (firmware 0.2.75+): every board builds its firmware the same way,
    and `tests/test_easy_package.py` checks it.
 2. Fill the sizes table for the new resolution, and go through the hooks: keep, change or empty each one.
-3. Add `packages/<board>.yaml` and `<board>.yaml` after the existing entries, `<board>` to `ENTRIES` in
-   `tools/profiles.py` and to `REFS` in `screen_manager/app/core.py` (the boards `installation_yaml()` writes a
-   profile for), and a `BANDS` entry to `tools/render_topbar.py`. The add-on and the editor still know two boards,
-   a Guition or not: the board a screen is (`core.py`), `ALERT_LIMITS`, the camera sizes in `camera_feed.py`, and
-   the editor's New screen choices and `BAR_METRICS` (`web/src`) need the new board too.
+3. Add `packages/<board>.yaml` and `<board>.yaml` after the existing entries, `<board>` to `BOARDS` and `ENTRIES`
+   in `tools/profiles.py` and to `REFS` in `screen_manager/app/core.py` (the boards `installation_yaml()` writes a
+   profile for), and the board to the editor's New screen. docs/ADDING_A_BOARD.md is the whole recipe, the grid
+   included: since app 0.2.93 a board declares its grid, its density and its look, and the shared tree, the add-on
+   and the editor follow (docs/RESPONSIVE.md).
 4. `python3 tools/check_packages.py`, `esphome config <board>.yaml`, `tools/check.sh --firmware`.
-
-The tiles per page (two columns of three) are still fixed in the firmware, the add-on and the editor
-(`SLOTS_PER_PAGE`); a panel that wants more rows is a later round.
 
 ## How the split was verified
 

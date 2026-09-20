@@ -118,9 +118,10 @@ under `wifi:` in the screen's own ESPHome YAML still wins.
 
 Select your screen, tap the bar at the top of a page to give the screen its name,
 and search for entities in the **Library** on the right. It has domain filters with
-colored icons, a room filter, and **Hide placed**. You can add up to 48 tiles, one for every slot
-(firmware 0.2.62+; see below for older firmware).
-The screen preview shows their placement: two columns, six slots per page,
+colored icons, a room filter, and **Hide placed**. You can add one tile for every cell of the screen's pages,
+48 on a CYD or a Guition (firmware 0.2.62+; see below for older firmware).
+The screen preview shows their placement on the screen's own grid: two columns of three on a CYD or a Guition,
+three by three on the Waveshare,
 up to eight pages. Every tile has a fixed slot that only changes if
 you drag it; empty slots stay empty, wherever you leave them. Drag a tile
 onto an empty slot and it stays there; drag it onto another tile and the two
@@ -171,7 +172,8 @@ Click **Save & send** to send your changes.
   shows 1, 6, or 24 hours.
 - Select/input_select: open the picker menu.
 
-From firmware 0.2.62, 48 tiles fit across up to eight pages. Firmware 0.2.7 to
+From firmware 0.2.62, one tile fits in every cell of up to eight pages (48 on a CYD or a Guition, 63 over
+seven pages on the Waveshare). Firmware 0.2.7 to
 0.2.61 keeps the limit of twenty (four pages) and older firmware ten, until you
 update. In the **Screen settings** tab, **Swipe between pages** turns on swiping.
 On the Guition (firmware 0.2.24+), you then swipe inward from the left or right
@@ -180,7 +182,7 @@ middle of the screen does nothing, so tapping and dragging tiles never
 accidentally changes pages. On the CYD, it stays a quick swipe across the screen. Sliders
 only control their value; detail menus and standby don't change pages.
 
-Six tiles sit on a page. Under the tiles, the page buttons: a chevron in each half of the
+A page holds the board's grid of tiles, six on a CYD or a Guition. Under the tiles, the page buttons: a chevron in each half of the
 bar and a dot per page between them; tap anywhere in the left or right half. With six or
 fewer tiles they disappear and the tiles grow into their room (firmware 0.2.69+). **Page
 buttons** in the **Screen settings** tab takes them away on a screen with more pages too:

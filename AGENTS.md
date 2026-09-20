@@ -3,7 +3,7 @@
 The preferred route for new users is docs/EASY_SETUP.md: ESP Screen Manager
 plus remote ESPHome packages. No token or blueprint needed. Tiles live in the
 persistent add-on data; Wi-Fi/API/OTA stay in the device's own ESPHome YAML. Read
-docs/RELEASING.md before publishing updates. Main distributes both boards.
+docs/RELEASING.md before publishing updates. Main distributes every board in tools/profiles.py.
 Every push to GitHub is a release: always also bump the add-on version in
 screen_manager/config.yaml (with a CHANGELOG line), otherwise HA won't see an update.
 A screen's YAML is packages/core.yaml (shared by every board) plus one file under packages/boards/;
@@ -11,9 +11,9 @@ packages/<board>.yaml and the two profiles in the root only include them. Read d
 touching them: a board-dependent number is a `${NAME}` in the board file, board-only code inside a shared
 lambda is a hook substitution there, and `tools/check_packages.py` (run by tools/check.sh) keeps the boards
 complete.
-A screen gets its tiles from the add-on while it runs: every card works in all
-48 positions (eight pages of six, firmware 0.2.62+), and no Home Assistant entity
-belongs in a board profile.
+A screen gets its tiles from the add-on while it runs: every card works in every cell of every page
+(one tile per cell, at most eight pages and 64 tiles, firmware 0.2.62+; the board's grid decides how many,
+docs/RESPONSIVE.md), and no Home Assistant entity belongs in a board profile.
 Preserve the data schema, protocol compatibility, unique keys, and CYD preferences.
 Test updates against existing data. Don't publish an unknown storage version without
 a migration. Production Ingress needs no long-lived token or public port.
@@ -28,8 +28,11 @@ Don't configure wallbox relays as part of display support.
 
 # Working instructions for LLMs and developers
 
-This project drives two boards: the CYD ESP32-2432S028 with ILI9341 + XPT2046 (320×240,
-LVGL 90°) and the Guition above. Read README.md, README_EXTENDED.md and docs/ before installing. The owner can
+This project drives the boards in tools/profiles.py: the CYD ESP32-2432S028 with ILI9341 + XPT2046 (320×240,
+LVGL 90°, two columns of three), the Guition above (480×480, two by three) and the Waveshare ESP32-S3-Touch-LCD-4.3
+(800×480, three by three, `packages/boards/waveshare-esp32s3-43.yaml`). A board file holds hardware and sizes;
+behaviour lives once, in packages/core.yaml or components/smart_display (docs/RESPONSIVE.md, docs/ADDING_A_BOARD.md).
+Read README.md, README_EXTENDED.md and docs/ before installing. The owner can
 physically tap; an agent cannot replace that with software coordinates.
 
 ## Installing a new screen
@@ -59,7 +62,11 @@ and screens for lookups and tests. If that file is missing you are not on his ma
 ## Code and regressions
 
 - Keep the shared UI in `packages/core.yaml` and a board's hardware and sizes in its file under
-  `packages/boards/`; personal data belongs in the gitignored local profiles.
+  `packages/boards/`; the cards of a board's grid are `packages/cells/<count>.yaml`, written by
+  `tools/generate_cells.py`, and what the add-on knows of a board is `screen_manager/app/boards.json`, written by
+  `tools/generate_board_shapes.py` (both checked by tools/check.sh). Personal data belongs in the gitignored local
+  profiles. A size decision in C++ goes through `ui::px()`/`ui::mm()` and the class through `ui::large()`, never
+  through a pixel count of the glass or a board's name.
 - The editor is `web/` (Vue 3 + Vite, TypeScript; app 0.2.73+). `screen_manager/app/static` is its build
   output: change `web/src`, run `cd web && npm test && npm run build`, and commit both. Keep every URL the page asks for
   relative (`api/...`), so it works behind Home Assistant's ingress path. Tests read the source through
@@ -83,7 +90,7 @@ and screens for lookups and tests. If that file is missing you are not on his ma
   and LVGL 90°. A changed orientation also requires a new projection/tests.
 - Run `tools/check.sh` on code changes (the Python tests, every C++ test, the package check, the icon
   generator's check, the editor's tests, types and build); on a firmware change also `tools/check.sh --firmware`, which
-  compiles both boards and applies the CYD's flash budget (docs/RELEASING.md step 2). CI runs the
+  compiles every board and applies the CYD's flash budget (docs/RELEASING.md step 2). CI runs the
   same script. Firmware tests and hardware acceptance are different checks.
 - `diagnostics/run_ui_test.py` renders without HA actions; don't touch the screen
   during that test. Use `--name` for the expected device identity.

@@ -1,9 +1,10 @@
 # One firmware, any board: how the screens fit their glass
 
-Work in progress on the branch `responsive-lab` (September 2026). The plan and the renders behind it:
-the report *ESP Screens op elk bord* and the *Responsive lab renders* gallery (Max's artifacts).
-Nothing here is released; both real boards render pixel-identical to the 0.2.85 README renders with
-every change on this branch, which is the rule for everything that follows.
+Since app 0.2.93 (firmware 0.2.79) a board says what its glass is and the firmware, the add-on and the editor
+follow: the tile grid, the size of everything drawn, the cards a tap opens. The CYD and the Guition were the
+first two boards and render as they did before; the Waveshare ESP32-S3-Touch-LCD-4.3 (800 x 480, three by
+three) was the first board added this way. The rule for every change here: the two first boards keep their
+pixels, and nothing is written that knows a board by its name.
 
 ## The idea
 
@@ -25,10 +26,9 @@ In its board file under `packages/boards/`, next to its hardware:
 | `GRID_MARGIN`, `GRID_GAP_X`, `GRID_GAP_Y` | the side margin and the gaps between cells, in pixels |
 | the size table (`TILE_W`, `TILE_ICON_SIZE`, `FONT_*_SIZE`, …) | the look's sizes at this board's density |
 
-`tools/propose_grid.py` (lab, still under `.esphome/readme-render/responsive-lab/`) proposes the grid
-from the resolution and the diagonal: as many cells as hold a standard tile of about 33 × 16 mm, never
-smaller than 30 × 12 mm, and dense packing on three or more columns. `make_board.py` writes a board
-file for a new panel from the nearest real board, scaling every size by the density ratio.
+`tools/propose_grid.py` proposes the grid from the resolution and the diagonal: as many cells as hold a
+standard tile of about 33 × 16 mm, never smaller than 30 × 12 mm. `tools/new_board.py` writes a board file
+for a new panel from the nearest real board, scaling every size by the density ratio (docs/ADDING_A_BOARD.md).
 
 ## The cards are cells of an LVGL grid
 
@@ -52,8 +52,10 @@ show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is ou
 - `ui::large()`: the class of cards and pages is the look's, never a cell's momentary height. (A class
   that flipped when the rows grew reused a clock's numeral labels as tick lines: the lab's crash.)
 - `GRID_COLS`/`GRID_ROWS` reach the C++ as build flags; `SLOTS_PER_PAGE` follows, `MAX_PAGES` is
-  capped so a screen never holds more than 64 tiles (one dirty bit each), and `runtime_tiles::widgets`
-  holds exactly one entry per cell.
+  capped so a screen never holds more than 64 tiles (one dirty bit each: seven pages of nine, four of
+  sixteen), and `runtime_tiles::widgets` holds exactly one entry per cell. The add-on (`core.Grid`) and
+  the editor (`setGrid`) count with the same rule, so a page, a slot and a tile limit mean the same in
+  all three.
 - A cell taller than the look's cell height (`ui::cell_height()`) centres its content on it; a cell at
   least twice as tall stacks the icon above the name and state.
 - What does not fit is left out: the forecast shows as many day columns as the width holds (five at
@@ -145,24 +147,30 @@ area and nothing a finger needs falls under `ui::touch_min()`. Then render it on
 (`.esphome/readme-render/responsive-lab/lab_render.py`) and look at it. A test says it fits; only the
 render says it is worth looking at.
 
+## What the screen tells the add-on
+
+A screen reports two diagnostic sensors (firmware 0.2.79+): **Screen layout**, `800x480 3x3 217dpi standard`
+(the canvas after rotation, the grid, the density, the look), and **Screen board**, the key of its board file.
+The add-on (`core.shape_of`, `core.grid_of`) takes what the screen says first, then the board the screen's
+profile YAML builds from (`screen_manager/app/boards.json`, written from the board files by
+`tools/generate_board_shapes.py`), and the smallest screen there is when it knows nothing. Firmware from
+before the sensors says nothing, and every screen that ran it is a two by three board. The editor draws the
+mockup at that aspect with that grid and the top bar at that density, and places tiles on it; a save, a tile
+event and the layout sensor count rows, columns and pages the same way.
+
 ## What is still open, and the way it becomes durable
 
-- The 157 sizes in `runtime_tiles.h` and the metric tables of the settings, effects, media and light
-  cards go through `ui::px()` one by one. The durable form is LVGL's own: flex rows and columns with
-  `flex_grow`, `min_width`/`max_width` in `ui::px()`, and `LV_EVENT_SIZE_CHANGED` for a card that
-  changes shape with its width. The first component to rebuild that way is the tile row (circle |
-  text column | panel); the forecast strip and the clock follow.
-- The add-on and the editor still assume two columns of three (`SLOTS_PER_PAGE`, the drop rules, the
-  mockup). Every board that ships today is 2 x 3, so nothing is wrong; a board with another grid needs
-  them to take the grid from the screen, which the screen can report (`DISPLAY_DPI`, `LOOK`,
-  `GRID_COLS`, `GRID_ROWS` are all it takes).
-- The climate card is still a table of pixels per board (six layouts in the board file) and the compact
-  look still sends extra modes to the old Mode page. It should become a computed card like the settings
-  page: one card for every board, with the modes as a row of choices beside the fan and swing rows, and
-  no Mode page at all. That is the next card to rebuild, and the reason a CYD still shows the old picker.
-- The other overlays that take pixels from the board file (light, alert, touch test) keep those
-  substitutions; they become computed cards too.
+- The sizes in `runtime_tiles.h` and the metric tables of the settings, effects, media and light cards go
+  through `ui::px()` one by one. The durable form is LVGL's own: flex rows and columns with `flex_grow`,
+  `min_width`/`max_width` in `ui::px()`, and `LV_EVENT_SIZE_CHANGED` for a card that changes shape with
+  its width. The first component to rebuild that way is the tile row (circle | text column | panel); the
+  forecast strip and the clock follow.
+- The overlays that take pixels from the board file (light, alert, touch test) keep those substitutions;
+  they become computed cards like the thermostat, the blind and the robot.
 - A card with two groups (light: brightness and colour; climate: setpoint, modes, fan) could stand in two
   columns on wide glass instead of one capped column. Same components, another flex flow.
-- The lab boards (`packages/boards/lab-*.yaml`) are generated and disposable; a real preset gets a
-  hardware section checked on glass.
+- Rotation is still the Guition's alone (`runtime_tiles::rotation_supported` from its boot hook). The rule
+  is settled: a half turn keeps width, height and the whole grid and belongs to every board; a quarter turn
+  only to a square one. docs/BOARD_NAMES_AUDIT.md has the details a rewrite must not miss.
+- The lab boards (`packages/boards/lab-*.yaml`) are generated and disposable; a real board gets a hardware
+  section checked on glass and an entry in `tools/profiles.py`.

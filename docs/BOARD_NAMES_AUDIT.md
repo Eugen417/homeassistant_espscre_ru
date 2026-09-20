@@ -7,7 +7,16 @@ should follow from what the screen IS -- its shape, its grid, its density. Every
 second reader whose job was to refute it. 93 were raised, 47 survived. The ones that did not survive are not
 listed; they were mostly sizes that are honestly physical, or hardware that belongs in a board file.
 
-Read this with docs/RESPONSIVE.md, "Designing a card or a page here". Nothing here is fixed yet.
+Read this with docs/RESPONSIVE.md, "Designing a card or a page here".
+
+**Done since (the review of the same evening, app 0.2.93):** the page grid has one answer again. The add-on counts
+every slot, row, page and tile limit on the screen's own grid (`core.Grid`, `grid_of`), the editor takes its page cap
+from the same 64-tile rule and moves tiles by the screen's columns, and the layout sensor and the tile events name a
+column by number on a screen that has more than two. The camera and cover offers in the editor follow the board's
+picture support instead of its name, and the top bar mockup the screen's look and density. In the firmware the size
+class comes from the look everywhere (`ui::large()`), `ROTATION_SUPPORTED` and `TOUCH_ROTATION` are gone, and the
+Waveshare's size table is consistent with its rows. Rotation itself is still as described below. The line numbers in
+this file are those of the evening it was written.
 
 ## The one to fix first: rotation
 

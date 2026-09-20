@@ -56,6 +56,9 @@ What a render cannot show is exactly what the hardware check is for.
 
 ## 7. Write it down
 
-Add the board to `packages/<board>.yaml` and `<board>.yaml` (the two entries), to `ENTRIES` in
-`tools/profiles.py`, to `REFS` in `screen_manager/app/core.py`, and to the board list of the editor's New screen.
-`tools/check.sh` then runs every check over it as well.
+Give the board file its own `BOARD_ID` (the screen reports it) and add the board to `packages/<board>.yaml` and
+`<board>.yaml` (the two entries), to `BOARDS` and `ENTRIES` in `tools/profiles.py`, to `REFS` in
+`screen_manager/app/core.py`, and to the editor's New screen (`web/src/components/InstallerView.vue` and the
+`editor.installer.board_<id>` text in every translation). Then `tools/generate_cells.py` (the cards of its grid,
+which go into Git with it), `tools/generate_board_shapes.py` (what the add-on and the editor know of it) and
+`tools/check.sh --all`, which from then on checks and compiles it with the others.

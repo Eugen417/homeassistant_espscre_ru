@@ -15,8 +15,8 @@ Thank you! I work on this project with a lot of love, and every bit of support h
 panel costs a fraction of that, sits on a table or in a wall box, and is always at hand for the
 lights, the heating or the vacuum.
 
-**What.** Firmware for two affordable panels, the 2.8-inch CYD and the 4-inch Guition, with up to
-48 tiles over eight pages: lights, climate, blinds and curtains, the vacuum, media, the weather,
+**What.** Firmware for affordable panels, the 2.8-inch CYD, the 4-inch Guition and the 4.3-inch Waveshare, with
+tiles over up to eight pages, as many per page as the glass holds: lights, climate, blinds and curtains, the vacuum, media, the weather,
 history graphs, clocks and timers, and on a Guition your cameras. A tile can take the whole page, one big switch you push without
 looking, and a tile can go to another page. An automation can put an alert on every screen when someone rings
 the bell, and a Guition shows who is there with the doorbell camera's picture. A tap can run any
@@ -183,8 +183,9 @@ while it keeps your country's clock and numbers.
 
 | Screen | Resolution | Display / touch |
 | --- | --- | --- |
-| CYD ESP32-2432S028 | 320 × 240 | ILI9341 / resistive XPT2046 |
-| Guition ESP32-S3-4848S040, 4 inch | 480 × 480 | ST7701S RGB / capacitive GT911 |
+| CYD ESP32-2432S028 | 320 × 240, 2 × 3 tiles | ILI9341 / resistive XPT2046 |
+| Guition ESP32-S3-4848S040, 4 inch | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911 |
+| Waveshare ESP32-S3-Touch-LCD-4.3 | 800 × 480, 3 × 3 tiles | ST7262 RGB / capacitive GT911 (backlight on or off) |
 
 Use these exact board variants: similar-looking product names can have different
 controllers or connectors. Wallbox relays are not controlled.
