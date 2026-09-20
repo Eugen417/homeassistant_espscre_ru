@@ -448,6 +448,7 @@
         "builtin_action": "A built-in card can't perform an action.",
         "no_mini_slider": "This entity doesn't support a mini-slider.",
         "history_hours": "History: choose 1, 6, or 24 hours.",
+        "refresh": "Live picture: refresh every 15 or 30 seconds.",
         "watch_or_slider": "Choose large value or mini-slider.",
         "no_direct_control": "This entity doesn't support that direct control.",
         "position": "Invalid tile position; refresh the management page.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Camera",
           "help": "A camera or image entity. A Guition with firmware 0.2.57+ shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. Other screens show the alert without it. Only through the esp_screens_show_alert event."
+        },
+        "action": {
+          "label": "Action",
+          "help": "A Home Assistant action, such as script.open_gate or light.turn_off, performed once when the button is pressed on any screen. `data` gives its fields (entity_id, brightness, ...). A timeout or a new alert leaves it unperformed. Only through the esp_screens_show_alert event."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Weather forecast",
         "graph": "Graph",
         "sunpath": "Sun path",
+        "live": "Live picture",
+        "live_hint": "A small picture of the camera in the icon's place, refreshed at the pace below while the page is on screen. A tap still opens it full screen.",
+        "live_needs_firmware": "A live picture needs firmware 0.2.77 or newer: press Update on the screen after saving.",
         "no_graph": "Home Assistant has no numbers for this entity, so the graph stays empty. Choose another display.",
         "no_forecast": "This weather service has no daily forecast in Home Assistant. Choose another display."
+      },
+      "refresh": {
+        "label": "Refresh",
+        "seconds": "Every {n} s"
       },
       "size": {
         "label": "Size",
         "single": "Normal",
         "wide": "Double-width",
         "full": "Full page",
-        "full_hint": "Full page: one big button that lights up while on; a slider, controls or a graph sit at the bottom of it.",
+        "full_hint": "Full page: one big button in the tile's own colour; a slider, controls or a graph sit at the bottom of it.",
         "needs_firmware": "A full-page tile needs firmware 0.2.62: press Update on the screen first."
       },
       "page": {

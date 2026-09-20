@@ -13,13 +13,14 @@ import zipfile
 
 from i18n import t
 import tile_icons
-from core import (ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
+from core import (ALERT_ACTION_FIELD, ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
-                  CONTROLS, DISPLAYS, FULL_PAGE_MIN_FIRMWARE, MAX_PAGES, MAX_SLOTS, MAX_TILES, PAGE_TILE_REPEAT_MIN_FIRMWARE,
+                  CONTROLS, DISPLAYS, FULL_PAGE_MIN_FIRMWARE, LIVE_MIN_FIRMWARE, MAX_PAGES, MAX_SLOTS, MAX_TILES, PAGE_TILE_REPEAT_MIN_FIRMWARE,
                   SETTINGS_PAGE_MIN_FIRMWARE, SLOTS_PER_PAGE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT, WAKE_SLEEP_MIN_FIRMWARE,
                   SETTING_ENTITIES_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE, PAGE_BUTTONS_MIN_FIRMWARE)
 # Full-page tiles, navigation tiles and forty-eight tiles per screen.
 FULL_PAGE_VERSION = '.'.join(str(part) for part in FULL_PAGE_MIN_FIRMWARE)
+LIVE_VERSION = '.'.join(str(part) for part in LIVE_MIN_FIRMWARE)
 # The same navigation tile on several pages (app 0.2.78).
 PAGE_TILE_REPEAT_VERSION = '.'.join(str(part) for part in PAGE_TILE_REPEAT_MIN_FIRMWARE)
 
@@ -99,7 +100,7 @@ actions:
 | `from_page`, `from_slot` | Only for `esp_screens_move_tile`: which copy of a navigation tile that is on several pages to move (see below). |
 | `size` | `single`, `wide` or `full` (the whole page; firmware {FULL_PAGE_VERSION} or newer). |
 | `controls` | What you can operate on the tile itself (see below). |
-| `display` | How the tile draws itself (see below). |
+| `display` | How the tile draws itself (see below). A camera or image tile on a Guition takes `live` (firmware {LIVE_VERSION} or newer): a small live picture in the icon's place, with `refresh` 15 or 30 (seconds). |
 | `icon`, `color` | An icon from the list further down, and one of the pastel colors. |
 | `tap` | What a tap does: `auto`, `detail` (open the card), `toggle`, `action` or `none`. `toggle` works for anything Home Assistant can toggle for that entity, such as a light, a cover (open, close, or stop while it moves) or a speaker that turns on and off. Holding the tile still opens its card. |
 | `action`, `data` | Perform action: an action Home Assistant offers for the tile's own entity, such as `cover.set_cover_position`, with `data` for its fields (`position: 50`). Giving `action` sets `tap` to `action`. The target is always the tile's entity. Only actions and fields Home Assistant lists for that entity are accepted; the answer says what is missing. |
@@ -196,6 +197,8 @@ actions:
 {fields}
 
 The event for every screen takes one more field, `{ALERT_CAMERA_FIELD[0]}`: {ALERT_CAMERA_FIELD[2]} Example: `{ALERT_CAMERA_FIELD[0]}: {ALERT_CAMERA_FIELD[3]}`. Use a real `camera.*` or `image.*` entity from this Home Assistant (a doorbell integration usually has one); the per-screen actions have no such field.
+
+It also takes `{ALERT_ACTION_FIELD[0]}` (app 0.2.91): {ALERT_ACTION_FIELD[2]} Example: `{ALERT_ACTION_FIELD[0]}: {ALERT_ACTION_FIELD[3]}`, or `action: light.turn_off` with `data: {{entity_id: light.hall}}`. Use an action Home Assistant lists; give `button_text` a word that says what the button does ("Open", "Turn off"). The per-screen actions have no such field either.
 
 Text limits are in bytes; an accented letter takes two. Keep the title short: a screen shows about twenty characters of it on one line and ends a longer title with an ellipsis. Put details in the subtitle.
 

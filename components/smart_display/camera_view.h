@@ -24,14 +24,19 @@ struct Feed {
   // once (firmware 0.2.64+): an album cover on the media card. It loads one time per link and stays; a new cover comes
   // with a new link (the card asks again when Home Assistant's picture changes), never on a clock.
   bool once = false, loaded = false;  // loaded: this link's image is on screen
+  // every (firmware 0.2.77+): the live pictures on a page's camera tiles load at their own pace, 15 or 30 s, where the
+  // camera full screen keeps REFRESH_MS.
+  uint32_t every = REFRESH_MS;
   uint8_t failures = 0;
 
-  void open(const std::string &camera, bool one_load = false) { *this = Feed{}; entity = camera; once = one_load; }
+  void open(const std::string &camera, bool one_load = false, uint32_t every_ms = REFRESH_MS) { *this = Feed{}; entity = camera; once = one_load; every = every_ms; }
   bool open() const { return !entity.empty(); }
   // A cover the app has none of (or an app that knows no covers) is asked for once: the card keeps its placeholder.
+  // A feed whose app has no picture asks again at its own pace, never sooner than ASK_AGAIN_MS.
   bool should_ask(uint32_t now) const {
     if (once && empty) return false;
-    return open() && !loading && url.empty() && (!asked || now - asked_at >= ASK_AGAIN_MS);
+    const uint32_t again = empty && every > ASK_AGAIN_MS ? every : ASK_AGAIN_MS;
+    return open() && !loading && url.empty() && (!asked || now - asked_at >= again);
   }
   void ask(uint32_t now) { asked = true; asked_at = now; }
   // The app's answer: a link, or none (no image from Home Assistant, or a camera this screen may not show).
@@ -46,7 +51,7 @@ struct Feed {
     if (!open() || loading || url.empty()) return false;
     if (!started_at) return true;
     if (once) return !loaded && now - finished_at >= GAP_MS;  // a failed load is tried again, a loaded one stays
-    return now - started_at >= REFRESH_MS && now - finished_at >= GAP_MS;
+    return now - started_at >= every && now - finished_at >= GAP_MS;
   }
   void start(uint32_t now) { loading = true; started_at = now ? now : 1; }
   void finish(uint32_t now, bool ok) {

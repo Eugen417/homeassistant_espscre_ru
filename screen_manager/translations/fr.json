@@ -448,6 +448,7 @@
         "builtin_action": "Une tuile intégrée à l'écran ne peut pas effectuer d'action.",
         "no_mini_slider": "Cette entité ne prend pas en charge le petit curseur.",
         "history_hours": "Historique : choisissez 1, 6 ou 24 heures.",
+        "refresh": "Image en direct : rafraîchir toutes les 15 ou 30 secondes.",
         "watch_or_slider": "Choisissez grande valeur ou petit curseur.",
         "no_direct_control": "Cette entité ne prend pas en charge cette commande directe.",
         "position": "Position de tuile non valide ; actualisez la page de gestion.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Caméra",
           "help": "Une entité caméra ou image. Un Guition avec le firmware 0.2.57+ affiche son image du moment en haut de la carte ; la toucher ouvre la caméra en plein écran. Les autres écrans affichent l'alerte sans elle. Uniquement via l'événement esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Action",
+          "help": "Une action Home Assistant, comme script.open_gate ou light.turn_off, exécutée une fois quand le bouton est pressé sur n'importe quel écran. `data` donne ses champs (entity_id, brightness, ...). Un délai dépassé ou une nouvelle alerte la laisse sans effet. Uniquement via l'événement esp_screens_show_alert."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Prévisions météo",
         "graph": "Graphique",
         "sunpath": "Course du soleil",
+        "live": "Image en direct",
+        "live_hint": "Une petite image de la caméra à la place de l'icône, rafraîchie au rythme ci-dessous tant que la page est affichée. Un appui l'ouvre toujours en plein écran.",
+        "live_needs_firmware": "Une image en direct demande le firmware 0.2.77 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
         "no_graph": "Home Assistant n'a pas de valeurs numériques pour cette entité : le graphique reste donc vide. Choisissez un autre affichage.",
         "no_forecast": "Ce service météo n'a pas de prévisions journalières dans Home Assistant. Choisissez un autre affichage."
+      },
+      "refresh": {
+        "label": "Rafraîchir",
+        "seconds": "Toutes les {n} s"
       },
       "size": {
         "label": "Taille",
         "single": "Normale",
         "wide": "Double largeur",
         "full": "Pleine page",
-        "full_hint": "Pleine page : un grand bouton qui s'illumine quand l'entité est allumée ; un curseur, des commandes ou un graphique se placent en bas.",
+        "full_hint": "Pleine page : un grand bouton dans la couleur de la tuile ; un curseur, des commandes ou un graphique se placent en bas.",
         "needs_firmware": "Une tuile pleine page nécessite le firmware 0.2.62 : appuyez d'abord sur Mettre à jour pour cet écran."
       },
       "page": {

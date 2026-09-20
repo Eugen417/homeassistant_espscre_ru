@@ -108,6 +108,7 @@ inline std::string hhmm(const esphome::ESPTime &time) {
 inline void history_received();
 // Camera images full screen and on an alert (firmware 0.2.57+, the Guition binds them; see the end of this file).
 inline void camera_open(const std::string &entity, const std::string &name);
+inline void live_tick(uint32_t now);
 inline void camera_answer(const std::string &view, const std::string &entity, const std::string &url);
 inline bool camera_supported();
 // The media card's album cover (firmware 0.2.64+): the card or a tile over the whole page says which cover it shows,
@@ -246,9 +247,12 @@ struct Widgets {
   lv_obj_t *busy{}, *spinner{}; bool busy_drawn=false;
   // Page fill skeleton: a sheet in the card's colour over its contents until the card is drawn.
   lv_obj_t *veil{};
+  // A camera tile's live picture in the icon's place (firmware 0.2.77+).
+  lv_obj_t *picture{};
 };
 constexpr unsigned POINT_BUFFER = 128;
 inline std::array<Widgets, 10> widgets;
+inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
 inline bool has_icon_glyph(uint32_t codepoint) {
   for (auto &w : widgets) if (w.icon_font) { lv_font_glyph_dsc_t dsc; return lv_font_get_glyph_dsc(w.icon_font, &dsc, codepoint, 0); }
@@ -434,8 +438,9 @@ inline std::string receive(const std::string &payload) {
       // A link to a camera's image (app 0.2.66+): the answer to camera_request ("full"), or an alert's image ("alert",
       // announced with an empty link before show_alert and sent again with the link), or the media card's cover
       // ("cover", app 0.2.77+). Only ESP Screens' own port.
-      const std::string view = string(root["t"], 8), entity = string(root["e"], 120), url = string(root["u"], 240);
-      if (!valid_entity(entity) || (view != "full" && view != "alert" && view != "cover")) return false;
+      const std::string view = string(root["t"], 8), entity = string(root["e"], view == "live" ? 400 : 120), url = string(root["u"], 240);
+      // "live" (app 0.2.91+): the page's camera tiles as one strip; `e` lists them, "" for one without a picture.
+      if (view == "live" ? !valid_entity_list(entity) : !valid_entity(entity) || (view != "full" && view != "alert" && view != "cover")) return false;
       if (!url.empty() && url.rfind("http://", 0) != 0) return false;
       camera_answer(view, entity, url);
       result = model.ready() ? "Synced" : "Loading tiles";
@@ -574,6 +579,9 @@ inline std::string receive(const std::string &payload) {
     tile.icon = icon && has_icon_glyph(icon) ? tile_icon::utf8(icon) : "";
     tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
     tile.display = string(options["display"]); if (tile.display.empty()) tile.display="standard";
+    // A live picture's pace (0.2.91+): 15 or 30 s; a missing or odd value keeps the default.
+    const int refresh = options["refresh"].is<int>() ? options["refresh"].as<int>() : 0;
+    tile.refresh = refresh >= 5 && refresh <= 3600 ? refresh : 15;
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
     // Direct controls (0.2.19+): the manager sends only the set a wide card really shows.
     tile.controls = string(options["controls"], 16);
@@ -2018,6 +2026,9 @@ inline lv_obj_t *media_picture_show(lv_obj_t *parent,lv_obj_t *existing,const me
   (void)parent;(void)r;(void)src;return existing;
 #endif
 }
+// A media text that is wider than its line rolls by, round and round, and stands still when it fits (firmware 0.2.77+):
+// LVGL's own circular scroll, at its own pace, where the dots of LV_LABEL_LONG_DOT cut a long title short.
+inline void marquee(lv_obj_t *label){if(label)lv_label_set_long_mode(label,LV_LABEL_LONG_SCROLL_CIRCULAR);}
 // The bar's fill and the elapsed time follow the track: once a second from tick(), without a redraw.
 inline void media_progress(const Tile &t,lv_obj_t *fill,lv_obj_t *elapsed,int bar_w){
   const auto &x=t.extra();
@@ -2054,8 +2065,9 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   // Title, artist · album.
   const lv_font_t *title_font=watch_font?watch_font:detail_font,*artist_font=control_font?control_font:detail_font,*small=small_font?small_font:detail_font;
   const lv_text_align_t align=l.wide?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER;
-  detail_text(detail_root,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),l.title.x,l.title.y+top,l.title.w,title_font,align,theme::INK);
-  if(l.artist)detail_text(detail_root,track?subtitle(x.media_artist,x.media_album):std::string(),l.artist_line.x,l.artist_line.y+top,l.artist_line.w,artist_font,align,theme::MUTED);
+  // A title or artist line wider than the card rolls by, round and round (firmware 0.2.77+); a shorter one stands still.
+  marquee(detail_text(detail_root,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),l.title.x,l.title.y+top,l.title.w,title_font,align,theme::INK));
+  if(l.artist)marquee(detail_text(detail_root,track?subtitle(x.media_artist,x.media_album):std::string(),l.artist_line.x,l.artist_line.y+top,l.artist_line.w,artist_font,align,theme::MUTED));
   // The progress bar: the fill runs while the track plays; a stream without a length has no bar to show.
   media_progress_fill=nullptr;media_elapsed_label=nullptr;media_bar_width=l.bar.w;
   if(track && x.media_duration){
@@ -2977,8 +2989,8 @@ inline void set_busy(Widgets &w,bool busy,bool large){
   if(lv_obj_get_index(w.busy)!=(int32_t)lv_obj_get_child_count(w.tile)-1)lv_obj_move_foreground(w.busy);
 }
 // The card that takes a whole page (firmware 0.2.62+). Without a control it is one big button: the icon in a
-// large circle with the name and the state under it, and the whole card lights up in the state colour while
-// on (see the palette below), so a wall switch reads from across the room and a push anywhere works. With a
+// large circle with the name and the state under it (the circle in the state colour, the card white or its own
+// pastel like every other card), so a wall switch reads from across the room and a push anywhere works. With a
 // small slider, direct controls or a graph the double-width card's head stays on top and the control takes
 // a strip at the bottom, so a tap anywhere else still does what a tap on the tile does. The built-in cards
 // (clock, forecast, sun path) simply get the whole page.
@@ -3029,8 +3041,9 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
   auto text=[&](unsigned i,const lv_font_t *font,const Rect &r,lv_text_align_t align,const std::string &value,theme::Role role){
     auto *p=part_label(w,i,font,r.x,r.y+top,r.w,align,value);lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);set_color(p,LV_STYLE_TEXT_COLOR,theme::color(role));lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);return p;
   };
-  text(2,title_font,l.title,LV_TEXT_ALIGN_LEFT,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),theme::INK);
-  if(l.artist)text(3,artist_font,l.artist_line,LV_TEXT_ALIGN_LEFT,track?subtitle(x.media_artist,x.media_album):std::string(),theme::MUTED);
+  // The title and the artist line roll by when they are too long (firmware 0.2.77+), as on the card.
+  marquee(text(2,title_font,l.title,LV_TEXT_ALIGN_LEFT,track&&!x.media_title.empty()?x.media_title:std::string(idle_text(usable?t.state:"unavailable")),theme::INK));
+  if(l.artist)marquee(text(3,artist_font,l.artist_line,LV_TEXT_ALIGN_LEFT,track?subtitle(x.media_artist,x.media_album):std::string(),theme::MUTED));
   else if(w.parts[3])lv_obj_add_flag(w.parts[3],LV_OBJ_FLAG_HIDDEN);
   // The progress bar and its times; a stream without a length has none.
   w.media_bar_w=l.bar.w;
@@ -3089,6 +3102,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
     int name_h=lv_font_get_line_height(name_font),circle=big?128:64;
     int block=circle+gap+name_h+2+value_h,top=std::max(0,(content_h-block)/2);
     lv_obj_set_size(w.circle,circle,circle);lv_obj_set_pos(w.circle,std::max(0,(content_w-circle)/2),top);
+    live_place(w,t,circle,std::max(0,(content_w-circle)/2),top);
     // The big icon font carries the domain icons; another chosen icon keeps its usual size in the big circle.
     const lv_font_t *icon_font=big_icon_font && font_has(big_icon_font,icon_for(t))?big_icon_font:w.icon_font;
     if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
@@ -3108,6 +3122,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   lv_obj_set_size(w.circle,circle,circle);
   if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font){set_font(w.icon,w.icon_font);lv_obj_center(w.icon);}
   lv_obj_set_pos(w.circle,0,big?12:std::max(0,(head_h-circle)/2));
+  live_place(w,t,circle,0,big?12:std::max(0,(head_h-circle)/2));
   lv_obj_set_pos(w.title,w.title_x,big?w.title_y:text_y);
   lv_obj_set_pos(w.value,w.value_x,big?w.value_y:text_y+title_h+line_gap);
   lv_obj_set_width(w.title,std::max(1,content_w-w.title_x));lv_obj_set_width(w.value,std::max(1,content_w-w.value_x));
@@ -3224,6 +3239,7 @@ inline void render_slot(size_t slot) {
   set_busy(w,w.busy_drawn,large_tile);
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);
+  if(custom && w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
   if(w.full){
     lap(swipe_profile::GEOMETRY);
     render_full(w,t,custom,clock,sunpath,graph,mini,with_panel,large_tile,value,unit,content_w,content_h);
@@ -3261,7 +3277,9 @@ inline void render_slot(size_t slot) {
   lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y+lift);
   lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
     watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y+lift);
-  lv_obj_set_pos(w.circle,0,(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12+lift);
+  const int circle_y=(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12+lift;
+  lv_obj_set_pos(w.circle,0,circle_y);
+  live_place(w,t,circle_size,0,circle_y);
   // Use the requested coordinates: LVGL getters still return the previous
   // layout until its next pass when a slot changes from watch/slider to normal.
   int text_room=content_w-chart_w-(graph_side?(large_tile?10:6):0)-panel_w;
@@ -3328,16 +3346,16 @@ inline void render_slot(size_t slot) {
   set_color(w.slider,LV_STYLE_BG_COLOR,fill_color,LV_PART_INDICATOR);
   set_color(w.slider,LV_STYLE_BG_COLOR,lv_color_hex(theme::tint(fill,51)),LV_PART_MAIN);
   slider_bar(w.slider,slider_bar_shown(t,slider_on));
-  // A full-page card lights up in its state colour while it is on (firmware 0.2.62+): an amber lamp, an open blind, a
-  // playing speaker, never a sensor or the weather (Tile::lights_up, firmware 0.2.71+).
-  bool lit=w.full && on && t.lights_up() && available && !t.transparent;
-  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(lit?theme::tint(state_color,51):theme::surface(t.background)));
+  // Every card, the one over the whole page too, is white or its own pastel (firmware 0.2.77+): the state shows in the
+  // icon and the controls, as on the other sizes. Firmware 0.2.62 to 0.2.76 tinted a full-page card in its state colour
+  // while it was on.
+  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(theme::surface(t.background)));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
   // "Background: none" hides only the card; geometry and padding stay identical,
   // and the pressed flash still shows because it lives on the PRESSED state.
   set_number(w.tile,LV_STYLE_BG_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
   set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
-  set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(lit?theme::tint(state_color,110):theme::outline(t.background)));
+  set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));
   set_color(w.circle,LV_STYLE_BG_COLOR,circle_color);
   set_color(w.icon,LV_STYLE_TEXT_COLOR,icon_color);
   auto title_color=theme::color(theme::INK);
@@ -3812,7 +3830,7 @@ inline lv_color_t page_color(const Widgets &w) {
   return theme::color(theme::PAGE);
 }
 inline void skeleton(Widgets &w) {
-  for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra,w.panel,w.busy})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
+  for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra,w.panel,w.busy,w.picture})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
   if(!w.veil){
     w.veil=lv_obj_create(w.tile);lv_obj_remove_style_all(w.veil);
     lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_SCROLLABLE);
@@ -4159,6 +4177,162 @@ inline void cover_tick(uint32_t now) {
   }
 }
 
+// ---- Live pictures on camera tiles (firmware 0.2.77+) ----
+// A camera tile with "display": "live" shows a small picture of its camera in the icon's place. The camera tiles of
+// the page on screen share one image: the screen asks for them together (the entities in slot order, the size of the
+// icon's circle and the colour of each tile behind the rounded corners) and the app serves one strip of squares, top
+// to bottom, that every tile takes its own square out of (LVGL's image offset). One download per page at the pace of
+// the fastest of those tiles, 15 or 30 s, in the board's third online_image. It waits for the alert's picture, a
+// cover or the camera full screen: one picture loads at a time. A page turn, a card over the page or another look
+// changes what is wanted: the strip is dropped and asked for again.
+struct LiveWish { std::string entities, grounds; int size = 0; uint32_t every = 15000; };
+inline LiveWish live_wish;
+inline camera_view::Feed live;  // entity: the list asked for
+inline std::string live_have;   // the list the strip on screen holds, "" for a tile without a picture
+inline ImageHooks camera_live;
+inline bool live_supported() { return static_cast<bool>(camera_live.load); }
+inline bool card_open() { return detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN); }
+// The n-th item of a comma list, or -1 when it is not in it.
+inline int list_index(const std::string &list, const std::string &item) {
+  int n = 0;
+  for (size_t start = 0;; ++n) {
+    const size_t comma = list.find(',', start);
+    if (list.compare(start, comma == std::string::npos ? std::string::npos : comma - start, item) == 0 && (comma == std::string::npos ? list.size() - start : comma - start) == item.size()) return n;
+    if (comma == std::string::npos) return -1;
+    start = comma + 1;
+  }
+}
+// The app's answer names the same tiles in the same order, with "" where it has no picture.
+inline bool same_list(const std::string &asked, const std::string &answered) {
+  size_t a = 0, b = 0;
+  for (;;) {
+    const size_t ca = asked.find(',', a), cb = answered.find(',', b);
+    const std::string x = asked.substr(a, ca == std::string::npos ? std::string::npos : ca - a), y = answered.substr(b, cb == std::string::npos ? std::string::npos : cb - b);
+    if (!y.empty() && x != y) return false;
+    if ((ca == std::string::npos) != (cb == std::string::npos)) return false;
+    if (ca == std::string::npos) return true;
+    a = ca + 1; b = cb + 1;
+  }
+}
+// What the page on screen wants: its live camera tiles in slot order, with the colour under each picture's corners.
+inline LiveWish live_wanted() {
+  LiveWish want;
+  if (!model.ready()) return want;
+  for (auto &w : widgets) {
+    if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= model.count) continue;
+    const auto &t = model.tiles[w.index];
+    if (!t.live()) continue;
+    if (!want.entities.empty()) { want.entities += ','; want.grounds += ','; }
+    want.entities += t.entity;
+    char ground[8];
+    snprintf(ground, sizeof(ground), "%06X", (unsigned) (t.transparent ? theme::hex(theme::PAGE) : theme::surface(t.background)));
+    want.grounds += ground;
+    if (!want.size) want.size = lv_obj_get_style_width(w.circle, LV_PART_MAIN);
+    want.every = std::min<uint32_t>(want.every, t.refresh * 1000u);
+  }
+  return want;
+}
+// The strip's square for a tile, or nullptr while the strip is not here (or has no picture of this camera).
+inline lv_image_dsc_t *live_ready(const std::string &entity, int size, int &square) {
+  if (!live.loaded || live_wish.size != size) return nullptr;
+  square = list_index(live_have, entity);
+  if (square < 0) return nullptr;
+  auto *src = camera_live.source();
+  return src && src->data && src->header.h >= (square + 1) * size ? src : nullptr;
+}
+// The pictures go before their buffer does (as the cover's do); the tiles draw their circle again.
+inline void live_release() {
+  const bool had = live.open();
+  live = camera_view::Feed{};
+  live_have.clear();
+  for (auto &w : widgets) {
+    if (!w.picture || lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN)) continue;
+#if LV_USE_IMAGE
+    lv_image_set_src(w.picture, nullptr);
+#endif
+    lv_obj_add_flag(w.picture, LV_OBJ_FLAG_HIDDEN);
+    refresh_tile(w.index);
+  }
+  if (had && camera_live.release) camera_live.release();
+}
+// The tile's square in the icon's place, or the circle again while the strip is not here (render_slot).
+inline void live_place(Widgets &w, const Tile &t, int size, int x, int y) {
+#if LV_USE_IMAGE
+  int square = -1;
+  lv_image_dsc_t *src = t.live() ? live_ready(t.entity, size, square) : nullptr;
+  if (src) {
+    if (!w.picture) {
+      w.picture = lv_image_create(w.tile);
+      lv_obj_remove_flag(w.picture, LV_OBJ_FLAG_CLICKABLE);
+      // From the top left, so the offset picks the square: LVGL's default centres a source larger than its object.
+      lv_image_set_inner_align(w.picture, LV_IMAGE_ALIGN_TOP_LEFT);
+    }
+    lv_image_set_src(w.picture, src);
+    lv_image_set_offset_y(w.picture, -square * size);
+    lv_obj_set_pos(w.picture, x, y);
+    lv_obj_set_size(w.picture, size, size);
+    lv_obj_remove_flag(w.picture, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_invalidate(w.picture);
+  } else if (w.picture) lv_obj_add_flag(w.picture, LV_OBJ_FLAG_HIDDEN);
+  set_hidden(w.circle, src != nullptr);
+#else
+  (void) w; (void) t; (void) size; (void) x; (void) y;
+#endif
+}
+// Asks for the page's strip: `esphome.screen_camera` with the tiles, the size and the grounds (app 0.2.91+).
+inline void live_request() {
+  if (inbox.empty()) return;
+  esphome::api::HomeassistantActionRequest request;
+  request.service = esphome::StringRef("esphome.screen_camera");
+  request.is_event = true;
+  char size_text[12];
+  snprintf(size_text, sizeof(size_text), "%d", live_wish.size);
+  const std::string keys[] = {"inbox", "tiles", "size", "bg"}, values[] = {inbox, live_wish.entities, size_text, live_wish.grounds};
+  request.data.init(4);
+  for (int i = 0; i < 4; ++i) {
+    esphome::api::HomeassistantServiceMap entry;
+    entry.key = esphome::StringRef(keys[i]);
+    entry.value = esphome::StringRef(values[i]);
+    request.data.push_back(entry);
+  }
+  esphome::api::global_api_server->send_homeassistant_action(request);
+  ESP_LOGI("camera", "asked for the live tiles %s", live_wish.entities.c_str());
+}
+inline void live_tick(uint32_t now) {
+  if (!live_supported()) return;
+  LiveWish want = live_wanted();
+  if (want.entities != live_wish.entities || want.grounds != live_wish.grounds || want.size != live_wish.size) {
+    live_wish = want;
+    live_release();
+    if (!want.entities.empty()) live.open(want.entities, false, want.every);
+  }
+  if (!live.open() || camera_root || card_open() || !awake()) return;
+  if (alert_image_due() || alert_thumb_loading || cover.loading || camera.loading) return;  // one picture at a time
+  if (live.should_ask(now)) {
+    if (!fresh()) return;
+    live.ask(now);
+    live_request();
+  } else if (live.should_load(now)) {
+    auto *input = lv_indev_get_next(nullptr);
+    if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
+    live.start(now);
+    camera_live.load(live.url);
+  }
+}
+// The board's third online_image: the strip is here (or unchanged, 304), or failed.
+inline void live_loaded(bool cached) {
+  if (!live.loading) return;
+  live.finish(esphome::millis(), true);
+  ESP_LOGI("camera", "live tiles %s", cached ? "unchanged" : "loaded");
+  for (auto &w : widgets)
+    if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].live()) refresh_tile(w.index);
+}
+inline void live_failed() {
+  if (!live.loading) return;
+  live.finish(esphome::millis(), false);
+  ESP_LOGI("camera", "live tiles failed");
+}
+
 // Asks ESP Screen Manager for a link (app 0.2.66+ answers with op "camera"). An event, like history_request.
 // A cover (firmware 0.2.64+) adds the size it wants and the colour behind its rounded corners; the app bakes both in.
 inline void camera_request(const std::string &entity, int size, uint32_t background) {
@@ -4293,6 +4467,7 @@ inline void camera_tick() {
     }
   }
   cover_tick(now);
+  live_tick(now);
   if (!camera_root || !awake()) return;
   if (camera.should_ask(now)) {
     if (!fresh()) return;
@@ -4354,6 +4529,13 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
     if (!cover.open() || cover.entity != entity) return;
     cover.link(url);
     if (url.empty()) ESP_LOGI("camera", "no cover for %s", entity.c_str());
+    return;
+  }
+  if (view == "live") {  // the page's camera tiles (firmware 0.2.77+): the list as asked, "" where a picture is missing
+    if (!live.open() || !same_list(live.entity, entity)) return;
+    live_have = entity;
+    live.link(url);
+    if (url.empty()) ESP_LOGI("camera", "no live pictures");
     return;
   }
   if (url.empty()) {  // announced before its alert

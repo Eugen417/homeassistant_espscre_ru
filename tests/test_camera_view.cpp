@@ -63,6 +63,21 @@ int main() {
   feed.finish(10, true);
   assert(!feed.should_load(REFRESH_MS - 1) && feed.should_load(REFRESH_MS + 1));
 
+  // The live pictures of a page's camera tiles (firmware 0.2.77+) load at the tiles' own pace instead of REFRESH_MS.
+  Feed tiles;
+  tiles.open("camera.front_door,camera.garden", false, 15000);
+  tiles.ask(0);
+  tiles.link("http://h/camera/tiles.bmp");
+  tiles.start(100);
+  tiles.finish(400, true);
+  assert(!tiles.should_load(100 + 15000 - 1) && tiles.should_load(100 + 15000));
+  assert(tiles.every == 15000 && feed.every == REFRESH_MS);
+  // Without a picture (an empty link) they ask again at that pace, not every ASK_AGAIN_MS.
+  tiles.open("camera.front_door", false, 30000);
+  tiles.ask(0);
+  tiles.link("");
+  assert(tiles.empty && !tiles.should_ask(ASK_AGAIN_MS) && !tiles.should_ask(30000 - 1) && tiles.should_ask(30000));
+
   // An album cover (firmware 0.2.64+) loads once per link: it stays on screen, never refreshed on a clock.
   Feed cover;
   cover.open("media_player.office", true);

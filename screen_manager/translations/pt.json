@@ -448,6 +448,7 @@
         "builtin_action": "Um cartão integrado não pode executar ações.",
         "no_mini_slider": "Esta entidade não suporta um controlo deslizante pequeno.",
         "history_hours": "Histórico: escolha 1, 6 ou 24 horas.",
+        "refresh": "Imagem ao vivo: atualiza a cada 15 ou 30 segundos.",
         "watch_or_slider": "Escolha valor grande ou controlo deslizante pequeno.",
         "no_direct_control": "Esta entidade não suporta esse controlo direto.",
         "position": "Posição de mosaico inválida; recarregue a página de gestão.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Câmara",
           "help": "Uma entidade de câmara ou de imagem. Um Guition com firmware 0.2.57+ mostra a imagem desse momento no topo do cartão; um toque nela abre a câmara em ecrã inteiro. Os outros ecrãs mostram o alerta sem ela. Só através do evento esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Ação",
+          "help": "Uma ação do Home Assistant, como script.open_gate ou light.turn_off, executada uma vez quando o botão é premido em qualquer ecrã. `data` dá os seus campos (entity_id, brightness, ...). Um tempo esgotado ou um novo alerta deixa-a por executar. Só através do evento esp_screens_show_alert."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Previsão do tempo",
         "graph": "Gráfico",
         "sunpath": "Trajetória do sol",
+        "live": "Imagem ao vivo",
+        "live_hint": "Uma pequena imagem da câmara no lugar do ícone, atualizada ao ritmo abaixo enquanto a página está no ecrã. Um toque continua a abri-la em ecrã inteiro.",
+        "live_needs_firmware": "Uma imagem ao vivo precisa do firmware 0.2.77 ou mais recente: prima Atualizar no ecrã depois de guardar.",
         "no_graph": "O Home Assistant não tem valores numéricos para esta entidade, por isso o gráfico fica vazio. Escolha outra apresentação.",
         "no_forecast": "Este serviço meteorológico não tem previsão diária no Home Assistant. Escolha outra apresentação."
+      },
+      "refresh": {
+        "label": "Atualizar",
+        "seconds": "A cada {n} s"
       },
       "size": {
         "label": "Tamanho",
         "single": "Normal",
         "wide": "Largura dupla",
         "full": "Página inteira",
-        "full_hint": "Página inteira: um botão grande que se ilumina enquanto está ligado; em baixo fica um controlo deslizante, controlos ou um gráfico.",
+        "full_hint": "Página inteira: um botão grande na cor do próprio mosaico; em baixo ficam um deslizador, controlos ou um gráfico.",
         "needs_firmware": "Um mosaico de página inteira precisa do firmware 0.2.62: prima primeiro Atualizar na lista de ecrãs."
       },
       "page": {

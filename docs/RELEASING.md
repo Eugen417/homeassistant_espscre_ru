@@ -219,6 +219,48 @@ icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.91 / firmware 0.2.77
+
+Four things: a live picture on a camera tile, an action behind an alert's button, media texts that roll by, and a
+full-page tile without a colour of its own. Storage version and preferences unchanged; new tile settings and one new
+camera view.
+
+- **Live picture** (`display: live` with `refresh: 15|30` on a `camera.*` or `image.*` tile; `DISPLAYS`,
+  `LIVE_REFRESH`, `LIVE_MIN_FIRMWARE` in `core.py`, `validate_layout` drops `refresh` from any other display). The
+  state message's `o` carries both keys verbatim; firmware before 0.2.77 ignores them (`min_firmware` asks for 0.2.77).
+  The screen sends `esphome.screen_camera` with `tiles` (comma-separated entities in slot order), `size` (the icon
+  circle's side, 24-160) and `bg` (one `RRGGBB` per tile); `Manager.answer_live` refuses a tile that is not a live
+  camera tile of that layout and answers op `camera`, `t: "live"`, `e` the same list with `""` where the app has no
+  picture, `u` a link to a BMP of `size` by `size` times the tiles (`camera_feed.encode_live`, `CameraFeed.live`,
+  `Link.live`). The screen validates `e` with `valid_entity_list` (runtime_model.h, 400 bytes) and matches it to what
+  it asked (`same_list`). The strip is always served whole (200, never 304, whatever `If-None-Match` says): ESPHome's
+  `http_request` logs a 304 as a failed request and raises its error flag (seen on the bench Guition with a radar
+  camera), which a page of slow cameras would do every 15 s; the ETag still goes out, and every picture now carries a
+  `Last-Modified`, because `online_image` warns at each load about either header missing. `camera_view::Feed` got
+  `every` (the pace per feed; the full screen keeps `REFRESH_MS`) and
+  asks again at that pace after an empty answer. The Guition profile has a third `online_image`, `tile_image`, bound
+  as `runtime_tiles::camera_live` with `live_loaded(cached)` / `live_failed()`; `live_tick()` runs from
+  `camera_tick()` after `cover_tick()`. Each tile's square is an `lv_image` in the icon circle's place with
+  `LV_IMAGE_ALIGN_TOP_LEFT` and `offset_y = -n * size` (the default inner alignment centres a taller source, which
+  showed the neighbour's square); the circle hides under it (`live_place`, called wherever `render_slot` and
+  `render_full` place the circle). The strip is released (pictures hidden, `src` cleared first) when the page's wish
+  changes: entities, grounds (dark mode) or size. Loads wait for `alert_image_due()`, a cover or camera on its way,
+  the camera full screen, an open card, standby and a finger. `tests/test_camera.py` (LiveTiles, LiveApp),
+  `tests/test_camera_view.cpp`, `web/tests/components.spec.ts`.
+- **Alert action** (`action` and `data` in `esp_screens_show_alert`; `ALERT_ACTION_FIELD`, `alert_action` in
+  `core.py`). `show_alert` keeps its seven fields: the app remembers `(key, action, data)` per node of every screen
+  that got the alert (`Manager.alert_actions`), subscribes to `esphome.screen_alert` and queues it with the broadcasts
+  (`alert_loop` → `alert_ended`); `action: ok` performs it once through `HomeAssistant.call` and forgets it on every
+  screen of that alert, any other ending forgets it on that screen, a new alert or a dismissal forgets it too. Works
+  with every firmware from 0.2.31. `tests/test_alert_broadcast.py`; the cheatsheet, the Claude skill and
+  README_EXTENDED document the field.
+- **Full-page tiles are no longer tinted**: `render_slot` paints every card `theme::surface(t.background)` with
+  `theme::outline` (the `lit` tint of 0.2.62-0.2.76 and `Tile::lights_up()` are gone; `tests/test_state_colours.py`
+  guards it). The editor's mockup never painted the tint, so nothing changes there.
+- **Media texts roll by**: the title and the artist line of the media card and of the full-page media tile are
+  `LV_LABEL_LONG_SCROLL_CIRCULAR` (`marquee()`, LVGL's default 40 px/s and 300 ms wait; a text that fits stands
+  still). The single and wide tiles keep `LV_LABEL_LONG_DOT` on their one status line.
+
 ### Compatibility 0.2.89 / firmware 0.2.75
 
 ESPHome 2026.9.0 in the add-on (`screen_manager/Dockerfile`, `requirements.txt`); the packages' `min_version` stays

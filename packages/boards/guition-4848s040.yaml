@@ -266,6 +266,14 @@ substitutions:
     };
     runtime_tiles::camera_thumb.release = []() { id(alert_image).release(); };
     runtime_tiles::camera_thumb.source = []() { return id(alert_image).get_lv_image_dsc(); };
+    // The live pictures of a page's camera tiles (firmware 0.2.77+): one strip in the third online_image.
+    runtime_tiles::camera_live.load = [](const std::string &url) {
+      static std::string current;
+      if (url != current) { id(tile_image).set_url(url); current = url; }
+      id(tile_image).update();
+    };
+    runtime_tiles::camera_live.release = []() { id(tile_image).release(); };
+    runtime_tiles::camera_live.source = []() { return id(tile_image).get_lv_image_dsc(); };
     runtime_tiles::alert_frame = id(alert_image_frame);
     runtime_tiles::alert_frame_icon = id(alert_image_icon);
     runtime_tiles::alert_room = [](bool image) {
@@ -380,7 +388,8 @@ api:
 # 16 KB a loop (firmware 0.2.73+): the full picture came in 1.8 s instead of 2.8 s with 4 KB. A loop waited over 50 ms
 # for it in one of eleven opens with Wi-Fi awake (0.1 s), in five of twelve with power save; 32 KB saved 0.3 s more but
 # held a loop 0.1 s more often (docs/TEST_RESULTS_0287.md, 0288). One image full screen and one in an alert's
-# frame; runtime_tiles.h decides when they load and frees them when they close. Plain HTTP on the LAN, no certificates.
+# frame, and one strip with the live pictures of a page's camera tiles (firmware 0.2.77+); runtime_tiles.h decides when
+# they load and frees them when they close. Plain HTTP on the LAN, no certificates.
 http_request:
   timeout: 4s
   verify_ssl: false
@@ -406,6 +415,16 @@ online_image:
       - lambda: 'runtime_tiles::camera_loaded(true, cached);'
     on_error:
       - lambda: 'runtime_tiles::camera_failed(true);'
+  # The live pictures of a page's camera tiles (firmware 0.2.77+): one strip of small squares, at most ~70 KB.
+  - id: tile_image
+    url: "http://127.0.0.1/camera.bmp"  # set when a page with live camera tiles is on screen
+    format: BMP
+    type: RGB565
+    buffer_size: 16384
+    on_download_finished:
+      - lambda: 'runtime_tiles::live_loaded(cached);'
+    on_error:
+      - lambda: 'runtime_tiles::live_failed();'
 
 text_sensor:
   - platform: template

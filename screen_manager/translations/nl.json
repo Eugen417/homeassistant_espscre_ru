@@ -448,6 +448,7 @@
         "builtin_action": "Een ingebouwde kaart kan geen actie uitvoeren.",
         "no_mini_slider": "Deze entiteit ondersteunt geen kleine slider.",
         "history_hours": "Geschiedenis: kies 1, 6 of 24 uur.",
+        "refresh": "Livebeeld: ververs elke 15 of 30 seconden.",
         "watch_or_slider": "Kies een grote waarde of een kleine slider, niet allebei.",
         "no_direct_control": "Deze entiteit ondersteunt die directe bediening niet.",
         "position": "Ongeldige tegelpositie; vernieuw de beheerpagina.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Camera",
           "help": "Een camera- of afbeeldingsentiteit. Een Guition met firmware 0.2.57+ toont het beeld van dat moment bovenaan de kaart; een tik erop opent de camera schermvullend. Andere schermen tonen de alert zonder beeld. Alleen via de gebeurtenis esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Actie",
+          "help": "Een Home Assistant-actie, zoals script.open_gate of light.turn_off, eenmaal uitgevoerd zodra de knop op een van de schermen wordt ingedrukt. `data` geeft de velden (entity_id, brightness, ...). Bij een time-out of een nieuwe alert blijft hij achterwege. Alleen via de gebeurtenis esp_screens_show_alert."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Weersverwachting",
         "graph": "Grafiek",
         "sunpath": "Zonnebaan",
+        "live": "Livebeeld",
+        "live_hint": "Een klein beeld van de camera op de plek van het icoon, ververst in het tempo hieronder zolang de pagina in beeld is. Een tik opent hem nog steeds schermvullend.",
+        "live_needs_firmware": "Een livebeeld heeft firmware 0.2.77 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
         "no_graph": "Home Assistant heeft geen getallen voor deze entiteit, dus de grafiek blijft leeg. Kies een andere weergave.",
         "no_forecast": "Deze weerdienst heeft geen dagverwachting in Home Assistant. Kies een andere weergave."
+      },
+      "refresh": {
+        "label": "Verversen",
+        "seconds": "Elke {n} s"
       },
       "size": {
         "label": "Grootte",
         "single": "Normaal",
         "wide": "Dubbelbreed",
         "full": "Hele pagina",
-        "full_hint": "Hele pagina: één grote knop die oplicht zolang hij aan is; onderaan staat een slider, bediening of grafiek.",
+        "full_hint": "Hele pagina: één grote knop in de eigen kleur van de tile; onderaan staat een slider, bediening of grafiek.",
         "needs_firmware": "Een paginavullende tegel heeft firmware 0.2.62 nodig: druk eerst bij het scherm op Bijwerken."
       },
       "page": {

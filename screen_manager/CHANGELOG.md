@@ -1,3 +1,13 @@
+## 0.2.91 (firmware 0.2.77)
+
+Your cameras on the tiles themselves, an alert button that does something, and media titles that roll by.
+
+- **A live picture on a camera tile.** On a Guition, a camera or image tile can show a small picture of its camera in the icon's place: in the tile's settings choose **Display → Live picture** and a pace, every 15 or 30 seconds. The picture is the middle of the camera's view as a rounded square in the tile's own colour, refreshed while that page is on the screen; a tap still opens the camera full screen. The camera tiles of one page share one download (ESP Screens serves them as one strip of squares), so six live tiles cost the screen no more than one, and a 30 s camera on a 15 s page is fetched every other time. The live pictures wait for an alert's picture, an album cover or the camera full screen, and never load under an open card, in standby or under a finger. Asked for in issue #4.
+- **An action behind the alert button.** The `esp_screens_show_alert` event takes `action` (a Home Assistant action such as `script.open_gate` or `light.turn_off`) and `data` for its fields: ESP Screens performs it once when the button is pressed on any screen. A timeout, a new alert or a dismissal leaves it unperformed. The screens only report the press, as they always did, so this works with every screen from firmware 0.2.31. The Alerts cheatsheet and the Claude skill document the field.
+- **A full-page tile keeps its own colour.** A tile over the whole page is white, or the pastel you gave it, like every other tile; its icon shows the state. Firmware 0.2.62 to 0.2.76 tinted the whole tile in its state colour while it was on (a playing speaker turned the page blue), which is gone.
+- **Media titles roll by.** A title or an artist line that is too wide for the media card or the full-page media tile now rolls by, round and round, instead of ending in dots; a text that fits stands still.
+- Needs firmware 0.2.77 for the live pictures and the rolling titles: press **Update** on the screen. Includes everything from 0.2.90. CYD firmware: 1,633,728 bytes, 89.0 % of the update slot (832 bytes more than 0.2.90).
+
 ## 0.2.90 (firmware 0.2.76)
 
 ESP Screens speaks your language: the screens, the editor and its messages in nine languages, with the numbers, the clock and Home Assistant's own words as your country writes them.

@@ -34,6 +34,9 @@ NEW_DOMAINS = frozenset('sun timer person screen'.split())
 # A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
 CAMERA_DOMAINS = frozenset(('camera', 'image'))
 CAMERA_MIN_FIRMWARE = (0, 2, 57)
+# A live picture on a camera tile ("display": "live", app 0.2.91): firmware from here asks for the page's strip.
+LIVE_MIN_FIRMWARE = (0, 2, 77)
+LIVE_REFRESH = (15, 30)  # the paces a live tile may choose, in seconds; the first is the default
 # The media card with its cover (app 0.2.77): firmware from here draws it and asks for the cover.
 COVER_MIN_FIRMWARE = (0, 2, 64)
 # Forty-eight tiles (one per slot), a tile over the whole page and the screen.page tile (firmware 0.2.62+).
@@ -46,7 +49,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.76'
+FIRMWARE_VERSION = '0.2.77'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -85,7 +88,8 @@ def backgrounds():
     return {name: {**item, 'label': t(f'addon.labels.backgrounds.{name}')} for name, item in TILE_BACKGROUNDS.items()}
 
 # Display modes per domain; everything else offers standard and watch (large value).
-DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath')}
+DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath'),
+            'camera': ('standard', 'live'), 'image': ('standard', 'live')}
 # Displays that only work on a double-width card.
 WIDE_ONLY = ('forecast', 'sunpath')
 
@@ -482,6 +486,8 @@ def min_firmware(layout):
         return PAGE_TILE_REPEAT_MIN_FIRMWARE
     if len(layout['tiles']) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in layout['tiles']):
         return FULL_PAGE_MIN_FIRMWARE
+    if any(t.get('options', {}).get('display') == 'live' for t in layout['tiles']):
+        return LIVE_MIN_FIRMWARE
     if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']):
         return CAMERA_MIN_FIRMWARE
     if any(t['entity'] == 'screen.settings' for t in layout['tiles']):
@@ -509,7 +515,7 @@ TILE_RESULT_EVENT = 'esp_screens_tile_result'
 # pastel background.
 TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'display', 'icon': 'icon',
                       'color': 'background', 'background': 'background', 'tap': 'tap', 'inline': 'inline',
-                      'history_hours': 'history_hours'}
+                      'history_hours': 'history_hours', 'refresh': 'refresh'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single'}
@@ -590,7 +596,7 @@ def tile_options(data, current=None):
         if key not in data or data[key] in (None, ''):
             continue
         value = data[key]
-        if name == 'history_hours':
+        if name in ('history_hours', 'refresh'):
             options[name] = int(value) if str(value).isdigit() else value
         elif name == 'size':
             options[name] = TILE_SIZES.get(loose(value), str(value))
@@ -896,7 +902,7 @@ def validate_layout(data, stored=False):
                 continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh'}:
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
@@ -931,6 +937,12 @@ def validate_layout(data, stored=False):
                 raise ValueError(t('addon.errors.layout.no_mini_slider'))
             if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in (1,6,24)):
                 raise ValueError(t('addon.errors.layout.history_hours'))
+            # A live picture's pace (app 0.2.91) belongs to the live display; another display leaves a stale one behind.
+            if options.get('display') == 'live':
+                if 'refresh' in options and (type(options['refresh']) is not int or options['refresh'] not in LIVE_REFRESH):
+                    raise ValueError(t('addon.errors.layout.refresh'))
+            elif 'refresh' in options:
+                options = {key: value for key, value in options.items() if key != 'refresh'}
             if options.get('display') == 'watch' and options.get('inline') == 'slider':
                 raise ValueError(t('addon.errors.layout.watch_or_slider'))
             if 'controls' in options:
@@ -1398,6 +1410,11 @@ ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alar
 # Not an argument of show_alert: the app sends the image itself to screens that can draw it (app 0.2.66, a Guition with
 # firmware 0.2.57+) and leaves it out for the others. (name, label, explanation, example) like ALERT_FIELDS.
 ALERT_CAMERA_FIELD = ('camera', 'Camera', 'A camera or image entity. A Guition with firmware 0.2.57+ shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. Other screens show the alert without it. Only through the esp_screens_show_alert event.', 'camera.front_door')
+# An action behind the button (app 0.2.91): the event names a Home Assistant action, with data for its fields, that the
+# app performs when the button is pressed on any screen, once per alert. Not an argument of show_alert either: the
+# screen only reports the press (ALERT_EVENT, action "ok") and the app does the rest, so every firmware from 0.2.31 has it.
+ALERT_ACTION_FIELD = ('action', 'Action', 'A Home Assistant action, such as script.open_gate or light.turn_off, performed once when the button is pressed on any screen. `data` gives its fields (entity_id, brightness, ...). A timeout or a new alert leaves it unperformed. Only through the esp_screens_show_alert event.', 'script.open_gate')
+ALERT_ACTION_MAX_BYTES = 4096
 # The firmware's MAX_TIMEOUT_SECONDS.
 ALERT_MAX_TIMEOUT = 86400
 # One alert for every screen (app 0.2.45): an automation fires one of these Home Assistant events and the
@@ -1423,6 +1440,8 @@ def alert_reference():
                        for name, kind, _, _, value in ALERT_FIELDS],
             'camera': {'name': camera, 'label': t(f'addon.alerts.fields.{camera}.label'), 'help': t(f'addon.alerts.fields.{camera}.help'),
                        'example': ALERT_CAMERA_FIELD[3]},
+            'action': {'name': ALERT_ACTION_FIELD[0], 'label': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.label'),
+                       'help': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.help'), 'example': ALERT_ACTION_FIELD[3]},
             'limits': ALERT_LIMITS,
             'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in backgrounds().items() if item['color']],
             'suggested_icons': [{'name': name, 'cp': tile_icons.GLYPHS[name]} for name in ALERT_SUGGESTED_ICONS],
@@ -1481,6 +1500,22 @@ def alert_camera(data):
         return '', True
     usable = isinstance(value, str) and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value.strip()) is not None and value.strip().split('.')[0] in CAMERA_DOMAINS
     return (value.strip(), True) if usable else ('', False)
+
+def alert_action(data):
+    """((action, data), usable): the alert's `action` and `data` when they name a Home Assistant action with a mapping of
+    fields; (None, True) without one, (None, False) when it is unusable."""
+    value = data.get(ALERT_ACTION_FIELD[0]) if isinstance(data, dict) else None
+    if value is None or value == '':
+        return None, True
+    fields = data.get('data')
+    if not isinstance(value, str) or not ACTION_NAME.fullmatch(value.strip()) or len(value) > 64 or (fields is not None and not isinstance(fields, dict)):
+        return None, False
+    try:
+        if len(json.dumps(fields or {}, ensure_ascii=False, allow_nan=False).encode()) > ALERT_ACTION_MAX_BYTES:
+            return None, False
+    except (TypeError, ValueError):
+        return None, False
+    return (value.strip(), dict(fields or {})), True
 
 def alert_targets(screens):
     """(ready, skipped): the paired screens that can show an alert now, and the others with the reason, in English for the

@@ -35,6 +35,34 @@ what plays, with the title, the artist and the album, a progress bar and the key
   size *Full page* the alert's picture goes first: the tile's cover waits until the alert's picture
   is there, and a cover already on its way finishes before the alert's picture starts.
 
+## A live picture on a camera tile
+
+App 0.2.91 with firmware 0.2.77 puts the camera on the tile itself: **Display → Live picture** in the
+tile's settings, with a pace of 15 or 30 seconds (`refresh`). The tile shows a small square of the
+camera's view in the icon's place, the middle of the snapshot cut square with the tile's rounded
+corners, and refreshes it while that page is on the screen. A tap still opens the camera full screen.
+
+- **One download per page.** The screen asks ESP Screen Manager for all the live tiles of the page at
+  once (the event `esphome.screen_camera` with `tiles`, the entities in slot order, `size`, the side of
+  the icon's circle, and `bg`, the colour of each tile behind the corners). The app answers with one
+  BMP: a strip of squares, top to bottom in that order, and every tile draws its own square out of it
+  (LVGL's image offset). Six live tiles cost the screen one download of about 50 KB; a tile over the
+  whole page gets one square of 128 px.
+- **At the pace of the fastest tile.** The page loads its strip every 15 s when any of its tiles says
+  15 s. The app fetches a camera again only when that camera's own pace has passed, so a 30 s camera
+  on a 15 s page is fetched every other load. The strip comes whole every time, never as a 304:
+  ESPHome's `http_request` logs a 304 as a failed request and raises its error flag, which a page of
+  slow cameras would do every 15 s. Nobody loading means nothing fetched, as with the camera full
+  screen.
+- **After the other pictures.** The strip waits for the alert's picture, a cover on its way and the
+  camera full screen (one picture loads at a time), and does not load under an open card, in standby
+  or under a finger. A page turn, dark mode (other colours behind the corners) or a changed tile drops
+  the strip and asks for a new one.
+- **A camera without a picture** keeps its icon: the app names it with an empty entry in its answer
+  and paints a plain square of the tile's colour in the strip.
+- The strip lives in a third `online_image` of the Guition profile (`tile_image`, PSRAM); the CYD has
+  none and the editor does not offer the live picture there.
+
 ## A doorbell
 
 ```yaml
@@ -105,11 +133,13 @@ Guition it comes in about 1.8 s (2.8 s with 4 KB).
 
 ## For developers
 
-- `screen_manager/app/camera_feed.py`: fetching, sizing, links and the port.
+- `screen_manager/app/camera_feed.py`: fetching, sizing, links and the port; `encode_live` and `CameraFeed.live`
+  make the strip for a page's live tiles (`Manager.answer_live` in `server.py` checks the tiles against the layout).
 - `components/smart_display/camera_view.h`: when to ask for a link and when to load again
   (`tests/test_camera_view.cpp`).
-- `components/smart_display/runtime_tiles.h`: the full-screen view, the alert picture and the
-  `camera` message.
-- `packages/boards/guition-4848s040.yaml`: the two `online_image` components, the alert frame, and the diagnostic
-  action `preview_camera` (an entity opens it, an empty entity closes it).
+- `components/smart_display/runtime_tiles.h`: the full-screen view, the alert picture, the live tiles
+  (`live_tick`, `live_place`) and the `camera` message.
+- `packages/boards/guition-4848s040.yaml`: the three `online_image` components (the camera full screen and the
+  cover, the alert's picture, the live tiles' strip), the alert frame, and the diagnostic action `preview_camera`
+  (an entity opens it, an empty entity closes it).
 - `tests/test_camera.py`: the app side and the words both sides share.

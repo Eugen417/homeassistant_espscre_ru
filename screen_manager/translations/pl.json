@@ -448,6 +448,7 @@
         "builtin_action": "Wbudowana karta nie może wykonać akcji.",
         "no_mini_slider": "Ta encja nie obsługuje małego suwaka.",
         "history_hours": "Historia: wybierz 1, 6 lub 24 godziny.",
+        "refresh": "Obraz na żywo: odświeżaj co 15 lub 30 sekund.",
         "watch_or_slider": "Wybierz dużą wartość albo mały suwak.",
         "no_direct_control": "Ta encja nie obsługuje takiego bezpośredniego sterowania.",
         "position": "Nieprawidłowa pozycja kafelka; odśwież stronę zarządzania.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Kamera",
           "help": "Encja kamery lub obrazu. Guition z firmware 0.2.57+ pokazuje jej zdjęcie z tej chwili u góry karty; dotknięcie go otwiera kamerę na pełnym ekranie. Inne ekrany pokazują alert bez zdjęcia. Tylko przez zdarzenie esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Akcja",
+          "help": "Akcja Home Assistant, na przykład script.open_gate lub light.turn_off, wykonywana raz po naciśnięciu przycisku na dowolnym ekranie. `data` podaje jej pola (entity_id, brightness, ...). Po upływie czasu lub przy nowym alercie pozostaje niewykonana. Tylko przez zdarzenie esp_screens_show_alert."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Prognoza pogody",
         "graph": "Wykres",
         "sunpath": "Tor słońca",
+        "live": "Obraz na żywo",
+        "live_hint": "Mały obraz z kamery w miejscu ikony, odświeżany w tempie poniżej, dopóki strona jest na ekranie. Dotknięcie nadal otwiera go na pełnym ekranie.",
+        "live_needs_firmware": "Obraz na żywo wymaga firmware 0.2.77 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
         "no_graph": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wykres pozostanie pusty. Wybierz inny widok.",
         "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok."
+      },
+      "refresh": {
+        "label": "Odświeżanie",
+        "seconds": "Co {n} s"
       },
       "size": {
         "label": "Rozmiar",
         "single": "Normalny",
         "wide": "Podwójna szerokość",
         "full": "Cała strona",
-        "full_hint": "Cała strona: jeden duży przycisk, który świeci, gdy encja jest włączona; suwak, przyciski lub wykres są na jego dole.",
+        "full_hint": "Cała strona: jeden duży przycisk w kolorze kafelka; suwak, przyciski lub wykres są na jego dole.",
         "needs_firmware": "Kafelek na całą stronę wymaga wersji firmware 0.2.62: najpierw naciśnij „Aktualizuj” przy tym ekranie."
       },
       "page": {

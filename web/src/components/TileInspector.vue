@@ -49,14 +49,18 @@ const displays = computed(() => {
   if (domain.value === "weather" && (!c || c.displays.includes("forecast") || display.value === "forecast")) keys.push("forecast");
   if (domain.value === "sensor" && (!c || c.displays.includes("graph") || display.value === "graph")) keys.push("graph");
   if (domain.value === "sun") keys.push("sunpath");
+  // A live picture on a camera tile (app 0.2.91): the picker only offers cameras on a Guition, the board that draws images.
+  if (["camera", "image"].includes(domain.value)) keys.push("live");
   return keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]);
 });
 const displayHint = computed(() => {
   const c = caps.value;
   if (c && display.value === "graph" && !c.displays.includes("graph")) return t("editor.tile.display.no_graph");
   if (c && display.value === "forecast" && !c.displays.includes("forecast")) return t("editor.tile.display.no_forecast");
+  if (display.value === "live") return t(supports(0, 2, 77) ? "editor.tile.display.live_hint" : "editor.tile.display.live_needs_firmware");
   return "";
 });
+const refresh = computed(() => current("refresh", 15) as number);
 const size = computed(() => current("size", "single") as string);
 const catalogue = computed(() => state.inventory.controls?.[domain.value]);
 const controls = computed(() => current("controls", size.value === "full" ? "none" : catalogue.value?.default) as string);
@@ -124,7 +128,11 @@ function inspect() {
     <div v-else class="f">
       <span class="f-label">{{ t("editor.tile.display.label") }}</span>
       <Segmented :choices="displays" :value="display" @pick="(v) => setTileOption(tile, 'display', v)" />
-      <small v-if="displayHint" class="warn">{{ displayHint }}</small>
+      <small v-if="displayHint" :class="{ warn: display !== 'live' || !supports(0, 2, 77) }">{{ displayHint }}</small>
+    </div>
+    <div v-if="display === 'live'" class="f">
+      <span class="f-label">{{ t("editor.tile.refresh.label") }}</span>
+      <Segmented :choices="[15, 30].map((seconds) => [seconds, t('editor.tile.refresh.seconds', { n: seconds })] as [number, string])" :value="refresh" @pick="(v) => setTileOption(tile, 'refresh', Number(v))" />
     </div>
     <div class="f">
       <span class="f-label">{{ t("editor.tile.size.label") }}</span>

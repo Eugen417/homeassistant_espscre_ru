@@ -53,11 +53,9 @@ on the screen itself, and how updates work.
   **presence** (`person.*`). Pick them in the library like any other tile, or
   drag them straight into the screen mockup; **Double-width** is an option for every tile, and so is
   **Full page** (firmware 0.2.62+; not for a Go to page tile): the tile takes the whole page and is
-  one big button that lights up in its state colour while on, so a screen by the door switches the
-  light when you push anywhere on it.
-  Only something that can be off lights up: a light, switch, airco, fan, blind, speaker, robot, script,
-  timer, camera, person or binary sensor. Sensors, numbers, selects, scenes, the weather and the sun stay plain
-  (firmware 0.2.71+).
+  one big button, so a screen by the door switches the light when you push anywhere on it. It is white
+  or its own pastel like every other tile, and its icon shows the state (firmware 0.2.77+; before that
+  the whole tile took its state colour while on).
   Its small slider, direct controls or graph sit at the bottom of the page. A **Go to page** tile
   (`screen.page_1` to `screen.page_8`) opens another page: a full-page light switch on page 1, a menu on page 2.
   Under **Goes to page** the editor offers the pages the screen has and the next, empty one, where a new sub-page
@@ -254,7 +252,8 @@ Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false
 don't use it. A new alert replaces the current one. Every end is reported as the event
 **`esphome.screen_alert`** with `action` (`ok`, `timeout`, `replaced`, or `remote`), `title`,
 `screen`, and the `device_id` that Home Assistant adds, so an automation can wait for OK.
-**`esphome.<screen>_dismiss_alert`** clears the card remotely.
+**`esphome.<screen>_dismiss_alert`** clears the card remotely. With the event for every screen, the
+button can also perform a Home Assistant action of your choice (below).
 
 ### All screens at once
 
@@ -307,8 +306,42 @@ actions:
 </p>
 
 A camera or image entity also works as a **tile** on a Guition: a tap opens it full screen, refreshed
-every four seconds. How the image travels (port 8098 of the app, no token on the screen) is in
+every four seconds. From app 0.2.91 with firmware 0.2.77 a camera tile can show a **live picture** in
+the icon's place: in the tile's settings choose **Display → Live picture** and a pace, every 15 or
+30 seconds. The picture is a small square with the tile's rounded corners, the middle of the camera's
+view, and it refreshes while that page is on the screen; a tap still opens the camera full screen. The
+camera tiles of one page share one download, so six live tiles cost the screen no more than one.
+How the image travels (port 8098 of the app, no token on the screen) is in
 [docs/CAMERA.md](docs/CAMERA.md).
+
+### With a button that does something
+
+From app 0.2.91 the event takes an **`action`**: a Home Assistant action the app performs when the
+button is pressed, on whichever screen, once per alert. **`data`** gives the action's fields. The
+screen itself only reports the press (the `esphome.screen_alert` event it always sent), so this works
+with every screen from firmware 0.2.31 and needs no update. A timeout, a new alert over it or
+`esp_screens_dismiss_alert` leaves the action unperformed. The per-screen actions have no `action`
+field.
+
+```yaml
+actions:
+  - event: esp_screens_show_alert
+    event_data:
+      title: "Someone is at the gate"
+      subtitle: "Open it?"
+      icon: doorbell
+      button_text: "Open"
+      timeout: 120
+      action: script.open_gate
+  - event: esp_screens_show_alert
+    event_data:
+      title: "Lights are still on downstairs"
+      button_text: "Turn off"
+      action: light.turn_off
+      data:
+        entity_id: light.downstairs
+        transition: 3
+```
 
 ### Ask Claude
 

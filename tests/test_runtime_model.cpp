@@ -188,8 +188,8 @@ static void test_slider_colours() {
   setpoint.state = "55.0"; assert(setpoint.slider_active());
 }
 struct RunSliderColours { RunSliderColours() { test_slider_colours(); } } run_slider_colours;
-// Home Assistant's stateActive() (firmware 0.2.71+): what it calls inactive is grey on the screen, and only a tile
-// that can be off lights up over a whole page, while it is on.
+// Home Assistant's stateActive() (firmware 0.2.71+): what it calls inactive is grey on the screen. (`lights` was the
+// full-page tint of firmware 0.2.62 to 0.2.76, gone since 0.2.77: the cases stay as a record of the rule.)
 static void test_state_active() {
   using namespace runtime_tiles;
   struct Case { const char *entity, *state; bool active, lights; };
@@ -219,12 +219,12 @@ static void test_state_active() {
            {"scene.a", "unavailable", false, false}}) {
     Tile t; t.entity = c.entity; t.state = c.state; t.received = true;
     assert(t.active() == c.active);
-    assert(t.lights_up() == c.lights);
+    (void) c.lights;
   }
-  // Nothing received yet is inactive; a built-in card has no state, is always active and never lit.
-  { Tile t; t.entity = "light.a"; t.state = "on"; assert(!t.active() && !t.lights_up()); }
+  // Nothing received yet is inactive; a built-in card has no state and is always active.
+  { Tile t; t.entity = "light.a"; t.state = "on"; assert(!t.active()); }
   for (const char *entity : {"screen.clock", "screen.settings", "screen.page_2"}) {
-    Tile t; t.entity = entity; assert(t.active() && !t.lights_up());
+    Tile t; t.entity = entity; assert(t.active());
   }
   // A closed blind: grey card, coloured slider.
   { Tile t; t.entity = "cover.a"; t.state = "closed"; t.received = true; assert(!t.active() && t.slider_active()); }

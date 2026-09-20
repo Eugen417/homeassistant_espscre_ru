@@ -1,6 +1,7 @@
 """Camera images on a Guition (app 0.2.66, firmware 0.2.57): the app fetches, sizes and serves the image on its own
 port; the screen asks with esphome.screen_camera and loads the link with ESPHome's online_image."""
 import asyncio
+import contextlib
 import importlib.util
 import io
 from pathlib import Path
@@ -86,7 +87,10 @@ class Rules(unittest.TestCase):
                        'runtime_tiles::alert_clear();', 'runtime_tiles::camera_close();', 'id: alert_image_frame'):
             self.assertIn(needle, PROFILE, needle)
         # A link only replaces the URL when it is new: set_url() forgets the ETag that makes an unchanged picture a 304.
-        self.assertEqual(PROFILE.count('if (url != current) {'), 2)
+        # Three images: the camera full screen (and the cover), the alert's picture, the live tiles' strip (app 0.2.91).
+        self.assertEqual(PROFILE.count('if (url != current) {'), 3)
+        for needle in ('  - id: tile_image', 'runtime_tiles::live_loaded(cached);', 'runtime_tiles::live_failed();', 'runtime_tiles::camera_live.load'):
+            self.assertIn(needle, PROFILE, needle)
         # A busy camera port leaves the rest of the app running.
         self.assertIn("except OSError as error:\n            # Everything else still works; only camera images stay away.", (ROOT / 'screen_manager/app/server.py').read_text())
         cyd = profiles.text('home-like-2432s028.yaml')
@@ -426,6 +430,133 @@ class App(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ConnectionError):
             await ha.read()
         self.assertEqual(ha.camera_requests.get_nowait(), {'inbox': 'text.d1_tiles', 'entity': 'camera.max'})
+
+
+class LiveTiles(unittest.TestCase):
+    """A live picture on a camera tile (app 0.2.91, firmware 0.2.77): the page's tiles as one strip."""
+
+    def test_the_live_display_and_its_pace_are_tile_settings(self):
+        from core import LIVE_MIN_FIRMWARE, LIVE_REFRESH
+        self.assertEqual((camera_feed.LIVE_MIN_FIRMWARE, camera_feed.LIVE_REFRESH), (LIVE_MIN_FIRMWARE, LIVE_REFRESH))
+        layout = validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.front_door', 'name': '', 'options': {'display': 'live', 'refresh': 30}},
+                                                             {'entity': 'image.doorbell', 'name': '', 'options': {'display': 'live'}}]})
+        self.assertEqual(min_firmware(layout), LIVE_MIN_FIRMWARE)
+        self.assertEqual(layout['tiles'][0]['options'], {'display': 'live', 'refresh': 30})
+        # The icon again: the pace goes with the live display.
+        plain = validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.front_door', 'name': '', 'options': {'display': 'standard', 'refresh': 30}}]})
+        self.assertEqual(plain['tiles'][0]['options'], {'display': 'standard'})
+        self.assertEqual(min_firmware(plain), CAMERA_MIN_FIRMWARE)
+        for options in ({'display': 'live', 'refresh': 20}, {'display': 'live', 'refresh': '15'}, {'display': 'live', 'refresh': True}):
+            with self.assertRaises(ValueError, msg=options):
+                validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.front_door', 'name': '', 'options': options}]})
+        with self.assertRaises(ValueError):
+            validate_layout({'title': 'Hall', 'tiles': [{'entity': 'light.hall', 'name': '', 'options': {'display': 'live'}}]})
+        # A tile event may ask for it too.
+        from core import tile_options
+        self.assertEqual(tile_options({'display': 'live', 'refresh': '30'}), {'display': 'live', 'refresh': 30})
+        # The editor learns the choice from the capabilities.
+        import ha_catalogue
+        self.assertEqual(ha_catalogue.capabilities('camera.front_door', [], {}, {})['displays'], ['standard', 'watch', 'live'])
+        self.assertNotIn('live', ha_catalogue.capabilities('light.hall', [], {}, {})['displays'])
+
+    def test_which_screens_draw_live_pictures(self):
+        self.assertTrue(camera_feed.can_show_live({'board': 'guition', 'firmware': '0.2.77'}))
+        for screen in ({'board': 'guition', 'firmware': '0.2.76'}, {'board': 'cyd', 'firmware': '0.2.77'}, None):
+            self.assertFalse(camera_feed.can_show_live(screen), screen)
+
+    def test_the_request_names_the_tiles_their_size_and_their_grounds(self):
+        self.assertEqual(camera_feed.live_request({'tiles': 'camera.front_door,image.doorbell', 'size': '54', 'bg': 'FFFFFF,fadadd'}),
+                         (['camera.front_door', 'image.doorbell'], 54, [0xFFFFFF, 0xFADADD]))
+        for bad in ({'tiles': 'camera.a', 'size': '54'}, {'tiles': 'camera.a,light.b', 'size': '54', 'bg': 'FFFFFF,FFFFFF'},
+                    {'tiles': 'camera.a,camera.a', 'size': '54', 'bg': 'FFFFFF,FFFFFF'}, {'tiles': 'camera.a', 'size': '54', 'bg': 'FFFFFF,FFFFFF'},
+                    {'tiles': 'camera.a', 'size': '8', 'bg': 'FFFFFF'}, {'tiles': 'camera.a', 'size': 'x', 'bg': 'FFFFFF'},
+                    {'tiles': ','.join(f'camera.c{i}' for i in range(7)), 'size': '54', 'bg': ','.join(['FFFFFF'] * 7)}, {'tiles': '', 'size': '54', 'bg': ''}):
+            self.assertIsNone(camera_feed.live_request(bad), bad)
+
+    @unittest.skipUnless(HAS_PIL, 'Pillow')
+    def test_the_strip_is_one_square_per_tile_with_rounded_corners_over_its_own_ground(self):
+        from PIL import Image
+        out = camera_feed.encode_live([picture('JPEG', (1920, 1080)), None, picture('PNG', (100, 100), 'RGBA')], 54, [0xFFFFFF, 0x1A1A1A, 0x00FF00])
+        with Image.open(io.BytesIO(out)) as image:
+            self.assertEqual((image.format, image.size, image.mode), ('BMP', (54, 162), 'RGB'))
+            self.assertEqual(image.getpixel((0, 0)), (255, 255, 255))     # the first square's corner: its ground
+            self.assertEqual(image.getpixel((27, 27))[::2], (200, 90))    # its middle: the picture (JPEG, a shade off)
+            self.assertEqual(image.getpixel((27, 54 + 27)), (26, 26, 26))  # no picture: a plain square of its ground
+            self.assertEqual(image.getpixel((0, 108)), (0, 255, 0))       # the third square's corner: its ground
+
+    @unittest.skipUnless(HAS_PIL, 'Pillow')
+    def test_each_load_fetches_the_cameras_whose_pace_has_passed(self):
+        clock = [1000.0]
+        fetched = []
+
+        async def fetch(entity):
+            fetched.append((entity, clock[0]))
+            return picture('JPEG', (640, 360))
+
+        async def run():
+            feed = camera_feed.CameraFeed(fetch, clock=lambda: clock[0])
+            tiles, grounds, paces = ['camera.a', 'camera.b'], [0xFFFFFF, 0xFFFFFF], [15, 30]
+            token = feed.link(','.join(tiles), (54, 54), live=(tiles, 54, grounds, paces))
+            status, body, etag = await feed.serve(token)
+            self.assertEqual(status, 200)
+            self.assertEqual(sorted(e for e, _ in fetched), ['camera.a', 'camera.b'], 'the first load waits for both')
+            # 15 s later the page loads again: only the 15 s camera is fetched again. The strip comes whole each
+            # time, never a 304, whatever ETag the screen offers: ESPHome's http_request logs a 304 as an error (seen
+            # on the bench Guition with a radar camera).
+            clock[0] += 15
+            again = await feed.serve(token, etag)
+            self.assertEqual((again[0], again[2] == etag), (200, True))
+            self.assertEqual([e for e, at in fetched if at == 1015.0], ['camera.a'])
+            clock[0] += 15
+            await feed.serve(token, etag)
+            self.assertEqual(sorted(e for e, at in fetched if at == 1030.0), ['camera.a', 'camera.b'])
+            # Nobody loading means nothing fetched.
+            clock[0] += 60
+            self.assertEqual(len([e for e, at in fetched if at > 1030.0]), 0)
+        asyncio.run(run())
+
+
+@unittest.skipUnless(HAS_AIOHTTP and HAS_PIL, 'Run using .venv-portal/bin/python for server tests')
+class LiveApp(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        camera_feed.base_url.__defaults__[0].clear()
+
+    async def test_a_screen_asks_for_the_live_tiles_of_its_page(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (1920, 1080)))
+            ha.states['sensor.d1_fw']['state'] = '0.2.77'
+            m = Manager(ha, Path(tmp) / 'screens.json')
+            m.layouts['text.d1_tiles'] = validate_layout({'title': 'Hall', 'tiles': [
+                {'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}},
+                {'entity': 'camera.garden', 'name': '', 'options': {'display': 'live', 'refresh': 30}},
+                {'entity': 'camera.shed', 'name': ''}]})
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,camera.garden', 'size': '54', 'bg': 'FFFFFF,FADADD'})
+            (_, inbox, message), = [entry for entry in ha.log if entry[0] == 'send']
+            self.assertEqual((inbox, message['op'], message['t'], message['e']), ('text.d1_tiles', 'camera', 'live', 'camera.max,camera.garden'))
+            token = message['u'].rsplit('/', 1)[1][:-4]
+            self.assertEqual(m.camera.links[token].live, (['camera.max', 'camera.garden'], 54, [0xFFFFFF, 0xFADADD], [15, 30]))
+            ha.log.clear()
+            # A tile that shows its icon, a camera off the layout, a screen on older firmware, a CYD: no strip.
+            for request in ({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,camera.shed', 'size': '54', 'bg': 'FFFFFF,FFFFFF'},
+                            {'inbox': 'text.d1_tiles', 'tiles': 'camera.other', 'size': '54', 'bg': 'FFFFFF'},
+                            {'inbox': 'text.d3_tiles', 'tiles': 'camera.max', 'size': '54', 'bg': 'FFFFFF'},
+                            {'inbox': 'text.d2_tiles', 'tiles': 'camera.max', 'size': '54', 'bg': 'FFFFFF'}):
+                with self.assertLogs('screen_manager', 'INFO') if request['inbox'] == 'text.d1_tiles' and 'shed' in request['tiles'] else contextlib.nullcontext():
+                    await m.answer_camera(request)
+            self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
+
+    async def test_a_camera_without_a_picture_keeps_its_icon(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(None)
+            ha.states['sensor.d1_fw']['state'] = '0.2.77'
+            m = Manager(ha, Path(tmp) / 'screens.json')
+            m.layouts['text.d1_tiles'] = validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}}]})
+            with self.assertLogs('screen_manager', 'INFO') as logs:
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max', 'size': '54', 'bg': 'FFFFFF'})
+            (_, _, message), = [entry for entry in ha.log if entry[0] == 'send']
+            self.assertEqual((message['t'], message['e'], message['u']), ('live', 'camera.max', ''))
+            self.assertIn('no image', logs.output[-1])
 
 
 if __name__ == '__main__':

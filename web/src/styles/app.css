@@ -173,6 +173,10 @@ a:hover { text-decoration: underline; }
 .tile .tog.off { background: #c9ccd1; }
 .tile .tog.off::after { right: auto; left: 2px; }
 .tile .ic.lit { color: #d9930f; }
+/* A live camera tile (app 0.2.91): the picture's rounded square stands in for the icon on the mockup. */
+.tile .ic.thumb { width: 28px; height: 28px; border-radius: 7px; background: #d7dbe1; display: grid; place-items: center; font-size: 15px; color: #5a5f66; }
+.tile.full .ic.thumb { width: 54px; height: 54px; border-radius: 12px; font-size: 26px; }
+.device.cyd .tile .ic.thumb { width: 22px; height: 22px; font-size: 12px; }
 .tile .big { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .big small { display: inline; font-size: 10.5px; font-weight: 500; color: #5a5f66; margin-left: 2px; }
 .device.cyd .tile .big { font-size: 16px; }

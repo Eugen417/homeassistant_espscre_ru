@@ -183,6 +183,38 @@ describe("several tiles that go to the same page in the library (firmware 0.2.65
   });
 });
 
+describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
+  const row = (wrapper: ReturnType<typeof mount>, label: string) =>
+    wrapper.findAll(".f").find((f) => f.find(".f-label").exists() && f.find(".f-label").text() === label)!;
+  const choices = (wrapper: ReturnType<typeof mount>, label: string) => row(wrapper, label).findAll(".seg button").map((b) => b.text());
+  it("offers the live picture for a camera, with its pace once chosen, and says which firmware it needs", async () => {
+    state.inventory.entities.push({ id: "camera.front", name: "Front", state: "idle", area: "Hall" } as any);
+    const tile: Tile = { entity: "camera.front", name: "", slot: 0 };
+    state.layout!.tiles.push(tile);
+    const drawer = mount(TileInspector, { props: { tile } });
+    expect(choices(drawer, "Display")).toEqual(["Name and status", "Large value", "Live picture"]);
+    expect(row(drawer, "Refresh")).toBeUndefined();
+    await row(drawer, "Display").findAll(".seg button")[2].trigger("click");
+    expect(tile.options).toEqual({ display: "live" });
+    expect(choices(drawer, "Refresh")).toEqual(["Every 15 s", "Every 30 s"]);
+    expect(row(drawer, "Refresh").find('[aria-pressed="true"]').text()).toBe("Every 15 s");
+    expect(row(drawer, "Display").find("small").text()).toMatch(/firmware 0\.2\.77/);
+    expect(row(drawer, "Display").find("small").classes()).toContain("warn");
+    await row(drawer, "Refresh").findAll(".seg button")[1].trigger("click");
+    expect(tile.options).toEqual({ display: "live", refresh: 30 });
+    Object.assign(state.inventory.screens[0], { firmware: "0.2.77" });
+    await drawer.vm.$nextTick();
+    expect(row(drawer, "Display").find("small").text()).toMatch(/icon's place/);
+    expect(row(drawer, "Display").find("small").classes()).not.toContain("warn");
+    // A light has no such choice.
+    const lamp = mount(TileInspector, { props: { tile: { entity: "light.a", name: "", slot: 1 } } });
+    expect(choices(lamp, "Display")).not.toContain("Live picture");
+    // The mockup draws the picture's rounded square instead of the icon.
+    const card = mount(TileCard, { props: { tile, slot: 0 } });
+    expect(card.find(".ic").classes()).toContain("thumb");
+  });
+});
+
 describe("TileInspector: pages (app 0.2.78)", () => {
   const row = (wrapper: ReturnType<typeof mount>, label: string) =>
     wrapper.findAll(".f").find((f) => f.find(".f-label").exists() && f.find(".f-label").text() === label)!;

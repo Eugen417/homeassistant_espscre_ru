@@ -448,6 +448,7 @@
         "builtin_action": "Un riquadro integrato nello schermo non può eseguire un'azione.",
         "no_mini_slider": "Questa entità non supporta il piccolo cursore.",
         "history_hours": "Storico: scegli 1, 6 o 24 ore.",
+        "refresh": "Immagine dal vivo: aggiorna ogni 15 o 30 secondi.",
         "watch_or_slider": "Scegli valore grande o piccolo cursore.",
         "no_direct_control": "Questa entità non supporta questo controllo diretto.",
         "position": "Posizione del riquadro non valida; ricarica la pagina di gestione.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Telecamera",
           "help": "Un'entità telecamera o immagine. Un Guition con firmware 0.2.57+ mostra la sua immagine di quel momento in cima alla scheda; un tocco apre la telecamera a schermo intero. Gli altri schermi mostrano l'avviso senza immagine. Solo tramite l'evento esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Azione",
+          "help": "Un'azione di Home Assistant, come script.open_gate o light.turn_off, eseguita una volta quando il pulsante viene premuto su uno qualsiasi degli schermi. `data` fornisce i suoi campi (entity_id, brightness, ...). Un timeout o un nuovo avviso la lascia non eseguita. Solo tramite l'evento esp_screens_show_alert."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Previsioni meteo",
         "graph": "Grafico",
         "sunpath": "Percorso del sole",
+        "live": "Immagine dal vivo",
+        "live_hint": "Una piccola immagine della telecamera al posto dell'icona, aggiornata al ritmo qui sotto finché la pagina è sullo schermo. Un tocco la apre ancora a schermo intero.",
+        "live_needs_firmware": "Un'immagine dal vivo richiede il firmware 0.2.77 o più recente: premi Aggiorna sullo schermo dopo il salvataggio.",
         "no_graph": "Home Assistant non ha valori numerici per questa entità, quindi il grafico resta vuoto. Scegli un'altra visualizzazione.",
         "no_forecast": "Questo servizio meteo non ha previsioni giornaliere in Home Assistant. Scegli un'altra visualizzazione."
+      },
+      "refresh": {
+        "label": "Aggiorna",
+        "seconds": "Ogni {n} s"
       },
       "size": {
         "label": "Dimensione",
         "single": "Normale",
         "wide": "Larghezza doppia",
         "full": "Pagina intera",
-        "full_hint": "Pagina intera: un grande pulsante che si illumina quando è acceso; in basso trovano posto un cursore, i comandi o un grafico.",
+        "full_hint": "Pagina intera: un grande pulsante nel colore del riquadro; in basso trovano posto un cursore, i comandi o un grafico.",
         "needs_firmware": "Un riquadro a pagina intera richiede il firmware 0.2.62: premi prima Aggiorna per questo schermo."
       },
       "page": {

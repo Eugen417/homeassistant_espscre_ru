@@ -19,7 +19,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import ALERT_EVENT, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
 from core import PAGE_TILE_REPEAT_MIN_FIRMWARE, SLOTS_PER_PAGE, firmware_features, packed_slots, run_tile_event, screen_firmware, version_text
 import header_bar
@@ -215,8 +215,9 @@ class HomeAssistant:
                     # how the app talks to it.
                     self.esphome_services |= body.get('domain') == 'esphome'
                     self.services_changed.set()
-                elif event.get('event_type') in BROADCAST_EVENTS:
-                    # Queued, not handled here: the calls wait for results this reader has to deliver.
+                elif event.get('event_type') in BROADCAST_EVENTS or event.get('event_type') == ALERT_EVENT:
+                    # Queued, not handled here: the calls wait for results this reader has to deliver. A screen's own
+                    # report of an alert's end (app 0.2.91) goes the same way: the button may have an action behind it.
                     self.broadcasts.put_nowait((event['event_type'], body))
                 elif event.get('event_type') in TILE_EVENTS:
                     self.tile_events.put_nowait((event['event_type'], body))
@@ -382,7 +383,7 @@ class HomeAssistant:
                     await self.request('subscribe_events', event_type='esphome.screen_history')
                     await self.request('subscribe_events', event_type='esphome.screen_camera')
                     await self.request('subscribe_events', event_type=light_effects.OPTIONS_EVENT)
-                    for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, *TILE_EVENTS, *SERVICE_EVENTS):
+                    for event_type in (*REGISTRY_EVENTS, *BROADCAST_EVENTS, ALERT_EVENT, *TILE_EVENTS, *SERVICE_EVENTS):
                         await self.request('subscribe_events', event_type=event_type)
                     self.states = {s['entity_id']: s for s in await self.request('get_states')}
                     await self.registries()
@@ -631,6 +632,8 @@ class Manager:
                                              fetch_cover=lambda entity: self.ha.media_image(entity),
                                              picture=lambda entity: self.ha.media_picture(entity))
         self.alert_cameras = {}
+        # The action behind an alert's button (app 0.2.91): node -> (key, action, data) of the alert on that screen.
+        self.alert_actions = {}
         if self.path.exists():
             raw = json.loads(self.path.read_text())
             # Versioned persistent data. Never silently overwrite an unknown schema.
@@ -1629,6 +1632,10 @@ class Manager:
         inbox = self.aliases.get(request.get('inbox'), request.get('inbox'))
         entity = request.get('entity')
         screen = self.screen(inbox) if isinstance(inbox, str) else None
+        # The live pictures of a page's camera tiles (app 0.2.91, firmware 0.2.77+): one strip for all of them.
+        if 'tiles' in request:
+            await self.answer_live(inbox, screen, request)
+            return
         # A media player's cover (app 0.2.77, firmware 0.2.64+) comes the same way, at the size the card asks for.
         cover = camera_feed.cover_request(request) if camera_feed.cover_supported(entity) else None
         if cover:
@@ -1642,6 +1649,34 @@ class Manager:
         message = await self.cover_message(entity, *cover) if cover else await self.camera_message(entity, 'full', screen['board'])
         await self.ha.send(inbox, message, action)
         LOG.info('%s %s on %s%s', 'Cover of' if cover else 'Camera', entity, screen['name'], '' if message['u'] else ': no image')
+
+    async def answer_live(self, inbox, screen, request):
+        """The strip for a page's live camera tiles: every tile the screen names must be a camera tile of its layout
+        set to a live picture; the pace of each comes from that tile's own setting."""
+        live = camera_feed.live_request(request)
+        if not live or not camera_feed.can_show_live(screen) or not screen.get('online'):
+            return
+        action = self.transport(inbox, screen)
+        if not action:
+            return
+        entities, size, grounds = live
+        tiles = {tile['entity']: tile.get('options') or {} for tile in self.layouts.get(inbox, {}).get('tiles', [])}
+        if any(entity not in tiles or tiles[entity].get('display') != 'live' for entity in entities):
+            LOG.info('Live pictures for %s: not the live camera tiles of %s', ', '.join(entities), screen['name'])
+            return
+        paces = [tiles[entity].get('refresh', camera_feed.LIVE_REFRESH[0]) for entity in entities]
+        url, listing = '', ','.join(entities)
+        base = await camera_feed.base_url(self.ha.request)
+        if base:
+            found = await self.camera.live(entities, size, grounds, paces)
+            if found:
+                listing = ','.join(found[2])
+                token = self.camera.link(listing, (size, size), live=(entities, size, grounds, paces))
+                url = f'{base}/camera/{token}.bmp'
+        else:
+            LOG.warning('Live pictures: no address for this app on the LAN; set SCREEN_CAMERA_URL')
+        await self.ha.send(inbox, {'v': 1, 'op': 'camera', 't': 'live', 'e': listing, 'u': url}, action)
+        LOG.info('Live pictures of %s on %s%s', ', '.join(entities), screen['name'], '' if url else ': no image')
 
     async def cover_message(self, entity, size, background):
         """The screen message with a link to a media player's cover at `size` with `background` behind the corners,
@@ -1678,6 +1713,9 @@ class Manager:
         camera, usable = alert_camera(data) if event_type == BROADCAST_SHOW else ('', True)
         if not usable:
             unusable.append('camera')
+        button, usable = alert_action(data) if event_type == BROADCAST_SHOW else (None, True)
+        if not usable:
+            unusable.append('action')
         if unusable:
             LOG.warning('%s: unusable %s left empty', event_type, ', '.join(unusable))
         ready, skipped = alert_targets(self.screens())
@@ -1694,6 +1732,13 @@ class Manager:
         LOG.info('%s: %d of %d screens%s', event_type, len(ready) - len(failed), len(ready) + len(skipped),
                  f" (not: {'; '.join(notes)})" if notes else '')
         shown = [screen for screen, result in zip(ready, results) if not isinstance(result, BaseException)]
+        # The button's action waits on every screen that shows this alert; a dismissal forgets it everywhere.
+        for screen in ready:
+            self.alert_actions.pop(screen['node'], None)
+        if button and shown:
+            key = secrets.token_hex(4)
+            for screen in shown:
+                self.alert_actions[screen['node']] = (key, *button)
         if viewers and any(screen in shown for screen in viewers):
             await self.alert_images(camera, [screen for screen in viewers if screen in shown])
         return {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
@@ -1758,9 +1803,30 @@ class Manager:
         while queue is not None:
             event_type, data = await queue.get()
             try:
-                await self.broadcast(event_type, data)
+                if event_type == ALERT_EVENT:
+                    await self.alert_ended(data)
+                else:
+                    await self.broadcast(event_type, data)
             except Exception as error:
                 LOG.warning('%s failed (%s)', event_type, type(error).__name__)
+
+    async def alert_ended(self, data):
+        """A screen reports how its alert ended (esphome.screen_alert). The button performs the action the alert
+        came with, once for the alert however many screens showed it; any other ending forgets it on that screen."""
+        node = data.get('screen') if isinstance(data, dict) else None
+        pending = self.alert_actions.pop(node, None) if isinstance(node, str) else None
+        if pending is None:
+            return
+        key, action, fields = pending
+        for other in [n for n, (k, _, _) in self.alert_actions.items() if k == key]:
+            del self.alert_actions[other]
+        if data.get('action') != 'ok':
+            return
+        try:
+            await self.ha.call(action, fields)
+            LOG.info('Alert button on %s: %s performed', node, action)
+        except Exception as error:
+            LOG.warning('Alert button on %s: %s failed (%s)', node, action, type(error).__name__)
 
 def create_app(manager, development=False):
     csrf = secrets.token_urlsafe(32)

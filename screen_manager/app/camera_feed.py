@@ -11,6 +11,7 @@ that loads a link gets the last snapshot at once, however long the camera takes 
 in the screen's main loop, where touch and drawing wait with it), and the load starts fetching the next snapshot.
 """
 import asyncio
+from email.utils import formatdate
 import hashlib
 import io
 import logging
@@ -33,6 +34,16 @@ COVER_DOMAINS = ('media_player',)
 COVER_MIN_FIRMWARE = (0, 2, 64)
 COVER_SIZES = (48, 320)  # the smallest and largest cover a screen may ask for, in pixels
 COVER_RADIUS_SHARE = 12  # the corner is a twelfth of the size, at least 4 px (media_card.h radius_for)
+# Live pictures on camera tiles (app 0.2.91, firmware 0.2.77): a tile with "display": "live" shows a small square of its
+# camera in the icon's place. The camera tiles of a page share one image: the screen asks for them together and the
+# app serves one strip of squares, top to bottom in the screen's order, each cut to the middle of its snapshot with
+# the corners rounded over that tile's own colour. A camera is fetched again only when its tile's pace (15 or 30 s)
+# has passed since the last fetch, so a page loading every 15 s leaves a 30 s camera alone in between.
+LIVE_MIN_FIRMWARE = (0, 2, 77)
+LIVE_SIZES = (24, 160)   # a square's side, in pixels
+LIVE_MAX_TILES = 6       # one page
+LIVE_REFRESH = (15, 30)  # the paces a tile may choose, in seconds
+LIVE_RADIUS_SHARE = 6    # a rounder corner than a cover's: the square is small
 PORT = 8098
 # A camera nobody loaded a picture of for this long is forgotten, its last snapshot with it.
 WATCH_SECONDS = 30
@@ -71,6 +82,30 @@ def cover_supported(entity):
 def can_show_cover(screen):
     """A paired Guition with firmware that draws the media card's cover."""
     return bool(screen) and screen.get('board') in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= COVER_MIN_FIRMWARE
+
+
+def can_show_live(screen):
+    """A paired Guition with firmware that draws live pictures on camera tiles."""
+    return bool(screen) and screen.get('board') in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= LIVE_MIN_FIRMWARE
+
+
+def live_request(request):
+    """(entities, size, grounds) a screen asked live pictures for, or None when it is not a request the app can serve:
+    `tiles` the camera tiles of its page as a comma-separated list, `size` the square's side within LIVE_SIZES and
+    `bg` one colour of six hex digits per tile, the tile's own, behind the corners."""
+    tiles, grounds = request.get('tiles'), request.get('bg')
+    if not isinstance(tiles, str) or not isinstance(grounds, str):
+        return None
+    entities, colours = tiles.split(','), grounds.split(',')
+    try:
+        size = int(request.get('size'))
+    except (TypeError, ValueError):
+        return None
+    if not 1 <= len(entities) <= LIVE_MAX_TILES or len(colours) != len(entities) or len(set(entities)) != len(entities):
+        return None
+    if not LIVE_SIZES[0] <= size <= LIVE_SIZES[1] or not all(supported(e) for e in entities) or not all(re.fullmatch(r'[0-9A-Fa-f]{6}', c) for c in colours):
+        return None
+    return entities, size, [int(c, 16) for c in colours]
 
 
 def cover_request(request):
@@ -148,9 +183,59 @@ def encode_cover(raw, size, background):
     return out.getvalue()
 
 
+def _square(image, size, background, radius_share):
+    """The middle of `image` as a square of `size` pixels with rounded corners over `background` (0xRRGGBB)."""
+    from PIL import Image, ImageDraw
+    width, height = image.size
+    side = min(width, height)
+    if width != height:
+        left, top = (width - side) // 2, (height - side) // 2
+        image = image.crop((left, top, left + side, top + side))
+    if image.size != (size, size):
+        image = image.resize((size, size), Image.Resampling.LANCZOS)
+    radius = max(4, size // radius_share)
+    mask = Image.new('L', (size, size), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, size - 1, size - 1), radius=radius, fill=255)
+    ground = Image.new('RGB', (size, size), tuple((background >> shift) & 0xFF for shift in (16, 8, 0)))
+    ground.paste(image, mask=mask)
+    return ground
+
+
+def _opaque(source, background):
+    """An RGB image from any picture Home Assistant hands out, transparency landing on `background`."""
+    from PIL import Image, ImageOps
+    image = ImageOps.exif_transpose(source)
+    if image.mode in ('RGBA', 'LA', 'P', 'PA'):
+        image = image.convert('RGBA')
+        ground = Image.new('RGB', image.size, tuple((background >> shift) & 0xFF for shift in (16, 8, 0)))
+        ground.paste(image, mask=image.getchannel('A'))
+        return ground
+    return image if image.mode == 'RGB' else image.convert('RGB')
+
+
+def encode_live(raws, size, grounds):
+    """The strip a page's camera tiles share: one square of `size` pixels per tile, top to bottom, each the middle of
+    its snapshot with rounded corners over that tile's colour (`grounds`, 0xRRGGBB each); a tile without a snapshot
+    (None) gets a plain square of its colour. A 24-bit BMP of `size` by `size` times the number of tiles."""
+    from PIL import Image
+    strip = Image.new('RGB', (size, size * len(raws)))
+    for n, (raw, background) in enumerate(zip(raws, grounds)):
+        if raw is None:
+            square = Image.new('RGB', (size, size), tuple((background >> shift) & 0xFF for shift in (16, 8, 0)))
+        else:
+            with Image.open(io.BytesIO(raw)) as source:
+                source.draft('RGB', (size * 2, size * 2))
+                square = _square(_opaque(source, background), size, background, LIVE_RADIUS_SHARE)
+        strip.paste(square, (0, n * size))
+    out = io.BytesIO()
+    strip.save(out, 'BMP')
+    return out.getvalue()
+
+
 class Watch:
     """One camera or media player: its last picture, the sizes made of it and the fetch on its way. For a media
-    player `picture` is the address the raw picture came from, so a changed picture is fetched again."""
+    player `picture` is the address the raw picture came from, so a changed picture is fetched again. `fetched_at`
+    is when the last fetch started: a live tile fetches again only when its own pace has passed."""
 
     def __init__(self, now):
         self.used = now
@@ -159,16 +244,18 @@ class Watch:
         self.frames = {}
         self.failures = 0
         self.retry_at = 0.0
+        self.fetched_at = 0.0
         self.task = None
 
 
 class Link:
-    __slots__ = ('entity', 'box', 'still', 'etag', 'used', 'lifetime', 'cover')
+    __slots__ = ('entity', 'box', 'still', 'etag', 'used', 'lifetime', 'cover', 'live')
 
-    def __init__(self, entity, box, now, still=None, cover=None):
+    def __init__(self, entity, box, now, still=None, cover=None, live=None):
         self.entity, self.box, self.used = entity, box, now
         self.still = still
         self.cover = cover  # (size, background) of a media player's cover, else None
+        self.live = live    # (entities, size, grounds, paces) of a page's live camera tiles, else None
         self.etag = f'"{hashlib.sha1(still).hexdigest()[:16]}"' if still else ''
         self.lifetime = STILL_SECONDS if still else LINK_SECONDS
 
@@ -180,6 +267,7 @@ class CameraFeed:
         self.fetch, self.clock = fetch, clock
         self.fetch_cover, self.picture = fetch_cover, picture
         self.watches, self.links = {}, {}
+        self.strips = {}
 
     # ----- fetching -----
     # A camera is fetched when a screen loads its picture: serving one starts fetching the next, so each load gets a
@@ -199,6 +287,7 @@ class CameraFeed:
     def refresh(self, entity, watch):
         """Start fetching the next snapshot, unless one is on its way or the camera failed a moment ago."""
         if (watch.task is None or watch.task.done()) and self.clock() >= watch.retry_at:
+            watch.fetched_at = self.clock()
             watch.task = asyncio.ensure_future(self.fetch_one(entity, watch))
 
     async def fetch_one(self, entity, watch):
@@ -257,6 +346,44 @@ class CameraFeed:
                 return None
             cached = watch.frames[box] = (digest, image)
         return f'"{digest[:16]}-{box[0]}x{box[1]}"', cached[1]
+
+    # ----- live tiles -----
+    # A page's strip is made when the screen loads its link, out of the last snapshot of every tile's camera, and
+    # serving it starts the next fetch of the cameras whose pace has passed: a 15 s page fetches a 30 s camera every
+    # other load. The first load waits for the cameras that have no snapshot yet, all at once.
+    async def live_one(self, entity, pace, wait):
+        watch = self.watch(entity)
+        if watch.raw is None:
+            self.refresh(entity, watch)
+            if watch.task is not None and not watch.task.done():
+                try:
+                    await asyncio.wait_for(asyncio.shield(watch.task), wait)
+                except asyncio.TimeoutError:
+                    return None
+        elif self.clock() - watch.fetched_at >= pace:
+            self.refresh(entity, watch)
+        return watch.raw
+
+    async def live(self, entities, size, grounds, paces, wait=FIRST_FRAME_SECONDS):
+        """(etag, BMP, entities with '' where a camera has no snapshot) of the strip for a page's camera tiles at
+        `size` with `grounds` behind the corners and `paces` in seconds per tile, or None when no camera has one."""
+        raws = await asyncio.gather(*(self.live_one(entity, pace, wait) for entity, pace in zip(entities, paces)))
+        if all(raw is None for raw in raws):
+            return None
+        digests = [self.watches[entity].digest if raw is not None else '' for entity, raw in zip(entities, raws)]
+        key = ('live', size, tuple(grounds), tuple(digests))
+        tag = f'"{hashlib.sha1("|".join(digests).encode()).hexdigest()[:16]}-l{size}"'  # names the strip; not sent
+        cached = self.strips.get(key)
+        if cached is None:
+            try:
+                image = await asyncio.get_running_loop().run_in_executor(None, encode_live, raws, size, grounds)
+            except Exception as error:
+                LOG.info('The live pictures of %s cannot be read (%s)', ', '.join(entities), type(error).__name__)
+                return None
+            self.strips = {key: image}  # the last strip only: the next load makes another anyway
+        else:
+            image = cached
+        return tag, image, [entity if raw is not None else '' for entity, raw in zip(entities, raws)]
 
     # ----- covers -----
     # A media player's picture is fetched when a screen loads its cover link and Home Assistant's picture is another
@@ -321,12 +448,12 @@ class CameraFeed:
         while len(self.links) >= MAX_LINKS:
             del self.links[min(self.links, key=lambda token: self.links[token].used)]
 
-    def link(self, entity, box, still=None, cover=None):
+    def link(self, entity, box, still=None, cover=None, live=None):
         """A new random token for one camera at one size; `still` makes it one fixed image (an alert's), `cover`
-        (size, background) a media player's cover."""
+        (size, background) a media player's cover, `live` (entities, size, grounds, paces) a page's live tiles."""
         self.prune()
         token = secrets.token_urlsafe(18)
-        self.links[token] = Link(entity, box, self.clock(), still, cover)
+        self.links[token] = Link(entity, box, self.clock(), still, cover, live)
         return token
 
     async def serve(self, token, etag=None):
@@ -339,6 +466,13 @@ class CameraFeed:
         link.used = now
         if link.still:
             return (304, None, link.etag) if etag == link.etag else (200, link.still, link.etag)
+        if link.live:
+            # Always the whole strip, never a 304: ESPHome's http_request logs a 304 as a failed request and raises its
+            # error flag every time, and a page of slow cameras (a radar every five minutes) would do that every 15 s.
+            # The strip is small; the screen draws its squares again either way. The tag still goes out as an ETag:
+            # online_image warns at every load about a missing one.
+            found = await self.live(*link.live)
+            return (503, None, '') if found is None else (200, found[1], found[0])
         found = await self.cover(link.entity, *link.cover) if link.cover else await self.frame(link.entity, link.box)
         if found is None:
             return 503, None, ''
@@ -352,7 +486,9 @@ def web_app(feed):
 
     async def image(request):
         status, body, etag = await feed.serve(request.match_info['token'], request.headers.get('If-None-Match'))
-        headers = {'Cache-Control': 'no-cache', **({'ETag': etag} if etag else {})}
+        # Last-Modified with every picture: online_image warns at every load about a missing one (it never sends
+        # If-Modified-Since on its own; only the ETag decides a 304 here).
+        headers = {'Cache-Control': 'no-cache', 'Last-Modified': formatdate(usegmt=True), **({'ETag': etag} if etag else {})}
         if status == 200:
             return web.Response(body=body, content_type=CONTENT_TYPE, headers=headers)
         if status == 304:

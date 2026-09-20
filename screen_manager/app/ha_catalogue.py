@@ -170,6 +170,9 @@ def capabilities(entity_id, actions, state, services):
             displays.append('forecast')
     elif domain == 'sun':
         displays.append('sunpath')
+    elif domain in ('camera', 'image'):
+        # A live picture on the tile (app 0.2.91): the editor offers it on a Guition, the only board that draws images.
+        displays.append('live')
     return {
         'toggle': TOGGLE.format(domain=domain) in actions,
         'inline': domain in INLINE and _fits(INLINE[domain], actions, attributes, services),

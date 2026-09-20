@@ -54,6 +54,18 @@ inline bool valid_entity(const std::string &entity) {
     if (domain == allowed) return true;
   return false;
 }
+// A comma-separated list of entities (a page's live camera tiles, firmware 0.2.77+); an empty item stands for a tile
+// without a picture.
+inline bool valid_entity_list(const std::string &list) {
+  if (list.empty() || list.size() > 400) return false;
+  for (size_t start = 0;; ) {
+    const size_t comma = list.find(',', start);
+    const std::string item = list.substr(start, comma == std::string::npos ? std::string::npos : comma - start);
+    if (!item.empty() && !valid_entity(item)) return false;
+    if (comma == std::string::npos) return true;
+    start = comma + 1;
+  }
+}
 // An action as Home Assistant names it (domain.action: lowercase letters, digits, underscores), of any integration.
 inline bool valid_action(const std::string &action) {
   if (action.size() > 64) return false;
@@ -201,6 +213,10 @@ struct Tile {
   bool has_hs_color = false;
   int saturation = 0;
   std::string tap = "auto", display = "standard", inline_control = "none";
+  // A camera tile's live picture (firmware 0.2.77+): "display": "live" puts a small picture of the camera in the
+  // icon's place, loaded again every `refresh` seconds.
+  uint16_t refresh = 15;
+  bool live() const { const auto d = domain(); return display == "live" && (d == "camera" || d == "image"); }
   // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
   bool wide = false, full = false;
   // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.
@@ -347,16 +363,6 @@ struct Tile {
     if (d == "timer") return state == "active";
     if (d == "camera") return state == "streaming" || state == "recording";
     return true;
-  }
-  // A card over the whole page lights up in its state colour while it is on (firmware 0.2.62+): only a tile that can
-  // be off, closed, docked or away, and only while active() calls it active (firmware 0.2.71+). Sensors, numbers,
-  // selects, scenes, buttons, images, the weather and the sun are always active in Home Assistant and stay plain.
-  bool lights_up() const {
-    const auto d = domain();
-    for (const char *on_off : {"light", "switch", "input_boolean", "climate", "fan", "cover", "media_player", "vacuum",
-                               "script", "timer", "camera", "person", "binary_sensor"})
-      if (d == on_off) return active();
-    return false;
   }
   // A slider shows the card's colour like Home Assistant's tile sliders: grey only while the entity is inactive
   // (active() above), such as an off light or fan and a media player that is off or in standby. A number with a

@@ -194,6 +194,10 @@ class Covers(unittest.TestCase):
 class Answer(unittest.TestCase):
     """The app's answer to a screen's request, through Manager.answer_camera with a Home Assistant stand-in."""
 
+    def setUp(self):
+        # base_url keeps the last address for ten minutes; another test's Home Assistant may have left one behind.
+        camera_feed.base_url.__defaults__[0].clear()
+
     class HA:
         online = True
 

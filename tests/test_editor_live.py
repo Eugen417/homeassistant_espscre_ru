@@ -192,7 +192,7 @@ class Editor(unittest.TestCase):
     def test_the_mockup_polls_live_values_and_draws_them(self):
         self.assertIn('getJson(`states?${query}`)', self.store)
         self.assertIn('if (!document.hidden && state.layout && state.tab === "layout" && route.value === "") loadStates();', self.store)
-        for marker in ('liveOf(props.tile.entity)', ':class="{ lit: isOn }"', ':style="sliderStyle"', "class=\"tog\" :class=\"{ off: !on }\""):
+        for marker in ('liveOf(props.tile.entity)', 'lit: isOn', ':style="sliderStyle"', "class=\"tog\" :class=\"{ off: !on }\""):
             self.assertIn(marker, self.page, marker)
 
     def test_identify_and_the_test_alert_have_their_buttons(self):

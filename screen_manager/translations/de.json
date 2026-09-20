@@ -448,6 +448,7 @@
         "builtin_action": "Eine eingebaute Karte kann keine Aktion ausführen.",
         "no_mini_slider": "Diese Entität unterstützt keinen kleinen Schieberegler.",
         "history_hours": "Verlauf: Wähle 1, 6 oder 24 Stunden.",
+        "refresh": "Livebild: alle 15 oder 30 Sekunden auffrischen.",
         "watch_or_slider": "Wähle „Großer Wert“ oder den kleinen Schieberegler.",
         "no_direct_control": "Diese Entität unterstützt diese direkte Steuerung nicht.",
         "position": "Ungültige Kachelposition; lade die Verwaltungsseite neu.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Kamera",
           "help": "Eine Kamera- oder Bild-Entität. Ein Guition mit Firmware 0.2.57+ zeigt ihr Bild von diesem Moment oben über die ganze Breite der Karte; ein Tippen darauf öffnet die Kamera im Vollbild. Andere Bildschirme zeigen die Meldung ohne Bild. Nur über das Ereignis esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Aktion",
+          "help": "Eine Home-Assistant-Aktion wie script.open_gate oder light.turn_off, einmal ausgeführt, sobald die Taste auf einem der Bildschirme gedrückt wird. `data` gibt ihre Felder an (entity_id, brightness, ...). Bei einem Timeout oder einem neuen Alarm bleibt sie aus. Nur über das Ereignis esp_screens_show_alert."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Wettervorhersage",
         "graph": "Diagramm",
         "sunpath": "Sonnenbahn",
+        "live": "Livebild",
+        "live_hint": "Ein kleines Bild der Kamera anstelle des Symbols, im Takt unten aufgefrischt, solange die Seite zu sehen ist. Ein Tipp öffnet sie weiterhin bildschirmfüllend.",
+        "live_needs_firmware": "Ein Livebild braucht Firmware 0.2.77 oder neuer: Nach dem Speichern beim Bildschirm auf Aktualisieren drücken.",
         "no_graph": "Home Assistant hat für diese Entität keine Zahlen, daher bleibt das Diagramm leer. Wähle eine andere Anzeige.",
         "no_forecast": "Dieser Wetterdienst hat in Home Assistant keine Tagesvorhersage. Wähle eine andere Anzeige."
+      },
+      "refresh": {
+        "label": "Auffrischen",
+        "seconds": "Alle {n} s"
       },
       "size": {
         "label": "Größe",
         "single": "Normal",
         "wide": "Doppelt breit",
         "full": "Ganze Seite",
-        "full_hint": "Ganze Seite: eine große Taste, die im eingeschalteten Zustand leuchtet; am unteren Rand sitzen ein Schieberegler, Bedienelemente oder ein Diagramm.",
+        "full_hint": "Ganze Seite: eine große Taste in der eigenen Farbe der Kachel; am unteren Rand sitzen ein Schieberegler, Bedienelemente oder ein Diagramm.",
         "needs_firmware": "Eine ganzseitige Kachel braucht Firmware 0.2.62: Drücke zuerst beim Bildschirm auf „Aktualisieren“."
       },
       "page": {

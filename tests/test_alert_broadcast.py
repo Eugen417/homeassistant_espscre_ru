@@ -11,8 +11,8 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
-from core import (ALERT_FIELDS, ALERT_MAX_TIMEOUT, BROADCAST_DISMISS, BROADCAST_EVENTS, BROADCAST_SHOW,  # noqa: E402
-                  alert_data, alert_reference, alert_targets)
+from core import (ALERT_EVENT, ALERT_FIELDS, ALERT_MAX_TIMEOUT, BROADCAST_DISMISS, BROADCAST_EVENTS, BROADCAST_SHOW,  # noqa: E402
+                  alert_action, alert_data, alert_reference, alert_targets)
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:
@@ -57,6 +57,21 @@ class AlertData(unittest.TestCase):
         self.assertEqual(alert_reference()['broadcast'], {'show': BROADCAST_SHOW, 'dismiss': BROADCAST_DISMISS})
 
 
+class AlertAction(unittest.TestCase):
+    """An action behind the button (app 0.2.91): the event names it, the app performs it on the press."""
+
+    def test_the_action_and_its_data(self):
+        self.assertEqual(alert_action({'title': 'Gate', 'action': 'script.open_gate'}), (('script.open_gate', {}), True))
+        self.assertEqual(alert_action({'action': ' light.turn_off ', 'data': {'entity_id': 'light.hall', 'transition': 2}}),
+                         (('light.turn_off', {'entity_id': 'light.hall', 'transition': 2}), True))
+        for data in ({}, {'action': ''}, {'action': None}, None, 'text'):
+            self.assertEqual(alert_action(data), (None, True), data)
+        for data in ({'action': 'open the gate'}, {'action': 42}, {'action': 'script.x', 'data': 'no'}, {'action': 'script.x', 'data': ['a']},
+                     {'action': 'script.x', 'data': {'big': 'x' * 5000}}, {'action': 'script.x', 'data': {'nan': float('nan')}}):
+            self.assertEqual(alert_action(data), (None, False), data)
+        self.assertEqual(alert_reference()['action']['name'], 'action')
+
+
 class AlertTargets(unittest.TestCase):
     def test_only_screens_that_can_show_it_now(self):
         screens = [{'name': 'Kitchen', 'node': 'kitchen', 'online': True, 'firmware': '0.2.31'},
@@ -91,6 +106,12 @@ def fake_ha():
             self.changed = asyncio.Event()
             self.broadcasts = asyncio.Queue()
             self.calls, self.failing = [], set()
+            self.subscriptions = []
+
+        async def request(self, kind, **data):
+            if kind == 'subscribe_events':
+                self.subscriptions.append(data.get('event_type'))
+            return {}
 
         async def call(self, action, data):
             self.calls.append((action, data))
@@ -139,6 +160,59 @@ class Broadcast(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(any('unusable timeout left empty' in line for line in logs.output), logs.output)
             self.assertIn('1 of 3 screens (not: Attic firmware 0.2.30; Hall ConnectionError)', logs.output[-1])
 
+    async def test_the_button_performs_the_alert_action_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.broadcast(BROADCAST_SHOW, {'title': 'Gate', 'button_text': 'Open', 'action': 'script.open_gate', 'data': {'seconds': 5}})
+            self.assertEqual(sorted(m.alert_actions), ['hall', 'kitchen-screen'])
+            self.assertNotIn('action', m.ha.calls[0][1], 'show_alert keeps its seven fields')
+            m.ha.calls.clear()
+            # Hall presses the button: the action runs; Kitchen pressing it later runs nothing again.
+            with self.assertLogs('screen_manager', 'INFO') as logs:
+                await m.alert_ended({'action': 'ok', 'title': 'Gate', 'screen': 'hall'})
+            self.assertEqual(m.ha.calls, [('script.open_gate', {'seconds': 5})])
+            self.assertIn('script.open_gate performed', logs.output[-1])
+            self.assertEqual(m.alert_actions, {})
+            await m.alert_ended({'action': 'ok', 'title': 'Gate', 'screen': 'kitchen-screen'})
+            await m.alert_ended({'action': 'ok', 'title': 'Other', 'screen': 'unknown'})
+            self.assertEqual(len(m.ha.calls), 1)
+            # A timeout, a new alert or a dismissal leaves it unperformed.
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Gate', 'action': 'script.open_gate'})
+            await m.alert_ended({'action': 'timeout', 'title': 'Gate', 'screen': 'hall'})
+            self.assertNotIn('hall', m.alert_actions)
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Plain'})
+            self.assertEqual(m.alert_actions, {})
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Gate', 'action': 'script.open_gate'})
+            await m.broadcast(BROADCAST_DISMISS, {})
+            self.assertEqual(m.alert_actions, {})
+            m.ha.calls.clear()
+            # An action Home Assistant refuses is logged, not fatal; an unusable action is named and left out.
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Gate', 'action': 'script.open_gate'})
+            m.ha.failing.add('script.open_gate')
+            with self.assertLogs('screen_manager', 'WARNING') as logs:
+                await m.alert_ended({'action': 'ok', 'title': 'Gate', 'screen': 'hall'})
+            self.assertIn('script.open_gate failed (ConnectionError)', logs.output[-1])
+            with self.assertLogs('screen_manager', 'INFO') as logs:
+                await m.broadcast(BROADCAST_SHOW, {'title': 'Gate', 'action': 'open the gate'})
+            self.assertTrue(any('unusable action left empty' in line for line in logs.output), logs.output)
+            self.assertEqual(m.alert_actions, {})
+
+    async def test_the_reports_of_the_screens_go_through_the_alert_loop(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            task = asyncio.create_task(m.alert_loop())
+            m.ha.broadcasts.put_nowait((BROADCAST_SHOW, {'title': 'Gate', 'action': 'script.open_gate'}))
+            m.ha.broadcasts.put_nowait((ALERT_EVENT, {'action': 'ok', 'title': 'Gate', 'screen': 'hall'}))
+            with self.assertLogs('screen_manager', 'INFO'):
+                for _ in range(50):
+                    if ('script.open_gate', {}) in m.ha.calls:
+                        break
+                    await asyncio.sleep(0.01)
+            task.cancel()
+            self.assertIn(('script.open_gate', {}), m.ha.calls)
+            self.assertIn("ALERT_EVENT, *TILE_EVENTS", (ROOT / 'screen_manager/app/server.py').read_text(), 'subscribed on connect')
+
     async def test_the_loop_keeps_the_order_and_survives_errors(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = Manager(fake_ha(), Path(tmp) / 'screens.json')
@@ -173,11 +247,12 @@ class Broadcast(unittest.IsolatedAsyncioTestCase):
         ha = HomeAssistant(None, 'http://ha/api', 'token')
         ha.ws = Socket([{'type': 'event', 'event': {'event_type': BROADCAST_SHOW, 'data': {'title': 'Mail!'}}},
                         {'type': 'event', 'event': {'event_type': 'call_service', 'data': {}}},
+                        {'type': 'event', 'event': {'event_type': ALERT_EVENT, 'data': {'action': 'ok', 'title': 'Mail!', 'screen': 'hall'}}},
                         {'type': 'event', 'event': {'event_type': BROADCAST_DISMISS, 'data': {}}}])
         with self.assertRaises(ConnectionError):
             await ha.read()
         self.assertEqual([ha.broadcasts.get_nowait() for _ in range(ha.broadcasts.qsize())],
-                         [(BROADCAST_SHOW, {'title': 'Mail!'}), (BROADCAST_DISMISS, {})])
+                         [(BROADCAST_SHOW, {'title': 'Mail!'}), (ALERT_EVENT, {'action': 'ok', 'title': 'Mail!', 'screen': 'hall'}), (BROADCAST_DISMISS, {})])
         self.assertIn('*BROADCAST_EVENTS', (ROOT / 'screen_manager/app/server.py').read_text(), 'subscribed on connect')
 
 

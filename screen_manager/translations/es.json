@@ -448,6 +448,7 @@
         "builtin_action": "Una tarjeta integrada no puede realizar acciones.",
         "no_mini_slider": "Esta entidad no admite un control deslizante pequeño.",
         "history_hours": "Historial: elige 1, 6 o 24 horas.",
+        "refresh": "Imagen en vivo: actualiza cada 15 o 30 segundos.",
         "watch_or_slider": "Elige valor grande o control deslizante pequeño.",
         "no_direct_control": "Esta entidad no admite ese control directo.",
         "position": "Posición de mosaico no válida; recarga la página de gestión.",
@@ -739,6 +740,10 @@
         "camera": {
           "label": "Cámara",
           "help": "Una entidad de cámara o de imagen. Un Guition con firmware 0.2.57+ muestra su imagen de ese momento en la parte superior de la tarjeta; al tocarla se abre la cámara a pantalla completa. Las demás pantallas muestran la alerta sin ella. Solo mediante el evento esp_screens_show_alert."
+        },
+        "action": {
+          "label": "Acción",
+          "help": "Una acción de Home Assistant, como script.open_gate o light.turn_off, realizada una vez cuando se pulsa el botón en cualquier pantalla. `data` da sus campos (entity_id, brightness, ...). Un tiempo agotado o una nueva alerta la deja sin realizar. Solo mediante el evento esp_screens_show_alert."
         }
       },
       "endings": {
@@ -1266,15 +1271,22 @@
         "forecast": "Previsión del tiempo",
         "graph": "Gráfico",
         "sunpath": "Recorrido del sol",
+        "live": "Imagen en vivo",
+        "live_hint": "Una imagen pequeña de la cámara en el lugar del icono, actualizada al ritmo de abajo mientras la página está en pantalla. Un toque la sigue abriendo a pantalla completa.",
+        "live_needs_firmware": "Una imagen en vivo necesita el firmware 0.2.77 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
         "no_graph": "Home Assistant no tiene valores numéricos para esta entidad, así que el gráfico queda vacío. Elige otra presentación.",
         "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación."
+      },
+      "refresh": {
+        "label": "Actualizar",
+        "seconds": "Cada {n} s"
       },
       "size": {
         "label": "Tamaño",
         "single": "Normal",
         "wide": "Doble ancho",
         "full": "Página completa",
-        "full_hint": "Página completa: un botón grande que se ilumina mientras está encendido; en la parte inferior va un control deslizante, unos controles o un gráfico.",
+        "full_hint": "Página completa: un botón grande en el color del propio mosaico; en la parte inferior va un control deslizante, unos controles o un gráfico.",
         "needs_firmware": "Un mosaico de página completa necesita el firmware 0.2.62: pulsa antes Actualizar en la lista de pantallas."
       },
       "page": {
