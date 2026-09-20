@@ -261,6 +261,14 @@ inline lv_obj_t *tile_grid = nullptr;
 inline int grid_margin = 0, grid_base_height = 0;
 inline std::array<int32_t, GRID_COLUMNS + 1> grid_columns_dsc{};
 inline std::array<int32_t, GRID_ROW_COUNT + 1> grid_rows_dsc{};
+// A card with controls is centred and never wider than a hand spans (ui::control_max_width), so the keys of a
+// thermostat stay a thumb apart on a wide panel. The parts are aligned to the middle already, so a width is all
+// it takes. Called at boot with the parts of the overlays that hold controls.
+inline void cap_control_width(std::initializer_list<lv_obj_t *> parts) {
+  const int room = lv_display_get_horizontal_resolution(lv_display_get_default()) * 94 / 100;
+  const int width = std::min(room, ui::control_max_width());
+  for (auto *part : parts) if (part) lv_obj_set_width(part, width);
+}
 inline void grid_bind(lv_obj_t *container, int margin) {
   tile_grid = container;
   grid_margin = margin;
@@ -3742,7 +3750,8 @@ inline bool check_tile_geometry() {
       // and keeps the side margin at the bottom of the screen (firmware 0.2.69+ moves the rows without the bar).
       lv_area_t card,area,screen;auto *grid=lv_obj_get_parent(w.tile);
       lv_obj_get_coords(w.tile,&card);lv_obj_get_coords(grid,&area);lv_obj_get_coords(lv_obj_get_parent(grid),&screen);
-      const int margin=lv_obj_get_x(widgets[0].tile);
+      // The margin is the grid's padding now, and LVGL's lv_obj_get_x() reports a cell without it.
+      const int margin=grid_margin;
       bool placed=card.y1>=area.y1 && card.y2<=area.y2 && area.y2<=screen.y2-margin && (!w.full || card.y2==area.y2);
       if(applied_bar && nav_next){lv_area_t nav;lv_obj_get_coords(nav_next,&nav);placed=placed && area.y2<nav.y1;}
       if(!applied_bar)placed=placed && area.y2>=screen.y2-margin-3;

@@ -30,6 +30,9 @@ inline int px(int n) {
 }
 // The large class of cards and pages belongs to the standard look; the compact look draws the small one.
 inline bool large() { return look == Look::standard; }
+// The widest a card with controls may get: beyond this the keys of a thermostat stand a hand apart. A picture
+// (the media card's cover, a camera) is not capped, it may fill the glass. 110 mm of the reference look.
+inline int control_max_width() { return px(look == Look::compact ? 620 : 740); }
 // The look's cell height: what a card is designed for. A cell taller than this centres its content on it;
 // one at least twice as tall stacks its icon above its name and state.
 inline int cell_height() { return px(look == Look::compact ? 52 : 108); }

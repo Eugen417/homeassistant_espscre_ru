@@ -139,6 +139,7 @@ esphome:
           runtime_tiles::refresh = []() { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); };
           ui::configure(atoi("${DISPLAY_DPI}"), "${LOOK}");
           runtime_tiles::grid_bind(id(tile_scroll), atoi("${GRID_MARGIN}"));
+          runtime_tiles::cap_control_width({id(climate_setpoint_card), id(climate_mode_keys)});
           // The cards of this board's grid (packages/cells/<number>.yaml).
           ${BIND_CELLS}
           runtime_tiles::detail = [](runtime_tiles::Tile &t) {

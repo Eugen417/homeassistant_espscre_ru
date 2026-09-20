@@ -12,7 +12,8 @@ inline bool check_geometry(lv_obj_t *obj) {
   lv_area_t area;
   lv_obj_get_coords(obj, &area);
   if (lv_obj_has_flag(obj, LV_OBJ_FLAG_CLICKABLE) &&
-      (area.x1 < 0 || area.y1 < 0 || area.x2 >= 480 || area.y2 >= 480)) {
+      (area.x1 < 0 || area.y1 < 0 || area.x2 >= lv_display_get_horizontal_resolution(lv_display_get_default()) ||
+       area.y2 >= lv_display_get_vertical_resolution(lv_display_get_default()))) {
     ESP_LOGE("ui_test", "GEOMETRY FAIL clickable=(%d,%d)-(%d,%d)",
              area.x1, area.y1, area.x2, area.y2);
     ok = false;
@@ -32,7 +33,9 @@ inline void snapshot_begin() {
   overlay = nullptr;
   snapshot = lv_snapshot_take(lv_screen_active(), LV_COLOR_FORMAT_RGB565);
   snapshot_row = 0;
-  if (!snapshot || snapshot->header.w != 480 || snapshot->header.h != 480) {
+  const int width = lv_display_get_horizontal_resolution(lv_display_get_default());
+  const int height = lv_display_get_vertical_resolution(lv_display_get_default());
+  if (!snapshot || (int) snapshot->header.w != width || (int) snapshot->header.h != height) {
     if (snapshot) lv_draw_buf_destroy(snapshot);
     snapshot = nullptr;
     ESP_LOGE("ui_image", "IMAGE FAIL allocation/dimensions");
@@ -41,7 +44,7 @@ inline void snapshot_begin() {
   for (uint32_t i = 0; i < lv_obj_get_child_count(lv_layer_top()); ++i)
     if (!lv_obj_has_flag(lv_obj_get_child(lv_layer_top(), i), LV_OBJ_FLAG_HIDDEN)) {
       overlay = lv_snapshot_take(lv_layer_top(), LV_COLOR_FORMAT_ARGB8888);
-      if (overlay && (overlay->header.w != 480 || overlay->header.h != 480)) { lv_draw_buf_destroy(overlay); overlay = nullptr; }
+      if (overlay && ((int) overlay->header.w != width || (int) overlay->header.h != height)) { lv_draw_buf_destroy(overlay); overlay = nullptr; }
       break;
     }
   ESP_LOGI("ui_image", "IMAGE BEGIN 240 240%s", overlay ? " with top layer" : "");

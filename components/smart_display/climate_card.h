@@ -35,8 +35,9 @@ inline unsigned choices(const std::string &modes) {
 // Height of the card for `count` rows, so the profile can place the rest of the card before it is drawn.
 inline int height(int count) { return count ? 2 * look.edge + count * look.row_h + (count - 1) * look.gap : 0; }
 inline int card_width() {
-  // The card is 94 % wide, like the setpoint card above it.
-  return lv_display_get_horizontal_resolution(lv_display_get_default()) * 94 / 100;
+  // The card is 94 % wide, like the setpoint card above it, and never wider than a hand spans.
+  const int room = lv_display_get_horizontal_resolution(lv_display_get_default()) * 94 / 100;
+  return std::min(room, ui::control_max_width());
 }
 inline int text_width(const std::string &text, const lv_font_t *font) {
   lv_point_t size;
