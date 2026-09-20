@@ -88,16 +88,13 @@ export const pageTilesRepeat = computed(() => {
 export const repeatable = (id: string) => pageTilesRepeat.value && pageTarget(id) > 0;
 export const isGuition = computed(() => currentScreen.value?.board === "guition");
 export const barMetrics = computed(() => BAR_METRICS[isGuition.value ? "guition" : "cyd"]);
-// What the screen being edited looks like: what it reported itself (firmware 0.2.9x), else the board it was
-// built for. The mockup takes its shape from this, and the layout model places tiles on that same grid.
-const BOARD_SHAPES: Record<string, { width: number; height: number; columns: number; rows: number }> = {
-  guition: { width: 480, height: 480, columns: 2, rows: 3 },
-  cyd: { width: 320, height: 240, columns: 2, rows: 3 },
-};
+// What the screen being edited looks like. The manager works it out (core.shape_of): what the screen reported
+// itself, else the board package its YAML builds from, else its board. The editor only draws it, and falls
+// back to the smallest screen there is while it has heard nothing at all.
+const SMALLEST = { width: 320, height: 240, columns: 2, rows: 3 };
 export const screenShape = computed(() => {
-  const reported = currentScreen.value?.shape;
-  if (reported && reported.columns > 0 && reported.rows > 0) return reported;
-  return BOARD_SHAPES[currentScreen.value?.board || "cyd"] || BOARD_SHAPES.cyd;
+  const shape = currentScreen.value?.shape;
+  return shape && shape.columns > 0 && shape.rows > 0 ? shape : SMALLEST;
 });
 // The tile grid of a page, as CSS variables: the mockup is the screen's own shape, whatever board it is.
 export const deviceStyle = computed(() => ({

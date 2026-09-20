@@ -35,11 +35,21 @@ def profile_meta(text):
     # 'screen': the profile pulls this project's board package, so it is one of ours (not any ESPHome device).
     packages = data.get('packages') if isinstance(data.get('packages'), dict) else {}
     ours = any(isinstance(entry, dict) and REPO in str(entry.get('url', '')) for entry in packages.values())
+    # The board package the profile builds from ("packages/guition.yaml"): what the screen looks like follows
+    # from it (core.SHAPES), so the editor draws the right screen before it has ever been flashed.
+    package = None
+    for entry in packages.values():
+        if isinstance(entry, dict) and REPO in str(entry.get('url', '')):
+            files = entry.get('files')
+            first = files[0] if isinstance(files, list) and files else files
+            if isinstance(first, str):
+                package = first
+                break
     api = data.get('api') if isinstance(data.get('api'), dict) else {}
     encryption = api.get('encryption') if isinstance(api.get('encryption'), dict) else {}
     key = encryption.get('key')
     return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name')),
-            'screen': ours, 'api_key': key if isinstance(key, str) else None}
+            'screen': ours, 'api_key': key if isinstance(key, str) else None, 'package': package}
 
 class Firmware:
     OVERRIDE_SUFFIX = '.local.yaml'

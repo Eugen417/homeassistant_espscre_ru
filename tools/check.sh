@@ -124,6 +124,8 @@ packages_current() { cd "$ROOT" && "$PYTHON" tools/check_packages.py; }
 # One card per cell of a board's grid: the files are written, not hand-kept (docs/RESPONSIVE.md).
 cells_current() { cd "$ROOT" && "$PYTHON" tools/generate_cells.py --check; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
+# What every board looks like, as the manager reads it (screen_manager/app/boards.json from the board files).
+shapes_current() { cd "$ROOT" && "$PYTHON" tools/generate_board_shapes.py --check; }
 # The translations (app 0.2.90, docs/TRANSLATING.md): every language against English, the key header the firmware
 # builds against, and no English left in the firmware's code.
 translations_check() { cd "$ROOT" && "$PYTHON" tools/i18n.py check > "$WORK/i18n.txt" && "$PYTHON" tools/i18n.py header --check && "$PYTHON" tools/i18n.py lint; }
@@ -263,6 +265,7 @@ if ((want_fast)); then
   run "C++ tests" cpp_tests
   run "Packages fit together" packages_current
   run "Cards of every grid" cells_current
+  run "Board shapes for the manager" shapes_current
   run "Icons match tile_icons.py" icons_current
   run "Translations" translations_check
   run "Editor: npm ci" editor_install

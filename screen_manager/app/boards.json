@@ -1,0 +1,56 @@
+{
+ "cyd": {
+  "board": "cyd",
+  "columns": 2,
+  "dpi": 143,
+  "height": 240,
+  "look": "compact",
+  "rows": 3,
+  "width": 320
+ },
+ "guition": {
+  "board": "guition",
+  "columns": 2,
+  "dpi": 170,
+  "height": 480,
+  "look": "standard",
+  "rows": 3,
+  "width": 480
+ },
+ "guition-4848s040.yaml": {
+  "board": "guition",
+  "columns": 2,
+  "dpi": 170,
+  "height": 480,
+  "look": "standard",
+  "rows": 3,
+  "width": 480
+ },
+ "home-like-2432s028.yaml": {
+  "board": "cyd",
+  "columns": 2,
+  "dpi": 143,
+  "height": 240,
+  "look": "compact",
+  "rows": 3,
+  "width": 320
+ },
+ "packages/cyd.yaml": {
+  "board": "cyd",
+  "columns": 2,
+  "dpi": 143,
+  "height": 240,
+  "look": "compact",
+  "rows": 3,
+  "width": 320
+ },
+ "packages/guition.yaml": {
+  "board": "guition",
+  "columns": 2,
+  "dpi": 170,
+  "height": 480,
+  "look": "standard",
+  "rows": 3,
+  "width": 480
+ }
+}

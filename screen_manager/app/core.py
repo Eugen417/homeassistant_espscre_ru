@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 import hashlib
 import json
 import math
+import os
 import re
 import secrets
 
@@ -213,11 +214,18 @@ NAME_SCREEN_LAYOUT = ('Screen layout',)
 SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS
                                 + NAME_SCREEN_LANGUAGE + NAME_SCREEN_LAYOUT)
 
-# What a screen looks like: the glass it draws on and the cells of one page. Every screen reports this itself;
-# these are the two boards that shipped before it did, so a screen that has not been reflashed still draws right.
-SHAPES = {'guition': {'width': 480, 'height': 480, 'columns': 2, 'rows': 3},
-           'cyd': {'width': 320, 'height': 240, 'columns': 2, 'rows': 3}}
-DEFAULT_SHAPE = SHAPES['cyd']
+# What a board looks like: the glass it draws on and the cells of one page. These come straight from the board
+# files (tools/generate_board_shapes.py writes boards.json from DISPLAY_W, GRID_COLS and the rest), so the
+# numbers live in one place: the YAML a screen is built from. A screen that is online reports its own shape as
+# well (firmware 0.2.9x) and that one wins, because it knows which way the screen was turned.
+def _board_shapes():
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'boards.json'), encoding='utf-8') as file:
+            return json.load(file)
+    except (OSError, ValueError):
+        return {}
+SHAPES = _board_shapes()
+DEFAULT_SHAPE = SHAPES.get('cyd', {'width': 320, 'height': 240, 'columns': 2, 'rows': 3})
 
 def parse_shape(text):
     """The screen's own "<width>x<height> <columns>x<rows>"; None for anything else."""
@@ -230,13 +238,20 @@ def parse_shape(text):
     return {'width': width, 'height': height, 'columns': columns, 'rows': rows}
 
 def shape_of(screen):
-    """The shape of a screen as the editor needs it: what it reported, else what its board looked like."""
-    if isinstance(screen, dict):
-        reported = screen.get('shape')
-        if isinstance(reported, dict) and reported.get('columns'):
-            return reported
-        return SHAPES.get(screen.get('board'), DEFAULT_SHAPE)
-    return DEFAULT_SHAPE
+    """The shape of a screen as the editor needs it, in the order of what knows best:
+
+    1. what the screen itself reported (firmware 0.2.9x), which is the canvas after its rotation;
+    2. the YAML it is built from: the board package its profile includes (boards.json);
+    3. the board its diagnostics gave away, or the smallest screen there is."""
+    if not isinstance(screen, dict):
+        return DEFAULT_SHAPE
+    reported = screen.get('shape')
+    if isinstance(reported, dict) and reported.get('columns'):
+        return reported
+    package = screen.get('package')
+    if isinstance(package, str) and package in SHAPES:
+        return SHAPES[package]
+    return SHAPES.get(screen.get('board'), DEFAULT_SHAPE)
 
 def parse_firmware(text):
     """(major, minor, patch) of a screen firmware version such as "0.2.63"; None for anything else. Strict on purpose:
