@@ -5,6 +5,7 @@
 #include <cstdlib>
 #include <string>
 #include "screen_text.h"
+#include "ui_scale.h"
 
 namespace light_controls {
 inline int clamp(int value, int low, int high) { return std::max(low, std::min(high, value)); }
@@ -179,17 +180,17 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
   if (ready) return;
   ready = true;
   bool large = width >= 480;
-  top = large ? 100 : 52; spacing = large ? 122 : 60;
-  int margin = large ? 20 : 12, w = width - 2 * margin, card_h = spacing - (large ? 12 : 5);
-  int inset = large ? 18 : 10, text_y = large ? 14 : 5, track_h = large ? 32 : 18;
-  int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (large ? 2 : 3) - track_h, radius = track_h / 2;
+  top = ui::px(large ? 100 : 52); spacing = ui::px(large ? 122 : 60);
+  int margin = ui::px(large ? 20 : 12), w = width - 2 * margin, card_h = spacing - (ui::px(large ? 12 : 5));
+  int inset = ui::px(large ? 18 : 10), text_y = ui::px(large ? 14 : 5), track_h = ui::px(large ? 32 : 18);
+  int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (ui::px(large ? 2 : 3)) - track_h, radius = track_h / 2;
   const char *names[] = {screen_text::tr(screen_text::txt::light_color), screen_text::tr(screen_text::txt::light_color_temperature), screen_text::tr(screen_text::txt::light_brightness)};
   const char *icons[] = {"\U000F03D8", "\U000F050F", "\U000F0335"};
   for (unsigned i = 0; i < 3; ++i) {
     auto &row = rows[i]; row.index = i;
     row.box = plain(parent, margin, top + i * spacing, w, card_h);
     lv_obj_set_style_bg_opa(row.box, LV_OPA_COVER, 0);
-    lv_obj_set_style_radius(row.box, large ? 18 : 10, 0);
+    lv_obj_set_style_radius(row.box, ui::px(large ? 18 : 10), 0);
     lv_obj_set_style_border_width(row.box, 1, 0);
     lv_obj_set_style_text_font(row.box, font, 0);
     int text_x = inset;
@@ -197,8 +198,8 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       auto *icon = row.icon = lv_label_create(row.box); lv_label_set_text(icon, icons[i]);
       lv_obj_set_style_text_font(icon, icon_font, 0);
       int icon_h = lv_font_get_line_height(icon_font), text_h = lv_font_get_line_height(font);
-      lv_obj_set_pos(icon, inset - (large ? 2 : 1), text_y + (text_h - icon_h) / 2);
-      text_x += icon_h + (large ? 6 : 4);
+      lv_obj_set_pos(icon, inset - (ui::px(large ? 2 : 1)), text_y + (text_h - icon_h) / 2);
+      text_x += icon_h + (ui::px(large ? 6 : 4));
     }
     auto *label = lv_label_create(row.box); lv_label_set_text(label, names[i]);
     lv_obj_set_pos(label, text_x, text_y);
@@ -206,7 +207,7 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
     row.slider = lv_slider_create(row.box);
     lv_obj_remove_style_all(row.slider);
     lv_obj_remove_flag(row.slider, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_ext_click_area(row.slider, large ? 12 : 8);
+    lv_obj_set_ext_click_area(row.slider, ui::px(large ? 12 : 8));
     if (i < 2) {
       // The knob travels between the centres of the two round ends.
       round_end(row.box, track_x, track_y, track_h, i == 0 ? RAINBOW[0] : WARM);
@@ -227,8 +228,8 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_TRANSP, LV_PART_INDICATOR);
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_KNOB);
       lv_obj_set_style_radius(row.slider, LV_RADIUS_CIRCLE, LV_PART_KNOB);
-      lv_obj_set_style_pad_all(row.slider, large ? 4 : 3, LV_PART_KNOB);
-      lv_obj_set_style_border_width(row.slider, large ? 4 : 3, LV_PART_KNOB);
+      lv_obj_set_style_pad_all(row.slider, ui::px(large ? 4 : 3), LV_PART_KNOB);
+      lv_obj_set_style_border_width(row.slider, ui::px(large ? 4 : 3), LV_PART_KNOB);
       lv_obj_set_style_outline_width(row.slider, 1, LV_PART_KNOB);
       // A faint dark edge that lifts the white ring off a pale end of the track.
       lv_obj_set_style_outline_color(row.slider, lv_color_black(), LV_PART_KNOB);
@@ -246,7 +247,7 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_INDICATOR);
       lv_obj_set_style_bg_color(row.slider, lv_color_hex(theme::ha::AMBER), LV_PART_INDICATOR);
       // White handle inside the end of the fill, as on the tiles (runtime_tiles::slider_handle).
-      int handle = large ? 4 : 3, back = std::max(1, track_h / 8) + handle / 2, half = track_h >> 1;
+      int handle = ui::px(large ? 4 : 3), back = std::max(1, track_h / 8) + handle / 2, half = track_h >> 1;
       lv_obj_set_style_bg_opa(row.slider, LV_OPA_COVER, LV_PART_KNOB);
       lv_obj_set_style_radius(row.slider, 2, LV_PART_KNOB);
       lv_obj_set_style_pad_left(row.slider, back + handle / 2 - half, LV_PART_KNOB);

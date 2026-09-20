@@ -74,16 +74,16 @@ inline std::string row_text(const std::string &current) {
 
 // Sizes of both boards, from the display's width like light_controls.
 struct Metrics {
-  int width = 480, height = 480, pad = 20, bar_y = 16, bar = 60, title_y = 35, rows_y = 100, row_h = 56, inset = 18,
-      icon = 26, gap = 12, number_h = 92, track_h = 28, number_inset = 16, roller_rows = 5, roller_row_h = 56, roller_pad = 10,
-      radius = 18, knob = 4;
+  int width = 480, height = 480, pad = ui::px(20), bar_y = ui::px(16), bar = ui::px(60), title_y = ui::px(35), rows_y = ui::px(100), row_h = ui::px(56), inset = ui::px(18),
+      icon = ui::px(26), gap = ui::px(12), number_h = ui::px(92), track_h = ui::px(28), number_inset = ui::px(16), roller_rows = 5, roller_row_h = ui::px(56), roller_pad = ui::px(10),
+      radius = ui::px(18), knob = ui::px(4);
 };
 inline Metrics metrics(int width, int height) {
   Metrics m;
   m.width = width; m.height = height;
   if (width < 480) {
-    m.pad = 12; m.bar_y = 8; m.bar = 40; m.title_y = 21; m.rows_y = 52; m.row_h = 34; m.inset = 10; m.icon = 18; m.gap = 6;
-    m.number_h = 44; m.track_h = 14; m.number_inset = 9; m.roller_row_h = 30; m.roller_pad = 5; m.radius = 10; m.knob = 3;
+    m.pad = ui::px(12); m.bar_y = ui::px(8); m.bar = ui::px(40); m.title_y = ui::px(21); m.rows_y = ui::px(52); m.row_h = ui::px(34); m.inset = ui::px(10); m.icon = ui::px(18); m.gap = ui::px(6);
+    m.number_h = ui::px(44); m.track_h = ui::px(14); m.number_inset = ui::px(9); m.roller_row_h = ui::px(30); m.roller_pad = ui::px(5); m.radius = ui::px(10); m.knob = ui::px(3);
   }
   return m;
 }

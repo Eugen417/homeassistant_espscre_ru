@@ -1,4 +1,4 @@
-# LAB board g43: 480x272 at 128 dpi (4.3"), scale 0.755 from the guition, grid 3x2, tile 141x80 px.
+# LAB board g43: 480x272 at 128 dpi (4.3"), scale 0.755 from the guition, grid 2x2, tile 218x80 px.
 # ESP Screens - Guition ESP32-S3-4848S040 board: 4-inch EU wallbox, 480x480 IPS + GT911 capacitive touch.
 #
 # What is in here: the hardware (display, touch, backlight, PSRAM), the sizes the shared tree takes from
@@ -36,14 +36,15 @@ substitutions:
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
   # LAB (responsive): the grid as the board states it; the shared tree places the cells from these.
-  GRID_COLS: "3"
+  GRID_COLS: "2"
   GRID_ROWS: "2"
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
+  UI_SCALE_PCT: "75"
   TILE_H_STD: "82"
   GRID_COL1_X: "16"
-  GRID_COL2_X: "169"
+  GRID_COL2_X: "246"
   GRID_ROW1_Y: "0"
   GRID_ROW2_Y: "92"
   GRID_ROW3_Y: "184"
@@ -51,7 +52,7 @@ substitutions:
   GRID_ROW5_Y: "368"
   SCROLL_Y: "54"
   SCROLL_H: "173"
-  TILE_W: "141"
+  TILE_W: "218"
   TILE_H: "80"
   HEADER_Y: "17"
   # Holding the top bar opens the settings page (0.2.44+). The two edge bands stay clear: a swipe
@@ -89,7 +90,7 @@ substitutions:
   CAMERA_THUMB_H: "136"
   OVERLAY_SLIDER_W: "109"
   OVERLAY_SLIDER_H: "162"
-  OVERLAY_ICON_Y: "112"
+  OVERLAY_ICON_Y: "80"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "9"
   TILE_TITLE_X: "48"

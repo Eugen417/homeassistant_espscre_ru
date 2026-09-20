@@ -7,6 +7,7 @@
 #include <string>
 #include "screen_settings.h"
 #include "screen_text.h"
+#include "ui_scale.h"
 
 // The settings page on the screen itself (firmware 0.2.44+). It changes the same values ESP Screen
 // Manager writes, for the moments you stand in front of the panel instead of behind a browser.
@@ -364,18 +365,18 @@ inline Metrics metrics() {
   int height = lv_display_get_vertical_resolution(lv_display_get_default());
   bool large = width >= 480;
   return Metrics{large, width, height,
-                 large ? 20 : 10, large ? 18 : 10, large ? 18 : 10,
-                 large ? 56 : 36, large ? 16 : 7,
-                 large ? 92 : 50, large ? 52 : 32, large ? 8 : 5,
-                 large ? 40 : 26, large ? 16 : 10,
-                 large ? 44 : 30, large ? 40 : 26,
-                 large ? 62 : 40, large ? 34 : 22};
+                 ui::px(large ? 20 : 10), ui::px(large ? 18 : 10), ui::px(large ? 18 : 10),
+                 ui::px(large ? 56 : 36), ui::px(large ? 16 : 7),
+                 ui::px(large ? 92 : 50), ui::px(large ? 52 : 32), ui::px(large ? 8 : 5),
+                 ui::px(large ? 40 : 26), ui::px(large ? 16 : 10),
+                 ui::px(large ? 44 : 30), ui::px(large ? 40 : 26),
+                 ui::px(large ? 62 : 40), ui::px(large ? 34 : 22)};
 }
 
 // The page dots of a pager (firmware 0.2.69+), under the tiles and on this page: one per page, centred in `row`, the
 // page on screen in ink and the others a quiet grey. The dots are made once and reused; `row` takes no touches.
 inline void page_dots(lv_obj_t *row, int current, int total, bool large) {
-  const int dot = large ? 8 : 6, gap = large ? 10 : 7;
+  const int dot = ui::px(large ? 8 : 6), gap = ui::px(large ? 10 : 7);
   total = std::clamp(total, 0, 8);
   while ((int) lv_obj_get_child_count(row) < total) {
     auto *d = lv_obj_create(row);
@@ -633,7 +634,7 @@ inline void draw() {
       int icon_h = lv_font_get_line_height(icon_font ? icon_font : row_font);
       lv_obj_set_width(glyph, LV_SIZE_CONTENT);
       lv_obj_set_pos(glyph, left, (m.row_h - icon_h) / 2);
-      left += icon_h + (m.large ? 12 : 8);
+      left += icon_h + (ui::px(m.large ? 12 : 8));
     }
     d.label = text(d.card, screen_text::tr(asking ? screen_text::txt::settings_tap_again_to_restart : row.label), row_font,
                    asking ? theme::ON_ACCENT : theme::INK);
@@ -650,7 +651,7 @@ inline void draw() {
       d.knob = pill(d.card, right - m.switch_w, (m.row_h - m.switch_h) / 2, m.switch_w, m.switch_h, row.read && row.read());
       lv_obj_set_width(d.label, right - m.switch_w - left - 6);
     } else if (row.kind == Kind::number || row.kind == Kind::duration || row.kind == Kind::moment) {
-      int y = (m.row_h - m.pill_h) / 2, value_w = m.large ? 116 : 74;
+      int y = (m.row_h - m.pill_h) / 2, value_w = ui::px(m.large ? 116 : 74);
       d.plus = key(d.card, "\U000F0415", right - m.pill_w, y, m.pill_w, m.pill_h, step_event,
                    (void *) (intptr_t) (index * 2 + 1));
       d.minus = key(d.card, "\U000F0374", right - m.pill_w - value_w - m.pill_w, y, m.pill_w, m.pill_h, step_event,
@@ -660,7 +661,7 @@ inline void draw() {
       lv_obj_set_pos(d.value, right - m.pill_w - value_w, (m.row_h - label_h) / 2);
       lv_obj_set_width(d.label, right - 2 * m.pill_w - value_w - left - 6);
     } else if (row.kind == Kind::choice) {
-      int value_w = m.large ? 150 : 96, chip_h = m.pill_h;
+      int value_w = ui::px(m.large ? 150 : 96), chip_h = m.pill_h;
       auto *chip = plain(d.card, right - value_w, (m.row_h - chip_h) / 2, value_w, chip_h);
       lv_obj_set_style_bg_opa(chip, LV_OPA_COVER, 0);
       lv_obj_set_style_bg_color(chip, theme::color(theme::SETTING_KEY), 0);
@@ -804,7 +805,7 @@ inline void attach_hold(lv_obj_t *page, int x, int y, int width, int height, lv_
   lv_obj_add_event_cb(hold_area, hold_event, LV_EVENT_PRESSED, nullptr);
   lv_obj_add_event_cb(hold_area, hold_event, LV_EVENT_RELEASED, nullptr);
   lv_obj_add_event_cb(hold_area, hold_event, LV_EVENT_PRESS_LOST, nullptr);
-  hold_bar = plain(page, 0, 0, 1, large ? 5 : 3);
+  hold_bar = plain(page, 0, 0, 1, ui::px(large ? 5 : 3));
   lv_obj_set_style_bg_opa(hold_bar, LV_OPA_COVER, 0);
   lv_obj_add_flag(hold_bar, LV_OBJ_FLAG_HIDDEN);
   lv_obj_move_foreground(hold_bar);

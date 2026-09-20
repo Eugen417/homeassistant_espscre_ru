@@ -13,6 +13,7 @@
 #include <cstdio>
 #include <string>
 #include "screen_text.h"
+#include "ui_scale.h"
 
 namespace media_card {
 struct Rect {
@@ -28,18 +29,18 @@ struct Metrics {
   int title_h = 32;    // the title's font (the card heading font)
   int artist_h = 25;   // the artist line (the control font)
   int small_h = 19;    // the times and the percentage (the small font)
-  int key_h() const { return large ? 52 : 34; }      // previous and next
-  int play_h() const { return large ? 64 : 40; }     // play or pause, the biggest key: a thumb finds it without looking
-  int key_gap() const { return large ? 28 : 14; }    // between the keys, less when the row has no room
-  int min_gap() const { return large ? 12 : 8; }
-  int mute_h() const { return large ? 32 : 22; }
-  int slider_h() const { return large ? 20 : 12; }
-  int bar_h() const { return large ? 6 : 4; }
-  int gap() const { return large ? 12 : 6; }
-  int margin() const { return large ? 24 : 10; }
-  int max_art() const { return large ? 200 : 120; }
-  int percent_w() const { return large ? 52 : 34; }
-  int time_w() const { return large ? 48 : 34; }     // "12:34" beside the bar
+  int key_h() const { return ui::px(large ? 52 : 34); }      // previous and next
+  int play_h() const { return ui::px(large ? 64 : 40); }     // play or pause, the biggest key: a thumb finds it without looking
+  int key_gap() const { return ui::px(large ? 28 : 14); }    // between the keys, less when the row has no room
+  int min_gap() const { return ui::px(large ? 12 : 8); }
+  int mute_h() const { return ui::px(large ? 32 : 22); }
+  int slider_h() const { return ui::px(large ? 20 : 12); }
+  int bar_h() const { return ui::px(large ? 6 : 4); }
+  int gap() const { return ui::px(large ? 12 : 6); }
+  int margin() const { return ui::px(large ? 24 : 10); }
+  int max_art() const { return ui::px(large ? 200 : 120); }
+  int percent_w() const { return ui::px(large ? 52 : 34); }
+  int time_w() const { return ui::px(large ? 48 : 34); }     // "12:34" beside the bar
 };
 struct Layout {
   bool wide = false;    // the art at the left, everything else beside it

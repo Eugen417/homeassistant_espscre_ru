@@ -41,6 +41,8 @@ substitutions:
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
+  UI_SCALE_PCT: "100"
+  TILE_H_STD: "108"
   GRID_COL1_X: "16"
   GRID_COL2_X: "267"
   GRID_ROW1_Y: "0"
@@ -69,7 +71,7 @@ substitutions:
   ALERT_TITLE_Y: "26"
   ALERT_TITLE_H: "32"         # one line of headline; a DOT label only ends in an ellipsis with a height
   ALERT_SUBTITLE_Y: "68"
-  ALERT_SUBTITLE_H: "150"
+  ALERT_SUBTITLE_H: "163"
   ALERT_BUTTON_W: "150"
   ALERT_BUTTON_H: "60"
   ALERT_BUTTON_INSET: "22"
@@ -1016,13 +1018,13 @@ script:
             struct Layout { int status, card_y, card_h, key, number_y, caption_y, modes_y, modes_h, settings_y, edge, row_h, gap; };
             static const Layout layouts[6] = {
               // no mode keys: 0, 1, 2 rows
-              {92, 180, 200, 116, -14, 46, 0, 0, 0, 14, 48, 10},
-              {92, 140, 200, 116, -14, 46, 0, 0, 364, 14, 48, 10},
-              {90, 130, 180, 108, -12, 42, 0, 0, 330, 14, 46, 10},
+              {92, 180, 199, 116, -14, 46, 0, 0, 0, 14, 48, 10},
+              {92, 140, 199, 116, -14, 46, 0, 0, 363, 14, 48, 10},
+              {90, 130, 180, 108, -12, 42, 0, 0, 329, 14, 46, 10},
               // mode keys: 0, 1, 2 rows
-              {92, 136, 200, 116, -14, 46, 364, 76, 0, 14, 48, 10},
-              {90, 126, 170, 108, -12, 42, 312, 68, 394, 12, 44, 8},
-              {86, 118, 140, 96, -10, 36, 270, 60, 342, 12, 42, 8},
+              {92, 136, 199, 116, -14, 46, 363, 76, 0, 14, 48, 10},
+              {90, 126, 170, 108, -12, 42, 311, 68, 393, 12, 44, 8},
+              {86, 118, 140, 96, -10, 36, 269, 60, 341, 12, 42, 8},
             };
             const Layout &l = layouts[(show_keys ? 3 : 0) + rows];
             lv_obj_set_y(id(climate_current_label), l.status);

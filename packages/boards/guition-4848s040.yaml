@@ -40,6 +40,7 @@ substitutions:
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
+  UI_SCALE_PCT: "100"
   TILE_H_STD: "108"
   GRID_COL1_X: "16"
   GRID_COL2_X: "246"

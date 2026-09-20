@@ -137,6 +137,7 @@ esphome:
           ${BOOT_PAGE_GESTURE}
           ${BOOT_CAMERA_HOOKS}
           runtime_tiles::refresh = []() { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); };
+          ui::scale_pct = atoi("${UI_SCALE_PCT}");
           runtime_tiles::grid_configure(atoi("${GRID_MARGIN}"), atoi("${GRID_GAP_X}"), atoi("${GRID_GAP_Y}"));
           runtime_tiles::standard_tile_height = atoi("${TILE_H_STD}");
           runtime_tiles::bind(0, id(tile1), id(t1_title), id(t1_value), id(tile1_icon_circle), id(tile1_icon_lbl));

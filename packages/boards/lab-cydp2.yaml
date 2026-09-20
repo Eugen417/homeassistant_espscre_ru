@@ -57,6 +57,7 @@ substitutions:
   GRID_MARGIN: "9"
   GRID_GAP_X: "8"
   GRID_GAP_Y: "4"
+  UI_SCALE_PCT: "100"
   TILE_H_STD: "52"
   GRID_COL1_X: "9"
   GRID_COL2_X: "124"

@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include "screen_text.h"
+#include "ui_scale.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
