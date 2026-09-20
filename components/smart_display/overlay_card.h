@@ -26,16 +26,32 @@ enum Kind : bool { controls = false, picture = true };
 inline int screen_width() { return lv_display_get_horizontal_resolution(lv_display_get_default()); }
 inline int screen_height() { return lv_display_get_vertical_resolution(lv_display_get_default()); }
 
-// The width a card's content may take: capped for controls, the whole glass for a picture.
-inline int content_width(Kind kind = controls) {
+// The width a card's content may take: capped for controls, the whole glass for a picture. A card in two
+// columns may take twice the cap, so each column keeps its own reach.
+inline int content_width(Kind kind = controls, int columns = 1) {
   const int room = screen_width();
-  return kind == picture ? room : std::min(room, ui::control_max_width());
+  if (kind == picture) return room;
+  return std::min(room, columns * ui::control_max_width() + (columns - 1) * ui::column_gap());
+}
+
+// The room every card keeps between its content and the edge of its area, whatever the board and whatever the
+// card: the vacuum's hero, the blind's keys, the thermostat's setpoint and the graph all start here.
+inline int pad() { return ui::px(ui::large() ? 20 : 10); }
+
+// Whether a card stands in one column or two. Glass that is short for its width - a 480 x 272 panel, a wide
+// seven-inch - cannot give a tall control the millimetres it needs while half its width goes unused; such a
+// card lays its controls beside the rest instead of under it, the way a web page turns a stack into two
+// columns when the viewport allows. `need_height` is what the one-column form asks for, `min_column` the
+// narrowest a column may be. Tall glass keeps one column, and so does glass too narrow to split.
+inline int columns(int need_height, int min_column) {
+  if (need_height <= screen_height()) return 1;
+  return screen_width() >= 2 * min_column + ui::column_gap() ? 2 : 1;
 }
 
 // Give a card's root its room and put it in the middle of the glass, left to right.
-inline void frame(lv_obj_t *root, Kind kind = controls) {
+inline void frame(lv_obj_t *root, Kind kind = controls, int columns = 1) {
   if (!root) return;
-  const int width = content_width(kind);
+  const int width = content_width(kind, columns);
   lv_obj_set_width(root, width);
   lv_obj_set_x(root, (screen_width() - width) / 2);
   lv_obj_set_y(root, 0);

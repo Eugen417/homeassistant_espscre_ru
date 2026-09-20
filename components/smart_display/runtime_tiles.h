@@ -8,6 +8,7 @@
 #include "screen_settings.h"
 #include "settings_screen.h"
 #include "esphome/core/preferences.h"
+#include "climate_card.h"
 #include "cyd_ui.h"
 #include "light_controls.h"
 #include "effects_page.h"
@@ -68,6 +69,8 @@ inline void go_to_page(int page);
 inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
 // Big digits for the clock card; the board profile sets it with the local time source.
 inline const lv_font_t *clock_font = nullptr;
+// The climate card's setpoint, big enough to read across the room (FONT_SETPOINT_SIZE in the board file).
+inline const lv_font_t *setpoint_font = nullptr;
 // Text in the -/+ pill and the run key of direct controls; the board profile sets it.
 inline const lv_font_t *control_font = nullptr;
 // The smallest regular text (sublabel): axis labels and the legend of the history card.
@@ -262,14 +265,6 @@ inline lv_obj_t *tile_grid = nullptr;
 inline int grid_margin = 0, grid_base_height = 0;
 inline std::array<int32_t, GRID_COLUMNS + 1> grid_columns_dsc{};
 inline std::array<int32_t, GRID_ROW_COUNT + 1> grid_rows_dsc{};
-// A card with controls is centred and never wider than a hand spans (ui::control_max_width), so the keys of a
-// thermostat stay a thumb apart on a wide panel. The parts are aligned to the middle already, so a width is all
-// it takes. Called at boot with the parts of the overlays that hold controls.
-inline void cap_control_width(std::initializer_list<lv_obj_t *> parts) {
-  const int room = lv_display_get_horizontal_resolution(lv_display_get_default()) * 94 / 100;
-  const int width = std::min(room, ui::control_max_width());
-  for (auto *part : parts) if (part) lv_obj_set_width(part, width);
-}
 inline void grid_bind(lv_obj_t *container, int margin) {
   tile_grid = container;
   grid_margin = margin;
@@ -949,6 +944,13 @@ inline void setting_event(const std::string &key, int value) {
 // Small shared native-LVGL detail cards. No images, canvas buffers or free scrolling.
 namespace runtime_tiles {
 inline lv_obj_t *detail_root=nullptr,*detail_backdrop=nullptr;
+// A card that works out its own room says so, and the frame then leaves it where it put itself.
+inline bool detail_placed=false;
+// What the climate card's keys answer with: a mode, a fan or swing choice, the power key and the setpoint's
+// - and + (the card itself is further down, beside the vacuum's and the cover's).
+inline constexpr int CLIMATE_MODE_FIRST=200,CLIMATE_ROW_FIRST=210,CLIMATE_POWER=230,CLIMATE_DOWN=231,CLIMATE_UP=232;
+inline void climate_step(Tile &t,int direction);
+inline const lv_font_t *tile_icon_font();
 inline unsigned detail_index=0;
 inline const lv_font_t *detail_font=nullptr;
 inline lv_obj_t *detail_actions[32]{};
@@ -1074,12 +1076,15 @@ inline void show_detail(unsigned index);
 // A chip on the vacuum card: the service call goes out, the chip shows the choice at once, and the card
 // waits for Home Assistant like after its other buttons. The card is drawn again once this tap's event
 // has finished, because a chosen mode can add or remove the suction and water rows.
+inline void redraw_detail(){
+  lv_async_call([](void *){if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
+}
 inline void choose(Tile &t,Choice &row,const std::string &value){
   if(value==row.current)return;
   auto a=tile_controls::choice_action(t,row.kind,value);if(!a.valid())return;
   action(a.service,row.kind=='s'?t.entity:row.entity,a.key,a.value);
   row.sent=value;t.begin(esphome::millis());
-  lv_async_call([](void *){if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
+  redraw_detail();
 }
 // What a key on a card does; `cmd` is the key's command. Shared by the plain keys (detail_button) and the round
 // keys of the media card. -1 is Back.
@@ -1092,6 +1097,15 @@ inline void detail_command(int cmd){
       history_hours=hours[cmd-160];
       lv_async_call([](void *){if(detail_root&&!lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN))show_detail(detail_index);},nullptr);
     }
+    return;
+  }
+  // The setpoint's - and +: every clean tap counts, also while the last one is still on its way to Home
+  // Assistant, so a series of taps is one series of steps (the send waits for the last of them).
+  if(cmd==CLIMATE_DOWN||cmd==CLIMATE_UP){
+    if(!fresh()||detail_index>=model.count)return;
+    auto &tile=model.tiles[detail_index];
+    if(!tile.available()||!cyd::touch_guard.accept_repeat(esphome::millis(),300+cmd))return;
+    climate_step(tile,cmd==CLIMATE_UP?1:-1);
     return;
   }
   if(!fresh()||detail_index>=model.count || !allowed(esphome::millis(),300+cmd,"card button "+model.tiles[detail_index].entity))return;
@@ -1108,6 +1122,42 @@ inline void detail_command(int cmd){
   if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);if(a.valid()&&t.domain()=="cover")action(a.service,t.entity,a.key,a.value);}
   if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
   if(cmd==41)action("timer.cancel",t.entity);
+  // The climate card: a mode (200-207), a fan or swing choice (210-221) and the power key (230). The card
+  // shows the choice at once and waits for Home Assistant, like the vacuum card's chips.
+  if(cmd>=CLIMATE_MODE_FIRST&&cmd<CLIMATE_MODE_FIRST+8){
+    const auto modes=tile_controls::climate_modes(t);
+    const unsigned i=cmd-CLIMATE_MODE_FIRST;
+    if(i<modes.size()&&modes[i]!=tile_controls::lower_case(t.state)){
+      t.state=modes[i];
+      t.edit_extra().hvac_action.clear();   // the line would still say what the mode before it did
+      t.begin(esphome::millis());
+      action("climate.set_hvac_mode",t.entity,"hvac_mode",modes[i]);
+      redraw_detail();
+    }
+    return;
+  }
+  if(cmd>=CLIMATE_ROW_FIRST&&cmd<CLIMATE_ROW_FIRST+12){
+    const auto rows=tile_controls::climate_rows(t);
+    const unsigned r=(cmd-CLIMATE_ROW_FIRST)/6,i=(cmd-CLIMATE_ROW_FIRST)%6;
+    if(r<rows.size()&&i<rows[r].values.size()&&rows[r].values[i]!=rows[r].current){
+      const char kind=rows[r].kind;
+      const std::string value=rows[r].values[i];
+      (kind=='f'?t.edit_extra().fan_mode:t.edit_extra().swing_mode)=value;
+      t.begin(esphome::millis());
+      const auto a=tile_controls::climate_row_action(kind,value);
+      action(a.service,t.entity,a.key,a.value);
+      redraw_detail();
+    }
+    return;
+  }
+  if(cmd==CLIMATE_POWER){
+    const bool off=tile_controls::climate_off(t);
+    t.begin(esphome::millis());
+    if(!off)t.state="off";   // turning on restores the mode Home Assistant remembers, so that one waits
+    action(off?"climate.turn_on":"climate.turn_off",t.entity);
+    redraw_detail();
+    return;
+  }
 }
 inline lv_obj_t *detail_button(const char *text,int x,int y,int width,int height,int command){
   auto *button=lv_obj_create(detail_root);lv_obj_remove_style_all(button);lv_obj_set_pos(button,x,y);lv_obj_set_size(button,width,height);
@@ -1339,29 +1389,42 @@ inline lv_obj_t *vacuum_command(const char *icon,const char *text,int x,int y,in
   button_words(button,font,ink,w-left-icon_w-gap-4,left+icon_w+gap);
   return button;
 }
-// A segmented control: one rounded track, each option as wide as its words plus an equal share of the
-// room left, the chosen one filled in blue. Commands first..first+5.
-inline void vacuum_segments(const Tile &t,const Choice &row,int first,int x,int y,int w,int h,uint32_t track,bool border,const lv_font_t *font){
-  int n=std::min<int>((int)row.values.size(),6);if(!n)return;
+// A segmented control: one rounded track, each option as wide as its words plus an equal share of the room
+// left, the chosen one filled in blue; `chosen` is the option's place in the list, -1 for none. The options
+// answer as first..first+5. However thin the row is drawn, each option keeps a finger's worth of touch area,
+// so a segmented row on a short panel is still hittable (overlay_card::touchable).
+inline void segments(int x,int y,int w,int h,const std::vector<std::string> &labels,int chosen,int first,uint32_t track,bool border,const lv_font_t *font,const lv_font_t *smaller=nullptr){
+  int n=std::min<int>((int)labels.size(),6);if(n<=0||w<=0||h<=0)return;
   auto *bar=detail_shape(detail_root,x,y,w,h,track,h/2);
   if(border){lv_obj_set_style_border_width(bar,1,0);lv_obj_set_style_border_color(bar,theme::color(theme::LINE),0);}
   int inset=std::max(3,h/12),room=w-2*inset,words=0;int widths[6];
-  for(int i=0;i<n;++i){widths[i]=text_width(row.labels[i],font);words+=widths[i];}
+  for(int i=0;i<n;++i)words+=text_width(labels[i],font);
+  // A narrow row reads better in smaller letters than in "A…" and "Med…": the words shrink before they are cut.
+  if(words+n*ui::px(10)>room&&smaller&&smaller!=font&&lv_font_get_line_height(smaller)<=h-2*inset)font=smaller;
+  words=0;
+  for(int i=0;i<n;++i){widths[i]=text_width(labels[i],font);words+=widths[i];}
   int share=(room-words)/n;
-  const std::string &chosen=tile_controls::shown_value(t,row,esphome::millis());
   int sx=x+inset;
   for(int i=0;i<n;++i){
     int sw=i==n-1?x+w-inset-sx:(words<=room?widths[i]+share:room/n);
-    bool selected=row.values[i]==chosen;
-    auto *segment=detail_button(row.labels[i].c_str(),sx,y+inset,sw,h-2*inset,first+i);
+    bool selected=i==chosen;
+    auto *segment=detail_button(labels[i].c_str(),sx,y+inset,sw,h-2*inset,first+i);
     lv_obj_set_style_radius(segment,(h-2*inset)/2,0);
     lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT),0);
     lv_obj_set_style_bg_opa(segment,selected?LV_OPA_COVER:LV_OPA_TRANSP,0);
     lv_obj_set_style_bg_opa(segment,LV_OPA_COVER,LV_STATE_PRESSED);
     if(!selected)lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT_TINT),LV_STATE_PRESSED);
     button_words(segment,font,theme::hex(selected?theme::ON_ACCENT:theme::INK),sw-6);
+    overlay_card::touchable(segment,h-2*inset);
     sx+=sw;
   }
+}
+// The vacuum's rows: the same control, showing the value just tapped while Home Assistant has not answered.
+inline void vacuum_segments(const Tile &t,const Choice &row,int first,int x,int y,int w,int h,uint32_t track,bool border,const lv_font_t *font){
+  const std::string &chosen=tile_controls::shown_value(t,row,esphome::millis());
+  int index=-1;
+  for(size_t i=0;i<row.values.size();++i)if(row.values[i]==chosen)index=(int)i;
+  segments(x,y,w,h,row.labels,index,first,track,border,font,small_font);
 }
 inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad){
   uint32_t now=esphome::millis();
@@ -1379,13 +1442,41 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
   // A robot with little to set gets a hero on the small screen too; one with mode and water rows uses a status row.
   bool small_hero=!large && !mode && !t.choice('w');
   int y=ui::px(large?92:52);
-  if(large || small_hero){
-    int hero_h=ui::px(large?108:60),robot=ui::px(large?84:48),edge=ui::px(large?12:6);
+  // The blocks of the card, and what each of them may give up when the glass is shorter than they ask for
+  // (a 800 x 480 panel at 217 dpi asked for 550 px). The portrait is the first to give, the keys the last.
+  const bool hero_form=large||small_hero;
+  int hero_h=ui::px(large?108:60),action_h=ui::px(large?54:(small_hero?40:36));
+  int mode_h=ui::px(large?48:34),row_h=ui::px(large?44:32),step=ui::px(large?10:6),edge=ui::px(large?14:0);
+  const int note_h=lv_font_get_line_height(text),line_h=lv_font_get_line_height(text);
+  const bool any_row=mode||suction||water;
+  auto block_h=[&]{
+    return (mode?mode_h:0)+(suction?(mode?step:0)+row_h:0)+(water?((mode||suction)?step:0)+row_h:0)+
+           (automatic?step+note_h+step:0);
+  };
+  auto total_h=[&]{
+    return y+(hero_form?hero_h+gap:line_h+gap+ui::px(4))+action_h+gap+(any_row?block_h()+2*edge:0)+ui::px(large?18:6);
+  };
+  if(total_h()>height){
+    const int rows_shown=(suction?1:0)+(water?1:0);
+    const int steps=(suction&&mode?1:0)+(water&&(mode||suction)?1:0)+(automatic?2:0);
+    ui::shrink({{&hero_h,ui::px(large?76:48)},
+                {&step,ui::px(4),std::max(1,steps)},
+                {&mode_h,ui::touch_min()},
+                {&row_h,std::max(ui::touch_min()*3/4,note_h+ui::px(6)),std::max(1,rows_shown)},
+                {&edge,ui::px(4),2},
+                {&action_h,ui::touch_min()},
+                {&gap,ui::px(4),3},
+                {&y,ui::px(large?64:40)}},
+               total_h()-height);
+  }
+  if(hero_form){
+    int robot=std::min(ui::px(large?84:48),hero_h-ui::px(large?12:6));
+    int edge_hero=ui::px(large?12:6);
     auto *hero=detail_card(pad,y,inner,hero_h);
-    vacuum_robot(hero,edge,(hero_h-robot)/2,robot,look);
+    vacuum_robot(hero,edge_hero,(hero_h-robot)/2,robot,look);
     // Locate, when the robot can do it (supported_features 512; unknown features keep the button).
     bool locate=large && (!t.supported || (t.supported & 512));
-    int key=48,text_x=edge+robot+(ui::px(large?18:12)),text_w=inner-text_x-(locate?key+2*edge:edge);
+    int key=std::min(ui::px(48),hero_h-ui::px(8)),text_x=edge_hero+robot+(ui::px(large?18:12)),text_w=inner-text_x-(locate?key+2*edge_hero:edge_hero);
     int line=lv_font_get_line_height(big),text_h=lv_font_get_line_height(text),space=ui::px(large?6:3);
     bool room=on_the_way && !t.extra().room.empty();
     int block=line+(room?space+text_h:0)+(battery?space+text_h:0),ty=(hero_h-block)/2;
@@ -1394,7 +1485,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     if(room){ty+=space;detail_text(hero,t.extra().room,text_x,ty,text_w,text,LV_TEXT_ALIGN_LEFT,theme::MUTED);ty+=text_h;}
     if(battery){ty+=space;vacuum_power(hero,t,text_x,ty,text,large);}
     if(locate){
-      auto *find=detail_button("",pad+inner-edge-key-6,y+(hero_h-key)/2,key,key,3);
+      auto *find=detail_button("",pad+inner-edge_hero-key-6,y+(hero_h-key)/2,key,key,3);
       lv_obj_set_style_radius(find,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(find,theme::color(theme::TRACK),0);
       lv_obj_set_style_bg_color(find,theme::color(theme::KEY_PRESSED),LV_STATE_PRESSED);
       auto *glyph=lv_obj_get_child(find,0);lv_obj_set_style_text_font(glyph,icons,0);lv_label_set_text(glyph,"\U000F034E");
@@ -1413,7 +1504,7 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     y+=line+(gap+4);
   }
   // Start (or pause, or resume) as the one blue button, dock beside it.
-  int action_h=large?54:(small_hero?40:36),start_w=large?(inner-gap)*2/3:(inner-gap)/2;
+  int start_w=large?(inner-gap)*2/3:(inner-gap)/2;
   vacuum_command(cleaning?"\U000F03E4":"\U000F040A",tr(cleaning?(large?txt::vacuum_pause_cleaning:txt::vacuum_pause):paused?txt::vacuum_resume:(large?txt::vacuum_start_cleaning:txt::vacuum_clean)),
                  pad,y,start_w,action_h,cleaning?1:0,true,text,icons,large?radius:action_h/2);
   vacuum_command("\U000F05F8",tr(txt::vacuum_dock),pad+start_w+gap,y,inner-start_w-gap,action_h,2,false,text,icons,large?radius:action_h/2);
@@ -1423,9 +1514,8 @@ inline void render_vacuum_detail(Tile &t,bool large,int width,int height,int pad
     return;
   }
   // How it cleans. The Guition groups the rows on one white card; the small screen has no room for a card.
-  int mode_h=ui::px(large?48:34),row_h=ui::px(large?44:32),step=ui::px(large?10:6),edge=ui::px(large?14:0),icon_w=ui::px(large?40:26);
-  int note_h=lv_font_get_line_height(text);
-  int block=(mode?mode_h:0)+(suction?(mode?step:0)+row_h:0)+(water?((mode||suction)?step:0)+row_h:0)+(automatic?step+note_h+step:0);
+  const int icon_w=ui::px(large?40:26);
+  const int block=block_h();
   const uint32_t track=theme::hex(large?theme::TRACK:theme::CARD);
   if(large)detail_card(pad,y,inner,block+2*edge);
   int x=pad+edge,w=inner-2*edge;
@@ -1454,6 +1544,17 @@ inline uint32_t cover_track(){return theme::tint(COVER_ACCENT,37);}
 inline uint32_t cover_slats(){return theme::tint(COVER_ACCENT,80);}
 inline lv_obj_t *cover_values[2]{};
 inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):tr(txt::ha_unavailable);}
+// The line under a card's name: the domain that writes its own says it here, so the card, its refresh and the
+// second-by-second tick all show the same words.
+inline std::string card_status(const Tile &t,bool brief=false){
+  const auto d=t.domain();
+  if(d=="cover")return cover_status_line(t);
+  if(d=="climate")return tile_controls::climate_card_status(t,brief);
+  return detail_state(t);
+}
+// Set while the state line lives in a smaller place than its own line (the climate card's caption), so the
+// second-by-second refresh writes the same short form the card drew.
+inline bool detail_status_brief=false;
 inline void cover_slider_event(lv_event_t *e){
   auto *slider=lv_event_get_target_obj(e);auto code=lv_event_get_code(e);
   const bool tilt=(uintptr_t)lv_event_get_user_data(e)==1;
@@ -1546,7 +1647,28 @@ inline void cover_battery(const Tile &t,bool large,int width){
   vacuum_battery(detail_root,cx-meter_w/2-1,y,meter_w,meter_h,t.battery);
   detail_text(detail_root,screen_text::percent(level),cx-bar/2-8,y+meter_h+gap,bar+16,font,LV_TEXT_ALIGN_CENTER,theme::MUTED);
 }
-inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad){
+// A blind's slider is dragged, so it needs millimetres of glass, not a share of it: a panel that is wide and
+// short (800 x 480 at 217 dpi, a 480 x 272 strip) cannot give a stack of slider, value and keys that height
+// while half its width stays empty. Such a card stands in two columns instead: the sliders at their full
+// height on the left, the keys beside them.
+inline int cover_slider_min(bool large){return ui::mm(large?22:16);}
+inline int cover_need_height(const Tile &t,bool large){
+  auto card=tile_controls::cover_card(t);
+  std::array<tile_controls::Key,3> keys,tilt_keys;
+  const unsigned key_count=card.keys?tile_controls::cover_keys(t,keys):0;
+  const unsigned tilt_count=card.tilt_keys?tile_controls::cover_tilt_keys(t,tilt_keys):0;
+  const int rows=(key_count?1:0)+(tilt_count?1:0),gap=ui::px(large?12:6);
+  const int text_h=lv_font_get_line_height(large?detail_font:(control_font?control_font:detail_font));
+  const int value_h=lv_font_get_line_height(watch_font?watch_font:detail_font);
+  const int box=cover_slider_min(large)+(large?value_h+text_h:0)+2*ui::px(large?16:6);
+  return ui::px(large?108:72)+box+gap+rows*ui::px(large?64:38)+(rows>1?gap:0)+ui::px(large?18:6);
+}
+inline int cover_columns(const Tile &t,bool large){
+  const auto card=tile_controls::cover_card(t);
+  if(!card.position&&!card.tilt)return 1;   // a garage door has no slider to make tall
+  return overlay_card::columns(cover_need_height(t,large),ui::mm(30));
+}
+inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,int columns=1){
   auto card=tile_controls::cover_card(t);
   cover_battery(t,large,width);
   const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
@@ -1558,31 +1680,52 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
   std::array<tile_controls::Key,3> keys,tilt_keys;
   unsigned key_count=card.keys?tile_controls::cover_keys(t,keys):0,tilt_count=card.tilt_keys?tile_controls::cover_tilt_keys(t,tilt_keys):0;
   int rows=(key_count?1:0)+(tilt_count?1:0);
-  int keys_y=bottom-rows*key_h-(rows>1?gap:0),top=ui::px(large?108:72);
-  int box_h=keys_y-gap-top;
+  int top=ui::px(large?108:72);
+  const int n=(card.position?1:0)+(card.tilt?1:0);
+  // Two columns on glass that is wide and short: the sliders keep the whole height on the left, the keys
+  // stand beside them. A card in one column is the stack it has always been.
+  const bool split=columns>=2 && n>0;
+  const int edge=split?ui::px(16):(large?16:6);
+  const int slider_w=split?ui::px(76):ui::px(large?(n==2?120:140):(n==2?48:56));
+  const int slider_gap=split?ui::px(32):(large?ui::px(48):(n==2?16:0));
+  int box_w=inner,keys_w=inner,keys_x=pad,keys_y=0,box_h=0;
+  if(split){
+    box_w=std::min(inner-ui::mm(30)-ui::column_gap(),n*slider_w+(n-1)*slider_gap+2*edge);
+    keys_w=inner-box_w-ui::column_gap();
+    keys_x=pad+box_w+ui::column_gap();
+    box_h=bottom-top;
+  }else{
+    keys_y=bottom-rows*key_h-(rows>1?gap:0);
+    box_h=keys_y-gap-top;
+  }
+  // The value and the name go under a slider, or beside it on a small screen where that fits. Two sliders
+  // beside their values need more width than a 240 px panel in portrait has, and the card then stacks them.
+  const int side_label=ui::px(n==2?76:96);
+  const bool beside_fits=n*(slider_w+ui::px(8)+side_label)+(n-1)*slider_gap+2*ui::px(6)<=inner;
+  const bool under=large||split||!beside_fits;
   if(card.position||card.tilt){
-    detail_card(pad,top,inner,box_h);
+    detail_card(pad,top,box_w,box_h);
     struct Part{bool tilt;float value;const char *caption;};
-    Part parts[2];int n=0;
-    if(card.position)parts[n++]={false,t.position,tr(txt::cover_position)};
-    if(card.tilt)parts[n++]={true,t.extra().tilt,tr(txt::cover_tilt)};
+    Part parts[2];int count=0;
+    if(card.position)parts[count++]={false,t.position,tr(txt::cover_position)};
+    if(card.tilt)parts[count++]={true,t.extra().tilt,tr(txt::cover_tilt)};
     int value_h=lv_font_get_line_height(big),caption_h=lv_font_get_line_height(text);
     auto percent=[](float value){return std::isfinite(value)?screen_text::percent((int)std::lround(std::clamp(value,0.0f,100.0f))):std::string("--");};
-    if(large){
+    if(under){
       // Columns: the slider with its value and name below.
-      int edge=16,slider_h=box_h-2*edge-value_h-caption_h+4,slider_w=n==2?120:140,column_gap=48;
-      int x=pad+(inner-(n*slider_w+(n-1)*column_gap))/2;
-      for(int i=0;i<n;++i,x+=slider_w+column_gap){
+      int slider_h=box_h-2*edge-value_h-caption_h+4;
+      int x=pad+(box_w-(count*slider_w+(count-1)*slider_gap))/2;
+      for(int i=0;i<count;++i,x+=slider_w+slider_gap){
         cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
-        int ty=top+edge+slider_h+2;
-        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x-30,ty,slider_w+60,big,LV_TEXT_ALIGN_CENTER,theme::INK);
-        detail_text(detail_root,parts[i].caption,x-30,ty+value_h,slider_w+60,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
+        int ty=top+edge+slider_h+2,room=slider_w+slider_gap-4;
+        cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x-(room-slider_w)/2,ty,room,big,LV_TEXT_ALIGN_CENTER,theme::INK);
+        detail_text(detail_root,parts[i].caption,x-(room-slider_w)/2,ty+value_h,room,text,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
       }
     }else{
       // The small screen puts the value and name beside each slider.
-      int edge=6,slider_h=box_h-2*edge,slider_w=n==2?48:56,label_w=n==2?76:96,column_gap=n==2?16:0;
-      int column=slider_w+8+label_w,x=pad+(inner-(n*column+(n-1)*column_gap))/2;
-      for(int i=0;i<n;++i,x+=column+column_gap){
+      int slider_h=box_h-2*edge,label_w=side_label;
+      int column=slider_w+8+label_w,x=pad+(box_w-(count*column+(count-1)*slider_gap))/2;
+      for(int i=0;i<count;++i,x+=column+slider_gap){
         cover_slider(detail_root,x,top+edge,slider_w,slider_h,parts[i].value,parts[i].tilt);
         int ty=top+(box_h-value_h-caption_h)/2;
         cover_values[parts[i].tilt?1:0]=detail_text(detail_root,percent(parts[i].value),x+slider_w+8,ty,label_w,big,LV_TEXT_ALIGN_LEFT,theme::INK);
@@ -1591,15 +1734,186 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad)
     }
   }else{
     // Open and close only (a garage door, a gate): the cover's icon on a halo and its state, as the vacuum's hero.
-    detail_card(pad,top,inner,box_h);
+    detail_card(pad,top,box_w,box_h);
     const lv_font_t *icon_font=widgets[0].icon_font?widgets[0].icon_font:mini_icon_font;
     int halo=std::min(box_h-24,ui::px(large?120:72));
-    auto *ring=detail_shape(detail_root,pad+(inner-halo)/2,top+(box_h-halo)/2,halo,halo,cover_track(),halo/2);
+    auto *ring=detail_shape(detail_root,pad+(box_w-halo)/2,top+(box_h-halo)/2,halo,halo,cover_track(),halo/2);
     if(icon_font){auto *icon=detail_text(ring,icon_for(t),0,(halo-lv_font_get_line_height(icon_font))/2,halo,icon_font,LV_TEXT_ALIGN_CENTER,theme::foreground(COVER_ACCENT));(void)icon;}
   }
-  int y=keys_y;
-  if(key_count){cover_key_row(keys,key_count,pad,y,inner,key_h,gap,key_icons);y+=key_h+gap;}
-  if(tilt_count)cover_key_row(tilt_keys,tilt_count,pad,y,inner,key_h,gap,key_icons);
+  // Beside the sliders the keys stand under each other, like the switch on the wall next to a blind; under
+  // them they keep their rows. A card with tilt keys as well falls back to rows when a stack would not fit.
+  const int stacked=(int)(key_count+tilt_count);
+  const bool stack_keys=split && stacked*key_h+(stacked-1)*gap<=box_h;
+  if(stack_keys){
+    const int key_w=std::min(keys_w,ui::mm(45));
+    const int x=keys_x+(keys_w-key_w)/2;
+    int y=top+(box_h-(stacked*key_h+(stacked-1)*gap))/2;
+    auto one=[&](const tile_controls::Key &key){
+      std::array<tile_controls::Key,3> single{key,{},{}};
+      cover_key_row(single,1,x,y,key_w,key_h,gap,key_icons);
+      y+=key_h+gap;
+    };
+    for(unsigned i=0;i<key_count;++i)one(keys[i]);
+    for(unsigned i=0;i<tilt_count;++i)one(tilt_keys[i]);
+  }else{
+    int y=split?top+(box_h-rows*key_h-(rows>1?gap:0))/2:keys_y;
+    if(key_count){cover_key_row(keys,key_count,keys_x,y,keys_w,key_h,gap,key_icons);y+=key_h+gap;}
+    if(tilt_count)cover_key_row(tilt_keys,tilt_count,keys_x,y,keys_w,key_h,gap,key_icons);
+  }
+}
+// ---- Climate card (firmware 0.2.9x): one computed card on every board ----
+// Home Assistant's thermostat dialog in this look, worked out from the entity's own attributes: the state
+// under the name, a white card with the setpoint between a round - and a round + key, a key per mode, and a
+// white card with a segmented row for the fan and for the swing. Until now every board carried its own table
+// of pixels for this card (six layouts in the board file) and only the Guition's table had room for the fan
+// and swing rows, which is why a CYD sent them to a second page. climate_card.h works out where the parts go;
+// this draws them, and the same card now stands on every board.
+inline lv_obj_t *climate_number=nullptr;   // the setpoint itself: a -/+ tap moves it before Home Assistant answers
+
+// What the board brings to the card: its class, the fonts it writes with and where its top bar sits.
+inline climate_card::Metrics climate_metrics(bool large){
+  const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
+  const lv_font_t *small=small_font?small_font:text;
+  const lv_font_t *number=setpoint_font?setpoint_font:(watch_font?watch_font:detail_font);
+  const lv_font_t *icons=tile_icon_font();
+  climate_card::Metrics m;
+  m.large=large;
+  const lv_font_t *small_number=watch_font?watch_font:(control_font?control_font:detail_font);
+  m.number_h=lv_font_get_line_height(number);
+  m.number_w=text_width("-88.8°",number);
+  m.small_number_h=std::min(m.number_h,lv_font_get_line_height(small_number));
+  m.small_number_w=text_width("-88.8°",small_number);
+  m.caption_h=lv_font_get_line_height(small);
+  m.text_h=lv_font_get_line_height(text);
+  m.icon_h=icons?lv_font_get_line_height(icons):m.text_h;
+  m.bar=ui::px(large?60:40);m.bar_x=ui::px(large?16:10);m.bar_y=ui::px(large?16:8);
+  m.touch=ui::touch_min();
+  return m;
+}
+// Where the card's content begins: under the top bar.
+inline int climate_top(const climate_card::Metrics &m){return m.bar_y+m.bar+ui::px(m.large?8:4);}
+// One column, or two on glass too short for the stack (a 480 x 272 panel, a wide seven-inch).
+inline int climate_columns(const Tile &t,bool large){
+  const climate_card::Metrics m=climate_metrics(large);
+  const int modes=(int)tile_controls::climate_modes(t).size(),rows=(int)tile_controls::climate_rows(t).size();
+  return overlay_card::columns(climate_top(m)+climate_card::need_height(m,modes,rows)+m.margin(),climate_card::min_column(m));
+}
+inline std::string climate_number_text(const Tile &t){
+  const float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
+  return tile_controls::format_value(shown,tile_controls::edit_step(t),"°");
+}
+// A -/+ tap: the number follows the finger at once, tick() sends the last value after a short pause, exactly
+// as the -/+ pill on a wide tile does.
+inline void climate_step(Tile &t,int direction){
+  const uint32_t now=esphome::millis();
+  const float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
+  t.edit_value=tile_controls::step_value(current,tile_controls::edit_step(t),t.minimum,t.maximum,direction);
+  t.edit_since=now;t.edit_sent=false;
+  if(climate_number)label(climate_number,climate_number_text(t));
+}
+// Holding a key steps three times a second.
+inline void climate_hold(lv_event_t *e){
+  const int direction=(int)(intptr_t)lv_event_get_user_data(e);
+  if(detail_index>=model.count)return;
+  auto &t=model.tiles[detail_index];
+  if(!fresh()||!t.available()||esphome::millis()-t.edit_since<300)return;
+  climate_step(t,direction);
+}
+// A round key of the card: the - and the + beside the setpoint, and the power key in the top bar.
+inline lv_obj_t *climate_round_key(const climate_card::Rect &r,const char *icon,const lv_font_t *font,theme::Role fill,theme::Role ink,int command){
+  auto *key=detail_button("",r.x,r.y,r.w,r.h,command);
+  lv_obj_set_style_radius(key,LV_RADIUS_CIRCLE,0);
+  lv_obj_set_style_bg_color(key,theme::color(fill),0);
+  lv_obj_set_style_bg_color(key,theme::color(theme::KEY_PRESSED),LV_STATE_PRESSED);
+  auto *glyph=lv_obj_get_child(key,0);
+  if(font)lv_obj_set_style_text_font(glyph,font,0);
+  lv_label_set_text(glyph,icon);
+  lv_obj_set_style_text_color(glyph,theme::color(ink),0);
+  lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
+  return key;
+}
+inline void render_climate_detail(Tile &t,bool large,int width,int height,int columns){
+  const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
+  const lv_font_t *small=small_font?small_font:text;
+  const lv_font_t *number_font=setpoint_font?setpoint_font:(watch_font?watch_font:detail_font);
+  const lv_font_t *tile_icons=tile_icon_font();
+  const lv_font_t *mini=mini_icon_font?mini_icon_font:detail_font;
+  const auto modes=tile_controls::climate_modes(t);
+  const auto rows=tile_controls::climate_rows(t);
+  const climate_card::Metrics m=climate_metrics(large);
+  const int top=climate_top(m);
+  const auto l=climate_card::layout(m,width,top,height-m.margin(),(int)modes.size(),(int)rows.size(),columns);
+  const bool off=tile_controls::climate_off(t),known=std::isfinite(tile_controls::edit_target(t))||std::isfinite(t.edit_value);
+  const std::string mode=tile_controls::lower_case(t.state);
+  detail_placed=true;   // the layout has already put every block where the glass has room for it
+
+  // The power key, across from the back key: lit while the device runs in any mode.
+  climate_round_key(l.power,tile_controls::glyph::POWER,mini,off?theme::KEY:theme::ACCENT_TINT,
+                    off?theme::ICON_OFF:theme::ACCENT_ICON,CLIMATE_POWER);
+  if(!l.status.empty()){
+    detail_status=detail_text(detail_root,card_status(t),l.status.x,l.status.y,l.status.w,text,LV_TEXT_ALIGN_CENTER,theme::MUTED);
+  }
+  // The setpoint: the number between the two keys, the word under it while there is room.
+  detail_card(l.setpoint.x,l.setpoint.y,l.setpoint.w,l.setpoint.h);
+  const lv_font_t *key_icons=tile_icons&&lv_font_get_line_height(tile_icons)<=l.minus.h-ui::px(8)?tile_icons:mini;
+  auto *down=climate_round_key(l.minus,tile_controls::glyph::MINUS,key_icons,theme::TRACK,theme::INK,CLIMATE_DOWN);
+  auto *up=climate_round_key(l.plus,tile_controls::glyph::PLUS,key_icons,theme::TRACK,theme::INK,CLIMATE_UP);
+  const float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
+  if(known&&std::isfinite(shown)){
+    if(shown<=t.minimum)lv_obj_add_state(down,LV_STATE_DISABLED);
+    if(shown>=t.maximum)lv_obj_add_state(up,LV_STATE_DISABLED);
+  }
+  for(lv_obj_t *key:{down,up})lv_obj_add_event_cb(key,climate_hold,LV_EVENT_LONG_PRESSED_REPEAT,(void*)(intptr_t)(key==up?1:-1));
+  climate_number=detail_text(detail_root,climate_number_text(t),l.number.x,l.number.y,l.number.w,
+                             l.small_number?(watch_font?watch_font:number_font):number_font,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
+  // The word under the number, or what the thermostat is doing when the glass had no room for a line of its own.
+  if(!l.caption.empty()){
+    auto *caption=detail_text(detail_root,l.caption_is_status?card_status(t,true):std::string(tr(txt::climate_target)),
+                              l.caption.x,l.caption.y,l.caption.w,small,LV_TEXT_ALIGN_CENTER,theme::SUBTLE);
+    if(l.caption_is_status){detail_status=caption;detail_status_brief=true;}
+  }
+  // One key per mode, in Home Assistant's colour for the one in use. A device with one mode shows none: the
+  // power key already turns it on and off.
+  if(l.mode_count){
+    const int shown_modes=std::min<int>(l.mode_count,(int)modes.size());
+    const int key_w=(l.modes.w-(shown_modes-1)*l.mode_gap)/std::max(1,shown_modes);
+    // More modes than keys: the mode in use takes the last key, so the card always says where it stands.
+    std::vector<std::string> keys(modes.begin(),modes.begin()+shown_modes);
+    std::vector<int> commands(shown_modes);
+    for(int i=0;i<shown_modes;++i)commands[i]=CLIMATE_MODE_FIRST+i;
+    if((int)modes.size()>shown_modes)
+      for(int i=shown_modes;i<(int)modes.size();++i)
+        if(modes[i]==mode){keys[shown_modes-1]=modes[i];commands[shown_modes-1]=CLIMATE_MODE_FIRST+i;}
+    const lv_font_t *mode_icons=tile_icons&&lv_font_get_line_height(tile_icons)<=l.modes.h-ui::px(6)?tile_icons:mini;
+    for(int i=0;i<shown_modes;++i){
+      const bool selected=!off&&keys[i]==mode;
+      const uint32_t colour=tile_controls::mode_color(keys[i]);
+      auto *key=detail_button("",l.modes.x+i*(key_w+l.mode_gap),l.modes.y,key_w,l.modes.h,commands[i]);
+      lv_obj_set_style_radius(key,l.modes.h/2,0);
+      lv_obj_set_style_bg_color(key,selected?lv_color_hex(colour):theme::color(theme::CARD),0);
+      lv_obj_set_style_bg_color(key,theme::color(theme::KEY),LV_STATE_PRESSED);
+      lv_obj_set_style_border_width(key,selected?0:1,0);
+      lv_obj_set_style_border_color(key,theme::color(theme::LINE),0);
+      auto *glyph=lv_obj_get_child(key,0);
+      if(mode_icons)lv_obj_set_style_text_font(glyph,mode_icons,0);
+      lv_label_set_text(glyph,tile_controls::climate_mode_icon(keys[i]));
+      lv_obj_set_style_text_color(glyph,theme::color(selected?theme::ON_ACCENT:theme::SLATE),0);
+      lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
+    }
+  }
+  // The fan and the swing, each a row of choices behind its icon, on one white card.
+  if(l.row_count){
+    detail_card(l.settings.x,l.settings.y,l.settings.w,l.settings.h);
+    for(int i=0;i<l.row_count&&i<(int)rows.size();++i){
+      const auto &row=rows[i];
+      const int icon_h=mini?lv_font_get_line_height(mini):m.text_h;
+      detail_text(detail_root,row.icon,l.row_icons[i].x,l.row_icons[i].y+(l.row_icons[i].h-icon_h)/2,l.row_icons[i].w,mini,LV_TEXT_ALIGN_LEFT,theme::SUBTLE);
+      int chosen=-1;
+      for(size_t v=0;v<row.values.size();++v)if(row.values[v]==row.current)chosen=(int)v;
+      segments(l.row_tracks[i].x,l.row_tracks[i].y,l.row_tracks[i].w,l.row_tracks[i].h,row.labels,chosen,
+               CLIMATE_ROW_FIRST+i*6,theme::hex(theme::TRACK),false,text,small);
+    }
+  }
 }
 // ---- History card (firmware 0.2.51+): numbers as a line with axes, states as a timeline ----
 // Sensors, numbers, switches, binary sensors and people. The card asks the manager for the chosen range when it
@@ -2150,16 +2464,19 @@ inline void show_detail(unsigned index){
   }
   lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
   lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_backdrop);
-  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;history_forget();
+  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
   media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   // The card's room: capped to what a hand spans and centred, unless it shows a picture (the media card's
   // cover art, a camera), which may fill the glass. Every size below follows from `width`.
-  const auto kind=model.tiles[index].domain()=="media_player"?overlay_card::picture:overlay_card::controls;
-  overlay_card::frame(detail_root,kind);
+  auto d=t.domain();
+  const auto kind=d=="media_player"?overlay_card::picture:overlay_card::controls;
+  bool large=ui::large();
+  // A card whose stack asks for more height than the glass has stands in two columns instead.
+  const int columns=d=="climate"?climate_columns(t,large):d=="cover"?cover_columns(t,large):1;
+  overlay_card::frame(detail_root,kind,columns);
   // The room the frame just gave the card; LVGL reports the new width only after its next layout pass.
-  int width=overlay_card::content_width(kind), height=overlay_card::screen_height();
-  bool large=ui::large();int pad=ui::px(large?20:10), top=ui::px(large?100:62), gap=ui::px(large?12:6),bh=ui::px(large?58:34),cw=(width-pad*2-gap)/2;
+  int width=overlay_card::content_width(kind,columns), height=overlay_card::screen_height();int pad=overlay_card::pad(), top=ui::px(large?100:62), gap=ui::px(large?12:6),bh=ui::px(large?58:34),cw=(width-pad*2-gap)/2;
   // The same top bar as the board's own cards: a round back arrow at the left, the name centred.
   int bar=ui::px(large?60:40),bar_x=ui::px(large?16:10),bar_y=ui::px(large?16:8);
   auto *back=detail_button("",bar_x,bar_y,bar,bar,-1);lv_obj_set_style_radius(back,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(back,theme::color(theme::KEY),0);
@@ -2167,18 +2484,19 @@ inline void show_detail(unsigned index){
   const lv_font_t *title_font=watch_font?watch_font:detail_font;
   auto *heading=detail_label(detail_root,t.name,bar_x+bar+8,bar_y+(bar-lv_font_get_line_height(title_font))/2,width-2*(bar_x+bar+8));
   lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
-  auto d=t.domain();
-  std::string state=d=="cover"?cover_status_line(t):detail_state(t);
+  std::string state=card_status(t);
   // The vacuum and history cards draw their own state.
   const bool with_history=history_card(t);
-  if(d!="vacuum"&&d!="media_player"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
+  if(d!="vacuum"&&d!="media_player"&&d!="climate"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
     render_vacuum_detail(t,large,width,height,pad);
+  }else if(d=="climate"){
+    render_climate_detail(t,large,width,height,columns);
   }else if(d=="cover"){
     if(detail_status && control_font){lv_obj_set_style_text_font(detail_status,control_font,0);lv_obj_set_height(detail_status,lv_font_get_line_height(control_font));}
-    render_cover_detail(t,large,width,height,pad);
+    render_cover_detail(t,large,width,height,pad,columns);
   }else if(d=="select"||d=="input_select"){
     const auto &options=t.extra().options;
     for(unsigned i=0;i<options.size();++i)detail_button(options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
@@ -2197,7 +2515,7 @@ inline void show_detail(unsigned index){
   }
   // A card that leaves room sits in the middle of the glass; a picture fills it and stays where it is.
   // The back key and the name stay at the top of the card; the content under them is centred.
-  if(kind==overlay_card::controls)overlay_card::centre(detail_root,2);
+  if(kind==overlay_card::controls&&!detail_placed)overlay_card::centre(detail_root,2);
 }
 }
 
@@ -4049,7 +4367,7 @@ inline void tick() {
       else if(now-history_asked_at>8000)label(history_chart.status,tr(txt::history_unavailable));
     }
     for(unsigned i=0;i<detail_action_count;++i){if(waiting||!fresh()||!t.available())lv_obj_add_state(detail_actions[i],LV_STATE_DISABLED);else lv_obj_remove_state(detail_actions[i],LV_STATE_DISABLED);}
-    std::string status=waiting?std::string(tr(t.confirmed?txt::tile_confirmed:txt::tile_command_sent)):t.domain()=="cover"?cover_status_line(t):detail_state(t);
+    std::string status=waiting?std::string(tr(t.confirmed?txt::tile_confirmed:txt::tile_command_sent)):card_status(t,detail_status_brief);
     if(detail_status)label(detail_status,waiting?status:screen_text::with_unit(status,t.unit));
     // The vacuum card lays its state out with the room and battery beside it, so a new text draws the
     // card again; once Home Assistant answered, the new state says enough.

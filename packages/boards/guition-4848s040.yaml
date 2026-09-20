@@ -2,8 +2,7 @@
 #
 # What is in here: the hardware (display, touch, backlight, PSRAM), the sizes the shared tree takes from
 # this board, the code the shared lambdas take from this board (hooks), and what only a Guition has: camera
-# images, a screen that turns a quarter, a page swipe from the glass edge, a climate card with a fan and
-# swing card, and the snapshot diagnostics. Everything else (the LVGL tree, the cards, the scripts, the
+# images, a screen that turns a quarter, a page swipe from the glass edge, and the snapshot diagnostics. Everything else (the LVGL tree, the cards, the scripts, the
 # entities) is packages/core.yaml, which every board shares; docs/PROFILES.md says how the files fit
 # together, docs/GUITION.md what this board needs.
 #
@@ -139,38 +138,7 @@ substitutions:
   COLOR_TITLE_W: "310"                          # the colour card's title
   COLOR_TITLE_Y: "35"
 
-  # The climate card
-  CLIMATE_TITLE_Y: "30"                         # the title
-  CLIMATE_TITLE_W: "300"
-  CLIMATE_STATUS_Y: "92"                        # the status line
-  CLIMATE_CARD_Y: "136"                         # the setpoint card
-  CLIMATE_CARD_H: "200"
-  CLIMATE_CARD_RADIUS: "24"
-  CLIMATE_KEY_INSET: "18"                       # the -/+ keys from the card edge
-  CLIMATE_KEY_SIZE: "116"                       # their diameter
-  CLIMATE_KEY_RADIUS: "58"
-  CLIMATE_NUMBER_Y: "-14"                       # the setpoint number
-  CLIMATE_CAPTION_Y: "46"                       # the word under it
-  CLIMATE_MODES_Y: "364"                        # the row of mode keys
-  CLIMATE_MODES_H: "76"
-  CLIMATE_MODES_GAP: "10"
-  CLIMATE_MODE_RADIUS: "38"
 
-  # The mode picker
-  PICKER_TITLE_Y: "35"                          # the "Mode" title
-  PICKER_LIST_Y: "92"                           # the list of choices
-  PICKER_LIST_H: "372"
-  PICKER_PAD: "4"
-  PICKER_ROW_GAP: "6"
-  PICKER_COL_GAP: "6"
-  PICKER_MODE_W: "136"                          # a mode chip
-  PICKER_MODE_H: "58"
-  PICKER_MODE_RADIUS: "22"
-  PICKER_TITLE_H: "24"                          # the Fan and Swing captions
-  PICKER_CHIP_W: "98"                           # a fan or swing chip
-  PICKER_CHIP_H: "48"
-  PICKER_CHIP_RADIUS: "18"
-  PICKER_CHIP_FONT: "sublabel_big"              # the words on them
 
   # The touch test page
   TOUCH_TEST_PAGE_PAINT: "paint_page_soft"      # the page
@@ -291,15 +259,8 @@ substitutions:
       lv_obj_set_y(id(alert_subtitle), ${ALERT_SUBTITLE_Y} + shift);
       lv_obj_set_height(id(alert_subtitle), image ? ${ALERT_SUBTITLE_H_IMAGE} : ${ALERT_SUBTITLE_H});
     };
-  # after the cards' hooks, before the settings page's: the calibration wizard of a resistive panel, the fan and swing card of a big one
-  BOOT_CARDS_TAIL: |-
-    climate_card::look.card = id(climate_settings_card);
-    climate_card::look.font = id(label)->get_lv_font();
-    climate_card::look.icon_font = id(materialdesign_icons_mini)->get_lv_font();
-    climate_card::choose = [](char kind, int index) {
-      if (kind == 'f') id(set_climate_fan_mode).execute(index);
-      else id(set_climate_swing_mode).execute(index);
-    };
+  # after the cards' hooks, before the settings page's: nothing on this board (the CYD builds its calibration wizard here)
+  BOOT_CARDS_TAIL: ""
   # what else keeps the settings page closed (inline, in the condition)
   MAY_OPEN_EXTRA: " && !runtime_tiles::camera_visible()"
   # the log line of a boot onto the touch test page
@@ -329,10 +290,6 @@ substitutions:
   ALERT_SHOW_HOOK: |-
     // An open camera closes; the card makes room for an image the app announced for this alert.
     runtime_tiles::alert_prepare();
-  # set_climate_fan_mode and set_climate_swing_mode: after the choice is stored
-  CLIMATE_MODE_CHOSEN_HOOK: "id(climate_card_refresh).execute();"
-  # open_value_overlay: the climate card of a panel in portrait, before its refresh
-  OPEN_VALUE_OVERLAY_TAIL: ""
 
 # ============================================================
 # No need to edit below this line.
@@ -647,24 +604,6 @@ lvgl:
             id: camera_image_seed
             hidden: true
             src: alert_image
-        - obj:
-            id: !extend climate_detail_overlay
-            widgets:
-              # Fan and swing, each a row of choices behind its icon (climate_card.h fills the card).
-              - obj:
-                  id: climate_settings_card
-                  align: TOP_MID
-                  y: 340
-                  width: 94%
-                  height: 116
-                  radius: 24
-                  styles: paint_card
-                  bg_opa: COVER
-                  border_width: 1
-                  pad_all: 0
-                  hidden: true
-                  clickable: false
-                  scrollable: false
 
 script:
   - id: capture_ui_snapshot
@@ -729,14 +668,6 @@ script:
             - delay: 150ms
             - lambda: guition::check_geometry(id(color_detail_overlay));
             - lvgl.widget.hide: color_detail_overlay
-            - lvgl.widget.show: climate_detail_overlay
-            - delay: 150ms
-            - lambda: guition::check_geometry(id(climate_detail_overlay));
-            - lvgl.widget.hide: climate_detail_overlay
-            - lvgl.widget.show: climate_mode_overlay
-            - delay: 150ms
-            - lambda: guition::check_geometry(id(climate_mode_overlay));
-            - lvgl.widget.hide: climate_mode_overlay
             - lvgl.widget.show: alert_overlay
             - delay: 150ms
             - lvgl.widget.hide: alert_overlay
@@ -803,114 +734,3 @@ script:
     then:
       - lambda: id(back_light).turn_on().set_transition_length(ms).set_brightness(level / 100.0f).perform();
 
-  # The climate card at this size, with the fan and swing card (the CYD has its own copy).
-  - id: climate_card_refresh
-    then:
-      - lambda: |-
-          auto lower = [](std::string v) {
-            for (char &c : v) { if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a'); }
-            return v;
-          };
-          std::string mode = lower(id(active_climate_mode));
-          bool off = mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable";
-          // What the device does (Heating), else its mode (Heat); then the room.
-          std::string status = off ? std::string(screen_text::tr(screen_text::txt::ha_off)) : std::string(tile_controls::climate_action_text(lower(id(active_climate_action))));
-          if (status.empty()) status = tile_controls::climate_mode_text(mode);
-          if (std::isfinite(id(active_climate_current))) status += " · " + screen_text::fill(screen_text::txt::climate_now, "value", screen_text::decimal(id(active_climate_current), 1) + "°");
-          if (id(active_climate_humidity) >= 0) status += " · " + screen_text::percent(id(active_climate_humidity));
-          lv_label_set_text(id(climate_current_label), status.c_str());
-
-          int target = id(active_climate_target_x10);
-          std::string value = id(active_climate_target_known)
-              ? tile_controls::format_value(target / 10.0f, id(active_climate_step_x10) / 10.0f, "°") : std::string("--");
-          lv_label_set_text(id(climate_target_label), value.c_str());
-          lv_obj_set_style_text_color(id(climate_target_label), theme::color(off ? theme::OFF : theme::INK), LV_PART_MAIN);
-          auto enable = [](lv_obj_t *key, bool on) {
-            if (on) lv_obj_remove_state(key, LV_STATE_DISABLED); else lv_obj_add_state(key, LV_STATE_DISABLED);
-          };
-          enable(id(climate_minus_button), !id(active_climate_target_known) || target > id(active_climate_min_x10));
-          enable(id(climate_plus_button), !id(active_climate_target_known) || target < id(active_climate_max_x10));
-
-          // One key per supported mode, in Home Assistant's order. Fan and swing add "more"; with it
-          // five mode keys fit, and when a sixth mode is in use it takes the last place.
-          std::string supported = lower(id(active_climate_supported_modes));
-          auto has = [&](const char *m) {
-            return supported.find(std::string("\"") + m + "\"") != std::string::npos ||
-                   supported.find(std::string("'") + m + "'") != std::string::npos;
-          };
-          struct Key { lv_obj_t *obj; const char *mode; };
-          const Key keys[] = {{id(cmkey_auto), "auto"}, {id(cmkey_heat_cool), "heat_cool"}, {id(cmkey_heat), "heat"},
-                              {id(cmkey_cool), "cool"}, {id(cmkey_dry), "dry"}, {id(cmkey_fan_only), "fan_only"}};
-          // The Guition shows fan and swing on their own card below, so no "more" key.
-          bool more = false;
-          const Key *visible[6];
-          unsigned count = 0, room = more ? 5 : 6;
-          for (const auto &k : keys) if (has(k.mode)) visible[count++] = &k;
-          if (count > room) {
-            for (unsigned i = room; i < count; ++i) if (mode == visible[i]->mode) visible[room - 1] = visible[i];
-            count = room;
-          }
-          for (const auto &k : keys) {
-            bool show = false;
-            for (unsigned i = 0; i < count; ++i) show = show || visible[i] == &k;
-            if (show) lv_obj_remove_flag(k.obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(k.obj, LV_OBJ_FLAG_HIDDEN);
-            bool selected = show && !off && mode == k.mode;
-            uint32_t color = tile_controls::mode_color(k.mode);
-            lv_obj_set_style_bg_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::CARD), LV_PART_MAIN);
-            lv_obj_set_style_border_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::LINE), LV_PART_MAIN);
-            lv_obj_set_style_text_color(lv_obj_get_child(k.obj, 0), theme::color(selected ? theme::ON_ACCENT : theme::SLATE), LV_PART_MAIN);
-          }
-          if (more) lv_obj_remove_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN);
-          // One mode is no choice: the power key already turns it on and off.
-          const bool show_keys = count > 1 || more;
-          if (show_keys) lv_obj_remove_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
-          else lv_obj_add_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
-
-          // Fan and swing rows, in the entity's own names and order.
-          climate_card::Row settings[2];
-          int rows = 0;
-          if (!cyd::list_item(id(active_climate_fan_modes), 0).empty())
-            settings[rows++] = {'f', "\U000F0210", id(active_climate_fan_modes), id(active_climate_fan_mode)};
-          if (!cyd::list_item(id(active_climate_swing_modes), 0).empty())
-            settings[rows++] = {'s', "\U000F1C91", id(active_climate_swing_modes), id(active_climate_swing_mode)};
-          // One layout per card: the setpoint gives room to the mode keys and the settings below it,
-          // and a card with nothing below keeps the setpoint centred.
-          static int laid_out = -1;
-          if (laid_out != rows * 2 + show_keys) {
-            laid_out = rows * 2 + show_keys;
-            struct Layout { int status, card_y, card_h, key, number_y, caption_y, modes_y, modes_h, settings_y, edge, row_h, gap; };
-            static const Layout layouts[6] = {
-              // no mode keys: 0, 1, 2 rows
-              {92, 180, 200, 116, -14, 46, 0, 0, 0, 14, 48, 10},
-              {92, 140, 200, 116, -14, 46, 0, 0, 364, 14, 48, 10},
-              {90, 130, 180, 108, -12, 42, 0, 0, 330, 14, 46, 10},
-              // mode keys: 0, 1, 2 rows
-              {92, 136, 200, 116, -14, 46, 364, 76, 0, 14, 48, 10},
-              {90, 126, 170, 108, -12, 42, 312, 68, 394, 12, 44, 8},
-              {86, 118, 140, 96, -10, 36, 270, 60, 342, 12, 42, 8},
-            };
-            const Layout &l = layouts[(show_keys ? 3 : 0) + rows];
-            lv_obj_set_y(id(climate_current_label), l.status);
-            lv_obj_set_y(id(climate_setpoint_card), l.card_y);
-            lv_obj_set_height(id(climate_setpoint_card), l.card_h);
-            for (lv_obj_t *button : {id(climate_minus_button), id(climate_plus_button)}) {
-              lv_obj_set_size(button, l.key, l.key);
-              lv_obj_set_style_radius(button, l.key / 2, LV_PART_MAIN);
-            }
-            lv_obj_set_y(id(climate_target_label), l.number_y);
-            lv_obj_set_y(id(climate_set_label), l.caption_y);
-            if (show_keys) {
-              lv_obj_set_y(id(climate_mode_keys), l.modes_y);
-              lv_obj_set_height(id(climate_mode_keys), l.modes_h);
-              for (lv_obj_t *mode_key : {id(cmkey_auto), id(cmkey_heat_cool), id(cmkey_heat), id(cmkey_cool), id(cmkey_dry), id(cmkey_fan_only), id(cmkey_more)}) {
-                lv_obj_set_height(mode_key, l.modes_h);
-                lv_obj_set_style_radius(mode_key, l.modes_h / 2, LV_PART_MAIN);
-              }
-            }
-            lv_obj_set_y(id(climate_settings_card), l.settings_y);
-            climate_card::look.edge = l.edge;
-            climate_card::look.row_h = l.row_h;
-            climate_card::look.gap = l.gap;
-          }
-          climate_card::show(settings, rows);
-          id(climate_power_refresh).execute();

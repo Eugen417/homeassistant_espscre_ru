@@ -110,14 +110,15 @@ class Firmware(unittest.TestCase):
         cards = controls[controls.index('inline bool runtime_card_domain('):]
         cards = cards[:cards.index('\n}\n')]
         self.assertIn('d == "cover"', cards, 'covers go to show_detail with the other runtime cards')
+        self.assertIn('d == "climate"', cards, 'a thermostat opens the computed card too (0.2.9x)')
         self.assertIn('if (runtime_card_domain(d)) return {TapRoute::CARD, "", true};', controls)
-        self.assertIn('return d == "light" || d == "climate" || d == "fan" ? Tap{TapRoute::OVERLAY', controls, 'not to the board\'s value overlay any more')
+        self.assertIn('return d == "light" || d == "fan" ? Tap{TapRoute::OVERLAY', controls, 'not to the board\'s value overlay any more')
         self.assertIn('case tile_controls::TapRoute::CARD:', event)
         self.assertIn('show_detail(w.index);', event)
         self.assertIn('}else if(d=="cover"){', RUNTIME)
-        self.assertIn('render_cover_detail(t,large,width,height,pad);', RUNTIME)
+        self.assertIn('render_cover_detail(t,large,width,height,pad,columns);', RUNTIME)
         for name, text in PROFILES.items():
-            self.assertIn('if ((domain == "light" || domain == "fan" || domain == "climate") && runtime_tiles::detail) {', text, f'{name}: the preview opens the new card')
+            self.assertIn('if ((domain == "light" || domain == "fan") && runtime_tiles::detail) {', text, f'{name}: the preview opens the new card')
 
     def test_the_card_commits_on_release_and_keeps_its_status_line(self):
         self.assertIn('action("cover.set_cover_position",t.entity,"position",std::to_string(100-percent));', RUNTIME)
@@ -125,7 +126,7 @@ class Firmware(unittest.TestCase):
         self.assertIn('if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);', RUNTIME)
         # The once-a-second tick of an open card must not replace "Open · 60% · Tilt 40%" with the raw state.
         tick = RUNTIME[RUNTIME.index('inline void tick() {'):]
-        self.assertIn('t.domain()=="cover"?cover_status_line(t):detail_state(t)', tick[:tick.index('if(!enabled)return;')])
+        self.assertIn('card_status(t,detail_status_brief)', tick[:tick.index('if(!enabled)return;')])
         # A key the cover cannot use stays disabled: it is left out of the keys the tick enables again.
         self.assertIn('if(key.disabled){lv_obj_add_state(button,LV_STATE_DISABLED);if(detail_action_count && detail_actions[detail_action_count-1]==button)--detail_action_count;}', RUNTIME)
         # Track and fill share one radius: no layer per redraw on the CYD.

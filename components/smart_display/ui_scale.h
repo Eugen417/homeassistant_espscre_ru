@@ -10,6 +10,8 @@
 //
 // Sizes that come from the board file (the tile grid, TILE_ICON_SIZE, the fonts) are already scaled there; ui::px()
 // is for the sizes the C++ decides itself (paddings, key heights, strips), in the reference look's pixels.
+#include <algorithm>
+#include <initializer_list>
 #include <string>
 
 namespace ui {
@@ -33,9 +35,35 @@ inline bool large() { return look == Look::standard; }
 // The widest a card with controls may get: beyond this the keys of a thermostat stand a hand apart. A picture
 // (the media card's cover, a camera) is not capped, it may fill the glass. 110 mm of the reference look.
 inline int control_max_width() { return px(look == Look::compact ? 620 : 740); }
-// The smallest thing a finger must be able to hit: 7 mm of glass, whatever the board's density. A drawn track
-// may be thinner; its touch area is grown to this (overlay_card::touchable).
-inline int touch_min() { return (dpi * 7 + 12) / 25; }
+// A size in millimetres of glass, whatever the board's density: what a finger, a thumb or an arm's length asks
+// for is physical, and only the pixels under it differ per board.
+inline int mm(int millimetres) { return (dpi * millimetres + 12) / 25; }
+// The smallest thing a finger must be able to hit: 7 mm of glass. A drawn track may be thinner; its touch area
+// is grown to this (overlay_card::touchable).
+inline int touch_min() { return mm(7); }
+// The space between two columns of a card that stands in two (overlay_card::columns).
+inline int column_gap() { return mm(6); }
+// A card is a stack of blocks that has to fit the glass it lands on. `shrink` takes `over` pixels from the
+// blocks in the order they are given, never taking one below what it needs, and returns what could not be
+// taken. `weight` is how many pixels of the stack one pixel of that block is worth: a row that appears twice
+// weighs two, the space between four blocks weighs three. The order is the design decision, and every card
+// makes it for itself: a robot gives up its portrait before its keys, a thermostat its word before its modes.
+struct Give {
+  int *value;
+  int least;
+  int weight = 1;
+};
+inline int shrink(std::initializer_list<Give> parts, int over) {
+  for (const auto &part : parts) {
+    if (over <= 0) break;
+    const int room = *part.value - part.least, weight = part.weight > 0 ? part.weight : 1;
+    if (room <= 0) continue;
+    const int take = std::min(room, (over + weight - 1) / weight);
+    *part.value -= take;
+    over -= take * weight;
+  }
+  return over > 0 ? over : 0;
+}
 // The look's cell height: what a card is designed for. A cell taller than this centres its content on it;
 // one at least twice as tall stacks its icon above its name and state.
 inline int cell_height() { return px(look == Look::compact ? 52 : 108); }

@@ -101,9 +101,9 @@ class Paints(unittest.TestCase):
             apply = text.split('  - id: apply_screen_settings\n', 1)[1].split('\n  - id: ', 1)[0]
             self.assertIn('theme::set_dark(settings_screen::dark_mode != 0);', apply, f'{path}: a change of the setting')
             redraw = text.split('theme::redraw = []() {', 1)[1].split('};', 1)[0]
+            # The computed cards (the thermostat, the blind, the robot) are drawn again by runtime_tiles::restyle.
             for needle in ('runtime_tiles::restyle();', 'light_controls::restyle();', 'settings_screen::restyle();',
-                           'theme::surface(id(alert_card_color))', 'id(climate_card_refresh).execute();',
-                           'id(open_climate_mode_picker).execute();'):
+                           'theme::surface(id(alert_card_color))'):
                 self.assertIn(needle, redraw, f'{path}: {needle}')
             self.assertIn('id(alert_card_color) = alert.color;', text)
             self.assertIn('lv_color_hex(theme::surface(alert.color))', text)

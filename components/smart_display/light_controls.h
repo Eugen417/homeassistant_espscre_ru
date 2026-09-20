@@ -179,11 +179,26 @@ inline void restyle() {
 inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height, const lv_font_t *icon_font = nullptr) {
   if (ready) return;
   ready = true;
-  bool large = width >= 480;
-  top = ui::px(large ? 100 : 52); spacing = ui::px(large ? 122 : 60);
+  // The look decides the class, never the glass: a wide panel draws the same rows, only at its own density.
+  const bool large = ui::large();
+  top = ui::px(large ? 100 : 52);
+  // The three rows share the room under the title. A row wants the look's height, keeps at least a finger and
+  // its words, and never takes more than a third of what is left, so the card fits any glass it lands on
+  // (a 800 x 480 panel at 217 dpi asked for 122 x 1.28 = 156 px a row and ran off the bottom).
+  const int wanted = ui::px(large ? 122 : 60), least = ui::touch_min() + lv_font_get_line_height(font) + ui::px(12);
+  const int room = height - top - ui::px(large ? 18 : 8);
+  spacing = std::max(least, std::min(wanted, room / 3));
   int margin = ui::px(large ? 20 : 12), w = width - 2 * margin, card_h = spacing - (ui::px(large ? 12 : 5));
   int inset = ui::px(large ? 18 : 10), text_y = ui::px(large ? 14 : 5), track_h = ui::px(large ? 32 : 18);
-  int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (ui::px(large ? 2 : 3)) - track_h, radius = track_h / 2;
+  int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (ui::px(large ? 2 : 3)) - track_h;
+  // A row squeezed by a short screen keeps its words: the track moves right under them and gets thinner,
+  // never thinner than something a finger can still drag.
+  const int lowest = text_y + lv_font_get_line_height(font) + ui::px(large ? 6 : 3), foot = ui::px(large ? 8 : 4);
+  if (track_y < lowest) {
+    track_h = std::max(ui::px(large ? 18 : 10), card_h - lowest - foot);
+    track_y = card_h - track_h - foot;
+  }
+  const int radius = track_h / 2;
   const char *names[] = {screen_text::tr(screen_text::txt::light_color), screen_text::tr(screen_text::txt::light_color_temperature), screen_text::tr(screen_text::txt::light_brightness)};
   const char *icons[] = {"\U000F03D8", "\U000F050F", "\U000F0335"};
   for (unsigned i = 0; i < 3; ++i) {

@@ -140,7 +140,7 @@ class Profiles(unittest.TestCase):
             self.assertEqual(body, ["- lambda: 'if (runtime_tiles::dismiss) runtime_tiles::dismiss();'"], name)
             dismiss = re.search(r'runtime_tiles::dismiss = \[\]\(\) \{(.*?)\};', text, re.S)[1]
             for step in ('runtime_tiles::hide_detail();', 'id(active_entity).clear();', 'id(brightness_overlay)',
-                         'id(color_detail_overlay)', 'id(climate_detail_overlay)', 'id(climate_mode_overlay)'):
+                         'id(color_detail_overlay)'):
                 self.assertIn(step, dismiss, name)
 
     def test_the_backlight_belongs_to_the_firmware(self):

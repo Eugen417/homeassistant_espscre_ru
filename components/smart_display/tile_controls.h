@@ -3,6 +3,7 @@
 // own entity rows. Pure logic only: which keys a card shows, what they send, how
 // a -/+ step lands on the entity's grid, and the status line beside them. The
 // LVGL drawing lives in runtime_tiles.h; tests/test_tile_controls.cpp covers this.
+#include "cyd_ui.h"
 #include "runtime_model.h"
 #include "screen_text.h"
 #include "theme.h"
@@ -11,6 +12,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <string>
+#include <vector>
 
 namespace tile_controls {
 // Home Assistant supported_features bits.
@@ -202,6 +204,97 @@ inline const char *climate_action_text(const std::string &action) {
   if (action == "preheating") return screen_text::tr(screen_text::txt::ha_hvac_action_preheating);
   if (action == "defrosting") return screen_text::tr(screen_text::txt::ha_hvac_action_defrosting);
   return "";
+}
+// ---- The climate card (firmware 0.2.9x) ----
+// One computed card for every board: what a thermostat can be set to, taken from Home Assistant's own
+// attributes. The drawing is climate_card.h (where the parts go) and runtime_tiles.h (the widgets).
+inline std::string lower_case(std::string value) {
+  for (char &c : value) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
+  return value;
+}
+// The items of a JSON list Home Assistant sent, at most `limit`.
+inline std::vector<std::string> list_values(const std::string &json, unsigned limit) {
+  std::vector<std::string> values;
+  for (unsigned i = 0; i < limit; ++i) {
+    std::string item = cyd::list_item(json, i);
+    if (item.empty()) break;
+    values.push_back(item);
+  }
+  return values;
+}
+// A thermostat is off when Home Assistant says its mode is off (or says nothing at all).
+inline bool climate_off(const Tile &t) {
+  const std::string mode = lower_case(t.state);
+  return mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable";
+}
+// The icon of a mode, as Home Assistant's own thermostat card draws it.
+inline const char *climate_mode_icon(const std::string &mode) {
+  if (mode == "heat") return glyph::FIRE;
+  if (mode == "cool") return glyph::SNOWFLAKE;
+  if (mode == "heat_cool") return glyph::HEAT_COOL;
+  if (mode == "auto") return glyph::AUTO;
+  if (mode == "dry") return glyph::DRY;
+  if (mode == "fan_only") return glyph::FAN;
+  return glyph::POWER;
+}
+// The modes the card offers, in Home Assistant's order, without "off": the power key already does that one.
+// A device that reports no modes at all still shows the one it is in, so the card is never empty.
+inline std::vector<std::string> climate_modes(const Tile &t) {
+  std::vector<std::string> modes;
+  for (const auto &raw : list_values(t.extra().hvac_modes, 8)) {
+    const std::string mode = lower_case(raw);
+    if (mode != "off") modes.push_back(mode);
+  }
+  if (modes.empty() && !climate_off(t)) modes.push_back(lower_case(t.state));
+  return modes;
+}
+// One row of settings under the modes: the fan and the swing, each with the entity's own choices, in its own
+// order and in Home Assistant's words. 'f' and 's' are what a tap reports back.
+struct ClimateRow {
+  char kind = 0;
+  const char *icon = "";
+  std::vector<std::string> values, labels;
+  std::string current;
+};
+inline std::vector<ClimateRow> climate_rows(const Tile &t) {
+  std::vector<ClimateRow> rows;
+  const auto &x = t.extra();
+  const struct { char kind; const char *icon; const std::string &modes; const std::string &current; } wanted[] = {
+      {'f', glyph::FAN, x.fan_modes, x.fan_mode},
+      {'s', "\U000F1C91", x.swing_modes, x.swing_mode},
+  };
+  for (const auto &row : wanted) {
+    auto values = list_values(row.modes, 6);
+    if (values.empty()) continue;
+    ClimateRow out;
+    out.kind = row.kind;
+    out.icon = row.icon;
+    out.current = row.current;
+    for (const auto &value : values) out.labels.push_back(climate_setting_text(row.kind, value));
+    out.values = std::move(values);
+    rows.push_back(std::move(out));
+  }
+  return rows;
+}
+// What a tap on a row sends.
+inline Action climate_row_action(char kind, const std::string &value) {
+  if (kind == 'f') return {"climate.set_fan_mode", "fan_mode", value};
+  return {"climate.set_swing_mode", "swing_mode", value};
+}
+// The line under the name: what the device is doing (or its mode), the temperature it measures and the
+// humidity it reports. `brief` is the form for glass with no room for a line of its own, where the line moves
+// under the setpoint: the temperature without the word before it, and no humidity.
+inline std::string climate_card_status(const Tile &t, bool brief = false) {
+  if (!t.available()) return screen_text::tr(screen_text::txt::ha_unavailable);
+  std::string status = climate_off(t) ? std::string(screen_text::tr(screen_text::txt::ha_off))
+                                      : std::string(climate_action_text(lower_case(t.extra().hvac_action)));
+  if (status.empty()) status = climate_mode_text(lower_case(t.state));
+  if (std::isfinite(t.current)) {
+    const std::string value = screen_text::decimal(t.current, 1) + "°";
+    status += " · " + (brief ? value : screen_text::fill(screen_text::txt::climate_now, "value", value));
+  }
+  if (!brief && std::isfinite(t.humidity)) status += " · " + screen_text::percent(static_cast<int>(std::lround(t.humidity)));
+  return status;
 }
 inline const char *cover_state_text(const std::string &state) {
   if (state == "open") return screen_text::tr(screen_text::txt::ha_cover_open);
@@ -493,14 +586,15 @@ inline Action edit_action(const Tile &t, float value) {
 // The tile's own `tap` choice comes first. `toggle` sends <domain>.toggle on every domain (firmware 0.2.58+): the app
 // only offers it where Home Assistant lists that action for the entity, such as a cover, which stops while it moves.
 // Otherwise the domain decides, as before: holding or `detail` opens a card, a short tap switches, runs or presses.
-// CARD is the runtime detail card (show_detail), OVERLAY the board's own light, fan and climate card; `busy` marks the
+// CARD is the runtime detail card (show_detail), OVERLAY the board's own light and fan card; `busy` marks the
 // tile busy for a moment while the card opens.
 // CUSTOM (firmware 0.2.58+) is an action of the tile's own choosing from Home Assistant's list, with its data.
 enum class TapRoute : uint8_t { NONE, ACTION, CARD, OVERLAY, CUSTOM };
 struct Tap { TapRoute route = TapRoute::NONE; std::string service; bool busy = false; };
 inline bool runtime_card_domain(const std::string &d) {
   return d == "sensor" || d == "binary_sensor" || d == "weather" || d == "number" || d == "input_number" || d == "select" ||
-         d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" || d == "timer";
+         d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" ||
+         d == "timer" || d == "climate";
 }
 inline Tap tap_route(const Tile &t, bool hold) {
   const std::string d = t.domain();
@@ -508,11 +602,11 @@ inline Tap tap_route(const Tile &t, bool hold) {
   // A tile whose action didn't arrive (an app before 0.2.67) taps automatically, as older firmware does.
   if (!hold && t.tap == "action" && !t.extra().action.empty()) return {TapRoute::CUSTOM, t.extra().action};
   if (!hold && t.tap == "toggle") return {TapRoute::ACTION, d + ".toggle"};
-  bool open = hold || t.tap == "detail" || d == "climate" || d == "vacuum" || d == "cover";
+  bool open = hold || t.tap == "detail" || d == "vacuum" || d == "cover";
   // A short tap runs or pauses the timer; holding opens the card with a cancel button.
   if (d == "timer" && !open) return {TapRoute::ACTION, t.state == "active" ? "timer.pause" : "timer.start"};
   if (runtime_card_domain(d)) return {TapRoute::CARD, "", true};
-  if (open) return d == "light" || d == "climate" || d == "fan" ? Tap{TapRoute::OVERLAY, "", true} : Tap{TapRoute::CARD, "", false};
+  if (open) return d == "light" || d == "fan" ? Tap{TapRoute::OVERLAY, "", true} : Tap{TapRoute::CARD, "", false};
   if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") return {TapRoute::ACTION, d + ".toggle"};
   if (d == "scene" || d == "script") return {TapRoute::ACTION, d + ".turn_on"};
   if (d == "button" || d == "input_button") return {TapRoute::ACTION, d + ".press"};

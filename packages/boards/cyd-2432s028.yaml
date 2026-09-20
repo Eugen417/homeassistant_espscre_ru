@@ -247,38 +247,7 @@ substitutions:
   COLOR_TITLE_W: "210"                          # the colour card's title
   COLOR_TITLE_Y: "21"
 
-  # The climate card
-  CLIMATE_TITLE_Y: "18"                         # the title
-  CLIMATE_TITLE_W: "210"
-  CLIMATE_STATUS_Y: "54"                        # the status line
-  CLIMATE_CARD_Y: "80"                          # the setpoint card
-  CLIMATE_CARD_H: "92"
-  CLIMATE_CARD_RADIUS: "16"
-  CLIMATE_KEY_INSET: "10"                       # the -/+ keys from the card edge
-  CLIMATE_KEY_SIZE: "72"                        # their diameter
-  CLIMATE_KEY_RADIUS: "36"
-  CLIMATE_NUMBER_Y: "-8"                        # the setpoint number
-  CLIMATE_CAPTION_Y: "26"                       # the word under it
-  CLIMATE_MODES_Y: "184"                        # the row of mode keys
-  CLIMATE_MODES_H: "46"
-  CLIMATE_MODES_GAP: "6"
-  CLIMATE_MODE_RADIUS: "23"
 
-  # The mode picker
-  PICKER_TITLE_Y: "21"                          # the "Mode" title
-  PICKER_LIST_Y: "44"                           # the list of choices
-  PICKER_LIST_H: "178"
-  PICKER_PAD: "3"
-  PICKER_ROW_GAP: "3"
-  PICKER_COL_GAP: "4"
-  PICKER_MODE_W: "88"                           # a mode chip
-  PICKER_MODE_H: "26"
-  PICKER_MODE_RADIUS: "13"
-  PICKER_TITLE_H: "11"                          # the Fan and Swing captions
-  PICKER_CHIP_W: "62"                           # a fan or swing chip
-  PICKER_CHIP_H: "22"
-  PICKER_CHIP_RADIUS: "11"
-  PICKER_CHIP_FONT: "sublabel"                  # the words on them
 
   # The touch test page
   TOUCH_TEST_PAGE_PAINT: "paint_calibration"    # the page
@@ -367,22 +336,6 @@ substitutions:
   AWAY_EXTRA: ""
   # alert_show: after the settings page closed, before the card is made
   ALERT_SHOW_HOOK: ""
-  # set_climate_fan_mode and set_climate_swing_mode: after the choice is stored
-  CLIMATE_MODE_CHOSEN_HOOK: ""
-  # open_value_overlay: the climate card of a panel in portrait, before its refresh
-  OPEN_VALUE_OVERLAY_TAIL: |-
-    // A portrait panel (240 x 320) keeps the same card, a little lower and with more air.
-    if (atoi("${DISPLAY_W}") < atoi("${DISPLAY_H}")) {
-      lv_obj_set_y(id(climate_current_label), 60);
-      lv_obj_set_y(id(climate_setpoint_card), 96);
-      lv_obj_set_y(id(climate_mode_keys), 222);
-      for (lv_obj_t *key : {id(climate_minus_button), id(climate_plus_button)}) {
-        lv_obj_set_size(key, 56, 56);
-        lv_obj_set_style_radius(key, 28, LV_PART_MAIN);
-      }
-      lv_obj_set_x(id(climate_minus_button), 6);
-      lv_obj_set_x(id(climate_plus_button), -6);
-    }
 
 # ============================================================
 # No need to edit below this line.
@@ -613,12 +566,6 @@ script:
             - lvgl.widget.show: color_detail_overlay
             - delay: 150ms
             - lvgl.widget.hide: color_detail_overlay
-            - lvgl.widget.show: climate_detail_overlay
-            - delay: 150ms
-            - lvgl.widget.hide: climate_detail_overlay
-            - lvgl.widget.show: climate_mode_overlay
-            - delay: 150ms
-            - lvgl.widget.hide: climate_mode_overlay
             - lvgl.widget.show: alert_overlay
             - delay: 150ms
             - lvgl.widget.hide: alert_overlay
@@ -684,68 +631,3 @@ script:
       - lvgl.widget.hide: dim_wake_overlay
       - script.execute: close_cards
 
-  # The climate card as the small panel lays it out: the Guition has its own copy with a fan and swing card.
-  - id: climate_card_refresh
-    then:
-      - lambda: |-
-          auto lower = [](std::string v) {
-            for (char &c : v) { if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a'); }
-            return v;
-          };
-          std::string mode = lower(id(active_climate_mode));
-          bool off = mode == "off" || mode.empty() || mode == "unknown" || mode == "unavailable";
-          // What the device does (Heating), else its mode (Heat); then the room.
-          std::string status = off ? std::string(screen_text::tr(screen_text::txt::ha_off)) : std::string(tile_controls::climate_action_text(lower(id(active_climate_action))));
-          if (status.empty()) status = tile_controls::climate_mode_text(mode);
-          if (std::isfinite(id(active_climate_current))) status += " · " + screen_text::fill(screen_text::txt::climate_now, "value", screen_text::decimal(id(active_climate_current), 1) + "°");
-          if (id(active_climate_humidity) >= 0) status += " · " + screen_text::percent(id(active_climate_humidity));
-          lv_label_set_text(id(climate_current_label), status.c_str());
-
-          int target = id(active_climate_target_x10);
-          std::string value = id(active_climate_target_known)
-              ? tile_controls::format_value(target / 10.0f, id(active_climate_step_x10) / 10.0f, "°") : std::string("--");
-          lv_label_set_text(id(climate_target_label), value.c_str());
-          lv_obj_set_style_text_color(id(climate_target_label), theme::color(off ? theme::OFF : theme::INK), LV_PART_MAIN);
-          auto enable = [](lv_obj_t *key, bool on) {
-            if (on) lv_obj_remove_state(key, LV_STATE_DISABLED); else lv_obj_add_state(key, LV_STATE_DISABLED);
-          };
-          enable(id(climate_minus_button), !id(active_climate_target_known) || target > id(active_climate_min_x10));
-          enable(id(climate_plus_button), !id(active_climate_target_known) || target < id(active_climate_max_x10));
-
-          // One key per supported mode, in Home Assistant's order. Fan and swing add "more"; with it
-          // five mode keys fit, and when a sixth mode is in use it takes the last place.
-          std::string supported = lower(id(active_climate_supported_modes));
-          auto has = [&](const char *m) {
-            return supported.find(std::string("\"") + m + "\"") != std::string::npos ||
-                   supported.find(std::string("'") + m + "'") != std::string::npos;
-          };
-          struct Key { lv_obj_t *obj; const char *mode; };
-          const Key keys[] = {{id(cmkey_auto), "auto"}, {id(cmkey_heat_cool), "heat_cool"}, {id(cmkey_heat), "heat"},
-                              {id(cmkey_cool), "cool"}, {id(cmkey_dry), "dry"}, {id(cmkey_fan_only), "fan_only"}};
-          bool more = !id(active_climate_fan_modes).empty() || !id(active_climate_swing_modes).empty();
-          const Key *visible[6];
-          unsigned count = 0, room = more ? 5 : 6;
-          for (const auto &k : keys) if (has(k.mode)) visible[count++] = &k;
-          if (count > room) {
-            for (unsigned i = room; i < count; ++i) if (mode == visible[i]->mode) visible[room - 1] = visible[i];
-            count = room;
-          }
-          for (const auto &k : keys) {
-            bool show = false;
-            for (unsigned i = 0; i < count; ++i) show = show || visible[i] == &k;
-            if (show) lv_obj_remove_flag(k.obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(k.obj, LV_OBJ_FLAG_HIDDEN);
-            bool selected = show && !off && mode == k.mode;
-            uint32_t color = tile_controls::mode_color(k.mode);
-            lv_obj_set_style_bg_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::CARD), LV_PART_MAIN);
-            lv_obj_set_style_border_color(k.obj, selected ? lv_color_hex(color) : theme::color(theme::LINE), LV_PART_MAIN);
-            lv_obj_set_style_text_color(lv_obj_get_child(k.obj, 0), theme::color(selected ? theme::ON_ACCENT : theme::SLATE), LV_PART_MAIN);
-          }
-          if (more) lv_obj_remove_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(id(cmkey_more), LV_OBJ_FLAG_HIDDEN);
-          // One mode is no choice: the power key already turns it on and off. Without keys the
-          // setpoint card moves to the middle of the room below the status line.
-          const bool show_keys = count > 1 || more;
-          if (show_keys) lv_obj_remove_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
-          else lv_obj_add_flag(id(climate_mode_keys), LV_OBJ_FLAG_HIDDEN);
-          const bool landscape = atoi("${DISPLAY_W}") >= atoi("${DISPLAY_H}");
-          lv_obj_set_y(id(climate_setpoint_card), show_keys ? (landscape ? 80 : 96) : (landscape ? 108 : 140));
-          id(climate_power_refresh).execute();

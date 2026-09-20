@@ -208,7 +208,10 @@ int main() {
     if (d == "sensor" || d == "binary_sensor" || d == "weather" || d == "number" || d == "input_number" || d == "select" ||
         d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" || d == "timer")
       return {TapRoute::CARD, "", true};
-    if (open) return d == "light" || d == "climate" || d == "vacuum" || d == "fan" ? Legacy{TapRoute::OVERLAY, "", true} : Legacy{TapRoute::CARD, "", false};
+    // A thermostat joined the computed cards in 0.2.9x: it opens CARD, and marks the tile busy while it opens,
+    // like the vacuum and the cover beside it. Every other domain still routes exactly as firmware 0.2.56 did.
+    if (d == "climate" && open) return {TapRoute::CARD, "", true};
+    if (open) return d == "light" || d == "vacuum" || d == "fan" ? Legacy{TapRoute::OVERLAY, "", true} : Legacy{TapRoute::CARD, "", false};
     if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") return {TapRoute::ACTION, d + ".toggle", false};
     if (d == "scene" || d == "script") return {TapRoute::ACTION, d + ".turn_on", false};
     if (d == "button" || d == "input_button") return {TapRoute::ACTION, d + ".press", false};

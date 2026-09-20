@@ -91,8 +91,7 @@ class PackageTests(unittest.TestCase):
             grid = profiles.substitutions_of(profiles.BOARDS[board])
             cells = int(grid['GRID_COLS']) * int(grid['GRID_ROWS'])
             for key in [f'runtime_tiles::bind({cells - 1}, id(tile{cells})', 'runtime_tiles::enabled = true;', 'id: open_value_overlay',
-                        'id: ui_refresh', 'runtime_tiles::render(id(lbl_room));', 'id: climate_detail_overlay',
-                        'id: color_detail_overlay']:
+                        'id: ui_refresh', 'runtime_tiles::render(id(lbl_room));', 'id: color_detail_overlay']:
                 self.assertIn(key, package, board)
         # The CYD keeps its resistive calibration on the screen itself; the Guition's GT911 needs none.
         self.assertIn('screen_calibration::setup(', profiles.resolved('packages/cyd.yaml'))
