@@ -20,6 +20,7 @@
 #include "esphome/core/defines.h"
 #endif
 #ifdef USE_ESP32
+#include "esp_heap_caps.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 #endif
@@ -421,8 +422,16 @@ using TileList = std::vector<Tile>;
 #ifdef USE_ESP32
 inline size_t largest_tile_block() { return esphome::RAMAllocator<Tile>().get_max_free_block_size(); }
 inline size_t (*tile_room)() = largest_tile_block;
+// What is left of the memory inside the chip. Strings, std::vector and everything else that goes through the
+// ordinary allocator lands there, PSRAM or no PSRAM, and an allocation that fails is not an error the firmware
+// can catch: it aborts, which a user sees as the screen restarting. Anything that grows with what Home
+// Assistant sends asks this first. Boards differ by a lot: an 800x480 RGB panel keeps two bounce buffers of
+// ten lines in there, where a board with an SPI panel keeps none.
+inline size_t internal_free() { return heap_caps_get_free_size(MALLOC_CAP_INTERNAL); }
+inline size_t (*heap_room)() = internal_free;
 #else
 inline size_t (*tile_room)() = nullptr;
+inline size_t (*heap_room)() = nullptr;
 #endif
 // Wide tiles start in the left column and take the whole row; a right-column gap before them stays
 // empty. A full tile starts a page of its own; the slots it leaves behind stay empty. Returns the page

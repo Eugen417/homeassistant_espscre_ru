@@ -120,6 +120,10 @@ def main():
         put('CAMERA_THUMB_W', min(get('CAMERA_THUMB_W'), W - 2 * margin)); put('CAMERA_THUMB_H', min(get('CAMERA_THUMB_H'), H // 2))
         put('ALERT_CARD_H_IMAGE', min(get('ALERT_CARD_H_IMAGE'), H - 2 * margin))
     put('DEVICE_NAME', a.name); put('DEVICE_FRIENDLY_NAME', a.name)
+    # The board says which board it is: the screen reports this word and ESP Screens knows what it can do
+    # (its shape, whether it draws camera pictures). Without it a new board kept the template's word and
+    # called itself a Guition.
+    put('BOARD_ID', a.name)
     # The board brings the cards of its own grid.
     text = re.sub(r'(cells: !include \.\./cells/)\d+(\.yaml)', rf'\g<1>{cols * rows}\g<2>', text)
     text = re.sub(r'(one per cell, from the file for )\d+( cells)', rf'\g<1>{cols * rows}\g<2>', text)

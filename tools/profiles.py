@@ -15,12 +15,15 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / 'packages/core.yaml'
-BOARDS = {'cyd': ROOT / 'packages/boards/cyd-2432s028.yaml', 'guition': ROOT / 'packages/boards/guition-4848s040.yaml'}
+BOARDS = {'cyd': ROOT / 'packages/boards/cyd-2432s028.yaml', 'guition': ROOT / 'packages/boards/guition-4848s040.yaml',
+          'waveshare43': ROOT / 'packages/boards/waveshare-esp32s3-43.yaml'}
 ENTRIES = {'home-like-2432s028.yaml': 'cyd', 'guition-4848s040.yaml': 'guition',
-           'packages/cyd.yaml': 'cyd', 'packages/guition.yaml': 'guition'}
-# The names the four entry files are known by, in the order the older tests listed them.
-PROFILES = ('home-like-2432s028.yaml', 'guition-4848s040.yaml')
-PACKAGES = ('packages/cyd.yaml', 'packages/guition.yaml')
+           'waveshare-esp32s3-43.yaml': 'waveshare43',
+           'packages/cyd.yaml': 'cyd', 'packages/guition.yaml': 'guition',
+           'packages/waveshare43.yaml': 'waveshare43'}
+# The names the entry files are known by, in the order the older tests listed them.
+PROFILES = ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'waveshare-esp32s3-43.yaml')
+PACKAGES = ('packages/cyd.yaml', 'packages/guition.yaml', 'packages/waveshare43.yaml')
 NAMES = PROFILES + PACKAGES
 
 

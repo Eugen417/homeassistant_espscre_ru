@@ -1078,6 +1078,14 @@ text_sensor:
                (int) lv_display_get_vertical_resolution(display), (int) runtime_tiles::GRID_COLUMNS, (int) runtime_tiles::GRID_ROW_COUNT);
       return {std::string(text)};
     update_interval: 60s
+  # Which board this is (firmware 0.2.9x): the key of its file in packages/boards, so ESP Screens knows what a
+  # screen can do without a sensor per board. It used to read a "Guition screen type" sensor that only the
+  # Guition had, so every other board was "unknown" and camera tiles were refused on all of them.
+  - platform: template
+    name: "Screen board"
+    entity_category: diagnostic
+    lambda: 'return {"${BOARD_ID}"};'
+    update_interval: 60s
   # The language this firmware was built in (0.2.90+): ESP Screens offers an update when it differs from the chosen one.
   - platform: template
     name: "Screen language"

@@ -10,6 +10,16 @@
  },
  "guition": {
   "board": "guition",
+  "camera": {
+   "full": [
+    480,
+    480
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
   "columns": 2,
   "dpi": 170,
   "height": 480,
@@ -19,6 +29,16 @@
  },
  "guition-4848s040.yaml": {
   "board": "guition",
+  "camera": {
+   "full": [
+    480,
+    480
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
   "columns": 2,
   "dpi": 170,
   "height": 480,
@@ -46,11 +66,78 @@
  },
  "packages/guition.yaml": {
   "board": "guition",
+  "camera": {
+   "full": [
+    480,
+    480
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
   "columns": 2,
   "dpi": 170,
   "height": 480,
   "look": "standard",
   "rows": 3,
   "width": 480
+ },
+ "packages/waveshare43.yaml": {
+  "board": "waveshare43",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    500,
+    240
+   ]
+  },
+  "columns": 3,
+  "dpi": 217,
+  "height": 480,
+  "look": "standard",
+  "rows": 3,
+  "width": 800
+ },
+ "waveshare-esp32s3-43.yaml": {
+  "board": "waveshare43",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    500,
+    240
+   ]
+  },
+  "columns": 3,
+  "dpi": 217,
+  "height": 480,
+  "look": "standard",
+  "rows": 3,
+  "width": 800
+ },
+ "waveshare43": {
+  "board": "waveshare43",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    500,
+    240
+   ]
+  },
+  "columns": 3,
+  "dpi": 217,
+  "height": 480,
+  "look": "standard",
+  "rows": 3,
+  "width": 800
  }
 }

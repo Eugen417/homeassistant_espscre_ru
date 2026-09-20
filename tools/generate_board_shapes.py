@@ -27,6 +27,14 @@ def shapes():
                  'width': int(values['DISPLAY_W']), 'height': int(values['DISPLAY_H']),
                  'columns': int(values['GRID_COLS']), 'rows': int(values['GRID_ROWS']),
                  'dpi': int(values['DISPLAY_DPI']), 'look': values['LOOK'].strip('"')}
+        # A board that draws camera pictures says how large it wants them (its online_image components and the
+        # frame in its alert card). Without those four the board has no camera at all, like the CYD: the manager
+        # then refuses a camera tile instead of sending a picture that never arrives.
+        box = {view: [int(values[f'CAMERA_{view.upper()}_W']), int(values[f'CAMERA_{view.upper()}_H'])]
+               for view in ('full', 'thumb')
+               if f'CAMERA_{view.upper()}_W' in values and f'CAMERA_{view.upper()}_H' in values}
+        if len(box) == 2:
+            shape['camera'] = box
         found[board] = shape
     for entry, board in profiles.ENTRIES.items():
         found[entry] = found[board]

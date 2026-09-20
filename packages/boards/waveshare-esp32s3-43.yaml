@@ -1,17 +1,23 @@
-# ESP Screens - Guition ESP32-S3-4848S040 board: 4-inch EU wallbox, 480x480 IPS + GT911 capacitive touch.
+# ESP Screens - Waveshare ESP32-S3-Touch-LCD-4.3 board: a 4.3-inch 800 x 480 IPS panel with GT911 capacitive
+# touch, an ESP32-S3 with 16 MB flash and 8 MB of octal PSRAM, and a CH422G expander that carries the panel's
+# reset and the line that lights it.
 #
-# What is in here: the hardware (display, touch, backlight, PSRAM), the sizes the shared tree takes from
-# this board, the code the shared lambdas take from this board (hooks), and what only a Guition has: camera
-# images, a screen that turns a quarter, a page swipe from the glass edge, and the snapshot diagnostics. Everything else (the LVGL tree, the cards, the scripts, the
-# entities) is packages/core.yaml, which every board shares; docs/PROFILES.md says how the files fit
-# together, docs/GUITION.md what this board needs.
+# What is in here: the hardware (display, touch, backlight, PSRAM), the sizes the shared tree takes from this
+# board, the code the shared lambdas take from this board (hooks), and what a board with PSRAM can do: camera
+# images and the live pictures of a page. Everything else (the LVGL tree, the cards, the scripts, the entities)
+# is packages/core.yaml, which every board shares; docs/PROFILES.md says how the files fit together and
+# docs/ADDING_A_BOARD.md how a board like this one is added.
 #
-# Two entry files include this: guition-4848s040.yaml (a build on this computer) and packages/guition.yaml
-# (the package a screen builds from over GitHub).
+# The panel is one of ESPHome's own models (mipi_rgb, ESP32-S3-TOUCH-LCD-4.3), so its pins, its timings and its
+# init sequence come from ESPHome and not from a table here. The backlight is the CH422G line that model would
+# use as the display's enable pin: this board switches the panel with it, so the firmware owns it instead.
+#
+# Two entry files include this: waveshare-esp32s3-43.yaml (a build on this computer) and
+# packages/waveshare43.yaml (the package a screen builds from over GitHub).
 # The cards of this board's grid: one per cell, from the file for 6 cells
 # (tools/generate_cells.py writes them; docs/RESPONSIVE.md says why).
 packages:
-  cells: !include ../cells/6.yaml
+  cells: !include ../cells/9.yaml
 
 substitutions:
 
@@ -24,17 +30,17 @@ substitutions:
   TOUCH_MIN_PRESS_MS: "20"
   # Page swipe starts in this band along the left or right edge (about 5 mm) and needs
   # this much travel inward (about 6 mm); a swipe from the middle of the screen does nothing.
-  EDGE_SWIPE_BAND_PX: "32"
-  EDGE_SWIPE_TRAVEL_PX: "40"
+  EDGE_SWIPE_BAND_PX: "41"
+  EDGE_SWIPE_TRAVEL_PX: "51"
   # A slider let go this close to the left or right edge of the glass (about 1 cm) meant its end when
   # that end lies in the band: the panel loses a finger swiped off the glass 30-50 px before the edge.
-  SLIDER_EDGE_SNAP_PX: "67"
+  SLIDER_EDGE_SNAP_PX: "86"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
-  BOARD_ID: "guition"
-  DEVICE_NAME: "guition-new"
-  DEVICE_FRIENDLY_NAME: "My Guition"
+  BOARD_ID: "waveshare43"
+  DEVICE_NAME: "waveshare-new"
+  DEVICE_FRIENDLY_NAME: "My Waveshare"
 
-  DISPLAY_W: "480"
+  DISPLAY_W: "800"
   DISPLAY_H: "480"
   LVGL_ROTATION: "0"
   TOUCH_SWAP_XY: "false"
@@ -42,103 +48,103 @@ substitutions:
   TOUCH_MIRROR_Y: "false"
   # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
   # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
-  GRID_COLS: "2"
+  GRID_COLS: "3"
   GRID_ROWS: "3"
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
-  DISPLAY_DPI: "170"      # diagonal pixels / diagonal inches; the look's reference density on this board
+  DISPLAY_DPI: "217"      # diagonal pixels / diagonal inches; the look's reference density on this board
   LOOK: "standard"
-  SCROLL_Y: "72"
-  SCROLL_H: "348"
-  TILE_W: "218"
-  TILE_H: "108"
-  HEADER_Y: "22"
+  SCROLL_Y: "92"
+  SCROLL_H: "311"
+  TILE_W: "248"
+  TILE_H: "149"
+  HEADER_Y: "28"
   # Holding the top bar opens the settings page (0.2.44+). The two edge bands stay clear: a swipe
   # that starts up there still changes the page.
   SETTINGS_HOLD_X: "${EDGE_SWIPE_BAND_PX}"
-  SETTINGS_HOLD_W: "416"
-  SETTINGS_HOLD_DRIFT_PX: "32"
+  SETTINGS_HOLD_W: "718"
+  SETTINGS_HOLD_DRIFT_PX: "41"
 
   # Alert overlay (HA action show_alert), 480x480: one card centred on LVGL's top layer.
-  ALERT_CARD_W: "420"
-  ALERT_CARD_H: "320"
-  ALERT_ICON_X: "26"
-  ALERT_ICON_Y: "22"
-  ALERT_TEXT_X: "90"
-  ALERT_TEXT_W: "304"
-  ALERT_TITLE_Y: "26"
-  ALERT_TITLE_H: "32"         # one line of headline; a DOT label only ends in an ellipsis with a height
-  ALERT_SUBTITLE_Y: "68"
-  ALERT_SUBTITLE_H: "150"
-  ALERT_BUTTON_W: "150"
-  ALERT_BUTTON_H: "60"
-  ALERT_BUTTON_INSET: "22"
+  ALERT_CARD_W: "536"
+  ALERT_CARD_H: "408"
+  ALERT_ICON_X: "33"
+  ALERT_ICON_Y: "28"
+  ALERT_TEXT_X: "115"
+  ALERT_TEXT_W: "388"
+  ALERT_TITLE_Y: "33"
+  ALERT_TITLE_H: "41"         # one line of headline; a DOT label only ends in an ellipsis with a height
+  ALERT_SUBTITLE_Y: "87"
+  ALERT_SUBTITLE_H: "210"
+  ALERT_BUTTON_W: "191"
+  ALERT_BUTTON_H: "77"
+  ALERT_BUTTON_INSET: "28"
   ALERT_TITLE_MAX: "64"       # bytes; the label ends one line with an ellipsis
   ALERT_BUTTON_MAX: "16"      # bytes on the OK button
   ALERT_SUBTITLE_MAX: "240"   # bytes; wraps over the rows the card has
   # An alert with a camera image (firmware 0.2.57+): the image across the top of a taller card, the words under it.
-  ALERT_CARD_H_IMAGE: "452"
-  ALERT_IMAGE_INSET: "14"
-  ALERT_IMAGE_SHIFT: "236"      # the icon, title and subtitle move down by the image and a gap
-  ALERT_SUBTITLE_H_IMAGE: "62"  # two lines between the title and the button
+  ALERT_CARD_H_IMAGE: "448"
+  ALERT_IMAGE_INSET: "18"
+  ALERT_IMAGE_SHIFT: "301"      # the icon, title and subtitle move down by the image and a gap
+  ALERT_SUBTITLE_H_IMAGE: "79"  # two lines between the title and the button
   # Camera images (firmware 0.2.57+): the boxes ESP Screen Manager sizes a snapshot for (camera_feed.BOXES).
-  CAMERA_FULL_W: "480"
+  CAMERA_FULL_W: "800"
   CAMERA_FULL_H: "480"
-  CAMERA_THUMB_W: "392"
-  CAMERA_THUMB_H: "220"
-  OVERLAY_SLIDER_W: "144"
-  OVERLAY_SLIDER_H: "300"
-  OVERLAY_ICON_Y: "148"
+  CAMERA_THUMB_W: "500"
+  CAMERA_THUMB_H: "240"
+  OVERLAY_SLIDER_W: "184"
+  OVERLAY_SLIDER_H: "294"
+  OVERLAY_ICON_Y: "145"
   TILE_ICON_X: "0"
-  TILE_ICON_Y: "12"
-  TILE_TITLE_X: "64"
-  TILE_TITLE_Y: "17"
-  TILE_VALUE_X: "64"
-  TILE_VALUE_Y: "45"
+  TILE_ICON_Y: "15"
+  TILE_TITLE_X: "82"
+  TILE_TITLE_Y: "22"
+  TILE_VALUE_X: "82"
+  TILE_VALUE_Y: "57"
 
   # Fonts: one size per role, the same files on every board
-  FONT_TIME_SIZE: "27"                          # the clock in the top bar
-  FONT_HEADLINE_SIZE: "27"                      # card titles
-  FONT_WATCH_VALUE_SIZE: "38"
-  FONT_CLOCK_DIGITS_SIZE: "48"
-  FONT_SETPOINT_SIZE: "64"                      # the climate card's setpoint
-  FONT_LABEL_SIZE: "18"                         # tile titles
-  FONT_SUBLABEL_SIZE: "16"                      # tile values and small text
-  FONT_SUBLABEL_BIG_SIZE: "21"                  # the top bar and settings rows
-  FONT_ICON_SIZE: "42"                          # tile icons
-  FONT_ICON_MINI_SIZE: "26"                     # the top bar and card keys
-  FONT_ICON_BIG_SIZE: "64"                      # full-page tiles
-  FONT_WATCH_ICON_SIZE: "18"
+  FONT_TIME_SIZE: "34"                          # the clock in the top bar
+  FONT_HEADLINE_SIZE: "34"                      # card titles
+  FONT_WATCH_VALUE_SIZE: "49"
+  FONT_CLOCK_DIGITS_SIZE: "61"
+  FONT_SETPOINT_SIZE: "82"                      # the climate card's setpoint
+  FONT_LABEL_SIZE: "23"                         # tile titles
+  FONT_SUBLABEL_SIZE: "20"                      # tile values and small text
+  FONT_SUBLABEL_BIG_SIZE: "27"                  # the top bar and settings rows
+  FONT_ICON_SIZE: "54"                          # tile icons
+  FONT_ICON_MINI_SIZE: "33"                     # the top bar and card keys
+  FONT_ICON_BIG_SIZE: "82"                      # full-page tiles
+  FONT_WATCH_ICON_SIZE: "23"
 
   # Tiles and the top bar
-  TILE_RADIUS: "22"                             # corner of a tile
-  TILE_PAD: "12"                                # inside a tile
-  TILE_ICON_SIZE: "54"                          # the icon circle
-  HEADER_INSET: "16"                            # the room name and the clock from the glass edge
+  TILE_RADIUS: "28"                             # corner of a tile
+  TILE_PAD: "15"                                # inside a tile
+  TILE_ICON_SIZE: "69"                          # the icon circle
+  HEADER_INSET: "20"                            # the room name and the clock from the glass edge
 
   # The page bar under the tiles
-  PAGE_KEY_W: "240"                             # the previous/next keys under the tiles
-  PAGE_BAR_H: "60"                              # the page bar
-  PAGE_NUMBER_W: "160"                          # the dots in the middle
-  PAGE_CHEVRON_INSET: "24"                      # the chevrons from the outer edge
+  PAGE_KEY_W: "400"                             # the previous/next keys under the tiles
+  PAGE_BAR_H: "77"                              # the page bar
+  PAGE_NUMBER_W: "204"                          # the dots in the middle
+  PAGE_CHEVRON_INSET: "31"                      # the chevrons from the outer edge
 
   # Cards: the round keys and the brightness card
-  CARD_KEY_X: "16"                              # a card's round key from the side
-  CARD_KEY_Y: "16"                              # from the top
-  CARD_KEY_SIZE: "60"                           # its diameter
-  OVERLAY_TITLE_Y: "30"                         # the brightness card's title
-  OVERLAY_VALUE_Y: "70"                         # its percentage
-  OVERLAY_SLIDER_Y: "36"                        # its slider below the centre
-  OVERLAY_SLIDER_RADIUS: "42"                   # the slider's corners
-  OVERLAY_KNOB_PAD: "15"                        # the knob
-  COLOR_KEY_X: "-20"                            # the colour wheel key from the bottom right corner
-  COLOR_KEY_Y: "-26"
-  COLOR_KEY_SIZE: "66"                          # its diameter
-  COLOR_ARC_SIZE: "60"                          # the eight arcs in it
-  COLOR_ARC_W: "15"
-  COLOR_TITLE_W: "310"                          # the colour card's title
-  COLOR_TITLE_Y: "35"
+  CARD_KEY_X: "20"                              # a card's round key from the side
+  CARD_KEY_Y: "20"                              # from the top
+  CARD_KEY_SIZE: "77"                           # its diameter
+  OVERLAY_TITLE_Y: "38"                         # the brightness card's title
+  OVERLAY_VALUE_Y: "89"                         # its percentage
+  OVERLAY_SLIDER_Y: "46"                        # its slider below the centre
+  OVERLAY_SLIDER_RADIUS: "54"                   # the slider's corners
+  OVERLAY_KNOB_PAD: "19"                        # the knob
+  COLOR_KEY_X: "-26"                            # the colour wheel key from the bottom right corner
+  COLOR_KEY_Y: "-33"
+  COLOR_KEY_SIZE: "84"                          # its diameter
+  COLOR_ARC_SIZE: "77"                          # the eight arcs in it
+  COLOR_ARC_W: "19"
+  COLOR_TITLE_W: "396"                          # the colour card's title
+  COLOR_TITLE_Y: "45"
 
 
 
@@ -148,9 +154,9 @@ substitutions:
   TOUCH_TEST_TITLE_FONT: "headline"
   TOUCH_TEST_TITLE_Y: "110"
   TOUCH_TEST_INSET: "12"                        # the corner crosses from the edge
-  TOUCH_TEST_FAR_X: "443"                       # the right crosses: width - inset - size - 1
+  TOUCH_TEST_FAR_X: "763"                       # the right crosses: width - inset - size - 1
   TOUCH_TEST_FAR_Y: "443"                       # the bottom crosses
-  TOUCH_TEST_MID_X: "228"                       # the middle cross
+  TOUCH_TEST_MID_X: "388"                       # the middle cross
   TOUCH_TEST_MID_Y: "228"
   TOUCH_TEST_SIZE: "24"                         # a cross
   TOUCH_TEST_PAINT: "paint_ink"                 # the crosses
@@ -203,7 +209,7 @@ substitutions:
     id(last_use_ms) = millis();
     id(display_dimmed) = false;
   # right after runtime_tiles::enabled = true, before the settings load
-  BOOT_ENABLED_HOOK: "runtime_tiles::rotation_supported = true;"
+  BOOT_ENABLED_HOOK: ""
   # the paint style only this board has (theme::paints)
   BOARD_PAINT_FILL: "theme::fill(id(paint_camera), Paint::camera);"
   # in runtime_tiles::dismiss, after the detail card closes
@@ -282,10 +288,8 @@ substitutions:
   APPLY_BACKLIGHT: |-
     // Standby dims slowly (ESPHome's transition); waking is quick.
     id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
-  # apply_screen_settings: the Rotation entity in Home Assistant follows
-  APPLY_ROTATION_ENTITY: |-
-    const auto shown_rotation = id(setting_rotation)->active_index();
-    if (!id(setting_rotation)->has_state() || !shown_rotation.has_value() || *shown_rotation != (size_t) (settings_screen::rotation / 90)) id(setting_rotation)->update();
+  # apply_screen_settings: the Rotation entity in Home Assistant follows (this board does not turn)
+  APPLY_ROTATION_ENTITY: ""
   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
   AWAY_EXTRA: " runtime_tiles::camera_visible() ||"
   # alert_show: after the settings page closed, before the card is made
@@ -296,13 +300,6 @@ substitutions:
 # ============================================================
 # No need to edit below this line.
 # ============================================================
-
-esphome:
-  platformio_options:  # not `build_flags:` yet, see packages/core.yaml
-    build_flags:
-      - -DLV_USE_SNAPSHOT=1
-  includes:
-    - <esphome/components/smart_display/guition_diagnostics.h>
 
 esp32:
   board: esp32-s3-devkitc-1
@@ -319,6 +316,38 @@ esp32:
       # error lines only say "UNKNOWN ERROR".
       assertion_level: SILENT
       execute_from_psram: true
+    sdkconfig_options:
+      # Wi-Fi keeps its buffers in the memory inside the chip, and takes fewer of them.
+      #
+      # This board is tight on that memory: its 800x480 picture lives in PSRAM and the display peripheral keeps
+      # two bounce buffers of ten lines in here, which a board with an SPI panel does not pay. It ran on 19 KB
+      # free where a Guition has 103 KB, and Home Assistant connecting was enough to push it over: it rebooted
+      # every two minutes.
+      #
+      # Moving Wi-Fi and the network stack to PSRAM (CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP) fixed that and broke
+      # the picture: the panel reads its every line straight out of PSRAM while it draws, and Wi-Fi reading and
+      # writing there as well is more than that memory can carry. A bounce buffer refilled too late puts the
+      # whole picture a few pixels further along, and under real traffic the glass turned into flat colours
+      # (2026-09-20). PSRAM bandwidth belongs to the panel on a board like this.
+      #
+      # So the buffers stay inside the chip and there are fewer of them. Wi-Fi's own defaults are sized for a
+      # board that does nothing else: ten static receive buffers of 1.6 KB each, and room for 32 more of both
+      # kinds. A screen speaks to one Home Assistant over one connection, and 4 and 16 carry that without
+      # noticing, while giving back the memory the reboots were about.
+      CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM: "4"
+      CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM: "16"
+      CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM: "16"
+      # One connection to Home Assistant and one image at a time: the stack's window does not need 5760 bytes
+      # each way on a LAN, where the round trip is under a millisecond.
+      CONFIG_LWIP_TCP_SND_BUF_DEFAULT: "2880"
+      CONFIG_LWIP_TCP_WND_DEFAULT: "2880"
+      # Do NOT set CONFIG_LCD_RGB_RESTART_IN_VSYNC here. The panel clocks its lines out itself, straight from
+      # PSRAM through two bounce buffers, and when one is refilled too late the picture slips sideways. The
+      # driver already catches that on its own: at every VBlank it compares the bounce buffer's end-of-frame
+      # count with what it expected and restarts the DMA when one went missing (esp_lcd_panel_rgb.c,
+      # lcd_rgb_panel_try_restart_transmission). That option forces the restart on *every* VBlank instead, and
+      # a restart that falls before the buffer holds real pixels puts a frame of one flat colour on the glass:
+      # tried 2026-09-20 and the screen cycled white, red, blue, green until it was flashed back.
 
 psram:
   mode: octal
@@ -326,13 +355,13 @@ psram:
 
 logger:
   tx_buffer_size: 2048
-  hardware_uart: UART0
+  # This board's USB-C port is the chip's own USB, not a separate UART chip like the Guition has: a log over the
+  # cable only comes out over USB_SERIAL_JTAG. On UART0 the log went to two header pins nobody has connected, so
+  # `esphome logs --device /dev/cu.usbmodem*` stayed empty and a crash left no trace.
+  hardware_uart: USB_SERIAL_JTAG
 
 api:
   actions:
-    - action: ui_snapshot
-      then:
-        - script.execute: capture_ui_snapshot
     # A camera full screen from Home Assistant (firmware 0.2.57+), as a tap on its tile opens it; an empty entity closes
     # it. Only a camera on the screen's tiles or in a recent alert gets an image from ESP Screens.
     - action: preview_camera
@@ -392,49 +421,44 @@ online_image:
     on_error:
       - lambda: 'runtime_tiles::live_failed();'
 
-text_sensor:
-  - platform: template
-    name: "Guition screen type"
-    entity_category: diagnostic
-    update_interval: never
-    lambda: 'return {"guition"};'
-
-# Rotation as a Home Assistant choice (firmware 0.2.49+). Only the Guition turns; the CYD keeps its orientation.
-select:
-  - platform: template
-    id: setting_rotation
-    name: "Rotation"
-    icon: "mdi:screen-rotation"
-    entity_category: config
-    options: ["0°", "90°", "180°", "270°"]
-    update_interval: never
-    lambda: |-
-      static const char *const names[] = {"0°", "90°", "180°", "270°"};
-      return std::string(names[std::clamp<int32_t>(settings_screen::rotation, 0, 270) / 90]);
-    set_action:
-      - lambda: |-
-          const std::string option(x.c_str(), x.size());
-          settings_screen::set("rotation", atoi(option.c_str()));
-
-# Pinout from ESPHome's GUITION-4848S040 preset. No relay outputs are configured.
-spi:
-  id: lcd
-  clk_pin: GPIO48
-  mosi_pin: GPIO47
-
+# The GT911 and the CH422G share this board's only I2C bus.
 i2c:
   id: touch_bus
-  sda: GPIO19
-  scl:
-    number: GPIO45
-    ignore_strapping_warning: true
+  sda: GPIO8
+  scl: GPIO9
   scan: true
 
+# The expander that carries what the panel needs: its reset (EXIO3), the touch reset (EXIO1) and the line that
+# lights the screen (EXIO2).
+ch422g:
+  - id: expander
+    i2c_id: touch_bus
+
 output:
-  - platform: ledc
-    pin: GPIO38
+  # The backlight is one line on the expander, not a PWM pin: the panel is lit or it is not. The firmware sets a
+  # brightness between 0 and 1, and anything above a hair of it lights the screen; 0 turns it off, which is what
+  # standby, Sleep and a night with brightness 0 ask for.
+  - platform: template
     id: gpio_backlight_pwm
-    frequency: 20000Hz
+    type: float
+    write_action:
+      - lambda: |-
+          // One line with two states, and it hangs on an I2C expander. A fade asks for a new level on every
+          // frame, so only a real change is written: the bus stays free for the touch panel, which is polled
+          // every 20 ms, and a slow dim no longer floods it.
+          static int lit = -1;
+          const int wanted = state > 0.01f ? 1 : 0;
+          if (wanted != lit) {
+            lit = wanted;
+            id(backlight_line).set_state(wanted != 0);
+          }
+  - platform: gpio
+    id: backlight_line
+    pin:
+      ch422g: expander
+      number: 2
+      mode:
+        output: true
 
 light:
   # The firmware owns the backlight: brightness, standby, night and alerts set it, and the minute tick
@@ -453,6 +477,12 @@ touchscreen:
   i2c_id: touch_bus
   display: my_display
   update_interval: 20ms
+  # The GT911's reset line hangs on the expander, like the panel's.
+  reset_pin:
+    ch422g: expander
+    number: 1
+    mode:
+      output: true
   transform:
     swap_xy: ${TOUCH_SWAP_XY}
     mirror_x: ${TOUCH_MIRROR_X}
@@ -463,7 +493,7 @@ touchscreen:
         id(last_use_ms) = millis();
         id(touch_down) = true;
         cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
-        cyd::edge_swipe.begin(touch.x, touch.y, static_cast<int>(id(screen_lvgl).get_rotation()));
+        cyd::edge_swipe.begin(touch.x, touch.y, 0);
         ESP_LOGI("touch", "GT911 press x=%u y=%u id=%u test=%d", touch.x, touch.y, (unsigned) touch.id, id(calibration_active));
   on_update:
     - lambda: |-
@@ -503,51 +533,20 @@ touchscreen:
           ESP_LOGI("touch", "edge swipe not fired: %d px inward, %d px vertical", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
         cyd::edge_swipe.end();
 
-
-# Native ESPHome driver with the working manufacturer's LVGL demo timings.
-# See docs/GUITION_FACTORY_REFERENCE.md; no custom RGB component is required.
 display:
-  - platform: st7701s
+  # ESPHome's own model brings the RGB pins, the timings and the init of this panel (mipi_rgb, waveshare.py).
+  # Its enable pin is the backlight line, which the firmware owns above, so it is not named here.
+  - platform: mipi_rgb
+    model: ESP32-S3-TOUCH-LCD-4.3
     id: my_display
-    dimensions: {width: 480, height: 480}
-    spi_id: lcd
-    spi_mode: MODE0
-    data_rate: 2MHz
-    color_order: RGB
-    invert_colors: false
-    cs_pin: 39
-    de_pin: 18
-    hsync_pin: 16
-    vsync_pin: 17
-    pclk_pin: 21
-    pclk_frequency: 16MHz
-    pclk_inverted: false
-    hsync_front_porch: 10
-    hsync_pulse_width: 8
-    hsync_back_porch: 50
-    vsync_front_porch: 10
-    vsync_pulse_width: 8
-    vsync_back_porch: 20
-    transform:
-      mirror_x: false
-      mirror_y: false
-    init_sequence:
-      - 1
-      # Manufacturer's 16-bit bus configuration and normal scan direction.
-      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x10]
-      - [0xCD, 0x00]
-      - [0xC7, 0x00]
-      # Return to the standard register bank before pixel format / sleep-out.
-      - [0xFF, 0x77, 0x01, 0x00, 0x00, 0x00]
-      - [0x3A, 0x60]
-      - [0x36, 0x00]
-      - [0x20]
-      - [0x11]
-      - delay 120ms
-    data_pins:
-      red: [11, 12, 13, 14, 0]
-      green: [8, 20, 3, 46, 9, 10]
-      blue: [4, 5, 6, 7, 15]
+    dimensions:
+      width: ${DISPLAY_W}
+      height: ${DISPLAY_H}
+    reset_pin:
+      ch422g: expander
+      number: 3
+      mode:
+        output: true
     update_interval: never
     auto_clear_enabled: false
 
@@ -608,16 +607,6 @@ lvgl:
             src: alert_image
 
 script:
-  - id: capture_ui_snapshot
-    mode: single
-    then:
-      - lambda: guition::snapshot_begin();
-      - repeat:
-          count: 240
-          then:
-            - lambda: guition::snapshot_next_row();
-            - delay: 100ms
-  # Render every overlay and both pages repeatedly without controlling devices.
   - id: ui_self_test
     mode: single
     then:
@@ -735,4 +724,3 @@ script:
       ms: int
     then:
       - lambda: id(back_light).turn_on().set_transition_length(ms).set_brightness(level / 100.0f).perform();
-

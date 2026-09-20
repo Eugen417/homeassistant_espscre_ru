@@ -46,3 +46,4 @@ __pycache__/
 packages/boards/lab-*.yaml
 packages/cells/*.yaml
 !packages/cells/6.yaml
+!packages/cells/9.yaml

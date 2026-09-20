@@ -26,6 +26,8 @@ substitutions:
   # the band. The resistive panel reports a finger up to the bezel, so only the strip's last pixels and
   # the margin beside them count (a capacitive Guition loses a fast finger 30-50 px before its edge).
   SLIDER_EDGE_SNAP_PX: "20"
+  # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
+  BOARD_ID: "cyd"
   DEVICE_NAME: "cyd-new"
   DEVICE_FRIENDLY_NAME: "My CYD"
   TOUCH_AFFINE_XX: "1.000000000"
