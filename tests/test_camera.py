@@ -326,6 +326,13 @@ def fake_ha(image=None):
             if image is None:
                 raise ConnectionError('500')
             return image
+
+        async def media_image(self, entity):
+            self.log.append(('fetch', entity))
+            return picture('PNG', (300, 300))
+
+        def media_picture(self, entity):
+            return '/api/media_player_proxy/%s?token=a&cache=1' % entity if entity == 'media_player.sonos' else ''
     return HA()
 
 
@@ -459,6 +466,21 @@ class LiveTiles(unittest.TestCase):
         self.assertEqual(ha_catalogue.capabilities('camera.front_door', [], {}, {})['displays'], ['standard', 'watch', 'live'])
         self.assertNotIn('live', ha_catalogue.capabilities('light.hall', [], {}, {})['displays'])
 
+    def test_a_media_tile_may_show_its_cover_in_the_icons_place(self):
+        from core import COVER_TILE_MIN_FIRMWARE, resolve_controls
+        import ha_catalogue
+        self.assertEqual(camera_feed.COVER_TILE_MIN_FIRMWARE, COVER_TILE_MIN_FIRMWARE)
+        layout = validate_layout({'title': 'Hall', 'tiles': [{'entity': 'media_player.sonos', 'name': '', 'options': {'display': 'cover', 'size': 'wide'}}]})
+        self.assertEqual(min_firmware(layout), COVER_TILE_MIN_FIRMWARE)
+        # The cover is the standard layout with a picture: a wide tile keeps its controls.
+        self.assertEqual(resolve_controls(layout['tiles'][0]), 'volume')
+        self.assertIn('cover', ha_catalogue.capabilities('media_player.sonos', [], {}, {})['displays'])
+        with self.assertRaises(ValueError):
+            validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.front_door', 'name': '', 'options': {'display': 'cover'}}]})
+        # A media player may be asked for in the strip; the request keeps its shape.
+        self.assertEqual(camera_feed.live_request({'tiles': 'camera.front_door,media_player.sonos', 'size': '54', 'bg': 'FFFFFF,FFFFFF'}),
+                         (['camera.front_door', 'media_player.sonos'], 54, [0xFFFFFF, 0xFFFFFF]))
+
     def test_which_screens_draw_live_pictures(self):
         self.assertTrue(camera_feed.can_show_live({'board': 'guition', 'firmware': '0.2.77'}))
         for screen in ({'board': 'guition', 'firmware': '0.2.76'}, {'board': 'cyd', 'firmware': '0.2.77'}, None):
@@ -515,6 +537,45 @@ class LiveTiles(unittest.TestCase):
             self.assertEqual(len([e for e, at in fetched if at > 1030.0]), 0)
         asyncio.run(run())
 
+    @unittest.skipUnless(HAS_PIL, 'Pillow')
+    def test_a_media_tile_in_the_strip_is_fetched_once_per_picture(self):
+        clock = [1000.0]
+        fetched, pictures = [], {'media_player.sonos': '/api/media_player_proxy/media_player.sonos?token=a&cache=1'}
+
+        async def fetch(entity):
+            fetched.append((entity, clock[0]))
+            return picture('JPEG', (640, 360))
+
+        async def fetch_cover(entity):
+            fetched.append((entity, clock[0]))
+            return picture('PNG', (300, 300))
+
+        async def run():
+            feed = camera_feed.CameraFeed(fetch, clock=lambda: clock[0], fetch_cover=fetch_cover, picture=lambda e: pictures.get(e, ''))
+            tiles, grounds, paces = ['camera.a', 'media_player.sonos', 'media_player.radio'], [0xFFFFFF] * 3, [15, 0, 0]
+            token = feed.link(','.join(tiles), (54, 54), live=(tiles, 54, grounds, paces))
+            status, body, etag = await feed.serve(token)
+            self.assertEqual(status, 200)
+            from PIL import Image
+            with Image.open(io.BytesIO(body)) as image:
+                self.assertEqual(image.size, (54, 162))
+                self.assertEqual(image.getpixel((27, 54 + 27))[::2], (200, 90), 'the cover in the second square')
+                self.assertEqual(image.getpixel((27, 108 + 27)), (255, 255, 255), 'a radio without a picture: a plain square')
+            found = await feed.live(tiles, 54, grounds, paces)
+            self.assertEqual(found[2], ['camera.a', 'media_player.sonos', ''], 'the answer names the tiles with a picture')
+            # Every 15 s the camera again, the cover not: its address did not change.
+            for _ in range(3):
+                clock[0] += 15
+                await feed.serve(token)
+            self.assertEqual(len([e for e, _ in fetched if e == 'media_player.sonos']), 1)
+            self.assertEqual(len([e for e, _ in fetched if e == 'camera.a']), 4)
+            # A new track: another address, fetched at the next load.
+            pictures['media_player.sonos'] = '/api/media_player_proxy/media_player.sonos?token=a&cache=2'
+            clock[0] += 15
+            await feed.serve(token)
+            self.assertEqual(len([e for e, _ in fetched if e == 'media_player.sonos']), 2)
+        asyncio.run(run())
+
 
 @unittest.skipUnless(HAS_AIOHTTP and HAS_PIL, 'Run using .venv-portal/bin/python for server tests')
 class LiveApp(unittest.IsolatedAsyncioTestCase):
@@ -544,6 +605,27 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
                             {'inbox': 'text.d2_tiles', 'tiles': 'camera.max', 'size': '54', 'bg': 'FFFFFF'}):
                 with self.assertLogs('screen_manager', 'INFO') if request['inbox'] == 'text.d1_tiles' and 'shed' in request['tiles'] else contextlib.nullcontext():
                     await m.answer_camera(request)
+            self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
+
+    async def test_a_media_tile_asks_with_the_cameras_of_its_page(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (1920, 1080)))
+            ha.states['sensor.d1_fw']['state'] = '0.2.78'
+            m = Manager(ha, Path(tmp) / 'screens.json')
+            m.layouts['text.d1_tiles'] = validate_layout({'title': 'Hall', 'tiles': [
+                {'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}},
+                {'entity': 'media_player.sonos', 'name': '', 'options': {'display': 'cover', 'size': 'wide'}},
+                {'entity': 'media_player.radio', 'name': '', 'options': {'display': 'cover'}},
+                {'entity': 'media_player.tv', 'name': ''}]})
+            with self.assertLogs('screen_manager', 'INFO'):
+                await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,media_player.sonos,media_player.radio', 'size': '54', 'bg': 'FFFFFF,FFFFFF,FADADD'})
+            (_, inbox, message), = [entry for entry in ha.log if entry[0] == 'send']
+            self.assertEqual((message['t'], message['e']), ('live', 'camera.max,media_player.sonos,'), 'the radio has no picture')
+            token = message['u'].rsplit('/', 1)[1][:-4]
+            self.assertEqual(m.camera.links[token].live[3], [15, 0, 0], 'a cover has no pace')
+            ha.log.clear()
+            # A media tile that shows its icon is not in the strip.
+            await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,media_player.tv', 'size': '54', 'bg': 'FFFFFF,FFFFFF'})
             self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
 
     async def test_a_camera_without_a_picture_keeps_its_icon(self):

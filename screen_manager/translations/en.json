@@ -1241,7 +1241,9 @@
       "graph": "graph",
       "digital": "digital clock",
       "analog": "analog clock",
-      "sunpath": "sun path"
+      "sunpath": "sun path",
+      "live": "live picture",
+      "cover": "album cover"
     },
     "sizes": {
       "single": "normal",
@@ -1274,6 +1276,9 @@
         "live": "Live picture",
         "live_hint": "A small picture of the camera in the icon's place, refreshed at the pace below while the page is on screen. A tap still opens it full screen.",
         "live_needs_firmware": "A live picture needs firmware 0.2.77 or newer: press Update on the screen after saving.",
+        "cover": "Album cover",
+        "cover_hint": "The album cover of what plays in the icon's place, like Home Assistant's own tile; a player without a picture keeps its icon. A tap still opens the card.",
+        "cover_needs_firmware": "The album cover on the tile needs firmware 0.2.78 or newer: press Update on the screen after saving.",
         "no_graph": "Home Assistant has no numbers for this entity, so the graph stays empty. Choose another display.",
         "no_forecast": "This weather service has no daily forecast in Home Assistant. Choose another display."
       },

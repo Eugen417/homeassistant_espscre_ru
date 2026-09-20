@@ -247,7 +247,7 @@ struct Widgets {
   lv_obj_t *busy{}, *spinner{}; bool busy_drawn=false;
   // Page fill skeleton: a sheet in the card's colour over its contents until the card is drawn.
   lv_obj_t *veil{};
-  // A camera tile's live picture in the icon's place (firmware 0.2.77+).
+  // A camera tile's live picture (firmware 0.2.77+) or a media tile's album cover (0.2.78+) in the icon's place.
   lv_obj_t *picture{};
 };
 constexpr unsigned POINT_BUFFER = 128;
@@ -4177,15 +4177,16 @@ inline void cover_tick(uint32_t now) {
   }
 }
 
-// ---- Live pictures on camera tiles (firmware 0.2.77+) ----
-// A camera tile with "display": "live" shows a small picture of its camera in the icon's place. The camera tiles of
-// the page on screen share one image: the screen asks for them together (the entities in slot order, the size of the
-// icon's circle and the colour of each tile behind the rounded corners) and the app serves one strip of squares, top
-// to bottom, that every tile takes its own square out of (LVGL's image offset). One download per page at the pace of
-// the fastest of those tiles, 15 or 30 s, in the board's third online_image. It waits for the alert's picture, a
-// cover or the camera full screen: one picture loads at a time. A page turn, a card over the page or another look
-// changes what is wanted: the strip is dropped and asked for again.
-struct LiveWish { std::string entities, grounds; int size = 0; uint32_t every = 15000; };
+// ---- Live pictures on camera tiles (firmware 0.2.77+) and album covers on media tiles (0.2.78+) ----
+// A camera tile with "display": "live" shows a small picture of its camera in the icon's place, a media tile with
+// "display": "cover" the album cover of what plays. The pictured tiles of the page on screen share one image: the
+// screen asks for them together (the entities in slot order, the size of the icon's circle and the colour of each tile
+// behind the rounded corners) and the app serves one strip of squares, top to bottom, that every tile takes its own
+// square out of (LVGL's image offset). One download per page at the pace of the fastest camera, 15 or 30 s, in the
+// board's third online_image; a page of covers alone loads once. It waits for the alert's picture, a cover or the
+// camera full screen: one picture loads at a time. A page turn, a card over the page, another look or another track
+// (the picture's mark in the media state) changes what is wanted: the strip is dropped and asked for again.
+struct LiveWish { std::string entities, grounds, marks; int size = 0; uint32_t every = 15000; bool cameras = false; };
 inline LiveWish live_wish;
 inline camera_view::Feed live;  // entity: the list asked for
 inline std::string live_have;   // the list the strip on screen holds, "" for a tile without a picture
@@ -4221,14 +4222,15 @@ inline LiveWish live_wanted() {
   for (auto &w : widgets) {
     if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= model.count) continue;
     const auto &t = model.tiles[w.index];
-    if (!t.live()) continue;
-    if (!want.entities.empty()) { want.entities += ','; want.grounds += ','; }
+    if (!t.pictured()) continue;
+    if (!want.entities.empty()) { want.entities += ','; want.grounds += ','; want.marks += ','; }
     want.entities += t.entity;
     char ground[8];
     snprintf(ground, sizeof(ground), "%06X", (unsigned) (t.transparent ? theme::hex(theme::PAGE) : theme::surface(t.background)));
     want.grounds += ground;
+    if (t.cover_tile()) want.marks += t.extra().media_picture;
     if (!want.size) want.size = lv_obj_get_style_width(w.circle, LV_PART_MAIN);
-    want.every = std::min<uint32_t>(want.every, t.refresh * 1000u);
+    if (t.live()) { want.cameras = true; want.every = std::min<uint32_t>(want.every, t.refresh * 1000u); }
   }
   return want;
 }
@@ -4259,7 +4261,7 @@ inline void live_release() {
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y) {
 #if LV_USE_IMAGE
   int square = -1;
-  lv_image_dsc_t *src = t.live() ? live_ready(t.entity, size, square) : nullptr;
+  lv_image_dsc_t *src = t.pictured() ? live_ready(t.entity, size, square) : nullptr;
   if (src) {
     if (!w.picture) {
       w.picture = lv_image_create(w.tile);
@@ -4301,10 +4303,11 @@ inline void live_request() {
 inline void live_tick(uint32_t now) {
   if (!live_supported()) return;
   LiveWish want = live_wanted();
-  if (want.entities != live_wish.entities || want.grounds != live_wish.grounds || want.size != live_wish.size) {
+  if (want.entities != live_wish.entities || want.grounds != live_wish.grounds || want.marks != live_wish.marks || want.size != live_wish.size) {
     live_wish = want;
     live_release();
-    if (!want.entities.empty()) live.open(want.entities, false, want.every);
+    // Covers alone load once per link (a new track is a new wish); a camera sets the pace.
+    if (!want.entities.empty()) live.open(want.entities, !want.cameras, want.every);
   }
   if (!live.open() || camera_root || card_open() || !awake()) return;
   if (alert_image_due() || alert_thumb_loading || cover.loading || camera.loading) return;  // one picture at a time
@@ -4325,7 +4328,7 @@ inline void live_loaded(bool cached) {
   live.finish(esphome::millis(), true);
   ESP_LOGI("camera", "live tiles %s", cached ? "unchanged" : "loaded");
   for (auto &w : widgets)
-    if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].live()) refresh_tile(w.index);
+    if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].pictured()) refresh_tile(w.index);
 }
 inline void live_failed() {
   if (!live.loading) return;

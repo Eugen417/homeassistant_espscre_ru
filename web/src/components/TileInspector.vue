@@ -4,7 +4,7 @@ import { computed, toRaw } from "vue";
 import { t } from "../i18n";
 import { domainInfo, entriesOf, MAX_PAGES, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { automaticIcon, closeInspector, entityName, fullPage, markDirty, moveTileToPage, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { automaticIcon, closeInspector, entityName, fullPage, isGuition, markDirty, moveTileToPage, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -51,6 +51,8 @@ const displays = computed(() => {
   if (domain.value === "sun") keys.push("sunpath");
   // A live picture on a camera tile (app 0.2.91): the picker only offers cameras on a Guition, the board that draws images.
   if (["camera", "image"].includes(domain.value)) keys.push("live");
+  // The album cover on a media tile (app 0.2.92), on a Guition too; the tile over the whole page has the card's big cover.
+  if (domain.value === "media_player" && (isGuition.value || display.value === "cover") && size.value !== "full") keys.push("cover");
   return keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]);
 });
 const displayHint = computed(() => {
@@ -58,6 +60,7 @@ const displayHint = computed(() => {
   if (c && display.value === "graph" && !c.displays.includes("graph")) return t("editor.tile.display.no_graph");
   if (c && display.value === "forecast" && !c.displays.includes("forecast")) return t("editor.tile.display.no_forecast");
   if (display.value === "live") return t(supports(0, 2, 77) ? "editor.tile.display.live_hint" : "editor.tile.display.live_needs_firmware");
+  if (display.value === "cover") return t(supports(0, 2, 78) ? "editor.tile.display.cover_hint" : "editor.tile.display.cover_needs_firmware");
   return "";
 });
 const refresh = computed(() => current("refresh", 15) as number);
@@ -128,7 +131,7 @@ function inspect() {
     <div v-else class="f">
       <span class="f-label">{{ t("editor.tile.display.label") }}</span>
       <Segmented :choices="displays" :value="display" @pick="(v) => setTileOption(tile, 'display', v)" />
-      <small v-if="displayHint" :class="{ warn: display !== 'live' || !supports(0, 2, 77) }">{{ displayHint }}</small>
+      <small v-if="displayHint" :class="{ warn: !(display === 'live' && supports(0, 2, 77)) && !(display === 'cover' && supports(0, 2, 78)) }">{{ displayHint }}</small>
     </div>
     <div v-if="display === 'live'" class="f">
       <span class="f-label">{{ t("editor.tile.refresh.label") }}</span>

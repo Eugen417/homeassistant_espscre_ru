@@ -1661,10 +1661,13 @@ class Manager:
             return
         entities, size, grounds = live
         tiles = {tile['entity']: tile.get('options') or {} for tile in self.layouts.get(inbox, {}).get('tiles', [])}
-        if any(entity not in tiles or tiles[entity].get('display') != 'live' for entity in entities):
-            LOG.info('Live pictures for %s: not the live camera tiles of %s', ', '.join(entities), screen['name'])
+        # A camera tile set to a live picture, or a media tile set to its cover (app 0.2.92).
+        wanted = {'live', 'cover'}
+        if any(entity not in tiles or tiles[entity].get('display') not in wanted
+               or (tiles[entity].get('display') == 'cover') != camera_feed.cover_supported(entity) for entity in entities):
+            LOG.info('Live pictures for %s: not the pictured tiles of %s', ', '.join(entities), screen['name'])
             return
-        paces = [tiles[entity].get('refresh', camera_feed.LIVE_REFRESH[0]) for entity in entities]
+        paces = [tiles[entity].get('refresh', camera_feed.LIVE_REFRESH[0]) if tiles[entity].get('display') == 'live' else 0 for entity in entities]
         url, listing = '', ','.join(entities)
         base = await camera_feed.base_url(self.ha.request)
         if base:

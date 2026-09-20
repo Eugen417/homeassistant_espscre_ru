@@ -213,6 +213,31 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
     const card = mount(TileCard, { props: { tile, slot: 0 } });
     expect(card.find(".ic").classes()).toContain("thumb");
   });
+  it("offers the album cover for a media player on a Guition, not on a full-page tile, and keeps its controls", async () => {
+    Object.assign(state.inventory.screens[0], { firmware: "0.2.78" });
+    state.inventory.entities.push({ id: "media_player.sonos", name: "Sonos", state: "playing", area: "Hall" } as any);
+    (state.inventory as any).controls.media_player = { default: "volume", choices: [{ key: "volume", label: "Volume" }, { key: "none", label: "None" }] };
+    const tile: Tile = { entity: "media_player.sonos", name: "", slot: 0, options: { size: "wide" } };
+    state.layout!.tiles.push(tile);
+    const drawer = mount(TileInspector, { props: { tile } });
+    expect(choices(drawer, "Display")).toEqual(["Name and status", "Large value", "Album cover"]);
+    await row(drawer, "Display").findAll(".seg button")[2].trigger("click");
+    expect(tile.options).toEqual({ size: "wide", display: "cover" });
+    expect(row(drawer, "Display").find("small").text()).toMatch(/icon's place/);
+    expect(row(drawer, "Refresh")).toBeUndefined();
+    expect(row(drawer, "Direct control on the tile")).toBeDefined();
+    const card = mount(TileCard, { props: { tile, slot: 0 } });
+    expect(card.find(".ic").classes()).toContain("thumb");
+    expect(card.find(".range").exists()).toBe(true);
+    // A CYD gets no such choice; a tile over the whole page keeps the card's big cover.
+    Object.assign(state.inventory.screens[0], { board: "cyd" });
+    tile.options = { size: "single" };
+    await drawer.vm.$nextTick();
+    expect(choices(mount(TileInspector, { props: { tile } }), "Display")).toEqual(["Name and status", "Large value"]);
+    Object.assign(state.inventory.screens[0], { board: "guition" });
+    tile.options = { size: "full" };
+    expect(choices(mount(TileInspector, { props: { tile } }), "Display")).toEqual(["Name and status", "Large value"]);
+  });
 });
 
 describe("TileInspector: pages (app 0.2.78)", () => {

@@ -1241,7 +1241,9 @@
       "graph": "gráfico",
       "digital": "reloj digital",
       "analog": "reloj analógico",
-      "sunpath": "recorrido del sol"
+      "sunpath": "recorrido del sol",
+      "live": "imagen en vivo",
+      "cover": "carátula"
     },
     "sizes": {
       "single": "normal",
@@ -1274,6 +1276,9 @@
         "live": "Imagen en vivo",
         "live_hint": "Una imagen pequeña de la cámara en el lugar del icono, actualizada al ritmo de abajo mientras la página está en pantalla. Un toque la sigue abriendo a pantalla completa.",
         "live_needs_firmware": "Una imagen en vivo necesita el firmware 0.2.77 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
+        "cover": "Carátula",
+        "cover_hint": "La carátula de lo que suena en el lugar del icono, como en el propio mosaico de Home Assistant; un reproductor sin imagen conserva su icono. Un toque sigue abriendo la tarjeta.",
+        "cover_needs_firmware": "La carátula en el mosaico necesita el firmware 0.2.78 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
         "no_graph": "Home Assistant no tiene valores numéricos para esta entidad, así que el gráfico queda vacío. Elige otra presentación.",
         "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación."
       },

@@ -40,6 +40,10 @@ COVER_RADIUS_SHARE = 12  # the corner is a twelfth of the size, at least 4 px (m
 # the corners rounded over that tile's own colour. A camera is fetched again only when its tile's pace (15 or 30 s)
 # has passed since the last fetch, so a page loading every 15 s leaves a 30 s camera alone in between.
 LIVE_MIN_FIRMWARE = (0, 2, 77)
+# A media tile's album cover in the same strip (app 0.2.92, firmware 0.2.78): "display": "cover" on a single or wide
+# media tile. A cover is fetched when the player's picture address changes, never on a clock; the screen asks for the
+# page again when the picture's mark in the player's state changes.
+COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
 LIVE_SIZES = (24, 160)   # a square's side, in pixels
 LIVE_MAX_TILES = 6       # one page
 LIVE_REFRESH = (15, 30)  # the paces a tile may choose, in seconds
@@ -103,7 +107,7 @@ def live_request(request):
         return None
     if not 1 <= len(entities) <= LIVE_MAX_TILES or len(colours) != len(entities) or len(set(entities)) != len(entities):
         return None
-    if not LIVE_SIZES[0] <= size <= LIVE_SIZES[1] or not all(supported(e) for e in entities) or not all(re.fullmatch(r'[0-9A-Fa-f]{6}', c) for c in colours):
+    if not LIVE_SIZES[0] <= size <= LIVE_SIZES[1] or not all(supported(e) or cover_supported(e) for e in entities) or not all(re.fullmatch(r'[0-9A-Fa-f]{6}', c) for c in colours):
         return None
     return entities, size, [int(c, 16) for c in colours]
 
@@ -352,6 +356,8 @@ class CameraFeed:
     # serving it starts the next fetch of the cameras whose pace has passed: a 15 s page fetches a 30 s camera every
     # other load. The first load waits for the cameras that have no snapshot yet, all at once.
     async def live_one(self, entity, pace, wait):
+        if cover_supported(entity):
+            return await self.cover_raw(entity, wait)
         watch = self.watch(entity)
         if watch.raw is None:
             self.refresh(entity, watch)
@@ -408,9 +414,9 @@ class CameraFeed:
             if watch.failures in (1, 30):
                 LOG.info('No cover from %s (%s)', entity, type(error).__name__)
 
-    async def cover(self, entity, size, background, wait=FIRST_FRAME_SECONDS):
-        """(etag, BMP) of the player's cover at `size` with `background` behind its corners, or None when the player
-        shows no picture or it cannot be fetched."""
+    async def cover_raw(self, entity, wait=FIRST_FRAME_SECONDS):
+        """The player's picture as Home Assistant hands it out, fetched again only when its address changed; None when
+        the player shows no picture or it cannot be fetched (yet)."""
         if self.fetch_cover is None or self.picture is None:
             return None
         picture = self.picture(entity)
@@ -429,6 +435,14 @@ class CameraFeed:
                 return None
             if watch.picture != picture or watch.raw is None:
                 return None
+        return watch.raw
+
+    async def cover(self, entity, size, background, wait=FIRST_FRAME_SECONDS):
+        """(etag, BMP) of the player's cover at `size` with `background` behind its corners, or None when the player
+        shows no picture or it cannot be fetched."""
+        if await self.cover_raw(entity, wait) is None:
+            return None
+        watch = self.watch(entity)
         key = ('cover', size, background)
         cached = watch.frames.get(key)
         if cached is None or cached[0] != watch.digest:
