@@ -60,6 +60,12 @@ corners, and refreshes it while that page is on the screen. A tap still opens th
   the strip and asks for a new one.
 - **A camera without a picture** keeps its icon: the app names it with an empty entry in its answer
   and paints a plain square of the tile's colour in the strip.
+- **A media tile's album cover** (app 0.2.92, firmware 0.2.78) rides in the same strip: **Display →
+  Album cover** on a single or double-width media player tile. The app fetches the player's picture
+  only when its address changes (a new track), so a page with a camera and a Sonos loads its strip at
+  the camera's pace with the cover reused, and a page of media tiles alone loads once. The screen asks
+  for the page again the moment a player's picture mark in its state changes. A player without a
+  picture keeps its icon; the tile over the whole page keeps the card's big cover.
 - The strip lives in a third `online_image` of the Guition profile (`tile_image`, PSRAM); the CYD has
   none and the editor does not offer the live picture there.
 

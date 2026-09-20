@@ -1241,7 +1241,9 @@
       "graph": "wykres",
       "digital": "zegar cyfrowy",
       "analog": "zegar analogowy",
-      "sunpath": "tor słońca"
+      "sunpath": "tor słońca",
+      "live": "obraz na żywo",
+      "cover": "okładka albumu"
     },
     "sizes": {
       "single": "normalny",
@@ -1274,6 +1276,9 @@
         "live": "Obraz na żywo",
         "live_hint": "Mały obraz z kamery w miejscu ikony, odświeżany w tempie poniżej, dopóki strona jest na ekranie. Dotknięcie nadal otwiera go na pełnym ekranie.",
         "live_needs_firmware": "Obraz na żywo wymaga firmware 0.2.77 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "cover": "Okładka albumu",
+        "cover_hint": "Okładka albumu tego, co gra, w miejscu ikony, jak na kafelku Home Assistant; odtwarzacz bez obrazu zachowuje ikonę. Dotknięcie nadal otwiera kartę.",
+        "cover_needs_firmware": "Okładka albumu na kafelku wymaga firmware 0.2.78 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
         "no_graph": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wykres pozostanie pusty. Wybierz inny widok.",
         "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok."
       },

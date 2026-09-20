@@ -130,7 +130,7 @@ async function onKey(e: KeyboardEvent) {
       <span class="lead"><span class="big">{{ clockText(clock24, now) }}</span><span class="nm">{{ name }}</span></span>
     </template>
     <template v-else-if="full">
-      <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' }">{{ glyph(tileIconCp(tile)) }}</span>
+      <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' || display === 'cover' }">{{ glyph(tileIconCp(tile)) }}</span>
       <span class="lead">
         <span class="nm">{{ name }}</span>
         <span v-if="goesTo" class="goto">{{ pageLink }}</span>
@@ -150,7 +150,7 @@ async function onKey(e: KeyboardEvent) {
     </template>
     <template v-else-if="wide">
       <span class="lead">
-        <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' }">{{ glyph(tileIconCp(tile)) }}</span>
+        <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' || display === 'cover' }">{{ glyph(tileIconCp(tile)) }}</span>
         <span class="tx">
           <span class="nm">{{ name }}</span>
           <span v-if="goesTo" class="goto">{{ pageLink }}</span>
@@ -178,7 +178,7 @@ async function onKey(e: KeyboardEvent) {
       <!-- As the screen draws it: the icon on the left, the name and the value beside it. A watch
            card puts the name on top and the big value under it; the small slider runs underneath. -->
       <span class="head" :class="{ top: display === 'watch' }">
-        <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' }">{{ glyph(tileIconCp(tile)) }}</span>
+        <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' || display === 'cover' }">{{ glyph(tileIconCp(tile)) }}</span>
         <span class="tx">
           <span class="nm">{{ name }}</span>
           <span v-if="goesTo" class="goto">{{ pageLink }}</span>

@@ -173,6 +173,9 @@ def capabilities(entity_id, actions, state, services):
     elif domain in ('camera', 'image'):
         # A live picture on the tile (app 0.2.91): the editor offers it on a Guition, the only board that draws images.
         displays.append('live')
+    elif domain == 'media_player':
+        # The album cover in the icon's place (app 0.2.92), a Guition again.
+        displays.append('cover')
     return {
         'toggle': TOGGLE.format(domain=domain) in actions,
         'inline': domain in INLINE and _fits(INLINE[domain], actions, attributes, services),

@@ -37,6 +37,8 @@ CAMERA_MIN_FIRMWARE = (0, 2, 57)
 # A live picture on a camera tile ("display": "live", app 0.2.91): firmware from here asks for the page's strip.
 LIVE_MIN_FIRMWARE = (0, 2, 77)
 LIVE_REFRESH = (15, 30)  # the paces a live tile may choose, in seconds; the first is the default
+# A media tile's album cover in the icon's place ("display": "cover", app 0.2.92): the same strip, firmware from here.
+COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
 # The media card with its cover (app 0.2.77): firmware from here draws it and asks for the cover.
 COVER_MIN_FIRMWARE = (0, 2, 64)
 # Forty-eight tiles (one per slot), a tile over the whole page and the screen.page tile (firmware 0.2.62+).
@@ -49,7 +51,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.77'
+FIRMWARE_VERSION = '0.2.78'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -89,7 +91,7 @@ def backgrounds():
 
 # Display modes per domain; everything else offers standard and watch (large value).
 DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath'),
-            'camera': ('standard', 'live'), 'image': ('standard', 'live')}
+            'camera': ('standard', 'live'), 'image': ('standard', 'live'), 'media_player': ('standard', 'watch', 'cover')}
 # Displays that only work on a double-width card.
 WIDE_ONLY = ('forecast', 'sunpath')
 
@@ -188,7 +190,8 @@ def resolve_controls(tile):
     """Control set a card shows on the screen, or None: only wide cards in the standard layout have room for one."""
     options = tile.get('options', {})
     domain = tile['entity'].split('.')[0]
-    if domain not in CONTROLS or options.get('size') not in ('wide', 'full') or options.get('display', 'standard') != 'standard' or options.get('inline') == 'slider':
+    # The album cover in the icon's place (app 0.2.92) is the standard layout with a picture: the controls stay.
+    if domain not in CONTROLS or options.get('size') not in ('wide', 'full') or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
         return None
     # A full-page card is one big button unless a control was chosen for it; a wide card shows its usual one.
     choice = options.get('controls', 'none' if options.get('size') == 'full' else CONTROLS[domain][0][0])
@@ -514,6 +517,8 @@ def min_firmware(layout):
         return PAGE_TILE_REPEAT_MIN_FIRMWARE
     if len(layout['tiles']) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in layout['tiles']):
         return FULL_PAGE_MIN_FIRMWARE
+    if any(t.get('options', {}).get('display') == 'cover' for t in layout['tiles']):
+        return COVER_TILE_MIN_FIRMWARE
     if any(t.get('options', {}).get('display') == 'live' for t in layout['tiles']):
         return LIVE_MIN_FIRMWARE
     if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']):

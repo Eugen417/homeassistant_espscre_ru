@@ -228,6 +228,11 @@ struct Tile {
   // icon's place, loaded again every `refresh` seconds.
   uint16_t refresh = 15;
   bool live() const { const auto d = domain(); return display == "live" && (d == "camera" || d == "image"); }
+  // A media player's album cover in the icon's place (firmware 0.2.78+): "display": "cover" on a single or double-width
+  // tile, while the player has a picture; the tile over the whole page keeps the card's big cover.
+  bool cover_tile() const { return display == "cover" && domain() == "media_player" && !full && !extra().media_picture.empty(); }
+  // A tile that draws its picture out of the page's strip (runtime_tiles.h, live_*).
+  bool pictured() const { return live() || cover_tile(); }
   // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
   bool wide = false, full = false;
   // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.

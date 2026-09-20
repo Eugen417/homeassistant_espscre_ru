@@ -219,6 +219,24 @@ icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
 
+### Compatibility 0.2.92 / firmware 0.2.78
+
+One thing: the album cover on a single or double-width media tile, in the strip of 0.2.91. No protocol change: the
+strip request (`tiles`, `size`, `bg`) and the answer (op `camera`, `t: "live"`) are the same; a media player may now be
+among the tiles.
+
+- **Tile setting** `display: cover` on a `media_player` tile (`DISPLAYS`, `COVER_TILE_MIN_FIRMWARE` = 0.2.78 in
+  `core.py`; `min_firmware` asks for it). `resolve_controls` and the editor's `effectiveControls` treat `cover` as the
+  standard layout, so a double-width tile keeps its controls. Firmware before 0.2.78 draws a `cover` tile as standard.
+- **Firmware**: `Tile::cover_tile()` (display cover, media player, not full, with a picture mark in the extras) and
+  `Tile::pictured()` (live or cover_tile) drive `live_wanted()`; the wish carries the media pictures' marks (`marks`),
+  so a new track is a new wish (strip dropped and asked for again), and `cameras`: without a camera the feed opens
+  with `once` (one load per link), with one it keeps the fastest camera's pace. The tile over the whole page keeps the
+  card's cover through `cover_want` as before.
+- **App**: `CameraFeed.cover_raw()` (split out of `cover()`) fetches a player's picture when its address changed;
+  `live_one()` takes that road for a media player, a pace of 0. `Manager.answer_live` accepts a media tile only with
+  `display: cover`. `tests/test_camera.py` (LiveTiles, LiveApp), `web/tests/components.spec.ts`.
+
 ### Compatibility 0.2.91 / firmware 0.2.77
 
 Four things: a live picture on a camera tile, an action behind an alert's button, media texts that roll by, and a

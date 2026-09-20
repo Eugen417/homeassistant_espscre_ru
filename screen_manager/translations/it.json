@@ -1241,7 +1241,9 @@
       "graph": "grafico",
       "digital": "orologio digitale",
       "analog": "orologio analogico",
-      "sunpath": "percorso del sole"
+      "sunpath": "percorso del sole",
+      "live": "immagine dal vivo",
+      "cover": "copertina"
     },
     "sizes": {
       "single": "normale",
@@ -1274,6 +1276,9 @@
         "live": "Immagine dal vivo",
         "live_hint": "Una piccola immagine della telecamera al posto dell'icona, aggiornata al ritmo qui sotto finché la pagina è sullo schermo. Un tocco la apre ancora a schermo intero.",
         "live_needs_firmware": "Un'immagine dal vivo richiede il firmware 0.2.77 o più recente: premi Aggiorna sullo schermo dopo il salvataggio.",
+        "cover": "Copertina",
+        "cover_hint": "La copertina di ciò che suona al posto dell'icona, come nel riquadro di Home Assistant; un lettore senza immagine mantiene la sua icona. Un tocco apre ancora la scheda.",
+        "cover_needs_firmware": "La copertina sul riquadro richiede il firmware 0.2.78 o più recente: premi Aggiorna sullo schermo dopo il salvataggio.",
         "no_graph": "Home Assistant non ha valori numerici per questa entità, quindi il grafico resta vuoto. Scegli un'altra visualizzazione.",
         "no_forecast": "Questo servizio meteo non ha previsioni giornaliere in Home Assistant. Scegli un'altra visualizzazione."
       },

@@ -1,3 +1,10 @@
+## 0.2.92 (firmware 0.2.78)
+
+The album cover on a media tile, the way Home Assistant's own tile shows it.
+
+- **The album cover in the icon's place.** On a Guition, a single or double-width media player tile can show the cover of what plays instead of its icon: in the tile's settings choose **Display → Album cover**. It travels the same road as the live camera pictures of 0.2.91, in the one strip a page shares: a page with a camera and a Sonos loads its strip at the camera's pace and reuses the cover until the track changes; a page of media tiles alone loads once, and again the moment a new track brings another picture. A player without a picture (a radio station, a player that is off) keeps its icon; the double-width tile keeps its volume or playback controls. The tile over the whole page keeps the card's big cover. Nothing loads in standby.
+- Needs firmware 0.2.78: press **Update** on the screen. Includes everything from 0.2.91. CYD firmware: 1,633,760 bytes, 89.0 % of the update slot (32 bytes more than 0.2.91).
+
 ## 0.2.91 (firmware 0.2.77)
 
 Your cameras on the tiles themselves, an alert button that does something, and media titles that roll by.
