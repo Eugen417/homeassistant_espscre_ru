@@ -33,6 +33,9 @@ inline bool large() { return look == Look::standard; }
 // The widest a card with controls may get: beyond this the keys of a thermostat stand a hand apart. A picture
 // (the media card's cover, a camera) is not capped, it may fill the glass. 110 mm of the reference look.
 inline int control_max_width() { return px(look == Look::compact ? 620 : 740); }
+// The smallest thing a finger must be able to hit: 7 mm of glass, whatever the board's density. A drawn track
+// may be thinner; its touch area is grown to this (overlay_card::touchable).
+inline int touch_min() { return (dpi * 7 + 12) / 25; }
 // The look's cell height: what a card is designed for. A cell taller than this centres its content on it;
 // one at least twice as tall stacks its icon above its name and state.
 inline int cell_height() { return px(look == Look::compact ? 52 : 108); }

@@ -62,6 +62,25 @@ show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is ou
 - The icon circle and its place follow `TILE_ICON_SIZE` and `TILE_ICON_Y`; the forecast's current
   conditions block follows the card's text offset.
 
+## Overlays: one frame for every card
+
+`components/smart_display/overlay_card.h` is the frame a card a tap opens gets, and it holds two rules on every
+board:
+
+- **The content is never wider than a hand spans** (`ui::control_max_width`, 110 mm of the reference look). A
+  thermostat whose − and + sit at the far edges of a ten-inch panel takes two hands. On a CYD and a Guition the
+  glass is narrower than the cap, so nothing changes there.
+- **What is capped, is centred**: left to right by `overlay_card::frame`, top to bottom by
+  `overlay_card::centre(root, pinned)`, which leaves the first `pinned` children (the back key and the name)
+  where they are: the card's top bar stays at the top, the content under it sits in the middle.
+
+A card that is a *picture* asks for `overlay_card::picture` and is not capped: the media card's cover art and a
+camera's image are nicer the bigger they are. A full-screen backdrop behind the card keeps the page covered.
+
+Anything a finger must hit keeps at least `ui::touch_min()` (7 mm of glass, from the board's density) as its
+touch area, however thin it is drawn: `overlay_card::touchable(object, drawn_thickness)` grows the click area
+instead of the drawing, so a blind's slider on a small panel stays usable.
+
 ## What is still open, and the way it becomes durable
 
 - The 157 sizes in `runtime_tiles.h` and the metric tables of the settings, effects, media and light
@@ -73,9 +92,13 @@ show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is ou
   mockup). Every board that ships today is 2 x 3, so nothing is wrong; a board with another grid needs
   them to take the grid from the screen, which the screen can report (`DISPLAY_DPI`, `LOOK`,
   `GRID_COLS`, `GRID_ROWS` are all it takes).
-- The overlays that still take pixels from the board file (light, climate, alert, mode picker, touch
-  test) keep those substitutions; a lower canvas than the look's needs the board generator to fit
-  them. They become computed cards like settings and effects.
-- Control overlays are to be capped at about 110 mm of width and centred; media and camera fill.
+- The climate card is still a table of pixels per board (six layouts in the board file) and the compact
+  look still sends extra modes to the old Mode page. It should become a computed card like the settings
+  page: one card for every board, with the modes as a row of choices beside the fan and swing rows, and
+  no Mode page at all. That is the next card to rebuild, and the reason a CYD still shows the old picker.
+- The other overlays that take pixels from the board file (light, alert, touch test) keep those
+  substitutions; they become computed cards too.
+- A card with two groups (light: brightness and colour; climate: setpoint, modes, fan) could stand in two
+  columns on wide glass instead of one capped column. Same components, another flex flow.
 - The lab boards (`packages/boards/lab-*.yaml`) are generated and disposable; a real preset gets a
   hardware section checked on glass.

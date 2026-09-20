@@ -2,6 +2,7 @@
 #include "runtime_model.h"
 #include "header_bar.h"
 #include "tile_palette.h"
+#include "overlay_card.h"
 #include "theme.h"
 #include "tile_icon.h"
 #include "screen_settings.h"
@@ -947,7 +948,7 @@ inline void setting_event(const std::string &key, int value) {
 } // namespace runtime_tiles
 // Small shared native-LVGL detail cards. No images, canvas buffers or free scrolling.
 namespace runtime_tiles {
-inline lv_obj_t *detail_root=nullptr;
+inline lv_obj_t *detail_root=nullptr,*detail_backdrop=nullptr;
 inline unsigned detail_index=0;
 inline const lv_font_t *detail_font=nullptr;
 inline lv_obj_t *detail_actions[32]{};
@@ -979,7 +980,8 @@ inline std::string detail_state(const Tile &t){
   if(!t.extra().state_word.empty())return t.extra().state_word;
   return t.unit.empty()?t.state:screen_text::localize(t.state);
 }
-inline void hide_detail(){if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
+inline void hide_detail(){
+  if(detail_backdrop)lv_obj_add_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
 inline int slider_value(const Tile &t){
   auto d=t.domain();float value=0;
   if(d=="light")value=std::isfinite(t.brightness)?t.brightness/255:0;
@@ -1508,6 +1510,8 @@ inline lv_obj_t *cover_slider(lv_obj_t *parent,int x,int y,int w,int h,float val
     lv_slider_set_range(slider,1000,-below);
     lv_slider_set_value(slider,std::isfinite(value)?(int)std::lround((100.0f-std::clamp(value,0.0f,100.0f))*10):0,LV_ANIM_OFF);
   }
+  // A thin track is fine to look at, not to hit: the touch area is grown to a finger's size.
+  overlay_card::touchable(slider,w);
   lv_obj_add_event_cb(slider,cover_slider_event,LV_EVENT_VALUE_CHANGED,(void*)(uintptr_t)(tilt?1:0));
   lv_obj_add_event_cb(slider,cover_slider_event,LV_EVENT_RELEASED,(void*)(uintptr_t)(tilt?1:0));
   if(detail_action_count<32)detail_actions[detail_action_count++]=slider;
@@ -2137,12 +2141,25 @@ inline void show_detail(unsigned index){
   }
   detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
-  if(!detail_root){detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);}
+  if(!detail_root){
+    // The backdrop covers the page; the card itself is only as wide as a hand spans (overlay_card).
+    detail_backdrop=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_backdrop);
+    lv_obj_set_size(detail_backdrop,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_CLICKABLE);
+    detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);
+  }
+  lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
+  lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_backdrop);
   detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;history_forget();
   media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
-  int width=lv_display_get_horizontal_resolution(lv_display_get_default()), height=lv_display_get_vertical_resolution(lv_display_get_default());
-  bool large=width>=480;int pad=ui::px(large?20:10), top=ui::px(large?100:62), gap=ui::px(large?12:6),bh=ui::px(large?58:34),cw=(width-pad*2-gap)/2;
+  // The card's room: capped to what a hand spans and centred, unless it shows a picture (the media card's
+  // cover art, a camera), which may fill the glass. Every size below follows from `width`.
+  const auto kind=model.tiles[index].domain()=="media_player"?overlay_card::picture:overlay_card::controls;
+  overlay_card::frame(detail_root,kind);
+  // The room the frame just gave the card; LVGL reports the new width only after its next layout pass.
+  int width=overlay_card::content_width(kind), height=overlay_card::screen_height();
+  bool large=ui::large();int pad=ui::px(large?20:10), top=ui::px(large?100:62), gap=ui::px(large?12:6),bh=ui::px(large?58:34),cw=(width-pad*2-gap)/2;
   // The same top bar as the board's own cards: a round back arrow at the left, the name centred.
   int bar=ui::px(large?60:40),bar_x=ui::px(large?16:10),bar_y=ui::px(large?16:8);
   auto *back=detail_button("",bar_x,bar_y,bar,bar,-1);lv_obj_set_style_radius(back,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_color(back,theme::color(theme::KEY),0);
@@ -2178,6 +2195,9 @@ inline void show_detail(unsigned index){
     detail_label(detail_root,fill(txt::sun_sunrise,"time",screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0)),pad,top,width-2*pad);
     detail_label(detail_root,fill(txt::sun_sunset,"time",screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0)),pad,top+lv_font_get_line_height(detail_font)+(ui::px(large?10:4)),width-2*pad);
   }
+  // A card that leaves room sits in the middle of the glass; a picture fills it and stays where it is.
+  // The back key and the name stay at the top of the card; the content under them is centred.
+  if(kind==overlay_card::controls)overlay_card::centre(detail_root,2);
 }
 }
 
