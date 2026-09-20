@@ -1,3 +1,15 @@
+## 0.2.90 (firmware 0.2.76)
+
+ESP Screens speaks your language: the screens, the editor and its messages in nine languages, with the numbers, the clock and Home Assistant's own words as your country writes them.
+
+- **The editor in your language.** It follows the language of your Home Assistant profile, so two people in one house each see their own. English (United States), English (United Kingdom), Nederlands, Deutsch, Français, Español, Italiano, Português and Polski are in this release.
+- **The screens in your language.** A screen carries one language, which it gets at its next firmware update: press **Update** on it (or let the nightly round do it). New in **Settings → Language & region**: the language for the screens, the clock (24 hours or 12 with AM/PM) and how numbers are written. All three start at what your Home Assistant says, so most people never have to touch them.
+- **Numbers and the clock as your country writes them.** 1.234,5 in Dutch, 1,234.5 in English, 1 234,5 in French, and a room at 21,5 °C. The screens change this at once, without a new firmware. The **24-hour clock** switch of every screen is gone; the choice moved to Settings → Language & region and keeps what it was set to.
+- **Home Assistant's own words stay Home Assistant's.** What a door, an airco or a robot says, and the words in their cards (fan and swing modes, suction, the mop), come from your Home Assistant in your language, exactly as its own dashboard writes them. A space in front of a percent sign follows the same rule as Home Assistant: 54% in English and Dutch, 54 % in German, French, Czech, Finnish, Slovak and Swedish.
+- **Room for longer words.** The weather columns show two-letter days, a long weather word ends in an ellipsis instead of running into them, and the line under a tile's name keeps the part that carries the news: "Yest. 9:15 PM" where the full wording doesn't fit, and a robot's battery stays readable behind Home Assistant's word for its state.
+- **Add or improve a language yourself.** Every text of one language sits in one file, `screen_manager/translations/<code>.json`, and docs/TRANSLATING.md walks through starting a new one, checking it with `tools/i18n.py check` (it measures the lines under a tile's name in the screens' own font) and sending it in. A language without a file falls back to English, with its own clock and number style.
+- **What it costs.** The letters of the European languages are in the fonts of both boards. A CYD's firmware is FLASH_LINE
+
 ## 0.2.89 (firmware 0.2.75)
 
 ESPHome 2026.9 in ESP Screens, updates that no longer start from scratch without reason, and 94 KB more room on a CYD.
