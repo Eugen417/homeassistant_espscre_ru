@@ -25,7 +25,7 @@
 #endif
 
 namespace runtime_tiles {
-// LAB (responsive): the grid comes from the board as build flags; 2 x 3 when a board says nothing.
+// The tile grid comes from the board as build flags (GRID_COLS x GRID_ROWS); 2 x 3 when a board says nothing.
 #ifndef GRID_COLS
 #define GRID_COLS 2
 #endif

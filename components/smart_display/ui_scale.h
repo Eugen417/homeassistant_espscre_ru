@@ -1,11 +1,36 @@
 #pragma once
-// LAB (responsive): one scale for every pixel size the C++ still carries as a number. The board sets it at boot
-// (UI_SCALE_PCT: 100 on the CYD and the Guition, dpi / 170 * 100 on a board of the standard look). The real
-// round replaces this with lv_dpx() and one Scale; this keeps the two existing boards bit-identical meanwhile.
+// The screen's look and scale (app 0.2.9x, responsive boards).
+//
+// A screen hangs on a wall and is used from the same distance whatever its size, so every size the firmware
+// draws is a physical one. Two looks exist: `standard` (the Guition's sizes at 170 dpi) and `compact` (the CYD's
+// at 143 dpi, for glass too small for the standard). A board declares its look and its pixel density
+// (DISPLAY_DPI = diagonal pixels / diagonal inches); ui::configure() turns that into one scale for every pixel
+// size the C++ carries, so a 7-inch at 133 dpi draws the standard look at 78 % and a 294 dpi panel at 173 %.
+// On the CYD and the Guition the scale is exactly 100: their pixels are the reference.
+//
+// Sizes that come from the board file (the tile grid, TILE_ICON_SIZE, the fonts) are already scaled there; ui::px()
+// is for the sizes the C++ decides itself (paddings, key heights, strips), in the reference look's pixels.
+#include <string>
+
 namespace ui {
+enum class Look : uint8_t { standard, compact };
+inline Look look = Look::standard;
+inline int dpi = 170;
 inline int scale_pct = 100;
+inline int reference_dpi(Look l) { return l == Look::compact ? 143 : 170; }
+inline void configure(int display_dpi, const std::string &look_name) {
+  look = look_name == "compact" ? Look::compact : Look::standard;
+  dpi = display_dpi > 0 ? display_dpi : reference_dpi(look);
+  scale_pct = (dpi * 100 + reference_dpi(look) / 2) / reference_dpi(look);
+}
+// A size of the reference look, in this board's pixels.
 inline int px(int n) {
   if (scale_pct == 100) return n;
   return n >= 0 ? (n * scale_pct + 50) / 100 : -((-n * scale_pct + 50) / 100);
 }
+// The large class of cards and pages belongs to the standard look; the compact look draws the small one.
+inline bool large() { return look == Look::standard; }
+// The look's cell height: what a card is designed for. A cell taller than this centres its content on it;
+// one at least twice as tall stacks its icon above its name and state.
+inline int cell_height() { return px(look == Look::compact ? 52 : 108); }
 }  // namespace ui

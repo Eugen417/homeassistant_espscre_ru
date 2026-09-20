@@ -35,14 +35,15 @@ substitutions:
   TOUCH_SWAP_XY: "false"
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
-  # LAB (responsive): the grid as the board states it; the shared tree places the cells from these.
+  # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
+  # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
   GRID_COLS: "4"
   GRID_ROWS: "4"
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
-  UI_SCALE_PCT: "78"
-  TILE_H_STD: "85"
+  DISPLAY_DPI: "133"      # diagonal pixels / diagonal inches; the look's reference density on this board
+  LOOK: "standard"
   GRID_COL1_X: "16"
   GRID_COL2_X: "211"
   GRID_ROW1_Y: "0"

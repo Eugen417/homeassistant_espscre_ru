@@ -252,15 +252,14 @@ struct Widgets {
   lv_obj_t *picture{};
 };
 constexpr unsigned POINT_BUFFER = 128;
-// LAB (responsive): room for the largest grid a board may ask for; a board uses the first SLOTS_PER_PAGE.
+// Room for the largest grid a board may ask for; a board uses the first SLOTS_PER_PAGE of them.
 constexpr size_t MAX_CELLS = 20;
 static_assert(SLOTS_PER_PAGE <= MAX_CELLS, "grid larger than the bound tiles");
 inline std::array<Widgets, MAX_CELLS> widgets;
 // The grid's side margin and the gaps between cells, from the board (grid_configure at boot); -1 = sample the tiles.
 inline int grid_margin = -1, grid_gap_x = -1, grid_gap_y = -1;
 inline void grid_configure(int margin, int gap_x, int gap_y) { grid_margin = margin; grid_gap_x = gap_x; grid_gap_y = gap_y; }
-// LAB: the look's standard cell height (TILE_H_STD); a taller cell centres its content on this, a much taller one stacks it.
-inline int standard_tile_height = 0;
+
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
 inline bool has_icon_glyph(uint32_t codepoint) {
@@ -2574,7 +2573,7 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   // A single card keeps the dial of the profile's card when it grows without the page bar (firmware 0.2.69+), so the
   // calendar block beside it keeps its room; the dial stays in the card's middle.
   if(!w.full && !w.wide)dial=std::min(dial,w.base_height-(tile_height(w)-height));
-  // LAB (responsive): a single card whose width has no room for the date beside the dial centres the dial instead.
+  // A single card whose width has no room for the date beside the dial centres the dial instead.
   bool date_fits=true;
   if(!w.full && !w.wide){
     int room=width-dial-(ui::px(large?10:6)),need=0;lv_point_t sz;
@@ -2621,7 +2620,7 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
     part_label(w,16,small,0,0,1,LV_TEXT_ALIGN_CENTER,"");
     return;
   }
-  // LAB: what does not fit is left out of the card: the date labels hide, nothing else moves.
+  // What does not fit is left out of the card: the date labels hide, nothing else moves.
   for(unsigned q=15;q<18;++q)if(w.parts[q])set_hidden(w.parts[q],!date_fits);
   if(!date_fits)return;
   if(w.wide){
@@ -2657,7 +2656,7 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   begin_extra(w,"forecast",width,height);
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   const lv_font_t *temp_font=watch_value_font?watch_value_font:w.value_font,*day_icon=mini_icon_font?mini_icon_font:w.icon_font;
-  // LAB: the current-conditions block follows the card's text offset (a dpi-scaled size), not a fixed 150/96 px.
+  // The current-conditions block follows the card's text offset, a size the board scales.
   int left=std::min(large?w.title_x*150/64:w.title_x*2,width*45/100),icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
   // A full-page card (firmware 0.2.62+) adds the next hours under the days: time, icon and temperature per column.
   int day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
@@ -2688,7 +2687,7 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   // Home Assistant's word for the weather can be long ("częściowe zachmurzenie"): it ends in an ellipsis before the days.
   auto *condition=part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
   if(lv_label_get_long_mode(condition)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(condition,LV_LABEL_LONG_DOT);
-  // LAB (responsive): as many day columns as the width holds ("22/12" plus air per column), five at most, none below two.
+  // As many day columns as the width holds ("22/12" plus air per column): five at most, none below two.
   lv_point_t probe;lv_text_get_size(&probe,"22/12",w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
   const int min_col=(int)probe.x+(ui::px(large?6:4));
   int days=std::clamp((width-left)/std::max(1,min_col),0,5);if(days<2)days=0;
@@ -3251,9 +3250,9 @@ inline void render_slot(size_t slot) {
   if(d=="vacuum" && std::isfinite(t.battery)){value_tail=" / "+screen_text::percent((int)t.battery);value+=value_tail;}
   // Direct controls: only a wide card in the standard layout has room for the panel.
   bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
-  // LAB (responsive): a panel needs its own width plus the icon and some name; a narrow wide card stays a plain card.
+  // A panel needs its own width plus the icon and some name; a narrow wide card stays a plain card.
   if(with_panel && !w.full){
-    const bool lt=standard_tile_height>0?standard_tile_height>60:tile_height(w)>80;
+    const bool lt=ui::large();
     const PanelMetrics pm=panel_metrics(lt);
     const std::string kind=tile_controls::panel_kind(t);
     const int panel_need=tile_controls::is_slider(kind)?pm.slider_w+pm.gap+pm.toggle_h:pm.pill_w;
@@ -3262,9 +3261,9 @@ inline void render_slot(size_t slot) {
   if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
   label(w.value, value);
   bool mini=t.inline_control=="slider" && !watch && t.available();
-  // LAB (responsive): the card's size class is the look's, not the cell's momentary height. A class that flipped
-  // when the rows grew (page buttons off) reused the clock's numeral labels as tick lines and crashed.
-  bool large_tile=standard_tile_height>0?standard_tile_height>60:tile_height(w)>80;
+  // The card's size class is the look's, never the cell's momentary height: a class that flips when the rows
+  // grow (page buttons off) would reuse a clock's numeral labels as tick lines.
+  bool large_tile=ui::large();
   lap(swipe_profile::TEXT);
   // Cards that replace the name/status layout entirely.
   bool clock=t.is_clock(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.extra().forecast.size()>0 && fresh() && t.available();
@@ -3288,8 +3287,8 @@ inline void render_slot(size_t slot) {
     lap(swipe_profile::GEOMETRY);
     render_full(w,t,custom,clock,sunpath,graph,mini,with_panel,large_tile,value,unit,content_w,content_h);
     lap(swipe_profile::CUSTOM);
-  }else if(!custom && !watch && !mini && !graph && !with_panel && !w.wide && standard_tile_height>0 && tile_height(w)>=2*standard_tile_height){
-    // LAB (responsive §4.8): a cell twice the look's height shows its icon above its name and state, like a full card.
+  }else if(!custom && !watch && !mini && !graph && !with_panel && !w.wide && tile_height(w)>=2*ui::cell_height()){
+    // A cell at least twice the look's height shows its icon above its name and state, like a full card does.
     lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);hide_extra(w);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
     set_font(w.title,w.title_font);title_height=lv_font_get_line_height(w.title_font);lv_obj_set_height(w.title,title_height);
     const int circle=large_tile?std::min(content_w,content_h*45/100):std::min(content_w,content_h*40/100);
@@ -3326,8 +3325,8 @@ inline void render_slot(size_t slot) {
   lap(swipe_profile::PANEL);
   int header_height=(mini||graph_strip)?content_h-slider_height-(ui::px(large_tile?6:3)):content_h;
   int text_y=std::max(0,(header_height-text_height)/2);
-  // LAB (responsive): the circle follows the board's icon size (TILE_ICON_SIZE, a dpi-scaled substitution), so a
-  // 73 pt icon on a 294 dpi panel gets its disc; 54/36 px and the watch and mini ratios stay as they are today.
+  // The circle follows the board's icon size (TILE_ICON_SIZE), so a 73 pt icon on a 294 dpi panel gets its disc;
+  // the watch and mini circles keep their ratios to it.
   const int base_circle=w.base_circle>0?w.base_circle:(ui::px(large_tile?54:36));
   int circle_size=watch?(large_tile?base_circle*26/54:base_circle/2):(mini||graph_strip)?base_circle*2/3:base_circle;
   lv_obj_set_size(w.circle,circle_size,circle_size);
@@ -3336,12 +3335,12 @@ inline void render_slot(size_t slot) {
   int text_x=watch?0:(mini||graph_strip)?circle_size+(ui::px(large_tile?8:6)):w.title_x;
   // A large card keeps the profile's places for its circle, name and state, moved down by half of what a card
   // grows without the page bar, so they stay in its middle.
-  const int standard_h=standard_tile_height>0?std::min(standard_tile_height,w.base_height):w.base_height;
+  const int standard_h=std::min(ui::cell_height(),w.base_height);
   int lift=std::max(0,(tile_height(w)-standard_h)/2);
   lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y+lift);
   lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
     watch?(ui::px(large_tile?42:19)):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y+lift);
-  // LAB: a large card's circle sits where the board puts it (TILE_ICON_Y, 12 on the Guition), not at a fixed 12 px.
+  // A large card's circle sits where the board puts it (TILE_ICON_Y).
   const int circle_y=(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):w.circle_y+lift;
   lv_obj_set_pos(w.circle,0,circle_y);
   live_place(w,t,circle_size,0,circle_y);
@@ -3859,7 +3858,7 @@ inline int place_page(int page) {
   const bool bar=pages>1 && page_buttons;
   const Rows r=rows(bar);
   applied_rows=r;applied_bar=bar;
-  // LAB (responsive): every cell from the board's margin and gaps; a wide card spans two cells, a full card the page.
+  // Every cell from the board's margin and gaps; a wide card spans two cells, a full card the page.
   const int cell_w=widgets[0].base_width;
   const int margin=grid_margin>=0?grid_margin:(widgets[0].tile?lv_obj_get_x(widgets[0].tile):0);
   const int gap_x=grid_gap_x>=0?grid_gap_x:(widgets[0].tile && widgets[1].tile && GRID_COLUMNS>1 ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)-cell_w : 0);
