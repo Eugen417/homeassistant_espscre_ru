@@ -138,11 +138,31 @@ https://github.com/user-attachments/assets/f9f6a933-d388-4c8b-9c9a-011dfa37617b
 
 ## In your language
 
-The screens, the editor and the app speak English (US and UK), Dutch, German, French, Italian, Spanish, Portuguese and
-Polish. ESP Screens takes Home Assistant's language and uses its words, so a door says what it says in the Home
-Assistant app. Settings → Language & region picks another language, the clock and how numbers are written, for every
-screen at once. Most languages still need someone who speaks them to check the texts:
-[Translating ESP Screens](docs/TRANSLATING.md) says how, and how to add a language.
+<p align="center">
+  <img src="docs/images/guition-german.png" width="31%" alt="A Guition in German: Dienstag 15 Sept. beside the analog clock, Teilweise bewölkt with the days Di Mi Do Fr Sa, the table lamp at 75 %">
+  <img src="docs/images/guition-french.png" width="31%" alt="The same screen in French: mardi 15 sept., Éclaircies with the days ma me je ve sa, and Sam is Maison">
+  <img src="docs/images/guition-polish.png" width="31%" alt="The same screen in Polish: wtorek 15 wrz, częściowe zachmurzenie with the days wt śr cz pt sb, and Sam is w domu">
+</p>
+<p align="center"><sub>The same home in German, French and Polish. The screens follow your Home Assistant: its language, its words for a light or a robot, and how your country writes a date, a time and a number — 75 % in German and French, 75% in Polish and English.</sub></p>
+
+The screens, the editor and its messages speak **English (US and UK), Nederlands, Deutsch, Français, Italiano,
+Español, Português and Polski**. Nothing to set up: ESP Screens takes the language of your Home Assistant.
+
+<p align="center">
+  <img src="docs/images/editor-language.png" width="36%" alt="Language and region in ESP Screens: the screen language set to Home Assistant's language, the time format and the number format, each following the language">
+</p>
+<p align="center"><sub>Settings → Language & region, when you want something else than Home Assistant's own.</sub></p>
+
+- **The editor** follows the language of your Home Assistant profile, so two people in one house each read their own.
+- **A screen** carries one language, built into its firmware: change it and press **Update** on the screen (or let
+  the nightly round do it). The clock (24 hours or 12 with AM/PM) and the number format change straight away, on
+  every screen at once.
+- **Words from Home Assistant stay Home Assistant's**: what a door, an airco or a robot says on a tile and in its
+  card is the word its own dashboard shows, in your language.
+
+Most languages still need someone who speaks them to read the texts through, and a new language is one file.
+[Translating ESP Screens](docs/TRANSLATING.md) walks through both; a language without a file falls back to English
+while it keeps your country's clock and numbers.
 
 ## Alerts
 
