@@ -27,7 +27,7 @@ if HAS_AIOHTTP:
     from server import Manager, create_app
 
 TOO_LONG = "These tiles' entity IDs are too long together to fit in one message to the screen; remove a few tiles."
-NO_ROOM = "These tiles don't fit on eight pages; remove a tile or make one smaller."
+NO_ROOM = "These tiles don't fit on this screen's pages; remove a tile or make one smaller."
 # Home Assistant's recorder keeps a state's attributes up to this many bytes of JSON.
 RECORDER_ATTRIBUTES = 16384
 
@@ -79,7 +79,7 @@ class Snapshot(unittest.TestCase):
         attributes = {'friendly_name': 'Living room screen tiles', 'icon': 'mdi:view-dashboard-outline', **snapshot}
         size = len(json.dumps(attributes, ensure_ascii=False, separators=(',', ':')).encode())
         self.assertLess(size, RECORDER_ATTRIBUTES, size)
-        self.assertEqual(set(snapshot), {'screen', 'node', 'title', 'pages', 'tiles'})
+        self.assertEqual(set(snapshot), {'screen', 'node', 'title', 'columns', 'rows', 'max_pages', 'pages', 'tiles'})
         documented = {'entity', 'name', 'page', 'row', 'column', 'slot', 'size', 'controls', 'display', 'tap', 'action', 'to_page'}
         for item in snapshot['tiles']:
             self.assertLessEqual(set(item), documented)

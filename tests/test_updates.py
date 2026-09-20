@@ -63,7 +63,7 @@ class ProfileNameTests(unittest.TestCase):
                                                    'packages:\n  a: !include other.yaml\napi:\n  encryption:\n    key: !secret api\n')
             (Path(tmp) / 'broken.yaml').write_text('esphome: [\n')
             names = f.profile_names()
-            # 'package' (app 0.2.9x) is the board package the profile builds from: what the screen looks like.
+            # 'package' (app 0.2.93) is the board package the profile builds from: what the screen looks like.
             self.assertEqual(names['living-room.yaml'], {'node': 'living-room', 'friendly': 'Living room', 'screen': True,
                                                          'api_key': names['living-room.yaml']['api_key'],
                                                          'package': 'packages/cyd.yaml'})

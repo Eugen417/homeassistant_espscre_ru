@@ -21,7 +21,7 @@ from updates import Updater
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
-from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, SLOTS_PER_PAGE, firmware_features, packed_slots, run_tile_event,
+from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, firmware_features, grid_of, packed_slots, run_tile_event,
                   screen_firmware, shape_of, version_text)
 import header_bar
 import history_card
@@ -641,7 +641,7 @@ class Manager:
             if raw.get('version') != 1 or not isinstance(raw.get('screens'), dict):
                 raise ValueError('Unknown storage version; data stays unchanged.')
             # Loaded leniently: a tile setting this version doesn't know (saved by a newer one) never stops the app.
-            self.layouts = {key: validate_layout(value, stored=True) for key, value in raw['screens'].items()}
+            self.layouts = {key: validate_layout(value, stored=True, grid=None) for key, value in raw['screens'].items()}
         # An app from before Language & region (app 0.2.90): its screens keep the 24 hours they show, until Home Assistant
         # says every screen's own clock setting was 12 hours (resolve_clock_pin). A new install starts on Automatic, and
         # is stored right away so a restart never takes it for an old one.
@@ -848,7 +848,7 @@ class Manager:
         without sending it back, which could undo a change it made after reporting this one; its revision
         stays, so the next ping still matches."""
         base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or screen_t('screen.status.home'), 'tiles': []}
-        layout = validate_layout({**base, 'settings': settings})
+        layout = validate_layout({**base, 'settings': settings}, grid=grid_of(screen) if screen else None)
         updated = {**self.layouts, inbox: layout}
         self.write_layouts(updated)
         self.layouts = updated
@@ -1113,7 +1113,10 @@ class Manager:
         screen=next((s for s in screens if s['id']==inbox), None)
         if screen is None:
             raise ValueError(t('addon.errors.not_paired'))
-        layout = validate_layout(data)
+        # Every position on the grid of this screen's pages: two by three on the first boards, whatever a newer
+        # screen reports (core.grid_of).
+        grid = grid_of(screen)
+        layout = validate_layout(data, grid=grid)
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
         if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
             raise ValueError(t('addon.errors.layout.camera_unsupported'))
@@ -1154,9 +1157,9 @@ class Manager:
         # Restored options can widen a tile: an editor without positions packs again with
         # the real widths, and explicit positions are checked once more for overlap.
         if not any(isinstance(t, dict) and 'slot' in t for t in data.get('tiles', [])):
-            for tile, slot in zip(layout['tiles'], packed_slots(layout['tiles'])):
+            for tile, slot in zip(layout['tiles'], packed_slots(layout['tiles'], grid)):
                 tile['slot'] = slot
-        layout = validate_layout(layout)
+        layout = validate_layout(layout, grid=grid)
         known = {e['id'] for e in entities} | set(BUILTIN)
         if any(t['entity'] not in known for t in layout['tiles']):
             raise ValueError(t('addon.errors.layout.entity_gone'))
@@ -1184,8 +1187,9 @@ class Manager:
         capabilities = getattr(self.ha, 'capabilities', None)
         if capabilities is None:
             return
-        layout = validate_layout(data)
         inbox = self.aliases.get(inbox, inbox)
+        screen = self.screen(inbox)
+        layout = validate_layout(data, grid=grid_of(screen) if screen else None)
         before = {tile['entity']: tile for tile in self.layouts.get(inbox, {}).get('tiles', [])}
         for tile in layout['tiles']:
             previous = before.get(tile['entity'])
@@ -1315,9 +1319,14 @@ class Manager:
 
     def layout_message(self, inbox, layout, screen):
         tiles = layout['tiles']
-        # Grid positions (firmware 0.2.26+; older firmware ignores them and packs the entities in order).
+        # Grid positions (firmware 0.2.26+; older firmware ignores them and packs the entities in order). A layout
+        # made on another grid than the one the screen reports (the screen was flashed as another board and kept
+        # its name) goes out packed in order, so every tile still lands in a cell that exists.
+        slots = [t['slot'] for t in tiles]
+        if isinstance(screen.get('shape'), dict) and not grid_of(screen).holds(tiles):
+            slots = grid_of(screen).pack(tiles)
         message = {'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in tiles],
-                   'slots': [t['slot'] for t in tiles], 'keepalive': KEEPALIVE_SECONDS}
+                   'slots': slots, 'keepalive': KEEPALIVE_SECONDS}
         if 'pages' in layout:
             message['pages'] = layout['pages']
         # A screen that owns its settings (firmware 0.2.49+) gets none: they would overwrite what changed on it.
@@ -1754,7 +1763,8 @@ class Manager:
         inbox = self.aliases.get(screen['id'], screen['id'])
         # Firmware 0.2.65+ takes a navigation tile on several pages; an older screen keeps one per page it goes to.
         repeat = (self.firmware_version(inbox, screen) or (0, 0, 0)) >= PAGE_TILE_REPEAT_MIN_FIRMWARE
-        layout, tile = run_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data, repeat)
+        layout, tile = run_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data, repeat,
+                                      grid_of(screen))
         await self.check_supported(inbox, layout)
         self.save(inbox, layout)
         return screen, tile
@@ -1771,7 +1781,7 @@ class Manager:
                 answer.update(ok=True, screen=screen['name'])
                 if tile is not None and 'slot' in tile:
                     # Which tile it was, which matters for a navigation tile that is on several pages (app 0.2.78).
-                    answer.update(page=tile['slot'] // SLOTS_PER_PAGE + 1, slot=tile['slot'])
+                    answer.update(page=grid_of(screen).page_of(tile['slot']) + 1, slot=tile['slot'])
                 LOG.info('%s: %s on %s', event_type, answer['entity'] or 'order', screen['name'])
                 await self.publish_layouts()
             except Exception as error:
@@ -1906,13 +1916,17 @@ def create_app(manager, development=False):
             # The board too: a screen that says nothing about itself is known by the YAML its profile builds from.
             screen['board'] = board_of(screen)
             screen['shape'] = shape_of(screen)
+            # Whether the board draws pictures (camera tiles, an alert's snapshot, an album cover): the boards with
+            # memory for them say so with their camera sizes (boards.json); the firmware that draws them is a
+            # separate question the editor asks by version, so an older screen still learns what an update brings.
+            screen['pictures'] = board_of(screen) in camera_feed.BOXES
             screen['alert_action'] = alert_service(screen.get('node'))
             screen['dismiss_action'] = alert_service(screen.get('node'), 'dismiss_alert')
-            # What the editor may offer this screen, by the firmware the app's own checks go by (app 0.2.78): an offline
-            # screen keeps its 48 tiles, and the editor needn't know the version rules.
+            # What the editor may offer this screen, by the firmware the app's own checks go by (app 0.2.78) and the
+            # grid of its pages: an offline screen keeps its tiles, and the editor needn't know the version rules.
             version = manager.firmware_version(screen['id'], screen)
             screen['firmware_known'] = version_text(version)
-            screen.update(firmware_features(version))
+            screen.update(firmware_features(version, grid_of(screen)))
         return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
                 'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles),

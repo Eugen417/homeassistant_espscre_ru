@@ -42,8 +42,8 @@ LIVE_REFRESH = (15, 30)  # the paces a live tile may choose, in seconds; the fir
 COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
 # The media card with its cover (app 0.2.77): firmware from here draws it and asks for the cover.
 COVER_MIN_FIRMWARE = (0, 2, 64)
-# Forty-eight tiles (one per slot), a tile over the whole page and the screen.page tile (firmware 0.2.62+).
-MAX_TILES = 48
+# One tile per slot, a tile over the whole page and the screen.page tile (firmware 0.2.62+). How many tiles a
+# screen holds follows from its grid (Grid.max_tiles below): 48 on the boards that shipped first.
 LEGACY_MAX_TILES = 20
 FULL_PAGE_MIN_FIRMWARE = (0, 2, 62)
 # Twenty tiles from firmware 0.2.7, ten before.
@@ -96,12 +96,125 @@ DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard',
 # Displays that only work on a double-width card.
 WIDE_ONLY = ('forecast', 'sunpath')
 
-# Grid positions: two columns, three rows per page, at most eight pages. A tile's
-# `slot` is its absolute cell (page * 6 + row * 2 + column); a wide tile starts in
-# the left column and also covers the cell to its right. Empty cells are allowed.
-SLOTS_PER_PAGE = 6
-MAX_PAGES = 8
-MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE
+# ----- The grid of a screen's pages -----
+# A page is a grid of cells, and each screen has its own: two columns of three on the boards that shipped first,
+# three by three on a 800 x 480 panel, whatever a later board's glass asks for. A tile's `slot` is its absolute
+# cell (page * cells + row * columns + column); a wide tile starts in a column that has a cell to its right and
+# covers both; a full tile (firmware 0.2.62+) starts a page and covers every cell of it. Empty cells are allowed.
+#
+# The rules are the firmware's (components/smart_display/runtime_model.h): at most eight pages, and never more
+# than 64 tiles on one screen (one dirty bit each), so a page of nine cells gives seven pages. Everything that
+# counts cells, rows, pages or tiles goes through the screen's Grid (`grid_of(screen)`); DEFAULT_GRID is the two
+# by three of the first boards, which is also what every layout stored before app 0.2.93 was made on.
+FIRMWARE_MAX_PAGES = 8
+FIRMWARE_MAX_TILES = 64
+
+class Grid:
+    __slots__ = ('columns', 'rows')
+
+    def __init__(self, columns=2, rows=3):
+        columns, rows = int(columns), int(rows)
+        if columns < 1 or rows < 1 or columns * rows > FIRMWARE_MAX_TILES:
+            raise ValueError(f'no screen holds a page of {columns} x {rows} cells')
+        self.columns, self.rows = columns, rows
+
+    def __eq__(self, other):
+        return isinstance(other, Grid) and (self.columns, self.rows) == (other.columns, other.rows)
+
+    def __hash__(self):
+        return hash((self.columns, self.rows))
+
+    def __repr__(self):
+        return f'Grid({self.columns}x{self.rows})'
+
+    @property
+    def slots(self):
+        """The cells of one page."""
+        return self.columns * self.rows
+
+    @property
+    def pages(self):
+        return min(FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES // self.slots)
+
+    @property
+    def max_slots(self):
+        return self.pages * self.slots
+
+    max_tiles = max_slots
+
+    @property
+    def wide_span(self):
+        """A wide tile takes two cells, or the one there is on a single-column screen."""
+        return min(2, self.columns)
+
+    def cells(self, size):
+        return self.slots if size == 'full' else self.wide_span if size in ('wide', True) else 1
+
+    def page_start(self, slot):
+        return slot - slot % self.slots
+
+    def row_start(self, slot):
+        return slot - slot % self.columns
+
+    def wide_fits(self, slot):
+        """Whether a wide tile may start here: a cell beside it in the same row, or a single column."""
+        return self.columns == 1 or slot % self.columns <= self.columns - 2
+
+    def footprint(self, slot, size):
+        """The cells a tile of `size` takes from `slot` (True still means wide)."""
+        if size == 'full':
+            return tuple(range(self.page_start(slot), self.page_start(slot) + self.slots))
+        return tuple(range(slot, slot + self.wide_span)) if size in ('wide', True) else (slot,)
+
+    def pack(self, tiles):
+        """In-order packing, the rule before explicit positions and what firmware without `slots` still does:
+        fill left to right, a wide card that would straddle two rows starts the next, a full one a new page."""
+        position, slots = 0, []
+        for tile in tiles:
+            size = tile_size(tile)
+            if size == 'full' and position % self.slots:
+                position += self.slots - position % self.slots
+            elif size == 'wide' and not self.wide_fits(position):
+                position = self.row_start(position) + self.columns
+            slots.append(position)
+            position += self.cells(size)
+        return slots
+
+    def holds(self, tiles):
+        """Whether every stored position is a cell of this grid that a tile of its size may start in."""
+        for tile in tiles:
+            slot, size = tile.get('slot'), tile_size(tile)
+            if type(slot) is not int or not 0 <= slot < self.max_slots:
+                return False
+            if size == 'full' and slot % self.slots or size == 'wide' and not self.wide_fits(slot):
+                return False
+        return True
+
+    def page_of(self, slot):
+        return slot // self.slots
+
+    def row_of(self, slot):
+        """The row within its page, counted from 1 as people do."""
+        return slot % self.slots // self.columns + 1
+
+    def column_of(self, slot):
+        """The column, counted from 1."""
+        return slot % self.columns + 1
+
+    def column_word(self, slot):
+        """The column as the layout sensor names it: left and right on a two-column screen, the number elsewhere."""
+        return ('left', 'right')[slot % 2] if self.columns == 2 else self.column_of(slot)
+
+    def slot_at(self, page, row, column):
+        """The cell at `row` and `column` of `page`, all three counted from the first."""
+        return page * self.slots + (row - 1) * self.columns + (column - 1)
+
+DEFAULT_GRID = Grid(2, 3)
+# The first boards' numbers, for what has no screen in hand (the store, a test); anything per screen asks its grid.
+SLOTS_PER_PAGE = DEFAULT_GRID.slots
+MAX_PAGES = DEFAULT_GRID.pages
+MAX_SLOTS = DEFAULT_GRID.max_slots
+MAX_TILES = DEFAULT_GRID.max_tiles
 
 TILE_SIZES_ON_SCREEN = ('single', 'wide', 'full')
 
@@ -111,51 +224,39 @@ def tile_size(tile):
     return size if size in TILE_SIZES_ON_SCREEN else 'single'
 
 def is_wide(tile):
-    """Double width or the whole page: the card spans both columns."""
+    """Double width or the whole page: the card spans two columns."""
     return tile_size(tile) != 'single'
 
 def is_full(tile):
     return tile_size(tile) == 'full'
 
-def cells_of(size):
-    return SLOTS_PER_PAGE if size == 'full' else 2 if size in ('wide', True) else 1
+def cells_of(size, grid=DEFAULT_GRID):
+    return grid.cells(size)
 
-def page_start(slot):
-    return slot - slot % SLOTS_PER_PAGE
+def page_start(slot, grid=DEFAULT_GRID):
+    return grid.page_start(slot)
 
-def footprint(slot, size):
+def footprint(slot, size, grid=DEFAULT_GRID):
     """The cells a tile of `size` takes from `slot` (True still means wide)."""
-    if size == 'full':
-        return tuple(range(page_start(slot), page_start(slot) + SLOTS_PER_PAGE))
-    return (slot, slot + 1) if size in ('wide', True) else (slot,)
+    return grid.footprint(slot, size)
 
-def pack_slots(tiles):
-    """In-order packing, the rule before explicit positions and what firmware without
-    `slots` still does: fill left to right, a wide card starts a new row, a full one a new page."""
-    position, slots = 0, []
-    for tile in tiles:
-        size = tile_size(tile)
-        if size == 'full' and position % SLOTS_PER_PAGE:
-            position += SLOTS_PER_PAGE - position % SLOTS_PER_PAGE
-        elif size == 'wide' and position % 2:
-            position += 1
-        slots.append(position)
-        position += cells_of(size)
-    return slots
+def pack_slots(tiles, grid=DEFAULT_GRID):
+    """In-order packing on the screen's grid (Grid.pack)."""
+    return grid.pack(tiles)
 
-def packed_slots(tiles):
+def packed_slots(tiles, grid=DEFAULT_GRID):
     """pack_slots for tiles that must fit on the screen: ValueError when the packing runs past the last page (48
-    tiles with one of them double-width, or 43 with one full-page tile), before a save or an event stores it (app
-    0.2.78; the save used to fail later with "Invalid tile position")."""
-    slots = pack_slots(tiles)
-    if any(footprint(slot, tile_size(tile))[-1] >= MAX_SLOTS for tile, slot in zip(tiles, slots)):
+    tiles with one of them double-width, or 43 with one full-page tile, on a two by three screen), before a save or
+    an event stores it (app 0.2.78; the save used to fail later with "Invalid tile position")."""
+    slots = grid.pack(tiles)
+    if any(grid.footprint(slot, tile_size(tile))[-1] >= grid.max_slots for tile, slot in zip(tiles, slots)):
         raise ValueError(t('addon.errors.layout.eight_pages'))
     return slots
 
-def has_gaps(tiles):
+def has_gaps(tiles, grid=DEFAULT_GRID):
     """True when the stored positions differ from the in-order packing, so firmware
     before 0.2.26 (which ignores `slots`) would show another arrangement."""
-    return [t.get('slot') for t in tiles] != pack_slots(tiles)
+    return [t.get('slot') for t in tiles] != grid.pack(tiles)
 
 # Direct controls on the right half of a double-width card (firmware 0.2.19+), like
 # Home Assistant's own entity rows. The first choice is what a wide card shows
@@ -208,10 +309,10 @@ NAME_DEVICE_NAME = ('Device name', 'Apparaatnaam')
 NAME_IP_ADDRESS = ('IP address', 'IP-adres')
 # The language a screen's firmware was built in (firmware 0.2.76+, app 0.2.90); older firmware speaks English.
 NAME_SCREEN_LANGUAGE = ('Screen language',)
-# The shape of a screen (firmware 0.2.9x, app 0.2.9x): "800x480 3x2" is its canvas and the grid of cells a page
+# The shape of a screen (firmware 0.2.79, app 0.2.93): "800x480 3x2" is its canvas and the grid of cells a page
 # holds. Firmware from before it says nothing, and then the board it was built for decides (LAYOUTS below).
 NAME_SCREEN_LAYOUT = ('Screen layout',)
-# Which board a screen is (firmware 0.2.9x, app 0.2.9x): the key of its file in packages/boards, the same key
+# Which board a screen is (firmware 0.2.79, app 0.2.93): the key of its file in packages/boards, the same key
 # boards.json is written under. Firmware from before it says nothing, and then the Guition's own sensor or the
 # YAML the screen is built from has to tell (board_of below).
 NAME_SCREEN_BOARD = ('Screen board',)
@@ -221,7 +322,7 @@ SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME
 # What a board looks like: the glass it draws on and the cells of one page. These come straight from the board
 # files (tools/generate_board_shapes.py writes boards.json from DISPLAY_W, GRID_COLS and the rest), so the
 # numbers live in one place: the YAML a screen is built from. A screen that is online reports its own shape as
-# well (firmware 0.2.9x) and that one wins, because it knows which way the screen was turned.
+# well (firmware 0.2.79) and that one wins, because it knows which way the screen was turned.
 def _board_shapes():
     try:
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'boards.json'), encoding='utf-8') as file:
@@ -231,18 +332,28 @@ def _board_shapes():
 SHAPES = _board_shapes()
 DEFAULT_SHAPE = SHAPES.get('cyd', {'width': 320, 'height': 240, 'columns': 2, 'rows': 3})
 
+# The text of the "Screen layout" sensor: the canvas, the grid and, since firmware 0.2.79, the density and the look.
+SHAPE_TEXT = r'(\d{2,5})x(\d{2,5}) (\d{1,2})x(\d{1,2})(?: (\d{2,4})dpi)?(?: (standard|compact))?'
+
 def parse_shape(text):
-    """The screen's own "<width>x<height> <columns>x<rows>"; None for anything else."""
-    match = re.fullmatch(r'(\d{2,5})x(\d{2,5}) (\d{1,2})x(\d{1,2})', str(text or '').strip())
+    """The screen's own "<width>x<height> <columns>x<rows>", followed since firmware 0.2.79 by its density and its
+    look ("800x480 3x3 217dpi standard"); None for anything else. The density and the look are kept when given, so
+    a board this app has never heard of still draws right in the editor."""
+    match = re.fullmatch(SHAPE_TEXT, str(text or '').strip())
     if not match:
         return None
-    width, height, columns, rows = (int(value) for value in match.groups())
-    if not (1 <= columns <= 12 and 1 <= rows <= 12 and columns * rows <= MAX_SLOTS):
+    width, height, columns, rows = (int(value) for value in match.groups()[:4])
+    if not (1 <= columns <= 12 and 1 <= rows <= 12 and columns * rows <= FIRMWARE_MAX_TILES):
         return None
-    return {'width': width, 'height': height, 'columns': columns, 'rows': rows}
+    shape = {'width': width, 'height': height, 'columns': columns, 'rows': rows}
+    if match[5]:
+        shape['dpi'] = int(match[5])
+    if match[6]:
+        shape['look'] = match[6]
+    return shape
 
 def board_of(screen):
-    """Which board a screen is, in the order of what knows best: what it reported itself (firmware 0.2.9x, or
+    """Which board a screen is, in the order of what knows best: what it reported itself (firmware 0.2.79, or
     the Guition's own sensor), else the board package the YAML of its profile includes. 'unknown' for a screen
     that says nothing and has no profile here, which is what a screen flashed by hand looks like."""
     if not isinstance(screen, dict):
@@ -256,20 +367,26 @@ def board_of(screen):
     return board or 'unknown'
 
 def shape_of(screen):
-    """The shape of a screen as the editor needs it, in the order of what knows best:
-
-    1. what the screen itself reported (firmware 0.2.9x), which is the canvas after its rotation;
-    2. the YAML it is built from: the board package its profile includes (boards.json);
-    3. the board its diagnostics gave away, or the smallest screen there is."""
+    """The shape of a screen as the editor needs it: its canvas, the cells of one page, its density, its look and,
+    for a board that draws pictures, the camera sizes. What the screen reported itself (firmware 0.2.79+) wins,
+    because that is the canvas after its rotation; the board it is (board_of: reported, or the YAML its profile
+    builds from) fills in the rest from boards.json; a screen that says nothing at all is taken for the smallest
+    screen there is."""
     if not isinstance(screen, dict):
         return DEFAULT_SHAPE
+    shape = SHAPES.get(board_of(screen), DEFAULT_SHAPE)
     reported = screen.get('shape')
     if isinstance(reported, dict) and reported.get('columns'):
-        return reported
-    package = screen.get('package')
-    if isinstance(package, str) and package in SHAPES:
-        return SHAPES[package]
-    return SHAPES.get(screen.get('board'), DEFAULT_SHAPE)
+        shape = {**shape, **reported}
+    return shape
+
+def grid_of(screen):
+    """The grid of a screen's pages (shape_of), on which every slot of its layout is counted."""
+    shape = shape_of(screen)
+    try:
+        return Grid(shape.get('columns', DEFAULT_GRID.columns), shape.get('rows', DEFAULT_GRID.rows))
+    except (TypeError, ValueError):
+        return DEFAULT_GRID
 
 def parse_firmware(text):
     """(major, minor, patch) of a screen firmware version such as "0.2.63"; None for anything else. Strict on purpose:
@@ -303,16 +420,17 @@ def version_text(version):
     """"0.2.65" for (0, 2, 65); None for None."""
     return '.'.join(str(part) for part in version) if version else None
 
-def tile_limit(version):
-    """How many tiles firmware `version` (a tuple, or None when unknown) takes."""
+def tile_limit(version, grid=DEFAULT_GRID):
+    """How many tiles firmware `version` (a tuple, or None when unknown) takes on a screen with this grid: one per
+    cell of its pages (firmware 0.2.62+), twenty from 0.2.7, ten before."""
     version = version or (0, 0, 0)
-    return MAX_TILES if version >= FULL_PAGE_MIN_FIRMWARE else LEGACY_MAX_TILES if version >= TWENTY_TILES_MIN_FIRMWARE else FIRST_MAX_TILES
+    return grid.max_tiles if version >= FULL_PAGE_MIN_FIRMWARE else LEGACY_MAX_TILES if version >= TWENTY_TILES_MIN_FIRMWARE else FIRST_MAX_TILES
 
-def firmware_features(version):
+def firmware_features(version, grid=DEFAULT_GRID):
     """What the editor may offer a screen with firmware `version` (a tuple, or None): the tile limit, full-page and
     navigation tiles, and the same navigation tile on several pages."""
     version = version or (0, 0, 0)
-    return {'tile_limit': tile_limit(version), 'full_page': version >= FULL_PAGE_MIN_FIRMWARE,
+    return {'tile_limit': tile_limit(version, grid), 'full_page': version >= FULL_PAGE_MIN_FIRMWARE,
             'page_tiles_repeat': version >= PAGE_TILE_REPEAT_MIN_FIRMWARE}
 
 def entity_slug(name):
@@ -609,44 +727,45 @@ def match_screen(screens, wanted, layouts=None):
         raise ValueError(t('addon.errors.events.several_screens', name=wanted, screens=', '.join(sorted(s['name'] for s in found))))
     return found[0]
 
-def occupied_cells(tiles, skip=None):
+def occupied_cells(tiles, skip=None, grid=DEFAULT_GRID):
     cells = set()
     for tile in tiles:
         if tile is skip or 'slot' not in tile:
             continue
-        cells.update(footprint(tile['slot'], tile_size(tile)))
+        cells.update(grid.footprint(tile['slot'], tile_size(tile)))
     return cells
 
-def free_slot(tiles, size, page=None, skip=None):
+def free_slot(tiles, size, page=None, skip=None, grid=DEFAULT_GRID):
     """The first cell a tile of this size fits in, on `page` or anywhere; None when there is no room."""
-    cells = occupied_cells(tiles, skip)
+    cells = occupied_cells(tiles, skip, grid)
     size = 'wide' if size is True else size
-    first = 0 if page is None else page * SLOTS_PER_PAGE
-    last = MAX_SLOTS if page is None else min(MAX_SLOTS, first + SLOTS_PER_PAGE)
+    first = 0 if page is None else page * grid.slots
+    last = grid.max_slots if page is None else min(grid.max_slots, first + grid.slots)
     for slot in range(first, last):
-        if size == 'full' and slot % SLOTS_PER_PAGE:
+        if size == 'full' and slot % grid.slots:
             continue
-        if size == 'wide' and (slot % 2 or slot + 1 >= last):
+        if size == 'wide' and (not grid.wide_fits(slot) or slot + grid.wide_span > last):
             continue
-        if not set(footprint(slot, size)) & cells:
+        if not set(grid.footprint(slot, size)) & cells:
             return slot
     return None
 
-def place_tile(tile, tiles, page=None, slot=None):
+def place_tile(tile, tiles, page=None, slot=None, grid=DEFAULT_GRID):
     """Give a tile its cell: the one asked for when it is free, else the first free one (on `page`)."""
     size = tile_size(tile)
     if slot is not None:
         if size == 'full':
-            slot = page_start(slot)
-        elif size == 'wide' and slot % 2:
+            slot = grid.page_start(slot)
+        elif size == 'wide' and not grid.wide_fits(slot):
+            # The last column has no cell beside it: the tile starts one column earlier, in the same row.
             slot -= 1
-        wanted = set(footprint(slot, size))
-        taken = next((t for t in tiles if t is not tile and 'slot' in t and wanted & set(footprint(t['slot'], tile_size(t)))), None)
+        wanted = set(grid.footprint(slot, size))
+        taken = next((t for t in tiles if t is not tile and 'slot' in t and wanted & set(grid.footprint(t['slot'], tile_size(t)))), None)
         if taken:
             raise ValueError(t('addon.errors.events.spot_taken', entity=taken['entity']))
         tile['slot'] = slot
         return
-    free = free_slot(tiles, size, page, skip=tile)
+    free = free_slot(tiles, size, page, skip=tile, grid=grid)
     if free is None:
         if size == 'full':
             raise ValueError(t('addon.errors.events.page_not_empty', page=page + 1) if page is not None
@@ -677,54 +796,67 @@ def tile_options(data, current=None):
         options['size'] = 'wide'
     return {key: value for key, value in options.items() if value not in (None, '')}
 
-def event_page(data):
+def event_page(data, grid=DEFAULT_GRID):
     """The page an event names, counted from one as people do; None when it doesn't name one."""
     page = data.get('page')
     if page in (None, ''):
         return None
-    if not str(page).strip().isdigit() or not 1 <= int(page) <= MAX_PAGES:
-        raise ValueError(t('addon.errors.events.page_range', last=MAX_PAGES))
+    if not str(page).strip().isdigit() or not 1 <= int(page) <= grid.pages:
+        raise ValueError(t('addon.errors.events.page_range', last=grid.pages))
     return int(page) - 1
 
-def event_slot(data, page):
+def event_column(value, grid):
+    """The column an event names, counted from 1: a number, or `left` and `right` for the first and the last (and
+    `middle` on a screen with an odd number of columns), as the layout sensor names them."""
+    word = loose(value)
+    if word in ('left', 'first'):
+        return 1
+    if word in ('right', 'last'):
+        return grid.columns
+    if word in ('middle', 'centre', 'center') and grid.columns % 2:
+        return grid.columns // 2 + 1
+    if word.isdigit() and 1 <= int(word) <= grid.columns:
+        return int(word)
+    raise ValueError(t('addon.errors.events.column') if grid.columns == 2
+                     else t('addon.errors.events.column_range', last=grid.columns))
+
+def event_slot(data, page, grid=DEFAULT_GRID):
     """An exact spot: `slot` as the editor counts it, or `row` and `column` within a page."""
     if data.get('slot') not in (None, ''):
-        if not str(data['slot']).strip().isdigit() or not 0 <= int(data['slot']) < MAX_SLOTS:
-            raise ValueError(t('addon.errors.events.spot_range', last=MAX_SLOTS - 1))
+        if not str(data['slot']).strip().isdigit() or not 0 <= int(data['slot']) < grid.max_slots:
+            raise ValueError(t('addon.errors.events.spot_range', last=grid.max_slots - 1))
         return int(data['slot'])
     if data.get('row') in (None, '') and data.get('column') in (None, ''):
         return None
     if page is None:
         raise ValueError(t('addon.errors.events.row_needs_page'))
     row = str(data.get('row', 1)).strip()
-    if not row.isdigit() or not 1 <= int(row) <= SLOTS_PER_PAGE // 2:
-        raise ValueError(t('addon.errors.events.row_range', last=SLOTS_PER_PAGE // 2))
-    column = loose(data.get('column') or 'left')
-    if column not in ('left', 'right'):
-        raise ValueError(t('addon.errors.events.column'))
-    return page * SLOTS_PER_PAGE + (int(row) - 1) * 2 + (1 if column == 'right' else 0)
+    if not row.isdigit() or not 1 <= int(row) <= grid.rows:
+        raise ValueError(t('addon.errors.events.row_range', last=grid.rows))
+    column = event_column(data.get('column') or 'left', grid)
+    return grid.slot_at(page, int(row), column)
 
-def page_of(tile):
-    return tile.get('slot', 0) // SLOTS_PER_PAGE
+def page_of(tile, grid=DEFAULT_GRID):
+    return grid.page_of(tile.get('slot', 0))
 
 def copies_of(tiles, entity):
     """The tiles of one entity in slot order: one, or several copies of a navigation tile (firmware 0.2.65+)."""
     return sorted((tile for tile in tiles if tile['entity'] == entity), key=lambda tile: tile.get('slot', 0))
 
-def pick_copy(found, page=None, slot=None):
+def pick_copy(found, page=None, slot=None, grid=DEFAULT_GRID):
     """The copy an event means: the one covering `slot`, else the first on `page`, else the first; None when none is
     there. Only a navigation tile has several; an event that doesn't say which acts on the first (app 0.2.78)."""
     if slot is not None:
-        return next((tile for tile in found if 'slot' in tile and slot in footprint(tile['slot'], tile_size(tile))), None)
+        return next((tile for tile in found if 'slot' in tile and slot in grid.footprint(tile['slot'], tile_size(tile))), None)
     if page is not None:
-        return next((tile for tile in found if page_of(tile) == page), None)
+        return next((tile for tile in found if page_of(tile, grid) == page), None)
     return found[0] if found else None
 
-def event_source(data):
+def event_source(data, grid=DEFAULT_GRID):
     """(page, slot) of the copy a move event means: `from_page` counted from one, or `from_slot`; None when not named."""
-    page = event_page({'page': data.get('from_page')})
-    slot = event_slot({'slot': data.get('from_slot')}, None)
-    return (slot // SLOTS_PER_PAGE if slot is not None else page), slot
+    page = event_page({'page': data.get('from_page')}, grid)
+    slot = event_slot({'slot': data.get('from_slot')}, None, grid)
+    return (grid.page_of(slot) if slot is not None else page), slot
 
 def not_there(entity, page, slot):
     """The answer to an event that named a place where the tile isn't: "... is not on spot 12" or "... on page 3"."""
@@ -732,24 +864,24 @@ def not_there(entity, page, slot):
         return t('addon.errors.events.not_on_spot', entity=entity, slot=slot)
     return t('addon.errors.events.not_on_page', entity=entity, page=page + 1)
 
-def pack_page(tiles, page):
+def pack_page(tiles, page, grid=DEFAULT_GRID):
     """Give these tiles the cells of one page, in the order they are in."""
-    position = page * SLOTS_PER_PAGE
-    last = position + SLOTS_PER_PAGE
+    position = page * grid.slots
+    last = position + grid.slots
     for tile in tiles:
         size = tile_size(tile)
-        if size == 'full' and (position != page * SLOTS_PER_PAGE or len(tiles) > 1):
+        if size == 'full' and (position != page * grid.slots or len(tiles) > 1):
             raise ValueError(t('addon.errors.events.full_page_alone', page=page + 1))
-        if size == 'wide' and position % 2:
-            position += 1
-        if position + cells_of(size) > last:
+        if size == 'wide' and not grid.wide_fits(position):
+            position = grid.row_start(position) + grid.columns
+        if position + grid.cells(size) > last:
             raise ValueError(t('addon.errors.events.does_not_fit', page=page + 1))
         tile['slot'] = position
-        position += cells_of(size)
+        position += grid.cells(size)
 
-def run_tile_event(layout, action, data, repeat_pages=False):
+def run_tile_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID):
     """(layout, tile): the layout after one tile event and the tile it placed, changed, moved or removed (None for an
-    order). Raises ValueError with the sentence the log and the answer show.
+    order), on the screen's own grid. Raises ValueError with the sentence the log and the answer show.
 
     Only a navigation tile can be on a screen more than once, and only when its firmware takes that (`repeat_pages`,
     0.2.65+). An event then names the copy it means by a spot it covers or by its page: `slot` or `page` for add and
@@ -758,10 +890,10 @@ def run_tile_event(layout, action, data, repeat_pages=False):
     result = {key: value for key, value in layout.items() if key != 'tiles'}
     tiles = [dict(tile) for tile in layout.get('tiles', [])]
     entity = str(data.get('entity') or '').strip()
-    page = event_page(data)
-    slot = event_slot(data, page)
+    page = event_page(data, grid)
+    slot = event_slot(data, page, grid)
     if slot is not None and page is None:
-        page = slot // SLOTS_PER_PAGE
+        page = grid.page_of(slot)
     if action == 'order':
         wanted = data.get('entities') or data.get('order') or []
         if isinstance(wanted, str):
@@ -772,7 +904,7 @@ def run_tile_event(layout, action, data, repeat_pages=False):
         picked, taken, missing, elsewhere, extra = [], set(), [], [], []
         for name in wanted:
             copies = copies_of(tiles, name)
-            here = [tile for tile in copies if page is None or page_of(tile) == page]
+            here = [tile for tile in copies if page is None or page_of(tile, grid) == page]
             free = [tile for tile in here if id(tile) not in taken]
             if not copies:
                 missing.append(name)
@@ -793,10 +925,10 @@ def run_tile_event(layout, action, data, repeat_pages=False):
                              else t('addon.errors.events.named_too_often_page', page=page + 1, entities=extra))
         if page is None:
             tiles = picked + [tile for tile in tiles if id(tile) not in taken]
-            for tile, cell in zip(tiles, packed_slots(tiles)):
+            for tile, cell in zip(tiles, packed_slots(tiles, grid)):
                 tile['slot'] = cell
         else:
-            pack_page(picked + [tile for tile in tiles if page_of(tile) == page and id(tile) not in taken], page)
+            pack_page(picked + [tile for tile in tiles if page_of(tile, grid) == page and id(tile) not in taken], page, grid)
         result['tiles'] = tiles
         return result, None
     if not entity:
@@ -804,12 +936,12 @@ def run_tile_event(layout, action, data, repeat_pages=False):
     copies = copies_of(tiles, entity)
     found = copies[0] if copies else None
     if action == 'remove':
-        source_page, source_slot = event_source(data)
+        source_page, source_slot = event_source(data, grid)
         if source_page is None:
             source_page, source_slot = page, slot
         if not found:
             raise ValueError(t('addon.errors.events.not_on_screen', entity=entity))
-        found = pick_copy(copies, source_page, source_slot)
+        found = pick_copy(copies, source_page, source_slot, grid)
         if not found:
             raise ValueError(not_there(entity, source_page, source_slot))
         # The copy that was named itself, not the first tile equal to it.
@@ -817,14 +949,14 @@ def run_tile_event(layout, action, data, repeat_pages=False):
     elif action == 'move':
         if not found:
             raise ValueError(t('addon.errors.events.add_it_first', entity=entity))
-        source_page, source_slot = event_source(data)
-        found = pick_copy(copies, source_page, source_slot)
+        source_page, source_slot = event_source(data, grid)
+        found = pick_copy(copies, source_page, source_slot, grid)
         if not found:
             raise ValueError(not_there(entity, source_page, source_slot))
         if page is None and slot is None:
             raise ValueError(t('addon.errors.events.move_where'))
         found.pop('slot', None)
-        place_tile(found, tiles, page, slot)
+        place_tile(found, tiles, page, slot, grid)
     else:
         if not entity_id(entity) and entity not in BUILTIN:
             raise ValueError(t('addon.errors.events.not_for_a_screen', entity=entity))
@@ -832,7 +964,7 @@ def run_tile_event(layout, action, data, repeat_pages=False):
         # else a new copy goes (app 0.2.78). Every other tile, or one without a place, is the one that is there.
         chosen = False
         if copies and repeat_pages and page_target(entity) and (page is not None or slot is not None):
-            found = pick_copy(copies, page, slot)
+            found = pick_copy(copies, page, slot, grid)
             chosen = found is not None
         was_size, had_slot = tile_size(found) if found else 'single', (found or {}).get('slot')
         options = tile_options(data, (found or {}).get('options'))
@@ -844,49 +976,51 @@ def run_tile_event(layout, action, data, repeat_pages=False):
         elif found:
             tile.pop('options', None)
         if found is None:
-            if len(tiles) >= MAX_TILES:
-                raise ValueError(t('addon.errors.events.screen_full', n=MAX_TILES))
+            if len(tiles) >= grid.max_tiles:
+                raise ValueError(t('addon.errors.events.screen_full', n=grid.max_tiles))
             tiles.append(tile)
         size = tile_size(tile)
         move = found is None or had_slot is None or (not chosen and (page is not None or slot is not None))
         if not move and size != was_size:
             # A tile that just grew keeps its spot when the cells it needs are free.
-            start = page_start(had_slot) if size == 'full' else had_slot - had_slot % 2 if size == 'wide' else had_slot
-            move = start != had_slot or bool(set(footprint(start, size)) & occupied_cells([t for t in tiles if t is not tile]))
+            start = grid.page_start(had_slot) if size == 'full' else had_slot - (0 if grid.wide_fits(had_slot) else 1) if size == 'wide' else had_slot
+            move = start != had_slot or bool(set(grid.footprint(start, size)) & occupied_cells([t for t in tiles if t is not tile], grid=grid))
         if move:
             tile.pop('slot', None)
             if size == 'full' and had_slot is not None and ((page is None and slot is None) or chosen):
                 # A tile that grew to the whole page stays on its page when the page is otherwise empty.
                 try:
-                    place_tile(tile, tiles, had_slot // SLOTS_PER_PAGE)
+                    place_tile(tile, tiles, grid.page_of(had_slot), grid=grid)
                 except ValueError:
-                    place_tile(tile, tiles)
+                    place_tile(tile, tiles, grid=grid)
             elif chosen:
-                place_tile(tile, tiles, page_of({'slot': had_slot}))
+                place_tile(tile, tiles, grid.page_of(had_slot), grid=grid)
             else:
-                place_tile(tile, tiles, page, slot)
+                place_tile(tile, tiles, page, slot, grid)
         found = tile
     result['tiles'] = tiles
     return result, found
 
-def apply_tile_event(layout, action, data, repeat_pages=False):
+def apply_tile_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID):
     """The layout after one tile event (run_tile_event without the tile it acted on)."""
-    return run_tile_event(layout, action, data, repeat_pages)[0]
+    return run_tile_event(layout, action, data, repeat_pages, grid)[0]
 
 def layout_snapshot(screen, layout):
-    """What a screen shows, for the sensor the app publishes in Home Assistant: one entry per tile with
-    the page and the spot it is in, so an assistant can read the screen before it changes it."""
+    """What a screen shows, for the sensor the app publishes in Home Assistant: the grid of its pages and one entry
+    per tile with the page and the spot it is in, so an assistant can read the screen before it changes it. The
+    column is `left` or `right` on a two-column screen and the column's number, counted from 1, on any other."""
+    grid = grid_of(screen)
     tiles = []
     for tile in sorted(layout.get('tiles', []), key=lambda item: item.get('slot', 0)):
         slot, options = tile.get('slot', 0), tile.get('options', {})
         tiles.append({'entity': tile['entity'], 'name': tile.get('name') or '',
-                      'page': slot // SLOTS_PER_PAGE + 1, 'row': slot % SLOTS_PER_PAGE // 2 + 1,
-                      'column': 'right' if slot % 2 else 'left', 'slot': slot,
+                      'page': grid.page_of(slot) + 1, 'row': grid.row_of(slot), 'column': grid.column_word(slot), 'slot': slot,
                       'size': options.get('size', 'single'), 'controls': options.get('controls', ''),
                       'display': options.get('display', 'standard'), 'tap': options.get('tap', 'auto'),
                       **({'action': options['action']} if options.get('tap') == 'action' and 'action' in options else {}),
                       **({'to_page': page_target(tile['entity'])} if page_target(tile['entity']) else {})})
     return {'screen': screen.get('name', ''), 'node': screen.get('node') or '', 'title': layout.get('title', ''),
+            'columns': grid.columns, 'rows': grid.rows, 'max_pages': grid.pages,
             'pages': max([tile['page'] for tile in tiles], default=1), 'tiles': tiles}
 
 # A tap's own action (app 0.2.67): Home Assistant's `domain.action` with data for its fields. It always acts on the tile's
@@ -936,16 +1070,22 @@ def validate_tap_action(value):
         raise ValueError(t('addon.errors.tap_action.too_long'))
     return clean
 
-def validate_layout(data, stored=False):
+def validate_layout(data, stored=False, grid=DEFAULT_GRID):
     """A layout as the editor, a tile event or the storage gives it. `stored`: loaded from the app's own data, where a
-    tile setting this version doesn't know (saved by a newer app) stays as it is instead of stopping the app."""
+    tile setting this version doesn't know (saved by a newer app) stays as it is instead of stopping the app.
+
+    `grid` is the screen's (grid_of): every position is checked against its cells, as a save or an event does. `None`
+    is for when no screen is in hand (the store at start-up, a setting kept beside the tiles of an offline screen):
+    the positions are then only kept within what any screen holds, because which grid they were made on is only
+    known once the screen is."""
     if not isinstance(data, dict):
         raise ValueError(t('addon.errors.layout.invalid'))
     title, tiles = data.get('title'), data.get('tiles')
+    most = grid.max_tiles if grid else FIRMWARE_MAX_TILES
     if not isinstance(title, str) or not title.strip() or len(title.encode()) > 96:
         raise ValueError(t('addon.errors.layout.title'))
-    if not isinstance(tiles, list) or len(tiles) > MAX_TILES:
-        raise ValueError(t('addon.errors.layout.tiles_max', n=MAX_TILES))
+    if not isinstance(tiles, list) or len(tiles) > most:
+        raise ValueError(t('addon.errors.layout.tiles_max', n=most))
     clean, seen = [], set()
     for tile in tiles:
         if not isinstance(tile, dict) or not entity_id(tile.get('entity')):
@@ -1022,27 +1162,30 @@ def validate_layout(data, stored=False):
     if any(slot is not None for slot in given):
         occupied = set()
         for item, slot in zip(clean, given):
-            if type(slot) is not int or not 0 <= slot < MAX_SLOTS:
+            if type(slot) is not int or not 0 <= slot < (grid.max_slots if grid else FIRMWARE_MAX_TILES):
                 raise ValueError(t('addon.errors.layout.position'))
+            item['slot'] = slot
+            if grid is None:
+                continue
             size = tile_size(item)
-            if size == 'full' and slot % SLOTS_PER_PAGE:
+            if size == 'full' and slot % grid.slots:
                 raise ValueError(t('addon.errors.layout.full_page_top'))
-            if size == 'wide' and slot % 2:
+            if size == 'wide' and not grid.wide_fits(slot):
                 raise ValueError(t('addon.errors.layout.wide_left'))
-            for cell in footprint(slot, size):
+            for cell in grid.footprint(slot, size):
                 if cell in occupied:
                     raise ValueError(t('addon.errors.layout.same_spot'))
                 occupied.add(cell)
-            item['slot'] = slot
         clean.sort(key=lambda item: item['slot'])
     else:
-        for item, slot in zip(clean, packed_slots(clean)):
+        for item, slot in zip(clean, packed_slots(clean, grid or DEFAULT_GRID)):
             item['slot'] = slot
     result = {'title': title.strip(), 'tiles': clean}
     # Pages kept on purpose, empty ones included; the screen shows at least what the tiles need.
     if 'pages' in data:
-        if type(data['pages']) is not int or not 1 <= data['pages'] <= MAX_PAGES:
-            raise ValueError(t('addon.errors.layout.pages', n=MAX_PAGES))
+        pages = grid.pages if grid else FIRMWARE_MAX_PAGES
+        if type(data['pages']) is not int or not 1 <= data['pages'] <= pages:
+            raise ValueError(t('addon.errors.layout.pages', n=pages))
         result['pages'] = data['pages']
     if 'settings' in data:
         result['settings'] = validate_settings(data['settings'])
@@ -1636,7 +1779,7 @@ def discover_screens(registry, states, devices, areas):
     boards.update({device: board for device, board in diagnostic(NAME_SCREEN_BOARD, r'[a-z0-9][a-z0-9-]{0,30}').items()
                    if board in SHAPES})
     nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')
-    shapes = diagnostic(NAME_SCREEN_LAYOUT, r'\d{2,5}x\d{2,5} \d{1,2}x\d{1,2}')
+    shapes = diagnostic(NAME_SCREEN_LAYOUT, SHAPE_TEXT)
     addresses = diagnostic(NAME_IP_ADDRESS, r'\d{1,3}(\.\d{1,3}){3}')
     languages = diagnostic(NAME_SCREEN_LANGUAGE, r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?')
     # Firmware from before the languages (0.2.75 and older) has no such sensor: it speaks English, with fewer letters.
@@ -1658,7 +1801,7 @@ def discover_screens(registry, states, devices, areas):
                         # offline or restarting (app 0.2.78).
                         'firmware_known': known_firmware(firmware, device.get('sw_version')),
                         'board': boards.get(item.get('device_id'), 'unknown'),
-                        # What the screen says it looks like (firmware 0.2.9x): the canvas and the cells of a
+                        # What the screen says it looks like (firmware 0.2.79): the canvas and the cells of a
                         # page. The editor draws its mockup from this instead of guessing from the board.
                         # (`layout` is taken: that is the screen's tiles.)
                         'shape': parse_shape(shapes.get(item.get('device_id'))),

@@ -409,7 +409,7 @@ class App(unittest.IsolatedAsyncioTestCase):
             m.write_layouts = lambda layouts: None
             m.notify = lambda: None
             # A board whose YAML says nothing about camera sizes (the CYD) has no room for them, whatever
-            # its firmware: the message says so about the screen, not about a Guition (app 0.2.9x).
+            # its firmware: the message says so about the screen, not about a Guition (app 0.2.93).
             with self.assertRaisesRegex(ValueError, 'cannot show camera'):
                 m.save('text.d2_tiles', {'title': 'Desk', 'tiles': [{'entity': 'camera.max', 'name': ''}]})
             # A CYD on old firmware hears the same, not "update first": an update doesn't make room for images.
