@@ -3,7 +3,7 @@
 import { computed } from "vue";
 import { t } from "../i18n";
 import { cellsOf, pageOf, sizeOf, SLOTS_PER_PAGE, spanOf } from "../model/layout";
-import { isGuition, openBar, removePage, state } from "../store";
+import { deviceStyle, isCompact, openBar, removePage, state } from "../store";
 import type { Tile } from "../types";
 import TileCard from "./TileCard.vue";
 import TopbarSvg from "./TopbarSvg.vue";
@@ -29,7 +29,7 @@ function pickCell(slot: number) {
       <button v-if="empty" type="button" class="btn mini" :title="t('editor.page.remove_title')" @click="removePage(page)">{{ t("editor.page.remove") }}</button>
       <span v-else>{{ filled }} / {{ SLOTS_PER_PAGE }}</span>
     </div>
-    <div class="device" :class="{ cyd: !isGuition }">
+    <div class="device" :class="{ cyd: isCompact }" :style="deviceStyle">
       <div class="bar-wrap" :class="{ selected: barSelected }" :title="t('editor.page.edit_bar')" role="button" tabindex="0"
         @click="openBar(0)" @keydown.enter.prevent="openBar(0)">
         <TopbarSvg />

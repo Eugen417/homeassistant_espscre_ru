@@ -2,8 +2,8 @@
 import { describe, expect, it } from "vitest";
 import {
   arrange, cellsOf, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
-  newTile, normalize, occupied, packSlots, pageCount, pageStart, pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, spanOf, strandedPages, tileLimit,
-  versionAtLeast,
+  newTile, normalize, occupied, packSlots, pageCount, pageStart, pageTarget, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, spanOf,
+  strandedPages, tileLimit, versionAtLeast,
 } from "../src/model/layout";
 import type { Inventory, Layout, Tile } from "../src/types";
 
@@ -41,6 +41,34 @@ describe("packing and positions", () => {
     const taken = occupied(entries([tile("a", 2)]));
     expect(nearestFree(taken, false, 2)).toBe(3);
     expect(nearestFree(new Set([3]), false, 2)).toBe(2);
+  });
+});
+
+// A screen says what its page looks like (firmware 0.2.9x, "800x480 3x2"); the editor places tiles on that grid.
+describe("the grid of the screen being edited", () => {
+  it("packs a wide tile so it never straddles two rows, whatever the columns", () => {
+    setGrid(3, 2);
+    expect(SLOTS_PER_PAGE).toBe(6);
+    // Three single tiles fill the first row; a wide one then starts the second, not the last cell of the first.
+    const tiles = [tile("a", -1), tile("b", -1), tile("c", -1), tile("d", -1, { size: "wide" })];
+    expect(packSlots(tiles)).toEqual([0, 1, 2, 3]);
+    expect(fits(new Set(), 2, "wide")).toBe(false);   // the last column has no cell beside it
+    expect(fits(new Set(), 3, "wide")).toBe(true);
+    expect(cellsOf(3, "wide")).toEqual([3, 4]);
+    expect(rowStart(5)).toBe(3);
+    setGrid(2, 3);
+  });
+  it("gives a one-column screen a wide tile that is simply the cell itself", () => {
+    setGrid(1, 4);
+    expect(SLOTS_PER_PAGE).toBe(4);
+    expect(spanOf("wide")).toBe(1);
+    expect(packSlots([tile("a", -1, { size: "wide" }), tile("b", -1)])).toEqual([0, 1]);
+    expect(pageStart(5)).toBe(4);
+    setGrid(2, 3);
+  });
+  it("comes back to two columns and three rows for the boards that shipped first", () => {
+    setGrid(undefined, undefined);
+    expect([SLOTS_PER_PAGE, MAX_SLOTS, spanOf("full")]).toEqual([6, 48, 6]);
   });
 });
 

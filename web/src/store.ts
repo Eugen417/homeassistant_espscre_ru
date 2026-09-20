@@ -1,11 +1,11 @@
 // One reactive state for the whole editor. The Python API (server.py) is unchanged: this file is the
 // former app.js state and its calls, with the DOM work moved into the components.
-import { computed, reactive, toRaw, watch } from "vue";
+import { computed, reactive, toRaw, watch, watchEffect } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
-  pageTarget, rowStart, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
+  pageTarget, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
 import { agoText, BAR_METRICS, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { versionAtLeast } from "./model/layout";
@@ -88,6 +88,26 @@ export const pageTilesRepeat = computed(() => {
 export const repeatable = (id: string) => pageTilesRepeat.value && pageTarget(id) > 0;
 export const isGuition = computed(() => currentScreen.value?.board === "guition");
 export const barMetrics = computed(() => BAR_METRICS[isGuition.value ? "guition" : "cyd"]);
+// What the screen being edited looks like: what it reported itself (firmware 0.2.9x), else the board it was
+// built for. The mockup takes its shape from this, and the layout model places tiles on that same grid.
+const BOARD_SHAPES: Record<string, { width: number; height: number; columns: number; rows: number }> = {
+  guition: { width: 480, height: 480, columns: 2, rows: 3 },
+  cyd: { width: 320, height: 240, columns: 2, rows: 3 },
+};
+export const screenShape = computed(() => {
+  const reported = currentScreen.value?.shape;
+  if (reported && reported.columns > 0 && reported.rows > 0) return reported;
+  return BOARD_SHAPES[currentScreen.value?.board || "cyd"] || BOARD_SHAPES.cyd;
+});
+// The tile grid of a page, as CSS variables: the mockup is the screen's own shape, whatever board it is.
+export const deviceStyle = computed(() => ({
+  "--screen-aspect": `${screenShape.value.width} / ${screenShape.value.height}`,
+  "--screen-columns": String(screenShape.value.columns),
+  "--screen-rows": String(screenShape.value.rows),
+}));
+// A screen smaller than a hand draws the compact look, whatever its board (the CYD and anything like it).
+export const isCompact = computed(() => screenShape.value.width < 400);
+watchEffect(() => setGrid(screenShape.value.columns, screenShape.value.rows));
 export const currentTile = computed<Tile | undefined>(() =>
   state.selectedTile && state.layout?.tiles.includes(state.selectedTile) ? state.selectedTile : undefined);
 // The reactive copy and the plain object are the same tile.

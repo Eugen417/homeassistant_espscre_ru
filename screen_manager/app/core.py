@@ -204,8 +204,36 @@ NAME_DEVICE_NAME = ('Device name', 'Apparaatnaam')
 NAME_IP_ADDRESS = ('IP address', 'IP-adres')
 # The language a screen's firmware was built in (firmware 0.2.76+, app 0.2.90); older firmware speaks English.
 NAME_SCREEN_LANGUAGE = ('Screen language',)
+# The shape of a screen (firmware 0.2.9x, app 0.2.9x): "800x480 3x2" is its canvas and the grid of cells a page
+# holds. Firmware from before it says nothing, and then the board it was built for decides (LAYOUTS below).
+NAME_SCREEN_LAYOUT = ('Screen layout',)
 SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS
-                                + NAME_SCREEN_LANGUAGE)
+                                + NAME_SCREEN_LANGUAGE + NAME_SCREEN_LAYOUT)
+
+# What a screen looks like: the glass it draws on and the cells of one page. Every screen reports this itself;
+# these are the two boards that shipped before it did, so a screen that has not been reflashed still draws right.
+SHAPES = {'guition': {'width': 480, 'height': 480, 'columns': 2, 'rows': 3},
+           'cyd': {'width': 320, 'height': 240, 'columns': 2, 'rows': 3}}
+DEFAULT_SHAPE = SHAPES['cyd']
+
+def parse_shape(text):
+    """The screen's own "<width>x<height> <columns>x<rows>"; None for anything else."""
+    match = re.fullmatch(r'(\d{2,5})x(\d{2,5}) (\d{1,2})x(\d{1,2})', str(text or '').strip())
+    if not match:
+        return None
+    width, height, columns, rows = (int(value) for value in match.groups())
+    if not (1 <= columns <= 12 and 1 <= rows <= 12 and columns * rows <= MAX_SLOTS):
+        return None
+    return {'width': width, 'height': height, 'columns': columns, 'rows': rows}
+
+def shape_of(screen):
+    """The shape of a screen as the editor needs it: what it reported, else what its board looked like."""
+    if isinstance(screen, dict):
+        reported = screen.get('shape')
+        if isinstance(reported, dict) and reported.get('columns'):
+            return reported
+        return SHAPES.get(screen.get('board'), DEFAULT_SHAPE)
+    return DEFAULT_SHAPE
 
 def parse_firmware(text):
     """(major, minor, patch) of a screen firmware version such as "0.2.63"; None for anything else. Strict on purpose:
@@ -1566,6 +1594,7 @@ def discover_screens(registry, states, devices, areas):
                     found[item.get('device_id')] = value
         return found
     nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')
+    shapes = diagnostic(NAME_SCREEN_LAYOUT, r'\d{2,5}x\d{2,5} \d{1,2}x\d{1,2}')
     addresses = diagnostic(NAME_IP_ADDRESS, r'\d{1,3}(\.\d{1,3}){3}')
     languages = diagnostic(NAME_SCREEN_LANGUAGE, r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?')
     # Firmware from before the languages (0.2.75 and older) has no such sensor: it speaks English, with fewer letters.
@@ -1587,6 +1616,10 @@ def discover_screens(registry, states, devices, areas):
                         # offline or restarting (app 0.2.78).
                         'firmware_known': known_firmware(firmware, device.get('sw_version')),
                         'board': boards.get(item.get('device_id'), 'unknown'),
+                        # What the screen says it looks like (firmware 0.2.9x): the canvas and the cells of a
+                        # page. The editor draws its mockup from this instead of guessing from the board.
+                        # (`layout` is taken: that is the screen's tiles.)
+                        'shape': parse_shape(shapes.get(item.get('device_id'))),
                         'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
                         'language': languages.get(item.get('device_id')),
                         'language_sensor': item.get('device_id') in speaks,

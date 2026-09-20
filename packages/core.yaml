@@ -1065,6 +1065,19 @@ text_sensor:
     entity_category: diagnostic
     lambda: 'return {"${SCREEN_FIRMWARE_VERSION}"};'
     update_interval: 60s
+  # The shape of this screen (firmware 0.2.9x): the canvas LVGL draws on and the grid of cells a page holds,
+  # so ESP Screens knows what a screen looks like instead of guessing from the board it was built for. The
+  # canvas follows the rotation, which is why it is read from the display and not from the board file.
+  - platform: template
+    name: "Screen layout"
+    entity_category: diagnostic
+    lambda: |-
+      char text[32];
+      auto *display = lv_display_get_default();
+      snprintf(text, sizeof(text), "%dx%d %dx%d", (int) lv_display_get_horizontal_resolution(display),
+               (int) lv_display_get_vertical_resolution(display), (int) runtime_tiles::GRID_COLUMNS, (int) runtime_tiles::GRID_ROW_COUNT);
+      return {std::string(text)};
+    update_interval: 60s
   # The language this firmware was built in (0.2.90+): ESP Screens offers an update when it differs from the chosen one.
   - platform: template
     name: "Screen language"

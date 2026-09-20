@@ -1,14 +1,30 @@
 // ---- Grid positions ----
-// Two columns, three rows per page, at most eight pages. A tile's `slot` is its absolute
-// cell (page * 6 + row * 2 + column); a wide tile starts in the left column and also covers
-// the cell to its right; a full tile (firmware 0.2.62+) starts a page and covers all six cells.
-// Empty cells are allowed and stay exactly where they are.
+// A screen's page is a grid of cells: two columns and three rows on the boards that shipped first, and
+// whatever a newer screen reports for itself (firmware 0.2.9x says "800x480 3x2"). A tile's `slot` is its
+// absolute cell (page * cells + row * columns + column); a wide tile starts in a column that has a cell to its
+// right and covers both; a full tile (firmware 0.2.62+) starts a page and covers every cell of it. Empty cells
+// are allowed and stay exactly where they are.
+//
+// `setGrid` is called when the screen being edited changes, before anything is drawn or packed: the editor then
+// places tiles the way that screen will, instead of the way the first two boards did.
 import { t } from "../i18n";
 import type { Inventory, Layout, Tile } from "../types";
 
-export const SLOTS_PER_PAGE = 6;
 export const MAX_PAGES = 8;
-export const MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
+export const DEFAULT_GRID = { columns: 2, rows: 3 };
+// Live bindings: importers see the grid of the screen they are editing (ES module exports update with them).
+export let COLUMNS = DEFAULT_GRID.columns;
+export let ROWS = DEFAULT_GRID.rows;
+export let SLOTS_PER_PAGE = COLUMNS * ROWS;
+export let MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
+export function setGrid(columns?: number, rows?: number) {
+  const cols = Math.min(12, Math.max(1, Math.round(columns || DEFAULT_GRID.columns)));
+  const lines = Math.min(12, Math.max(1, Math.round(rows || DEFAULT_GRID.rows)));
+  COLUMNS = cols;
+  ROWS = lines;
+  SLOTS_PER_PAGE = cols * lines;
+  MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
+}
 
 export type Entry = { tile: Tile; slot: number };
 // A tile is single, wide (a row) or full (the whole page); `true` still means wide.
@@ -23,11 +39,13 @@ export const sizeOf = (tile: Tile): Size => (SIZES.includes(tile.options?.size a
 export const isWide = (tile: Tile) => sizeOf(tile) !== "single";
 export const isFull = (tile: Tile) => sizeOf(tile) === "full";
 export const pageStart = (slot: number) => slot - (slot % SLOTS_PER_PAGE);
-export const rowStart = (slot: number) => slot - (slot % 2);
+export const rowStart = (slot: number) => slot - (slot % COLUMNS);
 export const pageOf = (slot: number) => Math.floor(slot / SLOTS_PER_PAGE);
-export const spanOf = (size: SizeLike) => (asSize(size) === "full" ? SLOTS_PER_PAGE : asSize(size) === "wide" ? 2 : 1);
+// A wide tile takes two cells, unless the screen has a single column: then it is as wide as the page already.
+export const spanOf = (size: SizeLike) => (asSize(size) === "full" ? SLOTS_PER_PAGE : asSize(size) === "wide" ? Math.min(2, COLUMNS) : 1);
 export const cellsOf = (slot: number, size: SizeLike) =>
-  asSize(size) === "full" ? Array.from({ length: SLOTS_PER_PAGE }, (_, i) => pageStart(slot) + i) : asSize(size) === "wide" ? [slot, slot + 1] : [slot];
+  asSize(size) === "full" ? Array.from({ length: SLOTS_PER_PAGE }, (_, i) => pageStart(slot) + i)
+    : Array.from({ length: spanOf(size) }, (_, i) => slot + i);
 // The cell a tile of `size` starts at when dropped on `slot`.
 export const startOf = (slot: number, size: SizeLike) => (asSize(size) === "full" ? pageStart(slot) : asSize(size) === "wide" ? rowStart(slot) : slot);
 export const entriesOf = (layout: Layout): Entry[] => layout.tiles.map((tile) => ({ tile, slot: tile.slot }));
@@ -38,7 +56,7 @@ export function packSlots(tiles: Tile[]) {
   return tiles.map((tile) => {
     const size = sizeOf(tile);
     if (size === "full" && position % SLOTS_PER_PAGE) position += SLOTS_PER_PAGE - (position % SLOTS_PER_PAGE);
-    else if (size === "wide" && position % 2 === 1) position++;
+    else if (size === "wide" && COLUMNS > 1 && position % COLUMNS === COLUMNS - 1) position++;
     const slot = position;
     position += spanOf(size);
     return slot;
@@ -63,7 +81,9 @@ export function occupied(entries: Entry[]) {
 }
 export const fits = (taken: Set<number>, slot: number, size: SizeLike) =>
   Number.isInteger(slot) && slot >= 0 && slot < MAX_SLOTS &&
-  (asSize(size) === "full" ? slot % SLOTS_PER_PAGE === 0 : asSize(size) === "wide" ? slot + 1 < MAX_SLOTS && !(slot % 2) : true) &&
+  // A wide tile needs a cell beside it in the same row, wherever the screen's columns fall.
+  (asSize(size) === "full" ? slot % SLOTS_PER_PAGE === 0
+    : asSize(size) === "wide" ? slot + spanOf(size) <= MAX_SLOTS && slot % COLUMNS <= COLUMNS - spanOf(size) : true) &&
   cellsOf(slot, size).every((c) => !taken.has(c));
 export function firstFree(taken: Set<number>, size: SizeLike, from = 0) {
   for (let slot = from; slot < MAX_SLOTS; slot++) if (fits(taken, slot, size)) return slot;

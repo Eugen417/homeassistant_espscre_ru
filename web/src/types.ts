@@ -36,6 +36,9 @@ export type Screen = {
   firmware_known?: string | null; tile_limit?: number; full_page?: boolean; page_tiles_repeat?: boolean;
   // The language its firmware was built in (app 0.2.90); null for older firmware, which is English.
   language?: string | null;
+  // What the screen says it looks like (firmware 0.2.9x, app 0.2.9x): the glass it draws on and the cells of one
+  // page. null for firmware from before, and then the board it was built for decides (store.ts: screenShape).
+  shape?: { width: number; height: number; columns: number; rows: number } | null;
 };
 // Language & region of the screens (app 0.2.90): the language setting ("auto" follows Home Assistant), the language that
 // gives, Home Assistant's own, and every language there is, by its own name; the time and number format, each "auto"

@@ -135,13 +135,15 @@ a:hover { text-decoration: underline; }
 .page.ghost.disabled .device { opacity: 0.5; cursor: default; }
 
 /* The device mock keeps the Guition light palette on purpose: it is the screen, not the page. */
-.device { background: #e7e7e7; border-radius: 18px; padding: 10px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; color: #1b1b1b; aspect-ratio: 1 / 1; }
-.device.cyd { aspect-ratio: 4 / 3; }
+/* The mockup is the screen's own glass and its own grid of cells: --screen-aspect, --screen-columns and
+   --screen-rows come from what the screen reported (store.ts: deviceStyle). The .cyd class is the compact look
+   of a small screen, not a board any more. */
+.device { background: #e7e7e7; border-radius: 18px; padding: 10px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; color: #1b1b1b; aspect-ratio: var(--screen-aspect, 1 / 1); }
 .bar-wrap { cursor: pointer; border-radius: 8px; padding: 0 2px; }
 .bar-wrap:hover { background: #dedede; }
 .bar-wrap.selected { outline: 2px solid var(--accent); outline-offset: 1px; }
 .bar-wrap svg { display: block; width: 100%; height: auto; }
-.tiles { display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(0, 1fr); gap: 8px; min-height: 0; }
+.tiles { display: grid; grid-template-columns: repeat(var(--screen-columns, 2), minmax(0, 1fr)); grid-template-rows: repeat(var(--screen-rows, 3), minmax(0, 1fr)); gap: 8px; min-height: 0; }
 /* manipulation, not pan-y (app 0.2.78): on a phone the row of pages scrolls sideways, also when the swipe starts on a
    tile. The hold before a drag and the blocked touchmove during one still keep the page from scrolling. */
 .tile { position: relative; background: #fff; border: 1px solid #dcdcdc; border-radius: 12px; padding: 8px 9px; display: flex; flex-direction: column; justify-content: space-between; gap: 4px; min-height: 0; cursor: pointer; text-align: left; overflow: hidden; color: #1b1b1b; touch-action: manipulation; }
