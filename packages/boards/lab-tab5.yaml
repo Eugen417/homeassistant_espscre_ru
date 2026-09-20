@@ -41,6 +41,7 @@ substitutions:
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
+  TILE_H_STD: "187"
   GRID_COL1_X: "16"
   GRID_COL2_X: "436"
   GRID_ROW1_Y: "0"
@@ -65,11 +66,11 @@ substitutions:
   ALERT_ICON_X: "45"
   ALERT_ICON_Y: "38"
   ALERT_TEXT_X: "155"
-  ALERT_TEXT_W: "525"
+  ALERT_TEXT_W: "526"
   ALERT_TITLE_Y: "45"
   ALERT_TITLE_H: "55"         # one line of headline; a DOT label only ends in an ellipsis with a height
   ALERT_SUBTITLE_Y: "117"
-  ALERT_SUBTITLE_H: "259"
+  ALERT_SUBTITLE_H: "288"
   ALERT_BUTTON_W: "259"
   ALERT_BUTTON_H: "104"
   ALERT_BUTTON_INSET: "38"
@@ -87,7 +88,7 @@ substitutions:
   CAMERA_THUMB_W: "677"
   CAMERA_THUMB_H: "360"
   OVERLAY_SLIDER_W: "249"
-  OVERLAY_SLIDER_H: "518"
+  OVERLAY_SLIDER_H: "468"
   OVERLAY_ICON_Y: "256"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "21"
@@ -1016,13 +1017,13 @@ script:
             struct Layout { int status, card_y, card_h, key, number_y, caption_y, modes_y, modes_h, settings_y, edge, row_h, gap; };
             static const Layout layouts[6] = {
               // no mode keys: 0, 1, 2 rows
-              {92, 180, 200, 116, -14, 46, 0, 0, 0, 14, 48, 10},
-              {92, 140, 200, 116, -14, 46, 0, 0, 364, 14, 48, 10},
-              {90, 130, 180, 108, -12, 42, 0, 0, 330, 14, 46, 10},
+              {138, 270, 300, 174, -21, 69, 0, 0, 0, 21, 72, 15},
+              {138, 210, 300, 174, -21, 69, 0, 0, 546, 21, 72, 15},
+              {135, 195, 270, 162, -18, 63, 0, 0, 495, 21, 69, 15},
               // mode keys: 0, 1, 2 rows
-              {92, 136, 200, 116, -14, 46, 364, 76, 0, 14, 48, 10},
-              {90, 126, 170, 108, -12, 42, 312, 68, 394, 12, 44, 8},
-              {86, 118, 140, 96, -10, 36, 270, 60, 342, 12, 42, 8},
+              {138, 204, 300, 174, -21, 69, 546, 114, 0, 21, 72, 15},
+              {135, 189, 255, 162, -18, 63, 468, 102, 591, 18, 66, 12},
+              {129, 177, 210, 144, -15, 54, 405, 90, 513, 18, 63, 12},
             };
             const Layout &l = layouts[(show_keys ? 3 : 0) + rows];
             lv_obj_set_y(id(climate_current_label), l.status);

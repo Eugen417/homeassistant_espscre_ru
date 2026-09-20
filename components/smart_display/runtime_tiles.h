@@ -229,6 +229,7 @@ struct Widgets {
   // `base_y`: the card's row in the profile; without the page bar (firmware 0.2.69+) place_page moves it down.
   bool wide=false, full=false; int base_width=0, base_height=0, base_y=0; const lv_font_t *title_font{};
   // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
+  int base_circle=0;
   lv_obj_t *extra{}; std::string extra_mode; bool extra_full=false; std::array<lv_obj_t *, 36> parts{}; lv_point_precise_t *points{};
   // Analog clock: centre and radius of the dial, so the second hand can move without a card redraw.
   int hand_cx=0, hand_cy=0, hand_r=0, hand_width=1;
@@ -2425,7 +2426,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
-  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);
+  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);w.base_circle=lv_obj_get_width(circle);
   w.base_y=lv_obj_get_y(tile);
   w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
@@ -2573,7 +2574,23 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   // A single card keeps the dial of the profile's card when it grows without the page bar (firmware 0.2.69+), so the
   // calendar block beside it keeps its room; the dial stays in the card's middle.
   if(!w.full && !w.wide)dial=std::min(dial,w.base_height-(tile_height(w)-height));
-  int cx=(w.full?(width-dial)/2:0)+dial/2,cy=height/2,outer=dial/2-1,radius=dial/2-(large?4:2);
+  // LAB (responsive): a single card whose width has no room for the date beside the dial centres the dial instead.
+  bool date_fits=true;
+  if(!w.full && !w.wide){
+    int room=width-dial-(large?10:6),need=0;lv_point_t sz;
+    if(large){
+      lv_text_get_size(&sz,weekday_text(now).c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);need=sz.x;
+      std::string day_probe=now.is_valid()?std::to_string(now.day_of_month):"--";
+      lv_point_t d,m;lv_text_get_size(&d,day_probe.c_str(),big,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);lv_text_get_size(&m,month_short(now).c_str(),small,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+      need=std::max<int>(need,d.x+6+m.x);
+    }else{
+      const lv_font_t *font=watch_value_font?watch_value_font:w.value_font;
+      std::string day_probe=now.is_valid()?std::to_string(now.day_of_month):"--";
+      lv_text_get_size(&sz,fill(fill(txt::date_day_month,"day",day_probe),"month",month_short(now)).c_str(),font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);need=sz.x;
+    }
+    date_fits=room>=need;
+  }
+  int cx=((w.full||!date_fits)?(width-dial)/2:0)+dial/2,cy=height/2,outer=dial/2-1,radius=dial/2-(large?4:2);
   for(int i=0;i<12;++i){
     float a=i*3.14159265f/6;bool cardinal=i%3==0;
     if(cardinal && large){
@@ -2604,6 +2621,9 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
     part_label(w,16,small,0,0,1,LV_TEXT_ALIGN_CENTER,"");
     return;
   }
+  // LAB: what does not fit is left out of the card: the date labels hide, nothing else moves.
+  for(unsigned q=15;q<18;++q)if(w.parts[q])set_hidden(w.parts[q],!date_fits);
+  if(!date_fits)return;
   if(w.wide){
     int x=dial+(large?16:8),y=std::max(0,(height-text_h)/2);
     part_label(w,15,big,x,y,width-x,LV_TEXT_ALIGN_CENTER,time_text(now));
@@ -2637,7 +2657,8 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   begin_extra(w,"forecast",width,height);
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   const lv_font_t *temp_font=watch_value_font?watch_value_font:w.value_font,*day_icon=mini_icon_font?mini_icon_font:w.icon_font;
-  int left=large?150:96,icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
+  // LAB: the current-conditions block follows the card's text offset (a dpi-scaled size), not a fixed 150/96 px.
+  int left=std::min(large?w.title_x*150/64:w.title_x*2,width*45/100),icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
   // A full-page card (firmware 0.2.62+) adds the next hours under the days: time, icon and temperature per column.
   int day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
   unsigned hours=w.full?std::min<size_t>(t.extra().hours.size(),large?6:4):0;
@@ -2667,9 +2688,14 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   // Home Assistant's word for the weather can be long ("częściowe zachmurzenie"): it ends in an ellipsis before the days.
   auto *condition=part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
   if(lv_label_get_long_mode(condition)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(condition,LV_LABEL_LONG_DOT);
-  int column=(width-left)/5;
+  // LAB (responsive): as many day columns as the width holds ("22/12" plus air per column), five at most, none below two.
+  lv_point_t probe;lv_text_get_size(&probe,"22/12",w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+  const int min_col=(int)probe.x+(large?6:4);
+  int days=std::clamp((width-left)/std::max(1,min_col),0,5);if(days<2)days=0;
+  int column=days?(width-left)/days:0;
   for(unsigned k=0;k<5;++k){
-    static const Forecast no_day;int x=left+k*column;bool has=k<t.extra().forecast.size();const auto &f=has?t.extra().forecast[k]:no_day;
+    static const Forecast no_day;int x=left+(int)std::min<unsigned>(k,days?days-1:0)*column;bool has=k<days && k<t.extra().forecast.size();const auto &f=has?t.extra().forecast[k]:no_day;
+    if(k>=(unsigned)days){for(unsigned q=3+k*3;q<6+k*3;++q)part_label(w,q,w.value_font,x,0,1,LV_TEXT_ALIGN_LEFT,"");continue;}
     char temps[24];if(has && std::isfinite(f.high))snprintf(temps,sizeof(temps),std::isfinite(f.low)?"%.0f/%.0f":"%.0f",f.high,f.low);else temps[0]=0;
     if(large){
       int rows=day_h+icon_col+text_h,top=std::max(0,(height-rows)/2);
@@ -3225,10 +3251,20 @@ inline void render_slot(size_t slot) {
   if(d=="vacuum" && std::isfinite(t.battery)){value_tail=" / "+screen_text::percent((int)t.battery);value+=value_tail;}
   // Direct controls: only a wide card in the standard layout has room for the panel.
   bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
+  // LAB (responsive): a panel needs its own width plus the icon and some name; a narrow wide card stays a plain card.
+  if(with_panel && !w.full){
+    const bool lt=standard_tile_height>0?standard_tile_height>60:tile_height(w)>80;
+    const PanelMetrics pm=panel_metrics(lt);
+    const std::string kind=tile_controls::panel_kind(t);
+    const int panel_need=tile_controls::is_slider(kind)?pm.slider_w+pm.gap+pm.toggle_h:pm.pill_w;
+    if(content_width(w)<panel_need+pm.text_gap+(lt?54:36)+60)with_panel=false;
+  }
   if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
   label(w.value, value);
   bool mini=t.inline_control=="slider" && !watch && t.available();
-  bool large_tile=tile_height(w)>80;
+  // LAB (responsive): the card's size class is the look's, not the cell's momentary height. A class that flipped
+  // when the rows grew (page buttons off) reused the clock's numeral labels as tick lines and crashed.
+  bool large_tile=standard_tile_height>0?standard_tile_height>60:tile_height(w)>80;
   lap(swipe_profile::TEXT);
   // Cards that replace the name/status layout entirely.
   bool clock=t.is_clock(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.extra().forecast.size()>0 && fresh() && t.available();
@@ -3290,7 +3326,10 @@ inline void render_slot(size_t slot) {
   lap(swipe_profile::PANEL);
   int header_height=(mini||graph_strip)?content_h-slider_height-(large_tile?6:3):content_h;
   int text_y=std::max(0,(header_height-text_height)/2);
-  int circle_size=watch?(large_tile?26:18):(mini||graph_strip)?(large_tile?36:24):(large_tile?54:36);
+  // LAB (responsive): the circle follows the board's icon size (TILE_ICON_SIZE, a dpi-scaled substitution), so a
+  // 73 pt icon on a 294 dpi panel gets its disc; 54/36 px and the watch and mini ratios stay as they are today.
+  const int base_circle=w.base_circle>0?w.base_circle:(large_tile?54:36);
+  int circle_size=watch?(large_tile?base_circle*26/54:base_circle/2):(mini||graph_strip)?base_circle*2/3:base_circle;
   lv_obj_set_size(w.circle,circle_size,circle_size);
   const lv_font_t *icon_font=watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font;
   if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}

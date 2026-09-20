@@ -70,7 +70,7 @@ substitutions:
   ALERT_TITLE_Y: "25"
   ALERT_TITLE_H: "31"         # one line of headline; a DOT label only ends in an ellipsis with a height
   ALERT_SUBTITLE_Y: "66"
-  ALERT_SUBTITLE_H: "145"
+  ALERT_SUBTITLE_H: "137"
   ALERT_BUTTON_W: "145"
   ALERT_BUTTON_H: "58"
   ALERT_BUTTON_INSET: "21"
@@ -88,8 +88,8 @@ substitutions:
   CAMERA_THUMB_W: "380"
   CAMERA_THUMB_H: "160"
   OVERLAY_SLIDER_W: "140"
-  OVERLAY_SLIDER_H: "291"
-  OVERLAY_ICON_Y: "143"
+  OVERLAY_SLIDER_H: "179"
+  OVERLAY_ICON_Y: "88"
   TILE_ICON_X: "0"
   TILE_ICON_Y: "12"
   TILE_TITLE_X: "62"
@@ -1005,9 +1005,9 @@ script:
           // Fan and swing rows, in the entity's own names and order.
           climate_card::Row settings[2];
           int rows = 0;
-          if (!cyd::list_item(id(active_climate_fan_modes), 0).empty())
+          if (false && !cyd::list_item(id(active_climate_fan_modes), 0).empty())
             settings[rows++] = {'f', "\U000F0210", id(active_climate_fan_modes), id(active_climate_fan_mode)};
-          if (!cyd::list_item(id(active_climate_swing_modes), 0).empty())
+          if (false && !cyd::list_item(id(active_climate_swing_modes), 0).empty())
             settings[rows++] = {'s', "\U000F1C91", id(active_climate_swing_modes), id(active_climate_swing_mode)};
           // One layout per card: the setpoint gives room to the mode keys and the settings below it,
           // and a card with nothing below keeps the setpoint centred.
@@ -1017,13 +1017,13 @@ script:
             struct Layout { int status, card_y, card_h, key, number_y, caption_y, modes_y, modes_h, settings_y, edge, row_h, gap; };
             static const Layout layouts[6] = {
               // no mode keys: 0, 1, 2 rows
-              {92, 180, 200, 116, -14, 46, 0, 0, 0, 14, 48, 10},
-              {92, 140, 200, 116, -14, 46, 0, 0, 364, 14, 48, 10},
-              {90, 130, 180, 108, -12, 42, 0, 0, 330, 14, 46, 10},
+              {61, 120, 133, 77, -9, 31, 0, 0, 0, 9, 32, 7},
+              {61, 93, 133, 77, -9, 31, 0, 0, 243, 9, 32, 7},
+              {60, 87, 120, 72, -8, 28, 0, 0, 220, 9, 31, 7},
               // mode keys: 0, 1, 2 rows
-              {92, 136, 200, 116, -14, 46, 364, 76, 0, 14, 48, 10},
-              {90, 126, 170, 108, -12, 42, 312, 68, 394, 12, 44, 8},
-              {86, 118, 140, 96, -10, 36, 270, 60, 342, 12, 42, 8},
+              {61, 91, 133, 77, -9, 31, 243, 51, 0, 9, 32, 7},
+              {60, 84, 113, 72, -8, 28, 208, 45, 263, 8, 29, 5},
+              {57, 79, 93, 64, -7, 24, 180, 40, 228, 8, 28, 5},
             };
             const Layout &l = layouts[(show_keys ? 3 : 0) + rows];
             lv_obj_set_y(id(climate_current_label), l.status);

@@ -85,11 +85,11 @@ substitutions:
   ALERT_ICON_X: "18"
   ALERT_ICON_Y: "16"
   ALERT_TEXT_X: "62"
-  ALERT_TEXT_W: "212"
+  ALERT_TEXT_W: "142"
   ALERT_TITLE_Y: "16"
   ALERT_TITLE_H: "21"         # one line of headline; a DOT label only ends in an ellipsis with a height
   ALERT_SUBTITLE_Y: "44"
-  ALERT_SUBTITLE_H: "88"
+  ALERT_SUBTITLE_H: "92"
   ALERT_BUTTON_W: "100"
   ALERT_BUTTON_H: "40"
   ALERT_BUTTON_INSET: "14"
