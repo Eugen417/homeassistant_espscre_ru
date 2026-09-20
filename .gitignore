@@ -41,9 +41,7 @@ __pycache__/
 /easy-cyd-test.yaml
 /portal-test-data/
 
-# The responsive lab writes board files and the cards of their grids (docs/RESPONSIVE.md); a release
-# carries the boards it ships and the cards of their grid only.
+# Boards tried out in the responsive lab (tools/new_board.py, docs/RESPONSIVE.md) stay on this machine; the cards
+# of their grids are written with `tools/generate_cells.py --lab` and are not ignored, so a board that ships
+# never has its cards left out of Git.
 packages/boards/lab-*.yaml
-packages/cells/*.yaml
-!packages/cells/6.yaml
-!packages/cells/9.yaml

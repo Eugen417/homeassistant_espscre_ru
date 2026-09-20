@@ -4,7 +4,7 @@
 #
 #   tools/check.sh                   the Python tests, every tests/*.cpp, the package check, the icon generator's --check, the editor's
 #                                    tests, types and build, and whether the editor bundle in Git equals that build
-#   tools/check.sh --firmware        compiles both board profiles and applies the CYD's flash budget
+#   tools/check.sh --firmware        compiles every board profile (tools/profiles.py) and applies the CYD's flash budget
 #   tools/check.sh --all             both
 #   --baseline BYTES                 with --firmware: the CYD image of the last release, to print the growth
 #
@@ -179,18 +179,24 @@ api_encryption_key: "Y2hlY2stYnVpbGQtcGxhY2Vob2xkZXIta2V5LTMyYnk="
 ota_password: "check-build-ota-password-0000000"
 ap_password: "check-ap-passwd0"
 EOF
-  for board in cyd guition; do
-    file=$([[ $board == cyd ]] && echo home-like-2432s028.yaml || echo guition-4848s040.yaml)
+  # Every board that ships, by its checkout entry: the YAML users get, with the fallback hotspot.
+  while read -r board file; do
     cp "$ROOT/$file" "$config/check-$board.yaml" || return 1
     if ! grep -q '^captive_portal:' "$config/check-$board.yaml" || ! grep -q '^  ap:' "$config/check-$board.yaml"; then
       echo "$file has no captive_portal: or wifi ap: any more, unlike the YAML users get; the flash figures would read low."
       return 1
     fi
-  done
+  done < <(board_entries)
   echo "Check profiles in $config"
 }
 
-compile_board() {  # compile_board cyd|guition
+# The boards that ship and their checkout entries, one "board entry" per line (tools/profiles.py is the one list).
+board_entries() {
+  cd "$ROOT" && "$PYTHON" -c 'import sys; sys.path.insert(0, "tools"); import profiles
+for name in profiles.PROFILES: print(profiles.board_of(name), name)'
+}
+
+compile_board() {  # compile_board <board>
   local board=$1
   cd "$WORK/config" || return 1
   "${ESPHOME_CMD[@]}" -s DEVICE_NAME "check-$board" -s DEVICE_FRIENDLY_NAME "Check $board" compile "check-$board.yaml" || return 1
@@ -285,9 +291,12 @@ if ((want_firmware)); then
   if ((last_ok)); then run "Check profiles" prepare_profiles; fi
   if ((last_ok)); then
     # One after the other: parallel builds race on ESPHome's shared ESP-IDF install (and on PlatformIO's, before 2026.7).
-    run "Firmware: CYD" compile_board cyd
-    if ((last_ok)); then run "CYD flash budget" cyd_budget; else skip "CYD flash budget" "no CYD build"; fi
-    run "Firmware: Guition" compile_board guition
+    while read -r board _; do
+      run "Firmware: $board" compile_board "$board"
+      if [[ $board == cyd ]]; then
+        if ((last_ok)); then run "CYD flash budget" cyd_budget; else skip "CYD flash budget" "no CYD build"; fi
+      fi
+    done < <(board_entries)
   else
     skip "Firmware builds" "ESPHome or the check profiles are missing"
   fi

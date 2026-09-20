@@ -1,12 +1,15 @@
 """Write a board file for a new panel from one of the boards we have, keeping every size in millimetres.
 
 usage: new_board.py NAME --from cyd|guition --width W --height H --inch D [--cols C --rows R] [--rotation 0|90|180|270]
-                     [--look compact|standard]   -> <worktree>/packages/boards/lab-NAME.yaml
+                     [--dpi D]   -> packages/boards/NAME.yaml
 
 Every pixel size and font size of the template board is scaled by dpi_new / dpi_template (the "same millimetres"
-rule of the plan); the grid values come from the proposal (propose_grid.py) or the given cols x rows. Touch tuning,
-timings, byte caps and flags stay as they are. DISPLAY_W/H are the logical canvas; the display block's native
-dimensions follow the rotation (LVGL turns the canvas).
+rule, docs/RESPONSIVE.md); the grid comes from the proposal (propose_grid.py) or the given cols x rows, and the
+look from the template (the CYD's is compact, the Guition's standard). Touch tuning, timings, byte caps and flags
+stay as they are. DISPLAY_W/H are the logical canvas; the display block's native dimensions follow the rotation
+(LVGL turns the canvas). A board only tried out is best called lab-<name>: Git ignores those, and
+`tools/generate_cells.py --lab` writes the cards of its grid. The hardware sections are the template's and are
+replaced by hand (docs/ADDING_A_BOARD.md).
 """
 import argparse, math, re, sys
 from pathlib import Path
@@ -14,7 +17,7 @@ from pathlib import Path
 WORKTREE = Path(__file__).resolve().parents[1]
 TEMPLATES = {'cyd': ('cyd-2432s028.yaml', 143.0), 'guition': ('guition-4848s040.yaml', 170.0)}
 # Names that are not pixels or points (never scaled).
-KEEP = re.compile(r'^(TOUCH_|DISPLAY_|LVGL_|GRID_|LOOK$|ROTATION|ALERT_.*_MAX|.*_MS$|LVGL_BUFFER_SIZE|PAGE_DOTS_LARGE|DEVICE_|ROTATION_SUPPORTED|EFFECTS_ROW_FONT|PICKER_CHIP_FONT|TOUCH_TEST_TITLE|TOUCH_TEST_PAINT|BOARD_|LVGL_DEFAULT_FONT|.*_HOOK$|.*_TAIL$|BOOT_|APPLY_|MAY_OPEN_EXTRA|AWAY_EXTRA|TICK_HOOK|UI_STATE_HOOK|CLOSE_CARDS_HOOK|TOUCH_TEST_READY_LOG|ALERT_SHOW_HOOK|CLIMATE_MODE_CHOSEN_HOOK|OPEN_VALUE_OVERLAY_TAIL|APPLY_ROTATION|APPLY_BACKLIGHT|APPLY_ROTATION_ENTITY|SETTINGS_HOLD_X|SETTINGS_HOLD_W)')
+KEEP = re.compile(r'^(TOUCH_|DISPLAY_|LVGL_|GRID_|LOOK$|ALERT_.*_MAX|.*_MS$|LVGL_BUFFER_SIZE|PAGE_DOTS_LARGE|DEVICE_|EFFECTS_ROW_FONT|TOUCH_TEST_TITLE|TOUCH_TEST_PAINT|BOARD_|LVGL_DEFAULT_FONT|.*_HOOK$|.*_TAIL$|BOOT_|APPLY_|MAY_OPEN_EXTRA|AWAY_EXTRA|SETTINGS_HOLD_X|SETTINGS_HOLD_W)')
 SUB = re.compile(r'^(  )([A-Z][A-Z0-9_]*): "(-?\d+)"(.*)$')
 
 
@@ -99,22 +102,6 @@ def main():
     put('OVERLAY_SLIDER_H', min(slider_scaled, H - get('OVERLAY_VALUE_Y') - get('OVERLAY_SLIDER_Y') - int(40 * f)))
     # The icon inside the slider keeps its place relative to the slider's length.
     put('OVERLAY_ICON_Y', int(round(get('OVERLAY_ICON_Y') * get('OVERLAY_SLIDER_H') / max(1, slider_scaled))))
-    # The Guition's climate card carries a pixel table for 480 px of height: squeeze it to a lower canvas, and keep
-    # the fan/swing card for canvases with room (a component would hide itself instead).
-    fy = min(f, H / 480) if a.template == 'guition' else f
-    m = re.search(r'(?s)static const Layout layouts\[6\] = \{.*?\n\s*\};', text)
-    if m:
-        block = m.group(0)
-        lines = block.split('\n')
-        out_lines = []
-        for line in lines:
-            if line.strip().startswith('{') and line.strip().endswith('},'):
-                nums = re.findall(r'-?\d+', line)
-                vals = [str(int(round(int(n) * fy))) for n in nums]
-                line = '              {' + ', '.join(vals) + '},'
-            out_lines.append(line)
-        text = text.replace(block, '\n'.join(out_lines))
-
     if re.search(r'(?m)^  CAMERA_FULL_W:', text):
         put('CAMERA_FULL_W', W); put('CAMERA_FULL_H', H)
         put('CAMERA_THUMB_W', min(get('CAMERA_THUMB_W'), W - 2 * margin)); put('CAMERA_THUMB_H', min(get('CAMERA_THUMB_H'), H // 2))
