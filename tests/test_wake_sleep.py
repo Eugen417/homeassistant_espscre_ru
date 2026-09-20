@@ -94,11 +94,26 @@ class Profiles(unittest.TestCase):
             self.assertEqual(len(re.findall(r'script\.execute: back_to_page_1_when_due', text)), 2, name)
             # Written by the boot, the three touchscreen triggers, Home Assistant opening the settings page (and, on the
             # Guition, a camera) and the UI self test only; Wake, an alert ending and Auto standby restart the standby time alone.
-            self.assertEqual(len(re.findall(r'id\(last_use_ms\) = millis\(\);', text)), 7 if 'preview_camera' in text else 6, name)
+            # A board whose touchscreen triggers call the shared handler writes the page clock once, in the hook
+            # the shared boot sets (runtime_tiles::touch_input::contact); a board that still carries its own
+            # three lambdas writes it in each of them. Either way every trigger leads to the clock.
             touch = section(text, 'touchscreen')
+            shared = 'runtime_tiles::touch_input::' in touch
+            # Three in the shared tree whatever the board (the boot, Home Assistant opening the settings page,
+            # the UI self test) plus the one in the hook the shared touch handler calls; a board that kept its
+            # own three lambdas writes the clock three more times.
+            expected = 4 + (0 if shared else 3)
+            if 'preview_camera' in text:
+                expected += 1
+            self.assertEqual(len(re.findall(r'id\(last_use_ms\) = millis\(\);', text)), expected, name)
             for trigger in ('on_touch', 'on_update', 'on_release'):
                 body = re.search(rf'^  {trigger}:\n(.*?)(?=^  [a-z_]+:|\Z)', touch, re.M | re.S)[1]
-                self.assertIn('id(last_use_ms) = millis();', body, f'{name}: {trigger}')
+                self.assertIn('id(last_use_ms) = millis();' if not shared else 'runtime_tiles::touch_input::',
+                              body, f'{name}: {trigger}')
+            if shared:
+                contact = re.search(r'touch_input::contact = \[\]\(bool down\) \{(.*?)\};', text, re.S)
+                self.assertTrue(contact, f'{name}: the shared handler needs the clock hook')
+                self.assertIn('id(last_use_ms) = millis();', contact[1], name)
             self.assertIn('id(last_use_ms) = millis();', re.search(r'- action: open_settings\n(.*?)- action:', text, re.S)[1], name)
             self.assertIn('id(last_use_ms) = millis();', script(text, 'ui_self_test'), name)
             for quiet in (script(text, 'alert_dismiss'), item(section(text, 'switch'), 'name', 'Auto standby')):

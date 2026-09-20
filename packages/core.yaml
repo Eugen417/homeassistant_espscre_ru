@@ -129,6 +129,25 @@ esphome:
           ${BOOT_PAGE_GESTURE}
           ${BOOT_CAMERA_HOOKS}
           runtime_tiles::refresh = []() { if (!id(ui_refresh).is_running()) id(ui_refresh).execute(); };
+          // What a finger on the glass does lives in the shared tree (runtime_tiles::touch_input); a board's
+          // three touchscreen triggers are one line each. These four are what only the YAML can answer.
+          runtime_tiles::touch_input::contact = [](bool down) {
+            id(last_touch_ms) = millis();
+            id(last_use_ms) = millis();
+            id(touch_down) = down;
+          };
+          runtime_tiles::touch_input::rotation = []() { return ${TOUCH_ROTATION}; };
+          runtime_tiles::touch_input::swipe_blocked = []() -> const char * {
+            if (id(display_dimmed)) return "screen dimmed";
+            if (id(calibration_active)) return "calibration";
+            if (!id(active_entity).empty()) return "card open";
+            return nullptr;
+          };
+          runtime_tiles::touch_input::turn_page = [](int step) {
+            ESP_LOGI("touch", "edge swipe: page %d -> %d", id(tile_page), id(tile_page) + step);
+            id(tile_page) += step;
+            id(show_tile_page).execute();
+          };
           ui::configure(atoi("${DISPLAY_DPI}"), "${LOOK}");
           runtime_tiles::grid_bind(id(tile_scroll), atoi("${GRID_MARGIN}"));
           runtime_tiles::setpoint_font = id(setpoint_digits)->get_lv_font();

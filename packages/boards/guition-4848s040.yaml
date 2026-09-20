@@ -39,6 +39,8 @@ substitutions:
   LVGL_ROTATION: "0"
   TOUCH_SWAP_XY: "false"
   TOUCH_MIRROR_X: "false"
+  # The LVGL rotation the edge swipe reckons with; a board that cannot turn says 0.
+  TOUCH_ROTATION: "static_cast<int>(id(screen_lvgl).get_rotation())"
   TOUCH_MIRROR_Y: "false"
   # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
   # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
@@ -458,51 +460,11 @@ touchscreen:
     mirror_x: ${TOUCH_MIRROR_X}
     mirror_y: ${TOUCH_MIRROR_Y}
   on_touch:
-    - lambda: |-
-        id(last_touch_ms) = millis();
-        id(last_use_ms) = millis();
-        id(touch_down) = true;
-        cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
-        cyd::edge_swipe.begin(touch.x, touch.y, static_cast<int>(id(screen_lvgl).get_rotation()));
-        ESP_LOGI("touch", "GT911 press x=%u y=%u id=%u test=%d", touch.x, touch.y, (unsigned) touch.id, id(calibration_active));
+    - lambda: 'runtime_tiles::touch_input::pressed(touch.x, touch.y, touch.id, id(calibration_active));'
   on_update:
-    - lambda: |-
-        id(last_touch_ms) = millis();
-        id(last_use_ms) = millis();
-        // Only the contact that started the touch counts; the guard ignores other ids.
-        for (const auto &point : touches) {
-          // Trace every sample of an edge touch: the log then shows how often the panel delivers.
-          if (cyd::edge_swipe.armed())
-            ESP_LOGI("touch", "swipe id=%u st=%u x=%u y=%u", (unsigned) point.id, (unsigned) point.state, point.x, point.y);
-          // The stray (0, 0) contact (cyd::GhostTouch) is not where the finger went.
-          if (point.x == 0 && point.y == 0) continue;
-          cyd::touch_guard.update(point.x, point.y, point.id);
-          if (point.id != cyd::touch_guard.contact()) continue;
-          // Swiping in from a side edge flips the page ("Swiping between pages"); the tap
-          // under the finger is consumed and LVGL waits for the release. LVGL 9.5 sends no
-          // PRESSING to the input device, hence the touchscreen trigger.
-          const int step = cyd::edge_swipe.update(point.x, point.y);
-          if (!step) continue;
-          const char *blocked = !runtime_tiles::enabled ? "no runtime tiles" : !runtime_tiles::swipe_pages ? "setting off"
-            : id(display_dimmed) ? "screen dimmed" : id(calibration_active) ? "calibration" : !id(active_entity).empty() ? "card open"
-            : (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detail card open"
-            : runtime_tiles::camera_visible() ? "camera open" : nullptr;
-          if (blocked) { ESP_LOGI("touch", "edge swipe ignored: %s", blocked); continue; }
-          cyd::touch_guard.consume();
-          for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
-          ESP_LOGI("touch", "edge swipe: page %d -> %d", id(tile_page), id(tile_page) + step);
-          id(tile_page) += step;
-          id(show_tile_page).execute();
-        }
+    - lambda: 'for (const auto &point : touches) runtime_tiles::touch_input::moved(point.x, point.y, point.id, point.state);'
   on_release:
-    - lambda: |-
-        id(last_touch_ms) = millis();
-        id(last_use_ms) = millis();
-        id(touch_down) = false;
-        if (cyd::edge_swipe.armed() && cyd::edge_swipe.inward() > 0)
-          ESP_LOGI("touch", "edge swipe not fired: %d px inward, %d px vertical", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
-        cyd::edge_swipe.end();
-
+    - lambda: 'runtime_tiles::touch_input::released();'
 
 # Native ESPHome driver with the working manufacturer's LVGL demo timings.
 # See docs/GUITION_FACTORY_REFERENCE.md; no custom RGB component is required.

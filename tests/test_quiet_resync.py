@@ -108,9 +108,13 @@ class Firmware(unittest.TestCase):
             text = self.profiles[name]
             self.assertIn('cyd::ghost_touch.filter(', text, name)
             self.assertIn('lv_indev_set_read_cb(indev, filtered);', text, name)
-            self.assertRegex(text, r'if \(point\.x == 0 && point\.y == 0\) continue;\s+cyd::touch_guard\.update', name)
+            self.assertIn('runtime_tiles::touch_input::moved(', text, f'{name}: the shared handler sees every contact')
         for name in ('home-like-2432s028.yaml', 'packages/cyd.yaml'):
             self.assertNotIn('ghost_touch', self.profiles[name], 'the CYD has its own XPT2046 filter')
+        # The skip itself lives in the shared tree now (runtime_tiles::touch_input::moved), so every board that
+        # uses it gets it: a board cannot take half of the handling any more, which is how a GT911 board once
+        # ended up with on_touch and neither of the other two triggers.
+        self.assertRegex(RUNTIME, r'if \(x == 0 && y == 0\) return;\s+cyd::touch_guard\.update')
 
     def test_a_slider_that_jumps_on_release_is_logged(self):
         self.assertIn('cyd::release_jump(row.held, value,', LIGHT_CONTROLS)

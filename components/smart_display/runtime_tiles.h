@@ -5085,4 +5085,64 @@ inline void camera_failed(bool thumb) {
   camera.finish(esphome::millis(), false);
   if (!camera.shown) camera_note_text(tr(txt::camera_no_image));
 }
+
+// ---------------------------------------------------------------------------------------------------------
+// What a finger on the glass does (firmware 0.2.9x). ESPHome gives a board three touchscreen triggers, and
+// what they did used to be copied into every board file: 55 of the Waveshare's 62 lines were word for word the
+// Guition's. A new board took `on_touch` and not the other two, so one tap worked and nothing after it -- the
+// guard waited for a release that was never reported. It is behaviour, not hardware, so it lives here once and
+// a board's triggers are one line each. Only the rotation is a board's own (`TOUCH_ROTATION`), and the boot
+// lambda of packages/core.yaml hands over the four things that live in the YAML.
+namespace touch_input {
+// A finger arrived or left: the standby clock, the "back to page 1" clock and `touch_down`.
+inline std::function<void(bool down)> contact;
+// The LVGL rotation in degrees; a board that cannot turn answers 0.
+inline std::function<int()> rotation;
+// Why an edge swipe may not turn the page now, or nullptr when it may. Reads what only the YAML knows
+// (a dimmed screen, a calibration, an open card).
+inline std::function<const char *()> swipe_blocked;
+// One page further or back, and draw it.
+inline std::function<void(int step)> turn_page;
+
+inline void pressed(int x, int y, int id, bool calibrating) {
+  if (contact) contact(true);
+  cyd::touch_guard.begin(esphome::millis(), x, y, id);
+  cyd::edge_swipe.begin(x, y, rotation ? rotation() : 0);
+  ESP_LOGI("touch", "press x=%d y=%d id=%d test=%d", x, y, id, calibrating ? 1 : 0);
+}
+
+// One contact of one report. Only the contact that started the touch counts.
+inline void moved(int x, int y, int id, int state) {
+  if (contact) contact(true);
+  // Trace every sample of an edge touch: the log then shows how often the panel delivers.
+  if (cyd::edge_swipe.armed()) ESP_LOGI("touch", "swipe id=%d st=%d x=%d y=%d", id, state, x, y);
+  // The stray (0, 0) contact (cyd::GhostTouch) is not where the finger went.
+  if (x == 0 && y == 0) return;
+  cyd::touch_guard.update(x, y, id);
+  if (id != cyd::touch_guard.contact()) return;
+  // Swiping in from a side edge flips the page ("Swiping between pages"); the tap under the finger is
+  // consumed and LVGL waits for the release. LVGL 9.5 sends no PRESSING to the input device, hence the
+  // touchscreen trigger.
+  const int step = cyd::edge_swipe.update(x, y);
+  if (!step) return;
+  const char *blocked = !enabled                ? "no runtime tiles"
+                      : !swipe_pages            ? "setting off"
+                      : camera_visible()        ? "camera open"
+                      : (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detail card open"
+                      : swipe_blocked           ? swipe_blocked()
+                      : nullptr;
+  if (blocked) { ESP_LOGI("touch", "edge swipe ignored: %s", blocked); return; }
+  cyd::touch_guard.consume();
+  for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
+  ESP_LOGI("touch", "edge swipe: %d page(s)", step);
+  if (turn_page) turn_page(step);
+}
+
+inline void released() {
+  if (contact) contact(false);
+  if (cyd::edge_swipe.armed() && cyd::edge_swipe.inward() > 0)
+    ESP_LOGI("touch", "edge swipe not fired: %d px inward, %d px vertical", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
+  cyd::edge_swipe.end();
+}
+}  // namespace touch_input
 }  // namespace runtime_tiles

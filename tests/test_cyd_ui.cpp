@@ -117,7 +117,16 @@ int main() {
   // edge rightwards "previous", once per touch, slow or fast, more sideways than vertical,
   // never from the middle. Rotation follows ESPHome's pointer mapping; end() disarms.
   cyd::EdgeSwipe edge;
+  // A board that never configured one has no edge swipe at all: the CYD turns its pages by another gesture,
+  // and shared touch handling must not flip a page there on the default band.
+  cyd::EdgeSwipe unconfigured;
+  assert(!unconfigured.in_use());
+  unconfigured.begin(2, 100);
+  assert(!unconfigured.armed());
+  assert(unconfigured.update(200, 100) == 0);
+
   edge.configure(480, 480, 32, 40);
+  assert(edge.in_use());
   edge.begin(6, 240);
   assert(edge.armed());
   assert(edge.update(30, 242) == 0);   // not far enough yet

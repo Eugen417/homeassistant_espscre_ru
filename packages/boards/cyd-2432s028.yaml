@@ -49,6 +49,8 @@ substitutions:
   # true on this board (resistive XPT2046) — was false on the 032c board
   # (capacitive GT911). This is the original upstream value for this panel.
   TOUCH_MIRROR_X: "true"
+  # The LVGL rotation the edge swipe reckons with; this screen keeps its orientation.
+  TOUCH_ROTATION: "0"
   TOUCH_MIRROR_Y: "false"
   # Measured on this board: median top-right raw=(523,3390),
   # bottom-left raw=(3487,482), at screen (299,20) and (20,219).

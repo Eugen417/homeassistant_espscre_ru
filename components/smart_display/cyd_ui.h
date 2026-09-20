@@ -147,7 +147,12 @@ class EdgeSwipe {
  public:
   void configure(int width, int height, int band, int travel) {
     width_ = width; height_ = height; band_ = band; travel_ = travel;
+    configured_ = true;
   }
+  // A board that never configured one has no edge swipe: the CYD turns its pages by another gesture
+  // (BOOT_PAGE_GESTURE) and a swipe along its edge must not flip a page. Without this, shared touch
+  // handling would arm this on the default 480 x 480 band and turn pages on a screen that never did.
+  bool in_use() const { return configured_; }
   // Native touch coordinates plus the LVGL rotation in degrees (0, 90, 180, 270).
   void begin(int x, int y, int rotation = 0) {
     rotation_ = rotation;
@@ -158,7 +163,7 @@ class EdgeSwipe {
     done_ = false;
     inward_ = sideways_ = 0;
   }
-  bool armed() const { return from_ != 0 && !done_; }
+  bool armed() const { return configured_ && from_ != 0 && !done_; }
   // +1 next page, -1 previous page, 0 nothing; fires at most once per touch.
   int update(int x, int y) {
     if (!armed()) return 0;
@@ -183,6 +188,7 @@ class EdgeSwipe {
     else if (rotation_ == 180) { x = width_ - x - 1; y = height_ - y - 1; }
     else if (rotation_ == 270) { const int tmp = x; x = height_ - y - 1; y = tmp; }
   }
+  bool configured_{false};
   int width_{480}, height_{480}, band_{32}, travel_{40}, rotation_{0};
   int start_x_{0}, start_y_{0}, from_{0}, inward_{0}, sideways_{0};
   bool done_{true};
