@@ -40,3 +40,9 @@ __pycache__/
 /easy-guition-device.yaml
 /easy-cyd-test.yaml
 /portal-test-data/
+
+# The responsive lab writes board files and the cards of their grids (docs/RESPONSIVE.md); a release
+# carries the boards it ships and the cards of their grid only.
+packages/boards/lab-*.yaml
+packages/cells/*.yaml
+!packages/cells/6.yaml

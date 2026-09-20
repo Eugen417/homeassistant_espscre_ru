@@ -211,6 +211,9 @@ def lint():
     found = []
     for pattern in LINT_FILES:
         for path in sorted(ROOT.glob(pattern)):
+            # Lab boards (packages/boards/lab-*.yaml) are written by the responsive lab and never released.
+            if path.name.startswith('lab-'):
+                continue
             for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
                 stripped = line.strip()
                 # Comments, logs, and Home Assistant's entity names (renaming one gives it a new entity id).
