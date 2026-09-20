@@ -229,7 +229,7 @@ struct Widgets {
   // `base_y`: the card's row in the profile; without the page bar (firmware 0.2.69+) place_page moves it down.
   bool wide=false, full=false; int base_width=0, base_height=0, base_y=0; const lv_font_t *title_font{};
   // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
-  int base_circle=0;
+  int base_circle=0,circle_y=12;
   lv_obj_t *extra{}; std::string extra_mode; bool extra_full=false; std::array<lv_obj_t *, 36> parts{}; lv_point_precise_t *points{};
   // Analog clock: centre and radius of the dial, so the second hand can move without a card redraw.
   int hand_cx=0, hand_cy=0, hand_r=0, hand_width=1;
@@ -2426,7 +2426,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
-  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);w.base_circle=lv_obj_get_width(circle);
+  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);w.base_circle=lv_obj_get_width(circle);w.circle_y=lv_obj_get_y(circle);
   w.base_y=lv_obj_get_y(tile);
   w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
@@ -3341,7 +3341,8 @@ inline void render_slot(size_t slot) {
   lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y+lift);
   lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
     watch?(large_tile?42:19):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y+lift);
-  const int circle_y=(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):12+lift;
+  // LAB: a large card's circle sits where the board puts it (TILE_ICON_Y, 12 on the Guition), not at a fixed 12 px.
+  const int circle_y=(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):w.circle_y+lift;
   lv_obj_set_pos(w.circle,0,circle_y);
   live_place(w,t,circle_size,0,circle_y);
   // Use the requested coordinates: LVGL getters still return the previous
