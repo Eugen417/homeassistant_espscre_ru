@@ -559,9 +559,15 @@ inline std::string receive(const std::string &payload) {
       // The names a picker on a light's effects page asked for (options_request), one page per message.
       std::string entity = string(root["e"], 120);
       if (!valid_entity(entity) || !root["o"].is<JsonArray>()) return false;
+      // Only as many as this screen has memory for, and the room asked for in one go: a list that doubles its
+      // way there leaves the heap in pieces, and the allocation that does not fit aborts the firmware instead
+      // of failing (effects_page::names_room).
+      JsonArray sent = root["o"].as<JsonArray>();
+      const size_t room = effects_page::names_room(heap_room ? heap_room() : 0);
       std::vector<std::string> names;
-      for (JsonVariant name : root["o"].as<JsonArray>()) {
-        if (names.size() == effects_page::MAX_NAMES) break;
+      names.reserve(std::min(room, static_cast<size_t>(sent.size())));
+      for (JsonVariant name : sent) {
+        if (names.size() >= room) break;
         std::string text = string(name, 48);
         if (!text.empty()) names.push_back(std::move(text));
       }
@@ -1781,7 +1787,7 @@ inline climate_card::Metrics climate_metrics(bool large){
   const lv_font_t *small_number=watch_font?watch_font:(control_font?control_font:detail_font);
   m.number_h=lv_font_get_line_height(number);
   m.number_w=text_width("-88.8°",number);
-  m.small_number_h=std::min(m.number_h,lv_font_get_line_height(small_number));
+  m.small_number_h=std::min<int>(m.number_h,lv_font_get_line_height(small_number));
   m.small_number_w=text_width("-88.8°",small_number);
   m.caption_h=lv_font_get_line_height(small);
   m.text_h=lv_font_get_line_height(text);
@@ -2990,17 +2996,26 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
                fill(fill(txt::date_day_month,"day",day),"month",month_short(now)));
     return;
   }
-  // Calendar block: weekday over a big day number with the short month beside it.
-  int top=std::max(0,int(height-lv_font_get_line_height(w.value_font)-lv_font_get_line_height(big))/2);
-  part_label(w,15,w.value_font,x,top,room,LV_TEXT_ALIGN_CENTER,weekday_text(now));
+  // Calendar block: weekday over a big day number with the short month beside it. It has to fit the card's
+  // height: on a board with more rows than its size table was drawn for, the weekday and a big number are
+  // together taller than the cell and the number was cut off at the bottom. The weekday goes first, then the
+  // number takes the smaller font; the day and the month never go, they are what a calendar is for.
+  const lv_font_t *day_font=big;
+  int week_h=lv_font_get_line_height(w.value_font);
+  bool with_weekday=week_h+lv_font_get_line_height(day_font)<=height;
+  if(!with_weekday && lv_font_get_line_height(day_font)>height)day_font=w.value_font;
+  if(!with_weekday)week_h=0;
+  if(w.parts[15])set_hidden(w.parts[15],!with_weekday);
+  int top=std::max(0,int(height-week_h-lv_font_get_line_height(day_font))/2);
+  if(with_weekday)part_label(w,15,w.value_font,x,top,room,LV_TEXT_ALIGN_CENTER,weekday_text(now));
   std::string month=month_short(now);
   lv_point_t day_size,month_size;
-  lv_text_get_size(&day_size,day.c_str(),big,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+  lv_text_get_size(&day_size,day.c_str(),day_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
   lv_text_get_size(&month_size,month.c_str(),small,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
-  int gap=6,sx=x+std::max(0,int(room-(day_size.x+gap+month_size.x))/2),day_y=top+int(lv_font_get_line_height(w.value_font));
-  part_label(w,16,big,sx,day_y,std::min(room,(int)day_size.x+2),LV_TEXT_ALIGN_LEFT,day);
+  int gap=6,sx=x+std::max(0,int(room-(day_size.x+gap+month_size.x))/2),day_y=top+week_h;
+  part_label(w,16,day_font,sx,day_y,std::min(room,(int)day_size.x+2),LV_TEXT_ALIGN_LEFT,day);
   // Both baselines line up: LVGL measures base_line from the bottom of the line box.
-  int month_y=day_y+(big->line_height-big->base_line)-(small->line_height-small->base_line);
+  int month_y=day_y+(day_font->line_height-day_font->base_line)-(small->line_height-small->base_line);
   part_label(w,17,small,sx+day_size.x+gap,std::max(0,month_y),std::max(1,int(x+room-(sx+day_size.x+gap))),LV_TEXT_ALIGN_LEFT,month);
 }
 inline int block_min(int icon_h,int temp_h,int text_h){return std::max(icon_h,temp_h)+2+text_h;}
@@ -3032,14 +3047,20 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
     }
   }
   height=top_h;
-  int block=std::max(icon_h,temp_h)+2+text_h,y=std::max(0,(height-block)/2);
+  // A cell shorter than the block leaves something out instead of drawing past its bottom edge: first Home
+  // Assistant's word for the weather, then the day names over the columns. The icon, the temperature now and
+  // the high/low of each day always stay: that is what a forecast is read for.
+  const bool with_condition=std::max(icon_h,temp_h)+2+text_h<=height;
+  const bool with_day_name=day_h+icon_col+text_h<=height;
+  int block=std::max(icon_h,temp_h)+(with_condition?2+text_h:0),y=std::max(0,(height-block)/2);
   char b[24];snprintf(b,sizeof(b),"%.0f°",t.current);
   auto *icon=part_label(w,0,w.icon_font,0,y+(std::max(icon_h,temp_h)-icon_h)/2,icon_h+4,LV_TEXT_ALIGN_LEFT,t.available()?weather_icon(t.state):"\U000F0595");
   lv_obj_set_width(icon,lv_font_get_line_height(w.icon_font)+4);
   part_label(w,1,temp_font,icon_h+6,y+(std::max(icon_h,temp_h)-temp_h)/2,left-icon_h-6,LV_TEXT_ALIGN_LEFT,std::isfinite(t.current)?b:"");
   // Home Assistant's word for the weather can be long ("częściowe zachmurzenie"): it ends in an ellipsis before the days.
-  auto *condition=part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,weather_text(t.state));
+  auto *condition=part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,with_condition?weather_text(t.state):std::string());
   if(lv_label_get_long_mode(condition)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(condition,LV_LABEL_LONG_DOT);
+  set_hidden(condition,!with_condition);
   // As many day columns as the width holds ("22/12" plus air per column): five at most, none below two.
   lv_point_t probe;lv_text_get_size(&probe,"22/12",w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
   const int min_col=(int)probe.x+(ui::px(large?6:4));
@@ -3050,10 +3071,12 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
     if(k>=(unsigned)days){for(unsigned q=3+k*3;q<6+k*3;++q)part_label(w,q,w.value_font,x,0,1,LV_TEXT_ALIGN_LEFT,"");continue;}
     char temps[24];if(has && std::isfinite(f.high))snprintf(temps,sizeof(temps),std::isfinite(f.low)?"%.0f/%.0f":"%.0f",f.high,f.low);else temps[0]=0;
     if(large){
-      int rows=day_h+icon_col+text_h,top=std::max(0,(height-rows)/2);
-      part_label(w,3+k*3,title_font,x,top,column,LV_TEXT_ALIGN_CENTER,has?f.day:"");
-      part_label(w,4+k*3,day_icon,x,top+day_h,column,LV_TEXT_ALIGN_CENTER,has?weather_icon(f.condition):"");
-      part_label(w,5+k*3,w.value_font,x,top+day_h+icon_col,column,LV_TEXT_ALIGN_CENTER,temps);
+      const int head=with_day_name?day_h:0;
+      int rows=head+icon_col+text_h,top=std::max(0,(height-rows)/2);
+      auto *name=part_label(w,3+k*3,title_font,x,top,column,LV_TEXT_ALIGN_CENTER,with_day_name&&has?f.day:"");
+      set_hidden(name,!with_day_name);
+      part_label(w,4+k*3,day_icon,x,top+head,column,LV_TEXT_ALIGN_CENTER,has?weather_icon(f.condition):"");
+      part_label(w,5+k*3,w.value_font,x,top+head+icon_col,column,LV_TEXT_ALIGN_CENTER,temps);
     }else{
       // Two rows on the CYD: day beside its icon, then the high/low pair.
       int rows=std::max(day_h,icon_col)+text_h,top=std::max(0,(height-rows)/2),day_w=column-icon_col-2;
@@ -3512,6 +3535,14 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   lv_obj_set_pos(w.title,w.title_x,big?w.title_y:text_y);
   lv_obj_set_pos(w.value,w.value_x,big?w.value_y:text_y+title_h+line_gap);
   lv_obj_set_width(w.title,std::max(1,content_w-w.title_x));lv_obj_set_width(w.value,std::max(1,content_w-w.value_x));
+  // The head is as tall as what it draws, not as tall as one tile row: on a board whose rows are short (three
+  // rows on 800x480) the row is lower than the circle and the two lines, and the media card under it started
+  // over its own name. Whatever stands under the head is placed from here.
+  {
+    const int circle_y=big?12:std::max(0,(head_h-circle)/2);
+    const int text_bottom=(big?w.value_y:text_y+title_h+line_gap)+value_h;
+    head_h=std::max(head_h,std::max(circle_y+circle,text_bottom));
+  }
   if(media){
     hide_panel(w);lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
     render_media_full(w,t,big,content_w,content_h,head_h);
@@ -3676,6 +3707,12 @@ inline void render_slot(size_t slot) {
   int panel_w=with_panel && !graph?layout_panel(w,t,large_tile,content_w,content_h):0;
   if(!panel_w)hide_panel(w);
   lap(swipe_profile::PANEL);
+  // A strip that leaves the two lines no room takes what is left instead: a board with more rows than its size
+  // table was drawn for has short cells, and the name and the value were drawn over the slider (or the graph).
+  if(mini||graph_strip){
+    const int least=ui::px(large_tile?14:6),gap=ui::px(large_tile?6:3);
+    slider_height=std::max(least,std::min(slider_height,content_h-text_height-gap));
+  }
   int header_height=(mini||graph_strip)?content_h-slider_height-(ui::px(large_tile?6:3)):content_h;
   int text_y=std::max(0,(header_height-text_height)/2);
   // The circle follows the board's icon size (TILE_ICON_SIZE), so a 73 pt icon on a 294 dpi panel gets its disc;
@@ -3690,11 +3727,18 @@ inline void render_slot(size_t slot) {
   // grows without the page bar, so they stay in its middle.
   const int standard_h=std::min(ui::cell_height(),w.base_height);
   int lift=std::max(0,(tile_height(w)-standard_h)/2);
-  lv_obj_set_pos(w.title,text_x,watch?0:(mini||graph_strip||!large_tile)?text_y:w.title_y+lift);
+  // The board's places (TILE_ICON_Y, the name and the value) are a design for the look's own cell. A cell
+  // shorter than that — a board with three rows where the table was drawn for two — cannot use them: the
+  // circle and the two lines would stand past the bottom edge. The block is then centred on the cell it
+  // really got, exactly as the compact look does, so nothing is cut off and nothing has to be typed per grid.
+  const bool tight=large_tile && !watch && !(mini||graph_strip) &&
+                   (w.circle_y+circle_size>header_height || w.value_y+value_height>header_height);
+  const bool centred=mini||graph_strip||!large_tile||tight;
+  lv_obj_set_pos(w.title,text_x,watch?0:centred?text_y:w.title_y+lift);
   lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
-    watch?(ui::px(large_tile?42:19)):(mini||graph_strip||!large_tile)?text_y+title_height+line_gap:w.value_y+lift);
-  // A large card's circle sits where the board puts it (TILE_ICON_Y).
-  const int circle_y=(mini||graph_strip||!large_tile)?std::max(0,(header_height-circle_size)/2):w.circle_y+lift;
+    watch?(ui::px(large_tile?42:19)):centred?text_y+title_height+line_gap:w.value_y+lift);
+  // A large card's circle sits where the board puts it (TILE_ICON_Y), unless the cell is too short for that.
+  const int circle_y=centred?std::max(0,(header_height-circle_size)/2):w.circle_y+lift;
   lv_obj_set_pos(w.circle,0,circle_y);
   live_place(w,t,circle_size,0,circle_y);
   // Use the requested coordinates: LVGL getters still return the previous

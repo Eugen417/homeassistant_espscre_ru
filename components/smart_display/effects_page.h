@@ -28,6 +28,18 @@ using runtime_tiles::Tile;
 constexpr uint32_t EFFECT_FEATURE = 4;
 // Names a picker holds at most; a WLED lists about 220 effects.
 constexpr size_t MAX_NAMES = 400;
+// How many of those names this screen can actually hold. A WLED light brings hundreds of effects and every one
+// of them is a string in a list: on a board with little memory inside the chip the list itself was more than
+// there was, and an allocation that fails aborts the firmware -- what a user sees is the screen restarting the
+// moment the picker opens (Waveshare 800x480, 2026-09-20). The list is cut to what fits instead: the last
+// effects of a very long list go, the screen stays. `left` is the free memory, 0 when nothing can say (the
+// host and the tests), and then the ceiling holds.
+constexpr size_t NAME_COST = sizeof(std::string) + 24;   // its place in the list and a name of average length
+constexpr size_t NAME_RESERVE = 12 * 1024;               // what the rest of the firmware keeps for itself
+inline size_t names_room(size_t left) {
+  if (left == 0) return MAX_NAMES;
+  return left > NAME_RESERVE ? std::min(MAX_NAMES, (left - NAME_RESERVE) / NAME_COST) : 0;
+}
 // A chosen name stays on its row while Home Assistant still reports the old one, this long at most.
 constexpr uint32_t SENT_HOLD_MS = 4000;
 
@@ -86,6 +98,73 @@ inline Metrics metrics(int width, int height) {
     m.number_h = ui::px(44); m.track_h = ui::px(14); m.number_inset = ui::px(9); m.roller_row_h = ui::px(30); m.roller_pad = ui::px(5); m.radius = ui::px(10); m.knob = ui::px(3);
   }
   return m;
+}
+
+// Where everything under the top bar stands. The rows and the slider cards have to fit between the bar and the
+// bottom edge, and until now they were simply stacked: on a wide screen with a short glass (800x480 draws the
+// standard look 28 % larger while its height stays 480) a light with three selects pushed its speed and
+// intensity sliders off the screen. Two ways out, in this order:
+//
+// 1. a screen with width to spare puts the sliders beside the rows instead of under them, as the cover card
+//    does on wide glass: the height the stack needed becomes width, which this board has;
+// 2. what still does not fit is taken from the stack, the rows first (never under a finger, ui::touch_min)
+//    and then the slider cards (never under their track and their line of text).
+//
+// `numbers` is how many slider cards there are (at most two), `text_h` the line height of the row font.
+struct Placed {
+  int rows_x = 0, rows_y = 0, rows_w = 0, rows_h = 0, row_h = 0;
+  int number_x[2] = {0, 0}, number_y[2] = {0, 0}, number_w = 0, number_h = 0;
+  bool beside = false;   // the sliders stand next to the rows
+  bool scrolls = false;  // more rows than the glass holds; the card scrolls
+};
+// The least a slider card can be: its line of text at the top, its track at the bottom, the insets of both.
+inline int least_number_h(const Metrics &m, int text_h) {
+  return m.number_inset * 3 / 4 + text_h + m.number_inset + m.track_h + 2;
+}
+inline Placed place(const Metrics &m, int rows, int numbers, int text_h) {
+  Placed p;
+  numbers = std::max(0, std::min(2, numbers));
+  rows = std::max(0, rows);
+  const int full = m.width - 2 * m.pad, room = m.height - m.rows_y - m.pad;
+  p.rows_x = m.pad; p.rows_y = m.rows_y; p.rows_w = full; p.row_h = m.row_h; p.number_h = m.number_h;
+  p.number_w = numbers == 1 ? full : (full - m.gap) / 2;
+  const int stacked = rows * p.row_h + (rows && numbers ? m.gap : 0) + (numbers ? p.number_h : 0);
+  // Wide enough to stand in two: three units of width to two of height, the shape that made the cover card
+  // split as well. A square or a portrait screen keeps the sliders under the rows.
+  if (numbers > 0 && stacked > room && m.width * 2 >= m.height * 3) {
+    p.beside = true;
+    p.number_w = (full - m.gap) / 2;
+    p.rows_w = full - m.gap - p.number_w;
+  }
+  // What each column asks for, and what it may give back.
+  auto column_heights = [&](int &left, int &right) {
+    left = rows * p.row_h;
+    right = numbers * p.number_h + (numbers > 1 ? m.gap : 0);
+    if (!p.beside) { left = left + (rows && numbers ? m.gap : 0) + (numbers ? p.number_h : 0); right = 0; }
+  };
+  int left = 0, right = 0;
+  column_heights(left, right);
+  int over = std::max(left, right) - room;
+  if (over > 0) {
+    const int least_row = std::min(p.row_h, ui::touch_min()), least_number = std::min(p.number_h, least_number_h(m, text_h));
+    ui::shrink({{&p.row_h, least_row, std::max(1, rows)},
+                {&p.number_h, least_number, p.beside ? std::max(1, numbers) : 1}}, over);
+    column_heights(left, right);
+  }
+  // Still too many rows for the glass: the card takes the room there is and scrolls.
+  p.rows_h = rows * p.row_h;
+  const int rows_room = p.beside || !numbers ? room : room - m.gap - p.number_h;
+  if (p.rows_h > rows_room) { p.rows_h = std::max(p.row_h, rows_room); p.scrolls = true; }
+  for (int i = 0; i < numbers; ++i) {
+    if (p.beside) {
+      p.number_x[i] = m.pad + p.rows_w + m.gap;
+      p.number_y[i] = m.rows_y + i * (p.number_h + m.gap);
+    } else {
+      p.number_x[i] = m.pad + i * (p.number_w + m.gap);
+      p.number_y[i] = m.rows_y + p.rows_h + (rows ? m.gap : 0);
+    }
+  }
+  return p;
 }
 }  // namespace effects_page
 
@@ -269,10 +348,13 @@ inline void show_roller() {
 inline void received(const std::string &for_entity, unsigned page, unsigned pages, std::vector<std::string> &&names) {
   if (!picker || for_entity != options.entity || options.complete) return;
   if (page != options.next) return;  // an answer to an older question, or one that arrived twice
-  for (auto &name : names) { if (options.names.size() >= MAX_NAMES) break; options.names.push_back(std::move(name)); }
+  const size_t room = names_room(runtime_tiles::heap_room ? runtime_tiles::heap_room() : 0);
+  if (options.names.capacity() < std::min(room, options.names.size() + names.size()))
+    options.names.reserve(std::min(room, options.names.size() + names.size()));
+  for (auto &name : names) { if (options.names.size() >= room) break; options.names.push_back(std::move(name)); }
   options.next = page + 1;
   options.pages = std::max(1u, pages);
-  if (options.next < options.pages && options.names.size() < MAX_NAMES) { options.asked_at = clock(); if (ask) ask(options.entity, options.next); return; }
+  if (options.next < options.pages && options.names.size() < room) { options.asked_at = clock(); if (ask) ask(options.entity, options.next); return; }
   options.complete = true;
   if (options.names.empty()) { if (roller_note) lv_label_set_text(roller_note, screen_text::tr(screen_text::txt::effects_nothing)); return; }
   show_roller();
@@ -334,52 +416,59 @@ inline void draw() {
   std::vector<Spec> specs;
   if (t && (t->supported & EFFECT_FEATURE)) specs.push_back({t->entity, screen_text::tr(screen_text::txt::effects_effect), t->extra().effect, "\U000F0674", 0, true});
   if (t) for (auto &r : t->extra().option_rows) specs.push_back({r.entity, r.name, r.current, "\U000F0411", r.icon, false});
-  int y = m.rows_y;
+  const int row_text_h = lv_font_get_line_height(row_font);
+  const size_t number_count = t ? std::min<size_t>(2, t->extra().number_rows.size()) : 0;
+  const Placed at = place(m, static_cast<int>(specs.size()), static_cast<int>(number_count), row_text_h);
+  const int row_h = at.row_h, w_rows = at.rows_w;
   if (!specs.empty()) {
-    auto *holder = card(root, m.pad, y, w, static_cast<int>(specs.size()) * m.row_h, m.radius);
+    auto *holder = card(root, at.rows_x, at.rows_y, w_rows, at.rows_h, m.radius);
+    // More rows than the glass holds: the card keeps LVGL's scrolling instead of drawing past the bottom edge.
+    if (at.scrolls) {
+      lv_obj_add_flag(holder, LV_OBJ_FLAG_SCROLLABLE);
+      lv_obj_set_scroll_dir(holder, LV_DIR_VER);
+      lv_obj_set_scrollbar_mode(holder, LV_SCROLLBAR_MODE_AUTO);
+    }
     for (size_t i = 0; i < specs.size(); ++i) {
       auto &spec = specs[i];
-      auto *row = plain(holder, 0, static_cast<int>(i) * m.row_h, w, m.row_h);
+      auto *row = plain(holder, 0, static_cast<int>(i) * row_h, w_rows, row_h);
       lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
       lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_STATE_PRESSED);
       lv_obj_set_style_bg_color(row, theme::color(theme::CARD_PRESSED), LV_STATE_PRESSED);
       lv_obj_set_style_radius(row, m.radius, 0);
       lv_obj_add_event_cb(row, row_event, LV_EVENT_SHORT_CLICKED, reinterpret_cast<void *>(static_cast<intptr_t>(i)));
-      const int icon_h = icon_font ? lv_font_get_line_height(icon_font) : 0, text_h = lv_font_get_line_height(row_font);
+      const int icon_h = icon_font ? lv_font_get_line_height(icon_font) : 0, text_h = row_text_h;
       int x = m.inset;
       if (icon_font) {
         auto *icon = text(row, glyph(spec.icon, spec.fallback.c_str()), icon_font, theme::MUTED);
         lv_obj_set_width(icon, LV_SIZE_CONTENT);
-        lv_obj_set_pos(icon, m.inset - 2, (m.row_h - icon_h) / 2);
+        lv_obj_set_pos(icon, m.inset - 2, (row_h - icon_h) / 2);
         x += m.icon + 6;
       }
       auto *name = text(row, spec.name, row_font, theme::INK);
-      lv_obj_set_pos(name, x, (m.row_h - text_h) / 2);
+      lv_obj_set_pos(name, x, (row_h - text_h) / 2);
       const int chevron_w = icon_font ? m.icon : 0;
-      lv_obj_set_width(name, std::max(20, w / 2 - x));
+      lv_obj_set_width(name, std::max(20, w_rows / 2 - x));
       if (icon_font) {
         auto *chevron = text(row, "\U000F0142", icon_font, theme::CHEVRON);
         lv_obj_set_width(chevron, LV_SIZE_CONTENT);
-        lv_obj_set_pos(chevron, w - m.inset - chevron_w + 2, (m.row_h - icon_h) / 2);
+        lv_obj_set_pos(chevron, w_rows - m.inset - chevron_w + 2, (row_h - icon_h) / 2);
       }
       auto *value = text(row, row_text(spec.current), row_font, theme::MUTED, LV_TEXT_ALIGN_RIGHT);
-      const int value_x = x + w / 2 - x + 4;
-      lv_obj_set_pos(value, value_x, (m.row_h - text_h) / 2);
-      lv_obj_set_width(value, std::max(20, w - m.inset - chevron_w - 4 - value_x));
+      const int value_x = w_rows / 2 + 4;
+      lv_obj_set_pos(value, value_x, (row_h - text_h) / 2);
+      lv_obj_set_width(value, std::max(20, w_rows - m.inset - chevron_w - 4 - value_x));
       RowDrawn drawn; drawn.card = row; drawn.value = value; drawn.entity = spec.entity; drawn.light = spec.light; drawn.name = spec.name;
       rows.push_back(std::move(drawn));
     }
-    y += static_cast<int>(specs.size()) * m.row_h + m.gap;
   }
-  // The numbers: half-width slider cards side by side, like the brightness slider of the colour card.
-  if (t && !t->extra().number_rows.empty()) {
-    const size_t count = std::min<size_t>(2, t->extra().number_rows.size());
-    const int card_w = count == 1 ? w : (w - m.gap) / 2;
+  // The numbers: slider cards side by side under the rows, or in a column beside them on wide glass (place()).
+  if (number_count) {
+    const size_t count = number_count;
+    const int card_w = at.number_w;
     for (size_t i = 0; i < count; ++i) {
       const auto &n = t->extra().number_rows[i];
-      const int x = m.pad + static_cast<int>(i) * (card_w + m.gap);
-      auto *holder = card(root, x, y, card_w, m.number_h, m.radius);
-      const int text_h = lv_font_get_line_height(row_font), text_y = m.number_inset * 3 / 4;
+      auto *holder = card(root, at.number_x[i], at.number_y[i], card_w, at.number_h, m.radius);
+      const int text_h = row_text_h, text_y = m.number_inset * 3 / 4;
       int tx = m.number_inset;
       if (icon_font) {
         auto *icon = text(holder, glyph(n.icon, "\U000F00DF"), icon_font, theme::MUTED);
@@ -396,7 +485,7 @@ inline void draw() {
       lv_obj_set_pos(value, card_w - m.number_inset - 50, text_y);
       // Corners, handle and shortest fill as the colour card's brightness slider: the fill keeps the track's radius
       // (a smaller one makes LVGL draw it into a buffer of its own on every redraw).
-      const int track_x = m.number_inset, track_w = card_w - 2 * m.number_inset, track_h = m.track_h, track_y = m.number_h - m.number_inset - track_h + 2;
+      const int track_x = m.number_inset, track_w = card_w - 2 * m.number_inset, track_h = m.track_h, track_y = at.number_h - m.number_inset - track_h + 2;
       auto *slider = lv_slider_create(holder);
       lv_obj_remove_style_all(slider);
       lv_obj_remove_flag(slider, LV_OBJ_FLAG_SCROLLABLE);
