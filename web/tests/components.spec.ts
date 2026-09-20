@@ -229,12 +229,12 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
     const card = mount(TileCard, { props: { tile, slot: 0 } });
     expect(card.find(".ic").classes()).toContain("thumb");
     expect(card.find(".range").exists()).toBe(true);
-    // A CYD gets no such choice; a tile over the whole page keeps the card's big cover.
-    Object.assign(state.inventory.screens[0], { board: "cyd" });
+    // A board without memory for pictures (a CYD) gets no such choice; a tile over the whole page keeps the card's big cover.
+    Object.assign(state.inventory.screens[0], { board: "cyd", pictures: false });
     tile.options = { size: "single" };
     await drawer.vm.$nextTick();
     expect(choices(mount(TileInspector, { props: { tile } }), "Display")).toEqual(["Name and status", "Large value"]);
-    Object.assign(state.inventory.screens[0], { board: "guition" });
+    Object.assign(state.inventory.screens[0], { board: "guition", pictures: true });
     tile.options = { size: "full" };
     expect(choices(mount(TileInspector, { props: { tile } }), "Display")).toEqual(["Name and status", "Large value"]);
   });

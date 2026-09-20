@@ -7,7 +7,7 @@ import { vDrag } from "../drag";
 import { t } from "../i18n";
 import { domainInfo } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { addTile, automaticIcon, isGuition, repeatable, state, tileLimit } from "../store";
+import { addTile, automaticIcon, pictures, repeatable, state, tileLimit } from "../store";
 
 // The domains to filter on; the label of each is editor.library.filters.<domain>, "all" for no filter.
 const FILTERS = [
@@ -21,10 +21,10 @@ const placed = (id: string) => chosen.value.has(id) && !repeatable(id);
 const rooms = computed(() => [...new Set(state.inventory.entities.map((e) => e.area).filter((a): a is string => Boolean(a)))].sort((a, b) => a.localeCompare(b)));
 const matches = computed(() => {
   const query = state.search.toLocaleLowerCase(), filter = state.filter, room = state.room;
-  // The picker offers what a tile can show; camera images need a Guition (app 0.2.66).
+  // The picker offers what a tile can show; camera and image tiles need a board that draws pictures (app 0.2.66).
   return [...(state.inventory.builtin || []), ...state.inventory.entities].filter((e) =>
     e.tile !== false &&
-    (isGuition.value || !["camera", "image"].includes(e.id.split(".")[0])) &&
+    (pictures.value || !["camera", "image"].includes(e.id.split(".")[0])) &&
     (!filter || e.id.startsWith(filter + ".") || ALIAS[filter] === e.id.split(".")[0]) &&
     (!room || e.area === room) &&
     (!state.hidePlaced || !placed(e.id)) &&

@@ -1,7 +1,7 @@
 // The grid rules: the same ones the add-on applies (core.pack_slots, validate_layout) and the firmware draws.
 import { describe, expect, it } from "vitest";
 import {
-  arrange, cellsOf, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
+  arrange, cellsOf, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, grid, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
   newTile, normalize, occupied, packSlots, pageCount, pageStart, pageTarget, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, spanOf,
   strandedPages, tileLimit, versionAtLeast,
 } from "../src/model/layout";
@@ -44,7 +44,7 @@ describe("packing and positions", () => {
   });
 });
 
-// A screen says what its page looks like (firmware 0.2.9x, "800x480 3x2"); the editor places tiles on that grid.
+// A screen says what its page looks like (firmware 0.2.79, "800x480 3x2"); the editor places tiles on that grid.
 describe("the grid of the screen being edited", () => {
   it("packs a wide tile so it never straddles two rows, whatever the columns", () => {
     setGrid(3, 2);
@@ -66,9 +66,21 @@ describe("the grid of the screen being edited", () => {
     expect(pageStart(5)).toBe(4);
     setGrid(2, 3);
   });
+  it("takes the pages from the firmware's cap of 64 tiles", () => {
+    // components/smart_display/runtime_model.h: MAX_PAGES = min(64 / SLOTS_PER_PAGE, 8).
+    setGrid(3, 3);
+    expect([MAX_PAGES, MAX_SLOTS, grid.pages]).toEqual([7, 63, 7]);
+    expect(pageCount(entries([tile("a", 0)]), 99)).toBe(7);
+    expect(tileLimit("0.2.79")).toBe(63);
+    setGrid(4, 4);
+    expect([MAX_PAGES, MAX_SLOTS]).toEqual([4, 64]);
+    setGrid(1, 4);
+    expect([MAX_PAGES, MAX_SLOTS]).toEqual([8, 32]);
+    setGrid(2, 3);
+  });
   it("comes back to two columns and three rows for the boards that shipped first", () => {
     setGrid(undefined, undefined);
-    expect([SLOTS_PER_PAGE, MAX_SLOTS, spanOf("full")]).toEqual([6, 48, 6]);
+    expect([SLOTS_PER_PAGE, MAX_PAGES, MAX_SLOTS, spanOf("full")]).toEqual([6, 8, 48, 6]);
   });
 });
 

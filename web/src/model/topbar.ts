@@ -48,10 +48,22 @@ export function agoText(then: number, now = Math.floor(Date.now() / 1000), local
 }
 
 export type BarMetrics = { width: number; top: number; name: number; text: number; icon: number };
+// The bar of the two looks in the pixels of their reference boards (HEADER_INSET, HEADER_Y and the fonts of the
+// board files): the standard look is the Guition's at 170 dpi, the compact look the CYD's at 143 dpi.
 export const BAR_METRICS: Record<string, BarMetrics> = {
   guition: { width: 448, top: 36, name: 27, text: 21, icon: 26 },
   cyd: { width: 298, top: 24, name: 18, text: 14, icon: 18 },
 };
+const LOOK_BAR = { standard: { ...BAR_METRICS.guition, inset: 16, dpi: 170 }, compact: { ...BAR_METRICS.cyd, inset: 11, dpi: 143 } };
+export type ShapeLike = { width: number; look?: string; dpi?: number };
+// The bar for a screen of this shape: the look's sizes scaled to the screen's density, the way the firmware scales
+// every size (ui::px), across the screen's own width. The two first boards come out exactly as they are.
+export function barMetricsFor(shape: ShapeLike): BarMetrics {
+  const base = LOOK_BAR[shape.look === "compact" || (!shape.look && shape.width < 400) ? "compact" : "standard"];
+  const f = (shape.dpi && shape.dpi > 0 ? shape.dpi : base.dpi) / base.dpi;
+  const px = (n: number) => Math.round(n * f);
+  return { width: shape.width - 2 * px(base.inset), top: px(base.top), name: px(base.name), text: px(base.text), icon: px(base.icon) };
+}
 export type ItemView = { icon?: string | null; text?: string; color?: string | null; shown: boolean; analog?: boolean; loading?: boolean };
 type Ink = { left: number; right: number; top: number; bottom: number; advance: number };
 

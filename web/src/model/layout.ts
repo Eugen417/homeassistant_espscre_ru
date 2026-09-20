@@ -1,6 +1,6 @@
 // ---- Grid positions ----
 // A screen's page is a grid of cells: two columns and three rows on the boards that shipped first, and
-// whatever a newer screen reports for itself (firmware 0.2.9x says "800x480 3x2"). A tile's `slot` is its
+// whatever a newer screen reports for itself (firmware 0.2.79 says "800x480 3x2"). A tile's `slot` is its
 // absolute cell (page * cells + row * columns + column); a wide tile starts in a column that has a cell to its
 // right and covers both; a full tile (firmware 0.2.62+) starts a page and covers every cell of it. Empty cells
 // are allowed and stay exactly where they are.
@@ -11,27 +11,34 @@ import { reactive } from "vue";
 import { t } from "../i18n";
 import type { Inventory, Layout, Tile } from "../types";
 
-export const MAX_PAGES = 8;
+// The firmware's own caps (components/smart_display/runtime_model.h): at most eight pages, and never more than 64
+// tiles on one screen (one dirty bit each), so a page of nine cells gives seven pages. The add-on counts the same way
+// (core.Grid) and tells the editor the tile limit per screen; the pages follow from the grid here.
+export const FIRMWARE_MAX_PAGES = 8;
+export const FIRMWARE_MAX_TILES = 64;
 export const DEFAULT_GRID = { columns: 2, rows: 3 };
 // Live bindings: importers see the grid of the screen they are editing (ES module exports update with them).
 export let COLUMNS = DEFAULT_GRID.columns;
 export let ROWS = DEFAULT_GRID.rows;
 export let SLOTS_PER_PAGE = COLUMNS * ROWS;
+export let MAX_PAGES = Math.min(FIRMWARE_MAX_PAGES, Math.floor(FIRMWARE_MAX_TILES / SLOTS_PER_PAGE));
 export let MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
 // The same grid as something Vue can watch. A plain `let` is a live binding for other modules, but a computed()
 // that reads one never re-runs when it changes: the mockup of a 3 x 3 screen kept drawing six cells while the
 // counter beside it already said nine. Anything reactive reads `grid`, the helpers below keep the constants.
-export const grid = reactive({ ...DEFAULT_GRID, slots: SLOTS_PER_PAGE, maxSlots: MAX_SLOTS });
+export const grid = reactive({ ...DEFAULT_GRID, slots: SLOTS_PER_PAGE, pages: MAX_PAGES, maxSlots: MAX_SLOTS });
 export function setGrid(columns?: number, rows?: number) {
   const cols = Math.min(12, Math.max(1, Math.round(columns || DEFAULT_GRID.columns)));
   const lines = Math.min(12, Math.max(1, Math.round(rows || DEFAULT_GRID.rows)));
   COLUMNS = cols;
   ROWS = lines;
   SLOTS_PER_PAGE = cols * lines;
+  MAX_PAGES = Math.max(1, Math.min(FIRMWARE_MAX_PAGES, Math.floor(FIRMWARE_MAX_TILES / SLOTS_PER_PAGE)));
   MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
   grid.columns = cols;
   grid.rows = lines;
   grid.slots = SLOTS_PER_PAGE;
+  grid.pages = MAX_PAGES;
   grid.maxSlots = MAX_SLOTS;
 }
 
@@ -198,12 +205,11 @@ export function versionAtLeast(version: string | undefined | null, minimum: stri
 }
 export const supportsFirmware = (firmware: string | undefined | null, major: number, minor: number, patch: number) =>
   versionAtLeast(firmware, `${major}.${minor}.${patch}`);
-// Firmware 0.2.62 holds one tile per slot (48); 0.2.7 twenty; older firmware ten. The add-on tells the editor per
-// screen (tile_limit, app 0.2.78); this rule stays for a screen entry without it.
-export const MAX_TILES = MAX_SLOTS;
+// Firmware 0.2.62 holds one tile per cell of its pages (48 on two by three); 0.2.7 twenty; older firmware ten. The
+// add-on tells the editor per screen (tile_limit, app 0.2.78); this rule stays for a screen entry without it.
 export function tileLimit(firmware: string | undefined | null) {
   if (parseVersion(firmware).length !== 3) return 10;
-  return versionAtLeast(firmware, "0.2.62") ? MAX_TILES : versionAtLeast(firmware, "0.2.7") ? 20 : 10;
+  return versionAtLeast(firmware, "0.2.62") ? MAX_SLOTS : versionAtLeast(firmware, "0.2.7") ? 20 : 10;
 }
 // What a tile shows and how big it is, in a few words (editor.displays, editor.sizes); a key it doesn't know stays as it is.
 export const DISPLAYS = ["standard", "watch", "forecast", "graph", "digital", "analog", "sunpath", "live", "cover"];

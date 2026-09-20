@@ -2,7 +2,7 @@
 // The pages side by side, like swiping on the screen, and the library on the right.
 import { computed } from "vue";
 import { t } from "../i18n";
-import { entriesOf, hasGaps, MAX_PAGES, pageCount } from "../model/layout";
+import { entriesOf, grid, hasGaps, pageCount } from "../model/layout";
 import { addPage, closeInspector, currentScreen, deviceStyle, isCompact, pageReachWarning, pagesShown, state, supports, tileLimit } from "../store";
 import DevicePage from "./DevicePage.vue";
 import Library from "./Library.vue";
@@ -11,7 +11,7 @@ const layout = computed(() => state.layout!);
 const entries = computed(() => state.drag.preview || entriesOf(layout.value));
 const pages = computed(() => pageCount(entries.value, layout.value.pages));
 const shown = computed(() => pagesShown());
-const canAdd = computed(() => pages.value < MAX_PAGES);
+const canAdd = computed(() => pages.value < grid.pages);
 const positionsHint = computed(() => hasGaps(layout.value.tiles) && !supports(0, 2, 26)
   ? t("editor.layout.positions_hint", { firmware: currentScreen.value?.firmware || t("editor.common.unknown") })
   : "");
@@ -38,7 +38,7 @@ function onCanvasClick(e: MouseEvent) {
       <div class="page ghost" :style="deviceStyle" :class="{ disabled: !canAdd }">
         <div class="page-label"><span>{{ t("editor.page.label", { page: shown + 1 }) }}</span></div>
         <div class="device" :class="{ cyd: isCompact }" :style="deviceStyle" id="add-page" role="button" :tabindex="canAdd ? 0 : -1" @click="canAdd && addPage()" @keydown.enter.prevent="canAdd && addPage()">
-          {{ canAdd ? t("editor.layout.add_page") : t("editor.layout.max_pages", MAX_PAGES) }}
+          {{ canAdd ? t("editor.layout.add_page") : t("editor.layout.max_pages", grid.pages) }}
         </div>
       </div>
     </div>

@@ -4,7 +4,7 @@
 import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
-import { displayName, effectiveControls, grid, isFull, isWide, pageOf, pageTarget, SLOTS_PER_PAGE } from "../model/layout";
+import { displayName, effectiveControls, grid, isFull, isWide, pageOf, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
 import type { Tile } from "../types";
@@ -99,11 +99,12 @@ const setpoint = computed(() => {
 
 async function onKey(e: KeyboardEvent) {
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTile(props.tile); return; }
-  const step = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -2, ArrowDown: 2 } as Record<string, number>)[e.key];
+  // Up and down are a row of the screen's grid, whatever its columns; left and right one cell.
+  const step = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -grid.columns, ArrowDown: grid.columns } as Record<string, number>)[e.key];
   if (!step) return;
   e.preventDefault();
-  // A wide card owns its row: left and right mean the row above and below. A full card moves by the page.
-  if (placeTile(props.tile, props.tile.slot + (full.value ? Math.sign(step) * SLOTS_PER_PAGE : wide.value ? Math.sign(step) * 2 : step))) {
+  // A wide card owns its row: every arrow means the row above or below. A full card moves by the page.
+  if (placeTile(props.tile, props.tile.slot + (full.value ? Math.sign(step) * grid.slots : wide.value ? Math.sign(step) * grid.columns : step))) {
     await nextTick();
     document.querySelector<HTMLElement>(`.pages [data-slot="${props.tile.slot}"]`)?.focus();
   }

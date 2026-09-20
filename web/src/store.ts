@@ -7,7 +7,7 @@ import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
   pageTarget, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
-import { agoText, BAR_METRICS, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
+import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { versionAtLeast } from "./model/layout";
 import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile } from "./types";
 
@@ -86,16 +86,19 @@ export const pageTilesRepeat = computed(() => {
   return typeof repeat === "boolean" ? repeat : supports(0, 2, 65);
 });
 export const repeatable = (id: string) => pageTilesRepeat.value && pageTarget(id) > 0;
-export const isGuition = computed(() => currentScreen.value?.board === "guition");
-export const barMetrics = computed(() => BAR_METRICS[isGuition.value ? "guition" : "cyd"]);
+// Whether the screen's board draws pictures (camera tiles, an album cover): the add-on says so per screen from the
+// board's own camera sizes (app 0.2.93); an add-on from before only had a Guition for that.
+export const pictures = computed(() => currentScreen.value?.pictures ?? currentScreen.value?.board === "guition");
 // What the screen being edited looks like. The manager works it out (core.shape_of): what the screen reported
 // itself, else the board package its YAML builds from, else its board. The editor only draws it, and falls
 // back to the smallest screen there is while it has heard nothing at all.
-const SMALLEST = { width: 320, height: 240, columns: 2, rows: 3 };
+const SMALLEST = { width: 320, height: 240, columns: 2, rows: 3, dpi: 143, look: "compact" };
 export const screenShape = computed(() => {
   const shape = currentScreen.value?.shape;
   return shape && shape.columns > 0 && shape.rows > 0 ? shape : SMALLEST;
 });
+// The top bar of the mockup at the screen's own width and density (topbar.ts).
+export const barMetrics = computed(() => barMetricsFor(screenShape.value));
 // The tile grid of a page, as CSS variables: the mockup is the screen's own shape, whatever board it is.
 // Every mockup is drawn the same height (MOCKUP_HEIGHT), so its width follows the screen's proportions: a
 // 800 x 480 page then reads as easily as a square 480 x 480 one instead of being half as tall. Wide glass is
@@ -113,8 +116,9 @@ export const deviceStyle = computed(() => {
     "--mockup-width": `${width}px`,
   };
 });
-// A screen smaller than a hand draws the compact look, whatever its board (the CYD and anything like it).
-export const isCompact = computed(() => screenShape.value.width < 400);
+// The compact look: the board declares it (LOOK in its board file, served with the shape); a shape from an add-on
+// that does not say it is taken by its width, the CYD being the only compact board there was.
+export const isCompact = computed(() => (screenShape.value.look ? screenShape.value.look === "compact" : screenShape.value.width < 400));
 watchEffect(() => setGrid(screenShape.value.columns, screenShape.value.rows));
 export const currentTile = computed<Tile | undefined>(() =>
   state.selectedTile && state.layout?.tiles.includes(state.selectedTile) ? state.selectedTile : undefined);

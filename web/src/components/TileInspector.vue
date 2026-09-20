@@ -2,9 +2,9 @@
 // One tile's settings. Every change applies live, so the card on the mockup shows the result while you pick.
 import { computed, toRaw } from "vue";
 import { t } from "../i18n";
-import { domainInfo, entriesOf, MAX_PAGES, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
+import { domainInfo, entriesOf, grid, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { automaticIcon, closeInspector, entityName, fullPage, isGuition, markDirty, moveTileToPage, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { automaticIcon, closeInspector, entityName, fullPage, markDirty, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -21,7 +21,7 @@ const pageTotal = computed(() => (state.layout ? pageCount(entriesOf(state.layou
 const pageHere = computed(() => pageOf(props.tile.slot) + 1);
 const emptyPage = (n: number) => !state.layout?.tiles.some((t) => pageOf(t.slot) === n - 1);
 const pages = computed(() => {
-  const list = Array.from({ length: Math.min(MAX_PAGES, pageTotal.value + 1) }, (_, i) => i + 1);
+  const list = Array.from({ length: Math.min(grid.pages, pageTotal.value + 1) }, (_, i) => i + 1);
   if (goesTo.value > list.length) list.push(goesTo.value);
   return list.map((n) => [n, emptyPage(n) ? t("editor.tile.goes_to.empty", { page: n }) : String(n)] as [number, string]);
 });
@@ -35,7 +35,7 @@ const goesToHint = computed(() => !fullPage.value
 const alone = computed(() => !state.layout?.tiles.some((t) => toRaw(t) !== toRaw(props.tile) && pageOf(t.slot) === pageHere.value - 1));
 const onPage = computed(() => {
   const list = Array.from({ length: pageTotal.value }, (_, i) => [i + 1, String(i + 1)] as [number, string]);
-  if (pageTotal.value < MAX_PAGES && !(alone.value && pageHere.value === pageTotal.value)) list.push([pageTotal.value + 1, t("editor.tile.page.new")]);
+  if (pageTotal.value < grid.pages && !(alone.value && pageHere.value === pageTotal.value)) list.push([pageTotal.value + 1, t("editor.tile.page.new")]);
   return list;
 });
 const sizes = computed<[string, string][]>(() => (goesTo.value ? ["single", "wide"] : ["single", "wide", "full"]).map((key) => [key, t(`editor.tile.size.${key}`)]));
@@ -49,10 +49,10 @@ const displays = computed(() => {
   if (domain.value === "weather" && (!c || c.displays.includes("forecast") || display.value === "forecast")) keys.push("forecast");
   if (domain.value === "sensor" && (!c || c.displays.includes("graph") || display.value === "graph")) keys.push("graph");
   if (domain.value === "sun") keys.push("sunpath");
-  // A live picture on a camera tile (app 0.2.91): the picker only offers cameras on a Guition, the board that draws images.
+  // A live picture on a camera tile (app 0.2.91): the library only offers cameras on a board that draws pictures.
   if (["camera", "image"].includes(domain.value)) keys.push("live");
-  // The album cover on a media tile (app 0.2.92), on a Guition too; the tile over the whole page has the card's big cover.
-  if (domain.value === "media_player" && (isGuition.value || display.value === "cover") && size.value !== "full") keys.push("cover");
+  // The album cover on a media tile (app 0.2.92), on a board that draws pictures; the tile over the whole page has the card's big cover.
+  if (domain.value === "media_player" && (pictures.value || display.value === "cover") && size.value !== "full") keys.push("cover");
   return keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]);
 });
 const displayHint = computed(() => {
