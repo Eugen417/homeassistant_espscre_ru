@@ -81,6 +81,70 @@ Anything a finger must hit keeps at least `ui::touch_min()` (7 mm of glass, from
 touch area, however thin it is drawn: `overlay_card::touchable(object, drawn_thickness)` grows the click area
 instead of the drawing, so a blind's slider on a small panel stays usable.
 
+## Designing a card or a page here
+
+Every card is drawn on glass we have never seen: 2.8 to 10 inches, 143 to 294 dpi, landscape, portrait
+and everything between. A design that was drawn for one panel and then patched for the next is how the
+climate card ended up as six tables of pixels, and how a light's effects page pushed its sliders off a
+800 x 480 screen. These are the rules that keep that from happening again. They are about **how to
+think about a design**, not about which pixel goes where.
+
+**Build a component, not a screen.** A card is two parts: a header of pure arithmetic that says where
+everything goes (`media_card.h`, `climate_card.h`, `effects_page.h`'s `place()`), and a draw step in
+`runtime_tiles.h` that hangs LVGL objects on those numbers. The arithmetic knows nothing about LVGL or
+ESPHome, so `tests/test_*_card.cpp` can check every shape on a PC in a second. If you cannot test a
+layout without a board, it is not a component yet.
+
+**Ask the area, never the board.** The only things a layout may read are the width and height it was
+given, the density and the look (`ui::`), and the content itself. There is no `if (board == guition)`,
+no `if (width == 480)`, and no substitution in a board file that positions something the shared tree
+draws. A board file says what the hardware is and how dense it is; everything else is derived.
+
+**Sizes are physical.** `ui::px(n)` is a design size in the reference look's pixels, scaled to this
+panel. `ui::mm(n)` is for anything the human body decides: `ui::touch_min()` (7 mm) for what a finger
+must hit, `ui::column_gap()` between two columns, `ui::control_max_width()` (110 mm) for a row of
+controls that must stay inside one hand's reach. A number that is neither a design size nor a physical
+one is usually a mistake.
+
+**Say what may give, and in what order.** A stack that must fit calls `ui::shrink({...}, over)` with
+its blocks, each with the least it can be and how much of the stack one of its pixels is worth. The
+*order is the design decision*, and every card makes its own: a robot gives up its portrait before its
+keys, a thermostat its status word before its modes, the effects page its rows before its sliders.
+Write the order down in a comment with the reason. Nothing may ever be drawn past the glass: if the
+cascade runs out, the last resort is scrolling or leaving content out, never overflow.
+
+**Let the shape choose the form.** Screens differ more in *proportion* than in size. A card that is one
+column on a square panel should stand in two on wide glass, because the height it lacks is width it
+has: the cover card's sliders, the effects page's speed and intensity, the media card's art beside its
+texts. Decide on the ratio of the area (`width * 2 >= height * 3`), never on a pixel count or a board
+name, and keep one code path that both forms come out of.
+
+**Prefer LVGL's own layout where it fits.** The tile grid is an LVGL grid (`lv_obj_set_grid_dsc_array`),
+so LVGL divides the page and we only say which cell a card takes. Flex rows with `flex_grow` and
+`min_width`/`max_width` in `ui::px()` do the same for a row inside a card. Computed coordinates are for
+what LVGL cannot express, not for what is easier to write today. Watch the cost, though: a widget that
+clips its children to a rounded corner makes LVGL allocate a layer of tens of kilobytes on every
+redraw, which a board without PSRAM cannot pay.
+
+**Reuse the frame.** Anything a tap opens goes through `overlay_card`: the padding, the cap, the
+centring, the two-column split and `touchable()` are there so that a new card inherits the rules
+instead of restating them. A fix that belongs to all cards belongs in that file, once.
+
+**Text is not a fixed width.** The firmware speaks nine languages, and a German or Polish label is
+often half again as long as its English original ("Standby" against "Bereitschaftsmodus"). So: never
+size a column to an English word, ask the font for the line height instead of assuming one
+(`lv_font_get_line_height`), give every label a long mode (dots or scroll) and enough room that the
+dots are rare, and prefer a layout that can take a longer word over one that looks perfect in English.
+Check a card in English and in one long language before calling it done. The words themselves come
+from `screen_text` (`docs/TRANSLATING.md`); state words, units and entity names come from Home
+Assistant and are never composed in the firmware.
+
+**Prove it before you flash it.** A new card ships with a test that walks every shape it can land on
+(zero to six rows, one to three columns, 240 x 320 to 1024 x 600) and asserts that nothing leaves the
+area and nothing a finger needs falls under `ui::touch_min()`. Then render it on the lab boards
+(`.esphome/readme-render/responsive-lab/lab_render.py`) and look at it. A test says it fits; only the
+render says it is worth looking at.
+
 ## What is still open, and the way it becomes durable
 
 - The 157 sizes in `runtime_tiles.h` and the metric tables of the settings, effects, media and light
