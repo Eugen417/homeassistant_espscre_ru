@@ -56,7 +56,9 @@ What a render cannot show is exactly what the hardware check is for.
 
 ## 7. Write it down
 
-Give the board file its own `BOARD_ID` (the screen reports it) and add the board to `packages/<board>.yaml` and
+Give the board file its own `BOARD_ID` (the screen reports it) and a `Rotation` select with the angles its glass
+allows (the half turn; the quarter turns as well when it is square; copy the block of the nearest board,
+`tools/check_packages.py` checks it), and add the board to `packages/<board>.yaml` and
 `<board>.yaml` (the two entries), to `BOARDS` and `ENTRIES` in `tools/profiles.py`, to `REFS` in
 `screen_manager/app/core.py`, and to the editor's New screen (`web/src/components/InstallerView.vue` and the
 `editor.installer.board_<id>` text in every translation). Then `tools/generate_cells.py` (the cards of its grid,

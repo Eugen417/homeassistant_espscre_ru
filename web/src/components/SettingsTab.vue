@@ -10,6 +10,9 @@ import {
 } from "../store";
 
 const view = computed(() => settingsView());
+// The choices of a row: the rotation offers the angles this screen's glass allows (the manager says which, app
+// 0.2.93); an add-on from before said nothing, and then the four of the Guition stand.
+const optionsOf = (row: SettingRow) => (row.key === "rotation" && view.value?.rotations?.length ? view.value.rotations : row.options!);
 const values = computed(() => settingValues());
 const offline = computed(() => view.value?.owner === "screen" && !currentScreen.value?.online);
 const groups = computed(() => SETTING_GROUPS.map((group) => ({ ...group, rows: (group.rows as readonly SettingRow[]).filter((row) => view.value?.keys.includes(row.key)) })).filter((g) => g.rows.length));
@@ -75,7 +78,7 @@ function click(e: MouseEvent, row: SettingRow, direction: number) {
               :id="`setting-${row.key}`" :aria-checked="Boolean(values[row.key]) ? 'true' : 'false'" :aria-labelledby="`setting-label-${row.key}`"
               :disabled="unavailable(row)" @click.stop="setSetting(row.key, !values[row.key], 150)"></button>
             <div v-else-if="row.kind === 'choice'" class="seg" role="group" :aria-labelledby="`setting-label-${row.key}`">
-              <button v-for="value in row.options!" :key="String(value)" type="button" :aria-pressed="values[row.key] === value ? 'true' : 'false'" :disabled="unavailable(row)" @click="setSetting(row.key, value, 150)">{{ choiceText(row, value) }}</button>
+              <button v-for="value in optionsOf(row)" :key="String(value)" type="button" :aria-pressed="values[row.key] === value ? 'true' : 'false'" :disabled="unavailable(row)" @click="setSetting(row.key, value, 150)">{{ choiceText(row, value) }}</button>
             </div>
             <div v-else class="step">
               <button type="button" :aria-label="t('editor.screen_settings.lower', { name: settingLabel(row) })" :disabled="stepDisabled(row, -1)" @pointerdown="down($event, row, -1)" @pointerup="up" @pointercancel="up" @pointerleave="up" @click="click($event, row, -1)"><span class="mdi">{{ glyph("F0374") }}</span></button>

@@ -28,18 +28,20 @@ carry over `calibration.yaml` or the XPT2046 correction.
 
 ### Mounting and screen rotation (runtime 0.2.9+)
 
-Install Guition firmware 0.2.9 and ESP Screen Manager 0.2.9. Open the screen
-in the management page, open the **Screen settings** tab, and choose 0°, 90°,
+Open the screen in the management page, open the **Screen settings** tab, and choose 0°, 90°,
 180°, or 270° (clockwise) under **Rotation**. It applies at once; there is
 nothing to save. After that, a firmware flash is no longer needed to change the
 angle. The screen keeps the angle after a restart; it can also be changed on the
 screen's own settings page (Screen) and, with firmware 0.2.49+, as
 `select.<screen>_rotation` in Home Assistant.
 
+The Guition is square, so every quarter turn keeps its canvas and its grid. Since firmware 0.2.79
+every board turns: a half turn (180°) on any glass, because width, height, the grid and the whole
+size table stay the same, and the quarter turns only on a square screen (docs/RESPONSIVE.md).
+
 This uses native ESPHome/LVGL rotation for both display and touch, with no changes
 to the panel initialization or GT911 mirroring. After mounting, physically check the
-four corners and navigation; a render test doesn't test touches. The option is
-only visible for the Guition once its new firmware has been discovered by HA.
+four corners and navigation; a render test doesn't test touches.
 The CYD stays on its existing orientation with its own calibration.
 
 Six tiles of **218 × 108 pixels** per page, 12px spacing, and the page buttons

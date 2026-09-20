@@ -431,7 +431,8 @@
         "dim_above_normal": "Standby and night brightness may not be higher than normal.",
         "offline": "This screen is offline. You can change its settings once it is back.",
         "unavailable": "{names} can't be changed now: the entity is off in Home Assistant, or the screen is restarting.",
-        "rotation": "Rotation requires a Guition with firmware 0.2.9 or newer."
+        "rotation": "Turning this screen needs firmware {version} or newer.",
+        "rotation_quarter": "Only a square screen can turn a quarter; this one turns upside down (180°)."
       },
       "layout": {
         "invalid": "Invalid layout.",

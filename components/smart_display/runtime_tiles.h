@@ -37,7 +37,7 @@ inline bool enabled = false;
 // screen can change itself; these names stay as the way the rest of the firmware reaches them.
 using settings_screen::swipe_pages;
 using settings_screen::rotation;
-using settings_screen::rotation_supported;
+using settings_screen::quarter_turns;
 using settings_screen::auto_home;
 using settings_screen::auto_home_seconds;
 using settings_screen::page_buttons;
@@ -183,11 +183,11 @@ inline void load_settings() {
   if(home_preference.load(&home) && home.seconds>=30 && home.seconds<=3600){
     auto_home=home.enabled?1:0;auto_home_seconds=(int32_t)home.seconds;
   }
-  if(rotation_supported){
-    rotation_preference=esphome::global_preferences->make_preference<uint32_t>(0x524F5431);
-    uint32_t saved=0;
-    if(rotation_preference.load(&saved) && saved<=270 && saved%90==0)rotation=(int32_t)saved;
-  }
+  // The turn the screen was left at (every board since firmware 0.2.79, the Guition before that). A quarter turn
+  // saved on glass that cannot take one (a board file that changed) is left where it is.
+  rotation_preference=esphome::global_preferences->make_preference<uint32_t>(0x524F5431);
+  uint32_t saved_turn=0;
+  if(rotation_preference.load(&saved_turn) && saved_turn<=270 && saved_turn%90==0 && (saved_turn%180==0 || quarter_turns))rotation=(int32_t)saved_turn;
   screen_settings::Settings saved;
   if (settings_preference.load(&saved) && saved.valid()) screen_settings::current = saved;
 }
@@ -203,7 +203,8 @@ inline void persist_settings() {
   dark_preference.save(&dark);
   uint32_t buttons = page_buttons ? 1 : 0;
   buttons_preference.save(&buttons);
-  if (rotation_supported) { uint32_t turned = (uint32_t) rotation; rotation_preference.save(&turned); }
+  uint32_t turned = (uint32_t) rotation;
+  rotation_preference.save(&turned);
 }
 inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
   // Require the complete known schema; validate before touching any runtime state.
@@ -396,7 +397,9 @@ inline std::string receive(const std::string &payload) {
         numbers=(numbers&~0x30u)|(root["group_min"].as<unsigned>()<<4);
       if(root["percent_space"].is<bool>())numbers=(numbers&~0xC0u)|((root["percent_space"].as<bool>()?2u:1u)<<6);
       if(numbers!=screen_text_numbers()){screen_text_numbers(numbers);numbers_preference.save(&numbers);format_changed=true;}
-      if(rotation_supported && root["rotation"].is<unsigned>() && rotation!=root["rotation"].as<unsigned>()){
+      // A turn from the layout message (firmware that gets its settings that way): the half turn on every board, a
+      // quarter turn only on a square one.
+      if(root["rotation"].is<unsigned>() && (root["rotation"].as<unsigned>()%180==0 || quarter_turns) && rotation!=root["rotation"].as<unsigned>()){
         rotation=root["rotation"].as<unsigned>();rotation_preference.save(&rotation);rotation_changed=true;
       }
       if (!(settings == screen_settings::current)) {
@@ -5091,12 +5094,12 @@ inline void camera_failed(bool thumb) {
 // what they did used to be copied into every board file: 55 of the Waveshare's 62 lines were word for word the
 // Guition's. A new board took `on_touch` and not the other two, so one tap worked and nothing after it -- the
 // guard waited for a release that was never reported. It is behaviour, not hardware, so it lives here once and
-// a board's triggers are one line each. Only the rotation is a board's own (`TOUCH_ROTATION`), and the boot
-// lambda of packages/core.yaml hands over the four things that live in the YAML.
+// a board's triggers are one line each. The boot lambda of packages/core.yaml hands over the four things that
+// live in the YAML.
 namespace touch_input {
 // A finger arrived or left: the standby clock, the "back to page 1" clock and `touch_down`.
 inline std::function<void(bool down)> contact;
-// The LVGL rotation in degrees; a board that cannot turn answers 0.
+// The LVGL rotation in degrees, as the screen runs now: the board's own plus the chosen turn.
 inline std::function<int()> rotation;
 // Why an edge swipe may not turn the page now, or nullptr when it may. Reads what only the YAML knows
 // (a dimmed screen, a calibration, an open card).

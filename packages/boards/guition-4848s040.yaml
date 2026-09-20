@@ -202,7 +202,7 @@ substitutions:
     id(last_use_ms) = millis();
     id(display_dimmed) = false;
   # right after runtime_tiles::enabled = true, before the settings load
-  BOOT_ENABLED_HOOK: "runtime_tiles::rotation_supported = true;"
+  BOOT_ENABLED_HOOK: ""
   # the paint style only this board has (theme::paints)
   BOARD_PAINT_FILL: "theme::fill(id(paint_camera), Paint::camera);"
   # in runtime_tiles::dismiss, after the detail card closes
@@ -270,21 +270,10 @@ substitutions:
   UI_STATE_HOOK: "ESP_LOGI(\"ui_diag\", \"rotation=%u actual=%u\", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());"
   # every 250 ms after runtime_tiles::tick()
   TICK_HOOK: "runtime_tiles::camera_tick();"
-  # apply_screen_settings: turning the screen, before the standby logic
-  APPLY_ROTATION: |-
-    if(runtime_tiles::enabled && static_cast<unsigned>(id(screen_lvgl).get_rotation())!=runtime_tiles::rotation){
-      cyd::touch_guard.consume();
-      if(lv_indev_get_act())lv_indev_wait_release(lv_indev_get_act());
-      id(screen_lvgl).set_rotation(static_cast<esphome::display::DisplayRotation>(runtime_tiles::rotation));
-    }
   # apply_screen_settings: how the backlight takes its level
   APPLY_BACKLIGHT: |-
     // Standby dims slowly (ESPHome's transition); waking is quick.
     id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
-  # apply_screen_settings: the Rotation entity in Home Assistant follows
-  APPLY_ROTATION_ENTITY: |-
-    const auto shown_rotation = id(setting_rotation)->active_index();
-    if (!id(setting_rotation)->has_state() || !shown_rotation.has_value() || *shown_rotation != (size_t) (settings_screen::rotation / 90)) id(setting_rotation)->update();
   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
   AWAY_EXTRA: " runtime_tiles::camera_visible() ||"
   # alert_show: after the settings page closed, before the card is made
@@ -398,7 +387,9 @@ text_sensor:
     update_interval: never
     lambda: 'return {"guition"};'
 
-# Rotation as a Home Assistant choice (firmware 0.2.49+). Only the Guition turns; the CYD keeps its orientation.
+# Turning the screen as a Home Assistant choice (firmware 0.2.79+). A square screen turns a quarter as well as a half: its canvas is the same either way. The shared tree applies the
+# angle (packages/core.yaml); a list of options cannot come from a substitution, which is why every board carries this
+# block and tools/check_packages.py keeps the three alike.
 select:
   - platform: template
     id: setting_rotation
@@ -407,9 +398,7 @@ select:
     entity_category: config
     options: ["0°", "90°", "180°", "270°"]
     update_interval: never
-    lambda: |-
-      static const char *const names[] = {"0°", "90°", "180°", "270°"};
-      return std::string(names[std::clamp<int32_t>(settings_screen::rotation, 0, 270) / 90]);
+    lambda: 'return std::to_string(settings_screen::rotation) + "°";'
     set_action:
       - lambda: |-
           const std::string option(x.c_str(), x.size());

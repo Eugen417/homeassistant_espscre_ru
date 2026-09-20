@@ -431,7 +431,8 @@
         "dim_above_normal": "La luminosité en veille et de nuit ne peut pas dépasser la luminosité normale.",
         "offline": "Cet écran est hors ligne. Vous pourrez modifier ses paramètres à son retour.",
         "unavailable": "Impossible de modifier {names} pour l'instant : l'entité est désactivée dans Home Assistant, ou l'écran redémarre.",
-        "rotation": "La rotation nécessite un Guition avec le firmware 0.2.9 ou plus récent."
+        "rotation": "Tourner cet écran demande le firmware {version} ou plus récent.",
+        "rotation_quarter": "Seul un écran carré peut tourner d'un quart de tour ; celui-ci se retourne (180°)."
       },
       "layout": {
         "invalid": "Mise en page non valide.",

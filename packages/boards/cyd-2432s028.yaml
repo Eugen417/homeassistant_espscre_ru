@@ -327,12 +327,8 @@ substitutions:
   UI_STATE_HOOK: ""
   # every 250 ms after runtime_tiles::tick()
   TICK_HOOK: ""
-  # apply_screen_settings: turning the screen, before the standby logic
-  APPLY_ROTATION: ""
   # apply_screen_settings: how the backlight takes its level
   APPLY_BACKLIGHT: "id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();"
-  # apply_screen_settings: the Rotation entity in Home Assistant follows
-  APPLY_ROTATION_ENTITY: ""
   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
   AWAY_EXTRA: ""
   # alert_show: after the settings page closed, before the card is made
@@ -507,6 +503,24 @@ lvgl:
   style_definitions:
     # The calibration wizard's page and crosses (theme::paints fills it: BOARD_PAINT_FILL).
     - id: paint_calibration
+
+# Turning the screen as a Home Assistant choice (firmware 0.2.79+). This glass is not square, so it offers the half turn; a quarter turn would swap its width
+# and height and change how many rows and columns fit. The shared tree applies the
+# angle (packages/core.yaml); a list of options cannot come from a substitution, which is why every board carries this
+# block and tools/check_packages.py keeps the three alike.
+select:
+  - platform: template
+    id: setting_rotation
+    name: "Rotation"
+    icon: "mdi:screen-rotation"
+    entity_category: config
+    options: ["0°", "180°"]
+    update_interval: never
+    lambda: 'return std::to_string(settings_screen::rotation) + "°";'
+    set_action:
+      - lambda: |-
+          const std::string option(x.c_str(), x.size());
+          settings_screen::set("rotation", atoi(option.c_str()));
 
 button:
   - platform: template

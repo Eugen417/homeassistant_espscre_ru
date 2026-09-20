@@ -93,16 +93,25 @@ int main() {
   const Row &home = row_named(screen, "Back to page 1");
   home.write(0);
   assert(auto_home == 0 && value_text(home) == "Off");
-  const Row &rotate = row_named(screen, "Rotation");
-  rotation_supported = false;
-  assert(!visible_row(rotate));  // a board that cannot turn never shows the row
-  rotation_supported = true;
-  assert(visible_row(rotate));
-  rotate.write(2);
-  assert(rotation == 180 && value_text(rotate) == "180°");
-  rotate.write(3);
+  // Two rows say Rotation: the half turn of every board, and the quarter turns a square screen adds; one shows.
+  const Row &half = row_named(screen, "Rotation");
+  const Row *quarter = nullptr;
+  for (uint8_t i = 0; i < screen.count; ++i)
+    if (&screen.rows[i] != &half && label_text(screen.rows[i]) == std::string("Rotation")) quarter = &screen.rows[i];
+  assert(quarter);
+  quarter_turns = false;
+  assert(visible_row(half) && !visible_row(*quarter));
+  half.write(1);
+  assert(rotation == 180 && value_text(half) == "180°");
+  half.write(0);
+  assert(rotation == 0);
+  quarter_turns = true;
+  assert(!visible_row(half) && visible_row(*quarter));
+  quarter->write(2);
+  assert(rotation == 180 && value_text(*quarter) == "180°");
+  quarter->write(3);
   assert(rotation == 270);
-  rotate.write(0);
+  quarter->write(0);
   assert(rotation == 0);
 
   // ---- every page hangs together: menu rows open a real page, controls can be worked ----
@@ -157,7 +166,7 @@ int main() {
   assert(result == SetResult::same && stored == 2);
   // Every key ESP Screens knows lands on the screen, clamped the way the page steps it.
   screen_settings::current = screen_settings::Settings{};
-  rotation_supported = true;
+  quarter_turns = true;
   const struct { const char *key; int32_t value, expected; } cases[] = {
       {"standby_enabled", 5, 1}, {"standby_seconds", 10, 60}, {"standby_seconds", 999999, 86400},
       {"brightness", 1, 5}, {"brightness", 250, 100}, {"standby_brightness", 101, 100}, {"night_enabled", 0, 0},
@@ -190,11 +199,14 @@ int main() {
   assert(screen_settings::current.standby_brightness == 30 && screen_settings::current.night_brightness == 30);
   result = set("standby_brightness", 90);
   assert(result == SetResult::same && screen_settings::current.standby_brightness == 30);
+  // A half turn is every screen's; a quarter turn only a square one's.
+  quarter_turns = false;
+  result = set("rotation", 180);
+  assert(result == SetResult::changed && rotation == 180);
   // What the screen cannot do, or does not know, is refused without a store.
   const int before = stored;
-  rotation_supported = false;
   result = set("rotation", 90);
-  assert(result == SetResult::unknown && rotation == 270);
+  assert(result == SetResult::unknown && rotation == 180);
   result = set("show_clock", 0);
   assert(result == SetResult::unknown);
   result = set("beep", 1);

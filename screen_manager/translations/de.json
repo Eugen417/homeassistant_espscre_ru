@@ -431,7 +431,8 @@
         "dim_above_normal": "Die Helligkeit im Standby und nachts darf nicht höher sein als die normale.",
         "offline": "Dieser Bildschirm ist offline. Du kannst seine Einstellungen ändern, sobald er wieder da ist.",
         "unavailable": "{names}: gerade nicht änderbar, weil die Entität in Home Assistant deaktiviert ist oder der Bildschirm neu startet.",
-        "rotation": "Die Drehung braucht ein Guition mit Firmware 0.2.9 oder neuer."
+        "rotation": "Diesen Bildschirm zu drehen braucht Firmware {version} oder neuer.",
+        "rotation_quarter": "Nur ein quadratischer Bildschirm dreht sich um eine Vierteldrehung; dieser dreht sich auf den Kopf (180°)."
       },
       "layout": {
         "invalid": "Ungültiges Layout.",

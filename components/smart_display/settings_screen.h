@@ -26,7 +26,10 @@ namespace settings_screen {
 // 0.2.54+) only exists as the screen's own setting and entity, like page_buttons (firmware 0.2.69+): off, the
 // Previous and Next bar under the tiles goes and the tiles take its room.
 inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, dark_mode = 0, page_buttons = 1;
-inline bool rotation_supported = false;
+// Turning: a half turn keeps the canvas, the grid and the whole size table, so every screen offers it (firmware
+// 0.2.79+); a quarter turn only a square screen, whose canvas is the same either way. packages/core.yaml sets this
+// from DISPLAY_W == DISPLAY_H at boot.
+inline bool quarter_turns = false;
 
 // ------------------------------------------------------------------ the table
 enum class Kind : uint8_t { page, toggle, number, duration, moment, choice, info, action };
@@ -52,7 +55,7 @@ struct Row {
   uint8_t option_count = 0;
   Text text = nullptr;                // info
   Run run = nullptr;                  // action
-  Shown shown = nullptr;              // absent rows: rotation on a board that cannot turn
+  Shown shown = nullptr;              // absent rows: the quarter turns on glass that is not square
   Shown enabled = nullptr;            // greyed out while the switch it depends on is off
   uint8_t opens = 0;                  // page rows: the page they open
 };
@@ -132,7 +135,11 @@ inline SetResult set(const std::string &key, int32_t value) {
   else if (key == "clock_24h") reported = s.clock_24h = flag(value);
   else if (key == "home_on_standby") reported = s.home_on_standby = flag(value);
   else if (key == "swipe_pages") reported = swipe_pages = flag(value);
-  else if (key == "rotation" && rotation_supported) reported = rotation = std::clamp<int32_t>(value, 0, 270) / 90 * 90;
+  else if (key == "rotation") {
+    const int32_t turn = std::clamp<int32_t>(value, 0, 270) / 90 * 90;
+    if (turn % 180 && !quarter_turns) return SetResult::unknown;  // a quarter turn only on a square screen
+    reported = rotation = turn;
+  }
   else if (key == "auto_home") reported = auto_home = flag(value);
   else if (key == "auto_home_seconds") reported = auto_home_seconds = std::clamp<int32_t>(value, 30, 3600);
   else if (key == "dark_mode") reported = dark_mode = flag(value);
@@ -234,6 +241,7 @@ inline uint8_t fitting_rows(int span, int row_height, int gap, int pager, uint8_
 
 // ------------------------------------------------------------------ the pages
 inline constexpr const char *rotation_options[] = {"0°", "90°", "180°", "270°"};
+inline constexpr const char *half_turn_options[] = {"0°", "180°"};
 
 // Brightness, the dark look for a screen beside a bed, and when the screen dims by itself.
 // Every reader says `-> int32_t` out loud: on the ESP32 that is `long`, and a lambda that returns a
@@ -284,9 +292,13 @@ inline constexpr Row screen_rows[] = {
          [](int32_t value) { set("swipe_pages", value); }),
   toggle(screen_text::txt::settings_page_buttons, []() -> int32_t { return page_buttons; },
          [](int32_t value) { set("page_buttons", value); }),
+  // Turning the screen: every board the half turn, a square one the quarter turns as well; one of the two rows shows.
+  choice(screen_text::txt::settings_rotation, []() -> int32_t { return rotation >= 180 ? 1 : 0; },
+         [](int32_t value) { set("rotation", value ? 180 : 0); },
+         half_turn_options, 2, [] { return !quarter_turns; }),
   choice(screen_text::txt::settings_rotation, []() -> int32_t { return rotation / 90; },
          [](int32_t value) { set("rotation", std::clamp<int32_t>(value, 0, 3) * 90); },
-         rotation_options, 4, [] { return rotation_supported; }),
+         rotation_options, 4, [] { return quarter_turns; }),
 };
 
 // Read-only facts plus the one action: what you want when something is stuck.
@@ -578,7 +590,7 @@ inline void draw() {
   drawn_count = 0;
 
   const Page &page = pages[current_page];
-  // Rows a board does not have (rotation on the CYD) leave the table out of sight entirely.
+  // Rows a screen does not have (the quarter turns on glass that is not square) leave the table out of sight entirely.
   std::array<uint8_t, 12> shown{};
   uint8_t count = 0;
   for (uint8_t i = 0; i < page.count && count < shown.size(); ++i)

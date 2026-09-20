@@ -146,9 +146,9 @@ on the screen itself, and how updates work.
   the clock, back to page 1, swiping, the page buttons, rotation, and what this screen is
   (name, IP address, firmware, whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
   within a second. See [Settings on the screen](#settings-on-the-screen).
-- **Guition rotation:** 0°, 90°, 180°, or 270°, directly from the management page.
-  Native LVGL rotation turns the display and touch together. The CYD keeps its fixed
-  orientation and its own calibration.
+- **Rotation:** every screen turns upside down (180°) from the management page, and a square
+  screen (the Guition) a quarter turn as well: 0°, 90°, 180°, or 270°. Native LVGL rotation turns the
+  display and touch together (firmware 0.2.79+; the Guition since 0.2.9).
 - **Read current data** (the ··· menu of a screen): what Home Assistant reports for every tile right now,
   and how each tile is set. The same menu has **Identify**, which blinks the screen so you know which one
   it is (firmware 0.2.31+), **Copy layout from…** another screen, and **Export** and **Import** of a

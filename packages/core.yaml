@@ -90,6 +90,9 @@ esphome:
           runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
+          // Turning (firmware 0.2.79 on every board): a half turn keeps the canvas and the grid, so every screen
+          // offers it; a quarter turn only a square one, whose canvas is the same either way.
+          settings_screen::quarter_turns = ${DISPLAY_W} == ${DISPLAY_H};
           ${BOOT_ENABLED_HOOK}
           runtime_tiles::load_settings();
           // Colours (firmware 0.2.54+): the styles of this profile take their colours from theme.h. The list runs now,
@@ -2158,7 +2161,18 @@ script:
           const auto &settings = screen_settings::current;
           // Dark mode (firmware 0.2.54+): a look the screen already has costs nothing.
           theme::set_dark(settings_screen::dark_mode != 0);
-          ${APPLY_ROTATION}
+          // Turning the screen: the chosen angle on top of the board's own LVGL rotation (${LVGL_ROTATION} here; a CYD's
+          // panel is portrait and starts at 90). LVGL turns the display and the touch together. Not while the
+          // calibration wizard measures: its crosses are laid out for the board's own orientation, and the next
+          // settings change or restart turns the screen.
+          if (runtime_tiles::enabled && !id(calibration_active)) {
+            const auto wanted = static_cast<esphome::display::DisplayRotation>((${LVGL_ROTATION} + settings_screen::rotation) % 360);
+            if (id(screen_lvgl).get_rotation() != wanted) {
+              cyd::touch_guard.consume();
+              if (lv_indev_get_act()) lv_indev_wait_release(lv_indev_get_act());
+              id(screen_lvgl).set_rotation(wanted);
+            }
+          }
           // Auto standby off wakes the screen, but not out of a Sleep pressed in Home Assistant.
           if (id(display_dimmed) && !settings.standby_enabled && !id(sleep_requested)) {
             id(display_dimmed) = false;
@@ -2183,7 +2197,12 @@ script:
           for (auto [entity, minutes] : {std::make_pair(id(setting_night_start), settings.night_start), std::make_pair(id(setting_night_end), settings.night_end)}) {
             if (!entity->has_state() || entity->hour * 60 + entity->minute != minutes) entity->update();
           }
-          ${APPLY_ROTATION_ENTITY}
+          // The Rotation entity in Home Assistant follows (every board has one since firmware 0.2.79).
+          {
+            const auto shown = id(setting_rotation)->active_index();
+            const auto wanted = id(setting_rotation)->index_of(std::to_string(settings_screen::rotation) + "°");
+            if (!id(setting_rotation)->has_state() || !shown.has_value() || !wanted.has_value() || *shown != *wanted) id(setting_rotation)->update();
+          }
           // The Page buttons setting moves the cards into the bar's room or back (firmware 0.2.69+).
           if (runtime_tiles::enabled) runtime_tiles::page_buttons_changed();
           settings_screen::refresh();

@@ -431,7 +431,8 @@
         "dim_above_normal": "De helderheid bij stand-by en 's nachts mag niet hoger zijn dan normaal.",
         "offline": "Dit scherm is offline. Je kunt de instellingen wijzigen zodra het terug is.",
         "unavailable": "Nu niet te wijzigen: {names}. De entiteit is uitgeschakeld in Home Assistant, of het scherm herstart.",
-        "rotation": "Rotatie vereist een Guition met firmware 0.2.9 of nieuwer."
+        "rotation": "Dit scherm draaien vraagt firmware {version} of nieuwer.",
+        "rotation_quarter": "Alleen een vierkant scherm kan een kwartslag draaien; dit scherm kan op zijn kop (180°)."
       },
       "layout": {
         "invalid": "Ongeldige indeling.",

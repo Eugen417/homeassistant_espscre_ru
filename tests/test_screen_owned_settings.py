@@ -35,8 +35,8 @@ if HAS_AIOHTTP:
     from aiohttp.test_utils import TestClient, TestServer
     from server import ANSWER_RETRY_SECONDS, HomeAssistant, Manager, Refused, create_app
 
-PROFILES = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml'}
-PACKAGES = {'cyd': 'packages/cyd.yaml', 'guition': 'packages/guition.yaml'}
+PROFILES = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml', 'waveshare43': 'waveshare-esp32s3-43.yaml'}
+PACKAGES = {'cyd': 'packages/cyd.yaml', 'guition': 'packages/guition.yaml', 'waveshare43': 'packages/waveshare43.yaml'}
 RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 SCREEN_PAGE = (ROOT / 'components/smart_display/settings_screen.h').read_text()
 STATIC = ROOT / 'screen_manager/app/static'
@@ -120,9 +120,6 @@ class CoreSettings(unittest.TestCase):
             text = profiles.text(path)
             for key, (domain, name) in SETTING_ENTITIES.items():
                 block = top_block(text, blocks[domain])
-                if key == 'rotation' and board == 'cyd':
-                    self.assertNotIn(f'name: "{name}"', block, f'{path}: the CYD cannot turn')
-                    continue
                 self.assertIn(f'name: "{name}"', block, f'{path}: {key}')
                 at = block.index(f'name: "{name}"')
                 entry = block[max(0, at - 200):at + 900]
@@ -627,8 +624,8 @@ class Firmware(unittest.TestCase):
             self.assertIn('if (!entity->has_state() || entity->state != value) entity->publish_state(value);', script, path)
             self.assertIn('std::make_pair(id(setting_night_start), settings.night_start)', script, path)
             self.assertIn('settings_screen::refresh();', script, f'{path}: an open settings page follows Home Assistant')
-            # The Guition's board file extends the script with the rotation (docs/PROFILES.md).
-            self.assertEqual('id(setting_rotation)->update();' in text, board == 'guition', path)
+            # Every board turns since firmware 0.2.79 (a half turn at least): the shared script keeps the entity in step.
+            self.assertIn('id(setting_rotation)->update();', text, path)
 
     def test_the_page_and_every_entity_change_settings_the_same_way(self):
         self.assertRegex(SCREEN_PAGE, r'enum class SetResult : uint8_t \{ unknown, same, changed \};')

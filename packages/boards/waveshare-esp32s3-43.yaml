@@ -276,17 +276,11 @@ substitutions:
   UI_STATE_HOOK: "ESP_LOGI(\"ui_diag\", \"rotation=%u actual=%u\", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());"
   # every 250 ms after runtime_tiles::tick()
   TICK_HOOK: "runtime_tiles::camera_tick();"
-  # apply_screen_settings: turning the screen, before the standby logic
-  # Nothing turns this screen: the shared tree only offers it when a board switches it on, and this one
-  # does not. The Guition's set_rotation block used to be copied here and could never fire.
-  APPLY_ROTATION: ""
   # apply_screen_settings: how the backlight takes its level. This panel's light is an on/off line on the
   # expander (EXIO2), so the transition only decides when it flips, not how softly.
   APPLY_BACKLIGHT: |-
     // Standby dims slowly (ESPHome's transition); waking is quick.
     id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
-  # apply_screen_settings: the Rotation entity in Home Assistant follows (this board does not turn)
-  APPLY_ROTATION_ENTITY: ""
   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
   AWAY_EXTRA: " runtime_tiles::camera_visible() ||"
   # alert_show: after the settings page closed, before the card is made
@@ -587,6 +581,24 @@ lvgl:
             id: camera_image_seed
             hidden: true
             src: alert_image
+
+# Turning the screen as a Home Assistant choice (firmware 0.2.79+). This glass is not square, so it offers the half turn; a quarter turn would swap its width
+# and height and change how many rows and columns fit. The shared tree applies the
+# angle (packages/core.yaml); a list of options cannot come from a substitution, which is why every board carries this
+# block and tools/check_packages.py keeps the three alike.
+select:
+  - platform: template
+    id: setting_rotation
+    name: "Rotation"
+    icon: "mdi:screen-rotation"
+    entity_category: config
+    options: ["0°", "180°"]
+    update_interval: never
+    lambda: 'return std::to_string(settings_screen::rotation) + "°";'
+    set_action:
+      - lambda: |-
+          const std::string option(x.c_str(), x.size());
+          settings_screen::set("rotation", atoi(option.c_str()));
 
 script:
   - id: ui_self_test

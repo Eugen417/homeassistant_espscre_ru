@@ -524,6 +524,13 @@ SETTING_ENTITIES = {
 OWNED_SETTINGS_MARKERS = frozenset(('Night mode', 'Night starts', 'Night ends', '24-hour clock', 'Back to page 1',
                                     'Back to page 1 after', 'Back to page 1 on standby', 'Swipe between pages'))
 ROTATION_OPTIONS = ('0°', '90°', '180°', '270°')
+# Every board turns since this firmware; the Guition turned since 0.2.9.
+ROTATION_MIN_FIRMWARE = (0, 2, 79)
+
+def turns_of(shape):
+    """The angles a screen of this shape may be turned to: a half turn on any glass (its canvas, its grid and its size
+    table stay), the quarter turns as well on a square one."""
+    return (0, 90, 180, 270) if shape.get('width') == shape.get('height') else (0, 180)
 
 
 def setting_entities(items):

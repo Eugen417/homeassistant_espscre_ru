@@ -431,7 +431,8 @@
         "dim_above_normal": "Jasność czuwania i jasność nocna nie mogą być wyższe niż normalna.",
         "offline": "Ten ekran jest offline. Jego ustawienia zmienisz, gdy wróci.",
         "unavailable": "Nie można teraz zmienić: {names}. Encja jest wyłączona w Home Assistant albo ekran uruchamia się ponownie.",
-        "rotation": "Obrót wymaga ekranu Guition z firmware 0.2.9 lub nowszym."
+        "rotation": "Obrócenie tego ekranu wymaga firmware {version} lub nowszego.",
+        "rotation_quarter": "Tylko kwadratowy ekran obraca się o ćwierć obrotu; ten obraca się do góry nogami (180°)."
       },
       "layout": {
         "invalid": "Nieprawidłowy układ.",

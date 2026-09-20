@@ -431,7 +431,8 @@
         "dim_above_normal": "O brilho em espera e o brilho noturno não podem ser superiores ao normal.",
         "offline": "Este ecrã está offline. Poderá alterar as definições quando voltar.",
         "unavailable": "Neste momento não é possível alterar {names}: a entidade está desativada no Home Assistant ou o ecrã está a reiniciar.",
-        "rotation": "A rotação requer um Guition com firmware 0.2.9 ou mais recente."
+        "rotation": "Rodar este ecrã requer firmware {version} ou mais recente.",
+        "rotation_quarter": "Só um ecrã quadrado pode rodar um quarto de volta; este vira-se ao contrário (180°)."
       },
       "layout": {
         "invalid": "Layout inválido.",

@@ -15,8 +15,11 @@ from the same 64-tile rule and moves tiles by the screen's columns, and the layo
 column by number on a screen that has more than two. The camera and cover offers in the editor follow the board's
 picture support instead of its name, and the top bar mockup the screen's look and density. In the firmware the size
 class comes from the look everywhere (`ui::large()`), `ROTATION_SUPPORTED` and `TOUCH_ROTATION` are gone, and the
-Waveshare's size table is consistent with its rows. Rotation itself is still as described below. The line numbers in
-this file are those of the evening it was written.
+Waveshare's size table is consistent with its rows. Rotation followed the same evening: every board turns a half
+turn and a square one the quarter turns (`settings_screen::quarter_turns` from `DISPLAY_W == DISPLAY_H`, the angle
+applied on top of the board's `LVGL_ROTATION` in the shared tree, a Rotation select per board that
+tools/check_packages.py keeps alike, and the add-on's `Manager.turns` in place of the four `board == 'guition'`
+tests). The line numbers in this file are those of the evening it was written.
 
 ## The one to fix first: rotation
 

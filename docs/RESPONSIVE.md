@@ -169,8 +169,9 @@ event and the layout sensor count rows, columns and pages the same way.
   they become computed cards like the thermostat, the blind and the robot.
 - A card with two groups (light: brightness and colour; climate: setpoint, modes, fan) could stand in two
   columns on wide glass instead of one capped column. Same components, another flex flow.
-- Rotation is still the Guition's alone (`runtime_tiles::rotation_supported` from its boot hook). The rule
-  is settled: a half turn keeps width, height and the whole grid and belongs to every board; a quarter turn
-  only to a square one. docs/BOARD_NAMES_AUDIT.md has the details a rewrite must not miss.
+- Turning follows the shape (firmware 0.2.79+): a half turn keeps width, height, the grid and the whole size
+  table, so every board offers it; a quarter turn only a square screen (`settings_screen::quarter_turns`,
+  set from `DISPLAY_W == DISPLAY_H` at boot). The shared tree applies the angle on top of the board's own
+  `LVGL_ROTATION` (a CYD starts at 90), and each board's Rotation select offers the angles its glass allows.
 - The lab boards (`packages/boards/lab-*.yaml`) are generated and disposable; a real board gets a hardware
   section checked on glass and an entry in `tools/profiles.py`.

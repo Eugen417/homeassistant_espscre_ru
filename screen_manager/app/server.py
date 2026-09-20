@@ -21,8 +21,8 @@ from updates import Updater
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
-from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, firmware_features, grid_of, packed_slots, run_tile_event,
-                  screen_firmware, shape_of, version_text)
+from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, firmware_features, grid_of, packed_slots, run_tile_event,
+                  screen_firmware, shape_of, turns_of, version_text)
 import header_bar
 import history_card
 import i18n
@@ -777,6 +777,16 @@ class Manager:
             screen = {**screen, 'package': self.package_of(screen)}
         return grid_of(screen)
 
+    def turns(self, screen):
+        """The angles this screen may be turned to (core.turns_of): none on firmware that cannot turn (before 0.2.79,
+        unless the screen is a Guition, which turned since 0.2.9, or already offers the Rotation entity), else the
+        half turn on any glass and the quarter turns as well on a square one."""
+        version = self.firmware_version(screen.get('id'), screen) or (0, 0, 0)
+        entities = self.setting_entities(screen) or {}
+        if board_of(screen) != 'guition' and version < ROTATION_MIN_FIRMWARE and 'rotation' not in entities:
+            return ()
+        return turns_of(shape_of(screen))
+
     def firmware_version(self, inbox, screen=None):
         """The firmware a screen's features go by: its sensor, or while that has no version (offline, restarting) the
         one Home Assistant's device registry kept (app 0.2.78); None when neither says (core.screen_firmware)."""
@@ -831,7 +841,8 @@ class Manager:
         screen is offline, or the entity is disabled); their value is None, not a default that could differ
         from what the screen has."""
         inbox = self.aliases.get(screen['id'], screen['id'])
-        keys = [key for key in SETTING_RULES if key != 'show_clock' and (key != 'rotation' or screen.get('board') == 'guition')]
+        turns = self.turns(screen)
+        keys = [key for key in SETTING_RULES if key != 'show_clock' and (key != 'rotation' or turns)]
         entities = self.setting_entities(screen)
         if entities is None:
             try:
@@ -843,11 +854,13 @@ class Manager:
             # Dark mode and the page buttons came after the screens took over their settings: firmware that gets them
             # with the layout lacks them.
             keys = [key for key in keys if key not in ('dark_mode', 'page_buttons')]
-            return {'owner': 'layout', 'values': values, 'keys': keys, 'unavailable': []}
+            return {'owner': 'layout', 'values': values, 'keys': keys, 'unavailable': [], 'rotations': list(turns)}
         # Only the settings this screen has an entity for: one added in later firmware stays out of the panel.
         keys = [key for key in keys if key in entities]
         values = {key: setting_from_state(key, self.ha.states.get(entities[key])) for key in keys}
-        return {'owner': 'screen', 'values': values, 'keys': keys, 'unavailable': [key for key in keys if values[key] is None]}
+        # `rotations` are the angles this screen's glass allows (app 0.2.93): the editor offers those and no others.
+        return {'owner': 'screen', 'values': values, 'keys': keys, 'unavailable': [key for key in keys if values[key] is None],
+                'rotations': list(turns)}
 
     def settings_states_key(self):
         """The states of every setting entity, so the sync loop notices a change the editor should show."""
@@ -869,6 +882,17 @@ class Manager:
         if on_screen and inbox in self.sent:
             self.sent[inbox] = {**self.sent[inbox], 'layout': self.layout_message(inbox, layout, screen or self.screen(inbox) or {})}
         self.notify()
+
+    def check_turn(self, screen, angle):
+        """Refuse a turn this screen cannot make: any turn on firmware that cannot turn, a quarter turn on glass that
+        is not square (Manager.turns). 0 is always fine."""
+        if not angle:
+            return
+        turns = self.turns(screen)
+        if not turns:
+            raise ValueError(t('addon.errors.settings.rotation', version=version_text(ROTATION_MIN_FIRMWARE)))
+        if angle not in turns:
+            raise ValueError(t('addon.errors.settings.rotation_quarter'))
 
     def screen_setting_event(self, event):
         """A screen reported a setting that changed on it (its settings page, one of its entities).
@@ -919,8 +943,7 @@ class Manager:
                 if dim not in changes:
                     wanted[dim] = min(wanted.get(dim, SETTING_RULES[dim][0]), changes['brightness'])
         merged = validate_settings(wanted)
-        if merged['rotation'] and screen.get('board') != 'guition':
-            raise ValueError(t('addon.errors.settings.rotation'))
+        self.check_turn(screen, merged['rotation'])
         if view['owner'] == 'layout':
             self.store_settings(inbox, merged, screen)
             self.ha.changed.set()
@@ -1154,8 +1177,7 @@ class Manager:
             layout['settings']['swipe_pages']=self.layouts.get(inbox,{}).get('settings',{}).get('swipe_pages',False)
         if 'settings' in layout and 'rotation' not in data.get('settings',{}):
             layout['settings']['rotation']=self.layouts.get(inbox,{}).get('settings',{}).get('rotation',0)
-        if layout.get('settings',{}).get('rotation',0) and screen.get('board')!='guition':
-            raise ValueError(t('addon.errors.settings.rotation'))
+        self.check_turn(screen, layout.get('settings', {}).get('rotation', 0))
         # A page from before an option existed sends its tiles without it. It never sends a navigation tile twice
         # (firmware 0.2.65+), so a copy keeps exactly what it was sent with.
         old_list = self.layouts.get(inbox,{}).get('tiles',[])
@@ -1351,7 +1373,7 @@ class Manager:
             message['swipe_pages'] = layout['settings'].get('swipe_pages',False)
             message['auto_home'] = layout['settings'].get('auto_home',True)
             message['auto_home_seconds'] = layout['settings'].get('auto_home_seconds',120)
-            if screen.get('board')=='guition':
+            if self.turns(screen):
                 message['rotation'] = layout['settings'].get('rotation',0)
         # The clock and the number format of Settings -> Language & region (app 0.2.90), the same on every screen; firmware
         # before 0.2.76 ignores both and keeps a clock setting of its own.

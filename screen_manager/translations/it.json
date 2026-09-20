@@ -431,7 +431,8 @@
         "dim_above_normal": "La luminosità in standby e di notte non può superare quella normale.",
         "offline": "Questo schermo è offline. Potrai cambiarne le impostazioni quando torna online.",
         "unavailable": "Impossibile cambiare {names} ora: l'entità è disattivata in Home Assistant, oppure lo schermo si sta riavviando.",
-        "rotation": "La rotazione richiede un Guition con firmware 0.2.9 o più recente."
+        "rotation": "Ruotare questo schermo richiede il firmware {version} o più recente.",
+        "rotation_quarter": "Solo uno schermo quadrato può ruotare di un quarto di giro; questo si capovolge (180°)."
       },
       "layout": {
         "invalid": "Disposizione non valida.",

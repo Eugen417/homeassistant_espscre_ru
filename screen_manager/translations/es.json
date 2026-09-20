@@ -431,7 +431,8 @@
         "dim_above_normal": "El brillo en reposo y el brillo nocturno no pueden ser mayores que el normal.",
         "offline": "Esta pantalla está sin conexión. Podrás cambiar su configuración cuando vuelva.",
         "unavailable": "Ahora no se puede cambiar {names}: la entidad está desactivada en Home Assistant o la pantalla se está reiniciando.",
-        "rotation": "La rotación requiere un Guition con firmware 0.2.9 o posterior."
+        "rotation": "Girar esta pantalla requiere firmware {version} o posterior.",
+        "rotation_quarter": "Solo una pantalla cuadrada puede girar un cuarto de vuelta; esta se pone boca abajo (180°)."
       },
       "layout": {
         "invalid": "Diseño no válido.",

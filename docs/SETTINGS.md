@@ -27,7 +27,7 @@ changes them with the entity's own action, and leaves them out of the layout mes
 | Also on standby | `switch.<screen>_back_to_page_1_on_standby` | `home_on_standby` |
 | Swipe between pages | `switch.<screen>_swipe_between_pages` | `swipe_pages` |
 | Page buttons (0.2.69+) | `switch.<screen>_page_buttons` | `page_buttons` |
-| Rotation (Guition) | `select.<screen>_rotation` | `rotation` |
+| Rotation | `select.<screen>_rotation` | `rotation` (0.2.79+ on every board: a half turn on any glass, the quarter turns as well on a square one) |
 
 The 12 or 24-hour clock was a row and an entity of its own (`switch.<screen>_24_hour_clock`) from firmware 0.2.49 to
 0.2.75. Since app 0.2.90 and firmware 0.2.76 it is one setting for every screen, with the language and the number format:
