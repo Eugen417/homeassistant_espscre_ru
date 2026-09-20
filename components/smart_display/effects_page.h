@@ -84,7 +84,7 @@ inline std::string row_text(const std::string &current) {
   return current.empty() || current == "unknown" || current == "unavailable" || current == "None" ? "—" : current;
 }
 
-// Sizes of both boards, from the display's width like light_controls.
+// The page's sizes in the look's pixels (ui::px); the compact look takes the small set.
 struct Metrics {
   int width = 480, height = 480, pad = ui::px(20), bar_y = ui::px(16), bar = ui::px(60), title_y = ui::px(35), rows_y = ui::px(100), row_h = ui::px(56), inset = ui::px(18),
       icon = ui::px(26), gap = ui::px(12), number_h = ui::px(92), track_h = ui::px(28), number_inset = ui::px(16), roller_rows = 5, roller_row_h = ui::px(56), roller_pad = ui::px(10),
@@ -93,7 +93,7 @@ struct Metrics {
 inline Metrics metrics(int width, int height) {
   Metrics m;
   m.width = width; m.height = height;
-  if (width < 480) {
+  if (!ui::large()) {
     m.pad = ui::px(12); m.bar_y = ui::px(8); m.bar = ui::px(40); m.title_y = ui::px(21); m.rows_y = ui::px(52); m.row_h = ui::px(34); m.inset = ui::px(10); m.icon = ui::px(18); m.gap = ui::px(6);
     m.number_h = ui::px(44); m.track_h = ui::px(14); m.number_inset = ui::px(9); m.roller_row_h = ui::px(30); m.roller_pad = ui::px(5); m.radius = ui::px(10); m.knob = ui::px(3);
   }
@@ -490,7 +490,7 @@ inline void draw() {
       lv_obj_remove_style_all(slider);
       lv_obj_remove_flag(slider, LV_OBJ_FLAG_SCROLLABLE);
       lv_obj_set_pos(slider, track_x, track_y); lv_obj_set_size(slider, track_w, track_h);
-      lv_obj_set_ext_click_area(slider, m.width >= 480 ? 12 : 8);
+      lv_obj_set_ext_click_area(slider, ui::px(ui::large() ? 12 : 8));
       const int corner = track_h * 12 / 42;
       lv_obj_set_style_radius(slider, corner, LV_PART_MAIN);
       lv_obj_set_style_radius(slider, corner, LV_PART_INDICATOR);

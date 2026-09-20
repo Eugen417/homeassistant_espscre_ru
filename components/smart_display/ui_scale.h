@@ -1,5 +1,5 @@
 #pragma once
-// The screen's look and scale (app 0.2.9x, responsive boards).
+// The screen's look and scale (app 0.2.93, responsive boards).
 //
 // A screen hangs on a wall and is used from the same distance whatever its size, so every size the firmware
 // draws is a physical one. Two looks exist: `standard` (the Guition's sizes at 170 dpi) and `compact` (the CYD's
@@ -11,6 +11,7 @@
 // Sizes that come from the board file (the tile grid, TILE_ICON_SIZE, the fonts) are already scaled there; ui::px()
 // is for the sizes the C++ decides itself (paddings, key heights, strips), in the reference look's pixels.
 #include <algorithm>
+#include <cstdint>
 #include <initializer_list>
 #include <string>
 

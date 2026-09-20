@@ -1767,7 +1767,7 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,
     if(tilt_count)cover_key_row(tilt_keys,tilt_count,keys_x,y,keys_w,key_h,gap,key_icons);
   }
 }
-// ---- Climate card (firmware 0.2.9x): one computed card on every board ----
+// ---- Climate card (firmware 0.2.79): one computed card on every board ----
 // Home Assistant's thermostat dialog in this look, worked out from the entity's own attributes: the state
 // under the name, a white card with the setpoint between a round - and a round + key, a key per mode, and a
 // white card with a segmented row for the fan and for the swing. Until now every board carried its own table
@@ -2795,9 +2795,9 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_set_height(value,lv_font_get_line_height(w.value_font));
   lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);lv_label_set_long_mode(value,LV_LABEL_LONG_DOT);
   w.progress=lv_obj_create(tile);lv_obj_remove_style_all(w.progress);lv_obj_set_size(w.progress,0,3);lv_obj_align(w.progress,LV_ALIGN_BOTTOM_LEFT,0,0);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
-  w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,lv_obj_get_width(tile)-24,lv_obj_get_height(tile)>80?ui::px(28):ui::px(10));lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);lv_slider_set_range(w.slider,0,1000);
+  w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,lv_obj_get_width(tile)-24,ui::px(ui::large()?28:10));lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);lv_slider_set_range(w.slider,0,1000);
   // A short white bar inside the fill as handle, like the control sliders (invisible before 0.2.20).
-  int strip=lv_obj_get_height(tile)>80?ui::px(28):ui::px(10);
+  int strip=ui::px(ui::large()?28:10);
   lv_obj_add_style(w.slider,theme::style(theme::Paint::knob),LV_PART_KNOB);lv_obj_set_style_bg_opa(w.slider,LV_OPA_COVER,LV_PART_KNOB);
   slider_handle(w.slider,lv_obj_get_width(tile)-24,strip);
   lv_obj_set_style_border_width(w.slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(w.slider,0,LV_PART_KNOB);
@@ -3491,7 +3491,7 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
 }
 inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sunpath,bool graph,bool mini,bool with_panel,bool large,
                         const std::string &value,const std::string &unit,int content_w,int content_h) {
-  const bool big=w.base_height>80;  // the board: a Guition card is large, a CYD card small
+  const bool big=ui::large();  // the look's class, never the cell's height
   lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
   if(custom){
     lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);
@@ -3867,7 +3867,7 @@ inline bool fill_cards(size_t cards);
 inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr;
 inline void boot_status(lv_obj_t *page, const char *text) {
   const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(page));
-  const bool large = width >= 480;
+  const bool large = ui::large();
   const int ring = ui::px(large ? 48 : 32), gap = ui::px(large ? 24 : 16), text_width = width - 2 * lv_obj_get_style_x(room_label, LV_PART_MAIN);
   const lv_font_t *font = watch_font ? watch_font : lv_obj_get_style_text_font(room_label, LV_PART_MAIN);
   if (!boot_panel) {
@@ -4165,8 +4165,8 @@ inline bool check_tile_geometry() {
         if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,circle.x1,circle.y1,circle.x2,circle.y2,title.x1,content.x1,content.y1,content.x2,content.y2);
         bool watch=w.index<model.count && model.tiles[w.index].display=="watch";
         bool graph=w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN) && w.extra_mode=="graph";
-        if(!watch && !graph && (mini || lv_obj_get_height(w.tile)<=80)){
-          int header_bottom=mini?track.y1-(lv_obj_get_height(w.tile)>80?ui::px(6):ui::px(3))-1:content.y2;
+        if(!watch && !graph && (mini || !ui::large())){
+          int header_bottom=mini?track.y1-ui::px(ui::large()?6:3)-1:content.y2;
           int center_twice=content.y1+header_bottom;
           fits=fits && std::abs(circle.y1+circle.y2-center_twice)<=2 &&
             std::abs(title.y1+value.y2-center_twice)<=2;
@@ -4842,7 +4842,7 @@ inline void camera_open(const std::string &entity, const std::string &name) {
   if (camera_release_due) camera_release();
   camera.open(entity);
   const int width = lv_display_get_horizontal_resolution(lv_display_get_default());
-  const bool large = width >= 480;
+  const bool large = ui::large();
   // On the top layer: above the tiles, every card and an alert, which is there again after Back.
   camera_root = lv_obj_create(lv_layer_top());
   lv_obj_remove_style_all(camera_root);
@@ -5087,7 +5087,7 @@ inline void camera_failed(bool thumb) {
 }
 
 // ---------------------------------------------------------------------------------------------------------
-// What a finger on the glass does (firmware 0.2.9x). ESPHome gives a board three touchscreen triggers, and
+// What a finger on the glass does (firmware 0.2.79). ESPHome gives a board three touchscreen triggers, and
 // what they did used to be copied into every board file: 55 of the Waveshare's 62 lines were word for word the
 // Guition's. A new board took `on_touch` and not the other two, so one tap worked and nothing after it -- the
 // guard waited for a release that was never reported. It is behaviour, not hardware, so it lives here once and

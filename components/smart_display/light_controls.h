@@ -182,13 +182,15 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
   // The look decides the class, never the glass: a wide panel draws the same rows, only at its own density.
   const bool large = ui::large();
   top = ui::px(large ? 100 : 52);
-  // The three rows share the room under the title. A row wants the look's height, keeps at least a finger and
-  // its words, and never takes more than a third of what is left, so the card fits any glass it lands on
-  // (a 800 x 480 panel at 217 dpi asked for 122 x 1.28 = 156 px a row and ran off the bottom).
-  const int wanted = ui::px(large ? 122 : 60), least = ui::touch_min() + lv_font_get_line_height(font) + ui::px(12);
+  // The three rows share the room under the title. A row wants the look's pitch, keeps at least a finger and
+  // its words, and the three together never take more than what is left, so the card fits any glass it lands
+  // on (a 800 x 480 panel at 217 dpi asked for 122 x 1.28 = 156 px a row and ran off the bottom). Three rows
+  // are two pitches and one card: the last row needs no gap under it, which is why the gap counts once more.
+  const int wanted = ui::px(large ? 122 : 60), gap = ui::px(large ? 12 : 5);
+  const int least = ui::touch_min() + lv_font_get_line_height(font) + ui::px(12);
   const int room = height - top - ui::px(large ? 18 : 8);
-  spacing = std::max(least, std::min(wanted, room / 3));
-  int margin = ui::px(large ? 20 : 12), w = width - 2 * margin, card_h = spacing - (ui::px(large ? 12 : 5));
+  spacing = std::max(least, std::min(wanted, (room + gap) / 3));
+  int margin = ui::px(large ? 20 : 12), w = width - 2 * margin, card_h = spacing - gap;
   int inset = ui::px(large ? 18 : 10), text_y = ui::px(large ? 14 : 5), track_h = ui::px(large ? 32 : 18);
   int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (ui::px(large ? 2 : 3)) - track_h;
   // A row squeezed by a short screen keeps its words: the track moves right under them and gets thinner,

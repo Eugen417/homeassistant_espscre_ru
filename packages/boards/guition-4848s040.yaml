@@ -39,8 +39,6 @@ substitutions:
   LVGL_ROTATION: "0"
   TOUCH_SWAP_XY: "false"
   TOUCH_MIRROR_X: "false"
-  # The LVGL rotation the edge swipe reckons with; a board that cannot turn says 0.
-  TOUCH_ROTATION: "static_cast<int>(id(screen_lvgl).get_rotation())"
   TOUCH_MIRROR_Y: "false"
   # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
   # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
@@ -162,7 +160,6 @@ substitutions:
   LVGL_BUFFER_SIZE: "25%"                       # LVGL's draw buffer as a share of the screen
   PAGE_DOTS_LARGE: "true"                       # bigger page dots
   EFFECTS_ROW_FONT: "sublabel"                  # the effects page's rows
-  ROTATION_SUPPORTED: "true"                    # the screen turns a quarter from the settings
   STANDBY_DIM_MS: "1500"                        # how long the backlight takes to dim into standby (waking takes 300)
   ALERT_FLASH_FADE_MS: "60"                     # an alert's flash: the fade of each step
   ALERT_FLASH_DARK_MS: "140"                    # how long it stays dark

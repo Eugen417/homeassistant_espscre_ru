@@ -45,8 +45,6 @@ substitutions:
   LVGL_ROTATION: "0"
   TOUCH_SWAP_XY: "false"
   TOUCH_MIRROR_X: "false"
-  # The LVGL rotation the edge swipe reckons with; a board that cannot turn says 0.
-  TOUCH_ROTATION: "static_cast<int>(id(screen_lvgl).get_rotation())"
   TOUCH_MIRROR_Y: "false"
   # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
   # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
@@ -54,13 +52,13 @@ substitutions:
   GRID_ROWS: "3"
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
-  GRID_GAP_Y: "12"
+  GRID_GAP_Y: "13"
   DISPLAY_DPI: "217"      # diagonal pixels / diagonal inches; the look's reference density on this board
   LOOK: "standard"
   SCROLL_Y: "92"
   SCROLL_H: "311"
   TILE_W: "248"
-  TILE_H: "149"
+  TILE_H: "95"
   HEADER_Y: "28"
   # Holding the top bar opens the settings page (0.2.44+). The two edge bands stay clear: a swipe
   # that starts up there still changes the page.
@@ -168,10 +166,6 @@ substitutions:
   LVGL_BUFFER_SIZE: "25%"                       # LVGL's draw buffer as a share of the screen
   PAGE_DOTS_LARGE: "true"                       # bigger page dots
   EFFECTS_ROW_FONT: "sublabel"                  # the effects page's rows
-  # This screen is 800x480, so it cannot take a quarter turn: that would swap its width and height and
-  # change how many rows and columns fit, which makes it another board with its own profile. A half
-  # turn would cost nothing, but no board can ask for one yet (docs/BOARD_NAMES_AUDIT.md).
-  ROTATION_SUPPORTED: "false"
   STANDBY_DIM_MS: "1500"                        # how long the backlight takes to dim into standby (waking takes 300)
   ALERT_FLASH_FADE_MS: "60"                     # an alert's flash: the fade of each step
   ALERT_FLASH_DARK_MS: "140"                    # how long it stays dark
@@ -351,6 +345,15 @@ esp32:
       # lcd_rgb_panel_try_restart_transmission). That option forces the restart on *every* VBlank instead, and
       # a restart that falls before the buffer holds real pixels puts a frame of one flat colour on the glass:
       # tried 2026-09-20 and the screen cycled white, red, blue, green until it was flashed back.
+      #
+      # The panel driver's own bookkeeping (its spinlock, the bounce buffer position) lives in the memory inside
+      # the chip, and its interrupt handlers keep running while the flash is written. Without this ESP-IDF puts
+      # that struct wherever MALLOC_CAP_DEFAULT lands, which on a board with PSRAM is PSRAM, and a spinlock in
+      # PSRAM takes a software detour: on 2026-09-20 the DMA interrupt spun on it for 800 ms and the interrupt
+      # watchdog restarted the screen (backtrace: lcd_rgb_panel_eof_handler -> esp_cpu_compare_and_set, the
+      # external-RAM branch). The panel's picture stays in PSRAM; the flash keeps its cache while it is written
+      # (execute_from_psram above), so the handlers can read it at any moment.
+      CONFIG_LCD_RGB_ISR_IRAM_SAFE: "y"
 
 psram:
   mode: octal
@@ -498,8 +501,17 @@ touchscreen:
     - lambda: 'runtime_tiles::touch_input::released();'
 
 display:
-  # ESPHome's own model brings the RGB pins, the timings and the init of this panel (mipi_rgb, waveshare.py).
-  # Its enable pin is the backlight line, which the firmware owns above, so it is not named here.
+  # ESPHome's own model brings the RGB pins and the init of this panel (mipi_rgb, waveshare.py). Its enable pin
+  # is the DISP line, which the firmware owns above as the backlight, so it is not named here.
+  #
+  # The timings are Waveshare's own (ESP32_Display_Panel, BOARD_WAVESHARE_ESP32_S3_TOUCH_LCD_4_3.h), not the
+  # model's. The ST7262 in this panel wants 808 to 896 pixel clocks per line and 488 to 504 lines per frame
+  # (datasheet 7.3.4: front and back porch 4 to 48, pulse 2 to 8); ESPHome's model sends 1070 per line (front
+  # porch 210, pulse 30, back porch 30), which puts the line rate at 15 kHz, right where the panel lets go. On
+  # 2026-09-20 the screen worked for a while, then stood half a centimetre to the right, then showed only
+  # white or a loop of flat colours (white, red, blue, green) while the firmware ran on, until any reset or
+  # power cycle happened to lock it again. With 820 clocks per line and 500 lines per frame at 16 MHz (39 Hz,
+  # 19.5 kHz) it stays locked, through standby and back.
   - platform: mipi_rgb
     model: ESP32-S3-TOUCH-LCD-4.3
     id: my_display
@@ -511,6 +523,12 @@ display:
       number: 3
       mode:
         output: true
+    hsync_pulse_width: 4
+    hsync_back_porch: 8
+    hsync_front_porch: 8
+    vsync_pulse_width: 4
+    vsync_back_porch: 8
+    vsync_front_porch: 8
     update_interval: never
     auto_clear_enabled: false
 

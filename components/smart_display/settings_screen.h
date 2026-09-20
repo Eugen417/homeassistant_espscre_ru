@@ -363,7 +363,8 @@ struct Metrics {
 inline Metrics metrics() {
   int width = lv_display_get_horizontal_resolution(lv_display_get_default());
   int height = lv_display_get_vertical_resolution(lv_display_get_default());
-  bool large = width >= 480;
+  // The look decides the class (ui::large), never the width: a 480 px compact panel keeps the small rows.
+  bool large = ui::large();
   return Metrics{large, width, height,
                  ui::px(large ? 20 : 10), ui::px(large ? 18 : 10), ui::px(large ? 18 : 10),
                  ui::px(large ? 56 : 36), ui::px(large ? 16 : 7),
@@ -797,7 +798,7 @@ inline void hold_event(lv_event_t *event) {
 // page: the strip goes under it, so a card's back button and its action at the top right get their taps
 // (firmware 0.2.44-0.2.47 created the strip last, on top of every card).
 inline void attach_hold(lv_obj_t *page, int x, int y, int width, int height, lv_obj_t *below = nullptr) {
-  bool large = lv_display_get_horizontal_resolution(lv_display_get_default()) >= 480;
+  const bool large = ui::large();
   hold_area = plain(page, x, y, width, height);
   lv_obj_add_flag(hold_area, LV_OBJ_FLAG_CLICKABLE);
   // No pressed style at all: a repaint of a strip this wide costs a frame that the touch polling on a

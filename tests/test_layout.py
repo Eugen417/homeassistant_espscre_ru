@@ -13,7 +13,7 @@ VALUES = dict(re.findall(r'^  (\w+): "([^"]*)"', SOURCE, re.M))
 class LayoutTests(unittest.TestCase):
     def test_the_cells_fill_the_glass_and_leave_the_page_bar_clear(self):
         """A board states columns, rows, its margin and its gaps; LVGL divides the tile area over the cells."""
-        for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml'):
+        for name in profiles.PROFILES:
             values = dict(re.findall(r'^  (\w+): "([^"]*)"', profiles.resolved(name), re.M))
             v = lambda k: int(values[k])
             cols, rows = v('GRID_COLS'), v('GRID_ROWS')
@@ -55,7 +55,7 @@ class LayoutTests(unittest.TestCase):
 
     def test_page_keys_are_the_halves_of_the_band_under_the_tiles(self):
         """Firmware 0.2.69+: a chevron in each half of the band, the dots between them take no touches."""
-        for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml'):
+        for name in profiles.PROFILES:
             source = profiles.resolved(name)
             values = dict(re.findall(r'^  (\w+): "([^"]*)"', source, re.M))
             band = int(values['DISPLAY_H']) - int(values['SCROLL_Y']) - int(values['SCROLL_H'])

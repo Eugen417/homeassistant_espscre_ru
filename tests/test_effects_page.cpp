@@ -64,8 +64,13 @@ int main() {
   assert(!tile_controls::effect_running(""));
   assert(!tile_controls::effect_running("unknown"));
 
-  // Both boards' sizes: the CYD's page fits four rows and two sliders in 240 px, the Guition's in 480.
-  Metrics big = metrics(480, 480), small = metrics(320, 240);
+  // Both looks' sizes: the compact page fits four rows and two sliders in 240 px, the standard one in 480. The
+  // class is the look's (ui::large), so the look is set before the sizes are asked for, as the boot does.
+  ui::configure(170, "standard");
+  Metrics big = metrics(480, 480);
+  ui::configure(143, "compact");
+  Metrics small = metrics(320, 240);
+  ui::configure(170, "standard");
   assert(big.rows_y + 4 * big.row_h + big.gap + big.number_h <= 480);
   assert(small.rows_y + 4 * small.row_h + small.gap + small.number_h <= 240);
   assert(big.rows_y + big.roller_rows * big.roller_row_h + 2 * big.roller_pad <= 480);

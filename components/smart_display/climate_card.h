@@ -1,5 +1,5 @@
 #pragma once
-// The climate card (firmware 0.2.9x): where its parts go. Pure arithmetic, free of LVGL and ESPHome, so
+// The climate card (firmware 0.2.79): where its parts go. Pure arithmetic, free of LVGL and ESPHome, so
 // tests/test_climate_card.cpp checks every shape on a PC; runtime_tiles.h draws it.
 //
 // One card for every board, Home Assistant's thermostat dialog in this look: the state under the name, a white

@@ -21,7 +21,7 @@
 
 namespace overlay_card {
 
-enum Kind : bool { controls = false, picture = true };
+enum Kind { controls, picture };
 
 inline int screen_width() { return lv_display_get_horizontal_resolution(lv_display_get_default()); }
 inline int screen_height() { return lv_display_get_vertical_resolution(lv_display_get_default()); }
@@ -42,9 +42,13 @@ inline int pad() { return ui::px(ui::large() ? 20 : 10); }
 // seven-inch - cannot give a tall control the millimetres it needs while half its width goes unused; such a
 // card lays its controls beside the rest instead of under it, the way a web page turns a stack into two
 // columns when the viewport allows. `need_height` is what the one-column form asks for, `min_column` the
-// narrowest a column may be. Tall glass keeps one column, and so does glass too narrow to split.
+// narrowest a column may be. The decision is the shape's (three units of width to two of height, the same
+// rule as the effects page and the forecast), never a pixel count: a square or a portrait panel keeps its
+// stack and lets the card give room in its own order, as the two first boards always did. Glass too
+// narrow for two columns keeps one as well.
 inline int columns(int need_height, int min_column) {
   if (need_height <= screen_height()) return 1;
+  if (screen_width() * 2 < screen_height() * 3) return 1;
   return screen_width() >= 2 * min_column + ui::column_gap() ? 2 : 1;
 }
 
