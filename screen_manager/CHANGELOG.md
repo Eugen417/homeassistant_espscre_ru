@@ -10,7 +10,7 @@ One firmware for any board: a board says what its glass is, and the screens, the
 - **Camera tiles and covers on any board that draws pictures.** The manager takes the picture sizes from the board file instead of a list of one board, and the editor offers cameras and covers where the board can show them. A screen that cannot hears "This screen cannot show camera pictures".
 - **What a finger does lives in one place.** The three touchscreen triggers of a capacitive board call the shared handler; a new board takes them in one line each and cannot take half of them.
 - **For the next board:** docs/RESPONSIVE.md says how a board fits its glass and how to design a card for glass we have never seen; docs/ADDING_A_BOARD.md is the recipe (`tools/propose_grid.py`, `tools/new_board.py`, `tools/generate_cells.py`, `tools/generate_board_shapes.py`); `tools/check.sh --firmware` compiles every board.
-- Needs firmware 0.2.79: press **Update** on the screen. Includes everything from 0.2.92. CYD firmware: 1,619,168 bytes, 88.2 % of the update slot (14,592 bytes less than 0.2.92: the thermostat overlays left the YAML), built with the ESPHome this add-on ships (2026.9.0).
+- Needs firmware 0.2.79: press **Update** on the screen. Includes everything from 0.2.92. CYD firmware: 1,622,624 bytes, 88.4 % of the update slot (11,136 bytes less than 0.2.92: the thermostat overlays left the YAML), built with the ESPHome this add-on ships (2026.9.0).
 
 ## 0.2.92 (firmware 0.2.78)
 

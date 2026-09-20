@@ -9,11 +9,12 @@ and a screen on main moves over in one go. This is what was checked, and how.
 - `tools/check.sh`: 13 of 13 (541 Python tests, 21 C++ tests, the package, cells, board-shape and icon checks, the
   translations, the editor's 111 Vitest tests, vue-tsc, the build and the bundle in Git).
 - `tools/check.sh --firmware`, now over every board in `tools/profiles.py`, with the ESPHome the add-on ships
-  (2026.9.0): CYD 1,619,168 B = 88.2 % of its update slot (0.2.92: 1,633,760 B, 89.0 %; the thermostat overlays left
-  the YAML), Guition 2,039,184 B = 25.1 %, Waveshare 2,293,264 B = 28.2 %.
+  (2026.9.0): CYD 1,622,624 B = 88.4 % of its update slot (0.2.92: 1,633,760 B, 89.0 %; the thermostat overlays left
+  the YAML, the Rotation select and its rows came), Guition about 25 %, Waveshare about 28 %.
 - `esphome config` of the three checkout entries with the packages' `min_version` (2026.6.2): valid. The only
-  entity difference with main on the CYD and the Guition is the two new diagnostic sensors, Screen layout and
-  Screen board; nothing is renamed or gone, so Home Assistant keeps every id.
+  entity differences with main are additions: the two diagnostic sensors Screen layout and Screen board on every
+  board, and the Rotation select on the CYD (the Guition had it). Nothing is renamed or gone, so Home Assistant
+  keeps every id.
 
 ## The two first boards render as before
 
@@ -46,9 +47,24 @@ Wallbox (480 × 480), the CYD (320 × 240) and the Waveshare (800 × 480).
 - Firmware 0.2.79 was flashed over the air from this checkout to the Guition Wallbox, the CYD and the Waveshare.
   After the update each reports its shape with density and look, which the add-on prefers over `boards.json`.
 
+## Turning, on the three screens
+
+Every board turns since firmware 0.2.79: a half turn on any glass, the quarter turns as well on a square one. Checked
+through the local add-on, whose settings view now says which angles a screen takes:
+
+- The CYD (320 × 240) is offered 0° and 180°; its new `select.<screen>_rotation` has those two options. A change to
+  180° through the add-on is accepted and the select follows; 90° is refused with "Only a square screen can turn a
+  quarter; this one turns upside down (180°)"; 0° again puts it back.
+- The Guition (480 × 480) keeps all four angles: 90° through the add-on, the select follows, 0° again.
+- The Waveshare (800 × 480): 0° and 180° offered, its select has those two; 180° accepted and followed, 90° refused
+  with the same sentence, 0° again puts it back. All three screens report firmware 0.2.79 and Synced afterwards.
+- The settings page on the screen shows the row of two angles on the CYD and the Waveshare and the row of four on
+  the Guition (`tests/test_settings_screen.cpp`); the board files' selects are checked against their shape by
+  `tools/check_packages.py`.
+
 ## Not covered here
 
-- The rotation rule (a half turn on every board, quarter turns on a square one) is unchanged this round: the
-  Guition turns, the others do not (docs/BOARD_NAMES_AUDIT.md).
+- Whether the picture on the glass turns with the select was not looked at from here: the boards are in the house,
+  and a turn shows on the panel, not in Home Assistant. The Guition's turn is the same code path as before.
 - `tests/test_scaling` logs "Publishing the layout of Office 1 failed (AttributeError)" ten times: its fake Home
   Assistant has no `set_state`. It did so before this round as well.
