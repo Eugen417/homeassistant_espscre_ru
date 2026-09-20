@@ -763,6 +763,20 @@ class Manager:
             self.ha.changed.set()
             self.notify()
 
+    def package_of(self, screen, profiles=None):
+        """The board package the screen's profile builds from ("packages/waveshare43.yaml"), or None: what a screen looks
+        like while it says nothing itself (offline, or firmware from before the shape sensor)."""
+        profile, _ = self.updates.resolve(screen, profiles)
+        profiles = profiles if profiles is not None else self.firmware.profile_names()
+        return (profiles.get(profile) or {}).get('package') if profile else None
+
+    def grid_of(self, screen):
+        """The grid of a screen's pages (core.grid_of), with the board its profile builds from filled in, so a save, an
+        event and the message to the screen count the same cells whether the screen is online or not."""
+        if isinstance(screen, dict) and not screen.get('package'):
+            screen = {**screen, 'package': self.package_of(screen)}
+        return grid_of(screen)
+
     def firmware_version(self, inbox, screen=None):
         """The firmware a screen's features go by: its sensor, or while that has no version (offline, restarting) the
         one Home Assistant's device registry kept (app 0.2.78); None when neither says (core.screen_firmware)."""
@@ -848,7 +862,7 @@ class Manager:
         without sending it back, which could undo a change it made after reporting this one; its revision
         stays, so the next ping still matches."""
         base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or screen_t('screen.status.home'), 'tiles': []}
-        layout = validate_layout({**base, 'settings': settings}, grid=grid_of(screen) if screen else None)
+        layout = validate_layout({**base, 'settings': settings}, grid=self.grid_of(screen) if screen else None)
         updated = {**self.layouts, inbox: layout}
         self.write_layouts(updated)
         self.layouts = updated
@@ -1114,8 +1128,8 @@ class Manager:
         if screen is None:
             raise ValueError(t('addon.errors.not_paired'))
         # Every position on the grid of this screen's pages: two by three on the first boards, whatever a newer
-        # screen reports (core.grid_of).
-        grid = grid_of(screen)
+        # screen reports or its profile builds from (Manager.grid_of).
+        grid = self.grid_of(screen)
         layout = validate_layout(data, grid=grid)
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
         if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
@@ -1189,7 +1203,7 @@ class Manager:
             return
         inbox = self.aliases.get(inbox, inbox)
         screen = self.screen(inbox)
-        layout = validate_layout(data, grid=grid_of(screen) if screen else None)
+        layout = validate_layout(data, grid=self.grid_of(screen) if screen else None)
         before = {tile['entity']: tile for tile in self.layouts.get(inbox, {}).get('tiles', [])}
         for tile in layout['tiles']:
             previous = before.get(tile['entity'])
@@ -1323,8 +1337,8 @@ class Manager:
         # made on another grid than the one the screen reports (the screen was flashed as another board and kept
         # its name) goes out packed in order, so every tile still lands in a cell that exists.
         slots = [t['slot'] for t in tiles]
-        if isinstance(screen.get('shape'), dict) and not grid_of(screen).holds(tiles):
-            slots = grid_of(screen).pack(tiles)
+        if isinstance(screen.get('shape'), dict) and not self.grid_of(screen).holds(tiles):
+            slots = self.grid_of(screen).pack(tiles)
         message = {'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in tiles],
                    'slots': slots, 'keepalive': KEEPALIVE_SECONDS}
         if 'pages' in layout:
@@ -1764,7 +1778,7 @@ class Manager:
         # Firmware 0.2.65+ takes a navigation tile on several pages; an older screen keeps one per page it goes to.
         repeat = (self.firmware_version(inbox, screen) or (0, 0, 0)) >= PAGE_TILE_REPEAT_MIN_FIRMWARE
         layout, tile = run_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data, repeat,
-                                      grid_of(screen))
+                                      self.grid_of(screen))
         await self.check_supported(inbox, layout)
         self.save(inbox, layout)
         return screen, tile
@@ -1781,7 +1795,7 @@ class Manager:
                 answer.update(ok=True, screen=screen['name'])
                 if tile is not None and 'slot' in tile:
                     # Which tile it was, which matters for a navigation tile that is on several pages (app 0.2.78).
-                    answer.update(page=grid_of(screen).page_of(tile['slot']) + 1, slot=tile['slot'])
+                    answer.update(page=self.grid_of(screen).page_of(tile['slot']) + 1, slot=tile['slot'])
                 LOG.info('%s: %s on %s', event_type, answer['entity'] or 'order', screen['name'])
                 await self.publish_layouts()
             except Exception as error:
@@ -1801,7 +1815,7 @@ class Manager:
             layout, node = self.layouts.get(inbox), screen.get('node')
             if not layout or not node:
                 continue
-            snapshot = layout_snapshot(screen, layout)
+            snapshot = layout_snapshot(screen, layout, self.grid_of(screen))
             if self.published.get(inbox) == snapshot:
                 continue
             try:
@@ -1911,8 +1925,7 @@ def create_app(manager, development=False):
             screen['update'] = manager.updates.state_for(screen, profiles)
             # What this screen looks like: what it reported itself, else the board package its profile builds
             # from (the YAML), else its board. The editor draws its mockup and places tiles on this grid.
-            profile, _ = manager.updates.resolve(screen, profiles)
-            screen['package'] = (profiles.get(profile) or {}).get('package') if profile else None
+            screen['package'] = manager.package_of(screen, profiles)
             # The board too: a screen that says nothing about itself is known by the YAML its profile builds from.
             screen['board'] = board_of(screen)
             screen['shape'] = shape_of(screen)
@@ -1926,7 +1939,7 @@ def create_app(manager, development=False):
             # grid of its pages: an offline screen keeps its tiles, and the editor needn't know the version rules.
             version = manager.firmware_version(screen['id'], screen)
             screen['firmware_known'] = version_text(version)
-            screen.update(firmware_features(version, grid_of(screen)))
+            screen.update(firmware_features(version, manager.grid_of(screen)))
         return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
                 'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles),

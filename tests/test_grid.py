@@ -251,6 +251,32 @@ class OnTheManager(unittest.TestCase):
         # The editor learns the same limits.
         self.assertEqual(core.firmware_features(m.firmware_version('text.d1_tiles', screen), core.grid_of(screen))['tile_limit'], 63)
 
+    def test_an_offline_screen_is_known_by_the_yaml_its_profile_builds_from(self):
+        # Every sensor unavailable: the screen says nothing about its shape or board. Its profile in the ESPHome folder
+        # names the board package, and that is what the save counts with (Manager.grid_of), so an offline Waveshare
+        # still takes the layout its editor drew on three columns.
+        ha = fake_ha(shape='unavailable', board='unavailable')
+        (Path(self.tmp) / 'hall.yaml').write_text('esphome:\n  name: hall\n  friendly_name: Hall screen\n'
+                                                 'packages:\n  display:\n    url: https://github.com/MaxGramser/homeassistant_espscreen\n'
+                                                 '    files: [packages/waveshare43.yaml]\n    ref: main\n'
+                                                 'api:\n  encryption:\n    key: "Y2hlY2stYnVpbGQtcGxhY2Vob2xkZXIta2V5LTMyYnk="\n')
+        import os
+        before = os.environ.get('ESPHOME_CONFIG')
+        os.environ['ESPHOME_CONFIG'] = self.tmp
+        try:
+            m = self.manager(ha)
+        finally:
+            if before is None:
+                os.environ.pop('ESPHOME_CONFIG', None)
+            else:
+                os.environ['ESPHOME_CONFIG'] = before
+        screen = m.screens()[0]
+        self.assertIsNone(screen.get('shape'))
+        self.assertEqual(m.package_of(screen), 'packages/waveshare43.yaml')
+        self.assertEqual(m.grid_of(screen), WIDE)
+        m.save('text.d1_tiles', {'title': 'Hall', 'tiles': [tile('light.l0', 3, size='wide'), tile('light.l1', 62)]})
+        self.assertEqual([t['slot'] for t in m.layouts['text.d1_tiles']['tiles']], [3, 62])
+
     def test_a_layout_from_another_grid_goes_out_packed_in_order(self):
         # The screen was flashed as another board and kept its name: its stored positions no longer exist. It gets its
         # tiles in order rather than a message it would refuse.

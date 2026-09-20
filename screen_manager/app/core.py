@@ -1005,11 +1005,11 @@ def apply_tile_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID
     """The layout after one tile event (run_tile_event without the tile it acted on)."""
     return run_tile_event(layout, action, data, repeat_pages, grid)[0]
 
-def layout_snapshot(screen, layout):
+def layout_snapshot(screen, layout, grid=None):
     """What a screen shows, for the sensor the app publishes in Home Assistant: the grid of its pages and one entry
     per tile with the page and the spot it is in, so an assistant can read the screen before it changes it. The
     column is `left` or `right` on a two-column screen and the column's number, counted from 1, on any other."""
-    grid = grid_of(screen)
+    grid = grid or grid_of(screen)
     tiles = []
     for tile in sorted(layout.get('tiles', []), key=lambda item: item.get('slot', 0)):
         slot, options = tile.get('slot', 0), tile.get('options', {})
