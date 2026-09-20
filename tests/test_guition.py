@@ -34,19 +34,13 @@ class GuitionTests(unittest.TestCase):
 
     def test_cards_fit_with_gutters_and_reserved_navigation(self):
         v=lambda k:int(VALUES[k])
-        rectangles=[]
-        for r in range(1,4):
-            for c in range(1,3):
-                x,y=v(f'GRID_COL{c}_X'),v('SCROLL_Y')+v(f'GRID_ROW{r}_Y')
-                w,h=v('TILE_W'),v('TILE_H')
-                self.assertGreaterEqual(x,16)
-                self.assertLessEqual(x+w,464)
-                self.assertLessEqual(y+h,420)
-                self.assertGreaterEqual(w*h,3*147*52)
-                for xx,yy,ww,hh in rectangles:
-                    self.assertFalse(x<xx+ww and x+w>xx and y<yy+hh and y+h>yy)
-                rectangles.append((x,y,w,h))
-        self.assertEqual(len(rectangles),6)
+        cols,rows=v('GRID_COLS'),v('GRID_ROWS')
+        self.assertEqual((cols,rows),(2,3))
+        self.assertEqual(2*v('GRID_MARGIN')+cols*v('TILE_W')+(cols-1)*v('GRID_GAP_X'),480)
+        self.assertEqual(rows*v('TILE_H')+(rows-1)*v('GRID_GAP_Y'),v('SCROLL_H'))
+        self.assertGreaterEqual(v('GRID_MARGIN'),16)
+        # A card of this board holds three of a CYD's.
+        self.assertGreaterEqual(v('TILE_W')*v('TILE_H'),3*147*52)
         # The page keys are the two halves of the band under the tiles (firmware 0.2.69+).
         band=480-v('SCROLL_Y')-v('SCROLL_H')
         self.assertEqual(band,60)
@@ -54,9 +48,11 @@ class GuitionTests(unittest.TestCase):
             block=SOURCE.split(f'id: {key}',1)[1][:200]
             self.assertIn('width: 240\n',block);self.assertIn(f'height: {band}\n',block)
 
-    def test_all_tiles_clip_long_titles(self):
-        for i in range(1,11):
-            self.assertRegex(SOURCE,rf'id: !extend t{i}_title\n\s+height: 24\n\s+width: 130\n\s+long_mode: DOT')
+    def test_every_card_label_is_one_line_with_an_ellipsis(self):
+        """The runtime gives every card's name and state a one-line box and an ellipsis, on every board."""
+        runtime=(ROOT/'components/smart_display/runtime_tiles.h').read_text()
+        self.assertIn('lv_obj_set_height(title,lv_font_get_line_height(lv_obj_get_style_text_font(title,LV_PART_MAIN)));',runtime)
+        self.assertIn('lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);lv_label_set_long_mode(value,LV_LABEL_LONG_DOT);',runtime)
         self.assertEqual(VALUES['AUTO_DIM_TIMEOUT'],'600')
 
     def test_gt911_verification_accepts_pixels_and_rejects_wrong_orientation(self):

@@ -12,6 +12,11 @@
 # Two entry files include this: home-like-2432s028.yaml (a build on this computer)
 # and packages/cyd.yaml (the package a screen builds from over GitHub).
 ############################################################
+# The cards of this board's grid: one per cell, from the file for 6 cells
+# (tools/generate_cells.py writes them; docs/RESPONSIVE.md says why).
+packages:
+  cells: !include ../cells/6.yaml
+
 substitutions:
   # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
   TOUCH_MOVE_LIMIT_PX: "56"
@@ -59,13 +64,6 @@ substitutions:
   GRID_GAP_Y: "4"
   DISPLAY_DPI: "143"      # diagonal pixels / diagonal inches; the look's reference density on this board
   LOOK: "compact"
-  GRID_COL1_X: "9"
-  GRID_COL2_X: "164"
-  GRID_ROW1_Y: "0"
-  GRID_ROW2_Y: "56"
-  GRID_ROW3_Y: "112"
-  GRID_ROW4_Y: "168"
-  GRID_ROW5_Y: "224"
   SCROLL_Y: "40"
   SCROLL_H: "164"
   TILE_W: "147"
@@ -590,12 +588,11 @@ script:
                 const int count = runtime_tiles::model.count;
                 // Wide cards take two slots, so visibility follows the runtime packing.
                 const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
-                lv_obj_t* tiles[] = {id(tile1), id(tile2), id(tile3), id(tile4), id(tile5),
-                                     id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
+                // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
                 bool ok = true;
-                for (int i = 0; i < 10; ++i) {
-                  bool visible = runtime_tiles::enabled ? i<6 && runtime_tiles::widgets[i].index<runtime_tiles::model.count : i < count && (paginated ? i >= 6 : i < 6);
-                  ok = ok && (lv_obj_has_flag(tiles[i], LV_OBJ_FLAG_HIDDEN) != visible);
+                for (auto &w : runtime_tiles::widgets) {
+                  bool visible = w.index < runtime_tiles::model.count;
+                  ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
                 }
                 // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
                 const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);

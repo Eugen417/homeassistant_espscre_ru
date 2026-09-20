@@ -30,6 +30,20 @@ from the resolution and the diagonal: as many cells as hold a standard tile of a
 smaller than 30 × 12 mm, and dense packing on three or more columns. `make_board.py` writes a board
 file for a new panel from the nearest real board, scaling every size by the density ratio.
 
+## The cards are cells of an LVGL grid
+
+`packages/core.yaml` gives the tile area (`tile_scroll`) an LVGL grid layout; `runtime_tiles::grid_bind` fills in
+the board's columns and rows as free units (`lv_obj_set_grid_dsc_array`), so LVGL divides the area over the cells
+and keeps the gaps (`pad_row`, `pad_column`) and the side margin (the container's padding). `place_page` says only
+which cell a card takes and how many it spans: `lv_obj_set_grid_cell(tile, STRETCH, column, span, STRETCH, row, 1)`,
+a wide card two columns, a full card the whole page. No coordinate is computed in C++ any more, and the cards grow
+by themselves when the page bar goes (the container then reaches the bottom edge, keeping the side margin).
+
+The cards themselves are LVGL widgets, so they live in YAML, and ESPHome has no loop: `tools/generate_cells.py`
+writes one file per number of cells (`packages/cells/6.yaml` for a 2 x 3 board) with the cards and the line that
+binds them, and a board includes the file for its own grid. A board therefore carries exactly the cards it can
+show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is out of date.
+
 ## What the firmware does with it
 
 - `ui::configure(dpi, look)` at boot (`components/smart_display/ui_scale.h`): one scale for every
@@ -38,10 +52,8 @@ file for a new panel from the nearest real board, scaling every size by the dens
 - `ui::large()`: the class of cards and pages is the look's, never a cell's momentary height. (A class
   that flipped when the rows grew reused a clock's numeral labels as tick lines: the lab's crash.)
 - `GRID_COLS`/`GRID_ROWS` reach the C++ as build flags; `SLOTS_PER_PAGE` follows, `MAX_PAGES` is
-  capped so a screen never holds more than 64 tiles (one dirty bit each). `runtime_tiles::place_page`
-  computes every cell's place and size from the margin, the gaps and the grid; a wide card spans two
-  cells, a full card the page. The tile widgets in `packages/core.yaml` (twenty today) are the pool a
-  board's grid draws from.
+  capped so a screen never holds more than 64 tiles (one dirty bit each), and `runtime_tiles::widgets`
+  holds exactly one entry per cell.
 - A cell taller than the look's cell height (`ui::cell_height()`) centres its content on it; a cell at
   least twice as tall stacks the icon above the name and state.
 - What does not fit is left out: the forecast shows as many day columns as the width holds (five at
@@ -50,13 +62,17 @@ file for a new panel from the nearest real board, scaling every size by the dens
 - The icon circle and its place follow `TILE_ICON_SIZE` and `TILE_ICON_Y`; the forecast's current
   conditions block follows the card's text offset.
 
-## What is still the lab's, and the way it becomes durable
+## What is still open, and the way it becomes durable
 
 - The 157 sizes in `runtime_tiles.h` and the metric tables of the settings, effects, media and light
-  cards are wrapped in `ui::px()` one by one. The durable form is LVGL's own: flex rows and columns
-  with `flex_grow`, `min_width`/`max_width` in `ui::px()`, and `LV_EVENT_SIZE_CHANGED` for a card that
+  cards go through `ui::px()` one by one. The durable form is LVGL's own: flex rows and columns with
+  `flex_grow`, `min_width`/`max_width` in `ui::px()`, and `LV_EVENT_SIZE_CHANGED` for a card that
   changes shape with its width. The first component to rebuild that way is the tile row (circle |
   text column | panel); the forecast strip and the clock follow.
+- The add-on and the editor still assume two columns of three (`SLOTS_PER_PAGE`, the drop rules, the
+  mockup). Every board that ships today is 2 x 3, so nothing is wrong; a board with another grid needs
+  them to take the grid from the screen, which the screen can report (`DISPLAY_DPI`, `LOOK`,
+  `GRID_COLS`, `GRID_ROWS` are all it takes).
 - The overlays that still take pixels from the board file (light, climate, alert, mode picker, touch
   test) keep those substitutions; a lower canvas than the look's needs the board generator to fit
   them. They become computed cards like settings and effects.

@@ -9,6 +9,11 @@
 #
 # Two entry files include this: guition-4848s040.yaml (a build on this computer) and packages/guition.yaml
 # (the package a screen builds from over GitHub).
+# The cards of this board's grid: one per cell, from the file for 6 cells
+# (tools/generate_cells.py writes them; docs/RESPONSIVE.md says why).
+packages:
+  cells: !include ../cells/6.yaml
+
 substitutions:
 
   # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
@@ -43,13 +48,6 @@ substitutions:
   GRID_GAP_Y: "12"
   DISPLAY_DPI: "170"      # diagonal pixels / diagonal inches; the look's reference density on this board
   LOOK: "standard"
-  GRID_COL1_X: "16"
-  GRID_COL2_X: "246"
-  GRID_ROW1_Y: "0"
-  GRID_ROW2_Y: "120"
-  GRID_ROW3_Y: "240"
-  GRID_ROW4_Y: "360"
-  GRID_ROW5_Y: "480"
   SCROLL_Y: "72"
   SCROLL_H: "348"
   TILE_W: "218"
@@ -649,140 +647,6 @@ lvgl:
             id: camera_image_seed
             hidden: true
             src: alert_image
-        # The tile labels get a width and an ellipsis on this board (the small panel keeps LVGL's content width).
-        - obj:
-            id: !extend tile_scroll
-            widgets:
-              - obj:
-                  id: !extend tile1
-                  widgets:
-                    - label:
-                        id: !extend t1_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t1_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile2
-                  widgets:
-                    - label:
-                        id: !extend t2_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t2_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile3
-                  widgets:
-                    - label:
-                        id: !extend t3_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t3_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile4
-                  widgets:
-                    - label:
-                        id: !extend t4_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t4_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile5
-                  widgets:
-                    - label:
-                        id: !extend t5_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t5_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile6
-                  widgets:
-                    - label:
-                        id: !extend t6_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t6_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile7
-                  widgets:
-                    - label:
-                        id: !extend t7_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t7_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile8
-                  widgets:
-                    - label:
-                        id: !extend t8_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t8_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile9
-                  widgets:
-                    - label:
-                        id: !extend t9_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t9_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile10
-                  widgets:
-                    - label:
-                        id: !extend t10_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t10_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
         - obj:
             id: !extend climate_detail_overlay
             widgets:
@@ -838,12 +702,11 @@ script:
                 const int count = runtime_tiles::model.count;
                 // Wide cards take two slots, so visibility follows the runtime packing.
                 const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
-                lv_obj_t* tiles[] = {id(tile1), id(tile2), id(tile3), id(tile4), id(tile5),
-                                     id(tile6), id(tile7), id(tile8), id(tile9), id(tile10)};
+                // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
                 bool ok = guition::check_geometry(id(home_page)->obj);
-                for (int i = 0; i < 10; ++i) {
-                  bool visible = runtime_tiles::enabled ? i<6 && runtime_tiles::widgets[i].index<runtime_tiles::model.count : i < count && (paginated ? i >= 6 : i < 6);
-                  ok = ok && (lv_obj_has_flag(tiles[i], LV_OBJ_FLAG_HIDDEN) != visible);
+                for (auto &w : runtime_tiles::widgets) {
+                  bool visible = w.index < runtime_tiles::model.count;
+                  ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
                 }
                 // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
                 const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);

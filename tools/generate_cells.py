@@ -1,0 +1,134 @@
+"""Write packages/cells/<n>.yaml: the cards of a board's grid, and the line that binds them.
+
+A screen draws one card per cell of its grid (GRID_COLS x GRID_ROWS). The cards are LVGL widgets, so they are
+written in YAML, and ESPHome has no loop: this script writes one file per cell count, and every board includes
+the file for its own count. The file carries the cards themselves (as children of the shared `tile_scroll`, the
+grid) and `BIND_CELLS`, the line the shared boot lambda runs to hand them to the runtime.
+
+    python3 tools/generate_cells.py            # write every count that a board uses
+    python3 tools/generate_cells.py --check    # fail when a file is out of date (tools/check.sh does this)
+
+The card itself is one template, the same for every board: the board's sizes reach it through substitutions.
+"""
+import argparse
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+CELLS = ROOT / 'packages' / 'cells'
+COUNTS_FROM_BOARDS = True
+
+HEAD = '''############################################################
+# ESP Screens - the cards of a grid of {count} cells.
+#
+# Written by tools/generate_cells.py; do not edit. A board includes the file for its own number of cells
+# (GRID_COLS x GRID_ROWS) and the shared tree in packages/core.yaml places them: the container `tile_scroll`
+# is an LVGL grid and runtime_tiles::place_page gives every card its cell and span. A card carries no
+# coordinate, only the size its board's grid gives it.
+############################################################
+substitutions:
+  # The shared boot lambda hands the cards to the runtime with this line (packages/core.yaml).
+  BIND_CELLS: |-
+{binds}
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - obj:
+            id: !extend tile_scroll
+            widgets:
+'''
+
+CARD = '''              # ---------- CARD {n} ----------
+              - obj:
+                  id: tile{n}
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 0
+                  width: ${{TILE_W}}
+                  height: ${{TILE_H}}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile{n}_icon_circle
+                        x: ${{TILE_ICON_X}}
+                        y: ${{TILE_ICON_Y}}
+                        width: ${{TILE_ICON_SIZE}}
+                        height: ${{TILE_ICON_SIZE}}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile{n}_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t{n}_title
+                        x: ${{TILE_TITLE_X}}
+                        y: ${{TILE_TITLE_Y}}
+                        text: "Tile {n}"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t{n}_value
+                        x: ${{TILE_VALUE_X}}
+                        y: ${{TILE_VALUE_Y}}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+'''
+
+
+def text(count):
+    binds = '\n'.join(
+        f'    runtime_tiles::bind({n - 1}, id(tile{n}), id(t{n}_title), id(t{n}_value), id(tile{n}_icon_circle), id(tile{n}_icon_lbl));'
+        for n in range(1, count + 1))
+    return HEAD.format(count=count, binds=binds) + ''.join(CARD.format(n=n) for n in range(1, count + 1))
+
+
+def counts():
+    """Every cell count a board asks for, and the two the repository always carries."""
+    found = {6}
+    for board in sorted((ROOT / 'packages' / 'boards').glob('*.yaml')):
+        source = board.read_text()
+        cols = re.search(r'(?m)^  GRID_COLS: "(\d+)"', source)
+        rows = re.search(r'(?m)^  GRID_ROWS: "(\d+)"', source)
+        if cols and rows:
+            found.add(int(cols.group(1)) * int(rows.group(1)))
+    return sorted(found)
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--check', action='store_true')
+    args = parser.parse_args()
+    CELLS.mkdir(parents=True, exist_ok=True)
+    stale = []
+    for count in counts():
+        path = CELLS / f'{count}.yaml'
+        want = text(count)
+        if args.check:
+            if not path.exists() or path.read_text() != want:
+                stale.append(path.name)
+        else:
+            path.write_text(want)
+            print(f'{path.relative_to(ROOT)}: {count} cards')
+    if args.check:
+        if stale:
+            print('out of date, run tools/generate_cells.py: ' + ', '.join(stale), file=sys.stderr)
+            return 1
+        print(f'cells: {len(counts())} files up to date')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

@@ -1,4 +1,4 @@
-"""Regression checks for the 320x240 page geometry and event guards."""
+"""Regression checks for the page geometry (the board's grid) and the event guards."""
 from pathlib import Path
 import re
 import sys
@@ -11,25 +11,38 @@ SOURCE = profiles.resolved('home-like-2432s028.yaml')
 VALUES = dict(re.findall(r'^  (\w+): "([^"]*)"', SOURCE, re.M))
 
 class LayoutTests(unittest.TestCase):
-    def test_visible_rows_fit_viewport_and_leave_navigation_clear(self):
-        v = lambda k: int(VALUES[k])
-        rectangles = []
-        for row in range(1, 4):
-            for col in range(1, 3):
-                x, y = v(f'GRID_COL{col}_X'), v('SCROLL_Y') + v(f'GRID_ROW{row}_Y')
-                w, h = v('TILE_W'), v('TILE_H')
-                self.assertGreaterEqual(x, 0)
-                self.assertLessEqual(x + w, v('DISPLAY_W'))
-                self.assertLessEqual(y + h, v('SCROLL_Y') + v('SCROLL_H'))
-                self.assertLessEqual(y + h, v('DISPLAY_H') - 34)
-                for xx, yy, ww, hh in rectangles:
-                    self.assertFalse(x < xx + ww and x + w > xx and y < yy + hh and y + h > yy)
-                rectangles.append((x, y, w, h))
+    def test_the_cells_fill_the_glass_and_leave_the_page_bar_clear(self):
+        """A board states columns, rows, its margin and its gaps; LVGL divides the tile area over the cells."""
+        for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml'):
+            values = dict(re.findall(r'^  (\w+): "([^"]*)"', profiles.resolved(name), re.M))
+            v = lambda k: int(values[k])
+            cols, rows = v('GRID_COLS'), v('GRID_ROWS')
+            self.assertGreaterEqual(cols, 1, name)
+            self.assertGreaterEqual(rows, 1, name)
+            self.assertEqual(2 * v('GRID_MARGIN') + cols * v('TILE_W') + (cols - 1) * v('GRID_GAP_X'),
+                             v('DISPLAY_W'), f'{name}: the cells and their gaps fill the width')
+            self.assertEqual(rows * v('TILE_H') + (rows - 1) * v('GRID_GAP_Y'),
+                             v('SCROLL_H'), f'{name}: the cells and their gaps fill the tile area')
+            self.assertEqual(v('SCROLL_Y') + v('SCROLL_H') + v('PAGE_BAR_H'),
+                             v('DISPLAY_H'), f'{name}: top bar, tiles and page bar fill the glass')
+            # Without the page bar the tile area reaches the bottom edge, keeping the margin the sides have.
+            self.assertGreater(v('DISPLAY_H') - v('SCROLL_Y') - v('GRID_MARGIN'), v('SCROLL_H'), name)
+
+    def test_the_cards_are_cells_of_an_lvgl_grid(self):
+        """No card carries a coordinate: the container is a grid and place_page only names a cell and its span."""
+        self.assertIn('type: GRID', SOURCE)
+        self.assertNotRegex(SOURCE, r'id: tile\d+\n\s+x: ')
+        self.assertEqual(SOURCE.count('grid_cell_row_pos: 0'), int(VALUES['GRID_COLS']) * int(VALUES['GRID_ROWS']))
+        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        self.assertIn('lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());', runtime)
+        self.assertIn('lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_STRETCH,column,span_x,LV_GRID_ALIGN_STRETCH,row,span_y);', runtime)
 
     def test_runtime_binds_every_tile_and_guards_a_tap(self):
         """The tiles are bound by the runtime; it filters a tap before anything happens."""
-        for n in range(1, 11):
+        cells = int(VALUES['GRID_COLS']) * int(VALUES['GRID_ROWS'])
+        for n in range(1, cells + 1):
             self.assertIn(f'runtime_tiles::bind({n - 1}, id(tile{n})', SOURCE)
+        self.assertNotIn(f'runtime_tiles::bind({cells}, ', SOURCE)
         runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
         self.assertIn('if (!allowed(esphome::millis(), 100 + w.index, model.tiles[w.index].entity)) return;', runtime)
 
@@ -59,18 +72,17 @@ class LayoutTests(unittest.TestCase):
             number = source.split('            id: page_number\n', 1)[1].split('\n        - ', 1)[0]
             self.assertIn('clickable: false', number, name)
             self.assertIn(f'height: {band}\n', number, name)
-            self.assertIn('settings_screen::page_dots(id(page_number)', source, name)
         runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
         self.assertIn('settings_screen::page_dots(nav_number,page,pages,', runtime)
         self.assertIn('set_hidden(control,!bar)', runtime)
 
-    def test_pagination_is_conditional_and_excess_tiles_are_hidden(self):
-        block = SOURCE.split('  - id: show_tile_page\n', 1)[1].split('  - id: wake_display', 1)[0]
-        self.assertIn('const bool paginated = count > 6;', block)
-        self.assertIn('i < count &&', block)
-        self.assertIn('if (!paginated) id(tile_page) = 0;', block)
+    def test_nothing_is_placed_before_a_layout_arrives(self):
+        """Until ESP Screens sends a layout the cells stay empty; place_page hides every slot the page has no card for."""
+        block = SOURCE.split('  - id: show_tile_page\n', 1)[1].split('  - id: apply_screen_settings', 1)[0]
+        self.assertIn('lv_obj_add_flag(w.tile, LV_OBJ_FLAG_HIDDEN)', block)
         self.assertIn('id(page_prev), id(page_next), id(page_number)', block)
-        self.assertIn('else lv_obj_add_flag(control, LV_OBJ_FLAG_HIDDEN);', block)
+        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        self.assertIn('else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}', runtime)
 
     def test_self_test_cannot_call_a_home_assistant_action(self):
         block = SOURCE.split('  - id: ui_self_test\n', 1)[1].split('  - id: show_tile_page', 1)[0]

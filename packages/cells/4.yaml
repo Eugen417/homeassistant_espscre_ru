@@ -1,0 +1,199 @@
+############################################################
+# ESP Screens - the cards of a grid of 4 cells.
+#
+# Written by tools/generate_cells.py; do not edit. A board includes the file for its own number of cells
+# (GRID_COLS x GRID_ROWS) and the shared tree in packages/core.yaml places them: the container `tile_scroll`
+# is an LVGL grid and runtime_tiles::place_page gives every card its cell and span. A card carries no
+# coordinate, only the size its board's grid gives it.
+############################################################
+substitutions:
+  # The shared boot lambda hands the cards to the runtime with this line (packages/core.yaml).
+  BIND_CELLS: |-
+    runtime_tiles::bind(0, id(tile1), id(t1_title), id(t1_value), id(tile1_icon_circle), id(tile1_icon_lbl));
+    runtime_tiles::bind(1, id(tile2), id(t2_title), id(t2_value), id(tile2_icon_circle), id(tile2_icon_lbl));
+    runtime_tiles::bind(2, id(tile3), id(t3_title), id(t3_value), id(tile3_icon_circle), id(tile3_icon_lbl));
+    runtime_tiles::bind(3, id(tile4), id(t4_title), id(t4_value), id(tile4_icon_circle), id(tile4_icon_lbl));
+
+lvgl:
+  pages:
+    - id: !extend home_page
+      widgets:
+        - obj:
+            id: !extend tile_scroll
+            widgets:
+              # ---------- CARD 1 ----------
+              - obj:
+                  id: tile1
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 0
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile1_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile1_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t1_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 1"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t1_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+              # ---------- CARD 2 ----------
+              - obj:
+                  id: tile2
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 0
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile2_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile2_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t2_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 2"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t2_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+              # ---------- CARD 3 ----------
+              - obj:
+                  id: tile3
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 0
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile3_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile3_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t3_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 3"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t3_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false
+              # ---------- CARD 4 ----------
+              - obj:
+                  id: tile4
+                  grid_cell_row_pos: 0
+                  grid_cell_column_pos: 0
+                  width: ${TILE_W}
+                  height: ${TILE_H}
+                  styles: style_tile
+                  scrollable: false
+                  scrollbar_mode: 'OFF'
+                  pressed:
+                    bg_opa: 45%
+                  widgets:
+                    - obj:
+                        id: tile4_icon_circle
+                        x: ${TILE_ICON_X}
+                        y: ${TILE_ICON_Y}
+                        width: ${TILE_ICON_SIZE}
+                        height: ${TILE_ICON_SIZE}
+                        styles: style_icon_circle
+                        clickable: false
+                        scrollable: false
+                        scrollbar_mode: 'OFF'
+                        widgets:
+                          - label:
+                              id: tile4_icon_lbl
+                              align: CENTER
+                              text_font: materialdesign_icons
+                              text: "\U000F002A"
+                              clickable: false
+                    - label:
+                        id: t4_title
+                        x: ${TILE_TITLE_X}
+                        y: ${TILE_TITLE_Y}
+                        text: "Tile 4"
+                        styles: style_title
+                        clickable: false
+                    - label:
+                        id: t4_value
+                        x: ${TILE_VALUE_X}
+                        y: ${TILE_VALUE_Y}
+                        text: "—"
+                        styles: style_value
+                        clickable: false

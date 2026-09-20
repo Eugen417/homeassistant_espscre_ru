@@ -226,8 +226,7 @@ struct Widgets {
   int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
   // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
   // Full (firmware 0.2.62+) takes the whole page: the double-width card's head on top, a control at the bottom.
-  // `base_y`: the card's row in the profile; without the page bar (firmware 0.2.69+) place_page moves it down.
-  bool wide=false, full=false; int base_width=0, base_height=0, base_y=0; const lv_font_t *title_font{};
+  bool wide=false, full=false; int base_width=0, base_height=0; const lv_font_t *title_font{};
   // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
   int base_circle=0,circle_y=12;
   lv_obj_t *extra{}; std::string extra_mode; bool extra_full=false; std::array<lv_obj_t *, 36> parts{}; lv_point_precise_t *points{};
@@ -252,13 +251,27 @@ struct Widgets {
   lv_obj_t *picture{};
 };
 constexpr unsigned POINT_BUFFER = 128;
-// Room for the largest grid a board may ask for; a board uses the first SLOTS_PER_PAGE of them.
-constexpr size_t MAX_CELLS = 20;
-static_assert(SLOTS_PER_PAGE <= MAX_CELLS, "grid larger than the bound tiles");
-inline std::array<Widgets, MAX_CELLS> widgets;
-// The grid's side margin and the gaps between cells, from the board (grid_configure at boot); -1 = sample the tiles.
-inline int grid_margin = -1, grid_gap_x = -1, grid_gap_y = -1;
-inline void grid_configure(int margin, int gap_x, int gap_y) { grid_margin = margin; grid_gap_x = gap_x; grid_gap_y = gap_y; }
+// One widget per cell of the board's grid: the cards packages/cells/<number>.yaml brings, bound at boot.
+inline std::array<Widgets, SLOTS_PER_PAGE> widgets;
+// The tile area. Its cells are an LVGL grid of GRID_COLUMNS by GRID_ROW_COUNT free units: LVGL divides the room
+// over the cells and keeps the gaps (the container's pad_row and pad_column) and the side margin (its padding),
+// so a board states columns and rows and nothing here computes a coordinate. place_page only says which cell a
+// card takes and how many it spans. The descriptors live as long as the grid does.
+inline lv_obj_t *tile_grid = nullptr;
+inline int grid_margin = 0, grid_base_height = 0;
+inline std::array<int32_t, GRID_COLUMNS + 1> grid_columns_dsc{};
+inline std::array<int32_t, GRID_ROW_COUNT + 1> grid_rows_dsc{};
+inline void grid_bind(lv_obj_t *container, int margin) {
+  tile_grid = container;
+  grid_margin = margin;
+  for (size_t c = 0; c < GRID_COLUMNS; ++c) grid_columns_dsc[c] = LV_GRID_FR(1);
+  grid_columns_dsc[GRID_COLUMNS] = LV_GRID_TEMPLATE_LAST;
+  for (size_t r = 0; r < GRID_ROW_COUNT; ++r) grid_rows_dsc[r] = LV_GRID_FR(1);
+  grid_rows_dsc[GRID_ROW_COUNT] = LV_GRID_TEMPLATE_LAST;
+  lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());
+  lv_obj_update_layout(container);
+  grid_base_height = lv_obj_get_height(container);
+}
 
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
@@ -2398,14 +2411,9 @@ inline bool slider_bar_shown(const Tile &t, bool on) { auto d = t.domain(); retu
 inline void set_hidden(lv_obj_t *obj, bool hidden) { if (hidden) lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); }
 // A card's size as its styles request it. LVGL's own getters only follow after a layout pass, and
 // that pass walks every object on the screen, so the cards are laid out without asking for one.
-inline int tile_width(const Widgets &w) {
-  int32_t width = lv_obj_get_style_width(w.tile, LV_PART_MAIN);
-  return LV_COORD_IS_PX(width) ? width : lv_obj_get_width(w.tile);
-}
-inline int tile_height(const Widgets &w) {
-  int32_t height = lv_obj_get_style_height(w.tile, LV_PART_MAIN);
-  return LV_COORD_IS_PX(height) ? height : lv_obj_get_height(w.tile);
-}
+// The card's size as the grid laid it out (place_page updates the layout before a card is drawn).
+inline int tile_width(const Widgets &w) { return lv_obj_get_width(w.tile); }
+inline int tile_height(const Widgets &w) { return lv_obj_get_height(w.tile); }
 inline int content_width(const Widgets &w) {
   return tile_width(w) - lv_obj_get_style_space_left(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_right(w.tile, LV_PART_MAIN);
 }
@@ -2426,7 +2434,6 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
   w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);w.base_circle=lv_obj_get_width(circle);w.circle_y=lv_obj_get_y(circle);
-  w.base_y=lv_obj_get_y(tile);
   w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   w.unit=lv_label_create(tile);lv_obj_set_style_text_font(w.unit,w.value_font,0);lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
@@ -3709,23 +3716,7 @@ inline void render_header() {
 // Inspect actual LVGL coordinates, including padding and the loaded font metrics.
 // The Previous and Next bar and the page number between them (show_page binds them).
 inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
-// The three rows of cards. With the Previous and Next bar on the screen they keep the profile's places. Without it
-// (one page, or the Page buttons setting off, firmware 0.2.69+) they share the room down to the bottom edge of the
-// screen, keeping the margin the sides have, and every card grows by a third of the bar's room.
-struct Rows { int top=0, height=0, pitch=0; };
-inline Rows rows(bool bar) {
-  const auto &first=widgets[0];
-  const int gap=grid_gap_y>=0?grid_gap_y:(widgets[GRID_COLUMNS].tile?widgets[GRID_COLUMNS].base_y-first.base_y-first.base_height:0);
-  Rows r{first.base_y,first.base_height,first.base_height+gap};
-  auto *grid=first.tile?lv_obj_get_parent(first.tile):nullptr;auto *screen=grid?lv_obj_get_parent(grid):nullptr;
-  if(bar || !screen)return r;
-  const int margin=grid_margin>=0?grid_margin:lv_obj_get_x(first.tile);
-  const int room=lv_obj_get_height(screen)-margin-lv_obj_get_y(grid)-first.base_y;
-  const int height=(room-(int)(GRID_ROW_COUNT-1)*gap)/(int)GRID_ROW_COUNT;
-  if(height>r.height){r.height=height;r.pitch=height+gap;}
-  return r;
-}
-inline Rows applied_rows;
+// Whether the Previous and Next bar was on screen at the last placement (the grid is taller without it).
 inline bool applied_bar=true;
 inline bool check_tile_geometry() {
   bool ok=true;
@@ -3738,11 +3729,12 @@ inline bool check_tile_geometry() {
     lv_obj_get_coords(w.title,&title);lv_obj_get_coords(w.value,&value);
     bool custom=lv_obj_has_flag(w.title,LV_OBJ_FLAG_HIDDEN);
     bool fits=true;
-    if(w.wide && widgets[1].tile){
-      // A wide card ends exactly where the right column ends.
-      lv_area_t left,right;lv_obj_get_coords(w.tile,&left);lv_obj_get_coords(widgets[1].tile,&right);
-      int expected=lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)+w.base_width;
-      fits=lv_obj_get_width(w.tile)==expected;
+    if(w.wide && !w.full && GRID_COLUMNS>1 && tile_grid){
+      // A wide card is two cells of its row plus the gap between them.
+      const int gap=lv_obj_get_style_pad_column(tile_grid,LV_PART_MAIN);
+      const int cell=(lv_obj_get_content_width(tile_grid)-(int)(GRID_COLUMNS-1)*gap)/(int)GRID_COLUMNS;
+      int expected=2*cell+gap;
+      fits=std::abs(lv_obj_get_width(w.tile)-expected)<=1;
       if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,lv_obj_get_width(w.tile),expected);
     }
     {
@@ -3856,30 +3848,25 @@ inline int place_page(int page) {
   int pages=place(model,placement);
   page=std::clamp(page,0,pages-1);
   const bool bar=pages>1 && page_buttons;
-  const Rows r=rows(bar);
-  applied_rows=r;applied_bar=bar;
-  // Every cell from the board's margin and gaps; a wide card spans two cells, a full card the page.
-  const int cell_w=widgets[0].base_width;
-  const int margin=grid_margin>=0?grid_margin:(widgets[0].tile?lv_obj_get_x(widgets[0].tile):0);
-  const int gap_x=grid_gap_x>=0?grid_gap_x:(widgets[0].tile && widgets[1].tile && GRID_COLUMNS>1 ? lv_obj_get_x(widgets[1].tile)-lv_obj_get_x(widgets[0].tile)-cell_w : 0);
-  int wide_width=GRID_COLUMNS>1?2*cell_w+gap_x:cell_w;
-  int full_width=(int)GRID_COLUMNS*cell_w+(int)(GRID_COLUMNS-1)*gap_x;
-  // A full card (firmware 0.2.62+) reaches from the first row to the end of the last.
-  int full_height=(int)(GRID_ROW_COUNT-1)*r.pitch+r.height;
-  // The tile area ends under the third row; a card outside it would be cut off.
-  if(auto *grid=widgets[0].tile?lv_obj_get_parent(widgets[0].tile):nullptr; grid && lv_obj_get_style_height(grid,LV_PART_MAIN)!=r.top+full_height)
-    lv_obj_set_height(grid,r.top+full_height);
+  applied_bar=bar;
+  // With the Previous and Next bar on screen the tile area keeps the height the board gave it; without it (one
+  // page, or the Page buttons setting off, firmware 0.2.69+) it reaches down to the bottom edge, keeping the
+  // margin the sides have. The cells share whatever height the area has.
+  if(tile_grid){
+    auto *screen=lv_obj_get_parent(tile_grid);
+    const int height=bar||!screen?grid_base_height:lv_obj_get_height(screen)-lv_obj_get_y(tile_grid)-grid_margin;
+    if(lv_obj_get_style_height(tile_grid,LV_PART_MAIN)!=height)lv_obj_set_height(tile_grid,height);
+  }
   for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=MAX_TILES;widgets[slot].wide=false;widgets[slot].full=false;widgets[slot].cached_active=-1;}
   for(size_t i=0;i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;w.full=model.tiles[i].full;}
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
     if(slot<SLOTS_PER_PAGE && w.index<model.count){
-      const int col=static_cast<int>(slot%GRID_COLUMNS),row=static_cast<int>(slot/GRID_COLUMNS);
-      const int x=margin+col*(cell_w+gap_x);
-      const int y=r.top+row*r.pitch;
-      if(lv_obj_get_style_x(w.tile,LV_PART_MAIN)!=x)lv_obj_set_x(w.tile,x);
-      if(lv_obj_get_style_y(w.tile,LV_PART_MAIN)!=y)lv_obj_set_y(w.tile,y);
-      lv_obj_set_size(w.tile,w.full?full_width:w.wide?wide_width:cell_w,w.full?full_height:r.height);lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
+      // A wide card takes two cells of its row (one on a single-column board), a full card the whole page.
+      const int32_t column=w.full?0:(int32_t)(slot%GRID_COLUMNS),row=w.full?0:(int32_t)(slot/GRID_COLUMNS);
+      const int32_t span_x=w.full?(int32_t)GRID_COLUMNS:w.wide&&GRID_COLUMNS>1?2:1,span_y=w.full?(int32_t)GRID_ROW_COUNT:1;
+      lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_STRETCH,column,span_x,LV_GRID_ALIGN_STRETCH,row,span_y);
+      lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
     }
     else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}
   }
@@ -3889,7 +3876,9 @@ inline int place_page(int page) {
   for(auto *control:{nav_prev,nav_next})if(lv_obj_get_child_count(control))
     set_number(lv_obj_get_child(control,0),LV_STYLE_TEXT_OPA,lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER);
   // The dots between the two chevrons (firmware 0.2.69+): the page on screen in ink.
-  if(bar && nav_number)settings_screen::page_dots(nav_number,page,pages,widgets[0].base_height>80);
+  if(bar && nav_number)settings_screen::page_dots(nav_number,page,pages,ui::large());
+  // The cards are drawn from the sizes the grid gives them, so it lays out before anything reads one.
+  if(tile_grid)lv_obj_update_layout(tile_grid);
   lap(swipe_profile::PLACE);
   return page;
 }
@@ -4107,7 +4096,7 @@ inline void tick() {
 // open card painted in code is drawn again here, in the same pass, so no frame shows half of each look.
 inline void restyle() {
   for (auto &w : widgets) { w.cached_active = -1; w.panel_dirty = true; }
-  if (nav_number && applied_bar && applied_page >= 0) settings_screen::page_dots(nav_number, applied_page, page_count(), widgets[0].base_height > 80);
+  if (nav_number && applied_bar && applied_page >= 0) settings_screen::page_dots(nav_number, applied_page, page_count(), ui::large());
   for (auto &slot : header_slots) { slot.own = true; slot.icon_color = UINT32_MAX; }
   if (room_label) { dirty_all = true; render(room_label); }
   if (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN) && detail_index < model.count) show_detail(detail_index);

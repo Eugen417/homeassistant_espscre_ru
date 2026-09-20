@@ -10,6 +10,11 @@
 #
 # Two entry files include this: guition-4848s040.yaml (a build on this computer) and packages/guition.yaml
 # (the package a screen builds from over GitHub).
+# The cards of this board's grid: one per cell, from the file for 4 cells
+# (tools/generate_cells.py writes them; docs/RESPONSIVE.md says why).
+packages:
+  cells: !include ../cells/4.yaml
+
 substitutions:
 
   # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
@@ -35,21 +40,15 @@ substitutions:
   TOUCH_SWAP_XY: "false"
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
-  # LAB (responsive): the grid as the board states it; the shared tree places the cells from these.
+  # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
+  # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
   GRID_COLS: "2"
   GRID_ROWS: "2"
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
-  UI_SCALE_PCT: "75"
-  TILE_H_STD: "82"
-  GRID_COL1_X: "16"
-  GRID_COL2_X: "246"
-  GRID_ROW1_Y: "0"
-  GRID_ROW2_Y: "92"
-  GRID_ROW3_Y: "184"
-  GRID_ROW4_Y: "276"
-  GRID_ROW5_Y: "368"
+  DISPLAY_DPI: "128"      # diagonal pixels / diagonal inches; the look's reference density on this board
+  LOOK: "standard"
   SCROLL_Y: "54"
   SCROLL_H: "173"
   TILE_W: "218"
@@ -649,140 +648,6 @@ lvgl:
             id: camera_image_seed
             hidden: true
             src: alert_image
-        # The tile labels get a width and an ellipsis on this board (the small panel keeps LVGL's content width).
-        - obj:
-            id: !extend tile_scroll
-            widgets:
-              - obj:
-                  id: !extend tile1
-                  widgets:
-                    - label:
-                        id: !extend t1_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t1_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile2
-                  widgets:
-                    - label:
-                        id: !extend t2_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t2_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile3
-                  widgets:
-                    - label:
-                        id: !extend t3_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t3_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile4
-                  widgets:
-                    - label:
-                        id: !extend t4_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t4_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile5
-                  widgets:
-                    - label:
-                        id: !extend t5_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t5_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile6
-                  widgets:
-                    - label:
-                        id: !extend t6_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t6_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile7
-                  widgets:
-                    - label:
-                        id: !extend t7_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t7_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile8
-                  widgets:
-                    - label:
-                        id: !extend t8_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t8_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile9
-                  widgets:
-                    - label:
-                        id: !extend t9_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t9_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
-              - obj:
-                  id: !extend tile10
-                  widgets:
-                    - label:
-                        id: !extend t10_title
-                        height: 24
-                        width: 130
-                        long_mode: DOT
-                    - label:
-                        id: !extend t10_value
-                        height: 22
-                        width: 130
-                        long_mode: DOT
         - obj:
             id: !extend climate_detail_overlay
             widgets:

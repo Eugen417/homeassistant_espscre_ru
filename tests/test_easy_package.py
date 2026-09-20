@@ -36,6 +36,11 @@ class PackageTests(unittest.TestCase):
         for board, profile in BOARDS.items():
             for name in (profile, f'packages/{board}.yaml'):
                 self.assertEqual(sorted(checker.included(ROOT / name)), sorted(['packages/core.yaml', str(profiles.BOARDS[board].relative_to(ROOT))]), name)
+                # The board brings the cards of its grid.
+                cells = profiles.cells_of(profiles.BOARDS[board])
+                self.assertEqual(len(cells), 1, board)
+                grid = profiles.substitutions_of(profiles.BOARDS[board])
+                self.assertEqual(cells[0].name, f"{int(grid['GRID_COLS']) * int(grid['GRID_ROWS'])}.yaml", board)
 
     def test_the_published_entry_takes_everything_from_github(self):
         for board in BOARDS:
@@ -82,7 +87,10 @@ class PackageTests(unittest.TestCase):
     def test_runtime_tiles_keep_what_they_bind_and_open(self):
         for board in BOARDS:
             package = profiles.text(f'packages/{board}.yaml')
-            for key in ['runtime_tiles::bind(9, id(tile10)', 'runtime_tiles::enabled = true;', 'id: open_value_overlay',
+            # One card per cell of the board's grid, and the parts every screen has.
+            grid = profiles.substitutions_of(profiles.BOARDS[board])
+            cells = int(grid['GRID_COLS']) * int(grid['GRID_ROWS'])
+            for key in [f'runtime_tiles::bind({cells - 1}, id(tile{cells})', 'runtime_tiles::enabled = true;', 'id: open_value_overlay',
                         'id: ui_refresh', 'runtime_tiles::render(id(lbl_room));', 'id: climate_detail_overlay',
                         'id: color_detail_overlay']:
                 self.assertIn(key, package, board)

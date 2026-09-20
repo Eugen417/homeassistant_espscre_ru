@@ -28,9 +28,20 @@ def board_of(name):
     return ENTRIES[str(name).replace(str(ROOT) + '/', '')]
 
 
+def cells_of(board_file):
+    """The cells package a board file brings: the cards of its grid (packages/cells/<number>.yaml)."""
+    found = []
+    block = re.search(r'^packages:\n(.*?)(?=^[a-z_]+:|\Z)', board_file.read_text(), re.M | re.S)
+    if block:
+        for include in re.findall(r'!include (\S+)', block[1]):
+            found.append((board_file.parent / include).resolve())
+    return found
+
+
 def files(name):
-    """The entry, the core and the board file of a profile name, in that order."""
-    return [ROOT / name, CORE, BOARDS[board_of(name)]]
+    """The entry, the core, the cards of the board's grid and the board file, in that order."""
+    board = BOARDS[board_of(name)]
+    return [ROOT / name, CORE, *cells_of(board), board]
 
 
 def text(name):

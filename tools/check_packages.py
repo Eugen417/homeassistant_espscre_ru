@@ -61,6 +61,9 @@ def main():
     board_names = {}
     for board, path in profiles.BOARDS.items():
         values = profiles.substitutions_of(path)
+        # The cards of the board's grid come from its cells package, which defines the line that binds them.
+        for cells in profiles.cells_of(path):
+            values = {**profiles.substitutions_of(cells), **values}
         board_names[board] = set(values)
         # A hook's code may name sizes of its own.
         used_here = used | {name for value in values.values() for name in PLACEHOLDER.findall(value)}
