@@ -2615,10 +2615,10 @@ script:
             }
           }
 
-          // Track and fill are the pale blue and blue paints of overlay_slider. Their radius is the board's
-          // (${OVERLAY_SLIDER_RADIUS} on both parts, in the widget above) and is never set here: a fill rounded
-          // less than its track makes lv_bar draw it into an ARGB layer of tens of kilobytes on every redraw,
-          // which a CYD cannot allocate - it then retries until the watchdog restarts the board (2026-09-21).
+          // Track and fill are the pale blue and blue paints of overlay_slider. Both keep the radius the
+          // widget was given (OVERLAY_SLIDER_RADIUS): a fill rounded less than its track makes LVGL draw
+          // it into an ARGB layer of its own on every redraw (96 x 160 x 4 = 61 KB on a CYD), and when
+          // that allocation fails LVGL retries until the task watchdog resets the board.
           lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
 
           lv_label_set_text(id(overlay_title), title.c_str());

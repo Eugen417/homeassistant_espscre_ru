@@ -51,6 +51,23 @@ class LayerFreeTests(unittest.TestCase):
                 self.assertIn((widget, value, 'LV_PART_MAIN'), found, f'{path.name}: fill radius {value} of {widget} differs from its track')
         self.assertGreaterEqual(checked, 2)
 
+    def test_yaml_lambdas_keep_the_track_radius(self):
+        """A lambda in the YAML that rounds a fill gives it the same expression as the track it rounds beside it.
+
+        The overlay slider's open script once set its track to 28 and its fill to 0: on a CYD that fill was drawn
+        through a 96 x 160 ARGB layer of 61 KB on every redraw, and a drag while the heap was busy reset the board.
+        """
+        statement = re.compile(r'lv_obj_set_style_radius\(id\((\w+)\),\s*([^;]*?),\s*(LV_PART_MAIN|LV_PART_INDICATOR)\s*\)')
+        checked = 0
+        for name in PROFILES:
+            found = [(m.group(1), m.group(2).strip(), m.group(3)) for m in statement.finditer(profiles.text(name))]
+            for widget, value, part in found:
+                if part != 'LV_PART_INDICATOR':
+                    continue
+                checked += 1
+                self.assertIn((widget, value, 'LV_PART_MAIN'), found, f'{name}: fill radius {value} of {widget} differs from its track')
+        self.assertGreaterEqual(checked, 0)
+
     def test_yaml_slider_fill_keeps_the_track_radius(self):
         for name in PROFILES:
             text = profiles.text(name)
