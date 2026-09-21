@@ -602,7 +602,7 @@ script:
                 lv_obj_get_coords(id(tile_scroll), &grid);
                 ok = ok && (!bar || grid.y2 < nav.y1);
                 if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
-                ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), grid.y2, nav.y1);
+                ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), (int) grid.y2, (int) nav.y1);
                 id(tile_page) = 0;
             - script.execute: show_tile_page
             - delay: 150ms

@@ -15,7 +15,7 @@ inline bool check_geometry(lv_obj_t *obj) {
       (area.x1 < 0 || area.y1 < 0 || area.x2 >= lv_display_get_horizontal_resolution(lv_display_get_default()) ||
        area.y2 >= lv_display_get_vertical_resolution(lv_display_get_default()))) {
     ESP_LOGE("ui_test", "GEOMETRY FAIL clickable=(%d,%d)-(%d,%d)",
-             area.x1, area.y1, area.x2, area.y2);
+             (int) area.x1, (int) area.y1, (int) area.x2, (int) area.y2);
     ok = false;
   }
   for (uint32_t i = 0; i < lv_obj_get_child_count(obj); ++i)

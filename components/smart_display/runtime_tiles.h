@@ -1087,7 +1087,7 @@ inline void slider_event(lv_event_t *e){
       int screen=lv_display_get_horizontal_resolution(lv_obj_get_display(slider));
       int snap=cyd::edge_snap(p.x,a.x1,a.x2,screen,cyd::edge_snap_band);
       if(snap){int end=snap>0?(int)lv_slider_get_max_value(slider):std::max(0,(int)lv_slider_get_min_value(slider));
-        ESP_LOGI("slider","Let go %d px from the %s edge: slider %d -> %d",snap>0?screen-1-(int)p.x:(int)p.x,snap>0?"right":"left",lv_slider_get_value(slider),end);
+        ESP_LOGI("slider","Let go %d px from the %s edge: slider %d -> %d",snap>0?screen-1-(int)p.x:(int)p.x,snap>0?"right":"left",(int)lv_slider_get_value(slider),end);
         lv_slider_set_value(slider,end,LV_ANIM_OFF);changed=true;}
     }
     if(changed && cyd::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
@@ -2834,8 +2834,8 @@ inline const char *icon_for(const Tile &tile) {
 }
 inline std::string countdown(uint32_t seconds) {
   char b[16];
-  if (seconds >= 3600) snprintf(b, sizeof(b), "%u:%02u:%02u", seconds / 3600, seconds / 60 % 60, seconds % 60);
-  else snprintf(b, sizeof(b), "%u:%02u", seconds / 60, seconds % 60);
+  if (seconds >= 3600) snprintf(b, sizeof(b), "%u:%02u:%02u", (unsigned)(seconds / 3600), (unsigned)(seconds / 60 % 60), (unsigned)(seconds % 60));
+  else snprintf(b, sizeof(b), "%u:%02u", (unsigned)(seconds / 60), (unsigned)(seconds % 60));
   return b;
 }
 // "Last 14:32" today, "Yesterday 14:32", else "Last 13 Sep", in the screen's language; scripts and scenes have no
@@ -4444,7 +4444,7 @@ inline bool check_tile_geometry() {
       const int cell=(lv_obj_get_content_width(tile_grid)-(int)(GRID_COLUMNS-1)*gap)/(int)GRID_COLUMNS;
       int expected=2*cell+gap;
       fits=std::abs(lv_obj_get_width(w.tile)-expected)<=1;
-      if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,lv_obj_get_width(w.tile),expected);
+      if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,(int)lv_obj_get_width(w.tile),expected);
     }
     {
       // Every card lies inside the tile area, a full card reaches its end, and the area stays clear of the page bar
@@ -4456,7 +4456,7 @@ inline bool check_tile_geometry() {
       bool placed=card.y1>=area.y1 && card.y2<=area.y2 && area.y2<=screen.y2-margin && (!w.full || card.y2==area.y2);
       if(applied_bar && nav_next){lv_area_t nav;lv_obj_get_coords(nav_next,&nav);placed=placed && area.y2<nav.y1;}
       if(!applied_bar)placed=placed && area.y2>=screen.y2-margin-3;
-      if(!placed){fits=false;ESP_LOGE("ui_test","Card place FAIL slot=%u card=%d..%d area=%d..%d screen_bottom=%d bar=%d",(unsigned)w.index,card.y1,card.y2,area.y1,area.y2,screen.y2,applied_bar);}
+      if(!placed){fits=false;ESP_LOGE("ui_test","Card place FAIL slot=%u card=%d..%d area=%d..%d screen_bottom=%d bar=%d",(unsigned)w.index,(int)card.y1,(int)card.y2,(int)area.y1,(int)area.y2,(int)screen.y2,applied_bar);}
     }
     if(!custom && w.full){
       // Everything inside the card, the name above the state, a slider or the controls below them.
@@ -4486,7 +4486,7 @@ inline bool check_tile_geometry() {
         fits=fits && circle.x1>=content.x1 && circle.x2<title.x1 && circle.y1>card.y1;
         if(mini)fits=fits && circle.y2<track.y1;
         else fits=fits && circle.y2<card.y2;
-        if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,circle.x1,circle.y1,circle.x2,circle.y2,title.x1,content.x1,content.y1,content.x2,content.y2);
+        if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,(int)circle.x1,(int)circle.y1,(int)circle.x2,(int)circle.y2,(int)title.x1,(int)content.x1,(int)content.y1,(int)content.x2,(int)content.y2);
         bool watch=w.index<model.count && model.tiles[w.index].display=="watch";
         bool graph=w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN) && w.extra_mode=="graph";
         if(!watch && !graph && (mini || !ui::large())){
@@ -4512,25 +4512,25 @@ inline bool check_tile_geometry() {
         lv_area_t part;lv_obj_get_coords(child,&part);
         inside=inside && part.x1>=panel.x1 && part.x2<=panel.x2 && part.y1>=panel.y1 && part.y2<=panel.y2;
       }
-      if(!inside)ESP_LOGE("ui_test","Panel bounds slot=%u mode=%s panel=%d,%d..%d,%d title_x2=%d content=%d,%d..%d,%d",(unsigned)w.index,w.panel_mode.c_str(),panel.x1,panel.y1,panel.x2,panel.y2,title.x2,content.x1,content.y1,content.x2,content.y2);
+      if(!inside)ESP_LOGE("ui_test","Panel bounds slot=%u mode=%s panel=%d,%d..%d,%d title_x2=%d content=%d,%d..%d,%d",(unsigned)w.index,w.panel_mode.c_str(),(int)panel.x1,(int)panel.y1,(int)panel.x2,(int)panel.y2,(int)title.x2,(int)content.x1,(int)content.y1,(int)content.x2,(int)content.y2);
       fits=fits && inside;
     }
     if(w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN)){
       // Custom parts stay inside the card; a graph never runs into the text.
       lv_area_t extra;lv_obj_get_coords(w.extra,&extra);
       const bool extra_inside=extra.x1>=content.x1 && extra.x2<=content.x2 && extra.y1>=content.y1 && extra.y2<=content.y2;
-      if(!extra_inside)ESP_LOGE("ui_test","Extra bounds slot=%u mode=%s extra=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),extra.x1,extra.y1,extra.x2,extra.y2,content.x1,content.y1,content.x2,content.y2);
+      if(!extra_inside)ESP_LOGE("ui_test","Extra bounds slot=%u mode=%s extra=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),(int)extra.x1,(int)extra.y1,(int)extra.x2,(int)extra.y2,(int)content.x1,(int)content.y1,(int)content.x2,(int)content.y2);
       fits=fits && extra_inside;
       for(auto *p:w.parts){
         if(!p || lv_obj_has_flag(p,LV_OBJ_FLAG_HIDDEN))continue;
         lv_area_t part;lv_obj_get_coords(p,&part);
         bool inside=part.x1>=content.x1 && part.x2<=content.x2 && part.y1>=content.y1 && part.y2<=content.y2;
-        if(!inside)ESP_LOGE("ui_test","Part bounds slot=%u mode=%s part=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),part.x1,part.y1,part.x2,part.y2,content.x1,content.y1,content.x2,content.y2);
+        if(!inside)ESP_LOGE("ui_test","Part bounds slot=%u mode=%s part=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),(int)part.x1,(int)part.y1,(int)part.x2,(int)part.y2,(int)content.x1,(int)content.y1,(int)content.x2,(int)content.y2);
         fits=fits && inside;
         if(w.extra_mode=="graph" && !custom)fits=fits && (w.wide && !w.full?part.x1>value.x2:part.y1>value.y2);
       }
     }
-    if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u mode=%s wide=%d title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,w.extra_mode.c_str(),w.wide,title.y1,title.y2,value.y1,value.y2,content.y1,content.y2);
+    if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u mode=%s wide=%d title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,w.extra_mode.c_str(),w.wide,(int)title.y1,(int)title.y2,(int)value.y1,(int)value.y2,(int)content.y1,(int)content.y2);
     if(w.index<model.count && model.tiles[w.index].background){
       bool palette_ok=lv_color_eq(lv_obj_get_style_bg_color(w.tile,LV_PART_MAIN),lv_color_hex(theme::surface(model.tiles[w.index].background))) &&
         lv_color_eq(lv_obj_get_style_text_color(w.title,LV_PART_MAIN),theme::color(theme::INK));

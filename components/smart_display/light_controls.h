@@ -133,7 +133,7 @@ inline void event(lv_event_t *e) {
       const int snap = cyd::edge_snap(p.x, a.x1, a.x2, screen, cyd::edge_snap_band);
       if (snap) {
         const int end = snap > 0 ? lv_slider_get_max_value(row.slider) : lv_slider_get_min_value(row.slider);
-        ESP_LOGI("slider", "Let go %d px from the %s edge: slider %d -> %d", snap > 0 ? screen - 1 - (int) p.x : (int) p.x, snap > 0 ? "right" : "left", lv_slider_get_value(row.slider), end);
+        ESP_LOGI("slider", "Let go %d px from the %s edge: slider %d -> %d", snap > 0 ? screen - 1 - (int) p.x : (int) p.x, snap > 0 ? "right" : "left", (int) lv_slider_get_value(row.slider), end);
         lv_slider_set_value(row.slider, end, LV_ANIM_OFF);
         preview(row);
       }

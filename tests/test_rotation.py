@@ -1,8 +1,11 @@
 import re
 import tempfile
 import unittest
-from pathlib import Path
 import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / 'tools'))
+import profiles  # noqa: E402
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import test_portal
 from core import turns_of, validate_settings
@@ -79,7 +82,10 @@ class EdgeBandTests(unittest.TestCase):
     ROOT = Path(__file__).resolve().parent.parent
 
     def test_every_board_gives_the_edge_swipe_the_width_of_its_glass(self):
-        for board in sorted((self.ROOT / 'packages' / 'boards').glob('*.yaml')):
+        # The boards that ship (tools/profiles.py), not every file in the folder: a lab board is generated,
+        # disposable and gitignored (docs/RESPONSIVE.md), so an old one on a developer's machine would fail a
+        # check that CI, which has none of them, calls green. Every other generated-file check scopes this way.
+        for board in sorted(profiles.BOARDS.values()):
             text = board.read_text()
             for call in re.findall(r'cyd::edge_swipe\.configure\(([^)]*)\)', text):
                 first = call.split(',')[0].strip()

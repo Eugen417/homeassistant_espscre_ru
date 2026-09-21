@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.83"
+  SCREEN_FIRMWARE_VERSION: "0.2.84"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -303,10 +303,13 @@ api:
       then:
         - lambda: |-
             const auto &cfg = screen_settings::current;
+            // The settings are int32_t, and on this toolchain int32_t is `long int`, not `int`: %d then warns on
+            // every one of them (eleven warnings a build, which is how a real one goes unnoticed). Both are 32 bits
+            // on an ESP32, so the numbers were right; the cast says so to the compiler as well.
             ESP_LOGI("ui_diag", "settings standby=%d timeout=%d brightness=%d dim=%d night=%d start=%d end=%d night_dim=%d clock=%d clock24=%d home=%d idle_ms=%u use_idle_ms=%u dimmed=%d",
-              cfg.standby_enabled, cfg.standby_seconds, cfg.brightness, cfg.standby_brightness,
-              cfg.night_enabled, cfg.night_start, cfg.night_end, cfg.night_brightness,
-              cfg.show_clock, cfg.clock_24h, cfg.home_on_standby,
+              (int) cfg.standby_enabled, (int) cfg.standby_seconds, (int) cfg.brightness, (int) cfg.standby_brightness,
+              (int) cfg.night_enabled, (int) cfg.night_start, (int) cfg.night_end, (int) cfg.night_brightness,
+              (int) cfg.show_clock, (int) cfg.clock_24h, (int) cfg.home_on_standby,
               (unsigned)(millis() - id(last_touch_ms)), (unsigned)(millis() - id(last_use_ms)), id(display_dimmed));
             ESP_LOGI("ui_diag", "navigation page=%d runtime_detail=%d", id(tile_page),
               runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
@@ -317,7 +320,8 @@ api:
             lv_obj_get_coords(id(tile_scroll), &grid);
             ESP_LOGI("ui_diag", "home=%d calibration=%d grid=%d,%d,%d,%d next=%d,%d,%d,%d",
                 lv_screen_active() == id(home_page)->obj, lv_screen_active() == id(touch_cal_page)->obj,
-                grid.x1, grid.y1, grid.x2, grid.y2, nav.x1, nav.y1, nav.x2, nav.y2);
+                (int) grid.x1, (int) grid.y1, (int) grid.x2, (int) grid.y2,
+                (int) nav.x1, (int) nav.y1, (int) nav.x2, (int) nav.y2);
     - action: preview_runtime_card
       variables:
         index: int
@@ -350,7 +354,7 @@ api:
             id(last_use_ms) = millis();
             id(wake_display).execute();
             settings_screen::open((uint8_t) page);
-            ESP_LOGI("settings", "page %d open from Home Assistant", page);
+            ESP_LOGI("settings", "page %d open from Home Assistant", (int) page);
 
     # Diagnostics: the busy sheet of a tile, without touching the glass or Home Assistant.
     - action: preview_busy
