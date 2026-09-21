@@ -322,29 +322,43 @@ describe("AppSettingsView", () => {
   });
 });
 
-describe("a title of its own for a page (app 0.2.103)", () => {
-  // You click the bar and change what it says: the page's own title stands in that same inspector, under the screen's.
-  it("changes the page whose bar was clicked", async () => {
+describe("the title above a page (app 0.2.105)", () => {
+  // You click a page's bar and answer one question: what stands above this page.
+  it("asks it for the page whose bar was clicked", async () => {
     state.layout = { title: "Living room", tiles: [], pages: 3 };
     openBar(0, 1);
     const drawer = mount(TopbarInspector, { props: { index: 0 } });
     const field = drawer.find("#page-title");
-    expect(drawer.find("label[for='page-title']").text()).toBe("Title on page 2");
-    // Empty shows the screen's own title, so a page that inherits it looks inherited.
+    expect(drawer.find("label[for='page-title']").text()).toBe("Title above page 2");
+    // Empty says what page 1 says, so a page that follows it looks like it does.
     expect((field.element as HTMLInputElement).value).toBe("");
     expect(field.attributes("placeholder")).toBe("Living room");
+    expect(drawer.find("#page-title-hint").text()).toBe("Leave empty and this page says the same as page 1.");
     await field.setValue("Music");
     expect(state.layout!.page_titles).toEqual(["", "Music"]);
     // Clearing it hands the page back and leaves nothing behind.
     await field.setValue("");
     expect(state.layout!.page_titles).toBeUndefined();
   });
-  it("is not offered on a screen of one page, where it could only repeat the screen's title", () => {
+  it("is the screen's own title on page 1, and stores it there", async () => {
+    state.layout = { title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] };
+    openBar(0, 0);
+    const drawer = mount(TopbarInspector, { props: { index: 0 } });
+    const field = drawer.find("#page-title");
+    expect((field.element as HTMLInputElement).value).toBe("Living room");
+    // Page 1 has no line of its own to explain, and no entry of its own to store.
+    expect(drawer.find("#page-title-hint").exists()).toBe(false);
+    await field.setValue("Downstairs");
+    expect(state.layout!.title).toBe("Downstairs");
+    expect(state.layout!.page_titles).toEqual(["", "Music"]);
+  });
+  it("names one field only, whatever the screen has", () => {
     state.layout = { title: "Living room", tiles: [] };
     openBar(0, 0);
-    expect(mount(TopbarInspector, { props: { index: 0 } }).find("#page-title").exists()).toBe(false);
-    state.layout = { title: "Living room", tiles: [], pages: 2 };
-    expect(mount(TopbarInspector, { props: { index: 0 } }).find("#page-title").exists()).toBe(true);
+    const one = mount(TopbarInspector, { props: { index: 0 } });
+    expect(one.findAll("#page-title")).toHaveLength(1);
+    expect(one.find("#title").exists()).toBe(false);
+    expect(one.find("label[for='page-title']").text()).toBe("Title above the page");
   });
   it("shows the page's own title in that page's mockup bar, and opens that page's field", async () => {
     state.layout = { title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] };

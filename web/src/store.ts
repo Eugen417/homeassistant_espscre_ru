@@ -41,9 +41,9 @@ export const state = reactive({
   search: "",
   capabilities: {} as Record<string, Capability | null>,
   entityActions: {} as Record<string, EntityAction[] | null | undefined>,
-  // Per entity, the values its second line may say: Home Assistant's own named attributes (app 0.2.103).
+  // Per entity, the values its second line may say: Home Assistant's own named attributes (app 0.2.105).
   subtitleValues: {} as Record<string, { key: string; name: string }[] | undefined>,
-  // The page whose top bar the inspector is showing (app 0.2.103).
+  // The page whose top bar the inspector is showing (app 0.2.105).
   barPage: 0,
   topbarPreviews: {} as Record<string, any>,
   topbarAdded: null as null | { key: string; time: number },
@@ -216,7 +216,7 @@ export async function loadCapabilities(entities: string[]) {
     wanted.forEach((id) => askedCapabilities.delete(id));
   }
 }
-// The values one entity's second line may say (app 0.2.103). The list is Home Assistant's own - the attributes its
+// The values one entity's second line may say (app 0.2.105). The list is Home Assistant's own - the attributes its
 // frontend translations name - so nothing here is a list we keep, and an entity it names none of answers empty.
 const askedSubtitles = new Set<string>();
 export async function loadSubtitleValues(entity: string) {
@@ -442,21 +442,23 @@ export function openTile(tile: Tile) {
   state.inspector = { kind: "tile" };
   loadCapabilities([tile.entity]);
 }
-// A title of its own for a page (app 0.2.103). The screen's title stands on every page, which is what most screens
-// want; a page that should say something else gets it here, and clearing it hands the page back to the screen's.
-// Stored as one entry per page, trailing empty ones dropped, so a screen where nobody set one carries nothing.
-export const pageTitle = (page: number) => state.layout?.page_titles?.[page] ?? "";
+// The title above one page (app 0.2.105), which is the one thing the top bar's inspector asks per page. Page 1's is
+// the screen's own title, the one every other page falls back to; a later page may say something else, and clearing
+// it hands that page back. Stored as one entry per page with page 1's always empty (validate_layout keeps it so),
+// trailing empty ones dropped, so a screen where nobody set one carries nothing.
+export const pageTitle = (page: number) => (page === 0 ? state.layout?.title ?? "" : state.layout?.page_titles?.[page] ?? "");
 export const pageTitleShown = (page: number) => pageTitle(page) || state.layout?.title || "";
 export function setPageTitle(page: number, value: string) {
   if (!state.layout) return;
+  if (page === 0) state.layout.title = value;
   const names = [...(state.layout.page_titles ?? [])];
   while (names.length <= page) names.push("");
-  names[page] = value;
+  names[page] = page === 0 ? "" : value;
   while (names.length && !names[names.length - 1]) names.pop();
   state.layout.page_titles = names.length ? names : undefined;
   markDirty();
 }
-// `page` is the page whose bar was clicked (app 0.2.103): the inspector changes that page's own title there,
+// `page` is the page whose bar was clicked (app 0.2.105): the inspector changes that page's own title there,
 // which is where you look for it after clicking the bar.
 export function openBar(index: number, page = 0) {
   if (!(state.inspector?.kind === "bar" && state.inspector.index === index)) state.iconPickerOpen = false;

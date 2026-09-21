@@ -1225,6 +1225,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
     # A title of its own for a page (app 0.2.105). The screen's title stands on every page, which is what most
     # screens want; a page that should say something else says it here, and an empty entry means the screen's.
     # Trailing empty entries are dropped, so a layout where nobody set one carries nothing at all.
+    # Page 1 says the screen's title and nothing else: the editor has one field per page, and for page 1 that field
+    # is the title itself. An entry for page 1 would be a title nobody can reach from there, so it is dropped and
+    # the firmware never sees one - what the editor shows and what the screen shows stay the same thing.
     if 'page_titles' in data:
         names = data['page_titles']
         pages = grid.pages if grid else FIRMWARE_MAX_PAGES
@@ -1235,6 +1238,8 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if not isinstance(name, str) or len(name.encode()) > 96:
                 raise ValueError(t('addon.errors.layout.page_title'))
             clean_names.append(name.strip())
+        if clean_names:
+            clean_names[0] = ''
         while clean_names and not clean_names[-1]:
             clean_names.pop()
         if clean_names:
