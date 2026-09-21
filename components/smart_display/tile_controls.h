@@ -621,6 +621,17 @@ inline bool light_colour(const Tile &t) {
   return false;
 }
 
+// Whether a light can be dimmed at all. Home Assistant lists "onoff" and nothing else for a light that is only
+// a switch (a relay behind a ceiling lamp), and its own dialog then shows no brightness control - so neither
+// does ours: the card draws the light's icon instead of a slider that sends a brightness the light ignores.
+// A light that says nothing about its modes is taken for a dimmer, which is what every screen did before.
+inline bool light_dims(const Tile &t) {
+  if (t.domain() != "light") return true;   // a fan's speed is its percentage, and it always has one
+  if (t.modes.empty()) return true;
+  return t.modes.find("brightness") != std::string::npos || light_colour(t) ||
+         t.modes.find("white") != std::string::npos;
+}
+
 inline Tap tap_route(const Tile &t, bool hold) {
   const std::string d = t.domain();
   if (t.tap == "none") return {};

@@ -34,22 +34,32 @@ static Metrics waveshare() {
 
 // Nothing outside the glass, nothing over anything else, the slider inside its card, the power key a finger.
 static void sound(const Metrics &m, const Layout &l, int width, int height) {
+  // A card either has a slider or the round field that replaces it, never both and never neither.
+  assert(l.slider.empty() != l.halo.empty());
   const Rect *parts[] = {&l.card, &l.value, &l.caption};
   for (const Rect *r : parts) if (!r->empty()) assert(inside(*r, width, height));
   for (unsigned a = 0; a < 3; ++a)
     for (unsigned b = a + 1; b < 3; ++b) assert(apart(*parts[a], *parts[b]));
-  assert(!l.card.empty() && !l.slider.empty() && !l.value.empty());
+  assert(!l.card.empty() && !l.value.empty());
   assert(inside(l.power, width, height) && l.power.w >= m.touch && l.power.h >= m.touch);
   assert(l.power.y + l.power.h <= l.card.y);
-  // The slider stands in its card, keeps a thumb's width, and is centred on it.
-  assert(l.slider.x >= l.card.x && l.slider.right() <= l.card.right());
-  assert(l.slider.y >= l.card.y && l.slider.bottom() <= l.card.bottom());
-  assert(l.slider.w == std::min(m.slider_w(), l.card.w - 2 * m.edge()));
-  assert(std::abs(l.slider.cx() - l.card.cx()) <= 1);
-  // The icon rides on the slider, never above its top edge.
+  const Rect &field = l.slider.empty() ? l.halo : l.slider;
+  // The slider (or the round field) stands in its card and is centred on it.
+  assert(field.x >= l.card.x && field.right() <= l.card.right());
+  assert(field.y >= l.card.y && field.bottom() <= l.card.bottom());
+  assert(std::abs(field.cx() - l.card.cx()) <= 1);
+  if (!l.slider.empty()) {
+    assert(l.slider.w == std::min(m.slider_w(), l.card.w - 2 * m.edge()));
+  } else {
+    // The round field is round, big enough to read, and its icon sits in the middle of it.
+    assert(l.halo.w == l.halo.h && l.halo.w >= m.touch);
+    assert(l.caption.empty());   // there is no slider to name
+    assert(std::abs(l.icon.cx() - l.halo.cx()) <= 1 && std::abs(l.icon.cy() - l.halo.cy()) <= 1);
+  }
+  // The icon rides on its field, never outside it.
   if (!l.icon.empty()) {
-    assert(l.icon.x >= l.slider.x && l.icon.right() <= l.slider.right());
-    assert(l.icon.y >= l.slider.y && l.icon.bottom() <= l.slider.bottom());
+    assert(l.icon.x >= field.x && l.icon.right() <= field.right());
+    assert(l.icon.y >= field.y && l.icon.bottom() <= field.bottom());
   }
   // The value reads as the state line: under the card in one column, beside the slider in two.
   if (l.columns == 1) {
@@ -63,8 +73,10 @@ static void sound(const Metrics &m, const Layout &l, int width, int height) {
 
 static void sweep(const Metrics &m, int width, int height) {
   const int columns = stacked_height(m) > height && width * 2 >= height * 3 ? 2 : 1;
-  sound(m, layout(m, width, height, columns), width, height);
-  sound(m, layout(m, width, height, 1), width, height);
+  for (bool dims : {true, false}) {
+    sound(m, layout(m, width, height, columns, dims), width, height);
+    sound(m, layout(m, width, height, 1, dims), width, height);
+  }
 }
 
 int main() {
@@ -98,6 +110,22 @@ int main() {
     // Glass this short cannot give the slider its full height; it gives it everything there is, which is
     // what the two columns were for. Nothing else is left to take: the slider is the card.
     assert(l.card.bottom() == 272 - m.margin() && l.slider.h == l.card.h - 2 * m.edge());
+  }
+  // A light that only switches (Home Assistant lists "onoff" and nothing else): no slider, its icon on a round
+  // field in the middle of the card, and nothing that would name a brightness it does not have.
+  {
+    Metrics m = guition();
+    Layout l = layout(m, 480, 480, 1, false);
+    sound(m, l, 480, 480);
+    assert(l.slider.empty() && !l.halo.empty() && l.caption.empty());
+    assert(l.halo.w == m.halo() && !l.icon.empty());
+    assert(!l.value.empty() && l.value.y == l.card.bottom());
+  }
+  {
+    Metrics m = cyd();
+    Layout l = layout(m, 320, 240, 1, false);
+    sound(m, l, 320, 240);
+    assert(l.halo.w <= l.card.h - 2 * m.edge());
   }
   // Every shape, in both looks.
   sweep(guition(), 480, 480);

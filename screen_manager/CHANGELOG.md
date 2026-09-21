@@ -1,3 +1,12 @@
+## 0.2.101 (firmware 0.2.86)
+
+A light that only switches stops pretending it can be dimmed, and a screen stops offering an update it cannot install.
+
+- **No brightness slider on a light that has none.** Home Assistant lists `onoff` and nothing else for a light that is really a relay - a ceiling lamp on a wall switch - and its own dialog shows no brightness for it. Ours drew the slider anyway: it stood empty while the light was on, jumped to where your finger left it, and fell back to empty the moment the light answered without a brightness, because every drag sent one the light throws away. The card now shows the light's icon on a round field where the slider would be, in the same two colours the slider's track has, and the power key in the top bar does the work. A light that dims, and every fan, are unchanged.
+- **A screen ESP Screens did not install no longer advertises an update.** Without a YAML in the ESPHome folder there is nothing to build from, so the button did nothing at all when pressed. The screen now says why, with the sentence the add-on already had for it. The nightly round always passed such a screen by; only the button was wrong.
+- **The build log is quiet.** The eighteen `-Wdangling-reference` warnings left in the message parser are gone, with the reason written where they were: GCC cannot tell that the array ArduinoJson hands back points into the document rather than into the temporary it was asked on, and the warning stays on everywhere else. With 0.2.99's casts, a real ESP build goes from 79 warnings to none.
+- Needs firmware 0.2.86. Press **Update** on the screen. Includes everything from 0.2.99.
+
 ## 0.2.99 (firmware 0.2.84)
 
 What a finger does on a ten-inch screen, and what a card does with glass that wide.
