@@ -1,3 +1,11 @@
+## 0.2.98 (firmware 0.2.83)
+
+The screens say what a picture costs them.
+
+- **The other half of the memory, as two entities.** The four heap figures a screen reports come from ESPHome's debug platform, and on an ESP32 all four read the memory inside the chip. Nothing said what the PSRAM held, while that is where a camera picture or an album cover of a megabyte or more ends up. **Psram Free** and **Psram Largest Block** now say it, as diagnostics beside the others; a board without PSRAM reports zero. The second one is the one that decides: a picture needs one block, not a total, so 2 MB free in ten pieces holds no picture of 2 MB.
+- **What one picture does to both halves, in the log.** Every picture takes the same road, an image of exactly the pixels the screen asked for, decoded to two bytes a pixel, and the allocator prefers the memory inside the chip before it falls back to PSRAM. A screen now writes one `picture` line before and after each load, for a cover, a camera and the strip of live tiles alike, with both halves in it. That is the instrument for giving every board picture sizes that fit it, instead of sizes that follow from the panel's resolution.
+- Nothing on any screen looks different. Needs firmware 0.2.83 to report the two new entities: press **Update** on the screen.
+
 ## 0.2.97 (firmware 0.2.82)
 
 What a finger does on a ten-inch screen, and what a card does with glass that wide.

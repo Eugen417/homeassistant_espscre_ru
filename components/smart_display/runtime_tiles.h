@@ -4840,6 +4840,26 @@ struct ImageHooks {
 };
 inline ImageHooks camera_full, camera_thumb;
 inline camera_view::Feed camera;
+// What a picture costs this board (firmware 0.2.83+). Every picture goes the same way: the app sends a BMP of
+// exactly the pixels the screen asked for and online_image decodes it to RGB565, so the room it takes is
+// `width * height * 2`. ESPHome's RAMAllocator asks for that with PREFER_INTERNAL, which means a picture small
+// enough to fit inside the chip takes memory the Wi-Fi link, the API and LVGL also want; a larger one lands in
+// PSRAM and costs nothing inside. Which is why the number that decides a board's picture sizes is not how much
+// PSRAM it has, but what one load does to both heaps. One line per stage of one load, for every kind of picture,
+// so the four boards can be compared with the same instrument.
+// `pixels` is what the picture holds when the screen knows it (a cover asks for its own square), 0 when only the
+// app knows (a camera's box comes from the board shape); then only the heaps are worth reading.
+inline void picture_memory(const char *stage, const char *what, int pixels) {
+#ifdef USE_ESP32
+  ESP_LOGI("picture", "%s %s: %d px wants %d B; inside free=%u largest=%u, psram free=%u largest=%u", stage, what,
+           pixels, pixels * 2, (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
+           (unsigned) heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
+           (unsigned) heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
+           (unsigned) heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+#else
+  (void) stage; (void) what; (void) pixels;
+#endif
+}
 // Freeing the image waits for the next tick: ending a download under way can take a few hundred ms, and Back should
 // show the page below at once.
 inline bool camera_release_due = false;
@@ -4935,6 +4955,7 @@ inline void cover_arrived() {
   if (cover_wish.owner == CoverOwner::DETAIL) media_detail_picture = media_picture_show(detail_root, media_detail_picture, media_art_rect, camera_full.source());
   else refresh_tile(widgets[cover_wish.slot].index);
   ESP_LOGI("camera", "cover of %s shown", cover.entity.c_str());
+  picture_memory("after", "cover", cover_wish.size * cover_wish.size);
 }
 inline void cover_tick(uint32_t now) {
   if (camera_root || !camera_supported()) return;
@@ -4952,6 +4973,7 @@ inline void cover_tick(uint32_t now) {
     if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
     cover.start(now);
     ESP_LOGI("camera", "cover load %s", cover.entity.c_str());
+    picture_memory("before", "cover", cover_wish.size * cover_wish.size);
     camera_full.load(cover.url);
   }
 }
@@ -5106,6 +5128,7 @@ inline void live_loaded(bool cached) {
   if (!live.loading) return;
   live.finish(esphome::millis(), true);
   ESP_LOGI("camera", "live tiles %s", cached ? "unchanged" : "loaded");
+  if (auto *strip = camera_live.source()) picture_memory("after", "strip", strip->header.w * strip->header.h);
   for (auto &w : widgets)
     if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].pictured()) refresh_tile(w.index);
 }
@@ -5231,6 +5254,7 @@ inline void camera_load(uint32_t now) {
   auto *input = lv_indev_get_next(nullptr);
   if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
   camera.start(now);
+  picture_memory("before", "camera", 0);
   camera_full.load(camera.url);
 }
 
@@ -5384,6 +5408,7 @@ inline void camera_loaded(bool thumb, bool cached) {
   }
   if (!camera.loading) return;  // a cover's download that ended after the camera opened: not this camera's picture
   camera.finish(esphome::millis(), true);
+  if (auto *shown = camera_full.source()) picture_memory("after", "camera", shown->header.w * shown->header.h);
   const bool first = camera_picture == nullptr;
   camera_show(camera_root, camera_picture, camera_full.source(), !cached);
   if (first && camera_picture) {
