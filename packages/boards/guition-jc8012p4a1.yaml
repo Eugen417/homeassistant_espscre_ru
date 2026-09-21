@@ -36,6 +36,8 @@ substitutions:
   BOARD_ID: "jc8012p4a1"
   # This board's backlight takes levels (a PWM pin), so brightness is a percentage.
   BACKLIGHT_DIMMABLE: "true"
+  # The screen can go dark: standby and night dim it, and Sleep and Wake exist.
+  CAN_STANDBY: "true"
   DEVICE_NAME: "jc8012p4a1-new"
   DEVICE_FRIENDLY_NAME: "My Guition 10"
 

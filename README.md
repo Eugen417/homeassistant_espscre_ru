@@ -185,7 +185,7 @@ while it keeps your country's clock and numbers.
 | --- | --- | --- |
 | CYD ESP32-2432S028 | 320 × 240, 2 × 3 tiles | ILI9341 / resistive XPT2046 |
 | Guition ESP32-S3-4848S040, 4 inch | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911 |
-| Waveshare ESP32-S3-Touch-LCD-4.3 | 800 × 480, 3 × 3 tiles | ST7262 RGB / capacitive GT911 (backlight on or off) |
+| Waveshare ESP32-S3-Touch-LCD-4.3 | 800 × 480, 3 × 3 tiles | ST7262 RGB / capacitive GT911 (backlight always on: no standby, no night) |
 | Guition JC8012P4A1, 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) |
 
 Use these exact board variants: similar-looking product names can have different

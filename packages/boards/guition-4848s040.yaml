@@ -33,6 +33,8 @@ substitutions:
   BOARD_ID: "guition"
   # This board's backlight takes levels (a PWM pin), so brightness is a percentage.
   BACKLIGHT_DIMMABLE: "true"
+  # The screen can go dark: standby and night dim it, and Sleep and Wake exist.
+  CAN_STANDBY: "true"
   DEVICE_NAME: "guition-new"
   DEVICE_FRIENDLY_NAME: "My Guition"
 

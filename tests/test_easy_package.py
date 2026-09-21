@@ -84,6 +84,33 @@ class PackageTests(unittest.TestCase):
                 for key in GONE:
                     self.assertNotIn(key, text, f'{entry} still carries {key}')
 
+    def test_a_board_says_whether_its_screen_can_go_dark(self):
+        # CAN_STANDBY (firmware 0.2.91+): every board file says it, and a board that cannot go dark keeps the ten
+        # entities of standby and night out of Home Assistant with ESPHome's own !extend, so the flag and that list
+        # never drift apart. The Waveshare's backlight boost browns the board out when it switches on from a dark
+        # screen, so it is the one that says no.
+        entities = ['setting_auto_standby', 'setting_night_mode', 'setting_home_on_standby', 'setting_standby_brightness',
+                    'setting_night_brightness', 'setting_standby_seconds', 'setting_night_start', 'setting_night_end',
+                    'wake_button', 'sleep_button']
+        seen = {}
+        for board, path in profiles.BOARDS.items():
+            values = profiles.substitutions_of(path)
+            self.assertIn('CAN_STANDBY', values, f'{path.name} does not say CAN_STANDBY')
+            self.assertIn(values['CAN_STANDBY'].strip('"'), ('true', 'false'), path.name)
+            can = values['CAN_STANDBY'].strip('"') == 'true'
+            seen[board] = can
+            text = path.read_text()
+            for entity in entities:
+                extended = re.search(rf'^  - id: !extend {entity}\n    internal: true\n', text, re.M) is not None
+                self.assertEqual(extended, not can, f'{path.name}: {entity} {"stays visible" if can else "must be internal"}')
+        self.assertFalse(seen['waveshare43'])
+        self.assertTrue(all(can for board, can in seen.items() if board != 'waveshare43'))
+        # boards.json carries the same answer for the add-on (tools/generate_board_shapes.py).
+        import json
+        shapes = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())
+        for board, can in seen.items():
+            self.assertEqual(shapes[board]['can_standby'], can, board)
+
     def test_runtime_tiles_keep_what_they_bind_and_open(self):
         for board in BOARDS:
             package = profiles.text(f'packages/{board}.yaml')

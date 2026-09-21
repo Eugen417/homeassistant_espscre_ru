@@ -52,7 +52,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.90'
+FIRMWARE_VERSION = '0.2.91'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -375,6 +375,20 @@ def dimmable(screen):
     it from (settings_screen::dimmable), so the settings panel and the screen's own page agree. A board this app
     has never heard of is taken to dim, which is what every board but one does."""
     return bool(SHAPES.get(board_of(screen), {}).get('dimmable', True))
+
+# The settings that only mean something on a screen that can go dark: standby, night (standby with a clock) and
+# going back to page 1 when standby starts.
+STANDBY_KEYS = ('standby_enabled', 'standby_seconds', 'standby_brightness', 'night_enabled', 'night_start',
+                'night_end', 'night_brightness', 'home_on_standby')
+
+def can_standby(screen):
+    """Whether this screen can go dark at all (app 0.2.106). The Waveshare's backlight line also enables the boost
+    converter behind its LEDs, and switching that on from a dark screen pulls the 3.3 V rail under the brownout
+    level: measured on 2026-09-21, every wake from a dark standby reset the board or left its I2C bus dead. So that
+    board's file says CAN_STANDBY false, boards.json carries it, the firmware hides the standby and night rows and
+    keeps their entities to itself, and the settings panel leaves them out too. A board this app has never heard
+    of is taken to have standby, which is what every board but one does."""
+    return bool(SHAPES.get(board_of(screen), {}).get('can_standby', True))
 
 def shape_of(screen):
     """The shape of a screen as the editor needs it: its canvas, the cells of one page, its density, its look and,

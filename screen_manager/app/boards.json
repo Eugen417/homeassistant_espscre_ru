@@ -1,6 +1,7 @@
 {
  "cyd": {
   "board": "cyd",
+  "can_standby": true,
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
@@ -21,6 +22,7 @@
     220
    ]
   },
+  "can_standby": true,
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
@@ -41,6 +43,7 @@
     220
    ]
   },
+  "can_standby": true,
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
@@ -61,6 +64,7 @@
     193
    ]
   },
+  "can_standby": true,
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
@@ -71,6 +75,7 @@
  },
  "home-like-2432s028.yaml": {
   "board": "cyd",
+  "can_standby": true,
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
@@ -91,6 +96,7 @@
     193
    ]
   },
+  "can_standby": true,
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
@@ -101,6 +107,7 @@
  },
  "packages/cyd.yaml": {
   "board": "cyd",
+  "can_standby": true,
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
@@ -121,6 +128,7 @@
     220
    ]
   },
+  "can_standby": true,
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
@@ -141,6 +149,7 @@
     193
    ]
   },
+  "can_standby": true,
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
@@ -161,6 +170,7 @@
     240
    ]
   },
+  "can_standby": false,
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
@@ -181,6 +191,7 @@
     240
    ]
   },
+  "can_standby": false,
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
@@ -201,6 +212,7 @@
     240
    ]
   },
+  "can_standby": false,
   "columns": 3,
   "dimmable": false,
   "dpi": 217,

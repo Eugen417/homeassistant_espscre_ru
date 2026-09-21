@@ -88,6 +88,31 @@ int main() {
     dimmable = true;
     screen_settings::current.standby_brightness = 30;
   }
+  // A screen that cannot go dark (firmware 0.2.91+): no standby, and no night, which is standby with a clock. The
+  // rows go, the Night page goes from the menu, and the switch that ties page 1 to standby goes with them.
+  {
+    const Row &auto_standby = row_named(light, "Auto standby");
+    const Row &standby_after = row_named(light, "Standby after");
+    const Row &standby_switch = row_named(light, "Screen on in standby");
+    const Row &night_page = row_named(pages[0], "Night");
+    const Row &night_mode = row_named(pages[2], "Night mode");
+    const Row &night_brightness = row_named(pages[2], "Night brightness");
+    const Row &also_on_standby = row_named(pages[3], "Also on standby");
+    assert(can_standby && visible_row(auto_standby) && visible_row(standby_after) && visible_row(standby) &&
+           visible_row(night_page) && visible_row(night_mode) && visible_row(night_brightness) && visible_row(also_on_standby));
+    can_standby = false;
+    assert(!visible_row(auto_standby) && !visible_row(standby_after) && !visible_row(standby) && !visible_row(standby_switch));
+    assert(!visible_row(night_page) && !visible_row(night_mode) && !visible_row(night_brightness) && !visible_row(also_on_standby));
+    for (uint8_t i = 0; i < pages[2].count; ++i) assert(!visible_row(pages[2].rows[i]));
+    // What it can still do stays: the brightness, the dark look, and every row of the Screen page but that one.
+    assert(visible_row(brightness) && visible_row(row_named(light, "Dark mode")) && visible_row(row_named(pages[3], "Back to page 1")));
+    // A board that can neither dim nor go dark shows neither the percentage nor the switch.
+    dimmable = false;
+    assert(!visible_row(standby) && !visible_row(standby_switch));
+    dimmable = true;
+    can_standby = true;
+    assert(visible_row(auto_standby) && visible_row(night_page));
+  }
   const Row &dark = row_named(light, "Dark mode");
   assert(value_text(dark) == "Off");
   dark.write(1);

@@ -1,3 +1,10 @@
+## 0.2.106 (firmware 0.2.91)
+
+A board says whether its screen can go dark at all, and the Waveshare says no.
+
+- **A screen that cannot go dark has no standby and no night.** The Waveshare's backlight line also enables the boost converter behind its LEDs, and switching that on from a dark screen pulls the board's 3.3 V rail under its brownout level. Measured on the bench: every wake from a dark standby ended in a reset ("Brownout detector was triggered"), or the ESP survived and the I2C expander and the touch chip did not, which left the screen lit with nothing to tap. Drawing the page before lighting the panel, waiting a while, doing it with the screen idle - none of it changes what a boost converter draws when it starts. So, next to the flag that says whether a backlight takes levels, a board file now says whether its screen can go dark at all (`CAN_STANDBY`), and that one fact reaches everything: the standby time, Standby brightness, Screen on in standby, Night mode with its hours and brightness, Back to page 1 on standby, and the Wake and Sleep buttons are not on that screen's settings page, not among its entities in Home Assistant and not in ESP Screens' Settings (the Night group goes as a whole; night is standby with a clock). The backlight line of the Waveshare goes high once, at boot, and never low again, whatever asks: a setting the app pushes, an alert's blink, a YAML of your own. The three boards that dim keep everything they had. If you want a Waveshare that does go dark, the community's answer is a 470 µF capacitor on the 3V3 pins of its Sensor/AD connector; the firmware will not try it for you.
+- Needs firmware 0.2.91: press **Update** on the screen. Includes everything from 0.2.105. CYD firmware: 1,622,208 bytes, 88.4 % of the update slot, built with the ESPHome this add-on ships (2026.9.0); 112 bytes more than 0.2.105.
+
 ## 0.2.105 (firmware 0.2.90)
 
 The line under a tile's name is yours, a page can be called something of its own, and a board that cannot dim stops asking for a percentage.

@@ -62,6 +62,13 @@ What a render cannot show is exactly what the hardware check is for.
 
 ## 7. Write it down
 
+Say what the backlight can do, in two flags every board file carries: `BACKLIGHT_DIMMABLE` (a PWM pin takes levels;
+a line on an expander is lit or dark, and the percentages become switches) and `CAN_STANDBY` (the screen can go dark
+at all). A board that cannot go dark - the Waveshare browns out when its backlight boost switches on again - has no
+standby and no night: the firmware hides those rows, the board file keeps their entities internal with `!extend`
+(copy the block at the end of `packages/boards/waveshare-esp32s3-43.yaml`), `tools/generate_board_shapes.py` writes
+both flags into boards.json for the add-on, and `tests/test_easy_package.py` keeps the flag and the list together.
+
 Give the board file its own `BOARD_ID` (the screen reports it) and a `Rotation` select with the angles its glass
 allows (the half turn; the quarter turns as well when it is square; copy the block of the nearest board,
 `tools/check_packages.py` checks it), and add the board to `packages/<board>.yaml` and

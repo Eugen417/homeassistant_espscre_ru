@@ -31,6 +31,13 @@ inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds =
 // that lies, so the board's own file says so (BACKLIGHT_DIMMABLE) and the rows below follow: the normal brightness
 // goes, and standby and night become the switch they really are. ESP Screens reads the same fact from boards.json.
 inline bool dimmable = true;
+// Whether this board's screen can go dark at all (firmware 0.2.91+). The Waveshare's backlight line also enables
+// the boost converter behind its LEDs, and switching that on from a dark screen pulls the 3.3 V rail under the
+// brownout level: measured on 2026-09-21, every wake from a dark standby ended in a reset or a dead I2C bus. A
+// board that says CAN_STANDBY false never dims, so it has no standby and no night (night is standby with a clock):
+// these rows, the entities behind them and the add-on's Settings leave them out, and dim_display in
+// packages/core.yaml does nothing there.
+inline bool can_standby = true;
 // Turning: a half turn keeps the canvas, the grid and the whole size table, so every screen offers it (firmware
 // 0.2.80+); a quarter turn only a square screen, whose canvas is the same either way. packages/core.yaml sets this
 // from DISPLAY_W == DISPLAY_H at boot.
@@ -65,8 +72,8 @@ struct Row {
   uint8_t opens = 0;                  // page rows: the page they open
 };
 
-constexpr Row page_row(uint16_t label, const char *icon, uint8_t opens) {
-  Row r{}; r.kind = Kind::page; r.label = label; r.icon = icon; r.opens = opens; return r;
+constexpr Row page_row(uint16_t label, const char *icon, uint8_t opens, Shown shown = nullptr) {
+  Row r{}; r.kind = Kind::page; r.label = label; r.icon = icon; r.opens = opens; r.shown = shown; return r;
 }
 constexpr Row toggle(uint16_t label, Read read, Write write, Shown shown = nullptr, Shown enabled = nullptr) {
   Row r{}; r.kind = Kind::toggle; r.label = label; r.read = read; r.write = write; r.shown = shown; r.enabled = enabled; return r;
@@ -77,13 +84,13 @@ constexpr Row number(uint16_t label, Read read, Write write, int32_t low, int32_
   r.low = low; r.high = high; r.step = step; r.unit = unit; r.enabled = enabled; r.shown = shown; return r;
 }
 constexpr Row duration(uint16_t label, Read read, Write write, int32_t low, int32_t high,
-                       Shown enabled = nullptr) {
+                       Shown enabled = nullptr, Shown shown = nullptr) {
   Row r{}; r.kind = Kind::duration; r.label = label; r.read = read; r.write = write;
-  r.low = low; r.high = high; r.enabled = enabled; return r;
+  r.low = low; r.high = high; r.enabled = enabled; r.shown = shown; return r;
 }
-constexpr Row moment(uint16_t label, Read read, Write write, Shown enabled = nullptr) {
+constexpr Row moment(uint16_t label, Read read, Write write, Shown enabled = nullptr, Shown shown = nullptr) {
   Row r{}; r.kind = Kind::moment; r.label = label; r.read = read; r.write = write;
-  r.low = 0; r.high = 1439; r.step = 15; r.enabled = enabled; return r;
+  r.low = 0; r.high = 1439; r.step = 15; r.enabled = enabled; r.shown = shown; return r;
 }
 constexpr Row choice(uint16_t label, Read read, Write write, const char *const *options, uint8_t count,
                      Shown shown = nullptr) {
@@ -258,40 +265,47 @@ inline constexpr Row light_rows[] = {
          [] { return dimmable; }),
   toggle(screen_text::txt::settings_dark_mode, []() -> int32_t { return dark_mode; },
          [](int32_t value) { set("dark_mode", value); }),
+  // Standby and everything under it only on a board whose screen can go dark (can_standby).
   toggle(screen_text::txt::settings_auto_standby, []() -> int32_t { return screen_settings::current.standby_enabled; },
-         [](int32_t value) { set("standby_enabled", value); }),
+         [](int32_t value) { set("standby_enabled", value); },
+         [] { return can_standby; }),
   duration(screen_text::txt::settings_standby_after, []() -> int32_t { return screen_settings::current.standby_seconds; },
            [](int32_t value) { set("standby_seconds", value); }, 60, 86400,
-           [] { return screen_settings::current.standby_enabled != 0; }),
+           [] { return screen_settings::current.standby_enabled != 0; },
+           [] { return can_standby; }),
   number(screen_text::txt::settings_standby_brightness, []() -> int32_t { return screen_settings::current.standby_brightness; },
          [](int32_t value) { set("standby_brightness", value); }, 0, 100, 5, "%",
          [] { return screen_settings::current.standby_enabled != 0; },
-         [] { return dimmable; }),
+         [] { return dimmable && can_standby; }),
   // The same setting on a backlight without levels: lit or dark. It writes the same key, so Home Assistant, the
   // app and the screen keep one number between them and a board that can dim shows it as the percentage it is.
   toggle(screen_text::txt::settings_standby_lit, []() -> int32_t { return screen_settings::current.standby_brightness > 0; },
          [](int32_t value) { set("standby_brightness", value ? 100 : 0); },
-         [] { return !dimmable; },
+         [] { return !dimmable && can_standby; },
          [] { return screen_settings::current.standby_enabled != 0; }),
 };
 
 // Darker between two times, so a panel in a hallway does not light up the bedroom.
 inline constexpr Row night_rows[] = {
+  // Night is standby with a clock: a board that cannot go dark has none of it (can_standby).
   toggle(screen_text::txt::settings_night_mode, []() -> int32_t { return screen_settings::current.night_enabled; },
-         [](int32_t value) { set("night_enabled", value); }),
+         [](int32_t value) { set("night_enabled", value); },
+         [] { return can_standby; }),
   moment(screen_text::txt::settings_starts, []() -> int32_t { return screen_settings::current.night_start; },
          [](int32_t value) { set("night_start", value); },
-         [] { return screen_settings::current.night_enabled != 0; }),
+         [] { return screen_settings::current.night_enabled != 0; },
+         [] { return can_standby; }),
   moment(screen_text::txt::settings_ends, []() -> int32_t { return screen_settings::current.night_end; },
          [](int32_t value) { set("night_end", value); },
-         [] { return screen_settings::current.night_enabled != 0; }),
+         [] { return screen_settings::current.night_enabled != 0; },
+         [] { return can_standby; }),
   number(screen_text::txt::settings_night_brightness, []() -> int32_t { return screen_settings::current.night_brightness; },
          [](int32_t value) { set("night_brightness", value); }, 0, 100, 5, "%",
          [] { return screen_settings::current.night_enabled != 0; },
-         [] { return dimmable; }),
+         [] { return dimmable && can_standby; }),
   toggle(screen_text::txt::settings_night_lit, []() -> int32_t { return screen_settings::current.night_brightness > 0; },
          [](int32_t value) { set("night_brightness", value ? 100 : 0); },
-         [] { return !dimmable; },
+         [] { return !dimmable && can_standby; },
          [] { return screen_settings::current.night_enabled != 0; }),
 };
 
@@ -305,7 +319,8 @@ inline constexpr Row screen_rows[] = {
            [](int32_t value) { set("auto_home_seconds", value); }, 30, 3600,
            [] { return auto_home != 0; }),
   toggle(screen_text::txt::settings_also_on_standby, []() -> int32_t { return screen_settings::current.home_on_standby; },
-         [](int32_t value) { set("home_on_standby", value); }),
+         [](int32_t value) { set("home_on_standby", value); },
+         [] { return can_standby; }),
   toggle(screen_text::txt::settings_swipe_between_pages, []() -> int32_t { return swipe_pages; },
          [](int32_t value) { set("swipe_pages", value); }),
   toggle(screen_text::txt::settings_page_buttons, []() -> int32_t { return page_buttons; },
@@ -335,7 +350,7 @@ inline constexpr Row about_rows[] = {
 
 inline constexpr Row menu_rows[] = {
   page_row(screen_text::txt::settings_brightness, "\U000F0599", 1),
-  page_row(screen_text::txt::settings_night, "\U000F0594", 2),
+  page_row(screen_text::txt::settings_night, "\U000F0594", 2, [] { return can_standby; }),
   page_row(screen_text::txt::settings_screen, "\U000F0379", 3),
   page_row(screen_text::txt::settings_this_screen, "\U000F02FD", 4),
 };

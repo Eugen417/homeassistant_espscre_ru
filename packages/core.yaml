@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.90"
+  SCREEN_FIRMWARE_VERSION: "0.2.91"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -101,6 +101,10 @@ esphome:
           // Whether this board's backlight takes levels (firmware 0.2.90+): a board whose backlight is one line
           // shows a switch where the others show a percentage. ESP Screens reads the same fact from boards.json.
           settings_screen::dimmable = ${BACKLIGHT_DIMMABLE};
+          // Whether this board's screen can go dark at all (firmware 0.2.91+): the Waveshare's backlight boost pulls
+          // the 3.3 V rail under the brownout level when it switches on from a dark screen, so that board has no
+          // standby and no night. The rows, the entities and the add-on's Settings follow the same fact.
+          settings_screen::can_standby = ${CAN_STANDBY};
           ${BOOT_ENABLED_HOOK}
           runtime_tiles::load_settings();
           // Colours (firmware 0.2.54+): the styles of this profile take their colours from theme.h. The list runs now,
@@ -2040,20 +2044,26 @@ script:
 
   # Standby: the standby time ran out (the 1 s interval checks Auto standby) or Sleep was pressed.
   # The settings page and every card close; with "also on standby" the screen goes back to page 1 too.
+  # A board whose screen cannot go dark (CAN_STANDBY false, firmware 0.2.91+) has no standby at all: the time
+  # runs out and Sleep is pressed to no effect, and the screen simply stays lit.
   - id: dim_display
     mode: restart
     then:
-      - lambda: |-
-          id(display_dimmed) = true;
-          id(apply_screen_settings).execute();
       - if:
           condition:
-            lambda: 'return screen_settings::current.home_on_standby;'
+            lambda: 'return settings_screen::can_standby;'
           then:
-            - script.execute: go_home
-          else:
-            - lambda: 'settings_screen::close();'
-            - script.execute: close_cards
+            - lambda: |-
+                id(display_dimmed) = true;
+                id(apply_screen_settings).execute();
+            - if:
+                condition:
+                  lambda: 'return screen_settings::current.home_on_standby;'
+                then:
+                  - script.execute: go_home
+                else:
+                  - lambda: 'settings_screen::close();'
+                  - script.execute: close_cards
 
   # Isolated 40-second preview; every light commit is suppressed in the helper.
   - id: light_controls_preview

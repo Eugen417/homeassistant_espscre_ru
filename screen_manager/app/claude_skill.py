@@ -293,7 +293,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 |---|---|
 | `button.<screen>_wake` | Lights the screen up to its normal brightness and counts the standby time from that moment; a screen that is already on only restarts that count. Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer. Wake is not a touch: from firmware 0.2.56 an open card or a later page still goes back to page 1 on its own time, and a screen whose time ran out during standby wakes on page 1. |
 | `button.<screen>_sleep` | Puts the screen in standby right away, also with Auto standby off, and closes an alert that is showing. It stays in standby until someone taps it, Wake is pressed or an alert arrives. Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer. |
-| `switch.<screen>_auto_standby` | On: the screen dims after the standby time without a touch. Off: the screen wakes up and stays on, except after Sleep, which holds until Wake, a tap or an alert. Firmware {AUTO_STANDBY_MIN_FIRMWARE} or newer. |
+| `switch.<screen>_auto_standby` | On: the screen dims after the standby time without a touch. A screen that cannot go dark (the Waveshare, app 0.2.106) has none of the standby and night entities in this table, nor Wake and Sleep: it is always on. Off: the screen wakes up and stays on, except after Sleep, which holds until Wake, a tap or an alert. Firmware {AUTO_STANDBY_MIN_FIRMWARE} or newer. |
 | `number.<screen>_standby_after` | Seconds without a touch before standby, 60 to 86400. |
 | `number.<screen>_normal_brightness` | Brightness while in use, 5 to 100 %. |
 | `number.<screen>_standby_brightness` | Brightness in standby, 0 to 100 %, at most the normal brightness. |

@@ -221,9 +221,34 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
             view = m.settings_view(waveshare)
             self.assertNotIn('brightness', view['keys'])
             self.assertEqual(view['switches'], ['standby_brightness', 'night_brightness'])
-            # The two that stay are still the same numbers: nothing about the setting itself changes.
-            self.assertIn('standby_brightness', view['keys'])
-            self.assertIn('night_brightness', view['keys'])
+            # The two switches would be the same numbers underneath, but the Waveshare cannot go dark at all
+            # (app 0.2.106, CAN_STANDBY), so neither is a setting of that screen any more.
+            self.assertNotIn('standby_brightness', view['keys'])
+            self.assertNotIn('night_brightness', view['keys'])
+
+    async def test_a_screen_that_cannot_go_dark_has_no_standby_and_no_night(self):
+        # The Waveshare's backlight boost browns the board out when it switches on from a dark screen (app 0.2.106),
+        # so its board file says CAN_STANDBY false and boards.json carries it: no standby, no night (standby with a
+        # clock), no going back to page 1 on standby. The firmware hides the same rows and keeps their entities
+        # internal, so the panel, Home Assistant and the screen's own page agree; the editor drops an empty group.
+        self.assertTrue(core.can_standby({'board': 'guition'}))
+        self.assertTrue(core.can_standby({'board': 'cyd'}))
+        self.assertTrue(core.can_standby({'board': 'jc8012p4a1'}))
+        self.assertFalse(core.can_standby({'board': 'waveshare43'}))
+        self.assertTrue(core.can_standby({'board': 'a board this app never heard of'}))
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.manager(tmp)
+            screen = m.screen('text.screen')
+            view = m.settings_view(screen)
+            for key in core.STANDBY_KEYS:
+                self.assertIn(key, view['keys'], key)
+            waveshare = {**screen, 'board': 'waveshare43'}
+            view = m.settings_view(waveshare)
+            for key in core.STANDBY_KEYS:
+                self.assertNotIn(key, view['keys'] + view['unavailable'], key)
+            # What it can still do stays.
+            for key in ('dark_mode', 'auto_home', 'auto_home_seconds', 'swipe_pages', 'page_buttons'):
+                self.assertIn(key, view['keys'], key)
 
     async def test_the_layout_message_leaves_them_out(self):
         with tempfile.TemporaryDirectory() as tmp:

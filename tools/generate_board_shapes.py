@@ -29,7 +29,11 @@ def shapes():
                  'dpi': int(values['DISPLAY_DPI']), 'look': values['LOOK'].strip('"'),
                  # Whether the backlight takes levels (app 0.2.105): on a board whose backlight is one line, a
                  # brightness percentage is a number that lies, so the settings panel shows a switch instead.
-                 'dimmable': values.get('BACKLIGHT_DIMMABLE', 'true').strip('"') != 'false'}
+                 'dimmable': values.get('BACKLIGHT_DIMMABLE', 'true').strip('"') != 'false',
+                 # Whether the screen can go dark at all (app 0.2.106): the Waveshare's backlight boost browns the
+                 # board out when it switches on again, so that board has no standby and no night, and the settings
+                 # panel leaves those out as the screen itself does.
+                 'can_standby': values.get('CAN_STANDBY', 'true').strip('"') != 'false'}
         # A board that draws camera pictures says how large it wants them (its online_image components and the
         # frame in its alert card). Without those four the board has no camera at all, like the CYD: the manager
         # then refuses a camera tile instead of sending a picture that never arrives.

@@ -40,6 +40,13 @@ substitutions:
   # One line on the I2C expander, not a PWM pin: the panel is lit or it is not. The settings that would be a
   # percentage are a switch here instead, on the screen and in ESP Screens (settings_screen::dimmable).
   BACKLIGHT_DIMMABLE: "false"
+  # The screen never goes dark. EXIO2 also enables the boost converter behind the backlight LEDs, and switching
+  # that on from a dark screen pulls the 3.3 V rail under the brownout level: on 2026-09-21 every wake from a dark
+  # standby ended in "E BOD: Brownout detector was triggered" and a reset, or left the CH422G and the GT911 without
+  # an answer on the bus (a wake that survived the ESP still lost touch and the backlight line). The community's
+  # answer is a 470 uF capacitor on the 3V3 pins of the Sensor/AD connector; the firmware's is that this board has
+  # no standby and no night: the rows and the entities below stay out, and the line below never goes low.
+  CAN_STANDBY: "false"
   DEVICE_NAME: "waveshare-new"
   DEVICE_FRIENDLY_NAME: "My Waveshare"
 
@@ -263,10 +270,9 @@ substitutions:
   # every 250 ms after runtime_tiles::tick()
   TICK_HOOK: "runtime_tiles::camera_tick();"
   # apply_screen_settings: how the backlight takes its level. This panel's light is an on/off line on the
-  # expander (EXIO2), so the transition only decides when it flips, not how softly.
+  # expander (EXIO2) that never goes low (CAN_STANDBY), so the level and the transition change nothing visible.
   APPLY_BACKLIGHT: |-
-    // Standby dims slowly (ESPHome's transition); waking is quick.
-    id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
+    id(set_backlight).execute(level, 300);
   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
   AWAY_EXTRA: " runtime_tiles::camera_visible() ||"
   # alert_show: after the settings page closed, before the card is made
@@ -402,22 +408,21 @@ ch422g:
     i2c_id: touch_bus
 
 output:
-  # The backlight is one line on the expander, not a PWM pin: the panel is lit or it is not. The firmware sets a
-  # brightness between 0 and 1, and anything above a hair of it lights the screen; 0 turns it off, which is what
-  # standby, Sleep and a night with brightness 0 ask for.
+  # The backlight is one line on the expander, not a PWM pin: the panel is lit or it is not. The firmware still
+  # sets a brightness between 0 and 1, but the line goes high once, at boot, and never low again (firmware
+  # 0.2.91+, CAN_STANDBY above): switching the backlight's boost converter on from a dark screen browns the board
+  # out, so a 0 from anywhere - a setting pushed by the app, an alert's blink, a YAML of your own - leaves it lit.
   - platform: template
     id: gpio_backlight_pwm
     type: float
     write_action:
       - lambda: |-
-          // One line with two states, and it hangs on an I2C expander. A fade asks for a new level on every
-          // frame, so only a real change is written: the bus stays free for the touch panel, which is polled
-          // every 20 ms, and a slow dim no longer floods it.
-          static int lit = -1;
-          const int wanted = state > 0.01f ? 1 : 0;
-          if (wanted != lit) {
-            lit = wanted;
-            id(backlight_line).set_state(wanted != 0);
+          // One write, on an I2C expander the touch panel shares: the bus stays free for the GT911, which is
+          // polled every 20 ms, and a fade that asks for a level on every frame writes nothing.
+          static bool lit = false;
+          if (!lit) {
+            lit = true;
+            id(backlight_line).set_state(true);
           }
   - platform: gpio
     id: backlight_line
@@ -428,8 +433,8 @@ output:
         output: true
 
 light:
-  # The firmware owns the backlight: brightness, standby, night and alerts set it, and the minute tick
-  # restores it. Home Assistant uses the brightness numbers and the Wake and Sleep buttons (0.2.46+).
+  # The firmware owns the backlight: the scripts of core.yaml set its level as on every board, and on this board
+  # every level lights the panel (the output above). Standby, night, Sleep and Wake do not exist here.
   - platform: monochromatic
     output: gpio_backlight_pwm
     name: "Display Backlight"
@@ -646,17 +651,12 @@ script:
                 id: alert_report
                 action: !lambda 'return reason;'
 
-  # Four backlight blinks when the alert arrives; the screen then stays on as usual.
+  # The other boards blink the backlight four times when an alert arrives. This panel's backlight cannot go dark
+  # and come back (CAN_STANDBY), so an alert here arrives without blinks; the card itself is the signal.
   - id: alert_flash
     mode: restart
     then:
-      - repeat:
-          count: 4
-          then:
-            - lambda: 'id(set_backlight).execute(0, 60);'
-            - delay: 140ms
-            - lambda: 'id(set_backlight).execute(screen_settings::current.brightness, 60);'
-            - delay: 180ms
+      - lambda: 'ESP_LOGI("alert", "no backlight blinks on this board");'
 
   - id: wake_display
     mode: restart
@@ -681,3 +681,34 @@ script:
       ms: int
     then:
       - lambda: id(back_light).turn_on().set_transition_length(ms).set_brightness(level / 100.0f).perform();
+
+# The settings of a screen that can go dark, kept out of Home Assistant and ESP Screens on this board (CAN_STANDBY
+# above; firmware 0.2.91+). The entities stay in the firmware, because packages/core.yaml publishes them, but as
+# internal ones nobody sees. tests/test_easy_package.py keeps this list and the flag together.
+switch:
+  - id: !extend setting_auto_standby
+    internal: true
+  - id: !extend setting_night_mode
+    internal: true
+  - id: !extend setting_home_on_standby
+    internal: true
+
+number:
+  - id: !extend setting_standby_brightness
+    internal: true
+  - id: !extend setting_night_brightness
+    internal: true
+  - id: !extend setting_standby_seconds
+    internal: true
+
+datetime:
+  - id: !extend setting_night_start
+    internal: true
+  - id: !extend setting_night_end
+    internal: true
+
+button:
+  - id: !extend wake_button
+    internal: true
+  - id: !extend sleep_button
+    internal: true

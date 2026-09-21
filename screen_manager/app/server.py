@@ -20,7 +20,7 @@ from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
-from core import dimmable, SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
+from core import can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, firmware_features, grid_of, packed_slots, run_tile_event,
                   screen_firmware, shape_of, turns_of, version_text)
 import header_bar
@@ -846,8 +846,11 @@ class Manager:
         # are left mean lit or dark. `switches` names them so the panel draws the switch the screen draws.
         dims = dimmable(screen)
         switches = [] if dims else ['standby_brightness', 'night_brightness']
+        # A screen that cannot go dark (app 0.2.106) has no standby and no night: those settings are not there, on
+        # the screen, in Home Assistant or here, and the editor drops a group that has no rows left.
+        dark = can_standby(screen)
         keys = [key for key in SETTING_RULES if key != 'show_clock' and (key != 'rotation' or turns)
-                and (dims or key != 'brightness')]
+                and (dims or key != 'brightness') and (dark or key not in STANDBY_KEYS)]
         entities = self.setting_entities(screen)
         if entities is None:
             try:
