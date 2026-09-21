@@ -4,7 +4,16 @@ Home Assistant can open a page on a screen, the way it can show an alert.
 
 - **`esphome.<screen>_show_page`.** Every screen has the action, with one field, `page`: the number the editor shows, 1 for the first page, and a number past the last page opens the last page. It puts that page of tiles in front the way a **Go to page** tile does when someone taps it: the screen wakes if it was in standby, an open card or the settings page closes, and the page is shown. An alert that is showing stays in front. Put a full-page player on page 4 and let an automation call the action when the player starts an album, or open the page with the camera tile when the doorbell rings. Like a touch, it starts **Back to page 1** counting from that moment, so the screen goes back to page 1 on its own time unless that switch is off; call the action again to keep the page up. Nothing is saved on the screen, so an automation may call it as often as it likes.
 - **In the skill and the guide.** The Claude skill under Settings → Claude has a section for it beside the alerts (install it again to get the new text), and the extended README explains it under "Open a page from an automation".
-- Needs firmware 0.2.87: press **Update** on the screen. Includes everything from 0.2.101.
+- Needs firmware 0.2.87: press **Update** on the screen. Includes everything from 0.2.101. CYD firmware: 1,619,616 bytes, 88.3 % of the update slot, built with the ESPHome this add-on ships (2026.9.0).
+
+## 0.2.101 (firmware 0.2.86)
+
+A light that only switches stops pretending it can be dimmed, and a screen stops offering an update it cannot install.
+
+- **No brightness slider on a light that has none.** Home Assistant lists `onoff` and nothing else for a light that is really a relay - a ceiling lamp on a wall switch - and its own dialog shows no brightness for it. Ours drew the slider anyway: it stood empty while the light was on, jumped to where your finger left it, and fell back to empty the moment the light answered without a brightness, because every drag sent one the light throws away. The card now shows the light's icon on a round field where the slider would be, in the same two colours the slider's track has, and the power key in the top bar does the work. A light that dims, and every fan, are unchanged.
+- **A screen ESP Screens did not install no longer advertises an update.** Without a YAML in the ESPHome folder there is nothing to build from, so the button did nothing at all when pressed. The screen now says why, with the sentence the add-on already had for it. The nightly round always passed such a screen by; only the button was wrong.
+- **The build log is quiet.** The eighteen `-Wdangling-reference` warnings left in the message parser are gone, with the reason written where they were: GCC cannot tell that the array ArduinoJson hands back points into the document rather than into the temporary it was asked on, and the warning stays on everywhere else. With 0.2.99's casts, a real ESP build goes from 79 warnings to none.
+- Needs firmware 0.2.86. Press **Update** on the screen. Includes everything from 0.2.99.
 
 ## 0.2.99 (firmware 0.2.84)
 

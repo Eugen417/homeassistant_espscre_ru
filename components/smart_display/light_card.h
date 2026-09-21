@@ -12,9 +12,14 @@
 //
 // The value line is the state line: "64 %" or "Off" says what the row under the name would have said, so this
 // card draws no second one. What must give, gives in this order: the caption under the value first (the name
-// at the top already says which light it is), then the slider's own height. The slider never goes: it is the
-// card. On wide and short glass the slider and its value stand beside each other instead of over each other,
-// the way the blind's card splits (overlay_card::columns).
+// at the top already says which light it is), then the slider's own height. On wide and short glass the
+// slider and its value stand beside each other instead of over each other, the way the blind's card splits
+// (overlay_card::columns).
+//
+// A light Home Assistant lists as "onoff" and nothing else has no brightness to show, and its own dialog shows
+// none either: that card has the light's icon on a round field where the slider would be, and the power key in
+// the bar does the work. A slider there would fill to where the finger left it and fall back to empty as soon
+// as the light answered without a brightness, and every drag would send one the light throws away.
 #include <algorithm>
 
 #include "ui_scale.h"
@@ -49,6 +54,8 @@ struct Metrics {
   int slider_w() const { return std::max(ui::touch_min(), ui::px(large ? 144 : 96)); }
   int slider_min_h() const { return std::max(2 * touch, ui::px(large ? 150 : 96)); }
   int min_card_h() const { return slider_min_h() + 2 * edge(); }
+  // The round field a light that cannot be dimmed shows its icon on, the size the blind's card uses.
+  int halo() const { return ui::px(large ? 120 : 72); }
   int top() const { return bar_y + bar + gap(); }         // the card starts under the top bar
 };
 
@@ -56,10 +63,11 @@ struct Layout {
   int columns = 1;
   Rect power;     // in the top bar, across from the back key
   Rect card;      // the white card
-  Rect slider;    // the standing slider inside it
-  Rect icon;      // the entity's icon on the slider, near its foot, as Home Assistant draws it
-  Rect value;     // the percentage: under the card, or beside the slider in two columns
-  Rect caption;   // what the slider is ("Brightness", "Speed"); empty when the glass had no room
+  Rect slider;    // the standing slider inside it; empty on a light that cannot be dimmed
+  Rect halo;      // the round field its icon sits on instead, then
+  Rect icon;      // the entity's icon: near the slider's foot, or in the middle of the halo
+  Rect value;     // the percentage or the state: under the card, or beside it in two columns
+  Rect caption;   // what the slider is ("Brightness"); empty without a slider or without the room
 };
 
 // The height the card asks for in one column, which overlay_card::columns compares with the glass.
@@ -67,8 +75,10 @@ inline int stacked_height(const Metrics &m) {
   return m.top() + m.min_card_h() + m.value_h + m.text_h + m.margin();
 }
 
-// Where every part goes on glass of `width` x `height`, in `columns` columns (1 or 2).
-inline Layout layout(const Metrics &m, int width, int height, int columns = 1) {
+// Where every part goes on glass of `width` x `height`, in `columns` columns (1 or 2). `dims` is false for a
+// light Home Assistant lists as "onoff" only: the card then has no slider to draw and shows the light's icon
+// on a round field instead, the way the blind's card does for a door that only opens and closes.
+inline Layout layout(const Metrics &m, int width, int height, int columns = 1, bool dims = true) {
   Layout l;
   l.columns = columns >= 2 ? 2 : 1;
   const int inner = width - 2 * m.pad, top = m.top(), bottom = height - m.margin();
@@ -92,12 +102,21 @@ inline Layout layout(const Metrics &m, int width, int height, int columns = 1) {
     if (caption) l.caption = {l.card.x, l.value.bottom(), inner, m.text_h};
   }
 
-  const int slider_w = std::min(m.slider_w(), std::max(1, l.card.w - 2 * m.edge()));
-  l.slider = {l.card.cx() - slider_w / 2, l.card.y + m.edge(), slider_w, std::max(1, l.card.h - 2 * m.edge())};
-  // The icon sits on the foot of the slider, where the fill is darkest and a finger is not.
-  const int icon = std::min(m.icon_h, std::max(1, slider_w - ui::px(8)));
-  l.icon = {l.slider.cx() - icon / 2, l.slider.bottom() - icon - m.edge(), icon, icon};
-  if (l.icon.y < l.slider.y) l.icon = {};
+  if (dims) {
+    const int slider_w = std::min(m.slider_w(), std::max(1, l.card.w - 2 * m.edge()));
+    l.slider = {l.card.cx() - slider_w / 2, l.card.y + m.edge(), slider_w, std::max(1, l.card.h - 2 * m.edge())};
+    // The icon sits on the foot of the slider, where the fill is and a finger is not.
+    const int icon = std::min(m.icon_h, std::max(1, slider_w - ui::px(8)));
+    l.icon = {l.slider.cx() - icon / 2, l.slider.bottom() - icon - m.edge(), icon, icon};
+    if (l.icon.y < l.slider.y) l.icon = {};
+  } else {
+    // No slider: the icon on a round field in the middle of the card, as big as the card allows.
+    const int halo = std::max(m.touch, std::min(std::min(l.card.w, l.card.h) - 2 * m.edge(), m.halo()));
+    l.halo = {l.card.cx() - halo / 2, l.card.y + (l.card.h - halo) / 2, halo, halo};
+    const int icon = std::min(m.icon_h, std::max(1, halo - ui::px(8)));
+    l.icon = {l.halo.cx() - icon / 2, l.halo.y + (halo - icon) / 2, icon, icon};
+    l.caption = {};   // "Brightness" would name a control this light does not have
+  }
   return l;
 }
 

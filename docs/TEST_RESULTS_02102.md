@@ -38,7 +38,8 @@ that logs page, page count, settings page, open card, dimmed, alert and the age 
 ## Checks
 
 - Fast tests: `test_show_page`, `test_claude_skill`, `test_wake_sleep`, `test_settings_page`, `test_release_lint`: 33 of 33.
-GATE_LINE
+- `tools/check.sh --all`: 20 of 20 over four boards, before the merge with 0.2.101 (CYD 1,619,184 B, 88.2 %) and again on the
+  merged tree (CYD 1,619,616 B, 88.3 %; Guition 2,036,688 B; Waveshare 2,292,944 B; JC8012P4A1 2,007,456 B).
 
 ## Not done
 

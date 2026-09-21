@@ -328,6 +328,15 @@ inline std::string list(JsonVariant value) {
   serializeJson(value, out);
   return out.size() <= 512 ? out : "";
 }
+// Reading what Home Assistant sent. Every loop here walks a JsonArray that ArduinoJson hands back from the
+// document, and GCC 14 cannot tell that apart from a reference into the temporary the call was made on:
+// `for (JsonVariant v : root["slots"].as<JsonArray>())` raises -Wdangling-reference, eighteen times in this
+// one function. The array is a handle into the document, which outlives the loop by a long way, so the
+// warning is wrong here - and turning it off for this function only keeps it working everywhere else, where
+// the same warning would be worth reading. Naming each array instead would mean moving braces through the
+// parser of the layout protocol, which is not a trade this is worth.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-reference"
 inline std::string receive(const std::string &payload) {
   if (!enabled) return "Use the Easy Setup profile";
   if (payload.size() > 4096) return "Error: message too large";
@@ -780,6 +789,7 @@ inline std::string receive(const std::string &payload) {
   });
   return result;
 }
+#pragma GCC diagnostic pop
 // Between the manager's messages nothing redraws a card, so a command under way gets its own 200 ms LVGL timer: it
 // brings the busy sheet up once the grace has passed, takes it away as soon as Home Assistant answered or the wait ran
 // out, and deletes itself when no tile waits any more (firmware 0.2.59+).
@@ -1969,7 +1979,8 @@ inline void render_light_detail(Tile &t,bool large,int width,int height,int colu
   const lv_font_t *mini=mini_icon_font?mini_icon_font:detail_font;
   const lv_font_t *icons=tile_icon_font();
   const auto m=light_metrics(large);
-  const auto l=light_card::layout(m,width,height,columns);
+  const bool dims=tile_controls::light_dims(t);
+  const auto l=light_card::layout(m,width,height,columns,dims);
   detail_placed=true;   // the layout has already put every part where the glass has room for it
   // The big value says what the state line would have said, so the card draws no second one.
   if(detail_status){lv_obj_add_flag(detail_status,LV_OBJ_FLAG_HIDDEN);detail_status=nullptr;}
@@ -1984,20 +1995,30 @@ inline void render_light_detail(Tile &t,bool large,int width,int height,int colu
   // Where the slider stands is the tile's own answer (slider_value), so the strip on the tile and the card it
   // opens never disagree - including the value held in front while a light fades towards it.
   const int raw=on?slider_value(t):0;
-  auto *slider=light_slider(l.slider.x,l.slider.y,l.slider.w,l.slider.h,raw,accent,t.available(),t.domain()=="light");
-  overlay_card::touchable(slider,l.slider.w);
-  // The entity's icon rides on the foot of the slider, where the fill is and a finger is not, as it did on the
-  // overlay before it and as Home Assistant draws it.
+  if(dims){
+    auto *slider=light_slider(l.slider.x,l.slider.y,l.slider.w,l.slider.h,raw,accent,t.available(),t.domain()=="light");
+    overlay_card::touchable(slider,l.slider.w);
+  }else if(!l.halo.empty()){
+    // A light that only switches: its icon on a round field where the slider would be, lit while it is on, the
+    // way the blind's card shows a door that only opens and closes. The power key in the bar does the work.
+    // The same two colours the slider's track has, so a light that dims and one that only switches are the
+    // same card with the same palette: the light's own pale amber while it is on, the neutral track while off.
+    detail_shape(detail_root,l.halo.x,l.halo.y,l.halo.w,l.halo.h,
+                 theme::hex(on?theme::AMBER_TRACK:theme::TRACK),l.halo.w/2);
+  }
+  // The entity's icon rides on the foot of the slider, or in the middle of the round field, where the fill is
+  // and a finger is not, as it did on the overlay before it and as Home Assistant draws it.
   if(!l.icon.empty()&&icons&&lv_font_get_line_height(icons)<=l.icon.h+ui::px(4)){
-    auto *glyph=detail_text(detail_root,icon_for(t),l.icon.x,l.icon.y,l.icon.w,icons,LV_TEXT_ALIGN_CENTER,
-                            raw>0?theme::hex(theme::ON_ACCENT):theme::hex(theme::ICON_OFF));
+    const uint32_t ink=dims?(raw>0?theme::hex(theme::ON_ACCENT):theme::hex(theme::ICON_OFF))
+                           :(on?accent:theme::hex(theme::ICON_OFF));
+    auto *glyph=detail_text(detail_root,icon_for(t),l.icon.x,l.icon.y,l.icon.w,icons,LV_TEXT_ALIGN_CENTER,ink);
     lv_obj_remove_flag(glyph,LV_OBJ_FLAG_CLICKABLE);
   }
   light_value=detail_text(detail_root,light_value_text(t),l.value.x,l.value.y,l.value.w,big,
                           l.columns==2?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,theme::hex(theme::INK));
   // The caption only where the words exist: a light says what the slider is, a fan's speed has no word of its
   // own in the screen's languages and does without (the name at the top says which fan it is).
-  if(!l.caption.empty()&&t.domain()=="light")
+  if(!l.caption.empty()&&dims&&t.domain()=="light")
     detail_text(detail_root,tr(txt::light_brightness),l.caption.x,l.caption.y,l.caption.w,text,
                 l.columns==2?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,theme::hex(theme::SUBTLE));
 }
