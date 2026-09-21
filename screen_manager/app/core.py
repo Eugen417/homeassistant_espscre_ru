@@ -1150,6 +1150,12 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if sub is not None:
                 if not isinstance(sub, str) or len(sub.encode()) > 96:
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting='sub'))
+                if sub.startswith('text:'):
+                    # Words of your own keep the words, not the space around them: a line that starts with a blank
+                    # is a line that looks indented on the tile, and every other line starts at the same place.
+                    words = sub[5:].strip()
+                    sub = f'text:{words}' if words else 'none'
+                    options = {**options, 'sub': sub}
                 if sub not in ('auto', 'none') and not re.fullmatch(r'text:.+|attr:[a-z_0-9]+', sub):
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting='sub'))
                 if sub == 'auto':

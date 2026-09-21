@@ -139,8 +139,13 @@ class SecondLine(unittest.TestCase):
         self.assertEqual(options('auto'), {})            # the default is stored as nothing at all
         self.assertEqual(options('none'), {'sub': 'none'})
         self.assertEqual(options('text:Klaar om 7'), {'sub': 'text:Klaar om 7'})
+        # Words of your own keep the words, not the space around them: a line that starts with a blank looks
+        # indented on the tile while every other line starts at the same place.
+        self.assertEqual(options('text:  Klaar om 7  '), {'sub': 'text:Klaar om 7'})
+        # Own text with nothing in it is an empty line, which is what "nothing" already means.
+        self.assertEqual(options('text:   '), {'sub': 'none'})
         self.assertEqual(options('attr:last_triggered'), {'sub': 'attr:last_triggered'})
-        for bad in ('attr:Bad Name', 'weird', 'text:', 'attr:', 3, 'text:' + 'x' * 96):
+        for bad in ('attr:Bad Name', 'weird', 'attr:', 3, 'text:' + 'x' * 96):
             with self.assertRaises(ValueError, msg=bad):
                 options(bad)
         # A Go to page tile keeps it: not saying "Page 3" is the reason this exists.

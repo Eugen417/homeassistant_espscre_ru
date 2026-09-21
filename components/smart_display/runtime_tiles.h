@@ -3098,12 +3098,15 @@ inline int cell_content_width(const Widgets &w) {
 struct HeadRow { int circle=0, circle_y=0, text_x=0, title_y=0, value_y=0; };
 inline int head_gap(bool large) { return ui::px(large ? 6 : 1); }
 inline int head_text_x(int circle, bool large) { return circle + ui::px(large ? 10 : 12); }
+// `value_h` is 0 for a card with no second line (firmware 0.2.85+): the name is then the whole head and stands in
+// the middle of the room on its own, instead of sitting high with an empty line under it. One rule, so it holds on
+// every board and on every cell a grid gives a card.
 inline HeadRow head_row(const Widgets &w, bool large, int circle, int room, int title_h, int value_h) {
   HeadRow h;
   const int pad = lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) + lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
   h.circle = std::max(1, std::min(circle, room + pad - 2 * ui::px(large ? 6 : 3)));
   h.circle_y = (room - h.circle) / 2;
-  h.title_y = std::max(0, (room - (title_h + head_gap(large) + value_h)) / 2);
+  h.title_y = std::max(0, (room - (title_h + (value_h ? head_gap(large) + value_h : 0))) / 2);
   h.value_y = h.title_y + title_h + head_gap(large);
   h.text_x = head_text_x(h.circle, large);
   return h;
@@ -3876,7 +3879,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   // reference boards keep their pixels). The circle and the two lines stand in it by the one rule (head_row).
   // Whatever stands under the head is placed from head_h, which never ends above what the head draws.
   int head_h=std::max<int>(1,std::min<int>(ui::cell_height()-lv_obj_get_style_space_top(w.tile,LV_PART_MAIN)-lv_obj_get_style_space_bottom(w.tile,LV_PART_MAIN),content_h*30/100));
-  const HeadRow head=head_row(w,big,w.base_circle>0?w.base_circle:ui::px(big?54:36),head_h,title_h,value_h);
+  const HeadRow head=head_row(w,big,w.base_circle>0?w.base_circle:ui::px(big?54:36),head_h,title_h,value.empty()?0:value_h);
   const int circle=head.circle;
   lv_obj_set_size(w.circle,circle,circle);
   if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font){set_font(w.icon,w.icon_font);lv_obj_center(w.icon);}
@@ -4103,7 +4106,7 @@ inline void render_slot(size_t slot) {
   // The plain head (a single or double-width card, with or without a panel) stands by the one rule, head_row,
   // centred on the room it got on this grid. The watch and the strip cards place their smaller circle themselves.
   const bool plain=!watch && !(mini||graph_strip);
-  const HeadRow head=plain?head_row(w,large_tile,circle_size,header_height,title_height,value_height):HeadRow{};
+  const HeadRow head=plain?head_row(w,large_tile,circle_size,header_height,title_height,value.empty()?0:value_height):HeadRow{};
   if(plain){circle_size=head.circle;lv_obj_set_size(w.circle,circle_size,circle_size);}
   int text_x=watch?0:plain?head.text_x:circle_size+(ui::px(large_tile?8:6));
   lv_obj_set_pos(w.title,text_x,watch?0:plain?head.title_y:text_y);

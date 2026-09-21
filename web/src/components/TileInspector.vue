@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // One tile's settings. Every change applies live, so the card on the mockup shows the result while you pick.
-import { computed, toRaw } from "vue";
+import { computed, ref, toRaw } from "vue";
 import { t } from "../i18n";
 import { domainInfo, entriesOf, grid, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
@@ -97,7 +97,7 @@ const tapHint = computed(() => {
 // your own. The list of values is Home Assistant's, asked for the entity when this panel opens; an entity Home
 // Assistant names no attribute of - a scene, a switch, a Go to page tile - simply offers the other three.
 const sub = computed(() => current("sub", "auto") as string);
-const subKind = computed(() => (sub.value.startsWith("attr:") ? "attr" : sub.value.startsWith("text:") ? "text" : sub.value));
+const subKind = computed(() => (sub.value.startsWith("attr:") ? "attr" : sub.value.startsWith("text:") || typing.value ? "text" : sub.value));
 const subValues = computed(() => state.subtitleValues[props.tile.entity] ?? []);
 if (state.subtitleValues[props.tile.entity] === undefined) loadSubtitleValues(props.tile.entity);
 const subChoices = computed(() => {
@@ -108,10 +108,18 @@ const subChoices = computed(() => {
 });
 const subAttribute = computed(() => (sub.value.startsWith("attr:") ? sub.value.slice(5) : subValues.value[0]?.key ?? ""));
 const subText = computed(() => (sub.value.startsWith("text:") ? sub.value.slice(5) : ""));
+// "Own text" with nothing typed yet is a kind, not a stored value: writing "text:" with a blank in it would put
+// that blank on the tile. The field opens empty and the option follows the first letter.
+const typing = ref(false);
 function pickSubKind(kind: string) {
+  typing.value = kind === "text";
   if (kind === "attr") setTileOption(props.tile, "sub", subAttribute.value ? `attr:${subAttribute.value}` : "auto");
-  else if (kind === "text") setTileOption(props.tile, "sub", subText.value ? `text:${subText.value}` : "text: ");
+  else if (kind === "text") { if (subText.value) setTileOption(props.tile, "sub", `text:${subText.value}`); }
   else setTileOption(props.tile, "sub", kind);
+}
+function writeSubText(value: string) {
+  const words = value.trim();
+  setTileOption(props.tile, "sub", words ? `text:${words}` : "none");
 }
 const inline = computed(() => current("inline", "none") as string);
 const showSlider = computed(() => SLIDER_DOMAINS.includes(domain.value) && (!caps.value || caps.value.inline || inline.value === "slider"));
@@ -187,7 +195,7 @@ function inspect() {
       </select>
       <input v-if="subKind === 'text'" class="sub-text" :value="subText" maxlength="60"
         :placeholder="t('editor.tile.sub.text_placeholder')" :aria-label="t('editor.tile.sub.text_aria')"
-        @input="setTileOption(tile, 'sub', `text:${($event.target as HTMLInputElement).value}`)" />
+        @input="writeSubText(($event.target as HTMLInputElement).value)" />
       <small>{{ t(`editor.tile.sub.hint_${subKind}`) }}</small>
     </div>
     <div v-if="showSlider && !goesTo" class="f">
