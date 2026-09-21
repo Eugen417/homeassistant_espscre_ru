@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.89"
+  SCREEN_FIRMWARE_VERSION: "0.2.90"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -98,7 +98,7 @@ esphome:
           // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
           // offers it; a quarter turn only a square one, whose canvas is the same either way.
           settings_screen::quarter_turns = ${DISPLAY_W} == ${DISPLAY_H};
-          // Whether this board's backlight takes levels (firmware 0.2.84+): a board whose backlight is one line
+          // Whether this board's backlight takes levels (firmware 0.2.90+): a board whose backlight is one line
           // shows a switch where the others show a percentage. ESP Screens reads the same fact from boards.json.
           settings_screen::dimmable = ${BACKLIGHT_DIMMABLE};
           ${BOOT_ENABLED_HOOK}

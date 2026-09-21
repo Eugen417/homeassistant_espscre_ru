@@ -27,7 +27,7 @@ def shapes():
                  'width': int(values['DISPLAY_W']), 'height': int(values['DISPLAY_H']),
                  'columns': int(values['GRID_COLS']), 'rows': int(values['GRID_ROWS']),
                  'dpi': int(values['DISPLAY_DPI']), 'look': values['LOOK'].strip('"'),
-                 # Whether the backlight takes levels (app 0.2.99): on a board whose backlight is one line, a
+                 # Whether the backlight takes levels (app 0.2.105): on a board whose backlight is one line, a
                  # brightness percentage is a number that lies, so the settings panel shows a switch instead.
                  'dimmable': values.get('BACKLIGHT_DIMMABLE', 'true').strip('"') != 'false'}
         # A board that draws camera pictures says how large it wants them (its online_image components and the

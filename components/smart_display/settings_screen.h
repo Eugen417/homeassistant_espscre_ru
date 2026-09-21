@@ -26,7 +26,7 @@ namespace settings_screen {
 // 0.2.54+) only exists as the screen's own setting and entity, like page_buttons (firmware 0.2.69+): off, the
 // Previous and Next bar under the tiles goes and the tiles take its room.
 inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, dark_mode = 0, page_buttons = 1;
-// Whether this board's backlight takes levels (firmware 0.2.84+). The Waveshare's is one line on an I2C expander:
+// Whether this board's backlight takes levels (firmware 0.2.90+). The Waveshare's is one line on an I2C expander:
 // the panel is lit or it is not, and anything above a hair of a level lights it. A percentage there is a number
 // that lies, so the board's own file says so (BACKLIGHT_DIMMABLE) and the rows below follow: the normal brightness
 // goes, and standby and night become the switch they really are. ESP Screens reads the same fact from boards.json.

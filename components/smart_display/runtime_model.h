@@ -158,7 +158,7 @@ struct Extra {
   std::vector<std::pair<std::string, std::string>> action_data, action_templates;
   // Home Assistant's word for the state where the screen has none of its own (app 0.2.67+): "Open", "Playing", "Rinsing".
   std::string state_word;
-  // A value of this entity that the second line was set to (firmware 0.2.85+, "attr:<name>"): the app reads the
+  // A value of this entity that the second line was set to (firmware 0.2.90+, "attr:<name>"): the app reads the
   // attribute from Home Assistant, writes it the way Home Assistant writes it and sends the finished line. A
   // moment in time comes as seconds instead, so the screen says it in its own words and its own clock, the way
   // it already says when a script last ran (last_run_text) - one wording, not a second one in Python.
@@ -232,7 +232,7 @@ struct Tile {
   bool has_hs_color = false;
   int saturation = 0;
   std::string tap = "auto", display = "standard", inline_control = "none";
-  // What the second line says (firmware 0.2.85+), as the option was stored: "auto" is the line the screen works
+  // What the second line says (firmware 0.2.90+), as the option was stored: "auto" is the line the screen works
   // out itself, "none" leaves it empty, "text:<words>" says those words, and "attr:<name>" says a value of this
   // entity that Home Assistant itself names. Only the last one needs an answer from the app: the other three
   // are decided here, so they keep working while Home Assistant is away.
@@ -474,7 +474,7 @@ struct Model {
   uint8_t pages = 1;
   size_t count = 0;
   std::string title = screen_text::tr(screen_text::txt::status_choose_tiles);
-  // A title of its own for a page (firmware 0.2.84+). The screen's title stands on every page, which is what
+  // A title of its own for a page (firmware 0.2.90+). The screen's title stands on every page, which is what
   // most screens want; a page that says something else says it here. Empty, or missing, means the screen's.
   // A vector and not an array of MAX_PAGES: a screen where nobody set one pays nothing for the possibility.
   std::vector<std::string> page_titles;

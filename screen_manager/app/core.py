@@ -52,7 +52,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.89'
+FIRMWARE_VERSION = '0.2.90'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -369,7 +369,7 @@ def board_of(screen):
     return board or 'unknown'
 
 def dimmable(screen):
-    """Whether this screen's backlight takes levels (app 0.2.99). One board so far says no: the Waveshare's
+    """Whether this screen's backlight takes levels (app 0.2.105). One board so far says no: the Waveshare's
     backlight is a single line on an I2C expander, lit or dark, and there a brightness percentage is a number
     that lies. The fact comes from that board's own file through boards.json, the same place the firmware reads
     it from (settings_screen::dimmable), so the settings panel and the screen's own page agree. A board this app
@@ -1142,7 +1142,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
-            # The second line of a tile (app 0.2.100): the line the screen works out itself, nothing at all, words
+            # The second line of a tile (app 0.2.105): the line the screen works out itself, nothing at all, words
             # of your own, or a value of the entity that Home Assistant names. Which values those are is Home
             # Assistant's answer and changes with it, so the name is only checked for its shape here; a value that
             # is not there any more simply leaves the line to the screen again.
@@ -1222,7 +1222,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
         if type(data['pages']) is not int or not 1 <= data['pages'] <= pages:
             raise ValueError(t('addon.errors.layout.pages', n=pages))
         result['pages'] = data['pages']
-    # A title of its own for a page (app 0.2.99). The screen's title stands on every page, which is what most
+    # A title of its own for a page (app 0.2.105). The screen's title stands on every page, which is what most
     # screens want; a page that should say something else says it here, and an empty entry means the screen's.
     # Trailing empty entries are dropped, so a layout where nobody set one carries nothing at all.
     if 'page_titles' in data:

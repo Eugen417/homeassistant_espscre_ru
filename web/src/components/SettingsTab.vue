@@ -16,7 +16,7 @@ const optionsOf = (row: SettingRow) => (row.key === "rotation" && view.value?.ro
 const values = computed(() => settingValues());
 const offline = computed(() => view.value?.owner === "screen" && !currentScreen.value?.online);
 // A screen whose backlight is lit or dark has no percentage for standby and night: the manager names those keys
-// and they are drawn as the switch the screen draws (app 0.2.99). The row stays the number it is - one number
+// and they are drawn as the switch the screen draws (app 0.2.105). The row stays the number it is - one number
 // underneath either way, 0 or 100 - only its control changes.
 const asSwitch = (row: SettingRow) => Boolean(view.value?.switches?.includes(row.key));
 const isSwitch = (row: SettingRow) => row.kind === "toggle" || asSwitch(row);

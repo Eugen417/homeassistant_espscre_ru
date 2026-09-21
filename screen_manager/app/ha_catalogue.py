@@ -357,7 +357,7 @@ def chip_words(extra, entity_id, states, device, words):
     return extra
 
 
-# ---- The second line of a tile (app 0.2.100, firmware 0.2.85+) ----
+# ---- The second line of a tile (app 0.2.105, firmware 0.2.90+) ----
 # A tile's second line is the line the screen works out itself, nothing at all, words of your own, or a value of
 # the entity. That last list is Home Assistant's, not ours: its frontend translations name the attributes a person
 # may see (`component.<domain>.entity_component._.state_attributes.<attr>.name`), in the language they are asked

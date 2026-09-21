@@ -66,7 +66,7 @@ int main() {
   assert(screen_settings::current.valid());
   // Dark mode (firmware 0.2.54+) sits right under Brightness, a switch of its own outside the frozen block.
   assert(light.count == 6 && light.rows[1].kind == Kind::toggle && std::string(label_text(light.rows[1])) == "Dark mode");
-  // A backlight without levels (firmware 0.2.84+): the normal brightness goes, and standby is the switch it really
+  // A backlight without levels (firmware 0.2.90+): the normal brightness goes, and standby is the switch it really
   // is. Both write the same key, so the app and Home Assistant keep reading one number.
   {
     const Row &standby_switch = row_named(light, "Screen on in standby");

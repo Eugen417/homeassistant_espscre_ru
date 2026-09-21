@@ -90,7 +90,7 @@ class HourlySync(unittest.IsolatedAsyncioTestCase):
 
 
 class SecondLine(unittest.TestCase):
-    """The second line of a tile (app 0.2.100, firmware 0.2.85+).
+    """The second line of a tile (app 0.2.105, firmware 0.2.90+).
 
     Four ways to fill it and one rule about where each is decided: the line the screen works out itself, nothing at
     all and words of your own live in the option, so the screen keeps drawing them while Home Assistant is away;

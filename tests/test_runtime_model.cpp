@@ -255,7 +255,7 @@ static void test_repeated_page_tiles() {
   assert(m.count == 3 && m.title == "Menu");  // a refused layout leaves the one on screen alone
 }
 struct RunRepeatedPages { RunRepeatedPages() { test_repeated_page_tiles(); } } run_repeated_pages;
-// A title of its own for a page (firmware 0.2.84+): the screen's title stands on every page unless that page says
+// A title of its own for a page (firmware 0.2.90+): the screen's title stands on every page unless that page says
 // something else, and a page that says nothing hands the bar back to the screen's title.
 static void test_page_titles() {
   using namespace runtime_tiles;

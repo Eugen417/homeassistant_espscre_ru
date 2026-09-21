@@ -92,7 +92,7 @@ const tapHint = computed(() => {
   if (tap.value === "toggle") return { text: t("editor.tile.tap.hold"), warn: false };
   return null;
 });
-// ---- The second line (app 0.2.100, firmware 0.2.85+) ----
+// ---- The second line (app 0.2.105, firmware 0.2.90+) ----
 // Four ways to fill it: the line the screen works out itself, nothing at all, a value of the entity, or words of
 // your own. The list of values is Home Assistant's, asked for the entity when this panel opens; an entity Home
 // Assistant names no attribute of - a scene, a switch, a Go to page tile - simply offers the other three.

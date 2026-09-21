@@ -70,7 +70,7 @@ int main() {
   unknown.controls = "buttons";
   assert(keys_for(unknown, keys) == 0);
 
-  // Vacuum: the state decides which key the first one is, never whether a key can be pressed (firmware 0.2.84+).
+  // Vacuum: the state decides which key the first one is, never whether a key can be pressed (firmware 0.2.90+).
   // A robot still saying "docked" while it is already cleaning used to leave Stop and Dock unreachable, exactly
   // when they were wanted: a state word is Home Assistant's news, and news can be late.
   Tile robot = make("vacuum.s8", "docked", 30524); robot.controls = "buttons";

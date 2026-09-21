@@ -366,7 +366,7 @@ inline std::string receive(const std::string &payload) {
       if(!root["clock_24h"].isNull() && !root["clock_24h"].is<bool>())return false;
       if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
           root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
-      // A title of its own for a page (firmware 0.2.84+): one entry per page, in page order; an empty one means
+      // A title of its own for a page (firmware 0.2.90+): one entry per page, in page order; an empty one means
       // the screen's own title. Absent on older managers, and then every page says the screen's title as before.
       std::vector<std::string> page_titles;
       if (!root["page_titles"].isNull()) {
@@ -640,7 +640,7 @@ inline std::string receive(const std::string &payload) {
     const int refresh = options["refresh"].is<int>() ? options["refresh"].as<int>() : 0;
     tile.refresh = refresh >= 5 && refresh <= 3600 ? refresh : 15;
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
-    // What the second line says (firmware 0.2.85+); "auto" is the line the screen works out itself, as before.
+    // What the second line says (firmware 0.2.90+); "auto" is the line the screen works out itself, as before.
     tile.subtitle = string(options["sub"], 96); if (tile.subtitle.empty()) tile.subtitle="auto";
     // Direct controls (0.2.19+): the manager sends only the set a wide card really shows.
     tile.controls = string(options["controls"], 16);
@@ -2898,7 +2898,7 @@ inline std::string last_run_text(uint32_t epoch, bool compact) {
   std::string date = fill(fill(txt::date_day_month, "day", std::to_string(when.day_of_month)), "month", month_short(when));
   return fill(txt::script_last_date, "date", date);
 }
-// What the second line was set to, or nothing when it is the line the screen works out itself (firmware 0.2.85+).
+// What the second line was set to, or nothing when it is the line the screen works out itself (firmware 0.2.90+).
 // "none" is an empty line on purpose, which is why this answers `chosen` separately from the text: a page tile
 // that should not say "Page 3" says nothing at all.
 inline bool chosen_subtitle(const Tile &t, std::string &out) {
@@ -3098,7 +3098,7 @@ inline int cell_content_width(const Widgets &w) {
 struct HeadRow { int circle=0, circle_y=0, text_x=0, title_y=0, value_y=0; };
 inline int head_gap(bool large) { return ui::px(large ? 6 : 1); }
 inline int head_text_x(int circle, bool large) { return circle + ui::px(large ? 10 : 12); }
-// `value_h` is 0 for a card with no second line (firmware 0.2.85+): the name is then the whole head and stands in
+// `value_h` is 0 for a card with no second line (firmware 0.2.90+): the name is then the whole head and stands in
 // the middle of the room on its own, instead of sitting high with an empty line under it. One rule, so it holds on
 // every board and on every cell a grid gives a card.
 inline HeadRow head_row(const Widgets &w, bool large, int circle, int room, int title_h, int value_h) {
@@ -3941,7 +3941,7 @@ inline void render_slot(size_t slot) {
   bool watch=t.display=="watch";
   std::string unit=watch?t.unit:"";
   std::string value = t.state;
-  // What the second line was set to wins over every word the screen would work out itself (firmware 0.2.85+),
+  // What the second line was set to wins over every word the screen would work out itself (firmware 0.2.90+),
   // but not over the two that say the screen cannot answer: an unavailable entity and a refused tap still say so.
   std::string chosen;
   const bool set_by_hand = chosen_subtitle(t, chosen);

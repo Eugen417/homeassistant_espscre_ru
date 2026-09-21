@@ -842,7 +842,7 @@ class Manager:
         from what the screen has."""
         inbox = self.aliases.get(screen['id'], screen['id'])
         turns = self.turns(screen)
-        # A backlight without levels (app 0.2.99): the normal brightness is not a setting there, and the two that
+        # A backlight without levels (app 0.2.105): the normal brightness is not a setting there, and the two that
         # are left mean lit or dark. `switches` names them so the panel draws the switch the screen draws.
         dims = dimmable(screen)
         switches = [] if dims else ['standby_brightness', 'night_brightness']
@@ -1350,7 +1350,7 @@ class Manager:
         word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
         if word:
             message.setdefault('x',{})['w']=word
-        # A second line set to a value of this entity (app 0.2.100): the finished line, or seconds for a moment in
+        # A second line set to a value of this entity (app 0.2.105): the finished line, or seconds for a moment in
         # time. The other three settings live in the option itself, so the screen keeps drawing them without us.
         for key,value in ha_catalogue.subtitle_message(tile,state).items():
             message.setdefault('x',{})[key]=value
@@ -1375,7 +1375,7 @@ class Manager:
                    'slots': slots, 'keepalive': KEEPALIVE_SECONDS}
         if 'pages' in layout:
             message['pages'] = layout['pages']
-        # A title of its own for a page (firmware 0.2.84+, app 0.2.99): one entry per page, an empty one meaning
+        # A title of its own for a page (firmware 0.2.90+, app 0.2.105): one entry per page, an empty one meaning
         # the screen's own title. Left out when no page has one, so nothing travels for the screens that never
         # set one; older firmware ignores the key and every page keeps the screen's title as before.
         if layout.get('page_titles'):
@@ -2065,7 +2065,7 @@ def create_app(manager, development=False):
         return web.json_response({'actions': ha_catalogue.action_choices(entity, actions, ha.states.get(entity), ha.services,
                                                                          names, ha.platform_of(entity))})
     async def entity_subtitle(request):
-        """The second line of a tile (app 0.2.100): the values of one entity it may say. The list is Home Assistant's
+        """The second line of a tile (app 0.2.105): the values of one entity it may say. The list is Home Assistant's
         own - the attributes its frontend translations name - in the editor's language, so nothing here is a list we
         keep. An entity Home Assistant names no attribute of answers an empty list, and the editor then offers only
         the line the screen works out itself, nothing at all, or words of your own."""

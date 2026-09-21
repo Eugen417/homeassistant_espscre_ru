@@ -52,7 +52,7 @@ class Positions(unittest.TestCase):
             with self.assertRaises(ValueError, msg=bad): validate_layout({'title': 'Home', 'tiles': [], 'pages': bad})
 
     def test_a_page_may_say_something_else_than_the_screen(self):
-        # A title of its own per page (app 0.2.99): an empty entry means the screen's own title, and trailing
+        # A title of its own per page (app 0.2.105): an empty entry means the screen's own title, and trailing
         # empty ones are dropped, so a screen where nobody set one carries nothing at all.
         base = {'title': 'Home', 'tiles': tiles(('light.a', 0))}
         self.assertEqual(validate_layout({**base, 'page_titles': ['', 'Kitchen', '']})['page_titles'], ['', 'Kitchen'])

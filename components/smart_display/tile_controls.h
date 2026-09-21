@@ -434,7 +434,7 @@ inline unsigned cover_tilt_keys(const Tile &t, std::array<Key, 3> &out) {
 }
 // The row of up to three pill keys for a key-row panel; returns how many.
 //
-// A key is greyed for one reason only (firmware 0.2.84+): a command of this tile is on its way to Home Assistant
+// A key is greyed for one reason only (firmware 0.2.90+): a command of this tile is on its way to Home Assistant
 // and has not been answered yet (Tile::loading, the same wait the busy sheet and the cards follow). It is never
 // greyed because of what the device is doing. A robot that says "docked" while it is already cleaning left its
 // Stop and its Dock unreachable exactly when they were wanted: the state word is Home Assistant's news, and news

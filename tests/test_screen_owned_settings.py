@@ -203,7 +203,7 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
                 await m.change_settings('text.screen', {'home_on_standby': True})
 
     async def test_a_backlight_without_levels_shows_switches_instead_of_percentages(self):
-        # The Waveshare's backlight is one line on an I2C expander, lit or dark (app 0.2.99). Its board file says
+        # The Waveshare's backlight is one line on an I2C expander, lit or dark (app 0.2.105). Its board file says
         # so, boards.json carries it and the firmware reads the same fact, so the panel and the screen's own
         # settings page agree: no normal brightness, and standby and night as the switch they really are.
         self.assertTrue(core.dimmable({'board': 'guition'}))
@@ -599,7 +599,7 @@ class Editor(unittest.TestCase):
         english = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['settings']
         page_labels = {english[key] for key in re.findall(r'(?:number|toggle|duration|moment|choice)\(screen_text::txt::settings_(\w+)', SCREEN_PAGE)}
         script_labels = {editor_sources.text(f'screen_settings.rows.{key}') for key, _ in keys}
-        # The screen page has two rows the editor has no row for (app 0.2.99): on a board whose backlight is lit
+        # The screen page has two rows the editor has no row for (app 0.2.105): on a board whose backlight is lit
         # or dark, standby and night are drawn as a switch. It is the same setting and the same key underneath,
         # so the editor keeps one row and the manager says to draw it as a switch (settings_view `switches`).
         switch_labels = {english['standby_lit'], english['night_lit']}
