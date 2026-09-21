@@ -1946,9 +1946,11 @@ inline lv_obj_t *light_slider(int x,int y,int w,int h,int raw,uint32_t accent,bo
   lv_obj_set_style_pad_left(slider,side,LV_PART_KNOB);lv_obj_set_style_pad_right(slider,side,LV_PART_KNOB);
   lv_obj_set_style_pad_top(slider,-(w-handle_h)/2-inset,LV_PART_KNOB);
   lv_obj_set_style_pad_bottom(slider,-(w-handle_h)/2+inset,LV_PART_KNOB);
-  // A margin past both ends keeps the handle on the track at 0 and at 100 % (the event snaps the value back).
-  const int margin=1000*(inset+handle_h)/std::max(1,h-2*(inset+handle_h));
-  lv_slider_set_range(slider,-margin,1000+margin);
+  // Room past the bottom end only, so the handle still sits on the track at 0 (the event snaps the value back).
+  // Not past the top: the fill is what the value is, and a slider that reached 1000 of a range that ran to
+  // 1000 + margin stopped a handle's width short of the top at 100 % - which is exactly what it looked like.
+  const int below=1000*(inset+handle_h)/std::max(1,h-(inset+handle_h));
+  lv_slider_set_range(slider,-below,1000);
   lv_slider_set_value(slider,std::clamp(raw,0,1000),LV_ANIM_OFF);
   if(!enabled)lv_obj_add_state(slider,LV_STATE_DISABLED);
   lv_obj_remove_flag(slider,LV_OBJ_FLAG_GESTURE_BUBBLE);
