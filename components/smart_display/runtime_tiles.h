@@ -366,6 +366,16 @@ inline std::string receive(const std::string &payload) {
       if(!root["clock_24h"].isNull() && !root["clock_24h"].is<bool>())return false;
       if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
           root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
+      // A title of its own for a page (firmware 0.2.84+): one entry per page, in page order; an empty one means
+      // the screen's own title. Absent on older managers, and then every page says the screen's title as before.
+      std::vector<std::string> page_titles;
+      if (!root["page_titles"].isNull()) {
+        if (!root["page_titles"].is<JsonArray>()) return false;
+        for (JsonVariant name : root["page_titles"].as<JsonArray>()) {
+          if (!name.is<const char *>() || page_titles.size() == MAX_PAGES) return false;
+          page_titles.push_back(string(name, 96));
+        }
+      }
       // Explicit grid positions (0.2.26+), one absolute slot per entity; absent on older managers.
       std::vector<uint8_t> positions;
       if (!root["slots"].isNull()) {
@@ -386,6 +396,7 @@ inline std::string receive(const std::string &payload) {
         }
         return false;
       }
+      model.page_titles = page_titles;
       // Empty pages the user keeps on purpose; absent on older managers.
       model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, MAX_PAGES)) : 1;
       if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
@@ -4215,6 +4226,10 @@ inline void render_slot(size_t slot) {
 // such as the minute tick and time sync) draws every card.
 inline uint64_t dirty_tiles=0;
 inline bool dirty_all=false, dirty_header=false;
+// The page whose cells are placed right now, -1 before the first one. It lives here and not beside show_page
+// because the top bar reads it: a page with a title of its own says that title (Model::title_of), so render()
+// has to know which page it is drawing.
+inline int applied_page=-1;
 inline void mark_tile(size_t index) { if(uint64_t bit=tile_bit(index))dirty_tiles|=bit; else dirty_all=true; }
 inline void refresh_tile(size_t index) { mark_tile(index); if(refresh)refresh(); }
 inline void refresh_header_only() { dirty_header=true; if(refresh)refresh(); }
@@ -4267,7 +4282,7 @@ inline void render(lv_obj_t *room) {
   room_label=room; swipe_profile::Lap lap;
   if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : txt::status_waiting));
   else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
-  label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title);
+  label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
   lap(swipe_profile::HEADER);
   bool all=dirty_all || (!dirty_tiles && !dirty_header);
@@ -4605,7 +4620,6 @@ inline unsigned page_count() {
 // in the very next frame. Every following LVGL refresh draws the next two cards, so the loop, and
 // the touch polling in it, runs between the steps, and a new swipe drops a fill still under way.
 // Keepalives and re-packing on the same page draw at once. Nothing is allocated.
-inline int applied_page=-1;
 // Slot assignment plus card places, sizes and visibility for a page; contents are untouched.
 inline int place_page(int page) {
   swipe_profile::Lap lap;
@@ -4715,6 +4729,8 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   swipe_profile::SkeletonTimer timer;
   cancel_fill();
   applied_page=place_page(page);
+  // A page with a title of its own carries it into the top bar with the same frame as its tiles, not a tick later.
+  if(room_label && model.configured && model.ready() && ha_connected() && feed_alive())label(room_label,model.title_of(applied_page));
   swipe_profile::Lap lap;
   for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
     auto &w=widgets[slot];

@@ -255,6 +255,25 @@ static void test_repeated_page_tiles() {
   assert(m.count == 3 && m.title == "Menu");  // a refused layout leaves the one on screen alone
 }
 struct RunRepeatedPages { RunRepeatedPages() { test_repeated_page_tiles(); } } run_repeated_pages;
+// A title of its own for a page (firmware 0.2.84+): the screen's title stands on every page unless that page says
+// something else, and a page that says nothing hands the bar back to the screen's title.
+static void test_page_titles() {
+  using namespace runtime_tiles;
+  Model m;
+  bool changed = false;
+  assert(m.set_layout({"light.a"}, "Home", changed));
+  assert(m.title_of(0) == "Home" && m.title_of(3) == "Home" && m.title_of(-1) == "Home");
+  m.page_titles = {"", "Kitchen", "Bedroom"};
+  assert(m.title_of(0) == "Home");        // empty: the screen's own
+  assert(m.title_of(1) == "Kitchen");
+  assert(m.title_of(2) == "Bedroom");
+  assert(m.title_of(7) == "Home");        // past the list: the screen's own
+  assert(m.title_of(-1) == "Home");
+  // The screen's title changing carries every page that inherits it.
+  assert(m.set_layout({"light.a"}, "Upstairs", changed));
+  assert(m.title_of(0) == "Upstairs" && m.title_of(1) == "Kitchen");
+}
+struct RunPageTitles { RunPageTitles() { test_page_titles(); } } run_page_titles;
 // A longer list needs one block for every tile (firmware 0.2.65+): without it the layout is refused before anything
 // changes, with a reason for the manager, instead of std::vector writing tiles through a null pointer on the ESP32.
 static size_t test_room = 0;

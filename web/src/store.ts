@@ -426,6 +426,20 @@ export function openTile(tile: Tile) {
   state.inspector = { kind: "tile" };
   loadCapabilities([tile.entity]);
 }
+// A title of its own for a page (app 0.2.99). The screen's title stands on every page, which is what most screens
+// want; a page that should say something else gets it here, and clearing it hands the page back to the screen's.
+// Stored as one entry per page, trailing empty ones dropped, so a screen where nobody set one carries nothing.
+export const pageTitle = (page: number) => state.layout?.page_titles?.[page] ?? "";
+export const pageTitleShown = (page: number) => pageTitle(page) || state.layout?.title || "";
+export function setPageTitle(page: number, value: string) {
+  if (!state.layout) return;
+  const names = [...(state.layout.page_titles ?? [])];
+  while (names.length <= page) names.push("");
+  names[page] = value;
+  while (names.length && !names[names.length - 1]) names.pop();
+  state.layout.page_titles = names.length ? names : undefined;
+  markDirty();
+}
 export function openBar(index: number) {
   if (!(state.inspector?.kind === "bar" && state.inspector.index === index)) state.iconPickerOpen = false;
   state.selectedTile = null;

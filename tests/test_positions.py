@@ -51,6 +51,17 @@ class Positions(unittest.TestCase):
         for bad in [0, 9, '2', 2.0, True]:
             with self.assertRaises(ValueError, msg=bad): validate_layout({'title': 'Home', 'tiles': [], 'pages': bad})
 
+    def test_a_page_may_say_something_else_than_the_screen(self):
+        # A title of its own per page (app 0.2.99): an empty entry means the screen's own title, and trailing
+        # empty ones are dropped, so a screen where nobody set one carries nothing at all.
+        base = {'title': 'Home', 'tiles': tiles(('light.a', 0))}
+        self.assertEqual(validate_layout({**base, 'page_titles': ['', 'Kitchen', '']})['page_titles'], ['', 'Kitchen'])
+        self.assertNotIn('page_titles', validate_layout({**base, 'page_titles': ['', '']}))
+        self.assertNotIn('page_titles', validate_layout(base))
+        self.assertEqual(validate_layout({**base, 'page_titles': ['  Hall  ']})['page_titles'], ['Hall'])
+        for bad in ['Hall', {'1': 'Hall'}, [None], [1], ['x' * 97], [''] * 9]:
+            with self.assertRaises(ValueError, msg=bad): validate_layout({**base, 'page_titles': bad})
+
     def test_last_cell_of_page_eight_and_wide_on_last_row(self):
         layout = validate_layout({'title': 'Home', 'tiles': tiles(('light.a', MAX_SLOTS - 1), ('weather.w', MAX_SLOTS - 4, True))})
         self.assertEqual([t['slot'] for t in layout['tiles']], [MAX_SLOTS - 4, MAX_SLOTS - 1])

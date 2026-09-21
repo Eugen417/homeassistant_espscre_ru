@@ -1371,6 +1371,11 @@ class Manager:
                    'slots': slots, 'keepalive': KEEPALIVE_SECONDS}
         if 'pages' in layout:
             message['pages'] = layout['pages']
+        # A title of its own for a page (firmware 0.2.84+, app 0.2.99): one entry per page, an empty one meaning
+        # the screen's own title. Left out when no page has one, so nothing travels for the screens that never
+        # set one; older firmware ignores the key and every page keeps the screen's title as before.
+        if layout.get('page_titles'):
+            message['page_titles'] = layout['page_titles']
         # A screen that owns its settings (firmware 0.2.49+) gets none: they would overwrite what changed on it.
         if 'settings' in layout and self.setting_entities(screen) is None:
             # `settings` is the fixed eleven-key block older firmware insists on; everything added

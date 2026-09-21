@@ -439,6 +439,8 @@
       "layout": {
         "invalid": "Invalid layout.",
         "title": "Give the screen a title of at most 96 bytes.",
+        "page_title": "Give a page a title of at most 96 bytes.",
+        "page_titles": "A screen has at most 1 page. | A screen has at most {n} pages.",
         "tiles_max": "Choose at most 1 tile. | Choose at most {n} tiles.",
         "unsupported": "This entity isn't supported.",
         "once": "An entity can only appear once on a screen.",
@@ -1166,6 +1168,8 @@
       "label": "Page {page}",
       "remove": "Remove page",
       "remove_title": "The pages after this one shift up one slot",
+      "title_hint": "What this page's top bar says. Empty: the screen's own title.",
+      "title_aria": "Title of page {page}",
       "edit_bar": "Edit top bar",
       "cell": {
         "title": "Empty slot. Click to add a tile here, or drag one over.",

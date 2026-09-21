@@ -462,6 +462,15 @@ struct Model {
   uint8_t pages = 1;
   size_t count = 0;
   std::string title = screen_text::tr(screen_text::txt::status_choose_tiles);
+  // A title of its own for a page (firmware 0.2.84+). The screen's title stands on every page, which is what
+  // most screens want; a page that says something else says it here. Empty, or missing, means the screen's.
+  // A vector and not an array of MAX_PAGES: a screen where nobody set one pays nothing for the possibility.
+  std::vector<std::string> page_titles;
+  // What the top bar says on `page`, counted from 0.
+  const std::string &title_of(int page) const {
+    if (page >= 0 && static_cast<size_t>(page) < page_titles.size() && !page_titles[page].empty()) return page_titles[page];
+    return title;
+  }
   bool configured = false;
   // Why the last set_layout refused a layout, for the manager's inbox status; empty when it took the layout or the
   // message itself was wrong (the status then says "invalid message", as before).

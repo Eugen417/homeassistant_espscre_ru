@@ -16,6 +16,8 @@ export type Layout = {
   title: string;
   tiles: Tile[];
   pages?: number;
+  // A title of its own per page (app 0.2.99); an empty entry, or none at all, means the screen's own title.
+  page_titles?: string[];
   header?: { items: HeaderItem[] };
   settings?: Record<string, any>;
   [key: string]: unknown;
