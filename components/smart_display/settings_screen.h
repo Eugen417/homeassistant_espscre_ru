@@ -27,7 +27,7 @@ namespace settings_screen {
 // Previous and Next bar under the tiles goes and the tiles take its room.
 inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, dark_mode = 0, page_buttons = 1;
 // Turning: a half turn keeps the canvas, the grid and the whole size table, so every screen offers it (firmware
-// 0.2.79+); a quarter turn only a square screen, whose canvas is the same either way. packages/core.yaml sets this
+// 0.2.80+); a quarter turn only a square screen, whose canvas is the same either way. packages/core.yaml sets this
 // from DISPLAY_W == DISPLAY_H at boot.
 inline bool quarter_turns = false;
 

@@ -1,4 +1,4 @@
-"""The shape a screen reports (firmware 0.2.79): "<width>x<height> <columns>x<rows>".
+"""The shape a screen reports (firmware 0.2.80): "<width>x<height> <columns>x<rows>".
 
 The add-on reads it from the screen's own diagnostic sensor, so the editor draws the glass and the cells of
 the screen in front of it instead of guessing from the board it was built for. Firmware from before says
@@ -19,7 +19,7 @@ class Shape(unittest.TestCase):
                          {'width': 800, 'height': 480, 'columns': 3, 'rows': 2})
         self.assertEqual(core.parse_shape(' 320x240 2x3 '),
                          {'width': 320, 'height': 240, 'columns': 2, 'rows': 3})
-        # Since firmware 0.2.79 the density and the look follow, so a board this app never heard of still draws right.
+        # Since firmware 0.2.80 the density and the look follow, so a board this app never heard of still draws right.
         self.assertEqual(core.parse_shape('800x480 3x3 217dpi standard'),
                          {'width': 800, 'height': 480, 'columns': 3, 'rows': 3, 'dpi': 217, 'look': 'standard'})
         self.assertEqual(core.parse_shape('320x240 2x3 143dpi compact')['look'], 'compact')

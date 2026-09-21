@@ -1,6 +1,6 @@
 # One firmware, any board: how the screens fit their glass
 
-Since app 0.2.93 (firmware 0.2.79) a board says what its glass is and the firmware, the add-on and the editor
+Since app 0.2.94 (firmware 0.2.80) a board says what its glass is and the firmware, the add-on and the editor
 follow: the tile grid, the size of everything drawn, the cards a tap opens. The CYD and the Guition were the
 first two boards and render as they did before; the Waveshare ESP32-S3-Touch-LCD-4.3 (800 x 480, three by
 three) was the first board added this way. The rule for every change here: the two first boards keep their
@@ -116,12 +116,33 @@ must hit, `ui::column_gap()` between two columns, `ui::control_max_width()` (110
 controls that must stay inside one hand's reach. A number that is neither a design size nor a physical
 one is usually a mistake.
 
+**More pixels is not more room.** A denser panel draws the same design larger, so what a card has to
+work with is what is left after that scaling, not what the resolution suggests. The Waveshare's
+800 x 480 is *shorter* than a Guition's 480 x 480: 55 mm of glass against 71, with every letter, key and
+icon 28 % bigger. A stack drawn on the Guition and moved over therefore ran out of height on the
+board that sounds bigger, and the weather card's coming days came out 51 px tall with five rows in
+them (2026-09-21). Ask the area for its height, and try the *shortest* glass first, never the widest.
+
 **Say what may give, and in what order.** A stack that must fit calls `ui::shrink({...}, over)` with
 its blocks, each with the least it can be and how much of the stack one of its pixels is worth. The
 *order is the design decision*, and every card makes its own: a robot gives up its portrait before its
 keys, a thermostat its status word before its modes, the effects page its rows before its sliders.
-Write the order down in a comment with the reason. Nothing may ever be drawn past the glass: if the
+And the concessions are **states, not a ratchet**: a card that has given up a whole block has room for
+the small things again. So write the states down in the order you would like them, try them in turn and
+take the first that holds everything, instead of giving one thing after another and never taking
+anything back. The weather card's order is the rain under its hours, then its heading, then the hour
+strip; on 800 x 480 the strip buys so much room that the heading comes back with it and every day keeps
+a row (`weather_card::layout`). Write the order down in a comment with the reason. Nothing may ever be drawn past the glass: if the
 cascade runs out, the last resort is scrolling or leaving content out, never overflow.
+
+**Does a list not fit? Then it gets a pager, the way the settings page has one.** A stack of items that
+is one too long is not a reason to squeeze the items: a row that falls under the height of its own
+letters is unreadable on every board, and one drawn over the next is worse than one a tap away. So a
+list of items that repeat — settings rows, the coming days, the effects of a light — shows as many as
+fit at their honest minimum and puts the rest on a next page, with the same chevrons-and-dots pager as
+the tile pages (`settings_screen::page_dots`, `settings_screen::fitting_rows`, `weather_card::layout`).
+Reserve the pager's room only when there is really a second page, so a list that just fits keeps its
+one page. And when a page turns, make only the rows again, not the card around them.
 
 **Let the shape choose the form.** Screens differ more in *proportion* than in size. A card that is one
 column on a square panel should stand in two on wide glass, because the height it lacks is width it
@@ -134,7 +155,10 @@ so LVGL divides the page and we only say which cell a card takes. Flex rows with
 `min_width`/`max_width` in `ui::px()` do the same for a row inside a card. Computed coordinates are for
 what LVGL cannot express, not for what is easier to write today. Watch the cost, though: a widget that
 clips its children to a rounded corner makes LVGL allocate a layer of tens of kilobytes on every
-redraw, which a board without PSRAM cannot pay.
+redraw, which a board without PSRAM cannot pay. And asking LVGL where something ended up
+(`lv_obj_update_layout`) lays out every object on the screen, so a card that can say where its parts go
+by arithmetic should: compute it once, place the parts, and when something changes make only those
+objects again - the day rows of a page, not the cards around them.
 
 **Reuse the frame.** Anything a tap opens goes through `overlay_card`: the padding, the cap, the
 centring, the two-column split and `touchable()` are there so that a new card inherits the rules
@@ -157,7 +181,7 @@ render says it is worth looking at.
 
 ## What the screen tells the add-on
 
-A screen reports two diagnostic sensors (firmware 0.2.79+): **Screen layout**, `800x480 3x3 217dpi standard`
+A screen reports two diagnostic sensors (firmware 0.2.80+): **Screen layout**, `800x480 3x3 217dpi standard`
 (the canvas after rotation, the grid, the density, the look), and **Screen board**, the key of its board file.
 The add-on (`core.shape_of`, `core.grid_of`) takes what the screen says first, then the board the screen's
 profile YAML builds from (`screen_manager/app/boards.json`, written from the board files by
@@ -177,7 +201,7 @@ event and the layout sensor count rows, columns and pages the same way.
   they become computed cards like the thermostat, the blind and the robot.
 - A card with two groups (light: brightness and colour; climate: setpoint, modes, fan) could stand in two
   columns on wide glass instead of one capped column. Same components, another flex flow.
-- Turning follows the shape (firmware 0.2.79+): a half turn keeps width, height, the grid and the whole size
+- Turning follows the shape (firmware 0.2.80+): a half turn keeps width, height, the grid and the whole size
   table, so every board offers it; a quarter turn only a square screen (`settings_screen::quarter_turns`,
   set from `DISPLAY_W == DISPLAY_H` at boot). The shared tree applies the angle on top of the board's own
   `LVGL_ROTATION` (a CYD starts at 90), and each board's Rotation select offers the angles its glass allows.

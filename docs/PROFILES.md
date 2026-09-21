@@ -44,7 +44,7 @@ the board file replaces the core's. `esphome config home-like-2432s028.yaml` sho
 3. Add `packages/<board>.yaml` and `<board>.yaml` after the existing entries, `<board>` to `BOARDS` and `ENTRIES`
    in `tools/profiles.py` and to `REFS` in `screen_manager/app/core.py` (the boards `installation_yaml()` writes a
    profile for), and the board to the editor's New screen. docs/ADDING_A_BOARD.md is the whole recipe, the grid
-   included: since app 0.2.93 a board declares its grid, its density and its look, and the shared tree, the add-on
+   included: since app 0.2.94 a board declares its grid, its density and its look, and the shared tree, the add-on
    and the editor follow (docs/RESPONSIVE.md).
 4. `python3 tools/check_packages.py`, `esphome config <board>.yaml`, `tools/check.sh --firmware`.
 

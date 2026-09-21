@@ -1,4 +1,4 @@
-# Test results app 0.2.93 / firmware 0.2.79 (2026-09-20)
+# Test results app 0.2.94 / firmware 0.2.80 (2026-09-20)
 
 The responsive round: a board declares its grid, its density and its look, and the firmware, the manager and the
 editor follow (docs/RESPONSIVE.md). The rule for the release: the CYD and the Guition draw what they drew before,
@@ -44,12 +44,12 @@ Wallbox (480 × 480), the CYD (320 × 240) and the Waveshare (800 × 480).
   page 2. The same positions offered to the CYD are refused with "A double-width tile starts in the left column".
 - A screen whose sensors are unavailable is known by the board package its profile YAML builds from
   (`Manager.grid_of`), so an offline Waveshare still saves on three columns (`tests/test_grid.py`).
-- Firmware 0.2.79 was flashed over the air from this checkout to the Guition Wallbox, the CYD and the Waveshare.
+- Firmware 0.2.80 was flashed over the air from this checkout to the Guition Wallbox, the CYD and the Waveshare.
   After the update each reports its shape with density and look, which the add-on prefers over `boards.json`.
 
 ## Turning, on the three screens
 
-Every board turns since firmware 0.2.79: a half turn on any glass, the quarter turns as well on a square one. Checked
+Every board turns since firmware 0.2.80: a half turn on any glass, the quarter turns as well on a square one. Checked
 through the local add-on, whose settings view now says which angles a screen takes:
 
 - The CYD (320 × 240) is offered 0° and 180°; its new `select.<screen>_rotation` has those two options. A change to
@@ -57,7 +57,7 @@ through the local add-on, whose settings view now says which angles a screen tak
   quarter; this one turns upside down (180°)"; 0° again puts it back.
 - The Guition (480 × 480) keeps all four angles: 90° through the add-on, the select follows, 0° again.
 - The Waveshare (800 × 480): 0° and 180° offered, its select has those two; 180° accepted and followed, 90° refused
-  with the same sentence, 0° again puts it back. All three screens report firmware 0.2.79 and Synced afterwards.
+  with the same sentence, 0° again puts it back. All three screens report firmware 0.2.80 and Synced afterwards.
 - The settings page on the screen shows the row of two angles on the CYD and the Waveshare and the row of four on
   the Guition (`tests/test_settings_screen.cpp`); the board files' selects are checked against their shape by
   `tools/check_packages.py`.
@@ -82,7 +82,27 @@ them by hand; his own layouts are restored afterwards.
   share, 92 KB) and ESP-IDF's own Wi-Fi and TCP buffers again. The board boots with 112 KB free, takes the 45 tiles
   with two live cameras and holds them: twenty minutes Synced and answering, the free heap moving between 67 and
   83 KB as the live strip comes and goes, the lowest 56 KB. It was flashed over USB; it went into the board file
-  and the firmware stays 0.2.79 (nothing shipped in between).
+  and the firmware stays 0.2.80 (nothing shipped in between).
+
+## The weather card (2026-09-21)
+
+Found while reading the round back: the card a tap opens on a weather tile stacked its two blocks without ever
+asking whether they fit. On the Waveshare that left the coming days 51 px tall with five rows drawn over each
+other; the CYD and the Guition were right, which is why it had not shown - both are tall enough for the design
+the blocks were drawn at. It is a computed card now (`components/smart_display/weather_card.h`), like the
+thermostat and the media card.
+
+- `tests/test_weather_card.cpp` (the 22nd C++ test) walks 240 x 320 to 1024 x 600 in the two looks, with zero to
+  eight hours and one to five days, and asserts that nothing leaves the glass, no block covers another, a day row
+  is never thinner than three quarters of its line, the columns of a row stay in order, and every day is on a page.
+- Host renders of the three boards, before and after (the frozen demo home): the CYD and the Guition are identical
+  to the byte. The Waveshare keeps its hour strip, gives up the rain under it and the "Coming days" heading, and
+  shows all five days on rows of their own.
+- A 4.3 inch of 480 x 272 (lab-g43) gives up its hour strip instead and keeps the heading: the state a bigger
+  concession makes unnecessary is taken back, which is what the state list in `weather_card::layout` is for.
+- The pager appears on no board that ships: the cascade finds the room first on all three, which is the point of
+  the order. Its geometry is what the test covers (a shape that cannot hold five days however the card gives);
+  its drawing is the settings page's pager, the same objects in the same place. It has not been on glass.
 
 ## Not covered here
 

@@ -3,7 +3,7 @@
 A board file already says what its screen is (DISPLAY_W, DISPLAY_H, DISPLAY_DPI, LOOK) and how its page is
 divided (GRID_COLS, GRID_ROWS). The manager needs the same numbers to draw a screen in the editor before it has
 ever been flashed, so they are copied here instead of typed a second time; `--check` fails when the file is out
-of date, which tools/check.sh runs. A screen that is online reports its own shape as well (firmware 0.2.79),
+of date, which tools/check.sh runs. A screen that is online reports its own shape as well (firmware 0.2.80),
 and that one wins: it knows about rotation.
 
 usage: generate_board_shapes.py [--check]

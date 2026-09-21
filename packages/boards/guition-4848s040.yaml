@@ -381,7 +381,7 @@ text_sensor:
     update_interval: never
     lambda: 'return {"guition"};'
 
-# Turning the screen as a Home Assistant choice (firmware 0.2.79+). A square screen turns a quarter as well as a half: its canvas is the same either way. The shared tree applies the
+# Turning the screen as a Home Assistant choice (firmware 0.2.80+). A square screen turns a quarter as well as a half: its canvas is the same either way. The shared tree applies the
 # angle (packages/core.yaml); a list of options cannot come from a substitution, which is why every board carries this
 # block and tools/check_packages.py keeps the three alike.
 select:

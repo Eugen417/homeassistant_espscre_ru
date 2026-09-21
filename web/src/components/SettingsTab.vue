@@ -11,7 +11,7 @@ import {
 
 const view = computed(() => settingsView());
 // The choices of a row: the rotation offers the angles this screen's glass allows (the manager says which, app
-// 0.2.93); an add-on from before said nothing, and then the four of the Guition stand.
+// 0.2.94); an add-on from before said nothing, and then the four of the Guition stand.
 const optionsOf = (row: SettingRow) => (row.key === "rotation" && view.value?.rotations?.length ? view.value.rotations : row.options!);
 const values = computed(() => settingValues());
 const offline = computed(() => view.value?.owner === "screen" && !currentScreen.value?.online);

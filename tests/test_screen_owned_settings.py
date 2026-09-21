@@ -624,7 +624,7 @@ class Firmware(unittest.TestCase):
             self.assertIn('if (!entity->has_state() || entity->state != value) entity->publish_state(value);', script, path)
             self.assertIn('std::make_pair(id(setting_night_start), settings.night_start)', script, path)
             self.assertIn('settings_screen::refresh();', script, f'{path}: an open settings page follows Home Assistant')
-            # Every board turns since firmware 0.2.79 (a half turn at least): the shared script keeps the entity in step.
+            # Every board turns since firmware 0.2.80 (a half turn at least): the shared script keeps the entity in step.
             self.assertIn('id(setting_rotation)->update();', text, path)
 
     def test_the_page_and_every_entity_change_settings_the_same_way(self):

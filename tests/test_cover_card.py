@@ -110,7 +110,7 @@ class Firmware(unittest.TestCase):
         cards = controls[controls.index('inline bool runtime_card_domain('):]
         cards = cards[:cards.index('\n}\n')]
         self.assertIn('d == "cover"', cards, 'covers go to show_detail with the other runtime cards')
-        self.assertIn('d == "climate"', cards, 'a thermostat opens the computed card too (firmware 0.2.79)')
+        self.assertIn('d == "climate"', cards, 'a thermostat opens the computed card too (firmware 0.2.80)')
         self.assertIn('if (runtime_card_domain(d)) return {TapRoute::CARD, "", true};', controls)
         self.assertIn('return d == "light" || d == "fan" ? Tap{TapRoute::OVERLAY', controls, 'not to the board\'s value overlay any more')
         self.assertIn('case tile_controls::TapRoute::CARD:', event)

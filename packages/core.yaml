@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.79"
+  SCREEN_FIRMWARE_VERSION: "0.2.80"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -90,7 +90,7 @@ esphome:
           runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
-          // Turning (firmware 0.2.79 on every board): a half turn keeps the canvas and the grid, so every screen
+          // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
           // offers it; a quarter turn only a square one, whose canvas is the same either way.
           settings_screen::quarter_turns = ${DISPLAY_W} == ${DISPLAY_H};
           ${BOOT_ENABLED_HOOK}
@@ -1087,7 +1087,7 @@ text_sensor:
     entity_category: diagnostic
     lambda: 'return {"${SCREEN_FIRMWARE_VERSION}"};'
     update_interval: 60s
-  # The shape of this screen (firmware 0.2.79+): the canvas LVGL draws on, the grid of cells a page holds, the
+  # The shape of this screen (firmware 0.2.80+): the canvas LVGL draws on, the grid of cells a page holds, the
   # pixel density and the look ("800x480 3x3 217dpi standard"), so ESP Screens knows what a screen looks like
   # instead of guessing from the board it was built for (core.parse_shape reads it). The canvas follows the
   # rotation, which is why it is read from the display and not from the board file.
@@ -1102,7 +1102,7 @@ text_sensor:
                ui::dpi, ui::large() ? "standard" : "compact");
       return {std::string(text)};
     update_interval: 60s
-  # Which board this is (firmware 0.2.79): the key of its file in packages/boards, so ESP Screens knows what a
+  # Which board this is (firmware 0.2.80): the key of its file in packages/boards, so ESP Screens knows what a
   # screen can do without a sensor per board. It used to read a "Guition screen type" sensor that only the
   # Guition had, so every other board was "unknown" and camera tiles were refused on all of them.
   - platform: template
@@ -2197,7 +2197,7 @@ script:
           for (auto [entity, minutes] : {std::make_pair(id(setting_night_start), settings.night_start), std::make_pair(id(setting_night_end), settings.night_end)}) {
             if (!entity->has_state() || entity->hour * 60 + entity->minute != minutes) entity->update();
           }
-          // The Rotation entity in Home Assistant follows (every board has one since firmware 0.2.79).
+          // The Rotation entity in Home Assistant follows (every board has one since firmware 0.2.80).
           {
             const auto shown = id(setting_rotation)->active_index();
             const auto wanted = id(setting_rotation)->index_of(std::to_string(settings_screen::rotation) + "°");
@@ -2615,10 +2615,11 @@ script:
             }
           }
 
-          // Track and fill are the pale blue and blue paints of overlay_slider.
+          // Track and fill are the pale blue and blue paints of overlay_slider. Their radius is the board's
+          // (${OVERLAY_SLIDER_RADIUS} on both parts, in the widget above) and is never set here: a fill rounded
+          // less than its track makes lv_bar draw it into an ARGB layer of tens of kilobytes on every redraw,
+          // which a CYD cannot allocate - it then retries until the watchdog restarts the board (2026-09-21).
           lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
-          lv_obj_set_style_radius(id(overlay_slider), 28, LV_PART_MAIN);
-          lv_obj_set_style_radius(id(overlay_slider), 0, LV_PART_INDICATOR);
 
           lv_label_set_text(id(overlay_title), title.c_str());
           lv_label_set_text(id(overlay_icon), icon_text.c_str());

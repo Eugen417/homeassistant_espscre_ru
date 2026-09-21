@@ -1,4 +1,4 @@
-"""The grid of a screen's pages (app 0.2.93): every slot, page and tile count follows the screen, not the first boards.
+"""The grid of a screen's pages (app 0.2.94): every slot, page and tile count follows the screen, not the first boards.
 
 The firmware derives its grid from the board (GRID_COLS x GRID_ROWS, runtime_model.h); the add-on used to count with
 six cells and 48 tiles whatever the screen, so on a 3 x 3 panel a wide tile in the second row, a full tile on page 2
@@ -97,11 +97,11 @@ class Screens(unittest.TestCase):
         self.assertEqual(grid_of({'shape': {'width': 800, 'height': 480, 'columns': 0, 'rows': 3}}), DEFAULT_GRID)
 
     def test_the_tile_limit_is_the_smaller_of_the_firmware_and_the_grid(self):
-        self.assertEqual(tile_limit((0, 2, 79), WIDE), 63)
-        self.assertEqual(tile_limit((0, 2, 79), TALL), 32)
-        self.assertEqual(tile_limit((0, 2, 79)), 48)
+        self.assertEqual(tile_limit((0, 2, 80), WIDE), 63)
+        self.assertEqual(tile_limit((0, 2, 80), TALL), 32)
+        self.assertEqual(tile_limit((0, 2, 80)), 48)
         self.assertEqual(tile_limit((0, 2, 40), WIDE), 20)
-        self.assertEqual(firmware_features((0, 2, 79), WIDE)['tile_limit'], 63)
+        self.assertEqual(firmware_features((0, 2, 80), WIDE)['tile_limit'], 63)
 
 
 class Layouts(unittest.TestCase):
@@ -199,7 +199,7 @@ def fake_ha(shape='800x480 3x3 217dpi standard', board='waveshare43'):
                              {'entity_id': 'sensor.d1_fw', 'platform': 'esphome', 'original_name': 'Screen firmware', 'device_id': 'd1'},
                              {'entity_id': 'sensor.d1_shape', 'platform': 'esphome', 'original_name': 'Screen layout', 'device_id': 'd1'},
                              {'entity_id': 'sensor.d1_board', 'platform': 'esphome', 'original_name': 'Screen board', 'device_id': 'd1'}]
-            self.states = {'text.d1_tiles': {'state': 'Synced'}, 'sensor.d1_node': {'state': 'hall'}, 'sensor.d1_fw': {'state': '0.2.79'},
+            self.states = {'text.d1_tiles': {'state': 'Synced'}, 'sensor.d1_node': {'state': 'hall'}, 'sensor.d1_fw': {'state': '0.2.80'},
                            'sensor.d1_shape': {'state': shape}, 'sensor.d1_board': {'state': board}}
             for i in range(70):
                 entity = f'light.l{i}'

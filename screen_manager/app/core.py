@@ -52,7 +52,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.79'
+FIRMWARE_VERSION = '0.2.80'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -105,7 +105,7 @@ WIDE_ONLY = ('forecast', 'sunpath')
 # The rules are the firmware's (components/smart_display/runtime_model.h): at most eight pages, and never more
 # than 64 tiles on one screen (one dirty bit each), so a page of nine cells gives seven pages. Everything that
 # counts cells, rows, pages or tiles goes through the screen's Grid (`grid_of(screen)`); DEFAULT_GRID is the two
-# by three of the first boards, which is also what every layout stored before app 0.2.93 was made on.
+# by three of the first boards, which is also what every layout stored before app 0.2.94 was made on.
 FIRMWARE_MAX_PAGES = 8
 FIRMWARE_MAX_TILES = 64
 
@@ -309,10 +309,10 @@ NAME_DEVICE_NAME = ('Device name', 'Apparaatnaam')
 NAME_IP_ADDRESS = ('IP address', 'IP-adres')
 # The language a screen's firmware was built in (firmware 0.2.76+, app 0.2.90); older firmware speaks English.
 NAME_SCREEN_LANGUAGE = ('Screen language',)
-# The shape of a screen (firmware 0.2.79, app 0.2.93): "800x480 3x2" is its canvas and the grid of cells a page
+# The shape of a screen (firmware 0.2.80, app 0.2.94): "800x480 3x2" is its canvas and the grid of cells a page
 # holds. Firmware from before it says nothing, and then the board it was built for decides (LAYOUTS below).
 NAME_SCREEN_LAYOUT = ('Screen layout',)
-# Which board a screen is (firmware 0.2.79, app 0.2.93): the key of its file in packages/boards, the same key
+# Which board a screen is (firmware 0.2.80, app 0.2.94): the key of its file in packages/boards, the same key
 # boards.json is written under. Firmware from before it says nothing, and then the Guition's own sensor or the
 # YAML the screen is built from has to tell (board_of below).
 NAME_SCREEN_BOARD = ('Screen board',)
@@ -322,7 +322,7 @@ SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME
 # What a board looks like: the glass it draws on and the cells of one page. These come straight from the board
 # files (tools/generate_board_shapes.py writes boards.json from DISPLAY_W, GRID_COLS and the rest), so the
 # numbers live in one place: the YAML a screen is built from. A screen that is online reports its own shape as
-# well (firmware 0.2.79) and that one wins, because it knows which way the screen was turned.
+# well (firmware 0.2.80) and that one wins, because it knows which way the screen was turned.
 def _board_shapes():
     try:
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'boards.json'), encoding='utf-8') as file:
@@ -332,11 +332,11 @@ def _board_shapes():
 SHAPES = _board_shapes()
 DEFAULT_SHAPE = SHAPES.get('cyd', {'width': 320, 'height': 240, 'columns': 2, 'rows': 3})
 
-# The text of the "Screen layout" sensor: the canvas, the grid and, since firmware 0.2.79, the density and the look.
+# The text of the "Screen layout" sensor: the canvas, the grid and, since firmware 0.2.80, the density and the look.
 SHAPE_TEXT = r'(\d{2,5})x(\d{2,5}) (\d{1,2})x(\d{1,2})(?: (\d{2,4})dpi)?(?: (standard|compact))?'
 
 def parse_shape(text):
-    """The screen's own "<width>x<height> <columns>x<rows>", followed since firmware 0.2.79 by its density and its
+    """The screen's own "<width>x<height> <columns>x<rows>", followed since firmware 0.2.80 by its density and its
     look ("800x480 3x3 217dpi standard"); None for anything else. The density and the look are kept when given, so
     a board this app has never heard of still draws right in the editor."""
     match = re.fullmatch(SHAPE_TEXT, str(text or '').strip())
@@ -353,7 +353,7 @@ def parse_shape(text):
     return shape
 
 def board_of(screen):
-    """Which board a screen is, in the order of what knows best: what it reported itself (firmware 0.2.79, or
+    """Which board a screen is, in the order of what knows best: what it reported itself (firmware 0.2.80, or
     the Guition's own sensor), else the board package the YAML of its profile includes. 'unknown' for a screen
     that says nothing and has no profile here, which is what a screen flashed by hand looks like."""
     if not isinstance(screen, dict):
@@ -368,7 +368,7 @@ def board_of(screen):
 
 def shape_of(screen):
     """The shape of a screen as the editor needs it: its canvas, the cells of one page, its density, its look and,
-    for a board that draws pictures, the camera sizes. What the screen reported itself (firmware 0.2.79+) wins,
+    for a board that draws pictures, the camera sizes. What the screen reported itself (firmware 0.2.80+) wins,
     because that is the canvas after its rotation; the board it is (board_of: reported, or the YAML its profile
     builds from) fills in the rest from boards.json; a screen that says nothing at all is taken for the smallest
     screen there is."""
@@ -525,7 +525,7 @@ OWNED_SETTINGS_MARKERS = frozenset(('Night mode', 'Night starts', 'Night ends', 
                                     'Back to page 1 after', 'Back to page 1 on standby', 'Swipe between pages'))
 ROTATION_OPTIONS = ('0°', '90°', '180°', '270°')
 # Every board turns since this firmware; the Guition turned since 0.2.9.
-ROTATION_MIN_FIRMWARE = (0, 2, 79)
+ROTATION_MIN_FIRMWARE = (0, 2, 80)
 
 def turns_of(shape):
     """The angles a screen of this shape may be turned to: a half turn on any glass (its canvas, its grid and its size
@@ -1808,7 +1808,7 @@ def discover_screens(registry, states, devices, areas):
                         # offline or restarting (app 0.2.78).
                         'firmware_known': known_firmware(firmware, device.get('sw_version')),
                         'board': boards.get(item.get('device_id'), 'unknown'),
-                        # What the screen says it looks like (firmware 0.2.79): the canvas and the cells of a
+                        # What the screen says it looks like (firmware 0.2.80): the canvas and the cells of a
                         # page. The editor draws its mockup from this instead of guessing from the board.
                         # (`layout` is taken: that is the screen's tiles.)
                         'shape': parse_shape(shapes.get(item.get('device_id'))),

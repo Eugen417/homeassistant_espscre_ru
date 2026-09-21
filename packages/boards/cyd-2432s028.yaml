@@ -480,7 +480,7 @@ lvgl:
     # The calibration wizard's page and crosses (theme::paints fills it: BOARD_PAINT_FILL).
     - id: paint_calibration
 
-# Turning the screen as a Home Assistant choice (firmware 0.2.79+). This glass is not square, so it offers the half turn; a quarter turn would swap its width
+# Turning the screen as a Home Assistant choice (firmware 0.2.80+). This glass is not square, so it offers the half turn; a quarter turn would swap its width
 # and height and change how many rows and columns fit. The shared tree applies the
 # angle (packages/core.yaml); a list of options cannot come from a substitution, which is why every board carries this
 # block and tools/check_packages.py keeps the three alike.

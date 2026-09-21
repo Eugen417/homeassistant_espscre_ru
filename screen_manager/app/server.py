@@ -778,7 +778,7 @@ class Manager:
         return grid_of(screen)
 
     def turns(self, screen):
-        """The angles this screen may be turned to (core.turns_of): none on firmware that cannot turn (before 0.2.79,
+        """The angles this screen may be turned to (core.turns_of): none on firmware that cannot turn (before 0.2.80,
         unless the screen is a Guition, which turned since 0.2.9, or already offers the Rotation entity), else the
         half turn on any glass and the quarter turns as well on a square one."""
         version = self.firmware_version(screen.get('id'), screen) or (0, 0, 0)
@@ -858,7 +858,7 @@ class Manager:
         # Only the settings this screen has an entity for: one added in later firmware stays out of the panel.
         keys = [key for key in keys if key in entities]
         values = {key: setting_from_state(key, self.ha.states.get(entities[key])) for key in keys}
-        # `rotations` are the angles this screen's glass allows (app 0.2.93): the editor offers those and no others.
+        # `rotations` are the angles this screen's glass allows (app 0.2.94): the editor offers those and no others.
         return {'owner': 'screen', 'values': values, 'keys': keys, 'unavailable': [key for key in keys if values[key] is None],
                 'rotations': list(turns)}
 

@@ -1,5 +1,5 @@
 #pragma once
-// The screen's look and scale (app 0.2.93, responsive boards).
+// The screen's look and scale (app 0.2.94, responsive boards).
 //
 // A screen hangs on a wall and is used from the same distance whatever its size, so every size the firmware
 // draws is a physical one. Two looks exist: `standard` (the Guition's sizes at 170 dpi) and `compact` (the CYD's

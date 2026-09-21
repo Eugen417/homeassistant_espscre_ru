@@ -16,9 +16,9 @@ class RotationTests(unittest.IsolatedAsyncioTestCase):
     async def test_a_wide_screen_turns_upside_down_but_not_a_quarter(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = test_portal.ManagerTests().setup_manager(Path(tmp) / 'screens.json')
-            # An 800 x 480 screen on firmware that turns (0.2.79), telling its own shape.
+            # An 800 x 480 screen on firmware that turns (0.2.80), telling its own shape.
             m.ha.registry.append({'entity_id': 'sensor.fw', 'device_id': m.ha.registry[0].get('device_id'), 'platform': 'esphome', 'original_name': 'Screen firmware'})
-            m.ha.states['sensor.fw'] = {'state': '0.2.79'}
+            m.ha.states['sensor.fw'] = {'state': '0.2.80'}
             m.ha.registry.append({'entity_id': 'sensor.shape', 'device_id': m.ha.registry[0].get('device_id'), 'platform': 'esphome', 'original_name': 'Screen layout'})
             m.ha.states['sensor.shape'] = {'state': '800x480 3x3 217dpi standard'}
             m._screens_key = None
@@ -31,10 +31,10 @@ class RotationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(m.layouts['text.screen']['settings']['rotation'], 180)
             with self.assertRaisesRegex(ValueError, 'square'):
                 m.save('text.screen', {**layout, 'settings': {'rotation': 90}})
-            # Firmware from before 0.2.79 on a board that is not a Guition turns not at all.
+            # Firmware from before 0.2.80 on a board that is not a Guition turns not at all.
             m.ha.states['sensor.fw'] = {'state': '0.2.78'}
             m._screens_key = None
-            with self.assertRaisesRegex(ValueError, '0.2.79'):
+            with self.assertRaisesRegex(ValueError, '0.2.80'):
                 m.save('text.screen', {**layout, 'settings': {'rotation': 180}})
 
     def test_only_quarter_turns(self):

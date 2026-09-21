@@ -1,6 +1,6 @@
 // ---- Grid positions ----
 // A screen's page is a grid of cells: two columns and three rows on the boards that shipped first, and
-// whatever a newer screen reports for itself (firmware 0.2.79 says "800x480 3x2"). A tile's `slot` is its
+// whatever a newer screen reports for itself (firmware 0.2.80 says "800x480 3x2"). A tile's `slot` is its
 // absolute cell (page * cells + row * columns + column); a wide tile starts in a column that has a cell to its
 // right and covers both; a full tile (firmware 0.2.62+) starts a page and covers every cell of it. Empty cells
 // are allowed and stay exactly where they are.

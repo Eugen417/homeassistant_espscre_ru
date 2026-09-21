@@ -35,7 +35,7 @@ angle. The screen keeps the angle after a restart; it can also be changed on the
 screen's own settings page (Screen) and, with firmware 0.2.49+, as
 `select.<screen>_rotation` in Home Assistant.
 
-The Guition is square, so every quarter turn keeps its canvas and its grid. Since firmware 0.2.79
+The Guition is square, so every quarter turn keeps its canvas and its grid. Since firmware 0.2.80
 every board turns: a half turn (180°) on any glass, because width, height, the grid and the whole
 size table stay the same, and the quarter turns only on a square screen (docs/RESPONSIVE.md).
 

@@ -44,7 +44,7 @@ describe("packing and positions", () => {
   });
 });
 
-// A screen says what its page looks like (firmware 0.2.79, "800x480 3x2"); the editor places tiles on that grid.
+// A screen says what its page looks like (firmware 0.2.80, "800x480 3x2"); the editor places tiles on that grid.
 describe("the grid of the screen being edited", () => {
   it("packs a wide tile so it never straddles two rows, whatever the columns", () => {
     setGrid(3, 2);
@@ -71,7 +71,7 @@ describe("the grid of the screen being edited", () => {
     setGrid(3, 3);
     expect([MAX_PAGES, MAX_SLOTS, grid.pages]).toEqual([7, 63, 7]);
     expect(pageCount(entries([tile("a", 0)]), 99)).toBe(7);
-    expect(tileLimit("0.2.79")).toBe(63);
+    expect(tileLimit("0.2.80")).toBe(63);
     setGrid(4, 4);
     expect([MAX_PAGES, MAX_SLOTS]).toEqual([4, 64]);
     setGrid(1, 4);

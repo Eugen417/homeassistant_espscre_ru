@@ -26,7 +26,7 @@ export type UpdateInfo = {
   // The screen still runs another language than the one chosen for the screens (app 0.2.90).
   language?: boolean;
 };
-// `rotations` (app 0.2.93): the angles this screen may be turned to, a half turn on any glass and the quarter turns on a square one.
+// `rotations` (app 0.2.94): the angles this screen may be turned to, a half turn on any glass and the quarter turns on a square one.
 export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[] };
 export type Screen = {
   id: string; name: string; online: boolean; area?: string; firmware?: string; board?: string;
@@ -37,10 +37,10 @@ export type Screen = {
   firmware_known?: string | null; tile_limit?: number; full_page?: boolean; page_tiles_repeat?: boolean;
   // The language its firmware was built in (app 0.2.90); null for older firmware, which is English.
   language?: string | null;
-  // What the screen looks like (app 0.2.93): the glass it draws on, the cells of one page, its density and its look,
-  // from the screen itself (firmware 0.2.79) or from the board it was built for (core.shape_of); the editor draws it.
+  // What the screen looks like (app 0.2.94): the glass it draws on, the cells of one page, its density and its look,
+  // from the screen itself (firmware 0.2.80) or from the board it was built for (core.shape_of); the editor draws it.
   shape?: { width: number; height: number; columns: number; rows: number; dpi?: number; look?: string } | null;
-  // Whether its board draws pictures: camera tiles, an alert's snapshot, an album cover (app 0.2.93).
+  // Whether its board draws pictures: camera tiles, an alert's snapshot, an album cover (app 0.2.94).
   pictures?: boolean;
 };
 // Language & region of the screens (app 0.2.90): the language setting ("auto" follows Home Assistant), the language that

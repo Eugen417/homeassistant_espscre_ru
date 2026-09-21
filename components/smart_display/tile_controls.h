@@ -205,7 +205,7 @@ inline const char *climate_action_text(const std::string &action) {
   if (action == "defrosting") return screen_text::tr(screen_text::txt::ha_hvac_action_defrosting);
   return "";
 }
-// ---- The climate card (firmware 0.2.79) ----
+// ---- The climate card (firmware 0.2.80) ----
 // One computed card for every board: what a thermostat can be set to, taken from Home Assistant's own
 // attributes. The drawing is climate_card.h (where the parts go) and runtime_tiles.h (the widgets).
 inline std::string lower_case(std::string value) {
