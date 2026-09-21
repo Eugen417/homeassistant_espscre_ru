@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.78"
+  SCREEN_FIRMWARE_VERSION: "0.2.79"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -4164,10 +4164,11 @@ script:
             }
           }
 
-          // Track and fill are the pale blue and blue paints of overlay_slider.
+          // Track and fill are the pale blue and blue paints of overlay_slider. Both keep the radius the
+          // widget was given (OVERLAY_SLIDER_RADIUS): a fill rounded less than its track makes LVGL draw
+          // it into an ARGB layer of its own on every redraw (96 x 160 x 4 = 61 KB on a CYD), and when
+          // that allocation fails LVGL retries until the task watchdog resets the board.
           lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
-          lv_obj_set_style_radius(id(overlay_slider), 28, LV_PART_MAIN);
-          lv_obj_set_style_radius(id(overlay_slider), 0, LV_PART_INDICATOR);
 
           lv_label_set_text(id(overlay_title), title.c_str());
           lv_label_set_text(id(overlay_icon), icon_text.c_str());

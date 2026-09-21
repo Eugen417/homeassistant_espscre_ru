@@ -1,3 +1,10 @@
+## 0.2.93 (firmware 0.2.79)
+
+A CYD that no longer restarts when you drag the big slider of a light, fan or blind.
+
+- **The big slider on a card drew through a hidden buffer.** Since the first release the card a hold opens (a light without colour, a fan, a blind) rounded its slider's fill less than its track. LVGL then draws that fill into a buffer of its own on every redraw, 61 KB on a CYD that has about that much in one piece. Drag the slider while the screen is busy with something else, a light you just switched, an answer from Home Assistant, and that buffer is refused; LVGL keeps asking for it until the watchdog restarts the board. The fill now keeps the track's rounding, as the small sliders on the tiles have since 0.2.50, and nothing is drawn through a buffer any more. On a Guition the track also keeps its own rounding (42 px) instead of dropping to the CYD's 28 px after the first card opened. A test now reads the lambdas in the YAML as well as the C++ for a fill rounded less than its track.
+- Needs firmware 0.2.79: press **Update** on the screen. Includes everything from 0.2.92. CYD firmware: as 0.2.92, two style calls fewer. How it was found and tested: docs/TEST_RESULTS_0293.md.
+
 ## 0.2.92 (firmware 0.2.78)
 
 The album cover on a media tile, the way Home Assistant's own tile shows it.
