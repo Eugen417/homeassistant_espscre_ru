@@ -4099,7 +4099,10 @@ inline void render_slot(size_t slot) {
   // the gap, as on a CYD); when the strip would touch them, the name and the value share one line, the value at
   // the right as in a row of Home Assistant (three rows on a 4.3 inch: 39 px above the strip for 58 px of lines).
   const lv_font_t *value_face=lv_obj_get_style_text_font(w.value,LV_PART_MAIN);
-  const bool one_line=(mini||graph_strip) && text_y+title_height+line_gap+value_height-value_face->base_line+(ui::px(2))>header_height+(ui::px(large_tile?6:3));
+  // A strip card places its own head, so the one rule (head_row) does not reach it: it centres a lone name here,
+  // by the same "there is only one line" branch it already had for a head squeezed by its strip.
+  const bool one_line=(mini||graph_strip) && (value.empty() ||
+      text_y+title_height+line_gap+value_height-value_face->base_line+(ui::px(2))>header_height+(ui::px(large_tile?6:3)));
   if(one_line){text_height=title_height;text_y=std::max(0,(header_height-title_height)/2);}
   const lv_font_t *icon_font=watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font;
   if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
