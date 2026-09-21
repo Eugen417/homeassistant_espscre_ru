@@ -25,7 +25,7 @@ FROM_ENTRY = {'FONT_DIR'}
 
 def included(path):
     text = path.read_text()
-    block = re.search(r'^packages:\n(.*?)(?=^[a-z_]+:|\Z)', text, re.M | re.S)
+    block = re.search(r'^packages:\n(.*?)(?=^[a-z_0-9]+:|\Z)', text, re.M | re.S)
     return [str((path.parent / name).resolve().relative_to(ROOT)) for name in re.findall(r'!include (\S+)', block[1])] if block else []
 
 
@@ -111,7 +111,7 @@ def main():
     for board, path in profiles.BOARDS.items():
         values = profiles.substitutions_of(path)
         square = values['DISPLAY_W'] == values['DISPLAY_H']
-        select = re.search(r'^select:\n(.*?)(?=^[a-z_]+:|\Z)', path.read_text(), re.M | re.S)
+        select = re.search(r'^select:\n(.*?)(?=^[a-z_0-9]+:|\Z)', path.read_text(), re.M | re.S)
         options = re.search(r'^    options: (\[.*?\])$', select[1], re.M) if select else None
         wanted = '["0°", "90°", "180°", "270°"]' if square else '["0°", "180°"]'
         if not options or options[1] != wanted:

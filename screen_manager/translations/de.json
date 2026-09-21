@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Starte mit einem Bildschirm",
-        "text": "Schließe ein CYD oder Guition per USB an deinen Home Assistant-Rechner an. Profil, Firmware und das erste Flashen laufen in einem Rutsch.",
+        "text": "Schließe deinen Bildschirm per USB an deinen Home Assistant-Rechner an. Profil, Firmware und das erste Flashen laufen in einem Rutsch.",
         "button": "Neuen Bildschirm installieren"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2,8 Zoll",
       "board_guition": "Guition · 4 Zoll",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "neu — sagen Sie uns, wie es läuft",
       "name": "Name",
       "name_placeholder": "Bildschirm Wohnzimmer",
       "device_name": "Gerätename",

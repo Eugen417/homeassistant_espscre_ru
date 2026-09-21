@@ -200,7 +200,7 @@ LINT_KEEP = {
     'None', 'Auto', 'Wh',
     # Placeholders of the YAML tree that the runtime tiles replace before a screen shows them, and profile defaults.
     'Lamp', 'Plug', 'Evening', 'All off', 'AC', 'Vacuum', 'Tile 7', 'Tile 8', 'Tile 9', 'Tile 10', 'Light', 'Light Color',
-    'Climate', 'Example lamp', 'My CYD', 'My Guition', 'My Waveshare',
+    'Climate', 'Example lamp', 'My CYD', 'My Guition', 'My Guition 10', 'My Waveshare',
 }
 LINT_FILES = ('components/smart_display/*.h', 'packages/core.yaml', 'packages/boards/*.yaml')
 

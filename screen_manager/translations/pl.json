@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Zacznij od ekranu",
-        "text": "Podłącz CYD lub Guition przez USB do komputera z Home Assistant. Profil, firmware i pierwsze wgranie za jednym razem.",
+        "text": "Podłącz swój ekran przez USB do komputera z Home Assistant. Profil, firmware i pierwsze wgranie za jednym razem.",
         "button": "Zainstaluj nowy ekran"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2,8 cala",
       "board_guition": "Guition · 4 cale",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "nowość — napisz, jak działa",
       "name": "Nazwa",
       "name_placeholder": "Ekran w salonie",
       "device_name": "Nazwa urządzenia",

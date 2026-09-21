@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Comece com um ecrã",
-        "text": "Ligue um CYD ou um Guition por USB à máquina do Home Assistant. Perfil, firmware e primeira instalação ficam feitos de uma só vez.",
+        "text": "Ligue o seu ecrã por USB à máquina do Home Assistant. Perfil, firmware e primeira instalação ficam feitos de uma só vez.",
         "button": "Instalar novo ecrã"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2,8 polegadas",
       "board_guition": "Guition · 4 polegadas",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "novo — diga-nos como corre",
       "name": "Nome",
       "name_placeholder": "Ecrã da sala",
       "device_name": "Nome do dispositivo",

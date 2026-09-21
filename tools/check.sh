@@ -196,6 +196,21 @@ board_entries() {
 for name in profiles.PROFILES: print(profiles.board_of(name), name)'
 }
 
+# A board's own ESPHome floor: its board file's `min_version` when it has one, else the core's. A board that asks
+# for more than the ESPHome running here is skipped instead of failed, which is what CI's min_version build needs
+# (docs/ADDING_A_BOARD.md; the 10.1-inch Guition asks for 2026.8.0 while the packages promise 2026.6.2).
+board_needs() {  # board_needs <board> -> its min_version
+  cd "$ROOT" && "$PYTHON" -c 'import re, sys; sys.path.insert(0, "tools"); import profiles
+board = sys.argv[1]
+text = profiles.BOARDS[board].read_text()
+found = re.search(r"(?m)^  min_version: (\S+)", text) or re.search(r"(?m)^  min_version: (\S+)", profiles.CORE.read_text())
+print(found.group(1))' "$1"
+}
+
+older_version() {  # older_version A B -> true when A is older than B
+  [[ $1 != "$2" ]] && [[ $(printf '%s\n%s\n' "$1" "$2" | sort -V | head -1) == "$1" ]]
+}
+
 compile_board() {  # compile_board <board>
   local board=$1
   cd "$WORK/config" || return 1
@@ -291,7 +306,13 @@ if ((want_firmware)); then
   if ((last_ok)); then run "Check profiles" prepare_profiles; fi
   if ((last_ok)); then
     # One after the other: parallel builds race on ESPHome's shared ESP-IDF install (and on PlatformIO's, before 2026.7).
+    running=$("${ESPHOME_CMD[@]}" version | sed -n 's/^Version: //p')
     while read -r board _; do
+      needs=$(board_needs "$board")
+      if older_version "$running" "$needs"; then
+        skip "Firmware: $board" "asks for ESPHome $needs, this is $running"
+        continue
+      fi
       run "Firmware: $board" compile_board "$board"
       if [[ $board == cyd ]]; then
         if ((last_ok)); then run "CYD flash budget" cyd_budget; else skip "CYD flash budget" "no CYD build"; fi

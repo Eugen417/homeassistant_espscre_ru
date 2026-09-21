@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Empieza con una pantalla",
-        "text": "Conecta un CYD o un Guition por USB al equipo de Home Assistant. El perfil, el firmware y la primera instalación se hacen de una vez.",
+        "text": "Conecta tu pantalla por USB al equipo de Home Assistant. El perfil, el firmware y la primera instalación se hacen de una vez.",
         "button": "Instalar pantalla nueva"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2,8 pulgadas",
       "board_guition": "Guition · 4 pulgadas",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "nuevo: cuéntanos qué tal va",
       "name": "Nombre",
       "name_placeholder": "Pantalla del salón",
       "device_name": "Nombre del dispositivo",

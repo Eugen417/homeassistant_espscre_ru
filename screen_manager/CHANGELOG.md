@@ -1,3 +1,12 @@
+## 0.2.95 (firmware 0.2.80)
+
+A fourth screen: the 10.1-inch Guition JC8012P4A1, the first ESP32-P4 board and the first one of this size.
+
+- **The 10.1-inch Guition JC8012P4A1.** 1280 x 800 on a MIPI-DSI panel, a grid of five by four, twenty tiles on a page and three pages. It is the first board added entirely by the recipe of 0.2.94: it brings its hardware and its glass, and the screens' own software - the tiles, the cards, the settings, the top bar, the languages - is the same firmware every other board runs. Choose it in **New screen**. The hardware of this board was worked out and checked on the real panel by [Micha Okkerman](https://github.com/michamichamicha) in [pull request #14](https://github.com/MaxGramser/homeassistant_espscreen/pull/14); ESPHome has since learned this panel and its touch chip itself, so nothing of the board needs code of our own any more.
+- **New, and not yet through our own acceptance test.** We do not have this panel on the bench: the firmware compiles, every page and card was rendered at this size, and the hardware comes from a build that ran on a real screen, but board and software have not stood on one desk together. The editor marks it as new. Tell us how it goes.
+- **It asks for a newer ESPHome than the other boards.** Its touch panel is newer than the ESPHome the packages build with, so this board alone states ESPHome 2026.8.0 as its minimum; the CYD, the 4-inch Guition and the Waveshare keep building on 2026.6.2. It also needs a panel with pre-v3 silicon (`chip revision: v1.3` or lower in the boot log), which is what these panels have shipped with; the two kinds of silicon are not binary compatible.
+- No firmware change for the boards that were already there: a CYD, a 4-inch Guition or a Waveshare keeps firmware 0.2.80 and has nothing to update.
+
 ## 0.2.94 (firmware 0.2.80)
 
 The screens stop being written for two panels and start being written for glass. A board file now says what its screen is - how big, how dense, how many tiles fit - and the firmware, the manager and the editor work out the rest: the grid, the size of everything drawn, the shape of every card a tap opens. Adding a board becomes a recipe instead of a rewrite, and the Waveshare ESP32-S3-Touch-LCD-4.3 is the first to walk it. The CYD and the Guition draw exactly what they drew before.

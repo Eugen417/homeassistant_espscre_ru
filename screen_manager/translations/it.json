@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Inizia con uno schermo",
-        "text": "Collega un CYD o un Guition via USB alla macchina di Home Assistant. Profilo, firmware e prima installazione in un colpo solo.",
+        "text": "Collega il tuo schermo via USB alla macchina di Home Assistant. Profilo, firmware e prima installazione in un colpo solo.",
         "button": "Installa un nuovo schermo"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2,8 pollici",
       "board_guition": "Guition · 4 pollici",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "nuovo: facci sapere come va",
       "name": "Nome",
       "name_placeholder": "Schermo del soggiorno",
       "device_name": "Nome dispositivo",

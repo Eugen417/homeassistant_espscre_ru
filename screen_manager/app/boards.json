@@ -46,6 +46,25 @@
   "rows": 3,
   "width": 480
  },
+ "guition-jc8012p4a1.yaml": {
+  "board": "jc8012p4a1",
+  "camera": {
+   "full": [
+    1280,
+    800
+   ],
+   "thumb": [
+    345,
+    193
+   ]
+  },
+  "columns": 5,
+  "dpi": 149,
+  "height": 800,
+  "look": "standard",
+  "rows": 4,
+  "width": 1280
+ },
  "home-like-2432s028.yaml": {
   "board": "cyd",
   "columns": 2,
@@ -54,6 +73,25 @@
   "look": "compact",
   "rows": 3,
   "width": 320
+ },
+ "jc8012p4a1": {
+  "board": "jc8012p4a1",
+  "camera": {
+   "full": [
+    1280,
+    800
+   ],
+   "thumb": [
+    345,
+    193
+   ]
+  },
+  "columns": 5,
+  "dpi": 149,
+  "height": 800,
+  "look": "standard",
+  "rows": 4,
+  "width": 1280
  },
  "packages/cyd.yaml": {
   "board": "cyd",
@@ -82,6 +120,25 @@
   "look": "standard",
   "rows": 3,
   "width": 480
+ },
+ "packages/jc8012p4a1.yaml": {
+  "board": "jc8012p4a1",
+  "camera": {
+   "full": [
+    1280,
+    800
+   ],
+   "thumb": [
+    345,
+    193
+   ]
+  },
+  "columns": 5,
+  "dpi": 149,
+  "height": 800,
+  "look": "standard",
+  "rows": 4,
+  "width": 1280
  },
  "packages/waveshare43.yaml": {
   "board": "waveshare43",

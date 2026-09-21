@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Begin met een scherm",
-        "text": "Sluit een CYD of Guition via USB aan op je Home Assistant-machine. Profiel, firmware en de eerste flash gebeuren in één keer.",
+        "text": "Sluit je scherm via USB aan op je Home Assistant-machine. Profiel, firmware en de eerste flash gebeuren in één keer.",
         "button": "Nieuw scherm installeren"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2,8 inch",
       "board_guition": "Guition · 4 inch",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "nieuw — laat ons weten hoe het gaat",
       "name": "Naam",
       "name_placeholder": "Scherm woonkamer",
       "device_name": "Apparaatnaam",

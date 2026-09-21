@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Commencez par un écran",
-        "text": "Branchez un CYD ou un Guition en USB sur votre machine Home Assistant. Le profil, le firmware et la première installation se font en une seule fois.",
+        "text": "Branchez votre écran en USB sur votre machine Home Assistant. Le profil, le firmware et la première installation se font en une seule fois.",
         "button": "Installer un nouvel écran"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2,8 pouces",
       "board_guition": "Guition · 4 pouces",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "nouveau — dites-nous ce que ça donne",
       "name": "Nom",
       "name_placeholder": "Écran du salon",
       "device_name": "Nom de l'appareil",

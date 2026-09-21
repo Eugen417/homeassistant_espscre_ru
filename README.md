@@ -186,11 +186,19 @@ while it keeps your country's clock and numbers.
 | CYD ESP32-2432S028 | 320 × 240, 2 × 3 tiles | ILI9341 / resistive XPT2046 |
 | Guition ESP32-S3-4848S040, 4 inch | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911 |
 | Waveshare ESP32-S3-Touch-LCD-4.3 | 800 × 480, 3 × 3 tiles | ST7262 RGB / capacitive GT911 (backlight on or off) |
+| Guition JC8012P4A1, 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) |
 
 Use these exact board variants: similar-looking product names can have different
 controllers or connectors. Wallbox relays are not controlled.
 ESP Screens builds with its own **ESPHome 2026.9.0**. The firmware also builds in your own ESPHome Device Builder
-with ESPHome 2026.6.2 or newer.
+with ESPHome 2026.6.2 or newer; the 10.1-inch Guition asks for 2026.8.0 or newer, because its touch panel is
+newer than that.
+
+The 10.1-inch Guition is **new in this release and has not yet been through our own acceptance test**: its
+hardware was worked out and flashed on a real panel, and the screens' own software is the same on every board,
+but the two have not stood on one desk together. Tell us how it goes. It needs a panel with pre-v3 silicon
+(the boot log says `chip revision: v1.3` or another below v3.0), which is what these panels have shipped with
+so far; rev3 silicon needs a firmware of its own.
 
 ### Do I need ESPHome?
 

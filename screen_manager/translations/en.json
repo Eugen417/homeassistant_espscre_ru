@@ -1099,7 +1099,7 @@
       },
       "start": {
         "title": "Start with a screen",
-        "text": "Connect a CYD or Guition via USB to your Home Assistant machine. Profile, firmware, and the first flash happen in one go.",
+        "text": "Connect your screen via USB to your Home Assistant machine. Profile, firmware, and the first flash happen in one go.",
         "button": "Install new screen"
       }
     },
@@ -1596,6 +1596,8 @@
       "board_cyd": "CYD · 2.8 inch",
       "board_guition": "Guition · 4 inch",
       "board_waveshare43": "Waveshare · 4.3 inch",
+      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_new": "new — tell us how it goes",
       "name": "Name",
       "name_placeholder": "Living room screen",
       "device_name": "Device name",
