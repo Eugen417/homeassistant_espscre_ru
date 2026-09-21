@@ -3,7 +3,8 @@
 A screen draws one card per cell of its grid (GRID_COLS x GRID_ROWS). The cards are LVGL widgets, so they are
 written in YAML, and ESPHome has no loop: this script writes one file per cell count, and every board includes
 the file for its own count. The file carries the cards themselves (as children of the shared `tile_scroll`, the
-grid) and `BIND_CELLS`, the line the shared boot lambda runs to hand them to the runtime.
+grid) and `BIND_CELLS`, the line the shared boot lambda runs to hand them to the runtime. The circle, the name and
+the state carry no place: the runtime puts them where the cell they got asks (runtime_tiles::head_row).
 
     python3 tools/generate_cells.py            # the cards of every board that ships (tools/profiles.py)
     python3 tools/generate_cells.py --lab      # and of the boards tried out here (packages/boards/lab-*.yaml)
@@ -29,7 +30,8 @@ HEAD = '''############################################################
 # Written by tools/generate_cells.py; do not edit. A board includes the file for its own number of cells
 # (GRID_COLS x GRID_ROWS) and the shared tree in packages/core.yaml places them: the container `tile_scroll`
 # is an LVGL grid and runtime_tiles::place_page gives every card its cell and span. A card carries no
-# coordinate, only the size its board's grid gives it.
+# coordinate, only the size its board's grid gives it; its circle, name and state are placed by the runtime
+# on the cell it got (runtime_tiles::head_row), so a board states the icon's size and nothing else of the head.
 ############################################################
 substitutions:
   # The shared boot lambda hands the cards to the runtime with this line (packages/core.yaml).
@@ -60,8 +62,6 @@ CARD = '''              # ---------- CARD {n} ----------
                   widgets:
                     - obj:
                         id: tile{n}_icon_circle
-                        x: ${{TILE_ICON_X}}
-                        y: ${{TILE_ICON_Y}}
                         width: ${{TILE_ICON_SIZE}}
                         height: ${{TILE_ICON_SIZE}}
                         styles: style_icon_circle
@@ -77,15 +77,11 @@ CARD = '''              # ---------- CARD {n} ----------
                               clickable: false
                     - label:
                         id: t{n}_title
-                        x: ${{TILE_TITLE_X}}
-                        y: ${{TILE_TITLE_Y}}
                         text: "Tile {n}"
                         styles: style_title
                         clickable: false
                     - label:
                         id: t{n}_value
-                        x: ${{TILE_VALUE_X}}
-                        y: ${{TILE_VALUE_Y}}
                         text: "—"
                         styles: style_value
                         clickable: false

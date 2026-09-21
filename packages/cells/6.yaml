@@ -4,7 +4,8 @@
 # Written by tools/generate_cells.py; do not edit. A board includes the file for its own number of cells
 # (GRID_COLS x GRID_ROWS) and the shared tree in packages/core.yaml places them: the container `tile_scroll`
 # is an LVGL grid and runtime_tiles::place_page gives every card its cell and span. A card carries no
-# coordinate, only the size its board's grid gives it.
+# coordinate, only the size its board's grid gives it; its circle, name and state are placed by the runtime
+# on the cell it got (runtime_tiles::head_row), so a board states the icon's size and nothing else of the head.
 ############################################################
 substitutions:
   # The shared boot lambda hands the cards to the runtime with this line (packages/core.yaml).
@@ -38,8 +39,6 @@ lvgl:
                   widgets:
                     - obj:
                         id: tile1_icon_circle
-                        x: ${TILE_ICON_X}
-                        y: ${TILE_ICON_Y}
                         width: ${TILE_ICON_SIZE}
                         height: ${TILE_ICON_SIZE}
                         styles: style_icon_circle
@@ -55,15 +54,11 @@ lvgl:
                               clickable: false
                     - label:
                         id: t1_title
-                        x: ${TILE_TITLE_X}
-                        y: ${TILE_TITLE_Y}
                         text: "Tile 1"
                         styles: style_title
                         clickable: false
                     - label:
                         id: t1_value
-                        x: ${TILE_VALUE_X}
-                        y: ${TILE_VALUE_Y}
                         text: "—"
                         styles: style_value
                         clickable: false
@@ -82,8 +77,6 @@ lvgl:
                   widgets:
                     - obj:
                         id: tile2_icon_circle
-                        x: ${TILE_ICON_X}
-                        y: ${TILE_ICON_Y}
                         width: ${TILE_ICON_SIZE}
                         height: ${TILE_ICON_SIZE}
                         styles: style_icon_circle
@@ -99,15 +92,11 @@ lvgl:
                               clickable: false
                     - label:
                         id: t2_title
-                        x: ${TILE_TITLE_X}
-                        y: ${TILE_TITLE_Y}
                         text: "Tile 2"
                         styles: style_title
                         clickable: false
                     - label:
                         id: t2_value
-                        x: ${TILE_VALUE_X}
-                        y: ${TILE_VALUE_Y}
                         text: "—"
                         styles: style_value
                         clickable: false
@@ -126,8 +115,6 @@ lvgl:
                   widgets:
                     - obj:
                         id: tile3_icon_circle
-                        x: ${TILE_ICON_X}
-                        y: ${TILE_ICON_Y}
                         width: ${TILE_ICON_SIZE}
                         height: ${TILE_ICON_SIZE}
                         styles: style_icon_circle
@@ -143,15 +130,11 @@ lvgl:
                               clickable: false
                     - label:
                         id: t3_title
-                        x: ${TILE_TITLE_X}
-                        y: ${TILE_TITLE_Y}
                         text: "Tile 3"
                         styles: style_title
                         clickable: false
                     - label:
                         id: t3_value
-                        x: ${TILE_VALUE_X}
-                        y: ${TILE_VALUE_Y}
                         text: "—"
                         styles: style_value
                         clickable: false
@@ -170,8 +153,6 @@ lvgl:
                   widgets:
                     - obj:
                         id: tile4_icon_circle
-                        x: ${TILE_ICON_X}
-                        y: ${TILE_ICON_Y}
                         width: ${TILE_ICON_SIZE}
                         height: ${TILE_ICON_SIZE}
                         styles: style_icon_circle
@@ -187,15 +168,11 @@ lvgl:
                               clickable: false
                     - label:
                         id: t4_title
-                        x: ${TILE_TITLE_X}
-                        y: ${TILE_TITLE_Y}
                         text: "Tile 4"
                         styles: style_title
                         clickable: false
                     - label:
                         id: t4_value
-                        x: ${TILE_VALUE_X}
-                        y: ${TILE_VALUE_Y}
                         text: "—"
                         styles: style_value
                         clickable: false
@@ -214,8 +191,6 @@ lvgl:
                   widgets:
                     - obj:
                         id: tile5_icon_circle
-                        x: ${TILE_ICON_X}
-                        y: ${TILE_ICON_Y}
                         width: ${TILE_ICON_SIZE}
                         height: ${TILE_ICON_SIZE}
                         styles: style_icon_circle
@@ -231,15 +206,11 @@ lvgl:
                               clickable: false
                     - label:
                         id: t5_title
-                        x: ${TILE_TITLE_X}
-                        y: ${TILE_TITLE_Y}
                         text: "Tile 5"
                         styles: style_title
                         clickable: false
                     - label:
                         id: t5_value
-                        x: ${TILE_VALUE_X}
-                        y: ${TILE_VALUE_Y}
                         text: "—"
                         styles: style_value
                         clickable: false
@@ -258,8 +229,6 @@ lvgl:
                   widgets:
                     - obj:
                         id: tile6_icon_circle
-                        x: ${TILE_ICON_X}
-                        y: ${TILE_ICON_Y}
                         width: ${TILE_ICON_SIZE}
                         height: ${TILE_ICON_SIZE}
                         styles: style_icon_circle
@@ -275,15 +244,11 @@ lvgl:
                               clickable: false
                     - label:
                         id: t6_title
-                        x: ${TILE_TITLE_X}
-                        y: ${TILE_TITLE_Y}
                         text: "Tile 6"
                         styles: style_title
                         clickable: false
                     - label:
                         id: t6_value
-                        x: ${TILE_VALUE_X}
-                        y: ${TILE_VALUE_Y}
                         text: "—"
                         styles: style_value
                         clickable: false

@@ -228,12 +228,13 @@ inline std::function<void(Tile &)> detail, detail_update;
 inline std::function<void(const std::string &, unsigned, unsigned, std::vector<std::string> &&)> options_received;
 struct Widgets {
   lv_obj_t *tile{}, *title{}, *value{}, *circle{}, *icon{}; size_t index{}; int cached_active = -1; lv_obj_t *slider{}, *progress{}, *unit{};
-  int title_x=0,title_y=0,value_x=0,value_y=0; const lv_font_t *value_font{}, *icon_font{};
+  const lv_font_t *value_font{}, *icon_font{};
   // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
   // Full (firmware 0.2.62+) takes the whole page: the double-width card's head on top, a control at the bottom.
   bool wide=false, full=false; int base_width=0, base_height=0; const lv_font_t *title_font{};
   // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
-  int base_circle=0,circle_y=12;
+  // `base_circle`: the board's icon circle (TILE_ICON_SIZE), the one size of the head a board states.
+  int base_circle=0;
   lv_obj_t *extra{}; std::string extra_mode; bool extra_full=false; std::array<lv_obj_t *, 36> parts{}; lv_point_precise_t *points{};
   // Analog clock: centre and radius of the dial, so the second hand can move without a card redraw.
   int hand_cx=0, hand_cy=0, hand_r=0, hand_width=1;
@@ -2775,6 +2776,26 @@ inline int content_width(const Widgets &w) {
 inline int content_height(const Widgets &w) {
   return tile_height(w) - lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
 }
+// The head of a card: the icon circle at the left, the name and the state as two lines beside it. One rule for
+// every card that draws it (a single or double-width card, the top of a full-page card), whatever grid the board
+// has: the row is centred on the room it got, never on a place typed per board, so two rows or three on the same
+// glass both stand in the middle. The circle keeps the board's icon size (TILE_ICON_SIZE) while it leaves `edge`
+// to the tile's border, standing a little into the padding for that (three rows on 800x480: a 69 px circle in
+// 65 px of content); a cell shorter than that shrinks it. The two lines keep the look's own spacing (the
+// Guition's 6 px between the name and the state) instead of packing when the rows are short.
+struct HeadRow { int circle=0, circle_y=0, text_x=0, title_y=0, value_y=0; };
+inline int head_gap(bool large) { return ui::px(large ? 6 : 1); }
+inline int head_text_x(int circle, bool large) { return circle + ui::px(large ? 10 : 12); }
+inline HeadRow head_row(const Widgets &w, bool large, int circle, int room, int title_h, int value_h) {
+  HeadRow h;
+  const int pad = lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) + lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
+  h.circle = std::max(1, std::min(circle, room + pad - 2 * ui::px(large ? 6 : 3)));
+  h.circle_y = (room - h.circle) / 2;
+  h.title_y = std::max(0, (room - (title_h + head_gap(large) + value_h)) / 2);
+  h.value_y = h.title_y + title_h + head_gap(large);
+  h.text_x = head_text_x(h.circle, large);
+  return h;
+}
 // A card's strip is thin (8 px on a CYD card), so the whole card belongs to it: a finger that lands above the strip
 // still drags it. A press that never moves taps or holds the card instead (slider_event), so nothing is lost.
 inline int slider_zone(const Widgets &w, int strip) {
@@ -2787,8 +2808,8 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_set_style_border_width(tile,1,0);
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
-  auto &w=widgets[index]; w.title_x=lv_obj_get_x(title);w.title_y=lv_obj_get_y(title);w.value_x=lv_obj_get_x(value);w.value_y=lv_obj_get_y(value);w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
-  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);w.base_circle=lv_obj_get_width(circle);w.circle_y=lv_obj_get_y(circle);
+  auto &w=widgets[index]; w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
+  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);w.base_circle=lv_obj_get_width(circle);
   w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   w.unit=lv_label_create(tile);lv_obj_set_style_text_font(w.unit,w.value_font,0);lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
@@ -3028,7 +3049,8 @@ inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int he
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   const lv_font_t *temp_font=watch_value_font?watch_value_font:w.value_font,*day_icon=mini_icon_font?mini_icon_font:w.icon_font;
   // The current-conditions block follows the card's text offset, a size the board scales.
-  int left=std::min(large?w.title_x*150/64:w.title_x*2,width*45/100),icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
+  const int text_x=head_text_x(w.base_circle>0?w.base_circle:ui::px(large?54:36),large);
+  int left=std::min(large?text_x*150/64:text_x*2,width*45/100),icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
   // A full-page card (firmware 0.2.62+) adds the next hours under the days: time, icon and temperature per column.
   int day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
   unsigned hours=w.full?std::min<size_t>(t.extra().hours.size(),large?6:4):0;
@@ -3529,23 +3551,22 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
   int title_h=lv_font_get_line_height(w.title_font);
   lv_obj_set_height(w.title,title_h);
-  int head_h=std::max<int>(1,w.base_height-lv_obj_get_style_space_top(w.tile,LV_PART_MAIN)-lv_obj_get_style_space_bottom(w.tile,LV_PART_MAIN));
-  int circle=ui::px(big?54:36),line_gap=ui::px(big?2:1),text_y=std::max(0,(head_h-(title_h+line_gap+value_h))/2);
+  // The head is one cell of the look (ui::cell_height) less the card's padding, whatever grid the board has, and
+  // never more than 30 % of the card: a wide 4.3 inch has 56 mm of glass under the bar, where a Guition's head would
+  // take from the media card what its keys need (30 % is the share the head has on a CYD graph card, 48 of 160, so both
+  // reference boards keep their pixels). The circle and the two lines stand in it by the one rule (head_row).
+  // Whatever stands under the head is placed from head_h, which never ends above what the head draws.
+  int head_h=std::max<int>(1,std::min<int>(ui::cell_height()-lv_obj_get_style_space_top(w.tile,LV_PART_MAIN)-lv_obj_get_style_space_bottom(w.tile,LV_PART_MAIN),content_h*30/100));
+  const HeadRow head=head_row(w,big,w.base_circle>0?w.base_circle:ui::px(big?54:36),head_h,title_h,value_h);
+  const int circle=head.circle;
   lv_obj_set_size(w.circle,circle,circle);
   if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font){set_font(w.icon,w.icon_font);lv_obj_center(w.icon);}
-  lv_obj_set_pos(w.circle,0,big?12:std::max(0,(head_h-circle)/2));
-  live_place(w,t,circle,0,big?12:std::max(0,(head_h-circle)/2));
-  lv_obj_set_pos(w.title,w.title_x,big?w.title_y:text_y);
-  lv_obj_set_pos(w.value,w.value_x,big?w.value_y:text_y+title_h+line_gap);
-  lv_obj_set_width(w.title,std::max(1,content_w-w.title_x));lv_obj_set_width(w.value,std::max(1,content_w-w.value_x));
-  // The head is as tall as what it draws, not as tall as one tile row: on a board whose rows are short (three
-  // rows on 800x480) the row is lower than the circle and the two lines, and the media card under it started
-  // over its own name. Whatever stands under the head is placed from here.
-  {
-    const int circle_y=big?12:std::max(0,(head_h-circle)/2);
-    const int text_bottom=(big?w.value_y:text_y+title_h+line_gap)+value_h;
-    head_h=std::max(head_h,std::max(circle_y+circle,text_bottom));
-  }
+  lv_obj_set_pos(w.circle,0,head.circle_y);
+  live_place(w,t,circle,0,head.circle_y);
+  lv_obj_set_pos(w.title,head.text_x,head.title_y);
+  lv_obj_set_pos(w.value,head.text_x,head.value_y);
+  lv_obj_set_width(w.title,std::max(1,content_w-head.text_x));lv_obj_set_width(w.value,std::max(1,content_w-head.text_x));
+  head_h=std::max(head_h,std::max(head.circle_y+circle,head.value_y+value_h));
   if(media){
     hide_panel(w);lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
     render_media_full(w,t,big,content_w,content_h,head_h);
@@ -3668,7 +3689,7 @@ inline void render_slot(size_t slot) {
   w.busy_drawn = pending && !t.builtin();
   set_busy(w,w.busy_drawn,large_tile);
   lap(swipe_profile::BUSY);
-  for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);
+  for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);  // a big-value card on a short cell hides its circle again below
   if(custom && w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
   if(w.full){
     lap(swipe_profile::GEOMETRY);
@@ -3701,7 +3722,7 @@ inline void render_slot(size_t slot) {
   // A slot that just held a full card gets its own name font, one-line box and left-aligned text back.
   set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
   title_height=lv_font_get_line_height(w.title_font);lv_obj_set_height(w.title,title_height);
-  int line_gap=ui::px(large_tile?2:1),text_height=title_height+line_gap+value_height;
+  int line_gap=head_gap(large_tile),text_height=title_height+line_gap+value_height;
   int slider_height=ui::px(large_tile?28:8);
   // A single-width graph takes the slider strip; a wide graph takes the right half.
   bool graph_strip=graph && !w.wide, graph_side=graph && w.wide;
@@ -3710,38 +3731,39 @@ inline void render_slot(size_t slot) {
   int panel_w=with_panel && !graph?layout_panel(w,t,large_tile,content_w,content_h):0;
   if(!panel_w)hide_panel(w);
   lap(swipe_profile::PANEL);
-  // A strip that leaves the two lines no room takes what is left instead: a board with more rows than its size
-  // table was drawn for has short cells, and the name and the value were drawn over the slider (or the graph).
-  if(mini||graph_strip){
-    const int least=ui::px(large_tile?14:6),gap=ui::px(large_tile?6:3);
-    slider_height=std::max(least,std::min(slider_height,content_h-text_height-gap));
-  }
-  int header_height=(mini||graph_strip)?content_h-slider_height-(ui::px(large_tile?6:3)):content_h;
-  int text_y=std::max(0,(header_height-text_height)/2);
   // The circle follows the board's icon size (TILE_ICON_SIZE), so a 73 pt icon on a 294 dpi panel gets its disc;
   // the watch and mini circles keep their ratios to it.
   const int base_circle=w.base_circle>0?w.base_circle:(ui::px(large_tile?54:36));
   int circle_size=watch?(large_tile?base_circle*26/54:base_circle/2):(mini||graph_strip)?base_circle*2/3:base_circle;
   lv_obj_set_size(w.circle,circle_size,circle_size);
+  // A strip that leaves the two lines no room takes what is left instead: a board with more rows than the look
+  // was drawn for has short cells, and the name and the value were drawn over the slider (or the graph). When even
+  // that leaves the strip below its least, the head keeps the room its circle and one line need, and the name and
+  // the value share that line (one_line below).
+  if(mini||graph_strip){
+    const int least=ui::px(large_tile?14:6),gap=ui::px(large_tile?6:3);
+    const int head_need=content_h-text_height-gap>=least?text_height:std::max(title_height,circle_size);
+    slider_height=std::max(least,std::min(slider_height,content_h-head_need-gap));
+  }
+  int header_height=(mini||graph_strip)?content_h-slider_height-(ui::px(large_tile?6:3)):content_h;
+  int text_y=std::max(0,(header_height-text_height)/2);
+  // Two lines stay while the value's letters keep two pixels of air above the strip (its line box may hang into
+  // the gap, as on a CYD); when the strip would touch them, the name and the value share one line, the value at
+  // the right as in a row of Home Assistant (three rows on a 4.3 inch: 39 px above the strip for 58 px of lines).
+  const lv_font_t *value_face=lv_obj_get_style_text_font(w.value,LV_PART_MAIN);
+  const bool one_line=(mini||graph_strip) && text_y+title_height+line_gap+value_height-value_face->base_line+(ui::px(2))>header_height+(ui::px(large_tile?6:3));
+  if(one_line){text_height=title_height;text_y=std::max(0,(header_height-title_height)/2);}
   const lv_font_t *icon_font=watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font;
   if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
-  int text_x=watch?0:(mini||graph_strip)?circle_size+(ui::px(large_tile?8:6)):w.title_x;
-  // A large card keeps the profile's places for its circle, name and state, moved down by half of what a card
-  // grows without the page bar, so they stay in its middle.
-  const int standard_h=std::min(ui::cell_height(),w.base_height);
-  int lift=std::max(0,(tile_height(w)-standard_h)/2);
-  // The board's places (TILE_ICON_Y, the name and the value) are a design for the look's own cell. A cell
-  // shorter than that — a board with three rows where the table was drawn for two — cannot use them: the
-  // circle and the two lines would stand past the bottom edge. The block is then centred on the cell it
-  // really got, exactly as the compact look does, so nothing is cut off and nothing has to be typed per grid.
-  const bool tight=large_tile && !watch && !(mini||graph_strip) &&
-                   (w.circle_y+circle_size>header_height || w.value_y+value_height>header_height);
-  const bool centred=mini||graph_strip||!large_tile||tight;
-  lv_obj_set_pos(w.title,text_x,watch?0:centred?text_y:w.title_y+lift);
-  lv_obj_set_pos(w.value,watch?0:(mini||graph_strip)?text_x:w.value_x,
-    watch?(ui::px(large_tile?42:19)):centred?text_y+title_height+line_gap:w.value_y+lift);
-  // A large card's circle sits where the board puts it (TILE_ICON_Y), unless the cell is too short for that.
-  const int circle_y=centred?std::max(0,(header_height-circle_size)/2):w.circle_y+lift;
+  // The plain head (a single or double-width card, with or without a panel) stands by the one rule, head_row,
+  // centred on the room it got on this grid. The watch and the strip cards place their smaller circle themselves.
+  const bool plain=!watch && !(mini||graph_strip);
+  const HeadRow head=plain?head_row(w,large_tile,circle_size,header_height,title_height,value_height):HeadRow{};
+  if(plain){circle_size=head.circle;lv_obj_set_size(w.circle,circle_size,circle_size);}
+  int text_x=watch?0:plain?head.text_x:circle_size+(ui::px(large_tile?8:6));
+  lv_obj_set_pos(w.title,text_x,watch?0:plain?head.title_y:text_y);
+  lv_obj_set_pos(w.value,text_x,watch?(ui::px(large_tile?42:19)):plain?head.value_y:text_y+title_height+line_gap);
+  const int circle_y=plain?head.circle_y:watch?0:std::max<int>(2-lv_obj_get_style_space_top(w.tile,LV_PART_MAIN),(header_height-circle_size)/2);
   lv_obj_set_pos(w.circle,0,circle_y);
   live_place(w,t,circle_size,0,circle_y);
   // Use the requested coordinates: LVGL getters still return the previous
@@ -3752,23 +3774,51 @@ inline void render_slot(size_t slot) {
   int chevron_w=t.is_page() && !watch?lv_font_get_line_height(chevron_font):0;
   if(chevron_w)text_room-=chevron_w+(ui::px(large_tile?8:4));
   lv_obj_set_width(w.title,std::max(1,text_room-text_x));
-  int value_room=std::max(1,text_room-(watch?0:(mini||graph_strip)?text_x:w.value_x));
+  int value_room=std::max(1,text_room-text_x);
   lv_obj_set_width(w.value,value_room);
   fit_value(w.value,value,value_short,value_tail,value_room);
+  if(one_line){
+    lv_point_t need;lv_text_get_size(&need,lv_label_get_text(w.value),value_face,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+    const int line_w=std::max(1,text_room-text_x),value_w=std::max(1,std::min((int)need.x+2,line_w*55/100));
+    set_text_align(w.value,LV_TEXT_ALIGN_RIGHT);
+    lv_obj_set_pos(w.value,text_room-value_w,text_y+title_height-value_height);lv_obj_set_width(w.value,value_w);
+    lv_obj_set_width(w.title,std::max(1,line_w-value_w-(ui::px(large_tile?6:3))));
+    fit_value(w.value,value,value_short,value_tail,value_w);
+  }
   if(watch){
     int gap=ui::px(large_tile?6:2),header=std::max(circle_size,title_height);
-    int group_y=std::max(0,(content_h-header-gap-value_height)/2);
-    int value_y=group_y+header+gap;
-    lv_obj_set_pos(w.circle,0,group_y+(header-circle_size)/2);
-    lv_obj_set_pos(w.title,circle_size+(ui::px(large_tile?6:4)),group_y+(header-title_height)/2);
-    lv_obj_set_width(w.title,text_room-circle_size-(ui::px(large_tile?6:4)));
+    // The icon and the name above the number while the three fit the cell. On a cell too short for that (three
+    // rows on a 4.3 inch: 65 px for 99) the number stands big in the middle of the card and the name small in the
+    // top-left corner, and the icon goes: a big value is what this card is for.
+    const bool stacked=header+gap+value_height<=content_h;
+    int group_y=stacked?std::max(0,(content_h-header-gap-value_height)/2):0;
+    int value_y=stacked?group_y+header+gap:0;
+    set_hidden(w.circle,!stacked);
     set_font(w.unit,w.value_font);set_text_align(w.unit,LV_TEXT_ALIGN_LEFT);
     label(w.unit,unit);
     lv_point_t size;lv_text_get_size(&size,unit.c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
     int unit_width=unit.empty()?0:std::min((int)size.x,text_room-20);
-    int number_width=text_room-(unit_width?unit_width+(ui::px(large_tile?6:3)):0);
-    lv_obj_set_pos(w.value,0,value_y);lv_obj_set_width(w.value,number_width);
-    lv_obj_set_pos(w.unit,text_room-unit_width,value_y+value_height-lv_font_get_line_height(w.value_font));
+    const int unit_gap=unit_width?unit_width+(ui::px(large_tile?6:3)):0;
+    int number_x=0,number_width=text_room-unit_gap,unit_x=text_room-unit_width;
+    if(stacked){
+      lv_obj_set_pos(w.circle,0,group_y+(header-circle_size)/2);
+      lv_obj_set_pos(w.title,circle_size+(ui::px(large_tile?6:4)),group_y+(header-title_height)/2);
+      lv_obj_set_width(w.title,text_room-circle_size-(ui::px(large_tile?6:4)));
+    }else{
+      set_font(w.title,w.value_font);
+      const int name_h=lv_font_get_line_height(w.value_font);
+      lv_obj_set_pos(w.title,0,0);lv_obj_set_size(w.title,text_room,name_h);
+      // The number centred on the card; the digits' own top space (about a fifth of their line) may overlap the
+      // name's line box, never its letters. The line may end in the padding, never past the border.
+      value_y=std::max(name_h-value_height*19/100,(content_h-value_height)/2);
+      value_y=std::min<int>(value_y,content_h+lv_obj_get_style_space_bottom(w.tile,LV_PART_MAIN)-2-value_height);
+      fit_value(w.value,value,value_short,value_tail,number_width);
+      lv_point_t number;lv_text_get_size(&number,lv_label_get_text(w.value),lv_obj_get_style_text_font(w.value,LV_PART_MAIN),0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+      number_width=std::max(1,std::min(number_width,(int)number.x+2));
+      number_x=std::max(0,(text_room-number_width-unit_gap)/2);unit_x=number_x+number_width+(unit_gap-unit_width);
+    }
+    lv_obj_set_pos(w.value,number_x,value_y);lv_obj_set_width(w.value,number_width);
+    lv_obj_set_pos(w.unit,unit_x,value_y+value_height-lv_font_get_line_height(w.value_font));
     lv_obj_set_size(w.unit,unit_width,lv_font_get_line_height(w.value_font));
     set_hidden(w.unit,!unit_width);
   }else if(chevron_w){
@@ -4153,18 +4203,23 @@ inline bool check_tile_geometry() {
         fits=fits && value.y2<track.y1 && track.y2<=content.y2;
       }
     }else if(!custom){
+      // The value stands under the name, or beside it on a strip card whose cell is short (one_line); a big value
+      // on a short cell may end its line in the padding (never past the border).
+      lv_area_t card;lv_obj_get_coords(w.tile,&card);
+      const bool big_value=w.index<model.count && model.tiles[w.index].display=="watch";
       fits=fits && title.x1>=content.x1 && title.x2<=content.x2 &&
-        value.x1>=content.x1 && value.x2<=content.x2 && title.y2<value.y1 && value.y2<=content.y2;
+        value.x1>=content.x1 && value.x2<=content.x2 && (title.y2<value.y1 || title.x2<value.x1) && value.y2<=(big_value?card.y2-1:content.y2);
       if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
         lv_obj_get_coords(w.slider,&track);
         fits=fits && value.y2<track.y1 && track.y2<=content.y2;
       }
       if(!lv_obj_has_flag(w.circle,LV_OBJ_FLAG_HIDDEN)){
-        lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
+        lv_area_t circle,card;lv_obj_get_coords(w.circle,&circle);lv_obj_get_coords(w.tile,&card);
         bool mini=!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
-        fits=fits && circle.x1>=content.x1 && circle.x2<title.x1 && circle.y1>=content.y1;
+        // The circle may stand in the card's padding on a short cell (head_row), never past its border.
+        fits=fits && circle.x1>=content.x1 && circle.x2<title.x1 && circle.y1>card.y1;
         if(mini)fits=fits && circle.y2<track.y1;
-        else fits=fits && circle.y2<=content.y2;
+        else fits=fits && circle.y2<card.y2;
         if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,circle.x1,circle.y1,circle.x2,circle.y2,title.x1,content.x1,content.y1,content.x2,content.y2);
         bool watch=w.index<model.count && model.tiles[w.index].display=="watch";
         bool graph=w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN) && w.extra_mode=="graph";
@@ -4197,7 +4252,9 @@ inline bool check_tile_geometry() {
     if(w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN)){
       // Custom parts stay inside the card; a graph never runs into the text.
       lv_area_t extra;lv_obj_get_coords(w.extra,&extra);
-      fits=fits && extra.x1>=content.x1 && extra.x2<=content.x2 && extra.y1>=content.y1 && extra.y2<=content.y2;
+      const bool extra_inside=extra.x1>=content.x1 && extra.x2<=content.x2 && extra.y1>=content.y1 && extra.y2<=content.y2;
+      if(!extra_inside)ESP_LOGE("ui_test","Extra bounds slot=%u mode=%s extra=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),extra.x1,extra.y1,extra.x2,extra.y2,content.x1,content.y1,content.x2,content.y2);
+      fits=fits && extra_inside;
       for(auto *p:w.parts){
         if(!p || lv_obj_has_flag(p,LV_OBJ_FLAG_HIDDEN))continue;
         lv_area_t part;lv_obj_get_coords(p,&part);

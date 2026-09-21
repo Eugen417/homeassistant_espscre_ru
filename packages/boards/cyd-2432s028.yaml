@@ -97,12 +97,6 @@ substitutions:
   ALERT_TITLE_MAX: "48"       # bytes; the label ends one line with an ellipsis
   ALERT_BUTTON_MAX: "12"      # bytes on the OK button
   ALERT_SUBTITLE_MAX: "160"   # bytes; wraps over the rows the card has
-  TILE_ICON_X: "0"
-  TILE_ICON_Y: "0"
-  TILE_TITLE_X: "48"
-  TILE_TITLE_Y: "4"
-  TILE_VALUE_X: "48"
-  TILE_VALUE_Y: "18"
 
   # ----- 90° — Portrait 240×320 (USB on bottom) -----
   # ORIENTATION: "90"
@@ -131,12 +125,6 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "200"
   # OVERLAY_ICON_Y: "94"
-  # TILE_ICON_X: "0"
-  # TILE_ICON_Y: "0"
-  # TILE_TITLE_X: "4"
-  # TILE_TITLE_Y: "38"
-  # TILE_VALUE_X: "4"
-  # TILE_VALUE_Y: "52"
 
   # ----- 180° — Landscape flipped 320×240 (USB on left) -----
   # ORIENTATION: "180"
@@ -165,12 +153,6 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "160"
   # OVERLAY_ICON_Y: "74"
-  # TILE_ICON_X: "0"
-  # TILE_ICON_Y: "0"
-  # TILE_TITLE_X: "48"
-  # TILE_TITLE_Y: "4"
-  # TILE_VALUE_X: "48"
-  # TILE_VALUE_Y: "18"
 
   # ----- 270° — Portrait flipped 240×320 (USB on top) -----
   # ORIENTATION: "270"
@@ -199,12 +181,6 @@ substitutions:
   # OVERLAY_SLIDER_W: "96"
   # OVERLAY_SLIDER_H: "200"
   # OVERLAY_ICON_Y: "94"
-  # TILE_ICON_X: "0"
-  # TILE_ICON_Y: "0"
-  # TILE_TITLE_X: "4"
-  # TILE_TITLE_Y: "38"
-  # TILE_VALUE_X: "4"
-  # TILE_VALUE_Y: "52"
 
   # Fonts: one size per role, the same files on every board
   FONT_TIME_SIZE: "18"                          # the clock in the top bar

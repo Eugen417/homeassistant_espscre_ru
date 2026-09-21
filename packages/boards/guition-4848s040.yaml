@@ -90,12 +90,6 @@ substitutions:
   OVERLAY_SLIDER_W: "144"
   OVERLAY_SLIDER_H: "300"
   OVERLAY_ICON_Y: "148"
-  TILE_ICON_X: "0"
-  TILE_ICON_Y: "12"
-  TILE_TITLE_X: "64"
-  TILE_TITLE_Y: "17"
-  TILE_VALUE_X: "64"
-  TILE_VALUE_Y: "45"
 
   # Fonts: one size per role, the same files on every board
   FONT_TIME_SIZE: "27"                          # the clock in the top bar

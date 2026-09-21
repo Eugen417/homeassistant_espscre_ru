@@ -56,13 +56,21 @@ show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is ou
   sixteen), and `runtime_tiles::widgets` holds exactly one entry per cell. The add-on (`core.Grid`) and
   the editor (`setGrid`) count with the same rule, so a page, a slot and a tile limit mean the same in
   all three.
-- A cell taller than the look's cell height (`ui::cell_height()`) centres its content on it; a cell at
-  least twice as tall stacks the icon above the name and state.
+- A card's head (the icon circle, the name and the state beside it) is one computed row on every board
+  (`runtime_tiles::head_row`): centred on the cell the card really got, whether that is two rows or three on
+  the same glass. The circle keeps `TILE_ICON_SIZE` while it leaves a few pixels to the card's border, standing a
+  little into the padding for that, and shrinks only on a cell shorter than that; the two lines keep the look's
+  spacing. A full-page card's head is one cell of the look (`ui::cell_height()`), never more than 30 % of the
+  card, not one row of the board. A strip card (a slider or a graph under the head) keeps its two lines while
+  the value's letters stay above the strip; when the strip would cover them, the name and the value share one
+  line, the value at the right. A big-value card (`display: watch`) keeps its icon and name above the number
+  while the three fit; on a shorter cell the number stands big in the middle and the name small in the top-left
+  corner. A cell at least twice the look's cell height stacks the icon above the name and state.
 - What does not fit is left out: the forecast shows as many day columns as the width holds (five at
   most, none below two), a single clock card drops its date when it has no room beside the dial, a
   wide card gets a control panel only when the panel, the icon and some name fit.
-- The icon circle and its place follow `TILE_ICON_SIZE` and `TILE_ICON_Y`; the forecast's current
-  conditions block follows the card's text offset.
+- The icon circle's size is `TILE_ICON_SIZE`, the only size of the head a board states; the forecast's current
+  conditions block follows the head's text offset.
 
 ## Overlays: one frame for every card
 
