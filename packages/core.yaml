@@ -50,6 +50,11 @@ esphome:
   platformio_options:
     build_flags:
       - -DLV_USE_SWITCH=1
+      # The sliders are all made in C++ now (a tile's strip, the blind's, the light and fan card's): ESPHome
+      # writes lv_conf.h from the widgets the YAML names, and since the brightness overlay left it there is no
+      # `slider:` left to name one (firmware 0.2.80).
+      - -DLV_USE_BAR=1
+      - -DLV_USE_SLIDER=1
       - -DGRID_COLS=${GRID_COLS}
       - -DGRID_ROWS=${GRID_ROWS}
   includes:
@@ -110,9 +115,6 @@ esphome:
             theme::fill(id(paint_key), Paint::key);
             theme::fill(id(paint_ink_soft), Paint::ink_soft);
             theme::fill(id(paint_scrim), Paint::scrim);
-            theme::fill(id(paint_veil), Paint::veil);
-            theme::fill(id(paint_accent_tint), Paint::accent_tint);
-            theme::fill(id(paint_accent_bright), Paint::accent_bright);
             theme::fill(id(paint_button_dark), Paint::button_dark);
             theme::fill(id(paint_button_dark_pressed), Paint::button_dark_pressed);
             ${BOARD_PAINT_FILL}
@@ -125,7 +127,6 @@ esphome:
             runtime_tiles::hide_detail();
             ${CLOSE_CARDS_HOOK}
             id(active_entity).clear();
-            lv_obj_add_flag(id(brightness_overlay), LV_OBJ_FLAG_HIDDEN);
             lv_obj_add_flag(id(color_detail_overlay), LV_OBJ_FLAG_HIDDEN);
           };
           runtime_tiles::layout_changed = []() { id(show_tile_page).execute(); };
@@ -229,9 +230,9 @@ esphome:
             settings_screen::restyle();
             if (id(alert_active)) lv_obj_set_style_bg_color(id(alert_card), lv_color_hex(theme::surface(id(alert_card_color))), LV_PART_MAIN);
           };
-          // Under the cards: brightness_overlay is the first of them on the page, so the back button and
+          // Under the cards: the colour card is the first of them on the page, so the back button and
           // the action at the top right of a card keep their taps.
-          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0, ${SETTINGS_HOLD_W}, ${SCROLL_Y}, id(brightness_overlay));
+          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0, ${SETTINGS_HOLD_W}, ${SCROLL_Y}, id(color_detail_overlay));
       - light.turn_on:
           id: back_light
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
@@ -312,10 +313,10 @@ api:
             if (runtime_tiles::enabled && index < (int)runtime_tiles::model.count) {
               runtime_tiles::active_index = index;
               auto &tile = runtime_tiles::model.tiles[index];
-              auto domain = tile.domain();
-              // Lights and fans open the board's own card, like a long press does; covers (firmware 0.2.50+)
-              // open the runtime card, as a tap does.
-              if ((domain == "light" || domain == "fan") && runtime_tiles::detail) {
+              // Whatever a hold on the tile itself opens: the runtime's own card for almost everything, and the
+              // board's colour card for a light with a colour (firmware 0.2.80). Asking tap_route keeps this on
+              // the firmware's own answer instead of a list of domains that goes stale, as this one had.
+              if (tile_controls::tap_route(tile, true).route == tile_controls::TapRoute::OVERLAY && runtime_tiles::detail) {
                 tile.begin(millis(), true);
                 runtime_tiles::detail(tile);
                 return;
@@ -466,13 +467,7 @@ globals:
     type: std::string
     restore_value: no
 
-  - id: active_control_kind
-    type: std::string
-    restore_value: no
 
-  - id: active_value_suffix
-    type: std::string
-    restore_value: no
 
   # Two clocks. last_touch_ms is the standby time: a touch, Wake, an alert ending and Auto standby on restart it.
   # last_use_ms is Back to page 1 (firmware 0.2.56+): only a touch, or Home Assistant opening the settings page.
@@ -511,21 +506,12 @@ globals:
     restore_value: no
     initial_value: 'false'
 
-  - id: active_label_off
-    type: std::string
-    restore_value: no
 
-  - id: active_label_on
-    type: std::string
-    restore_value: no
 
   - id: active_title
     type: std::string
     restore_value: no
 
-  - id: active_icon_text
-    type: std::string
-    restore_value: no
 
   - id: active_brightness_pct
     type: int
@@ -1343,9 +1329,6 @@ lvgl:
     - id: paint_ink
     - id: paint_ink_soft
     - id: paint_scrim
-    - id: paint_veil
-    - id: paint_accent_tint
-    - id: paint_accent_bright
     - id: paint_button_dark
     - id: paint_button_dark_pressed
 
@@ -1612,340 +1595,6 @@ lvgl:
                   text_font: materialdesign_icons_mini
                   styles: paint_ink
                   clickable: false
-
-        - obj:
-            id: brightness_overlay
-            x: 0
-            y: 0
-            width: ${DISPLAY_W}
-            height: ${DISPLAY_H}
-            bg_opa: TRANSP
-            hidden: true
-            scrollable: false
-            scrollbar_mode: 'OFF'
-            pad_left: 0
-            pad_right: 0
-            pad_top: 0
-            pad_bottom: 0
-            border_width: 0
-            widgets:
-              - obj:
-                  id: brightness_overlay_bg
-                  x: 0
-                  y: 0
-                  width: ${DISPLAY_W}
-                  height: ${DISPLAY_H}
-                  styles: style_page
-                  scrollable: false
-                  clickable: true
-                  on_click:
-                    - script.execute: close_cards
-
-              - obj:
-                  id: brightness_overlay_dim
-                  x: 0
-                  y: 0
-                  width: ${DISPLAY_W}
-                  height: ${DISPLAY_H}
-                  styles: paint_veil
-                  bg_opa: 18%
-                  border_width: 0
-                  clickable: false
-                  scrollable: false
-
-              - obj:
-                  id: overlay_back_button
-                  align: TOP_LEFT
-                  x: ${CARD_KEY_X}
-                  y: ${CARD_KEY_Y}
-                  width: ${CARD_KEY_SIZE}
-                  height: ${CARD_KEY_SIZE}
-                  radius: 999
-                  styles: paint_key
-                  bg_opa: COVER
-                  border_width: 0
-                  clickable: true
-                  scrollable: false
-                  on_click:
-                    - script.execute: close_cards
-                  widgets:
-                    - label:
-                        align: CENTER
-                        text: "\U000F004D"
-                        text_font: materialdesign_icons_mini
-                        clickable: false
-
-              - label:
-                  id: overlay_title
-                  align: TOP_MID
-                  y: ${OVERLAY_TITLE_Y}
-                  text: "Light"
-                  styles: style_room
-
-              - label:
-                  id: overlay_value
-                  align: TOP_MID
-                  y: ${OVERLAY_VALUE_Y}
-                  text: "100 %"
-                  styles: style_value_big
-
-              - slider:
-                  id: overlay_slider
-                  align: CENTER
-                  y: ${OVERLAY_SLIDER_Y}
-                  width: ${OVERLAY_SLIDER_W}
-                  height: ${OVERLAY_SLIDER_H}
-                  min_value: 0
-                  max_value: 100
-                  value: 100
-                  adv_hittest: false
-
-                  styles: paint_accent_tint
-                  bg_opa: 100%
-                  radius: ${OVERLAY_SLIDER_RADIUS}
-                  # The only widget with BOTH a radius AND a child (overlay_icon).
-                  # LVGL then clips children to the rounding, and that's only
-                  # possible via a contiguous 96x160 = 46KB ARGB layer.
-                  # If that allocation fails, LVGL keeps trying until the
-                  # task watchdog restarts the board. The rounding stays, the
-                  # clipping goes.
-                  clip_corner: false
-                  border_width: 0
-
-                  indicator:
-                    styles: paint_accent_bright
-                    bg_opa: 100%
-                    radius: ${OVERLAY_SLIDER_RADIUS}
-
-                  knob:
-                    bg_opa: 0%
-                    border_width: 0
-                    shadow_width: 0
-                    pad_all: ${OVERLAY_KNOB_PAD}
-
-                  on_value:
-                    - script.execute:
-                        id: slider_preview
-                        value: !lambda "return x;"
-
-                  on_release:
-                    - script.execute:
-                        id: slider_commit
-                        value: !lambda "return lv_slider_get_value(id(overlay_slider));"
-
-
-              # The icon used to be a CHILD in the slider. A widget with a radius
-              # and children has to clip those children to the rounding, and
-              # LVGL can only do that via an ARGB layer of tens of KB's. Without
-              # PSRAM that sometimes fails, after which LVGL keeps retrying until
-              # the watchdog restarts the board. As a sibling on top, no layer
-              # is needed and it looks identical.
-              - label:
-                  id: overlay_icon
-                  align: CENTER
-                  y: ${OVERLAY_ICON_Y}
-                  text_font: materialdesign_icons
-                  styles: paint_ink
-                  text: "\U000F001B"
-                  clickable: false
-
-              - obj:
-                  id: overlay_color_button
-                  align: BOTTOM_RIGHT
-                  x: ${COLOR_KEY_X}
-                  y: ${COLOR_KEY_Y}
-                  width: ${COLOR_KEY_SIZE}
-                  height: ${COLOR_KEY_SIZE}
-                  radius: 999
-                  hidden: true
-                  clickable: true
-                  bg_opa: TRANSP
-                  border_width: 0
-                  pad_left: 0
-                  pad_right: 0
-                  pad_top: 0
-                  pad_bottom: 0
-                  scrollable: false
-                  scrollbar_mode: 'OFF'
-                  on_click:
-                    - script.execute: open_color_detail
-                  widgets:
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 0
-                        end_angle: 45
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0xFF3B30
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 45
-                        end_angle: 90
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0xFF9500
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 90
-                        end_angle: 135
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0xFFD60A
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 135
-                        end_angle: 180
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0x30D158
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 180
-                        end_angle: 225
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0x32D6FF
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 225
-                        end_angle: 270
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0x0A84FF
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 270
-                        end_angle: 315
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0x5856D6
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
-                    - arc:
-                        align: CENTER
-                        width: ${COLOR_ARC_SIZE}
-                        height: ${COLOR_ARC_SIZE}
-                        start_angle: 315
-                        end_angle: 360
-                        min_value: 0
-                        max_value: 100
-                        value: 0
-                        adjustable: false
-                        arc_width: ${COLOR_ARC_W}
-                        arc_rounded: false
-                        arc_color: 0xBF5AF2
-                        arc_opa: COVER
-                        bg_opa: TRANSP
-                        border_width: 0
-                        clickable: false
-                        indicator:
-                          arc_opa: TRANSP
-                        knob:
-                          bg_opa: TRANSP
-                          border_width: 0
 
         # ---------- LIGHT COLOR DETAIL OVERLAY ----------
         - obj:
@@ -2356,7 +2005,6 @@ script:
           light_controls::open(id(active_entity), id(active_supports_color), id(active_supports_temperature), id(active_brightness_pct));
           if (effects_page::offered(id(active_entity))) lv_obj_remove_flag(id(color_effects_button), LV_OBJ_FLAG_HIDDEN);
           else lv_obj_add_flag(id(color_effects_button), LV_OBJ_FLAG_HIDDEN);
-      - lvgl.widget.hide: brightness_overlay
       - lvgl.widget.show: color_detail_overlay
 
   - id: color_brightness_commit
@@ -2405,94 +2053,6 @@ script:
                   entity_id: !lambda "return id(active_entity);"
                   color_temp_kelvin: !lambda "return light_controls::clamp(kelvin, light_controls::active->minimum, light_controls::active->maximum);"
 
-  - id: slider_preview
-    parameters:
-      value: int
-    then:
-      - lambda: |-
-          char buf[20];
-          snprintf(buf, sizeof(buf), "%d%s", value, id(active_value_suffix).c_str());
-          lv_label_set_text(id(overlay_value), buf);
-          int pct = value;
-          if (pct < 0) pct = 0;
-          if (pct > 100) pct = 100;
-          std::string value_text;
-
-          if (id(active_control_kind) == "cover_position") {
-            std::string closed_label = id(active_label_off).c_str();
-            std::string open_label = id(active_label_on).c_str();
-
-            if (pct <= 0) {
-              value_text = closed_label;
-            } else if (pct >= 100) {
-              value_text = open_label;
-            } else {
-              value_text = open_label + " - " + screen_text::percent(pct);
-            }
-          } else {
-            if (pct <= 0) {
-              value_text = id(active_label_off).c_str();
-            } else {
-              char buf[20];
-              snprintf(buf, sizeof(buf), "%d%s", pct, id(active_value_suffix).c_str());
-              value_text = buf;
-            }
-          }
-
-          lv_label_set_text(id(overlay_value), value_text.c_str());
-
-
-  - id: slider_commit
-    parameters:
-      value: int
-    then:
-      - if:
-          condition:
-            lambda: |-
-              return id(active_control_kind) == "light_brightness";
-          then:
-            - homeassistant.action:
-                action: light.turn_on
-                data:
-                  entity_id: !lambda "return id(active_entity);"
-                  brightness_pct: !lambda "return value;"
-          else:
-            - if:
-                condition:
-                  lambda: |-
-                    return id(active_control_kind) == "fan_percentage";
-                then:
-                  - if:
-                      condition:
-                        lambda: "return value <= 0;"
-                      then:
-                        - homeassistant.action:
-                            action: fan.turn_off
-                            data:
-                              entity_id: !lambda "return id(active_entity);"
-                      else:
-                        - homeassistant.action:
-                            action: fan.turn_on
-                            data:
-                              entity_id: !lambda "return id(active_entity);"
-                        - delay: 150ms
-                        - homeassistant.action:
-                            action: fan.set_percentage
-                            data:
-                              entity_id: !lambda "return id(active_entity);"
-                              percentage: !lambda "return value;"
-                else:
-                  - if:
-                      condition:
-                        lambda: |-
-                          return id(active_control_kind) == "cover_position";
-                      then:
-                        - homeassistant.action:
-                            action: cover.set_cover_position
-                            data:
-                              entity_id: !lambda "return id(active_entity);"
-                              position: !lambda "return value;"
-
   # ----------------------------------------------------------
   # do_tile_action
   #
@@ -2535,6 +2095,13 @@ script:
   #   like preset_mode, brightness_pct, percentage, etc.
   # ----------------------------------------------------------
 
+  # A light with a colour or a colour temperature (firmware 0.2.80): the only card the screens still open from
+  # here. A light that only dims and a fan open the runtime's own card, with the standing slider and the power
+  # key in its top bar (components/smart_display/light_card.h), and the whole overlay this script used to fill
+  # went with them - its widgets, its two scripts and the eight sizes every board file carried for it.
+  #
+  # The colour card itself is unchanged: it wants to know which entity it shows, what it is called, which of the
+  # two it offers and how bright the light stands.
   - id: open_value_overlay
     parameters:
       title: string
@@ -2552,110 +2119,15 @@ script:
       supported_color_modes: string
     then:
       - lambda: |-
-          std::string mode = longpress_mode;
-          auto contains_mode = [](const std::string& modes, const std::string& needle) {
-            return modes.find(needle) != std::string::npos;
-          };
-          if (mode == "auto") {
-            if (tile_type == "light") mode = "brightness";
-            else if (tile_type == "fan") mode = "percentage";
-            else if (tile_type == "cover") mode = "cover_position";
-            else mode = "none";
-          }
-
-          if (mode == "none") return;
-
+          auto has = [&](const char *needle) { return supported_color_modes.find(needle) != std::string::npos; };
           id(active_entity) = entity;
-          id(active_value_suffix) = screen_text::percent_sign();
-          id(active_label_off) = label_off;
-          id(active_label_on) = label_on;
           id(active_title) = title;
-          id(active_icon_text) = icon_text;
-          id(active_supports_color) = false;
-          id(active_supports_temperature) = false;
-          lv_obj_add_flag(id(overlay_color_button), LV_OBJ_FLAG_HIDDEN);
-
+          id(active_supports_color) = has("hs") || has("rgb") || has("xy");
+          id(active_supports_temperature) = has("color_temp");
           int pct = off_value;
-
-          if (mode == "brightness") {
-            id(active_control_kind) = "light_brightness";
-            if (was_on) {
-              if (isnan(brightness_value)) pct = 100;
-              else pct = (int) lround((brightness_value / 255.0f) * 100.0f);
-            }
-          } else if (mode == "percentage") {
-            id(active_control_kind) = "fan_percentage";
-            if (was_on) {
-              if (isnan(percentage_value)) pct = 0;
-              else pct = (int) lround(percentage_value);
-            }
-          } else if (mode == "cover_position") {
-            id(active_control_kind) = "cover_position";
-            if (isnan(position_value)) pct = was_on ? 100 : 0;
-            else pct = (int) lround(position_value);
-          } else {
-            return;
-          }
-
-          if (pct < 0) pct = 0;
-          if (pct > 100) pct = 100;
-          id(active_brightness_pct) = pct;
-
-          if (tile_type == "light") {
-            id(active_supports_color) =
-              contains_mode(supported_color_modes, "hs") ||
-              contains_mode(supported_color_modes, "rgb") ||
-              contains_mode(supported_color_modes, "rgbw") ||
-              contains_mode(supported_color_modes, "rgbww") ||
-              contains_mode(supported_color_modes, "xy");
-            id(active_supports_temperature) = contains_mode(supported_color_modes, "color_temp");
-
-            if (id(active_supports_color) || id(active_supports_temperature)) {
-              lv_obj_clear_flag(id(overlay_color_button), LV_OBJ_FLAG_HIDDEN);
-            }
-          }
-
-          // Track and fill are the pale blue and blue paints of overlay_slider. Both keep the radius the
-          // widget was given (OVERLAY_SLIDER_RADIUS): a fill rounded less than its track makes LVGL draw
-          // it into an ARGB layer of its own on every redraw (96 x 160 x 4 = 61 KB on a CYD), and when
-          // that allocation fails LVGL retries until the task watchdog resets the board.
-          lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_MAIN);
-
-          lv_label_set_text(id(overlay_title), title.c_str());
-          lv_label_set_text(id(overlay_icon), icon_text.c_str());
-          lv_slider_set_value(id(overlay_slider), pct, LV_ANIM_OFF);
-
-          std::string value_text;
-
-          if (tile_type == "cover") {
-            if (pct <= 0) {
-              value_text = label_off;
-            } else if (pct >= 100) {
-              value_text = label_on;
-            } else {
-              value_text = label_on + " - " + screen_text::percent(pct);
-            }
-          } else {
-            if (pct <= 0) {
-              value_text = label_off;
-            } else {
-              char buf[20];
-              snprintf(buf, sizeof(buf), "%d%s", pct, id(active_value_suffix).c_str());
-              value_text = buf;
-            }
-          }
-
-          lv_label_set_text(id(overlay_value), value_text.c_str());
-
-          lv_obj_set_style_bg_opa(id(overlay_slider), LV_OPA_COVER, LV_PART_INDICATOR);
-
-      - if:
-          condition:
-            lambda: 'return id(active_supports_color) || id(active_supports_temperature);'
-          then:
-            - script.execute: open_color_detail
-          else:
-            - lvgl.widget.show: brightness_overlay
+          if (was_on) pct = isnan(brightness_value) ? 100 : (int) lround((brightness_value / 255.0f) * 100.0f);
+          id(active_brightness_pct) = std::clamp(pct, 0, 100);
+      - script.execute: open_color_detail
 
   # UI refresh (values + time + styles) + render
   - id: ui_refresh

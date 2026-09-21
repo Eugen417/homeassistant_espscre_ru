@@ -87,11 +87,6 @@ substitutions:
   CAMERA_FULL_H: "480"
   CAMERA_THUMB_W: "392"
   CAMERA_THUMB_H: "220"
-  OVERLAY_SLIDER_W: "144"
-  OVERLAY_SLIDER_H: "300"
-  OVERLAY_ICON_Y: "148"
-
-  # Fonts: one size per role, the same files on every board
   FONT_TIME_SIZE: "27"                          # the clock in the top bar
   FONT_HEADLINE_SIZE: "27"                      # card titles
   FONT_WATCH_VALUE_SIZE: "38"
@@ -121,16 +116,6 @@ substitutions:
   CARD_KEY_X: "16"                              # a card's round key from the side
   CARD_KEY_Y: "16"                              # from the top
   CARD_KEY_SIZE: "60"                           # its diameter
-  OVERLAY_TITLE_Y: "30"                         # the brightness card's title
-  OVERLAY_VALUE_Y: "70"                         # its percentage
-  OVERLAY_SLIDER_Y: "36"                        # its slider below the centre
-  OVERLAY_SLIDER_RADIUS: "42"                   # the slider's corners
-  OVERLAY_KNOB_PAD: "15"                        # the knob
-  COLOR_KEY_X: "-20"                            # the colour wheel key from the bottom right corner
-  COLOR_KEY_Y: "-26"
-  COLOR_KEY_SIZE: "66"                          # its diameter
-  COLOR_ARC_SIZE: "60"                          # the eight arcs in it
-  COLOR_ARC_W: "15"
   COLOR_TITLE_W: "310"                          # the colour card's title
   COLOR_TITLE_Y: "35"
 
@@ -604,10 +589,6 @@ script:
                 id(tile_page) = 0;
             - script.execute: show_tile_page
             - delay: 150ms
-            - lvgl.widget.show: brightness_overlay
-            - delay: 150ms
-            - lambda: guition::check_geometry(id(brightness_overlay));
-            - lvgl.widget.hide: brightness_overlay
             - lvgl.widget.show: color_detail_overlay
             - delay: 150ms
             - lambda: guition::check_geometry(id(color_detail_overlay));

@@ -120,7 +120,8 @@ class Firmware(unittest.TestCase):
         # back button and its action at the top right lost their taps to it. (The wake overlay of a dimmed
         # screen was not affected: apply_screen_settings moves it to the foreground.)
         self.assertIn('lv_obj_move_to_index(hold_area, lv_obj_get_index(below));', SCREEN)
-        cards = ('brightness_overlay', 'color_detail_overlay', 'dim_wake_overlay')
+        # The brightness overlay went to the runtime in 0.2.80; the colour card is the first one left.
+        cards = ('color_detail_overlay', 'dim_wake_overlay')
         for name, text in self.profiles.items():
             call = re.search(r'settings_screen::attach_hold\(id\(home_page\)->obj, [^;]*, id\((\w+)\)\);', text)
             self.assertTrue(call, f'{name}: attach_hold gets no card to stay under')

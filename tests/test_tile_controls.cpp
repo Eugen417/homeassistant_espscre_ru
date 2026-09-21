@@ -211,6 +211,10 @@ int main() {
     // A thermostat joined the computed cards in 0.2.9x: it opens CARD, and marks the tile busy while it opens,
     // like the vacuum and the cover beside it. Every other domain still routes exactly as firmware 0.2.56 did.
     if (d == "climate" && open) return {TapRoute::CARD, "", true};
+    // A light that only dims and a fan joined them in 0.2.80: the card with the standing slider is the runtime's
+    // now, so they open CARD and mark the tile busy while it opens. A light with a colour or a colour
+    // temperature keeps the board's own colour card (OVERLAY), which is what these tiles have no modes for.
+    if (open && (d == "light" || d == "fan") && !light_colour(tile)) return {TapRoute::CARD, "", true};
     if (open) return d == "light" || d == "vacuum" || d == "fan" ? Legacy{TapRoute::OVERLAY, "", true} : Legacy{TapRoute::CARD, "", false};
     if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") return {TapRoute::ACTION, d + ".toggle", false};
     if (d == "scene" || d == "script") return {TapRoute::ACTION, d + ".turn_on", false};

@@ -197,10 +197,11 @@ event and the layout sensor count rows, columns and pages the same way.
   `min_width`/`max_width` in `ui::px()`, and `LV_EVENT_SIZE_CHANGED` for a card that changes shape with
   its width. The first component to rebuild that way is the tile row (circle | text column | panel); the
   forecast strip and the clock follow.
-- The overlays that take pixels from the board file (light, alert, touch test) keep those substitutions;
-  they become computed cards like the thermostat, the blind and the robot.
-- A card with two groups (light: brightness and colour; climate: setpoint, modes, fan) could stand in two
-  columns on wide glass instead of one capped column. Same components, another flex flow.
+- The light and fan card was the first of these to go: since 0.2.94 it is `light_card.h` with the standing
+  slider, and its eight sizes left every board file (with the five of the colour key it carried). The alert and
+  the touch test still take their pixels from the board file and are the two left to compute.
+- A card with two groups (the colour card: brightness and colour; climate: setpoint, modes, fan) could stand in
+  two columns on wide glass instead of one capped column. Same components, another flex flow.
 - Turning follows the shape (firmware 0.2.80+): a half turn keeps width, height, the grid and the whole size
   table, so every board offers it; a quarter turn only a square screen (`settings_screen::quarter_turns`,
   set from `DISPLAY_W == DISPLAY_H` at boot). The shared tree applies the angle on top of the board's own

@@ -154,7 +154,8 @@ class Profiles(unittest.TestCase):
                     if line.strip() and not line.strip().startswith('#')]
             self.assertEqual(body, ["- lambda: 'if (runtime_tiles::dismiss) runtime_tiles::dismiss();'"], name)
             dismiss = re.search(r'runtime_tiles::dismiss = \[\]\(\) \{(.*?)\};', text, re.S)[1]
-            for step in ('runtime_tiles::hide_detail();', 'id(active_entity).clear();', 'id(brightness_overlay)',
+            # hide_detail() closes every computed card, the light and fan card among them since 0.2.80.
+            for step in ('runtime_tiles::hide_detail();', 'id(active_entity).clear();',
                          'id(color_detail_overlay)'):
                 self.assertIn(step, dismiss, name)
 

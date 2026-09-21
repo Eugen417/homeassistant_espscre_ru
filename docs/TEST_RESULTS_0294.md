@@ -104,6 +104,32 @@ thermostat and the media card.
   the order. Its geometry is what the test covers (a shape that cannot hold five days however the card gives);
   its drawing is the settings page's pager, the same objects in the same place. It has not been on glass.
 
+## The light and fan card (2026-09-21)
+
+The last card built in YAML became a computed one (`components/smart_display/light_card.h`), after a peer session
+found what its slider cost: a fill rounded less than its track, which made LVGL draw it through an ARGB layer of
+61 KB on every redraw and restarted a CYD under the watchdog when that allocation failed (0.2.93 fixed the
+rounding on main; this round removes the widget).
+
+- `tests/test_light_card.cpp` (the 23rd C++ test) walks 240 x 320 to 1024 x 600 in both looks and asserts that
+  nothing leaves the glass, the slider stays inside its card and keeps a thumb's width, the power key stays a
+  finger, and the value reads under the card in one column and beside it in two.
+- Host renders of the three boards: a light that dims, a fan, and a light with colour (which still opens the
+  colour card, unchanged). The handle sits inside the fill as the blind's does, the icon rides on its foot, and
+  a fan's track is the neutral one instead of a light's amber.
+- `tools/check.sh --firmware` over all three boards with the ESPHome the add-on ships: CYD 1,617,408 B = 88.1 %
+  of the update slot, **5,216 bytes less** than the same tree with the overlay; Guition 25.0 %, Waveshare 28.2 %.
+- What the screen no longer keeps: the overlay's widget tree (a full-screen object, its backdrop, its veil, a
+  back key, two labels, the slider and a rainbow key of eight arcs) was in the LVGL tree whether the card was
+  open or not. It is made when the card opens and cleaned away when it closes, like every other card. Three
+  paint styles, five colour-key sizes, eight overlay sizes per board file, two scripts and five globals went
+  with it, and a profile now writes no fixed colour at all (tests/test_theme.py).
+- One thing the removal broke and the build caught: ESPHome writes `lv_conf.h` from the widgets the YAML names,
+  and the overlay held the only `slider:` in it. Every slider is made in C++ now, so the core asks for the
+  widget with a build flag, the way it already asked for the switch (`-DLV_USE_BAR=1`, `-DLV_USE_SLIDER=1`).
+- Not on glass yet: this is renders and gates. The card wants a hold on a real light and a real fan, and a drag
+  on the CYD that used to restart it.
+
 ## Not covered here
 
 - Whether the picture on the glass turns with the select was not looked at from here: the boards are in the house,

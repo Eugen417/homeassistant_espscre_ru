@@ -30,6 +30,8 @@ ALLOWED_IN_FIRMWARE = {
     'tile_icon.h': ('if (cp < 0x10000 || cp > 0x10FFFF) return {};',),
     'runtime_tiles.h': ('accent=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation,100))&0xFFFFFF;',),
 }
+# The eight hues of the rainbow key the brightness overlay carried, until firmware 0.2.80 removed it. Kept as a
+# reminder of what a profile is no longer allowed to write; the colour card draws its wheel from theme.h.
 COLOUR_WHEEL = {'0xFF3B30', '0xFF9500', '0xFFD60A', '0x30D158', '0x32D6FF', '0x0A84FF', '0x5856D6', '0xBF5AF2'}
 
 
@@ -50,10 +52,10 @@ class OnePlace(unittest.TestCase):
     def test_no_profile_writes_a_colour_of_its_own(self):
         for path in PROFILES:
             text = profiles.text(path)
-            wheel = re.findall(r'^\s+arc_color: (0x[0-9A-F]{6})$', text, re.M)
-            self.assertEqual(set(wheel), COLOUR_WHEEL, path)
-            everything = HEX.findall(text)
-            self.assertEqual(sorted(everything), sorted(wheel), f'{path}: only the colour wheel keeps fixed hues')
+            # Since firmware 0.2.80 there is no fixed hue left in a profile at all: the rainbow key of the old
+            # brightness overlay carried the last eight (COLOUR_WHEEL), and it went with that overlay. Every
+            # colour a screen draws now comes from theme.h, which is what this test was always driving at.
+            self.assertEqual(HEX.findall(text), [], f'{path}: a colour outside theme.h')
             self.assertNotIn('BG_TOP_COLOR', text)
             self.assertNotIn('ACCENT_AUTO', text)
             self.assertNotRegex(text, r'^\s+(bg|text|border|bg_grad|line|outline|shadow)_color:', path)

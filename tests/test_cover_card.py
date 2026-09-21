@@ -112,13 +112,18 @@ class Firmware(unittest.TestCase):
         self.assertIn('d == "cover"', cards, 'covers go to show_detail with the other runtime cards')
         self.assertIn('d == "climate"', cards, 'a thermostat opens the computed card too (firmware 0.2.80)')
         self.assertIn('if (runtime_card_domain(d)) return {TapRoute::CARD, "", true};', controls)
-        self.assertIn('return d == "light" || d == "fan" ? Tap{TapRoute::OVERLAY', controls, 'not to the board\'s value overlay any more')
+        # Firmware 0.2.80: only a light with a colour still opens the board's own card; the rest is the runtime's.
+        self.assertIn('return light_colour(t) ? Tap{TapRoute::OVERLAY', controls, "not to the board's value overlay any more")
+        self.assertIn('d == "light" || d == "fan" ? Tap{TapRoute::CARD, "", true}', controls)
         self.assertIn('case tile_controls::TapRoute::CARD:', event)
         self.assertIn('show_detail(w.index);', event)
         self.assertIn('}else if(d=="cover"){', RUNTIME)
         self.assertIn('render_cover_detail(t,large,width,height,pad,columns);', RUNTIME)
         for name, text in PROFILES.items():
-            self.assertIn('if ((domain == "light" || domain == "fan") && runtime_tiles::detail) {', text, f'{name}: the preview opens the new card')
+            # Firmware 0.2.80: the preview asks the firmware's own routing instead of listing domains, so it
+            # opens whatever a hold opens - the runtime's card for a cover, a light that dims and a fan.
+            self.assertIn('if (tile_controls::tap_route(tile, true).route == tile_controls::TapRoute::OVERLAY && runtime_tiles::detail) {',
+                          text, f'{name}: the preview opens the card a hold opens')
 
     def test_the_card_commits_on_release_and_keeps_its_status_line(self):
         self.assertIn('action("cover.set_cover_position",t.entity,"position",std::to_string(100-percent));', RUNTIME)

@@ -16,6 +16,7 @@
 #include "history_view.h"
 #include "camera_view.h"
 #include "media_card.h"
+#include "light_card.h"
 #include "weather_card.h"
 #include "swipe_profile.h"
 #include "esphome/components/json/json_util.h"
@@ -960,6 +961,8 @@ inline bool detail_placed=false;
 // What the climate card's keys answer with: a mode, a fan or swing choice, the power key and the setpoint's
 // - and + (the card itself is further down, beside the vacuum's and the cover's).
 inline constexpr int CLIMATE_MODE_FIRST=200,CLIMATE_ROW_FIRST=210,CLIMATE_POWER=230,CLIMATE_DOWN=231,CLIMATE_UP=232;
+// The power key of a light or fan card (firmware 0.2.80), in the same top bar.
+inline constexpr int LIGHT_POWER=240;
 inline void climate_step(Tile &t,int direction);
 inline const lv_font_t *tile_icon_font();
 inline unsigned detail_index=0;
@@ -1159,6 +1162,15 @@ inline void detail_command(int cmd){
       action(a.service,t.entity,a.key,a.value);
       redraw_detail();
     }
+    return;
+  }
+  if(cmd==LIGHT_POWER){
+    // The same toggle a tap on the tile does, and the card shows the new stand at once as that tap does.
+    const bool turning_on=t.state!="on";
+    t.optimistic(turning_on);
+    t.begin(esphome::millis());
+    action(t.domain()+(turning_on?".turn_on":".turn_off"),t.entity);
+    redraw_detail();
     return;
   }
   if(cmd==CLIMATE_POWER){
@@ -1843,6 +1855,144 @@ inline void render_cover_detail(Tile &t,bool large,int width,int height,int pad,
     if(tilt_count)cover_key_row(tilt_keys,tilt_count,keys_x,y,keys_w,key_h,gap,key_icons);
   }
 }
+// A round key of a card: the - and the + beside a thermostat's setpoint, and the power key in the top bar
+// of the thermostat and of a light or fan. It takes a climate_card::Rect because that card asked first;
+// every card's rectangle is the same four numbers.
+inline lv_obj_t *climate_round_key(const climate_card::Rect &r,const char *icon,const lv_font_t *font,theme::Role fill,theme::Role ink,int command){
+  auto *key=detail_button("",r.x,r.y,r.w,r.h,command);
+  lv_obj_set_style_radius(key,LV_RADIUS_CIRCLE,0);
+  lv_obj_set_style_bg_color(key,theme::color(fill),0);
+  lv_obj_set_style_bg_color(key,theme::color(theme::KEY_PRESSED),LV_STATE_PRESSED);
+  auto *glyph=lv_obj_get_child(key,0);
+  if(font)lv_obj_set_style_text_font(glyph,font,0);
+  lv_label_set_text(glyph,icon);
+  lv_obj_set_style_text_color(glyph,theme::color(ink),0);
+  lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
+  return key;
+}
+// ---- Light and fan card (firmware 0.2.80): the last card that was built in YAML ----
+// A light without colour and a fan open this: a white card with a standing slider, the value under it and what
+// it is under that, and the power key in the top bar across from the back key, where the thermostat has it. A
+// light with colour or a colour temperature opens the colour card instead, as it always did.
+//
+// Until now this was `brightness_overlay`: a full-screen widget tree that sat in the LVGL tree whether it was
+// open or not, eight sizes per board file, its own scripts for the preview and the send, and a slider whose
+// fill was rounded less than its track, which made LVGL draw it through a buffer of 61 KB (0.2.93). It is a
+// card like the others now - light_card.h says where the parts go, this draws them, the card is made when it
+// opens and cleaned away when it closes - and the value it sends goes the way a tile's own slider goes
+// (commit_slider: the 1 % floor of a light, the held value while it fades, the touch guard).
+inline lv_obj_t *light_value=nullptr;
+
+// What the board brings to the card: its class, the fonts it writes with and its top bar.
+inline light_card::Metrics light_metrics(bool large) {
+  const lv_font_t *big=watch_value_font?watch_value_font:(watch_font?watch_font:detail_font);
+  const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
+  const lv_font_t *icons=tile_icon_font();
+  light_card::Metrics m;
+  m.large=large;
+  m.value_h=lv_font_get_line_height(big);
+  m.text_h=lv_font_get_line_height(text);
+  m.icon_h=icons?lv_font_get_line_height(icons):ui::px(large?42:28);
+  m.touch=ui::touch_min();
+  m.pad=overlay_card::pad();
+  m.bar=ui::px(large?60:40);
+  m.bar_x=ui::px(large?16:10);
+  m.bar_y=ui::px(large?16:8);
+  return m;
+}
+// One column or two: the stack's own height decides, as it does for the thermostat and the blind.
+inline int light_columns(bool large) {
+  const auto m=light_metrics(large);
+  return overlay_card::columns(light_card::stacked_height(m),m.slider_w()+2*m.edge());
+}
+// What the card writes beside the slider: the percentage, or the word Home Assistant uses when it is off.
+inline float light_level(const Tile &t) {
+  return t.domain()=="fan"?t.percentage:(std::isfinite(t.brightness)?t.brightness*100.0f/255.0f:NAN);
+}
+inline std::string light_value_text(const Tile &t) {
+  const float value=light_level(t);
+  if(t.state=="on"&&std::isfinite(value))return screen_text::percent(std::clamp((int)std::lround(value),0,100));
+  return card_status(t);   // "On", "Off", "Unavailable": Home Assistant's own word, as every other card says it
+}
+inline void light_slider_event(lv_event_t *e) {
+  auto *slider=lv_event_get_target_obj(e);const auto code=lv_event_get_code(e);
+  if(code==LV_EVENT_VALUE_CHANGED){
+    // The range reaches past its ends only to keep the handle inside the track (slider_handle).
+    int raw=lv_slider_get_value(slider);
+    if(raw<0||raw>1000){raw=std::clamp(raw,0,1000);lv_slider_set_value(slider,raw,LV_ANIM_OFF);}
+    if(light_value)label(light_value,screen_text::percent((int)std::lround(raw/10.0f)));
+    return;
+  }
+  // The send is the tile slider's own: the 1 % floor, the value held while the light fades, the touch guard.
+  if(code==LV_EVENT_RELEASED&&cyd::touch_guard.accept_slider(esphome::millis(),380))commit_slider(detail_index,lv_slider_get_value(slider));
+}
+// The standing slider of the card, drawn like the blind's: one radius on the track and the fill (a fill rounded
+// less than its track costs a layer of tens of kilobytes on every redraw), a handle bar inside the fill.
+inline lv_obj_t *light_slider(int x,int y,int w,int h,int raw,uint32_t accent,bool enabled,bool amber) {
+  const int radius=std::max(8,w/7),handle_h=std::max(4,w/18),handle_w=w*2/5,inset=std::max(6,w/9);
+  auto *slider=lv_slider_create(detail_root);lv_obj_remove_style_all(slider);
+  lv_obj_set_pos(slider,x,y);lv_obj_set_size(slider,w,h);lv_slider_set_orientation(slider,LV_SLIDER_ORIENTATION_VERTICAL);
+  lv_obj_set_style_radius(slider,radius,LV_PART_MAIN);lv_obj_set_style_radius(slider,radius,LV_PART_INDICATOR);
+  // A light's track is the pale amber Home Assistant gives it; a fan's is the neutral one, so the track
+  // never fights the fill's own colour.
+  lv_obj_set_style_bg_color(slider,theme::color(amber&&raw>0?theme::AMBER_TRACK:theme::TRACK),LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_MAIN);
+  lv_obj_set_style_bg_color(slider,lv_color_hex(accent),LV_PART_INDICATOR);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_INDICATOR);
+  lv_obj_set_style_bg_color(slider,theme::color(theme::KNOB),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
+  lv_obj_set_style_radius(slider,LV_RADIUS_CIRCLE,LV_PART_KNOB);
+  lv_obj_set_style_opa(slider,LV_OPA_50,LV_STATE_DISABLED);
+  // LVGL centres the knob on the end of the fill in a square as wide as the slider; the pads shrink that square
+  // to a handle bar and drop it an inset inside the fill, the way the blind's handle sits inside the blind.
+  const int side=-(w-handle_w)/2;
+  lv_obj_set_style_pad_left(slider,side,LV_PART_KNOB);lv_obj_set_style_pad_right(slider,side,LV_PART_KNOB);
+  lv_obj_set_style_pad_top(slider,-(w-handle_h)/2-inset,LV_PART_KNOB);
+  lv_obj_set_style_pad_bottom(slider,-(w-handle_h)/2+inset,LV_PART_KNOB);
+  // A margin past both ends keeps the handle on the track at 0 and at 100 % (the event snaps the value back).
+  const int margin=1000*(inset+handle_h)/std::max(1,h-2*(inset+handle_h));
+  lv_slider_set_range(slider,-margin,1000+margin);
+  lv_slider_set_value(slider,std::clamp(raw,0,1000),LV_ANIM_OFF);
+  if(!enabled)lv_obj_add_state(slider,LV_STATE_DISABLED);
+  lv_obj_remove_flag(slider,LV_OBJ_FLAG_GESTURE_BUBBLE);
+  lv_obj_add_event_cb(slider,light_slider_event,LV_EVENT_ALL,nullptr);
+  return slider;
+}
+inline void render_light_detail(Tile &t,bool large,int width,int height,int columns) {
+  const lv_font_t *big=watch_value_font?watch_value_font:(watch_font?watch_font:detail_font);
+  const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
+  const lv_font_t *mini=mini_icon_font?mini_icon_font:detail_font;
+  const lv_font_t *icons=tile_icon_font();
+  const auto m=light_metrics(large);
+  const auto l=light_card::layout(m,width,height,columns);
+  detail_placed=true;   // the layout has already put every part where the glass has room for it
+  // The big value says what the state line would have said, so the card draws no second one.
+  if(detail_status){lv_obj_add_flag(detail_status,LV_OBJ_FLAG_HIDDEN);detail_status=nullptr;}
+
+  const bool on=t.state=="on";
+  const uint32_t accent=tile_controls::accent(t);
+  // The power key, across from the back key: lit while the light or the fan is on.
+  climate_round_key({l.power.x,l.power.y,l.power.w,l.power.h},tile_controls::glyph::POWER,mini,
+                    on?theme::ACCENT_TINT:theme::KEY,on?theme::ACCENT_ICON:theme::ICON_OFF,LIGHT_POWER);
+
+  detail_card(l.card.x,l.card.y,l.card.w,l.card.h);
+  // Where the slider stands: what the tile's own strip shows, so the two never disagree.
+  const float value=light_level(t);
+  const int raw=on&&std::isfinite(value)?(int)std::lround(std::clamp(value,0.0f,100.0f)*10.0f):0;
+  auto *slider=light_slider(l.slider.x,l.slider.y,l.slider.w,l.slider.h,raw,accent,t.available(),t.domain()=="light");
+  overlay_card::touchable(slider,l.slider.w);
+  // The entity's icon rides on the foot of the slider, where the fill is and a finger is not, as it did on the
+  // overlay before it and as Home Assistant draws it.
+  if(!l.icon.empty()&&icons&&lv_font_get_line_height(icons)<=l.icon.h+ui::px(4)){
+    auto *glyph=detail_text(detail_root,icon_for(t),l.icon.x,l.icon.y,l.icon.w,icons,LV_TEXT_ALIGN_CENTER,
+                            raw>0?theme::hex(theme::ON_ACCENT):theme::hex(theme::ICON_OFF));
+    lv_obj_remove_flag(glyph,LV_OBJ_FLAG_CLICKABLE);
+  }
+  light_value=detail_text(detail_root,light_value_text(t),l.value.x,l.value.y,l.value.w,big,
+                          l.columns==2?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,theme::hex(theme::INK));
+  // The caption only where the words exist: a light says what the slider is, a fan's speed has no word of its
+  // own in the screen's languages and does without (the name at the top says which fan it is).
+  if(!l.caption.empty()&&t.domain()=="light")
+    detail_text(detail_root,tr(txt::light_brightness),l.caption.x,l.caption.y,l.caption.w,text,
+                l.columns==2?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,theme::hex(theme::SUBTLE));
+}
 // ---- Climate card (firmware 0.2.80): one computed card on every board ----
 // Home Assistant's thermostat dialog in this look, worked out from the entity's own attributes: the state
 // under the name, a white card with the setpoint between a round - and a round + key, a key per mode, and a
@@ -1900,19 +2050,6 @@ inline void climate_hold(lv_event_t *e){
   auto &t=model.tiles[detail_index];
   if(!fresh()||!t.available()||esphome::millis()-t.edit_since<300)return;
   climate_step(t,direction);
-}
-// A round key of the card: the - and the + beside the setpoint, and the power key in the top bar.
-inline lv_obj_t *climate_round_key(const climate_card::Rect &r,const char *icon,const lv_font_t *font,theme::Role fill,theme::Role ink,int command){
-  auto *key=detail_button("",r.x,r.y,r.w,r.h,command);
-  lv_obj_set_style_radius(key,LV_RADIUS_CIRCLE,0);
-  lv_obj_set_style_bg_color(key,theme::color(fill),0);
-  lv_obj_set_style_bg_color(key,theme::color(theme::KEY_PRESSED),LV_STATE_PRESSED);
-  auto *glyph=lv_obj_get_child(key,0);
-  if(font)lv_obj_set_style_text_font(glyph,font,0);
-  lv_label_set_text(glyph,icon);
-  lv_obj_set_style_text_color(glyph,theme::color(ink),0);
-  lv_obj_set_size(glyph,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(glyph);
-  return key;
 }
 inline void render_climate_detail(Tile &t,bool large,int width,int height,int columns){
   const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
@@ -2555,7 +2692,8 @@ inline void show_detail(unsigned index){
   const auto kind=d=="media_player"?overlay_card::picture:overlay_card::controls;
   bool large=ui::large();
   // A card whose stack asks for more height than the glass has stands in two columns instead.
-  const int columns=d=="climate"?climate_columns(t,large):d=="cover"?cover_columns(t,large):d=="weather"?weather_columns(t,large):1;
+  const int columns=d=="climate"?climate_columns(t,large):d=="cover"?cover_columns(t,large):d=="weather"?weather_columns(t,large)
+                     :d=="light"||d=="fan"?light_columns(large):1;
   overlay_card::frame(detail_root,kind,columns);
   // The room the frame just gave the card; LVGL reports the new width only after its next layout pass.
   int width=overlay_card::content_width(kind,columns), height=overlay_card::screen_height();int pad=overlay_card::pad(), top=ui::px(large?100:62), gap=ui::px(large?12:6),bh=ui::px(large?58:34),cw=(width-pad*2-gap)/2;
@@ -2569,7 +2707,7 @@ inline void show_detail(unsigned index){
   std::string state=card_status(t);
   // The vacuum and history cards draw their own state.
   const bool with_history=history_card(t);
-  if(d!="vacuum"&&d!="media_player"&&d!="climate"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
+  if(d!="vacuum"&&d!="media_player"&&d!="climate"&&d!="light"&&d!="fan"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
@@ -2585,6 +2723,8 @@ inline void show_detail(unsigned index){
   }else if(d=="media_player"){
     // "Now playing" (firmware 0.2.64+): the cover, the track, a running progress bar, round keys and the volume row.
     render_media_detail(t,index,large,width,height,bar_y+bar+(ui::px(large?8:4)));
+  }else if(d=="light"||d=="fan"){
+    render_light_detail(t,large,width,height,columns);
   }else if(d=="weather"){
     render_weather_detail(t,large,width,height,columns);
   }else if(d=="timer"){

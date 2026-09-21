@@ -97,11 +97,6 @@ def main():
     card_w, card_h = get('ALERT_CARD_W'), get('ALERT_CARD_H')
     put('ALERT_TEXT_W', max(40, card_w - get('ALERT_TEXT_X') - get('ALERT_ICON_X')))
     put('ALERT_SUBTITLE_H', max(20, card_h - get('ALERT_SUBTITLE_Y') - get('ALERT_BUTTON_H') - get('ALERT_BUTTON_INSET') - 6))
-    # The light card's vertical slider stays on the canvas.
-    slider_scaled = get('OVERLAY_SLIDER_H')
-    put('OVERLAY_SLIDER_H', min(slider_scaled, H - get('OVERLAY_VALUE_Y') - get('OVERLAY_SLIDER_Y') - int(40 * f)))
-    # The icon inside the slider keeps its place relative to the slider's length.
-    put('OVERLAY_ICON_Y', int(round(get('OVERLAY_ICON_Y') * get('OVERLAY_SLIDER_H') / max(1, slider_scaled))))
     if re.search(r'(?m)^  CAMERA_FULL_W:', text):
         put('CAMERA_FULL_W', W); put('CAMERA_FULL_H', H)
         put('CAMERA_THUMB_W', min(get('CAMERA_THUMB_W'), W - 2 * margin)); put('CAMERA_THUMB_H', min(get('CAMERA_THUMB_H'), H // 2))

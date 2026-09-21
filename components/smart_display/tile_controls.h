@@ -586,7 +586,7 @@ inline Action edit_action(const Tile &t, float value) {
 // The tile's own `tap` choice comes first. `toggle` sends <domain>.toggle on every domain (firmware 0.2.58+): the app
 // only offers it where Home Assistant lists that action for the entity, such as a cover, which stops while it moves.
 // Otherwise the domain decides, as before: holding or `detail` opens a card, a short tap switches, runs or presses.
-// CARD is the runtime detail card (show_detail), OVERLAY the board's own light and fan card; `busy` marks the
+// CARD is the runtime detail card (show_detail), OVERLAY the board's own colour card; `busy` marks the
 // tile busy for a moment while the card opens.
 // CUSTOM (firmware 0.2.58+) is an action of the tile's own choosing from Home Assistant's list, with its data.
 enum class TapRoute : uint8_t { NONE, ACTION, CARD, OVERLAY, CUSTOM };
@@ -596,6 +596,17 @@ inline bool runtime_card_domain(const std::string &d) {
          d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" ||
          d == "timer" || d == "climate";
 }
+// Whether a light offers a colour or a colour temperature, and so opens the colour card instead of the card
+// with the brightness slider. The modes come from Home Assistant as one string (`supported_color_modes`) and
+// are looked for in it, the way the YAML script did before this lived here: "rgb" also matches "rgbw" and
+// "rgbww", which is what we want, since each of them is a colour.
+inline bool light_colour(const Tile &t) {
+  if (t.domain() != "light") return false;
+  for (const char *mode : {"hs", "rgb", "xy", "color_temp"})
+    if (t.modes.find(mode) != std::string::npos) return true;
+  return false;
+}
+
 inline Tap tap_route(const Tile &t, bool hold) {
   const std::string d = t.domain();
   if (t.tap == "none") return {};
@@ -606,7 +617,10 @@ inline Tap tap_route(const Tile &t, bool hold) {
   // A short tap runs or pauses the timer; holding opens the card with a cancel button.
   if (d == "timer" && !open) return {TapRoute::ACTION, t.state == "active" ? "timer.pause" : "timer.start"};
   if (runtime_card_domain(d)) return {TapRoute::CARD, "", true};
-  if (open) return d == "light" || d == "fan" ? Tap{TapRoute::OVERLAY, "", true} : Tap{TapRoute::CARD, "", false};
+  // A light with colour keeps the board's own colour card (OVERLAY); a light that only dims and a fan open the
+  // computed card with the standing slider, which every other domain has opened since firmware 0.2.80.
+  if (open) return light_colour(t) ? Tap{TapRoute::OVERLAY, "", true}
+                                   : d == "light" || d == "fan" ? Tap{TapRoute::CARD, "", true} : Tap{TapRoute::CARD, "", false};
   if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") return {TapRoute::ACTION, d + ".toggle"};
   if (d == "scene" || d == "script") return {TapRoute::ACTION, d + ".turn_on"};
   if (d == "button" || d == "input_button") return {TapRoute::ACTION, d + ".press"};
