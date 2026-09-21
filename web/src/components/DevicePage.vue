@@ -3,7 +3,7 @@
 import { computed } from "vue";
 import { t } from "../i18n";
 import { cellsOf, grid, pageOf, sizeOf, spanOf } from "../model/layout";
-import { deviceStyle, isCompact, openBar, pageTitle, pageTitleShown, removePage, setPageTitle, state } from "../store";
+import { deviceStyle, isCompact, openBar, pageTitleShown, removePage, state } from "../store";
 import type { Tile } from "../types";
 import TileCard from "./TileCard.vue";
 import TopbarSvg from "./TopbarSvg.vue";
@@ -26,17 +26,12 @@ function pickCell(slot: number) {
   <div class="page" :style="deviceStyle">
     <div class="page-label">
       <span>{{ t("editor.page.label", { page: page + 1 }) }}</span>
-      <!-- The title this page's top bar says. Empty shows the screen's own title as a placeholder, so a page that
-           inherits it looks inherited and clearing the field hands it back. -->
-      <input class="page-title" :value="pageTitle(page)" maxlength="60" :placeholder="state.layout?.title || ''"
-        :title="t('editor.page.title_hint')" :aria-label="t('editor.page.title_aria', { page: page + 1 })"
-        @input="setPageTitle(page, ($event.target as HTMLInputElement).value)" />
       <button v-if="empty" type="button" class="btn mini" :title="t('editor.page.remove_title')" @click="removePage(page)">{{ t("editor.page.remove") }}</button>
       <span v-else>{{ filled }} / {{ grid.slots }}</span>
     </div>
     <div class="device" :class="{ cyd: isCompact }">
       <div class="bar-wrap" :class="{ selected: barSelected }" :title="t('editor.page.edit_bar')" role="button" tabindex="0"
-        @click="openBar(0)" @keydown.enter.prevent="openBar(0)">
+        @click="openBar(0, page)" @keydown.enter.prevent="openBar(0, page)">
         <TopbarSvg :name-text="pageTitleShown(page)" />
       </div>
       <div class="tiles">

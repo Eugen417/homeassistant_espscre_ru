@@ -1168,8 +1168,6 @@
       "label": "Page {page}",
       "remove": "Remove page",
       "remove_title": "The pages after this one shift up one slot",
-      "title_hint": "What this page's top bar says. Empty: the screen's own title.",
-      "title_aria": "Title of page {page}",
       "edit_bar": "Edit top bar",
       "cell": {
         "title": "Empty slot. Click to add a tile here, or drag one over.",
@@ -1325,18 +1323,18 @@
         "hold": "Hold the tile to open its card."
       },
       "sub": {
-       "label": "Second line",
-       "auto": "Automatic",
-       "none": "Nothing",
-       "attr": "A value",
-       "text": "Own text",
-       "value_aria": "Which value the second line says",
-       "text_aria": "What the second line says",
-       "text_placeholder": "Your own words",
-       "hint_auto": "What the screen works out itself: a brightness, a temperature, when a script last ran.",
-       "hint_none": "The tile shows its name and nothing under it.",
-       "hint_attr": "A value of this entity, named and written the way Home Assistant does.",
-       "hint_text": "The same words, whatever the entity does."
+        "label": "Second line",
+        "auto": "Automatic",
+        "none": "Nothing",
+        "attr": "A value",
+        "text": "Own text",
+        "value_aria": "Which value the second line says",
+        "text_aria": "What the second line says",
+        "text_placeholder": "Your own words",
+        "hint_auto": "What the screen works out itself: a brightness, a temperature, when a script last ran.",
+        "hint_none": "The tile shows its name and nothing under it.",
+        "hint_attr": "A value of this entity, named and written the way Home Assistant does.",
+        "hint_text": "The same words, whatever the entity does."
       },
       "slider": {
         "label": "Small slider on the tile",
@@ -1406,6 +1404,8 @@
       "items": "{used} of {n} item | {used} of {n} items",
       "name": "Left: name",
       "name_placeholder": "For example: Living room",
+      "page_name": "Title on page {page}",
+      "page_name_hint": "Leave empty and this page says the screen's own title.",
       "right": "Right: time, sensors, or a clock",
       "item_label": "{name}, slot {slot}. Enter: configure, arrows: move",
       "remove_named": "Remove {name} from the top bar",

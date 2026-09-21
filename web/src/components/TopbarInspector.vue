@@ -3,10 +3,11 @@
 // entity's state or last change. Choices apply live; the bar on every page follows.
 import { computed, ref } from "vue";
 import { t } from "../i18n";
+import { entriesOf, pageCount } from "../model/layout";
 import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from "../model/topbar";
 import {
   automaticIcon, barMetrics, clock24, closeInspector, entityName, iconNamed, markDirty, moveTopbarItem, openBar, openBarAdd,
-  removeTopbarItem, screenLanguage, screenText, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView,
+  removeTopbarItem, screenLanguage, screenText, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView, pageTitle, setPageTitle,
 } from "../store";
 import type { HeaderItem } from "../types";
 import IconPicker from "./IconPicker.vue";
@@ -40,6 +41,10 @@ function rename(value: string) {
   state.layout.title = value;
   markDirty();
 }
+// The page whose bar you clicked (app 0.2.103). Its own title stands right under the screen's, with the screen's
+// as its placeholder, so a page that simply follows the screen looks like it does and clearing it hands it back.
+const page = computed(() => state.barPage ?? 0);
+const pages = computed(() => (state.layout ? pageCount(entriesOf(state.layout), state.layout.pages) : 1));
 function update(patch: Partial<HeaderItem>) {
   const list = [...items.value];
   list[props.index] = { ...list[props.index], ...patch };
@@ -141,6 +146,12 @@ function onKey(e: KeyboardEvent, i: number) {
     <div class="f">
       <label class="f-label" for="title">{{ t("editor.topbar.name") }}</label>
       <input id="title" :value="state.layout?.title" maxlength="60" :placeholder="t('editor.topbar.name_placeholder')" @input="rename(($event.target as HTMLInputElement).value)" />
+    </div>
+    <div v-if="pages > 1" class="f">
+      <label class="f-label" for="page-title">{{ t("editor.topbar.page_name", { page: page + 1 }) }}</label>
+      <input id="page-title" :value="pageTitle(page)" maxlength="60" :placeholder="state.layout?.title || t('editor.topbar.name_placeholder')"
+        @input="setPageTitle(page, ($event.target as HTMLInputElement).value)" />
+      <small>{{ t("editor.topbar.page_name_hint") }}</small>
     </div>
     <div class="f">
       <span class="f-label" id="topbar-caption">{{ t("editor.topbar.right") }} <span style="text-transform: none; letter-spacing: 0; font-weight: 500"> · {{ items.length }} / {{ topbarMax() }}</span></span>

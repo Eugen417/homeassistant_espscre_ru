@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppSettingsView from "../src/components/AppSettingsView.vue";
 import CommandPalette from "../src/components/CommandPalette.vue";
 import Library from "../src/components/Library.vue";
+import DevicePage from "../src/components/DevicePage.vue";
 import Sidebar from "../src/components/Sidebar.vue";
 import TileCard from "../src/components/TileCard.vue";
 import TileInspector from "../src/components/TileInspector.vue";
-import { state } from "../src/store";
+import TopbarInspector from "../src/components/TopbarInspector.vue";
+import { openBar, state } from "../src/store";
 import type { Inventory, Tile } from "../src/types";
 
 function inventory(): Inventory {
@@ -317,5 +319,40 @@ describe("AppSettingsView", () => {
     expect(view.findAll(".whatsnew li").map((li) => li.text())).toEqual(["Several tiles go to the same page."]);
     delete state.inventory.changelog;
     expect(mount(AppSettingsView).find(".whatsnew").exists()).toBe(false);
+  });
+});
+
+describe("a title of its own for a page (app 0.2.103)", () => {
+  // You click the bar and change what it says: the page's own title stands in that same inspector, under the screen's.
+  it("changes the page whose bar was clicked", async () => {
+    state.layout = { title: "Living room", tiles: [], pages: 3 };
+    openBar(0, 1);
+    const drawer = mount(TopbarInspector, { props: { index: 0 } });
+    const field = drawer.find("#page-title");
+    expect(drawer.find("label[for='page-title']").text()).toBe("Title on page 2");
+    // Empty shows the screen's own title, so a page that inherits it looks inherited.
+    expect((field.element as HTMLInputElement).value).toBe("");
+    expect(field.attributes("placeholder")).toBe("Living room");
+    await field.setValue("Music");
+    expect(state.layout!.page_titles).toEqual(["", "Music"]);
+    // Clearing it hands the page back and leaves nothing behind.
+    await field.setValue("");
+    expect(state.layout!.page_titles).toBeUndefined();
+  });
+  it("is not offered on a screen of one page, where it could only repeat the screen's title", () => {
+    state.layout = { title: "Living room", tiles: [] };
+    openBar(0, 0);
+    expect(mount(TopbarInspector, { props: { index: 0 } }).find("#page-title").exists()).toBe(false);
+    state.layout = { title: "Living room", tiles: [], pages: 2 };
+    expect(mount(TopbarInspector, { props: { index: 0 } }).find("#page-title").exists()).toBe(true);
+  });
+  it("shows the page's own title in that page's mockup bar, and opens that page's field", async () => {
+    state.layout = { title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] };
+    const props = { entries: [], pages: 2, moving: null };
+    const second = mount(DevicePage, { props: { page: 1, ...props } });
+    expect(second.find(".bar-wrap").text()).toContain("Music");
+    expect(mount(DevicePage, { props: { page: 0, ...props } }).find(".bar-wrap").text()).toContain("Living room");
+    await second.find(".bar-wrap").trigger("click");
+    expect(state.barPage).toBe(1);
   });
 });
