@@ -119,9 +119,9 @@ under `wifi:` in the screen's own ESPHome YAML still wins.
 Select your screen, tap the bar at the top of a page to give the screen its name,
 and search for entities in the **Library** on the right. It has domain filters with
 colored icons, a room filter, and **Hide placed**. You can add one tile for every cell of the screen's pages,
-48 on a CYD or a Guition (firmware 0.2.62+; see below for older firmware).
-The screen preview shows their placement on the screen's own grid: two columns of three on a CYD or a Guition,
-three by three on the Waveshare,
+48 on a CYD or a 4-inch Guition (firmware 0.2.62+; see below for older firmware).
+The screen preview shows their placement on the screen's own grid: two columns of three on a CYD or a 4-inch Guition,
+three by three on the Waveshare, five by four on the 10.1-inch Guition,
 up to eight pages. Every tile has a fixed slot that only changes if
 you drag it; empty slots stay empty, wherever you leave them. Drag a tile
 onto an empty slot and it stays there; drag it onto another tile and the two
@@ -172,8 +172,8 @@ Click **Save & send** to send your changes.
   shows 1, 6, or 24 hours.
 - Select/input_select: open the picker menu.
 
-From firmware 0.2.62, one tile fits in every cell of up to eight pages (48 on a CYD or a Guition, 63 over
-seven pages on the Waveshare). Firmware 0.2.7 to
+From firmware 0.2.62, one tile fits in every cell of up to eight pages (48 on a CYD or a 4-inch Guition, 63 over
+seven pages on the Waveshare, 60 over three on the 10.1-inch Guition). Firmware 0.2.7 to
 0.2.61 keeps the limit of twenty (four pages) and older firmware ten, until you
 update. In the **Screen settings** tab, **Swipe between pages** turns on swiping.
 On the Guition (firmware 0.2.24+), you then swipe inward from the left or right
