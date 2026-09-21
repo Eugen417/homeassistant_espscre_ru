@@ -1410,6 +1410,13 @@ inline lv_obj_t *detail_shape(lv_obj_t *parent,int x,int y,int w,int h,theme::Ro
 //   `tail`     the end that has to stay readable (a robot's battery): the words in front of it take the dots,
 //              "Angedockt / 10 %" becomes "Angedo… / 10 %".
 // A line that fits, or a room too small for the tail itself, is left to LVGL as before.
+// True when `face` has a glyph for every character of `text`: a board's fonts carry listed glyphs only, and a
+// letter outside the list draws as nothing.
+inline bool face_covers(const lv_font_t *face,const std::string &text){
+  size_t i=0;lv_font_glyph_dsc_t dsc;
+  while(uint32_t cp=header_bar::next_codepoint(text,i))if(!lv_font_get_glyph_dsc(face,&dsc,cp,0))return false;
+  return true;
+}
 inline void fit_value(lv_obj_t *obj,const std::string &value,const std::string &shorter,const std::string &tail,int room){
   const lv_font_t *font=lv_obj_get_style_text_font(obj,LV_PART_MAIN);
   if(!font||room<=0||text_width(value,font)<=room)return;
@@ -3966,7 +3973,10 @@ inline void render_slot(size_t slot) {
   bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
   bool custom=clock||forecast||sunpath;
   if(!large_tile)pad_vertical(w.tile,watch||custom||graph?2:4);
-  set_font(w.value,watch && watch_value_font ? watch_value_font : w.value_font);
+  // A big value that stepped up to the setpoint's digits (the watch block below) keeps them until that block
+  // decides again, so a card is not restyled twice a render.
+  if(!(watch && setpoint_font && lv_obj_get_style_text_font(w.value,LV_PART_MAIN)==setpoint_font))
+    set_font(w.value,watch && watch_value_font ? watch_value_font : w.value_font);
   // Both text boxes are one line high; the sizes come from the styles, not from a layout pass.
   int title_height=lv_font_get_line_height(lv_obj_get_style_text_font(w.title,LV_PART_MAIN));
   int value_height=lv_font_get_line_height(lv_obj_get_style_text_font(w.value,LV_PART_MAIN));
@@ -4027,10 +4037,18 @@ inline void render_slot(size_t slot) {
   // was drawn for has short cells, and the name and the value were drawn over the slider (or the graph). When even
   // that leaves the strip below its least, the head keeps the room its circle and one line need, and the name and
   // the value share that line (one_line below).
+  // The strip and the head were drawn for the look's cell (ui::cell_height). A cell taller than that has surplus,
+  // and a graph, which is the card's picture and not a control, takes all of it: on a 10.1 inch (162 px where the
+  // look wants 108) the name and the value keep the look's place at the top and the graph runs under them to the
+  // bottom of the card, instead of standing thin under a head centred in the air. A slider keeps its thumb-thick
+  // strip and its head stands in the room that is left. A cell of the look's height, or a shorter one, is laid
+  // out exactly as before.
   if(mini||graph_strip){
     const int least=ui::px(large_tile?14:6),gap=ui::px(large_tile?6:3);
-    const int head_need=content_h-text_height-gap>=least?text_height:std::max(title_height,circle_size);
-    slider_height=std::max(least,std::min(slider_height,content_h-head_need-gap));
+    const int look_h=std::min<int>(content_h,ui::cell_height()-lv_obj_get_style_space_top(w.tile,LV_PART_MAIN)-lv_obj_get_style_space_bottom(w.tile,LV_PART_MAIN));
+    const int head_need=look_h-text_height-gap>=least?text_height:std::max(title_height,circle_size);
+    slider_height=std::max(least,std::min(slider_height,look_h-head_need-gap));
+    if(graph_strip)slider_height+=content_h-look_h;
   }
   int header_height=(mini||graph_strip)?content_h-slider_height-(ui::px(large_tile?6:3)):content_h;
   int text_y=std::max(0,(header_height-text_height)/2);
@@ -4074,6 +4092,21 @@ inline void render_slot(size_t slot) {
   }
   if(watch){
     int gap=ui::px(large_tile?6:2),header=std::max(circle_size,title_height);
+    set_font(w.unit,w.value_font);set_text_align(w.unit,LV_TEXT_ALIGN_LEFT);
+    label(w.unit,unit);
+    lv_point_t size;lv_text_get_size(&size,unit.c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
+    int unit_width=unit.empty()?0:std::min((int)size.x,text_room-20);
+    const int unit_gap=unit_width?unit_width+(ui::px(large_tile?6:3)):0;
+    int number_x=0,number_width=text_room-unit_gap,unit_x=text_room-unit_width;
+    // A big value grows into a cell taller than the look was drawn for (a 10.1 inch draws 162 px where the look
+    // wants 108): the number takes the setpoint's digits, the largest face a board carries, when they fit under
+    // the icon and the name and beside the unit, and the value has no letter that face lacks (it carries digits,
+    // a sign, a point, a comma and a degree; a word keeps the value's own face). A 4-inch Guition has no such
+    // room and keeps its face.
+    const lv_font_t *face=watch_value_font?watch_value_font:w.value_font;
+    if(setpoint_font && header+gap+lv_font_get_line_height(setpoint_font)<=content_h && text_width(value,setpoint_font)<=number_width && face_covers(setpoint_font,value))face=setpoint_font;
+    if(lv_obj_get_style_text_font(w.value,LV_PART_MAIN)!=face){set_font(w.value,face);label(w.value,value);fit_value(w.value,value,value_short,value_tail,value_room);}
+    value_height=lv_font_get_line_height(face);lv_obj_set_height(w.value,value_height);
     // The icon and the name above the number while the three fit the cell. On a cell too short for that (three
     // rows on a 4.3 inch: 65 px for 99) the number stands big in the middle of the card and the name small in the
     // top-left corner, and the icon goes: a big value is what this card is for.
@@ -4081,12 +4114,6 @@ inline void render_slot(size_t slot) {
     int group_y=stacked?std::max(0,(content_h-header-gap-value_height)/2):0;
     int value_y=stacked?group_y+header+gap:0;
     set_hidden(w.circle,!stacked);
-    set_font(w.unit,w.value_font);set_text_align(w.unit,LV_TEXT_ALIGN_LEFT);
-    label(w.unit,unit);
-    lv_point_t size;lv_text_get_size(&size,unit.c_str(),w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
-    int unit_width=unit.empty()?0:std::min((int)size.x,text_room-20);
-    const int unit_gap=unit_width?unit_width+(ui::px(large_tile?6:3)):0;
-    int number_x=0,number_width=text_room-unit_gap,unit_x=text_room-unit_width;
     if(stacked){
       lv_obj_set_pos(w.circle,0,group_y+(header-circle_size)/2);
       lv_obj_set_pos(w.title,circle_size+(ui::px(large_tile?6:4)),group_y+(header-title_height)/2);

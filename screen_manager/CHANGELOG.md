@@ -1,3 +1,11 @@
+## 0.2.104 (firmware 0.2.89)
+
+A graph and a big value grow into the room a ten-inch cell gives them.
+
+- **A single graph tile draws a tall graph.** A cell on the 10.1-inch Guition is 162 px where the look was drawn for 108, and a sensor tile with its graph on put the name and the value in the middle of that room, above a graph a few pixels thin. The head and the strip were drawn for the look's cell; a taller cell has surplus, and the graph, which is the card's picture and not a control, now takes all of it: the name and the value keep the look's place at the top and the graph runs under them to the bottom of the card. A wide graph tile already took the right half of its card and does what it did. A cell of the look's height is laid out exactly as before, so on the CYD, the 4-inch Guition and the Waveshare every page is what it was, pixel for pixel (checked with renders of every page and card); with **Page buttons** off the rows share the room down to the bottom edge, and there a single graph tile now gives that surplus to its graph too instead of to the air around its name. A slider keeps its thumb-thick strip everywhere.
+- **A big value that is big.** The same cell showed a **Big value** tile's number at the size the 4-inch Guition draws it, floating in the middle of a card twice its height, with the unit parked against the far edge. When the cell has the room, the number now takes the setpoint's digits, the largest face every board already carries (the climate card's), as long as they fit under the icon and the name and beside the unit and the value is a number: that face has digits, a sign, a point, a comma and a degree, and a word such as Home keeps the value's own face. On the ten-inch "1,249 W" grows from 33 to 56 px and the unit stands beside it; a 4-inch Guition has no such room and keeps its face. No new font, so no board grows in flash.
+- Needs firmware 0.2.89: press **Update** on the screen. Includes everything from 0.2.102. CYD firmware: 1,619,888 bytes, 88.3 % of the update slot (+272 bytes against 0.2.102), built with the ESPHome this add-on ships (2026.9.0).
+
 ## 0.2.102 (firmware 0.2.87)
 
 Home Assistant can open a page on a screen, the way it can show an alert.

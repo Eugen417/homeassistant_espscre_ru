@@ -63,9 +63,16 @@ show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is ou
   spacing. A full-page card's head is one cell of the look (`ui::cell_height()`), never more than 30 % of the
   card, not one row of the board. A strip card (a slider or a graph under the head) keeps its two lines while
   the value's letters stay above the strip; when the strip would cover them, the name and the value share one
-  line, the value at the right. A big-value card (`display: watch`) keeps its icon and name above the number
-  while the three fit; on a shorter cell the number stands big in the middle and the name small in the top-left
-  corner. A cell at least twice the look's cell height stacks the icon above the name and state.
+  line, the value at the right. The strip and the head are laid out for the look's cell (`ui::cell_height()`);
+  a taller cell has surplus, and a graph, the card's picture rather than a control, takes all of it: on the
+  10.1-inch Guition (162 px where the look wants 108) the name and the value keep the look's place at the top
+  and the graph runs under them to the bottom of the card, instead of standing thin under a head centred in the
+  air. A slider keeps its thumb-thick strip and its head stands in the room that is left. A big-value card (`display: watch`) keeps its icon and
+  name above the number while the three fit; on a shorter cell the number stands big in the middle and the name
+  small in the top-left corner. On a cell with room to spare the number takes the setpoint's digits, the largest
+  face a board carries, when they fit under the name and beside the unit and the value has no letter that face
+  lacks (a word keeps the value's own face); a 4-inch Guition has no such room and keeps its face. A cell at
+  least twice the look's cell height stacks the icon above the name and state.
 - **A control that fills its room is one cell wide** (`runtime_tiles::cell_content_width`). A double-width card
   is two cells of its row: its slider, its - / + pill and a player's volume with its mute key take the second
   one, so their edges stand where the cards in the rows above and below have theirs. A row of keys divides that
