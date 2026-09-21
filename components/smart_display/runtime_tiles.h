@@ -640,6 +640,8 @@ inline std::string receive(const std::string &payload) {
     const int refresh = options["refresh"].is<int>() ? options["refresh"].as<int>() : 0;
     tile.refresh = refresh >= 5 && refresh <= 3600 ? refresh : 15;
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
+    // What the second line says (firmware 0.2.85+); "auto" is the line the screen works out itself, as before.
+    tile.subtitle = string(options["sub"], 96); if (tile.subtitle.empty()) tile.subtitle="auto";
     // Direct controls (0.2.19+): the manager sends only the set a wide card really shows.
     tile.controls = string(options["controls"], 16);
     // Width arrives with the state, after the layout: re-pack the pages when it changes.
@@ -785,6 +787,9 @@ inline std::string receive(const std::string &payload) {
     next.charging = extra["chg"].is<int>() && extra["chg"].as<int>() == 1;
     next.room = string(extra["room"], 32);
     next.state_word = string(extra["w"], 32);
+    // A value of this entity the second line was set to: the finished line, or seconds for a moment in time.
+    next.subtitle = string(extra["s"], 64);
+    next.subtitle_at = extra["sm"].is<unsigned>() ? extra["sm"].as<unsigned>() : 0;
     tile.set_extra(std::move(next));
     // Home Assistant reports the edited value: the -/+ pill follows its state again.
     if(std::isfinite(tile.edit_value) && tile.edit_sent && std::fabs(tile_controls::edit_target(tile)-tile.edit_value)<0.051f)tile.edit_value=NAN;
@@ -2893,6 +2898,22 @@ inline std::string last_run_text(uint32_t epoch, bool compact) {
   std::string date = fill(fill(txt::date_day_month, "day", std::to_string(when.day_of_month)), "month", month_short(when));
   return fill(txt::script_last_date, "date", date);
 }
+// What the second line was set to, or nothing when it is the line the screen works out itself (firmware 0.2.85+).
+// "none" is an empty line on purpose, which is why this answers `chosen` separately from the text: a page tile
+// that should not say "Page 3" says nothing at all.
+inline bool chosen_subtitle(const Tile &t, std::string &out) {
+  const std::string &choice = t.subtitle;
+  if (choice.empty() || choice == "auto") return false;
+  if (choice == "none") { out.clear(); return true; }
+  if (choice.compare(0, 5, "text:") == 0) { out = choice.substr(5); return true; }
+  if (choice.compare(0, 5, "attr:") != 0) return false;
+  // A value of the entity: the app sends the finished line, or seconds for a moment in time, which the screen
+  // says in its own words and its own clock.
+  const Extra &x = t.extra();
+  if (x.subtitle_at) { out = last_run_text(x.subtitle_at, true); return true; }
+  out = x.subtitle;
+  return true;
+}
 inline std::string timer_text(const Tile &t) {
   const Extra &x = t.extra();
   if (t.state == "active") return countdown(timer_left(x.timer_end, now_epoch(), x.duration));
@@ -3917,11 +3938,18 @@ inline void render_slot(size_t slot) {
   bool watch=t.display=="watch";
   std::string unit=watch?t.unit:"";
   std::string value = t.state;
-  // Nothing in Home Assistant stands behind the settings card, so it says the same with the link down.
-  if (t.is_settings()) value = tr(txt::tile_tap_to_open);
-  else if (t.is_page()) value = fill(txt::tile_page, "n", t.page_target());
+  // What the second line was set to wins over every word the screen would work out itself (firmware 0.2.85+),
+  // but not over the two that say the screen cannot answer: an unavailable entity and a refused tap still say so.
+  std::string chosen;
+  const bool set_by_hand = chosen_subtitle(t, chosen);
+  // Nothing in Home Assistant stands behind a built-in card, so it says its own line with the link down too.
+  if (t.is_settings() || t.is_page())
+    value = set_by_hand ? chosen
+          : t.is_settings() ? std::string(tr(txt::tile_tap_to_open))
+          : fill(txt::tile_page, "n", t.page_target());
   else if (!fresh() || !t.available()) value = tr(txt::ha_unavailable);
   else if (t.refused_at && esphome::millis() - t.refused_at < 4000) value = tr(txt::tile_refused);
+  else if (set_by_hand) value = chosen;
   else if (d == "light" && t.state == "on" && tile_controls::effect_running(t.extra().effect)) value = t.extra().effect;
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = screen_text::percent(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255)));
   // An airco that is off says so, with the room's temperature when it knows it, as Home Assistant's tile does
@@ -3971,7 +3999,8 @@ inline void render_slot(size_t slot) {
     const int panel_need=kind=="toggle"?pm.toggle_w:kind=="run"?pm.key_w*3/2:cell_content_width(w);
     if(content_width(w)<panel_need+pm.text_gap+ui::px(lt?54:36)+ui::px(60))with_panel=false;
   }
-  if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
+  // A wide card with a panel says what its control is doing, unless the second line was set by hand.
+  if(with_panel && !set_by_hand){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
   label(w.value, value);
   bool mini=t.inline_control=="slider" && !watch && t.available() && !with_panel;
   // The card's size class is the look's, never the cell's momentary height: a class that flips when the rows

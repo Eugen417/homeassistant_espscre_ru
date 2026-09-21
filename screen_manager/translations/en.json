@@ -1324,6 +1324,20 @@
         "toggle_needs_firmware": "The screen switches this from firmware 0.2.58: press Update on the screen. Until then a tap opens its card.",
         "hold": "Hold the tile to open its card."
       },
+      "sub": {
+       "label": "Second line",
+       "auto": "Automatic",
+       "none": "Nothing",
+       "attr": "A value",
+       "text": "Own text",
+       "value_aria": "Which value the second line says",
+       "text_aria": "What the second line says",
+       "text_placeholder": "Your own words",
+       "hint_auto": "What the screen works out itself: a brightness, a temperature, when a script last ran.",
+       "hint_none": "The tile shows its name and nothing under it.",
+       "hint_attr": "A value of this entity, named and written the way Home Assistant does.",
+       "hint_text": "The same words, whatever the entity does."
+      },
       "slider": {
         "label": "Small slider on the tile",
         "no": "No",

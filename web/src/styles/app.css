@@ -130,6 +130,8 @@ a:hover { text-decoration: underline; }
 .page-label .btn.mini { color: var(--muted); }
 /* The title this page's top bar says (app 0.2.99): a quiet field between the page number and its count, which
    shows the screen's own title as a placeholder while the page inherits it. */
+/* The second line of a tile (app 0.2.100): the value or the words, under the four choices. */
+.f .sub-value, .f .sub-text { margin-top: 6px; }
 .page-label .page-title { flex: 1 1 auto; min-width: 0; margin: 0 8px; padding: 1px 4px; font: inherit; color: var(--ink);
   background: transparent; border: 1px solid transparent; border-radius: 4px; text-align: center; }
 .page-label .page-title::placeholder { color: var(--muted); opacity: .7; }

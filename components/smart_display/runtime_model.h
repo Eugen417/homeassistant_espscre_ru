@@ -158,6 +158,12 @@ struct Extra {
   std::vector<std::pair<std::string, std::string>> action_data, action_templates;
   // Home Assistant's word for the state where the screen has none of its own (app 0.2.67+): "Open", "Playing", "Rinsing".
   std::string state_word;
+  // A value of this entity that the second line was set to (firmware 0.2.85+, "attr:<name>"): the app reads the
+  // attribute from Home Assistant, writes it the way Home Assistant writes it and sends the finished line. A
+  // moment in time comes as seconds instead, so the screen says it in its own words and its own clock, the way
+  // it already says when a script last ran (last_run_text) - one wording, not a second one in Python.
+  std::string subtitle;
+  uint32_t subtitle_at = 0;
   Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   bool empty() const {
     return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
@@ -166,7 +172,8 @@ struct Extra {
            remaining.empty() && !timer_end && media_title.empty() && media_artist.empty() && media_album.empty() &&
            media_picture.empty() && !media_duration && !media_position && !media_position_at && fan_speeds.empty() && fan_speed.empty() &&
            choices.empty() && room.empty() && !charging && std::isnan(tilt) && action.empty() && action_data.empty() &&
-           action_templates.empty() && state_word.empty() && effect.empty() && option_rows.empty() && number_rows.empty();
+           action_templates.empty() && state_word.empty() && subtitle.empty() && !subtitle_at && effect.empty() &&
+           option_rows.empty() && number_rows.empty();
   }
 };
 // The numbers of a clock text ("0:05:00", "07:45"), at most `max` of them, each after optional white space, up to the
@@ -225,6 +232,11 @@ struct Tile {
   bool has_hs_color = false;
   int saturation = 0;
   std::string tap = "auto", display = "standard", inline_control = "none";
+  // What the second line says (firmware 0.2.85+), as the option was stored: "auto" is the line the screen works
+  // out itself, "none" leaves it empty, "text:<words>" says those words, and "attr:<name>" says a value of this
+  // entity that Home Assistant itself names. Only the last one needs an answer from the app: the other three
+  // are decided here, so they keep working while Home Assistant is away.
+  std::string subtitle = "auto";
   // A camera tile's live picture (firmware 0.2.77+): "display": "live" puts a small picture of the camera in the
   // icon's place, loaded again every `refresh` seconds.
   uint16_t refresh = 15;

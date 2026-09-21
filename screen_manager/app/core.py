@@ -1125,7 +1125,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub'}:
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
@@ -1142,6 +1142,18 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             for key, allowed in choices.items():
                 if key in options and options[key] not in allowed:
                     raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
+            # The second line of a tile (app 0.2.100): the line the screen works out itself, nothing at all, words
+            # of your own, or a value of the entity that Home Assistant names. Which values those are is Home
+            # Assistant's answer and changes with it, so the name is only checked for its shape here; a value that
+            # is not there any more simply leaves the line to the screen again.
+            sub = options.get('sub')
+            if sub is not None:
+                if not isinstance(sub, str) or len(sub.encode()) > 96:
+                    raise ValueError(t('addon.errors.layout.invalid_setting', setting='sub'))
+                if sub not in ('auto', 'none') and not re.fullmatch(r'text:.+|attr:[a-z_0-9]+', sub):
+                    raise ValueError(t('addon.errors.layout.invalid_setting', setting='sub'))
+                if sub == 'auto':
+                    options = {k: v for k, v in options.items() if k != 'sub'}
             # The five-day strip and the sun path only fit a double-width card (or the whole page).
             if options.get('display') in WIDE_ONLY and options.get('size') != 'full':
                 options = {**options, 'size': 'wide'}

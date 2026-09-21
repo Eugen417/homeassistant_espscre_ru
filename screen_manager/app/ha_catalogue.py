@@ -9,6 +9,8 @@ turn on and off doesn't. `local_actions` gives the same answer from the action d
 What stays ours is which action each of our widgets sends (INLINE, CONTROLS): a small slider on a light is `light.turn_on` with a
 brightness, so it only fits a light for which Home Assistant offers that field.
 """
+import re
+
 import core
 from core import attribute_word, state_word
 import header_bar
@@ -353,3 +355,78 @@ def chip_words(extra, entity_id, states, device, words):
     attributes = (states.get(entity_id) or {}).get('attributes')
     relabel(extra.get('fan'), lambda value: attribute_word(entity_id, 'fan_speed', value, attributes, entries.get(entity_id), words))
     return extra
+
+
+# ---- The second line of a tile (app 0.2.100, firmware 0.2.85+) ----
+# A tile's second line is the line the screen works out itself, nothing at all, words of your own, or a value of
+# the entity. That last list is Home Assistant's, not ours: its frontend translations name the attributes a person
+# may see (`component.<domain>.entity_component._.state_attributes.<attr>.name`), in the language they are asked
+# for, and the app already holds them for the screens' language and English (Manager.words_by_language). So a
+# script offers Last triggered and Run mode, a player offers Artist, Album and Volume, and a scene - which Home
+# Assistant names no attribute of - offers none, which is why words of your own exist.
+SUBTITLE_BYTES = 64            # what the screen keeps of a finished line
+SUBTITLE_NAME = re.compile(r'component\.([a-z_]+)\.entity_component\._\.state_attributes\.([a-z_0-9]+)\.name')
+# Attributes every entity carries that are the tile's name, its icon or the screen's own business, never its
+# second line. Home Assistant names them, so the rule that keeps them out is what they are used for here.
+SUBTITLE_SKIP = frozenset(('friendly_name', 'icon', 'entity_picture', 'supported_features', 'device_class'))
+
+
+def subtitle_attributes(entity_id, state, words):
+    """[{'key', 'name'}] of the values of this entity a tile's second line may say: the attributes Home Assistant
+    names, that this entity really has, and that are not already the tile's name or icon. Sorted by name, in the
+    language `words` was asked for. Empty for an entity Home Assistant names no attribute of."""
+    if not isinstance(entity_id, str) or not isinstance(words, dict) or not words:
+        return []
+    domain = entity_id.split('.', 1)[0]
+    attributes = (state or {}).get('attributes') or {}
+    found = {}
+    for key, name in words.items():
+        match = SUBTITLE_NAME.fullmatch(key)
+        if not match or match[1] != domain:
+            continue
+        attribute = match[2]
+        if attribute in SUBTITLE_SKIP or attribute not in attributes:
+            continue
+        value = attributes[attribute]
+        # A list or a mapping is not a line on a tile; a value nobody can read is not worth offering.
+        if isinstance(value, (list, tuple, dict)) or value is None:
+            continue
+        found[attribute] = str(name)
+    return [{'key': key, 'name': found[key]} for key in sorted(found, key=lambda k: found[k].casefold())]
+
+
+def subtitle_choice(tile):
+    """('none'|'text'|'attr', value) of a tile's stored second line, or None when it is the line the screen works
+    out itself. The stored form is one string beside the other tile options: "none", "text:<words>", "attr:<name>"."""
+    choice = (tile.get('options') or {}).get('sub')
+    if not isinstance(choice, str) or not choice or choice == 'auto':
+        return None
+    if choice == 'none':
+        return ('none', '')
+    for kind in ('text', 'attr'):
+        if choice.startswith(kind + ':'):
+            return (kind, choice[len(kind) + 1:])
+    return None
+
+
+def subtitle_message(tile, state):
+    """What a tile's chosen second line adds to its state message: `s` for a finished line, `sm` for a moment in
+    time. Empty when the tile says the line itself, says nothing, or says words of its own - the screen holds
+    those three in the option and keeps drawing them while Home Assistant is away."""
+    choice = subtitle_choice(tile)
+    if not choice or choice[0] != 'attr':
+        return {}
+    value = ((state or {}).get('attributes') or {}).get(choice[1])
+    if value is None or isinstance(value, (list, tuple, dict)):
+        return {}
+    # A value is written the way what it is asks for, not the way its name suggests: a moment in time goes as
+    # seconds, so the screen says it in its own words and its own clock the way it already says when a script
+    # last ran, instead of a second wording of the same thing over here. Anything else goes as the text it is,
+    # and the screen writes no number of its own into a line it was handed.
+    if isinstance(value, bool):
+        return {'s': core.screen_t('screen.ha.on' if value else 'screen.ha.off')}
+    if isinstance(value, str):
+        moment = core.epoch(value)
+        if moment:
+            return {'sm': moment}
+    return {'s': header_bar.short(header_bar.clean_text(str(value)), SUBTITLE_BYTES)}

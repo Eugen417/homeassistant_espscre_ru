@@ -10,7 +10,8 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
-from core import extras, packets, state_message
+from core import extras, packets, state_message, validate_layout
+import ha_catalogue
 import test_portal
 
 TZ = ZoneInfo('Europe/Amsterdam')
@@ -86,3 +87,62 @@ class HourlySync(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(sent['x']['hours'])
             await m.sync_one('text.screen', m.layouts['text.screen'])
             self.assertEqual(len(asked), 2, 'both forecasts are cached')
+
+
+class SecondLine(unittest.TestCase):
+    """The second line of a tile (app 0.2.100, firmware 0.2.85+).
+
+    Four ways to fill it and one rule about where each is decided: the line the screen works out itself, nothing at
+    all and words of your own live in the option, so the screen keeps drawing them while Home Assistant is away;
+    only a value of the entity needs an answer, and that list is Home Assistant's own - the attributes its frontend
+    translations name - so nothing here is a list we keep.
+    """
+
+    # Real translations and a real state, taken from a live Home Assistant on 2026-09-21.
+    WORDS = {
+        'component.script.entity_component._.state_attributes.last_triggered.name': 'Last triggered',
+        'component.script.entity_component._.state_attributes.mode.name': 'Run mode',
+        'component.script.entity_component._.state_attributes.current.name': 'Running automations',
+        'component.light.entity_component._.state_attributes.brightness.name': 'Brightness',
+    }
+    SCRIPT = {'attributes': {'last_triggered': '2026-09-21T05:08:31.915334+00:00', 'mode': 'single',
+                             'current': '0', 'friendly_name': 'Goede morgen'}}
+    SCENE = {'attributes': {'entity_id': ['light.a'], 'id': '169', 'icon': 'mdi:x', 'friendly_name': 'Avondlicht'}}
+
+    def test_the_values_offered_are_the_ones_home_assistant_names(self):
+        offered = ha_catalogue.subtitle_attributes('script.goede_morgen', self.SCRIPT, self.WORDS)
+        self.assertEqual([v['key'] for v in offered], ['last_triggered', 'mode', 'current'])
+        self.assertEqual([v['name'] for v in offered], ['Last triggered', 'Run mode', 'Running automations'])
+        # An entity Home Assistant names no attribute of offers none: a scene, and that is why own text exists.
+        self.assertEqual(ha_catalogue.subtitle_attributes('scene.avondlicht', self.SCENE, self.WORDS), [])
+        # The tile's own name and icon are never a second line, and neither is a list.
+        self.assertNotIn('friendly_name', [v['key'] for v in offered])
+        self.assertEqual(ha_catalogue.subtitle_attributes('light.x', {'attributes': {}}, self.WORDS), [])
+        self.assertEqual(ha_catalogue.subtitle_attributes('script.x', self.SCRIPT, {}), [])
+
+    def test_only_a_value_needs_an_answer_from_the_app(self):
+        def message(choice):
+            return ha_catalogue.subtitle_message({'entity': 'script.goede_morgen', 'options': {'sub': choice}}, self.SCRIPT)
+        # The screen holds these three itself and keeps drawing them with Home Assistant away.
+        for choice in ('auto', 'none', 'text:Klaar om 7'):
+            self.assertEqual(message(choice), {}, choice)
+        # A moment in time goes as seconds, so the screen says it in its own words and its own clock.
+        self.assertEqual(message('attr:last_triggered'), {'sm': 1789967311})
+        self.assertEqual(message('attr:mode'), {'s': 'single'})
+        # An attribute that is gone leaves the line to the screen again, instead of an empty one.
+        self.assertEqual(message('attr:nope'), {})
+
+    def test_the_layout_keeps_the_choice_and_refuses_a_shape_it_cannot_read(self):
+        def options(sub):
+            layout = validate_layout({'title': 'Home', 'tiles': [{'entity': 'script.morning', 'options': {'sub': sub}}]})
+            return layout['tiles'][0].get('options')
+        self.assertEqual(options('auto'), {})            # the default is stored as nothing at all
+        self.assertEqual(options('none'), {'sub': 'none'})
+        self.assertEqual(options('text:Klaar om 7'), {'sub': 'text:Klaar om 7'})
+        self.assertEqual(options('attr:last_triggered'), {'sub': 'attr:last_triggered'})
+        for bad in ('attr:Bad Name', 'weird', 'text:', 'attr:', 3, 'text:' + 'x' * 96):
+            with self.assertRaises(ValueError, msg=bad):
+                options(bad)
+        # A Go to page tile keeps it: not saying "Page 3" is the reason this exists.
+        page = validate_layout({'title': 'Home', 'tiles': [{'entity': 'screen.page_2', 'options': {'sub': 'none'}}]})
+        self.assertEqual(page['tiles'][0]['options'], {'sub': 'none'})

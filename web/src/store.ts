@@ -41,6 +41,8 @@ export const state = reactive({
   search: "",
   capabilities: {} as Record<string, Capability | null>,
   entityActions: {} as Record<string, EntityAction[] | null | undefined>,
+  // Per entity, the values its second line may say: Home Assistant's own named attributes (app 0.2.100).
+  subtitleValues: {} as Record<string, { key: string; name: string }[] | undefined>,
   topbarPreviews: {} as Record<string, any>,
   topbarAdded: null as null | { key: string; time: number },
   topbarOverflow: [] as number[],
@@ -210,6 +212,18 @@ export async function loadCapabilities(entities: string[]) {
     }
   } catch {
     wanted.forEach((id) => askedCapabilities.delete(id));
+  }
+}
+// The values one entity's second line may say (app 0.2.100). The list is Home Assistant's own - the attributes its
+// frontend translations name - so nothing here is a list we keep, and an entity it names none of answers empty.
+const askedSubtitles = new Set<string>();
+export async function loadSubtitleValues(entity: string) {
+  if (askedSubtitles.has(entity)) return;
+  askedSubtitles.add(entity);
+  try {
+    state.subtitleValues[entity] = (await getJson(`entity-subtitle?entity=${encodeURIComponent(entity)}`)).values ?? [];
+  } catch {
+    askedSubtitles.delete(entity);
   }
 }
 const askedActions = new Set<string>();

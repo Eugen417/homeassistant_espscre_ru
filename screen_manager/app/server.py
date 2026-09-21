@@ -1350,6 +1350,10 @@ class Manager:
         word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
         if word:
             message.setdefault('x',{})['w']=word
+        # A second line set to a value of this entity (app 0.2.100): the finished line, or seconds for a moment in
+        # time. The other three settings live in the option itself, so the screen keeps drawing them without us.
+        for key,value in ha_catalogue.subtitle_message(tile,state).items():
+            message.setdefault('x',{})[key]=value
         if tile['entity'].startswith('sensor.') and hasattr(self.ha,'history'):
             hours=tile.get('options',{}).get('history_hours',24)
             entry=self.histories.get((tile['entity'],hours))
@@ -2060,6 +2064,19 @@ def create_app(manager, development=False):
         names = await ha.service_names_in(REQUEST_LANGUAGE.get()) if hasattr(ha, 'service_names_in') else getattr(ha, 'service_names', {})
         return web.json_response({'actions': ha_catalogue.action_choices(entity, actions, ha.states.get(entity), ha.services,
                                                                          names, ha.platform_of(entity))})
+    async def entity_subtitle(request):
+        """The second line of a tile (app 0.2.100): the values of one entity it may say. The list is Home Assistant's
+        own - the attributes its frontend translations name - in the editor's language, so nothing here is a list we
+        keep. An entity Home Assistant names no attribute of answers an empty list, and the editor then offers only
+        the line the screen works out itself, nothing at all, or words of your own."""
+        entity = request.query.get('entity', '')
+        ha = manager.ha
+        if not entity_id(entity):
+            return web.json_response({'values': []})
+        language = REQUEST_LANGUAGE.get()
+        words = getattr(ha, 'words_by_language', {}) or {}
+        named = words.get(language) or words.get('en') or words.get('*') or ha.state_words or {}
+        return web.json_response({'values': ha_catalogue.subtitle_attributes(entity, ha.states.get(entity), named)})
     async def change_language(request):
         """Settings -> Language & region (app 0.2.90): the language, clock and number format of every screen."""
         data = await request.json()
@@ -2201,6 +2218,7 @@ def create_app(manager, development=False):
     app.router.add_post('/api/screens/{inbox}/identify', identify)
     app.router.add_post('/api/alerts/test', test_alert)
     app.router.add_get('/api/entity-actions', entity_actions)
+    app.router.add_get('/api/entity-subtitle', entity_subtitle)
     app.router.add_post('/api/header-preview', header_preview)
     app.router.add_post('/api/claude-skill', install_claude_skill)
     app.router.add_get('/api/claude-skill.zip', download_claude_skill)

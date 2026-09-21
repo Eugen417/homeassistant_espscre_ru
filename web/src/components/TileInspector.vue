@@ -4,7 +4,7 @@ import { computed, toRaw } from "vue";
 import { t } from "../i18n";
 import { domainInfo, entriesOf, grid, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { automaticIcon, closeInspector, entityName, fullPage, markDirty, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, markDirty, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -92,6 +92,27 @@ const tapHint = computed(() => {
   if (tap.value === "toggle") return { text: t("editor.tile.tap.hold"), warn: false };
   return null;
 });
+// ---- The second line (app 0.2.100, firmware 0.2.85+) ----
+// Four ways to fill it: the line the screen works out itself, nothing at all, a value of the entity, or words of
+// your own. The list of values is Home Assistant's, asked for the entity when this panel opens; an entity Home
+// Assistant names no attribute of - a scene, a switch, a Go to page tile - simply offers the other three.
+const sub = computed(() => current("sub", "auto") as string);
+const subKind = computed(() => (sub.value.startsWith("attr:") ? "attr" : sub.value.startsWith("text:") ? "text" : sub.value));
+const subValues = computed(() => state.subtitleValues[props.tile.entity] ?? []);
+if (state.subtitleValues[props.tile.entity] === undefined) loadSubtitleValues(props.tile.entity);
+const subChoices = computed(() => {
+  const keys = ["auto", "none"];
+  if (subValues.value.length || subKind.value === "attr") keys.push("attr");
+  keys.push("text");
+  return keys.map((key) => [key, t(`editor.tile.sub.${key}`)] as [string, string]);
+});
+const subAttribute = computed(() => (sub.value.startsWith("attr:") ? sub.value.slice(5) : subValues.value[0]?.key ?? ""));
+const subText = computed(() => (sub.value.startsWith("text:") ? sub.value.slice(5) : ""));
+function pickSubKind(kind: string) {
+  if (kind === "attr") setTileOption(props.tile, "sub", subAttribute.value ? `attr:${subAttribute.value}` : "auto");
+  else if (kind === "text") setTileOption(props.tile, "sub", subText.value ? `text:${subText.value}` : "text: ");
+  else setTileOption(props.tile, "sub", kind);
+}
 const inline = computed(() => current("inline", "none") as string);
 const showSlider = computed(() => SLIDER_DOMAINS.includes(domain.value) && (!caps.value || caps.value.inline || inline.value === "slider"));
 const sliderWarn = computed(() => inline.value === "slider" && caps.value && !caps.value.inline);
@@ -157,6 +178,18 @@ function inspect() {
       <small v-if="tapHint" :class="{ warn: tapHint.warn }">{{ tapHint.text }}</small>
     </div>
     <ActionPicker v-if="domain !== 'screen' && !goesTo && tap === 'action'" :tile="tile" />
+    <div class="f">
+      <span class="f-label">{{ t("editor.tile.sub.label") }}</span>
+      <Segmented :choices="subChoices" :value="subKind" @pick="pickSubKind" />
+      <select v-if="subKind === 'attr'" class="sub-value" :value="subAttribute"
+        :aria-label="t('editor.tile.sub.value_aria')" @change="setTileOption(tile, 'sub', `attr:${($event.target as HTMLSelectElement).value}`)">
+        <option v-for="value in subValues" :key="value.key" :value="value.key">{{ value.name }}</option>
+      </select>
+      <input v-if="subKind === 'text'" class="sub-text" :value="subText" maxlength="60"
+        :placeholder="t('editor.tile.sub.text_placeholder')" :aria-label="t('editor.tile.sub.text_aria')"
+        @input="setTileOption(tile, 'sub', `text:${($event.target as HTMLInputElement).value}`)" />
+      <small>{{ t(`editor.tile.sub.hint_${subKind}`) }}</small>
+    </div>
     <div v-if="showSlider && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.slider.label") }}</span>
       <Segmented :choices="[['none', t('editor.tile.slider.no')], ['slider', t('editor.tile.slider.yes')]]" :value="inline" @pick="(v) => setTileOption(tile, 'inline', v)" />
