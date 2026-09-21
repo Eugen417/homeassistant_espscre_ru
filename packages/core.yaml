@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.84"
+  SCREEN_FIRMWARE_VERSION: "0.2.87"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -355,6 +355,25 @@ api:
             id(wake_display).execute();
             settings_screen::open((uint8_t) page);
             ESP_LOGI("settings", "page %d open from Home Assistant", (int) page);
+
+    # Home Assistant automations: esphome.<device>_show_page puts a page of tiles on the screen (README,
+    # "Open a page from an automation"), the way a Go to page tile does: a player that starts an album can
+    # bring up the page with its full-page player. The screen wakes, a card or the settings page closes,
+    # and Back to page 1 counts from now, as after a touch. `page` is the number the editor shows, 1 up;
+    # a number past the last page opens the last page. An alert that is showing stays in front of it.
+    - action: show_page
+      variables:
+        page: int
+      then:
+        - lambda: |-
+            id(last_use_ms) = millis();
+            id(wake_display).execute();
+            settings_screen::close();
+            const int pages = runtime_tiles::enabled ? std::max(1, (int) runtime_tiles::page_count())
+                                                     : (runtime_tiles::model.count > 6 ? 2 : 1);
+            id(tile_page) = std::clamp((int) page, 1, pages) - 1;
+            id(show_tile_page).execute();
+            ESP_LOGI("navigation", "page %d of %d open from Home Assistant", id(tile_page) + 1, pages);
 
     # Diagnostics: the busy sheet of a tile, without touching the glass or Home Assistant.
     - action: preview_busy

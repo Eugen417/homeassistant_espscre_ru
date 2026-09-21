@@ -1,3 +1,11 @@
+## 0.2.102 (firmware 0.2.87)
+
+Home Assistant can open a page on a screen, the way it can show an alert.
+
+- **`esphome.<screen>_show_page`.** Every screen has the action, with one field, `page`: the number the editor shows, 1 for the first page, and a number past the last page opens the last page. It puts that page of tiles in front the way a **Go to page** tile does when someone taps it: the screen wakes if it was in standby, an open card or the settings page closes, and the page is shown. An alert that is showing stays in front. Put a full-page player on page 4 and let an automation call the action when the player starts an album, or open the page with the camera tile when the doorbell rings. Like a touch, it starts **Back to page 1** counting from that moment, so the screen goes back to page 1 on its own time unless that switch is off; call the action again to keep the page up. Nothing is saved on the screen, so an automation may call it as often as it likes.
+- **In the skill and the guide.** The Claude skill under Settings → Claude has a section for it beside the alerts (install it again to get the new text), and the extended README explains it under "Open a page from an automation".
+- Needs firmware 0.2.87: press **Update** on the screen. Includes everything from 0.2.101.
+
 ## 0.2.99 (firmware 0.2.84)
 
 What a finger does on a ten-inch screen, and what a card does with glass that wide.

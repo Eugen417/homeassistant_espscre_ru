@@ -175,7 +175,7 @@ while it keeps your country's clock and numbers.
   <img src="docs/images/guition-alert.png" width="41%" alt="An alert on the Guition: someone is at the door, with a Coming button">
   <img src="docs/images/editor-alerts.png" width="53%" alt="The Alerts cheatsheet in ESP Screens: the action name of every screen, ready to copy">
 </p>
-<p align="center"><sub>Any alert, on one screen or all of them, in a pastel color of your choice. <a href="README_EXTENDED.md#alert-from-an-automation">How alerts work</a>.</sub></p>
+<p align="center"><sub>Any alert, on one screen or all of them, in a pastel color of your choice. <a href="README_EXTENDED.md#alert-from-an-automation">How alerts work</a>. An automation can also put a page in front, such as the page with the full-page player when the music starts: <a href="README_EXTENDED.md#open-a-page-from-an-automation">Open a page from an automation</a>.</sub></p>
 
 ## Installing from Home Assistant
 

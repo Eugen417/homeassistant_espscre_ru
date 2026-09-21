@@ -394,6 +394,26 @@ actions:
 Don't target an area or a device with `button.press`: that presses every other button there too,
 the Wake and Sleep of the same screen included.
 
+## Open a page from an automation
+
+Every screen has the action **`esphome.<screen>_show_page`** (firmware 0.2.87+). It puts one page of the
+screen's tiles in front, the way a **Go to page** tile does when someone taps it: the screen wakes if it
+was in standby, an open card or the settings page closes, and that page is shown. `page` is the number the
+editor shows, 1 for the first page; a number past the last page opens the last page.
+
+```yaml
+action: esphome.living_room_screen_show_page
+data:
+  page: 4
+```
+
+Put a full-page player on page 4 and let an automation call this when the player starts an album, or open
+the page with the camera tile when the doorbell rings. Like a touch, it starts **Back to page 1** counting
+from that moment, so the screen goes back to page 1 on its own time (Settings → Screen on the panel, or
+`switch.<screen>_back_to_page_1`) unless that is off; call the action again to keep the page up. An alert
+that is showing stays in front. Nothing is saved on the screen, so an automation may call it as often as it
+likes. The Claude skill (Settings → Claude) explains it too, so you can ask Claude for the automation.
+
 ## Customizing tiles and colors
 
 Click a tile in the screen preview and its settings open in a drawer beside it. Under

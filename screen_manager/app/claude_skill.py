@@ -17,7 +17,8 @@ from core import (ALERT_ACTION_FIELD, ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_E
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
                   CONTROLS, COVER_TILE_MIN_FIRMWARE, DISPLAYS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, FULL_PAGE_MIN_FIRMWARE, LIVE_MIN_FIRMWARE,
                   PAGE_TILE_REPEAT_MIN_FIRMWARE, SETTINGS_PAGE_MIN_FIRMWARE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT,
-                  WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE, PAGE_BUTTONS_MIN_FIRMWARE)
+                  WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE, PAGE_BUTTONS_MIN_FIRMWARE,
+                  SHOW_PAGE_MIN_FIRMWARE)
 # Full-page tiles, navigation tiles and one tile per cell of the screen's pages.
 FULL_PAGE_VERSION = '.'.join(str(part) for part in FULL_PAGE_MIN_FIRMWARE)
 LIVE_VERSION = '.'.join(str(part) for part in LIVE_MIN_FIRMWARE)
@@ -28,7 +29,7 @@ PAGE_TILE_REPEAT_VERSION = '.'.join(str(part) for part in PAGE_TILE_REPEAT_MIN_F
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
 DESCRIPTION = ('ESP Screens (CYD and Guition touchscreens run from Home Assistant): put a tile on a screen, move or '
-               'order tiles, show an alert on one screen or all of them, and wake, sleep or keep a screen awake.')
+               'order tiles, show an alert or open a page on a screen, and wake, sleep or keep a screen awake.')
 TYPES = {'string': 'text', 'int': 'number', 'bool': 'on/off'}
 
 def skill_dir(config=None):
@@ -66,7 +67,7 @@ description: {DESCRIPTION}
 
 Made by ESP Screen Manager (ESP Screens → Settings → Claude). Installing it again from there replaces this file, so changes made here get lost.
 
-Three things Home Assistant can do with the screens: choose what a screen shows ([Tiles](#tiles-on-a-screen)), show an alert (below), and wake a screen, put it to sleep or keep it awake ([Standby and brightness](#standby-and-brightness)).
+Four things Home Assistant can do with the screens: choose what a screen shows ([Tiles](#tiles-on-a-screen)), show an alert (below), open a page ([Open a page on a screen](#open-a-page-on-a-screen)), and wake a screen, put it to sleep or keep it awake ([Standby and brightness](#standby-and-brightness)).
 
 An alert is a card over the whole screen with an icon, a title, a subtitle and one button. It wakes the screen and stays until someone presses the button or the timeout runs out. A new alert replaces the one showing.
 
@@ -270,6 +271,19 @@ actions:
         sequence:
           - event: {BROADCAST_DISMISS}
 ```
+
+## Open a page on a screen
+
+Every screen has the action `esphome.<device_name>_show_page` (firmware {SHOW_PAGE_MIN_FIRMWARE} or newer). It puts one page of the screen's tiles in front, the way a Go to page tile does when someone taps it: the screen wakes if it was in standby, an open card or the settings page closes, and that page is shown. An alert that is showing stays in front. `page` is the page number the editor shows, 1 for the first page; a number past the last page opens the last page. Read the screen first ([Reading a screen first](#reading-a-screen-first)) to see which page holds what.
+
+```yaml
+actions:
+  - action: esphome.living_room_screen_show_page
+    data:
+      page: 4
+```
+
+Typical use: the page with a full-page player when a media player starts playing, or the page with a camera tile when the doorbell rings. Like a touch, it starts Back to page 1 counting from that moment, so the screen goes back to page 1 on its own time unless `switch.<screen>_back_to_page_1` is off; call the action again to keep the page up. Nothing is saved on the screen, so an automation may call it as often as it likes.
 
 ## Standby and brightness
 

@@ -81,7 +81,7 @@ class SkillText(unittest.TestCase):
     def test_every_yaml_example_parses(self):
         import yaml
         blocks = re.findall(r'```yaml\n(.*?)```', claude_skill.text(), re.S)
-        self.assertEqual(len(blocks), 10)
+        self.assertEqual(len(blocks), 11)
         parsed = [yaml.safe_load(block) for block in blocks]
         # Tiles first (0.2.51): putting one on a screen, and ordering a page.
         self.assertEqual(parsed[0]['actions'][0]['event'], 'esp_screens_add_tile')
@@ -94,8 +94,12 @@ class SkillText(unittest.TestCase):
         self.assertEqual(parsed[4][0]['wait_for_trigger'][0]['event_type'], ALERT_EVENT)
         choose = parsed[5]['actions'][0]['choose']
         self.assertEqual([option['sequence'][0]['event'] for option in choose], [BROADCAST_SHOW, BROADCAST_DISMISS])
+        # Open a page (0.2.102): the per-screen action with its one field.
+        opened = parsed[6]['actions'][0]
+        self.assertTrue(opened['action'].startswith('esphome.') and opened['action'].endswith('_show_page'))
+        self.assertEqual(opened['data'], {'page': 4})
         # Wake on motion for one screen, Sleep for two, each branch on its own trigger.
-        buttons = parsed[6]
+        buttons = parsed[7]
         options = buttons['actions'][0]['choose']
         self.assertEqual({trigger['id'] for trigger in buttons['triggers']}, {option['conditions'][0]['id'] for option in options})
         pressed = []
@@ -107,7 +111,7 @@ class SkillText(unittest.TestCase):
         self.assertTrue(all(entity.startswith('button.') and entity.endswith('_wake') for entity in pressed[0]))
         self.assertTrue(all(entity.startswith('button.') and entity.endswith('_sleep') for entity in pressed[1]))
         self.assertGreater(len(pressed[1]), 1, 'shows how to reach several screens at once')
-        awake = parsed[7]
+        awake = parsed[8]
         self.assertEqual(awake['mode'], 'restart')
         branch = awake['actions'][0]
         self.assertEqual((branch['then'][0]['action'], branch['else'][0]['action']), ('switch.turn_off', 'switch.turn_on'))
@@ -116,7 +120,7 @@ class SkillText(unittest.TestCase):
         conditions = {branch['if'][0]['entity_id']} | {c['entity_id'] for c in branch['if'][1]['conditions']}
         self.assertEqual(watched, conditions, 'the automation reacts to every entity its condition reads')
         # Dark mode at night (0.2.63): one automation that turns the switch on at one time and off at the other.
-        night = parsed[8]
+        night = parsed[9]
         self.assertEqual({trigger['id'] for trigger in night['triggers']}, {'night', 'day'})
         branch = night['actions'][0]
         self.assertEqual((branch['if'][0]['condition'], branch['if'][0]['id']), ('trigger', 'night'))
