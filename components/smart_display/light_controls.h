@@ -47,11 +47,15 @@ inline State fallback;
 inline State *active = &fallback;
 struct Row { lv_obj_t *box{}, *slider{}, *value{}, *icon{}; bool dirty = false; unsigned index{}; bool off = false; int held = 0; };
 inline Row rows[3];
+// The card the rows stand on: a hand's width, in the middle of the overlay that covers the glass.
+inline lv_obj_t *card = nullptr;
 inline std::function<void(int)> commits[3];
 inline bool ready = false;
 inline bool demo = false;
 inline void state_updated(State *state);
-inline int top, spacing;
+// Where the three rows start, their pitch, the gap between them and the height of the glass they were built
+// for: open() puts the rows that show in the middle of the room under the title with them.
+inline int top, spacing, row_gap, glass_h;
 inline void subscribe(const char *const *entities, size_t count) {
 #ifdef USE_API_HOMEASSISTANT_STATES
   static const char *attributes[] = {"hs_color", "color_temp_kelvin", "min_color_temp_kelvin", "max_color_temp_kelvin"};
@@ -176,6 +180,11 @@ inline void restyle() {
 // Three white cards like the tiles: an icon, the name and the value, then a pill-shaped track.
 // Colour and temperature are gradient pills with a round knob in the chosen colour; brightness
 // is filled like the tile sliders, with the white handle inside the fill.
+//
+// `width` is the card's room, not the glass: a hue slider is dragged, so it keeps a hand's width like every
+// other control (overlay_card::content_width). The board profile gives this the card it centred on the glass;
+// before firmware 0.2.82 it got the whole screen and a ten-inch panel drew three sliders twenty-one
+// centimetres wide across the top with two thirds of the glass empty under them.
 inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height, const lv_font_t *icon_font = nullptr) {
   if (ready) return;
   ready = true;
@@ -190,6 +199,7 @@ inline void setup(lv_obj_t *parent, const lv_font_t *font, int width, int height
   const int least = ui::touch_min() + lv_font_get_line_height(font) + ui::px(12);
   const int room = height - top - ui::px(large ? 18 : 8);
   spacing = std::max(least, std::min(wanted, (room + gap) / 3));
+  row_gap = gap; glass_h = height;
   int margin = ui::px(large ? 20 : 12), w = width - 2 * margin, card_h = spacing - gap;
   int inset = ui::px(large ? 18 : 10), text_y = ui::px(large ? 14 : 5), track_h = ui::px(large ? 32 : 18);
   int track_x = inset, track_w = w - 2 * inset, track_y = card_h - inset + (ui::px(large ? 2 : 3)) - track_h;
@@ -294,7 +304,13 @@ inline void state_updated(State *state) {
 inline void open(const std::string &entity, bool color, bool temperature, int brightness) {
   active = &fallback;
   for (auto &state : states) if (entity == state.entity) { active = &state; break; }
-  int y = top;
+  // The rows that show stand in the middle of the room under the title, the way every card centres what it
+  // draws (overlay_card::centre), and only when that leaves more than a finger over: on a CYD and a Guition
+  // three rows already fill the glass, so nothing there moves.
+  int showing = (color ? 1 : 0) + (temperature ? 1 : 0) + 1;
+  const int block = showing * spacing - row_gap;
+  const int over = glass_h - top - ui::px(ui::large() ? 18 : 8) - block;
+  int y = over > ui::touch_min() ? top + over / 2 : top;
   for (unsigned i = 0; i < 3; ++i) {
     auto &row = rows[i];
     bool visible = i == 0 ? color : i == 1 ? temperature : true;

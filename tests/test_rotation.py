@@ -1,3 +1,4 @@
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -62,3 +63,35 @@ class RotationTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(m.layouts['text.screen']['settings']['rotation'],90)
             fresh=test_portal.ManagerTests().setup_manager(m.path)
             self.assertEqual(fresh.layouts['text.screen']['settings']['rotation'],90)
+
+
+class EdgeBandTests(unittest.TestCase):
+    """The band a page swipe starts in is a band of the glass, whatever the panel behind it.
+
+    A board's DISPLAY_W is the canvas after LVGL's turn; ESPHome's touchscreen reports in the panel's own
+    pixels. The firmware used to redo that turn itself from DISPLAY_W/DISPLAY_H, which is right on a square
+    panel and on one that is not turned, and wrong on a portrait panel drawn in landscape: the 800 x 1280
+    ten-inch Guition armed its right-hand band from x = 772 of 1280, so two fifths of the glass turned a page
+    on any leftward drag and nothing turned back (firmware 0.2.82). ESPHome's own rotate_coordinates does the
+    turn now, so the only number left here is the width of the glass.
+    """
+
+    ROOT = Path(__file__).resolve().parent.parent
+
+    def test_every_board_gives_the_edge_swipe_the_width_of_its_glass(self):
+        for board in sorted((self.ROOT / 'packages' / 'boards').glob('*.yaml')):
+            text = board.read_text()
+            for call in re.findall(r'cyd::edge_swipe\.configure\(([^)]*)\)', text):
+                first = call.split(',')[0].strip()
+                self.assertEqual(first, '${DISPLAY_W}', f'{board.name}: {call}')
+                self.assertEqual(len(call.split(',')), 3, f'{board.name}: {call}')
+
+    def test_the_shared_tree_turns_a_touch_with_esphomes_own_call(self):
+        core = (self.ROOT / 'packages' / 'core.yaml').read_text()
+        self.assertIn('runtime_tiles::touch_input::to_screen', core)
+        self.assertIn('rotate_coordinates', core)
+        touch = (self.ROOT / 'components' / 'smart_display' / 'runtime_tiles.h').read_text()
+        self.assertIn('cyd::edge_swipe.begin(sx, sy)', touch)
+        # No rotation arithmetic of our own left in the firmware's own touch handling.
+        swipe = (self.ROOT / 'components' / 'smart_display' / 'cyd_ui.h').read_text()
+        self.assertNotIn('rotation_', swipe)

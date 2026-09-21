@@ -115,7 +115,8 @@ int main() {
   // Edge swipe (0.2.24, back on the touchscreen triggers since 0.2.29): only a touch that
   // starts in the side band flips a page, from the right edge leftwards "next", from the left
   // edge rightwards "previous", once per touch, slow or fast, more sideways than vertical,
-  // never from the middle. Rotation follows ESPHome's pointer mapping; end() disarms.
+  // never from the middle. Every point is already in the screen's coordinates (firmware 0.2.82:
+  // runtime_tiles::touch_input turns it with ESPHome's own rotate_coordinates); end() disarms.
   cyd::EdgeSwipe edge;
   // A board that never configured one has no edge swipe at all: the CYD turns its pages by another gesture,
   // and shared touch handling must not flip a page there on the default band.
@@ -125,7 +126,7 @@ int main() {
   assert(!unconfigured.armed());
   assert(unconfigured.update(200, 100) == 0);
 
-  edge.configure(480, 480, 32, 40);
+  edge.configure(480, 32, 40);
   assert(edge.in_use());
   edge.begin(6, 240);
   assert(edge.armed());
@@ -148,12 +149,20 @@ int main() {
   edge.end();
   assert(!edge.armed());
   assert(edge.update(300, 250) == 0);  // the next touch's first update, before begin(): nothing
-  edge.begin(240, 6, 90);
-  assert(edge.update(240, 60) == -1);  // rotated 90: the user's left edge is the panel's top
-  edge.begin(240, 6, 270);
-  assert(edge.update(240, 60) == 1);   // rotated 270: that same edge is the user's right
-  edge.begin(6, 240, 180);
-  assert(edge.update(60, 240) == 1);   // upside down: the panel's left is the user's right
+  // Wide glass: the band is a band of the glass, not of the panel the picture came from. A 800 x 1280
+  // panel drawn as 1280 x 800 used to arm the right-hand band from x = 772, so a leftward drag anywhere
+  // past two fifths of the screen turned a page and nothing turned back (firmware 0.2.82).
+  cyd::EdgeSwipe ten_inch;
+  ten_inch.configure(1280, 28, 35);
+  ten_inch.begin(772, 400);
+  assert(!ten_inch.armed());               // the middle of a ten-inch screen is the middle
+  ten_inch.begin(640, 400);
+  assert(!ten_inch.armed());
+  ten_inch.begin(1260, 400);
+  assert(ten_inch.armed());
+  assert(ten_inch.update(1210, 404) == 1); // in from the right edge: next page
+  ten_inch.begin(10, 400);
+  assert(ten_inch.update(60, 404) == -1);  // in from the left edge: previous page
   cyd::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days

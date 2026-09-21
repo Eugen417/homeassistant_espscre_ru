@@ -164,6 +164,16 @@ inline Placed place(const Metrics &m, int rows, int numbers, int text_h) {
       p.number_y[i] = m.rows_y + p.rows_h + (rows ? m.gap : 0);
     }
   }
+  // What is left over goes half above and half below, the way every card centres what it draws
+  // (overlay_card::centre): a page whose block fills the glass does not move, and neither does one that scrolls.
+  int bottom = p.rows_y + (rows ? p.rows_h : 0);
+  for (int i = 0; i < numbers; ++i) bottom = std::max(bottom, p.number_y[i] + p.number_h);
+  const int spare = m.height - m.pad - bottom;
+  if (!p.scrolls && spare > ui::touch_min()) {
+    const int shift = spare / 2;
+    p.rows_y += shift;
+    for (int i = 0; i < numbers; ++i) p.number_y[i] += shift;
+  }
   return p;
 }
 }  // namespace effects_page
@@ -171,6 +181,7 @@ inline Placed place(const Metrics &m, int rows, int numbers, int text_h) {
 #ifndef EFFECTS_PAGE_TEST
 #include "esphome/core/log.h"
 #include "lvgl.h"
+#include "overlay_card.h"
 #include "theme.h"
 #include "tile_icon.h"
 namespace effects_page {
@@ -199,8 +210,7 @@ inline int picker_row = -1;
 inline uint32_t clock() { return now ? now() : lv_tick_get(); }
 // The page's sizes from the screen (a page just made has no width of its own until LVGL lays it out).
 inline Metrics screen_metrics() {
-  auto *display = lv_display_get_default();
-  return metrics(lv_display_get_horizontal_resolution(display), lv_display_get_vertical_resolution(display));
+  return metrics(overlay_card::content_width(), overlay_card::screen_height());
 }
 inline bool visible() { return root != nullptr; }
 inline bool steady() { return !drift || tap_limit <= 0 || drift() <= tap_limit; }
@@ -272,6 +282,12 @@ inline lv_obj_t *page_root() {
   auto *obj = lv_obj_create(lv_screen_active());
   lv_obj_remove_style_all(obj);
   lv_obj_set_size(obj, lv_pct(100), lv_pct(100));
+  // The page covers the glass, but its rows and sliders are worked with a finger, so they keep a hand's width
+  // and stand in the middle: the padding makes the page's own room that card (overlay_card::content_width).
+  // On a CYD and a Guition the glass is narrower than a hand already, so the padding is nought there.
+  const int side = (overlay_card::screen_width() - overlay_card::content_width()) / 2;
+  lv_obj_set_style_pad_left(obj, side, 0);
+  lv_obj_set_style_pad_right(obj, side, 0);
   lv_obj_remove_flag(obj, LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_flag(obj, LV_OBJ_FLAG_CLICKABLE);  // nothing leaks through to what lies under it
   lv_obj_set_style_bg_color(obj, theme::color(theme::PAGE_SOFT), 0);
@@ -369,7 +385,10 @@ inline void open_picker(int index) {
   picker = page_root();
   top_bar(picker, m, row.name, picker_back, "\U000F012C", confirm_event);
   const int w = m.width - 2 * m.pad, h = m.roller_rows * m.roller_row_h + 2 * m.roller_pad;
-  auto *holder = card(picker, m.pad, m.rows_y, w, h, m.radius);
+  // The picker stands where the page's own block stands: what is left over goes half above and half below,
+  // and only when more than a finger is left (place(), overlay_card::centre).
+  const int spare = m.height - m.pad - m.rows_y - h;
+  auto *holder = card(picker, m.pad, spare > ui::touch_min() ? m.rows_y + spare / 2 : m.rows_y, w, h, m.radius);
   roller_note = text(holder, screen_text::tr(screen_text::txt::effects_loading), row_font, theme::MUTED, LV_TEXT_ALIGN_CENTER);
   lv_obj_set_width(roller_note, w - 2 * m.inset);
   lv_obj_center(roller_note);

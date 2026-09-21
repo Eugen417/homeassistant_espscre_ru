@@ -8,6 +8,11 @@
 // card, 480 wide under its top bar) stacks everything under the art; a wide area (the CYD's card, a tile over the whole
 // page) puts the art at the left with the texts, the bar and the keys beside it. The volume row always runs along the
 // bottom. What does not fit goes: first the artist line, then the times beside the bar, and the art shrinks last.
+//
+// On glass wider than a hand (a ten-inch panel) two rules of overlay_card apply: the cover is a picture and grows
+// with the glass, while the texts, the keys and the volume row keep a hand's width and stand together in the middle.
+// Before that the cover stayed a thumbnail in the left corner and the volume slider ran from edge to edge, nineteen
+// centimetres of it (firmware 0.2.82).
 #include <algorithm>
 #include <cstdint>
 #include <cstdio>
@@ -39,6 +44,19 @@ struct Metrics {
   int gap() const { return ui::px(large ? 12 : 6); }
   int margin() const { return ui::px(large ? 24 : 10); }
   int max_art() const { return ui::px(large ? 200 : 120); }
+  // The largest cover ESP Screen Manager serves: `camera_feed.COVER_SIZES[1]`, guarded by tests/test_media_card.py.
+  // The app cuts and rounds a player's picture to exactly the size the card asks for and the screen draws what comes
+  // back one to one, so a square the app will not serve is a square that stays empty: an add-on that does not know
+  // the size answers nothing at all, and an older add-on than this firmware never will. Raising it is a change in
+  // both, and in that order.
+  static int cover_max() { return 320; }
+  // A cover is a picture: on glass with room to spare it grows past the look's own size, up to a third of the width
+  // or half the height, and never past what the app will hand over. Every board so far stays on max_art().
+  int art_cap(int width, int height) const {
+    return std::min(cover_max(), std::max(max_art(), std::min(width / 3, height / 2)));
+  }
+  // The widest a row a finger works may get (overlay_card::reach, without pulling LVGL in here).
+  int reach() const { return ui::control_max_width(); }
   int percent_w() const { return ui::px(large ? 52 : 34); }
   int time_w() const { return ui::px(large ? 48 : 34); }     // "12:34" beside the bar
 };
@@ -57,14 +75,21 @@ inline int radius_for(int art) { return std::max(4, art / 12); }
 inline Layout layout(const Metrics &m, int width, int height) {
   Layout l;
   const int g = m.gap(), margin = m.margin();
-  // The volume row along the bottom, whatever the form.
+  // The volume row along the bottom, whatever the form: a slider is dragged, so it never runs wider than a hand
+  // spans, and on wider glass it stands in the middle.
   const int volume_h = std::max(m.mute_h(), m.slider_h());
-  l.mute = {margin, height - volume_h + (volume_h - m.mute_h()) / 2, m.mute_h(), m.mute_h()};
-  l.percent = {width - margin - m.percent_w(), height - volume_h + (volume_h - m.small_h) / 2, m.percent_w(), m.small_h};
+  const int row_w = std::min(width - 2 * margin, m.reach()), row_x = (width - row_w) / 2;
+  l.mute = {row_x, height - volume_h + (volume_h - m.mute_h()) / 2, m.mute_h(), m.mute_h()};
+  l.percent = {row_x + row_w - m.percent_w(), height - volume_h + (volume_h - m.small_h) / 2, m.percent_w(), m.small_h};
   const int slider_x = l.mute.right() + g;
   l.volume = {slider_x, height - volume_h + (volume_h - m.slider_h()) / 2, std::max(1, l.percent.x - g - slider_x), m.slider_h()};
   const int above = height - volume_h - g;  // room for the rest
-  l.wide = width * 4 > height * 5;
+  // The wide form is for an area too short to stack: a tile over a CYD page. Glass wider than a hand with room
+  // for a full cover and the stack takes the tall form instead, the "now playing" a phone draws, and the cover
+  // grows with the glass. Every area the two first boards have is too narrow or too short for that, so they
+  // keep the form they had.
+  const int stack_min = m.max_art() + m.title_h + m.artist_h + 3 * g + m.small_h + m.play_h();
+  l.wide = width * 4 > height * 5 && !(width > m.reach() && above >= stack_min);
   const int row_min = 2 * m.key_h() + m.play_h() + 2 * m.min_gap();
   // The bar's row: the elapsed time at the left, the total at the right, the bar between them, on one small line.
   auto bar_row = [&](int x, int w, int y, bool with_times) {
@@ -88,18 +113,22 @@ inline Layout layout(const Metrics &m, int width, int height) {
     // Tall: the art on top, the texts, the bar and the keys under it, all centred.
     const int keys_y = above - m.play_h();
     const int stack = m.title_h + m.artist_h + g + m.small_h + g;  // between the art and the keys: the bar row is one small line
-    int art = std::min(m.max_art(), keys_y - g - stack - g);
+    int art = std::min(m.art_cap(width, above), keys_y - g - stack - g);
     art = std::max(32, art);
-    const int stack_y = keys_y - g - stack, text_w = width - 2 * margin;
+    // The words and the bar are read, not dragged, but a line that runs the width of a ten-inch panel is no
+    // easier to read than the cover is to reach: they keep a hand's width too, in the middle of the card.
+    const int text_w = std::min(width - 2 * margin, m.reach()), text_x = (width - text_w) / 2;
+    const int stack_y = keys_y - g - stack;
     l.art = {(width - art) / 2, std::max(0, (stack_y - g - art) / 2), art, art};
-    l.title = {margin, stack_y, text_w, m.title_h};
-    l.artist_line = {margin, l.title.bottom(), text_w, m.artist_h};
-    bar_row(margin, text_w, l.artist_line.bottom() + g, true);
+    l.title = {text_x, stack_y, text_w, m.title_h};
+    l.artist_line = {text_x, l.title.bottom(), text_w, m.artist_h};
+    bar_row(text_x, text_w, l.artist_line.bottom() + g, true);
     keys(0, width, keys_y);
   } else {
     // Wide: the art at the left, a column beside it, centred on the art and never taller than the room; the column's
-    // own gaps are half the card's, so a tile's head leaves room for the artist line.
-    int art = std::min({m.max_art(), above, width - 2 * margin - 2 * g - row_min});
+    // own gaps are half the card's, so a tile's head leaves room for the artist line. The column keeps a hand's
+    // width, and the art and the column together stand in the middle of the glass.
+    int art = std::min({m.art_cap(width, above), above, width - 2 * margin - 2 * g - row_min});
     art = std::max(32, art);
     const int h = g / 2;
     int column = m.title_h + m.artist_h + h + m.small_h + h + m.play_h();
@@ -107,8 +136,9 @@ inline Layout layout(const Metrics &m, int width, int height) {
     if (!l.artist) column -= m.artist_h;
     bool with_times = column <= above;
     if (!with_times) column -= m.small_h - m.bar_h();
-    l.art = {margin, std::max(0, (above - art) / 2), art, art};
-    const int x = l.art.right() + 2 * g, w = std::max(1, width - margin - x);
+    const int w = std::max(1, std::min(width - 2 * margin - 2 * g - art, m.reach()));
+    l.art = {std::max(margin, (width - art - 2 * g - w) / 2), std::max(0, (above - art) / 2), art, art};
+    const int x = l.art.right() + 2 * g;
     int y = std::clamp(l.art.y + (art - column) / 2, 0, std::max(0, above - column));
     l.title = {x, y, w, m.title_h}; y += m.title_h;
     if (l.artist) { l.artist_line = {x, y, w, m.artist_h}; y += m.artist_h; }

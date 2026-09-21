@@ -9,8 +9,12 @@
 //  * **What is capped, is centred.** A card that does not fill the glass sits in the middle of it, left to
 //    right and top to bottom, like a dialog. Not centring it would leave it stuck against a corner.
 //
-// A card that is a *picture* says so and is not capped: the media card's cover art and a camera's image are
-// nicer the bigger they are (`overlay_card::frame(root, overlay_card::picture)`).
+// A card that is a *picture* or a *graph* says so and is not capped: the media card's cover art, a camera's
+// image and a day of a sensor are all nicer the bigger they are, and none of them is worked with a finger
+// across its whole width (`overlay_card::frame(root, overlay_card::graph)`). What such a card *does* work
+// with a finger - a row of range keys, a volume slider - keeps a hand's width all the same and stands in the
+// middle of the card (`overlay_card::reach`). So: the picture is as wide as the glass, the controls are as
+// wide as a hand, on a 2.8-inch screen and on a 10-inch one.
 //
 // Everything a finger must hit keeps at least `ui::touch_min()` of glass, whatever the card drew: a thin
 // track may look thin, but its touch area is grown to the finger's size (`overlay_card::touchable`).
@@ -21,7 +25,8 @@
 
 namespace overlay_card {
 
-enum Kind { controls, picture };
+// `controls` is capped to a hand's width, `picture` and `graph` fill the glass (see above).
+enum Kind { controls, picture, graph };
 
 inline int screen_width() { return lv_display_get_horizontal_resolution(lv_display_get_default()); }
 inline int screen_height() { return lv_display_get_vertical_resolution(lv_display_get_default()); }
@@ -30,7 +35,7 @@ inline int screen_height() { return lv_display_get_vertical_resolution(lv_displa
 // columns may take twice the cap, so each column keeps its own reach.
 inline int content_width(Kind kind = controls, int columns = 1) {
   const int room = screen_width();
-  if (kind == picture) return room;
+  if (kind != controls) return room;
   return std::min(room, columns * ui::control_max_width() + (columns - 1) * ui::column_gap());
 }
 
@@ -86,6 +91,15 @@ inline void centre(lv_obj_t *root, uint32_t pinned = 0) {
     lv_obj_t *child = lv_obj_get_child(root, i);
     if (child && !lv_obj_has_flag(child, LV_OBJ_FLAG_HIDDEN)) lv_obj_set_y(child, lv_obj_get_y(child) + shift);
   }
+}
+
+// A row a finger works inside a card that fills the glass: never wider than a hand spans, and in the middle
+// of the card. `room` is what the card would have given it (its width less its padding); `x` comes back as
+// the place inside the card. On a CYD or a Guition the room is already narrower than a hand, so nothing moves.
+struct Reach { int x, w; };
+inline Reach reach(int card_width, int room) {
+  const int w = std::min(room, ui::control_max_width());
+  return {(card_width - w) / 2, w};
 }
 
 // Anything a finger must hit: the drawn size may be thinner than a finger, the touch area may not.

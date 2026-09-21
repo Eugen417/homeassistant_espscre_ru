@@ -91,10 +91,28 @@ board:
   glass is narrower than the cap, so nothing changes there.
 - **What is capped, is centred**: left to right by `overlay_card::frame`, top to bottom by
   `overlay_card::centre(root, pinned)`, which leaves the first `pinned` children (the back key and the name)
-  where they are: the card's top bar stays at the top, the content under it sits in the middle.
+  where they are: the card's top bar stays at the top, the content under it sits in the middle. A page that
+  places itself rather than hanging on `centre` keeps the same rule in its own arithmetic and the same
+  condition, "only when more than a finger is left over": the effects page in `place()`, the colour card in
+  `light_controls::open`. One behaviour, one rule, wherever it is written.
 
-A card that is a *picture* asks for `overlay_card::picture` and is not capped: the media card's cover art and a
-camera's image are nicer the bigger they are. A full-screen backdrop behind the card keeps the page covered.
+A card that is a *picture* or a *graph* asks for `overlay_card::picture` or `overlay_card::graph` and is not
+capped: the media card's cover art, a camera's image and a day of a sensor are nicer the bigger they are, and
+none of them is worked with a finger across its whole width. What such a card *does* work with a finger keeps a
+hand's width all the same and stands in the middle of the card: `overlay_card::reach(card_width, room)` gives
+back the x and the width for that row. So on a ten-inch panel the graph runs from edge to edge while the range
+keys under it, the volume slider of a player and the words of a track stay within one hand.
+
+A picture has a second ceiling that a drawing does not: what the add-on will hand over. A media player's cover is
+cut, rounded and resized by the app to exactly the size the card asked for, and the screen draws what comes back one
+to one, so a square larger than `camera_feed.COVER_SIZES[1]` stays empty - the app answers such a request with
+nothing at all, and an add-on older than the firmware never grows its ceiling. `media_card::Metrics::cover_max()`
+holds the same number and `tests/test_media_card.py` keeps the two equal; raising it is a change in both, the app
+first.
+
+A full-screen backdrop behind a card keeps the page covered, and it **takes every press**: LVGL looks on under
+an overlay that takes none, so a tap in the room a narrow card leaves would reach the tiles and the page keys
+behind it. The effects page and the colour card do the same on their own roots.
 
 Anything a finger must hit keeps at least `ui::touch_min()` (7 mm of glass, from the board's density) as its
 touch area, however thin it is drawn: `overlay_card::touchable(object, drawn_thickness)` grows the click area

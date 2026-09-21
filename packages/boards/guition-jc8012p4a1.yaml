@@ -163,7 +163,7 @@ substitutions:
   # the first boot step: the touch guard, and what this board's panel needs
   BOOT_TOUCH: |-
     cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
-    cyd::edge_swipe.configure(${DISPLAY_W}, ${DISPLAY_H}, ${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
+    cyd::edge_swipe.configure(${DISPLAY_W}, ${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
     cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
     // The page and the tile container take no presses: the theme's pressed style would
     // otherwise repaint nearly the whole screen twice per touch in the empty edge band,

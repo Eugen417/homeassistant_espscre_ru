@@ -111,6 +111,18 @@ class Covers(unittest.TestCase):
         self.assertFalse(camera_feed.can_show_cover({'board': 'guition', 'firmware': '0.2.63'}))
         self.assertFalse(camera_feed.can_show_cover({'board': 'cyd', 'firmware': '0.2.64'}))
 
+    def test_the_card_never_asks_for_a_cover_the_app_will_not_serve(self):
+        # The card asks for exactly the pixels it draws and the screen draws what comes back one to one, so a square
+        # the app refuses is a square that stays empty, silently: cover_request returns None, answer_camera falls
+        # through (a media player is no camera) and returns without a word. The two numbers are one number.
+        ceiling = int(re.search(r'static int cover_max\(\) \{ return (\d+); \}', CARD)[1])
+        self.assertEqual(ceiling, camera_feed.COVER_SIZES[1])
+        self.assertIsNone(camera_feed.cover_request({'size': str(ceiling + 1), 'bg': 'E7E7E7'}))
+        self.assertIsNotNone(camera_feed.cover_request({'size': str(ceiling), 'bg': 'E7E7E7'}))
+        # art_cap takes the smaller of the room and that ceiling; nothing else sizes the cover.
+        self.assertIn('std::min(cover_max(), std::max(max_art()', CARD)
+        self.assertNotIn('m.max_art(), above,', CARD)
+
     def test_the_request_names_a_size_and_a_background(self):
         self.assertEqual(camera_feed.cover_request({'size': '160', 'bg': 'E7E7E7'}), (160, 0xE7E7E7))
         self.assertEqual(camera_feed.cover_request({'size': 200, 'bg': '1a1a1a'}), (200, 0x1A1A1A))

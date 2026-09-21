@@ -956,6 +956,13 @@ inline void setting_event(const std::string &key, int value) {
 // Small shared native-LVGL detail cards. No images, canvas buffers or free scrolling.
 namespace runtime_tiles {
 inline lv_obj_t *detail_root=nullptr,*detail_backdrop=nullptr;
+// A place in the open card, in the screen's coordinates: what a finger's point may be compared with.
+// Everything a card draws is placed inside detail_root, which overlay_card::frame puts in the middle
+// of the glass, so the two only agree on a board whose cards fill their screen.
+inline int detail_screen_x(int in_card){
+  if(!detail_root)return in_card;
+  lv_area_t a;lv_obj_get_coords(detail_root,&a);return int(a.x1)+in_card;
+}
 // A card that works out its own room says so, and the frame then leaves it where it put itself.
 inline bool detail_placed=false;
 // What the climate card's keys answer with: a mode, a fan or swing choice, the power key and the setpoint's
@@ -2231,7 +2238,11 @@ inline void history_scrub(lv_event_t *e){
   if(code==LV_EVENT_RELEASED||code==LV_EVENT_PRESS_LOST){history_restore();return;}
   if((code!=LV_EVENT_PRESSED&&code!=LV_EVENT_PRESSING)||!c.ready||!c.value||!lv_indev_active())return;
   lv_point_t point;lv_indev_get_point(lv_indev_active(),&point);
-  const float fraction=std::clamp(float(point.x-c.x)/float(std::max(1,c.w)),0.0f,1.0f);
+  // A finger's point is the screen's; the plot's own x is the card's, and a card that does not fill the
+  // glass stands in the middle of it. Reading the two against each other put the whole graph a card's
+  // left edge too far left: on a ten-inch screen the middle of the glass already read "now" and the
+  // card's own left half read the start of the range (firmware 0.2.82).
+  const float fraction=std::clamp(float(point.x-detail_screen_x(c.x))/float(std::max(1,c.w)),0.0f,1.0f);
   const bool week=h.hours==168;
   if(c.line){
     // A part without a value (before the sensor existed, while it was unavailable) says so.
@@ -2370,11 +2381,13 @@ inline void render_history_timeline(bool large,int card_x,int card_y,int card_w,
   lv_obj_remove_flag(bar,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(bar,LV_OBJ_FLAG_SCROLLABLE);
   lv_obj_add_event_cb(bar,history_bar,LV_EVENT_DRAW_MAIN,nullptr);
   history_times(c.x,c.w,c.y+c.h+times_gap,small,large);
-  // Every state with its colour and its time, in two columns.
-  const int top=c.y+above,col_w=c.w/2;
+  // Every state with its colour and its time, in two columns. The bar is the graph and takes the glass; the
+  // legend is read, so it keeps a hand's width in the middle, where a time at the far edge would be lost.
+  const auto list=overlay_card::reach(card_w,c.w);
+  const int top=c.y+above,col_w=list.w/2,list_x=card_x+list.x;
   const size_t shown=std::min<size_t>(h.states.size(),static_cast<size_t>(rows)*2);
   for(size_t i=0;i<shown;++i){
-    const int lx=c.x+static_cast<int>(i%2)*col_w,ly=top+static_cast<int>(i/2)*row_h;
+    const int lx=list_x+static_cast<int>(i%2)*col_w,ly=top+static_cast<int>(i/2)*row_h;
     detail_shape(detail_root,lx,ly+(label_h-square)/2,square,square,theme::state(h.states[i].color),ui::px(large?4:2));
     const std::string time=history_view::duration(h.states[i].seconds);
     const int tw=text_width(time,small)+2,words_x=lx+square+(ui::px(large?10:5)),time_x=lx+col_w-(ui::px(large?14:8))-tw;
@@ -2384,7 +2397,8 @@ inline void render_history_timeline(bool large,int card_x,int card_y,int card_w,
   history_touch(c.x-(ui::px(large?14:8)),card_y,c.w+(ui::px(large?28:16)),c.y+c.h+(ui::px(large?24:12))-card_y);
 }
 // The range: an hour, a day or a week, as one segmented row. It asks the manager, not Home Assistant, so
-// waiting for a command does not lock it.
+// waiting for a command does not lock it. However thin the row is drawn, each key keeps a finger's worth
+// of touch area (overlay_card::touchable), as the other segmented rows do.
 inline void history_ranges(int x,int y,int w,int h){
   static const uint32_t hours[]={1,24,168};
   const char *const words[]={tr(txt::history_range_hour),tr(txt::history_range_day),tr(txt::history_range_week)};
@@ -2402,6 +2416,7 @@ inline void history_ranges(int x,int y,int w,int h){
     lv_obj_set_style_bg_opa(segment,LV_OPA_COVER,LV_STATE_PRESSED);
     if(!selected)lv_obj_set_style_bg_color(segment,theme::color(theme::ACCENT_TINT),LV_STATE_PRESSED);
     button_words(segment,font,theme::hex(selected?theme::ON_ACCENT:theme::INK),segment_w-6);
+    overlay_card::touchable(segment,h-2*inset);
     if(detail_action_count&&detail_actions[detail_action_count-1]==segment)--detail_action_count;
   }
 }
@@ -2479,8 +2494,10 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   int top=row+std::max(row_h,2*text_h)+(ui::px(large?10:4));
   if(d=="number"||d=="input_number"){
     const int slider_h=ui::px(large?24:14);
-    auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,pad+(ui::px(large?14:10)),top+(ui::px(large?10:5)));
-    lv_obj_set_size(slider,width-2*pad-(ui::px(large?28:20)),slider_h);lv_slider_set_range(slider,0,1000);
+    // A slider is dragged, so it keeps a hand's width however wide the card's graph is.
+    const auto bar=overlay_card::reach(width,width-2*pad-(ui::px(large?28:20)));
+    auto *slider=lv_slider_create(detail_root);lv_obj_set_pos(slider,bar.x,top+(ui::px(large?10:5)));
+    lv_obj_set_size(slider,bar.w,slider_h);lv_slider_set_range(slider,0,1000);
     lv_slider_set_value(slider,slider_value(t),LV_ANIM_OFF);lv_obj_set_style_bg_color(slider,theme::color(theme::SLIDER_KNOB),LV_PART_KNOB);
     lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)detail_index);
     top+=slider_h+(ui::px(large?22:12));
@@ -2495,7 +2512,9 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
   }else{
     render_history_timeline(large,pad,top,width-2*pad,card_h,small);
   }
-  history_ranges(pad,range_y,width-2*pad,range_h);
+  // The graph took the glass; the keys under it keep a hand's width and stand in the middle of the card.
+  const auto keys=overlay_card::reach(width,width-2*pad);
+  history_ranges(keys.x,range_y,keys.w,range_h);
 }
 // ---- The media card (firmware 0.2.64+) ----
 // "Now playing" as a phone shows it: the album cover (app 0.2.77+ serves it, a Guition draws it; the CYD keeps the
@@ -2679,7 +2698,10 @@ inline void show_detail(unsigned index){
     // The backdrop covers the page; the card itself is only as wide as a hand spans (overlay_card).
     detail_backdrop=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_backdrop);
     lv_obj_set_size(detail_backdrop,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_CLICKABLE);
+    // Nothing leaks through to what lies under it, the same rule the effects page keeps. LVGL looks on
+    // under an overlay that takes no press: a tap in the room a card leaves reached the tiles and the page
+    // keys behind it, so a miss beside the range keys turned the page under the open card (firmware 0.2.82).
+    lv_obj_add_flag(detail_backdrop,LV_OBJ_FLAG_CLICKABLE);
     detail_root=lv_obj_create(lv_screen_active());lv_obj_remove_style_all(detail_root);lv_obj_set_size(detail_root,lv_pct(100),lv_pct(100));lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_SCROLLABLE);
   }
   lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
@@ -2690,7 +2712,11 @@ inline void show_detail(unsigned index){
   // The card's room: capped to what a hand spans and centred, unless it shows a picture (the media card's
   // cover art, a camera), which may fill the glass. Every size below follows from `width`.
   auto d=t.domain();
-  const auto kind=d=="media_player"?overlay_card::picture:overlay_card::controls;
+  // A day of a sensor is a picture as much as a cover is: it may take the whole glass, and only the row of
+  // range keys under it keeps a hand's width (overlay_card::reach). Asked here because every size below
+  // follows from `width`.
+  const bool with_history=history_card(t);
+  const auto kind=d=="media_player"?overlay_card::picture:with_history?overlay_card::graph:overlay_card::controls;
   bool large=ui::large();
   // A card whose stack asks for more height than the glass has stands in two columns instead.
   const int columns=d=="climate"?climate_columns(t,large):d=="cover"?cover_columns(t,large):d=="weather"?weather_columns(t,large)
@@ -2707,7 +2733,6 @@ inline void show_detail(unsigned index){
   lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
   std::string state=card_status(t);
   // The vacuum and history cards draw their own state.
-  const bool with_history=history_card(t);
   if(d!="vacuum"&&d!="media_player"&&d!="climate"&&d!="light"&&d!="fan"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
@@ -5397,19 +5422,25 @@ inline void camera_failed(bool thumb) {
 namespace touch_input {
 // A finger arrived or left: the standby clock, the "back to page 1" clock and `touch_down`.
 inline std::function<void(bool down)> contact;
-// The LVGL rotation in degrees, as the screen runs now: the board's own plus the chosen turn.
-inline std::function<int()> rotation;
+// A touchscreen's report in the screen's own coordinates: ESPHome's LvglComponent::rotate_coordinates,
+// which already carries the board's quarter turn and the turn the user chose.
+inline std::function<void(int &x, int &y)> to_screen;
 // Why an edge swipe may not turn the page now, or nullptr when it may. Reads what only the YAML knows
 // (a dimmed screen, a calibration, an open card).
 inline std::function<const char *()> swipe_blocked;
 // One page further or back, and draw it.
 inline std::function<void(int step)> turn_page;
 
+// The same point as the screen draws with, so a band along the glass means the glass and not the panel.
+inline void screen_point(int &x, int &y) { if (to_screen) to_screen(x, y); }
+
 inline void pressed(int x, int y, int id, bool calibrating) {
   if (contact) contact(true);
   cyd::touch_guard.begin(esphome::millis(), x, y, id);
-  cyd::edge_swipe.begin(x, y, rotation ? rotation() : 0);
-  ESP_LOGI("touch", "press x=%d y=%d id=%d test=%d", x, y, id, calibrating ? 1 : 0);
+  int sx = x, sy = y;
+  screen_point(sx, sy);
+  cyd::edge_swipe.begin(sx, sy);
+  ESP_LOGI("touch", "press x=%d y=%d id=%d test=%d screen=%d,%d", x, y, id, calibrating ? 1 : 0, sx, sy);
 }
 
 // One contact of one report. Only the contact that started the touch counts.
@@ -5424,7 +5455,9 @@ inline void moved(int x, int y, int id, int state) {
   // Swiping in from a side edge flips the page ("Swiping between pages"); the tap under the finger is
   // consumed and LVGL waits for the release. LVGL 9.5 sends no PRESSING to the input device, hence the
   // touchscreen trigger.
-  const int step = cyd::edge_swipe.update(x, y);
+  int sx = x, sy = y;
+  screen_point(sx, sy);
+  const int step = cyd::edge_swipe.update(sx, sy);
   if (!step) return;
   const char *blocked = !enabled                ? "no runtime tiles"
                       : !swipe_pages            ? "setting off"

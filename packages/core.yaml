@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.81"
+  SCREEN_FIRMWARE_VERSION: "0.2.82"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -140,7 +140,11 @@ esphome:
             id(last_use_ms) = millis();
             id(touch_down) = down;
           };
-          runtime_tiles::touch_input::rotation = []() { return static_cast<int>(id(screen_lvgl).get_rotation()); };
+          runtime_tiles::touch_input::to_screen = [](int &x, int &y) {
+            int32_t px = x, py = y;
+            id(screen_lvgl).rotate_coordinates(px, py);
+            x = px; y = py;
+          };
           runtime_tiles::touch_input::swipe_blocked = []() -> const char * {
             if (id(display_dimmed)) return "screen dimmed";
             if (id(calibration_active)) return "calibration";
@@ -172,7 +176,17 @@ esphome:
             if (id(active_entity) != t.entity || id(touch_down)) return;
           };
       - lambda: |-
-          light_controls::setup(id(color_detail_overlay), id(sublabel)->get_lv_font(), atoi("${DISPLAY_W}"), atoi("${DISPLAY_H}"), id(materialdesign_icons_mini)->get_lv_font());
+          // The colour card (firmware 0.2.82): the overlay covers the glass and takes every press, and the card
+          // inside it keeps a hand's width and stands in the middle, like every other card (overlay_card).
+          // The overlay's own three widgets move into that card, so the close key, the sparkles key and the
+          // title stand at the card's corners and not at the far corners of a ten-inch panel.
+          light_controls::card = lv_obj_create(id(color_detail_overlay));
+          lv_obj_remove_style_all(light_controls::card);
+          lv_obj_set_height(light_controls::card, lv_pct(100));
+          overlay_card::frame(light_controls::card, overlay_card::controls);
+          for (auto *widget : {id(color_close_button), id(color_effects_button), id(color_detail_title)})
+            lv_obj_set_parent(widget, light_controls::card);
+          light_controls::setup(light_controls::card, id(sublabel)->get_lv_font(), overlay_card::content_width(), atoi("${DISPLAY_H}"), id(materialdesign_icons_mini)->get_lv_font());
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
@@ -1606,6 +1620,12 @@ lvgl:
             styles: paint_page_soft
             bg_opa: COVER
             hidden: true
+            # Nothing leaks through to the tiles and the page keys under it (firmware 0.2.82): LVGL looks on
+            # under an overlay that takes no press, and the card inside this one does not fill wide glass.
+            clickable: true
+            pressed:
+              styles: paint_page_soft
+              bg_opa: COVER
             scrollable: false
             scrollbar_mode: 'OFF'
             pad_left: 0
