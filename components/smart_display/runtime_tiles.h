@@ -1906,13 +1906,12 @@ inline int light_columns(bool large) {
   return overlay_card::columns(light_card::stacked_height(m),m.slider_w()+2*m.edge());
 }
 // What the card writes beside the slider: the percentage, or the word Home Assistant uses when it is off.
-inline float light_level(const Tile &t) {
-  return t.domain()=="fan"?t.percentage:(std::isfinite(t.brightness)?t.brightness*100.0f/255.0f:NAN);
-}
+// What the card writes under the slider: the percentage the slider stands at, or Home Assistant's own word for
+// a light that is off, unavailable, or on without a brightness of its own.
 inline std::string light_value_text(const Tile &t) {
-  const float value=light_level(t);
-  if(t.state=="on"&&std::isfinite(value))return screen_text::percent(std::clamp((int)std::lround(value),0,100));
-  return card_status(t);   // "On", "Off", "Unavailable": Home Assistant's own word, as every other card says it
+  const int raw=slider_value(t);
+  if(t.state=="on"&&raw>0)return screen_text::percent((raw+5)/10);
+  return card_status(t);
 }
 inline void light_slider_event(lv_event_t *e) {
   auto *slider=lv_event_get_target_obj(e);const auto code=lv_event_get_code(e);
@@ -1975,9 +1974,9 @@ inline void render_light_detail(Tile &t,bool large,int width,int height,int colu
                     on?theme::ACCENT_TINT:theme::KEY,on?theme::ACCENT_ICON:theme::ICON_OFF,LIGHT_POWER);
 
   detail_card(l.card.x,l.card.y,l.card.w,l.card.h);
-  // Where the slider stands: what the tile's own strip shows, so the two never disagree.
-  const float value=light_level(t);
-  const int raw=on&&std::isfinite(value)?(int)std::lround(std::clamp(value,0.0f,100.0f)*10.0f):0;
+  // Where the slider stands is the tile's own answer (slider_value), so the strip on the tile and the card it
+  // opens never disagree - including the value held in front while a light fades towards it.
+  const int raw=on?slider_value(t):0;
   auto *slider=light_slider(l.slider.x,l.slider.y,l.slider.w,l.slider.h,raw,accent,t.available(),t.domain()=="light");
   overlay_card::touchable(slider,l.slider.w);
   // The entity's icon rides on the foot of the slider, where the fill is and a finger is not, as it did on the
@@ -2686,7 +2685,7 @@ inline void show_detail(unsigned index){
   lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
   lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_backdrop);
   detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
-  media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
+  media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;light_value=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   // The card's room: capped to what a hand spans and centred, unless it shows a picture (the media card's
   // cover art, a camera), which may fill the glass. Every size below follows from `width`.

@@ -1,6 +1,6 @@
 ## 0.2.94 (firmware 0.2.80)
 
-One firmware for any board: a board says what its glass is, and the screens, the manager and the editor follow. A third board joins.
+The screens stop being written for two panels and start being written for glass. A board file now says what its screen is - how big, how dense, how many tiles fit - and the firmware, the manager and the editor work out the rest: the grid, the size of everything drawn, the shape of every card a tap opens. Adding a board becomes a recipe instead of a rewrite, and the Waveshare ESP32-S3-Touch-LCD-4.3 is the first to walk it. The CYD and the Guition draw exactly what they drew before.
 
 - **Every board its own grid.** A board file declares how many columns and rows a page holds, its pixel density and its look; the tile area is an LVGL grid that divides the page over those cells, and the cards of that grid come from one generated file per cell count. Every size the firmware decides itself goes through one scale, so a tile, a letter and a key keep their size in millimetres on any panel. The CYD and the Guition keep their two columns of three and draw what they drew before.
 - **Waveshare ESP32-S3-Touch-LCD-4.3.** The first board added this way: 4.3 inch, 800 × 480, three by three tiles, camera pictures and album covers like a Guition. **New screen** offers it. Its backlight is a line on an expander, so it is lit or dark; the brightness settings decide when. Its LVGL draw buffer is 12 % of the glass, like the CYD's: with a quarter the chip ran on 15 KB and hung under a large layout.
