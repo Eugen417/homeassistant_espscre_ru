@@ -20,7 +20,7 @@ from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
-from core import SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
+from core import dimmable, SETTING_ENTITIES, SETTING_RULES, setting_action, setting_entities, setting_from_state, state_word
 from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, firmware_features, grid_of, packed_slots, run_tile_event,
                   screen_firmware, shape_of, turns_of, version_text)
 import header_bar
@@ -842,7 +842,12 @@ class Manager:
         from what the screen has."""
         inbox = self.aliases.get(screen['id'], screen['id'])
         turns = self.turns(screen)
-        keys = [key for key in SETTING_RULES if key != 'show_clock' and (key != 'rotation' or turns)]
+        # A backlight without levels (app 0.2.99): the normal brightness is not a setting there, and the two that
+        # are left mean lit or dark. `switches` names them so the panel draws the switch the screen draws.
+        dims = dimmable(screen)
+        switches = [] if dims else ['standby_brightness', 'night_brightness']
+        keys = [key for key in SETTING_RULES if key != 'show_clock' and (key != 'rotation' or turns)
+                and (dims or key != 'brightness')]
         entities = self.setting_entities(screen)
         if entities is None:
             try:
@@ -854,13 +859,14 @@ class Manager:
             # Dark mode and the page buttons came after the screens took over their settings: firmware that gets them
             # with the layout lacks them.
             keys = [key for key in keys if key not in ('dark_mode', 'page_buttons')]
-            return {'owner': 'layout', 'values': values, 'keys': keys, 'unavailable': [], 'rotations': list(turns)}
+            return {'owner': 'layout', 'values': values, 'keys': keys, 'unavailable': [], 'rotations': list(turns),
+                    'switches': switches}
         # Only the settings this screen has an entity for: one added in later firmware stays out of the panel.
         keys = [key for key in keys if key in entities]
         values = {key: setting_from_state(key, self.ha.states.get(entities[key])) for key in keys}
         # `rotations` are the angles this screen's glass allows (app 0.2.94): the editor offers those and no others.
         return {'owner': 'screen', 'values': values, 'keys': keys, 'unavailable': [key for key in keys if values[key] is None],
-                'rotations': list(turns)}
+                'rotations': list(turns), 'switches': switches}
 
     def settings_states_key(self):
         """The states of every setting entity, so the sync loop notices a change the editor should show."""

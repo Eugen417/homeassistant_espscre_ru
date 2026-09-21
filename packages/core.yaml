@@ -98,6 +98,9 @@ esphome:
           // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
           // offers it; a quarter turn only a square one, whose canvas is the same either way.
           settings_screen::quarter_turns = ${DISPLAY_W} == ${DISPLAY_H};
+          // Whether this board's backlight takes levels (firmware 0.2.84+): a board whose backlight is one line
+          // shows a switch where the others show a percentage. ESP Screens reads the same fact from boards.json.
+          settings_screen::dimmable = ${BACKLIGHT_DIMMABLE};
           ${BOOT_ENABLED_HOOK}
           runtime_tiles::load_settings();
           // Colours (firmware 0.2.54+): the styles of this profile take their colours from theme.h. The list runs now,

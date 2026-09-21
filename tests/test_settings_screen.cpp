@@ -65,7 +65,29 @@ int main() {
   assert(screen_settings::current.standby_brightness == 30);  // never above the normal brightness
   assert(screen_settings::current.valid());
   // Dark mode (firmware 0.2.54+) sits right under Brightness, a switch of its own outside the frozen block.
-  assert(light.count == 5 && light.rows[1].kind == Kind::toggle && std::string(label_text(light.rows[1])) == "Dark mode");
+  assert(light.count == 6 && light.rows[1].kind == Kind::toggle && std::string(label_text(light.rows[1])) == "Dark mode");
+  // A backlight without levels (firmware 0.2.84+): the normal brightness goes, and standby is the switch it really
+  // is. Both write the same key, so the app and Home Assistant keep reading one number.
+  {
+    const Row &standby_switch = row_named(light, "Screen on in standby");
+    assert(dimmable && visible_row(brightness) && visible_row(standby) && !visible_row(standby_switch));
+    dimmable = false;
+    assert(!visible_row(brightness) && !visible_row(standby) && visible_row(standby_switch));
+    screen_settings::current.brightness = 100;
+    standby_switch.write(0);
+    assert(screen_settings::current.standby_brightness == 0 && value_text(standby_switch) == "Off");
+    standby_switch.write(1);
+    assert(screen_settings::current.standby_brightness == 100 && value_text(standby_switch) == "On");
+    // Greyed out with auto standby off, exactly as the percentage row is.
+    screen_settings::current.standby_enabled = 0;
+    assert(!live_row(standby_switch));
+    screen_settings::current.standby_enabled = 1;
+    assert(live_row(standby_switch));
+    const Row &night_switch = row_named(pages[2], "Screen on at night");
+    assert(visible_row(night_switch) && !visible_row(row_named(pages[2], "Night brightness")));
+    dimmable = true;
+    screen_settings::current.standby_brightness = 30;
+  }
   const Row &dark = row_named(light, "Dark mode");
   assert(value_text(dark) == "Off");
   dark.write(1);

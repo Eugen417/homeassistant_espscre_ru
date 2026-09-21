@@ -28,6 +28,8 @@ substitutions:
   SLIDER_EDGE_SNAP_PX: "20"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "cyd"
+  # This board's backlight takes levels (a PWM pin), so brightness is a percentage.
+  BACKLIGHT_DIMMABLE: "true"
   DEVICE_NAME: "cyd-new"
   DEVICE_FRIENDLY_NAME: "My CYD"
   TOUCH_AFFINE_XX: "1.000000000"

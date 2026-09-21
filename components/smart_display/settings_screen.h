@@ -26,6 +26,11 @@ namespace settings_screen {
 // 0.2.54+) only exists as the screen's own setting and entity, like page_buttons (firmware 0.2.69+): off, the
 // Previous and Next bar under the tiles goes and the tiles take its room.
 inline int32_t swipe_pages = 0, rotation = 0, auto_home = 1, auto_home_seconds = 120, dark_mode = 0, page_buttons = 1;
+// Whether this board's backlight takes levels (firmware 0.2.84+). The Waveshare's is one line on an I2C expander:
+// the panel is lit or it is not, and anything above a hair of a level lights it. A percentage there is a number
+// that lies, so the board's own file says so (BACKLIGHT_DIMMABLE) and the rows below follow: the normal brightness
+// goes, and standby and night become the switch they really are. ESP Screens reads the same fact from boards.json.
+inline bool dimmable = true;
 // Turning: a half turn keeps the canvas, the grid and the whole size table, so every screen offers it (firmware
 // 0.2.80+); a quarter turn only a square screen, whose canvas is the same either way. packages/core.yaml sets this
 // from DISPLAY_W == DISPLAY_H at boot.
@@ -63,13 +68,13 @@ struct Row {
 constexpr Row page_row(uint16_t label, const char *icon, uint8_t opens) {
   Row r{}; r.kind = Kind::page; r.label = label; r.icon = icon; r.opens = opens; return r;
 }
-constexpr Row toggle(uint16_t label, Read read, Write write, Shown shown = nullptr) {
-  Row r{}; r.kind = Kind::toggle; r.label = label; r.read = read; r.write = write; r.shown = shown; return r;
+constexpr Row toggle(uint16_t label, Read read, Write write, Shown shown = nullptr, Shown enabled = nullptr) {
+  Row r{}; r.kind = Kind::toggle; r.label = label; r.read = read; r.write = write; r.shown = shown; r.enabled = enabled; return r;
 }
 constexpr Row number(uint16_t label, Read read, Write write, int32_t low, int32_t high, int32_t step,
-                     const char *unit = "", Shown enabled = nullptr) {
+                     const char *unit = "", Shown enabled = nullptr, Shown shown = nullptr) {
   Row r{}; r.kind = Kind::number; r.label = label; r.read = read; r.write = write;
-  r.low = low; r.high = high; r.step = step; r.unit = unit; r.enabled = enabled; return r;
+  r.low = low; r.high = high; r.step = step; r.unit = unit; r.enabled = enabled; r.shown = shown; return r;
 }
 constexpr Row duration(uint16_t label, Read read, Write write, int32_t low, int32_t high,
                        Shown enabled = nullptr) {
@@ -249,7 +254,8 @@ inline constexpr const char *half_turn_options[] = {"0°", "180°"};
 // the board does not.
 inline constexpr Row light_rows[] = {
   number(screen_text::txt::settings_brightness, []() -> int32_t { return screen_settings::current.brightness; },
-         [](int32_t value) { set("brightness", value); }, 5, 100, 5, "%"),
+         [](int32_t value) { set("brightness", value); }, 5, 100, 5, "%", nullptr,
+         [] { return dimmable; }),
   toggle(screen_text::txt::settings_dark_mode, []() -> int32_t { return dark_mode; },
          [](int32_t value) { set("dark_mode", value); }),
   toggle(screen_text::txt::settings_auto_standby, []() -> int32_t { return screen_settings::current.standby_enabled; },
@@ -259,6 +265,13 @@ inline constexpr Row light_rows[] = {
            [] { return screen_settings::current.standby_enabled != 0; }),
   number(screen_text::txt::settings_standby_brightness, []() -> int32_t { return screen_settings::current.standby_brightness; },
          [](int32_t value) { set("standby_brightness", value); }, 0, 100, 5, "%",
+         [] { return screen_settings::current.standby_enabled != 0; },
+         [] { return dimmable; }),
+  // The same setting on a backlight without levels: lit or dark. It writes the same key, so Home Assistant, the
+  // app and the screen keep one number between them and a board that can dim shows it as the percentage it is.
+  toggle(screen_text::txt::settings_standby_lit, []() -> int32_t { return screen_settings::current.standby_brightness > 0; },
+         [](int32_t value) { set("standby_brightness", value ? 100 : 0); },
+         [] { return !dimmable; },
          [] { return screen_settings::current.standby_enabled != 0; }),
 };
 
@@ -274,6 +287,11 @@ inline constexpr Row night_rows[] = {
          [] { return screen_settings::current.night_enabled != 0; }),
   number(screen_text::txt::settings_night_brightness, []() -> int32_t { return screen_settings::current.night_brightness; },
          [](int32_t value) { set("night_brightness", value); }, 0, 100, 5, "%",
+         [] { return screen_settings::current.night_enabled != 0; },
+         [] { return dimmable; }),
+  toggle(screen_text::txt::settings_night_lit, []() -> int32_t { return screen_settings::current.night_brightness > 0; },
+         [](int32_t value) { set("night_brightness", value ? 100 : 0); },
+         [] { return !dimmable; },
          [] { return screen_settings::current.night_enabled != 0; }),
 };
 

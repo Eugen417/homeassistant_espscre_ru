@@ -31,6 +31,8 @@ substitutions:
   SLIDER_EDGE_SNAP_PX: "67"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "guition"
+  # This board's backlight takes levels (a PWM pin), so brightness is a percentage.
+  BACKLIGHT_DIMMABLE: "true"
   DEVICE_NAME: "guition-new"
   DEVICE_FRIENDLY_NAME: "My Guition"
 

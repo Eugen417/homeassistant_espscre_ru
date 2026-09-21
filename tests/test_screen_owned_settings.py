@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
+import core  # noqa: E402
 from core import (FIRMWARE_VERSION, SETTING_ENTITIES, SETTING_ENTITIES_MIN_FIRMWARE, SETTING_RULES, forecast_kinds,  # noqa: E402
                   setting_action, setting_entities, setting_from_state, validate_settings)
 
@@ -200,6 +201,29 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn('home_on_standby', view['keys'] + view['unavailable'])
             with self.assertRaises(ValueError):
                 await m.change_settings('text.screen', {'home_on_standby': True})
+
+    async def test_a_backlight_without_levels_shows_switches_instead_of_percentages(self):
+        # The Waveshare's backlight is one line on an I2C expander, lit or dark (app 0.2.99). Its board file says
+        # so, boards.json carries it and the firmware reads the same fact, so the panel and the screen's own
+        # settings page agree: no normal brightness, and standby and night as the switch they really are.
+        self.assertTrue(core.dimmable({'board': 'guition'}))
+        self.assertTrue(core.dimmable({'board': 'cyd'}))
+        self.assertTrue(core.dimmable({'board': 'jc8012p4a1'}))
+        self.assertFalse(core.dimmable({'board': 'waveshare43'}))
+        self.assertTrue(core.dimmable({'board': 'a board this app never heard of'}))
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.manager(tmp)
+            screen = m.screen('text.screen')
+            view = m.settings_view(screen)
+            self.assertIn('brightness', view['keys'])
+            self.assertEqual(view['switches'], [])
+            waveshare = {**screen, 'board': 'waveshare43'}
+            view = m.settings_view(waveshare)
+            self.assertNotIn('brightness', view['keys'])
+            self.assertEqual(view['switches'], ['standby_brightness', 'night_brightness'])
+            # The two that stay are still the same numbers: nothing about the setting itself changes.
+            self.assertIn('standby_brightness', view['keys'])
+            self.assertIn('night_brightness', view['keys'])
 
     async def test_the_layout_message_leaves_them_out(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -575,7 +599,12 @@ class Editor(unittest.TestCase):
         english = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['settings']
         page_labels = {english[key] for key in re.findall(r'(?:number|toggle|duration|moment|choice)\(screen_text::txt::settings_(\w+)', SCREEN_PAGE)}
         script_labels = {editor_sources.text(f'screen_settings.rows.{key}') for key, _ in keys}
-        self.assertEqual(page_labels, script_labels)
+        # The screen page has two rows the editor has no row for (app 0.2.99): on a board whose backlight is lit
+        # or dark, standby and night are drawn as a switch. It is the same setting and the same key underneath,
+        # so the editor keeps one row and the manager says to draw it as a switch (settings_view `switches`).
+        switch_labels = {english['standby_lit'], english['night_lit']}
+        self.assertTrue(switch_labels <= page_labels)
+        self.assertEqual(page_labels - switch_labels, script_labels)
         for key, step in (('brightness', 5), ('standby_brightness', 5), ('night_brightness', 5)):
             self.assertRegex(self.script, rf'key: "{key}", [^}}]*step: {step}')
         ladder = re.search(r'if \(seconds < 300\) return 30;\s+if \(seconds < 900\) return 60;\s+if \(seconds < 3600\) return 300;\s+'

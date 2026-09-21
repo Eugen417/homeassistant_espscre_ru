@@ -34,6 +34,8 @@ substitutions:
   SLIDER_EDGE_SNAP_PX: "59"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "jc8012p4a1"
+  # This board's backlight takes levels (a PWM pin), so brightness is a percentage.
+  BACKLIGHT_DIMMABLE: "true"
   DEVICE_NAME: "jc8012p4a1-new"
   DEVICE_FRIENDLY_NAME: "My Guition 10"
 

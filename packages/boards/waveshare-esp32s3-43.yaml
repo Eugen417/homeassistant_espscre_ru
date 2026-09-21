@@ -37,6 +37,9 @@ substitutions:
   SLIDER_EDGE_SNAP_PX: "86"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "waveshare43"
+  # One line on the I2C expander, not a PWM pin: the panel is lit or it is not. The settings that would be a
+  # percentage are a switch here instead, on the screen and in ESP Screens (settings_screen::dimmable).
+  BACKLIGHT_DIMMABLE: "false"
   DEVICE_NAME: "waveshare-new"
   DEVICE_FRIENDLY_NAME: "My Waveshare"
 

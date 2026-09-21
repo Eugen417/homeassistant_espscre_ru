@@ -368,6 +368,14 @@ def board_of(screen):
         return SHAPES[package].get('board', 'unknown')
     return board or 'unknown'
 
+def dimmable(screen):
+    """Whether this screen's backlight takes levels (app 0.2.99). One board so far says no: the Waveshare's
+    backlight is a single line on an I2C expander, lit or dark, and there a brightness percentage is a number
+    that lies. The fact comes from that board's own file through boards.json, the same place the firmware reads
+    it from (settings_screen::dimmable), so the settings panel and the screen's own page agree. A board this app
+    has never heard of is taken to dim, which is what every board but one does."""
+    return bool(SHAPES.get(board_of(screen), {}).get('dimmable', True))
+
 def shape_of(screen):
     """The shape of a screen as the editor needs it: its canvas, the cells of one page, its density, its look and,
     for a board that draws pictures, the camera sizes. What the screen reported itself (firmware 0.2.80+) wins,

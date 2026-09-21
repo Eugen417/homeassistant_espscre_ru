@@ -27,7 +27,9 @@ export type UpdateInfo = {
   language?: boolean;
 };
 // `rotations` (app 0.2.94): the angles this screen may be turned to, a half turn on any glass and the quarter turns on a square one.
-export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[] };
+// `switches` are keys this screen shows as a switch instead of a number (app 0.2.99): a backlight that is lit or
+// dark has no percentage, so standby and night are on or off there.
+export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[]; switches?: string[] };
 export type Screen = {
   id: string; name: string; online: boolean; area?: string; firmware?: string; board?: string;
   layout: Layout; update?: UpdateInfo; settings?: SettingsView; delivery?: string; status?: string;

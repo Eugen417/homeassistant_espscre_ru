@@ -15,7 +15,14 @@ const view = computed(() => settingsView());
 const optionsOf = (row: SettingRow) => (row.key === "rotation" && view.value?.rotations?.length ? view.value.rotations : row.options!);
 const values = computed(() => settingValues());
 const offline = computed(() => view.value?.owner === "screen" && !currentScreen.value?.online);
+// A screen whose backlight is lit or dark has no percentage for standby and night: the manager names those keys
+// and they are drawn as the switch the screen draws (app 0.2.99). The row stays the number it is - one number
+// underneath either way, 0 or 100 - only its control changes.
+const asSwitch = (row: SettingRow) => Boolean(view.value?.switches?.includes(row.key));
+const isSwitch = (row: SettingRow) => row.kind === "toggle" || asSwitch(row);
 const groups = computed(() => SETTING_GROUPS.map((group) => ({ ...group, rows: (group.rows as readonly SettingRow[]).filter((row) => view.value?.keys.includes(row.key)) })).filter((g) => g.rows.length));
+// What one tap on a switch writes: a plain switch flips true/false, a brightness drawn as a switch writes 0 or 100.
+const flip = (row: SettingRow) => (asSwitch(row) ? (Number(values.value[row.key]) > 0 ? 0 : 100) : !values.value[row.key]);
 // Page buttons and swiping off: the pages that only Go to page tiles could reach, and don't.
 const reachWarning = computed(() => pageReachWarning());
 const unavailable = (row: SettingRow) => offline.value || Boolean(view.value?.unavailable.includes(row.key));
@@ -69,14 +76,14 @@ function click(e: MouseEvent, row: SettingRow, direction: number) {
     <div v-if="view" class="set-grid" id="settings-groups">
       <section v-for="group in groups" :key="group.group" class="set-card">
         <h4><span class="mdi">{{ glyph(group.icon) }}</span>{{ t(`editor.screen_settings.groups.${group.group}`) }}</h4>
-        <div v-for="row in group.rows" :key="row.key" class="srow" :class="[`setting-${row.kind}`, { inactive: !needs(row) || unavailable(row) }]" :data-setting="row.key"
+        <div v-for="row in group.rows" :key="row.key" class="srow" :class="[`setting-${isSwitch(row) ? 'toggle' : row.kind}`, { inactive: !needs(row) || unavailable(row) }]" :data-setting="row.key"
           :title="unavailable(row) && !offline ? t('editor.screen_settings.unavailable') : ''"
-          @click="row.kind === 'toggle' && ($event.target as HTMLElement).closest('.srow') === $event.currentTarget && !($event.target as HTMLElement).closest('button') && !unavailable(row) && setSetting(row.key, !values[row.key], 150)">
+          @click="isSwitch(row) && ($event.target as HTMLElement).closest('.srow') === $event.currentTarget && !($event.target as HTMLElement).closest('button') && !unavailable(row) && setSetting(row.key, flip(row), 150)">
           <span class="s-label" :id="`setting-label-${row.key}`">{{ settingLabel(row) }}</span>
           <div class="s-control">
-            <button v-if="row.kind === 'toggle'" type="button" class="switch" :class="{ unknown: values[row.key] === null || values[row.key] === undefined }" role="switch"
+            <button v-if="isSwitch(row)" type="button" class="switch" :class="{ unknown: values[row.key] === null || values[row.key] === undefined }" role="switch"
               :id="`setting-${row.key}`" :aria-checked="Boolean(values[row.key]) ? 'true' : 'false'" :aria-labelledby="`setting-label-${row.key}`"
-              :disabled="unavailable(row)" @click.stop="setSetting(row.key, !values[row.key], 150)"></button>
+              :disabled="unavailable(row)" @click.stop="setSetting(row.key, flip(row), 150)"></button>
             <div v-else-if="row.kind === 'choice'" class="seg" role="group" :aria-labelledby="`setting-label-${row.key}`">
               <button v-for="value in optionsOf(row)" :key="String(value)" type="button" :aria-pressed="values[row.key] === value ? 'true' : 'false'" :disabled="unavailable(row)" @click="setSetting(row.key, value, 150)">{{ choiceText(row, value) }}</button>
             </div>
