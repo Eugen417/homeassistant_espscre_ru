@@ -168,7 +168,14 @@ a:hover { text-decoration: underline; }
 .device.cyd .tile:has(> .mini-slider) { padding-block: 4px; gap: 3px; }
 .device.cyd .tile .mini-slider { height: 8px; }
 .tile .mini-slider { height: 10px; border-radius: 5px; background: linear-gradient(to right, #ffbf38 60%, #fff1d3 60%); flex: none; width: 100%; }
-.tile.wide .mini-slider { width: 70px; }
+/* A control that fills its room is one cell wide, as the screens draw it (runtime_tiles::cell_content_width):
+   a double-width card is two cells, so half its room once the gap between them and both paddings are off. */
+.tile.wide { --tile-fill: calc((100% - 26px) / 2); }
+.device.cyd .tile.wide { --tile-fill: calc((100% - 22px) / 2); }
+.tile.wide .mini-slider { width: var(--tile-fill); }
+.tile.wide .ctl.fill { width: var(--tile-fill); }
+.tile.wide .ctl.fill .range, .tile.wide .ctl.fill .stp { flex: 1; min-width: 0; }
+.tile.wide .ctl.fill .stp { justify-content: space-between; }
 .tile .ctl { flex: none; display: flex; align-items: center; gap: 4px; color: #1b1b1b; }
 .tile .tog { width: 30px; height: 17px; border-radius: 9px; background: #2196f3; position: relative; }
 .tile .tog::after { content: ""; position: absolute; top: 2px; right: 2px; width: 13px; height: 13px; border-radius: 50%; background: #fff; }

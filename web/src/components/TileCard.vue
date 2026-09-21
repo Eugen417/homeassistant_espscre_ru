@@ -92,6 +92,11 @@ const runText = computed(() => screenText(`screen.ha.button.${({ scene: "activat
 const pageLink = computed(() => `${screenText("screen.tile.page", { n: goesTo.value })} ›`);
 const sliderStyle = computed(() => ({ background: `linear-gradient(to right, ${fill.value ? "#ffbf38" : "#c9ccd1"} ${fill.value}%, ${fill.value ? "#fff1d3" : "#e6e8ec"} ${fill.value}%)` }));
 const volumeStyle = computed(() => ({ background: `linear-gradient(to right, #2196f3 ${fill.value}%, #d3e8fb ${fill.value}%)` }));
+// The screens give a control that fills its room the content width of one cell, so its edges stand where the
+// cards above and below have theirs (runtime_tiles::cell_content_width); keys, a switch and a run key keep their
+// own size. A double-width card is two cells, so that is half its room minus the gap and the paddings.
+const FILLS_CELL = ["brightness", "speed", "position", "slider", "volume", "setpoint"];
+const fillsCell = computed(() => FILLS_CELL.includes(controls.value || "") || (controls.value === "stepper" && !domain.value.endsWith("select")));
 const setpoint = computed(() => {
   const temperature = current.value?.a?.temperature;
   return temperature !== undefined && temperature !== null ? `${num(temperature)}°` : "—";
@@ -160,7 +165,7 @@ async function onKey(e: KeyboardEvent) {
         </span>
       </span>
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
-      <span v-if="controls" class="ctl">
+      <span v-if="controls" class="ctl" :class="{ fill: fillsCell }">
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
         <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'stepper' && domain.endsWith('select')"><span class="key mdi">{{ key("chevron-left") }}</span><span class="key mdi">{{ key("chevron-right") }}</span></template>

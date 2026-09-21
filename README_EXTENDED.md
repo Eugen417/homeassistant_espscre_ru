@@ -20,6 +20,8 @@ on the screen itself, and how updates work.
   Search by entity, device, or room, and drag to reorder.
 - **Per-tile settings:** a custom name, click behavior, a small slider where
   supported, or a large value for things like temperature and power usage.
+  On a double-width tile the small slider stands beside the name, in the cell
+  beside it, like the direct controls (firmware 0.2.81+; a strip under the name before).
   From firmware 0.2.13, the large value shows a small domain icon next to the
   title; a number that's too long is truncated with an ellipsis, the unit stays visible.
 - **Pastel backgrounds per tile:** choose red for an all-off script,

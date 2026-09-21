@@ -66,6 +66,15 @@ show: a CYD six, a 4 x 4 board sixteen. `tools/check.sh` fails when a file is ou
   line, the value at the right. A big-value card (`display: watch`) keeps its icon and name above the number
   while the three fit; on a shorter cell the number stands big in the middle and the name small in the top-left
   corner. A cell at least twice the look's cell height stacks the icon above the name and state.
+- **A control that fills its room is one cell wide** (`runtime_tiles::cell_content_width`). A double-width card
+  is two cells of its row: its slider, its - / + pill and a player's volume with its mute key take the second
+  one, so their edges stand where the cards in the rows above and below have theirs. A row of keys divides that
+  same cell between three of them, never above the key size the look gives and never under `ui::touch_min()`;
+  a switch and a run key keep their own size against the same edge. The look's numbers in `panel_metrics` are
+  what one cell of a CYD and a 4-inch Guition measures, give or take two pixels - which is why writing them as
+  a rule changes nothing there, and why a board whose grid divides its glass differently needs it: on the
+  Waveshare's three columns that number was a slider of 251 px on a card of 478, leaving the name 28 % of the
+  card where a Guition leaves it 36 %.
 - What does not fit is left out: the forecast shows as many day columns as the width holds (five at
   most, none below two), a single clock card drops its date when it has no room beside the dial, a
   wide card gets a control panel only when the panel, the icon and some name fit.

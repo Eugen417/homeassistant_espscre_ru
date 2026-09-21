@@ -2989,6 +2989,20 @@ inline int content_width(const Widgets &w) {
 inline int content_height(const Widgets &w) {
   return tile_height(w) - lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) - lv_obj_get_style_space_bottom(w.tile, LV_PART_MAIN);
 }
+// What one cell of the grid has to draw in. A control that fills its room on a double-width card takes exactly
+// this: such a card is two cells, its controls claim the second one, and their edges then stand where the cards
+// in the rows above and below have theirs. The look's own numbers (panel_metrics) are what one cell of a Guition
+// and a CYD measures, give or take two pixels; a board whose grid divides its glass differently (three columns
+// on a 4.3 inch) gets its own cell instead of that number.
+inline int cell_content_width(const Widgets &w) {
+  const int edges = tile_width(w) - content_width(w);
+  if (tile_grid && GRID_COLUMNS > 1) {
+    const int gap = lv_obj_get_style_pad_column(tile_grid, LV_PART_MAIN);
+    const int cell = (lv_obj_get_content_width(tile_grid) - (int) (GRID_COLUMNS - 1) * gap) / (int) GRID_COLUMNS;
+    if (cell - edges > 0) return cell - edges;
+  }
+  return std::max(1, w.base_width > edges ? w.base_width - edges : content_width(w) / 2);
+}
 // The head of a card: the icon circle at the left, the name and the state as two lines beside it. One rule for
 // every card that draws it (a single or double-width card, the top of a full-page card), whatever grid the board
 // has: the row is centred on the room it got, never on a place typed per board, so two rows or three on the same
@@ -3435,35 +3449,42 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   const lv_font_t *icon_font=w.full?w.icon_font:mini_icon_font?mini_icon_font:w.icon_font;
   const lv_font_t *text_font=control_font?control_font:lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   auto d=t.domain();
+  // A double-width card's controls fill the cell they stand on (cell_content_width); a card over the whole page
+  // keeps the wide sizes of panel_metrics_full, centred under it. A row of keys divides that cell between three
+  // of them, and never takes a key above the size the look gives it.
+  const int fill=w.full?m.pill_w:cell_content_width(w);
+  const int key_w=w.full?m.key_w:std::min(m.key_w,std::max(ui::touch_min(),(fill-2*m.gap)/3));
+  // A player's volume shares that room with its mute key; every other slider takes it whole.
+  const int track=w.full?(mode=="volume"?m.slider_w:m.pill_w):(mode=="volume"?std::max(ui::touch_min(),fill-m.gap-m.key_h):fill);
   if(!w.panel){w.panel=panel_obj(w.tile,false);}
   if(w.panel_mode!=mode || w.panel_full!=w.full){
     end_panel(w);w.panel_mode=mode;w.panel_full=w.full;w.panel_dirty=true;
     if(tile_controls::is_key_row(mode)){
-      for(unsigned n=0;n<3;++n){panel_key(w,n,w.panel,m,m.key_w,m.key_h,false);panel_icon(w,n,icon_font);}
+      for(unsigned n=0;n<3;++n){panel_key(w,n,w.panel,m,key_w,m.key_h,false);panel_icon(w,n,icon_font);}
     }else if(mode=="setpoint"||mode=="stepper"){
-      w.pill=panel_obj(w.panel,false);lv_obj_set_size(w.pill,m.pill_w,m.key_h+2);
+      w.pill=panel_obj(w.panel,false);lv_obj_set_size(w.pill,fill,m.key_h+2);
       lv_obj_set_style_radius(w.pill,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_opa(w.pill,LV_OPA_COVER,0);
       panel_key(w,0,w.pill,m,m.pill_key,m.key_h+2,true);panel_icon(w,0,icon_font);lv_label_set_text(w.key_icons[0],tile_controls::glyph::MINUS);
       panel_key(w,1,w.pill,m,m.pill_key,m.key_h+2,true);panel_icon(w,1,icon_font);lv_label_set_text(w.key_icons[1],tile_controls::glyph::PLUS);
       // Holding -/+ keeps stepping (LVGL repeats while pressed); one call goes out after the finger rests.
       for(unsigned n=0;n<2;++n)lv_obj_add_event_cb(w.keys[n],control_event,LV_EVENT_LONG_PRESSED_REPEAT,(void*)(uintptr_t)((&w-widgets.data())*16+n));
-      lv_obj_set_pos(w.keys[0],0,0);lv_obj_set_pos(w.keys[1],m.pill_w-m.pill_key,0);
+      lv_obj_set_pos(w.keys[0],0,0);lv_obj_set_pos(w.keys[1],fill-m.pill_key,0);
       w.pill_value=lv_label_create(w.pill);lv_obj_remove_flag(w.pill_value,LV_OBJ_FLAG_CLICKABLE);
       lv_obj_set_style_text_font(w.pill_value,text_font,0);lv_obj_set_style_text_align(w.pill_value,LV_TEXT_ALIGN_CENTER,0);
       lv_label_set_long_mode(w.pill_value,LV_LABEL_LONG_CLIP);
-      lv_obj_set_size(w.pill_value,m.pill_w-2*m.pill_key,lv_font_get_line_height(text_font));
+      lv_obj_set_size(w.pill_value,std::max(1,fill-2*m.pill_key),lv_font_get_line_height(text_font));
       lv_obj_set_pos(w.pill_value,m.pill_key,(m.key_h+2-lv_font_get_line_height(text_font))/2);
       w.key_commands[0]=tile_controls::STEP_DOWN;w.key_commands[1]=tile_controls::STEP_UP;
     }else if(tile_controls::is_slider(mode)){
-      int h=mode=="volume"?m.slider_h:m.slider_h;
+      int h=m.slider_h;
       auto *slider=lv_slider_create(w.panel);w.control_slider=slider;
       lv_obj_remove_flag(slider,LV_OBJ_FLAG_GESTURE_BUBBLE);lv_obj_remove_flag(slider,LV_OBJ_FLAG_SCROLLABLE);
-      lv_obj_set_size(slider,mode=="volume"?m.slider_w:m.pill_w,h);
+      lv_obj_set_size(slider,track,h);
       lv_obj_set_style_pad_all(slider,0,LV_PART_MAIN);
       lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_MAIN);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_INDICATOR);
       // The handle is a short white bar inside the fill, like Home Assistant's slider.
       lv_obj_set_style_radius(slider,2,LV_PART_KNOB);lv_obj_add_style(slider,theme::style(theme::Paint::knob),LV_PART_KNOB);lv_obj_set_style_bg_opa(slider,LV_OPA_COVER,LV_PART_KNOB);
-      slider_handle(slider,mode=="volume"?m.slider_w:m.pill_w,h);
+      slider_handle(slider,track,h);
       lv_obj_set_style_border_width(slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(slider,0,LV_PART_KNOB);
       lv_obj_set_ext_click_area(slider,m.ext+2);
       lv_obj_add_event_cb(slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)w.index);
@@ -3493,25 +3514,25 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     std::array<tile_controls::Key,3> keys;unsigned count=tile_controls::keys_for(t,keys);
     for(unsigned n=0;n<3;++n){
       if(n>=count){lv_obj_add_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);w.key_commands[n]=tile_controls::NONE;continue;}
-      lv_obj_remove_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);lv_obj_set_pos(w.keys[n],n*(m.key_w+m.gap),0);
+      lv_obj_remove_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);lv_obj_set_pos(w.keys[n],n*(key_w+m.gap),0);
       label(w.key_icons[n],keys[n].icon);w.key_commands[n]=keys[n].command;w.key_args[n]=keys[n].arg;
       // The active mode key carries the accent; "off" stays neutral grey.
       if(keys[n].checked && w.key_checked[n]!=1)lv_obj_set_style_bg_color(w.keys[n],keys[n].arg=="off"?theme::color(theme::OFF):w.panel_accent,LV_STATE_CHECKED);
       set_checked(n,keys[n].checked);set_disabled(n,keys[n].disabled);
     }
-    panel_w=count?count*m.key_w+(count-1)*m.gap:0;
+    panel_w=count?count*key_w+(count-1)*m.gap:0;
   }else if(mode=="setpoint"||mode=="stepper"){
     float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
     std::string suffix=d=="climate"?"°":screen_text::unit_suffix(t.unit);
     label(w.pill_value,tile_controls::format_value(shown,tile_controls::edit_step(t),suffix.c_str()));
-    panel_w=m.pill_w;panel_h=m.key_h+2;
+    panel_w=fill;panel_h=m.key_h+2;
   }else if(tile_controls::is_slider(mode)){
     bool has_slider=mode!="volume" || (t.supported & tile_controls::feature::MEDIA_VOLUME_SET);
     if(has_slider){
       lv_obj_remove_flag(w.control_slider,LV_OBJ_FLAG_HIDDEN);lv_obj_set_pos(w.control_slider,0,(panel_h-m.slider_h)/2);
       // Keep the dragged value while the command is under way; HA's report takes over afterwards.
       if(!lv_obj_has_state(w.control_slider,LV_STATE_PRESSED) && !(t.pending && !t.confirmed))lv_slider_set_value(w.control_slider,slider_value(t),LV_ANIM_OFF);
-      panel_w=mode=="volume"?m.slider_w:m.pill_w;
+      panel_w=track;
     }else lv_obj_add_flag(w.control_slider,LV_OBJ_FLAG_HIDDEN);
     if(mode=="volume"){
       bool has_mute=t.supported & tile_controls::feature::MEDIA_VOLUME_MUTE;
@@ -3870,18 +3891,25 @@ inline void render_slot(size_t slot) {
   if((d=="script"||d=="scene"||d=="button"||d=="input_button") && t.state!="on")value_short=last_run_text(t.last_run,true);
   if(d=="vacuum" && std::isfinite(t.battery)){value_tail=" / "+screen_text::percent((int)t.battery);value+=value_tail;}
   // Direct controls: only a wide card in the standard layout has room for the panel.
-  bool with_panel=w.wide && !t.controls.empty() && !t.builtin() && !watch && t.inline_control!="slider" && fresh() && t.available();
-  // A panel needs its own width plus the icon and some name; a narrow wide card stays a plain card.
+  // A small slider on a double-width card is that panel's slider: it stands beside the name, where every other
+  // control of a wide card stands and where the editor's mockup draws it. A single card keeps the strip under
+  // its head (mini below), and so does a wide card too narrow for a panel.
+  const bool inline_panel=w.wide && !w.full && t.inline_control=="slider" && !tile_controls::inline_kind(d).empty();
+  bool with_panel=w.wide && !t.builtin() && !watch && fresh() && t.available() &&
+                  (inline_panel || (!t.controls.empty() && t.inline_control!="slider"));
+  // A panel needs its own width plus the icon and some name; a narrow wide card stays a plain card. What it
+  // needs is what it takes: the cell its controls fill (layout_panel), or the toggle and the run key their own
+  // width.
   if(with_panel && !w.full){
     const bool lt=ui::large();
     const PanelMetrics pm=panel_metrics(lt);
     const std::string kind=tile_controls::panel_kind(t);
-    const int panel_need=tile_controls::is_slider(kind)?pm.slider_w+pm.gap+pm.toggle_h:pm.pill_w;
+    const int panel_need=kind=="toggle"?pm.toggle_w:kind=="run"?pm.key_w*3/2:cell_content_width(w);
     if(content_width(w)<panel_need+pm.text_gap+ui::px(lt?54:36)+ui::px(60))with_panel=false;
   }
   if(with_panel){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
   label(w.value, value);
-  bool mini=t.inline_control=="slider" && !watch && t.available();
+  bool mini=t.inline_control=="slider" && !watch && t.available() && !with_panel;
   // The card's size class is the look's, never the cell's momentary height: a class that flips when the rows
   // grow (page buttons off) would reuse a clock's numeral labels as tick lines.
   bool large_tile=ui::large();

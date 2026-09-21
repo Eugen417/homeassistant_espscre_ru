@@ -1,3 +1,12 @@
+## 0.2.96 (firmware 0.2.81)
+
+The controls of a double-width card stand where the cards above and below have their edges.
+
+- **A small slider on a double-width card stands beside the name.** "Small slider on the tile" drew a strip under the name whatever the width of the card, while the editor's mockup has drawn it beside the name on a double-width card and a wide card's own brightness slider stands there. It is that slider now: the same control in the same place, with the same value held in front while a light fades. A single card keeps its strip under the head, and so does a double-width card too narrow for a panel. A light, a fan, a blind, a player and a number each get the slider of their own domain.
+- **A control that fills its room is one cell wide.** The slider, the - / + pill and a player's volume with its mute key take the content width of one cell of the board's grid, so their edges stand where the cards in the rows above and below have theirs: a double-width card is two cells, and the controls claim the second one. The sizes those controls had were what one cell of a CYD and a 4-inch Guition measures, written down as a number instead of as a rule - within two pixels, which is why those two boards draw what they drew before (three pixels wider on a CYD, two narrower on a Guition). On a board whose grid divides its glass differently the number no longer fits: on the Waveshare's three columns the slider was 251 px on a 478 px card and the name kept 28 % of it, where a Guition leaves 36 %; it is 218 px now and the name has its share back. A row of keys divides that same cell between three of them, never above the size the look gives a key and never under 7 mm of glass. A switch and a run key keep their own size, right against the same edge.
+- **The test that decides whether a card has room for controls measures what they take.** It budgeted a slider panel at 188 of the look's pixels while a brightness slider takes 196, so a card that just passed left the name eight pixels less than the test had counted on. It now asks the controls themselves.
+- Needs firmware 0.2.81: press **Update** on the screen. Includes everything from 0.2.95. CYD firmware: 1,617,280 bytes, 88.1 % of the update slot (128 bytes less than 0.2.95: a rule takes fewer numbers than a table), built with the ESPHome this add-on ships (2026.9.0).
+
 ## 0.2.95 (firmware 0.2.80)
 
 A fourth screen: the 10.1-inch Guition JC8012P4A1, the first ESP32-P4 board and the first one of this size.

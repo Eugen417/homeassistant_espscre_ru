@@ -44,9 +44,23 @@ using runtime_tiles::Tile;
 // Panel kinds: keys (a row of pill buttons), stepper (-/+ pill), slider, toggle, run.
 inline bool is_key_row(const std::string &c) { return c == "buttons" || c == "mode" || c == "playback" || c == "chevrons"; }
 inline bool is_slider(const std::string &c) { return c == "volume" || c == "brightness" || c == "speed" || c == "position" || c == "slider"; }
+// The slider "a small slider on the tile" asks for, per domain: what a light, a fan, a blind, a player or a
+// number has to slide. A double-width card draws it as the panel's slider beside the name; a domain without
+// one (a switch) has no small slider either.
+inline std::string inline_kind(const std::string &domain) {
+  if (domain == "light") return "brightness";
+  if (domain == "fan") return "speed";
+  if (domain == "cover") return "position";
+  if (domain == "media_player") return "volume";
+  if (domain == "number" || domain == "input_number") return "slider";
+  return {};
+}
 // A select's "stepper" is a pair of chevron keys; numbers and climate get the -/+ pill.
 inline std::string panel_kind(const Tile &t) {
   auto c = t.controls, d = t.domain();
+  // The small slider of a wide card is that domain's slider: the manager sends no control set beside it
+  // (resolve_controls), so the kind comes from the domain.
+  if (c.empty() && t.inline_control == "slider") return inline_kind(d);
   if (c == "stepper" && (d == "select" || d == "input_select")) return "chevrons";
   return c;
 }
