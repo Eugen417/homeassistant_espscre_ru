@@ -3564,7 +3564,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   };
   auto set_disabled=[&](unsigned n,bool disabled){if(disabled)lv_obj_add_state(w.keys[n],LV_STATE_DISABLED);else lv_obj_remove_state(w.keys[n],LV_STATE_DISABLED);};
   if(tile_controls::is_key_row(mode)){
-    std::array<tile_controls::Key,3> keys;unsigned count=tile_controls::keys_for(t,keys);
+    std::array<tile_controls::Key,3> keys;unsigned count=tile_controls::keys_for(t,keys,now);
     for(unsigned n=0;n<3;++n){
       if(n>=count){lv_obj_add_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);w.key_commands[n]=tile_controls::NONE;continue;}
       lv_obj_remove_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);lv_obj_set_pos(w.keys[n],n*(key_w+m.gap),0);

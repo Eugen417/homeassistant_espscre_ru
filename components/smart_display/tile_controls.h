@@ -433,7 +433,15 @@ inline unsigned cover_tilt_keys(const Tile &t, std::array<Key, 3> &out) {
   return n;
 }
 // The row of up to three pill keys for a key-row panel; returns how many.
-inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out) {
+//
+// A key is greyed for one reason only (firmware 0.2.84+): a command of this tile is on its way to Home Assistant
+// and has not been answered yet (Tile::loading, the same wait the busy sheet and the cards follow). It is never
+// greyed because of what the device is doing. A robot that says "docked" while it is already cleaning left its
+// Stop and its Dock unreachable exactly when they were wanted: the state word is Home Assistant's news, and news
+// can be late. The cover's keys are the one place a state still closes a key, and it is not a state word there
+// but the position: a blind at its end stop cannot open further, which is what Home Assistant's own card shows.
+// `now` is millis(); 0 greys nothing, for the tests and for callers without a clock.
+inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out, uint32_t now = 0) {
   auto d = t.domain(); auto c = panel_kind(t); unsigned n = 0;
   auto add = [&](const char *icon, int command, bool disabled = false, bool checked = false, const std::string &arg = "") {
     if (n < out.size()) out[n++] = Key{icon, command, arg, checked, disabled};
@@ -442,16 +450,18 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out) {
     // The tile keys are the card's keys, without the direction a moving cover shows there.
     if (t.supported) for (unsigned i = 0, count = cover_keys(t, out); i < count; ++i) { out[i].checked = false; ++n; }
   } else if (c == "buttons" && d == "vacuum") {
+    // The state decides which key the first one is, never whether a key can be pressed: send it home while it
+    // still says "docked".
     bool cleaning = t.state == "cleaning";
     if (cleaning && (t.supported & feature::VACUUM_PAUSE)) add(glyph::PAUSE, VACUUM_PAUSE);
     else if (cleaning && (t.supported & feature::VACUUM_TURN_OFF) && !(t.supported & feature::VACUUM_START)) add(glyph::PAUSE, VACUUM_STOP);
-    else if (t.supported & (feature::VACUUM_START | feature::VACUUM_TURN_ON)) add(glyph::PLAY, VACUUM_START, cleaning);
-    if (t.supported & feature::VACUUM_STOP) add(glyph::STOP, VACUUM_STOP, !cleaning && t.state != "returning");
-    if (t.supported & feature::VACUUM_RETURN) add(glyph::DOCK, VACUUM_DOCK, t.state == "docked" || t.state == "returning");
+    else if (t.supported & (feature::VACUUM_START | feature::VACUUM_TURN_ON)) add(glyph::PLAY, VACUUM_START);
+    if (t.supported & feature::VACUUM_STOP) add(glyph::STOP, VACUUM_STOP);
+    if (t.supported & feature::VACUUM_RETURN) add(glyph::DOCK, VACUUM_DOCK);
   } else if (c == "buttons" && d == "timer") {
     bool active = t.state == "active";
     add(active ? glyph::PAUSE : glyph::PLAY, active ? TIMER_PAUSE : TIMER_START);
-    add(glyph::CLOSE, TIMER_CANCEL, t.state == "idle");
+    add(glyph::CLOSE, TIMER_CANCEL);
   } else if (c == "playback") {
     if (t.supported & feature::MEDIA_PREVIOUS) add(glyph::PREVIOUS, MEDIA_PREVIOUS);
     if (t.supported & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE);
@@ -461,9 +471,12 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out) {
     for (const char *mode : {"off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"})
       if (n < 3 && has_mode(t.extra().hvac_modes, mode)) add(mode_icon(mode), HVAC_MODE, false, t.state == mode, mode);
   } else if (c == "chevrons") {
+    // Nothing to step through is not a state that can lag: without two options there is no next one.
     add(glyph::LEFT, SELECT_PREVIOUS, t.extra().options.size() < 2);
     add(glyph::RIGHT, SELECT_NEXT, t.extra().options.size() < 2);
   }
+  // A command of this tile is out and unanswered: the whole row waits with it, long enough to be worth showing.
+  if (now && t.loading(now)) for (unsigned i = 0; i < n; ++i) out[i].disabled = true;
   return n;
 }
 inline std::string neighbour_option(const Tile &t, int direction) {

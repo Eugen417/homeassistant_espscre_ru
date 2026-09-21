@@ -70,18 +70,29 @@ int main() {
   unknown.controls = "buttons";
   assert(keys_for(unknown, keys) == 0);
 
-  // Vacuum: play while docked, pause while cleaning, dock disabled in the dock.
+  // Vacuum: the state decides which key the first one is, never whether a key can be pressed (firmware 0.2.84+).
+  // A robot still saying "docked" while it is already cleaning used to leave Stop and Dock unreachable, exactly
+  // when they were wanted: a state word is Home Assistant's news, and news can be late.
   Tile robot = make("vacuum.s8", "docked", 30524); robot.controls = "buttons";
   assert(keys_for(robot, keys) == 3);
   assert(!strcmp(keys[0].icon, glyph::PLAY) && keys[0].command == VACUUM_START && !keys[0].disabled);
-  assert(keys[1].command == VACUUM_STOP && keys[1].disabled);
-  assert(keys[2].command == VACUUM_DOCK && keys[2].disabled);
+  assert(keys[1].command == VACUUM_STOP && !keys[1].disabled);
+  assert(keys[2].command == VACUUM_DOCK && !keys[2].disabled);
   assert(key_action(robot, VACUUM_START).service == "vacuum.start");
   robot.state = "cleaning";
   assert(keys_for(robot, keys) == 3 && keys[0].command == VACUUM_PAUSE && !keys[1].disabled && !keys[2].disabled);
+  // The one thing that does grey a key: a command of this tile is out and Home Assistant has not answered. The
+  // whole row waits with it, after the same 400 ms grace the busy sheet and the cards use, and no longer than
+  // the same cap. A timer's Cancel follows the same rule: idle is a state, not a reason to close the key.
+  robot.begin(10000);
+  assert(keys_for(robot, keys, 10000) == 3 && !keys[0].disabled);       // inside the grace: nothing flickers
+  assert(keys_for(robot, keys, 10500) == 3 && keys[0].disabled && keys[1].disabled && keys[2].disabled);
+  assert(keys_for(robot, keys, 20000) == 3 && !keys[0].disabled);       // the wait ran out
+  robot.observe(robot.revision + 1);                                     // Home Assistant answered
+  assert(keys_for(robot, keys, 10500) == 3 && !keys[0].disabled);
+
   Tile old_robot = make("vacuum.old", "docked", feature::VACUUM_TURN_ON | feature::VACUUM_RETURN); old_robot.controls = "buttons";
   assert(keys_for(old_robot, keys) == 2 && key_action(old_robot, VACUUM_START).service == "vacuum.turn_on");
-
   // Media: playback keys follow supported_features; mute flips is_volume_muted.
   Tile sonos = make("media_player.sonos", "playing", 8321599); sonos.volume = 0.17f; sonos.edit_extra().media_title = "TV"; sonos.controls = "playback";
   assert(keys_for(sonos, keys) == 3 && !strcmp(keys[1].icon, glyph::PAUSE) && keys[1].command == MEDIA_PLAY_PAUSE);
@@ -120,7 +131,7 @@ int main() {
   // Timer, run buttons and toggles.
   Tile timer = make("timer.eggs", "active"); timer.controls = "buttons";
   assert(keys_for(timer, keys) == 2 && keys[0].command == TIMER_PAUSE && !keys[1].disabled);
-  timer.state = "idle"; assert(keys_for(timer, keys) == 2 && keys[0].command == TIMER_START && keys[1].disabled);
+  timer.state = "idle"; assert(keys_for(timer, keys) == 2 && keys[0].command == TIMER_START && !keys[1].disabled);
   assert(key_action(make("scene.evening", "unknown"), RUN).service == "scene.turn_on");
   assert(key_action(make("script.all", "off"), RUN).service == "script.turn_on");
   assert(key_action(make("input_button.bell", "unknown"), RUN).service == "input_button.press");
