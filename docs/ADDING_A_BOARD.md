@@ -28,6 +28,12 @@ Start from the board of the same family (`packages/boards/cyd-2432s028.yaml` for
 `output`/`light` for the backlight, `i2c`/`spi`, `esp32` (variant, flash size) and `psram`. Everything else in a
 board file is layout, and step 4 computes it.
 
+One number to look at on a parallel (RGB) panel: `LVGL_BUFFER_SIZE`. The picture lives in PSRAM, but LVGL's draw
+buffer lives in the memory inside the chip, next to Wi-Fi, the API and the panel's bounce buffers, and a quarter of
+800 × 480 is 192 KB of it. The Waveshare 4.3 ran on 15 KB free that way and hung under a large layout; at 12 % it
+boots with 112 KB. Read `sensor.<screen>_heap_free` after the first boot with a full layout: under 40 KB is too
+little.
+
 ## 4. The layout: two numbers and a table that follows from them
 
 ```

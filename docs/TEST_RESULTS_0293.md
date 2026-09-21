@@ -62,6 +62,28 @@ through the local add-on, whose settings view now says which angles a screen tak
   the Guition (`tests/test_settings_screen.cpp`); the board files' selects are checked against their shape by
   `tools/check_packages.py`.
 
+## The real-world test on the three screens (2026-09-21)
+
+Before the release, every card type on every bench screen at once, saved through the local add-on: the Guition 36
+tiles on 8 pages, the CYD 30 tiles on 7 pages, the Waveshare 45 tiles on 7 pages (single, wide and full tiles;
+lights, colour lights, WLED effects, thermostats, blinds, covers, robots, media with covers, history graphs, camera
+and live camera tiles where the board draws pictures, weather, scripts, scenes, settings tiles). Max pages through
+them by hand; his own layouts are restored afterwards.
+
+- The Guition and the CYD take theirs and hold them: Synced within seconds, the free heap steps down once when the
+  layout arrives (Guition 88 to 78 KB, CYD 144 to 110 KB) and is flat afterwards.
+- The Waveshare hung. Twice, within two minutes of a large layout, with and without the picture tiles: no ping, no
+  API, no serial output. Its log before the hang: "Time request dropped, TCP buffer full", "Buffer full, ping
+  queued", then "Home Assistant ... is unresponsive; disconnecting". The cause was the memory inside the chip: the
+  board ran on 15.6 KB free with Max's eleven tiles and 26 KB after a reset, because LVGL's draw buffer (a quarter
+  of 800 × 480 is 192 KB) lives there, next to the panel's bounce buffers, and the earlier round had cut the Wi-Fi
+  and TCP buffers to make room. A large layout filled what was left, the API stalled, and the board stopped.
+- The fix is the option that round wrote down and did not take: the draw buffer at 12 % of the glass (the CYD's
+  share, 92 KB) and ESP-IDF's own Wi-Fi and TCP buffers again. The board boots with 112 KB free, takes the 45 tiles
+  with two live cameras and holds them: twenty minutes Synced and answering, the free heap moving between 67 and
+  83 KB as the live strip comes and goes, the lowest 56 KB. It was flashed over USB; it went into the board file
+  and the firmware stays 0.2.79 (nothing shipped in between).
+
 ## Not covered here
 
 - Whether the picture on the glass turns with the select was not looked at from here: the boards are in the house,
