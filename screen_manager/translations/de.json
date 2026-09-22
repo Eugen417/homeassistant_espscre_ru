@@ -1702,7 +1702,10 @@
       "retry": "Erneut versuchen",
       "another": "Weiteren Bildschirm installieren",
       "start_over": "Neu beginnen",
-      "done": "Fertig"
+      "done": "Fertig",
+      "board_waveshare7": "Waveshare 7 Zoll (experimentell)",
+      "board_experimental": "Experimentell",
+      "waveshare7_experimental": "Noch nicht auf dieser Hardware getestet. Kamerabilder sind aktiviert; die Hintergrundbeleuchtung bleibt an. Kein Dimmen, Standby oder Nachtmodus."
     },
     "alerts": {
       "eyebrow": "Meldungen · Spickzettel",

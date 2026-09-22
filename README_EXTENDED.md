@@ -16,7 +16,8 @@ on the screen itself, and how updates work.
 ## What you can configure
 
 - **One tile per cell**, across up to eight fixed pages: six cells a page on a CYD or a 4-inch Guition (48 tiles), nine on
-  the Waveshare (63, over seven pages), twenty on the 10.1-inch Guition (60, over three), whatever a board's glass holds (firmware 0.2.62+; twenty tiles before).
+  the Waveshare 4.3-inch (63, over seven pages), twenty on the 10.1-inch Guition (60, over three), and sixteen on the
+  [experimental Waveshare 7-inch](docs/WAVESHARE7.md) (64, over four), lying down (firmware 0.2.62+; twenty tiles before).
   Search by entity, device, or room, and drag to reorder.
 - **Per-tile settings:** a custom name, click behavior, a small slider where
   supported, or a large value for things like temperature and power usage.

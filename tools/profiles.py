@@ -17,14 +17,16 @@ ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / 'packages/core.yaml'
 BOARDS = {'cyd': ROOT / 'packages/boards/cyd-2432s028.yaml', 'guition': ROOT / 'packages/boards/guition-4848s040.yaml',
           'waveshare43': ROOT / 'packages/boards/waveshare-esp32s3-43.yaml',
-          'jc8012p4a1': ROOT / 'packages/boards/guition-jc8012p4a1.yaml'}
+          'jc8012p4a1': ROOT / 'packages/boards/guition-jc8012p4a1.yaml',
+          'waveshare7': ROOT / 'packages/boards/waveshare-esp32s3-7.yaml'}
 ENTRIES = {'home-like-2432s028.yaml': 'cyd', 'guition-4848s040.yaml': 'guition',
            'waveshare-esp32s3-43.yaml': 'waveshare43', 'guition-jc8012p4a1.yaml': 'jc8012p4a1',
            'packages/cyd.yaml': 'cyd', 'packages/guition.yaml': 'guition',
-           'packages/waveshare43.yaml': 'waveshare43', 'packages/jc8012p4a1.yaml': 'jc8012p4a1'}
+           'packages/waveshare43.yaml': 'waveshare43', 'packages/jc8012p4a1.yaml': 'jc8012p4a1',
+           'waveshare-esp32s3-7.yaml': 'waveshare7', 'packages/waveshare7.yaml': 'waveshare7'}
 # The names the entry files are known by, in the order the older tests listed them.
-PROFILES = ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'waveshare-esp32s3-43.yaml', 'guition-jc8012p4a1.yaml')
-PACKAGES = ('packages/cyd.yaml', 'packages/guition.yaml', 'packages/waveshare43.yaml', 'packages/jc8012p4a1.yaml')
+PROFILES = ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'waveshare-esp32s3-43.yaml', 'guition-jc8012p4a1.yaml', 'waveshare-esp32s3-7.yaml')
+PACKAGES = ('packages/cyd.yaml', 'packages/guition.yaml', 'packages/waveshare43.yaml', 'packages/jc8012p4a1.yaml', 'packages/waveshare7.yaml')
 NAMES = PROFILES + PACKAGES
 
 

@@ -53,7 +53,7 @@ function choose(screen: Screen) {
   select(screen.id);
 }
 // The icon: a panel with tiles on it, a phone for a screen standing up, a monitor for a board this app does not know.
-const BOARD_NAMES: Record<string, string> = { cyd: "board_cyd", guition: "board_guition", waveshare43: "board_waveshare43", jc8012p4a1: "board_jc8012p4a1" };
+const BOARD_NAMES: Record<string, string> = { cyd: "board_cyd", guition: "board_guition", waveshare43: "board_waveshare43", jc8012p4a1: "board_jc8012p4a1", waveshare7: "board_waveshare7" };
 const standing = (screen: Screen) => Boolean(screen.shape && screen.shape.height > screen.shape.width);
 const boardIcon = (screen: Screen) => glyph(standing(screen) ? "F011C" : screen.board && BOARD_NAMES[screen.board] ? "F0ECE" : "F0A07");
 const boardName = (screen: Screen) => (screen.board && BOARD_NAMES[screen.board] ? t(`editor.installer.${BOARD_NAMES[screen.board]}`) : "");

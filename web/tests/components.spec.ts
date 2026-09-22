@@ -401,6 +401,8 @@ describe("the orientation of a new screen", () => {
                                              portrait: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 } } },
     waveshare43: { square: false, orientations: { landscape: { width: 800, height: 480, columns: 3, rows: 3, rotation: 0 },
                                                   portrait: { width: 480, height: 800, columns: 1, rows: 4, rotation: 90 } } },
+    waveshare7: { square: false, orientations: { landscape: { width: 800, height: 480, columns: 4, rows: 4, rotation: 0 },
+                                                 portrait: { width: 480, height: 800, columns: 2, rows: 7, rotation: 90 } } },
   };
   const answers: any[] = [];
   async function installer() {
@@ -439,6 +441,22 @@ describe("the orientation of a new screen", () => {
     await view.findAll(".board input")[2].setValue("waveshare43");
     const options = view.findAll("#orientation-fields .orient");
     expect(options.map((option) => option.find("small").text())).toEqual(["9 tiles a page", "4 tiles a page"]);
+  });
+
+  it("explains experimental Waveshare 7 support and submits its selected orientation", async () => {
+    const view = await installer();
+    expect(view.text()).not.toContain("backlight stays on");
+    await view.find('input[value="waveshare7"]').setValue("waveshare7");
+    expect(view.find('input[value="waveshare7"]').element.closest("label")?.textContent).toContain("experimental");
+    expect(view.text()).toContain("Not yet tested on this hardware");
+    expect(view.text()).toContain("backlight stays on");
+    const options = view.findAll("#orientation-fields .orient");
+    expect(options.map((option) => option.find("small").text())).toEqual(["16 tiles a page", "14 tiles a page"]);
+    await options[1].find("input").setValue("portrait");
+    await view.find("#friendly_name").setValue("Hall");
+    await view.find("#install-form").trigger("submit");
+    await flush();
+    expect(answers.pop()).toMatchObject({ board: "waveshare7", orientation: "portrait", name: "hall" });
   });
 
   it("sends the chosen way with the new screen", async () => {

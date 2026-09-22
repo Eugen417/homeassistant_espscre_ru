@@ -1702,7 +1702,10 @@
       "retry": "Riprova",
       "another": "Installa un altro schermo",
       "start_over": "Ricomincia",
-      "done": "Fatto"
+      "done": "Fatto",
+      "board_waveshare7": "Waveshare 7 pollici (sperimentale)",
+      "board_experimental": "Sperimentale",
+      "waveshare7_experimental": "Non ancora testato su questo hardware. Le immagini delle telecamere sono abilitate; la retroilluminazione resta accesa. Nessuna regolazione della luminosità, standby o modalità notturna."
     },
     "alerts": {
       "eyebrow": "Avvisi · guida rapida",

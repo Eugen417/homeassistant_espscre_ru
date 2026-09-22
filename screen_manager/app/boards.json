@@ -479,6 +479,63 @@
   "rows": 3,
   "width": 800
  },
+ "packages/waveshare7.yaml": {
+  "board": "waveshare7",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    307,
+    172
+   ]
+  },
+  "can_standby": false,
+  "columns": 4,
+  "dimmable": false,
+  "dpi": 133,
+  "height": 480,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      800,
+      480
+     ],
+     "thumb": [
+      307,
+      172
+     ]
+    },
+    "columns": 4,
+    "height": 480,
+    "rotation": 0,
+    "rows": 4,
+    "width": 800
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      480,
+      800
+     ],
+     "thumb": [
+      307,
+      172
+     ]
+    },
+    "columns": 2,
+    "height": 800,
+    "rotation": 90,
+    "rows": 7,
+    "width": 480
+   }
+  },
+  "rows": 4,
+  "width": 800
+ },
  "waveshare-esp32s3-43.yaml": {
   "board": "waveshare43",
   "camera": {
@@ -536,6 +593,63 @@
   "rows": 3,
   "width": 800
  },
+ "waveshare-esp32s3-7.yaml": {
+  "board": "waveshare7",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    307,
+    172
+   ]
+  },
+  "can_standby": false,
+  "columns": 4,
+  "dimmable": false,
+  "dpi": 133,
+  "height": 480,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      800,
+      480
+     ],
+     "thumb": [
+      307,
+      172
+     ]
+    },
+    "columns": 4,
+    "height": 480,
+    "rotation": 0,
+    "rows": 4,
+    "width": 800
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      480,
+      800
+     ],
+     "thumb": [
+      307,
+      172
+     ]
+    },
+    "columns": 2,
+    "height": 800,
+    "rotation": 90,
+    "rows": 7,
+    "width": 480
+   }
+  },
+  "rows": 4,
+  "width": 800
+ },
  "waveshare43": {
   "board": "waveshare43",
   "camera": {
@@ -591,6 +705,63 @@
    }
   },
   "rows": 3,
+  "width": 800
+ },
+ "waveshare7": {
+  "board": "waveshare7",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    307,
+    172
+   ]
+  },
+  "can_standby": false,
+  "columns": 4,
+  "dimmable": false,
+  "dpi": 133,
+  "height": 480,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      800,
+      480
+     ],
+     "thumb": [
+      307,
+      172
+     ]
+    },
+    "columns": 4,
+    "height": 480,
+    "rotation": 0,
+    "rows": 4,
+    "width": 800
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      480,
+      800
+     ],
+     "thumb": [
+      307,
+      172
+     ]
+    },
+    "columns": 2,
+    "height": 800,
+    "rotation": 90,
+    "rows": 7,
+    "width": 480
+   }
+  },
+  "rows": 4,
   "width": 800
  }
 }

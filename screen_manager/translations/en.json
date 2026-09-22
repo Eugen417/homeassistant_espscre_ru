@@ -1702,7 +1702,10 @@
       "retry": "Retry",
       "another": "Install another screen",
       "start_over": "Start over",
-      "done": "Done"
+      "done": "Done",
+      "board_waveshare7": "Waveshare 7 inch (experimental)",
+      "board_experimental": "Experimental",
+      "waveshare7_experimental": "Not yet tested on this hardware. Camera images are enabled; the backlight stays on. No dimming, standby or night mode."
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",

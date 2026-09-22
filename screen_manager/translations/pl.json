@@ -1702,7 +1702,10 @@
       "retry": "Ponów",
       "another": "Zainstaluj kolejny ekran",
       "start_over": "Zacznij od nowa",
-      "done": "Gotowe"
+      "done": "Gotowe",
+      "board_waveshare7": "Waveshare 7 cali (eksperymentalny)",
+      "board_experimental": "Eksperymentalny",
+      "waveshare7_experimental": "Jeszcze nie przetestowano na tym sprzęcie. Obrazy z kamer są włączone; podświetlenie pozostaje włączone. Bez regulacji jasności, czuwania i trybu nocnego."
     },
     "alerts": {
       "eyebrow": "Alerty · ściąga",

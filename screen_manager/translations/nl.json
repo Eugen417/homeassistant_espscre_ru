@@ -1702,7 +1702,10 @@
       "retry": "Opnieuw proberen",
       "another": "Nog een scherm installeren",
       "start_over": "Opnieuw beginnen",
-      "done": "Klaar"
+      "done": "Klaar",
+      "board_waveshare7": "Waveshare 7 inch (experimenteel)",
+      "board_experimental": "Experimenteel",
+      "waveshare7_experimental": "Nog niet getest op deze hardware. Camerabeelden zijn ingeschakeld; de achtergrondverlichting blijft aan. Geen dimmen, standby of nachtmodus."
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",

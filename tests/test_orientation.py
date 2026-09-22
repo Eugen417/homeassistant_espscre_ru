@@ -26,12 +26,13 @@ import firmware as firmware_module  # noqa: E402
 import generate_board_shapes  # noqa: E402
 import camera_feed  # noqa: E402
 
-# What each board becomes standing up, read off the four board files as they ship. Written out here rather than
+# What each board becomes standing up, read off the board files as they ship. Written out here rather than
 # computed, so a board file that quietly changes its panel or its portrait grid is noticed.
 STANDING_UP = {'cyd': (240, 320, 1, 4, 180),
                'guition': (480, 480, 2, 3, 0),
                'waveshare43': (480, 800, 1, 4, 90),
-               'jc8012p4a1': (800, 1280, 4, 5, 180)}
+               'jc8012p4a1': (800, 1280, 4, 5, 180),
+               'waveshare7': (480, 800, 2, 7, 90)}
 
 
 class BoardShapes(unittest.TestCase):

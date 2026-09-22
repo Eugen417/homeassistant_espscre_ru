@@ -10,7 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 import profiles  # noqa: E402
 
-BOARDS = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml'}
+BOARDS = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml',
+          'waveshare7': 'waveshare-esp32s3-7.yaml'}
 # The old manual profile bound tiles to fixed entities in the YAML. ESP Screens sends the tiles now, so
 # none of this may come back: the fixed subscriptions, its tap handlers and scripts, its own vacuum card.
 GONE = ['ha_state_tile1', 'tile1_brightness', 'tile6_climate_humidity', 'tile6_cover_state', 'smartdisplay_action',
@@ -88,7 +89,7 @@ class PackageTests(unittest.TestCase):
         # CAN_STANDBY (firmware 0.2.91+): every board file says it, and a board that cannot go dark keeps the ten
         # entities of standby and night out of Home Assistant with ESPHome's own !extend, so the flag and that list
         # never drift apart. The Waveshare's backlight boost browns the board out when it switches on from a dark
-        # screen, so it is the one that says no.
+        # screen. The experimental 7-inch profile also keeps standby disabled pending physical wake tests.
         entities = ['setting_auto_standby', 'setting_night_mode', 'setting_home_on_standby', 'setting_standby_brightness',
                     'setting_night_brightness', 'setting_standby_seconds', 'setting_night_start', 'setting_night_end',
                     'wake_button', 'sleep_button']
@@ -104,7 +105,8 @@ class PackageTests(unittest.TestCase):
                 extended = re.search(rf'^  - id: !extend {entity}\n    internal: true\n', text, re.M) is not None
                 self.assertEqual(extended, not can, f'{path.name}: {entity} {"stays visible" if can else "must be internal"}')
         self.assertFalse(seen['waveshare43'])
-        self.assertTrue(all(can for board, can in seen.items() if board != 'waveshare43'))
+        self.assertFalse(seen['waveshare7'])
+        self.assertTrue(all(can for board, can in seen.items() if board not in ('waveshare43', 'waveshare7')))
         # boards.json carries the same answer for the add-on (tools/generate_board_shapes.py).
         import json
         shapes = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())

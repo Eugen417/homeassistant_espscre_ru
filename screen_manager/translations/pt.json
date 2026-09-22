@@ -1702,7 +1702,10 @@
       "retry": "Tentar novamente",
       "another": "Instalar outro ecrã",
       "start_over": "Recomeçar",
-      "done": "Concluído"
+      "done": "Concluído",
+      "board_waveshare7": "Waveshare 7 polegadas (experimental)",
+      "board_experimental": "Experimental",
+      "waveshare7_experimental": "Ainda não foi testado neste hardware. As imagens das câmaras estão ativadas; a retroiluminação permanece ligada. Sem regulação de brilho, espera ou modo noturno."
     },
     "alerts": {
       "eyebrow": "Alertas · guia rápido",

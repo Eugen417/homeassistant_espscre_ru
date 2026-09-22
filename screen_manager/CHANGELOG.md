@@ -1,3 +1,15 @@
+## 0.2.110 (firmware 0.2.94)
+
+Experimental support for the Waveshare ESP32-S3-Touch-LCD-7, requested in issue #22.
+
+- Select **Waveshare 7 inch (experimental)** in **New screen** for the 800 x 480 RGB panel with GT911 touch and 8 MB PSRAM. The 7B and 7C are different boards.
+- The standard layout has 4 x 4 cells lying down or 2 x 7 standing up. Camera tiles, full-screen snapshots and camera alerts use the shared implementation. Non-square pixels are not compensated.
+- The backlight stays on. Dimming is unavailable on unmodified hardware; standby, night mode and alert backlight flashes remain disabled until physical wake tests confirm reliable operation.
+- The profile uses an 8 MB flash layout, which also fits the 16 MB variant. Hardware acceptance is pending. See docs/WAVESHARE7.md for the test checklist and limitations.
+- Storage, protocol and existing device keys are unchanged. Existing screens keep their board configuration.
+
+- Validation: 580 Python tests, 24 C++ programs, 123 editor tests, all five firmware builds and host layout checks in both orientations. CYD remains at 1,624,080 bytes (88.5%, no growth). See docs/TEST_RESULTS_02110.md.
+
 ## 0.2.109 (firmware 0.2.93)
 
 A page switch lands in one piece.
