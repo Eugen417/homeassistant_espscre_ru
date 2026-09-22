@@ -747,7 +747,7 @@
         },
         "camera": {
           "label": "Kamera",
-          "help": "Eine Kamera- oder Bild-Entität. Ein Guition mit Firmware 0.2.57+ zeigt ihr Bild von diesem Moment oben über die ganze Breite der Karte; ein Tippen darauf öffnet die Kamera im Vollbild. Andere Bildschirme zeigen die Meldung ohne Bild. Nur über das Ereignis esp_screens_show_alert."
+          "help": "Eine Kamera- oder Bild-Entität. Jeder Bildschirm außer dem CYD zeigt mit Firmware 0.2.57+ ihr Bild von diesem Moment oben über die ganze Breite der Karte; ein Tippen darauf öffnet die Kamera im Vollbild. Das CYD zeigt die Meldung ohne Bild. Nur über das Ereignis esp_screens_show_alert."
         },
         "action": {
           "label": "Aktion",
@@ -1622,8 +1622,8 @@
       "board": "Welchen Bildschirm hast du?",
       "board_cyd": "CYD · 2,8 Zoll",
       "board_guition": "Guition · 4 Zoll",
-      "board_waveshare43": "Waveshare · 4.3 inch",
-      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_waveshare43": "Waveshare · 4,3 Zoll",
+      "board_jc8012p4a1": "Guition · 10,1 Zoll",
       "board_new": "neu — sagen Sie uns, wie es läuft",
       "orientation": "Wie soll er hängen?",
       "orientation_landscape": "Quer",
@@ -1794,7 +1794,7 @@
         },
         "bytes": "CYD {cyd} · Guition {guition} Bytes",
         "seconds": "0 bis 86400 s",
-        "camera_limit": "Guition, Firmware 0.2.57+"
+        "camera_limit": "Alle außer CYD, Firmware 0.2.57+"
       },
       "icons": {
         "text": "Trage den Namen in {field} ein, zum Beispiel {example}. {mdi} und der Hex-Codepoint ({hex}) gehen auch. Nur diese Symbole sind in der Firmware enthalten; jeder andere Name zeigt das Warndreieck. Tippe auf ein Symbol, um seinen Namen zu kopieren.",

@@ -747,7 +747,7 @@
         },
         "camera": {
           "label": "Camera",
-          "help": "A camera or image entity. A Guition with firmware 0.2.57+ shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. Other screens show the alert without it. Only through the esp_screens_show_alert event."
+          "help": "A camera or image entity. Every screen but the CYD, with firmware 0.2.57+, shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. The CYD shows the alert without it. Only through the esp_screens_show_alert event."
         },
         "action": {
           "label": "Action",
@@ -1794,7 +1794,7 @@
         },
         "bytes": "CYD {cyd} · Guition {guition} bytes",
         "seconds": "0 to 86400 s",
-        "camera_limit": "Guition, firmware 0.2.57+"
+        "camera_limit": "Every screen but the CYD, firmware 0.2.57+"
       },
       "icons": {
         "text": "Fill in the name in {field}, for example {example}. {mdi} and the hex codepoint ({hex}) also work. Only these icons are included in the firmware; any other name shows the warning triangle. Tap an icon to copy its name.",

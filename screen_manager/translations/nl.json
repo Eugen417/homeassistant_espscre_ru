@@ -747,7 +747,7 @@
         },
         "camera": {
           "label": "Camera",
-          "help": "Een camera- of afbeeldingsentiteit. Een Guition met firmware 0.2.57+ toont het beeld van dat moment bovenaan de kaart; een tik erop opent de camera schermvullend. Andere schermen tonen de alert zonder beeld. Alleen via de gebeurtenis esp_screens_show_alert."
+          "help": "Een camera- of afbeeldingsentiteit. Elk scherm behalve de CYD toont met firmware 0.2.57+ het beeld van dat moment bovenaan de kaart; een tik erop opent de camera schermvullend. De CYD toont de alert zonder beeld. Alleen via de gebeurtenis esp_screens_show_alert."
         },
         "action": {
           "label": "Actie",
@@ -1622,8 +1622,8 @@
       "board": "Welk scherm heb je?",
       "board_cyd": "CYD · 2,8 inch",
       "board_guition": "Guition · 4 inch",
-      "board_waveshare43": "Waveshare · 4.3 inch",
-      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_waveshare43": "Waveshare · 4,3 inch",
+      "board_jc8012p4a1": "Guition · 10,1 inch",
       "board_new": "nieuw — laat ons weten hoe het gaat",
       "orientation": "Hoe komt hij te hangen?",
       "orientation_landscape": "Liggend",
@@ -1794,7 +1794,7 @@
         },
         "bytes": "CYD {cyd} · Guition {guition} bytes",
         "seconds": "0 tot 86400 s",
-        "camera_limit": "Guition, firmware 0.2.57+"
+        "camera_limit": "Elk scherm behalve de CYD, firmware 0.2.57+"
       },
       "icons": {
         "text": "Vul de naam in bij {field}, bijvoorbeeld {example}. {mdi} en de hex-codepoint ({hex}) werken ook. Alleen deze iconen zitten in de firmware; elke andere naam toont de waarschuwingsdriehoek. Tik op een icoon om de naam te kopiëren.",

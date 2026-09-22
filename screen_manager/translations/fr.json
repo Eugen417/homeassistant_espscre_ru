@@ -747,7 +747,7 @@
         },
         "camera": {
           "label": "Caméra",
-          "help": "Une entité caméra ou image. Un Guition avec le firmware 0.2.57+ affiche son image du moment en haut de la carte ; la toucher ouvre la caméra en plein écran. Les autres écrans affichent l'alerte sans elle. Uniquement via l'événement esp_screens_show_alert."
+          "help": "Une entité caméra ou image. Tous les écrans sauf le CYD, avec le firmware 0.2.57+, affichent son image du moment en haut de la carte ; la toucher ouvre la caméra en plein écran. Le CYD affiche l'alerte sans elle. Uniquement via l'événement esp_screens_show_alert."
         },
         "action": {
           "label": "Action",
@@ -1622,8 +1622,8 @@
       "board": "Quel écran avez-vous ?",
       "board_cyd": "CYD · 2,8 pouces",
       "board_guition": "Guition · 4 pouces",
-      "board_waveshare43": "Waveshare · 4.3 inch",
-      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_waveshare43": "Waveshare · 4,3 pouces",
+      "board_jc8012p4a1": "Guition · 10,1 pouces",
       "board_new": "nouveau — dites-nous ce que ça donne",
       "orientation": "Dans quel sens sera-t-il accroché ?",
       "orientation_landscape": "À l'horizontale",
@@ -1794,7 +1794,7 @@
         },
         "bytes": "CYD {cyd} · Guition {guition} octets",
         "seconds": "0 à 86400 s",
-        "camera_limit": "Guition, firmware 0.2.57+"
+        "camera_limit": "Tous sauf le CYD, firmware 0.2.57+"
       },
       "icons": {
         "text": "Indiquez le nom dans {field}, par exemple {example}. {mdi} et le code hexadécimal ({hex}) fonctionnent aussi. Seules ces icônes sont incluses dans le firmware ; tout autre nom affiche le triangle d'avertissement. Appuyez sur une icône pour copier son nom.",

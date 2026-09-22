@@ -1,3 +1,13 @@
+## 0.2.112 (firmware 0.2.95)
+
+Texts that still said two boards now say what is supported.
+
+- **The app's own description** in the App store named the CYD and the Guition; it names the range instead: touch screens from 2.8 to 10.1 inch.
+- **Cameras are not a Guition thing any more.** The hint under the camera field of an alert, and the line in the Alerts cheatsheet, said "Guition, firmware 0.2.57+". Every board but the CYD has carried pictures since the 4.3-inch Waveshare, so both now say every screen but the CYD, in all nine languages.
+- **New screen** offered "Waveshare · 4.3 inch" and "Guition · 10.1 inch" in English in every other language; they read in that language's own words now, with its decimal comma.
+- The README shows the five supported screens side by side at their real size difference, and the setup and camera guides list all five.
+- No firmware change: screens stay on 0.2.95.
+
 ## 0.2.111 (firmware 0.2.95)
 
 A card answers a finger with a press you can see.

@@ -1736,7 +1736,7 @@ ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alar
                          'account', 'account-group', 'washing-machine', 'robot-vacuum', 'timer-outline', 'check')
 # Not an argument of show_alert: the app sends the image itself to screens that can draw it (app 0.2.66, a Guition with
 # firmware 0.2.57+) and leaves it out for the others. (name, label, explanation, example) like ALERT_FIELDS.
-ALERT_CAMERA_FIELD = ('camera', 'Camera', 'A camera or image entity. A Guition with firmware 0.2.57+ shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. Other screens show the alert without it. Only through the esp_screens_show_alert event.', 'camera.front_door')
+ALERT_CAMERA_FIELD = ('camera', 'Camera', 'A camera or image entity. Every screen but the CYD, with firmware 0.2.57+, shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. The CYD shows the alert without it. Only through the esp_screens_show_alert event.', 'camera.front_door')
 # An action behind the button (app 0.2.91): the event names a Home Assistant action, with data for its fields, that the
 # app performs when the button is pressed on any screen, once per alert. Not an argument of show_alert either: the
 # screen only reports the press (ALERT_EVENT, action "ok") and the app does the rest, so every firmware from 0.2.31 has it.

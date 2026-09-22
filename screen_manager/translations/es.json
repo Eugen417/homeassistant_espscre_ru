@@ -747,7 +747,7 @@
         },
         "camera": {
           "label": "Cámara",
-          "help": "Una entidad de cámara o de imagen. Un Guition con firmware 0.2.57+ muestra su imagen de ese momento en la parte superior de la tarjeta; al tocarla se abre la cámara a pantalla completa. Las demás pantallas muestran la alerta sin ella. Solo mediante el evento esp_screens_show_alert."
+          "help": "Una entidad de cámara o de imagen. Todas las pantallas excepto la CYD, con firmware 0.2.57+, muestran su imagen de ese momento en la parte superior de la tarjeta; al tocarla se abre la cámara a pantalla completa. La CYD muestra la alerta sin ella. Solo mediante el evento esp_screens_show_alert."
         },
         "action": {
           "label": "Acción",
@@ -1622,8 +1622,8 @@
       "board": "¿Qué pantalla tienes?",
       "board_cyd": "CYD · 2,8 pulgadas",
       "board_guition": "Guition · 4 pulgadas",
-      "board_waveshare43": "Waveshare · 4.3 inch",
-      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_waveshare43": "Waveshare · 4,3 pulgadas",
+      "board_jc8012p4a1": "Guition · 10,1 pulgadas",
       "board_new": "nuevo: cuéntanos qué tal va",
       "orientation": "¿Cómo la vas a colgar?",
       "orientation_landscape": "En horizontal",
@@ -1794,7 +1794,7 @@
         },
         "bytes": "CYD {cyd} · Guition {guition} bytes",
         "seconds": "de 0 a 86400 s",
-        "camera_limit": "Guition, firmware 0.2.57+"
+        "camera_limit": "Todas excepto la CYD, firmware 0.2.57+"
       },
       "icons": {
         "text": "Escribe el nombre en {field}, por ejemplo {example}. También funcionan {mdi} y el código hexadecimal ({hex}). El firmware solo incluye estos iconos; cualquier otro nombre muestra el triángulo de advertencia. Toca un icono para copiar su nombre.",

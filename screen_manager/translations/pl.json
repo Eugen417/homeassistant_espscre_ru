@@ -747,7 +747,7 @@
         },
         "camera": {
           "label": "Kamera",
-          "help": "Encja kamery lub obrazu. Guition z firmware 0.2.57+ pokazuje jej zdjęcie z tej chwili u góry karty; dotknięcie go otwiera kamerę na pełnym ekranie. Inne ekrany pokazują alert bez zdjęcia. Tylko przez zdarzenie esp_screens_show_alert."
+          "help": "Encja kamery lub obrazu. Każdy ekran poza CYD z firmware 0.2.57+ pokazuje jej zdjęcie z tej chwili u góry karty; dotknięcie go otwiera kamerę na pełnym ekranie. CYD pokazuje alert bez zdjęcia. Tylko przez zdarzenie esp_screens_show_alert."
         },
         "action": {
           "label": "Akcja",
@@ -1622,8 +1622,8 @@
       "board": "Jaki masz ekran?",
       "board_cyd": "CYD · 2,8 cala",
       "board_guition": "Guition · 4 cale",
-      "board_waveshare43": "Waveshare · 4.3 inch",
-      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_waveshare43": "Waveshare · 4,3 cala",
+      "board_jc8012p4a1": "Guition · 10,1 cala",
       "board_new": "nowość — napisz, jak działa",
       "orientation": "Jak będzie wisiał?",
       "orientation_landscape": "Poziomo",
@@ -1794,7 +1794,7 @@
         },
         "bytes": "CYD {cyd} B · Guition {guition} B",
         "seconds": "od 0 do 86400 s",
-        "camera_limit": "Guition, firmware 0.2.57+"
+        "camera_limit": "Każdy ekran poza CYD, firmware 0.2.57+"
       },
       "icons": {
         "text": "Wpisz nazwę w polu {field}, na przykład {example}. Działa też {mdi} i kod szesnastkowy ({hex}). Firmware zawiera tylko te ikony; każda inna nazwa pokazuje trójkąt ostrzegawczy. Kliknij ikonę, aby skopiować jej nazwę.",

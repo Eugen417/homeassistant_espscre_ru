@@ -288,10 +288,10 @@ for these two events; the per-screen actions work without it.
 </p>
 
 From app 0.2.66, the event takes one more field: **`camera`**, a `camera.*` or `image.*` entity.
-A Guition with firmware 0.2.57+ shows that camera's picture of the moment across the top of the
-card; a tap on it opens the camera full screen over the alert, and Back returns to the alert.
-Other screens show the same alert without the picture. The per-screen actions have no `camera`
-field.
+Every screen but the CYD, with firmware 0.2.57+, shows that camera's picture of the moment across
+the top of the card; a tap on it opens the camera full screen over the alert, and Back returns to
+the alert. The CYD, which has no memory for pictures, shows the same alert without it. The
+per-screen actions have no `camera` field.
 
 ```yaml
 actions:

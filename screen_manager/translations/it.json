@@ -747,7 +747,7 @@
         },
         "camera": {
           "label": "Telecamera",
-          "help": "Un'entità telecamera o immagine. Un Guition con firmware 0.2.57+ mostra la sua immagine di quel momento in cima alla scheda; un tocco apre la telecamera a schermo intero. Gli altri schermi mostrano l'avviso senza immagine. Solo tramite l'evento esp_screens_show_alert."
+          "help": "Un'entità telecamera o immagine. Tutti gli schermi tranne il CYD, con firmware 0.2.57+, mostrano la sua immagine di quel momento in cima alla scheda; un tocco apre la telecamera a schermo intero. Il CYD mostra l'avviso senza immagine. Solo tramite l'evento esp_screens_show_alert."
         },
         "action": {
           "label": "Azione",
@@ -1622,8 +1622,8 @@
       "board": "Quale schermo hai?",
       "board_cyd": "CYD · 2,8 pollici",
       "board_guition": "Guition · 4 pollici",
-      "board_waveshare43": "Waveshare · 4.3 inch",
-      "board_jc8012p4a1": "Guition · 10.1 inch",
+      "board_waveshare43": "Waveshare · 4,3 pollici",
+      "board_jc8012p4a1": "Guition · 10,1 pollici",
       "board_new": "nuovo: facci sapere come va",
       "orientation": "Come lo appendi?",
       "orientation_landscape": "In orizzontale",
@@ -1794,7 +1794,7 @@
         },
         "bytes": "CYD {cyd} · Guition {guition} byte",
         "seconds": "da 0 a 86400 s",
-        "camera_limit": "Guition, firmware 0.2.57+"
+        "camera_limit": "Tutti tranne il CYD, firmware 0.2.57+"
       },
       "icons": {
         "text": "Inserisci il nome in {field}, per esempio {example}. Funzionano anche {mdi} e il codice esadecimale ({hex}). Nel firmware ci sono solo queste icone; qualsiasi altro nome mostra il triangolo di avvertimento. Tocca un'icona per copiarne il nome.",
