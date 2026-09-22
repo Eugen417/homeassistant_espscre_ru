@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.99"
+  SCREEN_FIRMWARE_VERSION: "0.2.100"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -97,6 +97,7 @@ esphome:
           // label lends its margin and drawing order and stays hidden in runtime mode.
           runtime_tiles::header_text_font = id(sublabel_big)->get_lv_font();
           runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();
+          runtime_tiles::header_home_font = id(materialdesign_icons_home)->get_lv_font();
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
           // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
@@ -164,6 +165,9 @@ esphome:
             if (!id(active_entity).empty()) return "card open";
             return nullptr;
           };
+          // The way home for the house in the top bar and for a swipe up from the bottom edge (firmware 0.2.100+):
+          // the same script the Back to page 1 timeout and Home Assistant use, so there is one way home.
+          runtime_tiles::back_home = []() { id(go_home).execute(); };
           runtime_tiles::touch_input::turn_page = [](int step) {
             ESP_LOGI("touch", "edge swipe: page %d -> %d", id(tile_page), id(tile_page) + step);
             id(tile_page) += step;
@@ -1038,6 +1042,16 @@ font:
     bpp: 4
     glyphs: *tile_icons
 
+  # The home key at the far left of the top bar (firmware 0.2.100+). One glyph at a size of its own, a third above
+  # the bar's icons: a house drawn at the bar's size has the same ink box as the capitals of the page title, but the
+  # top third of it is the point of the roof and carries almost no ink, so it reads smaller than the name beside it.
+  # One glyph costs well under a kilobyte, which is what lets every board have it.
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: materialdesign_icons_home
+    size: ${FONT_ICON_HOME_SIZE}
+    bpp: 4
+    glyphs: ["\U000F02DC"]
+
   # The large icon of a card that takes the whole page (firmware 0.2.62+): the domain icons only,
   # so the flash stays free for other things; a chosen icon outside this set keeps its usual size.
   - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
@@ -1320,6 +1334,19 @@ switch:
       - lambda: 'settings_screen::set("page_buttons", 1);'
     turn_off_action:
       - lambda: 'settings_screen::set("page_buttons", 0);'
+  # The house at the far left of the top bar, which takes the screen back to page 1 (firmware 0.2.100+).
+  # Page 1 draws none: there is nowhere to go from home.
+  - platform: template
+    id: setting_home_button
+    name: "Show home button"
+    icon: "mdi:home"
+    entity_category: config
+    restore_mode: DISABLED
+    lambda: return settings_screen::home_button != 0;
+    turn_on_action:
+      - lambda: 'settings_screen::set("home_button", 1);'
+    turn_off_action:
+      - lambda: 'settings_screen::set("home_button", 0);'
 
 # Night hours as Home Assistant times (firmware 0.2.49+); the screen keeps minutes since midnight.
 datetime:

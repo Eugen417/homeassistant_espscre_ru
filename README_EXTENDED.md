@@ -137,8 +137,9 @@ on the screen itself, and how updates work.
   changed ("5 min ago", "Yesterday"). See [Top bar](#top-bar).
 - **Screen settings:** standby time, normal and dimmed brightness,
   night hours, **Dark mode** (firmware 0.2.54+), 24- or 12-hour clock, back to page 1 by itself
-  and on standby, optional swiping between pages, and **Page buttons** (firmware 0.2.69+): switched
-  off, the bar under the tiles goes and the tiles take its room. Change them in ESP Screens, where
+  and on standby, optional swiping between pages, **Page buttons** (firmware 0.2.69+): switched
+  off, the bar under the tiles goes and the tiles take its room, and **Show home button**
+  (firmware 0.2.100+): a house at the far left of the top bar that takes the screen back to page 1. Change them in ESP Screens, where
   they apply at once, or on the screen itself. With firmware 0.2.49+ the screen keeps them, and every one of them is also an
   entity in Home Assistant, so an automation can switch **Night mode** or **Auto standby**
   (firmware 0.2.41+), for example to keep a screen on while someone is home, turn **Dark mode**
@@ -147,7 +148,7 @@ on the screen itself, and how updates work.
   See [Wake and sleep](#wake-and-sleep-from-an-automation).
 - **Settings on the screen itself** (firmware 0.2.44+): hold the top bar for about a
   second and a half and the screen opens its own settings page — brightness, night,
-  the clock, back to page 1, swiping, the page buttons, rotation, and what this screen is
+  the clock, back to page 1, swiping, the page buttons, the home button, rotation, and what this screen is
   (name, IP address, firmware, whether Home Assistant is connected, and Restart). Changes show up in ESP Screens
   within a second. See [Settings on the screen](#settings-on-the-screen).
 - **Rotation:** every screen turns upside down (180°) from the management page, and a square
@@ -482,7 +483,7 @@ Home Assistant, `esphome.<screen>_open_settings` opens it too (`page` 0 menu, 1 
 |---|---|
 | Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
-| Screen | Back to page 1 by itself and after how long, also on standby, swiping between pages, page buttons, rotation (boards that turn) |
+| Screen | Back to page 1 by itself and after how long, also on standby, swiping between pages, page buttons, the home button, rotation (boards that turn) |
 | This screen | Name, IP address, firmware version, Home Assistant connected, Restart |
 
 The language, the 12 or 24-hour clock and how numbers are written are the same on every screen: Settings → Language &

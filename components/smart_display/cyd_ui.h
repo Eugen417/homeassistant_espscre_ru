@@ -158,6 +158,8 @@ class EdgeSwipe {
     band_ = band; travel_ = travel;
     configured_ = true;
   }
+  // What a finger asked for: another page, or the way home (firmware 0.2.100+).
+  enum class Gesture : uint8_t { none, previous, next, home };
   // A board that never configured one has no edge swipe: the CYD turns its pages by another gesture
   // (BOOT_PAGE_GESTURE) and a swipe along its edge must not flip a page. Without this, shared touch
   // handling would arm this on the default 480 x 480 band and turn pages on a screen that never did.
@@ -165,23 +167,33 @@ class EdgeSwipe {
   // `width` is the glass as the person sees it, measured now rather than stated once: a screen built standing
   // up, or turned in its settings, keeps its bands on the edges (firmware 0.2.92+). This class stays free of
   // LVGL so tests/test_cyd_ui.cpp can walk a whole gesture over any size of glass.
-  void begin(int x, int y, int width) {
+  // `height` is the glass the same way, so the band along the bottom edge lies on the bottom edge (firmware
+  // 0.2.100+). A screen that states no height has no bottom band and behaves exactly as it did.
+  void begin(int x, int y, int width, int height = 0) {
     start_x_ = x; start_y_ = y;
     from_ = x < band_ ? 1 : x >= width - band_ ? -1 : 0;  // 1: left edge, -1: right edge
+    up_ = height > 0 && y >= height - band_;
     done_ = false;
     inward_ = sideways_ = 0;
   }
-  bool armed() const { return configured_ && from_ != 0 && !done_; }
-  // +1 next page, -1 previous page, 0 nothing; fires at most once per touch.
-  int update(int x, int y) {
-    if (!armed()) return 0;
+  bool armed() const { return configured_ && (from_ != 0 || up_) && !done_; }
+  // The next page, the previous one, page 1, or nothing; fires at most once per touch. A finger that starts in
+  // the corner where two bands meet is judged by the way it actually travels.
+  Gesture update(int x, int y) {
+    if (!armed()) return Gesture::none;
     const int dx = x - start_x_, dy = y - start_y_;
+    if (up_ && -dy >= travel_ && std::abs(dy) > std::abs(dx)) {
+      inward_ = std::max(inward_, -dy);
+      done_ = true;
+      return Gesture::home;
+    }
+    if (from_ == 0) { inward_ = std::max(inward_, -dy); sideways_ = std::max(sideways_, std::abs(dx)); return Gesture::none; }
     const int inward = from_ == 1 ? dx : -dx;
     inward_ = std::max(inward_, inward);
     sideways_ = std::max(sideways_, std::abs(dy));
-    if (inward < travel_ || std::abs(dx) < std::abs(dy)) return 0;
+    if (inward < travel_ || std::abs(dx) < std::abs(dy)) return Gesture::none;
     done_ = true;
-    return from_ == 1 ? -1 : 1;
+    return from_ == 1 ? Gesture::previous : Gesture::next;
   }
   // The finger left the glass: a stale armed state must never fire on the next touch
   // (ESPHome runs on_update before on_touch in the first cycle of a new touch).
@@ -193,7 +205,7 @@ class EdgeSwipe {
   bool configured_{false};
   int band_{32}, travel_{40};
   int start_x_{0}, start_y_{0}, from_{0}, inward_{0}, sideways_{0};
-  bool done_{true};
+  bool done_{true}, up_{false};
 };
 inline EdgeSwipe edge_swipe;
 

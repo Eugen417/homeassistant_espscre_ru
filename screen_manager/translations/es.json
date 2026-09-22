@@ -130,6 +130,7 @@
       "also_on_standby": "También en reposo",
       "swipe_between_pages": "Deslizar entre páginas",
       "page_buttons": "Botones de página",
+      "home_button": "Mostrar el botón de inicio",
       "rotation": "Rotación",
       "address": "Dirección",
       "firmware": "Firmware",
@@ -1512,6 +1513,7 @@
         "home_on_standby": "También en reposo",
         "swipe_pages": "Deslizar entre páginas",
         "page_buttons": "Botones de página",
+        "home_button": "Mostrar el botón de inicio",
         "rotation": "Rotación"
       },
       "actions": {

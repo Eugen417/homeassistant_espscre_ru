@@ -1,3 +1,15 @@
+## 0.2.122 (firmware 0.2.100)
+
+Back to page 1 in one tap, or one swipe up, and every swipe says it landed.
+
+- People kept asking for a quick way home, on GitHub too (#9: "a swipe down from the top to return to the home screen, or tap the name at the top left"). Every page now carries a house at the far left of the top bar, the way a website's header carries its logo: one tap and the screen is back on page 1, from wherever it stands.
+- The house stands on the baseline of the page title and is a third taller than the bar's own icons. Drawn at the size of those icons it has the same ink box as the capitals beside it, but the top third of a house is the point of the roof and carries almost no ink, so it read as smaller than the name; measured on the render, only 37 % of its height carries real ink against the capital's even mass. It is one glyph in a font of its own, under a kilobyte, so every board has it, the CYD included.
+- The page title moves behind the key with the same air between them as between the key and the edge of the glass, and the clock and the values on the right keep every pixel they had: only the title gives room.
+- **Show home button** in **Screen settings**, on the screen's own settings page and as `switch.<screen>_show_home_button` in Home Assistant takes it away again. On by default.
+- **Swiping up from the bottom edge also goes back to page 1.** It is the same gesture the sides already use, only along the bottom: from the bottom band, far enough up, more up than sideways, once per touch. On a screen that turns its pages with a flick instead of an edge swipe, a flick up does it.
+- **Every swipe that is taken lights up the edge it came from**: a white haze, an oval half off the glass, that holds its light for 90 ms and then takes 420 ms to go. It answers the gesture before the new page is drawn. One object with one property fading, so nothing else on the page is drawn again.
+- The editor's mockup draws the house the way the screen does, and leaves it out for a screen whose setting is off or whose firmware is older.
+
 ## 0.2.121 (firmware 0.2.99)
 
 A whole page moves to another place in the row, by dragging it.

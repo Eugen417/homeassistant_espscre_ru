@@ -130,6 +130,7 @@
       "also_on_standby": "Auch im Standby",
       "swipe_between_pages": "Zwischen Seiten wischen",
       "page_buttons": "Seitentasten",
+      "home_button": "Home-Taste zeigen",
       "rotation": "Drehung",
       "address": "Adresse",
       "firmware": "Firmware",
@@ -1512,6 +1513,7 @@
         "home_on_standby": "Auch im Standby",
         "swipe_pages": "Zwischen Seiten wischen",
         "page_buttons": "Seitentasten",
+        "home_button": "Home-Taste zeigen",
         "rotation": "Drehung"
       },
       "actions": {

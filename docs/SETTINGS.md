@@ -27,6 +27,7 @@ changes them with the entity's own action, and leaves them out of the layout mes
 | Also on standby | `switch.<screen>_back_to_page_1_on_standby` | `home_on_standby` |
 | Swipe between pages | `switch.<screen>_swipe_between_pages` | `swipe_pages` |
 | Page buttons (0.2.69+) | `switch.<screen>_page_buttons` | `page_buttons` |
+| Show home button (0.2.100+) | `switch.<screen>_show_home_button` | `home_button` |
 | Rotation | `select.<screen>_rotation` | `rotation` (0.2.80+ on every board: a half turn on any glass, the quarter turns as well on a square one) |
 
 The 12 or 24-hour clock was a row and an entity of its own (`switch.<screen>_24_hour_clock`) from firmware 0.2.49 to
@@ -56,7 +57,7 @@ The page is a menu of groups, each of which opens a page of its own:
 |---|---|
 | Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
-| Screen | Clock, Back to page 1, After, Also on standby, Swipe between pages, Page buttons, Rotation (boards that turn) |
+| Screen | Clock, Back to page 1, After, Also on standby, Swipe between pages, Page buttons, Show home button, Rotation (boards that turn) |
 | This screen | Screen, Address, Firmware, Home Assistant, Calibrate touch (a panel that has a wizard), Restart |
 
 Every change is stored on the screen, applied at once and published on its entity, so Home Assistant and

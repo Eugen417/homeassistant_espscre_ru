@@ -106,7 +106,7 @@ class EdgeBandTests(unittest.TestCase):
         touch = (self.ROOT / 'components' / 'smart_display' / 'runtime_tiles.h').read_text()
         # The band is armed against the live canvas, not a number from the board file, so it is the same band of
         # glass on a screen built standing up (firmware 0.2.92+).
-        self.assertIn('cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width())', touch)
+        self.assertIn('cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height())', touch)
         # No rotation arithmetic of our own left in the firmware's own touch handling.
         swipe = (self.ROOT / 'components' / 'smart_display' / 'cyd_ui.h').read_text()
         self.assertNotIn('rotation_', swipe)

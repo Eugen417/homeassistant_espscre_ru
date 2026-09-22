@@ -26,12 +26,18 @@ class IconSetTests(unittest.TestCase):
         for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
             text = profiles.resolved(name)
             fonts = re.findall(r'materialdesignicons-webfont\.ttf["\']\n    id: (\w+)\n    size: \d+\n    bpp: 4\n    glyphs: (.*)\n', text)
-            self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini', 'materialdesign_icons_big', 'watch_icon'], name)
-            self.assertTrue(fonts[0][1].startswith('&tile_icons ') and all(g == '*tile_icons' for font, g in fonts[1:] if font != 'materialdesign_icons_big'), name)
+            # The home key's font carries the house and nothing else (firmware 0.2.100+), written out by hand in the
+            # shared core; every other icon font carries the whole set.
+            self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini',
+                                                           'materialdesign_icons_home', 'materialdesign_icons_big', 'watch_icon'], name)
+            home = dict(fonts)['materialdesign_icons_home']
+            self.assertEqual(home.strip(), '["\\U000F02DC"]', name)
+            self.assertTrue(fonts[0][1].startswith('&tile_icons ')
+                            and all(g == '*tile_icons' for font, g in fonts[1:] if font not in ('materialdesign_icons_big', 'materialdesign_icons_home')), name)
             block = text.split('glyphs: &tile_icons ', 1)[1].split('\n\n', 1)[0]
             self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', block), wanted, name)
             # The big font of the full-page card (firmware 0.2.62+) carries the subset the screen draws on its own.
-            self.assertEqual(fonts[2][1].split('  #')[0].strip(), '&tile_icons_big', name)
+            self.assertEqual(fonts[3][1].split('  #')[0].strip(), '&tile_icons_big', name)
             big = text.split('glyphs: &tile_icons_big', 1)[1].split('\n\n', 1)[0]
             self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', big), [f'\\U000{tile_icons.GLYPHS[n]}' for n in tile_icons.BIG_GLYPHS], name)
             self.assertNotIn('MDI_GLYPH', text, name)

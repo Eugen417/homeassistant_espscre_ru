@@ -109,6 +109,7 @@ substitutions:
   FONT_SUBLABEL_BIG_SIZE: "14"                  # the top bar and settings rows
   FONT_ICON_SIZE: "28"                          # tile icons
   FONT_ICON_MINI_SIZE: "18"                     # the top bar and card keys
+  FONT_ICON_HOME_SIZE: "25"          # the home key in the top bar
   FONT_ICON_BIG_SIZE: "40"                      # full-page tiles
   FONT_WATCH_ICON_SIZE: "12"
 
@@ -176,11 +177,22 @@ substitutions:
          !id(active_entity).empty() || (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root,LV_OBJ_FLAG_HIDDEN)))return;
       auto *input=lv_indev_active();if(!input)return;
       auto direction=lv_indev_get_gesture_dir(input);
-      if(direction!=LV_DIR_LEFT && direction!=LV_DIR_RIGHT)return;
+      if(direction!=LV_DIR_LEFT && direction!=LV_DIR_RIGHT && direction!=LV_DIR_TOP)return;
       // A quick drag on a slider is that slider's, never a page swipe (firmware 0.2.68+).
       if(runtime_tiles::captured_slider){ESP_LOGI("touch","page swipe ignored: a slider is being dragged");return;}
       cyd::touch_guard.consume();
       lv_indev_wait_release(input);
+      // Up is the way home (firmware 0.2.100+); this board has no edge band, so a flick anywhere over the tiles
+      // does it, as left and right do here.
+      if(direction==LV_DIR_TOP){
+        ESP_LOGI("touch","swipe up: back to page 1");
+        runtime_tiles::swipe_glow(runtime_tiles::Edge::bottom);
+        if(runtime_tiles::back_home)runtime_tiles::back_home();
+        return;
+      }
+      // The edge the page comes from lights up for a moment (firmware 0.2.100+): swiping left brings in the next
+      // page from the right.
+      runtime_tiles::swipe_glow(direction==LV_DIR_LEFT?runtime_tiles::Edge::right:runtime_tiles::Edge::left);
       ESP_LOGI("touch","page swipe: page %d -> %d",id(tile_page),id(tile_page)+(direction==LV_DIR_LEFT?1:-1));
       id(tile_page)+=direction==LV_DIR_LEFT?1:-1;
       id(show_tile_page).execute();

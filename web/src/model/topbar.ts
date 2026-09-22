@@ -47,12 +47,14 @@ export function agoText(then: number, now = Math.floor(Date.now() / 1000), local
   return say("years_ago", per(31536000));
 }
 
-export type BarMetrics = { width: number; top: number; name: number; text: number; icon: number };
+// `inset` is the margin the board keeps from the edge of the glass: the bar starts there, and the home key keeps
+// the same distance to the page title (firmware 0.2.100+).
+export type BarMetrics = { width: number; top: number; name: number; text: number; icon: number; inset: number };
 // The bar of the two looks in the pixels of their reference boards (HEADER_INSET, HEADER_Y and the fonts of the
 // board files): the standard look is the Guition's at 170 dpi, the compact look the CYD's at 143 dpi.
 export const BAR_METRICS: Record<string, BarMetrics> = {
-  guition: { width: 448, top: 36, name: 27, text: 21, icon: 26 },
-  cyd: { width: 298, top: 24, name: 18, text: 14, icon: 18 },
+  guition: { width: 448, top: 36, name: 27, text: 21, icon: 26, inset: 16 },
+  cyd: { width: 298, top: 24, name: 18, text: 14, icon: 18, inset: 11 },
 };
 const LOOK_BAR = { standard: { ...BAR_METRICS.guition, inset: 16, dpi: 170 }, compact: { ...BAR_METRICS.cyd, inset: 11, dpi: 143 } };
 export type ShapeLike = { width: number; look?: string; dpi?: number };
@@ -62,7 +64,8 @@ export function barMetricsFor(shape: ShapeLike): BarMetrics {
   const base = LOOK_BAR[shape.look === "compact" || (!shape.look && shape.width < 400) ? "compact" : "standard"];
   const f = (shape.dpi && shape.dpi > 0 ? shape.dpi : base.dpi) / base.dpi;
   const px = (n: number) => Math.round(n * f);
-  return { width: shape.width - 2 * px(base.inset), top: px(base.top), name: px(base.name), text: px(base.text), icon: px(base.icon) };
+  return { width: shape.width - 2 * px(base.inset), top: px(base.top), name: px(base.name), text: px(base.text),
+           icon: px(base.icon), inset: px(base.inset) };
 }
 export type ItemView = { icon?: string | null; text?: string; color?: string | null; shown: boolean; analog?: boolean; loading?: boolean };
 type Ink = { left: number; right: number; top: number; bottom: number; advance: number };
@@ -101,7 +104,11 @@ export type BarPart = {
 };
 export type BarLayout = ReturnType<typeof barLayout>;
 // The parts per item with their ink widths, the placement, and which items fall off.
-export function barLayout(items: HeaderItem[], metrics: BarMetrics, nameText: string, viewOf: (item: HeaderItem) => ItemView) {
+// mdi:home, the key at the far left of the bar (firmware 0.2.100+). The screens draw it as tall as the capitals of
+// the page title, on the same baseline, with the same air between it and the name as between it and the edge.
+export const HOME_GLYPH = "F02DC";
+export function barLayout(items: HeaderItem[], metrics: BarMetrics, nameText: string, viewOf: (item: HeaderItem) => ItemView,
+                          home = false) {
   const fonts = barFonts(metrics);
   // The firmware reads the digit height as a whole number of pixels (the glyph box of "0").
   const zero = inkOf("0", fonts.text), cap = Math.round(zero.bottom - zero.top), gaps = barGaps(cap);
@@ -118,16 +125,20 @@ export function barLayout(items: HeaderItem[], metrics: BarMetrics, nameText: st
     return part;
   });
   const shown = parts.filter((p) => p.shown);
+  // The home key takes the name's place and the name moves behind it; the items on the right keep every pixel.
+  const key = home ? { glyph: glyph(HOME_GLYPH), ink: inkOf(glyph(HOME_GLYPH), fonts.icon) } : null;
+  const homeShift = key ? Math.round(key.ink.right - key.ink.left) + metrics.inset : 0;
+  const width = Math.max(0, metrics.width - homeShift);
   const natural = inkOf(nameText, fonts.name).advance;
-  const minName = Math.min(natural, Math.floor((metrics.width * 35) / 100));
+  const minName = Math.min(natural, Math.floor((width * 35) / 100));
   const total = (list: BarPart[]) => list.reduce((sum, p) => sum + p.width, 0) + Math.max(0, list.length - 1) * gaps.item;
   let first = 0;
-  while (first < shown.length && total(shown.slice(first)) + gaps.name + minName > metrics.width) first++;
+  while (first < shown.length && total(shown.slice(first)) + gaps.name + minName > width) first++;
   const placed = shown.slice(first), dropped = new Set(shown.slice(0, first).map((p) => p.index));
   let x = metrics.width - total(placed);
   for (const p of placed) { p.x = x; x += p.width + gaps.item; }
-  const nameRoom = placed.length ? placed[0].x! - gaps.name : metrics.width;
-  return { metrics, fonts, cap, zero, gaps, parts, placed, dropped, nameText, natural, nameRoom };
+  const nameRoom = (placed.length ? placed[0].x! - gaps.name : metrics.width) - homeShift;
+  return { metrics, fonts, cap, zero, gaps, parts, placed, dropped, nameText, natural, nameRoom, key, homeShift };
 }
 // LVGL's LV_LABEL_LONG_DOT: the longest start that fits with "..." after it.
 export function dotted(text: string, font: string, room: number) {

@@ -130,6 +130,7 @@
       "also_on_standby": "Ook bij stand-by",
       "swipe_between_pages": "Vegen tussen pagina's",
       "page_buttons": "Paginaknoppen",
+      "home_button": "Thuisknop tonen",
       "rotation": "Rotatie",
       "address": "Adres",
       "firmware": "Firmware",
@@ -1512,6 +1513,7 @@
         "home_on_standby": "Ook bij stand-by",
         "swipe_pages": "Vegen tussen pagina's",
         "page_buttons": "Paginaknoppen",
+        "home_button": "Thuisknop tonen",
         "rotation": "Rotatie"
       },
       "actions": {

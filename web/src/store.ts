@@ -820,6 +820,7 @@ export const SETTING_GROUPS = [
     { key: "home_on_standby", kind: "toggle" },
     { key: "swipe_pages", kind: "toggle" },
     { key: "page_buttons", kind: "toggle" },
+    { key: "home_button", kind: "toggle" },
     { key: "rotation", kind: "choice", options: [0, 90, 180, 270] },
   ] },
 ] as const;
@@ -861,6 +862,9 @@ export function settingValues(): Record<string, any> {
   for (const [key, edit] of Object.entries(state.settingEdits)) values[key] = edit.value;
   return values;
 }
+// The house in the top bar of the mockup (app 0.2.122, firmware 0.2.100+): on every page, as on the screen, unless
+// the screen's Show home button is off. A screen whose value nobody can read right now (offline) is drawn as set.
+export const homeKeyShown = () => supports(0, 2, 100) && settingValues().home_button !== false;
 // The same steps as settings_screen.h: seconds low down, quarters of an hour up top; times by the quarter,
 // whole hours while held.
 export const ladderStep = (seconds: number) => (seconds < 300 ? 30 : seconds < 900 ? 60 : seconds < 3600 ? 300 : seconds < 7200 ? 900 : 1800);

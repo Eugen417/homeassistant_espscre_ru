@@ -190,7 +190,11 @@ On the Guition (firmware 0.2.24+), you then swipe inward from the left or right
 edge, like the back-swipe gesture on a phone; slow or fast, and a swipe starting in the
 middle of the screen does nothing, so tapping and dragging tiles never
 accidentally changes pages. On the CYD, it stays a quick swipe across the screen. Sliders
-only control their value; detail menus and standby don't change pages.
+only control their value; detail menus and standby don't change pages. Swiping up from the
+bottom edge goes back to page 1 (firmware 0.2.100+), in the same way: from the bottom edge on
+the boards that swipe from an edge, a quick swipe up anywhere on the CYD. Every swipe that is
+taken lights the edge it came from for a quarter of a second, so the screen answers the gesture
+before the new page is drawn.
 
 A page holds the board's grid of tiles, six on a CYD or a Guition. Under the tiles, the page buttons: a chevron in each half of the
 bar and a dot per page between them; tap anywhere in the left or right half. With six or
@@ -198,6 +202,13 @@ fewer tiles they disappear and the tiles grow into their room (firmware 0.2.69+)
 buttons** in the **Screen settings** tab takes them away on a screen with more pages too:
 then only swiping and *Go to page* tiles change the page, and the editor says which pages
 that leaves out of reach.
+
+Every page carries a house at the far left of the top bar (firmware 0.2.100+): one tap and the
+screen is back on page 1, from wherever it stands. It stands on the baseline of the page title
+and is a third taller than the bar's own icons, the page title moves behind it with the same
+air between them as between the house and the edge of the glass, and the items on the right of
+the bar keep every pixel they had. **Show home button** in the **Screen settings** tab, and on
+the screen's own settings page, takes it away.
 The default standby time is ten minutes. For offline devices, the screen blocks
 actions. If the connection to Home Assistant drops, the screen immediately shows
 "HA not connected"; if the app sends nothing for two rounds (about five minutes),
@@ -324,6 +335,7 @@ device in Home Assistant ([SETTINGS.md](SETTINGS.md)).
 | Also on standby | Standby goes back to page 1 too (it always closes an open card) | Off |
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
 | Page buttons | Off: no buttons under the tiles, the tiles take their room, firmware 0.2.69+ | On |
+| Show home button | A house at the far left of the top bar; tapping it goes back to page 1, firmware 0.2.100+ | On |
 | Guition rotation | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
 
 Home Assistant shows these settings on each screen's ESPHome device, under *Configuration*:

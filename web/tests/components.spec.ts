@@ -683,3 +683,37 @@ describe("a page that moves as a whole", () => {
     expect(mount(DevicePage, { props: props(0, 3) }).find(".bar-wrap").text()).toContain("Living room");
   });
 });
+
+// The house in the top bar (app 0.2.122, firmware 0.2.100+): the mockup draws what the screen draws.
+describe("the home key on the mockup", () => {
+  const house = String.fromCodePoint(0xf02dc);
+  const props = (page: number) => ({ page, pages: 3, entries: [], moving: null });
+  const bar = (page: number) => mount(DevicePage, { props: props(page) }).find(".bar-wrap").text();
+  beforeEach(() => {
+    state.layout = { title: "Living room", pages: 3, tiles: [] };
+    (state.inventory.screens[0] as any).firmware = "0.2.100";
+    (state.inventory.screens[0] as any).firmware_known = "0.2.100";
+    (state.inventory.screens[0] as any).settings = { owner: "screen", keys: ["home_button"], values: { home_button: true }, unavailable: [] };
+  });
+  it("draws it on every page, as the screens do", () => {
+    expect(bar(0)).toContain(house);
+    expect(bar(1)).toContain(house);
+    expect(bar(2)).toContain(house);
+  });
+  it("leaves it out when the screen's setting is off, and on firmware that has no key", () => {
+    (state.inventory.screens[0] as any).settings.values.home_button = false;
+    expect(bar(1)).not.toContain(house);
+    (state.inventory.screens[0] as any).settings.values.home_button = true;
+    (state.inventory.screens[0] as any).firmware_known = "0.2.99";
+    expect(bar(1)).not.toContain(house);
+  });
+  it("gives the name the room the key takes, with the margin of the glass between them", () => {
+    const withKey = mount(DevicePage, { props: props(1) }).findComponent({ name: "TopbarSvg" }).vm as any;
+    (state.inventory.screens[0] as any).settings.values.home_button = false;
+    const without = mount(DevicePage, { props: props(1) }).findComponent({ name: "TopbarSvg" }).vm as any;
+    expect(without.lay.homeShift).toBe(0);
+    // The same air as between the edge of the glass and the key itself.
+    expect(withKey.lay.homeShift).toBe(Math.round(withKey.lay.key.ink.right - withKey.lay.key.ink.left) + withKey.lay.metrics.inset);
+    expect(withKey.lay.nameRoom).toBe(without.lay.nameRoom - withKey.lay.homeShift);
+  });
+});

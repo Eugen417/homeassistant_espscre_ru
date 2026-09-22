@@ -18,7 +18,7 @@ from core import (ALERT_ACTION_FIELD, ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_E
                   CONTROLS, COVER_TILE_MIN_FIRMWARE, DISPLAYS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, FULL_PAGE_MIN_FIRMWARE, LIVE_MIN_FIRMWARE,
                   PAGE_TILE_REPEAT_MIN_FIRMWARE, SETTINGS_PAGE_MIN_FIRMWARE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT,
                   WAKE_SLEEP_MIN_FIRMWARE, SETTING_ENTITIES_MIN_FIRMWARE, DARK_MODE_MIN_FIRMWARE, PAGE_BUTTONS_MIN_FIRMWARE,
-                  SHOW_PAGE_MIN_FIRMWARE)
+                  HOME_BUTTON_MIN_FIRMWARE, SHOW_PAGE_MIN_FIRMWARE)
 # Full-page tiles, navigation tiles and one tile per cell of the screen's pages.
 FULL_PAGE_VERSION = '.'.join(str(part) for part in FULL_PAGE_MIN_FIRMWARE)
 LIVE_VERSION = '.'.join(str(part) for part in LIVE_MIN_FIRMWARE)
@@ -305,6 +305,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 | `switch.<screen>_back_to_page_1_on_standby` | On: going into standby also goes back to page 1. |
 | `switch.<screen>_swipe_between_pages` | On: swipe between pages. |
 | `switch.<screen>_page_buttons` | On: the Previous and Next bar under the tiles on a screen with more than one page. Off: no bar, the tiles take its room, and only swiping or Go to page tiles change the page. Firmware {PAGE_BUTTONS_MIN_FIRMWARE} or newer. |
+| `switch.<screen>_show_home_button` | On: a house at the far left of the top bar; tapping it goes back to page 1. Off: the page title starts at the margin, as before. Firmware {HOME_BUTTON_MIN_FIRMWARE} or newer. |
 | `select.<screen>_rotation` | Guition only: `0°`, `90°`, `180°` or `270°`. |
 
 The 12 or 24-hour clock, the language and how numbers are written are one choice for every screen, in ESP Screens under Settings → Language & region; no entity changes them (firmware 0.2.76 or newer; older firmware still has `switch.<screen>_24_hour_clock`).

@@ -4,7 +4,7 @@ import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
 import { t } from "../i18n";
 import { cellsOf, grid, pageOf, sizeOf, spanOf } from "../model/layout";
-import { deviceStyle, isCompact, movePage, openBar, pageTitleShown, removePage, state } from "../store";
+import { deviceStyle, homeKeyShown, isCompact, movePage, openBar, pageTitleShown, removePage, state } from "../store";
 import type { Tile } from "../types";
 import TileCard from "./TileCard.vue";
 import TopbarSvg from "./TopbarSvg.vue";
@@ -53,7 +53,7 @@ async function onKey(e: KeyboardEvent) {
     <div class="device" :class="{ cyd: isCompact }">
       <div class="bar-wrap" :class="{ selected: barSelected }" :title="t('editor.page.edit_bar')" role="button" tabindex="0"
         @click="openBar(0, page)" @keydown.enter.prevent="openBar(0, page)">
-        <TopbarSvg :name-text="pageTitleShown(page)" />
+        <TopbarSvg :name-text="pageTitleShown(page)" :home="homeKeyShown()" />
       </div>
       <div class="tiles">
         <template v-for="slot in cells" :key="slot">

@@ -108,6 +108,7 @@ substitutions:
   FONT_SUBLABEL_BIG_SIZE: "21"                  # the top bar and settings rows
   FONT_ICON_SIZE: "42"                          # tile icons
   FONT_ICON_MINI_SIZE: "26"                     # the top bar and card keys
+  FONT_ICON_HOME_SIZE: "34"          # the home key in the top bar
   FONT_ICON_BIG_SIZE: "64"                      # full-page tiles
   FONT_WATCH_ICON_SIZE: "18"
 

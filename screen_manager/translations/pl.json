@@ -130,6 +130,7 @@
       "also_on_standby": "Także w czuwaniu",
       "swipe_between_pages": "Przesuwanie stron",
       "page_buttons": "Przyciski stron",
+      "home_button": "Pokaż przycisk strony głównej",
       "rotation": "Obrót",
       "address": "Adres",
       "firmware": "Firmware",
@@ -1512,6 +1513,7 @@
         "home_on_standby": "Także w czuwaniu",
         "swipe_pages": "Przesuwanie stron",
         "page_buttons": "Przyciski stron",
+        "home_button": "Pokaż przycisk strony głównej",
         "rotation": "Obrót"
       },
       "actions": {

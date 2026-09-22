@@ -233,7 +233,10 @@ class ParityTests(unittest.TestCase):
         self.assertIn('std::max(2, scaled(cap, 4)), std::max(6, (cap * 125 + 50) / 100), std::max(8, scaled(cap, 16))', FIRMWARE)
         self.assertIn('Math.max(2, Math.floor((cap * 4 + 5) / 10)), item: Math.max(6, Math.floor((cap * 125 + 50) / 100)), name: Math.max(8, Math.floor((cap * 16 + 5) / 10))', EDITOR)
         self.assertIn('width * 35 / 100', FIRMWARE)
-        self.assertIn('(metrics.width * 35) / 100', EDITOR)
+        # The same rule over the same room: the home key takes its width off the bar before the name is measured
+        # (firmware 0.2.100+), so both sides read `width`, not the whole bar.
+        self.assertIn('(width * 35) / 100', EDITOR)
+        self.assertIn('const width = Math.max(0, metrics.width - homeShift);', EDITOR)
         english = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']
         self.assertEqual(header_bar.MONTHS, tuple(english['date']['months_short']))
 

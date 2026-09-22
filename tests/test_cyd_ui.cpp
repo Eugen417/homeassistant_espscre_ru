@@ -117,6 +117,7 @@ int main() {
   // edge rightwards "previous", once per touch, slow or fast, more sideways than vertical,
   // never from the middle. Every point is already in the screen's coordinates (firmware 0.2.82:
   // runtime_tiles::touch_input turns it with ESPHome's own rotate_coordinates); end() disarms.
+  using G = cyd::EdgeSwipe::Gesture;
   cyd::EdgeSwipe edge;
   // A board that never configured one has no edge swipe at all: the CYD turns its pages by another gesture,
   // and shared touch handling must not flip a page there on the default band.
@@ -124,31 +125,31 @@ int main() {
   assert(!unconfigured.in_use());
   unconfigured.begin(2, 100, 480);
   assert(!unconfigured.armed());
-  assert(unconfigured.update(200, 100) == 0);
+  assert(unconfigured.update(200, 100) == G::none);
 
   edge.configure(32, 40);
   assert(edge.in_use());
   edge.begin(6, 240, 480);
   assert(edge.armed());
-  assert(edge.update(30, 242) == 0);   // not far enough yet
-  assert(edge.update(48, 245) == -1);  // 42 px inward from the left edge: previous page
-  assert(edge.update(90, 245) == 0);   // once per touch
+  assert(edge.update(30, 242) == G::none);   // not far enough yet
+  assert(edge.update(48, 245) == G::previous);  // 42 px inward from the left edge: previous page
+  assert(edge.update(90, 245) == G::none);   // once per touch
   assert(!edge.armed());
   edge.begin(474, 100, 480);
-  assert(edge.update(430, 104) == 1);  // from the right edge: next page
+  assert(edge.update(430, 104) == G::next);  // from the right edge: next page
   edge.begin(240, 240, 480);
   assert(!edge.armed());
-  assert(edge.update(300, 240) == 0);  // started in the middle: never a page swipe
+  assert(edge.update(300, 240) == G::none);  // started in the middle: never a page swipe
   edge.begin(6, 240, 480);
-  assert(edge.update(50, 300) == 0);   // steeper than 45 degrees: 44 px sideways against 60 down
-  assert(edge.update(-10, 240) == 0);  // moving outward: nothing
-  assert(edge.update(60, 270) == -1);  // 54 sideways against 30 down: a slanted thumb swipe counts
+  assert(edge.update(50, 300) == G::none);   // steeper than 45 degrees: 44 px sideways against 60 down
+  assert(edge.update(-10, 240) == G::none);  // moving outward: nothing
+  assert(edge.update(60, 270) == G::previous);  // 54 sideways against 30 down: a slanted thumb swipe counts
   edge.begin(6, 240, 480);
   edge.update(20, 250);
   assert(edge.inward() == 14 && edge.sideways() == 10);  // what the log reports for a swipe that ended early
   edge.end();
   assert(!edge.armed());
-  assert(edge.update(300, 250) == 0);  // the next touch's first update, before begin(): nothing
+  assert(edge.update(300, 250) == G::none);  // the next touch's first update, before begin(): nothing
   // Wide glass: the band is a band of the glass, not of the panel the picture came from. A 800 x 1280
   // panel drawn as 1280 x 800 used to arm the right-hand band from x = 772, so a leftward drag anywhere
   // past two fifths of the screen turned a page and nothing turned back (firmware 0.2.82).
@@ -160,17 +161,44 @@ int main() {
   assert(!ten_inch.armed());
   ten_inch.begin(1260, 400, 1280);
   assert(ten_inch.armed());
-  assert(ten_inch.update(1210, 404) == 1); // in from the right edge: next page
+  assert(ten_inch.update(1210, 404) == G::next); // in from the right edge: next page
   ten_inch.begin(10, 400, 1280);
-  assert(ten_inch.update(60, 404) == -1);  // in from the left edge: previous page
+  assert(ten_inch.update(60, 404) == G::previous);  // in from the left edge: previous page
   // The same board built standing up (firmware 0.2.92+): the glass is 800 across now, so the right-hand band
   // starts at 772 and what used to be the right edge is off the screen. The width is measured at every touch,
   // which is why one screen can be built either way round without a second set of numbers.
   ten_inch.begin(772, 400, 800);
   assert(ten_inch.armed());
-  assert(ten_inch.update(730, 404) == 1);
+  assert(ten_inch.update(730, 404) == G::next);
   ten_inch.begin(640, 400, 800);
   assert(!ten_inch.armed());               // the middle of the standing glass is still the middle
+  // Up from the bottom edge is the way home (firmware 0.2.100+): the same class, the same band and the same
+  // travel, only along the bottom. A screen that states no height has no bottom band, so a board that never
+  // asked for one behaves exactly as it did.
+  cyd::EdgeSwipe up;
+  up.configure(32, 40);
+  up.begin(240, 470, 480, 480);
+  assert(up.armed());
+  assert(up.update(242, 440) == G::none);   // 30 px up: not far enough
+  assert(up.update(244, 425) == G::home);   // 45 px up: back to page 1
+  assert(up.update(244, 300) == G::none);   // once per touch
+  up.begin(240, 240, 480, 480);
+  assert(!up.armed());                      // the middle of the glass is not the bottom band
+  up.begin(240, 470, 480, 480);
+  assert(up.update(300, 430) == G::none);   // 60 px sideways against 40 up: that is a sideways drag
+  up.begin(240, 470, 480);                  // no height stated: the bottom band is not armed at all
+  assert(!up.armed());
+  assert(up.update(240, 400) == G::none);
+  // The corner where the left band meets the bottom one: what the finger does decides.
+  up.begin(6, 470, 480, 480);
+  assert(up.armed());
+  assert(up.update(10, 420) == G::home);
+  up.begin(6, 470, 480, 480);
+  assert(up.update(60, 468) == G::previous);
+  // A screen standing up: the bottom band follows the glass it is given, like the side bands.
+  up.begin(240, 790, 480, 800);
+  assert(up.armed());
+  assert(up.update(240, 745) == G::home);
   cyd::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days

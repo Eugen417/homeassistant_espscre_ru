@@ -4393,6 +4393,21 @@ inline std::array<lv_obj_t *, 2> header_hands{};
 inline std::array<HeaderSlot, header_bar::MAX_ITEMS> header_slots{};
 inline lv_point_precise_t header_points[4]{};
 inline int header_dial_key = -1;
+// The home key at the far left of the top bar (firmware 0.2.100+): the house of Material Design Icons, as tall as
+// the capitals of the page title and standing on the same baseline. It stands on every page, the way the logo in a
+// website's header does, and always goes to page 1; `settings_screen::home_button` leaves it out altogether.
+// `home_tap` is the area a finger gets, wider than the glyph, and `back_home` what a tap on it runs.
+// The key's own font: the house alone at a size of its own (firmware 0.2.100+). A house drawn at the bar's icon
+// size has the same ink box as the capitals beside it, but its top third is the point of the roof and carries
+// almost no ink, so it reads smaller than the name. A size above the bar's icons gives it the weight of the text.
+// Without one the bar's icon font draws it.
+inline const lv_font_t *header_home_font = nullptr;
+inline lv_obj_t *header_home_icon = nullptr, *header_home_tap = nullptr;
+inline lv_obj_t *header_name_owner = nullptr;
+inline int header_name_left = 0;
+inline std::function<void()> back_home;
+// mdi:home, in every board's icon font already (the tile icons); the key needs no font of its own.
+constexpr uint32_t HOME_GLYPH = 0xF02DC;
 inline void set_visible(lv_obj_t *obj, bool visible) {
   if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) != visible) return;
   if (visible) lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
@@ -4439,6 +4454,24 @@ inline void draw_header(bool live) {
       lv_obj_set_style_text_font(slot.icon, header_icon_font, 0);
       lv_obj_set_style_text_font(slot.text, header_text_font, 0);
     }
+    header_home_icon = header_part(header_root);
+    // The finger's area, over the glyph and bigger than it: an empty object that only takes taps. It sits on the
+    // page itself, one place above the strip that opens the settings page on a long press, so a tap on the house
+    // is the house's; the cards and the alert stay above it and keep every tap of their own.
+    header_home_tap = lv_obj_create(page);
+    lv_obj_remove_style_all(header_home_tap);
+    lv_obj_remove_flag(header_home_tap, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(header_home_tap, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_add_flag(header_home_tap, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_move_to_index(header_home_tap, settings_screen::hold_area && lv_obj_get_parent(settings_screen::hold_area) == page
+                                        ? lv_obj_get_index(settings_screen::hold_area) + 1
+                                        : lv_obj_get_index(header_root) + 1);
+    lv_obj_add_event_cb(header_home_tap, [](lv_event_t *) {
+      // 14 is this key's place in the touch guard, beside the page bar's 11 and 12.
+      if (!cyd::touch_guard.accept(esphome::millis(), 14)) { ESP_LOGI("touch", "home key ignored: %s", cyd::touch_guard.reason().c_str()); return; }
+      ESP_LOGI("touch", "home key: back to page 1");
+      if (back_home) back_home();
+    }, LV_EVENT_CLICKED, nullptr);
     header_ring = lv_obj_create(header_root);
     lv_obj_remove_style_all(header_ring);
     lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_CLICKABLE);
@@ -4504,6 +4537,47 @@ inline void draw_header(bool live) {
     widths[count] = p.width;
     parts[count++] = p;
   }
+  // The home key at the left, before the name (firmware 0.2.100+). It stands where the name starts, the name moves
+  // behind it, and the items on the right keep every pixel they had: only the name gives room. Page 1 has nowhere
+  // to go, so it keeps the bar it always had.
+  if (header_name_owner != room_label) { header_name_owner = room_label; header_name_left = left; }
+  left = header_name_left;
+  // The name may already stand behind the key from the last draw: the room is measured from the profile's own margin.
+  width = std::max(0, page_w + static_cast<int>(lv_obj_get_style_x(time_label, LV_PART_MAIN)) - left);
+  bool home_on = false;
+  lv_font_glyph_dsc_t house;
+  const lv_font_t *house_font = header_home_font ? header_home_font : header_icon_font;
+  if (settings_screen::home_button && lv_font_get_glyph_dsc(house_font, &house, HOME_GLYPH, 0) && house.box_w) {
+    // On the baseline of the name, not centred on it: the house stands on the line the capitals stand on and grows
+    // upward from there, the way a taller letter would. Centring it would hang it below the line by half of what it
+    // is taller, which is exactly the half pixel you see. Without a capital to measure, the digits of the bar.
+    lv_font_glyph_dsc_t cap;
+    const int ink_bottom = lv_font_get_glyph_dsc(name_font, &cap, 'H', 0) && cap.box_h ? baseline - cap.ofs_y
+                                                                                       : (middle2 + house.box_h) / 2;
+    const int ink_top = ink_bottom - house.box_h;
+    // Its own font, or the bar's; without either LVGL draws the missing-glyph box.
+    set_font(header_home_icon, house_font);
+    label(header_home_icon, tile_icon::utf8(HOME_GLYPH));
+    lv_obj_set_pos(header_home_icon, left - house.ofs_x,
+                   ink_top - ((house_font->line_height - house_font->base_line) - house.box_h - house.ofs_y));
+    // The finger gets the whole height of the bar and a little air either side of the glyph, so a tap near the
+    // house is a tap on it; the glyph itself is only a dozen pixels.
+    const int pad = gaps.item / 2;
+    // The band above the tiles, which the board states as the grid's own y; without it the name's line.
+    const int band = tile_grid && lv_obj_get_y(tile_grid) > 0 ? lv_obj_get_y(tile_grid) : baseline + name_font->line_height;
+    lv_obj_set_pos(header_home_tap, std::max(0, left - pad), 0);
+    lv_obj_set_size(header_home_tap, house.box_w + 2 * pad, band);
+    // The same air on both sides of the key: the margin the board keeps from the edge of the glass stands between
+    // the key and the name as well, measured ink to ink like every other gap in this bar.
+    const int shift = house.box_w + header_name_left;
+    left += shift;
+    width -= shift;
+    home_on = true;
+  }
+  set_visible(header_home_icon, home_on);
+  set_visible(header_home_tap, home_on);
+  // The name's own left bearing, so the gap to the key is the gap the bar draws everywhere else.
+  lv_obj_set_x(room_label, home_on ? left - text_ink(name_font, lv_label_get_text(room_label)).left : left);
   lv_point_t name_size;
   lv_text_get_size(&name_size, lv_label_get_text(room_label), name_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_EXPAND);
   auto placement = header_bar::place(widths.data(), count, gaps, width, name_size.x);
@@ -5541,6 +5615,78 @@ inline void camera_failed(bool thumb) {
 // guard waited for a release that was never reported. It is behaviour, not hardware, so it lives here once and
 // a board's triggers are one line each. The boot lambda of packages/core.yaml hands over the four things that
 // live in the YAML.
+// ---- The acknowledgement of a swipe (firmware 0.2.100+) ----
+// A white haze at the edge the gesture came from: an oval, half of it off the glass, that lights up the moment the
+// swipe is taken and fades out in a quarter of a second. One object with one property animated and nothing else on
+// the page moving, so it costs a blend over its own corner and no redraw of the tiles. The colour is the light the
+// glass already makes: white on the light look, and on the dark one too, where it reads as a glow instead of a haze.
+enum class Edge : uint8_t { left, right, bottom };
+inline lv_obj_t *swipe_glow_obj = nullptr;
+// The haze at its brightest, before the fade. White on a light page barely lifts its grey, so there it starts at
+// full and the gradient does the softening; on the dark look white is loud, so it starts at little over half.
+// Measured on the host render: white at 43 % over the light page is invisible.
+inline int glow_peak() { return theme::dark ? 150 : 255; }
+// It stays at full for a breath and then takes its time: bright enough to notice out of the corner of an eye, and
+// slow enough on the way out to read as the page coming in rather than a blink.
+constexpr int GLOW_HOLD_MS = 90, GLOW_MS = 420;
+inline void swipe_glow(Edge edge) {
+  if (!room_label) return;
+  auto *page = lv_obj_get_parent(room_label);
+  // The page's own glass, the way the top bar measures it, not the display: a screen that was turned, or built
+  // standing up, then lights the edge the finger really came from.
+  const int width = lv_obj_get_width(page), height = lv_obj_get_height(page);
+  if (width <= 0 || height <= 0) return;
+  if (!swipe_glow_obj) {
+    swipe_glow_obj = lv_obj_create(page);
+    lv_obj_remove_style_all(swipe_glow_obj);
+    lv_obj_remove_flag(swipe_glow_obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(swipe_glow_obj, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_add_flag(swipe_glow_obj, LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_add_flag(swipe_glow_obj, LV_OBJ_FLAG_HIDDEN);
+    // An oval of white that thins out towards the middle of the glass: the soft edge is the gradient, not a blur,
+    // which the software renderer would pay for by the pixel.
+    lv_obj_set_style_radius(swipe_glow_obj, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(swipe_glow_obj, lv_color_white(), 0);
+    lv_obj_set_style_bg_grad_color(swipe_glow_obj, lv_color_white(), 0);
+  }
+  // Half of the oval lies off the glass, so what shows is an arc coming in from that edge: as wide as a third of
+  // the glass at a side, and as tall as a third of it along the bottom.
+  const int along = edge == Edge::bottom ? width * 7 / 10 : width * 7 / 20;
+  const int across = edge == Edge::bottom ? height * 7 / 20 : height * 7 / 10;
+  if (edge == Edge::bottom) {
+    lv_obj_set_size(swipe_glow_obj, along, across);
+    lv_obj_set_pos(swipe_glow_obj, (width - along) / 2, height - across / 2);
+    lv_obj_set_style_bg_grad_dir(swipe_glow_obj, LV_GRAD_DIR_VER, 0);
+    lv_obj_set_style_bg_main_opa(swipe_glow_obj, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_grad_opa(swipe_glow_obj, LV_OPA_COVER, 0);
+  } else {
+    lv_obj_set_size(swipe_glow_obj, along, across);
+    lv_obj_set_pos(swipe_glow_obj, edge == Edge::left ? -along / 2 : width - along / 2, (height - across) / 2);
+    lv_obj_set_style_bg_grad_dir(swipe_glow_obj, LV_GRAD_DIR_HOR, 0);
+    lv_obj_set_style_bg_main_opa(swipe_glow_obj, edge == Edge::left ? LV_OPA_COVER : LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_grad_opa(swipe_glow_obj, edge == Edge::left ? LV_OPA_TRANSP : LV_OPA_COVER, 0);
+  }
+  const int peak = glow_peak();
+  lv_obj_set_style_bg_opa(swipe_glow_obj, static_cast<lv_opa_t>(peak), 0);
+  lv_obj_remove_flag(swipe_glow_obj, LV_OBJ_FLAG_HIDDEN);
+  lv_obj_move_foreground(swipe_glow_obj);
+  lv_anim_t fade;
+  lv_anim_init(&fade);
+  lv_anim_set_var(&fade, swipe_glow_obj);
+  lv_anim_set_values(&fade, peak, 0);
+  lv_anim_set_duration(&fade, GLOW_MS);
+  lv_anim_set_delay(&fade, GLOW_HOLD_MS);
+  // Slow at the start, quick at the end: the haze holds its light and then goes, instead of dropping away at once.
+  lv_anim_set_path_cb(&fade, lv_anim_path_ease_in);
+  lv_anim_set_exec_cb(&fade, [](void *object, int32_t value) {
+    lv_obj_set_style_bg_opa(static_cast<lv_obj_t *>(object), static_cast<lv_opa_t>(value), 0);
+  });
+  lv_anim_set_completed_cb(&fade, [](lv_anim_t *) {
+    if (swipe_glow_obj) lv_obj_add_flag(swipe_glow_obj, LV_OBJ_FLAG_HIDDEN);
+  });
+  lv_anim_start(&fade);
+}
+
 namespace touch_input {
 // A finger arrived or left: the standby clock, the "back to page 1" clock and `touch_down`.
 inline std::function<void(bool down)> contact;
@@ -5561,7 +5707,7 @@ inline void pressed(int x, int y, int id, bool calibrating) {
   cyd::touch_guard.begin(esphome::millis(), x, y, id);
   int sx = x, sy = y;
   screen_point(sx, sy);
-  cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width());
+  cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height());
   ESP_LOGI("touch", "press x=%d y=%d id=%d test=%d screen=%d,%d", x, y, id, calibrating ? 1 : 0, sx, sy);
 }
 
@@ -5579,25 +5725,36 @@ inline void moved(int x, int y, int id, int state) {
   // touchscreen trigger.
   int sx = x, sy = y;
   screen_point(sx, sy);
-  const int step = cyd::edge_swipe.update(sx, sy);
-  if (!step) return;
+  const auto gesture = cyd::edge_swipe.update(sx, sy);
+  if (gesture == cyd::EdgeSwipe::Gesture::none) return;
   const char *blocked = !enabled                ? "no runtime tiles"
                       : !swipe_pages            ? "setting off"
                       : camera_visible()        ? "camera open"
                       : (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detail card open"
+                      : captured_slider         ? "a slider is being dragged"
                       : swipe_blocked           ? swipe_blocked()
                       : nullptr;
   if (blocked) { ESP_LOGI("touch", "edge swipe ignored: %s", blocked); return; }
   cyd::touch_guard.consume();
   for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
+  // Up from the bottom edge is the way home (firmware 0.2.100+), in from a side edge is one page. Either way the
+  // edge it came from lights up for a moment, so the gesture is answered before the new page is drawn.
+  if (gesture == cyd::EdgeSwipe::Gesture::home) {
+    ESP_LOGI("touch", "edge swipe up: back to page 1");
+    swipe_glow(Edge::bottom);
+    if (back_home) back_home();
+    return;
+  }
+  const int step = gesture == cyd::EdgeSwipe::Gesture::next ? 1 : -1;
   ESP_LOGI("touch", "edge swipe: %d page(s)", step);
+  swipe_glow(step > 0 ? Edge::right : Edge::left);
   if (turn_page) turn_page(step);
 }
 
 inline void released() {
   if (contact) contact(false);
   if (cyd::edge_swipe.armed() && cyd::edge_swipe.inward() > 0)
-    ESP_LOGI("touch", "edge swipe not fired: %d px inward, %d px vertical", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
+    ESP_LOGI("touch", "edge swipe not fired: %d px travelled, %d px across", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
   cyd::edge_swipe.end();
 }
 }  // namespace touch_input
