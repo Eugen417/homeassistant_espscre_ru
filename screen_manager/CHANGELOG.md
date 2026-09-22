@@ -1,3 +1,13 @@
+## 0.2.118 (firmware 0.2.97)
+
+The calibration wizard measures each tap at one instant instead of two.
+
+- A tap gave the wizard two halves from two moments: where the screen put your finger when it went down, and what the panel was sending when it came up. A finger rolls a little in between, which is what a finger does, so those two halves could describe different places.
+- None of the guards caught it. Three taps a cross and their median only see the spread between taps, not the roll inside one, and the rule that all five crosses have to land back within 12 pixels holds the shifted chain against the shifted points, which agree. A finger that rolled the same way on every cross was accepted every time and moved the whole screen: measured on the fit itself, 100 counts of roll came out as 9.8 pixels off, 200 counts as 19.5.
+- Both halves are now kept together on every reading while the finger is down, and the tap keeps the last of them. Taken together a pair is exact however noisy that instant is: the screen point is derived from the same filtered reading the panel sent, so noise sits in both halves and cancels where the wizard works out what the chain from panel to glass does. A tap that never reported a reading is asked for again, like one that was too short.
+- The middle of the three taps on a cross is now one tap, not a mix. The median used to be taken per axis and again per half, so the reading could come from one tap and the point the screen made of it from another, which is the same pairs pulled apart a level up. A single wild tap is still thrown away: it is the one furthest from the middle, so it is never the one picked.
+- Nothing changes on the glass: the same five crosses, the same three taps, the same spread check, and the correction still covers offset, scale and skew with the turn and any mirroring read from the taps themselves. A calibration already stored stays as it is, and is only replaced when you measure again.
+
 ## 0.2.117 (firmware 0.2.96)
 
 A screen whose touch needs measuring can be sent back to its crosses, without waiting for its first boot.

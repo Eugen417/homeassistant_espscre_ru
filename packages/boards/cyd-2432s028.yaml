@@ -335,7 +335,7 @@ touchscreen:
         // with): the wizard fits against that, so it never has to work out what the turn does.
         int screen_x = touch.x, screen_y = touch.y;
         if (runtime_tiles::touch_input::to_screen) runtime_tiles::touch_input::to_screen(screen_x, screen_y);
-        screen_calibration::press(screen_x, screen_y);
+        screen_calibration::press(touch.id, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
         ESP_LOGI("touch", "press native=%u,%u screen=%d,%d raw=%d,%d pressure=%d calibration=%d", touch.x, touch.y, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y(), touch.z_raw, id(calibration_active));
   on_update:
     - lambda: |-
@@ -344,13 +344,18 @@ touchscreen:
         // Only the contact that started the touch counts; the guard ignores other ids.
         for (const auto &point : touches) {
           cyd::touch_guard.update(point.x, point.y, point.id);
+          // The wizard keeps both halves of a reading from the same instant (firmware 0.2.97+): where the screen
+          // puts this point, and what the panel is sending right now.
+          int screen_x = point.x, screen_y = point.y;
+          if (runtime_tiles::touch_input::to_screen) runtime_tiles::touch_input::to_screen(screen_x, screen_y);
+          screen_calibration::hold(point.id, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
         }
   on_release:
     - lambda: |-
         id(last_touch_ms) = millis();
         id(last_use_ms) = millis();
         id(touch_down) = false;
-        screen_calibration::release(id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
+        screen_calibration::release();
 
 # Display configuration (ILI9341)
 display:

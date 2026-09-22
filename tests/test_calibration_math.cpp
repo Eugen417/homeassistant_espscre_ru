@@ -84,6 +84,40 @@ int main() {
   for (auto &r : raw) r = {1000, 1000};          // five taps in one spot say nothing
   assert(!fit(raw, reported, same));
 
+  // Both halves of a tap have to come from the same instant (firmware 0.2.97+). The wizard reads the panel and
+  // the screen point from one filtered reading, so a pair is exact however noisy that reading is; what it may
+  // never do is take the screen point at touch down and the panel's reading at lift. A finger that rolls the
+  // same way on every cross then shifts every reported point together, and a shift in the reported points is a
+  // shift in the chain the wizard learns, which it hands straight on to the correction.
+  bind(320, 240);
+  {
+    const double roll = 100;  // ADC counts a rolling finger travels: about 9 px on this panel
+    Calibration base;
+    std::array<Point,5> tapped, matched, rolled;
+    taps(lying, tapped, matched, base);
+    // The pair the old code made: the reading from where the finger ended, the screen point from where it began.
+    for (int n = 0; n < 5; ++n) rolled[n] = lying(corrected(base, {tapped[n].x - roll, tapped[n].y - roll}));
+    // Measured against the real chain, not against the one the wizard just fitted: a wizard that mislearns the
+    // chain also projects with it, so `project` would flatter exactly the mistake this is looking for.
+    auto worst_on_the_glass = [&lying](const Calibration &c, const std::array<Point,5> &readings) {
+      double worst = 0;
+      for (int n = 0; n < 5; ++n) {
+        const Point landed = lying(corrected(c, readings[n])), t = target(n);
+        worst = std::max(worst, std::hypot(landed.x - t.x, landed.y - t.y));
+      }
+      return worst;
+    };
+    Calibration mismatched = base;
+    // The fit's own checks pass: it holds the shifted chain against the shifted points and they agree.
+    assert(fit(tapped, rolled, mismatched));
+    // On the glass the shift is still there, and every tap lands beside its target by about it.
+    assert(worst_on_the_glass(mismatched, tapped) > 5.0);
+    // The same taps with both halves read at one instant: back on the crosses.
+    Calibration paired = base;
+    assert(fit(tapped, matched, paired));
+    assert(worst_on_the_glass(paired, tapped) < 1.0);
+  }
+
   // A cross is never asked for outside the glass, whichever way it hangs.
   for (auto shape : {std::array<int,2>{320,240}, {240,320}, {800,480}, {480,800}}) {
     bind(shape[0], shape[1]);
