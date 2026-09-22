@@ -1,3 +1,12 @@
+## 0.2.113 (firmware 0.2.95)
+
+The container says it is healthy, because now it is asked something it can answer. Reported in issue #23.
+
+- **`docker ps` read `(unhealthy)`** next to the app while everything worked. The image is built on the official ESPHome image, which brings a health check of its own: it asks the ESPHome dashboard on port 6052 for its version. This app runs its own server instead and never starts that dashboard, so the check could never pass, on every install since the first one.
+- **The image now brings its own check**: `curl` on `127.0.0.1:8099/health` inside the container, every 30 seconds after a minute of grace. The app answers that one address with `ok` and nothing else, from inside the container as well as through Home Assistant; every other address still only answers Home Assistant's ingress proxy, so nothing of your home is reachable that was not before. Verified by building the image both ways and letting Docker judge: the old one turns unhealthy after about a minute, the new one healthy after thirty seconds.
+- The Docker route's `compose.yaml` asks for `/health` too, for a container built from an older image.
+- No firmware change: screens stay on 0.2.95.
+
 ## 0.2.112 (firmware 0.2.95)
 
 Texts that still said two boards now say what is supported.

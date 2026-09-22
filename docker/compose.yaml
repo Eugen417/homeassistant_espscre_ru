@@ -27,8 +27,9 @@ services:
       - ./esphome:/config                # device profiles and secrets.yaml; or your ESPHome Device Builder folder
       - ./data:/data                     # layouts, update settings and build caches
     healthcheck:
-      # The base image checks the ESPHome dashboard, which doesn't run here.
-      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8099/"]
+      # The image brings this check itself (screen_manager/Dockerfile); it stays here for a container built
+      # from an older image. The app answers /health from inside the container, the page needs Home Assistant.
+      test: ["CMD", "curl", "--fail", "--silent", "--output", "/dev/null", "http://127.0.0.1:8099/health"]
     # USB flashing (Linux only): connect the screen first, then uncomment and set its port.
     # devices:
     #   - /dev/ttyUSB0:/dev/ttyUSB0

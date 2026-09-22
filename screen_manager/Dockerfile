@@ -10,5 +10,10 @@ COPY translations /app/translations
 # The Update badge shows what's new from the changelog (app 0.2.73).
 COPY CHANGELOG.md /app/CHANGELOG.md
 WORKDIR /app
+# The ESPHome image checks its dashboard on port 6052, which this app never starts, so the container read
+# "unhealthy" while everything worked (issue #23). This one asks our own server, on the port the page is on;
+# under the Supervisor every other address gets a 403, so it is /health and not /.
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+  CMD curl --fail --silent --output /dev/null http://127.0.0.1:8099/health || exit 1
 ENTRYPOINT []
 CMD ["python3", "/app/server.py"]

@@ -1927,6 +1927,10 @@ def create_app(manager, development=False):
         # The editor's language for the messages this request answers with (app 0.2.90). An EventSource sends no headers of
         # its own, so the live updates (/api/events) carry it in the address.
         REQUEST_LANGUAGE.set(TRANSLATIONS.resolve(request.headers.get('X-ESP-Screens-Language') or request.query.get('language') or 'en'))
+        # Docker's health check asks the app itself whether it is up, from inside the container (issue #23). It is the
+        # one address the app answers besides Home Assistant's, it says nothing but "ok", and it changes nothing.
+        if request.path == '/health' and request.method in {'GET', 'HEAD'}:
+            return web.Response(text='ok\n', content_type='text/plain', headers={'Cache-Control': 'no-store'})
         allowed = {'127.0.0.1', '::1'} if development else {'172.30.32.2'}
         if request.remote not in allowed:
             raise web.HTTPForbidden(text=t('addon.errors.open_through_ha'))

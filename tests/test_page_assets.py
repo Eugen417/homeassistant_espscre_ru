@@ -82,6 +82,11 @@ class Guard(unittest.IsolatedAsyncioTestCase):
                 for path in ('/', '/api/inventory', '/assets/x.js'):
                     response = await client.get(path)
                     self.assertEqual((response.status, await response.text()), (403, 'Open this page through Home Assistant.'), path)
+                # Docker's health check comes from inside the container, not through ingress, and is the one
+                # request that is answered anyway (issue #23): no page, no data, no change.
+                health = await client.get('/health')
+                self.assertEqual((health.status, await health.text()), (200, 'ok\n'))
+                self.assertEqual((await client.post('/health')).status, 403)
             # The development server answers localhost, and a change still needs the token the page got.
             async with TestClient(TestServer(create_app(manager, True))) as client:
                 self.assertEqual((await client.get('/api/inventory')).status, 200)
