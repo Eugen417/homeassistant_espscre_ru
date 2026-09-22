@@ -36,7 +36,8 @@ on the same step of the RGB565 panel, so it stays grey on both boards.
   `state()` (Home Assistant's greys become the dark greys), `foreground()` (a glyph, a line or words:
   deep colours are lifted in dark), `tint()` (the pale circle, a halo, a slider track), `icon()`
   (a tile's icon), `surface()` and `outline()` (a card's own colour and hairline), `key_on()` (keys
-  inside a card of any colour) and `fill_opacity()` (the area under a graph).
+  inside a card of any colour), `pressed()` (a card under a finger) and `fill_opacity()` (the area
+  under a graph).
 
 ## A change of look
 

@@ -59,6 +59,9 @@ int main() {
   assert(surface(0) == 0xFFFFFF && surface(0xFADADD) == 0xFADADD && surface(0x123456) == 0x123456);
   assert(outline(0) == 0xDDDDDD && outline(0xFADADD) == mix(0xFADADD, 0x000000, 220));
   assert(key_on(0xFFFFFF, 236) == mix(0xFFFFFF, 0x000000, 236));
+  // A card under a finger: an eighth towards black, on a pastel too.
+  assert(pressed(0xFFFFFF) == 0xE0E0E0 && pressed(0xD9EEDC) == mix(0xD9EEDC, 0x000000, 224));
+  assert(lightness(pressed(0xFFFFFF)) < lightness(hex(PAGE)));
 
   // ---- the dark look
   look(true);
@@ -111,8 +114,9 @@ int main() {
     assert(lightness(tint(accent, 38)) < 110 && lightness(tint(accent, 51)) < 120);
     assert(contrast(icon(accent), tint(accent, 38)) >= 3.0);
   }
-  // Keys in a card are lighter than the card, its hairline too.
+  // Keys in a card are lighter than the card, its hairline too; so is the card under a finger.
   assert(lightness(key_on(hex(CARD), 236)) > lightness(hex(CARD)));
+  assert(pressed(hex(CARD)) == mix(hex(CARD), 0xFFFFFF, 224) && lightness(pressed(hex(CARD))) > lightness(hex(CARD)));
   assert(lightness(outline(0xFADADD)) > lightness(surface(0xFADADD)));
   assert(fill_opacity() < 51);
   return 0;

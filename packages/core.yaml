@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.94"
+  SCREEN_FIRMWARE_VERSION: "0.2.95"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -1353,10 +1353,11 @@ lvgl:
 
   buffer_size: ${LVGL_BUFFER_SIZE}
 
-  # Direct local feedback on the WHOLE UI, not just the tiles.
-  # A theme sets the style per widget type, so this covers all
-  # buttons, tabs, sliders and the thermostat ring in one go. Non-clickable
-  # widgets never enter the pressed state, so those stay untouched.
+  # Direct local feedback on the WHOLE UI. A theme sets the style per widget type, so this covers all
+  # buttons, tabs, sliders and the thermostat ring in one go. Non-clickable widgets never enter the
+  # pressed state, so those stay untouched. The cards have a press of their own since firmware 0.2.95
+  # (runtime_tiles::press_feedback): a darker shade of the card the moment the finger lands, fading
+  # back over 200 ms when it lifts, LVGL's own style transition on the card alone.
   theme:
     obj:
       pressed:

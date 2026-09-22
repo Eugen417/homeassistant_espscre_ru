@@ -1,3 +1,10 @@
+## 0.2.111 (firmware 0.2.95)
+
+A card answers a finger with a press you can see.
+
+- **The press is darker, and it fades.** A card under a finger went 45 % transparent, a shade lighter that was easy to miss, and snapped back the moment the finger lifted. It now darkens the moment the finger lands, an eighth of the way towards black in the light look and towards white in the dark look, so the press reads on a white card, on a pastel one and on graphite alike; a card without a background darkens the page under it. When the finger lifts, the card fades back over 200 ms. The fade is LVGL's own style transition on the card's background: no extra object, no layer, one small animation that redraws the card alone, so the CYD's memory and the frame rate of both boards are untouched. The busy sheet with the spinner is as it was: it only appears when Home Assistant takes longer than 400 ms to answer.
+- Needs firmware 0.2.95: press **Update** on the screen. Includes everything from 0.2.110. CYD firmware: 1,623,872 bytes, 88.5 % of the update slot, built with the ESPHome this add-on ships (2026.9.0); 208 bytes less than 0.2.110.
+
 ## 0.2.110 (firmware 0.2.94)
 
 Experimental support for the Waveshare ESP32-S3-Touch-LCD-7, requested in issue #22.

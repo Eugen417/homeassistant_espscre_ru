@@ -59,8 +59,6 @@ CARD = '''              # ---------- CARD {n} ----------
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile{n}_icon_circle

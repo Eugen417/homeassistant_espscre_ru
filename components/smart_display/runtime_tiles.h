@@ -3128,6 +3128,41 @@ inline HeadRow head_row(const Widgets &w, bool large, int circle, int room, int 
 inline int slider_zone(const Widgets &w, int strip) {
   return std::max(8, (int) lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) + content_height(w) - strip);
 }
+// A card under a finger (firmware 0.2.95+). The press darkens the card the moment the finger lands (theme::pressed on
+// the PRESSED state, in place of the theme's 45 % veil); letting go fades the card back over PRESS_FADE_MS. The fade is
+// LVGL's own style transition on the card's background: no object, no layer, one small animation that redraws the
+// card alone. LVGL takes the transition of the most specific state that matches the new one, so the PRESSED state
+// carries one of 0 ms and the press stays instant; the fade lives on one shared style every card gets in bind().
+constexpr uint32_t PRESS_FADE_MS = 200;
+struct PressStyles { lv_style_t fade; lv_style_transition_dsc_t release, at_once; };
+inline PressStyles &press_styles() {
+  static PressStyles s;
+  static bool ready = false;
+  if (!ready) {
+    static const lv_style_prop_t props[] = {LV_STYLE_BG_COLOR, LV_STYLE_BG_OPA, LV_STYLE_PROP_INV};
+    lv_style_transition_dsc_init(&s.release, props, lv_anim_path_ease_out, PRESS_FADE_MS, 0, nullptr);
+    lv_style_transition_dsc_init(&s.at_once, props, lv_anim_path_linear, 0, 0, nullptr);
+    lv_style_init(&s.fade);
+    lv_style_set_transition(&s.fade, &s.release);
+    ready = true;
+  }
+  return s;
+}
+inline void press_feedback(lv_obj_t *tile) {
+  auto &s = press_styles();
+  lv_obj_add_style(tile, &s.fade, 0);
+  lv_obj_set_style_transition(tile, &s.at_once, LV_STATE_PRESSED);
+  lv_obj_set_style_bg_opa(tile, LV_OPA_COVER, LV_STATE_PRESSED);
+}
+// The card's own colour. A new colour ends a fade that may still run from the card this slot showed before (a page
+// switch within PRESS_FADE_MS), so the new card never wears the old one's shade: adding a style again is LVGL's way
+// to end the transitions of an object.
+inline void press_ground(lv_obj_t *tile, lv_color_t colour) {
+  lv_style_value_t was;
+  if (lv_obj_get_local_style_prop(tile, LV_STYLE_BG_COLOR, &was, 0) == LV_STYLE_RES_FOUND && !lv_color_eq(was.color, colour))
+    lv_obj_add_style(tile, &press_styles().fade, 0);
+  set_color(tile, LV_STYLE_BG_COLOR, colour);
+}
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
   // A card is measured in the cell it will live in (firmware 0.2.92+). Everything below reads the size the card
   // has here, so it is put in the first cell of the grid first: one cell is exactly what a plain single card
@@ -3140,6 +3175,7 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   // Compact cards need room for two text lines and a separate dimmer track.
   if(lv_obj_get_height(tile)<=80){lv_obj_set_style_pad_top(tile,4,0);lv_obj_set_style_pad_bottom(tile,4,0);}
   lv_obj_set_style_border_width(tile,1,0);
+  press_feedback(tile);
   lv_obj_update_layout(tile);
   widgets[index] = {tile, title, value, circle, icon, index};
   auto &w=widgets[index]; w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
@@ -4242,10 +4278,11 @@ inline void render_slot(size_t slot) {
   // Every card, the one over the whole page too, is white or its own pastel (firmware 0.2.77+): the state shows in the
   // icon and the controls, as on the other sizes. Firmware 0.2.62 to 0.2.76 tinted a full-page card in its state colour
   // while it was on.
-  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(theme::surface(t.background)));
+  press_ground(w.tile,lv_color_hex(theme::surface(t.background)));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
-  // "Background: none" hides only the card; geometry and padding stay identical,
-  // and the pressed flash still shows because it lives on the PRESSED state.
+  // "Background: none" hides only the card; geometry and padding stay identical, and the press still shows because
+  // it lives on the PRESSED state: a shade of what the finger sees, the page there, the card everywhere else.
+  set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(theme::pressed(t.transparent ? theme::hex(theme::PAGE) : theme::surface(t.background))),LV_STATE_PRESSED);
   set_number(w.tile,LV_STYLE_BG_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
   set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
   set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));

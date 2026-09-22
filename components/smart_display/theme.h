@@ -273,6 +273,9 @@ inline uint8_t fill_opacity() { return dark ? 38 : 51; }
 inline uint32_t key_on(uint32_t card, uint8_t depth) {
   return dark ? mix(card, 0xFFFFFF, static_cast<uint8_t>(255 - (255 - depth) * 3 / 2)) : mix(card, 0x000000, depth);
 }
+// A card under a finger (firmware 0.2.95+): its own colour an eighth of the way to black in light and to white in
+// dark, the same share on white, on a pastel and on graphite, so the press reads on every card in both looks.
+inline uint32_t pressed(uint32_t card) { return mix(card, dark ? 0xFFFFFF : 0x000000, 224); }
 
 }  // namespace theme
 

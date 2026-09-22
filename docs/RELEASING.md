@@ -1668,3 +1668,18 @@ inside `runtime_tiles.h`:
   draws everything at once as before. `check_tile_geometry` no longer has a fill to finish.
 - The `swipe_prof` line of a `-DSWIPE_PROFILE=1` build lost `skel` and `steps`; `fill` is the CPU of
   the whole pass. The `cards` tuning of the `swipe_test` message is gone.
+
+### Compatibility 0.2.111 / firmware 0.2.95
+
+Firmware only: storage version, tile protocol, preferences and keys are unchanged. What moved:
+
+- A card's press lives in `runtime_tiles::press_feedback` (called from `bind`): the PRESSED state
+  draws `theme::pressed()` of the card's colour at full opacity, and letting go fades `bg_color` and
+  `bg_opa` back over `PRESS_FADE_MS` (200 ms) through an LVGL style transition on one shared style.
+  The PRESSED state carries a local 0 ms transition, so the press itself stays instant.
+- `render_slot` sets the card's colour through `press_ground`, which ends a running fade when the
+  slot gets a new colour, and keeps the PRESSED colour with it (the page's colour for a card without
+  a background).
+- The `pressed: bg_opa: 45%` block of every card in `packages/cells/*.yaml` is gone
+  (`tools/generate_cells.py`); the theme's `obj: pressed: bg_opa: 45%` in `packages/core.yaml`
+  stays for everything else. `theme::pressed()` is new in `theme.h`.

@@ -50,8 +50,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile1_icon_circle
@@ -90,8 +88,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile2_icon_circle
@@ -130,8 +126,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile3_icon_circle
@@ -170,8 +164,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile4_icon_circle
@@ -210,8 +202,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile5_icon_circle
@@ -250,8 +240,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile6_icon_circle
@@ -290,8 +278,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile7_icon_circle
@@ -330,8 +316,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile8_icon_circle
@@ -370,8 +354,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile9_icon_circle
@@ -410,8 +392,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile10_icon_circle
@@ -450,8 +430,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile11_icon_circle
@@ -490,8 +468,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile12_icon_circle
@@ -530,8 +506,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile13_icon_circle
@@ -570,8 +544,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile14_icon_circle
@@ -610,8 +582,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile15_icon_circle
@@ -650,8 +620,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile16_icon_circle
@@ -690,8 +658,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile17_icon_circle
@@ -730,8 +696,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile18_icon_circle
@@ -770,8 +734,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile19_icon_circle
@@ -810,8 +772,6 @@ lvgl:
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
-                  pressed:
-                    bg_opa: 45%
                   widgets:
                     - obj:
                         id: tile20_icon_circle
