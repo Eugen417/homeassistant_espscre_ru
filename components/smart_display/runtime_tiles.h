@@ -4867,7 +4867,12 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   swipe_profile::FillTimer timer;
   applied_page=place_page(page);
   // A page with a title of its own carries it into the top bar with the same frame as its tiles, not a tick later.
-  if(room_label && model.configured && model.ready() && ha_connected() && feed_alive())name_label(room_label,model.title_of(applied_page));
+  // The bar is measured again in that same frame (firmware 0.2.102): a name is given to a label that still has the
+  // width of the page before it, so a longer name would stand there in dots until the next render said otherwise.
+  if(room_label && model.configured && model.ready() && ha_connected() && feed_alive()){
+    name_label(room_label,model.title_of(applied_page));
+    render_header();
+  }
   // Every card of the page, in this pass: the refresh that follows shows them together.
   for(size_t slot=0;slot<grid.slots();++slot){
     const auto &w=widgets[slot];

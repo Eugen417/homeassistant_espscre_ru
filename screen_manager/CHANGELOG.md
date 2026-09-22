@@ -1,3 +1,12 @@
+## 0.2.125 (firmware 0.2.102)
+
+The new page's name stands there in the same frame as its tiles.
+
+- 0.2.124 stopped a shortened name from staying shortened, and this is the other half of GitHub #27: the moment itself. A page change hands the top bar the next page's name while the label still has the width of the page before it, so a longer name was drawn in dots until the next pass over the screen measured the bar again, up to a second later. On the bench that showed as a page whose name was three dots and nothing else.
+- The bar is measured again in the same frame now, next to the tiles of the page you swiped to, the way the rest of the page is drawn. The name that belongs to a page arrives with it, whole.
+- Seen on the glass of a 4-inch Guition: page 2 says "Hal", page 1 says "Woonkamer beneden achter", and turning the page no longer leaves dots behind.
+- Firmware 0.2.102: press **Update** on each screen after the add-on updates.
+
 ## 0.2.124 (firmware 0.2.101)
 
 The name in the top bar stops shrinking to a letter and three dots.
