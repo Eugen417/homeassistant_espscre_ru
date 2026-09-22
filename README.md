@@ -63,7 +63,10 @@ home fits on one page.
   <img src="docs/images/board-waveshare7.png" width="49%" alt="The bedroom page on the 7-inch Waveshare: sixteen cells with a clock, a wide temperature graph, the weather, the heating, the ceiling light and Sonos with sliders, the energy graph, the robot and a good-night script">
   <img src="docs/images/board-jc8012p4a1.png" width="49%" alt="The study page on the 10.1-inch Guition: twenty cells with a clock, graphs, the weather, the heating, the ceiling light, a timer, Sonos, the curtains, the power usage, the robot, the coffee machine and a good-night script">
 </p>
-<p align="center"><sub>Which board is which, and what to look for when you buy one: <a href="#which-screen">Which screen</a>. A screen that is not square can also be built standing up.</sub></p>
+<p align="center">
+  <img src="docs/images/boards-standing.png" width="66%" alt="Two of the same screens built standing up, to scale: the 10.1-inch Guition as a kitchen wall panel with twenty tiles over four columns, and the 7-inch Waveshare by the front door with fourteen tiles in two columns">
+</p>
+<p align="center"><sub>The same home standing up. Which way a screen hangs is chosen when it is built, and every board that is not square hangs either way, with a grid of its own: the 10.1-inch Guition 4 × 5 instead of 5 × 4, the 7-inch Waveshare 2 × 7 instead of 4 × 4. Which board is which, and what to look for when you buy one: <a href="#which-screen">Which screen</a>.</sub></p>
 
 ## On the screen
 
