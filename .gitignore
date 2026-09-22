@@ -48,3 +48,7 @@ __pycache__/
 # of their grids are written with `tools/generate_cells.py --lab` and are not ignored, so a board that ships
 # never has its cards left out of Git.
 packages/boards/lab-*.yaml
+
+# Claude Code's local state for this checkout (launch.json, settings.local.json). What Claude knows about the
+# project lives outside the repo, in its own memory; skills and rules for it are not part of this codebase.
+/.claude/
