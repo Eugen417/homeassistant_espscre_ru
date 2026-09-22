@@ -3,6 +3,9 @@
 # You can modify this file to suit your needs.
 /.esphome/
 /secrets.yaml
+# The owner's bench entries: the boards' own names, keys and calibration, never in Git.
+/guition-wallbox.yaml
+/cyd-2432s028.yaml
 
 
 # Personal device configuration (not part of the example)

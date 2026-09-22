@@ -97,7 +97,7 @@ inline void set_color(lv_obj_t *obj, lv_style_prop_t prop, lv_color_t color, lv_
 inline void set_number(lv_obj_t *obj, lv_style_prop_t prop, int32_t number, lv_style_selector_t selector = 0);
 inline void set_font(lv_obj_t *obj, const lv_font_t *value);
 #ifdef SWIPE_PROFILE
-inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms, JsonObject tuning);
+inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms);
 #endif
 inline void refresh_header_only();
 inline void refresh_all();
@@ -253,8 +253,6 @@ struct Widgets {
   lv_color_t panel_accent{}, panel_text{};
   // Busy sheet: a translucent white cover with a small spinner while a command is under way.
   lv_obj_t *busy{}, *spinner{}; bool busy_drawn=false;
-  // Page fill skeleton: a sheet in the card's colour over its contents until the card is drawn.
-  lv_obj_t *veil{};
   // A camera tile's live picture (firmware 0.2.77+) or a media tile's album cover (0.2.78+) in the icon's place.
   lv_obj_t *picture{};
 };
@@ -619,7 +617,7 @@ inline std::string receive(const std::string &payload) {
     if (op == "swipe_test") {
       // Diagnostic builds only: page switches without a finger, `n` of them `ms` apart; `back`
       // (ms) swipes straight back after each one, like a quick second swipe.
-      swipe_test(root["n"] | 20u, root["ms"] | 1200u, root["back"] | 0u, root);
+      swipe_test(root["n"] | 20u, root["ms"] | 1200u, root["back"] | 0u);
       result = "Swipe test started";
       return true;
     }
@@ -4290,16 +4288,6 @@ inline void mark_tile(size_t index) { if(uint64_t bit=tile_bit(index))dirty_tile
 inline void refresh_tile(size_t index) { mark_tile(index); if(refresh)refresh(); }
 inline void refresh_header_only() { dirty_header=true; if(refresh)refresh(); }
 inline void refresh_all() { dirty_all=true; if(refresh)refresh(); }
-// Slots whose new page content is still to come: the page fill draws them, render() leaves them.
-inline std::array<bool,CELLS_MAX> slot_pending{};
-// Cards per fill step, the swipe pass included; the next waiting slot; the step timer, and whether
-// LVGL refreshed the screen since the last step.
-inline size_t FILL_STEP_CARDS=2;
-inline size_t fill_next=grid.slots();
-inline lv_timer_t *fill_timer=nullptr;
-inline bool fill_refreshed=false;
-inline uint32_t fill_step_ms=0;
-inline bool fill_cards(size_t cards);
 // The starting screen (firmware 0.2.73+): what the screen waits for in the middle of the page with a spinner under it,
 // until the first layout arrives. The first render() makes it and the first layout deletes it, spinner and all.
 inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr;
@@ -4346,7 +4334,7 @@ inline void render(lv_obj_t *room) {
   dirty_all=dirty_header=false;dirty_tiles=0;
   for (size_t slot = 0; slot < grid.slots(); ++slot) {
     const auto &w=widgets[slot];
-    if(slot_pending[slot] || w.index>=model.count)continue;
+    if(w.index>=model.count)continue;
     if(all || (tiles & tile_bit(w.index)))render_slot(slot);
   }
 }
@@ -4548,7 +4536,6 @@ inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
 inline bool applied_bar=true;
 inline bool check_tile_geometry() {
   bool ok=true;
-  if(fill_next<grid.slots()){ESP_LOGW("ui_test","page fill still under way at the check");fill_cards(grid.slots());}
   for(auto &w:widgets){
     if(!w.tile || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
     lv_obj_update_layout(w.tile);
@@ -4683,11 +4670,13 @@ inline unsigned page_count() {
   std::array<Placement,TILES_MAX> placement;
   return place(model,placement);
 }
-// Page switches feel immediate without blocking touch: the swipe pass places the new page (page
-// number, card widths), draws its first two cards and gives the others a light skeleton frame, all
-// in the very next frame. Every following LVGL refresh draws the next two cards, so the loop, and
-// the touch polling in it, runs between the steps, and a new swipe drops a fill still under way.
-// Keepalives and re-packing on the same page draw at once. Nothing is allocated.
+// A page switch lands whole (firmware 0.2.93+): the swipe pass places the new page (page number,
+// card widths) and draws every one of its cards before the loop goes on, so the refresh after it
+// puts the complete page on the glass in one frame, and the old page stays there until then. Up to
+// firmware 0.2.92 the first frame showed every card as an empty skeleton and the refreshes after it
+// filled two cards each, which read as a page being built up in front of you. The whole pass is
+// about 60 ms of CPU on the Guition and 30 ms on the CYD (docs/SWIPE_PROFILE.md): cheaper to wait
+// for than to watch. Keepalives and re-packing on the same page draw at once. Nothing is allocated.
 // Slot assignment plus card places, sizes and visibility for a page; contents are untouched.
 inline int place_page(int page) {
   swipe_profile::Lap lap;
@@ -4729,60 +4718,8 @@ inline int place_page(int page) {
   lap(swipe_profile::PLACE);
   return page;
 }
-// The skeleton frame is the empty card: its contents hidden under a sheet in the card's own colour
-// (the page colour for a card without a background) that covers the content area. The sheet is a
-// plain rectangle inside the card's padding, so it has no corners, border or layer to render, and
-// while it is up LVGL draws nothing under it. Drawing the card takes the sheet away again.
-inline lv_color_t page_color(const Widgets &w) {
-  for(auto *o=lv_obj_get_parent(w.tile);o;o=lv_obj_get_parent(o))
-    if(lv_obj_get_style_bg_opa(o,LV_PART_MAIN)>=LV_OPA_MAX)return lv_obj_get_style_bg_color(o,LV_PART_MAIN);
-  return theme::color(theme::PAGE);
-}
-inline void skeleton(Widgets &w) {
-  for(auto *o:{w.title,w.value,w.circle,w.unit,w.slider,w.extra,w.panel,w.busy,w.picture})if(o)lv_obj_add_flag(o,LV_OBJ_FLAG_HIDDEN);
-  if(!w.veil){
-    w.veil=lv_obj_create(w.tile);lv_obj_remove_style_all(w.veil);
-    lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_bg_opa(w.veil,LV_OPA_COVER,0);
-  }
-  const Tile *t=w.index<model.count?&model.tiles[w.index]:nullptr;
-  set_color(w.veil,LV_STYLE_BG_COLOR,t && t->transparent?page_color(w):lv_color_hex(theme::surface(t?t->background:0)));
-  lv_obj_set_pos(w.veil,0,0);
-  lv_obj_set_size(w.veil,content_width(w),content_height(w));
-  lv_obj_remove_flag(w.veil,LV_OBJ_FLAG_HIDDEN);
-  if(lv_obj_get_index(w.veil)!=(int32_t)lv_obj_get_child_count(w.tile)-1)lv_obj_move_foreground(w.veil);
-}
-inline void drop_veil(Widgets &w) {
-  if(w.veil && !lv_obj_has_flag(w.veil,LV_OBJ_FLAG_HIDDEN))lv_obj_add_flag(w.veil,LV_OBJ_FLAG_HIDDEN);
-}
-// Draws up to `cards` waiting cards in slot order; true once the page is complete.
-inline bool fill_cards(size_t cards) {
-  for(size_t drawn=0;fill_next<grid.slots() && drawn<cards;++fill_next){
-    if(!slot_pending[fill_next])continue;
-    slot_pending[fill_next]=false;render_slot(fill_next);drop_veil(widgets[fill_next]);++drawn;
-  }
-  while(fill_next<grid.slots() && !slot_pending[fill_next])++fill_next;
-  fill_step_ms=esphome::millis();fill_refreshed=false;
-  if(fill_next<grid.slots())return false;
-  if(fill_timer)lv_timer_pause(fill_timer);
-  swipe_profile::content_complete();
-  return true;
-}
-inline void cancel_fill() {
-  fill_next=grid.slots();slot_pending.fill(false);
-  if(fill_timer)lv_timer_pause(fill_timer);
-}
-inline void fill_timer_done(lv_timer_t *) {
-  // One step per refresh, so a step's frame reaches the glass before the next step is drawn. A step
-  // that changed no pixel starts no refresh; the fill then moves on after a short wait.
-  if(fill_next>=grid.slots() || (!fill_refreshed && esphome::millis()-fill_step_ms<40))return;
-  swipe_profile::FillTimer timer;
-  fill_cards(FILL_STEP_CARDS);
-}
 inline void apply_page(int page) {
-  cancel_fill();
   applied_page=place_page(page);
-  for(auto &w:widgets)drop_veil(w);
   if(room_label){dirty_all=true;render(room_label);}else refresh_all();
 }
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
@@ -4794,27 +4731,16 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   if(requested!=page && page==applied_page)return;
   if(applied_page<0 || page==applied_page || !room_label){apply_page(page);return;}
   swipe_profile::begin(applied_page,page);
-  swipe_profile::SkeletonTimer timer;
-  cancel_fill();
+  swipe_profile::FillTimer timer;
   applied_page=place_page(page);
   // A page with a title of its own carries it into the top bar with the same frame as its tiles, not a tick later.
   if(room_label && model.configured && model.ready() && ha_connected() && feed_alive())label(room_label,model.title_of(applied_page));
-  swipe_profile::Lap lap;
+  // Every card of the page, in this pass: the refresh that follows shows them together.
   for(size_t slot=0;slot<grid.slots();++slot){
-    auto &w=widgets[slot];
-    slot_pending[slot]=w.tile && w.index<model.count;
-    if(slot_pending[slot])skeleton(w);
+    const auto &w=widgets[slot];
+    if(w.tile && w.index<model.count)render_slot(slot);
   }
-  for(size_t slot=grid.slots();slot<widgets.size();++slot)drop_veil(widgets[slot]);
-  lap(swipe_profile::SKELETON);
-  // The skeleton frame goes out first; the fill starts on the refresh after it.
-  fill_next=0;fill_step_ms=esphome::millis();fill_refreshed=false;
-  if(!fill_timer){
-    fill_timer=lv_timer_create(fill_timer_done,1,nullptr);
-    if(auto *display=lv_display_get_default())
-      lv_display_add_event_cb(display,[](lv_event_t *){fill_refreshed=true;},LV_EVENT_REFR_READY,nullptr);
-  }
-  lv_timer_resume(fill_timer);
+  swipe_profile::content_complete();
 }
 // A navigation tile (screen.page, firmware 0.2.62+): the page it names, kept within the pages the screen has.
 inline void go_to_page(int page) {
@@ -4842,10 +4768,7 @@ inline void swipe_test_step(lv_timer_t *timer) {
   swipe_test_returning=false;--swipe_test_left;
   lv_timer_set_period(timer,lv_timer_get_user_data(timer)?(uint32_t)(uintptr_t)lv_timer_get_user_data(timer):1200);
 }
-inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms, JsonObject tuning) {
-  // Cards per fill step for the measurement.
-  if(tuning["cards"].is<unsigned>())FILL_STEP_CARDS=std::clamp<unsigned>(tuning["cards"].as<unsigned>(),1,6);
-  ESP_LOGI("swipe_prof","tuning: %u cards per step",(unsigned)FILL_STEP_CARDS);
+inline void swipe_test(unsigned count, unsigned interval_ms, unsigned back_ms) {
   swipe_test_left=std::min(count,200u);swipe_test_back=back_ms;swipe_test_returning=false;
   interval_ms=std::clamp(interval_ms,200u,10000u);
   if(!swipe_test_timer)swipe_test_timer=lv_timer_create(swipe_test_step,interval_ms,(void*)(uintptr_t)interval_ms);

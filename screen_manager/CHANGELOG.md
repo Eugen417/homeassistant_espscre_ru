@@ -1,3 +1,10 @@
+## 0.2.109 (firmware 0.2.93)
+
+A page switch lands in one piece.
+
+- **The next page arrives whole.** Since 0.2.42 a page switch put the new page's cards on the glass as empty frames in the very first refresh and filled them two at a time over the refreshes that followed, so that the screen kept answering a finger while the page was drawn. The drawing has become two to three times cheaper since then, and what was left of that fill read as a page being built up in front of you: frames first, then the cards, in steps. The screen now draws every card of the new page before it shows any of it. The page you were on stays until the new one is complete, and the complete page replaces it in one frame, about a tenth of a second after the swipe on the Guition and on the CYD. The chevrons and the dots under the page answer the tap as they did. No fade and no slide: every frame of a screen-wide animation is a full redraw in software on these boards, 50 to 110 ms each, so a slide or a fade would run at 10 to 16 frames per second and look worse than a clean cut. The measurements are in docs/SWIPE_PROFILE.md.
+- Needs firmware 0.2.93: press **Update** on the screen. Includes everything from 0.2.108. CYD firmware: 1,624,080 bytes, 88.5 % of the update slot, built with the ESPHome this add-on ships (2026.9.0); 579 bytes less than 0.2.107, the last firmware before it.
+
 ## 0.2.108 (firmware 0.2.92)
 
 The list of screens in the editor goes quiet: a name, an icon and a light, and the rest when you ask for it.

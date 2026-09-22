@@ -1655,3 +1655,16 @@ reported screen firmware:
   new firmware. Also `debug: update_interval` 300 s, and the four template numbers set to
   `update_interval: never`, published from `apply_screen_settings` when the value
   differs from their last state (so also once after boot).
+
+### Compatibility 0.2.109 / firmware 0.2.93
+
+Firmware only: storage version, tile protocol, preferences and keys are unchanged. What moved
+inside `runtime_tiles.h`:
+
+- A page switch (`show_page` to another page) places the page and draws every card in the same
+  pass; the refresh after it shows the complete page in one frame. The skeleton sheet
+  (`Widgets::veil`, `skeleton`), the fill in steps (`fill_cards`, `FILL_STEP_CARDS`, `slot_pending`,
+  the `LV_EVENT_REFR_READY` hook and the 40 ms fallback) and `cancel_fill` are gone; `apply_page`
+  draws everything at once as before. `check_tile_geometry` no longer has a fill to finish.
+- The `swipe_prof` line of a `-DSWIPE_PROFILE=1` build lost `skel` and `steps`; `fill` is the CPU of
+  the whole pass. The `cards` tuning of the `swipe_test` message is gone.

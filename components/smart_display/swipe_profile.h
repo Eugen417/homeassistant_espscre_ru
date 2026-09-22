@@ -2,7 +2,7 @@
 // Page swipe profiling for diagnostic builds only: compile with -DSWIPE_PROFILE=1. Without the
 // define every hook below is an empty inline and the release firmware is unchanged.
 // One INFO line per page switch, tag `swipe_prof`, times in ms from the swipe (show_page):
-//   skel   CPU in the skeleton pass           fill   CPU in all content passes (steps = passes)
+//   fill   CPU in the content pass (the placement and every card of the page)
 //   first  swipe -> first frame on the glass  done   swipe -> frame that completes the content
 //   gap    longest main-loop gap (touch is polled once per loop) from the swipe until done
 //   frames per LVGL refresh: +start:layout/render/flush ms, flush calls, pixels
@@ -19,16 +19,16 @@
 #endif
 
 namespace swipe_profile {
-// Steps of a content pass and of the skeleton pass; `Lap` adds the time since its previous lap.
-enum Part { TEXT, BUSY, LAYOUT, CUSTOM, PANEL, GEOMETRY, PALETTE, PLACE, SKELETON, HEADER, PARTS };
+// Steps of a content pass; `Lap` adds the time since its previous lap.
+enum Part { TEXT, BUSY, LAYOUT, CUSTOM, PANEL, GEOMETRY, PALETTE, PLACE, HEADER, PARTS };
 #ifdef SWIPE_PROFILE
-inline const char *const PART_NAMES[PARTS] = {"text", "busy", "layout", "custom", "panel", "geometry", "palette", "place", "skeleton", "header"};
+inline const char *const PART_NAMES[PARTS] = {"text", "busy", "layout", "custom", "panel", "geometry", "palette", "place", "header"};
 struct Frame { int64_t start = 0, render_start = 0, flush_start = 0; uint32_t layout = 0, render = 0, flush = 0, flushes = 0, pixels = 0; };
 struct Swipe {
   bool active = false, complete = false, done = false;
   int from = -1, to = -1;
   int64_t t0 = 0, first = 0, finished = 0, last_probe = 0;
-  uint32_t skeleton = 0, fill = 0, steps = 0, max_gap = 0;
+  uint32_t fill = 0, max_gap = 0;
   std::array<uint32_t, 6> slots{};
   std::array<uint32_t, PARTS> parts{};
   std::array<Frame, 24> frames{};
@@ -54,8 +54,8 @@ inline void emit(const char *outcome) {
   for (unsigned i = 0; i < s.slots.size(); ++i) { snprintf(b, sizeof(b), "%s%.1f", i ? "," : "", ms(s.slots[i])); slots += b; }
   std::string parts;
   for (unsigned i = 0; i < PARTS; ++i) { snprintf(b, sizeof(b), "%s%s:%.1f", i ? "," : "", PART_NAMES[i], ms(s.parts[i])); parts += b; }
-  ESP_LOGI("swipe_prof", "%s %d->%d skel=%.1f fill=%.1f steps=%u first=%.0f done=%.0f gap=%.0f frames=%s%s slots=%s parts=%s", outcome, s.from, s.to,
-           ms(s.skeleton), ms(s.fill), (unsigned) s.steps, s.first ? ms(s.first - s.t0) : -1.0, s.finished ? ms(s.finished - s.t0) : -1.0,
+  ESP_LOGI("swipe_prof", "%s %d->%d fill=%.1f first=%.0f done=%.0f gap=%.0f frames=%s%s slots=%s parts=%s", outcome, s.from, s.to,
+           ms(s.fill), s.first ? ms(s.first - s.t0) : -1.0, s.finished ? ms(s.finished - s.t0) : -1.0,
            ms(s.max_gap), frames.c_str(), s.dropped ? "+more" : "", slots.c_str(), parts.c_str());
   s.active = false;
 }
@@ -120,8 +120,7 @@ struct Timer {
   explicit Timer(uint32_t *target) : into(swipe.active && !swipe.done ? target : nullptr), start(now_us()) {}
   ~Timer() { if (into) *into += now_us() - start; }
 };
-struct SkeletonTimer : Timer { SkeletonTimer() : Timer(&swipe.skeleton) {} };
-struct FillTimer : Timer { FillTimer() : Timer(&swipe.fill) { if (into) swipe.steps++; } };
+struct FillTimer : Timer { FillTimer() : Timer(&swipe.fill) {} };
 struct SlotTimer : Timer { explicit SlotTimer(size_t slot) : Timer(slot < swipe.slots.size() ? &swipe.slots[slot] : nullptr) {} };
 struct Lap {
   int64_t last = now_us();
@@ -131,7 +130,6 @@ struct Lap {
 inline void content_complete() { if (swipe.active) swipe.complete = true; }
 #else
 inline void begin(int, int) {}
-struct SkeletonTimer { SkeletonTimer() {} };
 struct FillTimer { FillTimer() {} };
 struct SlotTimer { explicit SlotTimer(size_t) {} };
 struct Lap { void operator()(Part) {} };

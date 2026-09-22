@@ -9,7 +9,8 @@ measure it again. ESPHome 2026.6.2, LVGL 9.5, bench boards on USB.
   only; release builds never carry it). Without the define every hook in
   `components/smart_display/swipe_profile.h` is an empty inline.
 - One INFO line per page switch, tag `swipe_prof`, times in ms from the swipe (`show_page`):
-  `skel` CPU of the swipe pass, `fill` CPU of the later fill steps (`steps`), `first` swipe to
+  `fill` CPU of the swipe pass (firmware 0.2.93+: the whole page; before: `skel` for the
+  skeleton pass and `fill` with `steps` for the later fill steps), `first` swipe to
   the first frame on the glass, `done` swipe to the frame that completes the page, `gap` the
   longest main-loop gap until then (touch is polled once per loop), `frames` per LVGL refresh
   `+start:layout/render/flush:flush calls:pixels`, `slots` CPU per card, `parts` CPU per step
@@ -98,3 +99,15 @@ frame; the owner preferred speed.
   29 ms flush), about 110 ms.
 - A wide card that alternates between a mini slider and a control panel in the same slot still
   costs about 20 ms CPU per switch (real geometry and font changes).
+
+## Update: firmware 0.2.93 (app 0.2.109)
+
+The skeleton and the fill in steps are gone: `show_page` places the page and draws every card
+in the same pass, and the refresh after it puts the complete page on the glass in one frame
+while the old page stays until then. The steps were introduced above so the loop could poll
+touch between them; after the content pass shrank (57 ms CPU for a page on the Guition, 29 ms
+on the CYD in build 7) the visible fill cost more in feel than the blocked touch did. The
+`swipe_prof` line lost `skel` and `steps`; `fill` is the whole pass. The frame counts in the
+table above are therefore two for a switch now (the old page, then the new one), not three or
+four. A fade or a slide stays out for the reason measured above: a screen-wide animation is a
+full software redraw per frame, 50 to 110 ms on these boards.
