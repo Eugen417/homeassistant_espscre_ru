@@ -13,8 +13,11 @@ ESPHome Device Builder is optional:
 
 | Choice | Hardware |
 | --- | --- |
-| CYD | ESP32-2432S028, 320×240, ILI9341 and XPT2046 |
-| Guition | ESP32-S3-4848S040, 480×480, ST7701S and GT911 |
+| CYD, 2.8 inch | ESP32-2432S028, 320×240, ILI9341 and XPT2046 |
+| Guition, 4 inch | ESP32-S3-4848S040, 480×480, ST7701S and GT911 |
+| Waveshare, 4.3 inch | ESP32-S3-Touch-LCD-4.3, 800×480, ST7262 and GT911 |
+| Waveshare, 7 inch (experimental) | ESP32-S3-Touch-LCD-7, 800×480, RGB and GT911 |
+| Guition, 10.1 inch | JC8012P4A1, 1280×800, JD9365 MIPI-DSI and GSL3680, ESP32-P4 |
 
 Other screens with roughly the same name can have different pins. Use
 the board profile that matches the hardware. Use a USB cable that supports data.

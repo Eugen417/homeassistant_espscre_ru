@@ -1,6 +1,8 @@
-# Camera images on a Guition
+# Camera images on a screen
 
-App 0.2.66 with firmware 0.2.57 shows camera images on a Guition 4848S040:
+App 0.2.66 with firmware 0.2.57 shows camera images on every board with the memory for them: the
+4-inch Guition, the 4.3-inch and 7-inch Waveshare and the 10.1-inch Guition. The CYD is the one
+that cannot (see below). The numbers further down were measured on the 4-inch Guition.
 
 - **A camera tile.** Add a `camera.*` or `image.*` entity as a tile. A tap opens the image full
   screen, with the round back key at the top left like every card, and a spinner until the first

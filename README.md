@@ -15,11 +15,11 @@ Thank you! I work on this project with a lot of love, and every bit of support h
 panel costs a fraction of that, sits on a table or in a wall box, and is always at hand for the
 lights, the heating or the vacuum.
 
-**What.** Firmware for affordable panels, the 2.8-inch CYD, the 4-inch Guition and the 4.3-inch Waveshare, with
+**What.** Firmware for affordable panels, five of them today, from the 2.8-inch CYD to the 10.1-inch Guition, with
 tiles over up to eight pages, as many per page as the glass holds: lights, climate, blinds and curtains, the vacuum, media, the weather,
-history graphs, clocks and timers, and on a Guition your cameras. A tile can take the whole page, one big switch you push without
+history graphs, clocks and timers, and on every screen but the CYD your cameras. A tile can take the whole page, one big switch you push without
 looking, and a tile can go to another page. An automation can put an alert on every screen when someone rings
-the bell, and a Guition shows who is there with the doorbell camera's picture. A tap can run any
+the bell, and a screen with room for pictures shows who is there with the doorbell camera's picture. A tap can run any
 action Home Assistant has for a tile, and Dark mode suits a screen beside the bed.
 
 **How.** ESP Screen Manager is an app inside Home Assistant. It flashes a new screen over USB, updates
@@ -103,7 +103,7 @@ home fits on one page.
   <img src="docs/images/guition-camera.png" width="32%" alt="A camera tile tapped: the front door camera full screen, with the round back key and the camera's name at the top">
   <img src="docs/images/guition-alert-camera.png" width="32%" alt="The same camera in an alert: its picture across the top of the card, with the card's rounded corners">
 </p>
-<p align="center"><sub>Cameras are tiles too, not only part of an alert: any camera or snapshot in Home Assistant (a doorbell's last ring, for example) goes on a Guition like any other tile. Tap it for the picture full screen, refreshed every four seconds, or let the tile itself show a small live picture in the icon's place (Display → Live picture, every 15 or 30 s); an alert can carry the same picture. The CYD has no memory for pictures (<a href="docs/CAMERA.md">how it works</a>).</sub></p>
+<p align="center"><sub>Cameras are tiles too, not only part of an alert: any camera or snapshot in Home Assistant (a doorbell's last ring, for example) goes on a screen like any other tile. Tap it for the picture full screen, refreshed every four seconds, or let the tile itself show a small live picture in the icon's place (Display → Live picture, every 15 or 30 s); an alert can carry the same picture. Every screen but the CYD, which has no memory for pictures (<a href="docs/CAMERA.md">how it works</a>).</sub></p>
 <p align="center">
   <img src="docs/images/cyd-home.png" width="32%" alt="CYD 2.8-inch screen: the weather forecast, a kitchen timer, the coffee machine, a lamp and power usage as a large value">
   <img src="docs/images/cyd-page-2.png" width="32%" alt="Second CYD page: Sonos volume, presence, a scene and an energy graph">
