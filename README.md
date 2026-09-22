@@ -43,6 +43,28 @@ https://github.com/user-attachments/assets/f9f6a933-d388-4c8b-9c9a-011dfa37617b
 </p>
 <p align="center"><sub>Real photos, not renders: the 4-inch Guition next to the lamp it controls.</sub></p>
 
+## Five screens supported, 2.8 to 10.1 inch
+
+One home, five panels. A screen is built for the glass it runs on: it measures its own canvas at boot and gives a page
+the cells that board has, six tiles on the 2.8-inch CYD and twenty on the 10.1-inch Guition, while a tile stays about
+the same size in millimetres. The same tiles, the same cards, the same editor; the bigger the glass, the more of your
+home fits on one page.
+
+<p align="center">
+  <img src="docs/images/boards-scale.png" width="98%" alt="The five supported screens side by side on one scale, each showing a page of the same home: the small 2.8-inch CYD, the square 4-inch Guition, the wide 4.3-inch Waveshare, the 7-inch Waveshare and the large 10.1-inch Guition">
+</p>
+<p align="center"><sub>To scale, each with the page it fills: the same home on the 2.8-inch CYD, the 4-inch Guition, the 4.3-inch and 7-inch Waveshare, and the 10.1-inch Guition. Rendered from the firmware's own code, one board at a time.</sub></p>
+<p align="center">
+  <img src="docs/images/board-cyd.png" width="32%" alt="The kitchen page on the 2.8-inch CYD: the weather with five days, a pasta timer, the coffee machine, the kitchen lamp and the power usage">
+  <img src="docs/images/board-guition.png" width="32%" alt="The living room page on the 4-inch Guition: an analog clock with the date, a temperature graph, the weather, the table lamp and Sam at home">
+  <img src="docs/images/board-waveshare43.png" width="32%" alt="The hallway page on the 4.3-inch Waveshare: a clock, a wide temperature graph, the weather, Sam, the heating with minus and plus, and the table lamp">
+</p>
+<p align="center">
+  <img src="docs/images/board-waveshare7.png" width="49%" alt="The bedroom page on the 7-inch Waveshare: sixteen cells with a clock, a wide temperature graph, the weather, the heating, the ceiling light and Sonos with sliders, the energy graph, the robot and a good-night script">
+  <img src="docs/images/board-jc8012p4a1.png" width="49%" alt="The study page on the 10.1-inch Guition: twenty cells with a clock, graphs, the weather, the heating, the ceiling light, a timer, Sonos, the curtains, the power usage, the robot, the coffee machine and a good-night script">
+</p>
+<p align="center"><sub>Which board is which, and what to look for when you buy one: <a href="#which-screen">Which screen</a>. A screen that is not square can also be built standing up.</sub></p>
+
 ## On the screen
 
 <p align="center">
