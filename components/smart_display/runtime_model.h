@@ -26,25 +26,72 @@
 #endif
 
 namespace runtime_tiles {
-// The tile grid comes from the board as build flags (GRID_COLS x GRID_ROWS); 2 x 3 when a board says nothing.
+// A board states the cells of a page for each way its glass can hang: GRID_COLS x GRID_ROWS when it lies down,
+// GRID_COLS_PORTRAIT x GRID_ROWS_PORTRAIT when it stands up (firmware 0.2.92+). Both arrive as build flags. The
+// screen picks one at boot from the canvas LVGL hands it (grid_select) and everything below counts with that
+// one, so the same firmware serves a board either way round and nothing here knows which board it is.
 #ifndef GRID_COLS
 #define GRID_COLS 2
 #endif
 #ifndef GRID_ROWS
 #define GRID_ROWS 3
 #endif
-constexpr size_t GRID_COLUMNS = GRID_COLS;
-constexpr size_t GRID_ROW_COUNT = GRID_ROWS;
-static_assert(GRID_COLUMNS >= 1 && GRID_ROW_COUNT >= 1, "a grid needs a cell");
-// Pages of cells: a screen holds at most one tile per slot (firmware 0.2.62+; twenty before).
-constexpr size_t SLOTS_PER_PAGE = GRID_COLUMNS * GRID_ROW_COUNT;
-// Explicit grid positions (0.2.26+) address at most eight pages; the dirty mask caps the total at 64 tiles.
-constexpr size_t MAX_PAGES = (64 / SLOTS_PER_PAGE) < 8 ? (64 / SLOTS_PER_PAGE) : 8;
-constexpr size_t MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
-constexpr size_t MAX_TILES = MAX_SLOTS;
+// A square board, or one whose second grid nobody worked out yet, keeps the same cells both ways.
+#ifndef GRID_COLS_PORTRAIT
+#define GRID_COLS_PORTRAIT GRID_COLS
+#endif
+#ifndef GRID_ROWS_PORTRAIT
+#define GRID_ROWS_PORTRAIT GRID_ROWS
+#endif
 // One bit per tile for the cards the next render draws again (firmware 0.2.65+). Firmware 0.2.62-0.2.64 kept 32 bits
 // while a screen holds 48 tiles, so a state for tile 33 to 48 redrew the whole page. 0 beyond them: draw everything.
-static_assert(MAX_TILES <= 64, "one dirty bit per tile");
+// This is the ceiling on a screen whatever its grid, so it sizes the arrays that hold one entry per tile.
+constexpr size_t TILES_MAX = 64;
+// Explicit grid positions (0.2.26+) address at most eight pages.
+constexpr size_t PAGES_MAX = 8;
+// The bigger of the two grids: what the cards, the page's own arrays and the grid descriptors are sized for. A
+// CYD carries six cards and shows four of them standing up; nothing is allocated twice.
+constexpr size_t CELLS_MAX = (GRID_COLS * GRID_ROWS) > (GRID_COLS_PORTRAIT * GRID_ROWS_PORTRAIT)
+                                 ? (GRID_COLS * GRID_ROWS)
+                                 : (GRID_COLS_PORTRAIT * GRID_ROWS_PORTRAIT);
+constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
+  size_t most = a;
+  if (b > most) most = b;
+  if (c > most) most = c;
+  if (d > most) most = d;
+  return most;
+}
+constexpr size_t DIM_MAX = dim_max(GRID_COLS, GRID_ROWS, GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT);
+static_assert(GRID_COLS >= 1 && GRID_ROWS >= 1 && GRID_COLS_PORTRAIT >= 1 && GRID_ROWS_PORTRAIT >= 1, "a grid needs a cell");
+static_assert(CELLS_MAX <= TILES_MAX, "a page holds at most as many cells as a screen holds tiles");
+
+// The cells of one page, and everything that follows from them. ESP Screens counts with the same object
+// (screen_manager/app/core.py, class Grid), method for method, so a slot number means the same thing on both
+// sides of the wire whichever way a screen hangs.
+struct Grid {
+  size_t columns = GRID_COLS;
+  size_t rows = GRID_ROWS;
+  constexpr size_t slots() const { return columns * rows; }
+  constexpr size_t pages() const { return TILES_MAX / slots() < PAGES_MAX ? TILES_MAX / slots() : PAGES_MAX; }
+  constexpr size_t max_slots() const { return pages() * slots(); }
+  constexpr size_t max_tiles() const { return max_slots(); }
+  // A wide card takes the cell beside it, or the only cell there is on a single-column screen.
+  constexpr size_t wide_span() const { return columns > 1 ? 2 : 1; }
+  // Whether a wide card started here would still stand in the row it starts in.
+  constexpr bool wide_fits(size_t slot) const { return columns == 1 || slot % columns + 2 <= columns; }
+  constexpr size_t page_of(size_t slot) const { return slot / slots(); }
+  constexpr size_t column_of(size_t slot) const { return slot % columns; }
+  constexpr size_t row_of(size_t slot) const { return slot % slots() / columns; }
+};
+// The grid this screen runs on. It stands at the board's landscape grid until grid_select reads the canvas, so a
+// host test or a board that never turns needs no boot step.
+inline Grid grid{GRID_COLS, GRID_ROWS};
+// Pick the grid from the canvas LVGL draws on. A square canvas counts as lying down, as LVGL's own orientation
+// does, so a square board answers the same grid either way.
+inline void grid_select(int canvas_width, int canvas_height) {
+  const bool upright = canvas_height > canvas_width;
+  grid = upright ? Grid{GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT} : Grid{GRID_COLS, GRID_ROWS};
+}
 constexpr uint64_t tile_bit(size_t index) { return index < 64 ? uint64_t{1} << index : 0; }
 // A navigation tile (screen.page_<n>, firmware 0.2.62+).
 inline bool page_entity(const std::string &entity) { return entity.size() == 13 && entity.compare(0, 12, "screen.page_") == 0; }
@@ -60,7 +107,7 @@ inline bool valid_entity(const std::string &entity) {
   // only goes to page n. Several pages may each carry the same one (firmware 0.2.65+, Model::set_layout).
   if (domain == "screen") {
     if (entity == "screen.clock" || entity == "screen.settings") return true;
-    return page_entity(entity) && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + MAX_PAGES);
+    return page_entity(entity) && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + grid.pages());
   }
   for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person", "camera", "image"})
     if (domain == allowed) return true;
@@ -365,7 +412,7 @@ struct Tile {
   bool is_page() const { return page_entity(entity); }
   int page_target() const { return is_page() ? entity[12] - '0' : 0; }
   // Slots a tile takes: one, a row of two, or the six of a page.
-  unsigned cells() const { return full ? SLOTS_PER_PAGE : wide ? (GRID_COLUMNS > 1 ? 2u : 1u) : 1u; }
+  unsigned cells() const { return full ? grid.slots() : wide ? grid.wide_span() : 1u; }
   // A scene, button or input button that never ran is "unknown" in Home Assistant, which still lets you press it
   // (hui-button-entity-row disables only an unavailable one): its state is the moment it last ran (firmware 0.2.58+).
   bool available() const {
@@ -448,27 +495,27 @@ inline size_t (*heap_room)() = nullptr;
 // Wide tiles start in the left column and take the whole row; a right-column gap before them stays
 // empty. A full tile starts a page of its own; the slots it leaves behind stay empty. Returns the page
 // count (at least one).
-inline unsigned pack(const TileList &tiles, size_t count, std::array<Placement, MAX_TILES> &out) {
+inline unsigned pack(const TileList &tiles, size_t count, std::array<Placement, TILES_MAX> &out) {
   unsigned position = 0;
-  for (size_t i = 0; i < count && i < MAX_TILES; ++i) {
-    if (tiles[i].full && position % SLOTS_PER_PAGE) position += SLOTS_PER_PAGE - position % SLOTS_PER_PAGE;
-    else if (tiles[i].wide && GRID_COLUMNS > 1 && position % GRID_COLUMNS == GRID_COLUMNS - 1) ++position;
-    out[i] = {static_cast<uint8_t>(position / SLOTS_PER_PAGE), static_cast<uint8_t>(position % SLOTS_PER_PAGE)};
+  for (size_t i = 0; i < count && i < grid.max_tiles(); ++i) {
+    if (tiles[i].full && position % grid.slots()) position += grid.slots() - position % grid.slots();
+    else if (tiles[i].wide && !grid.wide_fits(position)) ++position;
+    out[i] = {static_cast<uint8_t>(position / grid.slots()), static_cast<uint8_t>(position % grid.slots())};
     position += tiles[i].cells();
   }
-  unsigned pages = (position + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE;
+  unsigned pages = (position + grid.slots() - 1) / grid.slots();
   return pages ? pages : 1;
 }
 // Grid position per tile: the explicit slots when the manager sent them (a wide
 // card always starts in the left column), else the in-order packing. Returns the
 // page count (at least one); an empty page between two used ones stays a page.
 struct Model;
-inline unsigned place(const Model &m, std::array<Placement, MAX_TILES> &out);
+inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out);
 struct Model {
   TileList tiles;
   // Absolute grid slot per tile when the manager sent `slots` (0.2.26+): gaps stay
   // empty and a tile keeps its place. Without them the tiles pack in order.
-  std::array<uint8_t, MAX_TILES> slots{};
+  std::array<uint8_t, TILES_MAX> slots{};
   bool explicit_slots = false;
   // Pages the manager wants shown even when the last ones are still empty (0.2.26+).
   uint8_t pages = 1;
@@ -476,7 +523,7 @@ struct Model {
   std::string title = screen_text::tr(screen_text::txt::status_choose_tiles);
   // A title of its own for a page (firmware 0.2.90+). The screen's title stands on every page, which is what
   // most screens want; a page that says something else says it here. Empty, or missing, means the screen's.
-  // A vector and not an array of MAX_PAGES: a screen where nobody set one pays nothing for the possibility.
+  // A vector and not an array of grid.pages(): a screen where nobody set one pays nothing for the possibility.
   std::vector<std::string> page_titles;
   // What the top bar says on `page`, counted from 0.
   const std::string &title_of(int page) const {
@@ -496,7 +543,7 @@ struct Model {
   bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed,
                   const std::vector<uint8_t> &positions, bool &moved) {
     refusal.clear();
-    if (entities.size() > MAX_TILES || name.size() > 96) return false;
+    if (entities.size() > grid.max_tiles() || name.size() > 96) return false;
     for (size_t i = 0; i < entities.size(); ++i) {
       if (!valid_entity(entities[i])) return false;
       // A Home Assistant entity appears once on a screen; a navigation tile may sit on several pages (firmware 0.2.65+).
@@ -507,7 +554,7 @@ struct Model {
     if (!positions.empty()) {
       if (positions.size() != entities.size()) return false;
       for (size_t i = 0; i < positions.size(); ++i) {
-        if (positions[i] >= MAX_SLOTS) return false;
+        if (positions[i] >= grid.max_slots()) return false;
         for (size_t j = 0; j < i; ++j) if (positions[i] == positions[j]) return false;
       }
     }
@@ -546,17 +593,17 @@ struct Model {
     return configured && index < count && tiles[index].entity == entity;
   }
 };
-inline unsigned place(const Model &m, std::array<Placement, MAX_TILES> &out) {
+inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out) {
   if (!m.explicit_slots) return pack(m.tiles, m.count, out);
   unsigned last = 0;
-  for (size_t i = 0; i < m.count && i < MAX_TILES; ++i) {
+  for (size_t i = 0; i < m.count && i < grid.max_tiles(); ++i) {
     unsigned slot = m.slots[i];
-    if (m.tiles[i].full) slot -= slot % SLOTS_PER_PAGE;
-    else if (m.tiles[i].wide && GRID_COLUMNS > 1 && slot % GRID_COLUMNS == GRID_COLUMNS - 1) --slot;
-    out[i] = {static_cast<uint8_t>(slot / SLOTS_PER_PAGE), static_cast<uint8_t>(slot % SLOTS_PER_PAGE)};
+    if (m.tiles[i].full) slot -= slot % grid.slots();
+    else if (m.tiles[i].wide && !grid.wide_fits(slot)) --slot;
+    out[i] = {static_cast<uint8_t>(slot / grid.slots()), static_cast<uint8_t>(slot % grid.slots())};
     last = std::max(last, slot + m.tiles[i].cells());
   }
-  unsigned pages = (last + SLOTS_PER_PAGE - 1) / SLOTS_PER_PAGE;
-  return std::max({pages, 1u, std::min<unsigned>(m.pages, MAX_PAGES)});
+  unsigned pages = (last + grid.slots() - 1) / grid.slots();
+  return std::max({pages, 1u, std::min<unsigned>(m.pages, grid.pages())});
 }
 }  // namespace runtime_tiles

@@ -52,7 +52,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.91'
+FIRMWARE_VERSION = '0.2.92'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -321,10 +321,10 @@ NAME_SCREEN_BOARD = ('Screen board',)
 SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS
                                 + NAME_SCREEN_LANGUAGE + NAME_SCREEN_LAYOUT + NAME_SCREEN_BOARD)
 
-# What a board looks like: the glass it draws on and the cells of one page. These come straight from the board
-# files (tools/generate_board_shapes.py writes boards.json from DISPLAY_W, GRID_COLS and the rest), so the
-# numbers live in one place: the YAML a screen is built from. A screen that is online reports its own shape as
-# well (firmware 0.2.80) and that one wins, because it knows which way the screen was turned.
+# What a board looks like: the glass it draws on and the cells of one page, for each way the board can hang. These
+# come straight from the board files (tools/generate_board_shapes.py writes boards.json from PANEL_W, GRID_COLS and
+# the rest), so the numbers live in one place: the YAML a screen is built from. A screen that is online reports its
+# own shape as well (firmware 0.2.80) and that one wins, because it knows how it was built and turned.
 def _board_shapes():
     try:
         with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'boards.json'), encoding='utf-8') as file:
@@ -333,6 +333,48 @@ def _board_shapes():
         return {}
 SHAPES = _board_shapes()
 DEFAULT_SHAPE = SHAPES.get('cyd', {'width': 320, 'height': 240, 'columns': 2, 'rows': 3})
+
+# The two ways a screen can hang (app 0.2.107). Which one it is, is chosen when the screen is built: the canvas, the
+# grid and every size on it follow from the angle LVGL draws at, so it is not something a screen can be told later.
+ORIENTATIONS = ('landscape', 'portrait')
+
+def board_shape(board, orientation=None):
+    """A board's shape the way the screen hangs: its entry with the width, the height and the grid of that
+    orientation. The table of both stays out, because it says something about the board and a shape is about one
+    screen. Anything but the two words, and a board file from before they existed, reads as lying down."""
+    shape = {key: value for key, value in board.items() if key != 'orientations'}
+    side = (board.get('orientations') or {}).get(orientation if orientation in ORIENTATIONS else 'landscape')
+    if side:
+        # The angle is how the board file gets there; what a screen looks like is the canvas and the grid.
+        shape.update({key: value for key, value in side.items() if key != 'rotation'})
+    return shape
+
+def orientation_shown(board, reported):
+    """Which of a board's two orientations a screen is reporting, by the canvas it says it has, or None when that is
+    neither of them (a board this app has never heard of, a canvas nothing matches). A screen that is online knows
+    better than any YAML here, and what side it is on decides more than the grid: the camera boxes differ too."""
+    if not isinstance(reported, dict):
+        return None
+    for name in ORIENTATIONS:
+        side = (board.get('orientations') or {}).get(name) or {}
+        if side.get('width') == reported.get('width') and side.get('height') == reported.get('height'):
+            return name
+    return None
+
+def orientation_at(board, rotation):
+    """Which way a board hangs at this LVGL angle. A half turn keeps the canvas and the grid (turns_of offers it on
+    any glass), so an angle counts as the orientation it is a half turn away from. Square glass answers lying down
+    for every angle, its two orientations being the same thing. Landscape when the angle says nothing, which is what
+    a profile without an LVGL_ROTATION line means: the board file's own default."""
+    try:
+        angle = int(rotation) % 360
+    except (TypeError, ValueError):
+        return 'landscape'
+    for name in ORIENTATIONS:
+        side = (board.get('orientations') or {}).get(name) or {}
+        if 'rotation' in side and (angle - int(side['rotation'])) % 180 == 0:
+            return name
+    return 'landscape'
 
 # The text of the "Screen layout" sensor: the canvas, the grid and, since firmware 0.2.80, the density and the look.
 SHAPE_TEXT = r'(\d{2,5})x(\d{2,5}) (\d{1,2})x(\d{1,2})(?: (\d{2,4})dpi)?(?: (standard|compact))?'
@@ -394,13 +436,18 @@ def shape_of(screen):
     """The shape of a screen as the editor needs it: its canvas, the cells of one page, its density, its look and,
     for a board that draws pictures, the camera sizes. What the screen reported itself (firmware 0.2.80+) wins,
     because that is the canvas after its rotation; the board it is (board_of: reported, or the YAML its profile
-    builds from) fills in the rest from boards.json; a screen that says nothing at all is taken for the smallest
-    screen there is."""
+    builds from) fills in the rest from boards.json, the way that screen was built to hang ('orientation', which
+    the manager reads from the profile for a screen that is not online); a screen that says nothing at all is taken
+    for the smallest screen there is."""
     if not isinstance(screen, dict):
         return DEFAULT_SHAPE
-    shape = SHAPES.get(board_of(screen), DEFAULT_SHAPE)
+    board = SHAPES.get(board_of(screen), DEFAULT_SHAPE)
     reported = screen.get('shape')
-    if isinstance(reported, dict) and reported.get('columns'):
+    reported = reported if isinstance(reported, dict) and reported.get('columns') else None
+    # Which way it hangs, in the order of what knows best as well: the canvas the screen reports is one of its
+    # board's two, and only when it says nothing does the word from its own profile decide.
+    shape = board_shape(board, orientation_shown(board, reported) or screen.get('orientation'))
+    if reported:
         shape = {**shape, **reported}
     return shape
 
@@ -1925,6 +1972,18 @@ def installation_yaml(data):
     quote = lambda s: json.dumps(s, ensure_ascii=False)
     # The language of the screen's texts (app 0.2.90): Settings -> Language & region, which ESP Screens passes in.
     language = data.get('language') if isinstance(data.get('language'), str) and re.fullmatch(r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?', data.get('language')) else 'en'
+    # Which way the screen hangs (app 0.2.107). The board file already lays its panel out lying down, so only a
+    # screen that stands up needs a line: a landscape profile then reads exactly like every profile written before
+    # this choice existed, and there is one less number in the file that can go stale when a board file changes.
+    # Square glass has no second way to hang, and its two orientations carry the same angle, so asking for portrait
+    # there writes nothing and builds the same screen.
+    orientation = data.get('orientation', 'landscape')
+    if orientation not in ORIENTATIONS:
+        raise ValueError(t('addon.errors.firmware.orientation'))
+    sides = (SHAPES.get(board, {}).get('orientations') or {})
+    turn = (sides.get(orientation) or {}).get('rotation')
+    lying = (sides.get('landscape') or {}).get('rotation')
+    rotation_line = f'  LVGL_ROTATION: {quote(str(turn))}\n' if turn is not None and turn != lying else ''
     # An OTA password, not yet `ota: encryption:` with the api key: ESPHome before 2026.9 refuses that, and the owner's
     # ESPHome Device Builder may still be older (docs/RELEASING.md, Compatibility 0.2.89).
     key, ota, ap = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24), secrets.token_urlsafe(12)
@@ -1934,7 +1993,7 @@ substitutions:
   DEVICE_NAME: {quote(name)}
   DEVICE_FRIENDLY_NAME: {quote(friendly.strip())}
   LANGUAGE: {quote(language)}
-
+{rotation_line}
 esphome:
   name: {quote(name)}
   friendly_name: {quote(friendly.strip())}

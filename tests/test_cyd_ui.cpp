@@ -122,28 +122,28 @@ int main() {
   // and shared touch handling must not flip a page there on the default band.
   cyd::EdgeSwipe unconfigured;
   assert(!unconfigured.in_use());
-  unconfigured.begin(2, 100);
+  unconfigured.begin(2, 100, 480);
   assert(!unconfigured.armed());
   assert(unconfigured.update(200, 100) == 0);
 
-  edge.configure(480, 32, 40);
+  edge.configure(32, 40);
   assert(edge.in_use());
-  edge.begin(6, 240);
+  edge.begin(6, 240, 480);
   assert(edge.armed());
   assert(edge.update(30, 242) == 0);   // not far enough yet
   assert(edge.update(48, 245) == -1);  // 42 px inward from the left edge: previous page
   assert(edge.update(90, 245) == 0);   // once per touch
   assert(!edge.armed());
-  edge.begin(474, 100);
+  edge.begin(474, 100, 480);
   assert(edge.update(430, 104) == 1);  // from the right edge: next page
-  edge.begin(240, 240);
+  edge.begin(240, 240, 480);
   assert(!edge.armed());
   assert(edge.update(300, 240) == 0);  // started in the middle: never a page swipe
-  edge.begin(6, 240);
+  edge.begin(6, 240, 480);
   assert(edge.update(50, 300) == 0);   // steeper than 45 degrees: 44 px sideways against 60 down
   assert(edge.update(-10, 240) == 0);  // moving outward: nothing
   assert(edge.update(60, 270) == -1);  // 54 sideways against 30 down: a slanted thumb swipe counts
-  edge.begin(6, 240);
+  edge.begin(6, 240, 480);
   edge.update(20, 250);
   assert(edge.inward() == 14 && edge.sideways() == 10);  // what the log reports for a swipe that ended early
   edge.end();
@@ -153,16 +153,24 @@ int main() {
   // panel drawn as 1280 x 800 used to arm the right-hand band from x = 772, so a leftward drag anywhere
   // past two fifths of the screen turned a page and nothing turned back (firmware 0.2.82).
   cyd::EdgeSwipe ten_inch;
-  ten_inch.configure(1280, 28, 35);
-  ten_inch.begin(772, 400);
+  ten_inch.configure(28, 35);
+  ten_inch.begin(772, 400, 1280);
   assert(!ten_inch.armed());               // the middle of a ten-inch screen is the middle
-  ten_inch.begin(640, 400);
+  ten_inch.begin(640, 400, 1280);
   assert(!ten_inch.armed());
-  ten_inch.begin(1260, 400);
+  ten_inch.begin(1260, 400, 1280);
   assert(ten_inch.armed());
   assert(ten_inch.update(1210, 404) == 1); // in from the right edge: next page
-  ten_inch.begin(10, 400);
+  ten_inch.begin(10, 400, 1280);
   assert(ten_inch.update(60, 404) == -1);  // in from the left edge: previous page
+  // The same board built standing up (firmware 0.2.92+): the glass is 800 across now, so the right-hand band
+  // starts at 772 and what used to be the right edge is off the screen. The width is measured at every touch,
+  // which is why one screen can be built either way round without a second set of numbers.
+  ten_inch.begin(772, 400, 800);
+  assert(ten_inch.armed());
+  assert(ten_inch.update(730, 404) == 1);
+  ten_inch.begin(640, 400, 800);
+  assert(!ten_inch.armed());               // the middle of the standing glass is still the middle
   cyd::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days

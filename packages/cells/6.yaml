@@ -29,8 +29,10 @@ lvgl:
                   id: tile1
                   grid_cell_row_pos: 0
                   grid_cell_column_pos: 0
-                  width: ${TILE_W}
-                  height: ${TILE_H}
+                  # A seed: runtime_tiles::bind puts the card in a cell of the grid and LVGL stretches it to
+                  # that cell, whichever way the glass hangs (firmware 0.2.92+).
+                  width: 1
+                  height: 1
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
@@ -67,8 +69,10 @@ lvgl:
                   id: tile2
                   grid_cell_row_pos: 0
                   grid_cell_column_pos: 0
-                  width: ${TILE_W}
-                  height: ${TILE_H}
+                  # A seed: runtime_tiles::bind puts the card in a cell of the grid and LVGL stretches it to
+                  # that cell, whichever way the glass hangs (firmware 0.2.92+).
+                  width: 1
+                  height: 1
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
@@ -105,8 +109,10 @@ lvgl:
                   id: tile3
                   grid_cell_row_pos: 0
                   grid_cell_column_pos: 0
-                  width: ${TILE_W}
-                  height: ${TILE_H}
+                  # A seed: runtime_tiles::bind puts the card in a cell of the grid and LVGL stretches it to
+                  # that cell, whichever way the glass hangs (firmware 0.2.92+).
+                  width: 1
+                  height: 1
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
@@ -143,8 +149,10 @@ lvgl:
                   id: tile4
                   grid_cell_row_pos: 0
                   grid_cell_column_pos: 0
-                  width: ${TILE_W}
-                  height: ${TILE_H}
+                  # A seed: runtime_tiles::bind puts the card in a cell of the grid and LVGL stretches it to
+                  # that cell, whichever way the glass hangs (firmware 0.2.92+).
+                  width: 1
+                  height: 1
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
@@ -181,8 +189,10 @@ lvgl:
                   id: tile5
                   grid_cell_row_pos: 0
                   grid_cell_column_pos: 0
-                  width: ${TILE_W}
-                  height: ${TILE_H}
+                  # A seed: runtime_tiles::bind puts the card in a cell of the grid and LVGL stretches it to
+                  # that cell, whichever way the glass hangs (firmware 0.2.92+).
+                  width: 1
+                  height: 1
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'
@@ -219,8 +229,10 @@ lvgl:
                   id: tile6
                   grid_cell_row_pos: 0
                   grid_cell_column_pos: 0
-                  width: ${TILE_W}
-                  height: ${TILE_H}
+                  # A seed: runtime_tiles::bind puts the card in a cell of the grid and LVGL stretches it to
+                  # that cell, whichever way the glass hangs (firmware 0.2.92+).
+                  width: 1
+                  height: 1
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'

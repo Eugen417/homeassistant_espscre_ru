@@ -1,0 +1,108 @@
+// A board states the cells of a page for each way its glass can hang, and the screen picks one at boot from
+// the canvas LVGL gives it (firmware 0.2.92+). These are a CYD's two grids: six cells lying down, four
+// standing up. The same numbers are in packages/boards/cyd-2432s028.yaml.
+#define GRID_COLS 2
+#define GRID_ROWS 3
+#define GRID_COLS_PORTRAIT 1
+#define GRID_ROWS_PORTRAIT 4
+
+#include "screen_text_en.h"
+#include "../components/smart_display/runtime_model.h"
+#include <cassert>
+
+using namespace runtime_tiles;
+
+static void the_grid_counts_like_the_manager_does() {
+  // Every rule here has a twin in screen_manager/app/core.py, class Grid, and a slot number means the same
+  // thing on both sides of the wire. A screen holds 64 tiles at most, one dirty bit each, over eight pages.
+  const Grid lying{2, 3};
+  assert(lying.slots() == 6 && lying.pages() == 8 && lying.max_slots() == 48 && lying.max_tiles() == 48);
+  const Grid standing{1, 4};
+  assert(standing.slots() == 4 && standing.pages() == 8 && standing.max_slots() == 32);
+  const Grid wide{3, 3};
+  assert(wide.slots() == 9 && wide.pages() == 7 && wide.max_slots() == 63);
+  const Grid ten_inch{5, 4};
+  assert(ten_inch.slots() == 20 && ten_inch.pages() == 3 && ten_inch.max_slots() == 60);
+  const Grid ten_inch_standing{4, 5};
+  assert(ten_inch_standing.slots() == 20 && ten_inch_standing.pages() == 3);
+  const Grid huge{8, 8};
+  assert(huge.slots() == 64 && huge.pages() == 1 && huge.max_slots() == 64);
+
+  // A wide card takes the cell beside it, and on a single column it is simply the cell itself.
+  assert(lying.wide_span() == 2 && standing.wide_span() == 1);
+  assert(lying.wide_fits(0) && !lying.wide_fits(1) && lying.wide_fits(2));
+  assert(standing.wide_fits(0) && standing.wide_fits(3));
+  assert(wide.wide_fits(0) && wide.wide_fits(1) && !wide.wide_fits(2));
+
+  // Reading a slot back as a page, a row and a column.
+  assert(lying.page_of(0) == 0 && lying.page_of(5) == 0 && lying.page_of(6) == 1);
+  assert(lying.row_of(0) == 0 && lying.row_of(2) == 1 && lying.row_of(7) == 0);
+  assert(lying.column_of(0) == 0 && lying.column_of(3) == 1);
+  assert(standing.row_of(3) == 3 && standing.column_of(3) == 0);
+}
+
+static void the_canvas_picks_the_grid() {
+  // Wider than it is tall: lying down. Taller: standing up. Square counts as lying down, which is what LVGL's
+  // own orientation does, so a square board answers the same grid either way and never has to state a second.
+  grid_select(320, 240);
+  assert(grid.columns == 2 && grid.rows == 3 && grid.slots() == 6);
+  grid_select(240, 320);
+  assert(grid.columns == 1 && grid.rows == 4 && grid.slots() == 4);
+  grid_select(480, 480);
+  assert(grid.columns == 2 && grid.rows == 3);
+  // And back, because a screen may be turned a half turn in its settings without the grid moving.
+  grid_select(320, 240);
+  assert(grid.slots() == 6);
+}
+
+static void the_cards_are_sized_for_the_bigger_grid() {
+  // One set of cards serves both ways round: six on a CYD, of which four show when it stands up. Nothing is
+  // allocated twice, and the descriptors are long enough for the longer of the four numbers.
+  assert(CELLS_MAX == 6);
+  assert(DIM_MAX == 4);
+  assert(CELLS_MAX <= TILES_MAX);
+}
+
+static void a_layout_packs_into_whichever_grid_is_live() {
+  TileList tiles;
+  tiles.resize(4);
+  for (auto &tile : tiles) tile.entity = "light.one";
+  tiles[1].wide = true;
+  std::array<Placement, TILES_MAX> out;
+
+  // Lying down a wide card needs the cell beside it, so a wide card in the right-hand column moves on.
+  grid_select(320, 240);
+  unsigned pages = pack(tiles, 4, out);
+  assert(out[0].slot == 0 && out[1].slot == 2 && out[2].slot == 4 && out[3].slot == 5);
+  assert(pages == 1);
+
+  // Standing up there is one column, so the same wide card is simply the cell it stands in and nothing shifts.
+  grid_select(240, 320);
+  pages = pack(tiles, 4, out);
+  assert(out[0].slot == 0 && out[1].slot == 1 && out[2].slot == 2 && out[3].slot == 3);
+  assert(pages == 1);
+
+  // A full card takes the page it is on, whatever that page holds.
+  tiles[1].wide = false; tiles[1].full = true;
+  pages = pack(tiles, 4, out);
+  assert(out[0].slot == 0 && out[1].page == 1 && out[1].slot == 0 && out[2].page == 2);
+  assert(pages == 3);
+
+  grid_select(320, 240);
+}
+
+static void a_navigation_tile_may_only_name_a_page_that_exists() {
+  // screen.page_<n> is checked against the pages this grid holds, and the grid comes from the canvas.
+  grid_select(320, 240);
+  assert(valid_entity("screen.page_8") && !valid_entity("screen.page_9"));
+  grid_select(240, 320);
+  assert(valid_entity("screen.page_8"));
+}
+
+int main() {
+  the_grid_counts_like_the_manager_does();
+  the_canvas_picks_the_grid();
+  the_cards_are_sized_for_the_bigger_grid();
+  a_layout_packs_into_whichever_grid_is_live();
+  a_navigation_tile_may_only_name_a_page_that_exists();
+}

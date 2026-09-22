@@ -107,16 +107,19 @@ def main():
                  f'(tools/profiles.py): boards.json and the screen would not agree')
     # Turning: every board offers the half turn through its own Rotation select, a square one the quarter turns as well
     # (a list of options cannot come from a substitution, so the block is per board); the shared tree applies the angle.
+    # The glass is the panel's own pixels, whichever way the screen was built to hang: a quarter turn on glass that is
+    # not square would give the screen another canvas and another grid, and that is a build choice (LVGL_ROTATION),
+    # not a setting.
     blocks = {}
     for board, path in profiles.BOARDS.items():
         values = profiles.substitutions_of(path)
-        square = values['DISPLAY_W'] == values['DISPLAY_H']
+        square = values['PANEL_W'] == values['PANEL_H']
         select = re.search(r'^select:\n(.*?)(?=^[a-z_0-9]+:|\Z)', path.read_text(), re.M | re.S)
         options = re.search(r'^    options: (\[.*?\])$', select[1], re.M) if select else None
         wanted = '["0°", "90°", "180°", "270°"]' if square else '["0°", "180°"]'
         if not options or options[1] != wanted:
             fail(f'{path.relative_to(ROOT)}: the Rotation select offers {options[1] if options else "nothing"}, its glass '
-                 f'({values["DISPLAY_W"]} x {values["DISPLAY_H"]}) asks for {wanted}')
+                 f'({values["PANEL_W"]} x {values["PANEL_H"]}) asks for {wanted}')
         blocks[board] = '\n'.join(line for line in select[1].replace(options[1], '').split('\n') if not line.lstrip().startswith('#'))
     if len(set(blocks.values())) != 1:
         fail('the Rotation select differs between the board files beyond its options; keep the three alike')

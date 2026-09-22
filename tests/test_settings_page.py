@@ -23,6 +23,7 @@ from core import (BUILTIN, SETTING_RULES, SETTINGS_BESIDE_BLOCK, entity_id, min_
 
 SCREEN = (ROOT / 'components/smart_display/settings_screen.h').read_text()
 RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+CORE = (ROOT / 'packages/core.yaml').read_text()
 # The keys the firmware's own block still carries; everything newer travels as its own key.
 FROZEN = {'standby_enabled', 'standby_seconds', 'brightness', 'standby_brightness', 'night_enabled',
           'night_start', 'night_end', 'night_brightness', 'show_clock', 'clock_24h', 'home_on_standby'}
@@ -102,18 +103,19 @@ class Firmware(unittest.TestCase):
             self.assertGreaterEqual(tuple(map(int, version.split('.'))), (0, 2, 44), name)
 
     def test_the_hold_strip_covers_the_top_bar_and_no_more(self):
+        """The strip is as wide as the glass less the band it starts in on each side, measured on the live canvas
+        (overlay_card::screen_width), so it is right whichever way the screen was built to hang."""
+        self.assertIn('overlay_card::screen_width() - ${SETTINGS_HOLD_X} * 2, ${SCROLL_Y}', CORE)
         for name, text in self.profiles.items():
             values = dict(re.findall(r'^  (\w+): "([^"]*)"', text, re.M))
-            width, scroll = int(values['DISPLAY_W']), int(values['SCROLL_Y'])
+            # The narrowest canvas this board can be built with: the shorter side of its panel.
+            width, scroll = min(int(values['PANEL_W']), int(values['PANEL_H'])), int(values['SCROLL_Y'])
             x = int(values['SETTINGS_HOLD_X'].replace('${EDGE_SWIPE_BAND_PX}', values.get('EDGE_SWIPE_BAND_PX', '0')))
-            hold = values['SETTINGS_HOLD_W'].replace('${DISPLAY_W}', values['DISPLAY_W'])
-            self.assertLessEqual(x + int(hold), width, name)
+            self.assertGreater(width - 2 * x, 0, f'{name}: the two bands leave no strip')
             self.assertGreater(scroll, 20, name)
             if 'EDGE_SWIPE_BAND_PX' in values:
                 # The page swipe owns both edge bands; the hold may not start there.
-                band = int(values['EDGE_SWIPE_BAND_PX'])
-                self.assertGreaterEqual(x, band, name)
-                self.assertLessEqual(x + int(hold), width - band, name)
+                self.assertGreaterEqual(x, int(values['EDGE_SWIPE_BAND_PX']), name)
 
     def test_the_hold_strip_lies_under_every_card(self):
         # Firmware 0.2.44-0.2.47 created the strip after the cards, so it lay on top of them: a card's

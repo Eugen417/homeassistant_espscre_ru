@@ -260,25 +260,39 @@ struct Widgets {
 };
 constexpr unsigned POINT_BUFFER = 128;
 // One widget per cell of the board's grid: the cards packages/cells/<number>.yaml brings, bound at boot.
-inline std::array<Widgets, SLOTS_PER_PAGE> widgets;
-// The tile area. Its cells are an LVGL grid of GRID_COLUMNS by GRID_ROW_COUNT free units: LVGL divides the room
+inline std::array<Widgets, CELLS_MAX> widgets;
+// The tile area. Its cells are an LVGL grid of grid.columns by grid.rows free units: LVGL divides the room
 // over the cells and keeps the gaps (the container's pad_row and pad_column) and the side margin (its padding),
 // so a board states columns and rows and nothing here computes a coordinate. place_page only says which cell a
 // card takes and how many it spans. The descriptors live as long as the grid does.
 inline lv_obj_t *tile_grid = nullptr;
 inline int grid_margin = 0, grid_base_height = 0;
-inline std::array<int32_t, GRID_COLUMNS + 1> grid_columns_dsc{};
-inline std::array<int32_t, GRID_ROW_COUNT + 1> grid_rows_dsc{};
-inline void grid_bind(lv_obj_t *container, int margin) {
+inline std::array<int32_t, DIM_MAX + 1> grid_columns_dsc{};
+inline std::array<int32_t, DIM_MAX + 1> grid_rows_dsc{};
+// Bind the tile area and lay out its cells (firmware 0.2.92+: from the canvas, not from the board file). The
+// canvas LVGL hands us says which way the glass hangs, so it picks the grid; the area then runs the full width
+// and from under the top bar down to where the page bar starts. A board states a margin, a gap and the height of
+// that bar, all of them a look and not an orientation, and no pixel here comes from a substitution.
+inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
   tile_grid = container;
   grid_margin = margin;
-  for (size_t c = 0; c < GRID_COLUMNS; ++c) grid_columns_dsc[c] = LV_GRID_FR(1);
-  grid_columns_dsc[GRID_COLUMNS] = LV_GRID_TEMPLATE_LAST;
-  for (size_t r = 0; r < GRID_ROW_COUNT; ++r) grid_rows_dsc[r] = LV_GRID_FR(1);
-  grid_rows_dsc[GRID_ROW_COUNT] = LV_GRID_TEMPLATE_LAST;
+  auto *display = lv_display_get_default();
+  const int canvas_w = lv_display_get_horizontal_resolution(display);
+  const int canvas_h = lv_display_get_vertical_resolution(display);
+  grid_select(canvas_w, canvas_h);
+  lv_obj_set_width(container, canvas_w);
+  // Where the area starts is the height of the top bar, which the board states as the object's y. It has to be
+  // laid out before that coordinate means anything: read straight after boot it is still zero, and the tile
+  // area then runs a top bar too far down, over the page bar.
+  lv_obj_update_layout(container);
+  grid_base_height = canvas_h - lv_obj_get_y(container) - page_bar_height;
+  lv_obj_set_height(container, grid_base_height);
+  for (size_t c = 0; c < grid.columns; ++c) grid_columns_dsc[c] = LV_GRID_FR(1);
+  grid_columns_dsc[grid.columns] = LV_GRID_TEMPLATE_LAST;
+  for (size_t r = 0; r < grid.rows; ++r) grid_rows_dsc[r] = LV_GRID_FR(1);
+  grid_rows_dsc[grid.rows] = LV_GRID_TEMPLATE_LAST;
   lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());
   lv_obj_update_layout(container);
-  grid_base_height = lv_obj_get_height(container);
 }
 
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
@@ -353,7 +367,7 @@ inline std::string receive(const std::string &payload) {
       }
       std::vector<std::string> entities;
       for (JsonVariant entity : root["entities"].as<JsonArray>()) {
-        if (!entity.is<const char *>() || entities.size() == MAX_TILES) return false;
+        if (!entity.is<const char *>() || entities.size() == grid.max_tiles()) return false;
         entities.push_back(entity.as<std::string>());
       }
       if(!root["swipe_pages"].isNull() && !root["swipe_pages"].is<bool>())return false;
@@ -372,7 +386,7 @@ inline std::string receive(const std::string &payload) {
       if (!root["page_titles"].isNull()) {
         if (!root["page_titles"].is<JsonArray>()) return false;
         for (JsonVariant name : root["page_titles"].as<JsonArray>()) {
-          if (!name.is<const char *>() || page_titles.size() == MAX_PAGES) return false;
+          if (!name.is<const char *>() || page_titles.size() == grid.pages()) return false;
           page_titles.push_back(string(name, 96));
         }
       }
@@ -381,7 +395,7 @@ inline std::string receive(const std::string &payload) {
       if (!root["slots"].isNull()) {
         if (!root["slots"].is<JsonArray>()) return false;
         for (JsonVariant slot : root["slots"].as<JsonArray>()) {
-          if (!slot.is<unsigned>() || slot.as<unsigned>() >= MAX_SLOTS || positions.size() == MAX_TILES) return false;
+          if (!slot.is<unsigned>() || slot.as<unsigned>() >= grid.max_slots() || positions.size() == grid.max_tiles()) return false;
           positions.push_back(static_cast<uint8_t>(slot.as<unsigned>()));
         }
       }
@@ -398,7 +412,7 @@ inline std::string receive(const std::string &payload) {
       }
       model.page_titles = page_titles;
       // Empty pages the user keeps on purpose; absent on older managers.
-      model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, MAX_PAGES)) : 1;
+      model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, grid.pages())) : 1;
       if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
         swipe_pages=root["swipe_pages"].as<bool>();uint32_t saved=swipe_pages?1:0;swipe_preference.save(&saved);
       }
@@ -3081,9 +3095,9 @@ inline int content_height(const Widgets &w) {
 // on a 4.3 inch) gets its own cell instead of that number.
 inline int cell_content_width(const Widgets &w) {
   const int edges = tile_width(w) - content_width(w);
-  if (tile_grid && GRID_COLUMNS > 1) {
+  if (tile_grid && grid.wide_span() > 1) {
     const int gap = lv_obj_get_style_pad_column(tile_grid, LV_PART_MAIN);
-    const int cell = (lv_obj_get_content_width(tile_grid) - (int) (GRID_COLUMNS - 1) * gap) / (int) GRID_COLUMNS;
+    const int cell = (lv_obj_get_content_width(tile_grid) - (int) (grid.columns - 1) * gap) / (int) grid.columns;
     if (cell - edges > 0) return cell - edges;
   }
   return std::max(1, w.base_width > edges ? w.base_width - edges : content_width(w) / 2);
@@ -3117,6 +3131,13 @@ inline int slider_zone(const Widgets &w, int strip) {
   return std::max(8, (int) lv_obj_get_style_space_top(w.tile, LV_PART_MAIN) + content_height(w) - strip);
 }
 inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
+  // A card is measured in the cell it will live in (firmware 0.2.92+). Everything below reads the size the card
+  // has here, so it is put in the first cell of the grid first: one cell is exactly what a plain single card
+  // gets, whatever the board and whichever way its glass hangs. place_page moves it to its real cell later.
+  if (tile_grid) {
+    lv_obj_set_grid_cell(tile, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
+    lv_obj_update_layout(tile_grid);
+  }
   lv_obj_update_layout(tile);
   // Compact cards need room for two text lines and a separate dimmer track.
   if(lv_obj_get_height(tile)<=80){lv_obj_set_style_pad_top(tile,4,0);lv_obj_set_style_pad_bottom(tile,4,0);}
@@ -4270,11 +4291,11 @@ inline void refresh_tile(size_t index) { mark_tile(index); if(refresh)refresh();
 inline void refresh_header_only() { dirty_header=true; if(refresh)refresh(); }
 inline void refresh_all() { dirty_all=true; if(refresh)refresh(); }
 // Slots whose new page content is still to come: the page fill draws them, render() leaves them.
-inline std::array<bool,SLOTS_PER_PAGE> slot_pending{};
+inline std::array<bool,CELLS_MAX> slot_pending{};
 // Cards per fill step, the swipe pass included; the next waiting slot; the step timer, and whether
 // LVGL refreshed the screen since the last step.
 inline size_t FILL_STEP_CARDS=2;
-inline size_t fill_next=SLOTS_PER_PAGE;
+inline size_t fill_next=grid.slots();
 inline lv_timer_t *fill_timer=nullptr;
 inline bool fill_refreshed=false;
 inline uint32_t fill_step_ms=0;
@@ -4323,7 +4344,7 @@ inline void render(lv_obj_t *room) {
   bool all=dirty_all || (!dirty_tiles && !dirty_header);
   uint64_t tiles=dirty_tiles;
   dirty_all=dirty_header=false;dirty_tiles=0;
-  for (size_t slot = 0; slot < SLOTS_PER_PAGE; ++slot) {
+  for (size_t slot = 0; slot < grid.slots(); ++slot) {
     const auto &w=widgets[slot];
     if(slot_pending[slot] || w.index>=model.count)continue;
     if(all || (tiles & tile_bit(w.index)))render_slot(slot);
@@ -4527,7 +4548,7 @@ inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
 inline bool applied_bar=true;
 inline bool check_tile_geometry() {
   bool ok=true;
-  if(fill_next<SLOTS_PER_PAGE){ESP_LOGW("ui_test","page fill still under way at the check");fill_cards(SLOTS_PER_PAGE);}
+  if(fill_next<grid.slots()){ESP_LOGW("ui_test","page fill still under way at the check");fill_cards(grid.slots());}
   for(auto &w:widgets){
     if(!w.tile || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
     lv_obj_update_layout(w.tile);
@@ -4536,10 +4557,10 @@ inline bool check_tile_geometry() {
     lv_obj_get_coords(w.title,&title);lv_obj_get_coords(w.value,&value);
     bool custom=lv_obj_has_flag(w.title,LV_OBJ_FLAG_HIDDEN);
     bool fits=true;
-    if(w.wide && !w.full && GRID_COLUMNS>1 && tile_grid){
+    if(w.wide && !w.full && grid.columns>1 && tile_grid){
       // A wide card is two cells of its row plus the gap between them.
       const int gap=lv_obj_get_style_pad_column(tile_grid,LV_PART_MAIN);
-      const int cell=(lv_obj_get_content_width(tile_grid)-(int)(GRID_COLUMNS-1)*gap)/(int)GRID_COLUMNS;
+      const int cell=(lv_obj_get_content_width(tile_grid)-(int)(grid.columns-1)*gap)/(int)grid.columns;
       int expected=2*cell+gap;
       fits=std::abs(lv_obj_get_width(w.tile)-expected)<=1;
       if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,(int)lv_obj_get_width(w.tile),expected);
@@ -4580,8 +4601,12 @@ inline bool check_tile_geometry() {
       if(!lv_obj_has_flag(w.circle,LV_OBJ_FLAG_HIDDEN)){
         lv_area_t circle,card;lv_obj_get_coords(w.circle,&circle);lv_obj_get_coords(w.tile,&card);
         bool mini=!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN);
-        // The circle may stand in the card's padding on a short cell (head_row), never past its border.
-        fits=fits && circle.x1>=content.x1 && circle.x2<title.x1 && circle.y1>card.y1;
+        // The circle may stand in the card's padding on a short cell (head_row), never past its border. It
+        // stands beside the name on a cell of the usual height and above it on a tall one, where the card
+        // stacks (a ten-inch standing up gives a cell twice the look's height), so both count as in place.
+        const bool beside=circle.x2<title.x1;
+        const bool above=circle.y2<=title.y1 && circle.x2<=content.x2;
+        fits=fits && circle.x1>=content.x1 && (beside || above) && circle.y1>card.y1;
         if(mini)fits=fits && circle.y2<track.y1;
         else fits=fits && circle.y2<card.y2;
         if(!fits)ESP_LOGE("ui_test","Icon bounds slot=%u circle=%d,%d..%d,%d title_x=%d content=%d,%d..%d,%d",(unsigned)w.index,(int)circle.x1,(int)circle.y1,(int)circle.x2,(int)circle.y2,(int)title.x1,(int)content.x1,(int)content.y1,(int)content.x2,(int)content.y2);
@@ -4619,11 +4644,19 @@ inline bool check_tile_geometry() {
       const bool extra_inside=extra.x1>=content.x1 && extra.x2<=content.x2 && extra.y1>=content.y1 && extra.y2<=content.y2;
       if(!extra_inside)ESP_LOGE("ui_test","Extra bounds slot=%u mode=%s extra=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),(int)extra.x1,(int)extra.y1,(int)extra.x2,(int)extra.y2,(int)content.x1,(int)content.y1,(int)content.x2,(int)content.y2);
       fits=fits && extra_inside;
+    // A dial's ticks are strokes standing on the rim of the dial, and a stroke straddles the line it is drawn
+    // on: half its width falls outside the circle it marks. On a card whose cell is short the dial fills the
+    // content area exactly, so that half stroke reaches into the card's own padding. It is inside the card and
+    // reads as intended, the way the icon circle is allowed to stand in the padding on a short cell, so a
+    // clock's parts are held to the card's border instead of its content area.
+    const bool dial=w.extra_mode=="calendar" || w.extra_mode=="analog";
+    lv_area_t card_box;lv_obj_get_coords(w.tile,&card_box);
       for(auto *p:w.parts){
         if(!p || lv_obj_has_flag(p,LV_OBJ_FLAG_HIDDEN))continue;
         lv_area_t part;lv_obj_get_coords(p,&part);
-        bool inside=part.x1>=content.x1 && part.x2<=content.x2 && part.y1>=content.y1 && part.y2<=content.y2;
-        if(!inside)ESP_LOGE("ui_test","Part bounds slot=%u mode=%s part=%d,%d..%d,%d content=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),(int)part.x1,(int)part.y1,(int)part.x2,(int)part.y2,(int)content.x1,(int)content.y1,(int)content.x2,(int)content.y2);
+        const lv_area_t &room=dial?card_box:content;
+        bool inside=part.x1>=room.x1 && part.x2<=room.x2 && part.y1>=room.y1 && part.y2<=room.y2;
+        if(!inside)ESP_LOGE("ui_test","Part bounds slot=%u mode=%s part=%d,%d..%d,%d room=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),(int)part.x1,(int)part.y1,(int)part.x2,(int)part.y2,(int)room.x1,(int)room.y1,(int)room.x2,(int)room.y2);
         fits=fits && inside;
         if(w.extra_mode=="graph" && !custom)fits=fits && (w.wide && !w.full?part.x1>value.x2:part.y1>value.y2);
       }
@@ -4647,7 +4680,7 @@ inline bool check_tile_geometry() {
 }
 
 inline unsigned page_count() {
-  std::array<Placement,MAX_TILES> placement;
+  std::array<Placement,TILES_MAX> placement;
   return place(model,placement);
 }
 // Page switches feel immediate without blocking touch: the swipe pass places the new page (page
@@ -4658,7 +4691,7 @@ inline unsigned page_count() {
 // Slot assignment plus card places, sizes and visibility for a page; contents are untouched.
 inline int place_page(int page) {
   swipe_profile::Lap lap;
-  std::array<Placement,MAX_TILES> placement;
+  std::array<Placement,TILES_MAX> placement;
   int pages=place(model,placement);
   page=std::clamp(page,0,pages-1);
   const bool bar=pages>1 && page_buttons;
@@ -4671,14 +4704,14 @@ inline int place_page(int page) {
     const int height=bar||!screen?grid_base_height:lv_obj_get_height(screen)-lv_obj_get_y(tile_grid)-grid_margin;
     if(lv_obj_get_style_height(tile_grid,LV_PART_MAIN)!=height)lv_obj_set_height(tile_grid,height);
   }
-  for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=MAX_TILES;widgets[slot].wide=false;widgets[slot].full=false;widgets[slot].cached_active=-1;}
+  for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=grid.max_tiles();widgets[slot].wide=false;widgets[slot].full=false;widgets[slot].cached_active=-1;}
   for(size_t i=0;i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;w.full=model.tiles[i].full;}
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
-    if(slot<SLOTS_PER_PAGE && w.index<model.count){
+    if(slot<grid.slots() && w.index<model.count){
       // A wide card takes two cells of its row (one on a single-column board), a full card the whole page.
-      const int32_t column=w.full?0:(int32_t)(slot%GRID_COLUMNS),row=w.full?0:(int32_t)(slot/GRID_COLUMNS);
-      const int32_t span_x=w.full?(int32_t)GRID_COLUMNS:w.wide&&GRID_COLUMNS>1?2:1,span_y=w.full?(int32_t)GRID_ROW_COUNT:1;
+      const int32_t column=w.full?0:(int32_t)(slot%grid.columns),row=w.full?0:(int32_t)(slot/grid.columns);
+      const int32_t span_x=w.full?(int32_t)grid.columns:w.wide?(int32_t)grid.wide_span():1,span_y=w.full?(int32_t)grid.rows:1;
       lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_STRETCH,column,span_x,LV_GRID_ALIGN_STRETCH,row,span_y);
       lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
     }
@@ -4724,25 +4757,25 @@ inline void drop_veil(Widgets &w) {
 }
 // Draws up to `cards` waiting cards in slot order; true once the page is complete.
 inline bool fill_cards(size_t cards) {
-  for(size_t drawn=0;fill_next<SLOTS_PER_PAGE && drawn<cards;++fill_next){
+  for(size_t drawn=0;fill_next<grid.slots() && drawn<cards;++fill_next){
     if(!slot_pending[fill_next])continue;
     slot_pending[fill_next]=false;render_slot(fill_next);drop_veil(widgets[fill_next]);++drawn;
   }
-  while(fill_next<SLOTS_PER_PAGE && !slot_pending[fill_next])++fill_next;
+  while(fill_next<grid.slots() && !slot_pending[fill_next])++fill_next;
   fill_step_ms=esphome::millis();fill_refreshed=false;
-  if(fill_next<SLOTS_PER_PAGE)return false;
+  if(fill_next<grid.slots())return false;
   if(fill_timer)lv_timer_pause(fill_timer);
   swipe_profile::content_complete();
   return true;
 }
 inline void cancel_fill() {
-  fill_next=SLOTS_PER_PAGE;slot_pending.fill(false);
+  fill_next=grid.slots();slot_pending.fill(false);
   if(fill_timer)lv_timer_pause(fill_timer);
 }
 inline void fill_timer_done(lv_timer_t *) {
   // One step per refresh, so a step's frame reaches the glass before the next step is drawn. A step
   // that changed no pixel starts no refresh; the fill then moves on after a short wait.
-  if(fill_next>=SLOTS_PER_PAGE || (!fill_refreshed && esphome::millis()-fill_step_ms<40))return;
+  if(fill_next>=grid.slots() || (!fill_refreshed && esphome::millis()-fill_step_ms<40))return;
   swipe_profile::FillTimer timer;
   fill_cards(FILL_STEP_CARDS);
 }
@@ -4767,12 +4800,12 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   // A page with a title of its own carries it into the top bar with the same frame as its tiles, not a tick later.
   if(room_label && model.configured && model.ready() && ha_connected() && feed_alive())label(room_label,model.title_of(applied_page));
   swipe_profile::Lap lap;
-  for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
+  for(size_t slot=0;slot<grid.slots();++slot){
     auto &w=widgets[slot];
     slot_pending[slot]=w.tile && w.index<model.count;
     if(slot_pending[slot])skeleton(w);
   }
-  for(size_t slot=SLOTS_PER_PAGE;slot<widgets.size();++slot)drop_veil(widgets[slot]);
+  for(size_t slot=grid.slots();slot<widgets.size();++slot)drop_veil(widgets[slot]);
   lap(swipe_profile::SKELETON);
   // The skeleton frame goes out first; the fill starts on the refresh after it.
   fill_next=0;fill_step_ms=esphome::millis();fill_refreshed=false;
@@ -4891,7 +4924,7 @@ inline void tick() {
     auto now=now_time?now_time():esphome::ESPTime{};
     int minute=now.is_valid()?now.day_of_year*1440+now.hour*60+now.minute:-1;
     bool new_minute=minute!=last_clock_minute;last_clock_minute=minute;
-    for(size_t slot=0;slot<SLOTS_PER_PAGE;++slot){
+    for(size_t slot=0;slot<grid.slots();++slot){
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
       if((t.is_clock() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
@@ -5563,7 +5596,7 @@ inline void pressed(int x, int y, int id, bool calibrating) {
   cyd::touch_guard.begin(esphome::millis(), x, y, id);
   int sx = x, sy = y;
   screen_point(sx, sy);
-  cyd::edge_swipe.begin(sx, sy);
+  cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width());
   ESP_LOGI("touch", "press x=%d y=%d id=%d test=%d screen=%d,%d", x, y, id, calibrating ? 1 : 0, sx, sy);
 }
 

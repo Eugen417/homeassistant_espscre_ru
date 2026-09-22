@@ -52,8 +52,10 @@ CARD = '''              # ---------- CARD {n} ----------
                   id: tile{n}
                   grid_cell_row_pos: 0
                   grid_cell_column_pos: 0
-                  width: ${{TILE_W}}
-                  height: ${{TILE_H}}
+                  # A seed: runtime_tiles::bind puts the card in a cell of the grid and LVGL stretches it to
+                  # that cell, whichever way the glass hangs (firmware 0.2.92+).
+                  width: 1
+                  height: 1
                   styles: style_tile
                   scrollable: false
                   scrollbar_mode: 'OFF'

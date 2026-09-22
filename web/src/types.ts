@@ -32,6 +32,11 @@ export type UpdateInfo = {
 // `switches` are keys this screen shows as a switch instead of a number (app 0.2.105): a backlight that is lit or
 // dark has no percentage, so standby and night are on or off there.
 export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[]; switches?: string[] };
+// The two ways a screen can hang (app 0.2.107), chosen when it is built: lying down or standing up. A board's own
+// numbers for each way come from boards.json, which the add-on serves with the firmware status.
+export type Orientation = "landscape" | "portrait";
+export type BoardOrientation = { width: number; height: number; columns: number; rows: number; rotation: number };
+export type BoardChoice = { square: boolean; orientations: Partial<Record<Orientation, BoardOrientation>> };
 export type Screen = {
   id: string; name: string; online: boolean; area?: string; firmware?: string; board?: string;
   layout: Layout; update?: UpdateInfo; settings?: SettingsView; delivery?: string; status?: string;
@@ -44,6 +49,9 @@ export type Screen = {
   // What the screen looks like (app 0.2.94): the glass it draws on, the cells of one page, its density and its look,
   // from the screen itself (firmware 0.2.80) or from the board it was built for (core.shape_of); the editor draws it.
   shape?: { width: number; height: number; columns: number; rows: number; dpi?: number; look?: string } | null;
+  // Which way it was built to hang (app 0.2.107): a screen standing up has another canvas and another grid, and
+  // while it is offline only the YAML of its own profile says so.
+  orientation?: Orientation;
   // Whether its board draws pictures: camera tiles, an alert's snapshot, an album cover (app 0.2.94).
   pictures?: boolean;
 };

@@ -36,7 +36,14 @@ def propose(w, h, inch, look=None):
         usable_h = h_mm - top - bar
         cols = count(usable_w, tw, tw_min, gc)
         rows = count(usable_h, th, th_min, gr)
-        if cols >= 2 and rows >= 2 or name == "compact" or look:
+        # Glass with room for only one card of the minimum width, stacking at least three of them: one standard
+        # column the full width is the right answer there, not a reason to drop to the compact look. That is how a
+        # screen standing up is laid out (the Waveshare's 480 x 800 is 56 mm wide, where two standard cards would be
+        # 26 mm each and one is 51 mm, and it holds four of them). Three is where the single column earns its place:
+        # on glass that stacks only two, a page of two cards is worse than the denser compact grid, which is why a
+        # 3.2-inch CYD and a CYD standing up stay compact.
+        one_column = math.floor((usable_w + gc) / (tw_min + gc)) < 2
+        if cols >= 2 and rows >= 2 or one_column and rows >= 3 or name == "compact" or look:
             tile_w_mm = (usable_w - (cols - 1) * gc) / cols
             tile_h_mm = (usable_h - (rows - 1) * gr) / rows
             return dict(
@@ -48,14 +55,19 @@ def propose(w, h, inch, look=None):
             )
 
 
+# The panels, each by the canvas it draws on. A board that ships is here twice when its glass is not square: once
+# lying down and once standing up, because those are two different screens with two different grids (the board file
+# states both, GRID_COLS and GRID_COLS_PORTRAIT). The square Guition has one row only: standing it up gives back the
+# screen it already is.
 BOARDS = [
     ("Sunton 2432S028 (CYD 2.8\")", 320, 240, 2.8),
     ("Sunton 2432S032 (CYD 3,2\")", 320, 240, 3.2),
-    ("CYD 2,8\" in portret", 240, 320, 2.8),
+    ("Sunton 2432S028 standing up (CYD 2.8\")", 240, 320, 2.8),
     ("Guition JC3248W535 / WT32-SC01 Plus (3,5\")", 480, 320, 3.5),
     ("Guition JC4827W543 / Sunton 4827S043 (4,3\")", 480, 272, 4.3),
     ("Guition 4848S040 / Seeed Indicator / Waveshare 4\" (4,0\")", 480, 480, 4.0),
     ("Waveshare ESP32-S3-Touch-LCD-4.3 (4,3\")", 800, 480, 4.3),
+    ("Waveshare ESP32-S3-Touch-LCD-4.3 standing up (4,3\")", 480, 800, 4.3),
     ("Sunton 8048S050 (5\")", 800, 480, 5.0),
     ("Sunton 8048S070 / Waveshare 7\" / CrowPanel 7 (7\")", 800, 480, 7.0),
     ("Waveshare ESP32-S3-Touch-LCD-5 (5\")", 1024, 600, 5.0),
@@ -64,6 +76,7 @@ BOARDS = [
     ("M5Stack Tab5 (5\")", 1280, 720, 5.0),
     ("Waveshare 7-DSI, landscape (7\")", 1280, 720, 7.0),
     ("Waveshare 10.1-DSI, landscape (10,1\")", 1280, 800, 10.1),
+    ("Guition JC8012P4A1 standing up (10,1\")", 800, 1280, 10.1),
 ]
 
 if __name__ == "__main__":

@@ -42,13 +42,15 @@ substitutions:
   TOUCH_AFFINE_YC: "0.000000000"
 
   # ORIENTATION
-  # The panel is always driven at its native 240x320 (see display:); LVGL turns
-  # both the picture and the touch coordinates. DISPLAY_W/H are the logical canvas
-  # the layout uses. Turning a screen a quarter is a setting in ESP Screens, so
-  # these values stay as they are.
-  DISPLAY_W: "320"
-  DISPLAY_H: "240"
-  LVGL_ROTATION: "90"
+  # The panel's own pixels. The display block below always drives it at this size; LVGL turns the picture and
+  # the touch together, so nothing else on this board knows which way the glass hangs.
+  PANEL_W: "240"
+  PANEL_H: "320"
+  # The LVGL angle that lays this panel out lying down (320 x 240). Standing up is a quarter further.
+  ROTATION_LANDSCAPE: "90"
+  # Which way this screen hangs. ESP Screens writes it when the screen is built, the way it writes the language,
+  # and it is the only line that differs between a screen lying down and the same screen standing up.
+  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"
   TOUCH_SWAP_XY: "false"
   # true on this board (resistive XPT2046) — was false on the 032c board
   # (capacitive GT911). This is the original upstream value for this panel.
@@ -65,20 +67,20 @@ substitutions:
   # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
   GRID_COLS: "2"
   GRID_ROWS: "3"
+  # The cells of a page when this screen stands up (firmware 0.2.92+).
+  # The 2.8-inch glass is 43 x 57 mm standing up: one column of four cards, each 39 x 10 mm.
+  GRID_COLS_PORTRAIT: "1"
+  GRID_ROWS_PORTRAIT: "4"
   GRID_MARGIN: "9"
   GRID_GAP_X: "8"
   GRID_GAP_Y: "4"
   DISPLAY_DPI: "143"      # diagonal pixels / diagonal inches; the look's reference density on this board
   LOOK: "compact"
   SCROLL_Y: "40"
-  SCROLL_H: "164"
-  TILE_W: "147"
-  TILE_H: "52"
   HEADER_Y: "14"
   # Holding the top bar opens the settings page (0.2.44+). The whole strip counts on this board;
   # a finger that travels further than the drift limit of a tap is swiping, not holding.
   SETTINGS_HOLD_X: "0"
-  SETTINGS_HOLD_W: "${DISPLAY_W}"
   SETTINGS_HOLD_DRIFT_PX: "24"
   ALERT_CARD_W: "292"
   ALERT_CARD_H: "196"
@@ -97,76 +99,6 @@ substitutions:
   ALERT_BUTTON_MAX: "12"      # bytes on the OK button
   ALERT_SUBTITLE_MAX: "160"   # bytes; wraps over the rows the card has
 
-  # ----- 90° — Portrait 240×320 (USB on bottom) -----
-  # ORIENTATION: "90"
-  # DISPLAY_W: "240"
-  # DISPLAY_H: "320"
-  # LVGL_ROTATION: "180"
-  # TOUCH_SWAP_XY: "false"
-  # TOUCH_MIRROR_X: "true"
-  # TOUCH_MIRROR_Y: "false"
-  # TOUCH_CAL_X_MIN: "280"
-  # TOUCH_CAL_X_MAX: "3860"
-  # TOUCH_CAL_Y_MIN: "340"
-  # TOUCH_CAL_Y_MAX: "3860"
-  # GRID_COL1_X: "6"
-  # GRID_COL2_X: "123"
-  # GRID_ROW1_Y: "8"
-  # GRID_ROW2_Y: "96"
-  # GRID_ROW3_Y: "184"
-  # GRID_ROW4_Y: "272"
-  # GRID_ROW5_Y: "360"
-  # SCROLL_Y: "44"
-  # SCROLL_H: "276"
-  # TILE_W: "111"
-  # TILE_H: "80"
-  # HEADER_Y: "14"
-  # ORIENTATION: "180"
-  # DISPLAY_W: "320"
-  # DISPLAY_H: "240"
-  # LVGL_ROTATION: "270"
-  # TOUCH_SWAP_XY: "false"
-  # TOUCH_MIRROR_X: "true"
-  # TOUCH_MIRROR_Y: "false"
-  # TOUCH_CAL_X_MIN: "280"
-  # TOUCH_CAL_X_MAX: "3860"
-  # TOUCH_CAL_Y_MIN: "340"
-  # TOUCH_CAL_Y_MAX: "3860"
-  # GRID_COL1_X: "9"
-  # GRID_COL2_X: "164"
-  # GRID_ROW1_Y: "8"
-  # GRID_ROW2_Y: "68"
-  # GRID_ROW3_Y: "128"
-  # GRID_ROW4_Y: "188"
-  # GRID_ROW5_Y: "248"
-  # SCROLL_Y: "44"
-  # SCROLL_H: "196"
-  # TILE_W: "147"
-  # TILE_H: "52"
-  # HEADER_Y: "14"
-  # ORIENTATION: "270"
-  # DISPLAY_W: "240"
-  # DISPLAY_H: "320"
-  # LVGL_ROTATION: "0"
-  # TOUCH_SWAP_XY: "false"
-  # TOUCH_MIRROR_X: "true"
-  # TOUCH_MIRROR_Y: "false"
-  # TOUCH_CAL_X_MIN: "280"
-  # TOUCH_CAL_X_MAX: "3860"
-  # TOUCH_CAL_Y_MIN: "340"
-  # TOUCH_CAL_Y_MAX: "3860"
-  # GRID_COL1_X: "6"
-  # GRID_COL2_X: "123"
-  # GRID_ROW1_Y: "8"
-  # GRID_ROW2_Y: "96"
-  # GRID_ROW3_Y: "184"
-  # GRID_ROW4_Y: "272"
-  # GRID_ROW5_Y: "360"
-  # SCROLL_Y: "44"
-  # SCROLL_H: "276"
-  # TILE_W: "111"
-  # TILE_H: "80"
-  # HEADER_Y: "14"
   FONT_TIME_SIZE: "18"                          # the clock in the top bar
   FONT_HEADLINE_SIZE: "18"                      # card titles
   FONT_WATCH_VALUE_SIZE: "22"
@@ -187,7 +119,6 @@ substitutions:
   HEADER_INSET: "11"                            # the room name and the clock from the glass edge
 
   # The page bar under the tiles
-  PAGE_KEY_W: "160"                             # the previous/next keys under the tiles
   PAGE_BAR_H: "36"                              # the page bar
   PAGE_NUMBER_W: "104"                          # the dots in the middle
   PAGE_CHEVRON_INSET: "14"                      # the chevrons from the outer edge
@@ -207,10 +138,6 @@ substitutions:
   TOUCH_TEST_TITLE_FONT: "sublabel"
   TOUCH_TEST_TITLE_Y: "65"
   TOUCH_TEST_INSET: "10"                        # the corner crosses from the edge
-  TOUCH_TEST_FAR_X: "289"                       # the right crosses: width - inset - size - 1
-  TOUCH_TEST_FAR_Y: "209"                       # the bottom crosses
-  TOUCH_TEST_MID_X: "150"                       # the middle cross
-  TOUCH_TEST_MID_Y: "110"
   TOUCH_TEST_SIZE: "20"                         # a cross
   TOUCH_TEST_PAINT: "paint_calibration"         # the crosses
 
@@ -398,8 +325,12 @@ touchscreen:
         id(last_use_ms) = millis();
         id(touch_down) = true;
         cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
-        screen_calibration::press();
-        ESP_LOGI("touch", "press native=%u,%u raw=%d,%d pressure=%d calibration=%d", touch.x, touch.y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y(), touch.z_raw, id(calibration_active));
+        // The point the screen itself works with, through ESPHome's own turn (the same call the tiles are hit
+        // with): the wizard fits against that, so it never has to work out what the turn does.
+        int screen_x = touch.x, screen_y = touch.y;
+        if (runtime_tiles::touch_input::to_screen) runtime_tiles::touch_input::to_screen(screen_x, screen_y);
+        screen_calibration::press(screen_x, screen_y);
+        ESP_LOGI("touch", "press native=%u,%u screen=%d,%d raw=%d,%d pressure=%d calibration=%d", touch.x, touch.y, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y(), touch.z_raw, id(calibration_active));
   on_update:
     - lambda: |-
         id(last_touch_ms) = millis();

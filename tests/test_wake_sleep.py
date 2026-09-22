@@ -99,7 +99,9 @@ class Profiles(unittest.TestCase):
             # the shared boot sets (runtime_tiles::touch_input::contact); a board that still carries its own
             # three lambdas writes it in each of them. Either way every trigger leads to the clock.
             touch = section(text, 'touchscreen')
-            shared = 'runtime_tiles::touch_input::' in touch
+            # A board that hands its touches to the shared handler, rather than one that only asks the shared
+            # tree to turn a point for it (the CYD does that for its calibration wizard, firmware 0.2.92+).
+            shared = 'runtime_tiles::touch_input::pressed' in touch
             # Four in the shared tree whatever the board (the boot, Home Assistant opening the settings page or a
             # page of tiles, the UI self test) plus the one in the hook the shared touch handler calls; a board that
             # kept its own three lambdas writes the clock three more times.

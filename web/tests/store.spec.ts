@@ -1,8 +1,9 @@
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addTile, canAlert, copyLayoutFrom, fullPage, importLayout, layoutJson, liveOf, moveTileToPage, pageReachWarning, pageTilesRepeat, phaseText, removeTile,
-  retargetPageTile, save, select, setTileOption, state, supports, tileLimit, topbarItems, topbarView, updateProgress, whatsNew,
+  addTile, canAlert, copyLayoutFrom, deviceStyle, fullPage, importLayout, isCompact, layoutJson, liveOf, moveTileToPage, pageReachWarning,
+  pageTilesRepeat, phaseText, removeTile, retargetPageTile, save, select, setTileOption, state, supports, tileLimit, topbarItems, topbarView,
+  updateProgress, whatsNew,
 } from "../src/store";
 import type { Inventory, Screen } from "../src/types";
 
@@ -438,5 +439,56 @@ describe("page buttons and swiping both off (firmware 0.2.69)", () => {
     expect(pageReachWarning()).toBe("");
     tiles([["light.a", 0]]);
     expect(pageReachWarning()).toBe("");
+  });
+});
+
+// A screen standing up (app 0.2.107): the add-on sends the canvas and the grid it was built with, and the editor
+// only draws them. Every mockup is the same height, so a page of a screen standing up is narrow rather than tall
+// and stands level with its neighbours instead of towering over them.
+describe("the mockup of a screen, whichever way it hangs", () => {
+  const shaped = (shape: Record<string, unknown>) => {
+    Object.assign(state.inventory.screens[0], { shape });
+    select("living");
+  };
+  const px = (style: Record<string, string>) => Number(style["--mockup-width"].replace("px", ""));
+  const height = (style: Record<string, string>) => {
+    const [width, tall] = style["--screen-aspect"].split(" / ").map(Number);
+    return (px(style) * tall) / width;
+  };
+  it("draws every screen the same height, standing up as well as lying down", () => {
+    for (const shape of [{ width: 800, height: 480, columns: 3, rows: 3, look: "standard" },
+                         { width: 480, height: 480, columns: 2, rows: 3, look: "standard" },
+                         { width: 480, height: 800, columns: 1, rows: 4, look: "standard" },
+                         { width: 240, height: 320, columns: 1, rows: 4, look: "compact" },
+                         { width: 800, height: 1280, columns: 4, rows: 5, look: "standard" }]) {
+      shaped(shape);
+      expect(Math.round(height(deviceStyle.value))).toBe(300);
+    }
+  });
+  it("gives a page the screen's own proportions and its own cells", () => {
+    shaped({ width: 480, height: 800, columns: 1, rows: 4, look: "standard" });
+    expect(deviceStyle.value).toEqual({
+      "--screen-aspect": "480 / 800", "--screen-columns": "1", "--screen-rows": "4",
+      // One column: a wide tile is that one cell, not two.
+      "--screen-wide-span": "1", "--mockup-width": "180px",
+    });
+    shaped({ width: 800, height: 480, columns: 3, rows: 3, look: "standard" });
+    expect(px(deviceStyle.value)).toBe(500);
+    expect(deviceStyle.value["--screen-wide-span"]).toBe("2");
+    // Glass wider than the cap is drawn shorter rather than wider, so a page still fits beside its neighbour.
+    shaped({ width: 1920, height: 480, columns: 4, rows: 2, look: "standard" });
+    expect(px(deviceStyle.value)).toBe(560);
+  });
+  it("keeps a board's look when it is built standing up", () => {
+    // The board says which look it is, and that is what counts. Without it the shorter side decides, because the
+    // width alone would read a 480 x 800 standard screen as a compact one.
+    shaped({ width: 480, height: 800, columns: 1, rows: 4, look: "standard" });
+    expect(isCompact.value).toBe(false);
+    shaped({ width: 480, height: 800, columns: 1, rows: 4 });
+    expect(isCompact.value).toBe(false);
+    shaped({ width: 240, height: 320, columns: 1, rows: 4 });
+    expect(isCompact.value).toBe(true);
+    shaped({ width: 320, height: 240, columns: 2, rows: 3 });
+    expect(isCompact.value).toBe(true);
   });
 });

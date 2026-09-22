@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.91"
+  SCREEN_FIRMWARE_VERSION: "0.2.92"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -57,6 +57,10 @@ esphome:
       - -DLV_USE_SLIDER=1
       - -DGRID_COLS=${GRID_COLS}
       - -DGRID_ROWS=${GRID_ROWS}
+      # The cells of a page when this screen stands up (firmware 0.2.92+). A board states both grids and the
+      # screen picks one at boot from its canvas, so one firmware serves a board either way round.
+      - -DGRID_COLS_PORTRAIT=${GRID_COLS_PORTRAIT}
+      - -DGRID_ROWS_PORTRAIT=${GRID_ROWS_PORTRAIT}
   includes:
     - <esphome/components/smart_display/cyd_ui.h>
     - <esphome/components/smart_display/light_controls.h>
@@ -96,8 +100,10 @@ esphome:
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
           // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
-          // offers it; a quarter turn only a square one, whose canvas is the same either way.
-          settings_screen::quarter_turns = ${DISPLAY_W} == ${DISPLAY_H};
+          // offers it; a quarter turn only a square one, whose canvas is the same either way. Which way a screen
+          // stands is chosen when it is built (LVGL_ROTATION, firmware 0.2.92+), because the other way round is
+          // another grid, and a layout made for six cells does not fit four.
+          settings_screen::quarter_turns = ${PANEL_W} == ${PANEL_H};
           // Whether this board's backlight takes levels (firmware 0.2.90+): a board whose backlight is one line
           // shows a switch where the others show a percentage. ESP Screens reads the same fact from boards.json.
           settings_screen::dimmable = ${BACKLIGHT_DIMMABLE};
@@ -164,7 +170,26 @@ esphome:
             id(show_tile_page).execute();
           };
           ui::configure(atoi("${DISPLAY_DPI}"), "${LOOK}");
-          runtime_tiles::grid_bind(id(tile_scroll), atoi("${GRID_MARGIN}"));
+          runtime_tiles::grid_bind(id(tile_scroll), atoi("${GRID_MARGIN}"), atoi("${PAGE_BAR_H}"));
+          // The alert card on the glass it landed on (firmware 0.2.92+). A board states the card's table for the
+          // way its glass was drawn; built standing up the same table lands on narrower glass, so the card and
+          // everything across it is brought back by the one factor that makes it fit. Nothing moves on a screen
+          // whose table already fits, which is every board lying down.
+          {
+            const auto card = screen_alert::frame(${ALERT_CARD_W}, ${ALERT_CARD_H}, ${ALERT_ICON_X},
+                ${ALERT_TEXT_X}, ${ALERT_BUTTON_W}, ${ALERT_BUTTON_INSET}, 0, 0,
+                overlay_card::screen_width(), overlay_card::screen_height(), ${ALERT_BUTTON_INSET});
+            screen_alert::percent_applied =
+                screen_alert::fit_percent(${ALERT_CARD_W}, overlay_card::screen_width(), ${ALERT_BUTTON_INSET});
+            lv_obj_set_size(id(alert_card), card.card_w, card.card_h);
+            lv_obj_set_x(id(alert_icon), card.icon_x);
+            for (auto *text : {id(alert_title), id(alert_subtitle)}) {
+              lv_obj_set_x(text, card.text_x);
+              lv_obj_set_width(text, card.text_w);
+            }
+            lv_obj_set_width(id(alert_ok), card.button_w);
+            lv_obj_set_pos(id(alert_ok), -card.button_inset, -card.button_inset);
+          }
           runtime_tiles::setpoint_font = id(setpoint_digits)->get_lv_font();
           // The cards of this board's grid (packages/cells/<number>.yaml).
           ${BIND_CELLS}
@@ -193,7 +218,7 @@ esphome:
           overlay_card::frame(light_controls::card, overlay_card::controls);
           for (auto *widget : {id(color_close_button), id(color_effects_button), id(color_detail_title)})
             lv_obj_set_parent(widget, light_controls::card);
-          light_controls::setup(light_controls::card, id(sublabel)->get_lv_font(), overlay_card::content_width(), atoi("${DISPLAY_H}"), id(materialdesign_icons_mini)->get_lv_font());
+          light_controls::setup(light_controls::card, id(sublabel)->get_lv_font(), overlay_card::content_width(), overlay_card::screen_height(), id(materialdesign_icons_mini)->get_lv_font());
           light_controls::commits[0] = [](int value) { id(set_light_hue).execute(value); };
           light_controls::commits[1] = [](int value) { id(set_light_color_temperature).execute(value); };
           light_controls::commits[2] = [](int value) { id(color_brightness_commit).execute(value); };
@@ -253,7 +278,8 @@ esphome:
           };
           // Under the cards: the colour card is the first of them on the page, so the back button and
           // the action at the top right of a card keep their taps.
-          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0, ${SETTINGS_HOLD_W}, ${SCROLL_Y}, id(color_detail_overlay));
+          settings_screen::attach_hold(id(home_page)->obj, ${SETTINGS_HOLD_X}, 0,
+            overlay_card::screen_width() - ${SETTINGS_HOLD_X} * 2, ${SCROLL_Y}, id(color_detail_overlay));
       - light.turn_on:
           id: back_light
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
@@ -1160,7 +1186,7 @@ text_sensor:
       char text[48];
       auto *display = lv_display_get_default();
       snprintf(text, sizeof(text), "%dx%d %dx%d %ddpi %s", (int) lv_display_get_horizontal_resolution(display),
-               (int) lv_display_get_vertical_resolution(display), (int) runtime_tiles::GRID_COLUMNS, (int) runtime_tiles::GRID_ROW_COUNT,
+               (int) lv_display_get_vertical_resolution(display), (int) runtime_tiles::grid.columns, (int) runtime_tiles::grid.rows,
                ui::dpi, ui::large() ? "standard" : "compact");
       return {std::string(text)};
     update_interval: 60s
@@ -1417,8 +1443,9 @@ lvgl:
           id: alert_overlay
           x: 0
           y: 0
-          width: ${DISPLAY_W}
-          height: ${DISPLAY_H}
+          # The glass it is on, whichever way that hangs (firmware 0.2.92+).
+          width: 100%
+          height: 100%
           hidden: true
           styles: paint_scrim
           bg_opa: 60%
@@ -1561,8 +1588,11 @@ lvgl:
             id: tile_scroll
             x: 0
             y: ${SCROLL_Y}
-            width: ${DISPLAY_W}
-            height: ${SCROLL_H}
+            # Width and height come from the canvas at boot (runtime_tiles::grid_bind, firmware 0.2.92+): the
+            # area runs the full width and stops where the page bar starts, whichever way the glass hangs.
+            # These two are only the seed LVGL builds the object with.
+            width: 1
+            height: 1
             bg_opa: TRANSP
             # The cells of the board's grid (GRID_COLS x GRID_ROWS). The rows and columns are free units, so LVGL
             # divides the area over them and keeps the gaps; runtime_tiles::grid_bind sets the board's numbers at
@@ -1603,7 +1633,7 @@ lvgl:
             align: BOTTOM_LEFT
             x: 0
             y: 0
-            width: ${PAGE_KEY_W}
+            width: 50%
             height: ${PAGE_BAR_H}
             pad_all: 0
             radius: 0
@@ -1646,7 +1676,7 @@ lvgl:
             align: BOTTOM_RIGHT
             x: 0
             y: 0
-            width: ${PAGE_KEY_W}
+            width: 50%
             height: ${PAGE_BAR_H}
             pad_all: 0
             radius: 0
@@ -1677,8 +1707,9 @@ lvgl:
             id: color_detail_overlay
             x: 0
             y: 0
-            width: ${DISPLAY_W}
-            height: ${DISPLAY_H}
+            # The glass it is on, whichever way that hangs (firmware 0.2.92+).
+            width: 100%
+            height: 100%
             styles: paint_page_soft
             bg_opa: COVER
             hidden: true
@@ -1766,8 +1797,9 @@ lvgl:
             id: dim_wake_overlay
             x: 0
             y: 0
-            width: ${DISPLAY_W}
-            height: ${DISPLAY_H}
+            # The glass it is on, whichever way that hangs (firmware 0.2.92+).
+            width: 100%
+            height: 100%
             hidden: true
             bg_opa: TRANSP
             # The tap that wakes a dimmed screen must not light up a pale sheet over it.
@@ -1811,7 +1843,8 @@ lvgl:
                   text_font: headline
                   styles: ${TOUCH_TEST_PAINT}
         - obj:
-            x: ${TOUCH_TEST_FAR_X}
+            align: TOP_RIGHT
+            x: -${TOUCH_TEST_INSET}
             y: ${TOUCH_TEST_INSET}
             width: ${TOUCH_TEST_SIZE}
             height: ${TOUCH_TEST_SIZE}
@@ -1826,8 +1859,9 @@ lvgl:
                   text_font: headline
                   styles: ${TOUCH_TEST_PAINT}
         - obj:
-            x: ${TOUCH_TEST_FAR_X}
-            y: ${TOUCH_TEST_FAR_Y}
+            align: BOTTOM_RIGHT
+            x: -${TOUCH_TEST_INSET}
+            y: -${TOUCH_TEST_INSET}
             width: ${TOUCH_TEST_SIZE}
             height: ${TOUCH_TEST_SIZE}
             pad_all: 0
@@ -1841,8 +1875,9 @@ lvgl:
                   text_font: headline
                   styles: ${TOUCH_TEST_PAINT}
         - obj:
+            align: BOTTOM_LEFT
             x: ${TOUCH_TEST_INSET}
-            y: ${TOUCH_TEST_FAR_Y}
+            y: -${TOUCH_TEST_INSET}
             width: ${TOUCH_TEST_SIZE}
             height: ${TOUCH_TEST_SIZE}
             pad_all: 0
@@ -1856,8 +1891,9 @@ lvgl:
                   text_font: headline
                   styles: ${TOUCH_TEST_PAINT}
         - obj:
-            x: ${TOUCH_TEST_MID_X}
-            y: ${TOUCH_TEST_MID_Y}
+            align: CENTER
+            x: 0
+            y: 0
             width: ${TOUCH_TEST_SIZE}
             height: ${TOUCH_TEST_SIZE}
             pad_all: 0

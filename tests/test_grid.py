@@ -273,9 +273,40 @@ class OnTheManager(unittest.TestCase):
         screen = m.screens()[0]
         self.assertIsNone(screen.get('shape'))
         self.assertEqual(m.package_of(screen), 'packages/waveshare43.yaml')
+        self.assertEqual(m.orientation_of(screen), 'landscape')
         self.assertEqual(m.grid_of(screen), WIDE)
         m.save('text.d1_tiles', {'title': 'Hall', 'tiles': [tile('light.l0', 3, size='wide'), tile('light.l1', 62)]})
         self.assertEqual([t['slot'] for t in m.layouts['text.d1_tiles']['tiles']], [3, 62])
+
+    def test_an_offline_screen_standing_up_gets_the_grid_it_was_built_with(self):
+        # The same Waveshare, built standing up (app 0.2.107): its profile carries the angle, so while the screen
+        # says nothing the editor draws one column of four and a save counts those cells. Placing a tile on the
+        # ninth cell of the page it had lying down is refused, because standing up that cell is on another page.
+        ha = fake_ha(shape='unavailable', board='unavailable')
+        (Path(self.tmp) / 'hall.yaml').write_text('substitutions:\n  LVGL_ROTATION: "90"\n'
+                                                  'esphome:\n  name: hall\n  friendly_name: Hall screen\n'
+                                                  'packages:\n  display:\n    url: https://github.com/MaxGramser/homeassistant_espscreen\n'
+                                                  '    files: [packages/waveshare43.yaml]\n    ref: main\n'
+                                                  'api:\n  encryption:\n    key: "Y2hlY2stYnVpbGQtcGxhY2Vob2xkZXIta2V5LTMyYnk="\n')
+        import os
+        before = os.environ.get('ESPHOME_CONFIG')
+        os.environ['ESPHOME_CONFIG'] = self.tmp
+        try:
+            m = self.manager(ha)
+        finally:
+            if before is None:
+                os.environ.pop('ESPHOME_CONFIG', None)
+            else:
+                os.environ['ESPHOME_CONFIG'] = before
+        screen = m.screens()[0]
+        self.assertEqual(m.orientation_of(screen), 'portrait')
+        self.assertEqual(m.grid_of(screen), TALL)
+        shape = core.shape_of({**screen, 'package': m.package_of(screen), 'orientation': m.orientation_of(screen)})
+        self.assertEqual((shape['width'], shape['height'], shape['columns'], shape['rows']), (480, 800, 1, 4))
+        m.save('text.d1_tiles', {'title': 'Hall', 'tiles': [tile('light.l0', 3), tile('light.l1', 31)]})
+        self.assertEqual([t['slot'] for t in m.layouts['text.d1_tiles']['tiles']], [3, 31])
+        with self.assertRaisesRegex(ValueError, 'position'):
+            m.save('text.d1_tiles', {'title': 'Hall', 'tiles': [tile('light.l0', 32)]})
 
     def test_a_layout_from_another_grid_goes_out_packed_in_order(self):
         # The screen was flashed as another board and kept its name: its stored positions no longer exist. It gets its

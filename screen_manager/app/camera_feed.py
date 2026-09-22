@@ -20,7 +20,7 @@ import re
 import secrets
 import time
 
-from core import SHAPES, board_of, screen_firmware
+from core import SHAPES, board_of, screen_firmware, shape_of
 
 LOG = logging.getLogger(__name__)
 
@@ -61,12 +61,33 @@ MAX_SNAPSHOT_BYTES = 8 * 1024 * 1024
 MAX_LINKS = 64
 # What the screens load (online_image `format: BMP`).
 CONTENT_TYPE = 'image/bmp'
-# The pixel box per board and view; the image keeps its proportions inside it. Straight from the CAMERA_*
-# substitutions of the board's own YAML (tools/generate_board_shapes.py writes them into boards.json), so a new
-# board that draws cameras is served without a line here (tests/test_camera.py). A board without them, like the
-# CYD, has no camera: `can_show` is false and a camera tile is refused before it is saved.
+# The pixel box per board and view, for the board lying down; the image keeps its proportions inside it. Straight
+# from the CAMERA_* substitutions of the board's own YAML (tools/generate_board_shapes.py writes them into
+# boards.json), so a new board that draws cameras is served without a line here (tests/test_camera.py). Whether a
+# board is in here at all is the question of whether it draws pictures, which does not depend on the way it hangs:
+# a board without them, like the CYD, has no camera either way up, `can_show` is false and a camera tile is refused
+# before it is saved.
 BOXES = {shape['board']: {view: tuple(box) for view, box in shape['camera'].items()}
          for shape in SHAPES.values() if shape.get('camera')}
+
+
+def boxes(screen):
+    """The pixel boxes for one screen's pictures, or None when its board draws none (app 0.2.107).
+
+    Not BOXES[board]: a screen built standing up has the canvas of the other side, so a full-screen picture shaped
+    for the board lying down would arrive turned a quarter and letterboxed, and the still in its alert card would be
+    wider than the card the firmware brought back to fit. Those numbers come from the board file for each way it can
+    hang (core.shape_of), so a screen whose orientation nothing has said keeps exactly the boxes it got before.
+    """
+    found = shape_of(screen).get('camera') if isinstance(screen, dict) else None
+    if not found:
+        return BOXES.get(board_of(screen))
+    return {view: tuple(box) for view, box in found.items()}
+
+
+def box(screen, view):
+    """One of them ('full' or 'thumb'), or None on a screen whose board draws no pictures."""
+    return (boxes(screen) or {}).get(view)
 
 
 def supported(entity):

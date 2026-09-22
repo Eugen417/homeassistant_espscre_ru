@@ -70,4 +70,48 @@ inline Alert make(const std::string &title, const std::string &subtitle, const s
   alert.flash = flash;
   return alert;
 }
+
+// Where the parts of the alert card stand (firmware 0.2.92+). A board states the card's table for the glass it
+// was drawn for, and every board that ships states one that fits. The same board built standing up puts that
+// table on narrower glass, so the card and everything across it is brought back by the one factor that makes it
+// fit, and its height is capped at the glass. Only the widths move: the fonts are compiled into the firmware
+// and cannot shrink with them, so a title that is one line high stays one line high.
+//
+// Pure numbers, so tests/test_alert_overlay.cpp checks them; the profiles do the LVGL work.
+struct Frame {
+  int card_w, card_h;
+  int icon_x, text_x, text_w;
+  int button_w, button_inset;
+  int image_inset, image_width;
+};
+// `across` is what the card asks for sideways and `down` what it asks for downwards, both as the board states
+// them. `room` is the glass, and `inset` the narrowest strip of it the card may not stand on.
+inline int fit_percent(int across, int room, int inset) {
+  const int space = room - 2 * inset;
+  if (across <= 0 || space <= 0 || across <= space) return 100;
+  return space * 100 / across;
+}
+inline int scaled(int value, int percent) { return percent >= 100 ? value : value * percent / 100; }
+// What the card was brought back by on this screen, so a board that draws a picture in its alert (the frame and
+// its inset live in the board file, because only a board with a camera has them) moves by the same factor.
+inline int percent_applied = 100;
+
+inline Frame frame(int card_w, int card_h, int icon_x, int text_x, int button_w, int button_inset,
+                   int image_inset, int image_width, int screen_w, int screen_h, int inset) {
+  const int percent = fit_percent(card_w, screen_w, inset);
+  Frame f{};
+  f.card_w = scaled(card_w, percent);
+  f.card_h = card_h <= screen_h - 2 * inset ? card_h : screen_h - 2 * inset;
+  f.icon_x = scaled(icon_x, percent);
+  f.text_x = scaled(text_x, percent);
+  f.button_w = scaled(button_w, percent);
+  f.button_inset = scaled(button_inset, percent);
+  f.image_inset = scaled(image_inset, percent);
+  f.image_width = scaled(image_width, percent);
+  if (f.image_width > f.card_w - 2 * f.image_inset) f.image_width = f.card_w - 2 * f.image_inset;
+  // The text runs from where it starts to the far side of the card, keeping the icon's margin there.
+  f.text_w = f.card_w - f.text_x - f.icon_x;
+  if (f.text_w < 0) f.text_w = 0;
+  return f;
+}
 }  // namespace screen_alert

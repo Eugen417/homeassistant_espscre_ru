@@ -134,7 +134,10 @@ class PackageTests(unittest.TestCase):
             self.assertIn('      assertion_level: SILENT\n', path.read_text(), board)
         names = {board: set(profiles.substitutions_of(path)) for board, path in profiles.BOARDS.items()}
         shared = set.intersection(*names.values())
-        self.assertGreater(len(shared), 100)
+        # A floor, not a count: the list gets shorter every time the firmware works something out from the live
+        # canvas instead of reading it from the board file (the cells, the page bar and the settings strip went
+        # that way in firmware 0.2.92), and it must never get shorter because one board started going its own way.
+        self.assertGreater(len(shared), 90)
         for board, defined in names.items():
             own = defined - shared
             self.assertTrue(all(re.match(r'(TOUCH_AFFINE_|TOUCH_CAL_|EDGE_SWIPE_|ALERT_\w*IMAGE|CAMERA_)', n) for n in own), f'{board}: {sorted(own)}')

@@ -55,7 +55,7 @@ static void test_domains_and_packing() {
   m.tiles[4].state = "home"; assert(m.tiles[4].active());
   m.tiles[5].state = "active"; assert(m.tiles[5].active());
   m.tiles[5].state = "idle"; assert(!m.tiles[5].active());
-  std::array<Placement, MAX_TILES> p;
+  std::array<Placement, TILES_MAX> p;
   assert(pack(m.tiles, 0, p) == 1);
   assert(pack(m.tiles, m.count, p) == 2 && p[6].page == 1 && p[6].slot == 0);
   // A wide tile after a left-column tile skips the right column.
@@ -86,7 +86,7 @@ struct RunExtra { RunExtra() { test_domains_and_packing(); } } run_extra;
 static void test_explicit_slots() {
   using namespace runtime_tiles;
   Model m; bool changed = false, moved = false;
-  std::array<Placement, MAX_TILES> p;
+  std::array<Placement, TILES_MAX> p;
   // Validation: one slot per entity, inside eight pages, no duplicates.
   assert(!m.set_layout({"light.a", "light.b"}, "Home", changed, {0}, moved));
   assert(!m.set_layout({"light.a", "light.b"}, "Home", changed, {0, 48}, moved));
@@ -114,7 +114,7 @@ static void test_explicit_slots() {
   // Pages kept on purpose extend the count, never shrink it.
   m.pages = 3; assert(place(m, p) == 8);
   assert(m.set_layout({"light.a", "light.b", "light.c"}, "Home", changed, {0, 1, 2}, moved));
-  assert(place(m, p) == 3); m.pages = 1; assert(place(m, p) == 1); m.pages = 200; assert(place(m, p) == MAX_PAGES); m.pages = 1;
+  assert(place(m, p) == 3); m.pages = 1; assert(place(m, p) == 1); m.pages = 200; assert(place(m, p) == grid.pages()); m.pages = 1;
   // Without slots (older manager) the in-order packing returns.
   assert(m.set_layout({"light.a", "light.b", "light.c"}, "Home", changed, {}, moved));
   assert(!changed && moved && !m.explicit_slots);
@@ -234,7 +234,7 @@ struct RunStateActive { RunStateActive() { test_state_active(); } } run_state_ac
 static void test_repeated_page_tiles() {
   using namespace runtime_tiles;
   Model m; bool changed = false, moved = false;
-  std::array<Placement, MAX_TILES> p;
+  std::array<Placement, TILES_MAX> p;
   assert(m.set_layout({"light.x", "screen.page_1", "screen.page_1", "sensor.y"}, "Home", changed, {0, 6, 12, 13}, moved));
   assert(changed && m.count == 4 && place(m, p) == 3 && p[1].page == 1 && p[2].page == 2);
   assert(m.tiles[1].is_page() && m.tiles[2].is_page() && m.tiles[1].page_target() == 1 && m.tiles[2].page_target() == 1);
@@ -308,10 +308,10 @@ struct RunTileRoom { RunTileRoom() { test_tile_room(); } } run_tile_room;
 static void test_tile_bits() {
   using namespace runtime_tiles;
   assert(tile_bit(0) == 1 && tile_bit(31) == (uint64_t{1} << 31) && tile_bit(47) == (uint64_t{1} << 47));
-  assert(tile_bit(MAX_TILES - 1) && !tile_bit(64) && !tile_bit(MAX_TILES + 100));
+  assert(tile_bit(grid.max_tiles() - 1) && !tile_bit(64) && !tile_bit(grid.max_tiles() + 100));
   uint64_t dirty = tile_bit(33) | tile_bit(47);
   assert((dirty & tile_bit(33)) && (dirty & tile_bit(47)) && !(dirty & tile_bit(1)) && !(dirty & tile_bit(32)));
-  for (size_t a = 0; a < MAX_TILES; ++a) for (size_t b = a + 1; b < MAX_TILES; ++b) assert(!(tile_bit(a) & tile_bit(b)));
+  for (size_t a = 0; a < grid.max_tiles(); ++a) for (size_t b = a + 1; b < grid.max_tiles(); ++b) assert(!(tile_bit(a) & tile_bit(b)));
 }
 struct RunTileBits { RunTileBits() { test_tile_bits(); } } run_tile_bits;
 // Clock texts without sscanf (firmware 0.2.75+): the same answers the sscanf versions gave.

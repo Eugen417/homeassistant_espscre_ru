@@ -38,9 +38,16 @@ substitutions:
   DEVICE_NAME: "guition-new"
   DEVICE_FRIENDLY_NAME: "My Guition"
 
-  DISPLAY_W: "480"
-  DISPLAY_H: "480"
-  LVGL_ROTATION: "0"
+  # ORIENTATION
+  # The panel's own pixels. The display block below always drives it at this size; LVGL turns the picture and
+  # the touch together, so nothing else on this board knows which way the glass hangs.
+  PANEL_W: "480"
+  PANEL_H: "480"
+  # The LVGL angle that lays this panel out lying down (480 x 480). Standing up is a quarter further.
+  ROTATION_LANDSCAPE: "0"
+  # Which way this screen hangs. ESP Screens writes it when the screen is built, the way it writes the language,
+  # and it is the only line that differs between a screen lying down and the same screen standing up.
+  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"
   TOUCH_SWAP_XY: "false"
   TOUCH_MIRROR_X: "false"
   TOUCH_MIRROR_Y: "false"
@@ -48,20 +55,20 @@ substitutions:
   # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
   GRID_COLS: "2"
   GRID_ROWS: "3"
+  # The cells of a page when this screen stands up (firmware 0.2.92+).
+  # Square glass: the same six cells whichever way it hangs.
+  GRID_COLS_PORTRAIT: "2"
+  GRID_ROWS_PORTRAIT: "3"
   GRID_MARGIN: "16"
   GRID_GAP_X: "12"
   GRID_GAP_Y: "12"
   DISPLAY_DPI: "170"      # diagonal pixels / diagonal inches; the look's reference density on this board
   LOOK: "standard"
   SCROLL_Y: "72"
-  SCROLL_H: "348"
-  TILE_W: "218"
-  TILE_H: "108"
   HEADER_Y: "22"
   # Holding the top bar opens the settings page (0.2.44+). The two edge bands stay clear: a swipe
   # that starts up there still changes the page.
   SETTINGS_HOLD_X: "${EDGE_SWIPE_BAND_PX}"
-  SETTINGS_HOLD_W: "416"
   SETTINGS_HOLD_DRIFT_PX: "32"
 
   # Alert overlay (HA action show_alert), 480x480: one card centred on LVGL's top layer.
@@ -111,7 +118,6 @@ substitutions:
   HEADER_INSET: "16"                            # the room name and the clock from the glass edge
 
   # The page bar under the tiles
-  PAGE_KEY_W: "240"                             # the previous/next keys under the tiles
   PAGE_BAR_H: "60"                              # the page bar
   PAGE_NUMBER_W: "160"                          # the dots in the middle
   PAGE_CHEVRON_INSET: "24"                      # the chevrons from the outer edge
@@ -131,10 +137,6 @@ substitutions:
   TOUCH_TEST_TITLE_FONT: "headline"
   TOUCH_TEST_TITLE_Y: "110"
   TOUCH_TEST_INSET: "12"                        # the corner crosses from the edge
-  TOUCH_TEST_FAR_X: "443"                       # the right crosses: width - inset - size - 1
-  TOUCH_TEST_FAR_Y: "443"                       # the bottom crosses
-  TOUCH_TEST_MID_X: "228"                       # the middle cross
-  TOUCH_TEST_MID_Y: "228"
   TOUCH_TEST_SIZE: "24"                         # a cross
   TOUCH_TEST_PAINT: "paint_ink"                 # the crosses
 
@@ -154,7 +156,7 @@ substitutions:
   # the first boot step: the touch guard, and what this board's panel needs
   BOOT_TOUCH: |-
     cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
-    cyd::edge_swipe.configure(${DISPLAY_W}, ${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
+    cyd::edge_swipe.configure(${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
     cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
     // The page and the tile container take no presses: the theme's pressed style would
     // otherwise repaint nearly the whole screen twice per touch in the empty edge band,

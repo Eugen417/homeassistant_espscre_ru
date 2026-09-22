@@ -11,22 +11,50 @@ SOURCE = profiles.resolved('home-like-2432s028.yaml')
 VALUES = dict(re.findall(r'^  (\w+): "([^"]*)"', SOURCE, re.M))
 
 class LayoutTests(unittest.TestCase):
-    def test_the_cells_fill_the_glass_and_leave_the_page_bar_clear(self):
-        """A board states columns, rows, its margin and its gaps; LVGL divides the tile area over the cells."""
+    def test_a_board_states_a_page_that_fits_its_glass_either_way_up(self):
+        """A board states its panel, the angle that lays it down, its two grids, its margin and its gaps; the firmware
+        divides the canvas LVGL gives it over the cells (firmware 0.2.92+). The sizes of the cells are no longer in the
+        file, so what is left to check is that the board's own numbers agree with each other: the panel really is
+        landscape at the angle it names, and a page of either grid leaves room for every cell it asks for."""
         for name in profiles.PROFILES:
             values = dict(re.findall(r'^  (\w+): "([^"]*)"', profiles.resolved(name), re.M))
             v = lambda k: int(values[k])
-            cols, rows = v('GRID_COLS'), v('GRID_ROWS')
-            self.assertGreaterEqual(cols, 1, name)
-            self.assertGreaterEqual(rows, 1, name)
-            self.assertEqual(2 * v('GRID_MARGIN') + cols * v('TILE_W') + (cols - 1) * v('GRID_GAP_X'),
-                             v('DISPLAY_W'), f'{name}: the cells and their gaps fill the width')
-            self.assertEqual(rows * v('TILE_H') + (rows - 1) * v('GRID_GAP_Y'),
-                             v('SCROLL_H'), f'{name}: the cells and their gaps fill the tile area')
-            self.assertEqual(v('SCROLL_Y') + v('SCROLL_H') + v('PAGE_BAR_H'),
-                             v('DISPLAY_H'), f'{name}: top bar, tiles and page bar fill the glass')
-            # Without the page bar the tile area reaches the bottom edge, keeping the margin the sides have.
-            self.assertGreater(v('DISPLAY_H') - v('SCROLL_Y') - v('GRID_MARGIN'), v('SCROLL_H'), name)
+            self.assertIn(v('ROTATION_LANDSCAPE'), (0, 90, 180, 270), name)
+            # The only line that differs between a screen built lying down and the same screen standing up, and in
+            # the board file it is the board's own angle: a file on its own builds a screen that lies down.
+            self.assertEqual(values['LVGL_ROTATION'], values['ROTATION_LANDSCAPE'],
+                             f'{name}: the board file itself must lie down')
+            panel = (v('PANEL_W'), v('PANEL_H'))
+            wide = panel[::-1] if v('ROTATION_LANDSCAPE') in (90, 270) else panel
+            self.assertGreaterEqual(wide[0], wide[1], f'{name}: at ROTATION_LANDSCAPE the canvas must be landscape')
+            grids = {'lying down': ((v('GRID_COLS'), v('GRID_ROWS')), wide),
+                     'standing up': ((v('GRID_COLS_PORTRAIT'), v('GRID_ROWS_PORTRAIT')), wide[::-1])}
+            for way, ((cols, rows), (width, height)) in grids.items():
+                where = f'{name} {way}'
+                self.assertGreaterEqual(cols, 1, where)
+                self.assertGreaterEqual(rows, 1, where)
+                # The firmware holds 64 tiles in all, so a page of more cells than that could never be filled.
+                self.assertLessEqual(cols * rows, 64, where)
+                band = height - v('SCROLL_Y') - v('PAGE_BAR_H')
+                self.assertGreater(band, 0, f'{where}: top bar and page bar leave no room for tiles')
+                self.assertGreater(width - 2 * v('GRID_MARGIN') - (cols - 1) * v('GRID_GAP_X'), 0,
+                                   f'{where}: the margin and the gaps leave no width for the cells')
+                self.assertGreater(band - (rows - 1) * v('GRID_GAP_Y'), 0,
+                                   f'{where}: the gaps leave no height for the cells')
+            # Square glass hangs one way only, so its two grids are the same page.
+            if wide[0] == wide[1]:
+                self.assertEqual(grids['lying down'][0], grids['standing up'][0], f'{name}: square glass, one grid')
+
+    def test_a_board_brings_a_card_for_every_cell_of_both_its_grids(self):
+        """One file of cards per board (packages/cells/<number>.yaml), and a screen is built lying down or standing up
+        from that one file: it has to hold the cells of whichever page asks for most."""
+        for board, path in sorted(profiles.BOARDS.items()):
+            values = profiles.substitutions_of(path)
+            v = lambda k: int(values[k])
+            wanted = max(v('GRID_COLS') * v('GRID_ROWS'), v('GRID_COLS_PORTRAIT') * v('GRID_ROWS_PORTRAIT'))
+            cells = profiles.cells_of(path)
+            self.assertEqual(len(cells), 1, board)
+            self.assertGreaterEqual(int(cells[0].stem), wanted, f'{board}: {cells[0].name} is short of cards')
 
     def test_the_cards_are_cells_of_an_lvgl_grid(self):
         """No card carries a coordinate: the container is a grid and place_page only names a cell and its span."""
@@ -54,15 +82,15 @@ class LayoutTests(unittest.TestCase):
         self.assertLess(nav, modal)
 
     def test_page_keys_are_the_halves_of_the_band_under_the_tiles(self):
-        """Firmware 0.2.69+: a chevron in each half of the band, the dots between them take no touches."""
+        """Firmware 0.2.69+: a chevron in each half of the band, the dots between them take no touches. The half is
+        half of the glass, said as a percentage, so it is still half after the screen is built standing up."""
         for name in profiles.PROFILES:
             source = profiles.resolved(name)
             values = dict(re.findall(r'^  (\w+): "([^"]*)"', source, re.M))
-            band = int(values['DISPLAY_H']) - int(values['SCROLL_Y']) - int(values['SCROLL_H'])
-            half = int(values['DISPLAY_W']) // 2
+            band = int(values['PAGE_BAR_H'])
             for key, glyph in (('page_prev', 'F0141'), ('page_next', 'F0142')):
                 block = source.split(f'            id: {key}\n', 1)[1].split('\n        - ', 1)[0]
-                self.assertIn(f'width: {half}\n', block, f'{name} {key}')
+                self.assertIn('width: 50%\n', block, f'{name} {key}')
                 self.assertIn(f'height: {band}\n', block, f'{name} {key}')
                 self.assertIn('styles: paint_page_pressed', block, f'{name} {key}: the half lights up under a finger')
                 self.assertIn(f'\\U000{glyph}', block, f'{name} {key}')

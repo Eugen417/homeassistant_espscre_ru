@@ -4,11 +4,12 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { getJson, send } from "../api";
 import { t } from "../i18n";
 import { copyText, go, openIntegrations, toast } from "../store";
+import type { BoardChoice, BoardOrientation, Orientation } from "../types";
 
 // Download: ESP Screens builds, the owner flashes the file from their own computer. ESPHome Web is ESPHome's own
 // browser flasher; this address opens it with its hint for a downloaded project (as ESPHome Device Builder does).
 const ESPHOME_WEB = "https://web.esphome.io/?dashboard_install";
-const form = reactive({ board: "cyd", friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
+const form = reactive({ board: "cyd", orientation: "landscape" as Orientation, friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
 const installer = reactive({
   view: "setup" as "setup" | "progress" | "done", file: null as string | null, friendly: "", board: "cyd", target: "",
   apiKey: null as string | null, nodeEdited: false, jobState: null as string | null, picked: false, action: null as string | null,
@@ -35,6 +36,22 @@ function portLabel(port: string) {
   return `USB · ${id === port ? port.replace(/^\/dev\//, "") : id}`;
 }
 watch(() => form.friendly_name, () => { if (!installer.nodeEdited) form.name = slug(form.friendly_name); });
+// Which way the chosen board may hang, with the canvas and the cells of a page for each: the add-on serves the
+// board files' own numbers (boards.json), so nothing here is a second copy of them. Square glass hangs one way
+// only, and then there is nothing to ask. A board this add-on has not heard of asks nothing either, and builds
+// lying down, which is what every board did before this choice existed.
+const boards = computed<Record<string, BoardChoice>>(() => data.value?.boards || {});
+const orientations = computed<(BoardOrientation & { key: Orientation })[]>(() => {
+  const board = boards.value[form.board];
+  if (!board || board.square) return [];
+  const sides = (["landscape", "portrait"] as Orientation[])
+    .map((key) => ({ key, side: board.orientations[key] }))
+    .filter((row) => row.side && row.side.columns > 0 && row.side.rows > 0);
+  return sides.length === 2 ? sides.map((row) => ({ key: row.key, ...(row.side as BoardOrientation) })) : [];
+});
+// A board that hangs one way only is always built lying down; a board that was asked about keeps whatever was
+// chosen. Resetting it on every board change would throw away an answer the person just gave.
+watch(() => form.board, () => { if (!orientations.value.length) form.orientation = "landscape"; });
 const nodePreview = computed(() => form.name || "…");
 const ports = computed<string[]>(() => data.value?.ports || []);
 const wifi = computed(() => data.value?.wifi);
@@ -131,7 +148,7 @@ async function submit(event: Event) {
   submitting.value = true;
   status.value = "";
   try {
-    const payload: Record<string, string> = { board: form.board, friendly_name: form.friendly_name, name: form.name, target: form.target };
+    const payload: Record<string, string> = { board: form.board, orientation: form.orientation, friendly_name: form.friendly_name, name: form.name, target: form.target };
     if (askWifi.value) { if (wifiMissing.value.includes("wifi_ssid")) payload.wifi_ssid = form.wifi_ssid; if (wifiMissing.value.includes("wifi_password")) payload.wifi_password = form.wifi_password; }
     const result = await send("firmware/profiles", "POST", payload);
     Object.assign(installer, { file: result.file, apiKey: result.api_key, friendly: form.friendly_name.trim(), board: form.board, target: form.target });
@@ -161,7 +178,7 @@ async function retry() {
 }
 function reset() {
   Object.assign(installer, { view: "setup", file: null, apiKey: null, nodeEdited: false, jobState: null, target: "", picked: false, action: null });
-  Object.assign(form, { board: "cyd", friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
+  Object.assign(form, { board: "cyd", orientation: "landscape", friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
   nodeVisible.value = false; job.value = null; logs.value = []; status.value = ""; note.value = ""; logOpen.value = false;
   installerRefresh();
 }
@@ -192,6 +209,26 @@ onBeforeUnmount(() => clearInterval(poll));
           <label class="board"><input type="radio" name="board" value="waveshare43" v-model="form.board" /><span><b>{{ t("editor.installer.board_waveshare43") }}</b><small>ESP32-S3-Touch-LCD-4.3 · 800 × 480 · GT911</small></span></label>
           <label class="board"><input type="radio" name="board" value="jc8012p4a1" v-model="form.board" /><span><b>{{ t("editor.installer.board_jc8012p4a1") }}</b><small>JC8012P4A1 · 1280 × 800 · GSL3680</small><em>{{ t("editor.installer.board_new") }}</em></span></label>
         </div>
+      </fieldset>
+      <!-- Which way the screen hangs: the cells of a page differ per way, so each option draws the grid it gives.
+           Only glass that is not square is asked about, and only once the add-on has said what the board can do. -->
+      <fieldset v-if="orientations.length" id="orientation-fields">
+        <legend>{{ t("editor.installer.orientation") }}</legend>
+        <div class="orients">
+          <label v-for="side in orientations" :key="side.key" class="orient">
+            <input type="radio" name="orientation" :value="side.key" v-model="form.orientation" />
+            <span class="orient-glass" aria-hidden="true"
+                  :style="{ '--glass-aspect': `${side.width} / ${side.height}`, '--glass-columns': side.columns, '--glass-rows': side.rows }">
+              <span class="orient-bar"></span>
+              <span class="orient-cells"><i v-for="cell in side.columns * side.rows" :key="cell"></i></span>
+            </span>
+            <span class="orient-words">
+              <b>{{ t(`editor.installer.orientation_${side.key}`) }}</b>
+              <small>{{ t("editor.installer.orientation_tiles", side.columns * side.rows) }}</small>
+            </span>
+          </label>
+        </div>
+        <small id="orientation-hint">{{ t("editor.installer.orientation_hint") }}</small>
       </fieldset>
       <div class="field">
         <label class="f-label" for="friendly_name">{{ t("editor.installer.name") }}</label>

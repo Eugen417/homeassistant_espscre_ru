@@ -29,24 +29,30 @@ class GuitionTests(unittest.TestCase):
         self.assertNotIn('CONFIG_LCD_RGB_RESTART_IN_VSYNC',SOURCE)
         self.assertIn('execute_from_psram: true',SOURCE)
         self.assertNotIn('id: output_red',SOURCE)
-        self.assertEqual(VALUES['DISPLAY_W'],'480')
-        self.assertEqual(VALUES['DISPLAY_H'],'480')
+        self.assertEqual(VALUES['PANEL_W'],'480')
+        self.assertEqual(VALUES['PANEL_H'],'480')
+        # Square glass: this is the one board that hangs the same way whichever way it is screwed to the wall, so
+        # its page has the same cells standing up and it is never asked about (core.board_shape).
+        self.assertEqual(VALUES['ROTATION_LANDSCAPE'],'0')
+        self.assertEqual((VALUES['GRID_COLS_PORTRAIT'],VALUES['GRID_ROWS_PORTRAIT']),
+                         (VALUES['GRID_COLS'],VALUES['GRID_ROWS']))
 
     def test_cards_fit_with_gutters_and_reserved_navigation(self):
         v=lambda k:int(VALUES[k])
         cols,rows=v('GRID_COLS'),v('GRID_ROWS')
         self.assertEqual((cols,rows),(2,3))
-        self.assertEqual(2*v('GRID_MARGIN')+cols*v('TILE_W')+(cols-1)*v('GRID_GAP_X'),480)
-        self.assertEqual(rows*v('TILE_H')+(rows-1)*v('GRID_GAP_Y'),v('SCROLL_H'))
         self.assertGreaterEqual(v('GRID_MARGIN'),16)
-        # A card of this board holds three of a CYD's.
-        self.assertGreaterEqual(v('TILE_W')*v('TILE_H'),3*147*52)
+        # The firmware divides the canvas over the cells (firmware 0.2.92+), so what the board states is the room it
+        # leaves them: a card of this board still holds three of a CYD's.
+        tile_w=(480-2*v('GRID_MARGIN')-(cols-1)*v('GRID_GAP_X'))//cols
+        band=480-v('SCROLL_Y')-v('PAGE_BAR_H')
+        tile_h=(band-(rows-1)*v('GRID_GAP_Y'))//rows
+        self.assertGreaterEqual(tile_w*tile_h,3*147*52)
         # The page keys are the two halves of the band under the tiles (firmware 0.2.69+).
-        band=480-v('SCROLL_Y')-v('SCROLL_H')
-        self.assertEqual(band,60)
+        self.assertEqual(v('PAGE_BAR_H'),60)
         for key in ('page_prev','page_next'):
             block=SOURCE.split(f'id: {key}',1)[1][:200]
-            self.assertIn('width: 240\n',block);self.assertIn(f'height: {band}\n',block)
+            self.assertIn('width: 50%\n',block);self.assertIn(f"height: {v('PAGE_BAR_H')}\n",block)
 
     def test_every_card_label_is_one_line_with_an_ellipsis(self):
         """The runtime gives every card's name and state a one-line box and an ellipsis, on every board."""

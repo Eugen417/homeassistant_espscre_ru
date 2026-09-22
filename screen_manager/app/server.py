@@ -21,8 +21,8 @@ from updates import Updater
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
-from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, firmware_features, grid_of, packed_slots, run_tile_event,
-                  screen_firmware, shape_of, turns_of, version_text)
+from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
+                  packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
 import header_bar
 import history_card
 import i18n
@@ -763,18 +763,35 @@ class Manager:
             self.ha.changed.set()
             self.notify()
 
+    def built_as(self, screen, profiles=None):
+        """What the YAML of this screen's profile says about it (firmware.profile_meta), or {}: the one thing that
+        knows a screen while the screen itself says nothing (offline, or firmware from before the shape sensor)."""
+        profile, _ = self.updates.resolve(screen, profiles)
+        profiles = profiles if profiles is not None else self.firmware.profile_names()
+        return (profiles.get(profile) or {}) if profile else {}
+
     def package_of(self, screen, profiles=None):
         """The board package the screen's profile builds from ("packages/waveshare43.yaml"), or None: what a screen looks
         like while it says nothing itself (offline, or firmware from before the shape sensor)."""
-        profile, _ = self.updates.resolve(screen, profiles)
-        profiles = profiles if profiles is not None else self.firmware.profile_names()
-        return (profiles.get(profile) or {}).get('package') if profile else None
+        return self.built_as(screen, profiles).get('package')
+
+    def orientation_of(self, screen, profiles=None):
+        """Which way this screen was built to hang, 'landscape' or 'portrait' (app 0.2.107): the LVGL_ROTATION its own
+        profile says, read on the board that profile builds from. A screen that is online reports its canvas and its
+        grid itself and needs none of this; an offline one gets the grid it was actually built with, so its editor
+        places tiles where the screen has cells."""
+        known = {**screen, 'package': screen.get('package') or self.package_of(screen, profiles)} if isinstance(screen, dict) else screen
+        return orientation_at(SHAPES.get(board_of(known), {}), self.built_as(screen, profiles).get('rotation'))
 
     def grid_of(self, screen):
-        """The grid of a screen's pages (core.grid_of), with the board its profile builds from filled in, so a save, an
-        event and the message to the screen count the same cells whether the screen is online or not."""
-        if isinstance(screen, dict) and not screen.get('package'):
-            screen = {**screen, 'package': self.package_of(screen)}
+        """The grid of a screen's pages (core.grid_of), with the board its profile builds from and the way it was built
+        to hang filled in, so a save, an event and the message to the screen count the same cells whether the screen is
+        online or not."""
+        if isinstance(screen, dict) and not (screen.get('package') and screen.get('orientation')):
+            # The profiles once, not once per question: reading them stats every file in the ESPHome folder.
+            profiles = self.firmware.profile_names()
+            screen = {**screen, 'package': screen.get('package') or self.package_of(screen, profiles),
+                      'orientation': screen.get('orientation') or self.orientation_of(screen, profiles)}
         return grid_of(screen)
 
     def turns(self, screen):
@@ -1674,19 +1691,21 @@ class Manager:
             return True
         return entity in {tile['entity'] for tile in self.layouts.get(inbox, {}).get('tiles', [])}
 
-    async def camera_message(self, entity, view, board, still=None):
-        """The screen message for one camera view: a link to its image, or an empty link when there is none."""
+    async def camera_message(self, entity, view, screen, still=None):
+        """The screen message for one camera view: a link to its image, or an empty link when there is none. The size
+        is the one this screen's glass asks for, which on a board that is not square differs between a screen built
+        lying down and one built standing up (camera_feed.box)."""
         url = ''
         base = await camera_feed.base_url(self.ha.request)
-        if base:
-            box = camera_feed.BOXES[board][view]
+        box = camera_feed.box(screen, view)
+        if not base:
+            LOG.warning('Camera images: no address for this app on the LAN; set SCREEN_CAMERA_URL')
+        elif box:
             if view == 'thumb':
                 token = self.camera.link(entity, box, still) if still else None
             else:
                 token = self.camera.link(entity, box) if await self.camera.frame(entity, box) else None
             url = f'{base}/camera/{token}.bmp' if token else ''
-        else:
-            LOG.warning('Camera images: no address for this app on the LAN; set SCREEN_CAMERA_URL')
         return {'v': 1, 'op': 'camera', 't': 'alert' if view == 'thumb' else 'full', 'e': entity, 'u': url}
 
     async def answer_camera(self, request):
@@ -1710,7 +1729,7 @@ class Manager:
         action = self.transport(inbox, screen)
         if not action or not self.camera_allowed(inbox, entity):
             return
-        message = await self.cover_message(entity, *cover) if cover else await self.camera_message(entity, 'full', screen['board'])
+        message = await self.cover_message(entity, *cover) if cover else await self.camera_message(entity, 'full', screen)
         await self.ha.send(inbox, message, action)
         LOG.info('%s %s on %s%s', 'Cover of' if cover else 'Camera', entity, screen['name'], '' if message['u'] else ': no image')
 
@@ -1762,12 +1781,17 @@ class Manager:
         self.alert_cameras[camera] = time.monotonic()
         for old in [entity for entity, moment in self.alert_cameras.items() if time.monotonic() - moment > camera_feed.STILL_SECONDS]:
             del self.alert_cameras[old]
-        boards = {}
+        # Grouped by the box the still has to fit, not by the board: two screens of the same board hang different
+        # ways when one was built standing up, and then each wants its own picture. Screens whose board draws no
+        # picture at all fall out here, as they always did.
+        groups = {}
         for screen in screens:
-            boards.setdefault(board_of(screen), []).append(screen)
-        for board, group in boards.items():
-            found = await self.camera.frame(camera, camera_feed.BOXES[board]['thumb'], fresh=False, now=True)
-            message = await self.camera_message(camera, 'thumb', board, found[1] if found else None)
+            box = camera_feed.box(screen, 'thumb')
+            if box:
+                groups.setdefault(box, []).append(screen)
+        for box, group in groups.items():
+            found = await self.camera.frame(camera, box, fresh=False, now=True)
+            message = await self.camera_message(camera, 'thumb', group[0], found[1] if found else None)
             results = await asyncio.gather(*(self.ha.send(screen['id'], message, self.transport(screen['id'], screen)) for screen in group),
                                            return_exceptions=True)
             failed = sum(isinstance(result, BaseException) for result in results)
@@ -1968,6 +1992,9 @@ def create_app(manager, development=False):
             screen['package'] = manager.package_of(screen, profiles)
             # The board too: a screen that says nothing about itself is known by the YAML its profile builds from.
             screen['board'] = board_of(screen)
+            # And which way it was built to hang (app 0.2.107), for the same reason: a screen standing up has another
+            # canvas and another grid, and while it is offline only its own YAML says so.
+            screen['orientation'] = manager.orientation_of(screen, profiles)
             screen['shape'] = shape_of(screen)
             # Whether the board draws pictures (camera tiles, an alert's snapshot, an album cover): the boards with
             # memory for them say so with their camera sizes (boards.json); the firmware that draws them is a

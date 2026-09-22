@@ -105,12 +105,17 @@ export const screenShape = computed(() => {
 export const barMetrics = computed(() => barMetricsFor(screenShape.value));
 // The tile grid of a page, as CSS variables: the mockup is the screen's own shape, whatever board it is.
 // Every mockup is drawn the same height (MOCKUP_HEIGHT), so its width follows the screen's proportions: a
-// 800 x 480 page then reads as easily as a square 480 x 480 one instead of being half as tall. Wide glass is
-// capped so a page still fits beside its neighbour on a laptop; narrow glass keeps a usable minimum.
+// 800 x 480 page then reads as easily as a square 480 x 480 one instead of being half as tall, and a screen
+// standing up stands beside its neighbours instead of towering over them. The width is the height times the
+// proportions, capped so very wide glass still fits beside a neighbour on a laptop. There is no minimum width:
+// one would be a minimum height as well (the mockup keeps the screen's proportions), and the narrowest glass
+// there is, a 480 x 800 screen standing up, comes out 180 px wide and still reads.
 const MOCKUP_HEIGHT = 300;
 export const deviceStyle = computed(() => {
   const shape = screenShape.value;
-  const width = Math.round(Math.min(560, Math.max(260, (MOCKUP_HEIGHT * shape.width) / shape.height)));
+  // To a tenth of a pixel, not a whole one: on a 800 x 1280 screen standing up the nearest whole pixel of width
+  // would make the mockup a pixel taller than the rest. Every board lying down lands on a whole number anyway.
+  const width = Math.round(Math.min(560, (MOCKUP_HEIGHT * shape.width) / shape.height) * 10) / 10;
   return {
     "--screen-aspect": `${shape.width} / ${shape.height}`,
     "--screen-columns": String(shape.columns),
@@ -121,8 +126,11 @@ export const deviceStyle = computed(() => {
   };
 });
 // The compact look: the board declares it (LOOK in its board file, served with the shape); a shape from an add-on
-// that does not say it is taken by its width, the CYD being the only compact board there was.
-export const isCompact = computed(() => (screenShape.value.look ? screenShape.value.look === "compact" : screenShape.value.width < 400));
+// that does not say it is taken by its shorter side, the CYD being the only compact board there was. The shorter
+// side and not the width, because a screen keeps its look when it is built standing up: a 480 x 800 Waveshare is
+// still the standard look, and on its width alone it would have read as a CYD.
+export const isCompact = computed(() =>
+  screenShape.value.look ? screenShape.value.look === "compact" : Math.min(screenShape.value.width, screenShape.value.height) < 300);
 watchEffect(() => setGrid(screenShape.value.columns, screenShape.value.rows));
 export const currentTile = computed<Tile | undefined>(() =>
   state.selectedTile && state.layout?.tiles.includes(state.selectedTile) ? state.selectedTile : undefined);

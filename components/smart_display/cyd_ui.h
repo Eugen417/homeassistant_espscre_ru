@@ -151,18 +151,23 @@ inline TouchGuard touch_guard;
 // page on any leftward drag and nothing came back (firmware 0.2.82).
 class EdgeSwipe {
  public:
-  // `width` is the glass as the user sees it (a board's DISPLAY_W).
-  void configure(int width, int band, int travel) {
-    width_ = width; band_ = band; travel_ = travel;
+  // A band along the left and right edge of the glass, and how far inward a finger must travel. The width of
+  // the glass is not stated: `begin` reads it from the display every time, so the bands stay on the edges when
+  // a screen is built standing up or turned in its settings (firmware 0.2.92+).
+  void configure(int band, int travel) {
+    band_ = band; travel_ = travel;
     configured_ = true;
   }
   // A board that never configured one has no edge swipe: the CYD turns its pages by another gesture
   // (BOOT_PAGE_GESTURE) and a swipe along its edge must not flip a page. Without this, shared touch
   // handling would arm this on the default 480 x 480 band and turn pages on a screen that never did.
   bool in_use() const { return configured_; }
-  void begin(int x, int y) {
+  // `width` is the glass as the person sees it, measured now rather than stated once: a screen built standing
+  // up, or turned in its settings, keeps its bands on the edges (firmware 0.2.92+). This class stays free of
+  // LVGL so tests/test_cyd_ui.cpp can walk a whole gesture over any size of glass.
+  void begin(int x, int y, int width) {
     start_x_ = x; start_y_ = y;
-    from_ = x < band_ ? 1 : x >= width_ - band_ ? -1 : 0;  // 1: left edge, -1: right edge
+    from_ = x < band_ ? 1 : x >= width - band_ ? -1 : 0;  // 1: left edge, -1: right edge
     done_ = false;
     inward_ = sideways_ = 0;
   }
@@ -186,7 +191,7 @@ class EdgeSwipe {
   int sideways() const { return sideways_; }
  private:
   bool configured_{false};
-  int width_{480}, band_{32}, travel_{40};
+  int band_{32}, travel_{40};
   int start_x_{0}, start_y_{0}, from_{0}, inward_{0}, sideways_{0};
   bool done_{true};
 };

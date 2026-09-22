@@ -34,20 +34,38 @@ buffer lives in the memory inside the chip, next to Wi-Fi, the API and the panel
 boots with 112 KB. Read `sensor.<screen>_heap_free` after the first boot with a full layout: under 40 KB is too
 little.
 
-## 4. The layout: two numbers and a table that follows from them
+## 4. The layout: two grids and a table that follows from them
 
 ```
-python3 tools/propose_grid.py             # what grid the resolution and the diagonal ask for
-python3 tools/new_board.py <name> --from guition --width 800 --height 480 --inch 4.3 [--cols 3 --rows 2]
+python3 tools/propose_grid.py             # what grid the resolution and the diagonal ask for, each way up
+python3 tools/new_board.py <name> --from guition --width 800 --height 480 --inch 4.3 [--cols 3 --rows 2] \
+                                  [--portrait-cols 1 --portrait-rows 4] [--rotation 0|90|180|270]
 python3 tools/generate_cells.py           # the cards of that grid
 ```
 
-The board file then states its density and its look (`DISPLAY_DPI`, `LOOK`), its grid (`GRID_COLS`, `GRID_ROWS`,
-`GRID_MARGIN`, `GRID_GAP_X`, `GRID_GAP_Y`) and the size table, every value scaled from the reference board by the
-density ratio, so a tile, a letter and a key keep their size in millimetres.
+`--width` and `--height` are the canvas of the screen lying down and `--rotation` the LVGL angle that lays the
+panel out that way, so the board file states the panel's own pixels (`PANEL_W`, `PANEL_H`) and that angle
+(`ROTATION_LANDSCAPE`). It then states its density and its look (`DISPLAY_DPI`, `LOOK`), its grid the two ways the
+screen can hang (`GRID_COLS`, `GRID_ROWS`, `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT`, `GRID_MARGIN`, `GRID_GAP_X`,
+`GRID_GAP_Y`) and the size table, every value scaled from the reference board by the density ratio, so a tile, a
+letter and a key keep their size in millimetres.
 
 The grid is the one real choice: the proposal keeps a tile at about 33 × 16 mm and never smaller than 30 × 12 mm,
-but a board of the same size can be read as "more tiles" or "bigger tiles". Render both and look.
+but a board of the same size can be read as "more tiles" or "bigger tiles". Render both and look. It is two
+choices on glass that is not square, because a card keeps its size in millimetres: a screen that holds three
+columns lying down may hold one standing up, and ESP Screens offers the owner both when the screen is built.
+
+Two things to weigh for the standing grid. `tools/generate_cells.py` gives a board the cards of whichever of its
+two grids is larger, so a standing grid with more cells than the lying one costs every screen of that board those
+extra cards, whichever way it hangs; the four boards that ship are all at the larger of their two, so none of them
+pays for the second way round. And a screen holds 64 tiles in all, one dirty bit each, so a page of 32 cells leaves
+room for two pages and a page of 44 for only one. That is why the 10.1-inch stands at four columns of five rather
+than the four of eleven the millimetres would allow.
+
+State no number in the board file that follows from the canvas. The tile area, the cells, the page keys, the strip
+that opens the settings, the crosses of the touch test and the card of an alert are all measured at boot from the
+canvas LVGL hands the screen. That is what lets one firmware serve the board either way round, and a board file
+that states such a number would be right one way and wrong the other.
 
 ## 5. Look at it before it ever reaches the glass
 
@@ -58,7 +76,8 @@ clipped name or a card that falls outside its area without a board on the desk.
 ## 6. Then the board itself
 
 Flash it once: touch (the corners and a drag), the backlight, the colour order, the rotation, and a page switch.
-What a render cannot show is exactly what the hardware check is for.
+What a render cannot show is exactly what the hardware check is for. Then flash it standing up, which is the same
+build with `LVGL_ROTATION` a quarter further than `ROTATION_LANDSCAPE`, and walk the same list again.
 
 ## 7. Write it down
 

@@ -16,6 +16,10 @@ class RotationTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(turns_of({'width': 480, 'height': 480}), (0, 90, 180, 270))
         self.assertEqual(turns_of({'width': 800, 'height': 480}), (0, 180))
         self.assertEqual(turns_of({'width': 320, 'height': 240}), (0, 180))
+        # A screen built standing up is glass that is not square either, so it takes the half turn and no more:
+        # standing it down again is another build, not a setting (app 0.2.107).
+        self.assertEqual(turns_of({'width': 480, 'height': 800}), (0, 180))
+        self.assertEqual(turns_of({'width': 240, 'height': 320}), (0, 180))
 
     async def test_a_wide_screen_turns_upside_down_but_not_a_quarter(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -81,23 +85,28 @@ class EdgeBandTests(unittest.TestCase):
 
     ROOT = Path(__file__).resolve().parent.parent
 
-    def test_every_board_gives_the_edge_swipe_the_width_of_its_glass(self):
+    def test_every_board_gives_the_edge_swipe_only_its_own_two_bands(self):
+        # The width of the glass is not a number in the board file any more (firmware 0.2.92+): the same file builds
+        # a screen lying down and standing up, and only the firmware knows which one it became, so it reads the width
+        # off the live canvas. What a board still says is how wide its bands are and how far a finger has to travel.
+        #
         # The boards that ship (tools/profiles.py), not every file in the folder: a lab board is generated,
         # disposable and gitignored (docs/RESPONSIVE.md), so an old one on a developer's machine would fail a
         # check that CI, which has none of them, calls green. Every other generated-file check scopes this way.
         for board in sorted(profiles.BOARDS.values()):
             text = board.read_text()
             for call in re.findall(r'cyd::edge_swipe\.configure\(([^)]*)\)', text):
-                first = call.split(',')[0].strip()
-                self.assertEqual(first, '${DISPLAY_W}', f'{board.name}: {call}')
-                self.assertEqual(len(call.split(',')), 3, f'{board.name}: {call}')
+                self.assertEqual(len(call.split(',')), 2, f'{board.name}: {call}')
+                self.assertNotIn('DISPLAY_W', call, f'{board.name}: {call}')
 
     def test_the_shared_tree_turns_a_touch_with_esphomes_own_call(self):
         core = (self.ROOT / 'packages' / 'core.yaml').read_text()
         self.assertIn('runtime_tiles::touch_input::to_screen', core)
         self.assertIn('rotate_coordinates', core)
         touch = (self.ROOT / 'components' / 'smart_display' / 'runtime_tiles.h').read_text()
-        self.assertIn('cyd::edge_swipe.begin(sx, sy)', touch)
+        # The band is armed against the live canvas, not a number from the board file, so it is the same band of
+        # glass on a screen built standing up (firmware 0.2.92+).
+        self.assertIn('cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width())', touch)
         # No rotation arithmetic of our own left in the firmware's own touch handling.
         swipe = (self.ROOT / 'components' / 'smart_display' / 'cyd_ui.h').read_text()
         self.assertNotIn('rotation_', swipe)

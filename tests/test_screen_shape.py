@@ -30,10 +30,14 @@ class Shape(unittest.TestCase):
             self.assertIsNone(core.parse_shape(text), text)
 
     def test_a_screen_without_the_sensor_falls_back_to_its_board(self):
-        self.assertEqual(core.shape_of({'board': 'guition'}), core.SHAPES['guition'])
-        self.assertEqual(core.shape_of({'board': 'unknown'}), core.SHAPES['cyd'])
-        self.assertEqual(core.shape_of({'board': 'guition', 'shape': None}), core.SHAPES['guition'])
-        self.assertEqual(core.shape_of({'board': 'unknown', 'package': 'packages/waveshare43.yaml'}), core.SHAPES['waveshare43'])
+        # The board's own entry, lying down, which is how a board file builds a screen unless it is told otherwise.
+        # The table of both orientations stays behind: it says something about the board, not about this screen.
+        lying = lambda board: core.board_shape(core.SHAPES[board])
+        self.assertEqual(core.shape_of({'board': 'guition'}), lying('guition'))
+        self.assertEqual(core.shape_of({'board': 'unknown'}), lying('cyd'))
+        self.assertEqual(core.shape_of({'board': 'guition', 'shape': None}), lying('guition'))
+        self.assertEqual(core.shape_of({'board': 'unknown', 'package': 'packages/waveshare43.yaml'}), lying('waveshare43'))
+        self.assertNotIn('orientations', core.shape_of({'board': 'guition'}))
 
     def test_what_the_screen_reports_wins_and_the_board_fills_in_the_rest(self):
         # The canvas and the grid are the screen's (it knows its rotation); the density, the look and the camera
@@ -47,14 +51,20 @@ class Shape(unittest.TestCase):
 
     def test_every_shape_holds_a_page_of_cells(self):
         for board, shape in core.SHAPES.items():
-            self.assertLessEqual(shape['columns'] * shape['rows'], core.FIRMWARE_MAX_TILES, board)
-            self.assertGreaterEqual(shape['width'], 200, board)
+            for way in ('landscape', 'portrait'):
+                side = core.board_shape(shape, way)
+                self.assertLessEqual(side['columns'] * side['rows'], core.FIRMWARE_MAX_TILES, f'{board} {way}')
+                self.assertGreaterEqual(min(side['width'], side['height']), 200, f'{board} {way}')
             self.assertIn(shape['look'], ('standard', 'compact'), board)
 
     def test_the_firmware_publishes_the_sensor_the_manager_reads(self):
+        # Unchanged since firmware 0.2.80: the canvas, the grid, the density and the look. The canvas and the grid
+        # are read off the display and the live grid, so a screen standing up reports its own numbers with no new
+        # sensor and no new format for ESP Screens to learn.
         core_yaml = (ROOT / 'packages' / 'core.yaml').read_text()
         self.assertIn('name: "Screen layout"', core_yaml)
-        self.assertIn('runtime_tiles::GRID_COLUMNS', core_yaml)
+        self.assertIn('runtime_tiles::grid.columns', core_yaml)
+        self.assertIn('lv_display_get_horizontal_resolution', core_yaml)
         self.assertIn('"%dx%d %dx%d %ddpi %s"', core_yaml)
         self.assertIn('Screen layout', str(core.NAME_SCREEN_LAYOUT))
         self.assertIn('Screen layout', core.SCREEN_ENTITY_NAMES)

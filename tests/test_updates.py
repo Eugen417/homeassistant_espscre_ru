@@ -64,13 +64,15 @@ class ProfileNameTests(unittest.TestCase):
             (Path(tmp) / 'broken.yaml').write_text('esphome: [\n')
             names = f.profile_names()
             # 'package' (app 0.2.94) is the board package the profile builds from: what the screen looks like.
+            # 'rotation' (app 0.2.107) is the angle it was built at, which says which way it hangs; a screen lying
+            # down carries no such line, and then the board file's own angle is the answer.
             self.assertEqual(names['living-room.yaml'], {'node': 'living-room', 'friendly': 'Living room', 'screen': True,
                                                          'api_key': names['living-room.yaml']['api_key'],
-                                                         'package': 'packages/cyd.yaml'})
+                                                         'package': 'packages/cyd.yaml', 'rotation': None})
             self.assertEqual(len(names['living-room.yaml']['api_key']), 44)
             # A manual profile (no board package from this repo, key behind !secret) is not an ESP Screens profile.
             self.assertEqual(names['manual.yaml'], {'node': 'kitchen', 'friendly': 'Kitchen', 'screen': False, 'api_key': None,
-                                                    'package': None})
+                                                    'package': None, 'rotation': None})
             self.assertNotIn('broken.yaml', names)
             self.assertNotIn('secrets.yaml', names)
 
@@ -92,7 +94,8 @@ class ProfileNameTests(unittest.TestCase):
                 os.utime(b, ns=(b.stat().st_atime_ns, b.stat().st_mtime_ns + 1_000_000))
                 names = f.profile_names()
                 self.assertEqual(len(parsed), 3, 'only the changed file is parsed')
-                self.assertEqual(names['b.yaml'], {'node': 'b2', 'friendly': 'B2', 'screen': False, 'api_key': None, 'package': None})
+                self.assertEqual(names['b.yaml'], {'node': 'b2', 'friendly': 'B2', 'screen': False, 'api_key': None,
+                                                   'package': None, 'rotation': None})
                 a.unlink()
                 self.assertEqual(set(f.profile_names()), {'b.yaml'})
                 self.assertEqual(len(parsed), 3)

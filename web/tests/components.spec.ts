@@ -5,6 +5,7 @@ import AppSettingsView from "../src/components/AppSettingsView.vue";
 import CommandPalette from "../src/components/CommandPalette.vue";
 import Library from "../src/components/Library.vue";
 import DevicePage from "../src/components/DevicePage.vue";
+import InstallerView from "../src/components/InstallerView.vue";
 import Sidebar from "../src/components/Sidebar.vue";
 import TileCard from "../src/components/TileCard.vue";
 import TileInspector from "../src/components/TileInspector.vue";
@@ -368,5 +369,65 @@ describe("the title above a page (app 0.2.105)", () => {
     expect(mount(DevicePage, { props: { page: 0, ...props } }).find(".bar-wrap").text()).toContain("Living room");
     await second.find(".bar-wrap").trigger("click");
     expect(state.barPage).toBe(1);
+  });
+});
+
+// New screen: which way the screen will hang (app 0.2.107). The choice is a build choice, so it is made here and
+// nowhere else; the numbers beside each way come from the board files through the add-on, never from this page.
+describe("the orientation of a new screen", () => {
+  const boards = {
+    cyd: { square: false, orientations: { landscape: { width: 320, height: 240, columns: 2, rows: 3, rotation: 90 },
+                                          portrait: { width: 240, height: 320, columns: 1, rows: 4, rotation: 180 } } },
+    guition: { square: true, orientations: { landscape: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 },
+                                             portrait: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 } } },
+    waveshare43: { square: false, orientations: { landscape: { width: 800, height: 480, columns: 3, rows: 3, rotation: 0 },
+                                                  portrait: { width: 480, height: 800, columns: 1, rows: 4, rotation: 90 } } },
+  };
+  const answers: any[] = [];
+  async function installer() {
+    vi.stubGlobal("fetch", vi.fn((url: string, options: any) => {
+      if (String(url).endsWith("api/firmware")) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ available: true, ports: [], profiles: [], logs: [], wifi: { state: "ready" }, boards }) });
+      }
+      answers.push(JSON.parse(options.body));
+      return Promise.resolve({ ok: true, text: () => Promise.resolve(JSON.stringify({ file: "hall.yaml", api_key: "k" })) });
+    }));
+    const view = mount(InstallerView);
+    await flush();
+    return view;
+  }
+  const flush = async () => { await Promise.resolve(); await Promise.resolve(); await new Promise((done) => setTimeout(done, 0)); };
+
+  it("offers the two ways glass that is not square can hang, with the cells each way gives", async () => {
+    const view = await installer();
+    const options = view.findAll("#orientation-fields .orient");
+    expect(options).toHaveLength(2);
+    expect(options.map((option) => option.find("b").text())).toEqual(["Lying down", "Standing up"]);
+    expect(options.map((option) => option.find("small").text())).toEqual(["6 tiles a page", "4 tiles a page"]);
+    // A picture of the glass each way, with a cell per tile of that page.
+    expect(options[0].findAll(".orient-cells i")).toHaveLength(6);
+    expect(options[1].findAll(".orient-cells i")).toHaveLength(4);
+    expect(options[1].find(".orient-glass").attributes("style")).toContain("240 / 320");
+    // Lying down to begin with, and saying so plainly that this is chosen now and not later.
+    expect((options[0].find("input").element as HTMLInputElement).checked).toBe(true);
+    expect(view.find("#orientation-hint").text()).toContain("build the screen again");
+  });
+
+  it("asks nothing about square glass, and asks again about the next board", async () => {
+    const view = await installer();
+    await view.findAll(".board input")[1].setValue("guition");
+    expect(view.find("#orientation-fields").exists()).toBe(false);
+    await view.findAll(".board input")[2].setValue("waveshare43");
+    const options = view.findAll("#orientation-fields .orient");
+    expect(options.map((option) => option.find("small").text())).toEqual(["9 tiles a page", "4 tiles a page"]);
+  });
+
+  it("sends the chosen way with the new screen", async () => {
+    const view = await installer();
+    await view.findAll("#orientation-fields .orient input")[1].setValue("portrait");
+    await view.find("#friendly_name").setValue("Hall");
+    await view.find("#install-form").trigger("submit");
+    await flush();
+    expect(answers.pop()).toMatchObject({ board: "cyd", orientation: "portrait", name: "hall" });
   });
 });

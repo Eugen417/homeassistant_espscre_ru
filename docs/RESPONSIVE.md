@@ -19,12 +19,19 @@ In its board file under `packages/boards/`, next to its hardware:
 
 | Substitution | Meaning |
 |---|---|
-| `DISPLAY_W`, `DISPLAY_H` | the logical canvas (after LVGL's rotation) |
+| `PANEL_W`, `PANEL_H` | the panel's own pixels; the display block always drives it at this size |
+| `ROTATION_LANDSCAPE` | the LVGL angle that lays that panel out lying down (a CYD 90, a Waveshare 0) |
+| `LVGL_ROTATION` | which way this screen hangs; ESP Screens writes it when the screen is built |
 | `DISPLAY_DPI` | diagonal pixels / diagonal inches (the CYD 2.8″: 143, the Guition 4.0″: 170) |
 | `LOOK` | `standard` (the Guition's sizes) or `compact` (the CYD's, for glass too small for the standard) |
-| `GRID_COLS`, `GRID_ROWS` | the tile grid; the shared tree places every cell from these |
+| `GRID_COLS`, `GRID_ROWS` | the cells of a page lying down; the shared tree places every cell from these |
+| `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT` | the cells of a page standing up (a square board repeats the first pair) |
 | `GRID_MARGIN`, `GRID_GAP_X`, `GRID_GAP_Y` | the side margin and the gaps between cells, in pixels |
-| the size table (`TILE_W`, `TILE_ICON_SIZE`, `FONT_*_SIZE`, …) | the look's sizes at this board's density |
+| the size table (`TILE_ICON_SIZE`, `FONT_*_SIZE`, …) | the look's sizes at this board's density |
+
+A board states no size that follows from its canvas. The tile area, the cells, the page keys, the strip that
+opens the settings, the crosses of the touch test and the alert card are all measured at boot from the canvas
+LVGL hands the screen, which is why one firmware serves a board either way round.
 
 `tools/propose_grid.py` proposes the grid from the resolution and the diagonal: as many cells as hold a
 standard tile of about 33 × 16 mm, never smaller than 30 × 12 mm. `tools/new_board.py` writes a board file
@@ -236,9 +243,21 @@ event and the layout sensor count rows, columns and pages the same way.
   the touch test still take their pixels from the board file and are the two left to compute.
 - A card with two groups (the colour card: brightness and colour; climate: setpoint, modes, fan) could stand in
   two columns on wide glass instead of one capped column. Same components, another flex flow.
-- Turning follows the shape (firmware 0.2.80+): a half turn keeps width, height, the grid and the whole size
-  table, so every board offers it; a quarter turn only a square screen (`settings_screen::quarter_turns`,
-  set from `DISPLAY_W == DISPLAY_H` at boot). The shared tree applies the angle on top of the board's own
-  `LVGL_ROTATION` (a CYD starts at 90), and each board's Rotation select offers the angles its glass allows.
+- Which way a screen hangs is chosen when it is built (firmware 0.2.92+). ESP Screens writes one substitution
+  into the profile, `LVGL_ROTATION`, the way it writes the language: `ROTATION_LANDSCAPE` for a screen lying
+  down and a quarter further for one standing up. Nothing else in the build differs, and the two grids the
+  board states are both compiled in, so the screen picks one at boot from its canvas (`runtime_tiles::grid_select`).
+- The calibration wizard of a resistive panel (the CYD; capacitive glass reports absolute coordinates and is
+  never calibrated) works on the canvas the person is looking at, and measures rather than derives. Every tap
+  gives it two numbers: the panel's raw reading, and the point the screen itself reported for that same touch
+  through ESPHome's own turn. Five taps say what the whole chain does, so the wizard never has to work out what
+  a rotation, a mirror or a swapped axis did, which is an arithmetic that was right lying down and upside down
+  standing up. The correction it fits describes the panel, so one made standing up is within about ten pixels
+  lying down, measured on the bench.
+- Turning at runtime follows the shape (firmware 0.2.80+): a half turn keeps the canvas, the grid and the whole
+  size table, so every board offers it; a quarter turn only a square screen (`settings_screen::quarter_turns`,
+  set from `PANEL_W == PANEL_H` at boot). A quarter turn on other glass would be a different grid, and a layout
+  made for six cells does not fit four, so that is a rebuild and not a setting. The shared tree applies the angle
+  on top of the board's own `LVGL_ROTATION`, and each board's Rotation select offers the angles its glass allows.
 - The lab boards (`packages/boards/lab-*.yaml`) are generated and disposable; a real board gets a hardware
   section checked on glass and an entry in `tools/profiles.py`.

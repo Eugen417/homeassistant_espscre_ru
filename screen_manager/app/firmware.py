@@ -11,7 +11,7 @@ import shutil
 import signal
 import time
 import yaml
-from core import REPO, installation_yaml
+from core import ORIENTATIONS, REPO, SHAPES, installation_yaml
 from i18n import t
 
 LOG = logging.getLogger('screen_manager')
@@ -48,8 +48,23 @@ def profile_meta(text):
     api = data.get('api') if isinstance(data.get('api'), dict) else {}
     encryption = api.get('encryption') if isinstance(api.get('encryption'), dict) else {}
     key = encryption.get('key')
+    # The angle the profile was built at (app 0.2.107), which says which way the screen hangs: only a screen
+    # standing up carries the line, so nothing here means the board file's own default, lying down. A profile that
+    # writes it as ${SOMETHING} is left to the board file as well, because only the build can resolve that.
+    rotation = substitutions.get('LVGL_ROTATION')
+    rotation = int(rotation) if isinstance(rotation, (int, str)) and str(rotation).strip().lstrip('-').isdigit() else None
     return {'node': resolve(block.get('name')), 'friendly': resolve(block.get('friendly_name')),
-            'screen': ours, 'api_key': key if isinstance(key, str) else None, 'package': package}
+            'screen': ours, 'api_key': key if isinstance(key, str) else None, 'package': package,
+            'rotation': rotation}
+
+# What New screen may offer per board: the two ways its glass can hang, with the canvas and the cells of a page for
+# each (boards.json, written from the board files). The editor draws the choice from this, so the numbers beside
+# "Standing up" are the board's own and never a second copy in the page's code. A board whose glass is square has
+# the same entry twice and the editor leaves the choice out; the shapes of a board a screen is already built from
+# travel with that screen instead (core.shape_of).
+BOARD_CHOICES = {board: {'square': shape['width'] == shape['height'],
+                         'orientations': shape.get('orientations', {})}
+                 for board, shape in SHAPES.items() if '/' not in board and not board.endswith('.yaml')}
 
 class Firmware:
     OVERRIDE_SUFFIX = '.local.yaml'
@@ -57,7 +72,13 @@ class Firmware:
     PROTECTED_OVERRIDE_KEYS = frozenset({'esphome', 'api', 'ota', 'wifi', 'packages',
                                          'external_components', 'captive_portal'})
     # LANGUAGE follows Settings -> Language & region (app 0.2.90), which writes it into the profile itself.
-    PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION', 'LANGUAGE'})
+    # LVGL_ROTATION follows the orientation chosen when the screen is made (app 0.2.107), written into the profile
+    # the same way. A profile's own substitutions beat a package's, so an override that set it would quietly lose
+    # against a screen built standing up and quietly win on one built lying down. That is worse than being told, so
+    # it is refused here with its own sentence rather than the general "these stay managed" one: people were told to
+    # override display settings (GitHub #12 and #15), and the sentence has to say where the choice lives now.
+    PROTECTED_SUBSTITUTIONS = frozenset({'DEVICE_NAME', 'DEVICE_FRIENDLY_NAME', 'SCREEN_FIRMWARE_VERSION', 'LANGUAGE',
+                                         'LVGL_ROTATION'})
     # ESPHome's "Factory format" (bootloader, partition table and app from address 0), the file ESPHome Web
     # flashes on a board. A build writes it next to firmware.bin: under .pioenvs/<node>/ with PlatformIO,
     # under build/ with ESPHome's native ESP-IDF toolchain.
@@ -142,7 +163,7 @@ class Firmware:
     def status(self):
         return {'available': bool(shutil.which('esphome')), 'profiles': self.profiles(),
                 'ports': self.ports(), 'job': self.job, 'logs': list(self.logs), 'wifi': self.wifi_status(),
-                'downloads': sorted(self.images)}
+                'downloads': sorted(self.images), 'boards': BOARD_CHOICES}
 
     def store_wifi(self, data):
         """Put wifi_ssid/wifi_password in secrets.yaml when they are missing. Existing values and
@@ -206,9 +227,31 @@ class Firmware:
     def set_language(self, name, language):
         """Let the screen's next build speak `language` (app 0.2.90): the LANGUAGE line of the profile's substitutions,
         changed or added without reformatting the user's YAML. A profile that doesn't build from ESP Screens' packages is
-        left alone, as is an English one without the line (English is the packages' own default), and one whose
-        substitutions this can't edit safely (an !include, a {...} mapping). The result is read back, and written only
-        when LANGUAGE is the one thing that changed. True when it changed."""
+        left alone, as is an English one without the line (English is the packages' own default). True when it changed."""
+        return self._set_substitution(name, 'LANGUAGE', language, default='en', what='language')
+
+    def set_orientation(self, name, orientation):
+        """Let the screen's next build hang the way `orientation` says (app 0.2.107): the LVGL_ROTATION line of the
+        profile's substitutions, written the way the language is, so a screen can be stood up or laid down by
+        rebuilding it. The angle is the board's, from boards.json, so this app never invents one; lying down is the
+        board file's own default and needs no line. False, and nothing written, when the profile builds from a board
+        this app doesn't know or `orientation` is not one of the two words. True when it changed."""
+        if orientation not in ORIENTATIONS:
+            return False
+        meta = self.profile_names().get(self.profile(name).name) or {}
+        sides = (SHAPES.get(meta.get('package') or '', {}).get('orientations') or {})
+        if not sides.get(orientation) or not sides.get('landscape'):
+            return False
+        return self._set_substitution(name, 'LVGL_ROTATION', str(sides[orientation]['rotation']),
+                                      default=str(sides['landscape']['rotation']), what='orientation')
+
+    def _set_substitution(self, name, key, value, default=None, what='setting'):
+        """One substitution of an existing profile, changed or added without reformatting the user's YAML.
+
+        A profile that doesn't build from ESP Screens' packages is left alone, as is one that already says this, one
+        that says nothing while `default` is what it would say anyway (the packages' own default needs no line), and
+        one whose substitutions this can't edit safely (an !include, a {...} mapping). The result is read back and
+        written only when this one name is the one thing that changed. True when it changed."""
         profile = self.profile(name)
         raw = profile.read_bytes().decode('utf-8')
         if 'homeassistant_espscreen' not in raw and 'packages/core.yaml' not in raw:
@@ -222,26 +265,26 @@ class Firmware:
             return False
         substitutions = before.get('substitutions')
         if 'substitutions' in before and not isinstance(substitutions, dict):
-            LOG.warning('%s: its substitutions are not a plain block, so its language stays as it is', profile.name)
+            LOG.warning('%s: its substitutions are not a plain block, so its %s stays as it is', profile.name, what)
             return False
         substitutions = substitutions or {}
-        if substitutions.get('LANGUAGE') == language or (language == 'en' and 'LANGUAGE' not in substitutions):
+        if substitutions.get(key) == value or (value == default and key not in substitutions):
             return False
-        line = f'LANGUAGE: {json.dumps(language)}'
+        line = f'{key}: {json.dumps(value)}'
         block = re.search(r'(?m)^substitutions:[ \t]*(?:#.*)?\n', text)
         if block:
             # The block: indented lines, blank ones and comments, up to the next key at the start of a line.
             body = re.compile(r'(?:(?:[ \t]+.*|[ \t]*|#.*)\n)*').match(text, block.end())
             indent = re.search(r'(?m)^([ \t]+)\S', body.group(0))
             indent = indent.group(1) if indent else '  '
-            current = re.search(r'(?m)^[ \t]+["\']?LANGUAGE["\']?[ \t]*:.*$', body.group(0))
+            current = re.search(rf'(?m)^[ \t]+["\']?{re.escape(key)}["\']?[ \t]*:.*$', body.group(0))
             if current:
                 lines = body.group(0)[:current.start()] + indent + line + body.group(0)[current.end():]
             else:
                 lines = indent + line + '\n' + body.group(0)
             updated = text[:body.start()] + lines + text[body.end():]
         elif 'substitutions' in before:
-            LOG.warning('%s: its substitutions are not a plain block, so its language stays as it is', profile.name)
+            LOG.warning('%s: its substitutions are not a plain block, so its %s stays as it is', profile.name, what)
             return False
         else:
             # After the comments (and a document start) at the top of the file.
@@ -250,11 +293,11 @@ class Firmware:
         after = yaml.load(updated, Loader=LenientLoader)
         def rest(data):
             data = dict(data)
-            rest_substitutions = {k: v for k, v in (data.get('substitutions') or {}).items() if k != 'LANGUAGE'}
+            rest_substitutions = {k: v for k, v in (data.get('substitutions') or {}).items() if k != key}
             data.pop('substitutions', None)
             return data, rest_substitutions
-        if not isinstance(after, dict) or (after.get('substitutions') or {}).get('LANGUAGE') != language or rest(after) != rest(before):
-            LOG.warning('%s: its language could not be written without changing more, so it stays as it is', profile.name)
+        if not isinstance(after, dict) or (after.get('substitutions') or {}).get(key) != value or rest(after) != rest(before):
+            LOG.warning('%s: its %s could not be written without changing more, so it stays as it is', profile.name, what)
             return False
         self._atomic_write(profile, updated.replace('\n', newline))
         self._names.pop(profile.name, None)
@@ -326,6 +369,9 @@ class Firmware:
             raise ValueError(t('addon.errors.firmware.sections_managed', names=', '.join(protected)))
         substitutions = parsed.get('substitutions')
         if isinstance(substitutions, dict):
+            # The one people are most likely to have written themselves gets the sentence that says where it went.
+            if 'LVGL_ROTATION' in substitutions:
+                raise ValueError(t('addon.errors.firmware.orientation_managed'))
             protected = sorted(set(substitutions) & self.PROTECTED_SUBSTITUTIONS)
             if protected:
                 raise ValueError(t('addon.errors.firmware.substitutions_managed', names=', '.join(protected)))
