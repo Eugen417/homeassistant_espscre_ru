@@ -1,3 +1,12 @@
+## 0.2.119 (firmware 0.2.98)
+
+A lamp that is on now says so in colour, not in brightness.
+
+- A tile takes the lamp's own colour while it is on, straight from Home Assistant, and a bulb running near white sent something near white: the icon went from grey to almost white and the circle behind it from dark to pale. Across a room that reads as "a bit brighter", not as "on" (GitHub #22).
+- Home Assistant does not hand its own tiles the raw colour either. Anything under 40 % saturation is lifted to 40 % first (`hui-tile-card`), so a pale warm bulb shows as a real peach instead of cream. The screens now do the same.
+- Under 10 % saturation there is nothing left to lift, and Home Assistant only dims that white a shade. A white icon on a dark card, or on a card with a colour of its own, says the same as the grey of something off, so a bulb that is white now keeps the amber that every other lamp on a tile has.
+- A bulb with a colour of its own is untouched: a warm white at 2700 K, a red, a green all still show their own colour, and so does the lamp's slider.
+
 ## 0.2.118 (firmware 0.2.97)
 
 The calibration wizard measures each tap at one instant instead of two.

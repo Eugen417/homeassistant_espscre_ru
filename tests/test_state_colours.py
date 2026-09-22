@@ -67,6 +67,14 @@ class StateColours(unittest.TestCase):
         self.assertNotIn('domain_accent', TILES)
         self.assertIn('frontend src/common/entity/state_active.ts', MODEL)
 
+    def test_a_pale_lamp_takes_home_assistants_contrast_rule(self):
+        # Home Assistant lifts a lamp colour under 40 % saturation to 40 % before it paints a tile
+        # (hui-tile-card._computeStateColor). Under 10 % there is nothing left to lift and it only dims the white,
+        # which on a dark card or a card with a colour of its own says what the grey of something off says, so such
+        # a lamp keeps the amber of tile_controls::accent (firmware 0.2.98+).
+        self.assertIn('if(d=="light" && on && t.has_hs_color && t.saturation>=10)', TILES)
+        self.assertIn('lv_color_hsv_to_rgb(t.hue%360,t.saturation<40?40:t.saturation,100)', TILES)
+
     def test_an_airco_that_is_off_says_so(self):
         self.assertIn('else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state);', TILES)
         off = TILES.index('d == "climate" && t.state == "off"')

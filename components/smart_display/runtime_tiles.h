@@ -4262,8 +4262,13 @@ inline void render_slot(size_t slot) {
   w.cached_active = palette_state;w.panel_dirty=false;
   // Home Assistant's colour for the state (tile_controls::accent), and a lamp's own colour while it is on.
   uint32_t accent=tile_controls::accent(t);
-  if(d=="light" && on && t.has_hs_color)
-    accent=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation,100))&0xFFFFFF;
+  // A lamp's own colour goes through Home Assistant's contrast rule before it reaches the glass
+  // (hui-tile-card._computeStateColor, firmware 0.2.98+): anything under 40 % saturation is lifted to 40 %, or a
+  // pale bulb paints the tile in a colour that is no colour. Under 10 % there is nothing left to lift and Home
+  // Assistant only dims the white a little; a white icon on a dark card, or on a card of its own colour, then says
+  // the same as the grey of something off, so a white bulb keeps the amber of a lamp that is on.
+  if(d=="light" && on && t.has_hs_color && t.saturation>=10)
+    accent=lv_color_to_u32(lv_color_hsv_to_rgb(t.hue%360,t.saturation<40?40:t.saturation,100))&0xFFFFFF;
   uint32_t state_color=on?accent:theme::STATE_OFF;
   auto color=lv_color_hex(theme::state(state_color));
   auto circle_color=lv_color_hex(available?theme::tint(state_color,38):theme::hex(theme::TRACK));
