@@ -183,5 +183,20 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                 # Until Home Assistant lists the screen, the page shows the profile as "not yet in HA" with its key.
                 pending=(await (await client.get('/api/inventory?light=1')).json())['pending']
                 self.assertEqual([(p['file'],p['friendly'],p['installed'],p['api_key']==result['api_key']) for p in pending],[('screen-new.yaml','New',False,True)])
+                # A second screen may not take a name this one already carries (app 0.2.123): Home Assistant names a
+                # device's actions after the ESPHome name and its entity ids after the name the device carries, so it
+                # could not tell the two apart. Nothing is written for a refused name.
+                taken=(await (await client.get('/api/firmware')).json())['taken']
+                self.assertIn('screen-new',taken['nodes']);self.assertIn('new',taken['prefixes'])
+                clash=await client.post('/api/firmware/profiles',headers=headers,json={**profile,'friendly_name':'Another'})
+                self.assertEqual(clash.status,400)
+                self.assertIn('screen-new',(await clash.json())['error'])
+                clash=await client.post('/api/firmware/profiles',headers=headers,json={**profile,'name':'screen-two','friendly_name':'NEW'})
+                self.assertEqual(clash.status,400)
+                self.assertIn('NEW',(await clash.json())['error'])
+                self.assertFalse((Path(temp)/'esphome'/'screen-two.yaml').exists())
+                # A name of its own builds as always.
+                fine=await client.post('/api/firmware/profiles',headers=headers,json={**profile,'name':'screen-two','friendly_name':'Second'})
+                self.assertEqual(fine.status,200)
 
 if __name__=='__main__':unittest.main()

@@ -235,10 +235,11 @@ describe("a whole page that moves (app 0.2.121)", () => {
     // A page the order doesn't name keeps its tiles where they are.
     expect(reorderPages(entries([tile("z", 20)]), [0, 1]).map((e) => e.slot)).toEqual([20]);
   });
-  it("takes a page's own title with it and lets go of one that lands on page 1", () => {
+  it("takes a page's own title with it, wherever it lands", () => {
     expect(reorderTitles(["", "Kitchen", "Bedroom"], pageOrder(3, 2, 1))).toEqual(["", "Bedroom", "Kitchen"]);
-    // Page 1 says the screen's own title, so a title that lands there goes, and page 1 leaves none behind.
-    expect(reorderTitles(["", "Kitchen"], pageOrder(2, 1, 0))).toEqual([]);
+    // A page that lands first keeps its name, and page 1 takes its own along (app 0.2.123).
+    expect(reorderTitles(["", "Kitchen"], pageOrder(2, 1, 0))).toEqual(["Kitchen"]);
+    expect(reorderTitles(["Hall", "Kitchen"], pageOrder(2, 0, 1))).toEqual(["Kitchen", "Hall"]);
     expect(reorderTitles(["", "", "Bedroom"], pageOrder(3, 0, 2))).toEqual(["", "Bedroom"]);
     expect(reorderTitles(undefined, pageOrder(3, 0, 1))).toEqual([]);
   });

@@ -520,32 +520,44 @@ describe("the title above a page (app 0.2.105)", () => {
     // Empty says what page 1 says, so a page that follows it looks like it does.
     expect((field.element as HTMLInputElement).value).toBe("");
     expect(field.attributes("placeholder")).toBe("Living room");
-    expect(drawer.find("#page-title-hint").text()).toBe("Leave empty and this page says the same as page 1.");
+    expect(drawer.find("#page-title-hint").text()).toBe("Leave empty and this page says the screen's title.");
     await field.setValue("Music");
     expect(state.layout!.page_titles).toEqual(["", "Music"]);
     // Clearing it hands the page back and leaves nothing behind.
     await field.setValue("");
     expect(state.layout!.page_titles).toBeUndefined();
   });
-  it("is the screen's own title on page 1, and stores it there", async () => {
+  it("asks page 1 for the screen's title and for a title of its own", async () => {
     state.layout = { title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] };
     openBar(0, 0);
     const drawer = mount(TopbarInspector, { props: { index: 0 } });
-    const field = drawer.find("#page-title");
-    expect((field.element as HTMLInputElement).value).toBe("Living room");
-    // Page 1 has no line of its own to explain, and no entry of its own to store.
-    expect(drawer.find("#page-title-hint").exists()).toBe(false);
-    await field.setValue("Downstairs");
+    const screen = drawer.find("#screen-title");
+    expect(drawer.find("label[for='screen-title']").text()).toBe("Screen title");
+    expect((screen.element as HTMLInputElement).value).toBe("Living room");
+    expect(drawer.find("#screen-title-hint").text()).toBe("Every page without a title of its own says this.");
+    await screen.setValue("Downstairs");
     expect(state.layout!.title).toBe("Downstairs");
     expect(state.layout!.page_titles).toEqual(["", "Music"]);
+    // Page 1 carries one of its own like any other page (app 0.2.123), and falls back to the screen's.
+    const own = drawer.find("#page-title");
+    expect(drawer.find("label[for='page-title']").text()).toBe("Title above page 1");
+    expect((own.element as HTMLInputElement).value).toBe("");
+    expect(own.attributes("placeholder")).toBe("Downstairs");
+    await own.setValue("Hall");
+    expect(state.layout!.page_titles).toEqual(["Hall", "Music"]);
+    expect(state.layout!.title).toBe("Downstairs");
   });
-  it("names one field only, whatever the screen has", () => {
+  it("asks a screen with one page for one title only", () => {
     state.layout = { title: "Living room", tiles: [] };
     openBar(0, 0);
     const one = mount(TopbarInspector, { props: { index: 0 } });
-    expect(one.findAll("#page-title")).toHaveLength(1);
-    expect(one.find("#title").exists()).toBe(false);
-    expect(one.find("label[for='page-title']").text()).toBe("Title above the page");
+    expect(one.findAll("#screen-title")).toHaveLength(1);
+    expect(one.find("label[for='screen-title']").text()).toBe("Title above the page");
+    // One page and the screen's title are the same thing, so there is no second field to fill.
+    expect(one.find("#page-title").exists()).toBe(false);
+    // A title that page kept from a longer row does get its field back: nothing is set that nobody can see.
+    state.layout = { title: "Living room", tiles: [], page_titles: ["Hall"] };
+    expect(mount(TopbarInspector, { props: { index: 0 } }).find("#page-title").exists()).toBe(true);
   });
   it("shows the page's own title in that page's mockup bar, and opens that page's field", async () => {
     state.layout = { title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] };
@@ -560,6 +572,35 @@ describe("the title above a page (app 0.2.105)", () => {
 
 // New screen: which way the screen will hang (app 0.2.107). The choice is a build choice, so it is made here and
 // nowhere else; the numbers beside each way come from the board files through the add-on, never from this page.
+// A screen may not take a name another screen already carries (app 0.2.123): Home Assistant cannot tell two
+// devices of one name apart, so New screen says it while the name is typed and the add-on refuses it as well.
+describe("a name another screen already carries", () => {
+  const flush = async () => { await Promise.resolve(); await Promise.resolve(); await new Promise((done) => setTimeout(done, 0)); };
+  async function installer(taken: any) {
+    vi.stubGlobal("fetch", vi.fn((url: string) => (String(url).endsWith("api/firmware")
+      ? Promise.resolve({ ok: true, json: () => Promise.resolve({ available: true, ports: ["/dev/ttyUSB0"], profiles: [], logs: [], wifi: { state: "ready" }, boards: {}, taken }) })
+      : Promise.resolve({ ok: true, text: () => Promise.resolve("{}") }))));
+    const view = mount(InstallerView);
+    await flush();
+    return view;
+  }
+  it("says so under the name and holds the button until the name is the screen's own", async () => {
+    const view = await installer({ nodes: ["hall"], prefixes: ["living_room"] });
+    await view.find("#friendly_name").setValue("Living room");
+    expect(view.find("#name-taken").exists()).toBe(true);
+    expect(view.find("#install-go").attributes("disabled")).toBeDefined();
+    await view.find("#friendly_name").setValue("Kitchen");
+    expect(view.find("#name-taken").exists()).toBe(false);
+    expect(view.find("#node-taken").exists()).toBe(false);
+    expect(view.find("#install-go").attributes("disabled")).toBeUndefined();
+    // The device name follows the name, and can be the one that clashes.
+    await view.find("#friendly_name").setValue("Hall");
+    expect(view.find("#name-taken").exists()).toBe(false);
+    expect(view.find("#node-taken").exists()).toBe(true);
+    expect(view.find("#install-go").attributes("disabled")).toBeDefined();
+  });
+});
+
 describe("the orientation of a new screen", () => {
   const boards = {
     cyd: { square: false, orientations: { landscape: { width: 320, height: 240, columns: 2, rows: 3, rotation: 90 },
@@ -668,6 +709,22 @@ describe("a page that moves as a whole", () => {
     // Another key is not a move.
     await row.find(".grab").trigger("keydown", { key: "Enter" });
     expect(state.layout!.tiles[0].slot).toBe(6);
+  });
+  it("offers Remove page on every page of the row, filled or not", async () => {
+    // A page leaves whether it is empty or not (app 0.2.123): the way out stands beside the cells in use.
+    const second = mount(DevicePage, { props: props(1, 3) });
+    const remove = second.find(".page-side .btn.mini");
+    expect(remove.exists()).toBe(true);
+    expect(remove.attributes("aria-label")).toBe("Remove page 2");
+    expect(second.find(".page-side").text()).toContain("1 / 6");
+    // The only page cannot leave, and neither can the page a tile can start behind the last one.
+    expect(mount(DevicePage, { props: props(3, 3) }).find(".page-side .btn.mini").exists()).toBe(false);
+    state.layout!.pages = 1;
+    expect(mount(DevicePage, { props: props(0, 1) }).find(".page-side .btn.mini").exists()).toBe(false);
+    state.layout!.pages = 3;
+    await remove.trigger("click");
+    expect(state.layout!.tiles).toEqual([]);
+    expect(state.toast?.message).toBe("Page 2 and one tile are gone.");
   });
   it("draws the page on the move where it would land, with the title that belongs there", () => {
     state.layout!.page_titles = ["", "Music", "Hall"];

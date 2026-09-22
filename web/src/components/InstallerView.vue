@@ -53,6 +53,16 @@ const orientations = computed<(BoardOrientation & { key: Orientation })[]>(() =>
 // chosen. Resetting it on every board change would throw away an answer the person just gave.
 watch(() => form.board, () => { if (!orientations.value.length) form.orientation = "landscape"; });
 const nodePreview = computed(() => form.name || "…");
+// Names the screens this app knows already carry (app 0.2.123): their ESPHome device names and the starts Home
+// Assistant gave their entity ids. The server refuses a clash, and saying it here means nothing is built first.
+// The same slug the add-on makes of a name (core.entity_slug), so both sides read a name the same way.
+const taken = computed(() => data.value?.taken || { nodes: [], prefixes: [] });
+const entitySlug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+const nodeTaken = computed(() => !!form.name && taken.value.nodes.includes(form.name.trim().toLowerCase()));
+const nameTaken = computed(() => {
+  const prefix = entitySlug(form.friendly_name.trim());
+  return !!prefix && taken.value.prefixes.includes(prefix);
+});
 const ports = computed<string[]>(() => data.value?.ports || []);
 const wifi = computed(() => data.value?.wifi);
 const askWifi = computed(() => wifi.value?.state === "new" || wifi.value?.state === "missing");
@@ -75,7 +85,7 @@ const targetHint = computed(() => t(form.target === "usb"
 const goLabel = computed(() => (form.target === "download" ? t("editor.firmware.build_download") : form.target ? t("editor.installer.install") : t("editor.installer.save_profile")));
 const busyElsewhere = computed(() => data.value?.job?.state === "running" && !(installer.file && data.value.job.file === installer.file));
 const goDisabled = computed(() => submitting.value || wifi.value?.state === "invalid" || form.target === "usb" ||
-  (!!form.target && (busyElsewhere.value || !data.value?.available)));
+  nodeTaken.value || nameTaken.value || (!!form.target && (busyElsewhere.value || !data.value?.available)));
 // USB on the Home Assistant machine is always listed first, also before a board is plugged in, so nobody
 // concludes it isn't possible; "usb" stands for that port until one shows up.
 function syncTarget() {
@@ -237,6 +247,10 @@ onBeforeUnmount(() => clearInterval(poll));
         <input id="friendly_name" name="friendly_name" v-model="form.friendly_name" required maxlength="60" :placeholder="t('editor.installer.name_placeholder')" autocomplete="off" />
         <small class="node-line">{{ t("editor.installer.device_name") }} <code id="node-preview">{{ nodePreview }}</code><button type="button" class="btn link mini" id="edit-node" @click="installer.nodeEdited = true; nodeVisible = true">{{ t("editor.installer.customize") }}</button></small>
         <small>{{ t("editor.installer.name_hint") }}</small>
+        <!-- One line, not two: a name that is taken usually makes a device name that is taken as well, and the
+             name is what someone changes. The device name speaks for itself only when it is the one that clashes. -->
+        <small v-if="nameTaken" id="name-taken" class="warn">{{ t("editor.installer.name_taken") }}</small>
+        <small v-else-if="nodeTaken" id="node-taken" class="warn">{{ t("editor.installer.node_taken") }}</small>
       </div>
       <div v-if="nodeVisible" class="field" id="node-label">
         <label class="f-label" for="node-name">{{ t("editor.installer.device_name") }}</label>

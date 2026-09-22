@@ -59,10 +59,11 @@ class Positions(unittest.TestCase):
         self.assertNotIn('page_titles', validate_layout({**base, 'page_titles': ['', '']}))
         self.assertNotIn('page_titles', validate_layout(base))
         self.assertEqual(validate_layout({**base, 'page_titles': ['', '  Hall  ']})['page_titles'], ['', 'Hall'])
-        # Page 1 says the screen's title and nothing else: the editor's one field per page is that title for page 1,
-        # so an entry for page 1 would be words nobody can reach from there and it is dropped.
-        self.assertNotIn('page_titles', validate_layout({**base, 'page_titles': ['Hall']}))
-        self.assertEqual(validate_layout({**base, 'page_titles': ['Hall', 'Kitchen']})['page_titles'], ['', 'Kitchen'])
+        # Page 1 carries a title of its own like any other page (app 0.2.123): the firmware falls back to the
+        # screen's title per page, so a title that belongs to its page survives a reorder of the row.
+        self.assertEqual(validate_layout({**base, 'page_titles': ['Hall']})['page_titles'], ['Hall'])
+        self.assertEqual(validate_layout({**base, 'page_titles': ['Hall', 'Kitchen']})['page_titles'], ['Hall', 'Kitchen'])
+        # The screen's own title is a thing of its own and stays what it was.
         self.assertEqual(validate_layout({**base, 'page_titles': ['Hall']})['title'], 'Home')
         for bad in ['Hall', {'1': 'Hall'}, [None], [1], ['x' * 97], [''] * 9]:
             with self.assertRaises(ValueError, msg=bad): validate_layout({**base, 'page_titles': bad})

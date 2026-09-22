@@ -527,16 +527,15 @@ describe("moving a whole page", () => {
     expect(state.layout!.tiles.map((t) => t.slot)).toEqual([0, 1, 6, 12, 14]);
     expect(state.dirty).toBe(true);
   });
-  it("says so and hands back the way it was when a title lands on page 1", () => {
+  it("keeps a page's own title when it lands first, and says nothing about it", () => {
     threePages();
+    const title = state.layout!.title;
     expect(movePage(1, 0)).toBe(true);
-    expect(state.layout!.page_titles).toBeUndefined();
+    // The kitchen page stands first now and still says Kitchen; the screen's own title is untouched (app 0.2.123).
+    expect(state.layout!.page_titles).toEqual(["Kitchen"]);
+    expect(state.layout!.title).toBe(title);
     expect(state.layout!.tiles.find((t) => t.entity === "light.a")!.slot).toBe(0);
-    expect(state.toast?.message).toBe("Page 1 always says the screen's title, so “Kitchen” is gone.");
-    state.toast!.action!.run();
-    expect(state.layout!.page_titles).toEqual(["", "Kitchen"]);
-    expect(state.layout!.tiles.find((t) => t.entity === "light.a")!.slot).toBe(6);
-    expect(state.layout!.tiles.find((t) => t.slot === 0)!.entity).toBe("screen.page_2");
+    expect(state.toast).toBeNull();
   });
   it("leaves a move outside the row alone, and says nothing when no title is at stake", () => {
     threePages();
@@ -559,5 +558,34 @@ describe("moving a whole page", () => {
     expect(state.layout!.tiles.find((t) => t.slot === 0)!.entity).toBe("screen.page_2");
     expect(state.layout!.page_titles).toEqual(["", "Bedroom"]);
     expect(state.layout!.pages).toBe(2);
+  });
+  // A page leaves whether it is empty or not (app 0.2.123): what was only its own goes with it, and Undo is there.
+  it("takes the tiles on a removed page and the tiles that led to it, and hands them all back", () => {
+    threePages();
+    removePage(1);
+    // The kitchen page is gone with the tile in its cell, and so is the tile on page 1 that opened it.
+    // The tile that led to page 3 keeps its own cell and now says page 2; the tile beside it went with the page.
+    expect(state.layout!.tiles.map((t) => [t.entity, t.slot])).toEqual([["screen.page_2", 1], ["screen.page_1", 6]]);
+    expect(state.layout!.page_titles).toBeUndefined();
+    expect(state.layout!.pages).toBe(2);
+    expect(state.toast?.message).toBe("Page 2 and 3 tiles are gone.");
+    state.toast!.action!.run();
+    // Back exactly as it stood: the same tiles, in their cells, opening the pages they opened.
+    expect(state.layout!.tiles.map((t) => [t.entity, t.slot])).toEqual([
+      ["screen.page_2", 0], ["screen.page_3", 1], ["light.a", 6], ["light.w", 8], ["screen.page_1", 12]]);
+    expect(state.layout!.page_titles).toEqual(["", "Kitchen"]);
+    expect(state.layout!.pages).toBe(3);
+  });
+  it("says a page went without tiles, and never takes the only page", () => {
+    threePages();
+    state.layout!.tiles = [{ entity: "light.a", name: "", slot: 0 }];
+    state.layout!.pages = 2;
+    removePage(1);
+    expect(state.toast?.message).toBe("Page 2 is gone.");
+    expect(state.layout!.pages).toBe(1);
+    state.toast = null;
+    removePage(0);
+    expect(state.layout!.pages).toBe(1);
+    expect(state.toast).toBeNull();
   });
 });

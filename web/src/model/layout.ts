@@ -164,13 +164,11 @@ export function reorderPages(entries: Entry[], order: number[]): Entry[] {
     })
     .sort((a, b) => a.slot - b.slot);
 }
-// The page titles once the pages stand in `order`. A title belongs to its page and travels with it. Page 1 says the
-// screen's own title and holds no entry of its own, so a title that lands there is let go, exactly as the add-on
-// would drop it (core.validate_layout), and trailing empty entries go as well.
+// The page titles once the pages stand in `order`. A title belongs to its page and travels with it, page 1
+// included (app 0.2.123): a page without a title of its own says the screen's title, wherever it stands, so
+// reordering the row costs no names. Trailing empty entries go, as they do everywhere else.
 export function reorderTitles(titles: string[] | undefined, order: number[]) {
-  const own = (page: number) => (page === 0 ? "" : titles?.[page] ?? "");
-  const names = order.map(own).concat((titles || []).slice(order.length));
-  if (names.length) names[0] = "";
+  const names = order.map((page) => titles?.[page] ?? "").concat((titles || []).slice(order.length));
   while (names.length && !names[names.length - 1]) names.pop();
   return names;
 }

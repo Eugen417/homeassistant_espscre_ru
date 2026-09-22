@@ -563,6 +563,23 @@ def inbox_prefix(entity):
                 return entity[len('text.'):-len(suffix)]
     return None
 
+def name_clash(node, friendly, taken):
+    """Why a new screen cannot carry this name, or None (app 0.2.123).
+
+    Home Assistant cannot tell two devices of one name apart. It names a device's actions after the ESPHome node
+    (`esphome.<node>_screen_message`, the one this app hands a layout to) and the start of its entity ids after the
+    name the device carries (`switch.<screen>_show_home_button`, what an automation types), so a second screen of
+    the same name takes the first one's actions and gets its entities numbered. `taken` is what the screens this
+    app knows already carry: `nodes` their ESPHome names, `prefixes` the starts of their entity ids.
+    """
+    nodes = {str(name).lower() for name in taken.get('nodes') or ()}
+    if isinstance(node, str) and node.strip().lower() in nodes:
+        return t('addon.errors.firmware.name_taken', name=node.strip())
+    prefix = entity_slug(friendly) if isinstance(friendly, str) else ''
+    if prefix and prefix in {str(name) for name in taken.get('prefixes') or ()}:
+        return t('addon.errors.firmware.friendly_taken', name=friendly.strip())
+    return None
+
 def device_prefixes(registry, device_id):
     """Entity id prefixes Home Assistant gave the ESPHome entities of one device: the device name when each
     entity was created. Entities whose name never changed keep the prefix an older inbox id carried."""
@@ -1351,9 +1368,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
     # A title of its own for a page (app 0.2.105). The screen's title stands on every page, which is what most
     # screens want; a page that should say something else says it here, and an empty entry means the screen's.
     # Trailing empty entries are dropped, so a layout where nobody set one carries nothing at all.
-    # Page 1 says the screen's title and nothing else: the editor has one field per page, and for page 1 that field
-    # is the title itself. An entry for page 1 would be a title nobody can reach from there, so it is dropped and
-    # the firmware never sees one - what the editor shows and what the screen shows stay the same thing.
+    # Page 1 carries its own like any other page (app 0.2.123): the firmware falls back to the screen's title per
+    # page (runtime_model.h, title_of), and a title that belongs to its page survives a reorder of the row. The
+    # editor asks for both there: the screen's title, and what page 1 itself says.
     if 'page_titles' in data:
         names = data['page_titles']
         pages = grid.pages if grid else FIRMWARE_MAX_PAGES
@@ -1364,8 +1381,6 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if not isinstance(name, str) or len(name.encode()) > 96:
                 raise ValueError(t('addon.errors.layout.page_title'))
             clean_names.append(name.strip())
-        if clean_names:
-            clean_names[0] = ''
         while clean_names and not clean_names[-1]:
             clean_names.pop()
         if clean_names:

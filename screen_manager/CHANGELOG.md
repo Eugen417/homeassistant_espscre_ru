@@ -1,3 +1,12 @@
+## 0.2.123 (firmware 0.2.100)
+
+A page keeps its name wherever it stands, a page leaves with its tiles, and no two screens carry one name.
+
+- **A title belongs to its page, page 1 included.** Dragging the first page away used to cost the name of the page that slid into its place, without a word: page 1 always said the screen's own title, so whatever name landed there was dropped. Every page now carries its own title and takes it along wherever in the row it lands, so reordering costs nothing, and the message about a lost title is gone with the loss.
+- The bar of page 1 asks two things instead of one: the **Screen title**, which every page without a title of its own says, and the **Title above page 1**, which belongs to that page. A screen with one page asks only for the screen's title, as before. The firmware has fallen back to the screen's title per page since 0.2.90, so no screen needs a new build for this.
+- **Remove page stands beside the cell count of every page**, not only under an empty one. People kept looking for a way to take a page out of the middle and found none: a page with tiles on it offered nothing, and emptying it by hand is six to twenty drags. The page now leaves with the tiles in its cells and with the **Go to page** tiles that led to it, so nothing is left opening a page nobody has; the pages after it move up with their titles, and the message says how many tiles went, with **Undo** beside it.
+- **New screen refuses a name another screen already carries.** Home Assistant names a device's actions after the ESPHome name (`esphome.<screen>_screen_message`, the one this app hands a layout to) and the start of its entity ids after the name the device carries (`switch.<screen>_show_home_button`, the one an automation types). It cannot tell two devices of one name apart: the second screen's entities get numbered, so automations point at the wrong screen, and one of the two takes the other's actions. Only the profile file was checked until now, so a name already carried by a screen paired from somewhere else went through. The form says it under the name while it is typed, and the add-on refuses it as well.
+
 ## 0.2.122 (firmware 0.2.100)
 
 Back to page 1 in one tap, or one swipe up, and every swipe says it landed.

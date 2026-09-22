@@ -7,7 +7,8 @@ import { entriesOf, pageCount } from "../model/layout";
 import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from "../model/topbar";
 import {
   automaticIcon, barMetrics, clock24, closeInspector, entityName, iconNamed, markDirty, moveTopbarItem, openBar, openBarAdd,
-  removeTopbarItem, screenLanguage, screenText, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView, pageTitle, setPageTitle,
+  removeTopbarItem, screenLanguage, screenText, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView, pageTitle,
+  pageTitleShown, screenTitle, setPageTitle, setScreenTitle,
 } from "../store";
 import type { HeaderItem } from "../types";
 import IconPicker from "./IconPicker.vue";
@@ -19,7 +20,7 @@ const items = computed(() => topbarItems());
 const item = computed<HeaderItem | undefined>(() => items.value[props.index]);
 const lay = computed(() => {
   void state.fontsVersion; void state.now; void state.topbarPreviews;
-  return barLayout(items.value, barMetrics.value, state.layout?.title || screenText("editor.mockup.home"), topbarView);
+  return barLayout(items.value, barMetrics.value, pageTitleShown(page.value) || screenText("editor.mockup.home"), topbarView);
 });
 const overflow = computed(() => lay.value.dropped);
 const needed = computed(() => state.inventory.header?.min_firmware || "0.2.32");
@@ -37,11 +38,14 @@ const iconOf = (it: HeaderItem) => {
 };
 const justAdded = (it: HeaderItem) => state.topbarAdded?.key === itemKey(it) && Date.now() - state.topbarAdded.time < 1200;
 // The page whose bar you clicked (app 0.2.105). The inspector asks one thing about the name: what stands above this
-// page. On page 1 that is the screen's own title, which every page without one of its own falls back to, so a later
-// page shows page 1's words as its placeholder and clearing it hands the page back. Nothing is named after the title
-// - a screen's actions and sensors carry its device name - so renaming it breaks no automation.
+// page, and what the screen says on the pages nobody named: the screen's own title. A page keeps its title wherever
+// it stands, page 1 included (app 0.2.123), so both fields are here and neither is the other's leftover; clearing a
+// page's own title hands that page back to the screen's.
 const page = computed(() => state.barPage ?? 0);
 const pages = computed(() => (state.layout ? pageCount(entriesOf(state.layout), state.layout.pages) : 1));
+// One page has no second title to ask about: the screen's own is what it says. A page that kept a title of its own
+// from a longer row keeps its field, so nothing is set that nobody can see.
+const asksPageTitle = computed(() => pages.value > 1 || !!pageTitle(page.value));
 function update(patch: Partial<HeaderItem>) {
   const list = [...items.value];
   list[props.index] = { ...list[props.index], ...patch };
@@ -141,11 +145,17 @@ function onKey(e: KeyboardEvent, i: number) {
   </div>
   <div class="dr-body">
     <div class="f">
-      <label class="f-label" for="page-title">{{ pages > 1 ? t("editor.topbar.page_name", { page: page + 1 }) : t("editor.topbar.name") }}</label>
-      <input id="page-title" :value="pageTitle(page)" maxlength="60" :aria-describedby="page > 0 ? 'page-title-hint' : undefined"
-        :placeholder="page > 0 ? pageTitle(0) || t('editor.topbar.name_placeholder') : t('editor.topbar.name_placeholder')"
+      <label class="f-label" for="screen-title">{{ pages > 1 ? t("editor.topbar.screen_name") : t("editor.topbar.name") }}</label>
+      <input id="screen-title" :value="screenTitle()" maxlength="60" :aria-describedby="pages > 1 ? 'screen-title-hint' : undefined"
+        :placeholder="t('editor.topbar.name_placeholder')" @input="setScreenTitle(($event.target as HTMLInputElement).value)" />
+      <small v-if="pages > 1" id="screen-title-hint">{{ t("editor.topbar.screen_name_hint") }}</small>
+    </div>
+    <div v-if="asksPageTitle" class="f">
+      <label class="f-label" for="page-title">{{ t("editor.topbar.page_name", { page: page + 1 }) }}</label>
+      <input id="page-title" :value="pageTitle(page)" maxlength="60" aria-describedby="page-title-hint"
+        :placeholder="screenTitle() || t('editor.topbar.name_placeholder')"
         @input="setPageTitle(page, ($event.target as HTMLInputElement).value)" />
-      <small v-if="page > 0" id="page-title-hint">{{ t("editor.topbar.page_name_hint") }}</small>
+      <small id="page-title-hint">{{ t("editor.topbar.page_name_hint") }}</small>
     </div>
     <div class="f">
       <span class="f-label" id="topbar-caption">{{ t("editor.topbar.right") }} <span style="text-transform: none; letter-spacing: 0; font-weight: 500"> · {{ items.length }} / {{ topbarMax() }}</span></span>

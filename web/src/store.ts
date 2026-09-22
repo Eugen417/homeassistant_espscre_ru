@@ -378,40 +378,51 @@ function applyPageOrder(layout: Layout, order: number[]) {
   state.insertAt = -1;
   markDirty();
 }
-// A page's own title: page 1 has none of its own, it says the screen's title.
-const ownTitle = (titles: string[] | undefined, page: number) => (page === 0 ? "" : titles?.[page] || "");
 // A whole page to another place in the row, by dragging it or with the arrow keys. `from` and `to` count from 0.
-// Page 1 always says the screen's own title, so a page with a title of its own that lands there lets it go; that
-// is the one thing a move can cost, so the toast says it and hands back the way it was.
+// A move costs nothing: every page carries its own title, page 1 included (app 0.2.123).
 export function movePage(from: number, to: number) {
   const layout = state.layout;
   if (!layout) return false;
   const pages = pageCount(entriesOf(layout), layout.pages);
   if (!Number.isInteger(from) || !Number.isInteger(to) || from === to) return false;
   if (Math.min(from, to) < 0 || Math.max(from, to) >= pages) return false;
-  const titles = layout.page_titles ? [...layout.page_titles] : undefined;
   applyPageOrder(layout, pageOrder(pages, from, to));
-  const lost = to === 0 ? ownTitle(titles, from) : "";
-  if (lost) {
-    toast(t("editor.layout.page_title_gone", { name: lost }), {
-      label: t("editor.common.undo"),
-      run: () => { applyPageOrder(layout, pageOrder(pages, to, from)); layout.page_titles = titles; },
-    });
-  }
   return true;
 }
-// An empty page goes; the pages after it move up, with their titles and the tiles that point at them. The page
-// moves to the end of the row first, so everything behind it shifts up one, and then the row is one shorter.
+// A page goes, whether it is empty or not (app 0.2.123), and takes what was only its own: the tiles in its cells,
+// its own title, and the Go to page tiles that led to it, which would otherwise open a page nobody has. The pages
+// after it move up, with their titles and the tiles that lead to them: the page travels to the end of the row
+// first, so everything behind it shifts up one, and then the row is one shorter. The toast says how many tiles
+// went and hands the whole page back.
 export function removePage(page: number) {
   const layout = state.layout;
   if (!layout) return;
   const pages = pageCount(entriesOf(layout), layout.pages);
+  if (pages < 2 || page < 0 || page >= pages) return;
+  // The way back, by the tiles themselves: where each one stood and which page it opened before the move.
+  const before = layout.tiles.map((tile) => ({ tile, slot: tile.slot, entity: tile.entity }));
+  const titles = layout.page_titles ? [...layout.page_titles] : undefined;
+  const wanted = layout.pages;
+  const gone = new Set(layout.tiles.filter((tile) => pageOf(tile.slot) === page || pageTarget(tile.entity) === page + 1));
+  if (state.selectedTile && gone.has(state.selectedTile)) closeInspector();
+  layout.tiles = layout.tiles.filter((tile) => !gone.has(tile));
   applyPageOrder(layout, pageOrder(pages, page, pages - 1));
   const names = (layout.page_titles || []).slice(0, pages - 1);
   while (names.length && !names[names.length - 1]) names.pop();
   layout.page_titles = names.length ? names : undefined;
-  layout.pages = Math.max(1, pageCount(entriesOf(layout), layout.pages) - 1);
+  layout.pages = Math.max(1, pages - 1);
   markDirty();
+  toast(gone.size ? t("editor.layout.page_removed_tiles", { page: page + 1 }, gone.size) : t("editor.layout.page_removed", { page: page + 1 }), {
+    label: t("editor.common.undo"),
+    run: () => {
+      for (const { tile, slot, entity } of before) { tile.slot = slot; tile.entity = entity; }
+      layout.tiles = before.map((entry) => entry.tile);
+      layout.page_titles = titles;
+      layout.pages = wanted;
+      state.insertAt = -1;
+      markDirty();
+    },
+  });
 }
 // Moving a tile without dragging it (app 0.2.78), for a finger on a phone and for anyone who can't drag: the first
 // free cell of that page, else its first cell, where the tile in the way swaps places as it does for a drop or an
@@ -495,23 +506,31 @@ export function openTile(tile: Tile) {
   state.inspector = { kind: "tile" };
   loadCapabilities([tile.entity]);
 }
-// The title above one page (app 0.2.105), which is the one thing the top bar's inspector asks per page. Page 1's is
-// the screen's own title, the one every other page falls back to; a later page may say something else, and clearing
-// it hands that page back. Stored as one entry per page with page 1's always empty (validate_layout keeps it so),
-// trailing empty ones dropped, so a screen where nobody set one carries nothing.
-export const pageTitle = (page: number) => (page === 0 ? state.layout?.title ?? "" : state.layout?.page_titles?.[page] ?? "");
+// The screen's own title: what the top bar says on every page that has no title of its own, and what the editor
+// asks for first. Nothing is named after it - a screen's actions and sensors carry its device name - so renaming
+// it breaks no automation.
+export const screenTitle = () => state.layout?.title ?? "";
+export function setScreenTitle(value: string) {
+  if (!state.layout) return;
+  state.layout.title = value;
+  markDirty();
+}
+// The title of one page (app 0.2.105), the one thing the top bar's inspector asks per page. A title belongs to the
+// page and travels with it, page 1 included (app 0.2.123), so reordering the row never costs a name. Stored as one
+// entry per page, empty meaning the screen's own title, trailing empty ones dropped, so a screen where nobody set
+// one carries nothing.
+export const pageTitle = (page: number) => state.layout?.page_titles?.[page] ?? "";
 // What stands above a position in the row: the title of the page drawn there, which while a page is being moved is
-// not the page that started there. Position 1 always says the screen's own title.
+// not the page that started there, and the screen's own title for a page that has none.
 export const pageTitleShown = (page: number) => {
   const order = state.drag.page?.order;
-  return (page === 0 ? "" : pageTitle(order ? order[page] ?? page : page)) || state.layout?.title || "";
+  return pageTitle(order ? order[page] ?? page : page) || state.layout?.title || "";
 };
 export function setPageTitle(page: number, value: string) {
   if (!state.layout) return;
-  if (page === 0) state.layout.title = value;
   const names = [...(state.layout.page_titles ?? [])];
   while (names.length <= page) names.push("");
-  names[page] = page === 0 ? "" : value;
+  names[page] = value;
   while (names.length && !names[names.length - 1]) names.pop();
   state.layout.page_titles = names.length ? names : undefined;
   markDirty();

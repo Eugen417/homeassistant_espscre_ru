@@ -120,7 +120,9 @@ do this by themselves; an older screen gets it with its next **Update**. A `powe
 under `wifi:` in the screen's own ESPHome YAML still wins.
 
 Select your screen, tap the bar at the top of a page to give the screen its name,
-and search for entities in the **Library** on the right. It has domain filters with
+and search for entities in the **Library** on the right. With more than one page that bar asks
+two things: the **Screen title**, which every page without a title of its own shows, and the
+**Title above page N** of the page you tapped, which belongs to that page and travels with it. It has domain filters with
 colored icons, a room filter, and **Hide placed**. You can add one tile for every cell of the screen's pages,
 48 on a CYD or a 4-inch Guition (firmware 0.2.62+; see below for older firmware).
 The screen preview shows their placement on the screen's own grid: two columns of three on a CYD or a 4-inch Guition,
@@ -133,11 +135,12 @@ swap (the other tile takes the freed-up slot, or otherwise the nearest free
 slot); everything else stays put. While dragging, the preview already shows where
 everything will land; drop a tile on the page after the last one to start a new page.
 The pages stand side by side; **+ Add page** after the last one creates an empty page that's kept,
-and an empty page gets **Remove page**. A page moves as a whole (app 0.2.121): drag it by the
+and every page but the only one has **Remove page** beside its cell count (app 0.2.123): the page
+leaves with the tiles in its cells and with the **Go to page** tiles that led to it, the pages after
+it move up, and the message offers **Undo**. A page moves as a whole (app 0.2.121): drag it by the
 label above it, or press the left and right arrow keys while that label has focus. Its tiles keep
-their own cells, its title goes with it, and a **Go to page** tile keeps opening the page it means,
-under its new number. Page 1 always shows the screen's own title, so a page with a title of its own
-that lands there lets that title go; the message says so and offers **Undo**.
+their own cells, its own title goes with it wherever it lands, page 1 included, and a **Go to page**
+tile keeps opening the page it means, under its new number.
 Click an empty slot to place the next tile from the library
 there. Use the arrow keys to move a focused tile.
 Click a tile and its settings open in a drawer on the right, with the preview

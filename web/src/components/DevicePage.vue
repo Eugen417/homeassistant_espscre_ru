@@ -13,7 +13,6 @@ const props = defineProps<{ page: number; entries: { tile: Tile; slot: number }[
 const bySlot = computed(() => new Map(props.entries.map((e) => [e.slot, e])));
 const covered = computed(() => new Set(props.entries.flatMap((e) => cellsOf(e.slot, sizeOf(e.tile)).slice(1))));
 const cells = computed(() => Array.from({ length: grid.slots }, (_, cell) => props.page * grid.slots + cell).filter((slot) => !covered.value.has(slot)));
-const empty = computed(() => props.pages > 1 && !props.entries.some((e) => pageOf(e.slot) === props.page));
 const barSelected = computed(() => state.inspector?.kind === "bar" || state.inspector?.kind === "bar-add");
 const filled = computed(() => props.entries.filter((e) => pageOf(e.slot) === props.page).reduce((n, e) => n + spanOf(sizeOf(e.tile)), 0));
 function pickCell(slot: number) {
@@ -21,8 +20,8 @@ function pickCell(slot: number) {
   state.insertAt = marked ? -1 : slot;
   if (state.insertAt >= 0) document.querySelector<HTMLInputElement>("#search")?.focus();
 }
-// A whole page moves by its label (app 0.2.121). One page has nowhere to go, and the page a tile can start behind
-// the last one isn't a page yet.
+// A whole page moves by its label (app 0.2.121) and leaves by the button beside its cell count (app 0.2.123). One
+// page has nowhere to go and cannot leave either, and the page a tile can start behind the last one isn't a page yet.
 const movable = computed(() => props.pages > 1 && props.page < props.pages);
 // This is the page being carried, drawn in the place it would land.
 const carried = computed(() => state.drag.page?.to === props.page);
@@ -47,8 +46,11 @@ async function onKey(e: KeyboardEvent) {
         <span class="grip" aria-hidden="true">⋮⋮</span>{{ t("editor.page.label", { page: page + 1 }) }}
       </button>
       <span v-else>{{ t("editor.page.label", { page: page + 1 }) }}</span>
-      <button v-if="empty" type="button" class="btn mini" :title="t('editor.page.remove_title')" @click="removePage(page)">{{ t("editor.page.remove") }}</button>
-      <span v-else>{{ filled }} / {{ grid.slots }}</span>
+      <span class="page-side">
+        <span>{{ filled }} / {{ grid.slots }}</span>
+        <button v-if="movable" type="button" class="btn mini" :title="t('editor.page.remove_title')"
+          :aria-label="t('editor.page.remove_aria', { page: page + 1 })" @click="removePage(page)">{{ t("editor.page.remove") }}</button>
+      </span>
     </div>
     <div class="device" :class="{ cyd: isCompact }">
       <div class="bar-wrap" :class="{ selected: barSelected }" :title="t('editor.page.edit_bar')" role="button" tabindex="0"

@@ -19,7 +19,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
@@ -737,6 +737,26 @@ class Manager:
         if device not in self._prefixes:
             self._prefixes[device] = device_prefixes(registry, device)
         return self._prefixes[device]
+
+    def taken_names(self):
+        """The names the screens this app knows already carry (app 0.2.123): `nodes` their ESPHome names, which Home
+        Assistant turns into `esphome.<node>_...` actions, and `prefixes` the starts Home Assistant gave their entity
+        ids, which an automation types as `switch.<screen>_...`. A new screen may take neither (core.name_clash)."""
+        nodes, prefixes = set(), set()
+        for meta in self.firmware.profile_names().values():
+            if meta.get('node'):
+                nodes.add(str(meta['node']).lower())
+            if meta.get('friendly'):
+                prefixes.add(entity_slug(meta['friendly']))
+        for screen in self.screens():
+            if screen.get('node'):
+                nodes.add(str(screen['node']).lower())
+            if screen.get('device_id'):
+                prefixes |= set(self.device_prefixes(screen['device_id']))
+            for name in (screen.get('device'), screen.get('name')):
+                if name:
+                    prefixes.add(entity_slug(name))
+        return {'nodes': sorted(nodes), 'prefixes': sorted(name for name in prefixes if name)}
 
     def follow_renamed_inboxes(self, items):
         """Keep a screen's layout and update history when its inbox entity gets a new entity id.
@@ -2344,7 +2364,9 @@ def create_app(manager, development=False):
         """Settings → Claude → Download: the same skill as a zip for claude.ai; writes nothing."""
         return web.Response(body=claude_skill.archive(), content_type='application/zip',
                             headers={'Content-Disposition': f'attachment; filename="{claude_skill.NAME}.zip"'})
-    async def firmware_status(request): return web.json_response(manager.firmware.status())
+    async def firmware_status(request):
+        # New screen asks what is taken while the name is typed, so a clash is said before anything is written.
+        return web.json_response({**manager.firmware.status(), 'taken': manager.taken_names()})
     async def firmware_start(request): return web.json_response(manager.firmware.start(await request.json()))
     async def firmware_override(request):
         return web.json_response(manager.firmware.override(request.match_info['file']))
@@ -2359,6 +2381,9 @@ def create_app(manager, development=False):
         data = await request.json()
         if isinstance(data, dict):
             data['language'] = manager.region.language()
+            clash = name_clash(data.get('name'), data.get('friendly_name'), manager.taken_names())
+            if clash:
+                raise ValueError(clash)
         return web.json_response(manager.firmware.install(data))
     async def firmware_download(request):
         """New screen and Firmware & USB → Download: the factory image this app just built, for ESPHome Web on
