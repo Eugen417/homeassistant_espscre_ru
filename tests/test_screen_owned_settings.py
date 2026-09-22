@@ -250,6 +250,68 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
             for key in ('dark_mode', 'auto_home', 'auto_home_seconds', 'swipe_pages', 'page_buttons'):
                 self.assertIn(key, view['keys'], key)
 
+    async def test_a_screen_says_itself_what_it_can_do(self):
+        # A board can be changed: a Waveshare whose backlight was rewired to a PWM pin (docs/WAVESHARE7.md) really
+        # does dim, and the table this app keeps per board would keep saying it cannot. So a screen reports its own
+        # abilities (firmware 0.2.99, the "Screen features" sensor) and those win; the table is only for firmware
+        # from before it and for a screen that is offline, which reports nothing at all.
+        core_yaml = (ROOT / 'packages/core.yaml').read_text()
+        self.assertIn('name: "Screen features"', core_yaml)
+        sensor = core_yaml.split('name: "Screen features"', 1)[1].split('update_interval', 1)[0]
+        # The sensor only publishes; the list of abilities lives in the component, where tests/test_settings_screen.cpp
+        # walks every combination of it.
+        self.assertIn("lambda: 'return {settings_screen::features()};'", sensor)
+        words = SCREEN_PAGE.split('inline std::string features() {', 1)[1].split('\n}', 1)[0]
+        # One row per ability on both sides, and the same words: the firmware's list and core.FEATURES are one table
+        # in two places, so adding an ability is a line there and a row here.
+        self.assertEqual(set(re.findall(r'\{\w+, "(\w+)"\}', words)), set(core.FEATURES))
+        self.assertIn('words.empty() ? "none" : words', words)
+        for feature, key in core.FEATURES.items():
+            for board, shape in core.SHAPES.items():
+                self.assertIn(key, shape, f'{board} says nothing about {feature}')
+        # Silence is not an answer: the board decides.
+        self.assertFalse(core.dimmable({'board': 'waveshare7'}))
+        self.assertFalse(core.can_standby({'board': 'waveshare7'}))
+        self.assertIsNone(core.features_of({'board': 'waveshare7'}))
+        # The modded one, in its own words.
+        modded = {'board': 'waveshare7', 'features': 'dimmable'}
+        self.assertTrue(core.dimmable(modded))
+        self.assertFalse(core.can_standby(modded), 'standby stays off until that board reports it too')
+        self.assertTrue(core.can_standby({'board': 'waveshare7', 'features': 'dimmable standby'}))
+        # A screen that can do none of them says so, which is an answer.
+        self.assertEqual(core.features_of({'features': 'none'}), set())
+        self.assertFalse(core.dimmable({'board': 'cyd', 'features': 'none'}))
+        self.assertFalse(core.can_standby({'board': 'cyd', 'features': 'none'}))
+        # A word this app has never heard of changes nothing and does not spoil the rest: newer firmware may report
+        # an ability an older app knows nothing about.
+        ahead = {'board': 'waveshare7', 'features': 'dimmable standby pictures wifi7'}
+        self.assertEqual(core.features_of(ahead), {'dimmable', 'standby', 'pictures', 'wifi7'})
+        self.assertTrue(core.dimmable(ahead))
+        # Nonsense is silence.
+        for words in ('', 'DIMMABLE', 'dimmable!', 'a b c d e f g h i', None, 42):
+            self.assertIsNone(core.features_of({'features': words}), words)
+        self.assertTrue(core.dimmable({'board': 'cyd', 'features': 'DIMMABLE'}))
+        with tempfile.TemporaryDirectory() as tmp:
+            m = self.manager(tmp)
+            screen = m.screen('text.screen')
+            self.assertIsNone(screen['features'], 'no such sensor: the board decides')
+            waveshare = {**screen, 'board': 'waveshare7'}
+            self.assertNotIn('brightness', m.settings_view(waveshare)['keys'])
+            view = m.settings_view({**waveshare, 'features': 'dimmable'})
+            self.assertIn('brightness', view['keys'], 'a modded board gets its brightness row')
+            self.assertEqual(view['switches'], [])
+            for key in core.STANDBY_KEYS:
+                self.assertNotIn(key, view['keys'] + view['unavailable'], key)
+            # The whole way through: the sensor Home Assistant holds becomes the screen's own word.
+            m.ha.registry = m.ha.registry + [{'entity_id': 'sensor.features', 'platform': 'esphome',
+                                              'original_name': 'Screen features', 'device_id': 'd1'}]
+            m.ha.states['sensor.features'] = {'state': 'dimmable standby'}
+            self.assertEqual(m.screen('text.screen')['features'], 'dimmable standby')
+            self.assertTrue(core.dimmable(m.screen('text.screen')))
+            # A screen that restarts says "unavailable", which is silence and not an answer.
+            m.ha.states['sensor.features'] = {'state': 'unavailable'}
+            self.assertIsNone(m.screen('text.screen')['features'])
+
     async def test_the_layout_message_leaves_them_out(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = self.manager(tmp)

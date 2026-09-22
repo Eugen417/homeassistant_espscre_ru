@@ -38,6 +38,25 @@ inline bool dimmable = true;
 // these rows, the entities behind them and the add-on's Settings leave them out, and dim_display in
 // packages/core.yaml does nothing there.
 inline bool can_standby = true;
+// What this screen is able to do, in the words ESP Screens reads from its "Screen features" sensor (firmware
+// 0.2.99+): one word per ability, space separated, and "none" for a screen that can do none of them. The add-on
+// used to read these facts from a table it keeps per board, which is right until a board is changed: a Waveshare
+// whose backlight was rewired to a PWM pin (docs/WAVESHARE7.md) really does dim, and the table would keep saying it
+// cannot. The screen is the one that knows. One line per ability below, and the add-on skips a word it does not
+// know (FEATURES in screen_manager/app/core.py), so this list may grow without an older app minding.
+inline std::string features() {
+  const struct { bool able; const char *word; } list[] = {
+    {dimmable, "dimmable"},     // the backlight takes levels, not only lit or dark
+    {can_standby, "standby"},   // the screen can go dark and come back
+  };
+  std::string words;
+  for (const auto &item : list) {
+    if (!item.able) continue;
+    if (!words.empty()) words += ' ';
+    words += item.word;
+  }
+  return words.empty() ? "none" : words;
+}
 // Turning: a half turn keeps the canvas, the grid and the whole size table, so every screen offers it (firmware
 // 0.2.80+); a quarter turn only a square screen, whose canvas is the same either way. packages/core.yaml sets this
 // from DISPLAY_W == DISPLAY_H at boot.

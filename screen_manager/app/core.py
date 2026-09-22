@@ -52,7 +52,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main', 'waveshare7': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.98'
+FIRMWARE_VERSION = '0.2.99'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -318,8 +318,11 @@ NAME_SCREEN_LAYOUT = ('Screen layout',)
 # boards.json is written under. Firmware from before it says nothing, and then the Guition's own sensor or the
 # YAML the screen is built from has to tell (board_of below).
 NAME_SCREEN_BOARD = ('Screen board',)
+# What a screen can do with its backlight (firmware 0.2.99, app 0.2.120): "dimmable", "standby", both, or "none".
+# Firmware from before it says nothing, and then the board's own row in boards.json decides (dimmable/can_standby below).
+NAME_SCREEN_FEATURES = ('Screen features',)
 SCREEN_ENTITY_NAMES = frozenset(NAME_TILE_SETTINGS + NAME_SCREEN_FIRMWARE + NAME_GUITION_TYPE + NAME_DEVICE_NAME + NAME_IP_ADDRESS
-                                + NAME_SCREEN_LANGUAGE + NAME_SCREEN_LAYOUT + NAME_SCREEN_BOARD)
+                                + NAME_SCREEN_LANGUAGE + NAME_SCREEN_LAYOUT + NAME_SCREEN_BOARD + NAME_SCREEN_FEATURES)
 
 # What a board looks like: the glass it draws on and the cells of one page, for each way the board can hang. These
 # come straight from the board files (tools/generate_board_shapes.py writes boards.json from PANEL_W, GRID_COLS and
@@ -410,13 +413,56 @@ def board_of(screen):
         return SHAPES[package].get('board', 'unknown')
     return board or 'unknown'
 
+# ---- what a screen can do
+# One row per ability (app 0.2.120): the word a screen reports for it in its "Screen features" sensor, and the key
+# boards.json carries for a screen that cannot report yet. Adding an ability is a row here and a line in
+# settings_screen::features() on the firmware side; the sensor, the reading of it and the fallback stay as they are.
+# Nothing asks about a word that is not in this table, so a screen may report one an older app has never heard of,
+# and a word may be retired here without the firmware having to stop sending it. Whether a board draws pictures is
+# the obvious next one: it is still read from boards.json alone (camera_feed.BOXES), because the memory for a
+# picture is the board's and not this screen's.
+FEATURES = {
+    # The backlight takes levels, not just lit or dark (app 0.2.105). One board so far says no: the Waveshare's
+    # backlight is a single line on an I2C expander, and there a brightness percentage is a number that lies.
+    'dimmable': 'dimmable',
+    # The screen can go dark and come back (app 0.2.106). The Waveshare's backlight line also enables the boost
+    # converter behind its LEDs, and switching that on from a dark screen pulls the 3.3 V rail under the brownout
+    # level: measured on 2026-09-21, every wake from a dark standby reset the board or left its I2C bus dead.
+    'standby': 'can_standby',
+}
+# How a screen writes them: lower case words, space separated, or "none" for a screen that can do none of them.
+# Wide enough for words this app does not know yet, and bounded so a sensor full of something else is no answer.
+FEATURES_TEXT = r'[a-z][a-z0-9_]{0,15}(?: [a-z][a-z0-9_]{0,15}){0,7}'
+
+def features_of(screen):
+    """What a screen said it can do, as a set of words, or None when it never said so.
+
+    A screen reports this itself from firmware 0.2.99, because a board can be changed: a Waveshare whose backlight
+    was rewired to a PWM pin (docs/WAVESHARE7.md) really does dim, and a table per board would keep saying it cannot.
+    None is silence, which is firmware from before that sensor or a screen that is offline, and then the board's own
+    row in boards.json decides. "none" is an answer: a screen that can do none of them.
+    """
+    if not isinstance(screen, dict):
+        return None
+    words = screen.get('features')
+    if not isinstance(words, str) or not re.fullmatch(FEATURES_TEXT, words):
+        return None
+    return {word for word in words.split() if word != 'none'}
+
+def able(screen, feature):
+    """Whether this screen can do `feature` (a key of FEATURES): its own word when it said one, else the board's row
+    in boards.json, which is the same fact its firmware was built with (settings_screen::dimmable and can_standby),
+    so the settings panel and the screen's own page agree. A board this app has never heard of can do everything,
+    which is what every board but one does."""
+    words = features_of(screen)
+    if words is not None:
+        return feature in words
+    return bool(SHAPES.get(board_of(screen), {}).get(FEATURES[feature], True))
+
 def dimmable(screen):
-    """Whether this screen's backlight takes levels (app 0.2.105). One board so far says no: the Waveshare's
-    backlight is a single line on an I2C expander, lit or dark, and there a brightness percentage is a number
-    that lies. The fact comes from that board's own file through boards.json, the same place the firmware reads
-    it from (settings_screen::dimmable), so the settings panel and the screen's own page agree. A board this app
-    has never heard of is taken to dim, which is what every board but one does."""
-    return bool(SHAPES.get(board_of(screen), {}).get('dimmable', True))
+    """Whether this screen's backlight takes levels: no normal brightness without it, and standby and night as the
+    switch they really are."""
+    return able(screen, 'dimmable')
 
 # The settings that only mean something on a screen that can go dark: standby, night (standby with a clock) and
 # going back to page 1 when standby starts.
@@ -424,13 +470,9 @@ STANDBY_KEYS = ('standby_enabled', 'standby_seconds', 'standby_brightness', 'nig
                 'night_end', 'night_brightness', 'home_on_standby')
 
 def can_standby(screen):
-    """Whether this screen can go dark at all (app 0.2.106). The Waveshare's backlight line also enables the boost
-    converter behind its LEDs, and switching that on from a dark screen pulls the 3.3 V rail under the brownout
-    level: measured on 2026-09-21, every wake from a dark standby reset the board or left its I2C bus dead. So that
-    board's file says CAN_STANDBY false, boards.json carries it, the firmware hides the standby and night rows and
-    keeps their entities to itself, and the settings panel leaves them out too. A board this app has never heard
-    of is taken to have standby, which is what every board but one does."""
-    return bool(SHAPES.get(board_of(screen), {}).get('can_standby', True))
+    """Whether this screen can go dark at all: without it there is no standby and no night, on the screen, in Home
+    Assistant or in the settings panel, and the editor drops a group that has no rows left."""
+    return able(screen, 'standby')
 
 def shape_of(screen):
     """The shape of a screen as the editor needs it: its canvas, the cells of one page, its density, its look and,
@@ -1914,6 +1956,9 @@ def discover_screens(registry, states, devices, areas):
                    if board in SHAPES})
     nodes = diagnostic(NAME_DEVICE_NAME, r'[a-z0-9][a-z0-9-]{0,30}')
     shapes = diagnostic(NAME_SCREEN_LAYOUT, SHAPE_TEXT)
+    # What the screen says its backlight can do (firmware 0.2.99): nothing here for older firmware, and nothing
+    # while it is offline either, which is when the board's row in boards.json decides (features_of).
+    features = diagnostic(NAME_SCREEN_FEATURES, FEATURES_TEXT)
     addresses = diagnostic(NAME_IP_ADDRESS, r'\d{1,3}(\.\d{1,3}){3}')
     languages = diagnostic(NAME_SCREEN_LANGUAGE, r'[a-z]{2,3}(-[A-Za-z0-9]{2,8})?')
     # Firmware from before the languages (0.2.75 and older) has no such sensor: it speaks English, with fewer letters.
@@ -1939,6 +1984,8 @@ def discover_screens(registry, states, devices, areas):
                         # page. The editor draws its mockup from this instead of guessing from the board.
                         # (`layout` is taken: that is the screen's tiles.)
                         'shape': parse_shape(shapes.get(item.get('device_id'))),
+                        # What this screen can do with its backlight, in its own words (firmware 0.2.99).
+                        'features': features.get(item.get('device_id')),
                         'node': nodes.get(item.get('device_id')), 'ip': addresses.get(item.get('device_id')),
                         'language': languages.get(item.get('device_id')),
                         'language_sensor': item.get('device_id') in speaks,

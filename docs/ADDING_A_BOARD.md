@@ -88,6 +88,14 @@ standby and no night: the firmware hides those rows, the board file keeps their 
 (copy the block at the end of `packages/boards/waveshare-esp32s3-43.yaml`), `tools/generate_board_shapes.py` writes
 both flags into boards.json for the add-on, and `tests/test_easy_package.py` keeps the flag and the list together.
 
+A screen also says what it can do while it runs, in its **Screen features** sensor (firmware 0.2.99): one word per
+ability, so the add-on follows the screen itself and only falls back to boards.json for firmware from before that
+sensor and for a screen that is offline. That matters for a board that was changed after it was built: a Waveshare
+whose backlight was rewired to a PWM pin (`docs/WAVESHARE7.md`) really does dim, and a table per board would keep
+saying it cannot. An ability is one row on each side: a line in the `features` list of the sensor in
+`packages/core.yaml`, and a row in `FEATURES` in `screen_manager/app/core.py` naming the boards.json key it falls
+back to. A word the add-on does not know is skipped, so new firmware may report one an older add-on never heard of.
+
 Give the board file its own `BOARD_ID` (the screen reports it) and a `Rotation` select with the angles its glass
 allows (the half turn; the quarter turns as well when it is square; copy the block of the nearest board,
 `tools/check_packages.py` checks it), and add the board to `packages/<board>.yaml` and

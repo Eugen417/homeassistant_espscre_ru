@@ -275,4 +275,14 @@ int main() {
   assert(result == SetResult::unknown);
   result = set("beep", 1);
   assert(result == SetResult::unknown && stored == before);
+
+  // ---- what the screen tells ESP Screens it can do (firmware 0.2.99) ----
+  // One word per ability, space separated and in the order of the list, so the add-on reads the same words
+  // whatever the board. A screen that can do none of them says so: "none" is an answer, silence is not.
+  const bool dimmable_before = dimmable, standby_before = can_standby;
+  dimmable = true;  can_standby = true;   assert(features() == "dimmable standby");
+  dimmable = true;  can_standby = false;  assert(features() == "dimmable");
+  dimmable = false; can_standby = true;   assert(features() == "standby");
+  dimmable = false; can_standby = false;  assert(features() == "none");
+  dimmable = dimmable_before; can_standby = standby_before;
 }

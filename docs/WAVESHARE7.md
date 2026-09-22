@@ -24,8 +24,58 @@ Use the native USB connector for USB Serial/JTAG logs; the separate USB-to-UART 
   Their operation on this board still needs physical verification. They are periodically refreshed images, not video playback.
 - The unmodified backlight only switches on or off. The experimental profile keeps it on: no dimming, standby, night mode or alert flashes.
   The 4.3-inch board had brownouts on wake; that does not establish the same fault on this model. Standby remains disabled until tested.
+  A board whose backlight has been rewired does dim: see [Dimming with the backlight mod](#dimming-with-the-backlight-mod).
 - GT911 reports pixel coordinates, with no resistive calibration. The existing touch filter and action guard remain in use.
 - LVGL uses a 12% draw buffer to leave internal RAM for networking and tile widgets.
+
+## Dimming with the backlight mod
+
+The stock backlight is one line on the CH422G expander (EXIO2): lit or dark, with no levels.
+A hardware modification described by the Home Assistant community solders a wire from the backlight control pad to a free GPIO,
+which can then drive the backlight with PWM. Both pins in use are reachable without opening the board:
+GPIO6 on the sensor connector, or GPIO16 on the RS485 connector.
+See the [community thread](https://community.home-assistant.io/t/esp32-s3-7inch-capacitive-touch-display-adjust-brightness/771030/10) for the pad and the wiring.
+
+The firmware needs no new release for this. Every screen installed by ESP Screens keeps a small YAML file of its own that is
+loaded after the shared package and survives app updates. Open the screen, press `···`, choose **Override YAML** (advanced)
+and enter this, with `GPIO16` replaced by the pin the wire is soldered to:
+
+```yaml
+substitutions:
+  BACKLIGHT_DIMMABLE: "true"
+
+output:
+  - id: !remove gpio_backlight_pwm
+  - platform: ledc
+    id: gpio_backlight_pwm
+    pin: GPIO16
+    frequency: 1000Hz
+    min_power: 40%
+    zero_means_zero: true
+
+switch:
+  - platform: output
+    id: backlight_enable
+    output: backlight_line
+    restore_mode: ALWAYS_ON
+    internal: true
+```
+
+Then press **Save & check**, which validates the complete profile, and **Update firmware** to rebuild and install.
+
+- The PWM output takes over the id the shared backlight already uses, so the light, the brightness setting and every
+  script stay as they are and reach a dimmer instead of a switch.
+- The switch keeps EXIO2 high, which the panel needs to light at all. It stays out of Home Assistant.
+- `min_power` maps the whole brightness setting onto the duty range the LED driver actually lights at. One board went dark
+  below roughly 40 %; raise or lower the figure until the lowest setting is as dim as the board can go.
+  `zero_means_zero` keeps a level of zero completely dark.
+- From firmware 0.2.99 a screen reports what it can do (the **Screen features** sensor), so ESP Screens shows the
+  brightness row for a modified board instead of reading it from its own table per board.
+- Standby and night mode stay switched off on this board (`CAN_STANDBY`). With the mod the boost converter behind the LEDs
+  stays powered and only the duty falls to zero, so the 4.3-inch brownout cannot occur in the same way, but that has not
+  been measured. Setting `CAN_STANDBY: "true"` in the same override is untested.
+
+Reported working on a board revision 1.1 with 8 MB flash by [@Cjdavidson](https://github.com/MaxGramser/homeassistant_espscreen/issues/22), who measured the mod and the dimming range.
 
 ## Hardware references
 

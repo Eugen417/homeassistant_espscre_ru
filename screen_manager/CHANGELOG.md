@@ -1,3 +1,11 @@
+## 0.2.120 (firmware 0.2.99)
+
+A screen says for itself what it can do, and the 7-inch guide has the backlight mod.
+
+- ESP Screens read two facts from a table it keeps per board: whether the backlight takes levels, and whether the screen can go dark at all. That is right until a board is changed. A Waveshare 7-inch whose backlight is rewired to a PWM pin really does dim, and the table kept saying it could not, so the brightness row stayed hidden in **Screen settings** while the screen's own settings page showed it (GitHub #22).
+- A screen now reports what it can do in a **Screen features** sensor, one word per ability, and its own word wins. The table is still there for firmware from before this release, and for a screen that is offline and reports nothing. Adding an ability later is one line in the firmware and one row in the app, and a word the app does not know is skipped, so a newer screen may report something an older app has never heard of.
+- The 7-inch guide now carries the backlight mod: the wire, the two pins people use for it, the Override YAML that turns the backlight into a real dimmer, and `min_power` for a driver that stays dark below roughly 40 % duty. Measured on a revision 1.1 board by @Cjdavidson.
+
 ## 0.2.119 (firmware 0.2.98)
 
 A lamp that is on now says so in colour, not in brightness.

@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.98"
+  SCREEN_FIRMWARE_VERSION: "0.2.99"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -1198,6 +1198,17 @@ text_sensor:
     name: "Screen board"
     entity_category: diagnostic
     lambda: 'return {"${BOARD_ID}"};'
+    update_interval: 60s
+  # What this screen is able to do (firmware 0.2.99+): the words of settings_screen::features(), which is where the
+  # list of abilities lives. ESP Screens used to read these facts from a table it keeps per board (boards.json),
+  # which is right until a board is changed: a Waveshare whose backlight was rewired to a PWM pin
+  # (docs/WAVESHARE7.md) really does dim, and the table would keep saying it cannot. So the screen says it itself,
+  # and the app falls back to the table only for firmware from before this sensor and for a screen that is offline.
+  # docs/ADDING_A_BOARD.md says how an ability is added.
+  - platform: template
+    name: "Screen features"
+    entity_category: diagnostic
+    lambda: 'return {settings_screen::features()};'
     update_interval: 60s
   # The language this firmware was built in (0.2.90+): ESP Screens offers an update when it differs from the chosen one.
   - platform: template
