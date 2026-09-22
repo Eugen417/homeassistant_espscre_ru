@@ -137,6 +137,50 @@ export function arrange(tiles: Tile[], moving: Tile, target: number): Entry[] | 
   }
   return result.sort((a, b) => a.slot - b.slot);
 }
+// ---- Whole pages ----
+// A page moves as a whole (app 0.2.121). `pageOrder` is the row after the page at `from` is dropped at `to`:
+// `order[position]` is the page that ends up there. Moving is a move, not a swap, so the pages in between shift
+// up or down one, the way a list reorders. An index outside the row leaves the order as it was.
+export function pageOrder(pages: number, from: number, to: number) {
+  const order = Array.from({ length: Math.max(0, pages) }, (_, page) => page);
+  if (from < 0 || to < 0 || from >= order.length || to >= order.length) return order;
+  order.splice(to, 0, ...order.splice(from, 1));
+  return order;
+}
+// Where each page ends up: `places[page]` is the position it stands in afterwards.
+export function pagePlaces(order: number[]) {
+  const places = order.map(() => 0);
+  order.forEach((page, position) => (places[page] = position));
+  return places;
+}
+// The tiles once the pages stand in `order`: every tile keeps its own cell of its own page, the page itself moves.
+// A tile on a page the order doesn't name stays exactly where it is.
+export function reorderPages(entries: Entry[], order: number[]): Entry[] {
+  const places = pagePlaces(order);
+  return entries
+    .map(({ tile, slot }) => {
+      const place = places[pageOf(slot)];
+      return { tile, slot: place === undefined ? slot : place * SLOTS_PER_PAGE + (slot % SLOTS_PER_PAGE) };
+    })
+    .sort((a, b) => a.slot - b.slot);
+}
+// The page titles once the pages stand in `order`. A title belongs to its page and travels with it. Page 1 says the
+// screen's own title and holds no entry of its own, so a title that lands there is let go, exactly as the add-on
+// would drop it (core.validate_layout), and trailing empty entries go as well.
+export function reorderTitles(titles: string[] | undefined, order: number[]) {
+  const own = (page: number) => (page === 0 ? "" : titles?.[page] ?? "");
+  const names = order.map(own).concat((titles || []).slice(order.length));
+  if (names.length) names[0] = "";
+  while (names.length && !names[names.length - 1]) names.pop();
+  return names;
+}
+// A Go to page tile means the page it points at, not the number it happens to have: `to` gives a page's new number
+// (both count from 1). Anything else, and a number no page can have, is left alone.
+export function retargetedPage(id: string, to: (page: number) => number) {
+  const target = pageTarget(id);
+  const moved = target ? to(target) : 0;
+  return moved !== target && moved >= 1 && moved <= FIRMWARE_MAX_PAGES ? `screen.page_${moved}` : id;
+}
 // Pages the tiles need, or more when the user keeps empty pages on purpose (`layout.pages`).
 export function pageCount(entries: Entry[], wanted = 1) {
   const last = Math.max(0, ...entries.map(({ tile, slot }) => slot + spanOf(sizeOf(tile))));

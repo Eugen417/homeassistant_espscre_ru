@@ -1186,6 +1186,8 @@
       "count": "{n} strona · kafelki: {tiles} / {limit} | {n} strony · kafelki: {tiles} / {limit} | {n} stron · kafelki: {tiles} / {limit}",
       "no_tiles": "Dodaj pierwsze światło, scenę lub urządzenie z biblioteki.",
       "how_to": "Kliknij górny pasek lub kafelek, aby go zmienić. Przeciągnij, aby przenieść; upuść na następnej stronie, aby utworzyć nową.",
+      "how_to_pages": "Przeciągnij stronę za jej etykietę, aby przenieść całą stronę.",
+      "page_title_gone": "Strona 1 zawsze pokazuje tytuł ekranu, więc „{name}” zniknął.",
       "positions_hint": "Puste miejsca i stałe pozycje działają od wersji firmware 0.2.26. Do czasu tej aktualizacji ten ekran (firmware {firmware}) przesuwa kafelki w górę, na pierwsze wolne miejsce.",
       "aria": "Układ ekranu",
       "add_page": "+ Dodaj stronę",
@@ -1196,6 +1198,8 @@
       "remove": "Usuń stronę",
       "remove_title": "Strony po tej przesuną się o jedno miejsce w górę",
       "edit_bar": "Edytuj górny pasek",
+      "move_title": "Przeciągnij tę stronę w inne miejsce w rzędzie albo użyj ← i →",
+      "move_aria": "Przenieś stronę {page}",
       "cell": {
         "title": "Puste miejsce. Kliknij, aby dodać tu kafelek, albo przeciągnij go tutaj.",
         "aria": "Puste miejsce {slot} na stronie {page}: dodaj tu następny kafelek",

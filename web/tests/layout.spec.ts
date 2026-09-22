@@ -2,8 +2,8 @@
 import { describe, expect, it } from "vitest";
 import {
   arrange, cellsOf, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, grid, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
-  newTile, normalize, occupied, packSlots, pageCount, pageStart, pageTarget, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, spanOf,
-  strandedPages, tileLimit, versionAtLeast,
+  newTile, normalize, occupied, packSlots, pageCount, pageOrder, pagePlaces, pageStart, pageTarget, reorderPages, reorderTitles,
+  retargetedPage, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, spanOf, strandedPages, tileLimit, versionAtLeast,
 } from "../src/model/layout";
 import type { Inventory, Layout, Tile } from "../src/types";
 
@@ -212,5 +212,43 @@ describe("pages that only Go to page tiles reach (firmware 0.2.69)", () => {
     // A tile to page 3 that sits on a page nobody reaches leaves page 3 out too.
     expect(strandedPages(entries([nav(3, 6)]), 3)).toEqual({ tiles: 1, targets: [3], unreachable: [2, 3], noWayBack: [] });
     expect(strandedPages(entries([tile("light.a", 0)]), 1)).toEqual({ tiles: 0, targets: [], unreachable: [], noWayBack: [] });
+  });
+});
+
+describe("a whole page that moves (app 0.2.121)", () => {
+  it("moves a page in the row instead of swapping two", () => {
+    expect(pageOrder(4, 2, 0)).toEqual([2, 0, 1, 3]);
+    expect(pageOrder(4, 0, 3)).toEqual([1, 2, 3, 0]);
+    expect(pageOrder(4, 1, 2)).toEqual([0, 2, 1, 3]);
+    // Moving back is exactly the way back.
+    expect(pageOrder(4, 0, 2).map((page) => pageOrder(4, 2, 0)[page])).toEqual([0, 1, 2, 3]);
+    // An index off the row leaves it as it was.
+    expect(pageOrder(3, 0, 3)).toEqual([0, 1, 2]);
+    expect(pageOrder(3, -1, 1)).toEqual([0, 1, 2]);
+    expect(pagePlaces([2, 0, 1])).toEqual([1, 2, 0]);
+  });
+  it("takes every tile with its page, on its own cell", () => {
+    setGrid(2, 3);
+    const first = tile("a", 0), wide = tile("w", 2, { size: "wide" }), second = tile("b", 7), full = tile("f", 12, { size: "full" });
+    const moved = reorderPages(entries([first, wide, second, full]), pageOrder(3, 2, 0));
+    expect(moved.map((e) => [e.tile.entity, e.slot])).toEqual([["f", 0], ["a", 6], ["w", 8], ["b", 13]]);
+    // A page the order doesn't name keeps its tiles where they are.
+    expect(reorderPages(entries([tile("z", 20)]), [0, 1]).map((e) => e.slot)).toEqual([20]);
+  });
+  it("takes a page's own title with it and lets go of one that lands on page 1", () => {
+    expect(reorderTitles(["", "Kitchen", "Bedroom"], pageOrder(3, 2, 1))).toEqual(["", "Bedroom", "Kitchen"]);
+    // Page 1 says the screen's own title, so a title that lands there goes, and page 1 leaves none behind.
+    expect(reorderTitles(["", "Kitchen"], pageOrder(2, 1, 0))).toEqual([]);
+    expect(reorderTitles(["", "", "Bedroom"], pageOrder(3, 0, 2))).toEqual(["", "Bedroom"]);
+    expect(reorderTitles(undefined, pageOrder(3, 0, 1))).toEqual([]);
+  });
+  it("keeps a Go to page tile pointing at the page it means", () => {
+    const to = (page: number) => (pagePlaces(pageOrder(3, 2, 0))[page - 1] ?? page - 1) + 1;
+    expect(retargetedPage("screen.page_3", to)).toBe("screen.page_1");
+    expect(retargetedPage("screen.page_1", to)).toBe("screen.page_2");
+    expect(retargetedPage("light.a", to)).toBe("light.a");
+    // A page number no screen can have is left alone.
+    expect(retargetedPage("screen.page_8", () => 9)).toBe("screen.page_8");
+    expect(retargetedPage("screen.page_2", () => 0)).toBe("screen.page_2");
   });
 });

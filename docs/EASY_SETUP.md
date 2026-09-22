@@ -133,7 +133,12 @@ swap (the other tile takes the freed-up slot, or otherwise the nearest free
 slot); everything else stays put. While dragging, the preview already shows where
 everything will land; drop a tile on the page after the last one to start a new page.
 The pages stand side by side; **+ Add page** after the last one creates an empty page that's kept,
-and an empty page gets **Remove page**. Click an empty slot to place the next tile from the library
+and an empty page gets **Remove page**. A page moves as a whole (app 0.2.121): drag it by the
+label above it, or press the left and right arrow keys while that label has focus. Its tiles keep
+their own cells, its title goes with it, and a **Go to page** tile keeps opening the page it means,
+under its new number. Page 1 always shows the screen's own title, so a page with a title of its own
+that lands there lets that title go; the message says so and offers **Undo**.
+Click an empty slot to place the next tile from the library
 there. Use the arrow keys to move a focused tile.
 Click a tile and its settings open in a drawer on the right, with the preview
 still in view: a custom name, click behavior, a mini-slider, a large value, a graph

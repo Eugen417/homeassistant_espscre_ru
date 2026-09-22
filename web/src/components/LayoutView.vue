@@ -30,6 +30,7 @@ function onCanvasClick(e: MouseEvent) {
       <b id="count">{{ t("editor.layout.count", { tiles: layout.tiles.length, limit: tileLimit }, pages) }}</b>
       <span v-if="!layout.tiles.length" id="no-tiles">{{ t("editor.layout.no_tiles") }}</span>
       <span v-else>{{ t("editor.layout.how_to") }}</span>
+      <span v-if="pages > 1" id="how-to-pages">{{ t("editor.layout.how_to_pages") }}</span>
       <span v-if="positionsHint" id="positions-hint" class="warn">{{ positionsHint }}</span>
       <span v-if="reachHint" id="page-reach-hint" class="warn">{{ reachHint }}</span>
     </div>

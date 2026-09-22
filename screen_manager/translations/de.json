@@ -1186,6 +1186,8 @@
       "count": "{n} Seite · {tiles} / {limit} Kacheln | {n} Seiten · {tiles} / {limit} Kacheln",
       "no_tiles": "Füge aus der Bibliothek deine erste Leuchte, Szene oder dein erstes Gerät hinzu.",
       "how_to": "Tippe auf die Kopfleiste oder eine Kachel, um sie zu ändern. Ziehen verschiebt; Ablegen auf der nächsten Seite legt eine neue an.",
+      "how_to_pages": "Zieh eine Seite an ihrer Beschriftung, um die ganze Seite zu verschieben.",
+      "page_title_gone": "Seite 1 zeigt immer den Titel des Bildschirms, also ist „{name}“ weg.",
       "positions_hint": "Freie Plätze und feste Positionen funktionieren ab Firmware 0.2.26. Bis zu diesem Update rückt dieser Bildschirm (Firmware {firmware}) die Kacheln auf den ersten freien Platz vor.",
       "aria": "Bildschirm-Layout",
       "add_page": "+ Seite hinzufügen",
@@ -1196,6 +1198,8 @@
       "remove": "Seite entfernen",
       "remove_title": "Die folgenden Seiten rücken um eine Stelle nach vorn",
       "edit_bar": "Kopfleiste bearbeiten",
+      "move_title": "Zieh diese Seite an eine andere Stelle in der Reihe, oder nimm ← und →",
+      "move_aria": "Seite {page} verschieben",
       "cell": {
         "title": "Freier Platz. Klicke, um hier eine Kachel hinzuzufügen, oder ziehe eine hierher.",
         "aria": "Freier Platz {slot} auf Seite {page}: nächste Kachel hier hinzufügen",

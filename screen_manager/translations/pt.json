@@ -1186,6 +1186,8 @@
       "count": "{n} página · {tiles} / {limit} mosaicos | {n} páginas · {tiles} / {limit} mosaicos",
       "no_tiles": "Adicione a primeira luz, cena ou dispositivo a partir da biblioteca.",
       "how_to": "Toque na barra superior ou num mosaico para o alterar. Arraste para mover; largue na página seguinte para criar uma nova.",
+      "how_to_pages": "Arraste uma página pela sua etiqueta para mover a página inteira.",
+      "page_title_gone": "A página 1 mostra sempre o título do ecrã, por isso «{name}» desapareceu.",
       "positions_hint": "Os espaços vazios e as posições fixas funcionam a partir do firmware 0.2.26. Até essa atualização, este ecrã (firmware {firmware}) sobe os mosaicos para o primeiro espaço livre.",
       "aria": "Layout do ecrã",
       "add_page": "+ Adicionar página",
@@ -1196,6 +1198,8 @@
       "remove": "Remover página",
       "remove_title": "As páginas seguintes sobem uma posição",
       "edit_bar": "Editar barra superior",
+      "move_title": "Arraste esta página para outro lugar da fila, ou use ← e →",
+      "move_aria": "Mover a página {page}",
       "cell": {
         "title": "Espaço vazio. Clique para adicionar aqui um mosaico ou arraste um para cá.",
         "aria": "Espaço vazio {slot} na página {page}: adicione aqui o próximo mosaico",

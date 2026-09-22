@@ -160,6 +160,14 @@ a:hover { text-decoration: underline; }
 .page-label { display: flex; justify-content: space-between; align-items: center; font-size: 11.5px; color: var(--muted); padding: 0 4px; min-height: 22px; }
 .page-label .btn.mini { color: var(--muted); }
 .page-label .btn.mini:hover { color: var(--danger); background: var(--danger-soft); }
+/* The label is the handle of the whole page (app 0.2.121): the grip says so, and while the page is being carried
+   it keeps the accent under the pointer. The ghost that follows the pointer is this same chip, taken out of the
+   label onto the body, so it carries its own look and not the label's. */
+.grab { display: flex; align-items: center; gap: 5px; margin: -3px -6px; padding: 3px 6px; border-radius: 7px; font-size: 11.5px; color: inherit; white-space: nowrap; cursor: grab; touch-action: manipulation; }
+.grab:hover, .grab:focus-visible { color: var(--accent); background: var(--accent-soft); }
+.drag-ghost.grab { margin: 0; background: var(--surface); border: 1px solid var(--line); color: var(--accent); cursor: grabbing; }
+.page.carried .device { outline: 2px dashed var(--accent); outline-offset: 2px; opacity: 0.6; }
+.page.carried .grab { color: var(--accent); background: var(--accent-soft); }
 .page.ghost .device { display: grid; place-items: center; border: 1.5px dashed var(--line-strong); background: transparent; color: var(--muted); font-weight: 500; cursor: pointer; }
 .page.ghost .device:hover, .page.ghost .device:focus-visible { color: var(--accent); border-color: var(--accent); }
 .page.ghost .device.drop { color: var(--accent); border-color: var(--accent); background: var(--accent-soft); }
@@ -318,7 +326,8 @@ a:hover { text-decoration: underline; }
 .item.dragging-chip { border: 2px dashed var(--accent); background: var(--accent-soft); cursor: grabbing; }
 .item.just-added { animation: chip-added 1.2s ease-out; }
 @keyframes chip-added { from { background: var(--accent-soft); } to { background: var(--surface); } }
-.item .grip { color: var(--line-strong); font-size: 13px; cursor: grab; letter-spacing: -2px; flex: none; }
+/* The grip of anything that is dragged by hand: a row of the top bar, the label of a whole page. */
+.grip { color: var(--line-strong); font-size: 13px; cursor: grab; letter-spacing: -2px; flex: none; }
 .item .av { width: 26px; height: 26px; border-radius: 7px; background: var(--surface-2); display: grid; place-items: center; font-size: 15px; flex: none; }
 .item .tx { flex: 1; min-width: 0; display: grid; }
 .item .tx b { font-weight: 500; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

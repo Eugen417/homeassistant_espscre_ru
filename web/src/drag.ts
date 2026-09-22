@@ -1,13 +1,14 @@
-// Pointer-based drag & drop, mouse and touch, from the library into the mockup and between
-// cells. Touch starts after a short hold so the page still scrolls. While dragging, the
+// Pointer-based drag & drop, mouse and touch, from the library into the mockup, between
+// cells, and a whole page to another place in the row (app 0.2.121). Touch starts after a
+// short hold so the page still scrolls. While dragging, the
 // mockup already shows where everything ends up; the drop confirms exactly that, and a
 // drop off the grid changes nothing. A finished drag never doubles as a click.
 import type { Directive } from "vue";
-import { arrange, newTile } from "./model/layout";
-import { markDirty, placeTile, state } from "./store";
+import { arrange, entriesOf, newTile, pageOrder, reorderPages } from "./model/layout";
+import { markDirty, movePage, pagesShown, placeTile, state } from "./store";
 import type { Tile } from "./types";
 
-export type DragSource = { kind: "tile"; tile: Tile } | { kind: "entity"; id: string };
+export type DragSource = { kind: "tile"; tile: Tile } | { kind: "entity"; id: string } | { kind: "page"; page: number };
 type Drag = {
   source: DragSource | null; element: HTMLElement | null; ghost: HTMLElement | null; timer: number;
   start: { x: number; y: number } | null; offset: { x: number; y: number }; pointerId: number | null;
@@ -46,8 +47,13 @@ export const vDrag: Directive<HTMLElement, DragSource> = {
 
 function beginDrag(e: PointerEvent) {
   if (state.drag.active || !drag.start || !drag.source || !drag.element) return;
+  const source = drag.source;
+  // The row as it stands, read before the drag begins: from here on a tile drag adds a page to it.
+  const pages = pagesShown();
   state.drag.active = true;
-  state.drag.moving = drag.source.kind === "tile" ? drag.source.tile : newTile(drag.source.id);
+  state.drag.moving = source.kind === "page" ? null : source.kind === "tile" ? source.tile : newTile(source.id);
+  // A page keeps its own place until the pointer names another one; the ghost is the label you grabbed it by.
+  state.drag.page = source.kind === "page" ? { from: source.page, to: source.page, order: pageOrder(pages, source.page, source.page) } : null;
   state.drag.preview = null;
   drag.target = null;
   getSelection()?.removeAllRanges();
@@ -74,9 +80,9 @@ function beginDrag(e: PointerEvent) {
     const dy = y ? edgeStep(drag.last.y, visibleSpan(y, "y")) : 0;
     if (dx) x!.scrollBy(dx, 0);
     if (dy) y!.scrollBy(0, dy);
-    if (dx || dy) setTarget(slotAt(drag.last.x, drag.last.y));
+    if (dx || dy) aim(drag.last.x, drag.last.y);
   }, 16);
-  setTarget(-1);
+  if (!state.drag.page) setTarget(-1);
   moveDrag(e);
 }
 // True when the element scrolls along that axis: more content than room, and an overflow that lets it scroll.
@@ -113,7 +119,12 @@ function moveDrag(e: PointerEvent) {
   if (!drag.ghost || e.pointerId !== drag.pointerId) return;
   drag.last = { x: e.clientX, y: e.clientY };
   drag.ghost.style.transform = `translate(${e.clientX - drag.offset.x}px, ${e.clientY - drag.offset.y}px)`;
-  setTarget(slotAt(e.clientX, e.clientY));
+  aim(e.clientX, e.clientY);
+}
+// What the pointer is over: a cell for a tile, a place in the row of pages for a page.
+function aim(x: number, y: number) {
+  if (state.drag.page) setPageTarget(pageAt(x, y));
+  else setTarget(slotAt(x, y));
 }
 // The cell under the pointer: the nearest card or empty cell (the gaps between them count
 // too); on a wide card the left or right half decides. -1 away from the mockup.
@@ -129,6 +140,30 @@ function slotAt(x: number, y: number) {
   if (best.cell.classList.contains("wide") && x > (best.r.left + best.r.right) / 2) slot += 1;
   return slot;
 }
+// The place in the row under the pointer, by the mockups as they stand right now: the page nearest to it, which
+// while dragging is the moved page itself as long as the pointer stays on it. -1 away from the row.
+function pageAt(x: number, y: number) {
+  return nearestRect([...document.querySelectorAll<HTMLElement>(".pages .page:not(.ghost)")].map((page) => page.getBoundingClientRect()), x, y);
+}
+// The rectangle nearest to a point, or -1 when the nearest one is further off than `tolerance`.
+export function nearestRect(rects: { left: number; right: number; top: number; bottom: number }[], x: number, y: number, tolerance = 40) {
+  let best = -1, nearest = Infinity;
+  rects.forEach((r, index) => {
+    const distance = Math.hypot(Math.max(r.left - x, 0, x - r.right), Math.max(r.top - y, 0, y - r.bottom));
+    if (distance < nearest) { nearest = distance; best = index; }
+  });
+  return nearest > tolerance ? -1 : best;
+}
+// Off the row the page goes back where it came from, so a drop away from the pages changes nothing.
+function setPageTarget(place: number) {
+  const page = state.drag.page;
+  if (!page || !state.layout) return;
+  const to = place < 0 ? page.from : place;
+  if (to === page.to) return;
+  page.to = to;
+  page.order = pageOrder(pagesShown(), page.from, to);
+  state.drag.preview = reorderPages(entriesOf(state.layout), page.order);
+}
 function setTarget(slot: number) {
   if (drag.target === slot || !state.layout || !state.drag.moving) return;
   drag.target = slot;
@@ -136,7 +171,7 @@ function setTarget(slot: number) {
   state.drag.preview = slot >= 0 ? arrange(state.layout.tiles, state.drag.moving, slot) : null;
 }
 function endDrag(drop: boolean) {
-  const preview = state.drag.preview, moving = state.drag.moving;
+  const preview = state.drag.preview, moving = state.drag.moving, page = state.drag.page;
   document.removeEventListener("pointermove", moveDrag);
   document.removeEventListener("pointerup", finishDrag);
   document.removeEventListener("pointercancel", finishDrag);
@@ -148,6 +183,12 @@ function endDrag(drop: boolean) {
   state.drag.active = false;
   state.drag.preview = null;
   state.drag.moving = null;
+  state.drag.page = null;
+  // A page lands exactly where the row showed it; the move takes its title and its Go to page tiles with it.
+  if (page) {
+    if (drop) movePage(page.from, page.to);
+    return;
+  }
   if (drop && preview && moving && state.layout) {
     const before = state.layout.tiles.map((t) => `${t.entity}@${t.slot}`).join();
     // By the tile itself, not its entity: a screen can have several tiles that go to the same page (firmware 0.2.65).

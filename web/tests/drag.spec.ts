@@ -1,7 +1,7 @@
 // What a drag near an edge scrolls (app 0.2.78): on a phone the row of pages sideways and the page itself up and
 // down, on a wide window the canvas both ways.
 import { beforeEach, describe, expect, it } from "vitest";
-import { dragScrollers, edgeStep, scrollsAlong } from "../src/drag";
+import { dragScrollers, edgeStep, nearestRect, scrollsAlong } from "../src/drag";
 
 // jsdom has no layout: give an element the sizes a browser would measure, and the overflow longhands it computes.
 function sized(element: HTMLElement, size: { scrollWidth?: number; clientWidth?: number; scrollHeight?: number; clientHeight?: number }) {
@@ -49,5 +49,26 @@ describe("the step near an edge", () => {
     expect(edgeStep(200, [0, 400])).toBe(0);
     expect(edgeStep(390, [0, 400])).toBe(12);
     expect(edgeStep(120, [100, 900])).toBe(-12);
+  });
+});
+
+// Where a page being dragged would land (app 0.2.121): the mockup nearest to the pointer, by the row as it stands.
+describe("the place in the row under the pointer", () => {
+  const row = [
+    { left: 20, right: 320, top: 100, bottom: 400 },
+    { left: 338, right: 638, top: 100, bottom: 400 },
+    { left: 656, right: 956, top: 100, bottom: 400 },
+  ];
+  it("names the page the pointer is on, the gap between two, and nothing far from the row", () => {
+    expect(nearestRect(row, 100, 200)).toBe(0);
+    expect(nearestRect(row, 700, 150)).toBe(2);
+    // In the gap the nearer of the two wins, so the row only changes once the pointer has really left a page.
+    expect(nearestRect(row, 324, 200)).toBe(0);
+    expect(nearestRect(row, 334, 200)).toBe(1);
+    // Just past the last page still counts, well past it does not.
+    expect(nearestRect(row, 980, 200)).toBe(2);
+    expect(nearestRect(row, 1200, 200)).toBe(-1);
+    expect(nearestRect(row, 400, 600)).toBe(-1);
+    expect(nearestRect([], 100, 200)).toBe(-1);
   });
 });

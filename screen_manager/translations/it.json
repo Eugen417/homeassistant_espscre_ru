@@ -1186,6 +1186,8 @@
       "count": "{n} pagina · {tiles} / {limit} riquadri | {n} pagine · {tiles} / {limit} riquadri",
       "no_tiles": "Aggiungi la tua prima luce, scena o dispositivo dalla libreria.",
       "how_to": "Tocca la barra superiore o un riquadro per cambiarne le impostazioni. Trascina per spostare; rilascia sulla pagina successiva per crearne una nuova.",
+      "how_to_pages": "Trascina una pagina dalla sua etichetta per spostare l'intera pagina.",
+      "page_title_gone": "La pagina 1 mostra sempre il titolo dello schermo, quindi «{name}» è sparito.",
       "positions_hint": "Gli spazi vuoti e le posizioni fisse funzionano a partire dal firmware 0.2.26. Fino a quell'aggiornamento, questo schermo (firmware {firmware}) sposta i riquadri verso il primo spazio libero.",
       "aria": "Disposizione dello schermo",
       "add_page": "+ Aggiungi pagina",
@@ -1196,6 +1198,8 @@
       "remove": "Rimuovi pagina",
       "remove_title": "Le pagine successive scalano di un posto",
       "edit_bar": "Modifica barra superiore",
+      "move_title": "Trascina questa pagina in un altro punto della fila, o usa ← e →",
+      "move_aria": "Sposta la pagina {page}",
       "cell": {
         "title": "Spazio vuoto. Fai clic per aggiungere un riquadro qui, o trascinane uno.",
         "aria": "Spazio vuoto {slot} a pagina {page}: aggiungi qui il prossimo riquadro",

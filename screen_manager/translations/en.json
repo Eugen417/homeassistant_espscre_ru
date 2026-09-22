@@ -1186,6 +1186,8 @@
       "count": "{n} page · {tiles} / {limit} tiles | {n} pages · {tiles} / {limit} tiles",
       "no_tiles": "Add your first light, scene, or device from the library.",
       "how_to": "Tap the top bar or a tile to change it. Drag to move; drop on the next page for a new one.",
+      "how_to_pages": "Drag a page by its label to move the whole page.",
+      "page_title_gone": "Page 1 always says the screen's title, so “{name}” is gone.",
       "positions_hint": "Empty slots and fixed positions work from firmware 0.2.26. This screen (firmware {firmware}) shifts the tiles up to the first free slot until that update.",
       "aria": "Screen layout",
       "add_page": "+ Add page",
@@ -1196,6 +1198,8 @@
       "remove": "Remove page",
       "remove_title": "The pages after this one shift up one slot",
       "edit_bar": "Edit top bar",
+      "move_title": "Drag this page to another place in the row, or use ← and →",
+      "move_aria": "Move page {page}",
       "cell": {
         "title": "Empty slot. Click to add a tile here, or drag one over.",
         "aria": "Empty slot {slot} on page {page}: add the next tile here",

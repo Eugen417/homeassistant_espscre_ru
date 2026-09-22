@@ -1,3 +1,15 @@
+## 0.2.121 (firmware 0.2.99)
+
+A whole page moves to another place in the row, by dragging it.
+
+- Pages could only stand in the order they were made in. Putting the kitchen page before the bedroom one meant dragging every tile across by hand, and a full page is six to twenty drags, each one pushing another tile aside. Asked for on GitHub (#24).
+- A page has a handle now: the label above it, with the grip the rows of the top bar already have. Drag it left or right and the row reorders under your hand, so you drop the page exactly where you see it. A drop away from the row changes nothing.
+- Everything that belongs to the page comes along. Its tiles keep their own cells, empty cells included, and so do the double-width and full-page cards. Its own title travels with it. A **Go to page** tile keeps opening the page it means, under that page's new number, so the way through a screen still works after a reorder.
+- Page 1 always says the screen's own title. A page carrying a title of its own that lands there lets that title go, which the message says, with **Undo** beside it.
+- A finger does the same: hold the label for a moment, then drag. Without that hold the row of pages still scrolls sideways, as before. Left and right move a page one place along while its label has focus, for anyone who cannot drag.
+- **Remove page** now takes the pages after it up with their titles and with the tiles that lead to them. Their titles used to stay behind on the number they had, so a page could end up under the title of another one.
+- No firmware change: screens stay on 0.2.99.
+
 ## 0.2.120 (firmware 0.2.99)
 
 A screen says for itself what it can do, and the 7-inch guide has the backlight mod.

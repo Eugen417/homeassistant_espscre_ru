@@ -1,9 +1,9 @@
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addTile, canAlert, copyLayoutFrom, deviceStyle, fullPage, importLayout, isCompact, layoutJson, liveOf, moveTileToPage, pageReachWarning,
-  pageTilesRepeat, phaseText, removeTile, retargetPageTile, save, select, setTileOption, state, supports, tileLimit, topbarItems, topbarView,
-  updateProgress, whatsNew,
+  addTile, canAlert, copyLayoutFrom, deviceStyle, fullPage, importLayout, isCompact, layoutJson, liveOf, movePage, moveTileToPage,
+  pageReachWarning, pageTilesRepeat, phaseText, removePage, removeTile, retargetPageTile, save, select, setTileOption, state, supports,
+  tileLimit, topbarItems, topbarView, updateProgress, whatsNew,
 } from "../src/store";
 import type { Inventory, Screen } from "../src/types";
 
@@ -493,5 +493,71 @@ describe("the mockup of a screen, whichever way it hangs", () => {
     expect(isCompact.value).toBe(true);
     shaped({ width: 320, height: 240, columns: 2, rows: 3 });
     expect(isCompact.value).toBe(true);
+  });
+});
+
+// A page moves as a whole (app 0.2.121, GitHub #24): everything that belongs to it goes along.
+describe("moving a whole page", () => {
+  // Three pages: page 1 leads to the other two, page 2 has a title of its own, page 3 leads back.
+  function threePages() {
+    select("living");
+    state.layout!.tiles = [
+      { entity: "screen.page_2", name: "", slot: 0 }, { entity: "screen.page_3", name: "", slot: 1 },
+      { entity: "light.a", name: "", slot: 6 }, { entity: "light.w", name: "", slot: 8, options: { size: "wide" } },
+      { entity: "screen.page_1", name: "", slot: 12 },
+    ];
+    state.layout!.pages = 3;
+    state.layout!.page_titles = ["", "Kitchen"];
+    state.dirty = false;
+  }
+  it("takes the tiles on their own cells, the page's own title, and the tiles that lead to it", () => {
+    threePages();
+    expect(movePage(1, 2)).toBe(true);
+    const by = Object.fromEntries(state.layout!.tiles.map((t) => [t.entity, t.slot]));
+    // Page 2 and page 3 changed places: the cells within a page stay as they were.
+    expect(by["light.a"]).toBe(12);
+    expect(by["light.w"]).toBe(14);
+    expect(by["screen.page_1"]).toBe(6);
+    // The tiles on page 1 still lead to the same two pages, by their new numbers: the one that led to the kitchen
+    // page says page 3 now, the one that led to the last page says page 2.
+    expect(state.layout!.tiles.find((t) => t.slot === 0)!.entity).toBe("screen.page_3");
+    expect(state.layout!.tiles.find((t) => t.slot === 1)!.entity).toBe("screen.page_2");
+    // The title went with the kitchen page.
+    expect(state.layout!.page_titles).toEqual(["", "", "Kitchen"]);
+    expect(state.layout!.tiles.map((t) => t.slot)).toEqual([0, 1, 6, 12, 14]);
+    expect(state.dirty).toBe(true);
+  });
+  it("says so and hands back the way it was when a title lands on page 1", () => {
+    threePages();
+    expect(movePage(1, 0)).toBe(true);
+    expect(state.layout!.page_titles).toBeUndefined();
+    expect(state.layout!.tiles.find((t) => t.entity === "light.a")!.slot).toBe(0);
+    expect(state.toast?.message).toBe("Page 1 always says the screen's title, so “Kitchen” is gone.");
+    state.toast!.action!.run();
+    expect(state.layout!.page_titles).toEqual(["", "Kitchen"]);
+    expect(state.layout!.tiles.find((t) => t.entity === "light.a")!.slot).toBe(6);
+    expect(state.layout!.tiles.find((t) => t.slot === 0)!.entity).toBe("screen.page_2");
+  });
+  it("leaves a move outside the row alone, and says nothing when no title is at stake", () => {
+    threePages();
+    expect(movePage(0, 3)).toBe(false);
+    expect(movePage(2, 2)).toBe(false);
+    expect(movePage(-1, 0)).toBe(false);
+    expect(state.dirty).toBe(false);
+    expect(movePage(2, 0)).toBe(true);
+    expect(state.toast).toBeNull();
+    expect(state.layout!.page_titles).toEqual(["", "", "Kitchen"]);
+  });
+  it("takes the pages after a removed one up with their titles and the tiles that lead to them", () => {
+    select("living");
+    state.layout!.tiles = [{ entity: "screen.page_3", name: "", slot: 0 }, { entity: "light.a", name: "", slot: 12 }];
+    state.layout!.pages = 3;
+    state.layout!.page_titles = ["", "Kitchen", "Bedroom"];
+    // Page 2 is empty, so it can go; page 3 becomes page 2, with its title and the tile that leads to it.
+    removePage(1);
+    expect(state.layout!.tiles.find((t) => t.entity === "light.a")!.slot).toBe(6);
+    expect(state.layout!.tiles.find((t) => t.slot === 0)!.entity).toBe("screen.page_2");
+    expect(state.layout!.page_titles).toEqual(["", "Bedroom"]);
+    expect(state.layout!.pages).toBe(2);
   });
 });

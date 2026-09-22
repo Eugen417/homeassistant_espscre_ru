@@ -635,3 +635,51 @@ describe("the orientation of a new screen", () => {
     expect(answers.pop()).toMatchObject({ board: "cyd", orientation: "portrait", name: "hall" });
   });
 });
+
+// A whole page to another place in the row (app 0.2.121, GitHub #24): the label is its handle.
+describe("a page that moves as a whole", () => {
+  const props = (page: number, pages: number) => ({ page, pages, entries: state.layout!.tiles.map((t) => ({ tile: t, slot: t.slot })), moving: null });
+  beforeEach(() => {
+    state.layout = { title: "Living room", pages: 3, tiles: [{ entity: "light.a", name: "", slot: 6 }] };
+    state.drag = { active: false, moving: null, preview: null, page: null };
+  });
+  it("gives every page a handle, but not a screen with one page", () => {
+    const second = mount(DevicePage, { props: props(1, 3) });
+    const grab = second.find(".grab");
+    expect(grab.exists()).toBe(true);
+    // The grip of the top bar's rows, so anything you drag by hand looks the same.
+    expect(grab.text()).toBe("⋮⋮Page 2");
+    expect(grab.find(".grip").attributes("aria-hidden")).toBe("true");
+    expect(grab.attributes("aria-label")).toBe("Move page 2");
+    expect(grab.attributes("title")).toBe("Drag this page to another place in the row, or use ← and →");
+    state.layout!.pages = 1;
+    expect(mount(DevicePage, { props: props(0, 1) }).find(".grab").exists()).toBe(false);
+    // The page a tile can start behind the last one is not a page yet.
+    expect(mount(DevicePage, { props: props(3, 3) }).find(".grab").exists()).toBe(false);
+  });
+  it("moves a page with the arrow keys and keeps the handle under the finger", async () => {
+    const row = mount(DevicePage, { props: props(1, 3) });
+    await row.find(".grab").trigger("keydown", { key: "ArrowLeft" });
+    // Page 2 and page 1 changed places: the tile that stood on page 2 now stands on page 1.
+    expect(state.layout!.tiles[0].slot).toBe(0);
+    expect(state.dirty).toBe(true);
+    await mount(DevicePage, { props: props(0, 3) }).find(".grab").trigger("keydown", { key: "ArrowRight" });
+    expect(state.layout!.tiles[0].slot).toBe(6);
+    // Another key is not a move.
+    await row.find(".grab").trigger("keydown", { key: "Enter" });
+    expect(state.layout!.tiles[0].slot).toBe(6);
+  });
+  it("draws the page on the move where it would land, with the title that belongs there", () => {
+    state.layout!.page_titles = ["", "Music", "Hall"];
+    // Page 3 is being carried to the middle: the row shows Hall there and Music after it.
+    state.drag = { active: true, moving: null, preview: [], page: { from: 2, to: 1, order: [0, 2, 1] } };
+    const middle = mount(DevicePage, { props: props(1, 3) });
+    expect(middle.find(".page").classes()).toContain("carried");
+    expect(middle.find(".bar-wrap").text()).toContain("Hall");
+    const last = mount(DevicePage, { props: props(2, 3) });
+    expect(last.find(".page").classes()).not.toContain("carried");
+    expect(last.find(".bar-wrap").text()).toContain("Music");
+    // Page 1 says the screen's own title, whatever lands there.
+    expect(mount(DevicePage, { props: props(0, 3) }).find(".bar-wrap").text()).toContain("Living room");
+  });
+});

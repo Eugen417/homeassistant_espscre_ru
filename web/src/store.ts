@@ -5,7 +5,8 @@ import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
-  pageTarget, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages, supportsFirmware as supportsVersion, tileLimit as limitFor,
+  pageOrder, pagePlaces, pageTarget, reorderPages, reorderTitles, retargetedPage, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages,
+  supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { versionAtLeast } from "./model/layout";
@@ -16,7 +17,10 @@ export type Inspector =
   | { kind: "bar"; index: number }
   | { kind: "bar-add" }
   | { kind: "inspect"; entity?: string };
-export type DragState = { active: boolean; moving: Tile | null; preview: { tile: Tile; slot: number }[] | null };
+// A whole page on its way to another place in the row (app 0.2.121): where it came from, where it is heading, and
+// the row as it stands while it is in the air (`order[position]` is the page drawn there).
+export type PageDrag = { from: number; to: number; order: number[] };
+export type DragState = { active: boolean; moving: Tile | null; preview: { tile: Tile; slot: number }[] | null; page: PageDrag | null };
 // What Home Assistant reports for an entity right now: the state, its word and the attributes a card shows.
 export type Live = { state: string; word?: string | null; a: Record<string, any> };
 
@@ -59,7 +63,7 @@ export const state = reactive({
   route: location.hash,
   overrideProfile: null as string | null,
   overrideFriendly: "",
-  drag: { active: false, moving: null, preview: null } as DragState,
+  drag: { active: false, moving: null, preview: null, page: null } as DragState,
   menuOpen: false,
   liveStates: {} as Record<string, Live>,
   room: "",
@@ -362,11 +366,50 @@ export function addPage() {
   layout.pages = Math.min(MAX_PAGES, pageCount(entriesOf(layout), layout.pages) + 1);
   markDirty();
 }
-// An empty page goes; the pages after it move up.
+// The pages stand in `order` from now on (app 0.2.121): every tile keeps its own cell of its own page, a page's
+// own title travels with it, and a Go to page tile keeps pointing at the page it means, wherever that page ends up.
+function applyPageOrder(layout: Layout, order: number[]) {
+  const places = pagePlaces(order);
+  for (const { tile, slot } of reorderPages(entriesOf(layout), order)) tile.slot = slot;
+  for (const tile of layout.tiles) tile.entity = retargetedPage(tile.entity, (page) => (places[page - 1] ?? page - 1) + 1);
+  layout.tiles.sort((a, b) => a.slot - b.slot);
+  const names = reorderTitles(layout.page_titles, order);
+  layout.page_titles = names.length ? names : undefined;
+  state.insertAt = -1;
+  markDirty();
+}
+// A page's own title: page 1 has none of its own, it says the screen's title.
+const ownTitle = (titles: string[] | undefined, page: number) => (page === 0 ? "" : titles?.[page] || "");
+// A whole page to another place in the row, by dragging it or with the arrow keys. `from` and `to` count from 0.
+// Page 1 always says the screen's own title, so a page with a title of its own that lands there lets it go; that
+// is the one thing a move can cost, so the toast says it and hands back the way it was.
+export function movePage(from: number, to: number) {
+  const layout = state.layout;
+  if (!layout) return false;
+  const pages = pageCount(entriesOf(layout), layout.pages);
+  if (!Number.isInteger(from) || !Number.isInteger(to) || from === to) return false;
+  if (Math.min(from, to) < 0 || Math.max(from, to) >= pages) return false;
+  const titles = layout.page_titles ? [...layout.page_titles] : undefined;
+  applyPageOrder(layout, pageOrder(pages, from, to));
+  const lost = to === 0 ? ownTitle(titles, from) : "";
+  if (lost) {
+    toast(t("editor.layout.page_title_gone", { name: lost }), {
+      label: t("editor.common.undo"),
+      run: () => { applyPageOrder(layout, pageOrder(pages, to, from)); layout.page_titles = titles; },
+    });
+  }
+  return true;
+}
+// An empty page goes; the pages after it move up, with their titles and the tiles that point at them. The page
+// moves to the end of the row first, so everything behind it shifts up one, and then the row is one shorter.
 export function removePage(page: number) {
   const layout = state.layout;
   if (!layout) return;
-  for (const tile of layout.tiles) if (pageOf(tile.slot) > page) tile.slot -= SLOTS_PER_PAGE;
+  const pages = pageCount(entriesOf(layout), layout.pages);
+  applyPageOrder(layout, pageOrder(pages, page, pages - 1));
+  const names = (layout.page_titles || []).slice(0, pages - 1);
+  while (names.length && !names[names.length - 1]) names.pop();
+  layout.page_titles = names.length ? names : undefined;
   layout.pages = Math.max(1, pageCount(entriesOf(layout), layout.pages) - 1);
   markDirty();
 }
@@ -386,8 +429,9 @@ export function pagesShown() {
   if (!layout) return 1;
   const entries = state.drag.preview || entriesOf(layout);
   const pages = pageCount(entries, layout.pages);
-  // While dragging, one more page waits after the last one.
-  return state.drag.active && pages < MAX_PAGES ? pages + 1 : pages;
+  // While a tile is being dragged, one more page waits after the last one. A page on the move is looking for a place
+  // in the row it is already in, so the row stays as long as it is.
+  return state.drag.active && !state.drag.page && pages < MAX_PAGES ? pages + 1 : pages;
 }
 // The tile's options change live; a card that becomes double-wide keeps its row when the cell beside it is
 // free, else it takes the nearest free row (below first); every other tile stays where it is.
@@ -456,7 +500,12 @@ export function openTile(tile: Tile) {
 // it hands that page back. Stored as one entry per page with page 1's always empty (validate_layout keeps it so),
 // trailing empty ones dropped, so a screen where nobody set one carries nothing.
 export const pageTitle = (page: number) => (page === 0 ? state.layout?.title ?? "" : state.layout?.page_titles?.[page] ?? "");
-export const pageTitleShown = (page: number) => pageTitle(page) || state.layout?.title || "";
+// What stands above a position in the row: the title of the page drawn there, which while a page is being moved is
+// not the page that started there. Position 1 always says the screen's own title.
+export const pageTitleShown = (page: number) => {
+  const order = state.drag.page?.order;
+  return (page === 0 ? "" : pageTitle(order ? order[page] ?? page : page)) || state.layout?.title || "";
+};
 export function setPageTitle(page: number, value: string) {
   if (!state.layout) return;
   if (page === 0) state.layout.title = value;

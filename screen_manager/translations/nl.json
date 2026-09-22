@@ -1186,6 +1186,8 @@
       "count": "{n} pagina · {tiles} / {limit} tegels | {n} pagina's · {tiles} / {limit} tegels",
       "no_tiles": "Voeg je eerste lamp, scène of apparaat toe uit de bibliotheek.",
       "how_to": "Tik op de bovenbalk of een tegel om die aan te passen. Sleep om te verplaatsen, of naar de volgende pagina voor een nieuwe pagina.",
+      "how_to_pages": "Sleep een pagina aan zijn label om de hele pagina te verplaatsen.",
+      "page_title_gone": "Pagina 1 zegt altijd de titel van het scherm, dus “{name}” is weg.",
       "positions_hint": "Lege plekken en vaste posities werken vanaf firmware 0.2.26. Tot die update schuift dit scherm (firmware {firmware}) de tegels op naar de eerste vrije plek.",
       "aria": "Schermindeling",
       "add_page": "+ Pagina toevoegen",
@@ -1196,6 +1198,8 @@
       "remove": "Pagina weghalen",
       "remove_title": "De pagina's erna schuiven een plek op",
       "edit_bar": "Bovenbalk aanpassen",
+      "move_title": "Sleep deze pagina naar een andere plek in de rij, of gebruik ← en →",
+      "move_aria": "Pagina {page} verplaatsen",
       "cell": {
         "title": "Lege plek. Klik om hier een tegel toe te voegen, of sleep er een naartoe.",
         "aria": "Lege plek {slot} op pagina {page}: hier de volgende tegel toevoegen",

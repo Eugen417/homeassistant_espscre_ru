@@ -1186,6 +1186,8 @@
       "count": "{n} page · {tiles} / {limit} tuiles | {n} pages · {tiles} / {limit} tuiles",
       "no_tiles": "Ajoutez votre première lumière, scène ou appareil depuis la bibliothèque.",
       "how_to": "Appuyez sur la barre supérieure ou sur une tuile pour la modifier. Faites glisser pour déplacer ; déposez sur la page suivante pour en créer une nouvelle.",
+      "how_to_pages": "Faites glisser une page par son intitulé pour déplacer la page entière.",
+      "page_title_gone": "La page 1 affiche toujours le titre de l'écran, donc « {name} » a disparu.",
       "positions_hint": "Les emplacements vides et les positions fixes fonctionnent à partir du firmware 0.2.26. D'ici cette mise à jour, cet écran (firmware {firmware}) décale les tuiles vers le premier emplacement libre.",
       "aria": "Mise en page de l'écran",
       "add_page": "+ Ajouter une page",
@@ -1196,6 +1198,8 @@
       "remove": "Supprimer la page",
       "remove_title": "Les pages suivantes remontent d'un rang",
       "edit_bar": "Modifier la barre supérieure",
+      "move_title": "Faites glisser cette page ailleurs dans la rangée, ou utilisez ← et →",
+      "move_aria": "Déplacer la page {page}",
       "cell": {
         "title": "Emplacement vide. Cliquez pour ajouter une tuile ici, ou faites-en glisser une.",
         "aria": "Emplacement vide {slot} sur la page {page} : ajouter la prochaine tuile ici",

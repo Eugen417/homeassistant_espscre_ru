@@ -1186,6 +1186,8 @@
       "count": "{n} página · {tiles} / {limit} mosaicos | {n} páginas · {tiles} / {limit} mosaicos",
       "no_tiles": "Añade tu primera luz, escena o dispositivo desde la biblioteca.",
       "how_to": "Toca la barra superior o un mosaico para cambiarlo. Arrastra para mover; suelta en la página siguiente para crear una nueva.",
+      "how_to_pages": "Arrastra una página por su etiqueta para mover la página entera.",
+      "page_title_gone": "La página 1 siempre muestra el título de la pantalla, así que «{name}» ha desaparecido.",
       "positions_hint": "Los huecos vacíos y las posiciones fijas funcionan a partir del firmware 0.2.26. Hasta esa actualización, esta pantalla (firmware {firmware}) sube los mosaicos al primer hueco libre.",
       "aria": "Diseño de la pantalla",
       "add_page": "+ Añadir página",
@@ -1196,6 +1198,8 @@
       "remove": "Eliminar página",
       "remove_title": "Las páginas siguientes suben un puesto",
       "edit_bar": "Editar barra superior",
+      "move_title": "Arrastra esta página a otro lugar de la fila, o usa ← y →",
+      "move_aria": "Mover la página {page}",
       "cell": {
         "title": "Hueco vacío. Haz clic para añadir aquí un mosaico o arrastra uno hasta aquí.",
         "aria": "Hueco vacío {slot} en la página {page}: añade aquí el siguiente mosaico",
