@@ -92,6 +92,15 @@ a:hover { text-decoration: underline; }
 .screen-update small.failed { color: var(--danger); }
 .screen-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .screen-host { display: flex; gap: 6px; align-items: center; }
+/* Removing a screen (app 0.2.114): the details make room for what goes, so nobody presses it by accident. The way
+   in is a quiet line at the foot of the details, red only where it is read. The question itself drops the indent
+   under the icon and uses the whole column, so its lines read as sentences instead of two words each. */
+.screen-details .remove-screen { justify-self: start; }
+.screen-details.asking { padding-left: 14px; }
+.screen-remove { display: grid; gap: 7px; font-size: 11.5px; color: var(--ink-2); }
+.screen-remove strong { font-size: 12.5px; color: var(--ink); }
+.screen-remove ul { margin: 0; padding-left: 15px; display: grid; gap: 4px; }
+.screen-remove .btn.danger { border: 1px solid var(--danger); }
 .screen-host input { padding: 5px 8px; font-size: 12px; }
 .pending { margin: 4px 0; padding: 10px; border: 1px dashed var(--line-strong); border-radius: 10px; display: grid; gap: 6px; }
 .pending strong { font-size: 12.5px; }

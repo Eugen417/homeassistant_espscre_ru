@@ -580,6 +580,11 @@
         "no_profile": "Não foi encontrado nenhum perfil ESPHome para este ecrã. Verifique o nome na pasta do ESPHome.",
         "ip_unknown": "Endereço IP desconhecido. Introduza-o uma vez; depois disso, o firmware novo passa a comunicá-lo sozinho.",
         "all_updated": "Todos os ecrãs acessíveis já estão atualizados."
+      },
+      "remove": {
+        "not_allowed": "Esta aplicação não pode remover uma integração do Home Assistant. Remova o ecrã no próprio Home Assistant, em Configuração → Dispositivos & serviços.",
+        "gone": "O Home Assistant já não conhece este ecrã.",
+        "no_entry": "O Home Assistant não tem este ecrã como dispositivo ESPHome, por isso só pode ser removido no próprio Home Assistant."
       }
     },
     "status": {
@@ -1082,6 +1087,17 @@
         "room": "Divisão",
         "firmware": "Firmware",
         "board": "Placa"
+      },
+      "remove": {
+        "button": "Remover ecrã",
+        "title": "Remover {name}?",
+        "ha": "Do Home Assistant: o dispositivo com as suas entidades, em todo o lado onde são usadas.",
+        "profile": "Da pasta ESPHome: {file} e o que foi compilado a partir dele.",
+        "layout": "Desta aplicação: os seus mosaicos, as suas definições e o seu histórico de atualizações.",
+        "online": "Este ecrã ainda está ligado. Apague-o ou desligue-o primeiro, senão o Home Assistant volta a encontrá-lo.",
+        "confirm": "Remover",
+        "done": "{name} foi removido.",
+        "kept": "{name} foi removido. O seu perfil {file} continua na pasta ESPHome."
       }
     },
     "palette": {

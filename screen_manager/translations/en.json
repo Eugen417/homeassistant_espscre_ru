@@ -580,6 +580,11 @@
         "no_profile": "No ESPHome profile found for this screen. Check the name in the ESPHome folder.",
         "ip_unknown": "IP address unknown. Enter it once; new firmware reports it itself after that.",
         "all_updated": "All reachable screens are already updated."
+      },
+      "remove": {
+        "not_allowed": "This app may not remove an integration from Home Assistant. Remove the screen in Home Assistant itself, under Settings → Devices & services.",
+        "gone": "Home Assistant no longer has this screen.",
+        "no_entry": "Home Assistant doesn't have this screen as an ESPHome device, so it can only be removed in Home Assistant itself."
       }
     },
     "status": {
@@ -1082,6 +1087,17 @@
         "room": "Room",
         "firmware": "Firmware",
         "board": "Board"
+      },
+      "remove": {
+        "button": "Remove screen",
+        "title": "Remove {name}?",
+        "ha": "Out of Home Assistant: the device with its entities, wherever they are used.",
+        "profile": "Out of the ESPHome folder: {file} and what it built.",
+        "layout": "Out of this app: its tiles, its settings and its update history.",
+        "online": "This screen is still connected. Erase or unplug it first, or Home Assistant finds it again.",
+        "confirm": "Remove",
+        "done": "{name} is removed.",
+        "kept": "{name} is removed. Its profile {file} is still in the ESPHome folder."
       }
     },
     "palette": {

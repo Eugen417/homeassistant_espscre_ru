@@ -90,6 +90,17 @@ class Updater:
         self.queue = [new if inbox == old else inbox for inbox in self.queue]
         return changed
 
+    def forget(self, inbox):
+        """A screen that was removed on purpose (app 0.2.112): its address and its last result go with it."""
+        changed = False
+        for store in (self.hosts, self.results):
+            if store.pop(inbox, None) is not None:
+                changed = True
+        if changed:
+            self.save()
+        self.queue = [item for item in self.queue if item != inbox]
+        return changed
+
     def resolve(self, screen, profiles=None):
         """Profile file and OTA address for a screen; None when the add-on cannot tell."""
         if profiles is None:

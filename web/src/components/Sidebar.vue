@@ -4,13 +4,18 @@ import { t } from "../i18n";
 import { versionAtLeast } from "../model/layout";
 import { glyph } from "../model/topbar";
 import {
-  copyText, firmwareVersion, go, needsUpdate, newLanguageText, openIntegrations, phaseText, refresh, route, select, startUpdate, state,
-  updateProgress, whatsNew,
+  copyText, firmwareVersion, go, needsUpdate, newLanguageText, openIntegrations, phaseText, refresh, removeScreen, route, select, startUpdate,
+  state, updateProgress, whatsNew,
 } from "../store";
 import type { Screen } from "../types";
 
 const hostFor = ref<string | null>(null);
 const host = ref("");
+// The screen that asked to be removed: its details make room for what goes, until it is confirmed or dropped.
+const removeFor = ref<string | null>(null);
+async function remove(screen: Screen) {
+  if (await removeScreen(screen)) removeFor.value = null;
+}
 // The screen whose details are open under its name; the others show only their name and light.
 const open = ref<string | null>(null);
 // A screen that only needs the new language (app 0.2.90) says so instead of naming the version it already has.
@@ -50,6 +55,7 @@ const isOpen = (screen: Screen) => open.value === screen.id;
 // Choosing a screen opens its details; choosing it again folds them away.
 function choose(screen: Screen) {
   open.value = isSelected(screen) && isOpen(screen) ? null : screen.id;
+  removeFor.value = null;
   select(screen.id);
 }
 // The icon: a panel with tiles on it, a phone for a screen standing up, a monitor for a board this app does not know.
@@ -103,7 +109,24 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
           <span v-if="screen.id === state.selected && state.dirty" class="unsaved" role="img" :aria-label="t('editor.common.unsaved')" :title="t('editor.common.unsaved')"></span>
           <span v-else-if="updateState(screen)?.kind === 'running'" class="spin small"></span>
         </button>
-        <div v-if="isOpen(screen)" class="screen-details">
+        <div v-if="isOpen(screen) && removeFor === screen.id" class="screen-details asking">
+          <div class="screen-remove">
+            <strong>{{ t("editor.sidebar.remove.title", { name: screen.name }) }}</strong>
+            <ul>
+              <li>{{ t("editor.sidebar.remove.ha") }}</li>
+              <li v-if="screen.update?.profile">{{ t("editor.sidebar.remove.profile", { file: screen.update.profile }) }}</li>
+              <li>{{ t("editor.sidebar.remove.layout") }}</li>
+            </ul>
+            <small v-if="screen.online" class="warn">{{ t("editor.sidebar.remove.online") }}</small>
+            <div class="screen-actions">
+              <button type="button" class="btn mini danger" :disabled="Boolean(state.removing)" @click="remove(screen)">
+                <span v-if="state.removing === screen.id" class="spin small"></span>{{ t("editor.sidebar.remove.confirm") }}
+              </button>
+              <button type="button" class="btn link mini" :disabled="Boolean(state.removing)" @click="removeFor = null">{{ t("editor.common.cancel") }}</button>
+            </div>
+          </div>
+        </div>
+        <div v-else-if="isOpen(screen)" class="screen-details">
           <dl class="facts">
             <template v-if="screen.area"><dt>{{ t("editor.sidebar.details.room") }}</dt><dd>{{ screen.area }}</dd></template>
             <dt>{{ t("editor.sidebar.details.firmware") }}</dt>
@@ -136,6 +159,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
             </template>
             <small v-else-if="updateState(screen)!.kind !== 'running'" :class="{ failed: updateState(screen)!.kind === 'failed' }">{{ updateState(screen)!.text }}</small>
           </div>
+          <button type="button" class="btn link mini danger remove-screen" @click="removeFor = screen.id">{{ t("editor.sidebar.remove.button") }}</button>
         </div>
       </div>
     </div>

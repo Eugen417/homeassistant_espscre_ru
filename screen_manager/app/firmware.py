@@ -414,6 +414,34 @@ class Firmware:
             result['job'] = self.start({'file': result['file'], 'action': 'install', 'target': target})
         return result
 
+    async def delete_profile(self, name):
+        """Everything New screen wrote for one screen: its YAML, its local override and its build folder.
+
+        The mirror of `create` (app 0.2.112). `profile` refuses a name that is a symbolic link or points
+        outside the ESPHome folder, so only this app's own files go. A running job keeps its profile:
+        it would otherwise compile a file that is no longer there."""
+        if self.task and not self.task.done():
+            raise ValueError(t('addon.errors.firmware.busy_wait'))
+        profile = self.profile(name)
+        override = self.root / (profile.stem + self.OVERRIDE_SUFFIX)
+        removed = [profile.name]
+        profile.unlink()
+        if override.is_file() and not override.is_symlink():
+            override.unlink()
+            removed.append(override.name)
+        # The build folder is this app's own (/data/build/<profile>, build_env), so nothing in the ESPHome
+        # folder depends on it; a big one is removed off the loop, which keeps the screens going.
+        build = self.data / 'build' / profile.stem
+        if build.is_dir() and not build.is_symlink():
+            await asyncio.to_thread(shutil.rmtree, build, True)
+            removed.append(f'build/{profile.stem}')
+        self._names.pop(profile.name, None)
+        self.images.pop(profile.name, None)
+        self.installed.discard(profile.name)
+        self.downloaded.discard(profile.name)
+        LOG.info('Removed the profile %s and what it built', profile.name)
+        return removed
+
     def factory_image(self, profile):
         """The factory image in this profile's own build folder, or None. The newest wins: a renamed node
         leaves its old folder behind."""

@@ -524,6 +524,32 @@ class HomeAssistant:
                                      json={'state': state, 'attributes': attributes}) as response:
             response.raise_for_status()
 
+    async def esphome_entries(self):
+        """Home Assistant's ESPHome integrations, by their entry id: the entry behind each screen."""
+        entries = await self.request('config_entries/get', domain='esphome')
+        return {entry['entry_id']: entry for entry in entries or [] if isinstance(entry, dict) and entry.get('entry_id')}
+
+    async def delete_config_entry(self, entry_id):
+        """Remove one integration with its device and its entities, the way Home Assistant's own Delete does
+        (app 0.2.112). ESPHome answers `supports_remove_device: false`: one node is one entry, so the entry
+        goes, not the device. Over REST with the same token; the websocket has no command for it."""
+        async with self.session.delete(f'{self.base}/config/config_entries/entry/{entry_id}',
+                                       headers={'Authorization': 'Bearer ' + self.token},
+                                       timeout=ClientTimeout(total=60)) as response:
+            if response.status in (401, 403):
+                raise Refused(t('addon.errors.remove.not_allowed'))
+            if response.status == 404:
+                raise ValueError(t('addon.errors.remove.gone'))
+            response.raise_for_status()
+            answer = await response.json(content_type=None)
+        return bool(isinstance(answer, dict) and answer.get('require_restart'))
+
+    async def remove_state(self, entity_id):
+        """A state this app published itself (a screen's layout sensor), gone with the screen it described."""
+        async with self.session.delete(f'{self.base}/states/{entity_id}',
+                                       headers={'Authorization': 'Bearer ' + self.token}) as response:
+            return response.status < 300
+
     async def forecast(self, entity, kind='daily'):
         # Forecasts left the weather attributes in HA 2024.4; ask the service instead.
         result = await self.request('call_service', domain='weather', service='get_forecasts',
@@ -762,6 +788,79 @@ class Manager:
             self.history_wake.set()
             self.ha.changed.set()
             self.notify()
+
+    def forget_inbox(self, inbox):
+        """Everything this app kept for a screen that is gone for good: its layout with its settings, its update
+        history, and what the sync loop remembered about it. The mirror of `rename_inbox` (app 0.2.112)."""
+        if inbox in self.layouts:
+            layouts = {key: value for key, value in self.layouts.items() if key != inbox}
+            self.write_layouts(layouts)
+            self.layouts = layouts
+        self.updates.forget(inbox)
+        for store in (self.sent, self.status, self.last, self.pinged, self.published, self.retry_at, self.retries):
+            store.pop(inbox, None)
+        self.aliases = {key: value for key, value in self.aliases.items() if inbox not in (key, value)}
+        self._inbox_devices.pop(inbox, None)
+        self._screens_key = None
+
+    async def entry_of(self, screen):
+        """The ESPHome integration behind a screen: the one entry of its Home Assistant device that ESPHome owns."""
+        device = next((d for d in getattr(self.ha, 'devices', []) if d.get('id') == screen.get('device_id')), None)
+        entries = await self.ha.esphome_entries()
+        mine = [entry for entry in (device or {}).get('config_entries') or [] if entry in entries]
+        if len(mine) != 1:
+            raise ValueError(t('addon.errors.remove.no_entry'))
+        return mine[0]
+
+    def layout_sensors(self, screen):
+        """The layout sensors this app published for a screen (publish_layouts), so they go with it.
+
+        By its node name, and by the name they carry: a screen that is offline says no node, and that is exactly
+        the screen somebody removes."""
+        node = screen.get('node')
+        found = {'sensor.esp_screens_' + node.replace('-', '_')} if node else set()
+        title = f"{screen['name']} tiles"
+        found |= {entity for entity, state in getattr(self.ha, 'states', {}).items()
+                  if entity.startswith('sensor.esp_screens_') and (state.get('attributes') or {}).get('friendly_name') == title}
+        return sorted(found)
+
+    async def remove_screen(self, inbox):
+        """Remove a screen for good (app 0.2.112): out of Home Assistant, its own YAML out of the ESPHome folder,
+        and everything this app kept for it. The mirror of New screen.
+
+        Home Assistant goes first: while it refuses, nothing here is lost. A screen that is still running
+        announces itself to Home Assistant again, which is what the page says before it asks."""
+        inbox = self.aliases.get(inbox, inbox)
+        screen = self.screen(inbox)
+        if screen is None:
+            raise ValueError(t('addon.errors.not_paired'))
+        if self.updates.busy():
+            raise ValueError(t('addon.errors.updates.busy'))
+        entry = await self.entry_of(screen)
+        profile, _ = self.updates.resolve(screen)
+        await self.ha.delete_config_entry(entry)
+        LOG.info('Removed %s from Home Assistant', screen['name'])
+        # From here Home Assistant no longer has the screen, so nothing below may stop the rest: what could not be
+        # removed is named in the answer instead, and the page says so.
+        left = []
+        if profile:
+            try:
+                await self.firmware.delete_profile(profile)
+            except (OSError, ValueError) as error:
+                LOG.warning('The profile %s of %s stays (%s)', profile, screen['name'], error)
+                left.append(profile)
+                profile = None
+        for sensor in self.layout_sensors(screen):
+            with contextlib.suppress(ClientError, ConnectionError, TimeoutError, OSError):
+                await self.ha.remove_state(sensor)
+        self.forget_inbox(inbox)
+        # The registry again at once, so the screen leaves the page now instead of when Home Assistant's own
+        # event arrives; the editor opens another screen as soon as it does.
+        with contextlib.suppress(ConnectionError, TimeoutError, OSError, ValueError):
+            await self.ha.registries()
+        self.ha.changed.set()
+        self.notify()
+        return {'removed': True, 'name': screen['name'], 'profile': profile, 'kept': left}
 
     def built_as(self, screen, profiles=None):
         """What the YAML of this screen's profile says about it (firmware.profile_meta), or {}: the one thing that
@@ -2076,6 +2175,10 @@ def create_app(manager, development=False):
         await manager.check_supported(request.match_info['inbox'], data)
         manager.save(request.match_info['inbox'], data)
         return web.json_response({'saved': True})
+    async def remove_screen(request):
+        """Remove a screen for good (app 0.2.112): out of Home Assistant, out of the ESPHome folder and out of
+        this app. Everything the sidebar's own warning names before it asks."""
+        return web.json_response(await manager.remove_screen(request.match_info['inbox']))
     async def capabilities(request):
         """What Home Assistant says each entity can do, for the tile settings (app 0.2.67). Unknown is null: the editor
         then offers what it always offered."""
@@ -2261,6 +2364,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/claude-skill.zip', download_claude_skill)
     app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
+    app.router.add_delete('/api/screens/{inbox}', remove_screen)
     app.router.add_put('/api/screens/{inbox}/settings', change_settings)
     app.router.add_static('/assets/', static / 'assets')
     return app

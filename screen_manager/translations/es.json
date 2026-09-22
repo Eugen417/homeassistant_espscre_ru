@@ -580,6 +580,11 @@
         "no_profile": "No se ha encontrado ningún perfil de ESPHome para esta pantalla. Revisa el nombre en la carpeta de ESPHome.",
         "ip_unknown": "Dirección IP desconocida. Introdúcela una vez; después, el firmware nuevo la comunica por sí mismo.",
         "all_updated": "Todas las pantallas accesibles ya están actualizadas."
+      },
+      "remove": {
+        "not_allowed": "Esta aplicación no puede eliminar una integración de Home Assistant. Elimina la pantalla en el propio Home Assistant, en Configuración → Dispositivos y servicios.",
+        "gone": "Home Assistant ya no conoce esta pantalla.",
+        "no_entry": "Home Assistant no tiene esta pantalla como dispositivo ESPHome, así que solo se puede eliminar en el propio Home Assistant."
       }
     },
     "status": {
@@ -1082,6 +1087,17 @@
         "room": "Habitación",
         "firmware": "Firmware",
         "board": "Placa"
+      },
+      "remove": {
+        "button": "Eliminar pantalla",
+        "title": "¿Eliminar {name}?",
+        "ha": "De Home Assistant: el dispositivo con sus entidades, allí donde se usen.",
+        "profile": "De la carpeta ESPHome: {file} y lo que se compiló con él.",
+        "layout": "De esta aplicación: sus mosaicos, sus ajustes y su historial de actualizaciones.",
+        "online": "Esta pantalla sigue conectada. Bórrala o desenchúfala primero, o Home Assistant volverá a encontrarla.",
+        "confirm": "Eliminar",
+        "done": "{name} se ha eliminado.",
+        "kept": "{name} se ha eliminado. Su perfil {file} sigue en la carpeta ESPHome."
       }
     },
     "palette": {

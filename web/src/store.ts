@@ -51,6 +51,8 @@ export const state = reactive({
   settingEdits: {} as Record<string, { value: any; at: number }>,
   settingPending: false,
   updating: [] as string[],
+  // The screen whose removal is running, so its button waits instead of being pressed twice (app 0.2.112).
+  removing: null as string | null,
   toast: null as null | { message: string; action?: { label: string; run: () => void } },
   now: Date.now(),
   fontsVersion: 0,
@@ -520,6 +522,46 @@ export async function identify(screen: Screen) {
     toast(e.message);
   }
 }
+// ---- Removing a screen (app 0.2.112): the mirror of New screen ----
+// Home Assistant, the ESPHome profile and everything kept here, in one request. The sidebar says what goes
+// before it asks; here only what came back is shown.
+export async function removeScreen(screen: Screen) {
+  if (state.removing) return false;
+  state.removing = screen.id;
+  try {
+    const result = await send<{ name?: string; kept?: string[] }>(`screens/${encodeURIComponent(screen.id)}`, "DELETE");
+    const name = result?.name || screen.name;
+    // The screen that was open closes without asking about its edits: its layout went with it.
+    if (state.selected === screen.id) forgetOpenScreen();
+    state.updating = state.updating.filter((id) => id !== screen.id);
+    state.inventory.screens = state.inventory.screens.filter((s) => s.id !== screen.id);
+    toast(result?.kept?.length
+      ? t("editor.sidebar.remove.kept", { name, file: result.kept[0] })
+      : t("editor.sidebar.remove.done", { name }));
+    await refresh(false);
+    return true;
+  } catch (e: any) {
+    toast(e.message);
+    return false;
+  } finally {
+    state.removing = null;
+  }
+}
+// The open screen, without the questions `select` asks: nothing of it is left to save or to send.
+function forgetOpenScreen() {
+  clearTimeout(settingTimer);
+  settingQueue = {};
+  settingTarget = null;
+  state.settingEdits = {};
+  state.settingPending = false;
+  state.dirty = false;
+  state.selected = null;
+  state.layout = null;
+  state.selectedTile = null;
+  state.inspector = null;
+  state.menuOpen = false;
+}
+
 export async function sendTestAlert(target: string, data: Record<string, unknown>) {
   return (await send("alerts/test", "POST", { screen: target, data })) as { sent: number; failed: number; skipped: number; unusable?: string[] };
 }

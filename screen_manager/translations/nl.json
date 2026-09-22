@@ -580,6 +580,11 @@
         "no_profile": "Geen ESPHome-profiel gevonden voor dit scherm. Controleer de naam in de ESPHome-map.",
         "ip_unknown": "IP-adres onbekend. Vul het eenmalig in; nieuwe firmware meldt het daarna zelf.",
         "all_updated": "Alle bereikbare schermen zijn al bijgewerkt."
+      },
+      "remove": {
+        "not_allowed": "Deze app mag geen integratie uit Home Assistant verwijderen. Verwijder het scherm in Home Assistant zelf, onder Instellingen → Apparaten & diensten.",
+        "gone": "Home Assistant kent dit scherm niet meer.",
+        "no_entry": "Home Assistant heeft dit scherm niet als ESPHome-apparaat, dus het kan alleen in Home Assistant zelf weg."
       }
     },
     "status": {
@@ -1082,6 +1087,17 @@
         "room": "Ruimte",
         "firmware": "Firmware",
         "board": "Bord"
+      },
+      "remove": {
+        "button": "Scherm verwijderen",
+        "title": "{name} verwijderen?",
+        "ha": "Uit Home Assistant: het apparaat met zijn entiteiten, overal waar ze gebruikt worden.",
+        "profile": "Uit de ESPHome-map: {file} en wat daarmee gebouwd is.",
+        "layout": "Uit deze app: de tegels, de instellingen en de updategeschiedenis.",
+        "online": "Dit scherm is nog verbonden. Wis of ontkoppel het eerst, anders vindt Home Assistant het opnieuw.",
+        "confirm": "Verwijderen",
+        "done": "{name} is verwijderd.",
+        "kept": "{name} is verwijderd. Het profiel {file} staat nog in de ESPHome-map."
       }
     },
     "palette": {

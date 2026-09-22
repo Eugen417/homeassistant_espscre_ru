@@ -1,3 +1,13 @@
+## 0.2.114 (firmware 0.2.95)
+
+A screen you no longer use can be removed, the way it was added.
+
+- **Remove screen** sits in the sidebar, in the details of the screen it belongs to, under everything else. New screen adds one, this takes one away.
+- Deleting only the YAML in ESPHome left the screen in the list, because the list is Home Assistant's: its device and entities stayed, and what is gone in the ESPHome folder cannot be removed there any more. Remove screen removes Home Assistant's ESPHome integration for that screen, with its device and its entities, exactly as the Delete in Home Assistant's own integration page does.
+- It takes the rest with it: the screen's own YAML profile and its `.local.yaml` leave the ESPHome folder, together with what the app built from them, and the tiles, screen settings and update history kept here are forgotten. A screen this app never installed has no profile of its own, and nothing else in the ESPHome folder is touched.
+- The page names all three before it asks, and warns that a screen that is still running and on Wi-Fi announces itself to Home Assistant again. Home Assistant goes first: while it refuses, nothing here is lost, and a profile that could not be removed is named instead of silently staying behind.
+- No firmware change: screens stay on 0.2.95.
+
 ## 0.2.113 (firmware 0.2.95)
 
 The container says it is healthy, because now it is asked something it can answer. Reported in issue #23.

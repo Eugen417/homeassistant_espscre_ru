@@ -580,6 +580,11 @@
         "no_profile": "Kein ESPHome-Profil für diesen Bildschirm gefunden. Prüfe den Namen im ESPHome-Ordner.",
         "ip_unknown": "IP-Adresse unbekannt. Gib sie einmal ein; neue Firmware meldet sie danach selbst.",
         "all_updated": "Alle erreichbaren Bildschirme sind schon aktuell."
+      },
+      "remove": {
+        "not_allowed": "Diese App darf keine Integration aus Home Assistant entfernen. Entferne den Bildschirm in Home Assistant selbst, unter Einstellungen → Geräte & Dienste.",
+        "gone": "Home Assistant kennt diesen Bildschirm nicht mehr.",
+        "no_entry": "Home Assistant führt diesen Bildschirm nicht als ESPHome-Gerät, er lässt sich nur in Home Assistant selbst entfernen."
       }
     },
     "status": {
@@ -1082,6 +1087,17 @@
         "room": "Bereich",
         "firmware": "Firmware",
         "board": "Board"
+      },
+      "remove": {
+        "button": "Bildschirm entfernen",
+        "title": "{name} entfernen?",
+        "ha": "Aus Home Assistant: das Gerät mit seinen Entitäten, überall wo sie verwendet werden.",
+        "profile": "Aus dem ESPHome-Ordner: {file} und alles, was damit gebaut wurde.",
+        "layout": "Aus dieser App: seine Kacheln, seine Einstellungen und sein Update-Verlauf.",
+        "online": "Dieser Bildschirm ist noch verbunden. Lösche ihn oder trenne ihn zuerst vom Strom, sonst findet Home Assistant ihn wieder.",
+        "confirm": "Entfernen",
+        "done": "{name} wurde entfernt.",
+        "kept": "{name} wurde entfernt. Das Profil {file} liegt noch im ESPHome-Ordner."
       }
     },
     "palette": {

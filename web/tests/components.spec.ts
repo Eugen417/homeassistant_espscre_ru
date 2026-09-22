@@ -1,5 +1,5 @@
 // The components that draw the state: a tile with live values, the library's filters, the ⌘K search.
-import { mount } from "@vue/test-utils";
+import { flushPromises, mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppSettingsView from "../src/components/AppSettingsView.vue";
@@ -324,6 +324,41 @@ describe("Sidebar", () => {
     await nextTick();
     expect(item.find(".led").classes()).toContain("down");
     expect(item.find(".sub").text()).toBe("Offline");
+  });
+  it("asks what goes before it removes a screen, and then removes it (app 0.2.112)", async () => {
+    Object.assign(state.inventory.screens[0], { online: false, update: { profile: "living.yaml" } });
+    const calls: [string, RequestInit][] = [];
+    vi.stubGlobal("fetch", vi.fn((path: string, options: RequestInit) => {
+      calls.push([path, options]);
+      return Promise.resolve(new Response(JSON.stringify({ removed: true, name: "Living room", kept: [] }), { status: 200 }));
+    }));
+    const sidebar = mount(Sidebar);
+    const item = sidebar.find("#screens .screen-item");
+    await item.find(".nav-item").trigger("click");
+    await item.find(".remove-screen").trigger("click");
+    // What goes, before anything is asked of Home Assistant: the device, the profile and what is kept here.
+    const said = item.find(".screen-remove").text();
+    expect(said).toContain("Remove Living room?");
+    expect(said).toContain("living.yaml");
+    expect(calls).toEqual([]);
+    await item.find(".btn.danger").trigger("click");
+    await flushPromises();
+    expect(calls.map(([path, options]) => [path, options.method])).toEqual([
+      ["api/screens/living", "DELETE"], ["api/inventory?light=1", undefined]]);
+    expect(state.selected).toBeNull();
+    expect(state.layout).toBeNull();
+    expect(state.toast?.message).toBe("Living room is removed.");
+  });
+  it("warns that a screen that is still connected comes back (app 0.2.112)", async () => {
+    const sidebar = mount(Sidebar);
+    const item = sidebar.find("#screens .screen-item");
+    await item.find(".nav-item").trigger("click");
+    await item.find(".remove-screen").trigger("click");
+    expect(item.find(".screen-remove small.warn").text()).toContain("still connected");
+    // Nothing goes until it is confirmed: Cancel puts the details back.
+    await item.findAll(".screen-remove .btn")[1].trigger("click");
+    expect(item.find(".screen-remove").exists()).toBe(false);
+    expect(item.find(".facts").exists()).toBe(true);
   });
 });
 

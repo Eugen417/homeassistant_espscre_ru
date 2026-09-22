@@ -580,6 +580,11 @@
         "no_profile": "Aucun profil ESPHome trouvé pour cet écran. Vérifiez le nom dans le dossier ESPHome.",
         "ip_unknown": "Adresse IP inconnue. Saisissez-la une seule fois ; le nouveau firmware la communique ensuite lui-même.",
         "all_updated": "Tous les écrans joignables sont déjà à jour."
+      },
+      "remove": {
+        "not_allowed": "Cette application ne peut pas supprimer une intégration de Home Assistant. Retirez l'écran dans Home Assistant même, sous Paramètres → Appareils et services.",
+        "gone": "Home Assistant ne connaît plus cet écran.",
+        "no_entry": "Home Assistant n'a pas cet écran comme appareil ESPHome, il ne peut donc être retiré que dans Home Assistant même."
       }
     },
     "status": {
@@ -1082,6 +1087,17 @@
         "room": "Pièce",
         "firmware": "Firmware",
         "board": "Carte"
+      },
+      "remove": {
+        "button": "Retirer l'écran",
+        "title": "Retirer {name} ?",
+        "ha": "De Home Assistant : l'appareil avec ses entités, partout où elles servent.",
+        "profile": "Du dossier ESPHome : {file} et ce qu'il a construit.",
+        "layout": "De cette application : ses tuiles, ses réglages et son historique de mises à jour.",
+        "online": "Cet écran est encore connecté. Effacez-le ou débranchez-le d'abord, sinon Home Assistant le retrouvera.",
+        "confirm": "Retirer",
+        "done": "{name} a été retiré.",
+        "kept": "{name} a été retiré. Son profil {file} est encore dans le dossier ESPHome."
       }
     },
     "palette": {

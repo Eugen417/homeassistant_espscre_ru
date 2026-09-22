@@ -580,6 +580,11 @@
         "no_profile": "Nessun profilo ESPHome trovato per questo schermo. Controlla il nome nella cartella di ESPHome.",
         "ip_unknown": "Indirizzo IP sconosciuto. Inseriscilo una sola volta; poi il nuovo firmware lo comunica da solo.",
         "all_updated": "Tutti gli schermi raggiungibili sono già aggiornati."
+      },
+      "remove": {
+        "not_allowed": "Questa app non può rimuovere un'integrazione da Home Assistant. Rimuovi lo schermo in Home Assistant, in Impostazioni → Dispositivi e servizi.",
+        "gone": "Home Assistant non conosce più questo schermo.",
+        "no_entry": "Home Assistant non ha questo schermo come dispositivo ESPHome, quindi si può rimuovere solo in Home Assistant."
       }
     },
     "status": {
@@ -1082,6 +1087,17 @@
         "room": "Area",
         "firmware": "Firmware",
         "board": "Scheda"
+      },
+      "remove": {
+        "button": "Rimuovi schermo",
+        "title": "Rimuovere {name}?",
+        "ha": "Da Home Assistant: il dispositivo con le sue entità, ovunque siano usate.",
+        "profile": "Dalla cartella ESPHome: {file} e quello che ha compilato.",
+        "layout": "Da questa app: i suoi riquadri, le sue impostazioni e la sua cronologia degli aggiornamenti.",
+        "online": "Questo schermo è ancora collegato. Cancellalo o scollegalo prima, altrimenti Home Assistant lo ritrova.",
+        "confirm": "Rimuovi",
+        "done": "{name} è stato rimosso.",
+        "kept": "{name} è stato rimosso. Il suo profilo {file} è ancora nella cartella ESPHome."
       }
     },
     "palette": {

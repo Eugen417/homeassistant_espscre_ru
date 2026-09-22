@@ -251,6 +251,24 @@ The maintainer keeps protocol and data migrations backward compatible;
 see [RELEASING.md](RELEASING.md). To roll back, you can temporarily replace `ref: main`
 in your own YAML with an earlier release tag, without changing the keys.
 
+## 6. Removing a screen
+
+A screen you no longer use goes in one place: open it in the sidebar and click
+**Remove screen**. The list in ESP Screens is Home Assistant's own, so removing
+only the YAML in ESPHome leaves the screen in the list. What the button does:
+
+- Home Assistant loses the screen's ESPHome integration, with its device and all
+  of its entities. Anything that used those entities, such as an automation or a
+  dashboard card, loses them too.
+- The screen's own YAML profile and its `.local.yaml` leave the ESPHome folder,
+  along with what the app built from them. A screen installed outside ESP Screens
+  has no profile there, and nothing in that folder is touched.
+- The tiles, the screen settings and the update history kept in the app are gone.
+
+The page names all of this before it asks. A screen that is still running and on
+Wi-Fi announces itself to Home Assistant again, so erase or unplug it first if it
+should stay away.
+
 ## If something doesn't work
 
 - **No screen in the list:** check that the new Easy Setup firmware is running,
