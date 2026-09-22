@@ -16,6 +16,7 @@
   --good-soft: #e6f6ee;
   --warn: #b56d00;
   --warn-soft: #fff3df;
+  --led-update: #e0902e;
   --danger: #c6372e;
   --danger-soft: #fdecea;
   --seg: #eef0f3;
@@ -41,6 +42,7 @@
     --good-soft: #14302a;
     --warn: #e0a03a;
     --warn-soft: #302610;
+    --led-update: #e8a544;
     --danger: #f07167;
     --danger-soft: #3a1b19;
     --seg: #222834;

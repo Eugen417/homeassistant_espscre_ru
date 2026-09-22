@@ -1052,7 +1052,6 @@
     "sidebar": {
       "connection": {
         "unreachable": "Page de gestion injoignable · nouvelle tentative…",
-        "connected": "Home Assistant connecté",
         "reconnecting": "Reconnexion à Home Assistant…"
       },
       "search": "Rechercher",
@@ -1060,7 +1059,6 @@
       "more": "Plus",
       "refresh": "Actualiser",
       "update": {
-        "pill": "Mise à jour",
         "button": "Mettre à jour",
         "queued": "En attente de mise à jour",
         "available": "Mise à jour {version}",
@@ -1079,7 +1077,12 @@
         "downloaded": "Firmware téléchargé, pas encore dans Home Assistant. Installez-le sur l'écran avec ESPHome Web, puis ajoutez l'appareil ESPHome découvert dans Paramètres → Appareils et services, collez-y la clé API et autorisez les actions Home Assistant sous Configurer.",
         "not_flashed": "Pas encore dans Home Assistant. Firmware déjà installé ? Ajoutez l'appareil ESPHome dans Paramètres → Appareils et services, puis autorisez les actions Home Assistant sous Configurer. Pas encore installé ? Firmware et USB → {file}."
       },
-      "copy_api_key": "Copier la clé API"
+      "copy_api_key": "Copier la clé API",
+      "details": {
+        "room": "Pièce",
+        "firmware": "Firmware",
+        "board": "Carte"
+      }
     },
     "palette": {
       "groups": {
@@ -1324,7 +1327,7 @@
         "toggle_needs_firmware": "L'écran allume et éteint ceci à partir du firmware 0.2.58 : appuyez sur Mettre à jour pour cet écran. D'ici là, toucher la tuile ouvre sa carte.",
         "hold": "Maintenez le doigt sur la tuile pour ouvrir sa carte."
       },
-       "sub": {
+      "sub": {
         "label": "Deuxième ligne",
         "auto": "Automatique",
         "none": "Rien",
@@ -1337,7 +1340,7 @@
         "hint_none": "La tuile affiche son nom et rien en dessous.",
         "hint_attr": "Une valeur de cette entité, nommée et écrite comme dans Home Assistant.",
         "hint_text": "Les mêmes mots, quoi que fasse l'entité."
-       },
+      },
       "slider": {
         "label": "Petit curseur sur la tuile",
         "no": "Non",

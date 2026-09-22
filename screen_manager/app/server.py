@@ -1985,6 +1985,9 @@ def create_app(manager, development=False):
             # The delivery and our own word for a screen that reports nothing, in the editor's language (app 0.2.90).
             status = manager.status.get(screen['id'])
             screen['delivery'] = shown(status) if status else t('addon.status.first_tiles')
+            # The layout went out and the screen says it holds it: nothing to report, so the editor shows no
+            # delivery line at all (app 0.2.108); anything else is worth a line.
+            screen['in_sync'] = bool(status) and getattr(status, 'key', None) == 'addon.status.sent' and shown(screen.get('status')) == 'Synced'
             screen['status'] = status_text(screen.get('status'))
             screen['update'] = manager.updates.state_for(screen, profiles)
             # What this screen looks like: what it reported itself, else the board package its profile builds

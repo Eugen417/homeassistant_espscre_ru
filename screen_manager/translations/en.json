@@ -1052,7 +1052,6 @@
     "sidebar": {
       "connection": {
         "unreachable": "Management page unreachable · retrying…",
-        "connected": "Home Assistant connected",
         "reconnecting": "Reconnecting to Home Assistant…"
       },
       "search": "Search",
@@ -1060,7 +1059,6 @@
       "more": "More",
       "refresh": "Refresh",
       "update": {
-        "pill": "Update",
         "button": "Update",
         "queued": "Queued for the update",
         "available": "Update {version}",
@@ -1079,7 +1077,12 @@
         "downloaded": "Firmware downloaded, not yet in Home Assistant. Put it on the screen with ESPHome Web, then add the discovered ESPHome device under Settings → Devices & services, paste the API key there, and allow the Home Assistant actions under Configure.",
         "not_flashed": "Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Firmware & USB → {file}."
       },
-      "copy_api_key": "Copy API key"
+      "copy_api_key": "Copy API key",
+      "details": {
+        "room": "Room",
+        "firmware": "Firmware",
+        "board": "Board"
+      }
     },
     "palette": {
       "groups": {

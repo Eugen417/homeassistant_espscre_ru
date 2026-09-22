@@ -104,25 +104,24 @@ export const screenShape = computed(() => {
 // The top bar of the mockup at the screen's own width and density (topbar.ts).
 export const barMetrics = computed(() => barMetricsFor(screenShape.value));
 // The tile grid of a page, as CSS variables: the mockup is the screen's own shape, whatever board it is.
-// Every mockup is drawn the same height (MOCKUP_HEIGHT), so its width follows the screen's proportions: a
-// 800 x 480 page then reads as easily as a square 480 x 480 one instead of being half as tall, and a screen
-// standing up stands beside its neighbours instead of towering over them. The width is the height times the
-// proportions, capped so very wide glass still fits beside a neighbour on a laptop. There is no minimum width:
-// one would be a minimum height as well (the mockup keeps the screen's proportions), and the narrowest glass
-// there is, a 480 x 800 screen standing up, comes out 180 px wide and still reads.
-const MOCKUP_HEIGHT = 300;
+// Every mockup has the same shorter side (MOCKUP_SIDE), so a screen keeps its size against its neighbours: a
+// 800 x 480 page lying down is wider than a square 480 x 480 one, and the same glass standing up is taller, not
+// narrower. Drawn the same height instead, a 480 x 800 screen came out 180 px wide, smaller than the 480 x 480
+// Guition though it has more glass. Very wide glass is capped so it still fits beside a neighbour on a laptop.
+const MOCKUP_SIDE = 300;
 export const deviceStyle = computed(() => {
   const shape = screenShape.value;
-  // To a tenth of a pixel, not a whole one: on a 800 x 1280 screen standing up the nearest whole pixel of width
-  // would make the mockup a pixel taller than the rest. Every board lying down lands on a whole number anyway.
-  const width = Math.round(Math.min(560, (MOCKUP_HEIGHT * shape.width) / shape.height) * 10) / 10;
+  // To a tenth of a pixel, not a whole one: on a 1280 x 800 screen the nearest whole pixel of width would make
+  // the mockup a pixel taller than the rest. Every board lying down lands on a whole number anyway.
+  const width = shape.width >= shape.height ? Math.min(560, (MOCKUP_SIDE * shape.width) / shape.height) : MOCKUP_SIDE;
+  const rounded = Math.round(width * 10) / 10;
   return {
     "--screen-aspect": `${shape.width} / ${shape.height}`,
     "--screen-columns": String(shape.columns),
     "--screen-rows": String(shape.rows),
     // A wide tile is two cells, or the only one on a single-column screen (layout.ts: spanOf).
     "--screen-wide-span": String(Math.min(2, shape.columns)),
-    "--mockup-width": `${width}px`,
+    "--mockup-width": `${rounded}px`,
   };
 });
 // The compact look: the board declares it (LOOK in its board file, served with the shape); a shape from an add-on

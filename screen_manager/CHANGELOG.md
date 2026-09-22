@@ -1,3 +1,13 @@
+## 0.2.108 (firmware 0.2.92)
+
+The list of screens in the editor goes quiet: a name, an icon and a light, and the rest when you ask for it.
+
+- **A screen is its name and a light.** Each screen in the sidebar is a row with its board's icon in a small tile, the screen's name, and a light on the tile's corner: green when all is well, amber when an update waits or runs, red when the screen is away. The light sends out a ring every few seconds, the way a sonar does; a red one keeps still. Nothing else, unless there is something to say: one line under the name names the update ("Update 0.2.92", "New language: Nederlands"), says Offline, or gives the reason an update failed. Choose a screen and its details open under it: the room, the firmware with the version an update brings, the board, the Update button, What's new, the address a screen without one asks for, and the progress of an update that runs. Choose it again and they fold away. The version, the room and "Online" that every screen used to spell out are gone from the list; the light and the details carry them.
+- **Nothing to report is nothing on the page.** "Home Assistant connected" under the logo and "Sent to Home Assistant · Synced" above the pages said, most of the time, that all was well. They appear only when something is not: the management page unreachable or reconnecting, a layout saved but not yet on the screen, a screen that says it needs the layout again, a screen that is offline. The manager now tells the editor, per screen, whether the layout is out and held.
+- **A screen standing up is drawn as large as it is.** The mockup of a page kept every screen the same height, so a 480 × 800 screen standing up came out 180 px wide, smaller than the square 4-inch Guition though it has more glass. Every mockup now has the same shorter side: a screen lying down is as wide as it was, and the same glass standing up is that wide and taller, 300 × 500 for the Waveshare and 300 × 480 for the 10.1-inch Guition.
+- **The icon follows the screen.** A panel with tiles on it for a board ESP Screens knows, a phone for a screen standing up, a monitor for a board it does not know. Three icons for the editor's own font only; the screens' fonts are untouched.
+- No firmware change: a screen keeps firmware 0.2.92 and has nothing to update. Includes everything from 0.2.107.
+
 ## 0.2.107 (firmware 0.2.92)
 
 Every screen that is not square can be built lying down or standing up, and you choose which when you add it.

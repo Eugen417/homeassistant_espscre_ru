@@ -45,7 +45,7 @@ class SettingsView(unittest.TestCase):
             self.assertIn(marker, self.css, marker)
 
     def test_the_chosen_screen_is_marked_in_the_list(self):
-        self.assertIn(':aria-current="screen.id === state.selected && route === \'\' ? \'true\' : \'false\'"', self.sidebar)
+        self.assertIn(':aria-current="isSelected(screen) ? \'true\' : \'false\'"', self.sidebar)
         rule = self.css.split('\n.nav-item[aria-current="true"] {', 1)[1].split('}', 1)[0]
         self.assertIn('background: var(--seg)', rule)
 

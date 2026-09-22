@@ -66,7 +66,7 @@ onBeforeUnmount(() => { document.removeEventListener("keydown", onKey); document
       <span class="eyebrow" id="screen-name">{{ screen.name }}</span>
       <h1>{{ state.layout?.title || screenText("editor.mockup.home") }}</h1>
     </div>
-    <span id="delivery" class="chip" :class="{ off: !screen.online }" :title="statusText"><span class="dot"></span>{{ statusText }}</span>
+    <span v-if="!screen.in_sync || !screen.online" id="delivery" class="chip" :class="{ off: !screen.online }" :title="statusText"><span class="dot"></span>{{ statusText }}</span>
     <div class="head-right">
       <div class="seg" role="tablist">
         <button type="button" id="tab-layout" role="tab" :aria-pressed="state.tab === 'layout' ? 'true' : 'false'" @click="state.tab = 'layout'">{{ t("editor.screen_view.tabs.layout") }}</button>

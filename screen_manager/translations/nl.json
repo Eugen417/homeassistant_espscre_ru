@@ -1052,7 +1052,6 @@
     "sidebar": {
       "connection": {
         "unreachable": "Beheerpagina niet bereikbaar · opnieuw proberen…",
-        "connected": "Home Assistant verbonden",
         "reconnecting": "Verbinding met Home Assistant herstellen…"
       },
       "search": "Zoeken",
@@ -1060,7 +1059,6 @@
       "more": "Meer",
       "refresh": "Vernieuwen",
       "update": {
-        "pill": "Update",
         "button": "Bijwerken",
         "queued": "In de wachtrij voor de update",
         "available": "Update {version}",
@@ -1079,7 +1077,12 @@
         "downloaded": "Firmware gedownload, nog niet in Home Assistant. Zet die met ESPHome Web op het scherm, voeg daarna het ontdekte ESPHome-apparaat toe onder Instellingen → Apparaten & diensten, plak daar de API-sleutel en sta bij Configureren de Home Assistant-acties toe.",
         "not_flashed": "Nog niet in Home Assistant. Al geflasht? Voeg het ESPHome-apparaat toe onder Instellingen → Apparaten & diensten en sta daarna bij Configureren de Home Assistant-acties toe. Nog niet geflasht? Firmware & USB → {file}."
       },
-      "copy_api_key": "API-sleutel kopiëren"
+      "copy_api_key": "API-sleutel kopiëren",
+      "details": {
+        "room": "Ruimte",
+        "firmware": "Firmware",
+        "board": "Bord"
+      }
     },
     "palette": {
       "groups": {
@@ -1324,7 +1327,7 @@
         "toggle_needs_firmware": "Het scherm schakelt dit vanaf firmware 0.2.58: druk bij het scherm op Bijwerken. Tot dan opent een tik de kaart.",
         "hold": "Houd de tegel vast om de kaart te openen."
       },
-       "sub": {
+      "sub": {
         "label": "Tweede regel",
         "auto": "Automatisch",
         "none": "Niets",
@@ -1337,7 +1340,7 @@
         "hint_none": "De tegel toont zijn naam en niets eronder.",
         "hint_attr": "Een waarde van deze entiteit, met de naam en de schrijfwijze van Home Assistant.",
         "hint_text": "Dezelfde woorden, wat de entiteit ook doet."
-       },
+      },
       "slider": {
         "label": "Kleine slider op de tegel",
         "no": "Nee",

@@ -1052,7 +1052,6 @@
     "sidebar": {
       "connection": {
         "unreachable": "Verwaltungsseite nicht erreichbar · neuer Versuch…",
-        "connected": "Home Assistant verbunden",
         "reconnecting": "Verbinde erneut mit Home Assistant…"
       },
       "search": "Suchen",
@@ -1060,7 +1059,6 @@
       "more": "Mehr",
       "refresh": "Neu laden",
       "update": {
-        "pill": "Update",
         "button": "Aktualisieren",
         "queued": "Für das Update vorgemerkt",
         "available": "Update {version}",
@@ -1079,7 +1077,12 @@
         "downloaded": "Firmware heruntergeladen, noch nicht in Home Assistant. Spiele sie mit ESPHome Web auf den Bildschirm, füge dann das entdeckte ESPHome-Gerät unter Einstellungen → Geräte & Dienste hinzu, gib dort den API-Schlüssel ein und erlaube unter „Konfigurieren“ die Home Assistant-Aktionen.",
         "not_flashed": "Noch nicht in Home Assistant. Schon geflasht? Füge das ESPHome-Gerät unter Einstellungen → Geräte & Dienste hinzu und erlaube dann unter „Konfigurieren“ die Home Assistant-Aktionen. Noch nicht geflasht? Firmware & USB → {file}."
       },
-      "copy_api_key": "API-Schlüssel kopieren"
+      "copy_api_key": "API-Schlüssel kopieren",
+      "details": {
+        "room": "Bereich",
+        "firmware": "Firmware",
+        "board": "Board"
+      }
     },
     "palette": {
       "groups": {
@@ -1324,7 +1327,7 @@
         "toggle_needs_firmware": "Ab Firmware 0.2.58 schaltet der Bildschirm das ein und aus: Drücke beim Bildschirm auf „Aktualisieren“. Bis dahin öffnet ein Tippen die Karte.",
         "hold": "Halte die Kachel gedrückt, um ihre Karte zu öffnen."
       },
-       "sub": {
+      "sub": {
         "label": "Zweite Zeile",
         "auto": "Automatisch",
         "none": "Nichts",
@@ -1337,7 +1340,7 @@
         "hint_none": "Die Kachel zeigt ihren Namen und nichts darunter.",
         "hint_attr": "Ein Wert dieser Entität, benannt und geschrieben wie in Home Assistant.",
         "hint_text": "Immer dieselben Worte, was die Entität auch tut."
-       },
+      },
       "slider": {
         "label": "Kleiner Schieberegler auf der Kachel",
         "no": "Nein",

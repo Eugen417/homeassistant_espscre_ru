@@ -1052,7 +1052,6 @@
     "sidebar": {
       "connection": {
         "unreachable": "Pagina di gestione non raggiungibile · nuovo tentativo…",
-        "connected": "Home Assistant connesso",
         "reconnecting": "Riconnessione a Home Assistant…"
       },
       "search": "Cerca",
@@ -1060,7 +1059,6 @@
       "more": "Altro",
       "refresh": "Ricarica",
       "update": {
-        "pill": "Aggiornamento",
         "button": "Aggiorna",
         "queued": "In coda per l'aggiornamento",
         "available": "Aggiornamento {version}",
@@ -1079,7 +1077,12 @@
         "downloaded": "Firmware scaricato, non ancora in Home Assistant. Mettilo sullo schermo con ESPHome Web, poi aggiungi il dispositivo ESPHome rilevato in Impostazioni → Dispositivi e servizi, incolla lì la chiave API e consenti le azioni di Home Assistant in Configura.",
         "not_flashed": "Non ancora in Home Assistant. Firmware già installato? Aggiungi il dispositivo ESPHome in Impostazioni → Dispositivi e servizi, poi consenti le azioni di Home Assistant in Configura. Non ancora installato? Firmware e USB → {file}."
       },
-      "copy_api_key": "Copia chiave API"
+      "copy_api_key": "Copia chiave API",
+      "details": {
+        "room": "Area",
+        "firmware": "Firmware",
+        "board": "Scheda"
+      }
     },
     "palette": {
       "groups": {
@@ -1324,7 +1327,7 @@
         "toggle_needs_firmware": "Lo schermo accende e spegne questa entità a partire dal firmware 0.2.58: premi Aggiorna per questo schermo. Fino ad allora un tocco apre la sua scheda.",
         "hold": "Tieni premuto il riquadro per aprire la sua scheda."
       },
-       "sub": {
+      "sub": {
         "label": "Seconda riga",
         "auto": "Automatico",
         "none": "Niente",
@@ -1337,7 +1340,7 @@
         "hint_none": "Il riquadro mostra il suo nome e niente sotto.",
         "hint_attr": "Un valore di questa entità, con il nome e la forma di Home Assistant.",
         "hint_text": "Le stesse parole, qualunque cosa faccia l'entità."
-       },
+      },
       "slider": {
         "label": "Piccolo cursore sul riquadro",
         "no": "No",

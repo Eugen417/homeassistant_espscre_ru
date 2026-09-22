@@ -1052,7 +1052,6 @@
     "sidebar": {
       "connection": {
         "unreachable": "Página de gestión inaccesible · reintentando…",
-        "connected": "Conectado a Home Assistant",
         "reconnecting": "Reconectando con Home Assistant…"
       },
       "search": "Buscar",
@@ -1060,7 +1059,6 @@
       "more": "Más",
       "refresh": "Recargar",
       "update": {
-        "pill": "Actualizar",
         "button": "Actualizar",
         "queued": "En cola para actualizar",
         "available": "Actualización a {version}",
@@ -1079,7 +1077,12 @@
         "downloaded": "Firmware descargado; aún no está en Home Assistant. Instálalo en la pantalla con ESPHome Web y luego añade el dispositivo ESPHome descubierto en Configuración → Dispositivos y servicios, pega allí la clave API y permite las acciones de Home Assistant en Configurar.",
         "not_flashed": "Aún no está en Home Assistant. ¿Ya has instalado el firmware? Añade el dispositivo ESPHome en Configuración → Dispositivos y servicios y luego permite las acciones de Home Assistant en Configurar. ¿Todavía no? Firmware y USB → {file}."
       },
-      "copy_api_key": "Copiar clave API"
+      "copy_api_key": "Copiar clave API",
+      "details": {
+        "room": "Habitación",
+        "firmware": "Firmware",
+        "board": "Placa"
+      }
     },
     "palette": {
       "groups": {
@@ -1324,7 +1327,7 @@
         "toggle_needs_firmware": "La pantalla lo enciende y apaga a partir del firmware 0.2.58: pulsa Actualizar en la lista de pantallas. Hasta entonces, un toque abre su tarjeta.",
         "hold": "Mantén pulsado el mosaico para abrir su tarjeta."
       },
-       "sub": {
+      "sub": {
         "label": "Segunda línea",
         "auto": "Automático",
         "none": "Nada",
@@ -1337,7 +1340,7 @@
         "hint_none": "El mosaico muestra su nombre y nada debajo.",
         "hint_attr": "Un valor de esta entidad, con el nombre y el formato de Home Assistant.",
         "hint_text": "Las mismas palabras, haga lo que haga la entidad."
-       },
+      },
       "slider": {
         "label": "Control deslizante pequeño en el mosaico",
         "no": "No",

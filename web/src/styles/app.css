@@ -45,15 +45,13 @@ a:hover { text-decoration: underline; }
 .side { background: var(--surface); border-right: 1px solid var(--line); display: flex; flex-direction: column; padding: 14px 10px; gap: 4px; min-height: 0; overflow: auto; position: sticky; top: 0; height: 100vh; }
 .brand { display: flex; align-items: center; gap: 9px; padding: 4px 8px 6px; font-weight: 600; font-size: 13px; }
 .brand .mark { width: 22px; height: 22px; border-radius: 6px; background: var(--ink); color: var(--surface); display: grid; place-items: center; font-size: 14px; line-height: 1; }
-.conn { display: block; padding: 0 8px 8px; font-size: 11px; color: var(--muted); }
-.conn::before { content: "●"; margin-right: 6px; color: var(--warn); }
-.conn.online::before { color: var(--good); }
+/* Only while something is wrong: unreachable, or reconnecting. Connected says nothing. */
+.conn { display: block; padding: 0 8px 8px; font-size: 11px; color: var(--warn); }
+.conn::before { content: "●"; margin-right: 6px; }
 .side .label { font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 10px 8px 4px; }
-.nav-item { display: flex; align-items: center; gap: 9px; width: 100%; padding: 7px 8px; border-radius: 8px; text-align: left; color: var(--ink-2); }
+.nav-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border-radius: 10px; text-align: left; color: var(--ink-2); }
 .nav-item:hover { background: var(--surface-2); color: var(--ink); }
 .nav-item[aria-current="true"] { background: var(--seg); color: var(--ink); font-weight: 500; }
-.nav-item .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--good); flex: none; }
-.nav-item .dot.off { background: var(--line-strong); }
 /* The open screen has edits that aren't saved yet: the colour of the "Unsaved changes" chip. */
 .nav-item .unsaved { width: 7px; height: 7px; border-radius: 50%; background: var(--warn); flex: none; }
 .nav-item .txt { display: grid; min-width: 0; flex: 1; }
@@ -62,13 +60,37 @@ a:hover { text-decoration: underline; }
 .nav-item .plus { width: 18px; text-align: center; font-size: 14px; }
 .nav-item.ghost { color: var(--muted); }
 .nav-item.ghost:hover { color: var(--accent); background: var(--accent-soft); }
-.pill { font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 999px; background: var(--warn-soft); color: var(--warn); flex: none; }
 .side .spacer { flex: 1; }
-.screen-item { display: grid; gap: 4px; }
-.screen-update { display: grid; gap: 6px; padding: 2px 8px 8px 24px; }
-.screen-update.available { grid-template-columns: 1fr auto; align-items: center; }
-.screen-update.available:has(.screen-host) { grid-template-columns: 1fr; }
+/* A screen in the list: its board's icon in a tile with a small light on the corner, then its name. A healthy screen
+   shows nothing else; a line under the name only says what is up (an update, offline). Choosing it opens its details. */
+.screen-item { display: grid; border-radius: 12px; }
+.screen-item.open { background: var(--seg); }
+.screen-item.open .nav-item, .screen-item.open .nav-item:hover { background: transparent; }
+.screen-item .nav-item { padding: 6px 8px; }
+.screen-item .name { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.screen-item .sub.update { color: var(--warn); }
+.screen-item .sub.down, .screen-item .sub.failed { color: var(--danger); }
+.screen-item .board-icon { position: relative; width: 32px; height: 32px; border-radius: 9px; background: var(--seg); display: grid; place-items: center; flex: none; }
+.screen-item .board-icon .mdi { font-size: 19px; width: auto; color: var(--ink-2); }
+.screen-item.selected .board-icon { background: var(--accent-soft); }
+.screen-item.selected .board-icon .mdi { color: var(--accent); }
+.screen-item.open .board-icon { background: var(--surface); }
+/* The light: a dot on the tile's corner with a ring that sails out every few seconds, like a sonar. Red keeps still. */
+.led { position: absolute; top: -3px; right: -3px; width: 9px; height: 9px; border-radius: 50%; box-shadow: 0 0 0 2px var(--surface); }
+.led::after { content: ""; position: absolute; inset: -3px; border-radius: 50%; border: 1.5px solid currentColor; opacity: 0; animation: sonar 3s ease-out infinite; }
+.led.ok { background: var(--good); color: var(--good); }
+.led.update { background: var(--led-update); color: var(--led-update); }
+.led.down { background: var(--danger); color: var(--danger); }
+.led.down::after { animation: none; }
+.screen-item.selected .led, .screen-item.open .led { box-shadow: 0 0 0 2px var(--seg); }
+@keyframes sonar { 0% { transform: scale(0.6); opacity: 0.7; } 60%, 100% { transform: scale(2); opacity: 0; } }
+.screen-details { display: grid; gap: 8px; padding: 2px 10px 10px 50px; }
+.screen-details .facts { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: 11.5px; }
+.screen-details .facts dt { color: var(--muted); }
+.screen-details .facts dd { margin: 0; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.screen-update { display: grid; gap: 6px; }
 .screen-update small.failed { color: var(--danger); }
+.screen-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .screen-host { display: flex; gap: 6px; align-items: center; }
 .screen-host input { padding: 5px 8px; font-size: 12px; }
 .pending { margin: 4px 0; padding: 10px; border: 1px dashed var(--line-strong); border-radius: 10px; display: grid; gap: 6px; }
@@ -106,7 +128,7 @@ a:hover { text-decoration: underline; }
 .switch[aria-checked="true"] { background: var(--accent); }
 .switch[aria-checked="true"]::after { left: 16px; }
 .switch.unknown::after { left: 9px; opacity: 0.6; }
-@media (prefers-reduced-motion: reduce) { .switch::after, .drawer, .spin { transition: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .switch::after, .drawer, .spin, .led::after { transition: none; animation: none; } }
 
 /* Main head */
 .main-head { display: flex; align-items: center; gap: 12px; padding: 0 18px; min-height: 52px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 4; }
@@ -460,7 +482,7 @@ td code { white-space: nowrap; }
   .side .label, .side .spacer, .conn { display: none; }
   .side #screens { display: contents; }
   .screen-item { display: contents; }
-  .screen-update { display: none; }
+  .screen-details { display: none; }
   .side #pending { flex-basis: 100%; }
   .nav-item { width: auto; }
   .more { display: contents; }

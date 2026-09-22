@@ -40,6 +40,8 @@ export type BoardChoice = { square: boolean; orientations: Partial<Record<Orient
 export type Screen = {
   id: string; name: string; online: boolean; area?: string; firmware?: string; board?: string;
   layout: Layout; update?: UpdateInfo; settings?: SettingsView; delivery?: string; status?: string;
+  // The layout is out and the screen holds it (app 0.2.108): the editor then shows no delivery line.
+  in_sync?: boolean;
   alert_action?: string; dismiss_action?: string;
   // What the add-on reads from the firmware (app 0.2.78): its X.Y.Z (null when unknown), how many tiles it holds,
   // whether it draws full-page tiles, and whether it takes several tiles that go to the same page.

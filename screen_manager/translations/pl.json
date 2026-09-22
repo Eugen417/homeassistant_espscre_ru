@@ -1052,7 +1052,6 @@
     "sidebar": {
       "connection": {
         "unreachable": "Strona zarządzania nieosiągalna · ponawianie…",
-        "connected": "Połączono z Home Assistant",
         "reconnecting": "Ponowne łączenie z Home Assistant…"
       },
       "search": "Szukaj",
@@ -1060,7 +1059,6 @@
       "more": "Więcej",
       "refresh": "Odśwież",
       "update": {
-        "pill": "Aktualizacja",
         "button": "Aktualizuj",
         "queued": "W kolejce do aktualizacji",
         "available": "Aktualizacja {version}",
@@ -1079,7 +1077,12 @@
         "downloaded": "Firmware pobrany, jeszcze nie w Home Assistant. Wgraj go na ekran przez ESPHome Web, potem dodaj wykryte urządzenie ESPHome w sekcji Ustawienia → Urządzenia oraz usługi, wklej tam klucz API, kliknij „Konfiguruj” i zezwól na akcje Home Assistant.",
         "not_flashed": "Jeszcze nie w Home Assistant. Firmware już wgrany? Dodaj urządzenie ESPHome w sekcji Ustawienia → Urządzenia oraz usługi, potem kliknij „Konfiguruj” i zezwól na akcje Home Assistant. Jeszcze nie wgrany? Firmware i USB → {file}."
       },
-      "copy_api_key": "Kopiuj klucz API"
+      "copy_api_key": "Kopiuj klucz API",
+      "details": {
+        "room": "Obszar",
+        "firmware": "Firmware",
+        "board": "Płytka"
+      }
     },
     "palette": {
       "groups": {
@@ -1324,7 +1327,7 @@
         "toggle_needs_firmware": "Włączanie i wyłączanie dotknięciem działa od wersji firmware 0.2.58: naciśnij „Aktualizuj” przy tym ekranie. Do tego czasu dotknięcie otwiera kartę.",
         "hold": "Przytrzymaj kafelek, aby otworzyć jego kartę."
       },
-       "sub": {
+      "sub": {
         "label": "Druga linia",
         "auto": "Automatycznie",
         "none": "Nic",
@@ -1337,7 +1340,7 @@
         "hint_none": "Kafelek pokazuje swoją nazwę i nic pod nią.",
         "hint_attr": "Wartość tej encji, nazwana i zapisana tak jak w Home Assistant.",
         "hint_text": "Te same słowa, cokolwiek robi encja."
-       },
+      },
       "slider": {
         "label": "Mały suwak na kafelku",
         "no": "Nie",

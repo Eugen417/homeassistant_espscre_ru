@@ -281,6 +281,16 @@ class Editor(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(light['screens'][0]['delivery'], '[xx] Saved; waiting for sync')
                 light = await (await client.get('/api/inventory?light=1')).json()
                 self.assertEqual(light['screens'][0]['delivery'], 'Saved; waiting for sync')
+                # Nothing to report only once the layout went out and the screen says it holds it (app 0.2.108): the
+                # editor then shows no delivery line, and a line for anything else.
+                self.assertFalse(light['screens'][0]['in_sync'])
+                manager.status['text.screen'] = i18n.english('addon.status.sent')
+                synced = await (await client.get('/api/inventory?light=1')).json()
+                self.assertTrue(synced['screens'][0]['in_sync'])
+                manager.ha.states['text.screen'] = {'state': 'Layout received'}
+                self.assertFalse((await (await client.get('/api/inventory?light=1')).json())['screens'][0]['in_sync'])
+                manager.ha.states['text.screen'] = {'state': 'Synced'}
+                manager.status['text.screen'] = i18n.english('addon.status.saved')
                 # The live updates: an EventSource sends no headers, so the language comes in the address.
                 async with client.get('/api/events?language=xx') as stream:
                     line = await asyncio.wait_for(stream.content.readline(), 1)

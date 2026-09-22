@@ -28,6 +28,8 @@ PROFILES = [ROOT / 'packages/core.yaml']  # the fonts every board shares (app 0.
 WEB_FONT = ROOT / 'web/src/assets/tile-icons.woff'
 BAR_FONTS = {weight: ROOT / f'web/src/assets/bar-roboto-{weight}.woff' for weight in (400, 500)}
 NAME_TABLE = ROOT / 'components/smart_display/tile_icon_names.h'
+# Glyphs only the editor draws (the board icon in the screens list); the firmware's fonts leave them out.
+WEB_EXTRA = {'tablet-dashboard': 'F0ECE', 'cellphone': 'F011C', 'monitor-dashboard': 'F0A07'}
 # Four bits per pixel: the default of one draws a thin ring like mdi:power as a lumpy circle on the CYD.
 FONT_BLOCK = re.compile(r"(  - file: \"\$\{FONT_DIR\}/materialdesignicons-webfont\.ttf\"\n    id: \w+\n    size: [^\n]+\n    bpp: 4\n)    glyphs:.*\n(?:      .*\n)*")
 
@@ -97,7 +99,7 @@ def web_font():
     options.name_IDs = []
     options.notdef_outline = False
     subsetter = subset.Subsetter(options)
-    subsetter.populate(unicodes=[int(code, 16) for code in tile_icons.GLYPHS.values()])
+    subsetter.populate(unicodes=[int(code, 16) for code in {**tile_icons.GLYPHS, **WEB_EXTRA}.values()])
     subsetter.subset(font)
     # The source stores xMin 0 with left bearing 0; saving recalculates xMin, and browsers
     # then shift each glyph left by the difference. Keep the bearing equal to the real xMin.
@@ -140,7 +142,7 @@ def main():
     if args.check:
         if not NAME_TABLE.exists() or NAME_TABLE.read_text() != name_table(): raise SystemExit(f'Outdated: {NAME_TABLE.name}')
         # Compare glyph coverage, not bytes: font output differs between fontTools versions.
-        wanted = {int(code, 16) for code in tile_icons.GLYPHS.values()}
+        wanted = {int(code, 16) for code in {**tile_icons.GLYPHS, **WEB_EXTRA}.values()}
         if not WEB_FONT.exists() or set(TTFont(WEB_FONT).getBestCmap()) != wanted:
             raise SystemExit(f'Outdated: {WEB_FONT.name}')
         for weight, path in BAR_FONTS.items():

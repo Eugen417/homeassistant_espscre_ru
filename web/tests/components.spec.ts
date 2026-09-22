@@ -1,5 +1,6 @@
 // The components that draw the state: a tile with live values, the library's filters, the ⌘K search.
 import { mount } from "@vue/test-utils";
+import { nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppSettingsView from "../src/components/AppSettingsView.vue";
 import CommandPalette from "../src/components/CommandPalette.vue";
@@ -305,6 +306,24 @@ describe("Sidebar", () => {
     expect(state.layout).toBe(layout);
     expect(state.dirty).toBe(true);
     expect(state.tab).toBe("layout");
+  });
+  it("shows a screen's name and light alone, and its details once it is chosen (app 0.2.108)", async () => {
+    const sidebar = mount(Sidebar);
+    const item = sidebar.find("#screens .screen-item");
+    expect(item.find(".led").classes()).toContain("ok");
+    expect(item.find(".sub").exists()).toBe(false);
+    expect(item.find(".screen-details").exists()).toBe(false);
+    await item.find(".nav-item").trigger("click");
+    expect(item.classes()).toContain("open");
+    expect(item.findAll(".facts dt").map((dt) => dt.text())).toEqual(["Firmware", "Board"]);
+    expect(item.findAll(".facts dd").map((dd) => dd.text())).toEqual(["0.2.60", "Guition · 4 inch"]);
+    // Chosen again, the details fold away; a screen that is off shows why in red.
+    await item.find(".nav-item").trigger("click");
+    expect(item.classes()).not.toContain("open");
+    Object.assign(state.inventory.screens[0], { online: false });
+    await nextTick();
+    expect(item.find(".led").classes()).toContain("down");
+    expect(item.find(".sub").text()).toBe("Offline");
   });
 });
 
