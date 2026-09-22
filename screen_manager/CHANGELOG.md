@@ -1,3 +1,12 @@
+## 0.2.124 (firmware 0.2.101)
+
+The name in the top bar stops shrinking to a letter and three dots.
+
+- A name too long for the bar ends in dots, and LVGL writes those dots into the label's own text: it saves the letters they cover and puts "..." in their place, so the label answers "M..." when asked what it says. The bar measured the label to decide how much room the name may have, so a name that had been too narrow for a single frame was measured as its own dots from then on and stayed pinned at that width. Every page change is such a frame, because the label is handed the next page's title while it still carries the width of the page before it, and a page whose title is longer than the one before it, going back to page 1 most of all, left the name as one letter and three dots. The next change could shave another letter off it. Reported on GitHub (#27).
+- The bar keeps its own copy of the name now and measures that. Dots stay what they were meant to be, a way of drawing a name that does not fit, and they no longer pass for the name itself. Nothing else about the bar changed.
+- Checked on a computer with the firmware's own drawing code and the LVGL the screens run: the same five page changes that left "M...", "Ki..." and a name pinned at 48 pixels now keep every name whole, at its own width.
+- Firmware 0.2.101: press **Update** on each screen after the add-on updates.
+
 ## 0.2.123 (firmware 0.2.100)
 
 A page keeps its name wherever it stands, a page leaves with its tiles, and no two screens carry one name.

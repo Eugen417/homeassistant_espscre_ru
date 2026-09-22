@@ -78,6 +78,15 @@ inline const lv_font_t *control_font = nullptr;
 // The smallest regular text (sublabel): axis labels and the legend of the history card.
 inline const lv_font_t *small_font = nullptr;
 inline lv_obj_t *room_label = nullptr;  // remembered by render() so page switches can render synchronously
+// The name the top bar was given, as we gave it (firmware 0.2.101+). The name ends in dots when it does not fit
+// (LV_LABEL_LONG_DOT), and LVGL writes those dots into the label's own text: lv_label_set_dots() saves the letters
+// it covers and puts "..." in their place, so lv_label_get_text() answers "Ha..." from then on. The bar measures the
+// name to decide how wide the label may be, and measuring the dotted answer made that room a little smaller every
+// time, until one letter and dots were left (GitHub #27). It measures this copy instead, which no dot ever touches.
+inline std::string header_name;
+// False until the bar carries a name of ours: before that the label still says the profile's ${ROOM_NAME}, which
+// an empty first name has to replace.
+inline bool header_named = false;
 // Top bar (0.2.32+): the profile's clock label only lends its place and margin; values use the
 // profile's text font, icons its small icon font. Set by the board profile at boot.
 inline header_bar::Bar header;
@@ -3206,6 +3215,14 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
 inline void label(lv_obj_t *obj, const std::string &text) {
   if (text != lv_label_get_text(obj)) lv_label_set_text(obj, text.c_str());
 }
+// The name in the top bar. Its own copy is the truth about what it says: the dots LVGL writes into the label are
+// not a change of name, so they neither set the text again nor pass for the name when the bar measures it.
+inline void name_label(lv_obj_t *obj, const std::string &text) {
+  if (!obj || (header_named && header_name == text)) return;
+  header_named = true;
+  header_name = text;
+  lv_label_set_text(obj, text.c_str());
+}
 // lv_obj_set_style_* always invalidates the object; these only do so on a real change,
 // which keeps a one-second clock tick or a busy spinner from redrawing whole cards.
 inline void set_font(lv_obj_t *obj, const lv_font_t *value) { if (lv_obj_get_style_text_font(obj, LV_PART_MAIN) != value) lv_obj_set_style_text_font(obj, value, 0); }
@@ -4368,7 +4385,7 @@ inline void render(lv_obj_t *room) {
   room_label=room; swipe_profile::Lap lap;
   if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : txt::status_waiting));
   else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
-  label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
+  name_label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
   lap(swipe_profile::HEADER);
   bool all=dirty_all || (!dirty_tiles && !dirty_header);
@@ -4577,9 +4594,9 @@ inline void draw_header(bool live) {
   set_visible(header_home_icon, home_on);
   set_visible(header_home_tap, home_on);
   // The name's own left bearing, so the gap to the key is the gap the bar draws everywhere else.
-  lv_obj_set_x(room_label, home_on ? left - text_ink(name_font, lv_label_get_text(room_label)).left : left);
+  lv_obj_set_x(room_label, home_on ? left - text_ink(name_font, header_name.c_str()).left : left);
   lv_point_t name_size;
-  lv_text_get_size(&name_size, lv_label_get_text(room_label), name_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_EXPAND);
+  lv_text_get_size(&name_size, header_name.c_str(), name_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_EXPAND);
   auto placement = header_bar::place(widths.data(), count, gaps, width, name_size.x);
   lv_obj_set_width(room_label, std::max(1, std::min<int>(name_size.x, placement.name_room)));
   lv_obj_set_height(room_label, lv_font_get_line_height(name_font));
@@ -4850,7 +4867,7 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   swipe_profile::FillTimer timer;
   applied_page=place_page(page);
   // A page with a title of its own carries it into the top bar with the same frame as its tiles, not a tick later.
-  if(room_label && model.configured && model.ready() && ha_connected() && feed_alive())label(room_label,model.title_of(applied_page));
+  if(room_label && model.configured && model.ready() && ha_connected() && feed_alive())name_label(room_label,model.title_of(applied_page));
   // Every card of the page, in this pass: the refresh that follows shows them together.
   for(size_t slot=0;slot<grid.slots();++slot){
     const auto &w=widgets[slot];
