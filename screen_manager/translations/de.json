@@ -1223,6 +1223,8 @@
         "timer": "Timer",
         "screen": "Bildschirm"
       },
+      "more": "Mehr ({n})",
+      "fewer": "Weniger",
       "room": "Bereich",
       "all_rooms": "Alle Bereiche",
       "hide_placed": "Platzierte ausblenden",

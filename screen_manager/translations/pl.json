@@ -1223,6 +1223,8 @@
         "timer": "Minutniki",
         "screen": "Ekran"
       },
+      "more": "Więcej ({n})",
+      "fewer": "Mniej",
       "room": "Obszar",
       "all_rooms": "Wszystkie obszary",
       "hide_placed": "Ukryj dodane",

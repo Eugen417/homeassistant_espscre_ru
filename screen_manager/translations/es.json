@@ -1223,6 +1223,8 @@
         "timer": "Temporizadores",
         "screen": "Pantalla"
       },
+      "more": "Más ({n})",
+      "fewer": "Menos",
       "room": "Habitación",
       "all_rooms": "Todas las habitaciones",
       "hide_placed": "Ocultar añadidas",

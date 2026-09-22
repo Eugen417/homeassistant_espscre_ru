@@ -1,3 +1,12 @@
+## 0.2.116 (firmware 0.2.95)
+
+The filter chips in the library are all within reach of an ordinary mouse, and they follow what you are searching for.
+
+- **Fifteen of the nineteen domain chips could not be reached at all with a mouse.** The strip scrolled sideways with its scrollbar hidden, and nothing let you drag it: a trackpad swipes such a strip, so it looked fine on a laptop, but with a plain mouse there was no bar to grab and the wheel scrolled the page instead. The strip was 1817 pixels wide in a panel of 271. Reported by a user.
+- **The chips wrap now** instead of scrolling, so nothing is ever out of sight. A long strip keeps the head short: the first seven stand there and **More** opens the rest in place, **Fewer** folds them back. The chosen one always stays on show, even when it is one of the folded ones.
+- **They follow the results.** Only domains that something in the list belongs to get a chip, so searching narrows the chips the way it narrows the list: type "temperature" and Climate stands next to Sensors instead of third of nineteen. A domain with nothing behind it in your home never gets a chip at all. Picking one leaves the others standing, so a domain is never a dead end.
+- No firmware change: screens stay on 0.2.95.
+
 ## 0.2.114 (firmware 0.2.95)
 
 A screen you no longer use can be removed, the way it was added.

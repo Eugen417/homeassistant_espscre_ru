@@ -1223,6 +1223,8 @@
         "timer": "Timers",
         "screen": "Scherm"
       },
+      "more": "Meer ({n})",
+      "fewer": "Minder",
       "room": "Ruimte",
       "all_rooms": "Alle ruimtes",
       "hide_placed": "Geplaatste verbergen",

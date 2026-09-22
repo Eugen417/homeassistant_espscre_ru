@@ -1223,6 +1223,8 @@
         "timer": "Minuteurs",
         "screen": "Écran"
       },
+      "more": "Plus ({n})",
+      "fewer": "Moins",
       "room": "Pièce",
       "all_rooms": "Toutes les pièces",
       "hide_placed": "Masquer celles déjà placées",

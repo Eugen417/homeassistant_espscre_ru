@@ -1,4 +1,5 @@
 // The components that draw the state: a tile with live values, the library's filters, the ⌘K search.
+import { readFileSync } from "node:fs";
 import { flushPromises, mount } from "@vue/test-utils";
 import { nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -131,6 +132,101 @@ describe("Library", () => {
     state.filter = "light";
     await library.vm.$nextTick();
     expect(names()).toEqual(["Lamp B"]);
+  });
+});
+
+// The nineteen domain chips used to sit on one sideways scroller with its scrollbar hidden (app 0.2.74). A trackpad
+// swipes such a strip, but an ordinary mouse has no bar to grab and no drag to start, so fifteen of the nineteen could
+// not be reached at all. They wrap now, they follow the results the way the list does, and the tail of a long one
+// folds behind "More" (app 0.2.116).
+describe("Library: every domain chip is reachable without a trackpad", () => {
+  // Every chip but All and the More/Fewer one carries its domain's glyph in front of the label.
+  const label = (b: { text: () => string }) => b.text().replace(/^[^\p{L}]+/u, "");
+  const chips = (library: ReturnType<typeof mount>) => library.findAll("#filters button").map(label);
+  const domains = (library: ReturnType<typeof mount>) => chips(library).filter((c) => !/^(More|Fewer)/.test(c));
+  const chip = (library: ReturnType<typeof mount>, name: string) =>
+    library.findAll("#filters button").find((b) => label(b) === name)!;
+  // One entity in each of nine domains, so the strip is longer than the head can hold.
+  const manyDomains = () => state.inventory.entities.push(
+    { id: "climate.c", name: "Heating", state: "heat" }, { id: "switch.s", name: "Plug", state: "on" },
+    { id: "binary_sensor.b", name: "Door", state: "off" }, { id: "script.r", name: "Run", state: "off" },
+    { id: "fan.f", name: "Fan", state: "off" }, { id: "scene.n", name: "Night", state: "on" },
+    { id: "media_player.m", name: "Sonos", state: "idle" }, { id: "person.p", name: "Sam", state: "home" },
+  ) as unknown as void;
+
+  it("offers the domains the results hold, and narrows them as the search narrows the list", async () => {
+    const library = mount(Library);
+    // Four domains in this home, plus All. A chip for a domain with nothing behind it would filter to an empty list.
+    expect(domains(library)).toEqual(["All", "Lights", "Covers", "Sensors", "Screen"]);
+    expect(library.find("#more-filters").exists()).toBe(false);
+
+    state.search = "lamp";
+    await library.vm.$nextTick();
+    expect(domains(library)).toEqual(["All", "Lights"]);
+    state.search = "temp";
+    await library.vm.$nextTick();
+    expect(domains(library)).toEqual(["All", "Sensors"]);
+  });
+
+  it("keeps every other chip once one is chosen, so a domain is never a dead end", async () => {
+    const library = mount(Library);
+    await chip(library, "Lights").trigger("click");
+    expect(state.filter).toBe("light");
+    expect(library.findAll(".ent .tx b").map((b) => b.text())).toEqual(["Lamp A", "Lamp B"]);
+    // Read off the domain filter itself and picking Lights would have taken Sensors and Covers away with it.
+    expect(domains(library)).toEqual(["All", "Lights", "Covers", "Sensors", "Screen"]);
+    expect(chip(library, "Lights").attributes("aria-pressed")).toBe("true");
+  });
+
+  it("keeps the chosen domain in sight when the search leaves nothing of it", async () => {
+    const library = mount(Library);
+    await chip(library, "Lights").trigger("click");
+    state.search = "temp";
+    await library.vm.$nextTick();
+    expect(library.findAll(".ent").length).toBe(0);
+    // An empty list needs the chip that empties it on show, or there is nothing to explain it and nothing to undo.
+    expect(domains(library)).toContain("Lights");
+    expect(chip(library, "Lights").attributes("aria-pressed")).toBe("true");
+  });
+
+  it("folds a long strip behind More and opens the rest in place", async () => {
+    manyDomains();
+    const library = mount(Library);
+    expect(domains(library)).toHaveLength(7);
+    expect(chips(library).at(-1)).toBe("More (6)");
+    expect(library.find("#more-filters").attributes("aria-expanded")).toBe("false");
+
+    await library.find("#more-filters").trigger("click");
+    expect(library.find("#more-filters").attributes("aria-expanded")).toBe("true");
+    expect(domains(library)).toEqual([
+      "All", "Lights", "Climate", "Switches", "Status", "Scripts", "Fans", "Covers", "Scenes", "Sensors",
+      "Media", "People", "Screen",
+    ]);
+    expect(chips(library).at(-1)).toBe("Fewer");
+
+    await library.find("#more-filters").trigger("click");
+    expect(domains(library)).toHaveLength(7);
+  });
+
+  it("carries a folded-away chip into the head once it is the chosen one", async () => {
+    manyDomains();
+    const library = mount(Library);
+    await library.find("#more-filters").trigger("click");
+    await chip(library, "People").trigger("click");
+    await library.find("#more-filters").trigger("click");
+    expect(domains(library)).toContain("People");
+    expect(chips(library).at(-1)).toBe("More (5)");
+    const pressed = library.findAll("#filters button").filter((b) => b.attributes("aria-pressed") === "true");
+    expect(pressed.map(label)).toEqual(["People"]);
+  });
+
+  it("never hides the strip behind a scrollbar a mouse cannot reach", () => {
+    const css = readFileSync("src/styles/app.css", "utf8");
+    const rule = css.split("\n").find((line) => line.startsWith(".filters {"))!;
+    expect(rule).toContain("flex-wrap: wrap");
+    expect(rule).not.toContain("overflow");
+    expect(rule).not.toContain("scrollbar-width");
+    expect(css).not.toContain(".filters::-webkit-scrollbar");
   });
 });
 

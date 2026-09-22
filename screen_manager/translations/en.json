@@ -1223,6 +1223,8 @@
         "timer": "Timers",
         "screen": "Screen"
       },
+      "more": "More ({n})",
+      "fewer": "Fewer",
       "room": "Room",
       "all_rooms": "All rooms",
       "hide_placed": "Hide placed",

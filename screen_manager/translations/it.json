@@ -1223,6 +1223,8 @@
         "timer": "Timer",
         "screen": "Schermo"
       },
+      "more": "Altri ({n})",
+      "fewer": "Meno",
       "room": "Area",
       "all_rooms": "Tutte le aree",
       "hide_placed": "Nascondi quelle già inserite",
