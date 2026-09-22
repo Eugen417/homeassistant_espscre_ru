@@ -350,6 +350,8 @@ a:hover { text-decoration: underline; }
 .set-card h4 { display: flex; align-items: center; gap: 8px; padding: 10px 0 8px; }
 .set-card h4 .mdi { color: var(--muted); font-size: 16px; }
 .set-card > .hint { margin: 6px 0 4px; }
+/* A card that holds one thing you do instead of rows you set: the button stands where the rows start. */
+.set-card > .s-action { padding: 2px 0 4px; }
 .srow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid var(--line); }
 .srow > .s-label { color: var(--ink-2); }
 .srow.inactive .s-label, .srow.inactive .s-control { opacity: 0.45; }

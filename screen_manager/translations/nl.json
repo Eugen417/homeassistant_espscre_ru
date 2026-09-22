@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Herstarten",
+      "calibrate_touch": "Aanraking kalibreren",
       "connected": "Verbonden",
       "not_connected": "Niet verbonden",
       "tap_again_to_restart": "Tik nog eens om te herstarten",
+      "tap_again_to_calibrate": "Tik nog eens om te kalibreren",
       "seconds": "{n} sec",
       "minutes": "{n} min",
       "hours": "{n} u",
@@ -585,6 +587,10 @@
         "not_allowed": "Deze app mag geen integratie uit Home Assistant verwijderen. Verwijder het scherm in Home Assistant zelf, onder Instellingen → Apparaten & diensten.",
         "gone": "Home Assistant kent dit scherm niet meer.",
         "no_entry": "Home Assistant heeft dit scherm niet als ESPHome-apparaat, dus het kan alleen in Home Assistant zelf weg."
+      },
+      "calibrate": {
+        "no_wizard": "{name} heeft geen kalibratie: het aanraakscherm geeft zelf door waar je het aanraakt, dus er valt niets te meten.",
+        "offline": "{name} is offline. De kalibratie kan beginnen zodra het scherm terug is."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Helderheid",
         "night": "Nacht",
-        "screen": "Scherm"
+        "screen": "Scherm",
+        "this_screen": "Dit scherm"
       },
       "rows": {
         "brightness": "Helderheid",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Vegen tussen pagina's",
         "page_buttons": "Paginaknoppen",
         "rotation": "Rotatie"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Aanraking kalibreren",
+          "hint": "Het scherm toont vijf kruisjes en wacht daarop. Wie ervoor staat, tikt elk kruisje drie keer aan.",
+          "confirm": "De kalibratie op {name} starten?",
+          "done": "{name} toont de kruisjes."
+        }
       },
       "duration": {
         "seconds": "{n} sec",

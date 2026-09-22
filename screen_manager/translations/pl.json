@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Uruchom ponownie",
+      "calibrate_touch": "Kalibruj dotyk",
       "connected": "Połączono",
       "not_connected": "Brak połączenia",
       "tap_again_to_restart": "Dotknij ponownie, aby uruchomić ponownie",
+      "tap_again_to_calibrate": "Dotknij ponownie, aby kalibrować",
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} godz.",
@@ -585,6 +587,10 @@
         "not_allowed": "Ta aplikacja nie może usunąć integracji z Home Assistant. Usuń ekran w samym Home Assistant, w sekcji Ustawienia → Urządzenia oraz usługi.",
         "gone": "Home Assistant już nie zna tego ekranu.",
         "no_entry": "Home Assistant nie ma tego ekranu jako urządzenia ESPHome, więc można go usunąć tylko w samym Home Assistant."
+      },
+      "calibrate": {
+        "no_wizard": "{name} nie ma kalibracji: jego panel dotykowy sam podaje, gdzie go dotknięto, więc nie ma czego mierzyć.",
+        "offline": "{name} jest offline. Kalibracja może się zacząć, gdy ekran wróci."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Jasność",
         "night": "Noc",
-        "screen": "Ekran"
+        "screen": "Ekran",
+        "this_screen": "Ten ekran"
       },
       "rows": {
         "brightness": "Jasność",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Przesuwanie stron",
         "page_buttons": "Przyciski stron",
         "rotation": "Obrót"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Kalibruj dotyk",
+          "hint": "Ekran pokazuje pięć krzyżyków i na nich czeka. Kto przed nim stoi, dotyka każdego krzyżyka trzy razy.",
+          "confirm": "Zacząć kalibrację na {name}?",
+          "done": "{name} pokazuje krzyżyki."
+        }
       },
       "duration": {
         "seconds": "{n} s",

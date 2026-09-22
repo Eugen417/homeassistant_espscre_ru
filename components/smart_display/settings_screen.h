@@ -67,6 +67,7 @@ struct Row {
   uint8_t option_count = 0;
   Text text = nullptr;                // info
   Run run = nullptr;                  // action
+  uint16_t confirm = NO_TEXT;         // action: what the row asks before it does it
   Shown shown = nullptr;              // absent rows: the quarter turns on glass that is not square
   Shown enabled = nullptr;            // greyed out while the switch it depends on is off
   uint8_t opens = 0;                  // page rows: the page they open
@@ -105,8 +106,8 @@ inline const char *label_text(const Row &row) { return screen_text::tr(row.label
 constexpr Row info(uint16_t label, Text text) {
   Row r{}; r.kind = Kind::info; r.label = label; r.text = text; return r;
 }
-constexpr Row action(uint16_t label, const char *icon, Run run) {
-  Row r{}; r.kind = Kind::action; r.label = label; r.icon = icon; r.run = run; return r;
+constexpr Row action(uint16_t label, const char *icon, Run run, uint16_t confirm, Shown shown = nullptr) {
+  Row r{}; r.kind = Kind::action; r.label = label; r.icon = icon; r.run = run; r.confirm = confirm; r.shown = shown; return r;
 }
 
 // ------------------------------------------------------------------ values
@@ -334,18 +335,28 @@ inline constexpr Row screen_rows[] = {
          rotation_options, 4, [] { return quarter_turns; }),
 };
 
-// Read-only facts plus the one action: what you want when something is stuck.
+// Read-only facts plus the actions: what you want when something is stuck. Both of them take the glass away for a
+// while, so both ask once, in place, before they run.
 inline std::string (*name_text)() = nullptr;
 inline std::string (*address_text)() = nullptr;
 inline std::string (*firmware_text)() = nullptr;
 inline std::string (*link_text)() = nullptr;
 inline void (*restart_device)() = nullptr;
+// Start the calibration wizard again (firmware 0.2.96+). A resistive panel reads a voltage off the film and has to
+// be told what that voltage means in pixels, so it has a wizard; a capacitive one reports the point it was touched
+// on and has nothing to fit. ESPHome names no such difference, and this page needs no name for it: the board that
+// builds a wizard binds this, every other board leaves it null, and the row shows exactly where there is something
+// to run. It closes this page first: the wizard loads a screen of its own and leaves the home page behind it.
+inline void (*calibrate_touch)() = nullptr;
 inline constexpr Row about_rows[] = {
   info(screen_text::txt::settings_screen, [] { return name_text ? name_text() : std::string(); }),
   info(screen_text::txt::settings_address, [] { return address_text ? address_text() : std::string(); }),
   info(screen_text::txt::settings_firmware, [] { return firmware_text ? firmware_text() : std::string(); }),
   info(screen_text::txt::settings_home_assistant, [] { return link_text ? link_text() : std::string(); }),
-  action(screen_text::txt::settings_restart, "\U000F0709", [] { if (restart_device) restart_device(); }),
+  action(screen_text::txt::settings_calibrate_touch, "\U000F01A3", [] { if (calibrate_touch) calibrate_touch(); },
+         screen_text::txt::settings_tap_again_to_calibrate, [] { return calibrate_touch != nullptr; }),
+  action(screen_text::txt::settings_restart, "\U000F0709", [] { if (restart_device) restart_device(); },
+         screen_text::txt::settings_tap_again_to_restart),
 };
 
 inline constexpr Row menu_rows[] = {
@@ -682,7 +693,7 @@ inline void draw() {
       lv_obj_set_pos(glyph, left, (m.row_h - icon_h) / 2);
       left += icon_h + (ui::px(m.large ? 12 : 8));
     }
-    d.label = text(d.card, screen_text::tr(asking ? screen_text::txt::settings_tap_again_to_restart : row.label), row_font,
+    d.label = text(d.card, screen_text::tr(asking ? row.confirm : row.label), row_font,
                    asking ? theme::ON_ACCENT : theme::INK);
     lv_obj_set_pos(d.label, left, (m.row_h - label_h) / 2);
 

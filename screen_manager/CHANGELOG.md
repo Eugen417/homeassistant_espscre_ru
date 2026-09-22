@@ -1,3 +1,12 @@
+## 0.2.117 (firmware 0.2.96)
+
+A screen whose touch needs measuring can be sent back to its crosses, without waiting for its first boot.
+
+- **Calibrate touch** is a row on the screen's own settings page, under **This screen** beside Restart, and a button in **Screen settings** in the app. Both start the same wizard the screen runs the first time it is switched on: five crosses, each tapped three times.
+- Only a screen that has something to measure shows it. A resistive panel reads a voltage off the film and has to be told what that voltage means in pixels; a capacitive panel reports the point it was touched on, so it has no row, no button and no card. The app reads that from the screen's own Calibrate touch button in Home Assistant, so a board that gets a wizard later needs no change here.
+- The row asks once, in place, before it starts, as Restart does, and the button in the app asks too: the screen goes to the crosses and stays on them until someone standing in front of it has tapped all five.
+- Firmware 0.2.96. On a 320x240 screen This screen now has six rows, so it gets the same pager the other groups have: the facts on the first page, Calibrate touch and Restart on the second.
+
 ## 0.2.116 (firmware 0.2.95)
 
 The filter chips in the library are all within reach of an ordinary mouse, and they follow what you are searching for.

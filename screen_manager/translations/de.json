@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Neu starten",
+      "calibrate_touch": "Touch kalibrieren",
       "connected": "Verbunden",
       "not_connected": "Nicht verbunden",
       "tap_again_to_restart": "Zum Neustart erneut tippen",
+      "tap_again_to_calibrate": "Zum Kalibrieren erneut tippen",
       "seconds": "{n} Sek.",
       "minutes": "{n} Min.",
       "hours": "{n} Std.",
@@ -585,6 +587,10 @@
         "not_allowed": "Diese App darf keine Integration aus Home Assistant entfernen. Entferne den Bildschirm in Home Assistant selbst, unter Einstellungen → Geräte & Dienste.",
         "gone": "Home Assistant kennt diesen Bildschirm nicht mehr.",
         "no_entry": "Home Assistant führt diesen Bildschirm nicht als ESPHome-Gerät, er lässt sich nur in Home Assistant selbst entfernen."
+      },
+      "calibrate": {
+        "no_wizard": "{name} hat keine Kalibrierung: Der Touchscreen meldet selbst, wo er berührt wurde, es gibt also nichts zu messen.",
+        "offline": "{name} ist offline. Die Kalibrierung kann beginnen, sobald der Bildschirm wieder da ist."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Helligkeit",
         "night": "Nacht",
-        "screen": "Bildschirm"
+        "screen": "Bildschirm",
+        "this_screen": "Dieser Bildschirm"
       },
       "rows": {
         "brightness": "Helligkeit",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Zwischen Seiten wischen",
         "page_buttons": "Seitentasten",
         "rotation": "Drehung"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Touch kalibrieren",
+          "hint": "Der Bildschirm zeigt fünf Kreuze und wartet darauf. Wer davor steht, tippt jedes Kreuz dreimal an.",
+          "confirm": "Die Kalibrierung auf {name} starten?",
+          "done": "{name} zeigt die Kreuze."
+        }
       },
       "duration": {
         "seconds": "{n} Sek.",

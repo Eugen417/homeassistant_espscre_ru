@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Reiniciar",
+      "calibrate_touch": "Calibrar o toque",
       "connected": "Ligado",
       "not_connected": "Sem ligação",
       "tap_again_to_restart": "Toque de novo para reiniciar",
+      "tap_again_to_calibrate": "Toque de novo para calibrar",
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} h",
@@ -585,6 +587,10 @@
         "not_allowed": "Esta aplicação não pode remover uma integração do Home Assistant. Remova o ecrã no próprio Home Assistant, em Configuração → Dispositivos & serviços.",
         "gone": "O Home Assistant já não conhece este ecrã.",
         "no_entry": "O Home Assistant não tem este ecrã como dispositivo ESPHome, por isso só pode ser removido no próprio Home Assistant."
+      },
+      "calibrate": {
+        "no_wizard": "{name} não tem calibração: o painel tátil indica onde lhe tocou, por isso não há nada para medir.",
+        "offline": "{name} está offline. A calibração pode começar quando voltar."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Brilho",
         "night": "Noite",
-        "screen": "Ecrã"
+        "screen": "Ecrã",
+        "this_screen": "Este ecrã"
       },
       "rows": {
         "brightness": "Brilho",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Deslizar entre páginas",
         "page_buttons": "Botões de página",
         "rotation": "Rotação"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Calibrar o toque",
+          "hint": "O ecrã mostra cinco cruzes e fica nelas. Quem estiver à frente toca em cada cruz três vezes.",
+          "confirm": "Começar a calibração em {name}?",
+          "done": "{name} está a mostrar as cruzes."
+        }
       },
       "duration": {
         "seconds": "{n} s",

@@ -229,6 +229,8 @@ FIXED = (
     ('monitor', 'F0379'),
     ('information-outline', 'F02FD'),
     ('restart', 'F0709'),
+    # Calibrate touch, beside it on a resistive panel (firmware 0.2.96+): the crosses the wizard draws.
+    ('crosshairs', 'F01A3'),
     # A light that is off, as Home Assistant shows one without an icon of its own (firmware 0.2.53+).
     ('lightbulb-off', 'F0E4F'),
 )

@@ -20,7 +20,7 @@ from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
-from core import can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
+from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
 import header_bar
@@ -648,6 +648,8 @@ class Manager:
         self._prefix_source, self._prefixes = None, {}
         # Screens that own their settings (firmware 0.2.49+): {device_id: {key: entity_id}}, per registry.
         self._settings_source, self._settings_index, self._settings_key = None, {}, None
+        # Screens whose panel is one you calibrate (app 0.2.117): {device_id: entity_id of Calibrate touch}.
+        self._calibrate_index = {}
         # Answers (firmware 0.2.49+): when to send everything again after one said the screen lacks something,
         # how often that failed in a row, and actions Home Assistant refused to answer for.
         self.retry_at, self.retries, self.no_answers = {}, {}, set()
@@ -929,25 +931,37 @@ class Manager:
 
     # ----- Screen settings: owned by the screen (firmware 0.2.49+), else stored with the layout -----
     def setting_index(self):
-        """{device_id: {key: entity_id}} for every screen that owns its settings; rebuilt per registry."""
+        """{device_id: {key: entity_id}} for every screen that owns its settings; rebuilt per registry.
+
+        The same walk indexes each device's Calibrate touch button (app 0.2.117), because both answer the same
+        question from the same place: what this screen's device actually offers in Home Assistant."""
         registry = getattr(self.ha, 'registry', [])
         if self._settings_source is not registry:
             by_device = {}
             for item in registry:
                 if item.get('platform') == 'esphome' and item.get('device_id'):
                     by_device.setdefault(item['device_id'], []).append(item)
-            index = {}
+            index, calibrate = {}, {}
             for device, items in by_device.items():
                 entities = setting_entities(items)
                 if entities is not None:
                     index[device] = entities
-            self._settings_source, self._settings_index = registry, index
+                button = calibrate_entity(items)
+                if button:
+                    calibrate[device] = button
+            self._settings_source, self._settings_index, self._calibrate_index = registry, index, calibrate
         return self._settings_index
 
     def setting_entities(self, screen):
         """{key: entity_id} when this screen owns its settings, else None (they travel in the layout message)."""
         device = (screen or {}).get('device_id')
         return self.setting_index().get(device) if device else None
+
+    def calibrate_button(self, screen):
+        """This screen's Calibrate touch button, or None when its panel has no calibration wizard."""
+        device = (screen or {}).get('device_id')
+        self.setting_index()  # the same walk fills the calibrate index
+        return self._calibrate_index.get(device) if device else None
 
     def settings_view(self, screen):
         """What the editor shows under Screen settings.
@@ -965,6 +979,10 @@ class Manager:
         # A screen that cannot go dark (app 0.2.106) has no standby and no night: those settings are not there, on
         # the screen, in Home Assistant or here, and the editor drops a group that has no rows left.
         dark = can_standby(screen)
+        # Whether this screen's panel is one you calibrate (app 0.2.117): it has the button the screen's own settings
+        # page has the row for, and pressing it starts the same wizard. Home Assistant says so, so a board that gets
+        # the wizard later needs nothing here.
+        calibrate = bool(self.calibrate_button(screen))
         keys = [key for key in SETTING_RULES if key != 'show_clock' and (key != 'rotation' or turns)
                 and (dims or key != 'brightness') and (dark or key not in STANDBY_KEYS)]
         entities = self.setting_entities(screen)
@@ -979,13 +997,13 @@ class Manager:
             # with the layout lacks them.
             keys = [key for key in keys if key not in ('dark_mode', 'page_buttons')]
             return {'owner': 'layout', 'values': values, 'keys': keys, 'unavailable': [], 'rotations': list(turns),
-                    'switches': switches}
+                    'switches': switches, 'calibrate': calibrate}
         # Only the settings this screen has an entity for: one added in later firmware stays out of the panel.
         keys = [key for key in keys if key in entities]
         values = {key: setting_from_state(key, self.ha.states.get(entities[key])) for key in keys}
         # `rotations` are the angles this screen's glass allows (app 0.2.94): the editor offers those and no others.
         return {'owner': 'screen', 'values': values, 'keys': keys, 'unavailable': [key for key in keys if values[key] is None],
-                'rotations': list(turns), 'switches': switches}
+                'rotations': list(turns), 'switches': switches, 'calibrate': calibrate}
 
     def settings_states_key(self):
         """The states of every setting entity, so the sync loop notices a change the editor should show."""
@@ -2293,6 +2311,20 @@ def create_app(manager, development=False):
             i18n.SCREEN.reset(token)
         await manager.ha.call(alert_service(screen['node']), data)
         return web.json_response({'ok': True})
+    async def calibrate(request):
+        """Screen settings → Calibrate touch (app 0.2.117): the screen starts its calibration wizard, the same one it
+        runs the first time it is switched on and the same one its own settings page starts. Nothing is measured here:
+        the person has to stand in front of the glass and tap the five crosses."""
+        screen = manager.screen(request.match_info['inbox'])
+        if screen is None:
+            raise ValueError(t('addon.errors.unknown_screen'))
+        button = manager.calibrate_button(screen)
+        if not button:
+            raise ValueError(t('addon.errors.calibrate.no_wizard', name=screen['name']))
+        if not screen.get('online'):
+            raise ValueError(t('addon.errors.calibrate.offline', name=screen['name']))
+        await manager.ha.call('button.press', {'entity_id': button})
+        return web.json_response({'ok': True})
     async def test_alert(request):
         """Alerts → Try it (app 0.2.73): one alert to one screen or to every screen, with the fields an automation sends."""
         body = await request.json()
@@ -2356,6 +2388,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/capabilities', capabilities)
     app.router.add_get('/api/states', states)
     app.router.add_post('/api/screens/{inbox}/identify', identify)
+    app.router.add_post('/api/screens/{inbox}/calibrate', calibrate)
     app.router.add_post('/api/alerts/test', test_alert)
     app.router.add_get('/api/entity-actions', entity_actions)
     app.router.add_get('/api/entity-subtitle', entity_subtitle)

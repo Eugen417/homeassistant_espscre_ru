@@ -522,6 +522,19 @@ export async function identify(screen: Screen) {
     toast(e.message);
   }
 }
+// ---- Calibrate touch (app 0.2.117): the screen's own Calibrate touch button, pressed from here ----
+// Only a screen whose panel is one you calibrate has it, and the add-on says so by the button being on its device
+// in Home Assistant. It asks first: the screen goes to the crosses and stays there until someone standing in front
+// of it has tapped all five, so it is not something to set off by accident from a browser.
+export async function calibrateTouch(screen: Screen) {
+  if (!confirm(t("editor.screen_settings.actions.calibrate.confirm", { name: screen.name }))) return;
+  try {
+    await send(`screens/${encodeURIComponent(screen.id)}/calibrate`, "POST");
+    toast(t("editor.screen_settings.actions.calibrate.done", { name: screen.name }));
+  } catch (e: any) {
+    toast(e.message);
+  }
+}
 // ---- Removing a screen (app 0.2.112): the mirror of New screen ----
 // Home Assistant, the ESPHome profile and everything kept here, in one request. The sidebar says what goes
 // before it asks; here only what came back is shown.

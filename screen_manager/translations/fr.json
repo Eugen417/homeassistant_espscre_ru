@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Redémarrer",
+      "calibrate_touch": "Étalonner le tactile",
       "connected": "Connecté",
       "not_connected": "Non connecté",
       "tap_again_to_restart": "Touchez encore pour redémarrer",
+      "tap_again_to_calibrate": "Touchez encore pour étalonner",
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} h",
@@ -585,6 +587,10 @@
         "not_allowed": "Cette application ne peut pas supprimer une intégration de Home Assistant. Retirez l'écran dans Home Assistant même, sous Paramètres → Appareils et services.",
         "gone": "Home Assistant ne connaît plus cet écran.",
         "no_entry": "Home Assistant n'a pas cet écran comme appareil ESPHome, il ne peut donc être retiré que dans Home Assistant même."
+      },
+      "calibrate": {
+        "no_wizard": "{name} n'a pas d'étalonnage : sa dalle tactile indique elle-même où vous l'avez touchée, il n'y a donc rien à mesurer.",
+        "offline": "{name} est hors ligne. L'étalonnage pourra démarrer à son retour."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Luminosité",
         "night": "Nuit",
-        "screen": "Écran"
+        "screen": "Écran",
+        "this_screen": "Cet écran"
       },
       "rows": {
         "brightness": "Luminosité",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Balayer entre les pages",
         "page_buttons": "Boutons de page",
         "rotation": "Rotation"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Étalonner le tactile",
+          "hint": "L'écran affiche cinq croix et les garde. La personne devant l'écran touche chaque croix trois fois.",
+          "confirm": "Démarrer l'étalonnage sur {name} ?",
+          "done": "{name} affiche les croix."
+        }
       },
       "duration": {
         "seconds": "{n} s",

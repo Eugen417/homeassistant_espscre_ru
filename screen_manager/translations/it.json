@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Riavvia",
+      "calibrate_touch": "Calibra il touch",
       "connected": "Connesso",
       "not_connected": "Non connesso",
       "tap_again_to_restart": "Tocca di nuovo per riavviare",
+      "tap_again_to_calibrate": "Tocca di nuovo per calibrare",
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} h",
@@ -585,6 +587,10 @@
         "not_allowed": "Questa app non può rimuovere un'integrazione da Home Assistant. Rimuovi lo schermo in Home Assistant, in Impostazioni → Dispositivi e servizi.",
         "gone": "Home Assistant non conosce più questo schermo.",
         "no_entry": "Home Assistant non ha questo schermo come dispositivo ESPHome, quindi si può rimuovere solo in Home Assistant."
+      },
+      "calibrate": {
+        "no_wizard": "{name} non ha una calibrazione: il suo pannello touch indica dove lo hai toccato, quindi non c'è nulla da misurare.",
+        "offline": "{name} è offline. La calibrazione può iniziare quando torna."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Luminosità",
         "night": "Notte",
-        "screen": "Schermo"
+        "screen": "Schermo",
+        "this_screen": "Questo schermo"
       },
       "rows": {
         "brightness": "Luminosità",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Scorri tra le pagine",
         "page_buttons": "Pulsanti pagina",
         "rotation": "Rotazione"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Calibra il touch",
+          "hint": "Lo schermo mostra cinque croci e resta su quelle. Chi gli sta davanti tocca ogni croce tre volte.",
+          "confirm": "Avviare la calibrazione su {name}?",
+          "done": "{name} sta mostrando le croci."
+        }
       },
       "duration": {
         "seconds": "{n} s",

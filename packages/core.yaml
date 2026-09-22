@@ -14,7 +14,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.95"
+  SCREEN_FIRMWARE_VERSION: "0.2.96"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -899,6 +899,7 @@ font:
       - "\U000F0379" # monitor
       - "\U000F02FD" # information-outline
       - "\U000F0709" # restart
+      - "\U000F01A3" # crosshairs
       - "\U000F0E4F" # lightbulb-off
       - "\U000F0B53" # account-arrow-right
       - "\U000F0D43" # air-filter

@@ -52,7 +52,7 @@ FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main', 'waveshare7': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.95'
+FIRMWARE_VERSION = '0.2.96'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -597,6 +597,11 @@ OWNED_SETTINGS_MARKERS = frozenset(('Night mode', 'Night starts', 'Night ends', 
 ROTATION_OPTIONS = ('0°', '90°', '180°', '270°')
 # Every board turns since this firmware; the Guition turned since 0.2.9.
 ROTATION_MIN_FIRMWARE = (0, 2, 80)
+# The button that starts a screen's calibration wizard again (app 0.2.117). Only a board whose glass is one you
+# calibrate builds it, so the button being on the device is what says this screen can be calibrated at all: no
+# board list here, and a board added later needs nothing of this app. A resistive panel reads a voltage off the
+# film and has to be told what that voltage means in pixels; a capacitive one reports the point it was touched on.
+CALIBRATE_BUTTON = ('button', 'Calibrate touch')
 
 def turns_of(shape):
     """The angles a screen of this shape may be turned to: a half turn on any glass (its canvas, its grid and its size
@@ -617,6 +622,17 @@ def setting_entities(items):
             if name == wanted_name and domain == wanted_domain and key not in found:
                 found[key] = item['entity_id']
     return found if owned else None
+
+
+def calibrate_entity(items):
+    """The entity id of a screen's Calibrate touch button, from the registry entries of its device, or None when
+    this screen's panel has no calibration wizard (every capacitive board, and firmware before 0.2.44)."""
+    domain, name = CALIBRATE_BUTTON
+    for item in items:
+        if (item.get('platform') == 'esphome' and item.get('original_name') == name
+                and item['entity_id'].split('.', 1)[0] == domain):
+            return item['entity_id']
+    return None
 
 
 def setting_from_state(key, state):

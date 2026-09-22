@@ -57,7 +57,7 @@ The page is a menu of groups, each of which opens a page of its own:
 | Brightness | Brightness, Dark mode, Auto standby, Standby after, Standby brightness |
 | Night | Night mode, Starts, Ends, Night brightness |
 | Screen | Clock, Back to page 1, After, Also on standby, Swipe between pages, Page buttons, Rotation (boards that turn) |
-| This screen | Screen, Address, Firmware, Home Assistant, Restart |
+| This screen | Screen, Address, Firmware, Home Assistant, Calibrate touch (a panel that has a wizard), Restart |
 
 Every change is stored on the screen, applied at once and published on its entity, so Home Assistant and
 ESP Screens show it within a second. The editor's **Screen settings** panel has the first three groups as
@@ -118,6 +118,13 @@ key exactly. The row kinds are `toggle`, `number` (fixed step, optional unit), `
 grow with the value), `moment` (minutes since midnight, quarters by tap and hours while held), `choice`,
 `info` and `action`. A row can carry `shown` (leave it out on boards that lack the hardware) and `enabled`
 (grey while the switch it depends on is off).
+
+An `action` is not a setting: it runs something and stores nothing, so it has no key, no entity of its own in
+`SETTING_ENTITIES` and no line in `SETTING_RULES`. It takes the glass away for a while, so it names the words it
+asks first and shows them in place on the first tap, and it calls a hook the board binds
+(`restart_device`, `calibrate_touch`) instead of doing the work itself. Where the add-on offers the same action,
+it presses the screen's own entity for it: `Calibrate touch` is a button on the device, and the button being
+there is also how the app knows this screen has a wizard at all (`core.calibrate_entity`).
 
 Watch the count: a group of more than five rows gets a pager on a 320x240 board. Six is the maximum
 that still fits a 480x480 board in one go.

@@ -9,6 +9,7 @@ import Library from "../src/components/Library.vue";
 import DevicePage from "../src/components/DevicePage.vue";
 import InstallerView from "../src/components/InstallerView.vue";
 import Sidebar from "../src/components/Sidebar.vue";
+import SettingsTab from "../src/components/SettingsTab.vue";
 import TileCard from "../src/components/TileCard.vue";
 import TileInspector from "../src/components/TileInspector.vue";
 import TopbarInspector from "../src/components/TopbarInspector.vue";
@@ -455,6 +456,41 @@ describe("Sidebar", () => {
     await item.findAll(".screen-remove .btn")[1].trigger("click");
     expect(item.find(".screen-remove").exists()).toBe(false);
     expect(item.find(".facts").exists()).toBe(true);
+  });
+});
+
+describe("Screen settings: Calibrate touch (app 0.2.117)", () => {
+  const view = (extra: Record<string, unknown> = {}) => {
+    Object.assign(state.inventory.screens[0], {
+      settings: { owner: "screen", keys: [], values: {}, unavailable: [], rotations: [0, 180], switches: [], ...extra },
+    });
+    return mount(SettingsTab);
+  };
+  it("stays away from a screen whose panel has nothing to calibrate", () => {
+    expect(view({ calibrate: false }).find("#settings-this-screen").exists()).toBe(false);
+  });
+  it("asks first, and then starts the wizard on the screen", async () => {
+    const calls: [string, RequestInit][] = [];
+    vi.stubGlobal("fetch", vi.fn((path: string, options: RequestInit) => {
+      calls.push([path, options]);
+      return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200 }));
+    }));
+    const panel = view({ calibrate: true });
+    expect(panel.find("#settings-this-screen").text()).toContain("five crosses");
+    // Cancel sends nothing.
+    vi.stubGlobal("confirm", vi.fn(() => false));
+    await panel.find("#setting-calibrate").trigger("click");
+    await flushPromises();
+    expect(calls).toEqual([]);
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    await panel.find("#setting-calibrate").trigger("click");
+    await flushPromises();
+    expect(calls.map(([path, options]) => [path, options.method])).toEqual([["api/screens/living/calibrate", "POST"]]);
+    expect(state.toast?.message).toBe("Living room is showing the crosses.");
+  });
+  it("waits for a screen that is off: the crosses need glass that is on", () => {
+    state.inventory.screens[0].online = false;
+    expect(view({ calibrate: true }).find<HTMLButtonElement>("#setting-calibrate").element.disabled).toBe(true);
   });
 });
 

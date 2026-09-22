@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Restart",
+      "calibrate_touch": "Calibrate touch",
       "connected": "Connected",
       "not_connected": "Not connected",
       "tap_again_to_restart": "Tap again to restart",
+      "tap_again_to_calibrate": "Tap again to calibrate",
       "seconds": "{n} sec",
       "minutes": "{n} min",
       "hours": "{n} h",
@@ -585,6 +587,10 @@
         "not_allowed": "This app may not remove an integration from Home Assistant. Remove the screen in Home Assistant itself, under Settings → Devices & services.",
         "gone": "Home Assistant no longer has this screen.",
         "no_entry": "Home Assistant doesn't have this screen as an ESPHome device, so it can only be removed in Home Assistant itself."
+      },
+      "calibrate": {
+        "no_wizard": "{name} has no calibration: its touch panel says where you touched it, so there is nothing to measure.",
+        "offline": "{name} is offline. The calibration can start once it's back."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Brightness",
         "night": "Night",
-        "screen": "Screen"
+        "screen": "Screen",
+        "this_screen": "This screen"
       },
       "rows": {
         "brightness": "Brightness",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Swipe between pages",
         "page_buttons": "Page buttons",
         "rotation": "Rotation"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Calibrate touch",
+          "hint": "The screen shows five crosses and waits on them. Whoever stands in front of it taps each cross three times.",
+          "confirm": "Start the calibration on {name}?",
+          "done": "{name} is showing the crosses."
+        }
       },
       "duration": {
         "seconds": "{n} sec",

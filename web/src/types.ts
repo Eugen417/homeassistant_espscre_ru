@@ -31,7 +31,9 @@ export type UpdateInfo = {
 // `rotations` (app 0.2.94): the angles this screen may be turned to, a half turn on any glass and the quarter turns on a square one.
 // `switches` are keys this screen shows as a switch instead of a number (app 0.2.105): a backlight that is lit or
 // dark has no percentage, so standby and night are on or off there.
-export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[]; switches?: string[] };
+// `calibrate` (app 0.2.117): this screen's panel is one you calibrate, so the panel offers Calibrate touch. The
+// add-on reads it from the screen's own button in Home Assistant, the same one its settings page has a row for.
+export type SettingsView = { owner: string; keys: string[]; values: Record<string, any>; unavailable: string[]; rotations?: number[]; switches?: string[]; calibrate?: boolean };
 // The two ways a screen can hang (app 0.2.107), chosen when it is built: lying down or standing up. A board's own
 // numbers for each way come from boards.json, which the add-on serves with the firmware status.
 export type Orientation = "landscape" | "portrait";

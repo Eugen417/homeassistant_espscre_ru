@@ -196,6 +196,12 @@ substitutions:
     screen_calibration::isolation = [](bool active) { id(calibration_active) = active; };
     screen_calibration::setup(id(home_page)->obj, id(sublabel)->get_lv_font(), id(headline)->get_lv_font(),
       ${TOUCH_CAL_X_MIN}, ${TOUCH_CAL_X_MAX}, ${TOUCH_CAL_Y_MIN}, ${TOUCH_CAL_Y_MAX});
+    // The wizard runs by itself the first time this panel starts; this is the way back to it (firmware 0.2.96+),
+    // the same one the Calibrate touch button in Home Assistant takes. Binding it is also what puts Calibrate
+    // touch on the settings page: a board that builds no wizard binds nothing and has no row, so the two can
+    // never disagree. The page closes first, as its own back arrow closes it: the wizard loads a screen of its
+    // own and leaves the home page behind it when it is done.
+    settings_screen::calibrate_touch = []() { settings_screen::close(); screen_calibration::begin(); };
   # what else keeps the settings page closed (inline, in the condition)
   MAY_OPEN_EXTRA: ""
   # the log line of a boot onto the touch test page

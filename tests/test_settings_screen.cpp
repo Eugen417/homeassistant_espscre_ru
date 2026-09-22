@@ -177,9 +177,26 @@ int main() {
       if (row.kind == Kind::duration) assert(row.high > row.low);
       if (row.kind == Kind::choice) assert((row.options || row.option_keys != NO_TEXT) && row.option_count);
       if (row.kind == Kind::info) assert(row.text);
-      if (row.kind == Kind::action) assert(row.run && *row.icon);
+      // An action takes the glass away for a while, so every one of them has the words it asks first.
+      if (row.kind == Kind::action) assert(row.run && *row.icon && row.confirm != NO_TEXT && *screen_text::tr(row.confirm));
     }
   }
+
+  // ---- Calibrate touch: the row is there exactly where a wizard is ----
+  // Nothing says "this glass is resistive" twice: the board that builds a wizard binds the hook, every other
+  // board leaves it null, so the row cannot show where there is nothing to run.
+  const Row *calibrate = nullptr;
+  for (uint8_t i = 0; i < pages[4].count; ++i)
+    if (pages[4].rows[i].label == screen_text::txt::settings_calibrate_touch) calibrate = &pages[4].rows[i];
+  assert(calibrate && calibrate->kind == Kind::action);
+  calibrate_touch = nullptr;
+  assert(!visible_row(*calibrate));
+  static int calibrations = 0;
+  calibrate_touch = [] { ++calibrations; };
+  assert(visible_row(*calibrate));
+  calibrate->run();
+  assert(calibrations == 1);
+  calibrate_touch = nullptr;
   // Every page is reachable from the menu.
   bool reached[PAGE_COUNT] = {true};
   for (uint8_t i = 0; i < pages[0].count; ++i) reached[pages[0].rows[i].opens] = true;

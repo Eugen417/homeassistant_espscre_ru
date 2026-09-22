@@ -135,9 +135,11 @@
       "firmware": "Firmware",
       "home_assistant": "Home Assistant",
       "restart": "Reiniciar",
+      "calibrate_touch": "Calibrar el táctil",
       "connected": "Conectado",
       "not_connected": "No conectado",
       "tap_again_to_restart": "Toca otra vez para reiniciar",
+      "tap_again_to_calibrate": "Toca otra vez para calibrar",
       "seconds": "{n} s",
       "minutes": "{n} min",
       "hours": "{n} h",
@@ -585,6 +587,10 @@
         "not_allowed": "Esta aplicación no puede eliminar una integración de Home Assistant. Elimina la pantalla en el propio Home Assistant, en Configuración → Dispositivos y servicios.",
         "gone": "Home Assistant ya no conoce esta pantalla.",
         "no_entry": "Home Assistant no tiene esta pantalla como dispositivo ESPHome, así que solo se puede eliminar en el propio Home Assistant."
+      },
+      "calibrate": {
+        "no_wizard": "{name} no tiene calibración: su panel táctil indica dónde lo has tocado, así que no hay nada que medir.",
+        "offline": "{name} está sin conexión. La calibración puede empezar cuando vuelva."
       }
     },
     "status": {
@@ -1482,7 +1488,8 @@
       "groups": {
         "brightness": "Brillo",
         "night": "Noche",
-        "screen": "Pantalla"
+        "screen": "Pantalla",
+        "this_screen": "Esta pantalla"
       },
       "rows": {
         "brightness": "Brillo",
@@ -1502,6 +1509,14 @@
         "swipe_pages": "Deslizar entre páginas",
         "page_buttons": "Botones de página",
         "rotation": "Rotación"
+      },
+      "actions": {
+        "calibrate": {
+          "button": "Calibrar el táctil",
+          "hint": "La pantalla muestra cinco cruces y espera en ellas. Quien esté delante toca cada cruz tres veces.",
+          "confirm": "¿Empezar la calibración en {name}?",
+          "done": "{name} está mostrando las cruces."
+        }
       },
       "duration": {
         "seconds": "{n} s",

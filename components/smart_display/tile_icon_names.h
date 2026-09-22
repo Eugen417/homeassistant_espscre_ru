@@ -190,6 +190,7 @@ inline constexpr Named NAMES[] = {
   {"monitor", 0xF0379},
   {"information-outline", 0xF02FD},
   {"restart", 0xF0709},
+  {"crosshairs", 0xF01A3},
   {"lightbulb-off", 0xF0E4F},
   {"account-arrow-right", 0xF0B53},
   {"air-filter", 0xF0D43},
