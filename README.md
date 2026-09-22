@@ -216,6 +216,14 @@ while it keeps your country's clock and numbers.
 
 Use these exact board variants: similar-looking product names can have different
 controllers or connectors. Wallbox relays are not controlled.
+
+The one we use ourselves is the 4-inch Guition, and it has been good to us: bright,
+responsive touch, and it has been on the wall for months without a hiccup. We buy it here:
+[Guition ESP32-S3-4848S040 on AliExpress](https://nl.aliexpress.com/item/1005008506761923.html).
+AliExpress being AliExpress, that link may go dead at some point. If it does, search for
+"ESP32-S3-4848S040" and check the listing says 480 x 480, ST7701S and a capacitive GT911
+touch panel before you order.
+
 ESP Screens builds with its own **ESPHome 2026.9.0**. The firmware also builds in your own ESPHome Device Builder
 with ESPHome 2026.6.2 or newer; the 10.1-inch Guition asks for 2026.8.0 or newer, because its touch panel is
 newer than that.
