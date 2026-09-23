@@ -23,11 +23,11 @@ In its board file under `packages/boards/`, next to its hardware:
 | `ROTATION_LANDSCAPE` | the LVGL angle that lays that panel out lying down (a CYD 90, a Waveshare 0) |
 | `LVGL_ROTATION` | which way this screen hangs; ESP Screens writes it when the screen is built |
 | `DISPLAY_DPI` | diagonal pixels / diagonal inches (the CYD 2.8″: 143, the Guition 4.0″: 170) |
-| `LOOK` | `standard` (the Guition's sizes) or `compact` (the CYD's, for glass too small for the standard) |
+| the look (`packages/looks/`) | `standard` (the Guition's sizes) or `compact` (the CYD's, for glass too small for the standard); the board file includes one |
 | `GRID_COLS`, `GRID_ROWS` | the cells of a page lying down; the shared tree places every cell from these |
 | `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT` | the cells of a page standing up (a square board repeats the first pair) |
 | `GRID_MARGIN`, `GRID_GAP_X`, `GRID_GAP_Y` | the side margin and the gaps between cells, in pixels |
-| the size table (`TILE_ICON_SIZE`, `FONT_*_SIZE`, …) | the look's sizes at this board's density |
+| the sizes (`TILE_ICON_SIZE`, `FONT_*_SIZE`, …) | worked out by the look at this board's density; a board states one only when its glass asks for another |
 
 A board states no size that follows from its canvas. The tile area, the cells, the page keys, the strip that
 opens the settings, the crosses of the touch test and the alert card are all measured at boot from the canvas
@@ -35,7 +35,7 @@ LVGL hands the screen, which is why one firmware serves a board either way round
 
 `tools/propose_grid.py` proposes the grid from the resolution and the diagonal: as many cells as hold a
 standard tile of about 33 × 16 mm, never smaller than 30 × 12 mm. `tools/new_board.py` writes a board file
-for a new panel from the nearest real board, scaling every size by the density ratio (docs/ADDING_A_BOARD.md).
+for a new panel from the nearest real board; its sizes come from the look (docs/ADDING_A_BOARD.md).
 
 ## The cards are cells of an LVGL grid
 

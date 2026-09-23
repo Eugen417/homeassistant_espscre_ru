@@ -1,0 +1,3 @@
+# The same Guition, with the substitution the board file offers for the frequency (app 0.2.127+).
+substitutions:
+  BACKLIGHT_FREQUENCY: "150Hz"

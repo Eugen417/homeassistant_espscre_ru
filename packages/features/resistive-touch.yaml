@@ -1,0 +1,142 @@
+# ESP Screens - how a resistive touch panel is read (XPT2046): a board includes this file when its touch controller
+# reports raw readings that have to be calibrated on the glass.
+#
+# The board file names the controller, its bus and its pins as `touchscreen:` with `id: ts_touch`, the pressure that
+# counts as a touch (`threshold:`), and the calibration it measured (TOUCH_CAL_*). This file adds what the firmware
+# does with a touch on such glass: a tap may drift a little and must last a moment, pages change with LVGL's swipe
+# gesture anywhere over the tiles, and the calibration wizard runs on the first start and from the settings page
+# (docs/CALIBRATING.md). A capacitive panel reads its touches another way (features/capacitive-touch.yaml).
+substitutions:
+  # A tap survives a finger that drifts up to this far (56 px at 143 dpi: 1 cm); further is a swipe.
+  TOUCH_MOVE_LIMIT_PX: ${ (56 * ((DISPLAY_DPI | float) / 143)) | round | int }
+  # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
+  TOUCH_MIN_PRESS_MS: "60"
+  # A slider let go this close to the left or right edge of the glass meant its end when that end lies in
+  # the band. The resistive panel reports a finger up to the bezel, so only the strip's last pixels and
+  # the margin beside them count (a capacitive panel loses a fast finger 30-50 px before its edge).
+  SLIDER_EDGE_SNAP_PX: ${ (20 * ((DISPLAY_DPI | float) / 143)) | round | int }
+  # Holding the top bar opens the settings page (0.2.44+). The whole strip counts on such glass;
+  # a finger that travels further than the drift limit of a tap is swiping, not holding.
+  SETTINGS_HOLD_X: "0"
+  # The correction the calibration wizard measures and saves on the screen; neutral until it has (tools/calibrate.py
+  # writes a measured one into a screen's own YAML).
+  TOUCH_AFFINE_XX: "1.000000000"
+  TOUCH_AFFINE_XY: "0.000000000"
+  TOUCH_AFFINE_XC: "0.000000000"
+  TOUCH_AFFINE_YX: "0.000000000"
+  TOUCH_AFFINE_YY: "1.000000000"
+  TOUCH_AFFINE_YC: "0.000000000"
+  # The touch test page is the USB calibration's (tools/calibrate.py)
+  TOUCH_TEST_PAGE_PAINT: "paint_calibration"    # the page
+  TOUCH_TEST_TITLE: "calibration_title"         # the words at the top
+  TOUCH_TEST_PAINT: "paint_calibration"         # the crosses
+  TOUCH_TEST_READY_LOG: "USB calibration ready; no tile actions"
+
+  # Code the shared lambdas of packages/core.yaml take from this file (docs/PROFILES.md, "hooks")
+  # the first boot step: the touch guard, and the correction the wizard measured
+  BOOT_TOUCH: |-
+    // Per-panel affine correction; shared defaults are neutral.
+    id(ts_touch).set_raw_correction(${TOUCH_AFFINE_XX}f, ${TOUCH_AFFINE_XY}f, ${TOUCH_AFFINE_XC}f, ${TOUCH_AFFINE_YX}f, ${TOUCH_AFFINE_YY}f, ${TOUCH_AFFINE_YC}f);
+    cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
+    cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
+    id(last_touch_ms) = millis();
+    id(last_use_ms) = millis();
+    id(display_dimmed) = false;
+  # the calibration wizard's page and crosses are a paint of their own (theme::paints)
+  CALIBRATION_PAINT_FILL: "theme::fill(id(paint_calibration), Paint::calibration);"
+  # what LVGL's gesture over the tiles does: a page swipe, as such glass has no edge band
+  BOOT_PAGE_GESTURE: |-
+    lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *event) {
+      if(!runtime_tiles::enabled || !runtime_tiles::swipe_pages || id(display_dimmed) || id(calibration_active) ||
+         !id(active_entity).empty() || (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root,LV_OBJ_FLAG_HIDDEN)))return;
+      auto *input=lv_indev_active();if(!input)return;
+      auto direction=lv_indev_get_gesture_dir(input);
+      if(direction!=LV_DIR_LEFT && direction!=LV_DIR_RIGHT && direction!=LV_DIR_TOP)return;
+      // A quick drag on a slider is that slider's, never a page swipe (firmware 0.2.68+).
+      if(runtime_tiles::captured_slider){ESP_LOGI("touch","page swipe ignored: a slider is being dragged");return;}
+      cyd::touch_guard.consume();
+      lv_indev_wait_release(input);
+      // Up is the way home (firmware 0.2.100+); this board has no edge band, so a flick anywhere over the tiles
+      // does it, as left and right do here.
+      if(direction==LV_DIR_TOP){
+        ESP_LOGI("touch","swipe up: back to page 1");
+        runtime_tiles::swipe_glow(runtime_tiles::Edge::bottom);
+        if(runtime_tiles::back_home)runtime_tiles::back_home();
+        return;
+      }
+      // The edge the page comes from lights up for a moment (firmware 0.2.100+): swiping left brings in the next
+      // page from the right.
+      runtime_tiles::swipe_glow(direction==LV_DIR_LEFT?runtime_tiles::Edge::right:runtime_tiles::Edge::left);
+      ESP_LOGI("touch","page swipe: page %d -> %d",id(tile_page),id(tile_page)+(direction==LV_DIR_LEFT?1:-1));
+      id(tile_page)+=direction==LV_DIR_LEFT?1:-1;
+      id(show_tile_page).execute();
+    }, LV_EVENT_GESTURE, nullptr);
+  # after the cards' hooks, before the settings page's: the calibration wizard
+  BOOT_CARDS_TAIL: |-
+    if (!runtime_tiles::enabled) return;
+    screen_calibration::apply = [](const screen_calibration::Calibration &cal) {
+      id(ts_touch).set_raw_correction(cal.c[0],cal.c[1],cal.c[2],cal.c[3],cal.c[4],cal.c[5]);
+    };
+    screen_calibration::isolation = [](bool active) { id(calibration_active) = active; };
+    screen_calibration::setup(id(home_page)->obj, id(sublabel)->get_lv_font(), id(headline)->get_lv_font(),
+      ${TOUCH_CAL_X_MIN}, ${TOUCH_CAL_X_MAX}, ${TOUCH_CAL_Y_MIN}, ${TOUCH_CAL_Y_MAX});
+    // The wizard runs by itself the first time this panel starts; this is the way back to it (firmware 0.2.96+),
+    // the same one the Calibrate touch button in Home Assistant takes. Binding it is also what puts Calibrate
+    // touch on the settings page: a board that builds no wizard binds nothing and has no row, so the two can
+    // never disagree. The page closes first, as its own back arrow closes it: the wizard loads a screen of its
+    // own and leaves the home page behind it when it is done.
+    settings_screen::calibrate_touch = []() { settings_screen::close(); screen_calibration::begin(); };
+
+lvgl:
+  style_definitions:
+    # The calibration wizard's page and crosses (theme::paints fills it: CALIBRATION_PAINT_FILL).
+    - id: paint_calibration
+
+# The way back to the wizard from Home Assistant (firmware 0.2.96+); the settings page has the same row.
+button:
+  - platform: template
+    name: "Calibrate touch"
+    internal: ${DASHBOARD_INBOX_INTERNAL}
+    entity_category: config
+    on_press:
+      - lambda: 'if (runtime_tiles::enabled) screen_calibration::begin();'
+
+touchscreen:
+  - id: !extend ts_touch
+    # The raw range the calibration measured; the wizard's correction goes on top of it (BOOT_CARDS_TAIL).
+    calibration:
+      x_min: ${TOUCH_CAL_X_MIN}
+      x_max: ${TOUCH_CAL_X_MAX}
+      y_min: ${TOUCH_CAL_Y_MIN}
+      y_max: ${TOUCH_CAL_Y_MAX}
+    on_touch:
+      - lambda: |-
+          id(last_touch_ms) = millis();
+          id(last_use_ms) = millis();
+          id(touch_down) = true;
+          cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
+          // The point the screen itself works with, through ESPHome's own turn (the same call the tiles are hit
+          // with): the wizard fits against that, so it never has to work out what the turn does.
+          int screen_x = touch.x, screen_y = touch.y;
+          if (runtime_tiles::touch_input::to_screen) runtime_tiles::touch_input::to_screen(screen_x, screen_y);
+          screen_calibration::press(touch.id, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
+          ESP_LOGI("touch", "press native=%u,%u screen=%d,%d raw=%d,%d pressure=%d calibration=%d", touch.x, touch.y, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y(), touch.z_raw, id(calibration_active));
+    on_update:
+      - lambda: |-
+          id(last_touch_ms) = millis();
+          id(last_use_ms) = millis();
+          // Only the contact that started the touch counts; the guard ignores other ids.
+          for (const auto &point : touches) {
+            cyd::touch_guard.update(point.x, point.y, point.id);
+            // The wizard keeps both halves of a reading from the same instant (firmware 0.2.97+): where the screen
+            // puts this point, and what the panel is sending right now.
+            int screen_x = point.x, screen_y = point.y;
+            if (runtime_tiles::touch_input::to_screen) runtime_tiles::touch_input::to_screen(screen_x, screen_y);
+            screen_calibration::hold(point.id, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
+          }
+    on_release:
+      - lambda: |-
+          id(last_touch_ms) = millis();
+          id(last_use_ms) = millis();
+          id(touch_down) = false;
+          screen_calibration::release();

@@ -3,11 +3,13 @@
 #
 # The LVGL tree the runtime fills (tiles, cards, overlays, the touch test page),
 # the scripts, the API actions, the entities, the fonts and the globals. It carries
-# no number that depends on the board: every size, font size and board-only line of
-# C++ is a ${NAME} that the board file under packages/boards/ defines, next to the
-# board's hardware. An entry file includes both: packages/<board>.yaml for a screen
-# that builds over GitHub, <profile>.yaml in the repository root for a checkout.
-# docs/PROFILES.md says how the three fit together and how a board is added.
+# no number that depends on the board: every size and font size is a ${NAME} from
+# the board's look (packages/looks/), every board-only line of C++ a ${NAME} from a
+# feature the board includes (packages/features/) or from the board file itself
+# (packages/boards/), next to the board's hardware. An entry file includes this file
+# and the board's: packages/<board>.yaml for a screen that builds over GitHub,
+# <profile>.yaml in the repository root for a checkout. docs/PROFILES.md says how
+# the files fit together and how a board is added.
 #
 # A screen gets its tiles from the ESP Screen Manager add-on while it runs, so no
 # Home Assistant entity lives in here. The Material Design Icons font comes from
@@ -31,6 +33,36 @@ substitutions:
   NIGHT_START_HOUR: "22"                           # 0-23
   NIGHT_END_HOUR: "7"                              # 0-23
   NIGHT_DIM_BRIGHTNESS: "10"                       # backlight brightness in percent at night
+
+  # What a board file, a feature or a screen's own YAML may state instead: the value here holds when none of them
+  # does. A board states its hardware and what differs (docs/PROFILES.md, "Defaults").
+  ROTATION_LANDSCAPE: "0"                          # the LVGL angle that lays the panel out lying down
+  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"           # which way the screen hangs; ESP Screens writes it for one standing up
+  TOUCH_SWAP_XY: "false"                           # the touch panel's axes against the display's own pixels
+  TOUCH_MIRROR_X: "false"
+  TOUCH_MIRROR_Y: "false"
+  GRID_COLS_PORTRAIT: "${GRID_COLS}"               # the cells of a page standing up: the same as lying down on
+  GRID_ROWS_PORTRAIT: "${GRID_ROWS}"               # square glass, a board of another shape states its own
+  BACKLIGHT_DIMMABLE: "true"                       # false: the backlight is lit or dark, a switch instead of a percentage
+  CAN_STANDBY: "true"                              # false: the screen never goes dark (features/backlight-always-on.yaml)
+  # The touch test page (CALIBRATION_ON_BOOT); its sizes are the look's.
+  TOUCH_TEST_PAGE_PAINT: "paint_page_soft"         # the page
+  TOUCH_TEST_TITLE: "calibration_touch_check"      # the words at the top
+  TOUCH_TEST_PAINT: "paint_ink"                    # the crosses
+  # Code the shared lambdas below take from a feature or a board, at the place named ${...}; empty when nothing
+  # adds anything there. BOOT_TOUCH, BOOT_PAGE_GESTURE and APPLY_BACKLIGHT have no default: every screen reads a
+  # touch panel and lights a backlight, so the board says how (features/capacitive-touch.yaml, features/backlight.yaml).
+  CAMERA_PAINT_FILL: ""                            # the paint styles a feature brings (theme::paints)
+  CALIBRATION_PAINT_FILL: ""
+  CLOSE_CARDS_HOOK: ""                             # in runtime_tiles::dismiss, after the detail card closes
+  BOOT_CAMERA_HOOKS: ""                            # after the gesture: the camera images (features/camera.yaml)
+  BOOT_CARDS_TAIL: ""                              # after the cards' hooks, before the settings page's
+  MAY_OPEN_EXTRA: ""                               # what else keeps the settings page closed (inline, in the condition)
+  TICK_HOOK: ""                                    # every 250 ms after runtime_tiles::tick()
+  AWAY_EXTRA: ""                                   # back_to_page_1_when_due: what else counts as away from page 1 (inline)
+  ALERT_SHOW_HOOK: ""                              # alert_show: after the settings page closed, before the card is made
+  # one more line of the ui_state diagnostics
+  UI_STATE_HOOK: "ESP_LOGI(\"ui_diag\", \"rotation=%u actual=%u\", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());"
 
 # ============================================================
 # No need to edit below this line for a screen of your own: the sizes are the
@@ -112,7 +144,6 @@ esphome:
           // the 3.3 V rail under the brownout level when it switches on from a dark screen, so that board has no
           // standby and no night. The rows, the entities and the add-on's Settings follow the same fact.
           settings_screen::can_standby = ${CAN_STANDBY};
-          ${BOOT_ENABLED_HOOK}
           runtime_tiles::load_settings();
           // Colours (firmware 0.2.54+): the styles of this profile take their colours from theme.h. The list runs now,
           // in the look the screen saved, before anything is drawn, and again after every change of look.
@@ -131,7 +162,8 @@ esphome:
             theme::fill(id(paint_scrim), Paint::scrim);
             theme::fill(id(paint_button_dark), Paint::button_dark);
             theme::fill(id(paint_button_dark_pressed), Paint::button_dark_pressed);
-            ${BOARD_PAINT_FILL}
+            ${CAMERA_PAINT_FILL}
+            ${CALIBRATION_PAINT_FILL}
           };
           theme::paints();
           theme::set_dark(settings_screen::dark_mode != 0);
@@ -173,7 +205,9 @@ esphome:
             id(tile_page) += step;
             id(show_tile_page).execute();
           };
-          ui::configure(atoi("${DISPLAY_DPI}"), "${LOOK}");
+          // The board states its density with the decimals it has (DISPLAY_DPI); the firmware scales by the nearest
+          // whole number, the look took the exact one for its sizes.
+          ui::configure(atoi("${ (DISPLAY_DPI | float) | round | int }"), "${LOOK}");
           runtime_tiles::grid_bind(id(tile_scroll), atoi("${GRID_MARGIN}"), atoi("${PAGE_BAR_H}"));
           // The alert card on the glass it landed on (firmware 0.2.92+). A board states the card's table for the
           // way its glass was drawn; built standing up the same table lands on narrower glass, so the card and
@@ -1243,6 +1277,32 @@ text_sensor:
       name: "IP address"
       entity_category: diagnostic
 
+# Turning the screen as a Home Assistant choice (firmware 0.2.80+). Every screen offers the half turn, which keeps
+# its canvas and its grid; square glass the quarter turns as well, whose canvas is the same either way
+# (settings_screen::quarter_turns in on_boot). The screen applies the angle on top of LVGL_ROTATION.
+select:
+  - platform: template
+    id: setting_rotation
+    name: "Rotation"
+    icon: "mdi:screen-rotation"
+    entity_category: config
+    options: ${ ["0°", "90°", "180°", "270°"] if PANEL_W == PANEL_H else ["0°", "180°"] }
+    update_interval: never
+    lambda: 'return std::to_string(settings_screen::rotation) + "°";'
+    set_action:
+      - lambda: |-
+          const std::string option(x.c_str(), x.size());
+          settings_screen::set("rotation", atoi(option.c_str()));
+
+# The touch panel the board names (`id: ts_touch`) turns with the display, through LVGL; these say how the
+# panel's own axes lie against the display's pixels.
+touchscreen:
+  - id: !extend ts_touch
+    transform:
+      swap_xy: ${TOUCH_SWAP_XY}
+      mirror_x: ${TOUCH_MIRROR_X}
+      mirror_y: ${TOUCH_MIRROR_Y}
+
 switch:
   - platform: restart
     name: "Restart"
@@ -1380,6 +1440,7 @@ datetime:
       - lambda: 'settings_screen::set("night_end", x.hour * 60 + x.minute);'
 
 lvgl:
+  id: screen_lvgl
   # The theme's font for text without a font of its own. Every label names its font, so this only keeps
   # ESPHome from building LVGL's Montserrat 14 for nothing (firmware 0.2.65+).
   default_font: ${LVGL_DEFAULT_FONT}

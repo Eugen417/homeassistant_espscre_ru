@@ -1,0 +1,6 @@
+# A 4-inch Guition whose backlight driver cannot follow 20 kHz (GitHub #5): the fix three owners confirmed.
+output:
+  - id: !extend gpio_backlight_pwm
+    frequency: 150Hz
+    min_power: 0.03
+    zero_means_zero: true

@@ -1,0 +1,13 @@
+# ESP Screens - how every board's firmware is built, for every board to include (directly, or through a hardware file).
+#
+# ESPHome's recommended ESP-IDF, without ESP-IDF's assert texts (file, line and condition of every check; firmware
+# 0.2.75+, 49 KB on the CYD): a failed assert still stops and restarts the screen, and its backtrace still points at
+# the line. ESP-IDF's error names stay: without them ESPHome's own error lines only say "UNKNOWN ERROR". The board file
+# names its chip (`esp32: board:`, `variant:`) and what else it needs; packages/core.yaml has no esp32: block, so the
+# shared tree also builds for ESPHome's host platform (tools/render_topbar.py).
+esp32:
+  framework:
+    type: esp-idf
+    version: recommended
+    advanced:
+      assertion_level: SILENT

@@ -1,0 +1,27 @@
+# ESP Screens - a picture of what LVGL draws, sent over the log, for a board with the memory for a second frame (PSRAM).
+#
+# The `ui_snapshot` action (Home Assistant, or diagnostics/capture_ui.py) copies the screen LVGL draws row by row into
+# the log, which capture_ui.py turns into a PNG. It needs LVGL's snapshot, which this file switches on.
+esphome:
+  platformio_options:  # not `build_flags:` yet, see packages/core.yaml
+    build_flags:
+      - -DLV_USE_SNAPSHOT=1
+  includes:
+    - <esphome/components/smart_display/guition_diagnostics.h>
+
+api:
+  actions:
+    - action: ui_snapshot
+      then:
+        - script.execute: capture_ui_snapshot
+
+script:
+  - id: capture_ui_snapshot
+    mode: single
+    then:
+      - lambda: guition::snapshot_begin();
+      - repeat:
+          count: 240
+          then:
+            - lambda: guition::snapshot_next_row();
+            - delay: 100ms

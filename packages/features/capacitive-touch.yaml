@@ -1,0 +1,88 @@
+# ESP Screens - how a capacitive touch panel is read (GT911, GSL3670 and alike): a board includes this file when its
+# touch controller reports pixels and needs no calibration.
+#
+# The board file names the controller, its bus and its pins as `touchscreen:` with `id: ts_touch`; this file adds what
+# the firmware does with a touch. A capacitive panel does not bounce, so a tap needs no drift limit and a short
+# contact counts, pages change with a swipe from the glass edge, and a quick flick over the tiles is never a tap.
+# The resistive CYD reads its panel its own way (packages/boards/cyd-2432s028.yaml).
+substitutions:
+  # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
+  # (runtime_tiles::event checks where it let go: LVGL keeps the press on the tile and would click it
+  # anywhere), and a quick flick is LVGL's gesture, never a tap (BOOT_PAGE_GESTURE below).
+  TOUCH_MOVE_LIMIT_PX: "0"
+  # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
+  TOUCH_MIN_PRESS_MS: "20"
+  # A page swipe starts in this band along the left or right edge (32 px at 170 dpi, about 5 mm) and needs this much
+  # travel inward (40 px, about 6 mm); a swipe from the middle of the screen does nothing.
+  EDGE_SWIPE_BAND_PX: ${ (32 * ((DISPLAY_DPI | float) / 170)) | round | int }
+  EDGE_SWIPE_TRAVEL_PX: ${ (40 * ((DISPLAY_DPI | float) / 170)) | round | int }
+  # A slider let go this close to the left or right edge of the glass (67 px at 170 dpi, about 1 cm) meant its end
+  # when that end lies in the band: the panel loses a finger swiped off the glass 30-50 px before the edge.
+  SLIDER_EDGE_SNAP_PX: ${ (67 * ((DISPLAY_DPI | float) / 170)) | round | int }
+  # Holding the top bar opens the settings page (0.2.44+). The two edge bands stay clear: a swipe that starts up
+  # there still changes the page.
+  SETTINGS_HOLD_X: "${EDGE_SWIPE_BAND_PX}"
+  # the log line of a boot onto the touch test page
+  TOUCH_TEST_READY_LOG: "GT911 touch test ready; no tile actions"
+
+  # Code the shared lambdas of packages/core.yaml take from this file (docs/PROFILES.md, "hooks")
+  # the first boot step: the touch guard, and what a capacitive panel needs
+  BOOT_TOUCH: |-
+    cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
+    cyd::edge_swipe.configure(${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
+    cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
+    // The page and the tile container take no presses: the theme's pressed style would
+    // otherwise repaint nearly the whole screen twice per touch in the empty edge band,
+    // starving the touch polling for the whole length of a quick swipe.
+    lv_obj_remove_flag(id(home_page)->obj, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_remove_flag(id(tile_scroll), LV_OBJ_FLAG_CLICKABLE);
+    // A stray GT911 contact at exactly (0, 0) never reaches LVGL (cyd::GhostTouch): as the last
+    // sample of a drag it sent a slider to its end on release. LVGL still reads ESPHome's callback.
+    if (auto *indev = lv_indev_get_next(nullptr)) {
+      static lv_indev_read_cb_t esphome_read = nullptr;
+      static const lv_indev_read_cb_t filtered = [](lv_indev_t *input, lv_indev_data_t *data) {
+        esphome_read(input, data);
+        int32_t ghost_x = 0, ghost_y = 0;
+        id(screen_lvgl).rotate_coordinates(ghost_x, ghost_y);
+        const unsigned dropped = cyd::ghost_touch.dropped();
+        const auto read = cyd::ghost_touch.filter({data->state == LV_INDEV_STATE_PRESSED, (int) data->point.x, (int) data->point.y}, ghost_x, ghost_y);
+        if (cyd::ghost_touch.dropped() != dropped) ESP_LOGI("touch", "GT911 stray contact at (0,0) ignored");
+        data->state = read.pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+        data->point.x = read.x;
+        data->point.y = read.y;
+      };
+      if (lv_indev_get_read_cb(indev) != filtered) {
+        esphome_read = lv_indev_get_read_cb(indev);
+        lv_indev_set_read_cb(indev, filtered);
+      }
+    }
+    id(last_touch_ms) = millis();
+    id(last_use_ms) = millis();
+    id(display_dimmed) = false;
+  # what LVGL's gesture over the tiles does
+  BOOT_PAGE_GESTURE: |-
+    // A quick flick or wipe over the tiles is never a tap (firmware 0.2.65+). LVGL reports it as a gesture that
+    // bubbles up to this page (a tile's slider keeps its own, runtime_tiles::bind): the tap under the finger is
+    // consumed and LVGL waits for the release. No page flip: pages change with the edge swipe (on_update). LVGL
+    // wants speed as well as 50 px of travel, so a firm press that drifts slowly is still a tap. Cards and the
+    // settings page keep their drags; in standby the push still wakes the screen, it only switches nothing.
+    lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *) {
+      if (!runtime_tiles::enabled || id(calibration_active) || !id(active_entity).empty() || settings_screen::visible() ||
+          (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN))) return;
+      // A quick drag on a slider is that slider's: the press stays with it (firmware 0.2.68+).
+      if (runtime_tiles::captured_slider) return;
+      cyd::touch_guard.consume();
+      ESP_LOGI("touch", "flick: no tap");
+      if (id(display_dimmed)) return;
+      if (auto *input = lv_indev_active()) lv_indev_wait_release(input);
+    }, LV_EVENT_GESTURE, nullptr);
+
+# Every contact goes to the shared touch input (runtime_tiles.h): the tap guard, the edge swipe and the sliders.
+touchscreen:
+  - id: !extend ts_touch
+    on_touch:
+      - lambda: 'runtime_tiles::touch_input::pressed(touch.x, touch.y, touch.id, id(calibration_active));'
+    on_update:
+      - lambda: 'for (const auto &point : touches) runtime_tiles::touch_input::moved(point.x, point.y, point.id, point.state);'
+    on_release:
+      - lambda: 'runtime_tiles::touch_input::released();'

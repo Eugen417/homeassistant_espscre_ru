@@ -94,7 +94,8 @@ class CameraBoxes(unittest.TestCase):
         # The tuned CAMERA_* of the board file, unchanged, for every board that has them: the derivation has to
         # reproduce them exactly, because that is what every screen shipped so far is already being served.
         for board, path in sorted(profiles.BOARDS.items()):
-            values = profiles.substitutions_of(path)
+            # What a screen of this board sees: features/camera.yaml's boxes, or none on a board without it.
+            values = profiles.board_values(board)
             entry = core.SHAPES[board]
             if 'CAMERA_FULL_W' not in values:
                 # A board with no camera has none either way up, and is refused a camera tile before it is saved.
@@ -126,7 +127,7 @@ class CameraBoxes(unittest.TestCase):
             entry = core.SHAPES[board]
             if 'camera' not in entry:
                 continue
-            values = profiles.substitutions_of(path)
+            values = profiles.board_values(board)
             card_w, inset = int(values['ALERT_CARD_W']), int(values['ALERT_BUTTON_INSET'])
             image_inset = int(values['ALERT_IMAGE_INSET'])
             stated_w, stated_h = entry['camera']['thumb']

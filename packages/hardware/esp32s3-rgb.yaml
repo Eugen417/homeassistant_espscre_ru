@@ -1,0 +1,41 @@
+# ESP Screens - an ESP32-S3 with octal PSRAM that drives an RGB panel, for a board file that includes this one.
+#
+# The chip, its memory and the one ESP-IDF setting an RGB panel on this chip needs. The board file adds its flash size
+# (`esp32: flash_size:`) and everything else it has. The 4-inch Guition runs the same chip without that setting and
+# keeps its own `esp32:` block (packages/boards/guition-4848s040.yaml).
+packages:
+  build: !include esp-idf.yaml
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  cpu_frequency: 240MHz
+  framework:
+    advanced:
+      execute_from_psram: true
+    sdkconfig_options:
+      # Wi-Fi and the network stack keep ESP-IDF's defaults, inside the chip: moving them to PSRAM
+      # (CONFIG_SPIRAM_TRY_ALLOCATE_WIFI_LWIP) broke the picture, because the panel reads every line out of PSRAM
+      # while it draws (2026-09-20), and cutting their number (four receive buffers, TCP windows of 2880 bytes)
+      # made the API stall under a large layout: "Buffer full", then Home Assistant "unresponsive", then a hang.
+      # The room they need comes from LVGL's draw buffer instead (LVGL_BUFFER_SIZE in the board file).
+      # Do NOT set CONFIG_LCD_RGB_RESTART_IN_VSYNC here. The panel clocks its lines out itself, straight from
+      # PSRAM through two bounce buffers, and when one is refilled too late the picture slips sideways. The
+      # driver already catches that on its own: at every VBlank it compares the bounce buffer's end-of-frame
+      # count with what it expected and restarts the DMA when one went missing (esp_lcd_panel_rgb.c,
+      # lcd_rgb_panel_try_restart_transmission). That option forces the restart on *every* VBlank instead, and
+      # a restart that falls before the buffer holds real pixels puts a frame of one flat colour on the glass:
+      # tried 2026-09-20 and the screen cycled white, red, blue, green until it was flashed back.
+      #
+      # The panel driver's own bookkeeping (its spinlock, the bounce buffer position) lives in the memory inside
+      # the chip, and its interrupt handlers keep running while the flash is written. Without this ESP-IDF puts
+      # that struct wherever MALLOC_CAP_DEFAULT lands, which on a board with PSRAM is PSRAM, and a spinlock in
+      # PSRAM takes a software detour: on 2026-09-20 the DMA interrupt spun on it for 800 ms and the interrupt
+      # watchdog restarted the screen (backtrace: lcd_rgb_panel_eof_handler -> esp_cpu_compare_and_set, the
+      # external-RAM branch). The panel's picture stays in PSRAM; the flash keeps its cache while it is written
+      # (execute_from_psram above), so the handlers can read it at any moment.
+      CONFIG_LCD_RGB_ISR_IRAM_SAFE: "y"
+
+psram:
+  mode: octal
+  speed: 80MHz

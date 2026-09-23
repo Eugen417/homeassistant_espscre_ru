@@ -17,7 +17,7 @@ class LayoutTests(unittest.TestCase):
         file, so what is left to check is that the board's own numbers agree with each other: the panel really is
         landscape at the angle it names, and a page of either grid leaves room for every cell it asks for."""
         for name in profiles.PROFILES:
-            values = dict(re.findall(r'^  (\w+): "([^"]*)"', profiles.resolved(name), re.M))
+            values = profiles.substitutions(name)
             v = lambda k: int(values[k])
             self.assertIn(v('ROTATION_LANDSCAPE'), (0, 90, 180, 270), name)
             # The only line that differs between a screen built lying down and the same screen standing up, and in
@@ -49,7 +49,7 @@ class LayoutTests(unittest.TestCase):
         """One file of cards per board (packages/cells/<number>.yaml), and a screen is built lying down or standing up
         from that one file: it has to hold the cells of whichever page asks for most."""
         for board, path in sorted(profiles.BOARDS.items()):
-            values = profiles.substitutions_of(path)
+            values = profiles.board_values(board)
             v = lambda k: int(values[k])
             wanted = max(v('GRID_COLS') * v('GRID_ROWS'), v('GRID_COLS_PORTRAIT') * v('GRID_ROWS_PORTRAIT'))
             cells = profiles.cells_of(path)
@@ -86,7 +86,7 @@ class LayoutTests(unittest.TestCase):
         half of the glass, said as a percentage, so it is still half after the screen is built standing up."""
         for name in profiles.PROFILES:
             source = profiles.resolved(name)
-            values = dict(re.findall(r'^  (\w+): "([^"]*)"', source, re.M))
+            values = profiles.substitutions(name)
             band = int(values['PAGE_BAR_H'])
             for key, glyph in (('page_prev', 'F0141'), ('page_next', 'F0142')):
                 block = source.split(f'            id: {key}\n', 1)[1].split('\n        - ', 1)[0]

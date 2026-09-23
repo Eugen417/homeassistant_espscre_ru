@@ -1,0 +1,12 @@
+# A CYD with two USB ports (GitHub #15): a slower bus, no turn in the driver, and the panel's own offsets.
+display:
+  - id: !extend my_display
+    data_rate: 20MHz
+    rotation: 0
+    dimensions:
+      width: 320
+      height: 240
+      offset_width: 0
+      offset_height: 0
+      pad_width: 0
+      pad_height: 0

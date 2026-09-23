@@ -9,7 +9,7 @@ import profiles  # noqa: E402
 sys.path.insert(0,str(ROOT/'tools'))
 import verify_gt911
 SOURCE=profiles.resolved('guition-4848s040.yaml')
-VALUES=dict(re.findall(r'^  (\w+): "([^"]*)"',SOURCE,re.M))
+VALUES=profiles.substitutions('guition-4848s040.yaml')
 
 class GuitionTests(unittest.TestCase):
     def test_hardware_is_s3_rgb_with_capacitive_touch(self):

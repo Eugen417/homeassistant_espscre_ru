@@ -9,7 +9,7 @@
 #   --baseline BYTES                 with --firmware: the CYD image of the last release, to print the growth
 #
 # Environment:
-#   PYTHON            python3 by default; needs aiohttp, PyYAML, Pillow and fontTools (.venv-portal/bin/python has them)
+#   PYTHON            python3 by default; needs aiohttp, PyYAML, Pillow, fontTools and jinja2 (.venv-portal/bin/python has them)
 #   CXX               clang++ by default
 #   ESPHOME           the ESPHome command, esphome by default ("python -m esphome", or a newer Device Builder's)
 #   ESPHOME_DATA_DIR  where the firmware builds go, .esphome/check by default: apart from the bench profiles' own
@@ -85,7 +85,7 @@ skip() { printf '%-40s SKIP (%s)\n' "$1" "$2"; }
 python_packages() {
   "$PYTHON" - <<'EOF' || return 1
 import importlib.util, sys
-wanted = {'aiohttp': 'aiohttp', 'yaml': 'PyYAML', 'PIL': 'Pillow', 'fontTools': 'fonttools'}
+wanted = {'aiohttp': 'aiohttp', 'yaml': 'PyYAML', 'PIL': 'Pillow', 'fontTools': 'fonttools', 'jinja2': 'jinja2'}
 missing = [package for module, package in wanted.items() if importlib.util.find_spec(module) is None]
 print(sys.executable, sys.version.split()[0])
 # Without them the server and camera tests skip themselves, and a skipped test proves nothing.
@@ -277,6 +277,39 @@ EOF
 
 cyd_budget() { flash_report cyd budget; }
 
+# The overrides owners shared in GitHub issues (tests/fixtures/overrides/<board>-<case>.yaml), each read by ESPHome on
+# its board the way a screen's own YAML loads it: a package after the board's (core.installation_yaml, local_overrides).
+# An override lives on the owner's Home Assistant, where nothing else would notice that a change of ours broke it.
+override_configs() {
+  local config="$WORK/config" fixture board profile count=0 running needs
+  running=$("${ESPHOME_CMD[@]}" version | sed -n 's/^Version: //p')
+  mkdir -p "$config/overrides" || return 1
+  for fixture in "$ROOT"/tests/fixtures/overrides/*.yaml; do
+    board=$(cd "$ROOT" && "$PYTHON" -c 'import sys; sys.path.insert(0, "tools"); import profiles
+name = sys.argv[1]; print(max((b for b in profiles.BOARDS if name.startswith(b + "-")), key=len))' "$(basename "$fixture" .yaml)") || return 1
+    needs=$(board_needs "$board")
+    if older_version "$running" "$needs"; then
+      echo "$(basename "$fixture"): skipped, $board asks for ESPHome $needs"
+      continue
+    fi
+    profile="$config/override-$(basename "$fixture")"
+    cp "$fixture" "$config/overrides/" || return 1
+    # The board's check profile with the override as the last package, as a screen's own YAML has it.
+    "$PYTHON" - "$config/check-$board.yaml" "$profile" "overrides/$(basename "$fixture")" <<'PY' || return 1
+import re, sys
+text = open(sys.argv[1]).read()
+text, n = re.subn(r'(?m)^(  board: !include [^\n]+\n)', r'\1  local_overrides: !include ' + sys.argv[3] + '\n', text, count=1)
+if n != 1:
+    sys.exit('no board package in ' + sys.argv[1])
+open(sys.argv[2], 'w').write(text)
+PY
+    (cd "$config" && "${ESPHOME_CMD[@]}" -s DEVICE_NAME "check-$board" config "$(basename "$profile")" > "$profile.log" 2>&1) \
+      || { tail -n 40 "$profile.log"; echo "$(basename "$fixture") does not build on $board"; return 1; }
+    count=$((count + 1))
+  done
+  note "$count overrides"
+}
+
 # ---- Run ----
 
 echo "ESP Screens checks in $ROOT"
@@ -304,7 +337,9 @@ if ((want_firmware)); then
   export ESPHOME_DATA_DIR=${ESPHOME_DATA_DIR:-$ROOT/.esphome/check}
   run "ESPHome" esphome_version
   if ((last_ok)); then run "Check profiles" prepare_profiles; fi
-  if ((last_ok)); then
+  profiles_ok=$last_ok
+  if ((profiles_ok)); then run "Overrides from GitHub issues" override_configs; fi
+  if ((profiles_ok)); then
     # One after the other: parallel builds race on ESPHome's shared ESP-IDF install (and on PlatformIO's, before 2026.7).
     running=$("${ESPHOME_CMD[@]}" version | sed -n 's/^Version: //p')
     while read -r board _; do

@@ -17,7 +17,9 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
+sys.path.insert(0, str(ROOT / 'tools'))
 from core import CALIBRATE_BUTTON, calibrate_entity  # noqa: E402
+import profiles  # noqa: E402
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:
@@ -34,7 +36,8 @@ class TheButtonOnTheDevice(unittest.TestCase):
     def test_it_is_named_as_the_board_profile_names_it(self):
         domain, name = CALIBRATE_BUTTON
         self.assertEqual(domain, 'button')
-        board = (ROOT / 'packages/boards/cyd-2432s028.yaml').read_text()
+        # The wizard of a resistive panel brings the button (features/resistive-touch.yaml), and the CYD has one.
+        board = profiles.text('home-like-2432s028.yaml')
         self.assertIn(f'name: "{name}"', board)
 
     def test_it_is_found_on_the_device_that_has_it(self):

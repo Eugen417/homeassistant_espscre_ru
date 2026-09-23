@@ -26,9 +26,10 @@ jobs:
         with:
           python-version: "3.13"
       # What the add-on image adds to ESPHome's (screen_manager/Dockerfile), Pillow for the camera tests (ESPHome
-      # brings it in the image) and fontTools for tools/generate_icons.py.
+      # brings it in the image), fontTools for tools/generate_icons.py, and jinja2 for tools/profiles.py, which works
+      # out the sizes a look computes the way ESPHome does (ESPHome brings it too).
       - name: Python packages
-        run: python -m pip install 'aiohttp>=3.12,<4' PyYAML Pillow fonttools
+        run: python -m pip install 'aiohttp>=3.12,<4' PyYAML Pillow fonttools jinja2
       - uses: actions/setup-node@v4
         with:
           node-version: 22

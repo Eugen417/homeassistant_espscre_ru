@@ -66,8 +66,8 @@ you set), and a palette pass that overwrote a colour the sun path had chosen its
 2. **In firmware code**: `theme::color(theme::YOUR_ROLE)`. Never `lv_color_hex(0x...)`.
 3. **In the profiles**: the widget takes a paint. For a new combination add it to `enum class
    Paint` and `PAINTS`, a colourless `- id: paint_<name>` in the `style_definitions` of `packages/core.yaml`
-   (or of one board file, for a paint only that board uses), and `theme::fill(id(paint_<name>), Paint::<name>);`
-   in the core's `theme::paints` list (a board-only paint goes into the board's `BOARD_PAINT_FILL` hook).
+   (or of the feature that uses it), and `theme::fill(id(paint_<name>), Paint::<name>);` in the core's `theme::paints`
+   list (a feature's paint goes into a hook of its own, as `CAMERA_PAINT_FILL` and `CALIBRATION_PAINT_FILL` do).
 4. **Something drawn once and kept that changes colour by state**: set it where the state is drawn,
    and make sure the redraw above reaches that code.
 5. A local colour always wins over a paint: an object that takes a paint must not also get a local

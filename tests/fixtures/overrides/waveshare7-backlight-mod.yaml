@@ -1,0 +1,20 @@
+# The backlight moved to a PWM pin by a hardware mod (GitHub #22, docs/WAVESHARE7.md): the expander's line stays lit
+# for the panel, and the brightness is a percentage again.
+substitutions:
+  BACKLIGHT_DIMMABLE: "true"
+
+output:
+  - id: !remove gpio_backlight_pwm
+  - platform: ledc
+    id: gpio_backlight_pwm
+    pin: GPIO16
+    frequency: 1000Hz
+    min_power: 40%
+    zero_means_zero: true
+
+switch:
+  - platform: output
+    id: backlight_enable
+    output: backlight_line
+    restore_mode: ALWAYS_ON
+    internal: true

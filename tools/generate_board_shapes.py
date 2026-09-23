@@ -1,6 +1,6 @@
 """Write screen_manager/app/boards.json: what every board looks like, straight from its own YAML.
 
-A board file says what its panel is (PANEL_W, PANEL_H, the pixels the glass really has), which LVGL angle lays
+A board says what its panel is (PANEL_W, PANEL_H, the pixels the glass really has), which LVGL angle lays
 that panel out lying down (ROTATION_LANDSCAPE), how a page is divided each way (GRID_COLS x GRID_ROWS lying down,
 GRID_COLS_PORTRAIT x GRID_ROWS_PORTRAIT standing up), its density and its look. The manager needs the same numbers
 to draw a screen in the editor before it has ever been flashed, so they are worked out here instead of typed a
@@ -81,8 +81,9 @@ def camera_of(values, side, stated):
 def shapes():
     """{entry file: shape} for every entry a screen's YAML can include, plus the board names themselves."""
     found = {}
-    for board, path in profiles.BOARDS.items():
-        values = profiles.substitutions_of(path)
+    for board in profiles.BOARDS:
+        # What a screen of this board sees: its board file over its look and features over the core's defaults.
+        values = profiles.board_values(board)
         both = orientations(values)
         lying = both['landscape']
         shape = {'board': board,
@@ -91,7 +92,7 @@ def shapes():
                  'width': lying['width'], 'height': lying['height'],
                  'columns': lying['columns'], 'rows': lying['rows'],
                  'orientations': both,
-                 'dpi': int(values['DISPLAY_DPI']), 'look': values['LOOK'].strip('"'),
+                 'dpi': round(float(values['DISPLAY_DPI'])), 'look': values['LOOK'].strip('"'),
                  # Whether the backlight takes levels (app 0.2.105): on a board whose backlight is one line, a
                  # brightness percentage is a number that lies, so the settings panel shows a switch instead.
                  'dimmable': values.get('BACKLIGHT_DIMMABLE', 'true').strip('"') != 'false',

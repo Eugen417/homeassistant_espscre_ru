@@ -107,10 +107,10 @@ class Firmware(unittest.TestCase):
         (overlay_card::screen_width), so it is right whichever way the screen was built to hang."""
         self.assertIn('overlay_card::screen_width() - ${SETTINGS_HOLD_X} * 2, ${SCROLL_Y}', CORE)
         for name, text in self.profiles.items():
-            values = dict(re.findall(r'^  (\w+): "([^"]*)"', text, re.M))
+            values = profiles.substitutions(name)
             # The narrowest canvas this board can be built with: the shorter side of its panel.
             width, scroll = min(int(values['PANEL_W']), int(values['PANEL_H'])), int(values['SCROLL_Y'])
-            x = int(values['SETTINGS_HOLD_X'].replace('${EDGE_SWIPE_BAND_PX}', values.get('EDGE_SWIPE_BAND_PX', '0')))
+            x = int(values['SETTINGS_HOLD_X'])
             self.assertGreater(width - 2 * x, 0, f'{name}: the two bands leave no strip')
             self.assertGreater(scroll, 20, name)
             if 'EDGE_SWIPE_BAND_PX' in values:

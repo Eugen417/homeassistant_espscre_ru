@@ -251,6 +251,26 @@ ESPHome appends package lists instead of merging them, so `!extend` is what
 changes the display the shared package already defines; a bare `id:` would add
 a second, incomplete display and the build fails.
 
+For the changes people ask for most, the board offers a substitution, so the
+override is one line (app 0.2.127+):
+
+```yaml
+substitutions:
+  DISPLAY_MODEL: "ST7789V"        # CYD: the display controller
+```
+
+| Substitution | Boards | What it changes |
+|---|---|---|
+| `DISPLAY_MODEL` | CYD | ESPHome's `mipi_spi` model of the display controller (`ILI9341`, `ST7789V`, ...) |
+| `DISPLAY_DATA_RATE` | CYD | the display's SPI clock (`40MHz`; some boards want `20MHz`) |
+| `DISPLAY_INVERT_COLORS` | CYD | `true` for a panel that shows its colours inverted |
+| `BACKLIGHT_FREQUENCY` | CYD, 4-inch Guition, Waveshare 4B | the backlight's PWM frequency; some Guition batches only dim at `150Hz` |
+
+The parts an override names stay the same on every board and in every update:
+`my_display` (the display), `ts_touch` (the touch panel), `gpio_backlight_pwm`
+(the output that drives the backlight) and `back_light` (the light on it).
+docs/PROFILES.md, "What an override may rely on", has the whole list.
+
 This file is loaded after the shared board package and is kept when the app or
 firmware package updates. The editor protects the screen's name, Wi-Fi, API,
 OTA and package connection. Use **Save & check** before building a custom

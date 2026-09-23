@@ -110,7 +110,8 @@ class Profiles(unittest.TestCase):
                 expected += 1
             self.assertEqual(len(re.findall(r'id\(last_use_ms\) = millis\(\);', text)), expected, name)
             for trigger in ('on_touch', 'on_update', 'on_release'):
-                body = re.search(rf'^  {trigger}:\n(.*?)(?=^  [a-z_]+:|\Z)', touch, re.M | re.S)[1]
+                # The trigger at whatever depth its touchscreen item has (the board's, or a touch feature's !extend).
+                body = re.search(rf'^( +){trigger}:\n(.*?)(?=^\1[a-z_]+:|^\S|\Z)', touch, re.M | re.S)[2]
                 self.assertIn('id(last_use_ms) = millis();' if not shared else 'runtime_tiles::touch_input::',
                               body, f'{name}: {trigger}')
             if shared:

@@ -2,60 +2,61 @@
 # ESP Screens - CYD board (ESP32-2432S028, "Cheap Yellow Display")
 # Built-in ILI9341 320x240 display and XPT2046 resistive touch.
 #
-# What is in here: the hardware (display, touch, backlight, LED), the sizes the
-# shared tree takes from this board, the code the shared lambdas take from this
-# board (hooks), and what only a CYD has: the calibration wizard for its
-# resistive glass and a page swipe by LVGL's gesture. Everything else (the LVGL
-# tree, the cards, the scripts, the entities) is packages/core.yaml, which every
-# board shares; docs/PROFILES.md says how the files fit together.
+# A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
+# features it has; docs/PROFILES.md says how the files of a screen fit together. What only a CYD has lives here as
+# well: the calibration wizard for its resistive glass, a page swipe by LVGL's gesture, a backlight driven as a
+# light action, and a lighter self test. Everything else (the LVGL tree, the cards, the scripts, the entities) is
+# packages/core.yaml, which every board shares.
 #
 # Two entry files include this: home-like-2432s028.yaml (a build on this computer)
 # and packages/cyd.yaml (the package a screen builds from over GitHub).
 ############################################################
-# The cards of this board's grid: one per cell, from the file for 6 cells
-# (tools/generate_cells.py writes them; docs/RESPONSIVE.md says why).
 packages:
+  # How every board's firmware is built (ESP-IDF, as ESPHome recommends it).
+  build: !include ../hardware/esp-idf.yaml
+  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
   cells: !include ../cells/6.yaml
+  # Every size of the compact look, scaled to DISPLAY_DPI below. This glass is where that look was drawn.
+  look: !include ../looks/compact.yaml
+  touch: !include ../features/resistive-touch.yaml
 
 substitutions:
-  # A tap survives a finger that drifts up to this far (320 px over 58 mm: 1 cm); further is a swipe.
-  TOUCH_MOVE_LIMIT_PX: "56"
-  # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
-  TOUCH_MIN_PRESS_MS: "60"
-  # A slider let go this close to the left or right edge of the glass meant its end when that end lies in
-  # the band. The resistive panel reports a finger up to the bezel, so only the strip's last pixels and
-  # the margin beside them count (a capacitive Guition loses a fast finger 30-50 px before its edge).
-  SLIDER_EDGE_SNAP_PX: "20"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "cyd"
-  # This board's backlight takes levels (a PWM pin), so brightness is a percentage.
-  BACKLIGHT_DIMMABLE: "true"
-  # The screen can go dark: standby and night dim it, and Sleep and Wake exist.
-  CAN_STANDBY: "true"
   DEVICE_NAME: "cyd-new"
   DEVICE_FRIENDLY_NAME: "My CYD"
-  TOUCH_AFFINE_XX: "1.000000000"
-  TOUCH_AFFINE_XY: "0.000000000"
-  TOUCH_AFFINE_XC: "0.000000000"
-  TOUCH_AFFINE_YX: "0.000000000"
-  TOUCH_AFFINE_YY: "1.000000000"
-  TOUCH_AFFINE_YC: "0.000000000"
 
-  # ORIENTATION
-  # The panel's own pixels. The display block below always drives it at this size; LVGL turns the picture and
-  # the touch together, so nothing else on this board knows which way the glass hangs.
+  # The glass: the panel's own pixels, which the display block below always drives; LVGL turns the picture and the
+  # touch together, so nothing else on this board knows which way the glass hangs. The compact look takes 143 dpi
+  # (diagonal pixels / diagonal inches) as its reference, so every size here is the look's own.
   PANEL_W: "240"
   PANEL_H: "320"
+  DISPLAY_DPI: "143"
   # The LVGL angle that lays this panel out lying down (320 x 240). Standing up is a quarter further.
   ROTATION_LANDSCAPE: "90"
-  # Which way this screen hangs. ESP Screens writes it when the screen is built, the way it writes the language,
-  # and it is the only line that differs between a screen lying down and the same screen standing up.
-  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"
-  TOUCH_SWAP_XY: "false"
   # true on this board (resistive XPT2046) — was false on the 032c board
   # (capacitive GT911). This is the original upstream value for this panel.
   TOUCH_MIRROR_X: "true"
-  TOUCH_MIRROR_Y: "false"
+  # The tile grid: columns and rows of cells. The shared tree places every cell from these
+  # (runtime_tiles::place_page).
+  GRID_COLS: "2"
+  GRID_ROWS: "3"
+  # The cells of a page when this screen stands up (firmware 0.2.92+).
+  # The 2.8-inch glass is 43 x 57 mm standing up: one column of four cards, each 39 x 10 mm.
+  GRID_COLS_PORTRAIT: "1"
+  GRID_ROWS_PORTRAIT: "4"
+  LVGL_BUFFER_SIZE: "12%"                       # LVGL's draw buffer as a share of the screen
+
+  # Drawn by hand when the alert was made, a little under the room its card leaves (92)
+  ALERT_SUBTITLE_H: "88"
+
+  # Hardware a screen's own YAML may change (docs/EASY_SETUP.md, "Hardware-specific YAML overrides"). Boards sold as
+  # a CYD differ: some carry an ST7789V (GitHub #6), some need a slower bus or other colours (GitHub #12, #15).
+  DISPLAY_MODEL: "ILI9341"                      # ESPHome's mipi_spi model of the display controller
+  DISPLAY_DATA_RATE: "40MHz"                    # the display's SPI clock; 40MHz matches ESPHome's board preset
+  DISPLAY_INVERT_COLORS: "false"
+  BACKLIGHT_FREQUENCY: "20000Hz"                # the backlight's PWM (see the output block)
+
   # Measured on this board: median top-right raw=(523,3390),
   # bottom-left raw=(3487,482), at screen (299,20) and (20,219).
   # Extrapolated to panel edges; verify with the isolated corner test.
@@ -63,171 +64,13 @@ substitutions:
   TOUCH_CAL_X_MAX: "3860"
   TOUCH_CAL_Y_MIN: "340"
   TOUCH_CAL_Y_MAX: "3860"
-  # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
-  # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
-  GRID_COLS: "2"
-  GRID_ROWS: "3"
-  # The cells of a page when this screen stands up (firmware 0.2.92+).
-  # The 2.8-inch glass is 43 x 57 mm standing up: one column of four cards, each 39 x 10 mm.
-  GRID_COLS_PORTRAIT: "1"
-  GRID_ROWS_PORTRAIT: "4"
-  GRID_MARGIN: "9"
-  GRID_GAP_X: "8"
-  GRID_GAP_Y: "4"
-  DISPLAY_DPI: "143"      # diagonal pixels / diagonal inches; the look's reference density on this board
-  LOOK: "compact"
-  SCROLL_Y: "40"
-  HEADER_Y: "14"
-  # Holding the top bar opens the settings page (0.2.44+). The whole strip counts on this board;
-  # a finger that travels further than the drift limit of a tap is swiping, not holding.
-  SETTINGS_HOLD_X: "0"
-  SETTINGS_HOLD_DRIFT_PX: "24"
-  ALERT_CARD_W: "292"
-  ALERT_CARD_H: "196"
-  ALERT_ICON_X: "18"
-  ALERT_ICON_Y: "16"
-  ALERT_TEXT_X: "62"
-  ALERT_TEXT_W: "212"
-  ALERT_TITLE_Y: "16"
-  ALERT_TITLE_H: "21"         # one line of headline; a DOT label only ends in an ellipsis with a height
-  ALERT_SUBTITLE_Y: "44"
-  ALERT_SUBTITLE_H: "88"
-  ALERT_BUTTON_W: "100"
-  ALERT_BUTTON_H: "40"
-  ALERT_BUTTON_INSET: "14"
-  ALERT_TITLE_MAX: "48"       # bytes; the label ends one line with an ellipsis
-  ALERT_BUTTON_MAX: "12"      # bytes on the OK button
-  ALERT_SUBTITLE_MAX: "160"   # bytes; wraps over the rows the card has
 
-  FONT_TIME_SIZE: "18"                          # the clock in the top bar
-  FONT_HEADLINE_SIZE: "18"                      # card titles
-  FONT_WATCH_VALUE_SIZE: "22"
-  FONT_CLOCK_DIGITS_SIZE: "24"
-  FONT_SETPOINT_SIZE: "40"                      # the climate card's setpoint
-  FONT_LABEL_SIZE: "11"                         # tile titles
-  FONT_SUBLABEL_SIZE: "11"                      # tile values and small text
-  FONT_SUBLABEL_BIG_SIZE: "14"                  # the top bar and settings rows
-  FONT_ICON_SIZE: "28"                          # tile icons
-  FONT_ICON_MINI_SIZE: "18"                     # the top bar and card keys
-  FONT_ICON_HOME_SIZE: "25"          # the home key in the top bar
-  FONT_ICON_BIG_SIZE: "40"                      # full-page tiles
-  FONT_WATCH_ICON_SIZE: "12"
-
-  # Tiles and the top bar
-  TILE_RADIUS: "18"                             # corner of a tile
-  TILE_PAD: "8"                                 # inside a tile
-  TILE_ICON_SIZE: "36"                          # the icon circle
-  HEADER_INSET: "11"                            # the room name and the clock from the glass edge
-
-  # The page bar under the tiles
-  PAGE_BAR_H: "36"                              # the page bar
-  PAGE_NUMBER_W: "104"                          # the dots in the middle
-  PAGE_CHEVRON_INSET: "14"                      # the chevrons from the outer edge
-
-  # Cards: the round keys and the brightness card
-  CARD_KEY_X: "10"                              # a card's round key from the side
-  CARD_KEY_Y: "8"                               # from the top
-  CARD_KEY_SIZE: "40"                           # its diameter
-  COLOR_TITLE_W: "210"                          # the colour card's title
-  COLOR_TITLE_Y: "21"
-
-
-
-  # The touch test page
-  TOUCH_TEST_PAGE_PAINT: "paint_calibration"    # the page
-  TOUCH_TEST_TITLE: "calibration_title"            # the words at the top
-  TOUCH_TEST_TITLE_FONT: "sublabel"
-  TOUCH_TEST_TITLE_Y: "65"
-  TOUCH_TEST_INSET: "10"                        # the corner crosses from the edge
-  TOUCH_TEST_SIZE: "20"                         # a cross
-  TOUCH_TEST_PAINT: "paint_calibration"         # the crosses
-
-  # What the shared scripts do differently on this board
-  LVGL_DEFAULT_FONT: "sublabel_big"             # LVGL's default font: every label names its own, so this only keeps Montserrat out of the build
-  LVGL_BUFFER_SIZE: "12%"                       # LVGL's draw buffer as a share of the screen
-  PAGE_DOTS_LARGE: "false"                      # bigger page dots
-  EFFECTS_ROW_FONT: "sublabel_big"              # the effects page's rows
-  STANDBY_DIM_MS: "300"                         # how long the backlight takes to dim into standby (waking takes 300)
-  ALERT_FLASH_FADE_MS: "0"                      # an alert's flash: the fade of each step
-  ALERT_FLASH_DARK_MS: "120"                    # how long it stays dark
-  ALERT_FLASH_LIT_MS: "170"                     # how long it stays lit
-
-  # Code the shared lambdas of packages/core.yaml take from this board, at the place named ${...}: the
-  # exact lines the old profile had there. Empty when this board adds nothing at that place; every board
-  # must name every hook, or ESPHome stops at the undefined one.
-  # the first boot step: the touch guard, and what this board's panel needs
-  BOOT_TOUCH: |-
-    // Per-panel affine correction; shared defaults are neutral.
-    id(ts_touch).set_raw_correction(${TOUCH_AFFINE_XX}f, ${TOUCH_AFFINE_XY}f, ${TOUCH_AFFINE_XC}f, ${TOUCH_AFFINE_YX}f, ${TOUCH_AFFINE_YY}f, ${TOUCH_AFFINE_YC}f);
-    cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
-    cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
-    id(last_touch_ms) = millis();
-    id(last_use_ms) = millis();
-    id(display_dimmed) = false;
-  # right after runtime_tiles::enabled = true, before the settings load
-  BOOT_ENABLED_HOOK: ""
-  # the paint style only this board has (theme::paints)
-  BOARD_PAINT_FILL: "theme::fill(id(paint_calibration), Paint::calibration);"
-  # in runtime_tiles::dismiss, after the detail card closes
-  CLOSE_CARDS_HOOK: ""
-  # what LVGL's gesture over the tiles does on this board
-  BOOT_PAGE_GESTURE: |-
-    lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *event) {
-      if(!runtime_tiles::enabled || !runtime_tiles::swipe_pages || id(display_dimmed) || id(calibration_active) ||
-         !id(active_entity).empty() || (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root,LV_OBJ_FLAG_HIDDEN)))return;
-      auto *input=lv_indev_active();if(!input)return;
-      auto direction=lv_indev_get_gesture_dir(input);
-      if(direction!=LV_DIR_LEFT && direction!=LV_DIR_RIGHT && direction!=LV_DIR_TOP)return;
-      // A quick drag on a slider is that slider's, never a page swipe (firmware 0.2.68+).
-      if(runtime_tiles::captured_slider){ESP_LOGI("touch","page swipe ignored: a slider is being dragged");return;}
-      cyd::touch_guard.consume();
-      lv_indev_wait_release(input);
-      // Up is the way home (firmware 0.2.100+); this board has no edge band, so a flick anywhere over the tiles
-      // does it, as left and right do here.
-      if(direction==LV_DIR_TOP){
-        ESP_LOGI("touch","swipe up: back to page 1");
-        runtime_tiles::swipe_glow(runtime_tiles::Edge::bottom);
-        if(runtime_tiles::back_home)runtime_tiles::back_home();
-        return;
-      }
-      // The edge the page comes from lights up for a moment (firmware 0.2.100+): swiping left brings in the next
-      // page from the right.
-      runtime_tiles::swipe_glow(direction==LV_DIR_LEFT?runtime_tiles::Edge::right:runtime_tiles::Edge::left);
-      ESP_LOGI("touch","page swipe: page %d -> %d",id(tile_page),id(tile_page)+(direction==LV_DIR_LEFT?1:-1));
-      id(tile_page)+=direction==LV_DIR_LEFT?1:-1;
-      id(show_tile_page).execute();
-    }, LV_EVENT_GESTURE, nullptr);
-  # after the gesture: the camera images of a board that shows them
-  BOOT_CAMERA_HOOKS: ""
-  # after the cards' hooks, before the settings page's: the calibration wizard of a resistive panel, the fan and swing card of a big one
-  BOOT_CARDS_TAIL: |-
-    if (!runtime_tiles::enabled) return;
-    screen_calibration::apply = [](const screen_calibration::Calibration &cal) {
-      id(ts_touch).set_raw_correction(cal.c[0],cal.c[1],cal.c[2],cal.c[3],cal.c[4],cal.c[5]);
-    };
-    screen_calibration::isolation = [](bool active) { id(calibration_active) = active; };
-    screen_calibration::setup(id(home_page)->obj, id(sublabel)->get_lv_font(), id(headline)->get_lv_font(),
-      ${TOUCH_CAL_X_MIN}, ${TOUCH_CAL_X_MAX}, ${TOUCH_CAL_Y_MIN}, ${TOUCH_CAL_Y_MAX});
-    // The wizard runs by itself the first time this panel starts; this is the way back to it (firmware 0.2.96+),
-    // the same one the Calibrate touch button in Home Assistant takes. Binding it is also what puts Calibrate
-    // touch on the settings page: a board that builds no wizard binds nothing and has no row, so the two can
-    // never disagree. The page closes first, as its own back arrow closes it: the wizard loads a screen of its
-    // own and leaves the home page behind it when it is done.
-    settings_screen::calibrate_touch = []() { settings_screen::close(); screen_calibration::begin(); };
-  # what else keeps the settings page closed (inline, in the condition)
-  MAY_OPEN_EXTRA: ""
-  # the log line of a boot onto the touch test page
-  TOUCH_TEST_READY_LOG: "USB calibration ready; no tile actions"
+  # Code the shared lambdas of packages/core.yaml take from this board, at the place named ${...}
+  # (docs/PROFILES.md, "hooks"); the core's default, or the touch feature's, holds for every one it does not name.
   # one more line of the ui_state diagnostics
   UI_STATE_HOOK: ""
-  # every 250 ms after runtime_tiles::tick()
-  TICK_HOOK: ""
   # apply_screen_settings: how the backlight takes its level
   APPLY_BACKLIGHT: "id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();"
-  # back_to_page_1_when_due: what else counts as away from page 1 (inline)
-  AWAY_EXTRA: ""
-  # alert_show: after the settings page closed, before the card is made
-  ALERT_SHOW_HOOK: ""
 
 # ============================================================
 # No need to edit below this line.
@@ -236,13 +79,7 @@ substitutions:
 esp32:
   board: esp32dev
   framework:
-    type: esp-idf
     advanced:
-      # ESP-IDF's assert texts (file, line and condition of every check) stay out of the firmware (0.2.75+), 49 KB on
-      # the CYD: a failed assert still stops and restarts the screen, and its backtrace still points at the line.
-      # Every board sets it (tests/test_easy_package.py). ESP-IDF's error names stay: without them ESPHome's own
-      # error lines only say "UNKNOWN ERROR".
-      assertion_level: SILENT
       # ESPHome recommends this itself in the boot log. Yields ~40KB extra IRAM
       # and a smaller binary, and every KB counts on this board.
       sram1_as_iram: true
@@ -250,7 +87,6 @@ esp32:
       # 032c board (rev 3.1 confirmed), but this is a different physical board
       # with an unknown chip revision. With an unjustifiably high minimum
       # the firmware simply refuses to boot.
-    version: recommended
   variant: esp32
 
 # Two SPI buses used by the CYD:
@@ -278,7 +114,7 @@ output:
     # a PWM LED that "judders" when you move it). 20kHz sits well above the
     # speed at which motion still makes that visible, and still leaves ample
     # duty-cycle resolution left over for smooth dimming.
-    frequency: 20000Hz
+    frequency: ${BACKLIGHT_FREQUENCY}
 
   - platform: ledc
     id: output_red
@@ -316,58 +152,15 @@ light:
 # with the display. GPIO36 IRQ is deliberately unused (driver requests a
 # pull-up that this input-only pin cannot provide).
 touchscreen:
-  platform: xpt2046
-  id: ts_touch
-  spi_id: my_touchscreen
-  cs_pin: 33
-  # Polling avoids GPIO36 pull-up errors and noisy PENIRQ edges.
-  update_interval: 20ms
-  # Diagnosis caught a false corner contact at pressure 422. Deliberate
-  # contacts measured 936-2643; reject the low-pressure tail on release.
-  threshold: 800
-
-  calibration:
-    x_min: ${TOUCH_CAL_X_MIN}
-    x_max: ${TOUCH_CAL_X_MAX}
-    y_min: ${TOUCH_CAL_Y_MIN}
-    y_max: ${TOUCH_CAL_Y_MAX}
-
-  transform:
-    swap_xy: ${TOUCH_SWAP_XY}
-    mirror_x: ${TOUCH_MIRROR_X}
-    mirror_y: ${TOUCH_MIRROR_Y}
-
-  on_touch:
-    - lambda: |-
-        id(last_touch_ms) = millis();
-        id(last_use_ms) = millis();
-        id(touch_down) = true;
-        cyd::touch_guard.begin(millis(), touch.x, touch.y, touch.id);
-        // The point the screen itself works with, through ESPHome's own turn (the same call the tiles are hit
-        // with): the wizard fits against that, so it never has to work out what the turn does.
-        int screen_x = touch.x, screen_y = touch.y;
-        if (runtime_tiles::touch_input::to_screen) runtime_tiles::touch_input::to_screen(screen_x, screen_y);
-        screen_calibration::press(touch.id, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
-        ESP_LOGI("touch", "press native=%u,%u screen=%d,%d raw=%d,%d pressure=%d calibration=%d", touch.x, touch.y, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y(), touch.z_raw, id(calibration_active));
-  on_update:
-    - lambda: |-
-        id(last_touch_ms) = millis();
-        id(last_use_ms) = millis();
-        // Only the contact that started the touch counts; the guard ignores other ids.
-        for (const auto &point : touches) {
-          cyd::touch_guard.update(point.x, point.y, point.id);
-          // The wizard keeps both halves of a reading from the same instant (firmware 0.2.97+): where the screen
-          // puts this point, and what the panel is sending right now.
-          int screen_x = point.x, screen_y = point.y;
-          if (runtime_tiles::touch_input::to_screen) runtime_tiles::touch_input::to_screen(screen_x, screen_y);
-          screen_calibration::hold(point.id, screen_x, screen_y, id(ts_touch).filtered_raw_x(), id(ts_touch).filtered_raw_y());
-        }
-  on_release:
-    - lambda: |-
-        id(last_touch_ms) = millis();
-        id(last_use_ms) = millis();
-        id(touch_down) = false;
-        screen_calibration::release();
+  - platform: xpt2046
+    id: ts_touch
+    spi_id: my_touchscreen
+    cs_pin: 33
+    # Polling avoids GPIO36 pull-up errors and noisy PENIRQ edges.
+    update_interval: 20ms
+    # Diagnosis caught a false corner contact at pressure 422. Deliberate
+    # contacts measured 936-2643; reject the low-pressure tail on release.
+    threshold: 800
 
 # Display configuration (ILI9341)
 display:
@@ -375,11 +168,11 @@ display:
     id: my_display
     spi_id: lcd
     # Standard single-Micro-USB CYD; 40MHz matches ESPHome's board preset.
-    model: ILI9341
-    data_rate: 40MHz
+    model: ${DISPLAY_MODEL}
+    data_rate: ${DISPLAY_DATA_RATE}
     cs_pin: 15
     dc_pin: 2
-    invert_colors: false
+    invert_colors: ${DISPLAY_INVERT_COLORS}
     update_interval: never
     auto_clear_enabled: false
 
@@ -401,38 +194,6 @@ display:
     dimensions:
       width: 240
       height: 320
-
-lvgl:
-  id: screen_lvgl
-  style_definitions:
-    # The calibration wizard's page and crosses (theme::paints fills it: BOARD_PAINT_FILL).
-    - id: paint_calibration
-
-# Turning the screen as a Home Assistant choice (firmware 0.2.80+). This glass is not square, so it offers the half turn; a quarter turn would swap its width
-# and height and change how many rows and columns fit. The shared tree applies the
-# angle (packages/core.yaml); a list of options cannot come from a substitution, which is why every board carries this
-# block and tools/check_packages.py keeps the three alike.
-select:
-  - platform: template
-    id: setting_rotation
-    name: "Rotation"
-    icon: "mdi:screen-rotation"
-    entity_category: config
-    options: ["0°", "180°"]
-    update_interval: never
-    lambda: 'return std::to_string(settings_screen::rotation) + "°";'
-    set_action:
-      - lambda: |-
-          const std::string option(x.c_str(), x.size());
-          settings_screen::set("rotation", atoi(option.c_str()));
-
-button:
-  - platform: template
-    name: "Calibrate touch"
-    internal: ${DASHBOARD_INBOX_INTERNAL}
-    entity_category: config
-    on_press:
-      - lambda: 'if (runtime_tiles::enabled) screen_calibration::begin();'
 
 script:
   # Render every overlay and both pages repeatedly without controlling devices.
@@ -547,4 +308,3 @@ script:
           brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
       - lvgl.widget.hide: dim_wake_overlay
       - script.execute: close_cards
-

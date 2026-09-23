@@ -1,0 +1,6 @@
+# The backlight fix of GitHub #5 on the 10.1-inch Guition.
+output:
+  - id: !extend gpio_backlight_pwm
+    frequency: 150Hz
+    min_power: 0.03
+    zero_means_zero: true

@@ -79,7 +79,9 @@ class AlertTests(unittest.TestCase):
             self.assertIn('text_font: headline\n', title, name)
             # The core names the font as ${FONT_DIR}/... at the board's ${FONT_HEADLINE_SIZE} (app 0.2.84+).
             font, size = re.search(r'(?m)^  - file: "(?:[^"\n]*/)?(fonts/[^"\n]+)"\n    id: headline\n    size: (\d+)$', profiles.resolved(name)).groups()
-            v = lambda key: int(re.search(rf'^  {key}: "(-?\d+)"', text, re.M)[1])
+            # The value a screen of this board sees: its board file's, its look's (computed) or its features'.
+            values = profiles.substitutions(name)
+            v = lambda key: int(values[key])
             self.assertEqual(v('ALERT_TITLE_H'), line_height(ROOT / font, int(size)), name)
             self.assertLessEqual(v('ALERT_TITLE_Y') + v('ALERT_TITLE_H'), v('ALERT_SUBTITLE_Y'), name)
 
@@ -121,7 +123,9 @@ class AlertTests(unittest.TestCase):
             flash = script(text, 'alert_flash')
             self.assertIn('count: 4', flash, name)
             self.assertEqual(flash.count('delay:'), 2, name)
-            v = lambda key: int(re.search(rf'^  {key}: "(-?\d+)"', text, re.M)[1])
+            # The value a screen of this board sees: its board file's, its look's (computed) or its features'.
+            values = profiles.substitutions(name)
+            v = lambda key: int(values[key])
             # The card's table is stated for the glass this board was drawn for, which is its panel lying down.
             # A screen built standing up puts the same table on narrower glass, and screen_alert::frame brings
             # the card back to fit; the table itself still has to fit the way the board ships.

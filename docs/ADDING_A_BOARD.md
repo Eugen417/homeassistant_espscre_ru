@@ -23,10 +23,27 @@ example, which is the one genuinely difficult part of a new board.
 
 ## 3. A base configuration from ESPHome
 
-Start from the board of the same family (`packages/boards/cyd-2432s028.yaml` for a small SPI panel,
-`guition-4848s040.yaml` for a big parallel one) and replace its hardware sections: `display`, `touchscreen`,
-`output`/`light` for the backlight, `i2c`/`spi`, `esp32` (variant, flash size) and `psram`. Everything else in a
-board file is layout, and step 4 computes it.
+A board file is its hardware, the facts of its glass, and the packages it includes (docs/PROFILES.md). Step 4 writes
+it from the board that resembles the new one most; what you replace by hand are its hardware sections: `display`,
+`touchscreen`, the `output` that drives the backlight (always `id: gpio_backlight_pwm`), `i2c`/`spi`, `esp32` (board,
+variant, flash size) and `psram`. Keep the ids the other boards use (`my_display`, `ts_touch`, `gpio_backlight_pwm`):
+the shared tree, the features and owners' overrides find the parts by them.
+
+Then choose what the board includes:
+
+- `hardware/esp-idf.yaml`, always (directly, or through a hardware file that includes it);
+- a hardware file of its family when it has one: `hardware/esp32s3-rgb.yaml` for an ESP32-S3 with octal PSRAM that
+  drives an RGB panel, `hardware/waveshare-ch422g.yaml` for a Waveshare with the CH422G expander. A family file names
+  what its boards share; the board file adds its flash size and names its panel with `display: - id: !extend
+  my_display`. When a second board turns out to share hardware with one that has no family file yet, move the shared
+  part into one instead of copying it (`tools/check_packages.py` refuses a block two board files carry word for word);
+- one look: `looks/standard.yaml`, or `looks/compact.yaml` for glass too small for it;
+- how its touch panel is read: `features/capacitive-touch.yaml` (GT911, GSL3670: pixels, no calibration) or
+  `features/resistive-touch.yaml` (XPT2046: calibrated on the glass, and the board states the raw range it measured,
+  `TOUCH_CAL_*`);
+- `features/backlight.yaml`, and `features/backlight-always-on.yaml` after it for a backlight that must never go dark;
+- with PSRAM: `features/camera.yaml`, `features/self-test.yaml`, and `features/snapshot.yaml` when there is memory for
+  a second frame.
 
 One number to look at on a parallel (RGB) panel: `LVGL_BUFFER_SIZE`. The picture lives in PSRAM, but LVGL's draw
 buffer lives in the memory inside the chip, next to Wi-Fi, the API and the panel's bounce buffers, and a quarter of
@@ -34,21 +51,22 @@ buffer lives in the memory inside the chip, next to Wi-Fi, the API and the panel
 boots with 112 KB. Read `sensor.<screen>_heap_free` after the first boot with a full layout: under 40 KB is too
 little.
 
-## 4. The layout: two grids and a table that follows from them
+## 4. The layout: two grids, and sizes the look works out
 
 ```
 python3 tools/propose_grid.py             # what grid the resolution and the diagonal ask for, each way up
-python3 tools/new_board.py <name> --from guition --width 800 --height 480 --inch 4.3 [--cols 3 --rows 2] \
-                                  [--portrait-cols 1 --portrait-rows 4] [--rotation 0|90|180|270]
-python3 tools/generate_cells.py           # the cards of that grid
+python3 tools/new_board.py <name> --from waveshare43 --width 800 --height 480 --inch 4.3 [--cols 3 --rows 2] \
+                                  [--portrait-cols 1 --portrait-rows 4] [--rotation 0|90|180|270] [--look compact]
+python3 tools/generate_cells.py           # the cards of that grid (--lab for a lab-<name> board)
 ```
 
-`--width` and `--height` are the canvas of the screen lying down and `--rotation` the LVGL angle that lays the
-panel out that way, so the board file states the panel's own pixels (`PANEL_W`, `PANEL_H`) and that angle
-(`ROTATION_LANDSCAPE`). It then states its density and its look (`DISPLAY_DPI`, `LOOK`), its grid the two ways the
-screen can hang (`GRID_COLS`, `GRID_ROWS`, `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT`, `GRID_MARGIN`, `GRID_GAP_X`,
-`GRID_GAP_Y`) and the size table, every value scaled from the reference board by the density ratio, so a tile, a
-letter and a key keep their size in millimetres.
+`--from` is the key of the board that resembles the new one most (`tools/profiles.py`): the new file starts with its
+packages and its hardware sections. `--width` and `--height` are the canvas of the screen lying down and `--rotation`
+the LVGL angle that lays the panel out that way, so the board file states the panel's own pixels (`PANEL_W`,
+`PANEL_H`) and that angle (`ROTATION_LANDSCAPE`). It then states its density (`DISPLAY_DPI`, with the decimals it has)
+and its grid the two ways the screen can hang (`GRID_COLS`, `GRID_ROWS`, `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT`).
+Every size comes from the look, scaled to that density, so a tile, a letter and a key keep their size in millimetres;
+the script adds a line only for a size the look asks for that the glass has no room for, and says so on that line.
 
 The grid is the one real choice: the proposal keeps a tile at about 33 × 16 mm and never smaller than 30 × 12 mm,
 but a board of the same size can be read as "more tiles" or "bigger tiles". Render both and look. It is two
@@ -81,12 +99,12 @@ build with `LVGL_ROTATION` a quarter further than `ROTATION_LANDSCAPE`, and walk
 
 ## 7. Write it down
 
-Say what the backlight can do, in two flags every board file carries: `BACKLIGHT_DIMMABLE` (a PWM pin takes levels;
-a line on an expander is lit or dark, and the percentages become switches) and `CAN_STANDBY` (the screen can go dark
-at all). A board that cannot go dark - the Waveshare browns out when its backlight boost switches on again - has no
-standby and no night: the firmware hides those rows, the board file keeps their entities internal with `!extend`
-(copy the block at the end of `packages/boards/waveshare-esp32s3-43.yaml`), `tools/generate_board_shapes.py` writes
-both flags into boards.json for the add-on, and `tests/test_easy_package.py` keeps the flag and the list together.
+Say what the backlight can do. `BACKLIGHT_DIMMABLE` is true unless the board states false: a PWM pin takes levels,
+a line on an expander is lit or dark, and the percentages become switches. A board that cannot go dark at all, as the
+Waveshare 4.3 browns out when its backlight boost switches on again, includes `features/backlight-always-on.yaml`:
+that sets `CAN_STANDBY` to false, keeps the entities of standby and night internal, and takes the blinks out of an
+alert. `tools/generate_board_shapes.py` writes both flags into boards.json for the add-on, and
+`tests/test_easy_package.py` keeps the flag and the entities together.
 
 A screen also says what it can do while it runs, in its **Screen features** sensor (firmware 0.2.99): one word per
 ability, so the add-on follows the screen itself and only falls back to boards.json for firmware from before that
@@ -96,11 +114,10 @@ saying it cannot. An ability is one row on each side: a line in the `features` l
 `packages/core.yaml`, and a row in `FEATURES` in `screen_manager/app/core.py` naming the boards.json key it falls
 back to. A word the add-on does not know is skipped, so new firmware may report one an older add-on never heard of.
 
-Give the board file its own `BOARD_ID` (the screen reports it) and a `Rotation` select with the angles its glass
-allows (the half turn; the quarter turns as well when it is square; copy the block of the nearest board,
-`tools/check_packages.py` checks it), and add the board to `packages/<board>.yaml` and
-`<board>.yaml` (the two entries), to `BOARDS` and `ENTRIES` in `tools/profiles.py`, to `REFS` in
-`screen_manager/app/core.py`, and to the editor's New screen (`web/src/components/InstallerView.vue` and the
-`editor.installer.board_<id>` text in every translation). Then `tools/generate_cells.py` (the cards of its grid,
+Give the board file its own `BOARD_ID` (the screen reports it; `tools/new_board.py` sets it). The Rotation select
+comes from the core, with the angles the glass allows. Add the board to `packages/<board>.yaml` and `<board>.yaml`
+(the two entries), one line to `BOARD_TABLE` in `tools/profiles.py`, to `REFS` in `screen_manager/app/core.py`, and to
+the editor's New screen (`web/src/components/InstallerView.vue` and the `editor.installer.board_<id>` text in every
+translation). Then `tools/generate_cells.py` (the cards of its grid,
 which go into Git with it), `tools/generate_board_shapes.py` (what the add-on and the editor know of it) and
 `tools/check.sh --all`, which from then on checks and compiles it with the others.

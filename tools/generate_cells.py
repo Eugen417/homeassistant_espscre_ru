@@ -102,9 +102,11 @@ def counts(lab=False):
         boards += sorted((ROOT / 'packages' / 'boards').glob('lab-*.yaml'))
     found = set()
     for board in boards:
-        values = profiles.substitutions_of(board)
+        values = profiles.evaluate(profiles.raw_substitutions(board))
         if 'GRID_COLS' in values and 'GRID_ROWS' in values:
-            found.add(int(values['GRID_COLS']) * int(values['GRID_ROWS']))
+            # One file serves a board either way up, so it holds the cells of whichever page asks for most.
+            found.add(max(int(values['GRID_COLS']) * int(values['GRID_ROWS']),
+                          int(values.get('GRID_COLS_PORTRAIT', values['GRID_COLS'])) * int(values.get('GRID_ROWS_PORTRAIT', values['GRID_ROWS']))))
     return sorted(found)
 
 

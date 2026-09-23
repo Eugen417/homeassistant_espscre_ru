@@ -1,0 +1,63 @@
+# ESP Screens - the UI self test with a check of the layout's geometry, for a board with the room for it.
+#
+# `ui_self_test` renders every page and overlay a few times without controlling a device and logs PASS or FAIL
+# (diagnostics/run_ui_test.py). This one also checks that nothing falls outside its area (guition::check_geometry in
+# components/smart_display/guition_diagnostics.h). The CYD keeps a lighter self test of its own, without that check,
+# for its flash (packages/boards/cyd-2432s028.yaml).
+script:
+  # Render every overlay and both pages repeatedly without controlling devices.
+  - id: ui_self_test
+    mode: single
+    then:
+      - logger.log:
+          format: "UI_TEST START: page/overlay render stress, no HA actions"
+          level: INFO  # the core logs from INFO; logger.log is DEBUG by default
+      - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
+      - lambda: 'id(calibration_active) = false;'
+      - lvgl.page.show: home_page
+      - script.execute: wake_display
+      - repeat:
+          count: 10
+          then:
+            - lambda: |-
+                id(last_touch_ms) = millis();
+                id(last_use_ms) = millis();
+                static unsigned test_page=0;
+                id(tile_page) = runtime_tiles::enabled ? test_page++ % runtime_tiles::page_count() : 1;
+            - script.execute: show_tile_page
+            - delay: 300ms
+            - lambda: |-
+                lv_obj_update_layout(id(tile_scroll));
+                const int count = runtime_tiles::model.count;
+                // Wide cards take two slots, so visibility follows the runtime packing.
+                const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
+                // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
+                bool ok = guition::check_geometry(id(home_page)->obj);
+                for (auto &w : runtime_tiles::widgets) {
+                  bool visible = w.index < runtime_tiles::model.count;
+                  ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
+                }
+                // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
+                const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);
+                for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})
+                  ok = ok && (lv_obj_has_flag(control, LV_OBJ_FLAG_HIDDEN) != bar);
+                lv_area_t nav, grid;
+                lv_obj_get_coords(id(page_next), &nav);
+                lv_obj_get_coords(id(tile_scroll), &grid);
+                ok = ok && (!bar || grid.y2 < nav.y1);
+                if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
+                ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), (int) grid.y2, (int) nav.y1);
+                id(tile_page) = 0;
+            - script.execute: show_tile_page
+            - delay: 150ms
+            - lvgl.widget.show: color_detail_overlay
+            - delay: 150ms
+            - lambda: guition::check_geometry(id(color_detail_overlay));
+            - lvgl.widget.hide: color_detail_overlay
+            - lvgl.widget.show: alert_overlay
+            - delay: 150ms
+            - lvgl.widget.hide: alert_overlay
+      - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+      - logger.log:
+          format: "UI_TEST COMPLETE"
+          level: INFO

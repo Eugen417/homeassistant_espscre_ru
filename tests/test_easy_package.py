@@ -40,7 +40,7 @@ class PackageTests(unittest.TestCase):
                 # The board brings the cards of its grid.
                 cells = profiles.cells_of(profiles.BOARDS[board])
                 self.assertEqual(len(cells), 1, board)
-                grid = profiles.substitutions_of(profiles.BOARDS[board])
+                grid = profiles.board_values(board)
                 self.assertEqual(cells[0].name, f"{int(grid['GRID_COLS']) * int(grid['GRID_ROWS'])}.yaml", board)
 
     def test_the_published_entry_takes_everything_from_github(self):
@@ -95,12 +95,13 @@ class PackageTests(unittest.TestCase):
                     'wake_button', 'sleep_button']
         seen = {}
         for board, path in profiles.BOARDS.items():
-            values = profiles.substitutions_of(path)
+            # What the screen sees: the core's default, or features/backlight-always-on.yaml's false.
+            values = profiles.board_values(board)
             self.assertIn('CAN_STANDBY', values, f'{path.name} does not say CAN_STANDBY')
             self.assertIn(values['CAN_STANDBY'].strip('"'), ('true', 'false'), path.name)
             can = values['CAN_STANDBY'].strip('"') == 'true'
             seen[board] = can
-            text = path.read_text()
+            text = profiles.text(profiles.PROFILES[list(profiles.BOARDS).index(board)])
             for entity in entities:
                 extended = re.search(rf'^  - id: !extend {entity}\n    internal: true\n', text, re.M) is not None
                 self.assertEqual(extended, not can, f'{path.name}: {entity} {"stays visible" if can else "must be internal"}')
@@ -117,7 +118,7 @@ class PackageTests(unittest.TestCase):
         for board in BOARDS:
             package = profiles.text(f'packages/{board}.yaml')
             # One card per cell of the board's grid, and the parts every screen has.
-            grid = profiles.substitutions_of(profiles.BOARDS[board])
+            grid = profiles.board_values(board)
             cells = int(grid['GRID_COLS']) * int(grid['GRID_ROWS'])
             for key in [f'runtime_tiles::bind({cells - 1}, id(tile{cells})', 'runtime_tiles::enabled = true;', 'id: open_value_overlay',
                         'id: ui_refresh', 'runtime_tiles::render(id(lbl_room));', 'id: color_detail_overlay']:
@@ -131,18 +132,24 @@ class PackageTests(unittest.TestCase):
         for needle in ('esp32:', 'platform: xpt2046', 'platform: gt911', 'platform: st7701s', 'platform: mipi_spi', 'psram:',
                        'set_raw_correction', 'camera_image', 'GPIO'):
             self.assertNotIn(needle, core, f'{needle} is a board\'s, not the core\'s')
-        # How the firmware is built is the same on every board, in the board's own esp32: block (firmware 0.2.75+).
+        # How the firmware is built is the same on every board (firmware 0.2.75+): packages/hardware/esp-idf.yaml,
+        # which every board includes, directly or through its hardware.
         for board, path in profiles.BOARDS.items():
-            self.assertIn('      assertion_level: SILENT\n', path.read_text(), board)
-        names = {board: set(profiles.substitutions_of(path)) for board, path in profiles.BOARDS.items()}
-        shared = set.intersection(*names.values())
+            chain = profiles.chain(path)
+            self.assertIn(ROOT / 'packages/hardware/esp-idf.yaml', chain, board)
+        self.assertIn('      assertion_level: SILENT\n', (ROOT / 'packages/hardware/esp-idf.yaml').read_text())
+        # Every screen sees the same names, whatever board it is: a board states values, never names of its own.
         # A floor, not a count: the list gets shorter every time the firmware works something out from the live
-        # canvas instead of reading it from the board file (the cells, the page bar and the settings strip went
-        # that way in firmware 0.2.92), and it must never get shorter because one board started going its own way.
+        # canvas instead of reading it (the cells, the page bar and the settings strip went that way in firmware
+        # 0.2.92), and it must never get shorter because one board started going its own way.
+        names = {board: set(profiles.board_values(board)) for board in profiles.BOARDS}
+        shared = set.intersection(*names.values())
         self.assertGreater(len(shared), 90)
         for board, defined in names.items():
             own = defined - shared
-            self.assertTrue(all(re.match(r'(TOUCH_AFFINE_|TOUCH_CAL_|EDGE_SWIPE_|ALERT_\w*IMAGE|CAMERA_)', n) for n in own), f'{board}: {sorted(own)}')
+            # What a feature brings (the resistive panel's calibration, the capacitive one's edge swipe, camera images)
+            # and the hardware a screen's own YAML may change on the board that has it.
+            self.assertTrue(all(re.match(r'(TOUCH_AFFINE_|TOUCH_CAL_|EDGE_SWIPE_|ALERT_\w*IMAGE|CAMERA_|DISPLAY_MODEL$|DISPLAY_DATA_RATE$|DISPLAY_INVERT_COLORS$|BACKLIGHT_FREQUENCY$)', n) for n in own), f'{board}: {sorted(own)}')
 
     def test_the_checker_refuses_a_fixed_home_assistant_subscription(self):
         source = (ROOT / 'tools/check_packages.py').read_text()

@@ -4,290 +4,52 @@
 # "B": that board has other pins (ESPHome's WAVESHARE-4-480X480 model). No physical acceptance yet: see
 # docs/WAVESHARE4B.md.
 #
-# What is in here: the hardware (display, touch, backlight, PSRAM), the sizes the shared tree takes from this
-# board, the code the shared lambdas take from this board (hooks), and what a board with PSRAM can do: camera
-# images and the live pictures of a page. Everything else (the LVGL tree, the cards, the scripts, the entities)
-# is packages/core.yaml, which every board shares; docs/PROFILES.md says how the files fit together and
-# docs/ADDING_A_BOARD.md how a board like this one is added.
+# The glass is the size of the 4-inch Guition's, so every size is the Guition's: the same tiles in millimetres,
+# the same six cells. The battery charger (AXP2101), the audio chips, the motion sensor and the clock chip on this
+# board stay unused.
 #
-# The glass is the size of the 4-inch Guition's, so every size below is the Guition's: the same tiles in
-# millimetres, the same six cells. The battery charger (AXP2101), the audio chips, the motion sensor and the clock
-# chip on this board stay unused.
-#
-# Two entry files include this: waveshare-esp32s3-4b.yaml (a build on this computer) and
-# packages/waveshare4b.yaml (the package a screen builds from over GitHub).
-# The cards of this board's grid: one per cell, from the file for 6 cells
-# (tools/generate_cells.py writes them; docs/RESPONSIVE.md says why).
+# A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
+# features it has; docs/PROFILES.md says how the files of a screen fit together. Two entry files include this one:
+# waveshare-esp32s3-4b.yaml (a build on this computer) and packages/waveshare4b.yaml (the package a screen builds
+# from over GitHub).
 packages:
+  # The chip and its memory for an RGB panel, as on the other Waveshare boards.
+  hardware: !include ../hardware/esp32s3-rgb.yaml
+  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
   cells: !include ../cells/6.yaml
+  look: !include ../looks/standard.yaml
+  touch: !include ../features/capacitive-touch.yaml
+  backlight: !include ../features/backlight.yaml
+  camera: !include ../features/camera.yaml
+  self_test: !include ../features/self-test.yaml
+  snapshot: !include ../features/snapshot.yaml
 
 substitutions:
-
-  # 0: no drift limit. A press that drifts is still a tap as long as the finger lets go on the tile
-  # (runtime_tiles::event checks where it let go: LVGL keeps the press on the tile and would click it
-  # anywhere), and a quick flick is LVGL's gesture, never a tap (the home_page gesture handler in on_boot).
-  # The CYD keeps a limit because its resistive panel jumps.
-  TOUCH_MOVE_LIMIT_PX: "0"
-  # Shortest contact that counts as a tap; a resistive panel bounces, a capacitive one does not.
-  TOUCH_MIN_PRESS_MS: "20"
-  # Page swipe starts in this band along the left or right edge (about 5 mm) and needs
-  # this much travel inward (about 6 mm); a swipe from the middle of the screen does nothing.
-  EDGE_SWIPE_BAND_PX: "32"
-  EDGE_SWIPE_TRAVEL_PX: "40"
-  # A slider let go this close to the left or right edge of the glass (about 1 cm) meant its end when
-  # that end lies in the band: the panel loses a finger swiped off the glass 30-50 px before the edge.
-  SLIDER_EDGE_SNAP_PX: "67"
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "waveshare4b"
-  # This board's backlight hangs on a PWM pin of the chip itself (GPIO4), not on the expander as on the 4.3-inch
-  # and 7-inch Waveshares, so brightness is a percentage.
-  BACKLIGHT_DIMMABLE: "true"
-  # The screen can go dark: standby and night dim it, and Sleep and Wake exist. The 4.3-inch browned out when its
-  # expander line switched the backlight's boost converter on from dark; here only the PWM duty falls, the way it
-  # does on the Guition. Not yet seen on the glass (docs/WAVESHARE4B.md).
-  CAN_STANDBY: "true"
   DEVICE_NAME: "waveshare4b-new"
   DEVICE_FRIENDLY_NAME: "My Waveshare 4B"
 
-  # ORIENTATION
-  # The panel's own pixels. The display block below always drives it at this size; LVGL turns the picture and
-  # the touch together, so nothing else on this board knows which way the glass hangs.
+  # The glass: the panel's own pixels and its density, the 4-inch Guition's.
   PANEL_W: "480"
   PANEL_H: "480"
-  # The LVGL angle that lays this panel out lying down (480 x 480). Standing up is a quarter further.
-  ROTATION_LANDSCAPE: "0"
-  # Which way this screen hangs. ESP Screens writes it when the screen is built, the way it writes the language,
-  # and it is the only line that differs between a screen lying down and the same screen standing up.
-  LVGL_ROTATION: "${ROTATION_LANDSCAPE}"
-  TOUCH_SWAP_XY: "false"
-  TOUCH_MIRROR_X: "false"
-  TOUCH_MIRROR_Y: "false"
-  # The tile grid: columns and rows of cells, the side margin and the gaps between cells. The shared tree places
-  # every cell from these (runtime_tiles::place_page), so a board with more room states more columns or rows.
+  DISPLAY_DPI: "170"
+  # The tile grid: columns and rows of cells; square glass has the same six whichever way it hangs.
   GRID_COLS: "2"
   GRID_ROWS: "3"
-  # The cells of a page when this screen stands up (firmware 0.2.92+).
-  # Square glass: the same six cells whichever way it hangs.
-  GRID_COLS_PORTRAIT: "2"
-  GRID_ROWS_PORTRAIT: "3"
-  GRID_MARGIN: "16"
-  GRID_GAP_X: "12"
-  GRID_GAP_Y: "12"
-  DISPLAY_DPI: "170"      # diagonal pixels / diagonal inches; the look's reference density on this board
-  LOOK: "standard"
-  SCROLL_Y: "72"
-  HEADER_Y: "22"
-  # Holding the top bar opens the settings page (0.2.44+). The two edge bands stay clear: a swipe
-  # that starts up there still changes the page.
-  SETTINGS_HOLD_X: "${EDGE_SWIPE_BAND_PX}"
-  SETTINGS_HOLD_DRIFT_PX: "32"
-
-  # Alert overlay (HA action show_alert), 480x480: one card centred on LVGL's top layer.
-  ALERT_CARD_W: "420"
-  ALERT_CARD_H: "320"
-  ALERT_ICON_X: "26"
-  ALERT_ICON_Y: "22"
-  ALERT_TEXT_X: "90"
-  ALERT_TEXT_W: "304"
-  ALERT_TITLE_Y: "26"
-  ALERT_TITLE_H: "32"         # one line of headline; a DOT label only ends in an ellipsis with a height
-  ALERT_SUBTITLE_Y: "68"
-  ALERT_SUBTITLE_H: "150"
-  ALERT_BUTTON_W: "150"
-  ALERT_BUTTON_H: "60"
-  ALERT_BUTTON_INSET: "22"
-  ALERT_TITLE_MAX: "64"       # bytes; the label ends one line with an ellipsis
-  ALERT_BUTTON_MAX: "16"      # bytes on the OK button
-  ALERT_SUBTITLE_MAX: "240"   # bytes; wraps over the rows the card has
-  # An alert with a camera image (firmware 0.2.57+): the image across the top of a taller card, the words under it.
-  ALERT_CARD_H_IMAGE: "452"
-  ALERT_IMAGE_INSET: "14"
-  ALERT_IMAGE_SHIFT: "236"      # the icon, title and subtitle move down by the image and a gap
-  ALERT_SUBTITLE_H_IMAGE: "62"  # two lines between the title and the button
-  # Camera images (firmware 0.2.57+): the boxes ESP Screen Manager sizes a snapshot for (camera_feed.BOXES).
-  CAMERA_FULL_W: "480"
-  CAMERA_FULL_H: "480"
-  CAMERA_THUMB_W: "392"
-  CAMERA_THUMB_H: "220"
-  FONT_TIME_SIZE: "27"                          # the clock in the top bar
-  FONT_HEADLINE_SIZE: "27"                      # card titles
-  FONT_WATCH_VALUE_SIZE: "38"
-  FONT_CLOCK_DIGITS_SIZE: "48"
-  FONT_SETPOINT_SIZE: "64"                      # the climate card's setpoint
-  FONT_LABEL_SIZE: "18"                         # tile titles
-  FONT_SUBLABEL_SIZE: "16"                      # tile values and small text
-  FONT_SUBLABEL_BIG_SIZE: "21"                  # the top bar and settings rows
-  FONT_ICON_SIZE: "42"                          # tile icons
-  FONT_ICON_MINI_SIZE: "26"                     # the top bar and card keys
-  FONT_ICON_HOME_SIZE: "34"          # the home key in the top bar
-  FONT_ICON_BIG_SIZE: "64"                      # full-page tiles
-  FONT_WATCH_ICON_SIZE: "18"
-
-  # Tiles and the top bar
-  TILE_RADIUS: "22"                             # corner of a tile
-  TILE_PAD: "12"                                # inside a tile
-  TILE_ICON_SIZE: "54"                          # the icon circle
-  HEADER_INSET: "16"                            # the room name and the clock from the glass edge
-
-  # The page bar under the tiles
-  PAGE_BAR_H: "60"                              # the page bar
-  PAGE_NUMBER_W: "160"                          # the dots in the middle
-  PAGE_CHEVRON_INSET: "24"                      # the chevrons from the outer edge
-
-  # Cards: the round keys and the brightness card
-  CARD_KEY_X: "16"                              # a card's round key from the side
-  CARD_KEY_Y: "16"                              # from the top
-  CARD_KEY_SIZE: "60"                           # its diameter
-  COLOR_TITLE_W: "310"                          # the colour card's title
-  COLOR_TITLE_Y: "35"
-
-
-
-  # The touch test page
-  TOUCH_TEST_PAGE_PAINT: "paint_page_soft"      # the page
-  TOUCH_TEST_TITLE: "calibration_touch_check"         # the words at the top
-  TOUCH_TEST_TITLE_FONT: "headline"
-  TOUCH_TEST_TITLE_Y: "110"
-  TOUCH_TEST_INSET: "12"                        # the corner crosses from the edge
-  TOUCH_TEST_SIZE: "24"                         # a cross
-  TOUCH_TEST_PAINT: "paint_ink"                 # the crosses
-
-  # What the shared scripts do differently on this board
-  LVGL_DEFAULT_FONT: "sublabel"                 # LVGL's default font: every label names its own, so this only keeps Montserrat out of the build
   LVGL_BUFFER_SIZE: "25%"                       # LVGL's draw buffer as a share of the screen
-  PAGE_DOTS_LARGE: "true"                       # bigger page dots
-  EFFECTS_ROW_FONT: "sublabel"                  # the effects page's rows
-  STANDBY_DIM_MS: "1500"                        # how long the backlight takes to dim into standby (waking takes 300)
-  ALERT_FLASH_FADE_MS: "60"                     # an alert's flash: the fade of each step
-  ALERT_FLASH_DARK_MS: "140"                    # how long it stays dark
-  ALERT_FLASH_LIT_MS: "180"                     # how long it stays lit
 
-  # Code the shared lambdas of packages/core.yaml take from this board, at the place named ${...}: the
-  # exact lines the old profile had there. Empty when this board adds nothing at that place; every board
-  # must name every hook, or ESPHome stops at the undefined one.
-  # the first boot step: the touch guard, and what this board's panel needs
-  BOOT_TOUCH: |-
-    cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
-    cyd::edge_swipe.configure(${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
-    cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
-    // The page and the tile container take no presses: the theme's pressed style would
-    // otherwise repaint nearly the whole screen twice per touch in the empty edge band,
-    // starving the touch polling for the whole length of a quick swipe.
-    lv_obj_remove_flag(id(home_page)->obj, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(id(tile_scroll), LV_OBJ_FLAG_CLICKABLE);
-    // A stray GT911 contact at exactly (0, 0) never reaches LVGL (cyd::GhostTouch): as the last
-    // sample of a drag it sent a slider to its end on release. LVGL still reads ESPHome's callback.
-    if (auto *indev = lv_indev_get_next(nullptr)) {
-      static lv_indev_read_cb_t esphome_read = nullptr;
-      static const lv_indev_read_cb_t filtered = [](lv_indev_t *input, lv_indev_data_t *data) {
-        esphome_read(input, data);
-        int32_t ghost_x = 0, ghost_y = 0;
-        id(screen_lvgl).rotate_coordinates(ghost_x, ghost_y);
-        const unsigned dropped = cyd::ghost_touch.dropped();
-        const auto read = cyd::ghost_touch.filter({data->state == LV_INDEV_STATE_PRESSED, (int) data->point.x, (int) data->point.y}, ghost_x, ghost_y);
-        if (cyd::ghost_touch.dropped() != dropped) ESP_LOGI("touch", "GT911 stray contact at (0,0) ignored");
-        data->state = read.pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
-        data->point.x = read.x;
-        data->point.y = read.y;
-      };
-      if (lv_indev_get_read_cb(indev) != filtered) {
-        esphome_read = lv_indev_get_read_cb(indev);
-        lv_indev_set_read_cb(indev, filtered);
-      }
-    }
-    id(last_touch_ms) = millis();
-    id(last_use_ms) = millis();
-    id(display_dimmed) = false;
-  # right after runtime_tiles::enabled = true, before the settings load
-  BOOT_ENABLED_HOOK: ""
-  # the paint style only this board has (theme::paints)
-  BOARD_PAINT_FILL: "theme::fill(id(paint_camera), Paint::camera);"
-  # in runtime_tiles::dismiss, after the detail card closes
-  CLOSE_CARDS_HOOK: "runtime_tiles::camera_close();"
-  # what LVGL's gesture over the tiles does on this board
-  BOOT_PAGE_GESTURE: |-
-    // A quick flick or wipe over the tiles is never a tap (firmware 0.2.65+). LVGL reports it as a gesture that
-    // bubbles up to this page (a tile's slider keeps its own, runtime_tiles::bind): the tap under the finger is
-    // consumed and LVGL waits for the release. No page flip: pages change with the edge swipe (on_update). LVGL
-    // wants speed as well as 50 px of travel, so a firm press that drifts slowly is still a tap. Cards and the
-    // settings page keep their drags; in standby the push still wakes the screen, it only switches nothing.
-    lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *) {
-      if (!runtime_tiles::enabled || id(calibration_active) || !id(active_entity).empty() || settings_screen::visible() ||
-          (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN))) return;
-      // A quick drag on a slider is that slider's: the press stays with it (firmware 0.2.68+).
-      if (runtime_tiles::captured_slider) return;
-      cyd::touch_guard.consume();
-      ESP_LOGI("touch", "flick: no tap");
-      if (id(display_dimmed)) return;
-      if (auto *input = lv_indev_active()) lv_indev_wait_release(input);
-    }, LV_EVENT_GESTURE, nullptr);
-  # after the gesture: the camera images of a board that shows them
-  BOOT_CAMERA_HOOKS: |-
-    // Camera images (firmware 0.2.57+): the two online_images and the alert's frame.
-    // set_url() forgets the ETag, so it is only called for a new link: an unchanged picture then answers 304.
-    runtime_tiles::camera_full.load = [](const std::string &url) {
-      static std::string current;
-      if (url != current) { id(camera_image).set_url(url); current = url; }
-      id(camera_image).update();
-    };
-    runtime_tiles::camera_full.release = []() { id(camera_image).release(); };
-    runtime_tiles::camera_full.source = []() { return id(camera_image).get_lv_image_dsc(); };
-    runtime_tiles::camera_thumb.load = [](const std::string &url) {
-      static std::string current;
-      if (url != current) { id(alert_image).set_url(url); current = url; }
-      id(alert_image).update();
-    };
-    runtime_tiles::camera_thumb.release = []() { id(alert_image).release(); };
-    runtime_tiles::camera_thumb.source = []() { return id(alert_image).get_lv_image_dsc(); };
-    // The live pictures of a page's camera tiles (firmware 0.2.77+): one strip in the third online_image.
-    runtime_tiles::camera_live.load = [](const std::string &url) {
-      static std::string current;
-      if (url != current) { id(tile_image).set_url(url); current = url; }
-      id(tile_image).update();
-    };
-    runtime_tiles::camera_live.release = []() { id(tile_image).release(); };
-    runtime_tiles::camera_live.source = []() { return id(tile_image).get_lv_image_dsc(); };
-    runtime_tiles::alert_frame = id(alert_image_frame);
-    runtime_tiles::alert_frame_icon = id(alert_image_icon);
-    runtime_tiles::alert_room = [](bool image) {
-      const int shift = image ? ${ALERT_IMAGE_SHIFT} : 0;
-      lv_obj_set_height(id(alert_card), image ? ${ALERT_CARD_H_IMAGE} : ${ALERT_CARD_H});
-      lv_obj_set_y(id(alert_icon), ${ALERT_ICON_Y} + shift);
-      lv_obj_set_y(id(alert_title), ${ALERT_TITLE_Y} + shift);
-      lv_obj_set_y(id(alert_subtitle), ${ALERT_SUBTITLE_Y} + shift);
-      lv_obj_set_height(id(alert_subtitle), image ? ${ALERT_SUBTITLE_H_IMAGE} : ${ALERT_SUBTITLE_H});
-    };
-  # after the cards' hooks, before the settings page's: nothing on this board (the CYD builds its calibration wizard here)
-  BOOT_CARDS_TAIL: ""
-  # what else keeps the settings page closed (inline, in the condition)
-  MAY_OPEN_EXTRA: " && !runtime_tiles::camera_visible()"
-  # the log line of a boot onto the touch test page
-  TOUCH_TEST_READY_LOG: "GT911 touch test ready; no tile actions"
-  # one more line of the ui_state diagnostics
-  UI_STATE_HOOK: "ESP_LOGI(\"ui_diag\", \"rotation=%u actual=%u\", (unsigned)runtime_tiles::rotation, (unsigned)id(screen_lvgl).get_rotation());"
-  # every 250 ms after runtime_tiles::tick()
-  TICK_HOOK: "runtime_tiles::camera_tick();"
-  # apply_screen_settings: how the backlight takes its level
-  APPLY_BACKLIGHT: |-
-    // Standby dims slowly (ESPHome's transition); waking is quick.
-    id(set_backlight).execute(level, id(display_dimmed) ? 1500 : 300);
-  # back_to_page_1_when_due: what else counts as away from page 1 (inline)
-  AWAY_EXTRA: " runtime_tiles::camera_visible() ||"
-  # alert_show: after the settings page closed, before the card is made
-  ALERT_SHOW_HOOK: |-
-    // An open camera closes; the card makes room for an image the app announced for this alert.
-    runtime_tiles::alert_prepare();
+  # Drawn by hand when the alert was made, a little under the room its card leaves (164)
+  ALERT_SUBTITLE_H: "150"
+
+  # Hardware a screen's own YAML may change (docs/EASY_SETUP.md, "Hardware-specific YAML overrides")
+  BACKLIGHT_FREQUENCY: "5000Hz"                 # the backlight's PWM; 5 kHz is what the community configuration runs
 
 # ============================================================
 # No need to edit below this line.
 # ============================================================
 
 esphome:
-  platformio_options:  # not `build_flags:` yet, see packages/core.yaml
-    build_flags:
-      - -DLV_USE_SNAPSHOT=1
-  includes:
-    - <esphome/components/smart_display/guition_diagnostics.h>
   # The panel's setup travels over three lines of the TCA9554 (CS on EXIO0, data on EXIO1, clock on EXIO2), bit by
   # bit through the expander. Park them before the display sends it: select high (idle), data and clock low. The
   # community configuration that first drove this board with ESPHome does the same.
@@ -303,116 +65,13 @@ esphome:
             id(expander)->digital_write(2, false);
 
 esp32:
-  board: esp32-s3-devkitc-1
-  variant: esp32s3
   flash_size: 16MB
-  cpu_frequency: 240MHz
-  framework:
-    type: esp-idf
-    version: recommended
-    advanced:
-      # ESP-IDF's assert texts (file, line and condition of every check) stay out of the firmware (0.2.75+), 49 KB on
-      # the CYD: a failed assert still stops and restarts the screen, and its backtrace still points at the line.
-      # Every board sets it (tests/test_easy_package.py). ESP-IDF's error names stay: without them ESPHome's own
-      # error lines only say "UNKNOWN ERROR".
-      assertion_level: SILENT
-      execute_from_psram: true
-    sdkconfig_options:
-      # Keep the RGB panel driver's interrupt bookkeeping in internal RAM, as on the other S3 RGB boards: without it
-      # ESP-IDF may place it in PSRAM, and on the 4.3-inch that stalled the DMA interrupt until the watchdog reset
-      # the screen (packages/boards/waveshare-esp32s3-43.yaml says how).
-      CONFIG_LCD_RGB_ISR_IRAM_SAFE: "y"
-
-psram:
-  mode: octal
-  speed: 80MHz
 
 logger:
   tx_buffer_size: 2048
   # This board has two USB-C ports: one through a USB-to-UART chip, one on the chip's own USB. The log goes out
   # over the UART one, as on the Guition.
   hardware_uart: UART0
-
-api:
-  actions:
-    - action: ui_snapshot
-      then:
-        - script.execute: capture_ui_snapshot
-    # A camera full screen from Home Assistant (firmware 0.2.57+), as a tap on its tile opens it; an empty entity closes
-    # it. Only a camera on the screen's tiles or in a recent alert gets an image from ESP Screens.
-    - action: preview_camera
-      variables:
-        entity: string
-      then:
-        - lambda: |-
-            if (entity.empty()) { runtime_tiles::camera_close(); return; }
-            id(last_use_ms) = millis();
-            id(wake_display).execute();
-            std::string name = entity;
-            for (size_t i = 0; i < runtime_tiles::model.count; ++i)
-              if (runtime_tiles::model.tiles[i].entity == entity) { name = runtime_tiles::model.tiles[i].name; break; }
-            runtime_tiles::camera_open(entity, name);
-
-# Camera images (firmware 0.2.57+): ESP Screen Manager serves each image already sized for this screen, as an uncompressed
-# BMP on its own port on the LAN (screen_manager/app/camera_feed.py). ESPHome decodes a BMP piece by piece as it arrives,
-# one `buffer_size` per loop, where a JPEG of the full screen held the loop for 0.6 s; touch and drawing keep their turn.
-# 16 KB a loop (firmware 0.2.73+): the full picture came in 1.8 s instead of 2.8 s with 4 KB. A loop waited over 50 ms
-# for it in one of eleven opens with Wi-Fi awake (0.1 s), in five of twelve with power save; 32 KB saved 0.3 s more but
-# held a loop 0.1 s more often (docs/TEST_RESULTS_0287.md, 0288). One image full screen and one in an alert's
-# frame, and one strip with the live pictures of a page's camera tiles (firmware 0.2.77+); runtime_tiles.h decides when
-# they load and frees them when they close. Plain HTTP on the LAN, no certificates.
-http_request:
-  timeout: 4s
-  verify_ssl: false
-
-# The top-level online_image form that ESPHome 2026.6.2 (min_version) knows; 2026.7+ still reads it and suggests
-# `image: - platform: online_image`, and 2027.1 drops it: move with the min_version raise (docs/RELEASING.md, 0.2.89).
-online_image:
-  - id: camera_image
-    url: "http://127.0.0.1/camera.bmp"  # set when a camera opens
-    format: BMP
-    type: RGB565
-    buffer_size: 16384
-    on_download_finished:
-      - lambda: 'runtime_tiles::camera_loaded(false, cached);'
-    on_error:
-      - lambda: 'runtime_tiles::camera_failed(false);'
-  - id: alert_image
-    url: "http://127.0.0.1/camera.bmp"  # set when an alert brings an image
-    format: BMP
-    type: RGB565
-    buffer_size: 16384
-    on_download_finished:
-      - lambda: 'runtime_tiles::camera_loaded(true, cached);'
-    on_error:
-      - lambda: 'runtime_tiles::camera_failed(true);'
-  # The live pictures of a page's camera tiles (firmware 0.2.77+): one strip of small squares, at most ~70 KB.
-  - id: tile_image
-    url: "http://127.0.0.1/camera.bmp"  # set when a page with live camera tiles is on screen
-    format: BMP
-    type: RGB565
-    buffer_size: 16384
-    on_download_finished:
-      - lambda: 'runtime_tiles::live_loaded(cached);'
-    on_error:
-      - lambda: 'runtime_tiles::live_failed();'
-
-# Turning the screen as a Home Assistant choice (firmware 0.2.80+). A square screen turns a quarter as well as a half: its canvas is the same either way. The shared tree applies the
-# angle (packages/core.yaml); a list of options cannot come from a substitution, which is why every board carries this
-# block and tools/check_packages.py keeps the three alike.
-select:
-  - platform: template
-    id: setting_rotation
-    name: "Rotation"
-    icon: "mdi:screen-rotation"
-    entity_category: config
-    options: ["0°", "90°", "180°", "270°"]
-    update_interval: never
-    lambda: 'return std::to_string(settings_screen::rotation) + "°";'
-    set_action:
-      - lambda: |-
-          const std::string option(x.c_str(), x.size());
-          settings_screen::set("rotation", atoi(option.c_str()));
 
 # The GT911, the TCA9554 and the board's other chips (battery charger, audio, motion sensor, clock) share one bus.
 i2c:
@@ -446,37 +105,16 @@ output:
   - platform: ledc
     pin: GPIO4
     id: gpio_backlight_pwm
-    frequency: 5000Hz
+    frequency: ${BACKLIGHT_FREQUENCY}
     inverted: true
-
-light:
-  # The firmware owns the backlight: brightness, standby, night and alerts set it, and the minute tick
-  # restores it. Home Assistant uses the brightness numbers and the Wake and Sleep buttons (0.2.46+).
-  - platform: monochromatic
-    output: gpio_backlight_pwm
-    name: "Display Backlight"
-    id: back_light
-    internal: true
-    restore_mode: ALWAYS_ON
-    default_transition_length: 150ms
 
 # The GT911 has no reset or interrupt line wired to anything the firmware drives; it reports pixels of the panel.
 touchscreen:
-  platform: gt911
-  id: ts_touch
-  i2c_id: touch_bus
-  display: my_display
-  update_interval: 20ms
-  transform:
-    swap_xy: ${TOUCH_SWAP_XY}
-    mirror_x: ${TOUCH_MIRROR_X}
-    mirror_y: ${TOUCH_MIRROR_Y}
-  on_touch:
-    - lambda: 'runtime_tiles::touch_input::pressed(touch.x, touch.y, touch.id, id(calibration_active));'
-  on_update:
-    - lambda: 'for (const auto &point : touches) runtime_tiles::touch_input::moved(point.x, point.y, point.id, point.state);'
-  on_release:
-    - lambda: 'runtime_tiles::touch_input::released();'
+  - platform: gt911
+    id: ts_touch
+    i2c_id: touch_bus
+    display: my_display
+    update_interval: 20ms
 
 # ESPHome's generic ST7701S model brings the panel's init sequence; the pins and timings are this board's. ESPHome's
 # WAVESHARE-4-480X480 model is the older board without the "B" and has other pins. The values are those of the
@@ -519,185 +157,3 @@ display:
       blue: [GPIO40, GPIO41, GPIO42, GPIO2, GPIO1]
     update_interval: never
     auto_clear_enabled: false
-
-lvgl:
-  id: screen_lvgl
-  style_definitions:
-    # The alert's camera frame (theme::paints fills it: BOARD_PAINT_FILL).
-    - id: paint_camera
-  top_layer:
-    widgets:
-      - obj:
-          id: !extend alert_overlay
-          widgets:
-            - obj:
-                id: !extend alert_card
-                widgets:
-                  # The alert's camera image (firmware 0.2.57+) across the top of the card, shown when the app announced
-                  # one; a tap opens the camera full screen over the alert. runtime_tiles.h puts the image in it.
-                  # Rounded like the alert card itself (firmware 0.2.73+); the image takes this radius (camera_loaded).
-                  - obj:
-                      id: alert_image_frame
-                      x: ${ALERT_IMAGE_INSET}
-                      y: ${ALERT_IMAGE_INSET}
-                      width: ${CAMERA_THUMB_W}
-                      height: ${CAMERA_THUMB_H}
-                      hidden: true
-                      styles: paint_camera
-                      bg_opa: COVER
-                      radius: 18
-                      border_width: 0
-                      shadow_width: 0
-                      pad_all: 0
-                      clickable: true
-                      scrollable: false
-                      scrollbar_mode: 'OFF'
-                      pressed:
-                        bg_opa: COVER
-                      on_click:
-                        - if:
-                            condition:
-                              lambda: 'return cyd::touch_guard.accept(millis(), 14) && !runtime_tiles::alert_camera.empty();'
-                            then:
-                              - lambda: 'runtime_tiles::camera_open(runtime_tiles::alert_camera, id(alert_title_text));'
-                      widgets:
-                        - label:
-                            id: alert_image_icon
-                            align: CENTER
-                            text: "\U000F07AE"
-                            text_font: materialdesign_icons
-                            clickable: false
-  pages:
-    - id: !extend home_page
-      widgets:
-        # Never shown either: it makes ESPHome compile LVGL's image widget, which a camera image is drawn with.
-        - image:
-            id: camera_image_seed
-            hidden: true
-            src: alert_image
-
-script:
-  - id: capture_ui_snapshot
-    mode: single
-    then:
-      - lambda: guition::snapshot_begin();
-      - repeat:
-          count: 240
-          then:
-            - lambda: guition::snapshot_next_row();
-            - delay: 100ms
-  # Render every overlay and both pages repeatedly without controlling devices.
-  - id: ui_self_test
-    mode: single
-    then:
-      - logger.log:
-          format: "UI_TEST START: page/overlay render stress, no HA actions"
-          level: INFO  # the core logs from INFO; logger.log is DEBUG by default
-      - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
-      - lambda: 'id(calibration_active) = false;'
-      - lvgl.page.show: home_page
-      - script.execute: wake_display
-      - repeat:
-          count: 10
-          then:
-            - lambda: |-
-                id(last_touch_ms) = millis();
-                id(last_use_ms) = millis();
-                static unsigned test_page=0;
-                id(tile_page) = runtime_tiles::enabled ? test_page++ % runtime_tiles::page_count() : 1;
-            - script.execute: show_tile_page
-            - delay: 300ms
-            - lambda: |-
-                lv_obj_update_layout(id(tile_scroll));
-                const int count = runtime_tiles::model.count;
-                // Wide cards take two slots, so visibility follows the runtime packing.
-                const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
-                // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
-                bool ok = guition::check_geometry(id(home_page)->obj);
-                for (auto &w : runtime_tiles::widgets) {
-                  bool visible = w.index < runtime_tiles::model.count;
-                  ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
-                }
-                // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
-                const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);
-                for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})
-                  ok = ok && (lv_obj_has_flag(control, LV_OBJ_FLAG_HIDDEN) != bar);
-                lv_area_t nav, grid;
-                lv_obj_get_coords(id(page_next), &nav);
-                lv_obj_get_coords(id(tile_scroll), &grid);
-                ok = ok && (!bar || grid.y2 < nav.y1);
-                if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
-                ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), (int) grid.y2, (int) nav.y1);
-                id(tile_page) = 0;
-            - script.execute: show_tile_page
-            - delay: 150ms
-            - lvgl.widget.show: color_detail_overlay
-            - delay: 150ms
-            - lambda: guition::check_geometry(id(color_detail_overlay));
-            - lvgl.widget.hide: color_detail_overlay
-            - lvgl.widget.show: alert_overlay
-            - delay: 150ms
-            - lvgl.widget.hide: alert_overlay
-      - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
-      - logger.log:
-          format: "UI_TEST COMPLETE"
-          level: INFO
-
-  # The two scripts that drive the backlight through set_backlight; the CYD drives it as a light action.
-  - id: alert_dismiss
-    parameters:
-      reason: string
-    then:
-      - if:
-          condition:
-            lambda: 'return id(alert_active);'
-          then:
-            - lambda: |-
-                id(alert_active) = false;
-                id(last_touch_ms) = millis();
-                runtime_tiles::alert_clear();
-                ESP_LOGI("alert", "dismissed: %s", reason.c_str());
-            - lvgl.widget.hide: alert_overlay
-            - script.stop: alert_timeout
-            - script.stop: alert_flash
-            - lambda: 'id(set_backlight).execute(screen_settings::current.brightness, 80);'
-            - script.execute:
-                id: alert_report
-                action: !lambda 'return reason;'
-
-  # Four backlight blinks when the alert arrives; the screen then stays on as usual.
-  - id: alert_flash
-    mode: restart
-    then:
-      - repeat:
-          count: 4
-          then:
-            - lambda: 'id(set_backlight).execute(0, 60);'
-            - delay: 140ms
-            - lambda: 'id(set_backlight).execute(screen_settings::current.brightness, 60);'
-            - delay: 180ms
-
-  - id: wake_display
-    mode: restart
-    then:
-      - lambda: |-
-          id(last_touch_ms) = millis();
-          id(display_dimmed) = false;
-          id(sleep_requested) = false;
-          // Almost instant brightness-up. ESPHome's default is 1s, and that feels sluggish
-          // when you touch the screen and are waiting on light.
-          id(set_backlight).execute(screen_settings::current.brightness, 80);
-      - lvgl.widget.hide: dim_wake_overlay
-      - script.execute: close_cards
-
-  # One owner for the backlight level, through ESPHome's own light transition (firmware 0.2.57+). Firmware 0.2.13-0.2.56
-  # stepped the duty with the LEDC hardware fader by reaching into ESPHome's LEDC output, which ESPHome 2026.8 made final;
-  # a new call interrupts the running transition from where it is, as ESPHome does for any light.
-  - id: set_backlight
-    mode: restart
-    parameters:
-      level: int
-      ms: int
-    then:
-      - lambda: id(back_light).turn_on().set_transition_length(ms).set_brightness(level / 100.0f).perform();
-

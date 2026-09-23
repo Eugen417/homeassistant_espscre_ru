@@ -1,3 +1,13 @@
+## 0.2.127 (firmware 0.2.102)
+
+A screen's files are built from shared parts now, so a change reaches every board at once and a new board is a short file. The firmware every board builds is the same as before.
+
+- A board file is its hardware, the facts of its glass and its grid, and the list of what it has. Its sizes come from its look (`packages/looks/`), worked out by ESPHome for the board's density, so a tile, a letter and a key keep their size in millimetres. What a board can do comes from shared features (`packages/features/`: capacitive or resistive touch, the backlight, camera images, the self test, the screen snapshot), and hardware several boards share from `packages/hardware/`. The board files went from 550 to 720 lines to 60 to 310.
+- For the hardware changes people asked about most, a board now offers a substitution, so an override is one line: `DISPLAY_MODEL`, `DISPLAY_DATA_RATE` and `DISPLAY_INVERT_COLORS` on the CYD (GitHub #6, #12, #15), and `BACKLIGHT_FREQUENCY` on the boards with a PWM backlight (GitHub #5). docs/EASY_SETUP.md has the table.
+- Overrides you already have keep working: every part they name stays where it is, and the overrides shared in GitHub issues are now checked on every board before a release.
+- For contributors: `tools/new_board.py` writes a short board file instead of copying and scaling a whole one, and `tools/check_packages.py` refuses a block two boards copy from each other, or a line that only repeats a default. docs/PROFILES.md and docs/ADDING_A_BOARD.md describe the new layout.
+- Nothing to do for existing screens: the shared firmware is unchanged at 0.2.102. The next build of a screen comes from the new files and is the same firmware.
+
 ## 0.2.126 (firmware 0.2.102)
 
 Experimental support for the Waveshare ESP32-S3-Touch-LCD-4B.

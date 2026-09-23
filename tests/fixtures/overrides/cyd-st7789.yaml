@@ -1,0 +1,5 @@
+# A CYD with an ST7789V display controller instead of the ILI9341 (GitHub #6), the way docs/EASY_SETUP.md shows it.
+# tests/test_overrides.py and tools/check.sh --firmware keep this override working.
+display:
+  - id: !extend my_display
+    model: ST7789V

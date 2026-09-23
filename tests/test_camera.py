@@ -72,7 +72,8 @@ class Rules(unittest.TestCase):
         self.assertEqual(alert_reference()['camera']['name'], 'camera')
 
     def test_the_boxes_are_the_profile_sizes(self):
-        subs = dict(re.findall(r'^  (CAMERA_\w+): "(\d+)"', PROFILE, re.M))
+        # What the Guition's screen sees: the boxes features/camera.yaml works out for its glass.
+        subs = profiles.substitutions('guition-4848s040.yaml')
         self.assertEqual(camera_feed.BOXES['guition'], {'full': (int(subs['CAMERA_FULL_W']), int(subs['CAMERA_FULL_H'])),
                                                         'thumb': (int(subs['CAMERA_THUMB_W']), int(subs['CAMERA_THUMB_H']))})
 
