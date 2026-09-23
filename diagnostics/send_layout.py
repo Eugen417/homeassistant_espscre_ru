@@ -101,8 +101,10 @@ def demo_hourly(now):
              'precipitation': [0.4, 0.2, 0, 0, 0, 0, 0, 2.1, 1.0, 0][i], 'precipitation_probability': [70, 55, 10, 5, 0, 0, 15, 85, 60, 20][i]}
             for i in range(10)]
 
-def messages(inbox, rotate=0, digital=False, wide=False, controls=False):
-    now = datetime.now(timezone.utc)
+def messages(inbox, rotate=0, digital=False, wide=False, controls=False, now=None):
+    """The layout and state messages of the demo, for an inbox. `now` fixes the moment the states are of (the renders
+    of tools/render/run.py use one, so a timer or the sun shows the same in every render)."""
+    now = now or datetime.now(timezone.utc)
     layout, states = (controls_layout(), controls_states(now)) if controls else (demo_layout(), demo_states(now))
     if digital:
         layout['tiles'][0]['options'] = {'display': 'digital'}

@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <string>
 
-namespace cyd {
+namespace screen_input {
 // The n-th quoted item of a JSON list such as ["auto","low","high"]; empty when absent.
 inline std::string list_item(const std::string &json, unsigned index) {
   size_t pos = 0; unsigned n = 0;
@@ -166,7 +166,7 @@ class EdgeSwipe {
   bool in_use() const { return configured_; }
   // `width` is the glass as the person sees it, measured now rather than stated once: a screen built standing
   // up, or turned in its settings, keeps its bands on the edges (firmware 0.2.92+). This class stays free of
-  // LVGL so tests/test_cyd_ui.cpp can walk a whole gesture over any size of glass.
+  // LVGL so tests/test_screen_input.cpp can walk a whole gesture over any size of glass.
   // `height` is the glass the same way, so the band along the bottom edge lies on the bottom edge (firmware
   // 0.2.100+). A screen that states no height has no bottom band and behaves exactly as it did.
   void begin(int x, int y, int width, int height = 0) {
@@ -254,4 +254,4 @@ inline int edge_snap(int point, int start, int end, int screen, int band) {
   return 0;
 }
 inline int edge_snap_band = 0;
-}  // namespace cyd
+}  // namespace screen_input

@@ -541,6 +541,7 @@
       },
       "firmware": {
         "board_and_name": "Wähle ein Board und einen eindeutigen Namen (Kleinbuchstaben, Ziffern, Bindestriche; höchstens 30 Zeichen).",
+        "choice": "Wähle eine der Optionen, die dieses Board anbietet.",
         "friendly_name": "Gib dem Bildschirm einen erkennbaren Namen (höchstens 60 Zeichen).",
         "choose_profile": "Wähle ein vorhandenes YAML-Profil.",
         "profile_missing": "Dieses Profil gibt es im ESPHome-Ordner nicht.",
@@ -564,6 +565,7 @@
         "override_object": "Die Anpassung muss ein YAML-Objekt enthalten, zum Beispiel display: oder substitutions:.",
         "sections_managed": "Diese Abschnitte verwaltet weiterhin ESP Screens: {names}.",
         "substitutions_managed": "Diese Substitutions verwaltet weiterhin ESP Screens: {names}.",
+        "substitutions_in_profile": "{names} steht in der eigenen YAML dieses Bildschirms (unter Neuer Bildschirm gewählt) und hat Vorrang vor dem Override. Ändere es stattdessen dort.",
         "orientation": "Wähle, ob der Bildschirm quer oder hochkant hängt.",
         "orientation_managed": "Wie ein Bildschirm hängt, wird beim Erstellen unter „Neuer Bildschirm“ gewählt; darum verwaltet ESP Screens LVGL_ROTATION weiterhin.",
         "usb_port": "Wähle den angeschlossenen USB-Port aus der Liste.",
@@ -761,7 +763,7 @@
         },
         "camera": {
           "label": "Kamera",
-          "help": "Eine Kamera- oder Bild-Entität. Jeder Bildschirm außer dem CYD zeigt mit Firmware 0.2.57+ ihr Bild von diesem Moment oben über die ganze Breite der Karte; ein Tippen darauf öffnet die Kamera im Vollbild. Das CYD zeigt die Meldung ohne Bild. Nur über das Ereignis esp_screens_show_alert."
+          "help": "Eine Kamera- oder Bild-Entität. Jeder Bildschirm außer dem CYD zeigt mit Firmware 0.2.57+ ihr Bild von diesem Moment auf der Karte, im eigenen Seitenverhältnis der Kamera (über dem Text, oder daneben auf einem breiten, niedrigen Bildschirm); ein Tippen darauf öffnet die Kamera im Vollbild. Das CYD zeigt die Meldung ohne Bild. Nur über das Ereignis esp_screens_show_alert."
         },
         "action": {
           "label": "Aktion",
@@ -1665,11 +1667,31 @@
       },
       "intro": "ESP Screens legt das eigene Profil des Bildschirms mit eindeutigen Schlüsseln an und erstellt die Firmware. Schließe den Bildschirm mit einem USB-Datenkabel an den Rechner an, auf dem Home Assistant läuft, oder lade die Firmware herunter und spiele sie von deinem eigenen Computer aus auf den Bildschirm.",
       "board": "Welchen Bildschirm hast du?",
-      "board_cyd": "CYD · 2,8 Zoll",
-      "board_guition": "Guition · 4 Zoll",
-      "board_waveshare43": "Waveshare · 4,3 Zoll",
-      "board_jc8012p4a1": "Guition · 10,1 Zoll",
-      "board_new": "neu — sagen Sie uns, wie es läuft",
+      "board_title": "{name} · {inch} Zoll",
+      "status": {
+        "new": "Neu",
+        "experimental": "Experimentell"
+      },
+      "status_hint": {
+        "new": "Neu: bisher nur auf wenigen Bildschirmen ausprobiert. Sag uns, wie es läuft.",
+        "experimental": "Experimentell: auf dieser Hardware noch nicht ausprobiert. Sag uns, wie es läuft."
+      },
+      "abilities": {
+        "camera": "Kamerabilder",
+        "no_camera": "Keine Kamerabilder",
+        "dimming": "Dimmbare Beleuchtung",
+        "no_dimming": "Beleuchtung immer an",
+        "standby": "Standby und Nacht",
+        "no_standby": "Kein Standby",
+        "calibration": "Touch-Kalibrierung beim ersten Start"
+      },
+      "choice": {
+        "DISPLAY_MODEL": "Display-Controller"
+      },
+      "choice_hint": {
+        "DISPLAY_MODEL": "Die meisten dieser Boards haben den ersten. Nimm den anderen, wenn der Bildschirm Rauschen oder ein verzerrtes Bild zeigt."
+      },
+      "choice_usual": "die meisten",
       "orientation": "Wie soll er hängen?",
       "orientation_landscape": "Quer",
       "orientation_portrait": "Hochkant",
@@ -1721,7 +1743,7 @@
         "building_download": "Das erste Erstellen dauert auf einem Raspberry Pi ein paar Minuten. Du kannst diese Seite verlassen: Die Firmware wird weiter erstellt, und du findest sie unter „Neuer Bildschirm“ wieder.",
         "downloaded": "Spiele sie von deinem eigenen Computer aus auf den Bildschirm und kopple den Bildschirm dann mit Home Assistant.",
         "booted": "Der Bildschirm startet und verbindet sich mit deinem Wi-Fi. Kopple ihn jetzt mit Home Assistant:",
-        "booted_cyd": "Der Bildschirm startet und verbindet sich mit deinem Wi-Fi. Das CYD fragt zuerst nach einer Touch-Kalibrierung: Tippe auf die Kreuze. Kopple ihn jetzt mit Home Assistant:",
+        "booted_calibrate": "Der Bildschirm startet und verbindet sich mit deinem Wi-Fi. Er fragt zuerst nach einer Touch-Kalibrierung: Tippe auf die Kreuze. Kopple ihn jetzt mit Home Assistant:",
         "see_log": "Siehe das Protokoll unten."
       },
       "download_steps": {
@@ -1730,7 +1752,7 @@
         "open": "{bold} in Chrome oder Edge, klicke auf „Connect“ und wähle den USB-Port des Bildschirms.",
         "open_bold": "Öffne {esphome_web}",
         "install": "{bold} und wähle {file}. Der Bildschirm startet neu und verbindet sich mit deinem Wi-Fi.",
-        "install_cyd": "{bold} und wähle {file}. Der Bildschirm startet neu und verbindet sich mit deinem Wi-Fi. Das CYD fragt zuerst nach einer Touch-Kalibrierung: Tippe auf die Kreuze.",
+        "install_calibrate": "{bold} und wähle {file}. Der Bildschirm startet neu und verbindet sich mit deinem Wi-Fi. Er fragt zuerst nach einer Touch-Kalibrierung: Tippe auf die Kreuze.",
         "install_bold": "Klicke auf „Install“"
       },
       "download_keep": "Die Datei enthält dein Wi-Fi-Passwort und die Schlüssel des Bildschirms: Behalte sie für dich.",
@@ -1749,12 +1771,7 @@
       "retry": "Erneut versuchen",
       "another": "Weiteren Bildschirm installieren",
       "start_over": "Neu beginnen",
-      "done": "Fertig",
-      "board_waveshare7": "Waveshare 7 Zoll (experimentell)",
-      "board_experimental": "Experimentell",
-      "waveshare7_experimental": "Noch nicht auf dieser Hardware getestet. Kamerabilder sind aktiviert; die Hintergrundbeleuchtung bleibt an. Kein Dimmen, Standby oder Nachtmodus.",
-      "board_waveshare4b": "Waveshare 4B · 4 Zoll (experimentell)",
-      "waveshare4b_experimental": "Noch nicht auf dieser Hardware getestet. Dieselben sechs Felder wie beim 4-Zoll-Guition; die Hintergrundbeleuchtung ist dimmbar, Kamerabilder sind aktiviert. Akku, Audio und Bewegungssensor bleiben ungenutzt."
+      "done": "Fertig"
     },
     "alerts": {
       "eyebrow": "Meldungen · Spickzettel",
@@ -1841,7 +1858,7 @@
           "bool": "ein / aus",
           "entity": "Entität"
         },
-        "bytes": "CYD {cyd} · Guition {guition} Bytes",
+        "bytes": "{limits} Bytes",
         "seconds": "0 bis 86400 s",
         "camera_limit": "Alle außer CYD, Firmware 0.2.57+"
       },

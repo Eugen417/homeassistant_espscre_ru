@@ -160,8 +160,9 @@ on the screen itself, and how updates work.
   and how each tile is set. The same menu has **Identify**, which blinks the screen so you know which one
   it is (firmware 0.2.31+), **Copy layout from…** another screen, and **Export** and **Import** of a
   layout as JSON (app 0.2.73); nothing reaches the screen before **Save & send**.
-- **Override YAML per screen** (app 0.2.61): your own ESPHome YAML for one screen, such as another
-  display controller, kept through updates. See
+- **Override YAML per screen** (app 0.2.61): your own ESPHome YAML for one screen, such as a slower display bus,
+  kept through updates. A CYD with the other display controller (ST7789V) is a choice in **New screen** since app
+  0.2.129. See
   [Updates and keeping your settings](#updates-and-keeping-your-settings).
 
 <p align="center">
@@ -292,9 +293,11 @@ for these two events; the per-screen actions work without it.
 </p>
 
 From app 0.2.66, the event takes one more field: **`camera`**, a `camera.*` or `image.*` entity.
-Every screen but the CYD, with firmware 0.2.57+, shows that camera's picture of the moment across
-the top of the card; a tap on it opens the camera full screen over the alert, and Back returns to
-the alert. The CYD, which has no memory for pictures, shows the same alert without it. The
+Every screen but the CYD, with firmware 0.2.57+, shows that camera's picture of the moment on the
+card; a tap on it opens the camera full screen over the alert, and Back returns to the alert. Since
+firmware 0.2.103 the picture keeps the camera's own proportions: a wide camera across the top of the
+card, a square or standing doorbell camera on the left of the words where the glass is wide and low
+([details](docs/CAMERA.md)). The CYD, which has no memory for pictures, shows the same alert without it. The
 per-screen actions have no `camera` field.
 
 ```yaml
@@ -542,8 +545,8 @@ user data. Do still make normal Home Assistant backups and keep your
 device profiles; removing an app or wiping flash memory is not an update.
 
 **Your own YAML for one screen (app 0.2.61).** **Override YAML** in ESP Screens edits a small
-`<screen>.local.yaml` beside the screen's profile, for hardware-specific changes such as another
-display controller. It is loaded after the shared board package and stays in place when the app or
+`<screen>.local.yaml` beside the screen's profile, for hardware-specific changes such as a slower
+display bus (a CYD's other display controller is a choice in **New screen** since app 0.2.129). It is loaded after the shared board package and stays in place when the app or
 the firmware package updates. The screen's name, Wi-Fi, API, OTA, packages, external components and
 captive portal stay managed and are refused there. **Save & check** runs ESPHome's full validation
 of the complete profile, and a build never starts from an invalid one.

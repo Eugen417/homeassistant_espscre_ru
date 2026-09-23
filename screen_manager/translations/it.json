@@ -541,6 +541,7 @@
       },
       "firmware": {
         "board_and_name": "Scegli il tipo di schermo e un nome unico (lettere minuscole, cifre, trattini; massimo 30 caratteri).",
+        "choice": "Scegli una delle opzioni offerte da questa scheda.",
         "friendly_name": "Dai allo schermo un nome riconoscibile (massimo 60 caratteri).",
         "choose_profile": "Scegli un profilo YAML esistente.",
         "profile_missing": "Il profilo non esiste nella cartella di ESPHome.",
@@ -564,6 +565,7 @@
         "override_object": "Lo YAML personalizzato deve contenere un oggetto YAML, per esempio display: o substitutions:.",
         "sections_managed": "Queste sezioni restano gestite da ESP Screens: {names}.",
         "substitutions_managed": "Queste substitutions restano gestite da ESP Screens: {names}.",
+        "substitutions_in_profile": "{names} è impostato nello YAML proprio di questo schermo (scelto in Nuovo schermo), che prevale sull'override. Modificalo lì.",
         "orientation": "Scegli se lo schermo sta in orizzontale o in verticale.",
         "orientation_managed": "Il senso in cui uno schermo è appeso si sceglie quando viene compilato, in Nuovo schermo; per questo LVGL_ROTATION resta gestito da ESP Screens.",
         "usb_port": "Scegli dall'elenco la porta USB collegata.",
@@ -761,7 +763,7 @@
         },
         "camera": {
           "label": "Telecamera",
-          "help": "Un'entità telecamera o immagine. Tutti gli schermi tranne il CYD, con firmware 0.2.57+, mostrano la sua immagine di quel momento in cima alla scheda; un tocco apre la telecamera a schermo intero. Il CYD mostra l'avviso senza immagine. Solo tramite l'evento esp_screens_show_alert."
+          "help": "Un'entità telecamera o immagine. Tutti gli schermi tranne il CYD, con firmware 0.2.57+, mostrano la sua immagine di quel momento sulla scheda, nelle proporzioni della telecamera (sopra il testo, o accanto su uno schermo largo e basso); un tocco apre la telecamera a schermo intero. Il CYD mostra l'avviso senza immagine. Solo tramite l'evento esp_screens_show_alert."
         },
         "action": {
           "label": "Azione",
@@ -1665,11 +1667,31 @@
       },
       "intro": "ESP Screens crea il profilo dello schermo con chiavi uniche e compila il firmware. Collega lo schermo con un cavo USB dati alla macchina su cui gira Home Assistant, oppure scarica il firmware e mettilo sullo schermo dal tuo computer.",
       "board": "Quale schermo hai?",
-      "board_cyd": "CYD · 2,8 pollici",
-      "board_guition": "Guition · 4 pollici",
-      "board_waveshare43": "Waveshare · 4,3 pollici",
-      "board_jc8012p4a1": "Guition · 10,1 pollici",
-      "board_new": "nuovo: facci sapere come va",
+      "board_title": "{name} · {inch} pollici",
+      "status": {
+        "new": "Nuovo",
+        "experimental": "Sperimentale"
+      },
+      "status_hint": {
+        "new": "Nuovo: finora provato su pochi schermi. Facci sapere come va.",
+        "experimental": "Sperimentale: non ancora provato su questo hardware. Facci sapere come va."
+      },
+      "abilities": {
+        "camera": "Immagini delle telecamere",
+        "no_camera": "Niente immagini delle telecamere",
+        "dimming": "Retroilluminazione regolabile",
+        "no_dimming": "Retroilluminazione sempre accesa",
+        "standby": "Standby e notte",
+        "no_standby": "Niente standby",
+        "calibration": "Calibrazione del touch al primo avvio"
+      },
+      "choice": {
+        "DISPLAY_MODEL": "Controller del display"
+      },
+      "choice_hint": {
+        "DISPLAY_MODEL": "La maggior parte di queste schede ha il primo. Scegli l'altro se lo schermo mostra rumore o un'immagine disturbata."
+      },
+      "choice_usual": "la maggior parte",
       "orientation": "Come lo appendi?",
       "orientation_landscape": "In orizzontale",
       "orientation_portrait": "In verticale",
@@ -1721,7 +1743,7 @@
         "building_download": "Una prima compilazione richiede qualche minuto su un Raspberry Pi. Puoi lasciare questa pagina: la compilazione continua e la ritrovi in Nuovo schermo.",
         "downloaded": "Mettilo sullo schermo dal tuo computer, poi associa lo schermo a Home Assistant.",
         "booted": "Lo schermo si avvia e si collega al tuo Wi-Fi. Ora associalo a Home Assistant:",
-        "booted_cyd": "Lo schermo si avvia e si collega al tuo Wi-Fi. Il CYD chiede prima una calibrazione del touch: tocca le croci. Ora associalo a Home Assistant:",
+        "booted_calibrate": "Lo schermo si avvia e si collega al tuo Wi-Fi. Prima chiede una calibrazione del touch: tocca le croci. Ora associalo a Home Assistant:",
         "see_log": "Vedi il registro qui sotto."
       },
       "download_steps": {
@@ -1730,7 +1752,7 @@
         "open": "{bold} in Chrome o Edge, fai clic su Connect e scegli la porta USB dello schermo.",
         "open_bold": "Apri {esphome_web}",
         "install": "{bold} e seleziona {file}. Lo schermo si riavvia e si collega al tuo Wi-Fi.",
-        "install_cyd": "{bold} e seleziona {file}. Lo schermo si riavvia e si collega al tuo Wi-Fi. Il CYD chiede prima una calibrazione del touch: tocca le croci.",
+        "install_calibrate": "{bold} e seleziona {file}. Lo schermo si riavvia e si collega al tuo Wi-Fi. Prima chiede una calibrazione del touch: tocca le croci.",
         "install_bold": "Fai clic su Install"
       },
       "download_keep": "Il file contiene la tua password Wi-Fi e le chiavi dello schermo: tienilo per te.",
@@ -1749,12 +1771,7 @@
       "retry": "Riprova",
       "another": "Installa un altro schermo",
       "start_over": "Ricomincia",
-      "done": "Fatto",
-      "board_waveshare7": "Waveshare 7 pollici (sperimentale)",
-      "board_experimental": "Sperimentale",
-      "waveshare7_experimental": "Non ancora testato su questo hardware. Le immagini delle telecamere sono abilitate; la retroilluminazione resta accesa. Nessuna regolazione della luminosità, standby o modalità notturna.",
-      "board_waveshare4b": "Waveshare 4B · 4 pollici (sperimentale)",
-      "waveshare4b_experimental": "Non ancora testato su questo hardware. Le stesse sei celle del Guition da 4 pollici; la retroilluminazione è regolabile e le immagini delle telecamere sono abilitate. Batteria, audio e sensore di movimento restano inutilizzati."
+      "done": "Fatto"
     },
     "alerts": {
       "eyebrow": "Avvisi · guida rapida",
@@ -1841,7 +1858,7 @@
           "bool": "attivo / disattivo",
           "entity": "entità"
         },
-        "bytes": "CYD {cyd} · Guition {guition} byte",
+        "bytes": "{limits} byte",
         "seconds": "da 0 a 86400 s",
         "camera_limit": "Tutti tranne il CYD, firmware 0.2.57+"
       },

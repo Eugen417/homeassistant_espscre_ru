@@ -6,7 +6,7 @@
 #
 # A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
 # features it has; docs/PROFILES.md says how the files of a screen fit together, docs/ADDING_A_BOARD.md how a board
-# is added. Two entry files include this one: guition-jc8012p4a1.yaml (a build on this computer) and
+# is added. Two entry files include this one: checkout/jc8012p4a1.yaml (a build on this computer) and
 # packages/jc8012p4a1.yaml (the package a screen builds from over GitHub).
 packages:
   # How every board's firmware is built (ESP-IDF, as ESPHome recommends it).

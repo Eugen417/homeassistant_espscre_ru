@@ -20,8 +20,9 @@ FIXTURES = ROOT / 'tests' / 'fixtures' / 'overrides'
 # The parts every board names the same way, for overrides and for the shared tree: its display, its touch panel, the
 # output that drives its backlight and the light on it.
 EVERY_BOARD = ('my_display', 'ts_touch', 'gpio_backlight_pwm', 'back_light')
-# And what one family of boards has on top: the Waveshare's backlight line on its expander (GitHub #22).
-SOME_BOARDS = {'backlight_line': ('waveshare43', 'waveshare7')}
+# And what one family of boards has on top, named by the hardware file that brings it: the Waveshare's backlight line on
+# its CH422G expander (GitHub #22).
+SOME_BOARDS = {'backlight_line': 'waveshare-ch422g.yaml'}
 # The substitutions a screen's own YAML may set, per board that offers them (docs/EASY_SETUP.md).
 KNOBS = {
     'cyd': ('DISPLAY_MODEL', 'DISPLAY_DATA_RATE', 'DISPLAY_INVERT_COLORS', 'BACKLIGHT_FREQUENCY'),
@@ -72,8 +73,12 @@ class Overrides(unittest.TestCase):
             ids = defined_ids(board)
             for part in EVERY_BOARD:
                 self.assertIn(part, ids, f'{board} has no {part}')
-            for part, boards in SOME_BOARDS.items():
-                self.assertEqual(part in ids, board in boards, f'{board}: {part}')
+            chain = [path.name for path in profiles.chain(profiles.BOARDS[board])]
+            for part, hardware in SOME_BOARDS.items():
+                self.assertEqual(part in ids, hardware in chain, f'{board}: {part}')
+        # The boards that have it today, and so the overrides of GitHub #22.
+        self.assertIn('backlight_line', defined_ids('waveshare43'))
+        self.assertIn('backlight_line', defined_ids('waveshare7'))
 
     def test_the_knobs_a_board_offers_reach_its_hardware(self):
         for board, knobs in KNOBS.items():

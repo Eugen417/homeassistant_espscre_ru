@@ -1,10 +1,10 @@
-# ESP Screens - the package a Waveshare ESP32-S3-Touch-LCD-4.3 builds from over GitHub. ESP Screen Manager writes
-# every screen's own YAML with `packages: display: {url: <this repository>, files: [packages/waveshare43.yaml]}`
-# and adds the name, the Wi-Fi reference and the unique keys (docs/EASY_SETUP.md); nothing of that lives here.
+# ESP Screens - the package a Waveshare ESP32-S3-Touch-LCD-4.3 builds from over GitHub. Written by tools/generate_entries.py
+# from boards.yaml; do not edit.
 #
-# The screen is two packages: core.yaml, which every board shares (the LVGL tree, the cards, the scripts, the
-# entities), and boards/waveshare-esp32s3-43.yaml with this board's hardware and sizes. docs/PROFILES.md says how
-# the files fit together. waveshare-esp32s3-43.yaml builds the same two files from a checkout.
+# ESP Screen Manager writes every screen's own YAML with `packages: display: {url: <this repository>, files:
+# [packages/waveshare43.yaml]}` and adds the name, the Wi-Fi reference and the unique keys (docs/EASY_SETUP.md); nothing
+# of that lives here. The screen is two packages: core.yaml, which every board shares, and boards/waveshare-esp32s3-43.yaml with this
+# board's hardware and sizes (docs/PROFILES.md). checkout/waveshare43.yaml builds the same two from a checkout.
 substitutions:
   FONT_DIR: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts"
 

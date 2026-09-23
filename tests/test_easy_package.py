@@ -10,8 +10,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 import profiles  # noqa: E402
 
-BOARDS = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml',
-          'waveshare7': 'waveshare-esp32s3-7.yaml'}
+BOARDS = {'cyd': 'checkout/cyd.yaml', 'guition': 'checkout/guition.yaml',
+          'waveshare7': 'checkout/waveshare7.yaml'}
 # The old manual profile bound tiles to fixed entities in the YAML. ESP Screens sends the tiles now, so
 # none of this may come back: the fixed subscriptions, its tap handlers and scripts, its own vacuum card.
 GONE = ['ha_state_tile1', 'tile1_brightness', 'tile6_climate_humidity', 'tile6_cover_state', 'smartdisplay_action',
@@ -50,9 +50,9 @@ class PackageTests(unittest.TestCase):
             self.assertNotIn('type: local', package)
             self.assertIn('url: https://github.com/MaxGramser/homeassistant_espscreen.git', package)
             self.assertIn('FONT_DIR: "https://raw.githubusercontent.com/MaxGramser/homeassistant_espscreen/main/fonts"', package)
-            # The fonts of the shared core come from that place; a checkout takes them from fonts/.
+            # The fonts of the shared core come from that place; a checkout entry takes them from the checkout's own fonts/.
             self.assertIn('file: "${FONT_DIR}/Roboto-500.ttf"', profiles.CORE.read_text())
-            self.assertIn('FONT_DIR: "fonts"', (ROOT / BOARDS[board]).read_text())
+            self.assertIn('FONT_DIR: "../fonts"', (ROOT / BOARDS[board]).read_text())
 
     def test_no_secret_or_local_path_under_packages(self):
         for path in sorted((ROOT / 'packages').rglob('*.yaml')):
@@ -105,9 +105,12 @@ class PackageTests(unittest.TestCase):
             for entity in entities:
                 extended = re.search(rf'^  - id: !extend {entity}\n    internal: true\n', text, re.M) is not None
                 self.assertEqual(extended, not can, f'{path.name}: {entity} {"stays visible" if can else "must be internal"}')
+            # The one way a board says it cannot: it includes features/backlight-always-on.yaml.
+            always_on = any(item.name == 'backlight-always-on.yaml' for item in profiles.chain(path))
+            self.assertEqual(can, not always_on, path.name)
         self.assertFalse(seen['waveshare43'])
         self.assertFalse(seen['waveshare7'])
-        self.assertTrue(all(can for board, can in seen.items() if board not in ('waveshare43', 'waveshare7')))
+        self.assertTrue(seen['guition'] and seen['cyd'])
         # boards.json carries the same answer for the add-on (tools/generate_board_shapes.py).
         import json
         shapes = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())

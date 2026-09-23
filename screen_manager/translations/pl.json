@@ -541,6 +541,7 @@
       },
       "firmware": {
         "board_and_name": "Wybierz płytkę i unikalną nazwę (małe litery, cyfry, myślniki; najwyżej 30 znaków).",
+        "choice": "Wybierz jedną z opcji, które oferuje ta płytka.",
         "friendly_name": "Nadaj ekranowi rozpoznawalną nazwę (najwyżej 60 znaków).",
         "choose_profile": "Wybierz istniejący profil YAML.",
         "profile_missing": "Tego profilu nie ma w folderze ESPHome.",
@@ -564,6 +565,7 @@
         "override_object": "Nadpisanie musi zawierać obiekt YAML, na przykład display: lub substitutions:.",
         "sections_managed": "Tymi sekcjami nadal zarządza ESP Screens: {names}.",
         "substitutions_managed": "Tymi podstawieniami (substitutions) nadal zarządza ESP Screens: {names}.",
+        "substitutions_in_profile": "{names} jest ustawione we własnym YAML tego ekranu (wybrane w Nowy ekran), który ma pierwszeństwo przed override. Zmień to tam.",
         "orientation": "Wybierz, czy ekran wisi poziomo, czy pionowo.",
         "orientation_managed": "To, jak ekran wisi, wybiera się przy jego kompilacji, w sekcji „Nowy ekran”; dlatego LVGL_ROTATION nadal jest zarządzany przez ESP Screens.",
         "usb_port": "Wybierz z listy podłączony port USB.",
@@ -761,7 +763,7 @@
         },
         "camera": {
           "label": "Kamera",
-          "help": "Encja kamery lub obrazu. Każdy ekran poza CYD z firmware 0.2.57+ pokazuje jej zdjęcie z tej chwili u góry karty; dotknięcie go otwiera kamerę na pełnym ekranie. CYD pokazuje alert bez zdjęcia. Tylko przez zdarzenie esp_screens_show_alert."
+          "help": "Encja kamery lub obrazu. Każdy ekran poza CYD z firmware 0.2.57+ pokazuje jej zdjęcie z tej chwili na karcie, w proporcjach samej kamery (nad tekstem albo obok niego na szerokim, niskim ekranie); dotknięcie go otwiera kamerę na pełnym ekranie. CYD pokazuje alert bez zdjęcia. Tylko przez zdarzenie esp_screens_show_alert."
         },
         "action": {
           "label": "Akcja",
@@ -1665,11 +1667,31 @@
       },
       "intro": "ESP Screens tworzy własny profil ekranu z unikalnymi kluczami i kompiluje firmware. Podłącz ekran kablem USB do transmisji danych do komputera z Home Assistant albo pobierz firmware i wgraj go na ekran z własnego komputera.",
       "board": "Jaki masz ekran?",
-      "board_cyd": "CYD · 2,8 cala",
-      "board_guition": "Guition · 4 cale",
-      "board_waveshare43": "Waveshare · 4,3 cala",
-      "board_jc8012p4a1": "Guition · 10,1 cala",
-      "board_new": "nowość — napisz, jak działa",
+      "board_title": "{name} · {inch} cala",
+      "status": {
+        "new": "Nowość",
+        "experimental": "Eksperymentalny"
+      },
+      "status_hint": {
+        "new": "Nowość: na razie wypróbowana na kilku ekranach. Napisz, jak działa.",
+        "experimental": "Eksperymentalny: jeszcze nie wypróbowany na tym sprzęcie. Napisz, jak działa."
+      },
+      "abilities": {
+        "camera": "Obrazy z kamer",
+        "no_camera": "Bez obrazów z kamer",
+        "dimming": "Regulowane podświetlenie",
+        "no_dimming": "Podświetlenie zawsze włączone",
+        "standby": "Czuwanie i tryb nocny",
+        "no_standby": "Bez czuwania",
+        "calibration": "Kalibracja dotyku przy pierwszym uruchomieniu"
+      },
+      "choice": {
+        "DISPLAY_MODEL": "Kontroler wyświetlacza"
+      },
+      "choice_hint": {
+        "DISPLAY_MODEL": "Większość tych płytek ma pierwszy. Wybierz drugi, gdy ekran pokazuje szum lub zniekształcony obraz."
+      },
+      "choice_usual": "większość",
       "orientation": "Jak będzie wisiał?",
       "orientation_landscape": "Poziomo",
       "orientation_portrait": "Pionowo",
@@ -1721,7 +1743,7 @@
         "building_download": "Pierwsza kompilacja trwa kilka minut na Raspberry Pi. Możesz opuścić tę stronę: kompilacja trwa dalej, a znajdziesz ją ponownie w sekcji „Nowy ekran”.",
         "downloaded": "Wgraj go na ekran z własnego komputera, a potem sparuj ekran z Home Assistant.",
         "booted": "Ekran się uruchamia i łączy z Twoją siecią Wi-Fi. Teraz sparuj go z Home Assistant:",
-        "booted_cyd": "Ekran się uruchamia i łączy z Twoją siecią Wi-Fi. CYD najpierw poprosi o kalibrację dotyku: dotykaj krzyżyków. Teraz sparuj go z Home Assistant:",
+        "booted_calibrate": "Ekran się uruchamia i łączy z Twoją siecią Wi-Fi. Najpierw poprosi o kalibrację dotyku: dotykaj krzyżyków. Teraz sparuj go z Home Assistant:",
         "see_log": "Zobacz log poniżej."
       },
       "download_steps": {
@@ -1730,7 +1752,7 @@
         "open": "{bold} w Chrome lub Edge, kliknij „Connect” i wybierz port USB ekranu.",
         "open_bold": "Otwórz {esphome_web}",
         "install": "{bold} i wskaż plik {file}. Ekran uruchomi się ponownie i połączy z Twoją siecią Wi-Fi.",
-        "install_cyd": "{bold} i wskaż plik {file}. Ekran uruchomi się ponownie i połączy z Twoją siecią Wi-Fi. CYD najpierw poprosi o kalibrację dotyku: dotykaj krzyżyków.",
+        "install_calibrate": "{bold} i wskaż plik {file}. Ekran uruchomi się ponownie i połączy z Twoją siecią Wi-Fi. Najpierw poprosi o kalibrację dotyku: dotykaj krzyżyków.",
         "install_bold": "Kliknij „Install”"
       },
       "download_keep": "Plik zawiera Twoje hasło Wi-Fi i klucze ekranu: nie udostępniaj go nikomu.",
@@ -1749,12 +1771,7 @@
       "retry": "Ponów",
       "another": "Zainstaluj kolejny ekran",
       "start_over": "Zacznij od nowa",
-      "done": "Gotowe",
-      "board_waveshare7": "Waveshare 7 cali (eksperymentalny)",
-      "board_experimental": "Eksperymentalny",
-      "waveshare7_experimental": "Jeszcze nie przetestowano na tym sprzęcie. Obrazy z kamer są włączone; podświetlenie pozostaje włączone. Bez regulacji jasności, czuwania i trybu nocnego.",
-      "board_waveshare4b": "Waveshare 4B · 4 cale (eksperymentalny)",
-      "waveshare4b_experimental": "Jeszcze nie przetestowano na tym sprzęcie. Te same sześć pól co w 4-calowym Guition; podświetlenie można ściemniać, obrazy z kamer są włączone. Akumulator, audio i czujnik ruchu pozostają nieużywane."
+      "done": "Gotowe"
     },
     "alerts": {
       "eyebrow": "Alerty · ściąga",
@@ -1841,7 +1858,7 @@
           "bool": "wł. / wył.",
           "entity": "encja"
         },
-        "bytes": "CYD {cyd} B · Guition {guition} B",
+        "bytes": "{limits} B",
         "seconds": "od 0 do 86400 s",
         "camera_limit": "Każdy ekran poza CYD, firmware 0.2.57+"
       },

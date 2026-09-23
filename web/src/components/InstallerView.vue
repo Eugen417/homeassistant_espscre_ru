@@ -4,14 +4,15 @@ import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue"
 import { getJson, send } from "../api";
 import { t } from "../i18n";
 import { copyText, go, openIntegrations, toast } from "../store";
+import { boardAbilities, boardDetail, boardList, boardTitle } from "../model/boards";
 import type { BoardChoice, BoardOrientation, Orientation } from "../types";
 
 // Download: ESP Screens builds, the owner flashes the file from their own computer. ESPHome Web is ESPHome's own
 // browser flasher; this address opens it with its hint for a downloaded project (as ESPHome Device Builder does).
 const ESPHOME_WEB = "https://web.esphome.io/?dashboard_install";
-const form = reactive({ board: "cyd", orientation: "landscape" as Orientation, friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
+const form = reactive({ board: "", orientation: "landscape" as Orientation, choices: {} as Record<string, string>, friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
 const installer = reactive({
-  view: "setup" as "setup" | "progress" | "done", file: null as string | null, friendly: "", board: "cyd", target: "",
+  view: "setup" as "setup" | "progress" | "done", file: null as string | null, friendly: "", calibrate: false, target: "",
   apiKey: null as string | null, nodeEdited: false, jobState: null as string | null, picked: false, action: null as string | null,
 });
 const nodeVisible = ref(false);
@@ -36,11 +37,25 @@ function portLabel(port: string) {
   return `USB · ${id === port ? port.replace(/^\/dev\//, "") : id}`;
 }
 watch(() => form.friendly_name, () => { if (!installer.nodeEdited) form.name = slug(form.friendly_name); });
-// Which way the chosen board may hang, with the canvas and the cells of a page for each: the add-on serves the
-// board files' own numbers (boards.json), so nothing here is a second copy of them. Square glass hangs one way
+// The boards and everything said about them come from the add-on (boards.yaml and the board files, through
+// boards.json): the list, each board's glass drawn to one scale, its abilities, its choices. Nothing here names a board.
+const boards = computed<Record<string, BoardChoice>>(() => data.value?.boards || {});
+const boardRows = computed(() => boardList(boards.value));
+const chosen = computed(() => boards.value[form.board]);
+// Each board's glass in its own proportions with the cells of one page, all at the same height: the size itself is in
+// the words beside it (inches), and a small board drawn to scale would be too small to read.
+const glassStyle = (board: BoardChoice) => {
+  const side = board.orientations.landscape;
+  return { "--glass-aspect": `${board.width} / ${board.height}`, "--glass-columns": side?.columns || 2, "--glass-rows": side?.rows || 3 };
+};
+const abilities = computed(() => (chosen.value ? boardAbilities(chosen.value) : []));
+// The choices besides the orientation (a CYD's display controller): each starts at the board file's own value.
+const choices = computed(() => Object.entries(chosen.value?.choices || {}).map(([key, options]) => ({ key, options })));
+// The first board until someone picks one, once the add-on has said which there are.
+watch(boardRows, (rows) => { if (!boards.value[form.board] && rows.length) form.board = rows[0].key; }, { immediate: true });
+// Which way the chosen board may hang, with the canvas and the cells of a page for each. Square glass hangs one way
 // only, and then there is nothing to ask. A board this add-on has not heard of asks nothing either, and builds
 // lying down, which is what every board did before this choice existed.
-const boards = computed<Record<string, BoardChoice>>(() => data.value?.boards || {});
 const orientations = computed<(BoardOrientation & { key: Orientation })[]>(() => {
   const board = boards.value[form.board];
   if (!board || board.square) return [];
@@ -51,7 +66,10 @@ const orientations = computed<(BoardOrientation & { key: Orientation })[]>(() =>
 });
 // A board that hangs one way only is always built lying down; a board that was asked about keeps whatever was
 // chosen. Resetting it on every board change would throw away an answer the person just gave.
-watch(() => form.board, () => { if (!orientations.value.length) form.orientation = "landscape"; });
+watch(() => form.board, () => {
+  if (!orientations.value.length) form.orientation = "landscape";
+  form.choices = Object.fromEntries(choices.value.map((choice) => [choice.key, choice.options[0]]));
+});
 const nodePreview = computed(() => form.name || "…");
 // Names the screens this app knows already carry (app 0.2.123): their ESPHome device names and the starts Home
 // Assistant gave their entity ids. The server refuses a clash, and saying it here means nothing is built first.
@@ -148,7 +166,7 @@ const progressDetail = computed(() => installer.view === "done"
     : ok.value
       ? download.value
         ? t("editor.installer.detail.downloaded")
-        : t(installer.board === "cyd" ? "editor.installer.detail.booted_cyd" : "editor.installer.detail.booted")
+        : t(installer.calibrate ? "editor.installer.detail.booted_calibrate" : "editor.installer.detail.booted")
       : logs.value.filter((l) => /error/i.test(l)).pop() || logs.value.filter((l) => /failed/i.test(l)).pop() || t("editor.installer.detail.see_log"));
 const image = computed(() => ({ href: `api/firmware/profiles/${encodeURIComponent(installer.file || "")}/download`, name: (installer.file || "").replace(/\.yaml$/, "") + ".factory.bin" }));
 async function submit(event: Event) {
@@ -158,10 +176,13 @@ async function submit(event: Event) {
   submitting.value = true;
   status.value = "";
   try {
-    const payload: Record<string, string> = { board: form.board, orientation: form.orientation, friendly_name: form.friendly_name, name: form.name, target: form.target };
+    const payload: Record<string, unknown> = { board: form.board, orientation: form.orientation, friendly_name: form.friendly_name, name: form.name, target: form.target };
+    // Only a choice that differs from the board file's own goes along: the add-on writes nothing for that one anyway.
+    const picked = Object.fromEntries(choices.value.filter((choice) => form.choices[choice.key] !== choice.options[0]).map((choice) => [choice.key, form.choices[choice.key]]));
+    if (Object.keys(picked).length) payload.choices = picked;
     if (askWifi.value) { if (wifiMissing.value.includes("wifi_ssid")) payload.wifi_ssid = form.wifi_ssid; if (wifiMissing.value.includes("wifi_password")) payload.wifi_password = form.wifi_password; }
     const result = await send("firmware/profiles", "POST", payload);
-    Object.assign(installer, { file: result.file, apiKey: result.api_key, friendly: form.friendly_name.trim(), board: form.board, target: form.target });
+    Object.assign(installer, { file: result.file, apiKey: result.api_key, friendly: form.friendly_name.trim(), calibrate: !!chosen.value?.calibrate, target: form.target });
     form.wifi_password = "";
     if (result.job) showProgress(result.job, []);
     else installer.view = "done";
@@ -188,7 +209,7 @@ async function retry() {
 }
 function reset() {
   Object.assign(installer, { view: "setup", file: null, apiKey: null, nodeEdited: false, jobState: null, target: "", picked: false, action: null });
-  Object.assign(form, { board: "cyd", orientation: "landscape", friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
+  Object.assign(form, { board: boardRows.value[0]?.key || "", orientation: "landscape", choices: {}, friendly_name: "", name: "", wifi_ssid: "", wifi_password: "", target: "" });
   nodeVisible.value = false; job.value = null; logs.value = []; status.value = ""; note.value = ""; logOpen.value = false;
   installerRefresh();
 }
@@ -214,15 +235,16 @@ onBeforeUnmount(() => clearInterval(poll));
       <fieldset>
         <legend>{{ t("editor.installer.board") }}</legend>
         <div class="boards">
-          <label class="board"><input type="radio" name="board" value="cyd" v-model="form.board" /><span><b>{{ t("editor.installer.board_cyd") }}</b><small>ESP32-2432S028 · 320 × 240</small></span></label>
-          <label class="board"><input type="radio" name="board" value="guition" v-model="form.board" /><span><b>{{ t("editor.installer.board_guition") }}</b><small>ESP32-S3-4848S040 · 480 × 480 · GT911</small></span></label>
-          <label class="board"><input type="radio" name="board" value="waveshare43" v-model="form.board" /><span><b>{{ t("editor.installer.board_waveshare43") }}</b><small>ESP32-S3-Touch-LCD-4.3 · 800 × 480 · GT911</small></span></label>
-          <label class="board"><input type="radio" name="board" value="jc8012p4a1" v-model="form.board" /><span><b>{{ t("editor.installer.board_jc8012p4a1") }}</b><small>JC8012P4A1 · 1280 × 800 · GSL3680</small><em>{{ t("editor.installer.board_new") }}</em></span></label>
-          <label class="board"><input type="radio" name="board" value="waveshare7" v-model="form.board" /><span><b>{{ t("editor.installer.board_waveshare7") }}</b><small>ESP32-S3-Touch-LCD-7 · 800 × 480 · GT911</small><em>{{ t("editor.installer.board_experimental") }}</em></span></label>
-          <label class="board"><input type="radio" name="board" value="waveshare4b" v-model="form.board" /><span><b>{{ t("editor.installer.board_waveshare4b") }}</b><small>ESP32-S3-Touch-LCD-4B · 480 × 480 · GT911</small><em>{{ t("editor.installer.board_experimental") }}</em></span></label>
+          <label v-for="board in boardRows" :key="board.key" class="board">
+            <input type="radio" name="board" :value="board.key" v-model="form.board" />
+            <span class="board-glass" aria-hidden="true"><span class="orient-glass" :style="glassStyle(board)"><span class="orient-bar"></span><span class="orient-cells"><i v-for="cell in (board.orientations.landscape?.columns || 2) * (board.orientations.landscape?.rows || 3)" :key="cell"></i></span></span></span>
+            <span class="board-words"><b>{{ boardTitle(board) }}</b><small v-for="line in boardDetail(board)" :key="line">{{ line }}</small><em v-if="board.status !== 'stable'">{{ t(`editor.installer.status.${board.status}`) }}</em></span>
+          </label>
         </div>
-        <p v-if="form.board === 'waveshare7'" class="hint">{{ t("editor.installer.waveshare7_experimental") }}</p>
-        <p v-if="form.board === 'waveshare4b'" class="hint">{{ t("editor.installer.waveshare4b_experimental") }}</p>
+        <p v-if="chosen && chosen.status !== 'stable'" class="hint" id="board-status">{{ t(`editor.installer.status_hint.${chosen.status}`) }}</p>
+        <ul v-if="abilities.length" class="abilities" id="board-abilities">
+          <li v-for="ability in abilities" :key="ability.key" :class="{ off: !ability.on }">{{ ability.text }}</li>
+        </ul>
       </fieldset>
       <!-- Which way the screen hangs: the cells of a page differ per way, so each option draws the grid it gives.
            Only glass that is not square is asked about, and only once the add-on has said what the board can do. -->
@@ -243,6 +265,17 @@ onBeforeUnmount(() => clearInterval(poll));
           </label>
         </div>
         <small id="orientation-hint">{{ t("editor.installer.orientation_hint") }}</small>
+      </fieldset>
+      <!-- The board's other choices, one per part that differs between boards sold under its name. -->
+      <fieldset v-for="choice in choices" :key="choice.key" class="choice-fields" :id="`choice-${choice.key}`">
+        <legend>{{ t(`editor.installer.choice.${choice.key}`) }}</legend>
+        <div class="choice-options">
+          <label v-for="(option, index) in choice.options" :key="option" class="choice">
+            <input type="radio" :name="`choice-${choice.key}`" :value="option" v-model="form.choices[choice.key]" />
+            <span><b>{{ option }}</b><small v-if="index === 0">{{ t("editor.installer.choice_usual") }}</small></span>
+          </label>
+        </div>
+        <small>{{ t(`editor.installer.choice_hint.${choice.key}`) }}</small>
       </fieldset>
       <div class="field">
         <label class="f-label" for="friendly_name">{{ t("editor.installer.name") }}</label>
@@ -295,7 +328,7 @@ onBeforeUnmount(() => clearInterval(poll));
           <li><i18n-t keypath="editor.installer.download_steps.open" scope="global">
             <template #bold><b><i18n-t keypath="editor.installer.download_steps.open_bold" scope="global"><template #esphome_web><a :href="ESPHOME_WEB" target="_blank" rel="noopener">ESPHome Web</a></template></i18n-t></b></template>
           </i18n-t></li>
-          <li><i18n-t :keypath="installer.board === 'cyd' ? 'editor.installer.download_steps.install_cyd' : 'editor.installer.download_steps.install'" scope="global">
+          <li><i18n-t :keypath="installer.calibrate ? 'editor.installer.download_steps.install_calibrate' : 'editor.installer.download_steps.install'" scope="global">
             <template #bold><b>{{ t("editor.installer.download_steps.install_bold") }}</b></template>
             <template #file>{{ image.name }}</template>
           </i18n-t></li>

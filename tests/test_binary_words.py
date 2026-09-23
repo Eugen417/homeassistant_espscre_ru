@@ -20,7 +20,7 @@ from core import state_message  # noqa: E402
 
 CONTROLS = (ROOT / 'components/smart_display/tile_controls.h').read_text()
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
-PROFILES = ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
+PROFILES = ('checkout/guition.yaml', 'checkout/cyd.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
 
 
 ENGLISH = json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))

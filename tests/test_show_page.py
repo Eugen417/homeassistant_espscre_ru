@@ -12,7 +12,7 @@ sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import claude_skill  # noqa: E402
 from core import FIRMWARE_VERSION, SHOW_PAGE_MIN_FIRMWARE  # noqa: E402
 
-PROFILES = ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
+PROFILES = ('checkout/cyd.yaml', 'checkout/guition.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
 
 
 def action(text, name):
@@ -52,6 +52,9 @@ class ShowPage(unittest.TestCase):
                        '1 for the first page', 'switch.<screen>_back_to_page_1'):
             self.assertIn(needle, section)
         self.assertIn('open a page', claude_skill.DESCRIPTION)
+        # claude.ai takes at most 200 characters, and the boards are the catalog's.
+        self.assertLessEqual(len(claude_skill.DESCRIPTION), 200)
+        self.assertIn('Guition and Waveshare', claude_skill.DESCRIPTION)
         guide = (ROOT / 'README_EXTENDED.md').read_text(encoding='utf-8')
         self.assertIn('## Open a page from an automation', guide)
         self.assertIn(f'esphome.<screen>_show_page`** (firmware {SHOW_PAGE_MIN_FIRMWARE}+)', guide)

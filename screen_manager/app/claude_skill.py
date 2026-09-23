@@ -13,7 +13,7 @@ import zipfile
 
 from i18n import t
 import tile_icons
-from core import (ALERT_ACTION_FIELD, ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT,
+from core import (ALERT_ACTION_FIELD, ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT, BOARD_KEYS, SHAPES, limit_boards,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
                   CONTROLS, COVER_TILE_MIN_FIRMWARE, DISPLAYS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, FULL_PAGE_MIN_FIRMWARE, LIVE_MIN_FIRMWARE,
                   PAGE_TILE_REPEAT_MIN_FIRMWARE, SETTINGS_PAGE_MIN_FIRMWARE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT,
@@ -28,8 +28,27 @@ PAGE_TILE_REPEAT_VERSION = '.'.join(str(part) for part in PAGE_TILE_REPEAT_MIN_F
 
 NAME = 'esp-screens'
 # claude.ai accepts at most 200 characters; Claude Code picks the skill by this sentence.
-DESCRIPTION = ('ESP Screens (CYD and Guition touchscreens run from Home Assistant): put a tile on a screen, move or '
-               'order tiles, show an alert or open a page on a screen, and wake, sleep or keep a screen awake.')
+def _and(items):
+    items = list(items)
+    return ', '.join(items[:-1]) + (' and ' if len(items) > 1 else '') + (items[-1] if items else '')
+
+# The boards, by the names and sizes of the catalog (boards.yaml through boards.json), so the skill never names a board
+# the add-on does not know or leaves one out.
+def _board(board):
+    catalog = SHAPES[board].get('catalog', {})
+    inch = catalog.get('inch')
+    return f"{catalog.get('name', board)} {inch:g}-inch" if inch else catalog.get('name', board)
+
+def _grids():
+    """'2 × 3 on the CYD 2.8-inch, ...': the cells of a page lying down, the boards with the same grid together."""
+    grids = {}
+    for board in BOARD_KEYS:
+        grids.setdefault((SHAPES[board]['columns'], SHAPES[board]['rows']), []).append(f'the {_board(board)}')
+    return '; '.join(f'{columns} × {rows} on {_and(boards)}' for (columns, rows), boards in grids.items())
+
+NAMES = list(dict.fromkeys(SHAPES[board].get('catalog', {}).get('name', board) for board in BOARD_KEYS))
+DESCRIPTION = (f'ESP Screens ({_and(NAMES)} touchscreens run from Home Assistant): put, move or order tiles on a '
+               'screen, show an alert or open a page on it, and wake, sleep or keep a screen awake.')
 TYPES = {'string': 'text', 'int': 'number', 'bool': 'on/off'}
 
 def skill_dir(config=None):
@@ -37,8 +56,11 @@ def skill_dir(config=None):
     return Path(config or os.environ.get('HA_CONFIG', '/homeassistant')) / '.claude' / 'skills' / NAME
 
 def _limit(name, kind):
-    if name in ALERT_LIMITS['cyd']:
-        return f"CYD {ALERT_LIMITS['cyd'][name]} · Guition {ALERT_LIMITS['guition'][name]} bytes"
+    """The bytes a text field holds on each look, with the boards that have it ("CYD 48 · Guition and Waveshare 64 bytes")."""
+    boards = limit_boards()
+    parts = [f"{' and '.join(boards[look])} {values[name]}" for look, values in ALERT_LIMITS.items() if name in values and boards.get(look)]
+    if parts:
+        return ' · '.join(parts) + ' bytes'
     return f'0 to {ALERT_MAX_TIMEOUT} s' if kind == 'int' else ''
 
 def text():
@@ -73,7 +95,7 @@ An alert is a card over the whole screen with an icon, a title, a subtitle and o
 
 ## Tiles on a screen
 
-A screen shows tiles on pages, and a page is a grid of cells whose columns and rows depend on the screen: two columns of three on the CYD and the Guition, three by three on a 800 x 480 panel. A screen has at most {FIRMWARE_MAX_PAGES} pages and {FIRMWARE_MAX_TILES} tiles, one per cell, so a page with more than eight cells gives fewer pages (seven pages of nine); firmware before {FULL_PAGE_VERSION} holds twenty tiles. The screen's own sensor (below) says its `columns`, `rows` and `max_pages`, so read it before counting. A tile is single, double-width or full-page: a double-width one takes two cells side by side, a full-page one takes a whole page of its own and is one big button, so someone can switch a light by pushing anywhere on the screen without looking. A `controls` choice, a small slider or a graph sits at the bottom of that page (a full-page tile shows no control unless you choose one).
+A screen shows tiles on pages, and a page is a grid of cells whose columns and rows depend on the screen: {_grids()} lying down, and other grids standing up. A screen has at most {FIRMWARE_MAX_PAGES} pages and {FIRMWARE_MAX_TILES} tiles, one per cell, so a page with more than eight cells gives fewer pages (seven pages of nine); firmware before {FULL_PAGE_VERSION} holds twenty tiles. The screen's own sensor (below) says its `columns`, `rows` and `max_pages`, so read it before counting. A tile is single, double-width or full-page: a double-width one takes two cells side by side, a full-page one takes a whole page of its own and is one big button, so someone can switch a light by pushing anywhere on the screen without looking. A `controls` choice, a small slider or a graph sits at the bottom of that page (a full-page tile shows no control unless you choose one).
 
 Fire one of these events and ESP Screens changes that screen and sends it right away, the same way its own editor does.
 
@@ -102,7 +124,7 @@ actions:
 | `from_page`, `from_slot` | Only for `esp_screens_move_tile`: which copy of a navigation tile that is on several pages to move (see below). |
 | `size` | `single`, `wide` or `full` (the whole page; firmware {FULL_PAGE_VERSION} or newer). |
 | `controls` | What you can operate on the tile itself (see below). |
-| `display` | How the tile draws itself (see below). On a Guition a camera or image tile takes `live` (firmware {LIVE_VERSION} or newer): a small live picture in the icon's place, with `refresh` 15 or 30 (seconds); a media player tile takes `cover` (firmware {COVER_TILE_VERSION} or newer): the album cover of what plays in the icon's place. |
+| `display` | How the tile draws itself (see below). On a screen that draws pictures (every board but {_and(f'the {_board(b)}' for b in BOARD_KEYS if 'camera' not in SHAPES[b])}) a camera or image tile takes `live` (firmware {LIVE_VERSION} or newer): a small live picture in the icon's place, with `refresh` 15 or 30 (seconds); a media player tile takes `cover` (firmware {COVER_TILE_VERSION} or newer): the album cover of what plays in the icon's place. |
 | `icon`, `color` | An icon from the list further down, and one of the pastel colors. |
 | `tap` | What a tap does: `auto`, `detail` (open the card), `toggle`, `action` or `none`. `toggle` works for anything Home Assistant can toggle for that entity, such as a light, a cover (open, close, or stop while it moves) or a speaker that turns on and off. Holding the tile still opens its card. |
 | `action`, `data` | Perform action: an action Home Assistant offers for the tile's own entity, such as `cover.set_cover_position`, with `data` for its fields (`position: 50`). Giving `action` sets `tap` to `action`. The target is always the tile's entity. Only actions and fields Home Assistant lists for that entity are accepted; the answer says what is missing. |
@@ -293,7 +315,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 |---|---|
 | `button.<screen>_wake` | Lights the screen up to its normal brightness and counts the standby time from that moment; a screen that is already on only restarts that count. Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer. Wake is not a touch: from firmware 0.2.56 an open card or a later page still goes back to page 1 on its own time, and a screen whose time ran out during standby wakes on page 1. |
 | `button.<screen>_sleep` | Puts the screen in standby right away, also with Auto standby off, and closes an alert that is showing. It stays in standby until someone taps it, Wake is pressed or an alert arrives. Firmware {WAKE_SLEEP_MIN_FIRMWARE} or newer. |
-| `switch.<screen>_auto_standby` | On: the screen dims after the standby time without a touch. A screen that cannot go dark (the Waveshare, app 0.2.106) has none of the standby and night entities in this table, nor Wake and Sleep: it is always on. Off: the screen wakes up and stays on, except after Sleep, which holds until Wake, a tap or an alert. Firmware {AUTO_STANDBY_MIN_FIRMWARE} or newer. |
+| `switch.<screen>_auto_standby` | On: the screen dims after the standby time without a touch. A screen that cannot go dark ({_and(f'the {_board(b)}' for b in BOARD_KEYS if not SHAPES[b].get('can_standby', True))}, app 0.2.106) has none of the standby and night entities in this table, nor Wake and Sleep: it is always on. Off: the screen wakes up and stays on, except after Sleep, which holds until Wake, a tap or an alert. Firmware {AUTO_STANDBY_MIN_FIRMWARE} or newer. |
 | `number.<screen>_standby_after` | Seconds without a touch before standby, 60 to 86400. |
 | `number.<screen>_normal_brightness` | Brightness while in use, 5 to 100 %. |
 | `number.<screen>_standby_brightness` | Brightness in standby, 0 to 100 %, at most the normal brightness. |
@@ -306,7 +328,7 @@ Every screen has these entities in Home Assistant, on its ESPHome device. `<scre
 | `switch.<screen>_swipe_between_pages` | On: swipe between pages. |
 | `switch.<screen>_page_buttons` | On: the Previous and Next bar under the tiles on a screen with more than one page. Off: no bar, the tiles take its room, and only swiping or Go to page tiles change the page. Firmware {PAGE_BUTTONS_MIN_FIRMWARE} or newer. |
 | `switch.<screen>_show_home_button` | On: a house at the far left of the top bar; tapping it goes back to page 1. Off: the page title starts at the margin, as before. Firmware {HOME_BUTTON_MIN_FIRMWARE} or newer. |
-| `select.<screen>_rotation` | Guition only: `0°`, `90°`, `180°` or `270°`. |
+| `select.<screen>_rotation` | `0°` or `180°`, a half turn that keeps the screen's grid; a square screen also `90°` and `270°`. |
 
 The 12 or 24-hour clock, the language and how numbers are written are one choice for every screen, in ESP Screens under Settings → Language & region; no entity changes them (firmware 0.2.76 or newer; older firmware still has `switch.<screen>_24_hour_clock`).
 

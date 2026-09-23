@@ -15,8 +15,8 @@ or periodic recovery script is needed. The GT911 uses unmirrored coordinates.
 
 - `packages/boards/guition-4848s040.yaml`: the board file (hardware, the 480×480 sizes, the Guition's own parts); the
   interface itself is `packages/core.yaml`, shared with the CYD (docs/PROFILES.md).
-- `packages/guition.yaml`: what a screen builds from over GitHub; `guition-4848s040.yaml` in the root is the same
-  for a build from a checkout.
+- `packages/guition.yaml`: what a screen builds from over GitHub; `checkout/guition.yaml` is the same
+  for a build from a clone of this repository (checkout/README.md).
 - `<your-screen>.yaml`: the screen's own profile, written by ESP Screens, outside Git.
 - `secrets.yaml`: local Wi-Fi/API/OTA settings, outside Git.
 - `tools/verify_gt911.py`: physical pixel check; no resistive ADC calibration.

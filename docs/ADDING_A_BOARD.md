@@ -56,12 +56,20 @@ little.
 ```
 python3 tools/propose_grid.py             # what grid the resolution and the diagonal ask for, each way up
 python3 tools/new_board.py <name> --from waveshare43 --width 800 --height 480 --inch 4.3 [--cols 3 --rows 2] \
-                                  [--portrait-cols 1 --portrait-rows 4] [--rotation 0|90|180|270] [--look compact]
-python3 tools/generate_cells.py           # the cards of that grid (--lab for a lab-<name> board)
+                                  [--portrait-cols 1 --portrait-rows 4] [--rotation 0|90|180|270] [--look compact] \
+                                  [--title Waveshare] [--model ESP32-S3-Touch-LCD-4.3] [--status new|experimental]
 ```
 
-`--from` is the key of the board that resembles the new one most (`tools/profiles.py`): the new file starts with its
-packages and its hardware sections. `--width` and `--height` are the canvas of the screen lying down and `--rotation`
+`tools/new_board.py` adds the whole board in one go: its board file, its entry in `boards.yaml`, its two entry files
+(`packages/<name>.yaml` and `checkout/<name>.yaml`, written by `tools/generate_entries.py`), the cards of its grid
+(`tools/generate_cells.py`), `boards.json` (`tools/generate_board_shapes.py`), and an override case in
+`tests/fixtures/overrides/<name>-contract.yaml`. A board only tried out is called `lab-<name>`: it gets its board file
+and its cards and stays out of the catalog and out of Git.
+
+`--from` is the key of the board that resembles the new one most (its entry in `boards.yaml`): the new file starts with
+its packages, its hardware sections and its own hardware values (a backlight frequency, a display model, calibration
+figures), which stay the template's until you replace them; `tools/check_packages.py` refuses a hardware section that
+is still the template's word for word. `--width` and `--height` are the canvas of the screen lying down and `--rotation`
 the LVGL angle that lays the panel out that way, so the board file states the panel's own pixels (`PANEL_W`,
 `PANEL_H`) and that angle (`ROTATION_LANDSCAPE`). It then states its density (`DISPLAY_DPI`, with the decimals it has)
 and its grid the two ways the screen can hang (`GRID_COLS`, `GRID_ROWS`, `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT`).
@@ -87,9 +95,14 @@ that states such a number would be right one way and wrong the other.
 
 ## 5. Look at it before it ever reaches the glass
 
-The host renders the real firmware into an SDL window: every page, the settings, every card, the alert, and the
-firmware's own geometry test (`ui_self_test`) with the page bar on and off. That catches a cramped forecast, a
-clipped name or a card that falls outside its area without a board on the desk.
+`tools/render/run.py <board>` builds the real firmware of the board as a program for this computer and draws it into
+an SDL window (it needs ESPHome and SDL2; run it with ESPHome's Python). It sends the demo layout of every kind of card,
+runs the firmware's own self test (`ui_self_test`: every page and overlay, each page's cards and bar, and the check that
+nothing falls outside its area), and saves every page, the alerts (a camera picture included, on a board that draws
+pictures) and Dark mode as PNGs under `.esphome/render/out/<board>/`, with a sheet of all of them. A board whose glass
+is not square is done standing up as well (`<board>-portrait`). That catches a cramped forecast, a clipped name or a
+card that falls outside its area without a board on the desk. `tools/check.sh --render` does it for every board, and
+CI does it on every push and pull request.
 
 ## 6. Then the board itself
 
@@ -114,10 +127,12 @@ saying it cannot. An ability is one row on each side: a line in the `features` l
 `packages/core.yaml`, and a row in `FEATURES` in `screen_manager/app/core.py` naming the boards.json key it falls
 back to. A word the add-on does not know is skipped, so new firmware may report one an older add-on never heard of.
 
-Give the board file its own `BOARD_ID` (the screen reports it; `tools/new_board.py` sets it). The Rotation select
-comes from the core, with the angles the glass allows. Add the board to `packages/<board>.yaml` and `<board>.yaml`
-(the two entries), one line to `BOARD_TABLE` in `tools/profiles.py`, to `REFS` in `screen_manager/app/core.py`, and to
-the editor's New screen (`web/src/components/InstallerView.vue` and the `editor.installer.board_<id>` text in every
-translation). Then `tools/generate_cells.py` (the cards of its grid,
-which go into Git with it), `tools/generate_board_shapes.py` (what the add-on and the editor know of it) and
-`tools/check.sh --all`, which from then on checks and compiles it with the others.
+The board file carries its own `BOARD_ID` (the screen reports it; `tools/new_board.py` sets it). The Rotation select
+comes from the core, with the angles the glass allows. Its entry in `boards.yaml`, the catalog, says what the board is
+called, what is printed on it, how far it has been tried (`stable`, `new` or `experimental`), and, for a part that
+differs between boards sold under one name, the `choices` someone makes when a screen of it is built. That is all ESP
+Screens needs: New screen and the screen list draw every board from the catalog and the board's own files (the size in
+inches from its pixels and density, the touch controller from its `touchscreen:`, a touch calibration on the first
+start from `features/resistive-touch.yaml`), so no board is written into the editor or its translations. After a
+change to its board file, run `tools/generate_cells.py` and `tools/generate_board_shapes.py` again, and
+`tools/check.sh --all --render`, which from then on checks, compiles and renders it with the others.

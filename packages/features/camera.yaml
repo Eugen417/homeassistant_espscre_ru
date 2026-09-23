@@ -147,7 +147,7 @@ lvgl:
                       on_click:
                         - if:
                             condition:
-                              lambda: 'return cyd::touch_guard.accept(millis(), 14) && !runtime_tiles::alert_camera.empty();'
+                              lambda: 'return screen_input::touch_guard.accept(millis(), 14) && !runtime_tiles::alert_camera.empty();'
                             then:
                               - lambda: 'runtime_tiles::camera_open(runtime_tiles::alert_camera, id(alert_title_text));'
                       widgets:

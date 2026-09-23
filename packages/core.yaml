@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.103"
+  SCREEN_FIRMWARE_VERSION: "0.2.104"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -94,7 +94,7 @@ esphome:
       - -DGRID_COLS_PORTRAIT=${GRID_COLS_PORTRAIT}
       - -DGRID_ROWS_PORTRAIT=${GRID_ROWS_PORTRAIT}
   includes:
-    - <esphome/components/smart_display/cyd_ui.h>
+    - <esphome/components/smart_display/screen_input.h>
     - <esphome/components/smart_display/light_controls.h>
     - <esphome/components/smart_display/alert_overlay.h>
     - <esphome/components/smart_display/settings_screen.h>
@@ -260,7 +260,7 @@ esphome:
             runtime_tiles::action(service, entity, key, value);
           };
           effects_page::ask = [](const std::string &entity, unsigned page) { runtime_tiles::options_request(entity, page); };
-          effects_page::drift = []() { return cyd::touch_guard.distance(); };
+          effects_page::drift = []() { return screen_input::touch_guard.distance(); };
           effects_page::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
           effects_page::now = []() { return (uint32_t) millis(); };
           runtime_tiles::options_received = effects_page::received;
@@ -287,7 +287,7 @@ esphome:
           settings_screen::may_open = []() {
             return runtime_tiles::enabled && !id(display_dimmed) && !id(calibration_active) && !id(alert_active)${MAY_OPEN_EXTRA};
           };
-          settings_screen::drift = []() { return cyd::touch_guard.distance(); };
+          settings_screen::drift = []() { return screen_input::touch_guard.distance(); };
           settings_screen::before_open = []() { id(close_cards).execute(); };
           settings_screen::hold_limit = ${SETTINGS_HOLD_DRIFT_PX};
           settings_screen::tap_limit = ${TOUCH_MOVE_LIMIT_PX};
@@ -1597,7 +1597,7 @@ lvgl:
                       on_click:
                         - if:
                             condition:
-                              lambda: 'return cyd::touch_guard.accept(millis(), 13);'
+                              lambda: 'return screen_input::touch_guard.accept(millis(), 13);'
                             then:
                               - script.execute:
                                   id: alert_dismiss
@@ -1721,7 +1721,7 @@ lvgl:
             on_click:
               - if:
                   condition:
-                    lambda: 'return cyd::touch_guard.accept_repeat(millis(), 11);'
+                    lambda: 'return screen_input::touch_guard.accept_repeat(millis(), 11);'
                   then:
                     - lambda: 'id(tile_page) = std::max(0, id(tile_page) - 1);'
                     - script.execute: show_tile_page
@@ -1762,7 +1762,7 @@ lvgl:
             on_click:
               - if:
                   condition:
-                    lambda: 'return cyd::touch_guard.accept_repeat(millis(), 12);'
+                    lambda: 'return screen_input::touch_guard.accept_repeat(millis(), 12);'
                   then:
                     - lambda: 'id(tile_page) += 1;'
                     - script.execute: show_tile_page
@@ -2008,7 +2008,7 @@ script:
           if (runtime_tiles::enabled && !id(calibration_active)) {
             const auto wanted = static_cast<esphome::display::DisplayRotation>((${LVGL_ROTATION} + settings_screen::rotation) % 360);
             if (id(screen_lvgl).get_rotation() != wanted) {
-              cyd::touch_guard.consume();
+              screen_input::touch_guard.consume();
               if (lv_indev_get_act()) lv_indev_wait_release(lv_indev_get_act());
               id(screen_lvgl).set_rotation(wanted);
             }

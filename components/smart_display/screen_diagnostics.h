@@ -5,7 +5,7 @@
 // On-demand 240x240 diagnostic image of LVGL's rendered screen. Nothing is
 // allocated or streamed during normal use. The RGB display signal itself
 // still needs a physical visual check.
-namespace guition {
+namespace screen_diagnostics {
 inline bool check_geometry(lv_obj_t *obj) {
   if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN)) return true;
   bool ok = true;
@@ -82,4 +82,4 @@ inline void snapshot_next_row() {
   }
 }
 #endif
-}  // namespace guition
+}  // namespace screen_diagnostics

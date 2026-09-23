@@ -95,7 +95,7 @@ class EdgeBandTests(unittest.TestCase):
         # check that CI, which has none of them, calls green. Every other generated-file check scopes this way.
         for board in sorted(profiles.BOARDS.values()):
             text = board.read_text()
-            for call in re.findall(r'cyd::edge_swipe\.configure\(([^)]*)\)', text):
+            for call in re.findall(r'screen_input::edge_swipe\.configure\(([^)]*)\)', text):
                 self.assertEqual(len(call.split(',')), 2, f'{board.name}: {call}')
                 self.assertNotIn('DISPLAY_W', call, f'{board.name}: {call}')
 
@@ -106,7 +106,7 @@ class EdgeBandTests(unittest.TestCase):
         touch = (self.ROOT / 'components' / 'smart_display' / 'runtime_tiles.h').read_text()
         # The band is armed against the live canvas, not a number from the board file, so it is the same band of
         # glass on a screen built standing up (firmware 0.2.92+).
-        self.assertIn('cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height())', touch)
+        self.assertIn('screen_input::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height())', touch)
         # No rotation arithmetic of our own left in the firmware's own touch handling.
-        swipe = (self.ROOT / 'components' / 'smart_display' / 'cyd_ui.h').read_text()
+        swipe = (self.ROOT / 'components' / 'smart_display' / 'screen_input.h').read_text()
         self.assertNotIn('rotation_', swipe)

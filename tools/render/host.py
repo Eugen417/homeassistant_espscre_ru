@@ -1,0 +1,411 @@
+"""Build a board of a source tree as an ESPHome host program: the real UI of the screens, drawn in an SDL window.
+
+A screen's firmware is packages/core.yaml plus the board's file under packages/boards/, which includes its own packages
+(looks, features, hardware, cells) with relative includes (docs/PROFILES.md). This walks that include tree and writes a
+copy of every file with the ESP32 hardware taken out, under the same relative layout, so the includes keep working. A
+small host-hw.yaml stands in for the hardware: an SDL display `my_display` at the panel's own pixels (LVGL turns the
+picture as on the glass), an SDL touchscreen `ts_touch` for the features' `!extend ts_touch`, and a template output for
+every output id the chain named, so `back_light` and the backlight scripts still resolve. A handful of API actions let
+tools/render/run.py drive and photograph it.
+
+A variant is a board of the catalog (boards.yaml) the way it hangs: `guition`, or `waveshare43-portrait` for a board
+whose glass is not square, built with the angle ESP Screens writes into a screen standing up (boards.json).
+
+Needs the ESPHome CLI and SDL2 (`brew install sdl2`, or `apt install libsdl2-dev`). Everything it writes lives under
+.esphome/render/ of this checkout.
+"""
+import json
+import re
+import shutil
+import subprocess
+import sys
+from dataclasses import dataclass, field
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+REPO = HERE.parents[1]
+sys.path.insert(0, str(REPO / 'tools'))
+import profiles  # noqa: E402
+
+# Top-level blocks that are ESP32 hardware wherever they live (board file or hardware package).
+HARDWARE_BLOCKS = ('esp32', 'psram', 'spi', 'i2c', 'ch422g', 'pca9554', 'tca9554', 'esp_ldo', 'esp32_hosted',
+                   'display', 'esp32_rmt', 'i2s_audio')
+PORT_BASE = 6481
+
+
+@dataclass
+class Variant:
+    """One board the way it hangs, with what the host build needs of it."""
+    key: str        # 'guition', 'waveshare43-portrait'
+    board: str      # the board's key in the catalog
+    file: str       # its board file under packages/boards/
+    rotation: str   # the LVGL angle a screen standing up is built with, '' lying down
+    port: int       # the host program's API port
+
+    @property
+    def name(self):
+        return f'render-{self.key}'
+
+
+def variants():
+    """Every board of the catalog lying down, and standing up where its glass is not square, in the catalog's order."""
+    shapes = json.loads((REPO / 'screen_manager/app/boards.json').read_text())
+    found = []
+    for board, entry in profiles.CATALOG.items():
+        sides = shapes[board]['orientations']
+        found.append((board, board, entry['file'], ''))
+        if sides['portrait']['width'] != sides['landscape']['width']:
+            found.append((f'{board}-portrait', board, entry['file'], str(sides['portrait']['rotation'])))
+    return [Variant(key, board, file, rotation, PORT_BASE + i) for i, (key, board, file, rotation) in enumerate(found)]
+
+
+def variant(key):
+    for item in variants():
+        if item.key == key:
+            return item
+    raise SystemExit(f'unknown variant {key}; one of {", ".join(v.key for v in variants())}')
+
+
+# ---- a little YAML surgery on text, so comments and ESPHome tags (!extend, !remove, !lambda) stay as they are
+
+def top_blocks(text):
+    """[(key, start, end)] of the top-level YAML blocks."""
+    starts = [(m.group(1), m.start()) for m in re.finditer(r'^([a-z_0-9]+):', text, re.M)]
+    return [(key, start, starts[i + 1][1] if i + 1 < len(starts) else len(text)) for i, (key, start) in enumerate(starts)]
+
+
+def blocks_of(text, key):
+    return [block for block in top_blocks(text) if block[0] == key]
+
+
+def drop_blocks(text, key):
+    """Every top-level block `key:` removed; returns (text, [the removed blocks])."""
+    removed = []
+    while True:
+        blocks = blocks_of(text, key)
+        if not blocks:
+            return text, removed
+        _, start, end = blocks[0]
+        removed.append(text[start:end])
+        text = text[:start] + text[end:]
+
+
+def drop_items(text, key, predicate):
+    blocks = blocks_of(text, key)
+    if not blocks:
+        return text
+    _, start, end = blocks[0]
+    parts = re.split(r'(?m)^(?=  - )', text[start:end])
+    return text[:start] + parts[0] + ''.join(item for item in parts[1:] if not predicate(item)) + text[end:]
+
+
+def drop_sub(block, indent, key):
+    """A key at `indent` spaces inside a block removed, with everything indented under it."""
+    out, skipping = [], False
+    for line in block.splitlines(keepends=True):
+        depth = len(line) - len(line.lstrip(' '))
+        if skipping:
+            if not line.strip() or depth > indent:
+                continue
+            skipping = False
+        if re.match(rf'^ {{{indent}}}{key}:', line):
+            skipping = True
+            continue
+        out.append(line)
+    return ''.join(out)
+
+
+def shape_error(what):
+    raise SystemExit(f'host build: {what} changed shape; update tools/render/host.py')
+
+
+def host_common(text):
+    """Calls the host cannot make, in any file of the chain."""
+    text = text.replace('esp_get_free_heap_size()', '0u')
+    # The resistive panel's raw readings and its affine correction: the SDL touchscreen reports pixels.
+    text = re.sub(r'id\((\w+)\)\.filtered_raw_[xy]\(\)', '0', text)
+    return re.sub(r'id\(\w+\)\.set_raw_correction\([^;]*\);', '/* XPT2046 affine correction: not on the host */', text)
+
+
+def host_core(tree):
+    """packages/core.yaml with the host's stand-ins: no debug component, Wi-Fi or Wi-Fi sensors, a fixed IP text, the
+    host's clock, and LVGL's snapshot for the render action."""
+    text = (tree / 'packages' / 'core.yaml').read_text()
+    text, _ = drop_blocks(text, 'debug')
+    text, _ = drop_blocks(text, 'wifi')
+    text = drop_items(text, 'sensor', lambda item: re.match(r'  - platform: (debug|wifi_signal)\b', item))
+    text, n = re.subn(r'(?m)^  - platform: wifi_info\n(?:    #[^\n]*\n)*    ip_address:\n(?:      #[^\n]*\n)*      id: (\w+)\n'
+                      r'      name: "IP address"\n      entity_category: diagnostic\n',
+                      lambda m: f'  - platform: template\n    id: {m.group(1)}\n    name: "IP address"\n'
+                                f'    entity_category: diagnostic\n    lambda: \'return {{"127.0.0.1"}};\'\n', text)
+    if n != 1:
+        shape_error('the wifi_info IP sensor of packages/core.yaml')
+    text, n = re.subn(r'(?m)^time:\n  - platform: homeassistant\n', 'time:\n  - platform: host\n    timezone: Europe/Amsterdam\n', text)
+    if n != 1:
+        shape_error('the homeassistant time of packages/core.yaml')
+    text = host_common(text)
+    if '-DLV_USE_SNAPSHOT=1' not in text:
+        text, n = re.subn(r'(?m)^(  platformio_options:\n    build_flags:\n)', r'\1      - -DLV_USE_SNAPSHOT=1\n', text, count=1)
+        if n != 1:
+            shape_error('esphome.platformio_options.build_flags of packages/core.yaml')
+    return text
+
+
+@dataclass
+class Chain:
+    """What the walk of one board's include tree found: the ids the host stand-ins must carry."""
+    outputs: list = field(default_factory=list)
+    displays: list = field(default_factory=list)
+    touches: list = field(default_factory=list)
+    files: list = field(default_factory=list)
+    notes: list = field(default_factory=list)
+
+
+def host_file(text, chain, rel):
+    """One package of the chain (board file, hardware, look, feature, cells) without its ESP32 hardware."""
+    for key in HARDWARE_BLOCKS:
+        text, removed = drop_blocks(text, key)
+        for block in removed:
+            if key == 'display':
+                chain.displays += re.findall(r'(?m)^    id: (\w+)', block)
+            chain.notes.append(f'{rel}: dropped {key}:')
+    text, removed = drop_blocks(text, 'output')
+    for block in removed:
+        ids = re.findall(r'(?m)^    id: (\w+)', block)
+        chain.outputs += ids
+        chain.notes.append(f'{rel}: dropped output: ({", ".join(ids)})')
+    # A board's or a hardware file's own touch panel (it has a platform) goes; a feature's `!extend` stays, less the
+    # resistive panel's raw range (the SDL touchscreen reports pixels).
+    changes = []
+    for key, start, end in top_blocks(text):
+        if key != 'touchscreen':
+            continue
+        block = text[start:end]
+        if re.search(r'(?m)^  (- )?platform:', block):
+            chain.touches += re.findall(r'(?m)^  (?:- )?id: (\w+)', block) + re.findall(r'(?m)^    id: (\w+)', block)
+            changes.append((start, end, ''))
+            chain.notes.append(f'{rel}: dropped touchscreen: platform')
+        elif 'calibration:' in block:
+            changes.append((start, end, drop_sub(block, 4, 'calibration')))
+    for start, end, new in reversed(changes):
+        text = text[:start] + new + text[end:]
+    # Boot steps that talk to an I2C expander (a panel's setup lines on some Waveshare boards).
+    for key, start, end in blocks_of(text, 'esphome'):
+        block = text[start:end]
+        if 'id(expander)' in block:
+            block = drop_sub(block, 2, 'on_boot')
+            if 'id(expander)' in block:
+                raise SystemExit(f'{rel}: esphome: still talks to the expander outside on_boot')
+            text = text[:start] + ('' if not re.search(r'(?m)^  [a-z_0-9]+:', block) else block) + text[end:]
+            chain.notes.append(f'{rel}: dropped esphome.on_boot (expander)')
+            break
+    text = re.sub(r'(?m)^  hardware_uart: \w+\n', '', text)
+    return host_common(text)
+
+
+INCLUDE = re.compile(r'!include\s+([^\s{}]+\.yaml)')
+
+
+def walk(tree, source, mirror, chain):
+    """Write the host copy of `source` (a file under tree/packages) at the same place under `mirror`, then of every
+    file it includes."""
+    rel = source.relative_to(tree / 'packages')
+    if rel in chain.files:
+        return
+    chain.files.append(rel)
+    text = source.read_text()
+    for include in INCLUDE.findall(text):
+        target = (source.parent / include).resolve()
+        if not target.is_file():
+            raise SystemExit(f'{rel}: include {include} does not exist in {tree}')
+        if tree / 'packages' not in target.parents:
+            raise SystemExit(f'{rel}: include {include} leaves packages/; the mirror cannot follow it')
+        walk(tree, target, mirror, chain)
+    host = host_file(text, chain, rel)
+    if not top_blocks(host):
+        host += '\n# Nothing of this file runs on the host.\n{}\n'
+    (mirror / rel).parent.mkdir(parents=True, exist_ok=True)
+    (mirror / rel).write_text(host)
+
+
+def host_hw(board_text, chain):
+    """The host stand-ins for the hardware the walk took out."""
+    size = {key: re.search(rf'(?m)^  {key}: "?(\d+)"?', board_text) for key in ('PANEL_W', 'PANEL_H')}
+    if not all(size.values()):
+        raise SystemExit('the board file names no numeric PANEL_W / PANEL_H')
+    displays, touches = sorted(set(chain.displays)) or ['my_display'], sorted(set(chain.touches)) or ['ts_touch']
+    if len(displays) != 1 or len(touches) != 1:
+        raise SystemExit(f'expected one display and one touchscreen in the chain, found {displays} and {touches}')
+    text = f'''# Host stand-ins for the board's hardware (tools/render/host.py): the panel's own pixels in an SDL window.
+display:
+  - platform: sdl
+    id: {displays[0]}
+    dimensions:
+      width: {size["PANEL_W"][1]}
+      height: {size["PANEL_H"][1]}
+    auto_clear_enabled: false
+    update_interval: never
+
+touchscreen:
+  - platform: sdl
+    id: {touches[0]}
+    display: {displays[0]}
+'''
+    outputs = list(dict.fromkeys(chain.outputs))
+    if outputs:
+        text += '\noutput:\n' + ''.join(f"  - platform: template\n    id: {i}\n    type: float\n    write_action:\n"
+                                        f"      - lambda: ''\n" for i in outputs)
+    return text
+
+
+# The actions tools/render/run.py drives the program with: a PNG of what LVGL draws (the top layer blended in), whether
+# the page is placed and drawn, a page by number, and a fixed clock so every render shows the same time.
+ACTIONS = '''    - action: render_png
+      variables:
+        path: string
+      then:
+        - lambda: |-
+            lv_obj_update_layout(lv_screen_active());
+            lv_draw_buf_t *base = lv_snapshot_take(lv_screen_active(), LV_COLOR_FORMAT_RGB888);
+            lv_draw_buf_t *top = lv_snapshot_take(lv_layer_top(), LV_COLOR_FORMAT_ARGB8888);
+            if (!base) { ESP_LOGE("render", "snapshot failed"); return; }
+            std::string part = path + ".part";
+            FILE *f = fopen(part.c_str(), "wb");
+            int w = base->header.w, h = base->header.h;
+            fprintf(f, "P6\\n%d %d\\n255\\n", w, h);
+            for (int y = 0; y < h; ++y) {
+              const uint8_t *row = base->data + y * base->header.stride;
+              const uint8_t *over = top ? top->data + y * top->header.stride : nullptr;
+              for (int x = 0; x < w; ++x) {
+                int b = row[x * 3], g = row[x * 3 + 1], r = row[x * 3 + 2];
+                if (over) {
+                  int a = over[x * 4 + 3];
+                  b = (over[x * 4] * a + b * (255 - a)) / 255;
+                  g = (over[x * 4 + 1] * a + g * (255 - a)) / 255;
+                  r = (over[x * 4 + 2] * a + r * (255 - a)) / 255;
+                }
+                uint8_t px[3] = {(uint8_t) r, (uint8_t) g, (uint8_t) b};
+                fwrite(px, 1, 3, f);
+              }
+            }
+            fclose(f);
+            rename(part.c_str(), path.c_str());
+            lv_draw_buf_destroy(base);
+            if (top) lv_draw_buf_destroy(top);
+            ESP_LOGI("render", "saved %s", path.c_str());
+    - action: render_probe
+      then:
+        - lambda: |-
+            int shown = 0;
+            for (auto &w : runtime_tiles::widgets)
+              if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN)) ++shown;
+            ESP_LOGI("render", "probe page=%d applied=%d shown=%d tiles=%u alert=%d pages=%d", (int) id(tile_page),
+                     runtime_tiles::applied_page, shown, (unsigned) runtime_tiles::model.count, (int) id(alert_active),
+                     (int) runtime_tiles::page_count());
+    - action: render_page
+      variables:
+        page: int
+      then:
+        - lambda: |-
+            id(tile_page) = page;
+            runtime_tiles::show_page(id(tile_page), id(page_prev), id(page_next), id(page_number));
+    - action: render_time
+      variables:
+        epoch: int
+      then:
+        - lambda: |-
+            auto fixed = esphome::ESPTime::from_epoch_local((time_t) epoch);
+            runtime_tiles::now_time = [fixed]() { return fixed; };
+            if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
+'''
+# A board with the calibration wizard shows it on the first start; the renders skip it, as a calibrated screen does.
+SKIP_CALIBRATION = '''    - action: render_skip_calibration
+      then:
+        - lambda: |-
+            if (!screen_calibration::active) return;
+            screen_calibration::active = false;
+            if (screen_calibration::isolation) screen_calibration::isolation(false);
+            lv_screen_load(screen_calibration::home);
+'''
+
+
+class Build:
+    """The host build of one variant of one tree, under `work` (the tree's own .esphome/render/ by default)."""
+
+    def __init__(self, item, tree=REPO, work=None, esphome=('esphome',)):
+        self.variant, self.tree = item, Path(tree).resolve()
+        self.work = Path(work or REPO / '.esphome' / 'render' / 'build').resolve()
+        self.esphome = list(esphome)  # the command, which may be more than one word ('python -m esphome')
+
+    @property
+    def program(self):
+        name = self.variant.name
+        return self.work / '.esphome' / 'build' / name / '.pioenvs' / name / 'program'
+
+    def components(self):
+        """This tree's smart_display component as links, so ESPHome builds the C++ of the tree being rendered."""
+        target = self.work / 'components' / 'smart_display'
+        shutil.rmtree(self.work / 'components', ignore_errors=True)
+        target.mkdir(parents=True)
+        for source in (self.tree / 'components' / 'smart_display').iterdir():
+            if source.name != '__pycache__':
+                (target / source.name).symlink_to(source)
+
+    def package(self):
+        """Write the host mirror of this variant's chain; returns the host package's text."""
+        item, tree = self.variant, self.tree
+        mirror_root = self.work / 'host' / item.key
+        shutil.rmtree(mirror_root, ignore_errors=True)
+        mirror = mirror_root / 'packages'
+        mirror.mkdir(parents=True)
+        (mirror / 'core.yaml').write_text(host_core(tree))
+        chain = Chain()
+        board = tree / 'packages' / 'boards' / item.file
+        if not board.is_file():
+            raise SystemExit(f'{tree} has no packages/boards/{item.file}')
+        walk(tree, board, mirror, chain)
+        (mirror_root / 'host-hw.yaml').write_text(host_hw(board.read_text(), chain))
+        (mirror_root / 'chain.txt').write_text('\n'.join([str(f) for f in chain.files] + [''] + chain.notes) + '\n')
+        chain_text = ''.join((mirror / f).read_text() for f in chain.files)
+        actions = ACTIONS + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
+        turned = f'\n  LVGL_ROTATION: "{item.rotation}"' if item.rotation else ''
+        rel = f'host/{item.key}'
+        return f'''# Host build of {item.key} from {tree} (tools/render/host.py): core and board chain, hardware swapped for SDL.
+substitutions:
+  FONT_DIR: "{tree / 'fonts'}"{turned}
+
+packages:
+  core: !include {rel}/packages/core.yaml
+  board: !include {rel}/packages/boards/{item.file}
+  host_hw: !include {rel}/host-hw.yaml
+
+external_components:
+  - source:
+      type: local
+      path: components
+    components: [smart_display]
+
+api:
+  port: {item.port}
+  actions:
+{actions}'''
+
+    def config(self):
+        """Write the host package and the config that includes it; returns the config's path."""
+        name = self.variant.name
+        (self.work / f'{name}-package.yaml').write_text(self.package())
+        path = self.work / f'{name}.yaml'
+        path.write_text(f'substitutions:\n  DEVICE_NAME: "{name}"\n  DEVICE_FRIENDLY_NAME: "{self.variant.key} screen"\n'
+                        f'packages:\n  display: !include {name}-package.yaml\nhost:\n')
+        return path
+
+    def compile(self):
+        """Compile the program; returns (ok, the compiler's output)."""
+        self.work.mkdir(parents=True, exist_ok=True)
+        self.components()
+        path = self.config()
+        result = subprocess.run([*self.esphome, 'compile', str(path)], capture_output=True, text=True, cwd=self.work)
+        output = result.stdout + result.stderr
+        (self.work / 'logs').mkdir(exist_ok=True)
+        (self.work / 'logs' / f'compile-{self.variant.name}.log').write_text(output)
+        return result.returncode == 0 and 'Successfully compiled' in output, output

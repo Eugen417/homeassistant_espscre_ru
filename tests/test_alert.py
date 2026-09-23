@@ -11,7 +11,7 @@ import profiles  # noqa: E402
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import tile_icons  # noqa: E402
 
-PROFILES = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml'}
+PROFILES = {'cyd': 'checkout/cyd.yaml', 'guition': 'checkout/guition.yaml'}
 PACKAGES = {'cyd': 'packages/cyd.yaml', 'guition': 'packages/guition.yaml'}
 FIELDS = [('title', 'string'), ('subtitle', 'string'), ('icon', 'string'), ('color', 'string'), ('button_text', 'string'), ('timeout', 'int'), ('flash', 'bool')]
 
@@ -52,7 +52,7 @@ class AlertTests(unittest.TestCase):
             self.assertIn('long_mode: DOT', section(top, 'id: alert_subtitle\n', 'id: alert_ok'), name)
             ok = section(top, 'id: alert_ok\n', 'widgets:')
             self.assertIn('lv_label_set_text(id(alert_ok_label), alert.button.c_str());', script(text, 'alert_show'), name)
-            self.assertIn('cyd::touch_guard.accept(millis(), 13)', ok, name)
+            self.assertIn('screen_input::touch_guard.accept(millis(), 13)', ok, name)
             self.assertLess(ok.index('touch_guard.accept'), ok.index('id: alert_dismiss'), name)
             self.assertIn('reason: "ok"', ok, name)
 

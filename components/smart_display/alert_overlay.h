@@ -36,12 +36,15 @@ inline std::string lowercase(std::string text) {
   for (auto &c : text) if (c >= 'A' && c <= 'Z') c = static_cast<char>(c - 'A' + 'a');
   return text;
 }
-// Cuts on a UTF-8 boundary: LVGL must never get half a code point.
+// Cuts on a UTF-8 boundary: LVGL must never get half a code point. A text cut short ends in "...", within the limit,
+// the way LVGL ends a line it cannot show whole (firmware 0.2.104; before, a subtitle that filled its lines exactly
+// stopped in the middle of a word). A limit too small for the dots cuts without them.
 inline std::string clipped(const std::string &text, size_t max_bytes) {
   if (text.size() <= max_bytes) return text;
-  size_t end = max_bytes;
+  const std::string dots = max_bytes > 3 ? "..." : "";
+  size_t end = max_bytes - dots.size();
   while (end > 0 && (static_cast<unsigned char>(text[end]) & 0xC0) == 0x80) --end;
-  return text.substr(0, end);
+  return text.substr(0, end) + dots;
 }
 // "doorbell", "mdi:doorbell" or the hex codepoint "F12E6" of a glyph the fonts carry;
 // anything else draws the warning triangle.

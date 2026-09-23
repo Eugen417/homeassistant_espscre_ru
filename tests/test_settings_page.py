@@ -89,7 +89,7 @@ class Firmware(unittest.TestCase):
 
     def setUp(self):
         self.profiles = {name: profiles.text(name)
-                         for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml')}
+                         for name in ('checkout/cyd.yaml', 'checkout/guition.yaml')}
 
     def test_both_boards_wire_the_page_and_its_gesture(self):
         for name, text in self.profiles.items():

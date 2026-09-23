@@ -398,7 +398,7 @@ class Firmware(unittest.TestCase):
         for flag in ('lv_obj_add_flag(area,LV_OBJ_FLAG_PRESS_LOCK);', 'lv_obj_remove_flag(area,LV_OBJ_FLAG_GESTURE_BUBBLE);',
                      'lv_obj_add_event_cb(area,history_scrub,LV_EVENT_ALL,nullptr);'):
             self.assertIn(flag, touch)
-        for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml'):
+        for name in ('checkout/guition.yaml', 'checkout/cyd.yaml', 'packages/guition.yaml', 'packages/cyd.yaml'):
             text = profiles.text(name)
             self.assertEqual(len(re.findall(r'runtime_tiles::small_font = id\(sublabel\)->get_lv_font\(\);', text)), 1, name)
 

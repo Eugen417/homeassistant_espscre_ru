@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { t } from "../i18n";
+import { boardTitle } from "../model/boards";
 import { versionAtLeast } from "../model/layout";
 import { glyph } from "../model/topbar";
 import {
@@ -59,10 +60,11 @@ function choose(screen: Screen) {
   select(screen.id);
 }
 // The icon: a panel with tiles on it, a phone for a screen standing up, a monitor for a board this app does not know.
-const BOARD_NAMES: Record<string, string> = { cyd: "board_cyd", guition: "board_guition", waveshare43: "board_waveshare43", jc8012p4a1: "board_jc8012p4a1", waveshare7: "board_waveshare7", waveshare4b: "board_waveshare4b" };
+// A board it knows carries its catalog entry in its shape (boards.json, app 0.2.129), which also names it.
 const standing = (screen: Screen) => Boolean(screen.shape && screen.shape.height > screen.shape.width);
-const boardIcon = (screen: Screen) => glyph(standing(screen) ? "F011C" : screen.board && BOARD_NAMES[screen.board] ? "F0ECE" : "F0A07");
-const boardName = (screen: Screen) => (screen.board && BOARD_NAMES[screen.board] ? t(`editor.installer.${BOARD_NAMES[screen.board]}`) : "");
+const known = (screen: Screen) => (screen.board && screen.shape?.catalog?.name ? screen.shape.catalog : null);
+const boardIcon = (screen: Screen) => glyph(standing(screen) ? "F011C" : known(screen) ? "F0ECE" : "F0A07");
+const boardName = (screen: Screen) => { const board = known(screen); return board ? boardTitle(board) : ""; };
 // What the update brings: the new language first, when the version changes as well, then the firmware's notes.
 const notes = (screen: Screen) => [...(screen.update?.language && !languageOnly(screen) ? [newLanguageText()] : []), ...whatsNew(screen)];
 function update(screen: Screen) {

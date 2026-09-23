@@ -1,12 +1,21 @@
 <script setup lang="ts">
 // Alerts: the cheatsheet for esphome.<node>_show_alert, built from the inventory.
 import { computed, reactive, ref } from "vue";
-import { t } from "../i18n";
+import { andList, t } from "../i18n";
 import { versionAtLeast } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { canAlert, copyText, firmwareVersion, go, sendTestAlert, state } from "../store";
 
 const alerts = computed(() => state.inventory.alerts);
+// The bytes a field holds on each look, with the boards that have it ("CYD 48 · Guition and Waveshare 64 bytes"): the
+// add-on names the boards from its catalog, so a new board shows up here without a word of this page changing.
+function limitText(field: string) {
+  const limits: Record<string, Record<string, number>> = alerts.value?.limits || {};
+  const boards: Record<string, string[]> = alerts.value?.limit_boards || {};
+  const parts = Object.entries(limits).filter(([look, values]) => values[field] && boards[look]?.length)
+    .map(([look, values]) => `${andList(boards[look])} ${values[field]}`);
+  return parts.length ? t("editor.alerts.fields.bytes", { limits: parts.join(" · ") }) : "";
+}
 // Try it: the same seven fields an automation sends, to one screen or to all of them. The example is the doorbell, in
 // the editor's language; the YAML examples below stay as code.
 const tryForm = reactive({
@@ -224,7 +233,7 @@ const sections = ["alerts-try", "alerts-screens", "alerts-howto", "alerts-all", 
               <td>{{ typeName(field.type) }}</td>
               <td>{{ field.help }}</td>
               <td><code>{{ typeof field.example === "string" ? field.example : String(field.example) }}</code></td>
-              <td>{{ alerts.limits.cyd[field.name] ? t("editor.alerts.fields.bytes", { cyd: alerts.limits.cyd[field.name], guition: alerts.limits.guition[field.name] }) : field.type === "int" ? t("editor.alerts.fields.seconds") : "—" }}</td>
+              <td>{{ limitText(field.name) || (field.type === "int" ? t("editor.alerts.fields.seconds") : "—") }}</td>
             </tr>
             <tr v-if="alerts.camera">
               <td><code>{{ alerts.camera.name }}</code><small>{{ alerts.camera.label }}</small></td>

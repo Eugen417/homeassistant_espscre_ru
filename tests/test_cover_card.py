@@ -23,7 +23,7 @@ from core import ATTRS, cover_related, discover_screens, extras, state_message  
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
-PROFILES = {name: profiles.text(name) for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml')}
+PROFILES = {name: profiles.text(name) for name in ('checkout/guition.yaml', 'checkout/cyd.yaml', 'packages/guition.yaml', 'packages/cyd.yaml')}
 BLIND = 'cover.venetianblind_0001'
 
 

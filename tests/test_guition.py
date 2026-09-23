@@ -8,8 +8,8 @@ sys.path.insert(0, str(ROOT / 'tools'))
 import profiles  # noqa: E402
 sys.path.insert(0,str(ROOT/'tools'))
 import verify_gt911
-SOURCE=profiles.resolved('guition-4848s040.yaml')
-VALUES=profiles.substitutions('guition-4848s040.yaml')
+SOURCE=profiles.resolved('checkout/guition.yaml')
+VALUES=profiles.substitutions('checkout/guition.yaml')
 
 class GuitionTests(unittest.TestCase):
     def test_hardware_is_s3_rgb_with_capacitive_touch(self):

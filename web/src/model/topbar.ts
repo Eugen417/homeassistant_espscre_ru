@@ -50,18 +50,20 @@ export function agoText(then: number, now = Math.floor(Date.now() / 1000), local
 // `inset` is the margin the board keeps from the edge of the glass: the bar starts there, and the home key keeps
 // the same distance to the page title (firmware 0.2.100+).
 export type BarMetrics = { width: number; top: number; name: number; text: number; icon: number; inset: number };
-// The bar of the two looks in the pixels of their reference boards (HEADER_INSET, HEADER_Y and the fonts of the
-// board files): the standard look is the Guition's at 170 dpi, the compact look the CYD's at 143 dpi.
-export const BAR_METRICS: Record<string, BarMetrics> = {
-  guition: { width: 448, top: 36, name: 27, text: 21, icon: 26, inset: 16 },
-  cyd: { width: 298, top: 24, name: 18, text: 14, icon: 18, inset: 11 },
+// The bar of each look at the look's own density, across the canvas it was drawn on (480 and 320 wide): the fonts of
+// the page title, the values and the icons (FONT_HEADLINE_SIZE, FONT_SUBLABEL_BIG_SIZE, FONT_ICON_MINI_SIZE) and the
+// margin from the glass (HEADER_INSET) of packages/looks/, which tests/test_header_bar.py keeps equal. `top` is where
+// the mockup puts the page title's baseline.
+export type Look = "standard" | "compact";
+export const LOOK_BARS: Record<Look, BarMetrics & { dpi: number }> = {
+  standard: { width: 448, top: 36, name: 27, text: 21, icon: 26, inset: 16, dpi: 170 },
+  compact: { width: 298, top: 24, name: 18, text: 14, icon: 18, inset: 11, dpi: 143 },
 };
-const LOOK_BAR = { standard: { ...BAR_METRICS.guition, inset: 16, dpi: 170 }, compact: { ...BAR_METRICS.cyd, inset: 11, dpi: 143 } };
 export type ShapeLike = { width: number; look?: string; dpi?: number };
 // The bar for a screen of this shape: the look's sizes scaled to the screen's density, the way the firmware scales
 // every size (ui::px), across the screen's own width. The two first boards come out exactly as they are.
 export function barMetricsFor(shape: ShapeLike): BarMetrics {
-  const base = LOOK_BAR[shape.look === "compact" || (!shape.look && shape.width < 400) ? "compact" : "standard"];
+  const base = LOOK_BARS[shape.look === "compact" || (!shape.look && shape.width < 400) ? "compact" : "standard"];
   const f = (shape.dpi && shape.dpi > 0 ? shape.dpi : base.dpi) / base.dpi;
   const px = (n: number) => Math.round(n * f);
   return { width: shape.width - 2 * px(base.inset), top: px(base.top), name: px(base.name), text: px(base.text),

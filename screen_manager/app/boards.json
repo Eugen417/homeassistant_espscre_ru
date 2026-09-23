@@ -1,11 +1,26 @@
 {
- "cyd": {
+ "checkout/cyd.yaml": {
   "alert": {
    "line": 16,
    "title_line": 21
   },
   "board": "cyd",
   "can_standby": true,
+  "catalog": {
+   "calibrate": true,
+   "choices": {
+    "DISPLAY_MODEL": [
+     "ILI9341",
+     "ST7789V"
+    ]
+   },
+   "inch": 2.8,
+   "model": "ESP32-2432S028",
+   "name": "CYD",
+   "order": 0,
+   "status": "stable",
+   "touch": "XPT2046"
+  },
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
@@ -30,7 +45,7 @@
   "rows": 3,
   "width": 320
  },
- "guition": {
+ "checkout/guition.yaml": {
   "alert": {
    "line": 25,
    "title_line": 32
@@ -47,6 +62,16 @@
    ]
   },
   "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-S3-4848S040",
+   "name": "Guition",
+   "order": 1,
+   "status": "stable",
+   "touch": "GT911"
+  },
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
@@ -91,68 +116,7 @@
   "rows": 3,
   "width": 480
  },
- "guition-4848s040.yaml": {
-  "alert": {
-   "line": 25,
-   "title_line": 32
-  },
-  "board": "guition",
-  "camera": {
-   "full": [
-    480,
-    480
-   ],
-   "thumb": [
-    392,
-    220
-   ]
-  },
-  "can_standby": true,
-  "columns": 2,
-  "dimmable": true,
-  "dpi": 170,
-  "height": 480,
-  "look": "standard",
-  "orientations": {
-   "landscape": {
-    "camera": {
-     "full": [
-      480,
-      480
-     ],
-     "thumb": [
-      392,
-      220
-     ]
-    },
-    "columns": 2,
-    "height": 480,
-    "rotation": 0,
-    "rows": 3,
-    "width": 480
-   },
-   "portrait": {
-    "camera": {
-     "full": [
-      480,
-      480
-     ],
-     "thumb": [
-      392,
-      220
-     ]
-    },
-    "columns": 2,
-    "height": 480,
-    "rotation": 0,
-    "rows": 3,
-    "width": 480
-   }
-  },
-  "rows": 3,
-  "width": 480
- },
- "guition-jc8012p4a1.yaml": {
+ "checkout/jc8012p4a1.yaml": {
   "alert": {
    "line": 21,
    "title_line": 28
@@ -169,6 +133,16 @@
    ]
   },
   "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 10.1,
+   "model": "JC8012P4A1",
+   "name": "Guition",
+   "order": 3,
+   "status": "new",
+   "touch": "GSL3670"
+  },
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
@@ -213,13 +187,241 @@
   "rows": 4,
   "width": 1280
  },
- "home-like-2432s028.yaml": {
+ "checkout/waveshare43.yaml": {
+  "alert": {
+   "line": 32,
+   "title_line": 40
+  },
+  "board": "waveshare43",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    349,
+    196
+   ]
+  },
+  "can_standby": false,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.3,
+   "model": "ESP32-S3-Touch-LCD-4.3",
+   "name": "Waveshare",
+   "order": 2,
+   "status": "stable",
+   "touch": "GT911"
+  },
+  "columns": 3,
+  "dimmable": false,
+  "dpi": 217,
+  "height": 480,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      800,
+      480
+     ],
+     "thumb": [
+      349,
+      196
+     ]
+    },
+    "columns": 3,
+    "height": 480,
+    "rotation": 0,
+    "rows": 3,
+    "width": 800
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      480,
+      800
+     ],
+     "thumb": [
+      386,
+      217
+     ]
+    },
+    "columns": 1,
+    "height": 800,
+    "rotation": 90,
+    "rows": 4,
+    "width": 480
+   }
+  },
+  "rows": 3,
+  "width": 800
+ },
+ "checkout/waveshare4b.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "waveshare4b",
+  "camera": {
+   "full": [
+    480,
+    480
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-S3-Touch-LCD-4B",
+   "name": "Waveshare",
+   "order": 5,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 480,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      480,
+      480
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 480,
+    "rotation": 0,
+    "rows": 3,
+    "width": 480
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      480,
+      480
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 480,
+    "rotation": 0,
+    "rows": 3,
+    "width": 480
+   }
+  },
+  "rows": 3,
+  "width": 480
+ },
+ "checkout/waveshare7.yaml": {
+  "alert": {
+   "line": 19,
+   "title_line": 25
+  },
+  "board": "waveshare7",
+  "camera": {
+   "full": [
+    800,
+    480
+   ],
+   "thumb": [
+    304,
+    171
+   ]
+  },
+  "can_standby": false,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "ESP32-S3-Touch-LCD-7",
+   "name": "Waveshare",
+   "order": 4,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 4,
+  "dimmable": false,
+  "dpi": 133,
+  "height": 480,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      800,
+      480
+     ],
+     "thumb": [
+      304,
+      171
+     ]
+    },
+    "columns": 4,
+    "height": 480,
+    "rotation": 0,
+    "rows": 4,
+    "width": 800
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      480,
+      800
+     ],
+     "thumb": [
+      304,
+      171
+     ]
+    },
+    "columns": 2,
+    "height": 800,
+    "rotation": 90,
+    "rows": 7,
+    "width": 480
+   }
+  },
+  "rows": 4,
+  "width": 800
+ },
+ "cyd": {
   "alert": {
    "line": 16,
    "title_line": 21
   },
   "board": "cyd",
   "can_standby": true,
+  "catalog": {
+   "calibrate": true,
+   "choices": {
+    "DISPLAY_MODEL": [
+     "ILI9341",
+     "ST7789V"
+    ]
+   },
+   "inch": 2.8,
+   "model": "ESP32-2432S028",
+   "name": "CYD",
+   "order": 0,
+   "status": "stable",
+   "touch": "XPT2046"
+  },
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
@@ -244,6 +446,77 @@
   "rows": 3,
   "width": 320
  },
+ "guition": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "guition",
+  "camera": {
+   "full": [
+    480,
+    480
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-S3-4848S040",
+   "name": "Guition",
+   "order": 1,
+   "status": "stable",
+   "touch": "GT911"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 480,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      480,
+      480
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 480,
+    "rotation": 0,
+    "rows": 3,
+    "width": 480
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      480,
+      480
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 480,
+    "rotation": 0,
+    "rows": 3,
+    "width": 480
+   }
+  },
+  "rows": 3,
+  "width": 480
+ },
  "jc8012p4a1": {
   "alert": {
    "line": 21,
@@ -261,6 +534,16 @@
    ]
   },
   "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 10.1,
+   "model": "JC8012P4A1",
+   "name": "Guition",
+   "order": 3,
+   "status": "new",
+   "touch": "GSL3670"
+  },
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
@@ -312,6 +595,21 @@
   },
   "board": "cyd",
   "can_standby": true,
+  "catalog": {
+   "calibrate": true,
+   "choices": {
+    "DISPLAY_MODEL": [
+     "ILI9341",
+     "ST7789V"
+    ]
+   },
+   "inch": 2.8,
+   "model": "ESP32-2432S028",
+   "name": "CYD",
+   "order": 0,
+   "status": "stable",
+   "touch": "XPT2046"
+  },
   "columns": 2,
   "dimmable": true,
   "dpi": 143,
@@ -353,6 +651,16 @@
    ]
   },
   "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-S3-4848S040",
+   "name": "Guition",
+   "order": 1,
+   "status": "stable",
+   "touch": "GT911"
+  },
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
@@ -414,6 +722,16 @@
    ]
   },
   "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 10.1,
+   "model": "JC8012P4A1",
+   "name": "Guition",
+   "order": 3,
+   "status": "new",
+   "touch": "GSL3670"
+  },
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
@@ -475,6 +793,16 @@
    ]
   },
   "can_standby": false,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.3,
+   "model": "ESP32-S3-Touch-LCD-4.3",
+   "name": "Waveshare",
+   "order": 2,
+   "status": "stable",
+   "touch": "GT911"
+  },
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
@@ -536,6 +864,16 @@
    ]
   },
   "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-S3-Touch-LCD-4B",
+   "name": "Waveshare",
+   "order": 5,
+   "status": "experimental",
+   "touch": "GT911"
+  },
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
@@ -597,189 +935,16 @@
    ]
   },
   "can_standby": false,
-  "columns": 4,
-  "dimmable": false,
-  "dpi": 133,
-  "height": 480,
-  "look": "standard",
-  "orientations": {
-   "landscape": {
-    "camera": {
-     "full": [
-      800,
-      480
-     ],
-     "thumb": [
-      304,
-      171
-     ]
-    },
-    "columns": 4,
-    "height": 480,
-    "rotation": 0,
-    "rows": 4,
-    "width": 800
-   },
-   "portrait": {
-    "camera": {
-     "full": [
-      480,
-      800
-     ],
-     "thumb": [
-      304,
-      171
-     ]
-    },
-    "columns": 2,
-    "height": 800,
-    "rotation": 90,
-    "rows": 7,
-    "width": 480
-   }
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "ESP32-S3-Touch-LCD-7",
+   "name": "Waveshare",
+   "order": 4,
+   "status": "experimental",
+   "touch": "GT911"
   },
-  "rows": 4,
-  "width": 800
- },
- "waveshare-esp32s3-43.yaml": {
-  "alert": {
-   "line": 32,
-   "title_line": 40
-  },
-  "board": "waveshare43",
-  "camera": {
-   "full": [
-    800,
-    480
-   ],
-   "thumb": [
-    349,
-    196
-   ]
-  },
-  "can_standby": false,
-  "columns": 3,
-  "dimmable": false,
-  "dpi": 217,
-  "height": 480,
-  "look": "standard",
-  "orientations": {
-   "landscape": {
-    "camera": {
-     "full": [
-      800,
-      480
-     ],
-     "thumb": [
-      349,
-      196
-     ]
-    },
-    "columns": 3,
-    "height": 480,
-    "rotation": 0,
-    "rows": 3,
-    "width": 800
-   },
-   "portrait": {
-    "camera": {
-     "full": [
-      480,
-      800
-     ],
-     "thumb": [
-      386,
-      217
-     ]
-    },
-    "columns": 1,
-    "height": 800,
-    "rotation": 90,
-    "rows": 4,
-    "width": 480
-   }
-  },
-  "rows": 3,
-  "width": 800
- },
- "waveshare-esp32s3-4b.yaml": {
-  "alert": {
-   "line": 25,
-   "title_line": 32
-  },
-  "board": "waveshare4b",
-  "camera": {
-   "full": [
-    480,
-    480
-   ],
-   "thumb": [
-    392,
-    220
-   ]
-  },
-  "can_standby": true,
-  "columns": 2,
-  "dimmable": true,
-  "dpi": 170,
-  "height": 480,
-  "look": "standard",
-  "orientations": {
-   "landscape": {
-    "camera": {
-     "full": [
-      480,
-      480
-     ],
-     "thumb": [
-      392,
-      220
-     ]
-    },
-    "columns": 2,
-    "height": 480,
-    "rotation": 0,
-    "rows": 3,
-    "width": 480
-   },
-   "portrait": {
-    "camera": {
-     "full": [
-      480,
-      480
-     ],
-     "thumb": [
-      392,
-      220
-     ]
-    },
-    "columns": 2,
-    "height": 480,
-    "rotation": 0,
-    "rows": 3,
-    "width": 480
-   }
-  },
-  "rows": 3,
-  "width": 480
- },
- "waveshare-esp32s3-7.yaml": {
-  "alert": {
-   "line": 19,
-   "title_line": 25
-  },
-  "board": "waveshare7",
-  "camera": {
-   "full": [
-    800,
-    480
-   ],
-   "thumb": [
-    304,
-    171
-   ]
-  },
-  "can_standby": false,
   "columns": 4,
   "dimmable": false,
   "dpi": 133,
@@ -841,6 +1006,16 @@
    ]
   },
   "can_standby": false,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.3,
+   "model": "ESP32-S3-Touch-LCD-4.3",
+   "name": "Waveshare",
+   "order": 2,
+   "status": "stable",
+   "touch": "GT911"
+  },
   "columns": 3,
   "dimmable": false,
   "dpi": 217,
@@ -902,6 +1077,16 @@
    ]
   },
   "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-S3-Touch-LCD-4B",
+   "name": "Waveshare",
+   "order": 5,
+   "status": "experimental",
+   "touch": "GT911"
+  },
   "columns": 2,
   "dimmable": true,
   "dpi": 170,
@@ -963,6 +1148,16 @@
    ]
   },
   "can_standby": false,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "ESP32-S3-Touch-LCD-7",
+   "name": "Waveshare",
+   "order": 4,
+   "status": "experimental",
+   "touch": "GT911"
+  },
   "columns": 4,
   "dimmable": false,
   "dpi": 133,

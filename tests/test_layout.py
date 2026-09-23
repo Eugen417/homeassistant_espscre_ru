@@ -7,7 +7,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 import profiles  # noqa: E402
-SOURCE = profiles.resolved('home-like-2432s028.yaml')
+SOURCE = profiles.resolved('checkout/cyd.yaml')
 VALUES = dict(re.findall(r'^  (\w+): "([^"]*)"', SOURCE, re.M))
 
 class LayoutTests(unittest.TestCase):

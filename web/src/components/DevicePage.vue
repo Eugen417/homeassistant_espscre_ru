@@ -52,7 +52,7 @@ async function onKey(e: KeyboardEvent) {
           :aria-label="t('editor.page.remove_aria', { page: page + 1 })" @click="removePage(page)">{{ t("editor.page.remove") }}</button>
       </span>
     </div>
-    <div class="device" :class="{ cyd: isCompact }">
+    <div class="device" :class="{ compact: isCompact }">
       <div class="bar-wrap" :class="{ selected: barSelected }" :title="t('editor.page.edit_bar')" role="button" tabindex="0"
         @click="openBar(0, page)" @keydown.enter.prevent="openBar(0, page)">
         <TopbarSvg :name-text="pageTitleShown(page)" :home="homeKeyShown()" />

@@ -23,7 +23,7 @@ HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:
     from server import HomeAssistant, Manager
 
-PROFILE = profiles.text('guition-4848s040.yaml')
+PROFILE = profiles.text('checkout/guition.yaml')
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 
 
@@ -116,7 +116,7 @@ class Rules(unittest.TestCase):
     def test_the_boxes_are_the_profile_sizes(self):
         # The Guition's: its canvas, and the frame its alert card makes for a picture (screen_alert::layout), which
         # is the one the standard look was drawn with.
-        subs = profiles.substitutions('guition-4848s040.yaml')
+        subs = profiles.substitutions('checkout/guition.yaml')
         self.assertEqual(camera_feed.BOXES['guition'], {'full': (int(subs['CAMERA_FULL_W']), int(subs['CAMERA_FULL_H'])),
                                                         'thumb': (392, 220)})
 
@@ -137,7 +137,7 @@ class Rules(unittest.TestCase):
             self.assertIn(needle, PROFILE, needle)
         # A busy camera port leaves the rest of the app running.
         self.assertIn("except OSError as error:\n            # Everything else still works; only camera images stay away.", (ROOT / 'screen_manager/app/server.py').read_text())
-        cyd = profiles.text('home-like-2432s028.yaml')
+        cyd = profiles.text('checkout/cyd.yaml')
         self.assertNotIn('online_image', cyd)
         self.assertNotIn('camera_full.load', cyd)
         # The add-on's port is published, and the Docker route passes it on with the host network.

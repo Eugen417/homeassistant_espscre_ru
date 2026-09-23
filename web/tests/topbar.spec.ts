@@ -1,6 +1,6 @@
 // The top bar rules: the same wording and arithmetic as header_bar.h in the firmware.
 import { describe, expect, it } from "vitest";
-import { agoText, BAR_METRICS, barGaps, barLayout, clockText, dateText, dotted, itemKey } from "../src/model/topbar";
+import { agoText, LOOK_BARS, barGaps, barLayout, clockText, dateText, dotted, itemKey } from "../src/model/topbar";
 import type { HeaderItem } from "../src/types";
 
 describe("words for the time since a change", () => {
@@ -49,7 +49,7 @@ describe("the bar's geometry", () => {
   it("drops items from the left when the name needs its room", () => {
     const items: HeaderItem[] = Array.from({ length: 6 }, (_, i) => ({ type: "entity", entity: `sensor.s${i}` }));
     const view = () => ({ icon: "F050F", text: "1234.5 °C", shown: true });
-    const lay = barLayout(items, BAR_METRICS.cyd, "Living room", view);
+    const lay = barLayout(items, LOOK_BARS.compact, "Living room", view);
     expect(lay.parts).toHaveLength(6);
     expect(lay.placed.length).toBeLessThan(6);
     expect(lay.dropped.size).toBe(6 - lay.placed.length);
@@ -61,7 +61,7 @@ describe("the bar's geometry", () => {
   it("keeps a hidden item out of the bar and gives the dial its own width", () => {
     const items: HeaderItem[] = [{ type: "entity", entity: "binary_sensor.door" }, { type: "analog" }];
     const view = (item: HeaderItem) => (item.type === "analog" ? { analog: true, shown: true } : { icon: "F050F", text: "Open", shown: false });
-    const lay = barLayout(items, BAR_METRICS.guition, "Home", view);
+    const lay = barLayout(items, LOOK_BARS.standard, "Home", view);
     expect(lay.placed.map((p) => p.index)).toEqual([1]);
     expect(lay.placed[0].dial).toBeGreaterThan(0);
   });

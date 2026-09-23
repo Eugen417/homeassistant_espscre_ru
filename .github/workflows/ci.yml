@@ -81,10 +81,72 @@ jobs:
             ~/.cache/esphome
             ~/.platformio
             .esphome/check
-          key: firmware-${{ runner.os }}-esphome-${{ steps.esphome.outputs.version }}-${{ hashFiles('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/**', 'components/**') }}
+          key: firmware-${{ runner.os }}-esphome-${{ steps.esphome.outputs.version }}-${{ hashFiles('checkout/cyd.yaml', 'checkout/guition.yaml', 'packages/**', 'components/**') }}
           restore-keys: |
             firmware-${{ runner.os }}-esphome-${{ steps.esphome.outputs.version }}-
       - name: tools/check.sh --firmware
         run: bash tools/check.sh --firmware
         env:
           PYTHON: python
+
+  # Every board of the catalog built as a host program (tools/render/run.py), lying down and standing up: its own self
+  # test has to pass (every page's cards and bar, and the geometry check that nothing falls outside its area), which
+  # is how a board nobody here owns gets checked on every change. What each draws is compared with the commit before
+  # (a push) or the branch it goes into (a pull request); the renders, a contact sheet and the differences are the
+  # run's artifact, for a person to look at. A difference does not fail the run: a change to the screens makes one.
+  render:
+    name: render
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: SDL2 and ccache
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-dev ccache
+      - name: ESPHome
+        run: |
+          version=$(sed -n 's|^FROM ghcr.io/esphome/esphome:||p' screen_manager/Dockerfile)
+          python -m pip install "esphome==$version" 'aiohttp>=3.12,<4' PyYAML Pillow jinja2
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/esphome
+            ~/.platformio
+            .esphome/render/build/.esphome
+          key: render-${{ runner.os }}-${{ hashFiles('screen_manager/Dockerfile') }}-${{ hashFiles('packages/**', 'components/**') }}
+          restore-keys: |
+            render-${{ runner.os }}-${{ hashFiles('screen_manager/Dockerfile') }}-
+      - name: tools/check.sh --render
+        run: bash tools/check.sh --render
+        env:
+          PYTHON: python
+          RENDER_PYTHON: python
+      - name: Renders of the commit this is compared with
+        id: base
+        if: always()
+        continue-on-error: true
+        run: |
+          base=${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          git worktree add --detach "$RUNNER_TEMP/base" "$base"
+          ESPHOME=esphome python tools/render/run.py --tree "$RUNNER_TEMP/base" --out .esphome/render/base \
+            --work .esphome/render/build-base
+      - name: What changed on the screens
+        if: always()
+        continue-on-error: true
+        run: |
+          boards=$(cd .esphome/render/out && ls -d */ | tr -d / | paste -sd, -)
+          python tools/compare_renders.py .esphome/render/base .esphome/render/out --boards "$boards" --out .esphome/render/diffs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: renders
+          path: |
+            .esphome/render/out
+            .esphome/render/base
+            .esphome/render/diffs
+          if-no-files-found: ignore

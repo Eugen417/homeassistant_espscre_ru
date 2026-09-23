@@ -10,7 +10,7 @@
 #
 # A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
 # features it has; docs/PROFILES.md says how the files of a screen fit together. Two entry files include this one:
-# waveshare-esp32s3-4b.yaml (a build on this computer) and packages/waveshare4b.yaml (the package a screen builds
+# checkout/waveshare4b.yaml (a build on this computer) and packages/waveshare4b.yaml (the package a screen builds
 # from over GitHub).
 packages:
   # The chip and its memory for an RGB panel, as on the other Waveshare boards.

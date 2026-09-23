@@ -10,7 +10,7 @@
 #include "settings_screen.h"
 #include "esphome/core/preferences.h"
 #include "climate_card.h"
-#include "cyd_ui.h"
+#include "screen_input.h"
 #include "light_controls.h"
 #include "effects_page.h"
 #include "tile_controls.h"
@@ -326,8 +326,8 @@ inline bool fresh() { return model.ready() && ha_connected() && feed_alive(); }
 // A dropped tap is logged with its reason, so a missed touch can be read from the ESPHome log
 // instead of guessed: moved too far, too short, already used by this contact, or bounce.
 inline bool allowed(uint32_t now, int tile, const std::string &what) {
-  if (cyd::touch_guard.accept(now, tile)) return true;
-  ESP_LOGI("touch", "tap on %s ignored: %s", what.c_str(), cyd::touch_guard.reason().c_str());
+  if (screen_input::touch_guard.accept(now, tile)) return true;
+  ESP_LOGI("touch", "tap on %s ignored: %s", what.c_str(), screen_input::touch_guard.reason().c_str());
   return false;
 }
 inline float number(JsonVariant value, float fallback = NAN) {
@@ -1102,11 +1102,11 @@ inline void slider_event(lv_event_t *e){
     if(auto *card=strip_card(slider)){slider_press_held=true;lv_obj_send_event(card,LV_EVENT_LONG_PRESSED,nullptr);}}
   if((code==LV_EVENT_RELEASED || code==LV_EVENT_PRESS_LOST) && slider_press_beside)if(auto *card=strip_card(slider))lv_obj_remove_state(card,LV_STATE_PRESSED);
   // On release LVGL sets the value once more from the last touch point: log it when that throws a
-  // dragged slider to one of its ends, so a stray touch sample shows up (cyd::release_jump).
+  // dragged slider to one of its ends, so a stray touch sample shows up (screen_input::release_jump).
   if(code==LV_EVENT_VALUE_CHANGED && captured_slider==slider){
     auto *indev=lv_indev_active();int raw=lv_slider_get_value(slider);
     if(!indev || lv_indev_get_state(indev)!=LV_INDEV_STATE_RELEASED)slider_held=raw;
-    else if(slider_changed && cyd::release_jump(slider_held,raw,lv_slider_get_min_value(slider),lv_slider_get_max_value(slider))){
+    else if(slider_changed && screen_input::release_jump(slider_held,raw,lv_slider_get_min_value(slider),lv_slider_get_max_value(slider))){
       lv_point_t point;lv_indev_get_point(indev,&point);
       ESP_LOGW("slider","Tile slider jumped on release: %d -> %d (touch x=%d y=%d)",slider_held,raw,(int)point.x,(int)point.y);
     }
@@ -1129,16 +1129,16 @@ inline void slider_event(lv_event_t *e){
         if(!slider_press_held)lv_obj_send_event(card,LV_EVENT_SHORT_CLICKED,nullptr);
         return;}
     }
-    // A finger let go within the edge band of the glass meant the slider's end (cyd::edge_snap).
+    // A finger let go within the edge band of the glass meant the slider's end (screen_input::edge_snap).
     if(auto *indev=lv_indev_active();indev && lv_obj_get_width(slider)>=lv_obj_get_height(slider)){
       lv_point_t p;lv_indev_get_point(indev,&p);lv_area_t a;lv_obj_get_coords(slider,&a);
       int screen=lv_display_get_horizontal_resolution(lv_obj_get_display(slider));
-      int snap=cyd::edge_snap(p.x,a.x1,a.x2,screen,cyd::edge_snap_band);
+      int snap=screen_input::edge_snap(p.x,a.x1,a.x2,screen,screen_input::edge_snap_band);
       if(snap){int end=snap>0?(int)lv_slider_get_max_value(slider):std::max(0,(int)lv_slider_get_min_value(slider));
         ESP_LOGI("slider","Let go %d px from the %s edge: slider %d -> %d",snap>0?screen-1-(int)p.x:(int)p.x,snap>0?"right":"left",(int)lv_slider_get_value(slider),end);
         lv_slider_set_value(slider,end,LV_ANIM_OFF);changed=true;}
     }
-    if(changed && cyd::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
+    if(changed && screen_input::touch_guard.accept_slider(esphome::millis(),200+index))commit_slider(index,lv_slider_get_value(slider));
   }
 }
 inline void show_detail(unsigned index);
@@ -1173,7 +1173,7 @@ inline void detail_command(int cmd){
   if(cmd==CLIMATE_DOWN||cmd==CLIMATE_UP){
     if(!fresh()||detail_index>=model.count)return;
     auto &tile=model.tiles[detail_index];
-    if(!tile.available()||!cyd::touch_guard.accept_repeat(esphome::millis(),300+cmd))return;
+    if(!tile.available()||!screen_input::touch_guard.accept_repeat(esphome::millis(),300+cmd))return;
     climate_step(tile,cmd==CLIMATE_UP?1:-1);
     return;
   }
@@ -1724,7 +1724,7 @@ inline void cover_slider_event(lv_event_t *e){
   }
   if(code!=LV_EVENT_RELEASED||detail_index>=model.count)return;
   auto &t=model.tiles[detail_index];
-  if(!fresh()||!t.available()||!cyd::touch_guard.accept_slider(esphome::millis(),390+(tilt?1:0)))return;
+  if(!fresh()||!t.available()||!screen_input::touch_guard.accept_slider(esphome::millis(),390+(tilt?1:0)))return;
   int percent=(int)std::lround(std::clamp<int>(lv_slider_get_value(slider),0,1000)/10.0f);
   if(tilt)action("cover.set_cover_tilt_position",t.entity,"tilt_position",std::to_string(percent));
   else action("cover.set_cover_position",t.entity,"position",std::to_string(100-percent));
@@ -1985,7 +1985,7 @@ inline void light_slider_event(lv_event_t *e) {
     return;
   }
   // The send is the tile slider's own: the 1 % floor, the value held while the light fades, the touch guard.
-  if(code==LV_EVENT_RELEASED&&cyd::touch_guard.accept_slider(esphome::millis(),380))commit_slider(detail_index,lv_slider_get_value(slider));
+  if(code==LV_EVENT_RELEASED&&screen_input::touch_guard.accept_slider(esphome::millis(),380))commit_slider(detail_index,lv_slider_get_value(slider));
 }
 // The standing slider of the card, drawn like the blind's: one radius on the track and the fill (a fill rounded
 // less than its track costs a layer of tens of kilobytes on every redraw), a handle bar inside the fill.
@@ -2538,7 +2538,7 @@ inline void render_history_detail(const Tile &t,bool large,int width,int height,
       if(detail_index>=model.count)return;
       auto &tile=model.tiles[detail_index];auto *control=lv_event_get_target_obj(e);
       bool allowed=fresh() && tile.available() && !tile.waiting(esphome::millis()) &&
-        cyd::touch_guard.accept(esphome::millis(),350);
+        screen_input::touch_guard.accept(esphome::millis(),350);
       bool requested_on=lv_obj_has_state(control,LV_STATE_CHECKED);
       // Only HA's reported state is authoritative, including a refused/failed command.
       if(tile.state=="on")lv_obj_add_state(control,LV_STATE_CHECKED);else lv_obj_remove_state(control,LV_STATE_CHECKED);
@@ -2973,7 +2973,7 @@ inline void event(lv_event_t *event) {
   // so a firm press that drifts still counts) and asks where the finger let go instead. The lock itself stays: without
   // it a finger that slides on to a slider would press and drag that slider.
   lv_point_t point;
-  if (cyd::touch_guard.move_limit() <= 0 && finger_at(point) && !lv_obj_hit_test(w.tile, &point)) {
+  if (screen_input::touch_guard.move_limit() <= 0 && finger_at(point) && !lv_obj_hit_test(w.tile, &point)) {
     ESP_LOGI("touch", "tap on %s ignored: %s outside the tile", model.tiles[w.index].entity.c_str(),
              code == LV_EVENT_LONG_PRESSED ? "held" : "let go");
     return;
@@ -3520,7 +3520,11 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
   begin_extra(w,"sunpath",width,height);
   const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   int title_h=lv_font_get_line_height(title_font),text_h=lv_font_get_line_height(w.value_font);
-  int horizon=height-text_h-(ui::px(large?4:2)),top=title_h+(ui::px(large?4:2)),x0=ui::px(large?14:8),x1=width-x0;
+  // The sun's glow is the widest thing on the path: the path keeps half of it from either side of the card, so the sun at
+  // rise or set (and clamped there at night) stays inside it (firmware 0.2.104; the standard look's glow is 30 px against
+  // a 14 px margin, and stuck out a pixel).
+  const int size=ui::px(large?18:10),glow=size+(ui::px(large?12:6));
+  int horizon=height-text_h-(ui::px(large?4:2)),top=title_h+(ui::px(large?4:2)),x0=std::max(ui::px(large?14:8),(glow+1)/2),x1=width-x0;
   part_label(w,0,title_font,0,0,width,LV_TEXT_ALIGN_LEFT,t.name.empty()?std::string(tr(txt::sun_name)):t.name);
   part_label(w,1,w.value_font,0,horizon+(ui::px(large?3:1)),width/2,LV_TEXT_ALIGN_LEFT,fill(txt::sun_rise,"time",screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0,true)));
   part_label(w,2,w.value_font,width/2,horizon+(ui::px(large?3:1)),width/2,LV_TEXT_ALIGN_RIGHT,fill(txt::sun_set,"time",screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0,true)));
@@ -3547,7 +3551,6 @@ inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int hei
   lv_obj_set_style_line_color(part_line(w,3,line,2,2),lv_color_hex(path),0);
   lv_obj_set_style_line_color(part_line(w,4,arc,segments+1,ui::px(large?2:1)),lv_color_hex(path),0);
   lv_obj_set_style_line_color(part_line(w,5,travelled,filled+2,ui::px(large?4:3)),lv_color_hex(accent),0);
-  int size=ui::px(large?18:10),glow=size+(ui::px(large?12:6));
   auto *halo=part_dot(w,6,int(sun.x)-glow/2,int(sun.y)-glow/2,glow);lv_obj_set_style_bg_color(halo,lv_color_hex(disc),0);lv_obj_set_style_bg_opa(halo,LV_OPA_30,0);
   lv_obj_set_style_bg_color(part_dot(w,7,int(sun.x)-size/2,int(sun.y)-size/2,size),lv_color_hex(disc),0);
   if(day){w.fill_points=travelled;w.fill_count=filled+2;w.fill_x=0;w.fill_y=0;w.fill_base=horizon;w.fill_color=lv_color_hex(theme::ha::SUNNY);w.fill_opa=theme::fill_opacity();}
@@ -3763,7 +3766,7 @@ inline void control_event(lv_event_t *e) {
   bool step=command==tile_controls::STEP_DOWN || command==tile_controls::STEP_UP;
   bool held=lv_event_get_code(e)==LV_EVENT_LONG_PRESSED_REPEAT;
   if(held){ if(!step || now-t.edit_since<300)return; }  // three steps a second while holding
-  else if(step){ if(!cyd::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tap on control %u ignored: %s",(unsigned)slot,cyd::touch_guard.reason().c_str());return;} }
+  else if(step){ if(!screen_input::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tap on control %u ignored: %s",(unsigned)slot,screen_input::touch_guard.reason().c_str());return;} }
   else if(!allowed(now,400+slot*16+n,"control "+std::to_string(slot)))return;
   if(!t.available())return;
   if(step){
@@ -4486,7 +4489,7 @@ inline void draw_header(bool live) {
                                         : lv_obj_get_index(header_root) + 1);
     lv_obj_add_event_cb(header_home_tap, [](lv_event_t *) {
       // 14 is this key's place in the touch guard, beside the page bar's 11 and 12.
-      if (!cyd::touch_guard.accept(esphome::millis(), 14)) { ESP_LOGI("touch", "home key ignored: %s", cyd::touch_guard.reason().c_str()); return; }
+      if (!screen_input::touch_guard.accept(esphome::millis(), 14)) { ESP_LOGI("touch", "home key ignored: %s", screen_input::touch_guard.reason().c_str()); return; }
       ESP_LOGI("touch", "home key: back to page 1");
       if (back_home) back_home();
     }, LV_EVENT_CLICKED, nullptr);
@@ -4713,8 +4716,12 @@ inline bool check_tile_geometry() {
       // on a short cell may end its line in the padding (never past the border).
       lv_area_t card;lv_obj_get_coords(w.tile,&card);
       const bool big_value=w.index<model.count && model.tiles[w.index].display=="watch";
+      // On a cell too short to stack the icon, the name and a big value (render_slot's watch block), the number stands
+      // big in the middle and its digits' own top space, a fifth of its line, may overlap the name's line box.
+      const int top_space=big_value && lv_obj_has_flag(w.circle,LV_OBJ_FLAG_HIDDEN)?lv_obj_get_height(w.value)*19/100:0;
       fits=fits && title.x1>=content.x1 && title.x2<=content.x2 &&
-        value.x1>=content.x1 && value.x2<=content.x2 && (title.y2<value.y1 || title.x2<value.x1) && value.y2<=(big_value?card.y2-1:content.y2);
+        value.x1>=content.x1 && value.x2<=content.x2 && (title.y2-top_space<value.y1 || title.x2<value.x1) &&
+        value.y2<=(big_value?card.y2-1:content.y2);
       if(!lv_obj_has_flag(w.slider,LV_OBJ_FLAG_HIDDEN)){
         lv_obj_get_coords(w.slider,&track);
         fits=fits && value.y2<track.y1 && track.y2<=content.y2;
@@ -5773,10 +5780,10 @@ inline void screen_point(int &x, int &y) { if (to_screen) to_screen(x, y); }
 
 inline void pressed(int x, int y, int id, bool calibrating) {
   if (contact) contact(true);
-  cyd::touch_guard.begin(esphome::millis(), x, y, id);
+  screen_input::touch_guard.begin(esphome::millis(), x, y, id);
   int sx = x, sy = y;
   screen_point(sx, sy);
-  cyd::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height());
+  screen_input::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height());
   ESP_LOGI("touch", "press x=%d y=%d id=%d test=%d screen=%d,%d", x, y, id, calibrating ? 1 : 0, sx, sy);
 }
 
@@ -5784,18 +5791,18 @@ inline void pressed(int x, int y, int id, bool calibrating) {
 inline void moved(int x, int y, int id, int state) {
   if (contact) contact(true);
   // Trace every sample of an edge touch: the log then shows how often the panel delivers.
-  if (cyd::edge_swipe.armed()) ESP_LOGI("touch", "swipe id=%d st=%d x=%d y=%d", id, state, x, y);
-  // The stray (0, 0) contact (cyd::GhostTouch) is not where the finger went.
+  if (screen_input::edge_swipe.armed()) ESP_LOGI("touch", "swipe id=%d st=%d x=%d y=%d", id, state, x, y);
+  // The stray (0, 0) contact (screen_input::GhostTouch) is not where the finger went.
   if (x == 0 && y == 0) return;
-  cyd::touch_guard.update(x, y, id);
-  if (id != cyd::touch_guard.contact()) return;
+  screen_input::touch_guard.update(x, y, id);
+  if (id != screen_input::touch_guard.contact()) return;
   // Swiping in from a side edge flips the page ("Swiping between pages"); the tap under the finger is
   // consumed and LVGL waits for the release. LVGL 9.5 sends no PRESSING to the input device, hence the
   // touchscreen trigger.
   int sx = x, sy = y;
   screen_point(sx, sy);
-  const auto gesture = cyd::edge_swipe.update(sx, sy);
-  if (gesture == cyd::EdgeSwipe::Gesture::none) return;
+  const auto gesture = screen_input::edge_swipe.update(sx, sy);
+  if (gesture == screen_input::EdgeSwipe::Gesture::none) return;
   const char *blocked = !enabled                ? "no runtime tiles"
                       : !swipe_pages            ? "setting off"
                       : camera_visible()        ? "camera open"
@@ -5804,17 +5811,17 @@ inline void moved(int x, int y, int id, int state) {
                       : swipe_blocked           ? swipe_blocked()
                       : nullptr;
   if (blocked) { ESP_LOGI("touch", "edge swipe ignored: %s", blocked); return; }
-  cyd::touch_guard.consume();
+  screen_input::touch_guard.consume();
   for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
   // Up from the bottom edge is the way home (firmware 0.2.100+), in from a side edge is one page. Either way the
   // edge it came from lights up for a moment, so the gesture is answered before the new page is drawn.
-  if (gesture == cyd::EdgeSwipe::Gesture::home) {
+  if (gesture == screen_input::EdgeSwipe::Gesture::home) {
     ESP_LOGI("touch", "edge swipe up: back to page 1");
     swipe_glow(Edge::bottom);
     if (back_home) back_home();
     return;
   }
-  const int step = gesture == cyd::EdgeSwipe::Gesture::next ? 1 : -1;
+  const int step = gesture == screen_input::EdgeSwipe::Gesture::next ? 1 : -1;
   ESP_LOGI("touch", "edge swipe: %d page(s)", step);
   swipe_glow(step > 0 ? Edge::right : Edge::left);
   if (turn_page) turn_page(step);
@@ -5822,9 +5829,9 @@ inline void moved(int x, int y, int id, int state) {
 
 inline void released() {
   if (contact) contact(false);
-  if (cyd::edge_swipe.armed() && cyd::edge_swipe.inward() > 0)
-    ESP_LOGI("touch", "edge swipe not fired: %d px travelled, %d px across", cyd::edge_swipe.inward(), cyd::edge_swipe.sideways());
-  cyd::edge_swipe.end();
+  if (screen_input::edge_swipe.armed() && screen_input::edge_swipe.inward() > 0)
+    ESP_LOGI("touch", "edge swipe not fired: %d px travelled, %d px across", screen_input::edge_swipe.inward(), screen_input::edge_swipe.sideways());
+  screen_input::edge_swipe.end();
 }
 }  // namespace touch_input
 }  // namespace runtime_tiles

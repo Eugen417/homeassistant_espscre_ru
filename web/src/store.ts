@@ -97,8 +97,8 @@ export const pageTilesRepeat = computed(() => {
 });
 export const repeatable = (id: string) => pageTilesRepeat.value && pageTarget(id) > 0;
 // Whether the screen's board draws pictures (camera tiles, an album cover): the add-on says so per screen from the
-// board's own camera sizes (app 0.2.94); an add-on from before only had a Guition for that.
-export const pictures = computed(() => currentScreen.value?.pictures ?? currentScreen.value?.board === "guition");
+// board's own camera sizes (app 0.2.94), and this page always comes with that add-on.
+export const pictures = computed(() => Boolean(currentScreen.value?.pictures));
 // What the screen being edited looks like. The manager works it out (core.shape_of): what the screen reported
 // itself, else the board package its YAML builds from, else its board. The editor only draws it, and falls
 // back to the smallest screen there is while it has heard nothing at all.

@@ -41,8 +41,8 @@ class SkillText(unittest.TestCase):
             self.assertIn(needle, text)
         for name, kind, *_ in ALERT_FIELDS:
             self.assertRegex(text, rf'\| `{name}` \| ', name)
-        for field, limit in ALERT_LIMITS['guition'].items():
-            self.assertIn(f"CYD {ALERT_LIMITS['cyd'][field]} · Guition {limit} bytes", text)
+        for field, limit in ALERT_LIMITS['standard'].items():
+            self.assertIn(f"CYD {ALERT_LIMITS['compact'][field]} · Guition and Waveshare {limit} bytes", text)
         for name, item in TILE_BACKGROUNDS.items():
             if item['color']:
                 self.assertIn(f'`{name}`', text)

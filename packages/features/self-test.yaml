@@ -1,9 +1,14 @@
-# ESP Screens - the UI self test with a check of the layout's geometry, for a board with the room for it.
+# ESP Screens - the UI self test, with a check of the layout's geometry, on every board.
 #
 # `ui_self_test` renders every page and overlay a few times without controlling a device and logs PASS or FAIL
-# (diagnostics/run_ui_test.py). This one also checks that nothing falls outside its area (guition::check_geometry in
-# components/smart_display/guition_diagnostics.h). The CYD keeps a lighter self test of its own, without that check,
-# for its flash (packages/boards/cyd-2432s028.yaml).
+# (diagnostics/run_ui_test.py on a screen, tools/render/run.py on this computer). It also checks that nothing falls
+# outside its area (screen_diagnostics::check_geometry in components/smart_display/screen_diagnostics.h). The CYD had a
+# lighter copy without that check until app 0.2.129, for its flash; the check costs it some 400 bytes.
+esphome:
+  # The geometry check (screen_diagnostics::check_geometry) this test runs.
+  includes:
+    - <esphome/components/smart_display/screen_diagnostics.h>
+
 script:
   # Render every overlay and both pages repeatedly without controlling devices.
   - id: ui_self_test
@@ -32,7 +37,7 @@ script:
                 // Wide cards take two slots, so visibility follows the runtime packing.
                 const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
                 // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
-                bool ok = guition::check_geometry(id(home_page)->obj);
+                bool ok = screen_diagnostics::check_geometry(id(home_page)->obj);
                 for (auto &w : runtime_tiles::widgets) {
                   bool visible = w.index < runtime_tiles::model.count;
                   ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
@@ -52,7 +57,7 @@ script:
             - delay: 150ms
             - lvgl.widget.show: color_detail_overlay
             - delay: 150ms
-            - lambda: guition::check_geometry(id(color_detail_overlay));
+            - lambda: screen_diagnostics::check_geometry(id(color_detail_overlay));
             - lvgl.widget.hide: color_detail_overlay
             - lvgl.widget.show: alert_overlay
             - delay: 150ms

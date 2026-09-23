@@ -23,7 +23,7 @@ class IconSetTests(unittest.TestCase):
         for code in tile_icons.GLYPHS.values():
             self.assertRegex(code, r'^F[0-9A-F]{4}$')
         wanted = [f'\\U000{code}' for code in tile_icons.GLYPHS.values()]
-        for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
+        for name in ('checkout/cyd.yaml', 'checkout/guition.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
             text = profiles.resolved(name)
             fonts = re.findall(r'materialdesignicons-webfont\.ttf["\']\n    id: (\w+)\n    size: \d+\n    bpp: 4\n    glyphs: (.*)\n', text)
             # The home key's font carries the house and nothing else (firmware 0.2.100+), written out by hand in the
@@ -51,7 +51,7 @@ class IconSetTests(unittest.TestCase):
         self.assertEqual(len(entries), len(tile_icons.GLYPHS))
 
     def test_every_glyph_the_firmware_draws_is_in_the_set(self):
-        sources = [HEADER] + [profiles.text(name).split('glyphs: &tile_icons', 1)[0] for name in ('home-like-2432s028.yaml', 'guition-4848s040.yaml')]
+        sources = [HEADER] + [profiles.text(name).split('glyphs: &tile_icons', 1)[0] for name in ('checkout/cyd.yaml', 'checkout/guition.yaml')]
         used = {code.upper() for source in sources for code in re.findall(r'\\U000(F[0-9A-Fa-f]{4})', source)}
         self.assertLessEqual(used, set(tile_icons.GLYPHS.values()))
 

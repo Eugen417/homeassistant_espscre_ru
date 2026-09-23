@@ -11,7 +11,7 @@ import shutil
 import signal
 import time
 import yaml
-from core import ORIENTATIONS, REPO, SHAPES, installation_yaml
+from core import BOARD_KEYS, ORIENTATIONS, REPO, SHAPES, installation_yaml
 from i18n import t
 
 LOG = logging.getLogger('screen_manager')
@@ -57,14 +57,20 @@ def profile_meta(text):
             'screen': ours, 'api_key': key if isinstance(key, str) else None, 'package': package,
             'rotation': rotation}
 
-# What New screen may offer per board: the two ways its glass can hang, with the canvas and the cells of a page for
-# each (boards.json, written from the board files). The editor draws the choice from this, so the numbers beside
-# "Standing up" are the board's own and never a second copy in the page's code. A board whose glass is square has
-# the same entry twice and the editor leaves the choice out; the shapes of a board a screen is already built from
-# travel with that screen instead (core.shape_of).
-BOARD_CHOICES = {board: {'square': shape['width'] == shape['height'],
-                         'orientations': shape.get('orientations', {})}
-                 for board, shape in SHAPES.items() if '/' not in board and not board.endswith('.yaml')}
+# What New screen offers, board by board in the catalog's order (boards.yaml, written into boards.json with what each
+# board's files say): what it is called and printed on it, how far it has been tried, its glass (canvas, density,
+# the size in inches) and the two ways it can hang with the cells of a page for each, what it can do, and the choices
+# made when a screen of it is built. The editor draws the whole choice from this, so no board is written into the
+# page's code or its translations. A board whose glass is square has the same entry twice and the editor leaves the
+# orientation out; the shapes of a board a screen is already built from travel with that screen instead
+# (core.shape_of).
+def _board_choice(shape):
+    return {'square': shape['width'] == shape['height'], 'orientations': shape.get('orientations', {}),
+            'width': shape['width'], 'height': shape['height'], 'dpi': shape.get('dpi'),
+            'camera': bool(shape.get('camera')), 'dimmable': shape.get('dimmable', True),
+            'can_standby': shape.get('can_standby', True), **shape.get('catalog', {})}
+
+BOARD_CHOICES = {board: _board_choice(SHAPES[board]) for board in BOARD_KEYS}
 
 class Firmware:
     OVERRIDE_SUFFIX = '.local.yaml'
@@ -388,6 +394,13 @@ class Firmware:
     def save_override(self, name, content):
         profile, path = self._override_path(name)
         content = self._validate_override(content)
+        # A substitution the screen's own YAML sets wins over the override's, which is a package: a choice made under
+        # New screen (a CYD's display controller, app 0.2.129) would quietly beat the same line here. Said instead.
+        mine = (yaml.load(content, Loader=LenientLoader) or {}).get('substitutions')
+        own = (yaml.load(profile.read_text(), Loader=LenientLoader) or {}).get('substitutions')
+        clash = sorted(set(mine) & set(own)) if isinstance(mine, dict) and isinstance(own, dict) else []
+        if clash:
+            raise ValueError(t('addon.errors.firmware.substitutions_in_profile', names=', '.join(clash)))
         # The sidecar first: a profile must never include a file that isn't there.
         self._atomic_write(path, content)
         self._ensure_override_include(profile)

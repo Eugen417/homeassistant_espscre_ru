@@ -3,7 +3,7 @@
 // own entity rows. Pure logic only: which keys a card shows, what they send, how
 // a -/+ step lands on the entity's grid, and the status line beside them. The
 // LVGL drawing lives in runtime_tiles.h; tests/test_tile_controls.cpp covers this.
-#include "cyd_ui.h"
+#include "screen_input.h"
 #include "runtime_model.h"
 #include "screen_text.h"
 #include "theme.h"
@@ -230,7 +230,7 @@ inline std::string lower_case(std::string value) {
 inline std::vector<std::string> list_values(const std::string &json, unsigned limit) {
   std::vector<std::string> values;
   for (unsigned i = 0; i < limit; ++i) {
-    std::string item = cyd::list_item(json, i);
+    std::string item = screen_input::list_item(json, i);
     if (item.empty()) break;
     values.push_back(item);
   }

@@ -1,10 +1,10 @@
 #include "screen_text_en.h"
 #include "components/smart_display/runtime_model.h"
-#include "components/smart_display/cyd_ui.h"
+#include "components/smart_display/screen_input.h"
 #include <cassert>
 
 int main() {
-  cyd::TouchGuard guard;
+  screen_input::TouchGuard guard;
   guard.begin(0); guard.consume();
   assert(!guard.accept(100,1)); assert(!guard.accept_slider(100,1));
   guard.begin(200); assert(guard.accept(300,1));

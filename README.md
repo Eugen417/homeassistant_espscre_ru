@@ -159,7 +159,7 @@ home fits on one page.
 <p align="center">
   <img src="docs/images/editor-override-yaml.png" width="50%" alt="Override YAML for the living room screen: a small file of its own, loaded after the shared package, here with the example that changes the display controller">
 </p>
-<p align="center"><sub>Other hardware, such as a different display controller? Every screen has an Override YAML of its own, checked by ESPHome before a build and kept through every update.</sub></p>
+<p align="center"><sub>Other hardware on your board? A CYD with the other display controller is a choice in New screen, and for anything else every screen has an Override YAML of its own, checked by ESPHome before a build and kept through every update.</sub></p>
 
 ## In your language
 
@@ -271,7 +271,7 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 2. Install **ESP Screen Manager**, start the app, and open **ESP Screens**.
    ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
 3. Connect the screen with a USB data cable to the **Home Assistant machine**
-   and choose **New screen** in the sidebar: CYD or Guition, a name, the USB port, and
+   and choose **New screen** in the sidebar: your board, which way it hangs, a name, the USB port, and
    **Install**. If Wi-Fi is missing from the ESPHome `secrets.yaml`, the window
    asks for it once and ESP Screens only adds the missing lines. The profile
    with unique API and OTA keys goes into the ESPHome folder; the build

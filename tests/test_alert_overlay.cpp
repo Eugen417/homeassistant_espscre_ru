@@ -31,12 +31,15 @@ int main() {
   assert(make("  Hi \n", "", "", "", "", 0, false, 48, 160, 12).title == "Hi");
   assert(make("\xC3\xA9\xC3\xA9\xC3\xA9", "", "", "", "", 0, false, 3, 160, 12).title == "\xC3\xA9");
   assert(make("x", "line 1\nline 2", "", "", "", 0, false, 48, 160, 12).subtitle == "line 1\nline 2");
-  assert(make("x", std::string(300, 'a'), "", "", "", 0, false, 48, 160, 12).subtitle.size() == 160);
-  assert(make(std::string(100, 'b'), "", "", "", "", 0, false, 48, 160, 12).title.size() == 48);
+  assert(make("x", std::string(300, 'a'), "", "", "", 0, false, 48, 160, 12).subtitle == std::string(157, 'a') + "...");
+  assert(make(std::string(100, 'b'), "", "", "", "", 0, false, 48, 160, 12).title == std::string(45, 'b') + "...");
+  // A text that fits is kept as it is; one cut short on a UTF-8 boundary still ends in the dots.
+  assert(make("x", std::string(160, 'a'), "", "", "", 0, false, 48, 160, 12).subtitle == std::string(160, 'a'));
+  assert(make("\xC3\xA9\xC3\xA9\xC3\xA9", "", "", "", "", 0, false, 5, 160, 12).title == "\xC3\xA9...");
   // Button: trimmed and capped; empty falls back to OK.
   assert(make("x", "", "", "", "", 0, false, 48, 160, 12).button == "OK");
   assert(make("x", "", "", "", "  Open  ", 0, false, 48, 160, 12).button == "Open");
-  assert(make("x", "", "", "", std::string(40, 'c'), 0, false, 48, 160, 12).button.size() == 12);
+  assert(make("x", "", "", "", std::string(40, 'c'), 0, false, 48, 160, 12).button == std::string(9, 'c') + "...");
   // The generated table carries every font glyph by name.
   assert(tile_icon::named("lightbulb") == 0xF0335 && tile_icon::named("alert-outline") == 0xF002A);
   assert(tile_icon::named("nope") == 0 && tile_icon::named("") == 0);

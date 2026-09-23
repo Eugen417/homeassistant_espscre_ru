@@ -541,6 +541,7 @@
       },
       "firmware": {
         "board_and_name": "Choisissez le type d'écran et un nom unique (lettres minuscules, chiffres, tirets ; 30 caractères au maximum).",
+        "choice": "Choisissez une des options proposées pour cette carte.",
         "friendly_name": "Donnez à l'écran un nom facile à reconnaître (60 caractères au maximum).",
         "choose_profile": "Choisissez un profil YAML existant.",
         "profile_missing": "Ce profil n'existe pas dans le dossier ESPHome.",
@@ -564,6 +565,7 @@
         "override_object": "Le YAML personnalisé doit contenir un objet YAML, par exemple display: ou substitutions:.",
         "sections_managed": "Ces sections restent gérées par ESP Screens : {names}.",
         "substitutions_managed": "Ces substitutions restent gérées par ESP Screens : {names}.",
+        "substitutions_in_profile": "{names} est défini dans le YAML propre de cet écran (choisi sous Nouvel écran), qui l'emporte sur l'override. Modifiez-le plutôt là.",
         "orientation": "Choisissez si l'écran est accroché à l'horizontale ou à la verticale.",
         "orientation_managed": "Le sens dans lequel un écran est accroché se choisit à sa compilation, sous Nouvel écran ; LVGL_ROTATION reste donc géré par ESP Screens.",
         "usb_port": "Choisissez le port USB branché dans la liste.",
@@ -761,7 +763,7 @@
         },
         "camera": {
           "label": "Caméra",
-          "help": "Une entité caméra ou image. Tous les écrans sauf le CYD, avec le firmware 0.2.57+, affichent son image du moment en haut de la carte ; la toucher ouvre la caméra en plein écran. Le CYD affiche l'alerte sans elle. Uniquement via l'événement esp_screens_show_alert."
+          "help": "Une entité caméra ou image. Tous les écrans sauf le CYD, avec le firmware 0.2.57+, affichent son image du moment sur la carte, dans les proportions de la caméra (au-dessus du texte, ou à côté sur un écran large et bas) ; la toucher ouvre la caméra en plein écran. Le CYD affiche l'alerte sans elle. Uniquement via l'événement esp_screens_show_alert."
         },
         "action": {
           "label": "Action",
@@ -1665,11 +1667,31 @@
       },
       "intro": "ESP Screens crée le profil propre à l'écran, avec des clés uniques, et compile le firmware. Branchez l'écran avec un câble USB de données sur la machine qui fait tourner Home Assistant, ou téléchargez le firmware et installez-le sur l'écran depuis votre propre ordinateur.",
       "board": "Quel écran avez-vous ?",
-      "board_cyd": "CYD · 2,8 pouces",
-      "board_guition": "Guition · 4 pouces",
-      "board_waveshare43": "Waveshare · 4,3 pouces",
-      "board_jc8012p4a1": "Guition · 10,1 pouces",
-      "board_new": "nouveau — dites-nous ce que ça donne",
+      "board_title": "{name} · {inch} pouces",
+      "status": {
+        "new": "Nouveau",
+        "experimental": "Expérimental"
+      },
+      "status_hint": {
+        "new": "Nouveau : essayé sur peu d'écrans pour l'instant. Dites-nous ce que ça donne.",
+        "experimental": "Expérimental : pas encore essayé sur ce matériel. Dites-nous ce que ça donne."
+      },
+      "abilities": {
+        "camera": "Images de caméra",
+        "no_camera": "Pas d'images de caméra",
+        "dimming": "Rétroéclairage réglable",
+        "no_dimming": "Rétroéclairage toujours allumé",
+        "standby": "Veille et nuit",
+        "no_standby": "Pas de veille",
+        "calibration": "Étalonnage tactile au premier démarrage"
+      },
+      "choice": {
+        "DISPLAY_MODEL": "Contrôleur d'affichage"
+      },
+      "choice_hint": {
+        "DISPLAY_MODEL": "La plupart de ces cartes ont le premier. Prenez l'autre si l'écran affiche du bruit ou une image brouillée."
+      },
+      "choice_usual": "la plupart",
       "orientation": "Dans quel sens sera-t-il accroché ?",
       "orientation_landscape": "À l'horizontale",
       "orientation_portrait": "À la verticale",
@@ -1721,7 +1743,7 @@
         "building_download": "Une première compilation prend quelques minutes sur un Raspberry Pi. Vous pouvez quitter cette page : la compilation continue et vous la retrouverez sous Nouvel écran.",
         "downloaded": "Installez-le sur l'écran depuis votre propre ordinateur, puis associez l'écran à Home Assistant.",
         "booted": "L'écran démarre et se connecte à votre Wi-Fi. Associez-le maintenant à Home Assistant :",
-        "booted_cyd": "L'écran démarre et se connecte à votre Wi-Fi. Le CYD demande d'abord un étalonnage tactile : touchez les croix. Associez-le maintenant à Home Assistant :",
+        "booted_calibrate": "L'écran démarre et se connecte à votre Wi-Fi. Il demande d'abord un étalonnage tactile : touchez les croix. Associez-le maintenant à Home Assistant :",
         "see_log": "Voir le journal ci-dessous."
       },
       "download_steps": {
@@ -1730,7 +1752,7 @@
         "open": "{bold} dans Chrome ou Edge, cliquez sur Connect et choisissez le port USB de l'écran.",
         "open_bold": "Ouvrez {esphome_web}",
         "install": "{bold} et sélectionnez {file}. L'écran redémarre et rejoint votre Wi-Fi.",
-        "install_cyd": "{bold} et sélectionnez {file}. L'écran redémarre et rejoint votre Wi-Fi. Le CYD demande d'abord un étalonnage tactile : touchez les croix.",
+        "install_calibrate": "{bold} et sélectionnez {file}. L'écran redémarre et rejoint votre Wi-Fi. Il demande d'abord un étalonnage tactile : touchez les croix.",
         "install_bold": "Cliquez sur Install"
       },
       "download_keep": "Le fichier contient votre mot de passe Wi-Fi et les clés de l'écran : gardez-le pour vous.",
@@ -1749,12 +1771,7 @@
       "retry": "Réessayer",
       "another": "Installer un autre écran",
       "start_over": "Recommencer",
-      "done": "Terminé",
-      "board_waveshare7": "Waveshare 7 pouces (expérimental)",
-      "board_experimental": "Expérimental",
-      "waveshare7_experimental": "Pas encore testé sur ce matériel. Les images des caméras sont activées ; le rétroéclairage reste allumé. Sans variation de luminosité, veille ni mode nuit.",
-      "board_waveshare4b": "Waveshare 4B · 4 pouces (expérimental)",
-      "waveshare4b_experimental": "Pas encore testé sur ce matériel. Les mêmes six cases que le Guition 4 pouces ; le rétroéclairage est réglable, les images des caméras sont activées. La batterie, l'audio et le capteur de mouvement restent inutilisés."
+      "done": "Terminé"
     },
     "alerts": {
       "eyebrow": "Alertes · aide-mémoire",
@@ -1841,7 +1858,7 @@
           "bool": "activé / désactivé",
           "entity": "entité"
         },
-        "bytes": "CYD {cyd} · Guition {guition} octets",
+        "bytes": "{limits} octets",
         "seconds": "0 à 86400 s",
         "camera_limit": "Tous sauf le CYD, firmware 0.2.57+"
       },

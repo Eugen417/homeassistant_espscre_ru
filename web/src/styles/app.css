@@ -181,7 +181,7 @@ a:hover { text-decoration: underline; }
 
 /* The device mock keeps the Guition light palette on purpose: it is the screen, not the page. */
 /* The mockup is the screen's own glass and its own grid of cells: --screen-aspect, --screen-columns and
-   --screen-rows come from what the screen reported (store.ts: deviceStyle). The .cyd class is the compact look
+   --screen-rows come from what the screen reported (store.ts: deviceStyle). The .compact class is the compact look
    of a small screen, not a board any more. */
 .device { background: #e7e7e7; border-radius: 18px; padding: 10px; display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 8px; color: #1b1b1b; aspect-ratio: var(--screen-aspect, 1 / 1); }
 .bar-wrap { cursor: pointer; border-radius: 8px; padding: 0 2px; }
@@ -205,18 +205,18 @@ a:hover { text-decoration: underline; }
 .tile .head.top { flex: none; }
 .tile .nm { font-size: 11.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .st { font-size: 10.5px; color: #5a5f66; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.device.cyd .tile { padding: 6px 7px; }
-.device.cyd .tile .nm { font-size: 10.5px; }
-.device.cyd .tile .ic { font-size: 15px; }
-.device.cyd .tile .head { gap: 6px; }
+.device.compact .tile { padding: 6px 7px; }
+.device.compact .tile .nm { font-size: 10.5px; }
+.device.compact .tile .ic { font-size: 15px; }
+.device.compact .tile .head { gap: 6px; }
 /* The screen's own numbers on its short tiles: 4 px above and below, an 8 px slider. */
-.device.cyd .tile:has(> .mini-slider) { padding-block: 4px; gap: 3px; }
-.device.cyd .tile .mini-slider { height: 8px; }
+.device.compact .tile:has(> .mini-slider) { padding-block: 4px; gap: 3px; }
+.device.compact .tile .mini-slider { height: 8px; }
 .tile .mini-slider { height: 10px; border-radius: 5px; background: linear-gradient(to right, #ffbf38 60%, #fff1d3 60%); flex: none; width: 100%; }
 /* A control that fills its room is one cell wide, as the screens draw it (runtime_tiles::cell_content_width):
    a double-width card is two cells, so half its room once the gap between them and both paddings are off. */
 .tile.wide { --tile-fill: calc((100% - 26px) / 2); }
-.device.cyd .tile.wide { --tile-fill: calc((100% - 22px) / 2); }
+.device.compact .tile.wide { --tile-fill: calc((100% - 22px) / 2); }
 .tile.wide .mini-slider { width: var(--tile-fill); }
 .tile.wide .ctl.fill { width: var(--tile-fill); }
 .tile.wide .ctl.fill .range, .tile.wide .ctl.fill .stp { flex: 1; min-width: 0; }
@@ -230,10 +230,10 @@ a:hover { text-decoration: underline; }
 /* A live camera tile (app 0.2.91): the picture's rounded square stands in for the icon on the mockup. */
 .tile .ic.thumb { width: 28px; height: 28px; border-radius: 7px; background: #d7dbe1; display: grid; place-items: center; font-size: 15px; color: #5a5f66; }
 .tile.full .ic.thumb { width: 54px; height: 54px; border-radius: 12px; font-size: 26px; }
-.device.cyd .tile .ic.thumb { width: 22px; height: 22px; font-size: 12px; }
+.device.compact .tile .ic.thumb { width: 22px; height: 22px; font-size: 12px; }
 .tile .big { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile .big small { display: inline; font-size: 10.5px; font-weight: 500; color: #5a5f66; margin-left: 2px; }
-.device.cyd .tile .big { font-size: 16px; }
+.device.compact .tile .big { font-size: 16px; }
 .tile .range { width: 56px; height: 14px; border-radius: 7px; background: linear-gradient(to right, #2196f3 35%, #d3e8fb 35%); }
 .tile .key { height: 20px; min-width: 22px; padding: 0 5px; border-radius: 6px; background: #eceef1; display: grid; place-items: center; font-size: 12px; }
 .tile .stp { display: flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 10px; background: #eceef1; font-size: 11px; font-weight: 600; }
@@ -399,6 +399,21 @@ fieldset:disabled { opacity: 0.6; }
 .board:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
 .board input { width: auto; margin: 0; accent-color: var(--accent); }
 .board b { display: block; font-weight: 600; }
+.board small { display: block; color: var(--ink-2); font-size: 12px; overflow-wrap: anywhere; }
+.board-words { display: grid; gap: 1px; min-width: 0; }
+/* Each board's glass in its own proportions, all at one height (InstallerView's glassStyle). */
+.board-glass { flex: none; width: 80px; display: flex; justify-content: center; }
+.board-glass .orient-glass { height: 48px; }
+.abilities { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; list-style: none; }
+.abilities li { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+.abilities li.off { background: var(--seg); color: var(--ink-2); }
+.choice-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.choice { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border: 1px solid var(--line-strong); border-radius: 10px; cursor: pointer; }
+.choice:has(input:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.choice input { width: auto; margin: 0; accent-color: var(--accent); }
+.choice b { font-weight: 600; }
+.choice span { white-space: nowrap; }
+.choice small { display: inline; margin-left: 6px; color: var(--ink-2); }
 .board em { display: block; font-style: normal; font-size: 11.5px; color: var(--accent); }
 /* Which way a screen hangs (app 0.2.107). An option is a board row with a picture of the glass in it: the same
    frame, the same cells and the same light palette as the page mockups, because this is the screen and not the
@@ -583,4 +598,4 @@ td code { white-space: nowrap; }
 .tile.full .ctl { margin-top: 6px; }
 .tile.full .mini-slider { width: 60%; }
 .tile .goto { font-size: 10.5px; color: #5a5f66; }
-.device.cyd .tile.full .ic { font-size: 26px; }
+.device.compact .tile.full .ic { font-size: 26px; }

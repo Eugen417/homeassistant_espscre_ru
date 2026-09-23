@@ -1,22 +1,22 @@
 #include "screen_text_en.h"
-#include "../components/smart_display/cyd_ui.h"
+#include "../components/smart_display/screen_input.h"
 #include <cassert>
 #include <limits>
 int main() {
-  using cyd::quantize_temperature;
+  using screen_input::quantize_temperature;
   // Fan and swing mode chips read the n-th name of a JSON list attribute.
-  assert(cyd::list_item("[\"auto\",\"low\",\"high\"]", 0) == "auto");
-  assert(cyd::list_item("[\"auto\",\"low\",\"high\"]", 2) == "high");
-  assert(cyd::list_item("[\"auto\",\"low\",\"high\"]", 3).empty());
-  assert(cyd::list_item("", 0).empty());
-  assert(cyd::list_item("[\"broken", 0).empty());
+  assert(screen_input::list_item("[\"auto\",\"low\",\"high\"]", 0) == "auto");
+  assert(screen_input::list_item("[\"auto\",\"low\",\"high\"]", 2) == "high");
+  assert(screen_input::list_item("[\"auto\",\"low\",\"high\"]", 3).empty());
+  assert(screen_input::list_item("", 0).empty());
+  assert(screen_input::list_item("[\"broken", 0).empty());
   assert(quantize_temperature(223, 160, 300, 5) == 225);
   assert(quantize_temperature(221, 160, 300, 5) == 220);
   assert(quantize_temperature(-1, 160, 300, 5) == 160);
   assert(quantize_temperature(999, 160, 299, 5) == 299);
   assert(quantize_temperature(201, 160, 300, 0) == 201);
   // -/+ keys: quick successive taps on the same key all count; bounce within 150 ms does not.
-  cyd::TouchGuard r;
+  screen_input::TouchGuard r;
   r.begin(1000); assert(r.accept_repeat(1060, 7)); assert(!r.accept_repeat(1070, 7));  // one contact, one step
   r.begin(1200); assert(r.accept_repeat(1260, 7));                                      // 200 ms later: accepted
   r.begin(1300); assert(!r.accept_repeat(1340, 7));                                     // 80 ms after the last: bounce
@@ -24,14 +24,14 @@ int main() {
   r.begin(1600); assert(r.accept_repeat(1660, 8));                                      // the other key right away
   // Page buttons (0.2.72): Next, Next, Next at a finger's pace all count, so page 4 is three taps away
   // while the pages are still drawing; accept() would have dropped the second and third (600 ms).
-  cyd::TouchGuard pager;
+  screen_input::TouchGuard pager;
   pager.begin(2000); assert(pager.accept_repeat(2080, 12));
   pager.begin(2250); assert(pager.accept_repeat(2330, 12));                              // 250 ms after the last
   pager.begin(2500); assert(pager.accept_repeat(2580, 12));                              // and again
   pager.begin(2800); assert(!pager.accept(2880, 12));                                    // 300 ms after the last Next: the old
   assert(pager.accept_repeat(2880, 12));                                                 // rule's 600 ms window drops it, this takes it
   pager.begin(2950); assert(pager.accept_repeat(3030, 11));                              // Previous right after Next
-  cyd::TouchGuard g;
+  screen_input::TouchGuard g;
   g.begin(100);
   assert(!g.accept(120, 1)); // resistive noise pulse
   assert(g.accept(180, 1));
@@ -42,7 +42,7 @@ int main() {
   assert(g.accept(380, 2)); // another tile is still responsive
   g.begin(1000);
   assert(g.accept(1080, 2));
-  cyd::TouchGuard moving;
+  screen_input::TouchGuard moving;
   moving.begin(100, 50, 50);
   moving.update(52, 48);
   assert(moving.accept(180, 1)); // small resistive jitter remains usable
@@ -59,7 +59,7 @@ int main() {
   assert(moving.accept_slider(1350, 202)); // a second drag 150 ms after the first commit counts (0.2.81)
   // Per-board limits (0.2.23): a centimetre of drift on the Guition is still a tap, and the
   // reference settles over the first samples, so the landing wobble does not count.
-  cyd::TouchGuard wide;
+  screen_input::TouchGuard wide;
   wide.configure(67, 20);
   assert(wide.move_limit() == 67 && wide.min_press() == 20);
   wide.begin(100, 200, 200, 3);
@@ -88,7 +88,7 @@ int main() {
   assert(wide.reason() == "same button within the debounce window");
   // No movement limit (0, the Guition): drift never drops a tap. The tile checks that the finger let go on it
   // (runtime_tiles::event, firmware 0.2.65+), and a quick flick is LVGL's gesture, which consumes the contact.
-  cyd::TouchGuard free;
+  screen_input::TouchGuard free;
   free.configure(0, 20);
   free.begin(100, 200, 200, 3);
   free.update(205, 200, 3); free.update(205, 200, 3); free.update(205, 200, 3);       // settled
@@ -102,7 +102,7 @@ int main() {
   free.begin(2000, 200, 200, 3);
   free.consume();                        // a flick (the Guition's gesture handler)
   assert(!free.accept(2100, 1) && !free.accept_repeat(2100, 7) && !free.accept_slider(2100, 201));
-  cyd::TouchGuard resistive;
+  screen_input::TouchGuard resistive;
   resistive.configure(56, 60);
   resistive.begin(100, 50, 50);
   resistive.update(80, 50); resistive.update(50, 50);                              // the CYD's jump of 30 px is fine now
@@ -117,11 +117,11 @@ int main() {
   // edge rightwards "previous", once per touch, slow or fast, more sideways than vertical,
   // never from the middle. Every point is already in the screen's coordinates (firmware 0.2.82:
   // runtime_tiles::touch_input turns it with ESPHome's own rotate_coordinates); end() disarms.
-  using G = cyd::EdgeSwipe::Gesture;
-  cyd::EdgeSwipe edge;
+  using G = screen_input::EdgeSwipe::Gesture;
+  screen_input::EdgeSwipe edge;
   // A board that never configured one has no edge swipe at all: the CYD turns its pages by another gesture,
   // and shared touch handling must not flip a page there on the default band.
-  cyd::EdgeSwipe unconfigured;
+  screen_input::EdgeSwipe unconfigured;
   assert(!unconfigured.in_use());
   unconfigured.begin(2, 100, 480);
   assert(!unconfigured.armed());
@@ -153,7 +153,7 @@ int main() {
   // Wide glass: the band is a band of the glass, not of the panel the picture came from. A 800 x 1280
   // panel drawn as 1280 x 800 used to arm the right-hand band from x = 772, so a leftward drag anywhere
   // past two fifths of the screen turned a page and nothing turned back (firmware 0.2.82).
-  cyd::EdgeSwipe ten_inch;
+  screen_input::EdgeSwipe ten_inch;
   ten_inch.configure(28, 35);
   ten_inch.begin(772, 400, 1280);
   assert(!ten_inch.armed());               // the middle of a ten-inch screen is the middle
@@ -175,7 +175,7 @@ int main() {
   // Up from the bottom edge is the way home (firmware 0.2.100+): the same class, the same band and the same
   // travel, only along the bottom. A screen that states no height has no bottom band, so a board that never
   // asked for one behaves exactly as it did.
-  cyd::EdgeSwipe up;
+  screen_input::EdgeSwipe up;
   up.configure(32, 40);
   up.begin(240, 470, 480, 480);
   assert(up.armed());
@@ -199,14 +199,14 @@ int main() {
   up.begin(240, 790, 480, 800);
   assert(up.armed());
   assert(up.update(240, 745) == G::home);
-  cyd::TouchGuard rollover;
+  screen_input::TouchGuard rollover;
   rollover.begin(std::numeric_limits<uint32_t>::max() - 30);
   assert(rollover.accept(50, 1)); // millis wraps after 49 days
   rollover.begin(60);
   assert(!rollover.accept(130, 1));
   // GT911 stray (0, 0): measured on Studio 1 as the last sample of a drag before lift-off.
-  cyd::GhostTouch ghost;
-  auto same = [](cyd::PointerRead a, bool pressed, int x, int y) { return a.pressed == pressed && a.x == x && a.y == y; };
+  screen_input::GhostTouch ghost;
+  auto same = [](screen_input::PointerRead a, bool pressed, int x, int y) { return a.pressed == pressed && a.x == x && a.y == y; };
   assert(same(ghost.filter({false, 0, 0}, 0, 0), false, 0, 0));      // released: nothing to hide
   assert(same(ghost.filter({true, 0, 0}, 0, 0), false, 0, 0));       // a touch cannot start in the corner
   assert(same(ghost.filter({true, 302, 250}, 0, 0), true, 302, 250)); // the finger on blue
@@ -218,22 +218,22 @@ int main() {
   assert(same(ghost.filter({true, 479, 479}, 479, 479), true, 0, 240)); // rotated 180: (0, 0) is that corner
   assert(same(ghost.filter({true, 0, 0}, 479, 479), true, 0, 0));    // and the top-left is a real pixel there
   // A dragged slider sent to its end on release is reported; a drag that ends there is not a jump.
-  assert(cyd::release_jump(240, 0, 0, 360));      // hue: blue to red at the start
-  assert(cyd::release_jump(120, 360, 0, 360));    // green to red at the end
-  assert(!cyd::release_jump(20, 0, 0, 360));      // dragged to the start and let go
-  assert(!cyd::release_jump(240, 238, 0, 360));   // a few pixels on lift-off
-  assert(cyd::release_jump(80, -6, -6, 100));     // brightness: 80 % to the stub below 1 %
+  assert(screen_input::release_jump(240, 0, 0, 360));      // hue: blue to red at the start
+  assert(screen_input::release_jump(120, 360, 0, 360));    // green to red at the end
+  assert(!screen_input::release_jump(20, 0, 0, 360));      // dragged to the start and let go
+  assert(!screen_input::release_jump(240, 238, 0, 360));   // a few pixels on lift-off
+  assert(screen_input::release_jump(80, -6, -6, 100));     // brightness: 80 % to the stub below 1 %
   // A slider let go within the edge band of the glass meant the end that lies in that band.
-  assert(cyd::edge_snap(437, 29, 450, 480, 67) == 1);   // wide tile, a fast swipe the panel lost at 437
-  assert(cyd::edge_snap(431, 29, 450, 480, 67) == 1);
-  assert(cyd::edge_snap(412, 29, 450, 480, 67) == 0);   // let go just before the band
-  assert(cyd::edge_snap(437, 29, 222, 480, 67) == 0);   // a narrow tile's end is far from the edge
-  assert(cyd::edge_snap(20, 29, 450, 480, 67) == -1);   // off the left: the start
-  assert(cyd::edge_snap(20, 258, 452, 480, 67) == 0);   // the right column's start is not in the band
-  assert(cyd::edge_snap(437, 29, 450, 480, 0) == 0);    // band off
+  assert(screen_input::edge_snap(437, 29, 450, 480, 67) == 1);   // wide tile, a fast swipe the panel lost at 437
+  assert(screen_input::edge_snap(431, 29, 450, 480, 67) == 1);
+  assert(screen_input::edge_snap(412, 29, 450, 480, 67) == 0);   // let go just before the band
+  assert(screen_input::edge_snap(437, 29, 222, 480, 67) == 0);   // a narrow tile's end is far from the edge
+  assert(screen_input::edge_snap(20, 29, 450, 480, 67) == -1);   // off the left: the start
+  assert(screen_input::edge_snap(20, 258, 452, 480, 67) == 0);   // the right column's start is not in the band
+  assert(screen_input::edge_snap(437, 29, 450, 480, 0) == 0);    // band off
   // A second drag on the same slider right after the first counts (a slider sends once per contact, on release);
   // a tap on the tile that soon after the slider's commit is still a bounce for the tile's own id only.
-  cyd::TouchGuard drags;
+  screen_input::TouchGuard drags;
   drags.begin(3000); assert(drags.accept_slider(3200, 205));
   drags.begin(3300); assert(drags.accept_slider(3500, 205));                             // 300 ms after the last commit
   drags.begin(3550); assert(drags.accept(3650, 105));                                    // the tile itself: another id

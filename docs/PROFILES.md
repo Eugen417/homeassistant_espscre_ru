@@ -21,7 +21,7 @@ numbers.
 | `packages/boards/` | One board: its word (`BOARD_ID`), its glass (`PANEL_W`, `PANEL_H`, `DISPLAY_DPI`, `ROTATION_LANDSCAPE`), its grid, its draw buffer, the packages it includes, and its own hardware sections. | The entry files |
 | `packages/cells/` | The cards of a grid, one per cell, written by `tools/generate_cells.py`. | Board files |
 | `packages/<board>.yaml` | The entry a screen installed from ESP Screens builds from over GitHub. ESP Screen Manager writes every screen's YAML with `files: [packages/<board>.yaml]`, so these names never change. | A screen's own YAML |
-| `<board>.yaml` in the root | The same entry for a build from a checkout (the bench, README_EXTENDED.md's manual route), with the secrets from `secrets.yaml` and the components of the checkout. | You |
+| `checkout/<board>.yaml` | The same entry for a build from a clone of this repository (checkout/README.md), with the secrets from `checkout/secrets.yaml` and the components of the checkout. | You |
 
 A board file reads like this (the 4-inch Guition, without its comments):
 
@@ -70,7 +70,7 @@ repeats what the board would get anyway: a change to a default then reaches that
 A mapping merges key by key. A list of components with ids merges by id: `!extend` adds to a widget, a script or a
 component defined anywhere in the chain, and `!remove` takes one away (`backlight-always-on.yaml` removes the
 `alert_flash` of `backlight.yaml` and defines its own). Any other list is joined, the earlier file's items first.
-`esphome config <board>.yaml` shows the result.
+`esphome config checkout/<board>.yaml` shows the result.
 
 ## Sizes: the look works them out
 
@@ -105,8 +105,8 @@ gives it a default (empty, or what most boards do). The feature that needs a hoo
 `BOOT_CAMERA_HOOKS`, `CLOSE_CARDS_HOOK`, `TICK_HOOK` and the other camera lines; `features/capacitive-touch.yaml` and
 `features/resistive-touch.yaml` set `BOOT_TOUCH` and `BOOT_PAGE_GESTURE`; `features/backlight.yaml` sets
 `APPLY_BACKLIGHT`. Every screen reads a touch panel and lights a backlight, so those three have no default and a board
-without them does not build. A board file sets a hook only for code of its own: the CYD drives its backlight as a light
-action and keeps a lighter self test.
+without them does not build. A board file would set a hook only for code no other board has; since app 0.2.129 none
+does (the CYD used to drive its backlight and run its self test its own way).
 
 Hooks are a stretch of C++ inside a shared lambda because ESPHome cannot merge two lambdas into one. A feature that
 needs a step of its own rather than a line inside a shared one brings its own script or automation instead.
@@ -129,15 +129,17 @@ YAML loads it.
 ## Adding a board
 
 docs/ADDING_A_BOARD.md is the whole recipe. In short: `tools/new_board.py` writes the board file from the board that
-resembles it most, you replace its hardware sections, add one line to `BOARD_TABLE` in `tools/profiles.py` and the
-entries (`packages/<board>.yaml`, `<board>.yaml`), and run `tools/generate_cells.py`, `tools/generate_board_shapes.py`
+resembles it most, you replace its hardware sections, add its entry to `boards.yaml` (the catalog New screen is drawn from) and the
+entries (`packages/<board>.yaml`, `checkout/<board>.yaml`), and run `tools/generate_cells.py`, `tools/generate_board_shapes.py`
 and `tools/check.sh --firmware`. A board that shares a family's hardware includes that family's file under
 `packages/hardware/` and states only what differs; a board with hardware like no other keeps it in its own file until
 a second board shares it.
 
 A variant of a board that is sold with other parts (a CYD with another display controller, a panel of another size in
-the same family) is the same thing: either a line in a screen's Override YAML, for a part the board offers a
-substitution for, or a board file of its own that includes the same hardware and states what differs.
+the same family) is the same thing: a choice in `boards.yaml`, for a part the board offers a substitution for and people
+with that board confirmed (New screen then asks, and writes the value into the screen's own YAML), a line in a
+screen's Override YAML for anything else the board offers a substitution for, or a board file of its own that includes
+the same hardware and states what differs.
 
 ## How this layout was checked
 

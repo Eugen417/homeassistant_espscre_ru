@@ -50,10 +50,10 @@ FULL_PAGE_MIN_FIRMWARE = (0, 2, 62)
 TWENTY_TILES_MIN_FIRMWARE = (0, 2, 7)
 FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
-REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main', 'waveshare7': 'main',
-        'waveshare4b': 'main'}
+# The branch a screen's YAML builds its board package from. Which boards there are is boards.json's (BOARD_KEYS).
+REF = 'main'
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.2.103'
+FIRMWARE_VERSION = '0.2.104'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -338,6 +338,10 @@ def _board_shapes():
     except (OSError, ValueError):
         return {}
 SHAPES = _board_shapes()
+# The boards New screen offers, in the catalog's order (boards.yaml, through boards.json): the entries keyed by a
+# board's own word, not the entry files that share its shape.
+BOARD_KEYS = tuple(sorted((board for board, shape in SHAPES.items() if shape.get('board') == board),
+                          key=lambda board: SHAPES[board].get('catalog', {}).get('order', len(SHAPES))))
 DEFAULT_SHAPE = SHAPES.get('cyd', {'width': 320, 'height': 240, 'columns': 2, 'rows': 3})
 
 # The two ways a screen can hang (app 0.2.107). Which one it is, is chosen when the screen is built: the canvas, the
@@ -1810,14 +1814,14 @@ ALERT_FIELDS = (
 # Examples that are words for people, which the cheatsheet shows in the editor's language; an icon, a colour or a number
 # is a value to type as it is.
 ALERT_TEXT_EXAMPLES = frozenset(('title', 'subtitle', 'button_text'))
-# Bytes per field the firmware keeps (the profiles' ALERT_*_MAX); an accented letter takes two.
-ALERT_LIMITS = {'cyd': {'title': 48, 'subtitle': 160, 'button_text': 12}, 'guition': {'title': 64, 'subtitle': 240, 'button_text': 16}}
+# Bytes per field the firmware keeps, per look (ALERT_*_MAX in packages/looks/); an accented letter takes two.
+ALERT_LIMITS = {'compact': {'title': 48, 'subtitle': 160, 'button_text': 12}, 'standard': {'title': 64, 'subtitle': 240, 'button_text': 16}}
 ALERT_SUGGESTED_ICONS = ('doorbell', 'bell', 'bell-ring', 'alert-outline', 'alarm-light', 'lock', 'lock-open-variant', 'door-open',
                          'window-closed-variant', 'motion-sensor', 'cctv', 'smoke-detector', 'water-alert', 'fire', 'mailbox', 'car',
                          'account', 'account-group', 'washing-machine', 'robot-vacuum', 'timer-outline', 'check')
 # Not an argument of show_alert: the app sends the image itself to screens that can draw it (app 0.2.66, a Guition with
 # firmware 0.2.57+) and leaves it out for the others. (name, label, explanation, example) like ALERT_FIELDS.
-ALERT_CAMERA_FIELD = ('camera', 'Camera', 'A camera or image entity. Every screen but the CYD, with firmware 0.2.57+, shows its picture of that moment across the top of the card; a tap on it opens the camera full screen. The CYD shows the alert without it. Only through the esp_screens_show_alert event.', 'camera.front_door')
+ALERT_CAMERA_FIELD = ('camera', 'Camera', 'A camera or image entity. Every screen but the CYD, with firmware 0.2.57+, shows its picture of that moment on the card, in the proportions of the camera itself (above the words, or beside them on a wide, low screen); a tap on it opens the camera full screen. The CYD shows the alert without it. Only through the esp_screens_show_alert event.', 'camera.front_door')
 # An action behind the button (app 0.2.91): the event names a Home Assistant action, with data for its fields, that the
 # app performs when the button is pressed on any screen, once per alert. Not an argument of show_alert either: the
 # screen only reports the press (ALERT_EVENT, action "ok") and the app does the rest, so every firmware from 0.2.31 has it.
@@ -1833,6 +1837,12 @@ BROADCAST_EVENTS = {BROADCAST_SHOW: 'show_alert', BROADCAST_DISMISS: 'dismiss_al
 def alert_service(node, action='show_alert'):
     """Home Assistant registers a device's actions as esphome.<node>_<action>, dashes as underscores."""
     return f"esphome.{node.replace('-', '_')}_{action}" if isinstance(node, str) and node else None
+
+def limit_boards():
+    """{look: the catalog's names of the boards with that look} (boards.json), so whatever shows the alert limits
+    says whose limit is whose without naming a board itself."""
+    return {look: list(dict.fromkeys(SHAPES[board].get('catalog', {}).get('name', board) for board in BOARD_KEYS
+                                     if SHAPES[board].get('look') == look)) for look in ALERT_LIMITS}
 
 def alert_reference():
     """Everything the Alerts cheatsheet shows besides the screens themselves, in the editor's language (app 0.2.90)."""
@@ -1851,6 +1861,7 @@ def alert_reference():
             'action': {'name': ALERT_ACTION_FIELD[0], 'label': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.label'),
                        'help': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.help'), 'example': ALERT_ACTION_FIELD[3]},
             'limits': ALERT_LIMITS,
+            'limit_boards': limit_boards(),
             'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in backgrounds().items() if item['color']],
             'suggested_icons': [{'name': name, 'cp': tile_icons.GLYPHS[name]} for name in ALERT_SUGGESTED_ICONS],
             'extra_icons': [{'name': name, 'cp': cp} for name, cp in tile_icons.FIXED]}
@@ -2051,7 +2062,7 @@ def discover(registry, states, devices, areas):
 
 def installation_yaml(data):
     board, name, friendly = data.get('board'), data.get('name'), data.get('friendly_name')
-    if board not in REFS or not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,29}', name):
+    if board not in BOARD_KEYS or not isinstance(name, str) or not re.fullmatch(r'[a-z][a-z0-9-]{0,29}', name):
         raise ValueError(t('addon.errors.firmware.board_and_name'))
     if not isinstance(friendly, str) or not friendly.strip() or len(friendly) > 60:
         raise ValueError(t('addon.errors.firmware.friendly_name'))
@@ -2070,6 +2081,14 @@ def installation_yaml(data):
     turn = (sides.get(orientation) or {}).get('rotation')
     lying = (sides.get('landscape') or {}).get('rotation')
     rotation_line = f'  LVGL_ROTATION: {quote(str(turn))}\n' if turn is not None and turn != lying else ''
+    # The board's other choices (app 0.2.129): a part that differs between boards sold under one name, like the CYD's
+    # display controller, offered in boards.yaml with the board file's own value first. That one writes nothing, like
+    # lying down; another is a line of the screen's own substitutions, which win over the board file's.
+    offered = SHAPES[board].get('catalog', {}).get('choices') or {}
+    chosen = data.get('choices') or {}
+    if not isinstance(chosen, dict) or any(key not in offered or value not in offered[key] for key, value in chosen.items()):
+        raise ValueError(t('addon.errors.firmware.choice'))
+    choice_lines = ''.join(f'  {key}: {quote(chosen[key])}\n' for key in offered if chosen.get(key, offered[key][0]) != offered[key][0])
     # An OTA password, not yet `ota: encryption:` with the api key: ESPHome before 2026.9 refuses that, and the owner's
     # ESPHome Device Builder may still be older (docs/RELEASING.md, Compatibility 0.2.89).
     key, ota, ap = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24), secrets.token_urlsafe(12)
@@ -2079,7 +2098,7 @@ substitutions:
   DEVICE_NAME: {quote(name)}
   DEVICE_FRIENDLY_NAME: {quote(friendly.strip())}
   LANGUAGE: {quote(language)}
-{rotation_line}
+{rotation_line}{choice_lines}
 esphome:
   name: {quote(name)}
   friendly_name: {quote(friendly.strip())}
@@ -2087,7 +2106,7 @@ esphome:
 packages:
   display:
     url: {REPO}
-    ref: {REFS[board]}
+    ref: {REF}
     files: [packages/{board}.yaml]
     refresh: 0s
   local_overrides: !include {name}.local.yaml

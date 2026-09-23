@@ -541,6 +541,7 @@
       },
       "firmware": {
         "board_and_name": "Kies een bord en een unieke naam (kleine letters, cijfers, streepjes; maximaal 30 tekens).",
+        "choice": "Kies een van de opties die dit bord biedt.",
         "friendly_name": "Geef het scherm een herkenbare naam (maximaal 60 tekens).",
         "choose_profile": "Kies een bestaand YAML-profiel.",
         "profile_missing": "Profiel bestaat niet in de ESPHome-map.",
@@ -564,6 +565,7 @@
         "override_object": "De override moet een YAML-object bevatten, bijvoorbeeld display: of substitutions:.",
         "sections_managed": "Deze secties blijven in beheer van ESP Screens: {names}.",
         "substitutions_managed": "Deze substitutions blijven in beheer van ESP Screens: {names}.",
+        "substitutions_in_profile": "{names} staat in de eigen YAML van dit scherm (gekozen bij Nieuw scherm), en die wint van de override. Pas het daar aan.",
         "orientation": "Kies of het scherm liggend of staand hangt.",
         "orientation_managed": "Hoe een scherm hangt kies je bij het bouwen, onder Nieuw scherm; daarom blijft LVGL_ROTATION in beheer van ESP Screens.",
         "usb_port": "Kies de aangesloten USB-poort uit de lijst.",
@@ -761,7 +763,7 @@
         },
         "camera": {
           "label": "Camera",
-          "help": "Een camera- of afbeeldingsentiteit. Elk scherm behalve de CYD toont met firmware 0.2.57+ het beeld van dat moment bovenaan de kaart; een tik erop opent de camera schermvullend. De CYD toont de alert zonder beeld. Alleen via de gebeurtenis esp_screens_show_alert."
+          "help": "Een camera- of afbeeldingsentiteit. Elk scherm behalve de CYD toont met firmware 0.2.57+ het beeld van dat moment op de kaart, in de verhouding van de camera zelf (boven de tekst, of ernaast op een breed, laag scherm); een tik erop opent de camera schermvullend. De CYD toont de alert zonder beeld. Alleen via de gebeurtenis esp_screens_show_alert."
         },
         "action": {
           "label": "Actie",
@@ -1665,11 +1667,31 @@
       },
       "intro": "ESP Screens maakt een eigen profiel voor het scherm, met unieke sleutels, en bouwt de firmware. Sluit het scherm met een USB-datakabel aan op de machine waarop Home Assistant draait, of download de firmware en zet die vanaf je eigen computer op het scherm.",
       "board": "Welk scherm heb je?",
-      "board_cyd": "CYD · 2,8 inch",
-      "board_guition": "Guition · 4 inch",
-      "board_waveshare43": "Waveshare · 4,3 inch",
-      "board_jc8012p4a1": "Guition · 10,1 inch",
-      "board_new": "nieuw — laat ons weten hoe het gaat",
+      "board_title": "{name} · {inch} inch",
+      "status": {
+        "new": "Nieuw",
+        "experimental": "Experimenteel"
+      },
+      "status_hint": {
+        "new": "Nieuw: tot nu toe op maar een paar schermen geprobeerd. Laat ons weten hoe het gaat.",
+        "experimental": "Experimenteel: nog niet op deze hardware geprobeerd. Laat ons weten hoe het gaat."
+      },
+      "abilities": {
+        "camera": "Camerabeelden",
+        "no_camera": "Geen camerabeelden",
+        "dimming": "Dimbare verlichting",
+        "no_dimming": "Verlichting altijd aan",
+        "standby": "Standby en nacht",
+        "no_standby": "Geen standby",
+        "calibration": "Touch-kalibratie bij de eerste start"
+      },
+      "choice": {
+        "DISPLAY_MODEL": "Displaycontroller"
+      },
+      "choice_hint": {
+        "DISPLAY_MODEL": "De meeste van deze borden hebben de eerste. Kies de andere als het scherm ruis of een verminkt beeld laat zien."
+      },
+      "choice_usual": "de meeste",
       "orientation": "Hoe komt hij te hangen?",
       "orientation_landscape": "Liggend",
       "orientation_portrait": "Staand",
@@ -1721,7 +1743,7 @@
         "building_download": "Een eerste build duurt op een Raspberry Pi enkele minuten. Je kunt deze pagina verlaten: de build loopt door en je vindt hem terug onder Nieuw scherm.",
         "downloaded": "Zet de firmware vanaf je eigen computer op het scherm en koppel het scherm daarna aan Home Assistant.",
         "booted": "Het scherm start op en verbindt met je Wi-Fi. Koppel het nu aan Home Assistant:",
-        "booted_cyd": "Het scherm start op en verbindt met je Wi-Fi. De CYD vraagt eerst om een touch-kalibratie: tik op de kruisjes. Koppel het nu aan Home Assistant:",
+        "booted_calibrate": "Het scherm start op en verbindt met je Wi-Fi. Het vraagt eerst om een touch-kalibratie: tik op de kruisjes. Koppel het nu aan Home Assistant:",
         "see_log": "Bekijk het log hieronder."
       },
       "download_steps": {
@@ -1730,7 +1752,7 @@
         "open": "{bold} in Chrome of Edge, klik op Connect en kies de USB-poort van het scherm.",
         "open_bold": "Open {esphome_web}",
         "install": "{bold} en selecteer {file}. Het scherm herstart en verbindt met je Wi-Fi.",
-        "install_cyd": "{bold} en selecteer {file}. Het scherm herstart en verbindt met je Wi-Fi. De CYD vraagt eerst om een touch-kalibratie: tik op de kruisjes.",
+        "install_calibrate": "{bold} en selecteer {file}. Het scherm herstart en verbindt met je Wi-Fi. Het vraagt eerst om een touch-kalibratie: tik op de kruisjes.",
         "install_bold": "Klik op Install"
       },
       "download_keep": "Het bestand bevat je Wi-Fi-wachtwoord en de sleutels van het scherm: houd het voor jezelf.",
@@ -1749,12 +1771,7 @@
       "retry": "Opnieuw proberen",
       "another": "Nog een scherm installeren",
       "start_over": "Opnieuw beginnen",
-      "done": "Klaar",
-      "board_waveshare7": "Waveshare 7 inch (experimenteel)",
-      "board_experimental": "Experimenteel",
-      "waveshare7_experimental": "Nog niet getest op deze hardware. Camerabeelden zijn ingeschakeld; de achtergrondverlichting blijft aan. Geen dimmen, standby of nachtmodus.",
-      "board_waveshare4b": "Waveshare 4B · 4 inch (experimenteel)",
-      "waveshare4b_experimental": "Nog niet getest op deze hardware. Dezelfde zes vakken als de 4-inch Guition; de achtergrondverlichting dimt, camerabeelden zijn ingeschakeld. Accu, audio en bewegingssensor blijven ongebruikt."
+      "done": "Klaar"
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",
@@ -1841,7 +1858,7 @@
           "bool": "aan / uit",
           "entity": "entiteit"
         },
-        "bytes": "CYD {cyd} · Guition {guition} bytes",
+        "bytes": "{limits} bytes",
         "seconds": "0 tot 86400 s",
         "camera_limit": "Elk scherm behalve de CYD, firmware 0.2.57+"
       },

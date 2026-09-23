@@ -259,6 +259,10 @@ substitutions:
   DISPLAY_MODEL: "ST7789V"        # CYD: the display controller
 ```
 
+A new CYD needs neither: since app 0.2.129 New screen asks which display controller it has and writes the choice
+into the screen's own YAML. That line wins over an override, so the override editor refuses the same substitution for
+that screen and says where it is set.
+
 | Substitution | Boards | What it changes |
 |---|---|---|
 | `DISPLAY_MODEL` | CYD | ESPHome's `mipi_spi` model of the display controller (`ILI9341`, `ST7789V`, ...) |

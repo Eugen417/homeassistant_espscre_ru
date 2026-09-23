@@ -16,10 +16,19 @@ import TopbarInspector from "../src/components/TopbarInspector.vue";
 import { openBar, state } from "../src/store";
 import type { Inventory, Tile } from "../src/types";
 
+// The add-on's boards (screen_manager/app/boards.json, written from boards.yaml and the board files): the catalog a
+// screen's shape carries, and what New screen gets for each board (firmware.BOARD_CHOICES), made the same way here.
+const SHAPES = JSON.parse(readFileSync("../screen_manager/app/boards.json", "utf8"));
+const BOARD_CHOICES = Object.fromEntries(Object.entries(SHAPES).filter(([key, shape]: [string, any]) => shape.board === key)
+  .map(([key, shape]: [string, any]) => [key, {
+    square: shape.width === shape.height, orientations: shape.orientations, width: shape.width, height: shape.height, dpi: shape.dpi,
+    camera: Boolean(shape.camera), dimmable: shape.dimmable ?? true, can_standby: shape.can_standby ?? true, ...shape.catalog,
+  }]));
+
 function inventory(): Inventory {
   return {
     csrf: "t", connected: true,
-    screens: [{ id: "living", name: "Living room", online: true, firmware: "0.2.60", board: "guition", layout: { title: "Living room", tiles: [] }, alert_action: "esphome.living_show_alert" } as any],
+    screens: [{ id: "living", name: "Living room", online: true, firmware: "0.2.60", board: "guition", shape: { width: 480, height: 480, columns: 2, rows: 3, catalog: SHAPES.guition.catalog }, layout: { title: "Living room", tiles: [] }, alert_action: "esphome.living_show_alert" } as any],
     entities: [
       { id: "light.a", name: "Lamp A", state: "on", area: "Living room", device: "Hue" },
       { id: "light.b", name: "Lamp B", state: "unavailable", area: "Kitchen" },
@@ -315,7 +324,7 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
     expect(card.find(".ic").classes()).toContain("thumb");
   });
   it("offers the album cover for a media player on a Guition, not on a full-page tile, and keeps its controls", async () => {
-    Object.assign(state.inventory.screens[0], { firmware: "0.2.78" });
+    Object.assign(state.inventory.screens[0], { firmware: "0.2.78", pictures: true });  // as the add-on says of a Guition
     state.inventory.entities.push({ id: "media_player.sonos", name: "Sonos", state: "playing", area: "Hall" } as any);
     (state.inventory as any).controls.media_player = { default: "volume", choices: [{ key: "volume", label: "Volume" }, { key: "none", label: "None" }] };
     const tile: Tile = { entity: "media_player.sonos", name: "", slot: 0, options: { size: "wide" } };
@@ -602,18 +611,7 @@ describe("a name another screen already carries", () => {
 });
 
 describe("the orientation of a new screen", () => {
-  const boards = {
-    cyd: { square: false, orientations: { landscape: { width: 320, height: 240, columns: 2, rows: 3, rotation: 90 },
-                                          portrait: { width: 240, height: 320, columns: 1, rows: 4, rotation: 180 } } },
-    guition: { square: true, orientations: { landscape: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 },
-                                             portrait: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 } } },
-    waveshare43: { square: false, orientations: { landscape: { width: 800, height: 480, columns: 3, rows: 3, rotation: 0 },
-                                                  portrait: { width: 480, height: 800, columns: 1, rows: 4, rotation: 90 } } },
-    waveshare7: { square: false, orientations: { landscape: { width: 800, height: 480, columns: 4, rows: 4, rotation: 0 },
-                                                 portrait: { width: 480, height: 800, columns: 2, rows: 7, rotation: 90 } } },
-    waveshare4b: { square: true, orientations: { landscape: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 },
-                                                 portrait: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 } } },
-  };
+  const boards = BOARD_CHOICES;
   const answers: any[] = [];
   async function installer() {
     vi.stubGlobal("fetch", vi.fn((url: string, options: any) => {
@@ -646,20 +644,39 @@ describe("the orientation of a new screen", () => {
 
   it("asks nothing about square glass, and asks again about the next board", async () => {
     const view = await installer();
-    await view.findAll(".board input")[1].setValue("guition");
+    await view.find('input[value="guition"]').setValue("guition");
     expect(view.find("#orientation-fields").exists()).toBe(false);
-    await view.findAll(".board input")[2].setValue("waveshare43");
+    await view.find('input[value="waveshare43"]').setValue("waveshare43");
     const options = view.findAll("#orientation-fields .orient");
     expect(options.map((option) => option.find("small").text())).toEqual(["9 tiles a page", "4 tiles a page"]);
   });
 
-  it("explains experimental Waveshare 7 support and submits its selected orientation", async () => {
+  it("lists every board of the catalog in its order, named and described from its data alone", async () => {
     const view = await installer();
-    expect(view.text()).not.toContain("backlight stays on");
+    const rows = view.findAll(".board");
+    expect(rows.map((row) => row.find("input").attributes("value"))).toEqual(
+      Object.values(boards).sort((a: any, b: any) => a.order - b.order).map((board: any) => Object.keys(boards).find((key) => boards[key] === board)));
+    expect(rows[0].find("b").text()).toBe("CYD · 2.8 inch");
+    expect(rows[0].findAll("small").map((line) => line.text())).toEqual(["ESP32-2432S028", "320 × 240 · XPT2046"]);
+    expect(view.find('input[value="jc8012p4a1"]').element.closest("label")?.textContent).toContain("Guition · 10.1 inch");
+    // Each glass in its own proportions with the cells of one page lying down.
+    const glass = (key: string) => view.find(`input[value="${key}"]`).element.closest("label")!.querySelector(".orient-glass") as HTMLElement;
+    expect(glass("jc8012p4a1").getAttribute("style")).toContain("1280 / 800");
+    expect(glass("jc8012p4a1").querySelectorAll(".orient-cells i")).toHaveLength(20);
+    expect(glass("guition").getAttribute("style")).toContain("480 / 480");
+    // The first board is chosen to begin with, with what it can do; the CYD asks for a touch calibration first.
+    expect((rows[0].find("input").element as HTMLInputElement).checked).toBe(true);
+    expect(view.findAll("#board-abilities li").map((li) => li.text())).toEqual(
+      ["No camera pictures", "Dimmable backlight", "Standby and night", "Touch calibration on first start"]);
+    expect(view.find("#board-status").exists()).toBe(false);
+  });
+
+  it("explains an experimental board by what it can do and submits its selected orientation", async () => {
+    const view = await installer();
     await view.find('input[value="waveshare7"]').setValue("waveshare7");
-    expect(view.find('input[value="waveshare7"]').element.closest("label")?.textContent).toContain("experimental");
-    expect(view.text()).toContain("Not yet tested on this hardware");
-    expect(view.text()).toContain("backlight stays on");
+    expect(view.find('input[value="waveshare7"]').element.closest("label")?.textContent).toContain("Experimental");
+    expect(view.find("#board-status").text()).toContain("not yet tried on this hardware");
+    expect(view.findAll("#board-abilities li.off").map((li) => li.text())).toEqual(["Backlight always on", "No standby"]);
     const options = view.findAll("#orientation-fields .orient");
     expect(options.map((option) => option.find("small").text())).toEqual(["16 tiles a page", "14 tiles a page"]);
     await options[1].find("input").setValue("portrait");
@@ -669,17 +686,38 @@ describe("the orientation of a new screen", () => {
     expect(answers.pop()).toMatchObject({ board: "waveshare7", orientation: "portrait", name: "hall" });
   });
 
-  it("explains experimental Waveshare 4B support and asks nothing about its square glass", async () => {
+  it("asks nothing about the square glass of an experimental board", async () => {
     const view = await installer();
     await view.find('input[value="waveshare4b"]').setValue("waveshare4b");
-    expect(view.find('input[value="waveshare4b"]').element.closest("label")?.textContent).toContain("experimental");
-    expect(view.text()).toContain("Not yet tested on this hardware");
-    expect(view.text()).toContain("the backlight dims");
+    expect(view.find("#board-status").text()).toContain("Experimental");
+    expect(view.findAll("#board-abilities li.off")).toHaveLength(0);
     expect(view.find("#orientation-fields").exists()).toBe(false);
     await view.find("#friendly_name").setValue("Hall");
     await view.find("#install-form").trigger("submit");
     await flush();
     expect(answers.pop()).toMatchObject({ board: "waveshare4b", name: "hall" });
+  });
+
+  it("offers a board's own choices, starting at the board file's value, and sends only one that differs", async () => {
+    const view = await installer();
+    const options = view.findAll("#choice-DISPLAY_MODEL .choice");
+    expect(view.find("#choice-DISPLAY_MODEL legend").text()).toBe("Display controller");
+    expect(options.map((option) => option.find("b").text())).toEqual(["ILI9341", "ST7789V"]);
+    expect((options[0].find("input").element as HTMLInputElement).checked).toBe(true);
+    await view.find("#friendly_name").setValue("Hall");
+    await view.find("#install-form").trigger("submit");
+    await flush();
+    expect(answers.pop().choices).toBeUndefined();
+    const other = await installer();
+    await other.findAll("#choice-DISPLAY_MODEL .choice input")[1].setValue("ST7789V");
+    await other.find("#friendly_name").setValue("Hall");
+    await other.find("#install-form").trigger("submit");
+    await flush();
+    expect(answers.pop()).toMatchObject({ board: "cyd", choices: { DISPLAY_MODEL: "ST7789V" } });
+    // Another board has other choices, or none.
+    const third = await installer();
+    await third.find('input[value="guition"]').setValue("guition");
+    expect(third.find("#choice-DISPLAY_MODEL").exists()).toBe(false);
   });
 
   it("sends the chosen way with the new screen", async () => {

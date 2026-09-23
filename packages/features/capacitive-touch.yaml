@@ -28,15 +28,15 @@ substitutions:
   # Code the shared lambdas of packages/core.yaml take from this file (docs/PROFILES.md, "hooks")
   # the first boot step: the touch guard, and what a capacitive panel needs
   BOOT_TOUCH: |-
-    cyd::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
-    cyd::edge_swipe.configure(${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
-    cyd::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
+    screen_input::touch_guard.configure(${TOUCH_MOVE_LIMIT_PX}, ${TOUCH_MIN_PRESS_MS});
+    screen_input::edge_swipe.configure(${EDGE_SWIPE_BAND_PX}, ${EDGE_SWIPE_TRAVEL_PX});
+    screen_input::edge_snap_band = ${SLIDER_EDGE_SNAP_PX};
     // The page and the tile container take no presses: the theme's pressed style would
     // otherwise repaint nearly the whole screen twice per touch in the empty edge band,
     // starving the touch polling for the whole length of a quick swipe.
     lv_obj_remove_flag(id(home_page)->obj, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_remove_flag(id(tile_scroll), LV_OBJ_FLAG_CLICKABLE);
-    // A stray GT911 contact at exactly (0, 0) never reaches LVGL (cyd::GhostTouch): as the last
+    // A stray GT911 contact at exactly (0, 0) never reaches LVGL (screen_input::GhostTouch): as the last
     // sample of a drag it sent a slider to its end on release. LVGL still reads ESPHome's callback.
     if (auto *indev = lv_indev_get_next(nullptr)) {
       static lv_indev_read_cb_t esphome_read = nullptr;
@@ -44,9 +44,9 @@ substitutions:
         esphome_read(input, data);
         int32_t ghost_x = 0, ghost_y = 0;
         id(screen_lvgl).rotate_coordinates(ghost_x, ghost_y);
-        const unsigned dropped = cyd::ghost_touch.dropped();
-        const auto read = cyd::ghost_touch.filter({data->state == LV_INDEV_STATE_PRESSED, (int) data->point.x, (int) data->point.y}, ghost_x, ghost_y);
-        if (cyd::ghost_touch.dropped() != dropped) ESP_LOGI("touch", "GT911 stray contact at (0,0) ignored");
+        const unsigned dropped = screen_input::ghost_touch.dropped();
+        const auto read = screen_input::ghost_touch.filter({data->state == LV_INDEV_STATE_PRESSED, (int) data->point.x, (int) data->point.y}, ghost_x, ghost_y);
+        if (screen_input::ghost_touch.dropped() != dropped) ESP_LOGI("touch", "GT911 stray contact at (0,0) ignored");
         data->state = read.pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
         data->point.x = read.x;
         data->point.y = read.y;
@@ -71,7 +71,7 @@ substitutions:
           (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN))) return;
       // A quick drag on a slider is that slider's: the press stays with it (firmware 0.2.68+).
       if (runtime_tiles::captured_slider) return;
-      cyd::touch_guard.consume();
+      screen_input::touch_guard.consume();
       ESP_LOGI("touch", "flick: no tap");
       if (id(display_dimmed)) return;
       if (auto *input = lv_indev_active()) lv_indev_wait_release(input);

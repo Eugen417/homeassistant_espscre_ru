@@ -22,13 +22,20 @@ FIRMWARE = (ROOT / 'components/smart_display/header_bar.h').read_text()
 FIRMWARE += json.dumps(json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['time'])
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 EDITOR = (ROOT / 'web/src/model/topbar.ts').read_text()
-PROFILES = ('guition-4848s040.yaml', 'home-like-2432s028.yaml')
+PROFILES = ('checkout/guition.yaml', 'checkout/cyd.yaml')
 
 def state(value, last_changed='2026-09-13T14:00:00+00:00', **attributes):
     return {'state': value, 'attributes': attributes, 'last_changed': last_changed}
 
 def entity(eid, content='state', icon='auto', show='always'):
     return {'type': 'entity', 'entity': eid, 'content': content, 'icon': icon, 'show': show}
+
+
+def editor_bars():
+    """LOOK_BARS in web/src/model/topbar.ts: {look: {metric: number}}."""
+    block = EDITOR.split('export const LOOK_BARS', 1)[1].split('};', 1)[0]
+    return {look: dict((key, int(value)) for key, value in re.findall(r'(\w+): (\d+)', body))
+            for look, body in re.findall(r'(standard|compact): \{([^}]*)\}', block)}
 
 class ValidationTests(unittest.TestCase):
     def test_items_fill_defaults_and_keep_order(self):
@@ -355,6 +362,22 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual(data['items'][0]['t'], 'Closed')
                 bad = await client.post('/api/header-preview', json={'header': {'items': [{'type': 'nope'}]}}, headers=headers)
                 self.assertEqual(bad.status, 400)
+
+
+class EditorBar(unittest.TestCase):
+    def test_the_editors_bar_is_each_looks_own(self):
+        # The mockup's top bar takes the look's fonts and margin at the look's own density, the canvas the look was
+        # drawn on (480 and 320 wide), and scales them to the screen's (topbar.ts, barMetricsFor).
+        bars = editor_bars()
+        self.assertEqual(set(bars), {'standard', 'compact'})
+        for look, board in (('standard', 'guition'), ('compact', 'cyd')):
+            values = profiles.board_values(board)
+            self.assertEqual(values['LOOK'].strip('"'), look)
+            bar = bars[look]
+            self.assertEqual((bar['name'], bar['text'], bar['icon'], bar['inset'], bar['dpi']),
+                             (int(values['FONT_HEADLINE_SIZE']), int(values['FONT_SUBLABEL_BIG_SIZE']),
+                              int(values['FONT_ICON_MINI_SIZE']), int(values['HEADER_INSET']), round(float(values['DISPLAY_DPI']))), look)
+            self.assertEqual(bar['width'], int(values['PANEL_W' if int(values.get('ROTATION_LANDSCAPE', '0')) % 180 == 0 else 'PANEL_H']) - 2 * bar['inset'], look)
 
 if __name__ == '__main__':
     unittest.main()

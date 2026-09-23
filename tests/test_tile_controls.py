@@ -76,7 +76,7 @@ class ControlChoices(unittest.TestCase):
         self.assertTrue(used <= carried, used - carried)
         self.assertTrue(set(tile_icons.CONTROL_GLYPHS) <= set(tile_icons.GLYPHS))
         self.assertEqual(set(tile_icons.editor()['controls']), set(tile_icons.CONTROL_GLYPHS))
-        for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/guition.yaml', 'packages/cyd.yaml'):
+        for name in ('checkout/guition.yaml', 'checkout/cyd.yaml', 'packages/guition.yaml', 'packages/cyd.yaml'):
             text = profiles.text(name)
             for code in used:
                 self.assertIn(f'"\\U000{code}"', text, (name, code))

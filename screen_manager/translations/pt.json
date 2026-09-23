@@ -541,6 +541,7 @@
       },
       "firmware": {
         "board_and_name": "Escolha uma placa e um nome único (letras minúsculas, algarismos e hífenes; no máximo 30 caracteres).",
+        "choice": "Escolha uma das opções que esta placa oferece.",
         "friendly_name": "Dê ao ecrã um nome reconhecível (no máximo 60 caracteres).",
         "choose_profile": "Escolha um perfil YAML existente.",
         "profile_missing": "O perfil não existe na pasta do ESPHome.",
@@ -564,6 +565,7 @@
         "override_object": "O YAML personalizado tem de conter um objeto YAML, por exemplo display: ou substitutions:.",
         "sections_managed": "Estas secções continuam a ser geridas pelo ESP Screens: {names}.",
         "substitutions_managed": "Estas substitutions continuam a ser geridas pelo ESP Screens: {names}.",
+        "substitutions_in_profile": "{names} está definido no YAML próprio deste ecrã (escolhido em Novo ecrã), que prevalece sobre o override. Altere-o lá.",
         "orientation": "Escolha se o ecrã fica na horizontal ou na vertical.",
         "orientation_managed": "O sentido em que um ecrã fica pendurado escolhe-se quando é compilado, em Novo ecrã; por isso o LVGL_ROTATION continua a ser gerido pelo ESP Screens.",
         "usb_port": "Escolha da lista a porta USB ligada.",
@@ -761,7 +763,7 @@
         },
         "camera": {
           "label": "Câmara",
-          "help": "Uma entidade de câmara ou de imagem. Todos os ecrãs exceto o CYD, com firmware 0.2.57+, mostram a imagem desse momento no topo do cartão; um toque nela abre a câmara em ecrã inteiro. O CYD mostra o alerta sem ela. Só através do evento esp_screens_show_alert."
+          "help": "Uma entidade de câmara ou de imagem. Todos os ecrãs exceto o CYD, com firmware 0.2.57+, mostram a imagem desse momento no cartão, nas proporções da própria câmara (acima do texto, ou ao lado num ecrã largo e baixo); um toque nela abre a câmara em ecrã inteiro. O CYD mostra o alerta sem ela. Só através do evento esp_screens_show_alert."
         },
         "action": {
           "label": "Ação",
@@ -1665,11 +1667,31 @@
       },
       "intro": "O ESP Screens cria o perfil próprio do ecrã com chaves únicas e compila o firmware. Ligue o ecrã com um cabo USB de dados à máquina onde corre o Home Assistant, ou descarregue o firmware e instale-o no ecrã a partir do seu próprio computador.",
       "board": "Que ecrã tem?",
-      "board_cyd": "CYD · 2,8 polegadas",
-      "board_guition": "Guition · 4 polegadas",
-      "board_waveshare43": "Waveshare · 4,3 polegadas",
-      "board_jc8012p4a1": "Guition · 10,1 polegadas",
-      "board_new": "novo — diga-nos como corre",
+      "board_title": "{name} · {inch} polegadas",
+      "status": {
+        "new": "Novo",
+        "experimental": "Experimental"
+      },
+      "status_hint": {
+        "new": "Novo: até agora experimentado em poucos ecrãs. Diga-nos como corre.",
+        "experimental": "Experimental: ainda não foi experimentado neste hardware. Diga-nos como corre."
+      },
+      "abilities": {
+        "camera": "Imagens de câmaras",
+        "no_camera": "Sem imagens de câmaras",
+        "dimming": "Retroiluminação regulável",
+        "no_dimming": "Retroiluminação sempre ligada",
+        "standby": "Espera e modo noturno",
+        "no_standby": "Sem espera",
+        "calibration": "Calibração do toque no primeiro arranque"
+      },
+      "choice": {
+        "DISPLAY_MODEL": "Controlador do ecrã"
+      },
+      "choice_hint": {
+        "DISPLAY_MODEL": "A maioria destas placas tem o primeiro. Escolha o outro se o ecrã mostrar ruído ou uma imagem distorcida."
+      },
+      "choice_usual": "a maioria",
       "orientation": "Como vai ficar pendurado?",
       "orientation_landscape": "Na horizontal",
       "orientation_portrait": "Na vertical",
@@ -1721,7 +1743,7 @@
         "building_download": "A primeira compilação demora alguns minutos num Raspberry Pi. Pode sair desta página: a compilação continua e volta a encontrá-la em Novo ecrã.",
         "downloaded": "Instale-o no ecrã a partir do seu próprio computador e depois emparelhe o ecrã com o Home Assistant.",
         "booted": "O ecrã arranca e liga-se à sua rede Wi-Fi. Emparelhe-o agora com o Home Assistant:",
-        "booted_cyd": "O ecrã arranca e liga-se à sua rede Wi-Fi. O CYD pede primeiro uma calibração do toque: toque nas cruzes. Emparelhe-o agora com o Home Assistant:",
+        "booted_calibrate": "O ecrã arranca e liga-se à sua rede Wi-Fi. Primeiro pede uma calibração do toque: toque nas cruzes. Emparelhe-o agora com o Home Assistant:",
         "see_log": "Consulte o registo abaixo."
       },
       "download_steps": {
@@ -1730,7 +1752,7 @@
         "open": "{bold} no Chrome ou no Edge, clique em Connect e escolha a porta USB do ecrã.",
         "open_bold": "Abra o {esphome_web}",
         "install": "{bold} e selecione {file}. O ecrã reinicia e liga-se à sua rede Wi-Fi.",
-        "install_cyd": "{bold} e selecione {file}. O ecrã reinicia e liga-se à sua rede Wi-Fi. O CYD pede primeiro uma calibração do toque: toque nas cruzes.",
+        "install_calibrate": "{bold} e selecione {file}. O ecrã reinicia e liga-se à sua rede Wi-Fi. Primeiro pede uma calibração do toque: toque nas cruzes.",
         "install_bold": "Clique em Install"
       },
       "download_keep": "O ficheiro contém a sua palavra-passe de Wi-Fi e as chaves do ecrã: não o partilhe.",
@@ -1749,12 +1771,7 @@
       "retry": "Tentar novamente",
       "another": "Instalar outro ecrã",
       "start_over": "Recomeçar",
-      "done": "Concluído",
-      "board_waveshare7": "Waveshare 7 polegadas (experimental)",
-      "board_experimental": "Experimental",
-      "waveshare7_experimental": "Ainda não foi testado neste hardware. As imagens das câmaras estão ativadas; a retroiluminação permanece ligada. Sem regulação de brilho, espera ou modo noturno.",
-      "board_waveshare4b": "Waveshare 4B · 4 polegadas (experimental)",
-      "waveshare4b_experimental": "Ainda não foi testado neste hardware. As mesmas seis células do Guition de 4 polegadas; a retroiluminação é regulável e as imagens das câmaras estão ativadas. A bateria, o áudio e o sensor de movimento ficam sem uso."
+      "done": "Concluído"
     },
     "alerts": {
       "eyebrow": "Alertas · guia rápido",
@@ -1841,7 +1858,7 @@
           "bool": "ativado / desativado",
           "entity": "entidade"
         },
-        "bytes": "CYD {cyd} · Guition {guition} bytes",
+        "bytes": "{limits} bytes",
         "seconds": "de 0 a 86400 s",
         "camera_limit": "Todos exceto o CYD, firmware 0.2.57+"
       },

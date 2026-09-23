@@ -4,7 +4,7 @@
 # A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
 # features it has; docs/PROFILES.md says how the files of a screen fit together, docs/GUITION.md what this board needs.
 # Everything else (the LVGL tree, the cards, the scripts, the entities) is packages/core.yaml, which every board
-# shares. Two entry files include this one: guition-4848s040.yaml (a build on this computer) and
+# shares. Two entry files include this one: checkout/guition.yaml (a build on this computer) and
 # packages/guition.yaml (the package a screen builds from over GitHub).
 packages:
   # How every board's firmware is built (ESP-IDF, as ESPHome recommends it).

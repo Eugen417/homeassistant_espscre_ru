@@ -3,12 +3,13 @@
 # Built-in ILI9341 320x240 display and XPT2046 resistive touch.
 #
 # A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
-# features it has; docs/PROFILES.md says how the files of a screen fit together. What only a CYD has lives here as
-# well: the calibration wizard for its resistive glass, a page swipe by LVGL's gesture, a backlight driven as a
-# light action, and a lighter self test. Everything else (the LVGL tree, the cards, the scripts, the entities) is
+# features it has; docs/PROFILES.md says how the files of a screen fit together. Its resistive glass is
+# features/resistive-touch.yaml (the calibration wizard, a page swipe by LVGL's gesture), its backlight
+# features/backlight.yaml and its self test features/self-test.yaml, as on the other boards; since app 0.2.129 it
+# has no behaviour of its own. Everything else (the LVGL tree, the cards, the scripts, the entities) is
 # packages/core.yaml, which every board shares.
 #
-# Two entry files include this: home-like-2432s028.yaml (a build on this computer)
+# Two entry files include this: checkout/cyd.yaml (a build on this computer)
 # and packages/cyd.yaml (the package a screen builds from over GitHub).
 ############################################################
 packages:
@@ -19,6 +20,8 @@ packages:
   # Every size of the compact look, scaled to DISPLAY_DPI below. This glass is where that look was drawn.
   look: !include ../looks/compact.yaml
   touch: !include ../features/resistive-touch.yaml
+  backlight: !include ../features/backlight.yaml
+  self_test: !include ../features/self-test.yaml
 
 substitutions:
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
@@ -61,13 +64,6 @@ substitutions:
   TOUCH_CAL_X_MAX: "3860"
   TOUCH_CAL_Y_MIN: "340"
   TOUCH_CAL_Y_MAX: "3860"
-
-  # Code the shared lambdas of packages/core.yaml take from this board, at the place named ${...}
-  # (docs/PROFILES.md, "hooks"); the core's default, or the touch feature's, holds for every one it does not name.
-  # one more line of the ui_state diagnostics
-  UI_STATE_HOOK: ""
-  # apply_screen_settings: how the backlight takes its level
-  APPLY_BACKLIGHT: "id(back_light).turn_on().set_transition_length(300).set_brightness(level / 100.0f).perform();"
 
 # ============================================================
 # No need to edit below this line.
@@ -127,15 +123,8 @@ output:
     inverted: true
 
 light:
-  # The firmware owns the backlight: brightness, standby, night and alerts set it, and the minute tick
-  # restores it. Home Assistant uses the brightness numbers and the Wake and Sleep buttons (0.2.46+).
-  - platform: monochromatic
-    output: gpio_backlight_pwm
-    name: "Power Display Backlight"
-    id: back_light
-    internal: true
-    restore_mode: ALWAYS_ON
-
+  # The backlight's light (back_light) comes from features/backlight.yaml, on the output above. This is the RGB LED
+  # on the back of the board.
   - platform: rgb
     name: LED
     red: output_red
@@ -192,116 +181,3 @@ display:
       width: 240
       height: 320
 
-script:
-  # Render every overlay and both pages repeatedly without controlling devices.
-  - id: ui_self_test
-    mode: single
-    then:
-      - logger.log:
-          format: "UI_TEST START: page/overlay render stress, no HA actions"
-          level: INFO  # the core logs from INFO; logger.log is DEBUG by default
-      - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
-      - lambda: 'id(calibration_active) = false;'
-      - lvgl.page.show: home_page
-      - script.execute: wake_display
-      - repeat:
-          count: 10
-          then:
-            - lambda: |-
-                id(last_touch_ms) = millis();
-                id(last_use_ms) = millis();
-                static unsigned test_page=0;
-                id(tile_page) = runtime_tiles::enabled ? test_page++ % runtime_tiles::page_count() : 1;
-            - script.execute: show_tile_page
-            - delay: 300ms
-            - lambda: |-
-                lv_obj_update_layout(id(tile_scroll));
-                const int count = runtime_tiles::model.count;
-                // Wide cards take two slots, so visibility follows the runtime packing.
-                const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
-                // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
-                bool ok = true;
-                for (auto &w : runtime_tiles::widgets) {
-                  bool visible = w.index < runtime_tiles::model.count;
-                  ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
-                }
-                // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
-                const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);
-                for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})
-                  ok = ok && (lv_obj_has_flag(control, LV_OBJ_FLAG_HIDDEN) != bar);
-                lv_area_t nav, grid;
-                lv_obj_get_coords(id(page_next), &nav);
-                lv_obj_get_coords(id(tile_scroll), &grid);
-                ok = ok && (!bar || grid.y2 < nav.y1);
-                if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
-                ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), (int) grid.y2, (int) nav.y1);
-                id(tile_page) = 0;
-            - script.execute: show_tile_page
-            - delay: 150ms
-            - lvgl.widget.show: color_detail_overlay
-            - delay: 150ms
-            - lvgl.widget.hide: color_detail_overlay
-            - lvgl.widget.show: alert_overlay
-            - delay: 150ms
-            - lvgl.widget.hide: alert_overlay
-      - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
-      - logger.log:
-          format: "UI_TEST COMPLETE"
-          level: INFO
-
-  # The two scripts that drive the backlight as a light action; the Guition drives it through its set_backlight script.
-  - id: alert_dismiss
-    parameters:
-      reason: string
-    then:
-      - if:
-          condition:
-            lambda: 'return id(alert_active);'
-          then:
-            - lambda: |-
-                id(alert_active) = false;
-                id(last_touch_ms) = millis();
-                ESP_LOGI("alert", "dismissed: %s", reason.c_str());
-            - lvgl.widget.hide: alert_overlay
-            - script.stop: alert_timeout
-            - script.stop: alert_flash
-            - light.turn_on:
-                id: back_light
-                transition_length: 80ms
-                brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
-            - script.execute:
-                id: alert_report
-                action: !lambda 'return reason;'
-
-  # Four backlight blinks when the alert arrives; the screen then stays on as usual.
-  - id: alert_flash
-    mode: restart
-    then:
-      - repeat:
-          count: 4
-          then:
-            - light.turn_off:
-                id: back_light
-                transition_length: 0s
-            - delay: 120ms
-            - light.turn_on:
-                id: back_light
-                transition_length: 0s
-                brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
-            - delay: 170ms
-
-  - id: wake_display
-    mode: restart
-    then:
-      - lambda: |-
-          id(last_touch_ms) = millis();
-          id(display_dimmed) = false;
-          id(sleep_requested) = false;
-      - light.turn_on:
-          id: back_light
-          # Almost instant brightness-up. ESPHome's default is 1s, and that feels sluggish
-          # when you touch the screen and are waiting on light.
-          transition_length: 80ms
-          brightness: !lambda "return screen_settings::current.brightness / 100.0f;"
-      - lvgl.widget.hide: dim_wake_overlay
-      - script.execute: close_cards

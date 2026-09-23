@@ -6,12 +6,12 @@ It is not the 7B, 7C or the version without touch. Physical acceptance has not b
 
 ## Install
 
-Update ESP Screen Manager and choose **Waveshare 7 inch (experimental)** in **New screen**.
+Update ESP Screen Manager and choose **Waveshare · 7 inch** (ESP32-S3-Touch-LCD-7, marked Experimental) in **New screen**.
 Follow [Easy setup](EASY_SETUP.md) to create a profile with its own name, Wi-Fi references and unique API/OTA keys.
 Choose the correct USB port, or download the firmware to flash with ESPHome Web from your own computer.
 Keep an existing working profile if the board is already installed. Pair it through the ESPHome integration before adding tiles.
 
-The remote package is `packages/waveshare7.yaml`; the checkout entry is `waveshare-esp32s3-7.yaml`.
+The remote package is `packages/waveshare7.yaml`; the checkout entry is `checkout/waveshare7.yaml`.
 Both combine `packages/core.yaml` with `packages/boards/waveshare-esp32s3-7.yaml`.
 The 8 MB flash layout also fits a 16 MB board and leaves its additional flash unused.
 Use the native USB connector for USB Serial/JTAG logs; the separate USB-to-UART connector is a different logging route.

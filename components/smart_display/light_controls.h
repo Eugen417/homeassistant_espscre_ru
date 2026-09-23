@@ -38,7 +38,7 @@ struct State {
 #include "esphome/components/api/api_server.h"
 #include "esphome/core/log.h"
 #include "lvgl.h"
-#include "cyd_ui.h"
+#include "screen_input.h"
 #include "theme.h"
 #include <functional>
 namespace light_controls {
@@ -112,7 +112,7 @@ inline void event(lv_event_t *e) {
     auto *indev = lv_indev_active();
     const int value = lv_slider_get_value(row.slider);
     if (!indev || lv_indev_get_state(indev) != LV_INDEV_STATE_RELEASED) row.held = value;
-    else if (row.dirty && cyd::release_jump(row.held, value, lv_slider_get_min_value(row.slider), lv_slider_get_max_value(row.slider))) {
+    else if (row.dirty && screen_input::release_jump(row.held, value, lv_slider_get_min_value(row.slider), lv_slider_get_max_value(row.slider))) {
       static const char *const names[] = {"Color", "Color temperature", "Brightness"};
       lv_point_t point;
       lv_indev_get_point(indev, &point);
@@ -123,14 +123,14 @@ inline void event(lv_event_t *e) {
   if (code == LV_EVENT_PRESS_LOST) row.dirty = false;
   if (code == LV_EVENT_RELEASED && row.dirty) {
     row.dirty = false;
-    // A finger let go within the edge band of the glass meant the slider's end (cyd::edge_snap).
+    // A finger let go within the edge band of the glass meant the slider's end (screen_input::edge_snap).
     if (auto *indev = lv_indev_active()) {
       lv_point_t p;
       lv_indev_get_point(indev, &p);
       lv_area_t a;
       lv_obj_get_coords(row.slider, &a);
       const int screen = lv_display_get_horizontal_resolution(lv_obj_get_display(row.slider));
-      const int snap = cyd::edge_snap(p.x, a.x1, a.x2, screen, cyd::edge_snap_band);
+      const int snap = screen_input::edge_snap(p.x, a.x1, a.x2, screen, screen_input::edge_snap_band);
       if (snap) {
         const int end = snap > 0 ? lv_slider_get_max_value(row.slider) : lv_slider_get_min_value(row.slider);
         ESP_LOGI("slider", "Let go %d px from the %s edge: slider %d -> %d", snap > 0 ? screen - 1 - (int) p.x : (int) p.x, snap > 0 ? "right" : "left", (int) lv_slider_get_value(row.slider), end);

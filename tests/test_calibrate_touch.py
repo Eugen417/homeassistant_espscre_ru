@@ -37,7 +37,7 @@ class TheButtonOnTheDevice(unittest.TestCase):
         domain, name = CALIBRATE_BUTTON
         self.assertEqual(domain, 'button')
         # The wizard of a resistive panel brings the button (features/resistive-touch.yaml), and the CYD has one.
-        board = profiles.text('home-like-2432s028.yaml')
+        board = profiles.text('checkout/cyd.yaml')
         self.assertIn(f'name: "{name}"', board)
 
     def test_it_is_found_on_the_device_that_has_it(self):

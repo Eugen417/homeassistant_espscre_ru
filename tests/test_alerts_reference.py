@@ -17,7 +17,7 @@ from core import (ALERT_LIMITS, ALERT_MIN_FIRMWARE, FIRMWARE_VERSION, TILE_BACKG
                   alert_service)
 from updates import parse_version  # noqa: E402
 
-PROFILES = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml'}
+PROFILES = {'cyd': 'checkout/cyd.yaml', 'guition': 'checkout/guition.yaml'}
 STATIC = ROOT / 'screen_manager/app/static'
 
 class ReferenceTests(unittest.TestCase):
@@ -27,13 +27,21 @@ class ReferenceTests(unittest.TestCase):
             text = profiles.text(name)
             block = text.split('    - action: show_alert\n', 1)[1].split('    - action: dismiss_alert\n', 1)[0]
             self.assertEqual(re.findall(r'^        (\w+): (\w+)$', block, re.M), [(f['name'], f['type']) for f in reference['fields']], name)
-            for field, key in (('title', 'ALERT_TITLE_MAX'), ('subtitle', 'ALERT_SUBTITLE_MAX'), ('button_text', 'ALERT_BUTTON_MAX')):
-                self.assertEqual(ALERT_LIMITS[board][field], int(re.search(rf'^  {key}: "(\d+)"', text, re.M)[1]), (board, field))
             for needle in ('event: esphome.screen_alert', 'execute("replaced")', 'reason: "timeout"', 'reason: "remote"', 'reason: "ok"'):
                 self.assertIn(needle, text, (name, needle))
         self.assertEqual(reference['event'], 'esphome.screen_alert')
         self.assertEqual([e['action'] for e in reference['endings']], ['ok', 'timeout', 'replaced', 'remote'])
         self.assertEqual(reference['limits'], ALERT_LIMITS)
+
+    def test_the_limits_are_the_looks_and_name_the_boards_of_each(self):
+        # Bytes per field per look (ALERT_*_MAX in packages/looks/), with the catalog's names of the boards that have it.
+        reference = alert_reference()
+        for look in ('compact', 'standard'):
+            text = (ROOT / f'packages/looks/{look}.yaml').read_text()
+            for field, key in (('title', 'ALERT_TITLE_MAX'), ('subtitle', 'ALERT_SUBTITLE_MAX'), ('button_text', 'ALERT_BUTTON_MAX')):
+                self.assertEqual(ALERT_LIMITS[look][field], int(re.search(rf'^  {key}: "(\d+)"', text, re.M)[1]), (look, field))
+        self.assertEqual(reference['limit_boards']['compact'], ['CYD'])
+        self.assertEqual(reference['limit_boards']['standard'], ['Guition', 'Waveshare'])
 
     def test_colours_icons_and_fallback_match_the_firmware_headers(self):
         reference = alert_reference()

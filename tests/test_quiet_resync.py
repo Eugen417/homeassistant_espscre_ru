@@ -20,7 +20,7 @@ sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 from core import validate_settings  # noqa: E402
 
-PROFILES = ('home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
+PROFILES = ('checkout/cyd.yaml', 'checkout/guition.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
 RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 LIGHT_CONTROLS = (ROOT / 'components/smart_display/light_controls.h').read_text()
 
@@ -104,21 +104,21 @@ class Firmware(unittest.TestCase):
         self.assertEqual(block.count('layout_changed()'), 1)
 
     def test_the_guition_hides_the_stray_gt911_contact_from_lvgl_and_the_edge_swipe(self):
-        for name in ('guition-4848s040.yaml', 'packages/guition.yaml'):
+        for name in ('checkout/guition.yaml', 'packages/guition.yaml'):
             text = self.profiles[name]
-            self.assertIn('cyd::ghost_touch.filter(', text, name)
+            self.assertIn('screen_input::ghost_touch.filter(', text, name)
             self.assertIn('lv_indev_set_read_cb(indev, filtered);', text, name)
             self.assertIn('runtime_tiles::touch_input::moved(', text, f'{name}: the shared handler sees every contact')
-        for name in ('home-like-2432s028.yaml', 'packages/cyd.yaml'):
+        for name in ('checkout/cyd.yaml', 'packages/cyd.yaml'):
             self.assertNotIn('ghost_touch', self.profiles[name], 'the CYD has its own XPT2046 filter')
         # The skip itself lives in the shared tree now (runtime_tiles::touch_input::moved), so every board that
         # uses it gets it: a board cannot take half of the handling any more, which is how a GT911 board once
         # ended up with on_touch and neither of the other two triggers.
-        self.assertRegex(RUNTIME, r'if \(x == 0 && y == 0\) return;\s+cyd::touch_guard\.update')
+        self.assertRegex(RUNTIME, r'if \(x == 0 && y == 0\) return;\s+screen_input::touch_guard\.update')
 
     def test_a_slider_that_jumps_on_release_is_logged(self):
-        self.assertIn('cyd::release_jump(row.held, value,', LIGHT_CONTROLS)
-        self.assertIn('cyd::release_jump(slider_held,raw,', RUNTIME)
+        self.assertIn('screen_input::release_jump(row.held, value,', LIGHT_CONTROLS)
+        self.assertIn('screen_input::release_jump(slider_held,raw,', RUNTIME)
 
 
 if __name__ == '__main__':

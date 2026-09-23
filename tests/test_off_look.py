@@ -21,7 +21,7 @@ THEME = (ROOT / 'components/smart_display/theme.h').read_text()
 class OffLook(unittest.TestCase):
     def test_the_fonts_carry_the_bulb_that_is_off(self):
         self.assertEqual(tile_icons.GLYPHS['lightbulb-off'], 'F0E4F')
-        for name in ('guition-4848s040.yaml', 'home-like-2432s028.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
+        for name in ('checkout/guition.yaml', 'checkout/cyd.yaml', 'packages/cyd.yaml', 'packages/guition.yaml'):
             self.assertIn('"\\U000F0E4F" # lightbulb-off', profiles.text(name), name)
 
     def test_the_screen_crosses_out_its_own_bulb_and_greys_what_is_off(self):

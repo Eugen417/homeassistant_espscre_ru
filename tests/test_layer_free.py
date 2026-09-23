@@ -12,7 +12,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
 import profiles  # noqa: E402
-PROFILES = ['home-like-2432s028.yaml', 'guition-4848s040.yaml', 'packages/cyd.yaml', 'packages/guition.yaml']
+PROFILES = ['checkout/cyd.yaml', 'checkout/guition.yaml', 'packages/cyd.yaml', 'packages/guition.yaml']
 HEADERS = sorted((ROOT / 'components/smart_display').glob('*.h'))
 
 # Style properties that give a widget a layer (lv_obj_style.c calculate_layer_type, lv_refr.c clip corners).

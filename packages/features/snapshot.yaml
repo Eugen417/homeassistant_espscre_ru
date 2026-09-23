@@ -7,7 +7,7 @@ esphome:
     build_flags:
       - -DLV_USE_SNAPSHOT=1
   includes:
-    - <esphome/components/smart_display/guition_diagnostics.h>
+    - <esphome/components/smart_display/screen_diagnostics.h>
 
 api:
   actions:
@@ -19,9 +19,9 @@ script:
   - id: capture_ui_snapshot
     mode: single
     then:
-      - lambda: guition::snapshot_begin();
+      - lambda: screen_diagnostics::snapshot_begin();
       - repeat:
           count: 240
           then:
-            - lambda: guition::snapshot_next_row();
+            - lambda: screen_diagnostics::snapshot_next_row();
             - delay: 100ms

@@ -6,12 +6,15 @@
 #                                    tests, types and build, and whether the editor bundle in Git equals that build
 #   tools/check.sh --firmware        compiles every board profile (tools/profiles.py) and applies the CYD's flash budget
 #   tools/check.sh --all             both
+#   tools/check.sh --render          builds every board as a host program (tools/render/run.py): its self test must pass,
+#                                    and what it draws is saved as PNGs under .esphome/render/out (needs SDL2)
 #   --baseline BYTES                 with --firmware: the CYD image of the last release, to print the growth
 #
 # Environment:
 #   PYTHON            python3 by default; needs aiohttp, PyYAML, Pillow, fontTools and jinja2 (.venv-portal/bin/python has them)
 #   CXX               clang++ by default
 #   ESPHOME           the ESPHome command, esphome by default ("python -m esphome", or a newer Device Builder's)
+#   RENDER_PYTHON     for --render: a Python with aioesphomeapi and Pillow, by default the one next to ESPHOME
 #   ESPHOME_DATA_DIR  where the firmware builds go, .esphome/check by default: apart from the bench profiles' own
 #                     build folders, so a check build never replaces the firmware.bin of a screen's profile
 #
@@ -25,11 +28,12 @@ read -r -a ESPHOME_CMD <<< "${ESPHOME:-esphome}"
 
 usage() { sed -n '2,/^set -euo/p' "${BASH_SOURCE[0]}" | sed '$d; s/^# \{0,1\}//'; }
 
-want_fast=1 want_firmware=0 saw_firmware=0 saw_all=0 baseline=""
+want_fast=1 want_firmware=0 want_render=0 saw_firmware=0 saw_all=0 saw_render=0 baseline=""
 while (($#)); do
   case $1 in
     --firmware) saw_firmware=1 ;;
     --all) saw_all=1 ;;
+    --render) saw_render=1 ;;
     --baseline)
       baseline=${2:-}
       [[ $baseline =~ ^[0-9]+$ ]] || { echo "--baseline needs a size in bytes, such as 1655584" >&2; exit 2; }
@@ -41,6 +45,7 @@ while (($#)); do
 done
 if ((saw_firmware || saw_all)); then want_firmware=1; fi
 if ((saw_firmware && !saw_all)); then want_fast=0; fi
+if ((saw_render)); then want_render=1; if ((!saw_all && !saw_firmware)); then want_fast=0; fi; fi
 
 WORK=$(mktemp -d "${TMPDIR:-/tmp}/esp-screens-check.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
@@ -126,6 +131,7 @@ cells_current() { cd "$ROOT" && "$PYTHON" tools/generate_cells.py --check; }
 icons_current() { cd "$ROOT" && "$PYTHON" tools/generate_icons.py --check; }
 # What every board looks like, as the manager reads it (screen_manager/app/boards.json from the board files).
 shapes_current() { cd "$ROOT" && "$PYTHON" tools/generate_board_shapes.py --check; }
+entries_current() { cd "$ROOT" && "$PYTHON" tools/generate_entries.py --check; }
 # The translations (app 0.2.90, docs/TRANSLATING.md): every language against English, the key header the firmware
 # builds against, and no English left in the firmware's code.
 translations_check() { cd "$ROOT" && "$PYTHON" tools/i18n.py check > "$WORK/i18n.txt" && "$PYTHON" tools/i18n.py header --check && "$PYTHON" tools/i18n.py lint; }
@@ -164,13 +170,13 @@ esphome_version() {
 
 # The builds users get come from the YAML core.installation_yaml() writes: the board's package plus the device's own
 # keys, the Wi-Fi fallback access point and captive_portal. The board profiles carry all of that (with !secret), so a
-# copy of each profile compiles in a temporary folder with placeholder secrets of the same length as real ones, next
-# to links to this tree's components, fonts and packages (the shared core and the board files the profile includes):
-# this commit's code, never GitHub's main, never the real secrets.yaml.
+# copy of each profile compiles in a temporary checkout/ folder with placeholder secrets of the same length as real ones,
+# beside links to this tree's components, fonts and packages (the shared core and the board files the profile includes,
+# which a checkout entry names as ../packages): this commit's code, never GitHub's main, never the real secrets.yaml.
 prepare_profiles() {
-  local config="$WORK/config" board file
-  mkdir -p "$config" && ln -s "$ROOT/components" "$config/components" && ln -s "$ROOT/fonts" "$config/fonts" \
-    && ln -s "$ROOT/packages" "$config/packages" || return 1
+  local root="$WORK/config" config="$WORK/config/checkout" board file
+  mkdir -p "$config" && ln -s "$ROOT/components" "$root/components" && ln -s "$ROOT/fonts" "$root/fonts" \
+    && ln -s "$ROOT/packages" "$root/packages" || return 1
   cat > "$config/secrets.yaml" <<'EOF' || return 1
 # Placeholders for the check builds (tools/check.sh); nothing here is a real key.
 wifi_ssid: "check-wifi"
@@ -213,7 +219,7 @@ older_version() {  # older_version A B -> true when A is older than B
 
 compile_board() {  # compile_board <board>
   local board=$1
-  cd "$WORK/config" || return 1
+  cd "$WORK/config/checkout" || return 1
   "${ESPHOME_CMD[@]}" -s DEVICE_NAME "check-$board" -s DEVICE_FRIENDLY_NAME "Check $board" compile "check-$board.yaml" || return 1
   flash_report "$board"
 }
@@ -281,7 +287,7 @@ cyd_budget() { flash_report cyd budget; }
 # its board the way a screen's own YAML loads it: a package after the board's (core.installation_yaml, local_overrides).
 # An override lives on the owner's Home Assistant, where nothing else would notice that a change of ours broke it.
 override_configs() {
-  local config="$WORK/config" fixture board profile count=0 running needs
+  local config="$WORK/config/checkout" fixture board profile count=0 running needs
   running=$("${ESPHOME_CMD[@]}" version | sed -n 's/^Version: //p')
   mkdir -p "$config/overrides" || return 1
   for fixture in "$ROOT"/tests/fixtures/overrides/*.yaml; do
@@ -320,6 +326,7 @@ if ((want_fast)); then
   run "Packages fit together" packages_current
   run "Cards of every grid" cells_current
   run "Board shapes for the manager" shapes_current
+  run "Entry files of every board" entries_current
   run "Icons match tile_icons.py" icons_current
   run "Translations" translations_check
   run "Editor: npm ci" editor_install
@@ -356,6 +363,24 @@ if ((want_firmware)); then
   else
     skip "Firmware builds" "ESPHome or the check profiles are missing"
   fi
+fi
+
+# ---- Every board on the host: its self test, and what it draws (tools/render/run.py) ----
+
+render_boards() {
+  local python=${RENDER_PYTHON:-} out="$ROOT/.esphome/render/out"
+  if [[ -z $python ]]; then
+    python=$(dirname "$(command -v "${ESPHOME_CMD[0]}" 2>/dev/null || echo "${ESPHOME_CMD[0]}")")/python
+    [[ -x $python ]] || python=$PYTHON
+  fi
+  command -v sdl2-config > /dev/null || { echo "SDL2 is missing: brew install sdl2, or apt install libsdl2-dev"; return 1; }
+  cd "$ROOT" || return 1
+  ESPHOME="${ESPHOME_CMD[*]}" "$python" tools/render/run.py --out "$out" || { note "see $out/summary.json"; return 1; }
+  note "$(tail -n 1 "$out/summary.txt" 2>/dev/null)"
+}
+
+if ((want_render)); then
+  run "Every board on the host" render_boards
 fi
 
 echo

@@ -216,8 +216,8 @@ Assistant and are never composed in the firmware.
 
 **Prove it before you flash it.** A new card ships with a test that walks every shape it can land on
 (zero to six rows, one to three columns, 240 x 320 to 1024 x 600) and asserts that nothing leaves the
-area and nothing a finger needs falls under `ui::touch_min()`. Then render it on the lab boards
-(`.esphome/readme-render/responsive-lab/lab_render.py`) and look at it. A test says it fits; only the
+area and nothing a finger needs falls under `ui::touch_min()`. Then render it on every board, lying down and
+standing up (`tools/render/run.py`, docs/ADDING_A_BOARD.md step 5), and look at it. A test says it fits; only the
 render says it is worth looking at.
 
 ## What the screen tells the add-on

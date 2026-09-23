@@ -13,6 +13,8 @@ everything that only ever knew one shape per board reads the same file as before
 usage: generate_board_shapes.py [--check]
 """
 import json
+import math
+import re
 import sys
 from pathlib import Path
 
@@ -55,6 +57,43 @@ def alert_lines(values):
                                                    int(values['FONT_HEADLINE_SIZE'])),
             'line': font_metrics.line_height(profiles.ROOT / font_metrics.font_file(core, 'sublabel_big'),
                                              int(values['FONT_SUBLABEL_BIG_SIZE']))}
+
+
+STATUSES = ('stable', 'new', 'experimental')
+
+
+def catalog_of(board, values, lying):
+    """What New screen and the screen list say about a board: its entry in boards.yaml, with what its files say.
+
+    The size in inches is the glass's diagonal over its density, the touch controller the platform of its
+    touchscreen, and a board that reads a resistive panel asks for a touch calibration on its first start
+    (features/resistive-touch.yaml). A choice is a substitution the board file offers, whose first value is the one
+    the board file sets; a choice that is not, or an unknown status, stops the build of this file.
+    """
+    entry = profiles.CATALOG[board]
+    for key in ('name', 'model', 'status'):
+        if not isinstance(entry.get(key), str) or not entry[key].strip():
+            raise SystemExit(f'boards.yaml: {board} needs a {key}')
+    if entry['status'] not in STATUSES:
+        raise SystemExit(f'boards.yaml: {board} status is one of {", ".join(STATUSES)}')
+    choices = {}
+    for key, options in (entry.get('choices') or {}).items():
+        options = [str(option) for option in options or []]
+        if key not in values:
+            raise SystemExit(f'boards.yaml: {board} offers {key}, which its board file does not have')
+        if len(options) < 2 or len(set(options)) != len(options) or options[0] != values[key].strip('"'):
+            raise SystemExit(f'boards.yaml: {board} {key} lists the board file\'s own value ({values[key]}) first, '
+                             'then at least one other')
+        choices[key] = options
+    chain = profiles.chain(profiles.BOARDS[board])
+    text = '\n'.join(path.read_text() for path in chain)
+    touch = re.search(r'(?m)^touchscreen:\n\s*- platform: (\w+)', text)
+    return {'order': list(profiles.CATALOG).index(board), 'name': entry['name'].strip(), 'model': entry['model'].strip(),
+            'status': entry['status'],
+            'inch': round(math.hypot(lying['width'], lying['height']) / float(values['DISPLAY_DPI']), 1),
+            'touch': touch[1].upper() if touch else '',
+            'calibrate': any(path.name == 'resistive-touch.yaml' for path in chain),
+            'choices': choices}
 
 
 def camera_of(values, side):
@@ -100,7 +139,9 @@ def shapes():
                  'can_standby': values.get('CAN_STANDBY', 'true').strip('"') != 'false',
                  # The alert card's two line heights (firmware 0.2.103+): with the canvas, the density and the look they
                  # are what screen_alert::layout needs to size an alert's picture (camera_feed.alert_box).
-                 'alert': alert_lines(values)}
+                 'alert': alert_lines(values),
+                 # What New screen offers and the screen list names (boards.yaml with what the board's files say).
+                 'catalog': catalog_of(board, values, lying)}
         # A board that draws camera pictures includes features/camera.yaml, which states the canvas they fill
         # (CAMERA_FULL_*). Without it the board has no camera at all, like the CYD: the manager then refuses a camera
         # tile instead of sending a picture that never arrives.

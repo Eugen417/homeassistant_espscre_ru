@@ -1,3 +1,20 @@
+## 0.2.129 (firmware 0.2.104)
+
+New screen is drawn from one board catalog, and a CYD can be built for its other display controller.
+
+- Every board New screen offers comes from `boards.yaml` and the board's own files: its name and size in inches, what is printed on it, its glass with the tiles of one page, its touch controller, and what it can do (camera pictures, dimming, standby, a touch calibration on the first start). A new board appears there without a change to the editor or its translations.
+- A board that is new or experimental says so, with what it can and cannot do.
+- A CYD asks which display controller it has: the ILI9341 most have, or the ST7789V some carry (GitHub #6). The choice is written into the screen's own YAML, so the Override YAML is no longer needed for it. The override editor refuses a substitution the screen's own YAML already sets, because that one would win.
+- The screen list names every board from the same catalog.
+- The CYD runs the same backlight and self-test code as every other board. Going into standby it now dims over one and a half seconds like the others, and the blinks of an alert fade for a moment instead of switching hard.
+- The sun card keeps the sun's glow inside the card at sunrise and sunset; it stood a pixel over the edge.
+- An alert text longer than a screen keeps (160 bytes of subtitle on a CYD, 240 on the others) ends in "..." instead of stopping in the middle of a word.
+- Every board, lying down and standing up, is built and checked on every change: its own self test has to pass, and what it draws is compared with the version before, so a board nobody here owns is checked too.
+- The Claude skill names the boards and grids ESP Screens knows, and every screen's Rotation choice (0° and 180°; a square screen also 90° and 270°).
+- Adding a board is one command: `tools/new_board.py` writes the board file, its catalog entry, both entry files and an override case, and the entry files are generated from the catalog from now on.
+- For a build from a clone of this repository, the six board entries moved from the root to `checkout/<board>.yaml`, next to their own `secrets.yaml` (checkout/README.md). Screens installed from ESP Screens or ESPHome Device Builder build from `packages/<board>.yaml` as before and need nothing.
+- Firmware 0.2.104: press **Update** on each screen after the add-on updates.
+
 ## 0.2.128 (firmware 0.2.103)
 
 The alert fits every screen, lying down and standing up, and its picture takes the shape of the camera.

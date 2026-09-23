@@ -30,8 +30,11 @@
    `npm ci`, `npm test`, `npm run check` and `npm run build`, and fails when that fresh build differs from the
    `screen_manager/app/static` in Git (committed or staged). For a firmware change, `tools/check.sh --firmware`
    compiles both board profiles with placeholder secrets from a temporary folder (never the real `secrets.yaml`) and
-   applies the flash budget below; `--all` does both. CI (`.github/workflows/ci.yml`) runs the same script on every
-   push and pull request to main. Compile sequentially: profiles with the same `DEVICE_NAME` share one build folder,
+   applies the flash budget below; `--all` does both. `tools/check.sh --render` builds every board as a program for
+   this computer (tools/render/run.py, needs SDL2): its self test must pass lying down and standing up, and it saves
+   what every board draws under `.esphome/render/out`. CI (`.github/workflows/ci.yml`) runs the same script on every
+   push and pull request to main, and its render job compares the renders with the commit before (the `renders`
+   artifact: the pictures, a sheet, and a before/after/difference picture of every render that changed). Compile sequentially: profiles with the same `DEVICE_NAME` share one build folder,
    and a parallel build can make an upload pick the wrong `firmware.bin` (the check builds are called `check-cyd` and
    `check-guition` and build under `.esphome/check`, apart from the bench profiles). Check that no secrets are in Git.
 
@@ -218,6 +221,47 @@ as a YAML anchor into the three MDI fonts of `packages/core.yaml` (both boards b
 icons sit off-center in the browser).
 The `MDI_GLYPH_*` substitutions are retired: `TILEn_ICON` in manual
 profiles must come from the set. No changed preferences or keys.
+
+### Compatibility 0.2.129 / firmware 0.2.104
+
+The board catalog. No change to the protocol between the app and a screen, nor to the stored data.
+
+- **boards.yaml** in the repository root is the one list of boards (`tools/profiles.py` reads it). The add-on reads it
+  through `boards.json`, where every board now carries a `catalog` entry (`name`, `model`, `status`, `inch`, `touch`,
+  `calibrate`, `choices`, `order`); the entries keyed by an entry file are `packages/<key>.yaml` and
+  `checkout/<key>.yaml` now (the root names are gone, and nothing the app ever wrote into a screen's YAML named them).
+  `core.REFS` became `core.REF` and `core.BOARD_KEYS`.
+- **New screen** (`POST api/firmware/profiles`) takes `choices`, a map of a substitution to a value the board's catalog
+  entry offers; `installation_yaml` writes a value other than the board file's own into the screen's own
+  `substitutions:`, and refuses one the board does not offer (`addon.errors.firmware.choice`). An older editor sends no
+  `choices` and gets the board file's values, as before.
+- **Override YAML** refuses a substitution the screen's own YAML sets (`addon.errors.firmware.substitutions_in_profile`),
+  because that one wins. Overrides that set nothing the profile sets are unchanged.
+- **Alerts cheatsheet**: `limits` is keyed by look (`compact`, `standard`) instead of by board, with `limit_boards`
+  naming the boards of each look. Only this add-on's own editor reads it.
+- **Firmware 0.2.104**: the CYD includes `features/backlight.yaml` and `features/self-test.yaml` (standby dims over
+  1.5 s, an alert's blinks fade for 60 ms; the geometry check in its self test); the sun card keeps its glow inside the
+  card at rise and set; the self test's check of a big value on a short cell allows the digits' own top space that the
+  layout gives it. The headers `cyd_ui.h` and `guition_diagnostics.h` are `screen_input.h` and `screen_diagnostics.h`,
+  their namespaces `screen_input` and `screen_diagnostics`.
+- **Tooling**: `tools/generate_entries.py` writes the entry files (checked by `tools/check.sh`); `tools/new_board.py`
+  adds a whole board; `tools/render/run.py` builds every board as a host program and runs its self test
+  (`tools/check.sh --render`, CI's render job).
+
+### Compatibility 0.2.128 / firmware 0.2.103
+
+The alert card is laid out on the glass it lands on, and its camera picture keeps the camera's proportions.
+
+- **Firmware 0.2.103** measures the card at boot (`screen_alert::layout`) and again for the picture it gets, from the
+  picture's own width and height. It takes a picture of any size and lays the card out around it, so it needs no new
+  message: the camera op is the same (`t: "alert"`, `u` the link).
+- **App**: `camera_feed.alert_box` sizes the alert's picture for the frame the screen's card makes for the snapshot's
+  proportions, from the canvas, density and look the screen reports (the "Screen layout" sensor) with the same rule as
+  the firmware (`screen_manager/app/alert_layout.py`, kept equal to `alert_overlay.h` by `tests/test_alert_layout.py`).
+  Firmware before 0.2.103 (`ALERT_FIT_FIRMWARE`) keeps its fixed 16:9 frame and gets the picture fitted into it, as
+  before. The snapshot is fetched once per alert and encoded once per frame size, all sizes at the same time.
+- **boards.json** carries the alert's two line heights per board (`alert`) and the frame for a 16:9 picture per
+  orientation (`camera.thumb`).
 
 ### Compatibility 0.2.92 / firmware 0.2.78
 

@@ -1,6 +1,6 @@
 """The board profiles as the tests and tools read them (app 0.2.84+, packages layered since app 0.2.127).
 
-A screen is an entry (`home-like-2432s028.yaml` or `packages/cyd.yaml` for a CYD, `guition-4848s040.yaml` or
+A screen is an entry (`checkout/cyd.yaml` or `packages/cyd.yaml` for a CYD, `checkout/guition.yaml` or
 `packages/guition.yaml` for a Guition, ...) that includes `packages/core.yaml`, which every board shares, and the
 board's own file under `packages/boards/`. The board file includes packages of its own in turn: the cards of its grid
 (`packages/cells/`), its look (`packages/looks/`) and its features (`packages/features/`). docs/PROFILES.md says how.
@@ -20,17 +20,12 @@ import yaml
 ROOT = Path(__file__).resolve().parents[1]
 CORE = ROOT / 'packages/core.yaml'
 
-# The boards that ship, one line each: the key ESP Screens knows a board by, its file under packages/boards/, and the
-# profile in the repository root that builds it from a checkout. A screen installed from ESP Screens builds from
-# packages/<key>.yaml over GitHub. Adding a board is one line here (docs/ADDING_A_BOARD.md).
-BOARD_TABLE = (
-    ('cyd', 'cyd-2432s028.yaml', 'home-like-2432s028.yaml'),
-    ('guition', 'guition-4848s040.yaml', 'guition-4848s040.yaml'),
-    ('waveshare43', 'waveshare-esp32s3-43.yaml', 'waveshare-esp32s3-43.yaml'),
-    ('jc8012p4a1', 'guition-jc8012p4a1.yaml', 'guition-jc8012p4a1.yaml'),
-    ('waveshare7', 'waveshare-esp32s3-7.yaml', 'waveshare-esp32s3-7.yaml'),
-    ('waveshare4b', 'waveshare-esp32s3-4b.yaml', 'waveshare-esp32s3-4b.yaml'),
-)
+# The boards that ship: boards.yaml, the catalog, in the order New screen offers them. Each entry is keyed by the word
+# ESP Screens knows a board by and names its file under packages/boards/. A screen installed from ESP Screens builds
+# from packages/<key>.yaml over GitHub, and a build from a checkout from checkout/<key>.yaml (checkout/README.md).
+# Adding a board is one entry there (docs/ADDING_A_BOARD.md).
+CATALOG = yaml.safe_load((ROOT / 'boards.yaml').read_text())
+BOARD_TABLE = tuple((board, entry['file'], f'checkout/{board}.yaml') for board, entry in CATALOG.items())
 BOARDS = {board: ROOT / 'packages/boards' / file for board, file, _ in BOARD_TABLE}
 # The names the entry files are known by: the checkout profiles in the order above, then the published packages.
 PROFILES = tuple(profile for _, _, profile in BOARD_TABLE)

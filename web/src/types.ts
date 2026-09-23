@@ -38,7 +38,17 @@ export type SettingsView = { owner: string; keys: string[]; values: Record<strin
 // numbers for each way come from boards.json, which the add-on serves with the firmware status.
 export type Orientation = "landscape" | "portrait";
 export type BoardOrientation = { width: number; height: number; columns: number; rows: number; rotation: number };
-export type BoardChoice = { square: boolean; orientations: Partial<Record<Orientation, BoardOrientation>> };
+// What the add-on says of a board (boards.yaml and the board's own files, through boards.json, app 0.2.129): what it is
+// called and printed on it, how far it has been tried, its glass, what it can do, and the choices made when a screen of
+// it is built (the first value of each is the board file's own).
+export type BoardCatalog = {
+  order: number; name: string; model: string; status: "stable" | "new" | "experimental"; inch: number; touch: string;
+  calibrate: boolean; choices: Record<string, string[]>;
+};
+export type BoardChoice = BoardCatalog & {
+  square: boolean; orientations: Partial<Record<Orientation, BoardOrientation>>;
+  width: number; height: number; dpi: number; camera: boolean; dimmable: boolean; can_standby: boolean;
+};
 export type Screen = {
   id: string; name: string; online: boolean; area?: string; firmware?: string; board?: string;
   layout: Layout; update?: UpdateInfo; settings?: SettingsView; delivery?: string; status?: string;
@@ -52,7 +62,7 @@ export type Screen = {
   language?: string | null;
   // What the screen looks like (app 0.2.94): the glass it draws on, the cells of one page, its density and its look,
   // from the screen itself (firmware 0.2.80) or from the board it was built for (core.shape_of); the editor draws it.
-  shape?: { width: number; height: number; columns: number; rows: number; dpi?: number; look?: string } | null;
+  shape?: { width: number; height: number; columns: number; rows: number; dpi?: number; look?: string; catalog?: BoardCatalog } | null;
   // Which way it was built to hang (app 0.2.107): a screen standing up has another canvas and another grid, and
   // while it is offline only the YAML of its own profile says so.
   orientation?: Orientation;

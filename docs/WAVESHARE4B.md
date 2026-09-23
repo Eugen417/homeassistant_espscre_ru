@@ -7,12 +7,12 @@ Physical acceptance has not been performed.
 
 ## Install
 
-Update ESP Screen Manager and choose **Waveshare 4B · 4 inch (experimental)** in **New screen**.
+Update ESP Screen Manager and choose **Waveshare · 4 inch** (ESP32-S3-Touch-LCD-4B, marked Experimental) in **New screen**.
 Follow [Easy setup](EASY_SETUP.md) to create a profile with its own name, Wi-Fi references and unique API/OTA keys.
 Choose the correct USB port, or download the firmware to flash with ESPHome Web from your own computer.
 Keep an existing working profile if the board is already installed. Pair it through the ESPHome integration before adding tiles.
 
-The remote package is `packages/waveshare4b.yaml`; the checkout entry is `waveshare-esp32s3-4b.yaml`.
+The remote package is `packages/waveshare4b.yaml`; the checkout entry is `checkout/waveshare4b.yaml`.
 Both combine `packages/core.yaml` with `packages/boards/waveshare-esp32s3-4b.yaml`.
 The board has two USB-C ports. Logs go out over the one with the USB-to-UART chip, as on the 4-inch Guition.
 
