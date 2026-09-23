@@ -46,7 +46,6 @@ substitutions:
   GRID_COLS: "2"
   GRID_ROWS: "3"
   LVGL_BUFFER_SIZE: "25%"
-  ALERT_SUBTITLE_H: "150"
   BACKLIGHT_FREQUENCY: "20000Hz"
 
 # ... then esp32, psram, logger, the buses, the backlight output, the touch panel and the display
@@ -84,13 +83,17 @@ A size is a line in the look, for example:
 
 That is 54 px at 170 dpi, scaled to the board's density; ESPHome works the sum out when it reads the file (its Jinja
 expressions, in every ESPHome since the packages' `min_version`). A board states `DISPLAY_DPI` with the decimals it has
-(diagonal pixels over diagonal inches); the firmware itself takes the nearest whole number. Some sizes follow from
-others and say so: the alert's text is as wide as the card less its icon's column, its subtitle takes the room the card
-leaves between the title and the button.
+(diagonal pixels over diagonal inches); the firmware itself takes the nearest whole number.
 
 A board can still state any size itself, and its value wins. Do that only for a size set on the glass, and say why next
-to it: a few boards keep a value that was set by hand before this layout existed, and `tools/new_board.py` writes a
-line for each size the look asks for that the new glass has no room for.
+to it: a few boards keep a value that was set by hand before this layout existed.
+
+What depends on the canvas is not in the look at all: the firmware measures it at boot on the glass LVGL hands it,
+lying down or standing up. The tile area and its cells, the page bar, the strip that opens the settings, and the alert
+card (screen_alert::layout, firmware 0.2.103+: the look's card fitted to the glass, its title one line of its font, a
+camera picture in the camera's own proportions above the words or on their left, docs/CAMERA.md). ESP Screens sizes
+the alert's picture with the same rule (screen_manager/app/alert_layout.py, kept equal to the firmware's by
+tests/test_alert_layout.py).
 
 To make something bigger or smaller on every board of a look, change the number in the look.
 

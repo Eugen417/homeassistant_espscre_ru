@@ -2,20 +2,12 @@
 #
 # A camera tile opens its picture full screen, a page's camera tiles show a live picture each, and an alert can bring
 # a snapshot along (firmware 0.2.57+, 0.2.77+). ESP Screen Manager serves every image already sized for the screen:
-# CAMERA_FULL_* and CAMERA_THUMB_* reach it through boards.json (tools/generate_board_shapes.py). A board includes
-# this file next to its look; the sizes below are the standard look's (looks/standard.yaml).
+# the full view is the canvas, and the alert's image the box screen_alert::layout gives it on that canvas
+# (tools/generate_board_shapes.py works out both for boards.json, with screen_manager/app/alert_layout.py for the alert).
 substitutions:
-  # The alert with a camera image: the image across the top of a taller card, the words under it.
-  ALERT_CARD_H_IMAGE: ${ (452 * LOOK_SCALE | float) | round | int }
-  ALERT_IMAGE_INSET: ${ (14 * LOOK_SCALE | float) | round | int }
-  ALERT_IMAGE_SHIFT: ${ (236 * LOOK_SCALE | float) | round | int }    # the icon, title and subtitle move down by the image and a gap
-  ALERT_SUBTITLE_H_IMAGE: ${ (62 * LOOK_SCALE | float) | round | int } # two lines between the title and the button
-  # The boxes ESP Screen Manager sizes a snapshot for (camera_feed.BOXES): the whole canvas lying down, and the
-  # alert's image frame, which is the card less its inset on both sides.
+  # The canvas lying down, which ESP Screen Manager sizes a full-screen picture for (camera_feed.BOXES).
   CAMERA_FULL_W: ${ PANEL_H if (ROTATION_LANDSCAPE | int) in (90, 270) else PANEL_W }
   CAMERA_FULL_H: ${ PANEL_W if (ROTATION_LANDSCAPE | int) in (90, 270) else PANEL_H }
-  CAMERA_THUMB_W: ${ (ALERT_CARD_W | int) - 2 * (ALERT_IMAGE_INSET | int) }
-  CAMERA_THUMB_H: ${ (220 * LOOK_SCALE | float) | round | int }
 
   # Code the shared lambdas of packages/core.yaml take from this file (docs/PROFILES.md, "hooks")
   # the alert's camera frame is a paint of its own (theme::paints)
@@ -48,16 +40,9 @@ substitutions:
     };
     runtime_tiles::camera_live.release = []() { id(tile_image).release(); };
     runtime_tiles::camera_live.source = []() { return id(tile_image).get_lv_image_dsc(); };
+    // The alert's frame for the picture; runtime_tiles::alert_place makes room for it in the card.
     runtime_tiles::alert_frame = id(alert_image_frame);
     runtime_tiles::alert_frame_icon = id(alert_image_icon);
-    runtime_tiles::alert_room = [](bool image) {
-      const int shift = image ? ${ALERT_IMAGE_SHIFT} : 0;
-      lv_obj_set_height(id(alert_card), image ? ${ALERT_CARD_H_IMAGE} : ${ALERT_CARD_H});
-      lv_obj_set_y(id(alert_icon), ${ALERT_ICON_Y} + shift);
-      lv_obj_set_y(id(alert_title), ${ALERT_TITLE_Y} + shift);
-      lv_obj_set_y(id(alert_subtitle), ${ALERT_SUBTITLE_Y} + shift);
-      lv_obj_set_height(id(alert_subtitle), image ? ${ALERT_SUBTITLE_H_IMAGE} : ${ALERT_SUBTITLE_H});
-    };
   # what else keeps the settings page closed (inline, in the condition)
   MAY_OPEN_EXTRA: " && !runtime_tiles::camera_visible()"
   # every 250 ms after runtime_tiles::tick()
@@ -142,14 +127,11 @@ lvgl:
                 id: !extend alert_card
                 widgets:
                   # The alert's camera image (firmware 0.2.57+) across the top of the card, shown when the app announced
-                  # one; a tap opens the camera full screen over the alert. runtime_tiles.h puts the image in it.
+                  # one; a tap opens the camera full screen over the alert. runtime_tiles.h puts the image in it, and
+                  # places and sizes the frame on this screen's glass (runtime_tiles::alert_place, firmware 0.2.103+).
                   # Rounded like the alert card itself (firmware 0.2.73+); the image takes this radius (camera_loaded).
                   - obj:
                       id: alert_image_frame
-                      x: ${ALERT_IMAGE_INSET}
-                      y: ${ALERT_IMAGE_INSET}
-                      width: ${CAMERA_THUMB_W}
-                      height: ${CAMERA_THUMB_H}
                       hidden: true
                       styles: paint_camera
                       bg_opa: COVER

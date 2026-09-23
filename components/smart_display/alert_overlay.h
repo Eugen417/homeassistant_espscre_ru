@@ -6,6 +6,8 @@
 #include "tile_icon.h"
 #include "tile_icon_names.h"
 #include "tile_palette.h"
+#include "ui_scale.h"
+#include <algorithm>
 
 // The card a Home Assistant automation puts over the whole screen (api action
 // show_alert). Pure text and lookups so both boards apply the same rules and
@@ -71,47 +73,152 @@ inline Alert make(const std::string &title, const std::string &subtitle, const s
   return alert;
 }
 
-// Where the parts of the alert card stand (firmware 0.2.92+). A board states the card's table for the glass it
-// was drawn for, and every board that ships states one that fits. The same board built standing up puts that
-// table on narrower glass, so the card and everything across it is brought back by the one factor that makes it
-// fit, and its height is capped at the glass. Only the widths move: the fonts are compiled into the firmware
-// and cannot shrink with them, so a title that is one line high stays one line high.
+// Where the parts of the alert card stand (firmware 0.2.103+), worked out on the glass the screen draws on.
 //
-// Pure numbers, so tests/test_alert_overlay.cpp checks them; the profiles do the LVGL work.
-struct Frame {
-  int card_w, card_h;
-  int icon_x, text_x, text_w;
-  int button_w, button_inset;
-  int image_inset, image_width;
-};
-// `across` is what the card asks for sideways and `down` what it asks for downwards, both as the board states
-// them. `room` is the glass, and `inset` the narrowest strip of it the card may not stand on.
-inline int fit_percent(int across, int room, int inset) {
-  const int space = room - 2 * inset;
-  if (across <= 0 || space <= 0 || across <= space) return 100;
-  return space * 100 / across;
-}
-inline int scaled(int value, int percent) { return percent >= 100 ? value : value * percent / 100; }
-// What the card was brought back by on this screen, so a board that draws a picture in its alert (the frame and
-// its inset live in the board file, because only a board with a camera has them) moves by the same factor.
-inline int percent_applied = 100;
+// The card is drawn in the look's own pixels (ui::px: the standard look's at 170 dpi, the compact look's at 143 dpi),
+// so it keeps its size in millimetres on every board, and then fitted to the canvas LVGL hands the screen, lying down or
+// standing up. Nothing of it is written in a board file. The rules:
+//
+//  * The card is as wide as the look draws it, and never wider than the glass less an inset on each side. The icon,
+//    the OK button and every distance keep their size, because a finger and an eye do; the text takes what is left.
+//  * The title is one line of its font high, whatever that font is on this board, so a long title ends in an
+//    ellipsis (LVGL only puts one on a label with a height). The subtitle takes the whole lines that fit between it
+//    and the button, and ends in an ellipsis when its text is longer.
+//  * With a camera picture the card makes room for it where it shows the most of that picture, in its own proportions:
+//    across the top of the card, or on the left beside the words and the button (`above`, `beside`). A wide picture on
+//    square glass goes on top, a standing doorbell camera on wide glass beside. On glass with no room for a picture at
+//    all, the alert comes without it.
+//
+// Pure numbers, so tests/test_alert_overlay.cpp checks them and screen_manager/app/alert_layout.py can work out the same image box
+// for ESP Screens (tests/test_alert_layout.py keeps the two alike); runtime_tiles::alert_place does the LVGL work.
+// The subtitle's label is as tall as the whole lines that fit its room: a line cut in half across is no line at all, and
+// a text too long for the lines there are ends in an ellipsis on the last one (long_mode: DOT).
+inline int whole_lines(int room, int line) { return line > 0 ? room / line * line : room; }
 
-inline Frame frame(int card_w, int card_h, int icon_x, int text_x, int button_w, int button_inset,
-                   int image_inset, int image_width, int screen_w, int screen_h, int inset) {
-  const int percent = fit_percent(card_w, screen_w, inset);
-  Frame f{};
-  f.card_w = scaled(card_w, percent);
-  f.card_h = card_h <= screen_h - 2 * inset ? card_h : screen_h - 2 * inset;
-  f.icon_x = scaled(icon_x, percent);
-  f.text_x = scaled(text_x, percent);
-  f.button_w = scaled(button_w, percent);
-  f.button_inset = scaled(button_inset, percent);
-  f.image_inset = scaled(image_inset, percent);
-  f.image_width = scaled(image_width, percent);
-  if (f.image_width > f.card_w - 2 * f.image_inset) f.image_width = f.card_w - 2 * f.image_inset;
-  // The text runs from where it starts to the far side of the card, keeping the icon's margin there.
-  f.text_w = f.card_w - f.text_x - f.icon_x;
-  if (f.text_w < 0) f.text_w = 0;
-  return f;
+struct Layout {
+  int card_w = 0, card_h = 0;
+  int icon_x = 0, icon_y = 0;
+  int text_x = 0, text_w = 0;
+  int title_y = 0, title_h = 0;
+  int subtitle_y = 0, subtitle_h = 0;
+  int button_x = 0, button_y = 0, button_w = 0, button_h = 0, button_inset = 0;
+  int image_x = 0, image_y = 0, image_w = 0, image_h = 0;  // all 0 without an image
+};
+
+// The proportions of a camera picture before the screen has seen one: the design's 392 x 220, a camera's 16:9. Once
+// the picture is there, its own proportions are used (runtime_tiles::camera_loaded lays the card out again).
+constexpr int PICTURE_W = 392, PICTURE_H = 220;
+// The largest a picture gets in the alert, in the look's pixels (ui::px): 392 wide and 300 high, about 58 x 45 mm on
+// the standard look. A picture keeps that size in millimetres on every board, like everything else on the card, instead
+// of growing with the glass: an alert is read at a glance, and the picture ESP Screens scales and sends for it stays
+// small (at most 392 x 300 x 3 bytes on the wire at the standard look's density).
+constexpr int PICTURE_MAX_W = 392, PICTURE_MAX_H = 300;
+
+// How much of a picture of `aw` x `ah` proportions a frame of w x h shows, in pixels: the picture keeps its proportions
+// inside the frame, so a frame wider or taller than the picture shows no more of it.
+inline int picture_area(int w, int h, int aw, int ah) {
+  if (w <= 0 || h <= 0 || aw <= 0 || ah <= 0) return 0;
+  return std::min(w, h * aw / ah) * std::min(h, w * ah / aw);
+}
+
+// The card without a picture. `canvas_w` and `canvas_h` are the glass as LVGL draws it, `title_line` the line height of
+// the title's font and `line` that of the subtitle's. ui::configure() must have run: every other size is the look's.
+inline Layout plain(int canvas_w, int canvas_h, int title_line, int line) {
+  const bool big = ui::large();
+  Layout l;
+  const int inset = ui::px(big ? 22 : 14);  // the card from the edge of the glass, and the button from the card's
+  l.card_w = std::max(0, std::min(ui::px(big ? 420 : 292), canvas_w - 2 * inset));
+  l.card_h = std::max(0, std::min(ui::px(big ? 320 : 196), canvas_h - 2 * inset));
+  l.icon_x = ui::px(big ? 26 : 18);
+  l.icon_y = ui::px(big ? 22 : 16);
+  l.text_x = ui::px(big ? 90 : 62);
+  l.text_w = std::max(0, l.card_w - l.text_x - l.icon_x);
+  l.title_y = ui::px(big ? 26 : 16);
+  l.title_h = title_line;
+  l.subtitle_y = l.title_y + l.title_h + ui::px(big ? 10 : 7);
+  l.button_w = ui::px(big ? 150 : 100);
+  l.button_h = ui::px(big ? 60 : 40);
+  l.button_inset = inset;
+  l.button_x = l.card_w - inset - l.button_w;
+  l.button_y = l.card_h - inset - l.button_h;
+  l.subtitle_h = whole_lines(std::max(0, l.button_y - l.subtitle_y - ui::px(big ? 20 : 10)), line);
+  return l;
+}
+
+// The picture across the top of the card, the words under it. The picture is as wide as the card less its inset, or
+// narrower and in the middle when it is tall for its width; a card with a picture may come as close to the edge of the
+// glass as its picture comes to the edge of the card. When that card is taller than the glass the subtitle gives up its
+// second line first and the picture its height after that; on glass too low even for that, there is no picture
+// (image_w and image_h 0).
+inline Layout above(int canvas_w, int canvas_h, int title_line, int line, int aw, int ah) {
+  const bool big = ui::large();
+  Layout l = plain(canvas_w, canvas_h, title_line, line);
+  const int image_inset = ui::px(big ? 14 : 10);
+  const int widest = std::max(0, std::min(l.card_w - 2 * image_inset, ui::px(PICTURE_MAX_W)));
+  l.image_h = std::min(widest * ah / aw, ui::px(PICTURE_MAX_H));
+  int subtitle = ui::px(big ? 62 : 40);  // two lines of the subtitle between the title and the button
+  const int image_gap = ui::px(16), button_gap = ui::px(4);
+  const auto height = [&]() {
+    return l.image_h + image_gap + ui::px(big ? 26 : 16) + title_line + ui::px(big ? 10 : 7) + subtitle + button_gap +
+           l.button_h + l.button_inset;
+  };
+  const int over = height() - (canvas_h - 2 * image_inset);
+  if (over > 0 &&
+      ui::shrink({{&subtitle, std::min(subtitle, line)}, {&l.image_h, std::min(l.image_h, ui::px(96))}}, over) > 0)
+    return plain(canvas_w, canvas_h, title_line, line);
+  l.image_w = std::min(widest, l.image_h * aw / ah);
+  l.image_x = (l.card_w - l.image_w) / 2;
+  l.image_y = image_inset;
+  const int shift = l.image_h + image_gap;
+  l.card_h = std::max(0, std::min(height(), canvas_h - 2 * image_inset));
+  l.icon_y += shift;
+  l.title_y += shift;
+  l.subtitle_y += shift;
+  l.subtitle_h = whole_lines(subtitle, line);
+  l.button_y = l.card_h - l.button_inset - l.button_h;
+  return l;
+}
+
+// The picture on the left and the words and the button on the right, as on a card without a picture: the button stays
+// against the right edge of the card, where it is on every alert. The words keep their column (never narrower than
+// their narrowest); the picture takes the room beside them up to its largest size (the card grows with it, and may
+// come as close to the edge of the glass as the picture comes to the edge of the card).
+inline Layout beside(int canvas_w, int canvas_h, int title_line, int line, int aw, int ah) {
+  const bool big = ui::large();
+  Layout l = plain(canvas_w, canvas_h, title_line, line);
+  const int image_inset = ui::px(big ? 14 : 10);
+  const int room = canvas_w - 2 * l.button_inset;
+  const int tallest = std::max(0, std::min(canvas_h - 4 * image_inset, ui::px(PICTURE_MAX_H)));
+  const int narrowest = std::min(l.card_w, ui::px(big ? 300 : 210));
+  const int column = std::max(narrowest, std::min(l.card_w, room - image_inset - tallest * aw / ah));
+  l.image_h = std::max(0, std::min(tallest, std::min(room - column - image_inset, ui::px(PICTURE_MAX_W)) * ah / aw));
+  l.image_w = l.image_h * aw / ah;
+  // No smaller than the smallest picture above the words may get: less is a stamp, not a picture.
+  if (l.image_h < std::min(tallest, ui::px(96))) return plain(canvas_w, canvas_h, title_line, line);
+  l.card_h = std::max(l.card_h, l.image_h + 2 * image_inset);
+  l.button_y = l.card_h - l.button_inset - l.button_h;
+  const int shift = image_inset + l.image_w;  // the column of words starts where the picture ends
+  l.card_w = shift + column;
+  l.image_x = image_inset;
+  l.image_y = (l.card_h - l.image_h) / 2;
+  l.icon_x += shift;
+  l.text_x += shift;
+  l.text_w = std::max(0, column - (l.text_x - shift) - (l.icon_x - shift));
+  l.button_x = l.card_w - l.button_inset - l.button_w;
+  return l;
+}
+
+// The card on this glass: without a picture, or with one where it shows the most of it, above the words or beside
+// them. `aw` x `ah` are the proportions of the picture, PICTURE_W x PICTURE_H until the screen has one.
+inline Layout layout(int canvas_w, int canvas_h, int title_line, int line, bool image, int aw = PICTURE_W,
+                     int ah = PICTURE_H) {
+  if (!image) return plain(canvas_w, canvas_h, title_line, line);
+  if (aw <= 0 || ah <= 0) {
+    aw = PICTURE_W;
+    ah = PICTURE_H;
+  }
+  const Layout top = above(canvas_w, canvas_h, title_line, line, aw, ah);
+  const Layout side = beside(canvas_w, canvas_h, title_line, line, aw, ah);
+  return picture_area(side.image_w, side.image_h, aw, ah) > picture_area(top.image_w, top.image_h, aw, ah) ? side : top;
 }
 }  // namespace screen_alert

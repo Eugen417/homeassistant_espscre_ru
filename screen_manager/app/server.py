@@ -1828,13 +1828,13 @@ class Manager:
             return True
         return entity in {tile['entity'] for tile in self.layouts.get(inbox, {}).get('tiles', [])}
 
-    async def camera_message(self, entity, view, screen, still=None):
+    async def camera_message(self, entity, view, screen, still=None, box=None):
         """The screen message for one camera view: a link to its image, or an empty link when there is none. The size
         is the one this screen's glass asks for, which on a board that is not square differs between a screen built
         lying down and one built standing up (camera_feed.box)."""
         url = ''
         base = await camera_feed.base_url(self.ha.request)
-        box = camera_feed.box(screen, view)
+        box = box or camera_feed.box(screen, view)
         if not base:
             LOG.warning('Camera images: no address for this app on the LAN; set SCREEN_CAMERA_URL')
         elif box:
@@ -1918,21 +1918,30 @@ class Manager:
         self.alert_cameras[camera] = time.monotonic()
         for old in [entity for entity, moment in self.alert_cameras.items() if time.monotonic() - moment > camera_feed.STILL_SECONDS]:
             del self.alert_cameras[old]
-        # Grouped by the box the still has to fit, not by the board: two screens of the same board hang different
-        # ways when one was built standing up, and then each wants its own picture. Screens whose board draws no
-        # picture at all fall out here, as they always did.
+        # One snapshot of this moment for every screen, measured once: each screen's alert card makes a frame for a
+        # picture of its proportions (firmware 0.2.103+), and the picture goes out at exactly that frame's size, made
+        # from the same snapshot (camera_feed.alert_box). Grouped by that size, not by the board: two screens of the
+        # same board hang different ways when one was built standing up. Screens whose board draws no picture at all
+        # fall out here, as they always did.
+        drawn = [screen for screen in screens if camera_feed.box(screen, 'thumb')]
+        picture = await self.camera.snapshot_size(camera) if drawn else None
         groups = {}
-        for screen in screens:
-            box = camera_feed.box(screen, 'thumb')
-            if box:
-                groups.setdefault(box, []).append(screen)
-        for box, group in groups.items():
-            found = await self.camera.frame(camera, box, fresh=False, now=True)
-            message = await self.camera_message(camera, 'thumb', group[0], found[1] if found else None)
+        for screen in drawn:
+            groups.setdefault(camera_feed.alert_box(screen, picture), []).append(screen)
+        async def send(box, group):
+            # A box made for this picture's proportions is filled exactly; the 16:9 frame of older firmware gets the
+            # picture fitted inside it, as before.
+            exact = picture is not None and box != camera_feed.box(group[0], 'thumb')
+            found = await self.camera.frame(camera, box, fresh=False, exact=exact) if picture else None
+            message = await self.camera_message(camera, 'thumb', group[0], found[1] if found else None, box)
             results = await asyncio.gather(*(self.ha.send(screen['id'], message, self.transport(screen['id'], screen)) for screen in group),
                                            return_exceptions=True)
             failed = sum(isinstance(result, BaseException) for result in results)
             LOG.info('Alert image of %s: %d of %d screens%s', camera, len(group) - failed, len(group), '' if message['u'] else ' (no image)')
+
+        # Every size at once, so no screen waits for another board's picture to be made. Each frame() reads the same
+        # snapshot before its first await, so every screen shows the same moment.
+        await asyncio.gather(*(send(box, group) for box, group in groups.items()))
 
     async def broadcast(self, event_type, data):
         """An alert event for every screen: the matching action on each screen that can show it, all at once."""

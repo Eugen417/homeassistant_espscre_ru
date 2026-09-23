@@ -9,9 +9,24 @@ that cannot (see below). The numbers further down were measured on the 4-inch Gu
   image is there (firmware 0.2.73). The image is refreshed every four seconds while it is open. It
   is not video: ESPHome has no video decoder.
 - **An alert with a picture.** Add `camera: camera.front_door` to the `esp_screens_show_alert`
-  event. The card shows the picture of that moment across its top (it stays that picture), with
-  the card's round corners (firmware 0.2.73); a tap on it opens the camera full screen over the
-  alert, and Back returns to the alert.
+  event. The card shows the picture of that moment (it stays that picture), with the card's round
+  corners (firmware 0.2.73); a tap on it opens the camera full screen over the alert, and Back
+  returns to the alert. Since firmware 0.2.103 the card makes room for the picture in the picture's
+  own proportions: a wide camera across the top of the card, a square or standing doorbell camera
+  on the left of the words where the glass is wide and low (the button stays on the right). Until
+  the picture arrives the card shows a camera icon where a 16:9 picture would go, and then takes
+  the picture's shape. The picture keeps one size in millimetres on every board, at most about
+  58 x 45 mm, so a big screen shows it as a phone-sized picture, not a poster.
+- **How the picture travels.** The app fetches the camera's snapshot once for all screens, reads its
+  size from the file's header (turned the way its EXIF says), works out for each screen the frame
+  its card makes for those proportions (the same rule as the firmware, `screen_manager/app/
+  alert_layout.py`) and scales the snapshot once per frame size to exactly that frame. Screens that
+  draw the same frame share one picture; frames of different sizes are made at the same time, from
+  the same snapshot, and each screen gets its own link to its own size. The frame is worked out
+  from the density and look the screen reports itself, so an Override YAML that changes
+  `DISPLAY_DPI` is followed. The screen gets a BMP that is its frame, pixel for pixel: about 350 KB
+  at the standard look's density, up to about 430 KB for a square picture on the denser 4.3-inch.
+  Firmware before 0.2.103 has one fixed frame and gets the picture fitted into it.
 
 The CYD has no memory for images (a 320×180 image needs 115 KB in one piece, the CYD's largest
 free block is about 45 KB). It shows the alert without the picture, and the editor doesn't offer
@@ -125,7 +140,8 @@ Guition it comes in about 1.8 s (2.8 s with 4 KB).
 
 ## Memory and speed (Guition, measured 2026-09-17)
 
-- Full screen: 480×270 RGB565 is 259 KB of PSRAM; the alert picture 172 KB. Both are freed when
+- Full screen: 480×270 RGB565 is 259 KB of PSRAM; the alert picture 172 KB (at most 392 x 300 = 235 KB decoded
+  since firmware 0.2.103, never more than the screen's own full-screen picture). Both are freed when
   the camera or the alert closes. A new alert closes an open camera first.
 - The internal heap stays level while a camera refreshes: 77.2 KB free after 91 images in six minutes,
   and PSRAM unchanged.

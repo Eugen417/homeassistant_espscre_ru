@@ -47,9 +47,6 @@ substitutions:
   GRID_ROWS_PORTRAIT: "4"
   LVGL_BUFFER_SIZE: "12%"                       # LVGL's draw buffer as a share of the screen
 
-  # Drawn by hand when the alert was made, a little under the room its card leaves (92)
-  ALERT_SUBTITLE_H: "88"
-
   # Hardware a screen's own YAML may change (docs/EASY_SETUP.md, "Hardware-specific YAML overrides"). Boards sold as
   # a CYD differ: some carry an ST7789V (GitHub #6), some need a slower bus or other colours (GitHub #12, #15).
   DISPLAY_MODEL: "ILI9341"                      # ESPHome's mipi_spi model of the display controller

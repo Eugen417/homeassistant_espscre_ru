@@ -10,8 +10,10 @@ key keep their size in millimetres; nothing is copied or scaled here. What this 
 - the template board's `packages:` (its build, hardware, look and features), with the cards of the new grid;
 - the new board's word (BOARD_ID), its panel (the canvas lying down, turned back by --rotation), its density, and its
   grid both ways up: the proposal of tools/propose_grid.py, or --cols/--rows;
-- a line for each size of the look that would not fit this glass, fitted to it and saying so;
 - the template's hardware sections, which are the template's and are replaced by hand.
+
+Nothing is fitted to the glass here: what depends on the canvas (the cells, the page bar, the alert card) the firmware
+works out on the glass itself.
 
 --width and --height are the canvas of the screen lying down and --rotation the LVGL angle that lays the panel out that
 way. A board only tried out is best called lab-<name>: Git ignores those, and `tools/generate_cells.py --lab` writes the
@@ -112,20 +114,8 @@ def main():
         hardware = re.sub(r'(dimensions: \{width: )\d+(, height: )\d+', rf'\g<1>{native_w}\g<2>{native_h}', hardware, count=1)
     dest.write_text('\n'.join(lines) + '\n' + hardware)
 
-    # What the look asks for that this glass has no room for: a line each, fitted to the glass.
-    values = profiles.evaluate({**profiles.raw_substitutions(profiles.CORE), **profiles.raw_substitutions(dest)})
-    margin = int(values['GRID_MARGIN'])
-    fitted = []
-    for name, room in (('ALERT_CARD_W', W - 2 * margin), ('ALERT_CARD_H', H - 2 * margin),
-                       ('ALERT_CARD_H_IMAGE', H - 2 * margin), ('CAMERA_THUMB_H', H // 2)):
-        if name in values and int(values[name]) > room:
-            fitted.append(f'  {name}: "{room}"   # the look asks for {values[name]}; this glass has room for {room}')
-    if fitted:
-        text = dest.read_text()
-        text = text.replace('\n\n' + hardware if hardware else '\n', '\n  # Fitted to this glass by tools/new_board.py\n' + '\n'.join(fitted) + '\n\n' + hardware, 1)
-        dest.write_text(text)
     print(f'{dest.relative_to(profiles.ROOT)}: panel {native_w} x {native_h}, {dpi:.1f} dpi, the {look} look, grid {cols} x {rows} '
-          f'lying down and {tall_cols} x {tall_rows} standing up ({cells} cards), {len(fitted)} sizes fitted to the glass')
+          f'lying down and {tall_cols} x {tall_rows} standing up ({cells} cards)')
     print('Next: replace the hardware sections, run tools/generate_cells.py (--lab for a lab board), '
           'tools/check_packages.py, and render it (docs/ADDING_A_BOARD.md).')
 

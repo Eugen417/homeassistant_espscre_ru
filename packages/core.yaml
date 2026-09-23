@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.102"
+  SCREEN_FIRMWARE_VERSION: "0.2.103"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -209,25 +209,11 @@ esphome:
           // whole number, the look took the exact one for its sizes.
           ui::configure(atoi("${ (DISPLAY_DPI | float) | round | int }"), "${LOOK}");
           runtime_tiles::grid_bind(id(tile_scroll), atoi("${GRID_MARGIN}"), atoi("${PAGE_BAR_H}"));
-          // The alert card on the glass it landed on (firmware 0.2.92+). A board states the card's table for the
-          // way its glass was drawn; built standing up the same table lands on narrower glass, so the card and
-          // everything across it is brought back by the one factor that makes it fit. Nothing moves on a screen
-          // whose table already fits, which is every board lying down.
-          {
-            const auto card = screen_alert::frame(${ALERT_CARD_W}, ${ALERT_CARD_H}, ${ALERT_ICON_X},
-                ${ALERT_TEXT_X}, ${ALERT_BUTTON_W}, ${ALERT_BUTTON_INSET}, 0, 0,
-                overlay_card::screen_width(), overlay_card::screen_height(), ${ALERT_BUTTON_INSET});
-            screen_alert::percent_applied =
-                screen_alert::fit_percent(${ALERT_CARD_W}, overlay_card::screen_width(), ${ALERT_BUTTON_INSET});
-            lv_obj_set_size(id(alert_card), card.card_w, card.card_h);
-            lv_obj_set_x(id(alert_icon), card.icon_x);
-            for (auto *text : {id(alert_title), id(alert_subtitle)}) {
-              lv_obj_set_x(text, card.text_x);
-              lv_obj_set_width(text, card.text_w);
-            }
-            lv_obj_set_width(id(alert_ok), card.button_w);
-            lv_obj_set_pos(id(alert_ok), -card.button_inset, -card.button_inset);
-          }
+          // The alert card, laid out on the glass it landed on (firmware 0.2.103+): screen_alert::layout works every
+          // size out from the canvas, the look and the fonts, lying down or standing up, and runtime_tiles::alert_place
+          // puts the parts; an alert with a camera image lays it out again with room for the picture.
+          runtime_tiles::alert_parts = {id(alert_card), id(alert_icon), id(alert_title), id(alert_subtitle), id(alert_ok)};
+          runtime_tiles::alert_place(false);
           runtime_tiles::setpoint_font = id(setpoint_digits)->get_lv_font();
           // The cards of this board's grid (packages/cells/<number>.yaml).
           ${BIND_CELLS}
@@ -1560,11 +1546,11 @@ lvgl:
           pressed:
             bg_opa: 60%
           widgets:
+            # Every size and place of the card and its parts is worked out on this screen's glass at boot
+            # (screen_alert::layout, runtime_tiles::alert_place): none is written here.
             - obj:
                 id: alert_card
                 align: CENTER
-                width: ${ALERT_CARD_W}
-                height: ${ALERT_CARD_H}
                 styles: paint_raised
                 bg_opa: COVER
                 radius: 18
@@ -1578,28 +1564,18 @@ lvgl:
                 widgets:
                   - label:
                       id: alert_icon
-                      x: ${ALERT_ICON_X}
-                      y: ${ALERT_ICON_Y}
                       text: "\U000F002A"
                       text_font: materialdesign_icons
                       clickable: false
                   - label:
                       id: alert_title
-                      x: ${ALERT_TEXT_X}
-                      y: ${ALERT_TITLE_Y}
-                      width: ${ALERT_TEXT_W}
-                      height: ${ALERT_TITLE_H}
                       long_mode: DOT
                       text: !lambda 'return std::string(screen_text::tr(screen_text::txt::alert_notification));'
                       text_font: headline
                       clickable: false
                   - label:
                       id: alert_subtitle
-                      x: ${ALERT_TEXT_X}
-                      y: ${ALERT_SUBTITLE_Y}
-                      width: ${ALERT_TEXT_W}
-                      height: ${ALERT_SUBTITLE_H}
-                      long_mode: WRAP
+                      long_mode: DOT
                       text: ""
                       text_font: sublabel_big
                       styles: paint_ink_soft
@@ -1607,10 +1583,6 @@ lvgl:
                   - obj:
                       id: alert_ok
                       align: BOTTOM_RIGHT
-                      x: -${ALERT_BUTTON_INSET}
-                      y: -${ALERT_BUTTON_INSET}
-                      width: ${ALERT_BUTTON_W}
-                      height: ${ALERT_BUTTON_H}
                       radius: 999
                       styles: paint_button_dark
                       bg_opa: COVER

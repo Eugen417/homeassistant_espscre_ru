@@ -65,8 +65,8 @@ packages and its hardware sections. `--width` and `--height` are the canvas of t
 the LVGL angle that lays the panel out that way, so the board file states the panel's own pixels (`PANEL_W`,
 `PANEL_H`) and that angle (`ROTATION_LANDSCAPE`). It then states its density (`DISPLAY_DPI`, with the decimals it has)
 and its grid the two ways the screen can hang (`GRID_COLS`, `GRID_ROWS`, `GRID_COLS_PORTRAIT`, `GRID_ROWS_PORTRAIT`).
-Every size comes from the look, scaled to that density, so a tile, a letter and a key keep their size in millimetres;
-the script adds a line only for a size the look asks for that the glass has no room for, and says so on that line.
+Every size comes from the look, scaled to that density, so a tile, a letter and a key keep their size in millimetres,
+and what depends on the canvas the firmware works out on the glass (see below).
 
 The grid is the one real choice: the proposal keeps a tile at about 33 × 16 mm and never smaller than 30 × 12 mm,
 but a board of the same size can be read as "more tiles" or "bigger tiles". Render both and look. It is two

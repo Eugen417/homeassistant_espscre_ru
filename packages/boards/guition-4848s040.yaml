@@ -36,9 +36,6 @@ substitutions:
   GRID_ROWS: "3"
   LVGL_BUFFER_SIZE: "25%"                       # LVGL's draw buffer as a share of the screen
 
-  # Drawn by hand when the alert was made, a little under the room its card leaves (164)
-  ALERT_SUBTITLE_H: "150"
-
   # Hardware a screen's own YAML may change (docs/EASY_SETUP.md, "Hardware-specific YAML overrides")
   BACKLIGHT_FREQUENCY: "20000Hz"                # the backlight's PWM; some batches of this board want 150Hz (GitHub #5)
 

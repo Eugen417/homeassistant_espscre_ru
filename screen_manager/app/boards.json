@@ -1,5 +1,9 @@
 {
  "cyd": {
+  "alert": {
+   "line": 16,
+   "title_line": 21
+  },
   "board": "cyd",
   "can_standby": true,
   "columns": 2,
@@ -27,6 +31,10 @@
   "width": 320
  },
  "guition": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
   "board": "guition",
   "camera": {
    "full": [
@@ -84,6 +92,10 @@
   "width": 480
  },
  "guition-4848s040.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
   "board": "guition",
   "camera": {
    "full": [
@@ -141,6 +153,10 @@
   "width": 480
  },
  "guition-jc8012p4a1.yaml": {
+  "alert": {
+   "line": 21,
+   "title_line": 28
+  },
   "board": "jc8012p4a1",
   "camera": {
    "full": [
@@ -148,7 +164,7 @@
     800
    ],
    "thumb": [
-    345,
+    343,
     193
    ]
   },
@@ -166,7 +182,7 @@
       800
      ],
      "thumb": [
-      345,
+      343,
       193
      ]
     },
@@ -183,7 +199,7 @@
       1280
      ],
      "thumb": [
-      345,
+      343,
       193
      ]
     },
@@ -198,6 +214,10 @@
   "width": 1280
  },
  "home-like-2432s028.yaml": {
+  "alert": {
+   "line": 16,
+   "title_line": 21
+  },
   "board": "cyd",
   "can_standby": true,
   "columns": 2,
@@ -225,6 +245,10 @@
   "width": 320
  },
  "jc8012p4a1": {
+  "alert": {
+   "line": 21,
+   "title_line": 28
+  },
   "board": "jc8012p4a1",
   "camera": {
    "full": [
@@ -232,7 +256,7 @@
     800
    ],
    "thumb": [
-    345,
+    343,
     193
    ]
   },
@@ -250,7 +274,7 @@
       800
      ],
      "thumb": [
-      345,
+      343,
       193
      ]
     },
@@ -267,7 +291,7 @@
       1280
      ],
      "thumb": [
-      345,
+      343,
       193
      ]
     },
@@ -282,6 +306,10 @@
   "width": 1280
  },
  "packages/cyd.yaml": {
+  "alert": {
+   "line": 16,
+   "title_line": 21
+  },
   "board": "cyd",
   "can_standby": true,
   "columns": 2,
@@ -309,6 +337,10 @@
   "width": 320
  },
  "packages/guition.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
   "board": "guition",
   "camera": {
    "full": [
@@ -366,6 +398,10 @@
   "width": 480
  },
  "packages/jc8012p4a1.yaml": {
+  "alert": {
+   "line": 21,
+   "title_line": 28
+  },
   "board": "jc8012p4a1",
   "camera": {
    "full": [
@@ -373,7 +409,7 @@
     800
    ],
    "thumb": [
-    345,
+    343,
     193
    ]
   },
@@ -391,7 +427,7 @@
       800
      ],
      "thumb": [
-      345,
+      343,
       193
      ]
     },
@@ -408,7 +444,7 @@
       1280
      ],
      "thumb": [
-      345,
+      343,
       193
      ]
     },
@@ -423,6 +459,10 @@
   "width": 1280
  },
  "packages/waveshare43.yaml": {
+  "alert": {
+   "line": 32,
+   "title_line": 40
+  },
   "board": "waveshare43",
   "camera": {
    "full": [
@@ -430,8 +470,8 @@
     480
    ],
    "thumb": [
-    500,
-    240
+    349,
+    196
    ]
   },
   "can_standby": false,
@@ -448,8 +488,8 @@
       480
      ],
      "thumb": [
-      500,
-      240
+      349,
+      196
      ]
     },
     "columns": 3,
@@ -465,8 +505,8 @@
       800
      ],
      "thumb": [
-      395,
-      190
+      386,
+      217
      ]
     },
     "columns": 1,
@@ -480,6 +520,10 @@
   "width": 800
  },
  "packages/waveshare4b.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
   "board": "waveshare4b",
   "camera": {
    "full": [
@@ -537,6 +581,10 @@
   "width": 480
  },
  "packages/waveshare7.yaml": {
+  "alert": {
+   "line": 19,
+   "title_line": 25
+  },
   "board": "waveshare7",
   "camera": {
    "full": [
@@ -544,8 +592,8 @@
     480
    ],
    "thumb": [
-    307,
-    172
+    304,
+    171
    ]
   },
   "can_standby": false,
@@ -562,8 +610,8 @@
       480
      ],
      "thumb": [
-      307,
-      172
+      304,
+      171
      ]
     },
     "columns": 4,
@@ -579,8 +627,8 @@
       800
      ],
      "thumb": [
-      307,
-      172
+      304,
+      171
      ]
     },
     "columns": 2,
@@ -594,6 +642,10 @@
   "width": 800
  },
  "waveshare-esp32s3-43.yaml": {
+  "alert": {
+   "line": 32,
+   "title_line": 40
+  },
   "board": "waveshare43",
   "camera": {
    "full": [
@@ -601,8 +653,8 @@
     480
    ],
    "thumb": [
-    500,
-    240
+    349,
+    196
    ]
   },
   "can_standby": false,
@@ -619,8 +671,8 @@
       480
      ],
      "thumb": [
-      500,
-      240
+      349,
+      196
      ]
     },
     "columns": 3,
@@ -636,8 +688,8 @@
       800
      ],
      "thumb": [
-      395,
-      190
+      386,
+      217
      ]
     },
     "columns": 1,
@@ -651,6 +703,10 @@
   "width": 800
  },
  "waveshare-esp32s3-4b.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
   "board": "waveshare4b",
   "camera": {
    "full": [
@@ -708,6 +764,10 @@
   "width": 480
  },
  "waveshare-esp32s3-7.yaml": {
+  "alert": {
+   "line": 19,
+   "title_line": 25
+  },
   "board": "waveshare7",
   "camera": {
    "full": [
@@ -715,8 +775,8 @@
     480
    ],
    "thumb": [
-    307,
-    172
+    304,
+    171
    ]
   },
   "can_standby": false,
@@ -733,8 +793,8 @@
       480
      ],
      "thumb": [
-      307,
-      172
+      304,
+      171
      ]
     },
     "columns": 4,
@@ -750,8 +810,8 @@
       800
      ],
      "thumb": [
-      307,
-      172
+      304,
+      171
      ]
     },
     "columns": 2,
@@ -765,6 +825,10 @@
   "width": 800
  },
  "waveshare43": {
+  "alert": {
+   "line": 32,
+   "title_line": 40
+  },
   "board": "waveshare43",
   "camera": {
    "full": [
@@ -772,8 +836,8 @@
     480
    ],
    "thumb": [
-    500,
-    240
+    349,
+    196
    ]
   },
   "can_standby": false,
@@ -790,8 +854,8 @@
       480
      ],
      "thumb": [
-      500,
-      240
+      349,
+      196
      ]
     },
     "columns": 3,
@@ -807,8 +871,8 @@
       800
      ],
      "thumb": [
-      395,
-      190
+      386,
+      217
      ]
     },
     "columns": 1,
@@ -822,6 +886,10 @@
   "width": 800
  },
  "waveshare4b": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
   "board": "waveshare4b",
   "camera": {
    "full": [
@@ -879,6 +947,10 @@
   "width": 480
  },
  "waveshare7": {
+  "alert": {
+   "line": 19,
+   "title_line": 25
+  },
   "board": "waveshare7",
   "camera": {
    "full": [
@@ -886,8 +958,8 @@
     480
    ],
    "thumb": [
-    307,
-    172
+    304,
+    171
    ]
   },
   "can_standby": false,
@@ -904,8 +976,8 @@
       480
      ],
      "thumb": [
-      307,
-      172
+      304,
+      171
      ]
     },
     "columns": 4,
@@ -921,8 +993,8 @@
       800
      ],
      "thumb": [
-      307,
-      172
+      304,
+      171
      ]
     },
     "columns": 2,

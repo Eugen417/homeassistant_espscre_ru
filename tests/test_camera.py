@@ -35,6 +35,48 @@ def picture(fmt, size, mode='RGB'):
 
 
 class Rules(unittest.TestCase):
+    def test_the_alert_picture_is_sized_for_the_frame_of_its_proportions(self):
+        guition = {'board': 'guition', 'firmware_known': '0.2.103'}
+        self.assertEqual(camera_feed.alert_box(guition, (1920, 1080)), (391, 220))
+        square = camera_feed.alert_box(guition, (720, 720))
+        self.assertEqual(square[0], square[1])
+        self.assertGreater(square[1], 220)
+        # Older firmware has one frame for every picture; it gets the picture for that frame, as before.
+        self.assertEqual(camera_feed.alert_box({'board': 'guition', 'firmware_known': '0.2.102'}, (720, 720)), (392, 220))
+        # A screen whose Override YAML changed its density reports it ("Screen layout"), and gets the frame of its card
+        # at that density, with the fonts it was built with.
+        import alert_layout
+        denser = {**guition, 'shape': {'width': 480, 'height': 480, 'columns': 2, 'rows': 3, 'dpi': 200, 'look': 'standard'}}
+        card = alert_layout.layout(480, 480, *alert_layout.lines(200, 'standard'), True, 200, 'standard', 1080, 1440)
+        self.assertEqual(camera_feed.alert_box(denser, (1080, 1440)), (card.image_w, card.image_h))
+        self.assertNotEqual(camera_feed.alert_box(denser, (1080, 1440)), camera_feed.alert_box(guition, (1080, 1440)))
+        # No picture known, or a board without pictures.
+        self.assertEqual(camera_feed.alert_box(guition, None), (392, 220))
+        self.assertIsNone(camera_feed.alert_box({'board': 'cyd', 'firmware_known': '0.2.103'}, (720, 720)))
+        # Never larger than the screen's own full-screen picture, which is what its board's memory is measured for.
+        for board, shape in camera_feed.SHAPES.items():
+            if board != shape.get('board') or 'camera' not in shape:
+                continue
+            for way in ('landscape', 'portrait'):
+                screen = {'board': board, 'orientation': way, 'firmware_known': '0.2.103'}
+                full = camera_feed.box(screen, 'full')
+                for picture in ((1920, 1080), (720, 720), (1080, 1440), (2560, 1080), (1080, 1920)):
+                    w, h = camera_feed.alert_box(screen, picture)
+                    self.assertLessEqual(w * h, full[0] * full[1], (board, way, picture))
+                    self.assertLessEqual(w, full[0], (board, way, picture))
+                    self.assertLessEqual(h, full[1], (board, way, picture))
+
+    @unittest.skipUnless(HAS_PIL, 'needs Pillow')
+    def test_a_turned_snapshot_is_measured_the_way_it_is_shown(self):
+        from PIL import Image
+        out = io.BytesIO()
+        image = Image.new('RGB', (1440, 1080))
+        exif = image.getexif()
+        exif[0x0112] = 6  # turned a quarter: shown 1080 wide, 1440 high
+        image.save(out, 'JPEG', exif=exif)
+        self.assertEqual(camera_feed.picture_size(out.getvalue()), (1080, 1440))
+        self.assertEqual(camera_feed.picture_size(picture('PNG', (640, 360))), (640, 360))
+
     def test_camera_and_image_tiles_need_the_camera_firmware(self):
         self.assertTrue(entity_id('camera.front_door') and entity_id('image.doorbell'))
         self.assertEqual(camera_feed.MIN_FIRMWARE, CAMERA_MIN_FIRMWARE)
@@ -72,10 +114,11 @@ class Rules(unittest.TestCase):
         self.assertEqual(alert_reference()['camera']['name'], 'camera')
 
     def test_the_boxes_are_the_profile_sizes(self):
-        # What the Guition's screen sees: the boxes features/camera.yaml works out for its glass.
+        # The Guition's: its canvas, and the frame its alert card makes for a picture (screen_alert::layout), which
+        # is the one the standard look was drawn with.
         subs = profiles.substitutions('guition-4848s040.yaml')
         self.assertEqual(camera_feed.BOXES['guition'], {'full': (int(subs['CAMERA_FULL_W']), int(subs['CAMERA_FULL_H'])),
-                                                        'thumb': (int(subs['CAMERA_THUMB_W']), int(subs['CAMERA_THUMB_H']))})
+                                                        'thumb': (392, 220)})
 
     def test_the_firmware_and_the_app_speak_the_same_words(self):
         self.assertIn('request.service = esphome::StringRef("esphome.screen_camera");', TILES)
@@ -362,6 +405,52 @@ class App(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await m.camera.serve(token))[0], 200)
             # The alert's camera may be opened full screen without a tile.
             self.assertTrue(m.camera_allowed('text.d1_tiles', 'camera.front_door'))
+
+    async def test_an_alert_picture_has_the_size_of_the_frame_the_screen_makes_for_it(self):
+        # Firmware 0.2.103 lays its alert out for the picture's own proportions (screen_alert::layout): a standing
+        # doorbell camera gets a picture at exactly the frame the Guition's card makes for 3:4, fetched once.
+        import alert_layout
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (1080, 1440)))
+            ha.states['sensor.d1_fw']['state'] = '0.2.103'
+            m = Manager(ha, Path(tmp) / 'screens.json')
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Someone is at the door', 'camera': 'camera.front_door'})
+            sends = [entry for entry in ha.log if entry[0] == 'send']
+            token = sends[1][2]['u'].rsplit('/', 1)[1][:-4]
+            board = camera_feed.SHAPES['guition']
+            card = alert_layout.layout(480, 480, board['alert']['title_line'], board['alert']['line'], True, board['dpi'],
+                                       board['look'], 1080, 1440)
+            self.assertEqual(m.camera.links[token].box, (card.image_w, card.image_h))
+            status, body, _ = await m.camera.serve(token)
+            from PIL import Image
+            with Image.open(io.BytesIO(body)) as served:
+                self.assertEqual(served.size, (card.image_w, card.image_h))
+            self.assertEqual(len([entry for entry in ha.log if entry[0] == 'fetch']), 1, 'one snapshot for the alert')
+
+    async def test_screens_of_different_sizes_get_one_snapshot_each_at_their_own_size(self):
+        # A broadcast to a wall of screens: every size the alert needs is made once from the same snapshot, and each
+        # screen gets its own link to its own size.
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (1080, 1440)))
+            ha.states['sensor.d1_fw']['state'] = '0.2.103'
+            ha.states['sensor.d3_fw']['state'] = '0.2.102'
+            m = Manager(ha, Path(tmp) / 'screens.json')
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Someone is at the door', 'camera': 'camera.front_door'})
+            links = {inbox: message['u'] for _, inbox, message in (e for e in ha.log if e[0] == 'send') if message['u']}
+            self.assertEqual(set(links), {'text.d1_tiles', 'text.d3_tiles'})
+            served = {}
+            for inbox, url in links.items():
+                status, body, etag = await m.camera.serve(url.rsplit('/', 1)[1][:-4])
+                self.assertEqual(status, 200)
+                from PIL import Image
+                with Image.open(io.BytesIO(body)) as image:
+                    served[inbox] = image.size
+            self.assertEqual(served['text.d3_tiles'], (165, 220), 'older firmware gets it fitted in its 16:9 frame')
+            self.assertLess(served['text.d1_tiles'][0], served['text.d1_tiles'][1], 'the new firmware gets a standing picture')
+            frames = m.camera.watch('camera.front_door').frames
+            self.assertEqual(len(frames), 2)
+            self.assertEqual(len({digest for digest, _ in frames.values()}), 1, 'both made from the same snapshot')
+            self.assertEqual(len([entry for entry in ha.log if entry[0] == 'fetch']), 1, 'one snapshot for the whole wall')
 
     async def test_an_alert_whose_camera_has_no_image_still_goes_out(self):
         with tempfile.TemporaryDirectory() as tmp:

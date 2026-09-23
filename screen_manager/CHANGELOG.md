@@ -1,3 +1,14 @@
+## 0.2.128 (firmware 0.2.103)
+
+The alert fits every screen, lying down and standing up, and its picture takes the shape of the camera.
+
+- The alert card is laid out on the glass it lands on. Its size, its words and its button keep their size in millimetres on every board, the card never runs off a narrow screen, and nothing about it is written in a board file any more.
+- An alert with a camera picture makes room for that picture in the camera's own proportions. A wide camera goes across the top of the card; a square or standing doorbell camera goes on the left of the words where the glass is wide and low, with the button on the right as always. The picture keeps one size in millimetres on every board, about as large as it has always been on the 4-inch Guition, so a big screen shows it tidily instead of filling the glass. Until the picture arrives the card shows a camera icon in its place.
+- The picture reaches each screen at exactly the size of the frame it draws: ESP Screens fetches the snapshot once, measures it, and scales it once per frame size, all sizes at the same time, so a wall of different screens gets one moment without waiting on each other. A screen whose Override YAML changes its density gets the frame it really draws. At most about 430 KB goes to a screen.
+- On the 4.3-inch Waveshare the button no longer covers the title of an alert with a picture, and standing up the picture is no longer cut off at the side.
+- A long subtitle shows whole lines and ends in "…" instead of a line cut in half. The title is exactly one line of its font on every board, so a long title always ends in "…".
+- Firmware 0.2.103: press **Update** on each screen after the add-on updates. A screen on older firmware keeps its alert as it was and gets its picture as before.
+
 ## 0.2.127 (firmware 0.2.102)
 
 A screen's files are built from shared parts now, so a change reaches every board at once and a new board is a short file. The firmware every board builds is the same as before.

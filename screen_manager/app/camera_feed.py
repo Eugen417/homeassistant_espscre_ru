@@ -20,6 +20,7 @@ import re
 import secrets
 import time
 
+import alert_layout
 from core import SHAPES, board_of, screen_firmware, shape_of
 
 LOG = logging.getLogger(__name__)
@@ -90,6 +91,51 @@ def box(screen, view):
     return (boxes(screen) or {}).get(view)
 
 
+# Firmware 0.2.103 lays its alert out again for the picture it gets, in that picture's own proportions
+# (screen_alert::layout), so from there on the picture is sent at the size that layout gives it. Older firmware has a
+# frame of one fixed size and gets the picture for that frame, as before.
+ALERT_FIT_FIRMWARE = (0, 2, 103)
+
+
+def alert_box(screen, picture):
+    """The size to send the picture of an alert at, for one screen: the frame its alert card makes for a picture of
+    `picture` (width, height) proportions on its glass (alert_layout, the firmware's own rule), so the picture fills
+    that frame pixel for pixel. The frame for a camera's 16:9 (box 'thumb') when the picture is not known, the
+    firmware is older, or the glass has no room for a picture of those proportions; None when the board draws none."""
+    default = box(screen, 'thumb')
+    if not default or not picture or not isinstance(screen, dict):
+        return default
+    if (screen_firmware(screen) or (0, 0, 0)) < ALERT_FIT_FIRMWARE:
+        return default
+    board = SHAPES.get(board_of(screen)) or {}
+    lines, shape = board.get('alert'), shape_of(screen)
+    if not lines or not shape.get('width') or not shape.get('height') or not board.get('dpi'):
+        return default
+    # The density and the look the screen reports (its "Screen layout") win over its board's, so an Override YAML that
+    # changes DISPLAY_DPI or the look is followed: the card's fonts are then worked out for what the screen was built
+    # with. As the board was built, its own line heights hold, measured from the board's exact density.
+    dpi, look = shape.get('dpi') or board['dpi'], shape.get('look') or board.get('look', 'standard')
+    if (dpi, look) == (board['dpi'], board.get('look', 'standard')):
+        title_line, line = lines['title_line'], lines['line']
+    else:
+        title_line, line = alert_layout.lines(dpi, look)
+    card = alert_layout.layout(shape['width'], shape['height'], title_line, line, True, dpi, look, picture[0], picture[1])
+    return (card.image_w, card.image_h) if card.image_w > 0 and card.image_h > 0 else default
+
+
+def picture_size(raw):
+    """(width, height) of a snapshot as the screen will see it, read from its header without decoding it: a camera
+    that writes its picture turned and says so in EXIF (orientations 5 to 8) is measured the way it will be shown."""
+    from PIL import Image
+    with Image.open(io.BytesIO(raw)) as source:
+        width, height = source.size
+        try:
+            turned = source.getexif().get(0x0112) in (5, 6, 7, 8)
+        except Exception:
+            turned = False
+    return (height, width) if turned else (width, height)
+
+
 def supported(entity):
     """True for a camera or image entity id."""
     return (isinstance(entity, str) and len(entity) <= 120 and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', entity) is not None
@@ -156,9 +202,10 @@ def fit(size, box):
     return max(1, min(box[0], round(width * scale))), max(1, min(box[1], round(height * scale)))
 
 
-def encode(raw, box):
+def encode(raw, box, exact=False):
     """Any snapshot Home Assistant hands out (JPEG, PNG, GIF, WebP) as a 24-bit BMP that fits `box`, the size of the
-    screen's buffer."""
+    screen's buffer. `exact` makes it exactly `box`: for a box that already has the picture's proportions to within a
+    pixel of rounding (alert_box), so the picture and the frame the screen made for it are the same pixels."""
     from PIL import Image, ImageOps
     with Image.open(io.BytesIO(raw)) as source:
         # A JPEG decodes at a half, quarter or eighth of its size while that is still larger than the box.
@@ -171,7 +218,7 @@ def encode(raw, box):
             image = ground
         elif image.mode != 'RGB':
             image = image.convert('RGB')
-        size = fit(image.size, box)
+        size = tuple(box) if exact else fit(image.size, box)
         if image.size != size:
             image = image.resize(size, Image.Resampling.LANCZOS)
         out = io.BytesIO()
@@ -270,6 +317,7 @@ class Watch:
         self.raw, self.digest = None, ''
         self.picture, self.fetching = None, None
         self.frames = {}
+        self.size, self.size_of = None, ''  # the last picture's (width, height), and the digest it was measured for
         self.failures = 0
         self.retry_at = 0.0
         self.fetched_at = 0.0
@@ -338,7 +386,7 @@ class CameraFeed:
             if watch.failures in (1, 30):
                 LOG.info('No image from %s (%s)', entity, type(error).__name__)
 
-    async def frame(self, entity, box, wait=FIRST_FRAME_SECONDS, fresh=True, now=False):
+    async def frame(self, entity, box, wait=FIRST_FRAME_SECONDS, fresh=True, now=False, exact=False):
         """(etag, BMP) of the camera's last snapshot at `box`, or None when it has none (yet). The first snapshot is
         waited for; `fresh` starts fetching the next one for the next load. `now` (an alert) waits for a snapshot whose
         fetch starts now or is already on its way, never one kept from an earlier load."""
@@ -365,15 +413,35 @@ class CameraFeed:
             return None
         if fresh:
             self.refresh(entity, watch)
-        cached = watch.frames.get(box)
+        if box is None:  # only the snapshot was asked for (snapshot_size)
+            return digest, None
+        key = (box, 'exact') if exact else box
+        cached = watch.frames.get(key)
         if cached is None or cached[0] != digest:
             try:
-                image = await asyncio.get_running_loop().run_in_executor(None, encode, raw, box)
+                image = await asyncio.get_running_loop().run_in_executor(None, encode, raw, box, exact)
             except Exception as error:
                 LOG.info('The image of %s cannot be read (%s)', entity, type(error).__name__)
                 return None
-            cached = watch.frames[box] = (digest, image)
+            cached = watch.frames[key] = (digest, image)
         return f'"{digest[:16]}-{box[0]}x{box[1]}"', cached[1]
+
+    async def snapshot_size(self, entity, wait=FIRST_FRAME_SECONDS):
+        """(width, height) of the camera's snapshot of this moment, fetched now or already on its way (as frame with
+        `now`), or None when it has none. Measured once per snapshot; the frames made from it after this reuse it."""
+        if await self.frame(entity, None, wait=wait, fresh=False, now=True) is None:
+            return None
+        watch = self.watch(entity)
+        if watch.raw is None:
+            return None
+        if watch.size_of != watch.digest:
+            try:
+                watch.size = await asyncio.get_running_loop().run_in_executor(None, picture_size, watch.raw)
+            except Exception as error:
+                LOG.info('The image of %s cannot be read (%s)', entity, type(error).__name__)
+                return None
+            watch.size_of = watch.digest
+        return watch.size
 
     # ----- live tiles -----
     # A page's strip is made when the screen loads its link, out of the last snapshot of every tile's camera, and

@@ -1,6 +1,6 @@
 """The alert a Home Assistant action puts over the whole screen: both board profiles and both remote packages."""
+import json
 import re
-import struct
 import sys
 import unittest
 from pathlib import Path
@@ -21,20 +21,6 @@ def section(text, start, end):
 def script(text, name):
     """One script block without its trailing comment lines, which introduce the next script."""
     return re.sub(r'^\s*#.*\n?', '', section(text, f'  - id: {name}\n', '\n  - id: '), flags=re.M)
-
-def line_height(font, size):
-    """LVGL's line height of an ESPHome font: FreeType's size height ('hhea' ascender - descender + line gap, scaled
-    to the pixel size and rounded to whole pixels), which ESPHome hands to lv_font_t.line_height."""
-    data = font.read_bytes()
-    tables = {}
-    for i in range(struct.unpack('>H', data[4:6])[0]):
-        tag, _, offset, _ = struct.unpack('>4sIII', data[12 + 16 * i:28 + 16 * i])
-        tables[tag] = offset
-    units_per_em = struct.unpack('>H', data[tables[b'head'] + 18:tables[b'head'] + 20])[0]
-    ascender, descender, line_gap = struct.unpack('>hhh', data[tables[b'hhea'] + 4:tables[b'hhea'] + 10])
-    scale = ((size * 64) << 16) // units_per_em                          # 16.16
-    height = ((ascender - descender + line_gap) * scale + 0x8000) >> 16  # 26.6 pixels
-    return (height + 32) // 64
 
 class AlertTests(unittest.TestCase):
     def sources(self):
@@ -62,7 +48,8 @@ class AlertTests(unittest.TestCase):
             self.assertIn('hidden: true', section(top, 'id: alert_overlay\n', 'widgets:'), name)
             self.assertIn(f'text: "\\U000{tile_icons.GLYPHS["alert-outline"]}"', top, name)
             self.assertIn('long_mode: DOT', section(top, 'id: alert_title\n', 'id: alert_subtitle'), name)
-            self.assertIn('long_mode: WRAP', section(top, 'id: alert_subtitle\n', 'id: alert_ok'), name)
+            # The subtitle wraps over the whole lines it has and ends in an ellipsis when its text is longer (0.2.103+).
+            self.assertIn('long_mode: DOT', section(top, 'id: alert_subtitle\n', 'id: alert_ok'), name)
             ok = section(top, 'id: alert_ok\n', 'widgets:')
             self.assertIn('lv_label_set_text(id(alert_ok_label), alert.button.c_str());', script(text, 'alert_show'), name)
             self.assertIn('cyd::touch_guard.accept(millis(), 13)', ok, name)
@@ -75,15 +62,15 @@ class AlertTests(unittest.TestCase):
         for name, text in self.sources():
             top = section(section(text, '\nlvgl:\n', '\nscript:\n'), '  top_layer:\n', '  pages:\n')
             title = section(top, 'id: alert_title\n', 'id: alert_subtitle')
-            self.assertIn('height: ${ALERT_TITLE_H}\n', title, name)
+            self.assertIn('long_mode: DOT\n', title, name)
             self.assertIn('text_font: headline\n', title, name)
-            # The core names the font as ${FONT_DIR}/... at the board's ${FONT_HEADLINE_SIZE} (app 0.2.84+).
-            font, size = re.search(r'(?m)^  - file: "(?:[^"\n]*/)?(fonts/[^"\n]+)"\n    id: headline\n    size: (\d+)$', profiles.resolved(name)).groups()
-            # The value a screen of this board sees: its board file's, its look's (computed) or its features'.
-            values = profiles.substitutions(name)
-            v = lambda key: int(values[key])
-            self.assertEqual(v('ALERT_TITLE_H'), line_height(ROOT / font, int(size)), name)
-            self.assertLessEqual(v('ALERT_TITLE_Y') + v('ALERT_TITLE_H'), v('ALERT_SUBTITLE_Y'), name)
+        # The height is the title font's own line (firmware 0.2.103+): screen_alert::layout takes it from the font the
+        # label draws with, on every board, so no board can state one that is off by a pixel.
+        tiles = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        self.assertIn('lv_font_get_line_height(lv_obj_get_style_text_font(p.title, LV_PART_MAIN))', tiles)
+        self.assertIn('lv_obj_set_size(p.title, l.text_w, l.title_h);', tiles)
+        header = (ROOT / 'components/smart_display/alert_overlay.h').read_text()
+        self.assertIn('l.title_h = title_line;', header)
 
     def test_standby_waits_and_no_other_path_closes_the_card(self):
         for name, text in self.sources():
@@ -123,21 +110,30 @@ class AlertTests(unittest.TestCase):
             flash = script(text, 'alert_flash')
             self.assertIn('count: 4', flash, name)
             self.assertEqual(flash.count('delay:'), 2, name)
-            # The value a screen of this board sees: its board file's, its look's (computed) or its features'.
             values = profiles.substitutions(name)
             v = lambda key: int(values[key])
-            # The card's table is stated for the glass this board was drawn for, which is its panel lying down.
-            # A screen built standing up puts the same table on narrower glass, and screen_alert::frame brings
-            # the card back to fit; the table itself still has to fit the way the board ships.
-            landscape = sorted((v('PANEL_W'), v('PANEL_H')), reverse=True)
-            self.assertLessEqual(v('ALERT_CARD_W'), landscape[0] - 16, name)
-            self.assertLessEqual(v('ALERT_CARD_H'), landscape[1] - 16, name)
-            self.assertLessEqual(v('ALERT_TEXT_X') + v('ALERT_TEXT_W'), v('ALERT_CARD_W') - v('ALERT_ICON_X'), name)
-            self.assertLessEqual(v('ALERT_SUBTITLE_Y') + v('ALERT_SUBTITLE_H'),
-                                 v('ALERT_CARD_H') - v('ALERT_BUTTON_INSET') - v('ALERT_BUTTON_H'), name)
             self.assertGreater(v('ALERT_TITLE_MAX'), 0, name)
             self.assertGreater(v('ALERT_BUTTON_MAX'), 0, name)
             self.assertGreater(v('ALERT_SUBTITLE_MAX'), v('ALERT_TITLE_MAX'), name)
+        # The card fits every board's glass, lying down and standing up, with its words above its button
+        # (screen_alert::layout, which screen_manager/app/alert_layout.py mirrors and tests/test_alert_layout.py keeps alike).
+        import alert_layout
+        import font_metrics
+        core = profiles.CORE.read_text()
+        shapes = json.loads((ROOT / 'screen_manager/app/boards.json').read_text())
+        for board in profiles.BOARDS:
+            values = profiles.board_values(board)
+            title = font_metrics.line_height(ROOT / font_metrics.font_file(core, 'headline'), int(values['FONT_HEADLINE_SIZE']))
+            sub = font_metrics.line_height(ROOT / font_metrics.font_file(core, 'sublabel_big'), int(values['FONT_SUBLABEL_BIG_SIZE']))
+            for way, side in shapes[board]['orientations'].items():
+                card = alert_layout.layout(side['width'], side['height'], title, sub, False,
+                                           round(float(values['DISPLAY_DPI'])), values['LOOK'])
+                where = f'{board} {way}'
+                self.assertLessEqual(card.card_w, side['width'] - 16, where)
+                self.assertLessEqual(card.card_h, side['height'] - 16, where)
+                self.assertLessEqual(card.text_x + card.text_w, card.card_w - card.icon_x, where)
+                self.assertGreaterEqual(card.subtitle_h, 2 * sub, where)
+                self.assertLessEqual(card.subtitle_y + card.subtitle_h, card.card_h - card.button_inset - card.button_h, where)
 
     def test_helper_header_is_included_locally_and_in_the_remote_package(self):
         header = '    - <esphome/components/smart_display/alert_overlay.h>\n'

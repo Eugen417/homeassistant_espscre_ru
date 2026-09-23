@@ -46,10 +46,6 @@ substitutions:
 
   # Set by hand for the three rows of this glass (the review of app 0.2.94); the look has 12
   GRID_GAP_Y: "13"
-  # 480 px leaves less height than the look asks for an alert with a camera image (577 and 281): the card takes the
-  # canvas less its margins, the image half the canvas.
-  ALERT_CARD_H_IMAGE: ${ (CAMERA_FULL_H | int) - 2 * (GRID_MARGIN | int) }
-  CAMERA_THUMB_H: ${ (CAMERA_FULL_H | int) // 2 }
 
 # ============================================================
 # No need to edit below this line.

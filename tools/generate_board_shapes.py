@@ -17,7 +17,10 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-import profiles
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'screen_manager' / 'app'))
+import alert_layout  # noqa: E402
+import font_metrics  # noqa: E402
+import profiles  # noqa: E402
 
 OUT = profiles.ROOT / 'screen_manager' / 'app' / 'boards.json'
 
@@ -45,37 +48,32 @@ def orientations(values):
                          'rotation': (angle + 90) % 360}}
 
 
-def fit_percent(across, room, inset):
-    """The firmware's own arithmetic, kept in step by hand (screen_alert::fit_percent in alert_overlay.h): what the
-    alert card is brought back to when the table a board states lands on narrower glass. Whole percent, rounded down,
-    and never more than the card's stated size."""
-    space = room - 2 * inset
-    if across <= 0 or space <= 0 or across <= space:
-        return 100
-    return space * 100 // across
+def alert_lines(values):
+    """The line heights of the alert card's two fonts on this board, which its layout needs (title and subtitle)."""
+    core = profiles.CORE.read_text()
+    return {'title_line': font_metrics.line_height(profiles.ROOT / font_metrics.font_file(core, 'headline'),
+                                                   int(values['FONT_HEADLINE_SIZE'])),
+            'line': font_metrics.line_height(profiles.ROOT / font_metrics.font_file(core, 'sublabel_big'),
+                                             int(values['FONT_SUBLABEL_BIG_SIZE']))}
 
 
-def scaled(value, percent):
-    return value if percent >= 100 else value * percent // 100
-
-
-def camera_of(values, side, stated):
+def camera_of(values, side):
     """The pixel box of each picture a board draws, on the glass of one orientation.
 
     Full screen is that orientation's canvas: a screen standing up wants a picture standing up, and sending it the
-    other one would letterbox it into a third of the glass. The thumb sits in the alert card, and the card is
-    brought back to fit narrower glass (screen_alert::frame), so the thumb is capped at what is left inside the
-    card after its two insets have come back with it, keeping the proportions of the one the board states.
-
-    Lying down that factor is 1 on every board, so the board's own tuned numbers come through untouched; that is
-    what tests/test_camera.py pins, and it is a good check on this arithmetic.
+    other one would letterbox it into a third of the glass. The alert's picture gets the frame the firmware makes for
+    it on that canvas for a camera's 16:9 (screen_alert::layout, firmware 0.2.103+), which alert_layout.py works out
+    the same way, from the look, the density and the two fonts of the card. ESP Screens works out the frame for a
+    picture of other proportions itself (camera_feed.alert_box), with the line heights written here as `alert`.
     """
-    thumb_w, thumb_h = stated['thumb']
-    percent = fit_percent(int(values['ALERT_CARD_W']), side['width'], int(values['ALERT_BUTTON_INSET']))
-    room = scaled(int(values['ALERT_CARD_W']), percent) - 2 * scaled(int(values['ALERT_IMAGE_INSET']), percent)
-    width = max(1, min(thumb_w, room))
-    return {'full': [side['width'], side['height']],
-            'thumb': [width, max(1, round(width * thumb_h / thumb_w))] if thumb_w else list(stated['thumb'])}
+    lines = alert_lines(values)
+    card = alert_layout.layout(side['width'], side['height'], lines['title_line'], lines['line'], True,
+                               round(float(values['DISPLAY_DPI'])), values['LOOK'].strip('"'))
+    boxes = {'full': [side['width'], side['height']]}
+    # Glass too low for a picture in the alert leaves it out there, and ESP Screens then sends none (camera_feed.box).
+    if card.image_w > 0 and card.image_h > 0:
+        boxes['thumb'] = [card.image_w, card.image_h]
+    return boxes
 
 
 def shapes():
@@ -99,19 +97,19 @@ def shapes():
                  # Whether the screen can go dark at all (app 0.2.106): the Waveshare's backlight boost browns the
                  # board out when it switches on again, so that board has no standby and no night, and the settings
                  # panel leaves those out as the screen itself does.
-                 'can_standby': values.get('CAN_STANDBY', 'true').strip('"') != 'false'}
-        # A board that draws camera pictures says how large it wants them (its online_image components and the
-        # frame in its alert card). Without those four the board has no camera at all, like the CYD: the manager
-        # then refuses a camera tile instead of sending a picture that never arrives.
-        box = {view: [int(values[f'CAMERA_{view.upper()}_W']), int(values[f'CAMERA_{view.upper()}_H'])]
-               for view in ('full', 'thumb')
-               if f'CAMERA_{view.upper()}_W' in values and f'CAMERA_{view.upper()}_H' in values}
-        if len(box) == 2:
-            # The landscape box stays at the top level with the other landscape numbers; each orientation gets the
-            # box for its own glass, because a picture is shaped for the canvas it lands on.
-            shape['camera'] = box
+                 'can_standby': values.get('CAN_STANDBY', 'true').strip('"') != 'false',
+                 # The alert card's two line heights (firmware 0.2.103+): with the canvas, the density and the look they
+                 # are what screen_alert::layout needs to size an alert's picture (camera_feed.alert_box).
+                 'alert': alert_lines(values)}
+        # A board that draws camera pictures includes features/camera.yaml, which states the canvas they fill
+        # (CAMERA_FULL_*). Without it the board has no camera at all, like the CYD: the manager then refuses a camera
+        # tile instead of sending a picture that never arrives.
+        if 'CAMERA_FULL_W' in values and 'CAMERA_FULL_H' in values:
+            # Each orientation gets the boxes for its own glass, because a picture is shaped for the canvas it lands
+            # on; the landscape boxes stay at the top level with the other landscape numbers.
             for side in both.values():
-                side['camera'] = camera_of(values, side, box)
+                side['camera'] = camera_of(values, side)
+            shape['camera'] = dict(both['landscape']['camera'])
         found[board] = shape
     for entry, board in profiles.ENTRIES.items():
         found[entry] = found[board]

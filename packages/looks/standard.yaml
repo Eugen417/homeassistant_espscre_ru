@@ -39,21 +39,8 @@ substitutions:
   COLOR_TITLE_W: ${ (310 * LOOK_SCALE | float) | round | int } # the colour card's title
   COLOR_TITLE_Y: ${ (35 * LOOK_SCALE | float) | round | int }
 
-  # The alert (HA action show_alert): one card centred on LVGL's top layer
-  ALERT_CARD_W: ${ (420 * LOOK_SCALE | float) | round | int }
-  ALERT_CARD_H: ${ (320 * LOOK_SCALE | float) | round | int }
-  ALERT_ICON_X: ${ (26 * LOOK_SCALE | float) | round | int }
-  ALERT_ICON_Y: ${ (22 * LOOK_SCALE | float) | round | int }
-  ALERT_TEXT_X: ${ (90 * LOOK_SCALE | float) | round | int }
-  ALERT_TEXT_W: ${ (ALERT_CARD_W | int) - (ALERT_TEXT_X | int) - (ALERT_ICON_X | int) }   # the card less the icon's column
-  ALERT_TITLE_Y: ${ (26 * LOOK_SCALE | float) | round | int }
-  ALERT_TITLE_H: ${ (32 * LOOK_SCALE | float) | round | int }      # one line of headline; a DOT label only ends in an ellipsis with a height
-  ALERT_SUBTITLE_Y: ${ (68 * LOOK_SCALE | float) | round | int }
-  # The subtitle takes the room the card leaves between the title and the button.
-  ALERT_SUBTITLE_H: ${ (ALERT_CARD_H | int) - (ALERT_SUBTITLE_Y | int) - (ALERT_BUTTON_H | int) - (ALERT_BUTTON_INSET | int) - 6 }
-  ALERT_BUTTON_W: ${ (150 * LOOK_SCALE | float) | round | int }
-  ALERT_BUTTON_H: ${ (60 * LOOK_SCALE | float) | round | int }
-  ALERT_BUTTON_INSET: ${ (22 * LOOK_SCALE | float) | round | int }
+  # The alert (HA action show_alert): its sizes are worked out on the glass (screen_alert::layout, firmware 0.2.103+);
+  # what is left here is how much text it takes, which ESP Screens checks before it sends an alert.
   ALERT_TITLE_MAX: "64"       # bytes; the label ends one line with an ellipsis
   ALERT_BUTTON_MAX: "16"      # bytes on the OK button
   ALERT_SUBTITLE_MAX: "240"   # bytes; wraps over the rows the card has

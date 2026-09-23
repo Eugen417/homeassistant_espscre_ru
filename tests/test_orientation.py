@@ -91,8 +91,8 @@ class CameraBoxes(unittest.TestCase):
     """A picture is shaped for the glass it lands on, so a board that draws them states a box per orientation."""
 
     def test_a_board_keeps_its_own_numbers_lying_down(self):
-        # The tuned CAMERA_* of the board file, unchanged, for every board that has them: the derivation has to
-        # reproduce them exactly, because that is what every screen shipped so far is already being served.
+        # Lying down, the full view is the canvas features/camera.yaml states, and the still the frame the alert card
+        # makes on that canvas (tests/test_alert_layout.py checks that one against the firmware).
         for board, path in sorted(profiles.BOARDS.items()):
             # What a screen of this board sees: features/camera.yaml's boxes, or none on a board without it.
             values = profiles.board_values(board)
@@ -104,8 +104,8 @@ class CameraBoxes(unittest.TestCase):
                     self.assertNotIn('camera', entry['orientations'][way], f'{board} {way}')
                 self.assertNotIn(board, camera_feed.BOXES, board)
                 continue
-            stated = {view: [int(values[f'CAMERA_{view.upper()}_W']), int(values[f'CAMERA_{view.upper()}_H'])]
-                      for view in ('full', 'thumb')}
+            stated = {'full': [int(values['CAMERA_FULL_W']), int(values['CAMERA_FULL_H'])],
+                      'thumb': entry['orientations']['landscape']['camera']['thumb']}
             self.assertEqual(entry['camera'], stated, board)
             self.assertEqual(entry['orientations']['landscape']['camera'], stated, board)
             self.assertEqual(camera_feed.BOXES[board], {view: tuple(box) for view, box in stated.items()}, board)
@@ -121,39 +121,29 @@ class CameraBoxes(unittest.TestCase):
         self.assertEqual(core.SHAPES['jc8012p4a1']['orientations']['portrait']['camera']['full'], [800, 1280])
 
     def test_the_still_of_an_alert_fits_the_card_that_screen_draws(self):
-        # The firmware brings the alert card back to fit narrower glass and its insets come back with it
-        # (screen_alert::frame). The still must fit what is left inside, or it would be drawn over the card's edge.
+        # The firmware lays the alert card out on the glass it draws on (screen_alert::layout, firmware 0.2.103+) and
+        # the frame for the still goes with it: the still must fit inside the card on that glass, either way up.
         for board, path in sorted(profiles.BOARDS.items()):
             entry = core.SHAPES[board]
             if 'camera' not in entry:
                 continue
-            values = profiles.board_values(board)
-            card_w, inset = int(values['ALERT_CARD_W']), int(values['ALERT_BUTTON_INSET'])
-            image_inset = int(values['ALERT_IMAGE_INSET'])
-            stated_w, stated_h = entry['camera']['thumb']
             for way in core.ORIENTATIONS:
                 side = entry['orientations'][way]
-                space = side['width'] - 2 * inset
-                percent = 100 if card_w <= space else space * 100 // card_w
-                room = (card_w if percent >= 100 else card_w * percent // 100) \
-                    - 2 * (image_inset if percent >= 100 else image_inset * percent // 100)
                 thumb_w, thumb_h = side['camera']['thumb']
-                self.assertLessEqual(thumb_w, room, f'{board} {way}: the still is wider than its card')
                 self.assertGreater(thumb_w, 0, f'{board} {way}')
-                # Never larger than the board asked for, and the proportions of that one to within a pixel.
-                self.assertLessEqual(thumb_w, stated_w, f'{board} {way}')
-                self.assertAlmostEqual(thumb_w / thumb_h, stated_w / stated_h, delta=0.02, msg=f'{board} {way}')
-        # The one board that really is brought back: 480 px of glass for a card drawn for 800.
-        self.assertEqual(core.SHAPES['waveshare43']['orientations']['portrait']['camera']['thumb'], [395, 190])
-        # And one that is not, because its card already fits the narrow side of its glass.
-        self.assertEqual(core.SHAPES['jc8012p4a1']['orientations']['portrait']['camera']['thumb'], [345, 193])
+                self.assertLessEqual(thumb_w, side['width'] - 2 * 14, f'{board} {way}: the still is wider than its card')
+                self.assertLessEqual(thumb_h, side['height'] - 2 * 14, f'{board} {way}: the still is taller than its card')
+        # Standing up, the 4.3-inch's 480 px of glass narrows the card; a 16:9 still is as wide as what is left.
+        self.assertEqual(core.SHAPES['waveshare43']['orientations']['portrait']['camera']['thumb'], [386, 217])
+        # The 10.1-inch standing up: the still keeps its size in millimetres, above the words.
+        self.assertEqual(core.SHAPES['jc8012p4a1']['orientations']['portrait']['camera']['thumb'], [343, 193])
 
     def test_the_box_a_screen_is_served_follows_that_screen(self):
         lying = {'board': 'waveshare43'}
         standing = {'board': 'waveshare43', 'orientation': 'portrait'}
         self.assertEqual(camera_feed.box(lying, 'full'), (800, 480))
         self.assertEqual(camera_feed.box(standing, 'full'), (480, 800))
-        self.assertEqual(camera_feed.box(standing, 'thumb'), (395, 190))
+        self.assertEqual(camera_feed.box(standing, 'thumb'), (386, 217))
         # What an online screen reports decides too, whatever its profile says: the canvas it names is one of its
         # board's two, and a screen flashed by hand has no profile here to be read.
         online = {'board': 'waveshare43', 'shape': {'width': 480, 'height': 800, 'columns': 1, 'rows': 4}}

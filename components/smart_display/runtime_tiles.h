@@ -3,6 +3,7 @@
 #include "header_bar.h"
 #include "tile_palette.h"
 #include "overlay_card.h"
+#include "alert_overlay.h"
 #include "theme.h"
 #include "tile_icon.h"
 #include "screen_settings.h"
@@ -5059,10 +5060,43 @@ inline bool camera_release_due = false;
 inline lv_obj_t *camera_root = nullptr, *camera_picture = nullptr, *camera_note = nullptr, *camera_back = nullptr, *camera_title = nullptr;
 // Turns in the middle until the first image is there (firmware 0.2.73+); a note (no image) takes its place.
 inline lv_obj_t *camera_spinner = nullptr;
-// The alert's image: the board's frame at the bottom left of the card, the camera the app announced for the next alert
-// and the one the card on screen shows.
+// The alert's image: the frame across the top of the card (features/camera.yaml), the camera the app announced for the
+// next alert and the one the card on screen shows.
 inline lv_obj_t *alert_frame = nullptr, *alert_picture = nullptr, *alert_frame_icon = nullptr;
-inline std::function<void(bool)> alert_room;  // the board makes the card taller for the frame, or back
+// The parts of the alert card the shared tree draws (packages/core.yaml binds them at boot); alert_place puts them.
+struct AlertParts {
+  lv_obj_t *card = nullptr, *icon = nullptr, *title = nullptr, *subtitle = nullptr, *button = nullptr;
+};
+inline AlertParts alert_parts;
+// Lays the alert card out on this screen's glass (screen_alert::layout, firmware 0.2.103+), with room for a picture of
+// `aw` x `ah` proportions or without one: at boot, when an alert comes (with a picture's frame of a camera's 16:9 until
+// the picture is there), and once more when the picture arrives, for that picture's own proportions.
+inline screen_alert::Layout alert_place(bool image, int aw = screen_alert::PICTURE_W, int ah = screen_alert::PICTURE_H) {
+  const auto &p = alert_parts;
+  if (!p.card || !p.icon || !p.title || !p.subtitle || !p.button) return {};
+  const auto l = screen_alert::layout(overlay_card::screen_width(), overlay_card::screen_height(),
+                                      lv_font_get_line_height(lv_obj_get_style_text_font(p.title, LV_PART_MAIN)),
+                                      lv_font_get_line_height(lv_obj_get_style_text_font(p.subtitle, LV_PART_MAIN)),
+                                      image && alert_frame, aw, ah);
+  lv_obj_set_size(p.card, l.card_w, l.card_h);
+  lv_obj_set_pos(p.icon, l.icon_x, l.icon_y);
+  lv_obj_set_pos(p.title, l.text_x, l.title_y);
+  lv_obj_set_size(p.title, l.text_w, l.title_h);
+  lv_obj_set_pos(p.subtitle, l.text_x, l.subtitle_y);
+  lv_obj_set_size(p.subtitle, l.text_w, l.subtitle_h);
+  lv_obj_set_size(p.button, l.button_w, l.button_h);
+  // From the card's bottom right, as the card's content area (inside its border) is measured from there too.
+  lv_obj_align(p.button, LV_ALIGN_BOTTOM_RIGHT, -(l.card_w - l.button_x - l.button_w), -(l.card_h - l.button_y - l.button_h));
+  if (!alert_frame) return l;
+  if (l.image_w > 0 && l.image_h > 0) {
+    lv_obj_set_pos(alert_frame, l.image_x, l.image_y);
+    lv_obj_set_size(alert_frame, l.image_w, l.image_h);
+  } else {
+    // No picture, or no room for one on this glass: the frame stays hidden and the image is never fetched for it.
+    lv_obj_add_flag(alert_frame, LV_OBJ_FLAG_HIDDEN);
+  }
+  return l;
+}
 inline std::string alert_announced, alert_camera, alert_url;
 inline uint32_t alert_announced_at = 0, alert_retry_at = 0, alert_shown_at = 0;
 inline uint8_t alert_retries = 0;
@@ -5499,7 +5533,7 @@ inline void alert_prepare() {
     if (with_image) lv_obj_remove_flag(alert_frame, LV_OBJ_FLAG_HIDDEN);
     else lv_obj_add_flag(alert_frame, LV_OBJ_FLAG_HIDDEN);
   }
-  if (alert_room) alert_room(with_image);
+  alert_place(with_image);
 }
 
 // alert_dismiss: the frame goes, and so does its image.
@@ -5587,9 +5621,22 @@ inline void camera_show(lv_obj_t *parent, lv_obj_t *&picture, lv_image_dsc_t *so
 inline void camera_loaded(bool thumb, bool cached) {
   if (thumb) {
     alert_thumb_loading = false;
-    if (alert_camera.empty() || !alert_frame) return;
-    // The picture takes the frame's radius, the alert card's own (the board profile sets it on the frame).
-    camera_show(alert_frame, alert_picture, camera_thumb.source(), !cached, lv_obj_get_style_radius(alert_frame, LV_PART_MAIN));
+    // Only for the alert on screen: a picture that arrives after its alert was dismissed or replaced is not shown.
+    if (alert_camera.empty() || !alert_frame || lv_obj_has_flag(alert_frame, LV_OBJ_FLAG_HIDDEN)) return;
+    auto *source = camera_thumb.source();
+    if (!source || !source->data) return;
+    // The card makes room for the picture it got, in that picture's proportions (firmware 0.2.103+): ESP Screens sized
+    // it for this frame with the same rule (alert_layout.py), so it fills the frame; the frame then takes the picture's
+    // own size where the layout put it, so a pixel of rounding on either side shows no edge.
+    const int picture_w = source->header.w, picture_h = source->header.h;
+    const auto card = alert_place(true, picture_w, picture_h);
+    if (card.image_w <= 0 || card.image_h <= 0) return;  // no room for a picture on this glass after all
+    if (picture_w <= card.image_w && picture_h <= card.image_h) {
+      lv_obj_set_pos(alert_frame, card.image_x + (card.image_w - picture_w) / 2, card.image_y + (card.image_h - picture_h) / 2);
+      lv_obj_set_size(alert_frame, picture_w, picture_h);
+    }
+    // The picture takes the frame's radius, the alert card's own (features/camera.yaml sets it on the frame).
+    camera_show(alert_frame, alert_picture, source, !cached, lv_obj_get_style_radius(alert_frame, LV_PART_MAIN));
     if (alert_picture && alert_frame_icon) lv_obj_add_flag(alert_frame_icon, LV_OBJ_FLAG_HIDDEN);
     ESP_LOGI("camera", "alert picture shown");
     return;
