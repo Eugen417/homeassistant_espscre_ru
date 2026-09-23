@@ -1,3 +1,11 @@
+## 0.2.132 (firmware 0.2.104)
+
+Copy API key works when Home Assistant is opened over plain http, and stays available after pairing.
+
+- **Copy API key** on the *not yet in Home Assistant* card said it copied, but left the clipboard empty when Home Assistant was opened over http (for example `http://homeassistant.local:8123`), because the browser keeps its clipboard for secure pages there (GitHub #33). It copies now, and so do the copy buttons on the Alerts page. When even that fails, the key shows in a box, selected and ready to copy.
+- A paired screen offers **Copy API key** too: open it in the sidebar. Home Assistant asks for the key again when the screen is removed and added back, or paired with another Home Assistant.
+- Nothing to do for your screens: the firmware is unchanged at 0.2.104.
+
 ## 0.2.131 (firmware 0.2.104)
 
 Sleep and Wake from Home Assistant on a Waveshare with a dimmable backlight.

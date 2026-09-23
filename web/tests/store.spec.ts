@@ -1,7 +1,7 @@
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  addTile, canAlert, copyLayoutFrom, deviceStyle, fullPage, importLayout, isCompact, layoutJson, liveOf, movePage, moveTileToPage,
+  addTile, canAlert, copyLayoutFrom, copyText, deviceStyle, fullPage, importLayout, isCompact, layoutJson, liveOf, movePage, moveTileToPage,
   pageReachWarning, pageTilesRepeat, phaseText, removePage, removeTile, retargetPageTile, save, select, setTileOption, state, supports,
   tileLimit, topbarItems, topbarView, updateProgress, whatsNew,
 } from "../src/store";
@@ -127,6 +127,30 @@ describe("copy, export and import", () => {
     importLayout(JSON.stringify({ tiles: [...many, { entity: "light.l0" }, { bogus: true }, { entity: "no-dot" }] }));
     expect(state.layout!.tiles).toHaveLength(10);
     expect(state.toast?.message).toMatch(/10 of 14 tiles/);
+  });
+  // Home Assistant over plain http has no Clipboard API (GitHub #33): a button that passes no element copies the text
+  // itself through a hidden textarea, and leaves nothing behind.
+  it("copies text without an element on a page that is no secure context", async () => {
+    vi.stubGlobal("isSecureContext", false);
+    let copied = "";
+    document.execCommand = vi.fn(() => {
+      const box = document.activeElement as HTMLTextAreaElement;
+      copied = box.value.slice(box.selectionStart, box.selectionEnd);
+      return true;
+    });
+    await copyText("the-key");
+    expect(copied).toBe("the-key");
+    expect(state.toast?.message).toBe("API key copied.");
+    expect(document.querySelector("textarea")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+  it("shows the text in a prompt when even the old way cannot copy", async () => {
+    vi.stubGlobal("isSecureContext", false);
+    document.execCommand = vi.fn(() => false);
+    const prompt = vi.spyOn(window, "prompt").mockReturnValue(null);
+    await copyText("the-key");
+    expect(prompt).toHaveBeenCalledWith(expect.stringMatching(/selected/), "the-key");
+    vi.unstubAllGlobals();
   });
 });
 

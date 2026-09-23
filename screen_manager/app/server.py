@@ -2140,6 +2140,10 @@ def create_app(manager, development=False):
             screen['in_sync'] = bool(status) and getattr(status, 'key', None) == 'addon.status.sent' and shown(screen.get('status')) == 'Synced'
             screen['status'] = status_text(screen.get('status'))
             screen['update'] = manager.updates.state_for(screen, profiles)
+            # The API key its YAML carries (app 0.2.132), so it can be copied again after pairing: Home Assistant asks
+            # for it again when the integration is removed and re-added, or the screen is paired with another HA.
+            profile, _ = manager.updates.resolve(screen, profiles)
+            screen['api_key'] = (profiles.get(profile) or {}).get('api_key') if profile else None
             # What this screen looks like: what it reported itself, else the board package its profile builds
             # from (the YAML), else its board. The editor draws its mockup and places tiles on this grid.
             screen['package'] = manager.package_of(screen, profiles)

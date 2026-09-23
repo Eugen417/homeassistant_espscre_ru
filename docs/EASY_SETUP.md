@@ -107,7 +107,8 @@ button. The card disappears once the screen is in the list.
    IP address, port 6053.
 2. Does HA ask for an encryption key? Paste the API key the window shows after
    installation (also found as **api → encryption → key** in the
-   profile). Don't use the OTA password.
+   profile). Don't use the OTA password. Once the screen is paired, open it in
+   the sidebar and use **Copy API key** there whenever HA asks for it again.
 3. On the ESPHome integration, open **Configure** and enable **Allow the device to
    perform Home Assistant actions**. Without this permission, values still show up,
    but the screen can't control lights and devices.

@@ -183,6 +183,15 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                 # Until Home Assistant lists the screen, the page shows the profile as "not yet in HA" with its key.
                 pending=(await (await client.get('/api/inventory?light=1')).json())['pending']
                 self.assertEqual([(p['file'],p['friendly'],p['installed'],p['api_key']==result['api_key']) for p in pending],[('screen-new.yaml','New',False,True)])
+                # Once paired, the screen itself carries the key of the YAML it builds from (app 0.2.132), so it can be
+                # copied again when Home Assistant asks for it later (GitHub #33). A screen without a profile carries none.
+                screens=(await (await client.get('/api/inventory?light=1')).json())['screens']
+                self.assertEqual({s['id']:s['api_key'] for s in screens},{'text.screen':None})
+                resolve=m.updates.resolve
+                m.updates.resolve=lambda screen,profiles=None:('screen-new.yaml',None)
+                screens=(await (await client.get('/api/inventory?light=1')).json())['screens']
+                self.assertEqual([s['api_key'] for s in screens],[result['api_key']])
+                m.updates.resolve=resolve
                 # A second screen may not take a name this one already carries (app 0.2.123): Home Assistant names a
                 # device's actions after the ESPHome name and its entity ids after the name the device carries, so it
                 # could not tell the two apart. Nothing is written for a refused name.
