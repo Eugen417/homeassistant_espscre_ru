@@ -73,7 +73,9 @@ Then press **Save & check**, which validates the complete profile, and **Update 
   brightness row for a modified board instead of reading it from its own table per board.
 - Standby and night mode stay switched off on this board (`CAN_STANDBY`). With the mod the boost converter behind the LEDs
   stays powered and only the duty falls to zero, so the 4.3-inch brownout cannot occur in the same way, but that has not
-  been measured. Setting `CAN_STANDBY: "true"` in the same override is untested.
+  been measured. Adding `CAN_STANDBY: "true"` to the `substitutions:` of the same override turns standby and night
+  back on. From app 0.2.131 that also brings the **Wake** and **Sleep** buttons and the standby and night settings back
+  in Home Assistant; press **Update firmware** once after adding it.
 
 Reported working on a board revision 1.1 with 8 MB flash by [@Cjdavidson](https://github.com/MaxGramser/homeassistant_espscreen/issues/22), who measured the mod and the dimming range.
 

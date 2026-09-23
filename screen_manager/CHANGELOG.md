@@ -1,3 +1,10 @@
+## 0.2.131 (firmware 0.2.104)
+
+Sleep and Wake from Home Assistant on a Waveshare with a dimmable backlight.
+
+- A Waveshare whose backlight was modded to dim (docs/WAVESHARE7.md) and whose override says `CAN_STANDBY: "true"` now also shows **Wake**, **Sleep** and the standby and night settings in Home Assistant. Until now standby worked on the screen itself, but those entities stayed hidden from the ESPHome integration.
+- Press **Update firmware** once on such a screen. Every other screen builds the same firmware as before.
+
 ## 0.2.130 (firmware 0.2.104)
 
 For contributors: every change is now checked the way a finger and Home Assistant use a screen. Nothing changes on your screens.
