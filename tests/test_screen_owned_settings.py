@@ -37,9 +37,11 @@ if HAS_AIOHTTP:
     from server import ANSWER_RETRY_SECONDS, HomeAssistant, Manager, Refused, create_app
 
 PROFILES = {'cyd': 'home-like-2432s028.yaml', 'guition': 'guition-4848s040.yaml', 'waveshare43': 'waveshare-esp32s3-43.yaml',
-            'jc8012p4a1': 'guition-jc8012p4a1.yaml', 'waveshare7': 'waveshare-esp32s3-7.yaml'}
+            'jc8012p4a1': 'guition-jc8012p4a1.yaml', 'waveshare7': 'waveshare-esp32s3-7.yaml',
+            'waveshare4b': 'waveshare-esp32s3-4b.yaml'}
 PACKAGES = {'cyd': 'packages/cyd.yaml', 'guition': 'packages/guition.yaml', 'waveshare43': 'packages/waveshare43.yaml',
-            'jc8012p4a1': 'packages/jc8012p4a1.yaml', 'waveshare7': 'packages/waveshare7.yaml'}
+            'jc8012p4a1': 'packages/jc8012p4a1.yaml', 'waveshare7': 'packages/waveshare7.yaml',
+            'waveshare4b': 'packages/waveshare4b.yaml'}
 RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
 SCREEN_PAGE = (ROOT / 'components/smart_display/settings_screen.h').read_text()
 STATIC = ROOT / 'screen_manager/app/static'

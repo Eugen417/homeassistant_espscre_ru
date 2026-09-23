@@ -17,6 +17,7 @@ ESPHome Device Builder is optional:
 | Guition, 4 inch | ESP32-S3-4848S040, 480×480, ST7701S and GT911 |
 | Waveshare, 4.3 inch | ESP32-S3-Touch-LCD-4.3, 800×480, ST7262 and GT911 |
 | Waveshare, 7 inch (experimental) | ESP32-S3-Touch-LCD-7, 800×480, RGB and GT911 |
+| Waveshare 4B, 4 inch (experimental) | ESP32-S3-Touch-LCD-4B, 480×480, ST7701S and GT911 ([details](WAVESHARE4B.md)) |
 | Guition, 10.1 inch | JC8012P4A1, 1280×800, JD9365 MIPI-DSI and GSL3680, ESP32-P4 |
 
 Other screens with roughly the same name can have different pins. Use
@@ -124,8 +125,8 @@ and search for entities in the **Library** on the right. With more than one page
 two things: the **Screen title**, which every page without a title of its own shows, and the
 **Title above page N** of the page you tapped, which belongs to that page and travels with it. It has domain filters with
 colored icons, a room filter, and **Hide placed**. You can add one tile for every cell of the screen's pages,
-48 on a CYD or a 4-inch Guition (firmware 0.2.62+; see below for older firmware).
-The screen preview shows their placement on the screen's own grid: two columns of three on a CYD or a 4-inch Guition,
+48 on a CYD, a 4-inch Guition or the experimental Waveshare 4B (firmware 0.2.62+; see below for older firmware).
+The screen preview shows their placement on the screen's own grid: two columns of three on a CYD, a 4-inch Guition or the Waveshare 4B,
 three by three on the Waveshare 4.3-inch, five by four on the 10.1-inch Guition,
 and four by four on the [experimental Waveshare 7-inch](WAVESHARE7.md), lying down,
 up to eight pages. Every tile has a fixed slot that only changes if

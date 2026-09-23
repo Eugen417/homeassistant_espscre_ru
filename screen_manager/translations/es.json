@@ -1752,7 +1752,9 @@
       "done": "Hecho",
       "board_waveshare7": "Waveshare 7 pulgadas (experimental)",
       "board_experimental": "Experimental",
-      "waveshare7_experimental": "Aún no se ha probado en este hardware. Las imágenes de las cámaras están habilitadas; la retroiluminación permanece encendida. Sin regulación de brillo, espera ni modo nocturno."
+      "waveshare7_experimental": "Aún no se ha probado en este hardware. Las imágenes de las cámaras están habilitadas; la retroiluminación permanece encendida. Sin regulación de brillo, espera ni modo nocturno.",
+      "board_waveshare4b": "Waveshare 4B · 4 pulgadas (experimental)",
+      "waveshare4b_experimental": "Aún no se ha probado en este hardware. Las mismas seis casillas que el Guition de 4 pulgadas; la retroiluminación es regulable y las imágenes de las cámaras están habilitadas. La batería, el audio y el sensor de movimiento no se usan."
     },
     "alerts": {
       "eyebrow": "Alertas · guía rápida",

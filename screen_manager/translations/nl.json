@@ -1752,7 +1752,9 @@
       "done": "Klaar",
       "board_waveshare7": "Waveshare 7 inch (experimenteel)",
       "board_experimental": "Experimenteel",
-      "waveshare7_experimental": "Nog niet getest op deze hardware. Camerabeelden zijn ingeschakeld; de achtergrondverlichting blijft aan. Geen dimmen, standby of nachtmodus."
+      "waveshare7_experimental": "Nog niet getest op deze hardware. Camerabeelden zijn ingeschakeld; de achtergrondverlichting blijft aan. Geen dimmen, standby of nachtmodus.",
+      "board_waveshare4b": "Waveshare 4B · 4 inch (experimenteel)",
+      "waveshare4b_experimental": "Nog niet getest op deze hardware. Dezelfde zes vakken als de 4-inch Guition; de achtergrondverlichting dimt, camerabeelden zijn ingeschakeld. Accu, audio en bewegingssensor blijven ongebruikt."
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",

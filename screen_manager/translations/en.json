@@ -1752,7 +1752,9 @@
       "done": "Done",
       "board_waveshare7": "Waveshare 7 inch (experimental)",
       "board_experimental": "Experimental",
-      "waveshare7_experimental": "Not yet tested on this hardware. Camera images are enabled; the backlight stays on. No dimming, standby or night mode."
+      "waveshare7_experimental": "Not yet tested on this hardware. Camera images are enabled; the backlight stays on. No dimming, standby or night mode.",
+      "board_waveshare4b": "Waveshare 4B · 4 inch (experimental)",
+      "waveshare4b_experimental": "Not yet tested on this hardware. The same six cells as the 4-inch Guition; the backlight dims, camera images are enabled. The battery, audio and motion sensor stay unused."
     },
     "alerts": {
       "eyebrow": "Alerts · cheatsheet",

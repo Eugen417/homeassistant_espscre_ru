@@ -1752,7 +1752,9 @@
       "done": "Fatto",
       "board_waveshare7": "Waveshare 7 pollici (sperimentale)",
       "board_experimental": "Sperimentale",
-      "waveshare7_experimental": "Non ancora testato su questo hardware. Le immagini delle telecamere sono abilitate; la retroilluminazione resta accesa. Nessuna regolazione della luminosità, standby o modalità notturna."
+      "waveshare7_experimental": "Non ancora testato su questo hardware. Le immagini delle telecamere sono abilitate; la retroilluminazione resta accesa. Nessuna regolazione della luminosità, standby o modalità notturna.",
+      "board_waveshare4b": "Waveshare 4B · 4 pollici (sperimentale)",
+      "waveshare4b_experimental": "Non ancora testato su questo hardware. Le stesse sei celle del Guition da 4 pollici; la retroilluminazione è regolabile e le immagini delle telecamere sono abilitate. Batteria, audio e sensore di movimento restano inutilizzati."
     },
     "alerts": {
       "eyebrow": "Avvisi · guida rapida",

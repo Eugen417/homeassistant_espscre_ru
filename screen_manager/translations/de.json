@@ -1752,7 +1752,9 @@
       "done": "Fertig",
       "board_waveshare7": "Waveshare 7 Zoll (experimentell)",
       "board_experimental": "Experimentell",
-      "waveshare7_experimental": "Noch nicht auf dieser Hardware getestet. Kamerabilder sind aktiviert; die Hintergrundbeleuchtung bleibt an. Kein Dimmen, Standby oder Nachtmodus."
+      "waveshare7_experimental": "Noch nicht auf dieser Hardware getestet. Kamerabilder sind aktiviert; die Hintergrundbeleuchtung bleibt an. Kein Dimmen, Standby oder Nachtmodus.",
+      "board_waveshare4b": "Waveshare 4B · 4 Zoll (experimentell)",
+      "waveshare4b_experimental": "Noch nicht auf dieser Hardware getestet. Dieselben sechs Felder wie beim 4-Zoll-Guition; die Hintergrundbeleuchtung ist dimmbar, Kamerabilder sind aktiviert. Akku, Audio und Bewegungssensor bleiben ungenutzt."
     },
     "alerts": {
       "eyebrow": "Meldungen · Spickzettel",

@@ -1752,7 +1752,9 @@
       "done": "Gotowe",
       "board_waveshare7": "Waveshare 7 cali (eksperymentalny)",
       "board_experimental": "Eksperymentalny",
-      "waveshare7_experimental": "Jeszcze nie przetestowano na tym sprzęcie. Obrazy z kamer są włączone; podświetlenie pozostaje włączone. Bez regulacji jasności, czuwania i trybu nocnego."
+      "waveshare7_experimental": "Jeszcze nie przetestowano na tym sprzęcie. Obrazy z kamer są włączone; podświetlenie pozostaje włączone. Bez regulacji jasności, czuwania i trybu nocnego.",
+      "board_waveshare4b": "Waveshare 4B · 4 cale (eksperymentalny)",
+      "waveshare4b_experimental": "Jeszcze nie przetestowano na tym sprzęcie. Te same sześć pól co w 4-calowym Guition; podświetlenie można ściemniać, obrazy z kamer są włączone. Akumulator, audio i czujnik ruchu pozostają nieużywane."
     },
     "alerts": {
       "eyebrow": "Alerty · ściąga",

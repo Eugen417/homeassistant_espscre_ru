@@ -1752,7 +1752,9 @@
       "done": "Terminé",
       "board_waveshare7": "Waveshare 7 pouces (expérimental)",
       "board_experimental": "Expérimental",
-      "waveshare7_experimental": "Pas encore testé sur ce matériel. Les images des caméras sont activées ; le rétroéclairage reste allumé. Sans variation de luminosité, veille ni mode nuit."
+      "waveshare7_experimental": "Pas encore testé sur ce matériel. Les images des caméras sont activées ; le rétroéclairage reste allumé. Sans variation de luminosité, veille ni mode nuit.",
+      "board_waveshare4b": "Waveshare 4B · 4 pouces (expérimental)",
+      "waveshare4b_experimental": "Pas encore testé sur ce matériel. Les mêmes six cases que le Guition 4 pouces ; le rétroéclairage est réglable, les images des caméras sont activées. La batterie, l'audio et le capteur de mouvement restent inutilisés."
     },
     "alerts": {
       "eyebrow": "Alertes · aide-mémoire",

@@ -50,7 +50,8 @@ FULL_PAGE_MIN_FIRMWARE = (0, 2, 62)
 TWENTY_TILES_MIN_FIRMWARE = (0, 2, 7)
 FIRST_MAX_TILES = 10
 REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
-REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main', 'waveshare7': 'main'}
+REFS = {'cyd': 'main', 'guition': 'main', 'waveshare43': 'main', 'jc8012p4a1': 'main', 'waveshare7': 'main',
+        'waveshare4b': 'main'}
 # Firmware shipped with this app release; screens below it get an update offer.
 FIRMWARE_VERSION = '0.2.102'
 # The Auto standby switch a screen offers Home Assistant automations.

@@ -1,3 +1,13 @@
+## 0.2.126 (firmware 0.2.102)
+
+Experimental support for the Waveshare ESP32-S3-Touch-LCD-4B.
+
+- Choose **Waveshare 4B · 4 inch (experimental)** in **New screen** for the 480 x 480 ST7701S panel with GT911 touch and 8 MB PSRAM. The older ESP32-S3-Touch-LCD-4 without the "B" is a different board.
+- The glass matches the 4-inch Guition, so the screen does too: two columns of three cells, the same tiles, a quarter turn as well as a half. Camera tiles, snapshots and camera alerts use the shared implementation.
+- Unlike the 4.3-inch and 7-inch Waveshares, the backlight sits on a PWM pin: brightness, standby, night mode, Sleep and Wake are all on. The battery charger, audio and motion sensor on the board stay unused.
+- The pins and timings follow a community ESPHome configuration for this board. Nobody has seen this profile on the glass yet; docs/WAVESHARE4B.md lists what to check and report.
+- Existing screens need nothing: the shared firmware is unchanged at 0.2.102.
+
 ## 0.2.125 (firmware 0.2.102)
 
 The new page's name stands there in the same frame as its tiles.

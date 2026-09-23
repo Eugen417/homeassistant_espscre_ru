@@ -611,6 +611,8 @@ describe("the orientation of a new screen", () => {
                                                   portrait: { width: 480, height: 800, columns: 1, rows: 4, rotation: 90 } } },
     waveshare7: { square: false, orientations: { landscape: { width: 800, height: 480, columns: 4, rows: 4, rotation: 0 },
                                                  portrait: { width: 480, height: 800, columns: 2, rows: 7, rotation: 90 } } },
+    waveshare4b: { square: true, orientations: { landscape: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 },
+                                                 portrait: { width: 480, height: 480, columns: 2, rows: 3, rotation: 0 } } },
   };
   const answers: any[] = [];
   async function installer() {
@@ -665,6 +667,19 @@ describe("the orientation of a new screen", () => {
     await view.find("#install-form").trigger("submit");
     await flush();
     expect(answers.pop()).toMatchObject({ board: "waveshare7", orientation: "portrait", name: "hall" });
+  });
+
+  it("explains experimental Waveshare 4B support and asks nothing about its square glass", async () => {
+    const view = await installer();
+    await view.find('input[value="waveshare4b"]').setValue("waveshare4b");
+    expect(view.find('input[value="waveshare4b"]').element.closest("label")?.textContent).toContain("experimental");
+    expect(view.text()).toContain("Not yet tested on this hardware");
+    expect(view.text()).toContain("the backlight dims");
+    expect(view.find("#orientation-fields").exists()).toBe(false);
+    await view.find("#friendly_name").setValue("Hall");
+    await view.find("#install-form").trigger("submit");
+    await flush();
+    expect(answers.pop()).toMatchObject({ board: "waveshare4b", name: "hall" });
   });
 
   it("sends the chosen way with the new screen", async () => {
