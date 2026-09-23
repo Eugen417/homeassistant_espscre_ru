@@ -768,6 +768,10 @@
         "action": {
           "label": "Acción",
           "help": "Una acción de Home Assistant, como script.open_gate o light.turn_off, realizada una vez cuando se pulsa el botón en cualquier pantalla. `data` da sus campos (entity_id, brightness, ...). Un tiempo agotado o una nueva alerta la deja sin realizar. Solo mediante el evento esp_screens_show_alert."
+        },
+        "screen": {
+          "label": "Pantalla",
+          "help": "Qué pantalla recibe la alerta: su nombre de dispositivo (como kitchen-screen), el nombre que muestra Home Assistant, o una habitación, que llega a cada pantalla que haya en ella. Una lista, como [kitchen-screen, hallway], llega a varias. Omítelo para todas las pantallas. Un nombre que no coincide con ninguna pantalla no envía nada; el registro de ESP Screen Manager nombra entonces las pantallas que conoce. Solo mediante los eventos esp_screens_show_alert y esp_screens_dismiss_alert."
         }
       },
       "endings": {
@@ -1063,6 +1067,10 @@
       "color_name": {
         "copied": "Nombre del color copiado.",
         "selected": "El nombre del color está seleccionado. Cópialo con Ctrl+C o Command+C."
+      },
+      "screen_name": {
+        "copied": "Nombre de pantalla copiado.",
+        "selected": "El nombre de la pantalla está seleccionado. Cópialo con Ctrl+C o Comando+C."
       }
     },
     "sidebar": {
@@ -1794,7 +1802,8 @@
         "colors": "Colores",
         "behaviour": "Comportamiento",
         "events": "Eventos",
-        "tips": "Consejos"
+        "tips": "Consejos",
+        "one": "Una pantalla"
       },
       "try": {
         "text": "Envía ahora una alerta, con los mismos campos que envía una automatización. La pantalla muestra la tarjeta y, con el parpadeo activado, hace parpadear la retroiluminación.",
@@ -1860,7 +1869,8 @@
         },
         "bytes": "{limits} bytes",
         "seconds": "de 0 a 86400 s",
-        "camera_limit": "Todas excepto la CYD, firmware 0.2.57+"
+        "camera_limit": "Todas excepto la CYD, firmware 0.2.57+",
+        "screen_limit": "App 0.2.133+"
       },
       "icons": {
         "text": "Escribe el nombre en {field}, por ejemplo {example}. También funcionan {mdi} y el código hexadecimal ({hex}). El firmware solo incluye estos iconos; cualquier otro nombre muestra el triángulo de advertencia. Toca un icono para copiar su nombre.",
@@ -1910,6 +1920,18 @@
       "wait_yaml": {
         "comment": "Timbre: muestra la alerta y espera a que alguien pulse el botón.",
         "message": "Alguien va a abrir la puerta."
+      },
+      "one": {
+        "title": "Una pantalla, con cámara o acción del botón",
+        "text": "Añade {screen} al mismo evento y solo esa pantalla recibe la alerta. Así una sola pantalla muestra una imagen de {camera} o ejecuta una {action} desde su botón: la acción propia de la pantalla no tiene campos para eso. Después de {screen} va uno de los valores de la lista de abajo.",
+        "more": "¿Varias pantallas? Da una lista, como {list}. Una habitación también sirve y llega a cada pantalla que haya en ella. Un nombre que no coincide con ninguna pantalla no envía nada; el registro de ESP Screen Manager nombra entonces las pantallas que conoce.",
+        "value": "Después de screen:",
+        "name": "Nombre en Home Assistant",
+        "room": "Habitación",
+        "picture": "Imagen de cámara",
+        "picture_yes": "Sí",
+        "picture_no": "No, la alerta llega sin ella",
+        "none": "Aún no hay pantallas emparejadas. Cuando una pantalla esté emparejada, aquí aparece lo que debes escribir para ella."
       }
     },
     "override": {

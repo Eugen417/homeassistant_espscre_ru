@@ -19,7 +19,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import (PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
@@ -1944,7 +1944,8 @@ class Manager:
         await asyncio.gather(*(send(box, group) for box, group in groups.items()))
 
     async def broadcast(self, event_type, data):
-        """An alert event for every screen: the matching action on each screen that can show it, all at once."""
+        """An alert event for every screen, or for the screens its `screen` names (app 0.2.133): the matching action on each
+        screen that can show it, all at once."""
         action = BROADCAST_EVENTS[event_type]
         service_data, unusable = alert_data(data) if action == 'show_alert' else ({}, [])
         camera, usable = alert_camera(data) if event_type == BROADCAST_SHOW else ('', True)
@@ -1955,7 +1956,23 @@ class Manager:
             unusable.append('action')
         if unusable:
             LOG.warning('%s: unusable %s left empty', event_type, ', '.join(unusable))
-        ready, skipped = alert_targets(self.screens())
+        # One screen or a few (app 0.2.133): the event's `screen` narrows it down. A name that matches nothing, or a field
+        # that is no name at all, sends nothing: an alert meant for the hall never lands on every screen instead.
+        paired = self.screens()
+        screens, names = paired, None
+        wanted, usable = alert_screen_names(data)
+        if not usable:
+            LOG.warning('%s: unusable screen, sent to no screen', event_type)
+            return {'sent': 0, 'skipped': 0, 'failed': 0, 'unknown': []}
+        if wanted:
+            screens, unknown = alert_screen_choice(paired, wanted)
+            names = ', '.join(wanted)
+            if unknown:
+                known = ', '.join(sorted(filter(None, (screen.get('node') for screen in paired)))) or 'none paired'
+                LOG.warning('%s: no screen called %s (screens: %s)', event_type, ', '.join(unknown), known)
+            if not screens:
+                return {'sent': 0, 'skipped': 0, 'failed': 0, 'unknown': unknown}
+        ready, skipped = alert_targets(screens)
         # A screen that draws the image hears about it before the alert, so the card opens with room for it.
         viewers = [screen for screen in ready if camera and camera_feed.can_show(screen) and self.transport(screen['id'], screen)]
         if viewers:
@@ -1966,8 +1983,8 @@ class Manager:
                                        return_exceptions=True)
         failed = [(screen, type(result).__name__) for screen, result in zip(ready, results) if isinstance(result, BaseException)]
         notes = [f"{screen['name']} {reason}" for screen, reason in skipped + failed]
-        LOG.info('%s: %d of %d screens%s', event_type, len(ready) - len(failed), len(ready) + len(skipped),
-                 f" (not: {'; '.join(notes)})" if notes else '')
+        LOG.info('%s: %d of %d screens%s%s', event_type, len(ready) - len(failed), len(ready) + len(skipped),
+                 f' for {names}' if names else '', f" (not: {'; '.join(notes)})" if notes else '')
         shown = [screen for screen, result in zip(ready, results) if not isinstance(result, BaseException)]
         # The button's action waits on every screen that shows this alert; a dismissal forgets it everywhere.
         for screen in ready:
@@ -1978,7 +1995,10 @@ class Manager:
                 self.alert_actions[screen['node']] = (key, *button)
         if viewers and any(screen in shown for screen in viewers):
             await self.alert_images(camera, [screen for screen in viewers if screen in shown])
-        return {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
+        result = {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
+        if wanted:
+            result['unknown'] = unknown
+        return result
 
     async def tile_event(self, event_type, data):
         """One tile event: the screen it names, the changed layout, saved and pushed like the editor does. Returns the

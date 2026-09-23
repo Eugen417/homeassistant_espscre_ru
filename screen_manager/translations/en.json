@@ -768,6 +768,10 @@
         "action": {
           "label": "Action",
           "help": "A Home Assistant action, such as script.open_gate or light.turn_off, performed once when the button is pressed on any screen. `data` gives its fields (entity_id, brightness, ...). A timeout or a new alert leaves it unperformed. Only through the esp_screens_show_alert event."
+        },
+        "screen": {
+          "label": "Screen",
+          "help": "Which screen gets the alert: its device name (such as kitchen-screen), the name Home Assistant shows, or a room, which reaches every screen in it. A list, such as [kitchen-screen, hallway], reaches several. Leave it out for every screen. A name that matches no screen sends nothing; the ESP Screen Manager log names the screens it knows. Only through the esp_screens_show_alert and esp_screens_dismiss_alert events."
         }
       },
       "endings": {
@@ -1063,6 +1067,10 @@
       "color_name": {
         "copied": "Color name copied.",
         "selected": "Color name is selected. Copy with Ctrl+C or Command+C."
+      },
+      "screen_name": {
+        "copied": "Screen name copied.",
+        "selected": "Screen name is selected. Copy with Ctrl+C or Command+C."
       }
     },
     "sidebar": {
@@ -1794,7 +1802,8 @@
         "colors": "Colors",
         "behaviour": "Behavior",
         "events": "Events",
-        "tips": "Tips"
+        "tips": "Tips",
+        "one": "One screen"
       },
       "try": {
         "text": "Send one alert now, with the same fields an automation sends. The screen shows the card and, with blinking on, flashes its backlight.",
@@ -1860,7 +1869,8 @@
         },
         "bytes": "{limits} bytes",
         "seconds": "0 to 86400 s",
-        "camera_limit": "Every screen but the CYD, firmware 0.2.57+"
+        "camera_limit": "Every screen but the CYD, firmware 0.2.57+",
+        "screen_limit": "App 0.2.133+"
       },
       "icons": {
         "text": "Fill in the name in {field}, for example {example}. {mdi} and the hex codepoint ({hex}) also work. Only these icons are included in the firmware; any other name shows the warning triangle. Tap an icon to copy its name.",
@@ -1910,6 +1920,18 @@
       "wait_yaml": {
         "comment": "Doorbell: show the alert and wait until someone presses the button.",
         "message": "Someone is coming to the door."
+      },
+      "one": {
+        "title": "One screen, with a camera or a button action",
+        "text": "Add {screen} to the same event and only that screen gets the alert. That is how a single screen shows a {camera} picture or runs an {action} from its button: the screen's own action has no fields for those. After {screen} comes one of the values in the list below.",
+        "more": "A few screens? Give a list, such as {list}. A room works too and reaches every screen in it. A name that matches no screen sends nothing; the ESP Screen Manager log then names the screens it knows.",
+        "value": "After screen:",
+        "name": "Name in Home Assistant",
+        "room": "Room",
+        "picture": "Camera picture",
+        "picture_yes": "Yes",
+        "picture_no": "No, the alert comes without it",
+        "none": "No screens paired yet. Once a screen is paired, what to fill in for it appears here."
       }
     },
     "override": {

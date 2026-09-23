@@ -285,6 +285,34 @@ actions:
 **`esp_screens_dismiss_alert`** clears the alert on every screen. The app has to be running
 for these two events; the per-screen actions work without it.
 
+### One screen through the event
+
+From app 0.2.133, both events take **`screen`**: only the screens it names get the alert. That is
+how one screen gets a camera picture or a button that does something (both below): the per-screen
+action `esphome.<screen>_show_alert` cannot take those fields, because Home Assistant makes every
+field of a device's action required, so adding one would break every automation that calls it.
+
+```yaml
+actions:
+  - event: esp_screens_show_alert
+    event_data:
+      screen: hallway-screen
+      title: "Someone is at the door"
+      icon: doorbell
+      color: orange
+      camera: camera.front_door
+```
+
+- **What to fill in:** the screen's device name (`hallway-screen`), the name Home Assistant shows
+  for it (`Hallway Screen`), or a room (`Hallway`), which reaches every screen in it. Case, spaces,
+  dashes and underscores don't matter, so the `hallway_screen` of its action works too.
+  **Alerts** in ESP Screens lists the value for every screen, ready to copy, and writes the example
+  for the screen you choose.
+- **Several screens:** give a list, such as `screen: [hallway-screen, kitchen-screen]`.
+- **A name that matches no screen sends nothing,** so an alert meant for one screen never lands on
+  all of them. The ESP Screen Manager log then names the screens it knows.
+- `esp_screens_dismiss_alert` with `screen` clears the alert on those screens only.
+
 ### With a camera picture
 
 <p align="center">
@@ -298,7 +326,7 @@ card; a tap on it opens the camera full screen over the alert, and Back returns 
 firmware 0.2.103 the picture keeps the camera's own proportions: a wide camera across the top of the
 card, a square or standing doorbell camera on the left of the words where the glass is wide and low
 ([details](docs/CAMERA.md)). The CYD, which has no memory for pictures, shows the same alert without it. The
-per-screen actions have no `camera` field.
+per-screen actions have no `camera` field; for one screen, add `screen` to the event (above).
 
 ```yaml
 actions:
@@ -334,7 +362,7 @@ button is pressed, on whichever screen, once per alert. **`data`** gives the act
 screen itself only reports the press (the `esphome.screen_alert` event it always sent), so this works
 with every screen from firmware 0.2.31 and needs no update. A timeout, a new alert over it or
 `esp_screens_dismiss_alert` leaves the action unperformed. The per-screen actions have no `action`
-field.
+field; for one screen, add `screen` to the event.
 
 ```yaml
 actions:

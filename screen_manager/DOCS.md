@@ -16,7 +16,8 @@ Download. Existing ESPHome profiles in the HA config folder are
 found automatically.
 
 **Alerts** in the sidebar is the cheatsheet, with a form to try an alert
-(an alert on one screen, or on every screen with the `esp_screens_show_alert` event).
+(an alert on one screen, or on every screen with the `esp_screens_show_alert` event). Its **One screen** part
+lists what to fill in after `screen:` for each screen, for an alert with a camera picture on one screen.
 **Settings** in the sidebar has the nightly firmware updates (the Update badge of a screen lists what's new, a
 running update shows its progress) and **Claude**: install the ESP Screens skill for Claude Code in Home Assistant, or
 download it for claude.ai, and ask Claude for the alert automation.

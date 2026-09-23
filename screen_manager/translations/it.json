@@ -768,6 +768,10 @@
         "action": {
           "label": "Azione",
           "help": "Un'azione di Home Assistant, come script.open_gate o light.turn_off, eseguita una volta quando il pulsante viene premuto su uno qualsiasi degli schermi. `data` fornisce i suoi campi (entity_id, brightness, ...). Un timeout o un nuovo avviso la lascia non eseguita. Solo tramite l'evento esp_screens_show_alert."
+        },
+        "screen": {
+          "label": "Schermo",
+          "help": "Quale schermo riceve l'avviso: il suo nome dispositivo (come kitchen-screen), il nome mostrato da Home Assistant, oppure una stanza, che raggiunge ogni schermo al suo interno. Un elenco, come [kitchen-screen, hallway], ne raggiunge più di uno. Omettilo per tutti gli schermi. Un nome che non corrisponde a nessuno schermo non invia nulla; il log di ESP Screen Manager elenca allora gli schermi che conosce. Solo tramite gli eventi esp_screens_show_alert ed esp_screens_dismiss_alert."
         }
       },
       "endings": {
@@ -1063,6 +1067,10 @@
       "color_name": {
         "copied": "Nome del colore copiato.",
         "selected": "Il nome del colore è selezionato. Copialo con Ctrl+C o Command+C."
+      },
+      "screen_name": {
+        "copied": "Nome dello schermo copiato.",
+        "selected": "Il nome dello schermo è selezionato. Copialo con Ctrl+C o Comando+C."
       }
     },
     "sidebar": {
@@ -1794,7 +1802,8 @@
         "colors": "Colori",
         "behaviour": "Comportamento",
         "events": "Eventi",
-        "tips": "Suggerimenti"
+        "tips": "Suggerimenti",
+        "one": "Uno schermo"
       },
       "try": {
         "text": "Invia subito un avviso, con gli stessi campi che invia un'automazione. Lo schermo mostra la scheda e, con il lampeggio attivo, fa lampeggiare la retroilluminazione.",
@@ -1860,7 +1869,8 @@
         },
         "bytes": "{limits} byte",
         "seconds": "da 0 a 86400 s",
-        "camera_limit": "Tutti tranne il CYD, firmware 0.2.57+"
+        "camera_limit": "Tutti tranne il CYD, firmware 0.2.57+",
+        "screen_limit": "App 0.2.133+"
       },
       "icons": {
         "text": "Inserisci il nome in {field}, per esempio {example}. Funzionano anche {mdi} e il codice esadecimale ({hex}). Nel firmware ci sono solo queste icone; qualsiasi altro nome mostra il triangolo di avvertimento. Tocca un'icona per copiarne il nome.",
@@ -1910,6 +1920,18 @@
       "wait_yaml": {
         "comment": "Campanello: mostra l’avviso e aspetta che qualcuno prema il pulsante.",
         "message": "Qualcuno sta arrivando alla porta."
+      },
+      "one": {
+        "title": "Uno schermo, con una telecamera o un'azione del pulsante",
+        "text": "Aggiungi {screen} allo stesso evento e solo quello schermo riceve l'avviso. È così che un singolo schermo mostra un'immagine della {camera} o esegue un'{action} dal suo pulsante: l'azione propria dello schermo non ha campi per questo. Dopo {screen} va uno dei valori dell'elenco qui sotto.",
+        "more": "Qualche schermo? Indica un elenco, come {list}. Funziona anche una stanza, che raggiunge ogni schermo al suo interno. Un nome che non corrisponde a nessuno schermo non invia nulla; il log di ESP Screen Manager elenca allora gli schermi che conosce.",
+        "value": "Dopo screen:",
+        "name": "Nome in Home Assistant",
+        "room": "Stanza",
+        "picture": "Immagine della telecamera",
+        "picture_yes": "Sì",
+        "picture_no": "No, l'avviso arriva senza",
+        "none": "Nessuno schermo associato finora. Appena uno schermo è associato, qui compare cosa inserire per esso."
       }
     },
     "override": {

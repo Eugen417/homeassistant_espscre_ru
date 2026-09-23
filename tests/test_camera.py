@@ -452,6 +452,19 @@ class App(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len({digest for digest, _ in frames.values()}), 1, 'both made from the same snapshot')
             self.assertEqual(len([entry for entry in ha.log if entry[0] == 'fetch']), 1, 'one snapshot for the whole wall')
 
+    async def test_an_alert_with_a_camera_on_one_screen(self):
+        # The event's `screen` (app 0.2.133): only the screen it names hears of the picture, gets the alert and its link,
+        # though another screen could draw the picture as well.
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (1920, 1080)))
+            ha.states['sensor.d3_fw']['state'] = '0.2.103'
+            m = Manager(ha, Path(tmp) / 'screens.json')
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Someone is at the door', 'camera': 'camera.front_door', 'screen': 'attic'})
+            self.assertEqual([entry[1] for entry in ha.log if entry[0] in ('send', 'call')],
+                             ['text.d3_tiles', 'esphome.attic_show_alert', 'text.d3_tiles'])
+            self.assertTrue([entry for entry in ha.log if entry[0] == 'send'][1][2]['u'])
+            self.assertTrue(m.camera_allowed('text.d3_tiles', 'camera.front_door'))
+
     async def test_an_alert_whose_camera_has_no_image_still_goes_out(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(None)

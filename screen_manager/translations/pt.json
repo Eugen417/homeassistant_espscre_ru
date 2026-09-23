@@ -768,6 +768,10 @@
         "action": {
           "label": "Ação",
           "help": "Uma ação do Home Assistant, como script.open_gate ou light.turn_off, executada uma vez quando o botão é premido em qualquer ecrã. `data` dá os seus campos (entity_id, brightness, ...). Um tempo esgotado ou um novo alerta deixa-a por executar. Só através do evento esp_screens_show_alert."
+        },
+        "screen": {
+          "label": "Ecrã",
+          "help": "Que ecrã recebe o alerta: o nome do dispositivo (como kitchen-screen), o nome que o Home Assistant mostra, ou uma divisão, que chega a cada ecrã nela. Uma lista, como [kitchen-screen, hallway], chega a vários. Omita-o para todos os ecrãs. Um nome que não corresponde a nenhum ecrã não envia nada; o registo do ESP Screen Manager indica então os ecrãs que conhece. Apenas através dos eventos esp_screens_show_alert e esp_screens_dismiss_alert."
         }
       },
       "endings": {
@@ -1063,6 +1067,10 @@
       "color_name": {
         "copied": "Nome da cor copiado.",
         "selected": "O nome da cor está selecionado. Copie-o com Ctrl+C ou Command+C."
+      },
+      "screen_name": {
+        "copied": "Nome do ecrã copiado.",
+        "selected": "O nome do ecrã está selecionado. Copie com Ctrl+C ou Command+C."
       }
     },
     "sidebar": {
@@ -1794,7 +1802,8 @@
         "colors": "Cores",
         "behaviour": "Comportamento",
         "events": "Eventos",
-        "tips": "Dicas"
+        "tips": "Dicas",
+        "one": "Um ecrã"
       },
       "try": {
         "text": "Envie agora um alerta, com os mesmos campos que uma automatização envia. O ecrã mostra o cartão e, com a intermitência ativada, faz piscar a retroiluminação.",
@@ -1860,7 +1869,8 @@
         },
         "bytes": "{limits} bytes",
         "seconds": "de 0 a 86400 s",
-        "camera_limit": "Todos exceto o CYD, firmware 0.2.57+"
+        "camera_limit": "Todos exceto o CYD, firmware 0.2.57+",
+        "screen_limit": "App 0.2.133+"
       },
       "icons": {
         "text": "Preencha o nome em {field}, por exemplo {example}. {mdi} e o código hexadecimal ({hex}) também funcionam. O firmware só inclui estes ícones; qualquer outro nome mostra o triângulo de aviso. Toque num ícone para copiar o nome.",
@@ -1910,6 +1920,18 @@
       "wait_yaml": {
         "comment": "Campainha: mostra o alerta e espera que alguém prima o botão.",
         "message": "Vem alguém à porta."
+      },
+      "one": {
+        "title": "Um ecrã, com câmara ou ação do botão",
+        "text": "Adicione {screen} ao mesmo evento e só esse ecrã recebe o alerta. É assim que um único ecrã mostra uma imagem de {camera} ou executa uma {action} a partir do botão: a ação própria do ecrã não tem campos para isso. Depois de {screen} vem um dos valores da lista abaixo.",
+        "more": "Alguns ecrãs? Indique uma lista, como {list}. Uma divisão também funciona e chega a cada ecrã nela. Um nome que não corresponde a nenhum ecrã não envia nada; o registo do ESP Screen Manager indica então os ecrãs que conhece.",
+        "value": "Depois de screen:",
+        "name": "Nome no Home Assistant",
+        "room": "Divisão",
+        "picture": "Imagem da câmara",
+        "picture_yes": "Sim",
+        "picture_no": "Não, o alerta chega sem ela",
+        "none": "Ainda não há ecrãs emparelhados. Assim que um ecrã estiver emparelhado, aparece aqui o que preencher para ele."
       }
     },
     "override": {
