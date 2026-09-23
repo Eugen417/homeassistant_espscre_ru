@@ -1,3 +1,4 @@
+from manager_fixtures import seed_layout
 """What a layout of forty-eight tiles runs into, refused when it is saved instead of later (app 0.2.78).
 
 - The screen takes the layout in one message of at most 4096 bytes that lists every entity id: 48 tiles with long ids
@@ -7,6 +8,7 @@
 - The request limit was 16 KB from the twenty-tile days, and a valid 48-tile layout with tap actions is larger.
 - The layout sensor keeps under the 16 KB Home Assistant's recorder stores of a state's attributes.
 """
+from manager_fixtures import with_screen_grid
 import importlib.util
 import json
 from pathlib import Path
@@ -105,7 +107,7 @@ class Saving(unittest.IsolatedAsyncioTestCase):
         for tile in layout_tiles:
             ha.registry.append({'entity_id': tile['entity'], 'platform': 'hue'})
             ha.states[tile['entity']] = {'state': 'on', 'attributes': {}}
-        return Manager(ha, Path(tmp) / 'screens.json')
+        return Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
 
     async def test_long_entity_ids_are_refused_when_saved(self):
         long_ids, short_ids = tiles(MAX_TILES, 80), tiles(MAX_TILES)
@@ -119,7 +121,7 @@ class Saving(unittest.IsolatedAsyncioTestCase):
             self.assertTrue(await m.sync_one('text.screen', m.layouts['text.screen']))
             # A layout an older app stored anyway gets a status, not a retry every pass.
             stored = validate_layout({'title': 'Hall', 'tiles': long_ids})
-            m.layouts = {'text.screen': stored}
+            seed_layout(m, 'text.screen', stored)
             m.sent.clear()
             self.assertFalse(await m.sync_one('text.screen', stored))
             self.assertIn('too large for one message', m.status['text.screen'])

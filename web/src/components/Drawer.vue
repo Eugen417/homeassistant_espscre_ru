@@ -6,6 +6,7 @@ import TileInspector from "./TileInspector.vue";
 import TopbarInspector from "./TopbarInspector.vue";
 import TopbarAdd from "./TopbarAdd.vue";
 import InspectPanel from "./InspectPanel.vue";
+import PageInspector from "./PageInspector.vue";
 
 const open = computed(() => Boolean(state.inspector && (state.inspector.kind !== "tile" || currentTile.value)));
 </script>
@@ -16,6 +17,7 @@ const open = computed(() => Boolean(state.inspector && (state.inspector.kind !==
       <TileInspector v-if="state.inspector.kind === 'tile' && currentTile" :tile="currentTile" />
       <TopbarInspector v-else-if="state.inspector.kind === 'bar'" :index="state.inspector.index" />
       <TopbarAdd v-else-if="state.inspector.kind === 'bar-add'" />
+      <PageInspector v-else-if="state.inspector.kind === 'page'" :id="state.inspector.id" />
       <InspectPanel v-else-if="state.inspector.kind === 'inspect'" :entity="state.inspector.entity" />
     </template>
   </aside>

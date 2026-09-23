@@ -9,6 +9,7 @@
 - The layout sensors come back after Home Assistant restarts, the settings tile opens without Home
   Assistant, and a weather entity is only asked for the forecasts it has.
 """
+from manager_fixtures import with_screen_grid, seed_layout
 import asyncio
 import importlib.util
 import json
@@ -69,7 +70,7 @@ def top_block(text, key):
     return match.group(1) if match else ''
 
 
-def fake_ha(firmware=FIRMWARE_VERSION, owned=True, guition=True):
+def fake_ha(firmware='0.2.104', owned=True, guition=True):
     class HA:
         online = True
 
@@ -101,6 +102,8 @@ def fake_ha(firmware=FIRMWARE_VERSION, owned=True, guition=True):
 
         async def send(self, inbox, message, action=None, respond=False):
             self.messages.append((message, respond))
+            if message.get('v') == 2 and message.get('op') == 'hello':
+                return {'status': 'Error: protocol version'}
             if respond:
                 return self.answers.pop(0) if self.answers else {'status': 'Synced', 'rev': message.get('rev')}
             return None
@@ -172,7 +175,7 @@ class CoreSettings(unittest.TestCase):
 @unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
 class OwnedSettings(unittest.IsolatedAsyncioTestCase):
     def manager(self, tmp, **kw):
-        m = Manager(fake_ha(**kw), Path(tmp) / 'screens.json')
+        m = Manager(with_screen_grid(fake_ha(**kw)), Path(tmp) / 'screens.json')
         m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}],
                                'settings': validate_settings({'brightness': 10, 'standby_brightness': 10, 'night_brightness': 10})})
         return m
@@ -190,7 +193,7 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
             view = m.settings_view(m.screen('text.screen'))
             self.assertEqual((view['unavailable'], view['values']['night_end']), (['night_end'], None), 'unknown, not a default')
             # Offline: every value is unknown, also one a layout from before the update still carries.
-            m.layouts['text.screen'] = {**m.layouts['text.screen'], 'settings': validate_settings({'brightness': 10, 'standby_brightness': 10, 'night_brightness': 10})}
+            seed_layout(m, 'text.screen', {**m.layouts['text.screen'], 'settings': validate_settings({'brightness': 10, 'standby_brightness': 10, 'night_brightness': 10})})
             for entity in ENTITY_IDS.values():
                 m.ha.states[entity] = {'state': 'unavailable'}
             view = m.settings_view(m.screen('text.screen'))
@@ -400,7 +403,7 @@ class OwnedSettings(unittest.IsolatedAsyncioTestCase):
 class OlderFirmware(unittest.IsolatedAsyncioTestCase):
     async def test_a_change_is_kept_with_the_layout_and_only_the_layout_goes_out(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(firmware='0.2.48', owned=False), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha(firmware='0.2.48', owned=False)), Path(tmp) / 'screens.json')
             m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}]})
             screen = m.screen('text.screen')
             await m.sync_one('text.screen', m.layouts['text.screen'], screen=screen, dirty=set())
@@ -416,7 +419,7 @@ class OlderFirmware(unittest.IsolatedAsyncioTestCase):
     async def test_dark_mode_needs_a_screen_that_owns_its_settings(self):
         # Firmware that gets its settings with the layout has no dark look: no row, no key on the wire, no change.
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(firmware='0.2.48', owned=False), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha(firmware='0.2.48', owned=False)), Path(tmp) / 'screens.json')
             m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}],
                                    'settings': validate_settings({'dark_mode': True})})
             screen = m.screen('text.screen')
@@ -429,13 +432,13 @@ class OlderFirmware(unittest.IsolatedAsyncioTestCase):
                 await m.change_settings('text.screen', {'dark_mode': True})
         # Firmware 0.2.49-0.2.53 owns its settings but lacks the switch: left out, not unknown.
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(firmware='0.2.53'), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha(firmware='0.2.53')), Path(tmp) / 'screens.json')
             m.ha.registry = [item for item in m.ha.registry if item['entity_id'] != ENTITY_IDS['dark_mode']]
             view = m.settings_view(m.screen('text.screen'))
             self.assertNotIn('dark_mode', view['keys'] + view['unavailable'])
         # Firmware 0.2.54: the switch of the screen itself.
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha()), Path(tmp) / 'screens.json')
             m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}]})
             self.assertFalse(m.settings_view(m.screen('text.screen'))['values']['dark_mode'])
             await m.change_settings('text.screen', {'dark_mode': True})
@@ -443,7 +446,7 @@ class OlderFirmware(unittest.IsolatedAsyncioTestCase):
 
     async def test_back_to_page_1_needs_firmware_0_2_44(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(firmware='0.2.43', owned=False, guition=False), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha(firmware='0.2.43', owned=False, guition=False)), Path(tmp) / 'screens.json')
             keys = m.settings_view(m.screen('text.screen'))['keys']
             self.assertNotIn('auto_home', keys)
             self.assertNotIn('rotation', keys)
@@ -455,7 +458,7 @@ class OlderFirmware(unittest.IsolatedAsyncioTestCase):
 class LayoutSensors(unittest.IsolatedAsyncioTestCase):
     async def test_they_are_published_again_after_home_assistant_restarts(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha()), Path(tmp) / 'screens.json')
             m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}]})
             await m.publish_layouts()
             self.assertIn('sensor.esp_screens_office_1', m.ha.published)
@@ -487,7 +490,7 @@ class WeatherForecasts(unittest.IsolatedAsyncioTestCase):
                     return []
                 ha.forecast = forecast
                 ha.states['weather.home'] = {'state': 'sunny', 'attributes': {} if features is None else {'supported_features': features}}
-                m = Manager(ha, Path(tmp) / 'screens.json')
+                m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
                 tile = {'entity': 'weather.home', 'name': ''}
                 await m.tile_message(0, tile)
                 await m.tile_message(0, tile)
@@ -551,7 +554,7 @@ class Answers(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((str(refused.exception), refused.exception.detail), ('Home Assistant refused the command.', 'does not support responses'))
 
     def manager(self, tmp, **kw):
-        m = Manager(fake_ha(**kw), Path(tmp) / 'screens.json')
+        m = Manager(with_screen_grid(fake_ha(**kw)), Path(tmp) / 'screens.json')
         m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}]})
         return m
 
@@ -561,7 +564,7 @@ class Answers(unittest.IsolatedAsyncioTestCase):
             screen = m.screen('text.screen')
             await m.sync_one('text.screen', m.layouts['text.screen'], screen=screen, dirty=set())
             self.assertEqual([(message['op'], respond) for message, respond in m.ha.messages],
-                             [('layout', False), ('header', False), ('state', False), ('ping', True)])
+                             [('hello', True), ('layout', False), ('header', False), ('state', False), ('ping', True)])
             ping = m.ha.messages[-1][0]
             self.assertEqual(ping['rev'], m.sent['text.screen']['rev'])
             m.ha.messages.clear()
@@ -636,7 +639,7 @@ class Answers(unittest.IsolatedAsyncioTestCase):
 class SettingsRoute(unittest.IsolatedAsyncioTestCase):
     async def test_the_editor_changes_one_setting_at_a_time(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha()), Path(tmp) / 'screens.json')
             async with TestClient(TestServer(create_app(m, True))) as client:
                 inventory = await (await client.get('/api/inventory?light=1')).json()
                 self.assertEqual(inventory['screens'][0]['settings']['owner'], 'screen')
@@ -704,8 +707,12 @@ class Editor(unittest.TestCase):
 
     def test_settings_have_their_own_call_and_save_leaves_them_out(self):
         self.assertIn('api(`screens/${encodeURIComponent(screen)}/settings`', self.script)
-        self.assertIn('const { settings: _settings, ...tiles } = state.layout;', self.script)
-        self.assertIn('await send(`screens/${encodeURIComponent(state.selected)}`, "PUT", tiles);', self.script)
+        self.assertIn('submitted = pages.clone(state.document)', self.script)
+        self.assertIn('format: "pages-v2", revision: state.documentRevision, layout: submitted', self.script)
+        from pathlib import Path
+        types = (Path(__file__).resolve().parents[1] / 'web/src/types.ts').read_text()
+        page_layout = types.split('export type PageLayout = ', 1)[1].split(';', 4)[:4]
+        self.assertNotIn('settings', ''.join(page_layout), 'device settings are not part of the page document')
         # The top bar's clock follows the one clock of Settings → Language & region (app 0.2.90).
         import editor_sources
         self.assertIn('state.inventory.language?.clock_effective !== "12"', self.script)

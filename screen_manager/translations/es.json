@@ -125,7 +125,7 @@
       "ends": "Termina",
       "night_brightness": "Brillo nocturno",
       "night_lit": "Pantalla encendida de noche",
-      "back_to_page_1": "Volver a la página 1",
+      "back_to_page_1": "Volver a Inicio",
       "after": "Tras",
       "also_on_standby": "También en reposo",
       "swipe_between_pages": "Deslizar entre páginas",
@@ -412,6 +412,9 @@
         "vertical": "Vertical",
         "horizontal": "Horizontal"
       }
+    },
+    "navigation": {
+      "back": "Volver"
     }
   },
   "addon": {
@@ -1148,7 +1151,6 @@
       "saved": {
         "current": "Guardado. Tu pantalla se está actualizando.",
         "other": "Guardado. {name} se está actualizando.",
-        "other_unnamed": "Guardado. La pantalla se está actualizando.",
         "newer_edit": "Guardado. Tu último cambio aún no se ha enviado: vuelve a pulsar Guardar y enviar."
       },
       "identified": "{name} parpadea y muestra una tarjeta durante unos segundos.",
@@ -1183,11 +1185,8 @@
       "no_free_page": "No hay ninguna página libre para un mosaico de página completa. Libera antes una página.",
       "page_taken": "Esta pantalla ya tiene un mosaico que lleva a la página {page}.",
       "copied": "Diseño de {name} copiado. Pulsa Guardar y enviar cuando te parezca bien.",
-      "copied_part": "Diseño de {name} copiado: {kept} de {total} mosaicos son compatibles con el firmware de esta pantalla. Pulsa Guardar y enviar cuando te parezca bien.",
       "imported": "Diseño importado. Pulsa Guardar y enviar cuando te parezca bien.",
-      "imported_part": "Diseño importado: {kept} de {total} mosaicos son compatibles con el firmware de esta pantalla. Pulsa Guardar y enviar cuando te parezca bien.",
       "not_json": "Eso no es JSON. Exporta antes un diseño o pega uno de otro ESP Screens.",
-      "no_tiles_in_file": "Este archivo no tiene mosaicos. Se esperaba un diseño exportado desde ESP Screens.",
       "count": "{n} página · {tiles} / {limit} mosaicos | {n} páginas · {tiles} / {limit} mosaicos",
       "no_tiles": "Añade tu primera luz, escena o dispositivo desde la biblioteca.",
       "how_to": "Toca la barra superior o un mosaico para cambiarlo. Arrastra para mover; suelta en la página siguiente para crear una nueva.",
@@ -1516,7 +1515,7 @@
         "night_end": "Termina",
         "night_brightness": "Brillo nocturno",
         "night_lit": "Pantalla encendida de noche",
-        "auto_home": "Volver a la página 1",
+        "auto_home": "Volver a Inicio",
         "auto_home_seconds": "Tras",
         "home_on_standby": "También en reposo",
         "swipe_pages": "Deslizar entre páginas",
@@ -1544,16 +1543,7 @@
       },
       "other_screen_busy": "Aún se está guardando la configuración de la otra pantalla. Vuelve a intentarlo en un momento.",
       "reach": {
-        "intro": "Los botones de página y el deslizamiento están desactivados, así que solo los mosaicos «Ir a la página» cambian de página.",
-        "pages": "la página {list} | las páginas {list}",
-        "tiles": "Tienes {n} mosaico «Ir a la página», que lleva a {targets}. | Tienes {n} mosaicos «Ir a la página», que llevan a {targets}.",
-        "tiles_missing_one": "Tienes {n} mosaico «Ir a la página», que lleva a {targets}, pero ninguno a {missing}, así que no puedes llegar a ella. | Tienes {n} mosaicos «Ir a la página», que llevan a {targets}, pero ninguno a {missing}, así que no puedes llegar a ella.",
-        "tiles_missing_more": "Tienes {n} mosaico «Ir a la página», que lleva a {targets}, pero ninguno a {missing}, así que no puedes llegar a ellas. | Tienes {n} mosaicos «Ir a la página», que llevan a {targets}, pero ninguno a {missing}, así que no puedes llegar a ellas.",
-        "none": "No tienes mosaicos «Ir a la página».",
-        "none_missing_one": "No tienes mosaicos «Ir a la página» que lleven a {missing}, así que no puedes llegar a ella.",
-        "none_missing_more": "No tienes mosaicos «Ir a la página» que lleven a {missing}, así que no puedes llegar a ellas.",
-        "cut_off": "Los mosaicos que llevan a {pages} solo están en páginas a las que no puedes llegar.",
-        "no_way_back": "Desde {pages} ningún mosaico lleva de vuelta a la página 1."
+        "pages": "la página {list} | las páginas {list}"
       },
       "status": {
         "offline": "Esta pantalla está sin conexión. Podrás cambiar su configuración cuando vuelva.",

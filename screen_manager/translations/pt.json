@@ -125,7 +125,7 @@
       "ends": "Fim",
       "night_brightness": "Brilho noturno",
       "night_lit": "Ecrã ligado à noite",
-      "back_to_page_1": "Voltar à página 1",
+      "back_to_page_1": "Voltar ao início",
       "after": "Após",
       "also_on_standby": "Também em espera",
       "swipe_between_pages": "Deslizar entre páginas",
@@ -412,6 +412,9 @@
         "vertical": "Vertical",
         "horizontal": "Horizontal"
       }
+    },
+    "navigation": {
+      "back": "Voltar"
     }
   },
   "addon": {
@@ -1148,7 +1151,6 @@
       "saved": {
         "current": "Guardado. O seu ecrã está a ser atualizado.",
         "other": "Guardado. {name} está a ser atualizado.",
-        "other_unnamed": "Guardado. O ecrã está a ser atualizado.",
         "newer_edit": "Guardado. A sua alteração mais recente ainda não foi enviada: prima Guardar e enviar outra vez."
       },
       "identified": "{name} pisca e mostra um cartão durante alguns segundos.",
@@ -1183,11 +1185,8 @@
       "no_free_page": "Não há nenhuma página livre para um mosaico de página inteira. Liberte primeiro uma página.",
       "page_taken": "Este ecrã já tem um mosaico que leva à página {page}.",
       "copied": "Layout de {name} copiado. Prima Guardar e enviar quando estiver bem.",
-      "copied_part": "Layout de {name} copiado: {kept} de {total} mosaicos são compatíveis com o firmware deste ecrã. Prima Guardar e enviar quando estiver bem.",
       "imported": "Layout importado. Prima Guardar e enviar quando estiver bem.",
-      "imported_part": "Layout importado: {kept} de {total} mosaicos são compatíveis com o firmware deste ecrã. Prima Guardar e enviar quando estiver bem.",
       "not_json": "Isso não é JSON. Exporte primeiro um layout ou cole um de outro ESP Screens.",
-      "no_tiles_in_file": "Este ficheiro não tem mosaicos. Era esperado um layout exportado do ESP Screens.",
       "count": "{n} página · {tiles} / {limit} mosaicos | {n} páginas · {tiles} / {limit} mosaicos",
       "no_tiles": "Adicione a primeira luz, cena ou dispositivo a partir da biblioteca.",
       "how_to": "Toque na barra superior ou num mosaico para o alterar. Arraste para mover; largue na página seguinte para criar uma nova.",
@@ -1516,7 +1515,7 @@
         "night_end": "Fim",
         "night_brightness": "Brilho noturno",
         "night_lit": "Ecrã ligado à noite",
-        "auto_home": "Voltar à página 1",
+        "auto_home": "Voltar ao início",
         "auto_home_seconds": "Após",
         "home_on_standby": "Também em espera",
         "swipe_pages": "Deslizar entre páginas",
@@ -1544,16 +1543,7 @@
       },
       "other_screen_busy": "Ainda se estão a guardar as definições do outro ecrã. Tente novamente daqui a pouco.",
       "reach": {
-        "intro": "Os botões de página e o deslizar estão desativados, por isso só os mosaicos «Ir para a página» mudam de página.",
-        "pages": "a página {list} | as páginas {list}",
-        "tiles": "Tem {n} mosaico «Ir para a página», para {targets}. | Tem {n} mosaicos «Ir para a página», para {targets}.",
-        "tiles_missing_one": "Tem {n} mosaico «Ir para a página», para {targets}, mas nenhum para {missing}, por isso não consegue lá chegar. | Tem {n} mosaicos «Ir para a página», para {targets}, mas nenhum para {missing}, por isso não consegue lá chegar.",
-        "tiles_missing_more": "Tem {n} mosaico «Ir para a página», para {targets}, mas nenhum para {missing}, por isso não consegue lá chegar. | Tem {n} mosaicos «Ir para a página», para {targets}, mas nenhum para {missing}, por isso não consegue lá chegar.",
-        "none": "Não tem mosaicos «Ir para a página».",
-        "none_missing_one": "Não tem mosaicos «Ir para a página» para {missing}, por isso não consegue lá chegar.",
-        "none_missing_more": "Não tem mosaicos «Ir para a página» para {missing}, por isso não consegue lá chegar.",
-        "cut_off": "Os mosaicos para {pages} só estão em páginas a que não consegue chegar.",
-        "no_way_back": "Desde {pages}, nenhum mosaico leva de volta à página 1."
+        "pages": "a página {list} | as páginas {list}"
       },
       "status": {
         "offline": "Este ecrã está offline. Poderá alterar as definições quando voltar.",

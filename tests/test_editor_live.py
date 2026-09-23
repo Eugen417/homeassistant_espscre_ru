@@ -203,11 +203,12 @@ class Editor(unittest.TestCase):
         self.assertIn('id="try-send"', self.page)
 
     def test_layouts_can_be_copied_exported_and_imported(self):
-        for name in ('export function copyLayoutFrom', 'export function exportLayout', 'export function importLayout'):
+        for name in ('export function copyLayoutFrom', 'export function exportLayout', 'export async function importLayout'):
             self.assertIn(name, self.store)
         for marker in ('id="copy-layout"', 'id="export-layout"', 'id="import-layout"', 'accept="application/json,.json"'):
             self.assertIn(marker, self.page, marker)
-        self.assertIn('.slice(0, tileLimit.value)', self.store, 'an imported layout never exceeds the firmware limit')
+        self.assertIn('pages.remapLayout(record.layout, state.documentGrid)', self.store)
+        self.assertNotIn('.slice(0, tileLimit.value)', self.store, 'an incompatible import must be reviewed, never silently truncated')
 
     def test_the_library_filters_by_room_and_placement_and_the_palette_exists(self):
         for marker in ('id="room"', 'id="hide-placed"', 'id="open-palette"', 'id="palette-input"', "e.key.toLowerCase() === \"k\""):

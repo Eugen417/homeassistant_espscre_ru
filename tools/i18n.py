@@ -191,11 +191,17 @@ LINT_KEEP = {
     'Use the Easy Setup profile', 'Swipe test started', 'no answer', 'Error: message too large',
     'Error: invalid message', 'Error: protocol version', 'Error: screen settings', 'Error: outdated tile',
     'Error: no memory for ', 'Error: incomplete message', 'Error: invalid encoding',
+    # Protocol 2 handshakes/refusals stay stable across screen languages. The
+    # configuration problem shown on the glass uses a translated key below.
+    'Configuration problem. Update add-on.', 'Session:', 'Error: obsolete message',
+    'Error: layout', 'Error: incomplete layout', 'Error: insufficient layout memory',
+    'Error: outdated tile or configuration in state',
     # Only a log line or the rate limiter's reason shows these.
     'history range', 'card button ', 'media key ', 'let go', 'too short (', 'already handled in this contact',
     'same button within the debounce window', 'no runtime tiles', 'setting off', 'screen dimmed', 'card open',
     'detail card open', 'camera open', 'a slider is being dragged', 'USB calibration ready; no tile actions',
     'GT911 touch test ready; no tile actions',
+    'configuration not ready',
     'UI_TEST START: page/overlay render stress, no HA actions', 'Color', 'Color temperature', 'Brightness',
     # Home Assistant's own values and units the code compares with, not words it shows.
     'None', 'Auto', 'Wh',

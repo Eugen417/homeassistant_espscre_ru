@@ -1,6 +1,7 @@
 #pragma once
 #include "runtime_model.h"
 #include "header_bar.h"
+#include "page_header.h"
 #include "tile_palette.h"
 #include "overlay_card.h"
 #include "alert_overlay.h"
@@ -68,7 +69,8 @@ inline const lv_font_t *mini_icon_font = nullptr;
 inline const lv_font_t *big_icon_font = nullptr;
 // Page shown by the navigation bar and the swipe (the profile's tile_page), remembered by show_page.
 inline int *shown_page = nullptr;
-inline void go_to_page(int page);
+inline void go_to_page(int page, bool remember = true);
+inline void go_back();
 inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
 // Big digits for the clock card; the board profile sets it with the local time source.
 inline const lv_font_t *clock_font = nullptr;
@@ -90,7 +92,25 @@ inline std::string header_name;
 inline bool header_named = false;
 // Top bar (0.2.32+): the profile's clock label only lends its place and margin; values use the
 // profile's text font, icons its small icon font. Set by the board profile at boot.
-inline header_bar::Bar header;
+inline page_protocol::Transfer transfer;
+inline page_protocol::NavigationHistory navigation_history;
+enum class ProtocolProblem : uint8_t { none, old_addon, unsupported };
+inline ProtocolProblem protocol_problem = ProtocolProblem::none;
+inline uint64_t previous_page_id = 0;
+inline bool had_previous_page = false;
+inline uint32_t history_view_id = 0, options_view_id = 0, camera_view_id = 0, cover_view_id = 0, live_view_id = 0;
+inline void cancel_layout_input(bool invalidate_widgets = true);
+inline int home_page() { return model.page_data.home; }
+inline int sequential_page(int page, int step) {
+  return protocol_problem == ProtocolProblem::none ? model.page_data.step(page, step) : page;
+}
+inline int previous_button_page(int page) {
+  if (protocol_problem != ProtocolProblem::none) return page;
+  return model.page_data.detail(page) ? navigation_history.pop(model.page_data, page) : sequential_page(page, -1);
+}
+inline bool header_back() {
+  return !settings_screen::page_buttons && shown_page && model.page_data.detail(*shown_page);
+}
 inline lv_obj_t *time_label = nullptr;
 inline const lv_font_t *header_text_font = nullptr, *header_icon_font = nullptr;
 inline void render_header();
@@ -218,23 +238,6 @@ inline void persist_settings() {
   uint32_t turned = (uint32_t) rotation;
   rotation_preference.save(&turned);
 }
-inline bool parse_settings(JsonObject obj, screen_settings::Settings &s) {
-  // Require the complete known schema; validate before touching any runtime state.
-  if (obj.size() != 11) return false;
-  const char *flags[] = {"standby_enabled", "night_enabled", "show_clock", "clock_24h", "home_on_standby"};
-  int32_t *flag_values[] = {&s.standby_enabled, &s.night_enabled, &s.show_clock, &s.clock_24h, &s.home_on_standby};
-  for (int i = 0; i < 5; ++i) {
-    if (!obj[flags[i]].is<bool>()) return false;
-    *flag_values[i] = obj[flags[i]].as<bool>();
-  }
-  const char *numbers[] = {"standby_seconds", "brightness", "standby_brightness", "night_start", "night_end", "night_brightness"};
-  int32_t *values[] = {&s.standby_seconds, &s.brightness, &s.standby_brightness, &s.night_start, &s.night_end, &s.night_brightness};
-  for (int i = 0; i < 6; ++i) {
-    if (!obj[numbers[i]].is<int>() || obj[numbers[i]].is<bool>()) return false;
-    *values[i] = obj[numbers[i]].as<int>();
-  }
-  return s.valid();
-}
 inline std::function<void(Tile &)> detail, detail_update;
 // One page of a picker's names (op "options", app 0.2.83+), for the light's effects page.
 inline std::function<void(const std::string &, unsigned, unsigned, std::vector<std::string> &&)> options_received;
@@ -322,7 +325,7 @@ inline bool ha_connected() { return esphome::api_is_connected(); }
 // The manager repeats the whole layout every keepalive; one missed round plus its 20 s
 // loop slack and the sending itself are tolerated before the feed counts as gone.
 inline bool feed_alive() { return esphome::millis() - last_received < keepalive_seconds * 2000 + 60000; }
-inline bool fresh() { return model.ready() && ha_connected() && feed_alive(); }
+inline bool fresh() { return protocol_problem == ProtocolProblem::none && transfer.active && transfer.begun && model.ready() && ha_connected() && feed_alive(); }
 // A dropped tap is logged with its reason, so a missed touch can be read from the ESPHome log
 // instead of guessed: moved too far, too short, already used by this contact, or bounce.
 inline bool allowed(uint32_t now, int tile, const std::string &what) {
@@ -350,6 +353,29 @@ inline std::string list(JsonVariant value) {
   serializeJson(value, out);
   return out.size() <= 512 ? out : "";
 }
+inline std::string protocol_key(uint64_t value) {
+  char text[17];
+  snprintf(text, sizeof(text), "%08x%08x", static_cast<unsigned>(value >> 32), static_cast<unsigned>(value));
+  return text;
+}
+inline bool parse_bar(JsonVariant items, header_bar::Bar &out) {
+  if (!items.is<JsonArray>() || items.as<JsonArray>().size() > header_bar::MAX_ITEMS) return false;
+  for (JsonVariant value : items.as<JsonArray>()) {
+    if (!value.is<JsonObject>()) return false;
+    header_bar::Item item;
+    item.kind = header_bar::kind(string(value["k"], 8));
+    if (item.kind == header_bar::Kind::none) return false;
+    uint32_t icon = tile_icon::codepoint(string(value["i"], 8));
+    item.icon = icon && has_icon_glyph(icon) ? icon : 0;
+    item.text = string(value["t"], header_bar::TEXT_BYTES);
+    item.epoch = value["e"].is<unsigned>() ? value["e"].as<uint32_t>() : 0;
+    item.has_color = header_bar::color(string(value["c"], 8), item.color);
+    if (item.kind == header_bar::Kind::ago && item.epoch == 0) return false;
+    out.items[out.count++] = std::move(item);
+  }
+  out.received = true;
+  return true;
+}
 // Reading what Home Assistant sent. Every loop here walks a JsonArray that ArduinoJson hands back from the
 // document, and GCC 14 cannot tell that apart from a reference into the temporary the call was made on:
 // `for (JsonVariant v : root["slots"].as<JsonArray>())` raises -Wdangling-reference, eighteen times in this
@@ -363,150 +389,128 @@ inline std::string receive(const std::string &payload) {
   if (!enabled) return "Use the Easy Setup profile";
   if (payload.size() > 4096) return "Error: message too large";
   std::string result = "Error: invalid message";
-  esphome::json::parse_json(payload, [&](JsonObject root) -> bool {
-    if (root["v"].as<int>() != 1) { result = "Error: protocol version"; return false; }
+  Fingerprint packet_hash;
+  packet_hash.add(payload);
+  uint32_t packet_sequence = 0;
+  bool sequenced = false;
+  const bool accepted = esphome::json::parse_json(payload, [&](JsonObject root) -> bool {
+    if (root["v"].as<int>() != page_protocol::VERSION) {
+      const auto problem = root["v"].is<unsigned>() && root["v"].as<unsigned>() == 1 ? ProtocolProblem::old_addon : ProtocolProblem::unsupported;
+      if (protocol_problem != problem) { protocol_problem = problem; cancel_layout_input(false); refresh_all(); }
+      result = problem == ProtocolProblem::old_addon ? "Configuration problem. Update add-on." : "Error: protocol version";
+      return false;
+    }
     auto op = string(root["op"]);
-    if (op == "layout") {
-      if (!root["entities"].is<JsonArray>() || !root["title"].is<const char *>()) return false;
-      auto settings = screen_settings::current;
-      if (!root["settings"].isNull() && (!root["settings"].is<JsonObject>() ||
-          !parse_settings(root["settings"].as<JsonObject>(), settings))) {
-        result = "Error: screen settings"; return false;
-      }
-      std::vector<std::string> entities;
-      for (JsonVariant entity : root["entities"].as<JsonArray>()) {
-        if (!entity.is<const char *>() || entities.size() == grid.max_tiles()) return false;
-        entities.push_back(entity.as<std::string>());
-      }
-      if(!root["swipe_pages"].isNull() && !root["swipe_pages"].is<bool>())return false;
-      if(!root["auto_home"].isNull() && !root["auto_home"].is<bool>())return false;
-      if(!root["auto_home_seconds"].isNull() && (!root["auto_home_seconds"].is<unsigned>() ||
-          root["auto_home_seconds"].as<unsigned>()<30 || root["auto_home_seconds"].as<unsigned>()>3600))return false;
-      if(!root["rotation"].isNull() && (!root["rotation"].is<unsigned>() ||
-          root["rotation"].as<unsigned>()>270 || root["rotation"].as<unsigned>()%90!=0))return false;
-      // The clock and the number format of Settings -> Language & region (app 0.2.90), the same for every screen.
-      if(!root["clock_24h"].isNull() && !root["clock_24h"].is<bool>())return false;
-      if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
-          root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
-      // A title of its own for a page (firmware 0.2.90+): one entry per page, in page order; an empty one means
-      // the screen's own title. Absent on older managers, and then every page says the screen's title as before.
-      std::vector<std::string> page_titles;
-      if (!root["page_titles"].isNull()) {
-        if (!root["page_titles"].is<JsonArray>()) return false;
-        for (JsonVariant name : root["page_titles"].as<JsonArray>()) {
-          if (!name.is<const char *>() || page_titles.size() == grid.pages()) return false;
-          page_titles.push_back(string(name, 96));
-        }
-      }
-      // Explicit grid positions (0.2.26+), one absolute slot per entity; absent on older managers.
-      std::vector<uint8_t> positions;
-      if (!root["slots"].isNull()) {
-        if (!root["slots"].is<JsonArray>()) return false;
-        for (JsonVariant slot : root["slots"].as<JsonArray>()) {
-          if (!slot.is<unsigned>() || slot.as<unsigned>() >= grid.max_slots() || positions.size() == grid.max_tiles()) return false;
-          positions.push_back(static_cast<uint8_t>(slot.as<unsigned>()));
-        }
-      }
-      inbox = string(root["inbox"], 160);
-      bool changed = false, moved = false, was_configured = model.configured;
-      const std::string previous_title = model.title;
-      const uint8_t previous_pages = model.pages;
-      if (!model.set_layout(entities, string(root["title"], 96), changed, positions, moved)) {
-        if (!model.refusal.empty()) {
-          ESP_LOGW("runtime", "Layout of %u tiles refused: %s", static_cast<unsigned>(entities.size()), model.refusal.c_str());
-          result = model.refusal;
-        }
+    if (op == "hello") {
+      uint64_t request;
+      if (!page_protocol::key(string(root["request"]), request)) return false;
+      const uint64_t random = (uint64_t{esphome::random_uint32()} << 32) | esphome::random_uint32();
+      result = "Session:" + protocol_key(transfer.grant(request, random));
+      return true;
+    }
+    uint64_t lease, revision;
+    if (!page_protocol::key(string(root["session"]), lease) ||
+        !page_protocol::key(string(root["rev"]), revision) || !root["seq"].is<unsigned>()) return false;
+    packet_sequence = root["seq"].as<unsigned>();
+    const auto packet = transfer.packet(lease, packet_sequence, packet_hash.value);
+    if (packet == page_protocol::Packet::reject) { result = "Error: obsolete message"; return false; }
+    if (packet == page_protocol::Packet::duplicate) {
+      result = transfer.active && model.ready() ? "Synced" : "Loading tiles";
+      return true;
+    }
+    sequenced = true;
+    if (op == "begin") {
+      if (!root["tiles"].is<unsigned>() || !root["pages"].is<unsigned>() || !root["home"].is<unsigned>() ||
+          !root["title"].is<const char *>() || root["title"].as<std::string>().size() > 96 ||
+          root["pages"].as<unsigned>() == 0 || root["pages"].as<unsigned>() > grid.pages() ||
+          root["tiles"].as<unsigned>() > grid.max_tiles() || root["home"].as<unsigned>() >= root["pages"].as<unsigned>() ||
+          !root["keepalive"].is<unsigned>() || root["keepalive"].as<unsigned>() < 5 || root["keepalive"].as<unsigned>() > 3600)
         return false;
-      }
-      model.page_titles = page_titles;
-      // Empty pages the user keeps on purpose; absent on older managers.
-      model.pages = root["pages"].is<unsigned>() ? static_cast<uint8_t>(std::clamp<unsigned>(root["pages"].as<unsigned>(), 1, grid.pages())) : 1;
-      if(root["swipe_pages"].is<bool>() && swipe_pages!=root["swipe_pages"].as<bool>()){
-        swipe_pages=root["swipe_pages"].as<bool>();uint32_t saved=swipe_pages?1:0;swipe_preference.save(&saved);
-      }
-      if((root["auto_home"].is<bool>() && auto_home!=root["auto_home"].as<bool>()) ||
-         (root["auto_home_seconds"].is<unsigned>() && auto_home_seconds!=(int32_t)root["auto_home_seconds"].as<unsigned>())){
-        if(root["auto_home"].is<bool>())auto_home=root["auto_home"].as<bool>();
-        if(root["auto_home_seconds"].is<unsigned>())auto_home_seconds=(int32_t)root["auto_home_seconds"].as<unsigned>();
-        HomeTimeout home{(uint32_t)(auto_home?1:0),(uint32_t)auto_home_seconds};home_preference.save(&home);
-      }
-      bool rotation_changed=false;
-      if(root["clock_24h"].is<bool>())settings.clock_24h=root["clock_24h"].as<bool>()?1:0;
-      // How numbers are written; a value this firmware doesn't know is left out, never the layout (a newer app may
-      // know more styles).
-      bool format_changed=false;
-      int style=root["numbers"].is<const char*>()?screen_text::number_style_of(root["numbers"].as<std::string>()):-1;
-      uint32_t numbers=screen_text_numbers();
-      if(style>=0)numbers=(numbers&~0xFu)|(uint32_t)style;
-      if(root["group_min"].is<unsigned>() && root["group_min"].as<unsigned>()>=1 && root["group_min"].as<unsigned>()<=2)
-        numbers=(numbers&~0x30u)|(root["group_min"].as<unsigned>()<<4);
-      if(root["percent_space"].is<bool>())numbers=(numbers&~0xC0u)|((root["percent_space"].as<bool>()?2u:1u)<<6);
-      if(numbers!=screen_text_numbers()){screen_text_numbers(numbers);numbers_preference.save(&numbers);format_changed=true;}
-      // A turn from the layout message (firmware that gets its settings that way): the half turn on every board, a
-      // quarter turn only on a square one.
-      if(root["rotation"].is<unsigned>() && (root["rotation"].as<unsigned>()%180==0 || quarter_turns) && rotation!=root["rotation"].as<unsigned>()){
-        rotation=root["rotation"].as<unsigned>();rotation_preference.save(&rotation);rotation_changed=true;
-      }
-      if (!(settings == screen_settings::current)) {
-        screen_settings::current = settings;
-        settings_preference.save(&settings);  // ESPHome batches flash writes; no write on keepalive.
-        rotation_changed=true;
-      }
-      if(rotation_changed && settings_changed)settings_changed();
-      if (changed) { active_index = -1; for (auto &w : widgets) w.cached_active = -1; if (dismiss) dismiss(); }
-      if (moved) ESP_LOGI("runtime", "tiles moved: pages rearranged");
-      if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
-      layout_rev = string(root["rev"], 16);
+      const bool was_active = transfer.active && model.ready();
+      const auto begin = transfer.begin(revision, root["pages"].as<unsigned>(), root["tiles"].as<unsigned>());
+      if (begin == page_protocol::Begin::reject) return false;
+      const bool was_problem = protocol_problem != ProtocolProblem::none;
+      protocol_problem = ProtocolProblem::none;
       last_received = esphome::millis();
-      // A repeat of the layout on screen (the hourly repeat, a save that changed nothing here) only
-      // refreshes the feed: drawing the whole page again stalls touch input for a few hundred ms,
-      // long enough to spoil a slider drag. The tile states that follow redraw their own tiles.
-      if (changed || moved || !was_configured || rotation_changed || format_changed || model.pages != previous_pages || model.title != previous_title) {
-        if (layout_changed) layout_changed();
-        refresh_all();
+      keepalive_seconds = root["keepalive"].as<unsigned>();
+      if (begin == page_protocol::Begin::unchanged) {
+        if (was_problem) refresh_all();
+        result = "Synced"; return true;
       }
-      // A repeat of the same layout keeps the inbox state as it is: no new recorder row.
-      result = changed || moved || !was_configured ? "Layout received" : model.ready() ? "Synced" : "Loading tiles";
+      if (was_active && shown_page && *shown_page >= 0 && static_cast<size_t>(*shown_page) < model.page_data.records.size()) {
+        previous_page_id = model.page_data.records[*shown_page].id;
+        had_previous_page = true;
+      }
+      cancel_layout_input();
+      if (!model.begin(root["tiles"].as<unsigned>(), root["pages"].as<unsigned>(), string(root["title"], 96))) {
+        refresh_all(); result = model.refusal.empty() ? "Error: layout" : model.refusal; return false;
+      }
+      model.page_data.home = root["home"].as<unsigned>();
+      inbox = string(root["inbox"], 160);
+      layout_rev = protocol_key(revision);
+      if (root["clock_24h"].is<bool>()) settings_screen::set("clock_24h", root["clock_24h"].as<bool>() ? 1 : 0);
+      uint32_t numbers = screen_text_numbers();
+      const int style = root["numbers"].is<const char *>() ? screen_text::number_style_of(root["numbers"].as<std::string>()) : -1;
+      if (style >= 0) numbers = (numbers & ~0xFu) | static_cast<unsigned>(style);
+      if (root["group_min"].is<unsigned>() && root["group_min"].as<unsigned>() >= 1 && root["group_min"].as<unsigned>() <= 2)
+        numbers = (numbers & ~0x30u) | (root["group_min"].as<unsigned>() << 4);
+      if (root["percent_space"].is<bool>()) numbers = (numbers & ~0xC0u) | ((root["percent_space"].as<bool>() ? 2u : 1u) << 6);
+      if (numbers != screen_text_numbers()) { screen_text_numbers(numbers); numbers_preference.save(&numbers); }
+      refresh_all();
+      result = "Loading tiles";
       return true;
     }
+    if (!transfer.matches(revision)) { result = "Resend needed"; return false; }
     if (op == "ping") {
-      // Keepalive without content (app 0.2.39+): only the revision of the layout the manager holds.
-      if (!root["rev"].is<const char *>()) return false;
-      if(!root["keepalive"].isNull() && (!root["keepalive"].is<unsigned>() ||
-          root["keepalive"].as<unsigned>()<5 || root["keepalive"].as<unsigned>()>3600))return false;
-      if (root["keepalive"].is<unsigned>()) keepalive_seconds = root["keepalive"].as<unsigned>();
       last_received = esphome::millis();
-      if (!model.configured || layout_rev != string(root["rev"], 16)) { result = "Resend needed"; return true; }
-      result = model.ready() ? "Synced" : "Loading tiles";
+      result = transfer.active && model.ready() ? "Synced" : "Resend needed";
       return true;
     }
-    if (op == "header") {
-      // Validate every item before replacing the bar; an icon these fonts lack is left out.
-      if (!root["items"].is<JsonArray>()) return false;
-      header_bar::Bar next;
-      for (JsonVariant value : root["items"].as<JsonArray>()) {
-        if (next.count == header_bar::MAX_ITEMS || !value.is<JsonObject>()) return false;
-        header_bar::Item item;
-        item.kind = header_bar::kind(string(value["k"], 8));
-        if (item.kind == header_bar::Kind::none) return false;
-        uint32_t icon = tile_icon::codepoint(string(value["i"], 8));
-        item.icon = icon && has_icon_glyph(icon) ? icon : 0;
-        item.text = string(value["t"], header_bar::TEXT_BYTES);
-        item.epoch = value["e"].is<unsigned>() ? value["e"].as<uint32_t>() : 0;
-        item.has_color = header_bar::color(string(value["c"], 8), item.color);
-        if (item.kind == header_bar::Kind::ago && item.epoch <= 0) return false;
-        next.items[next.count++] = item;
+    if (op == "page" || op == "bar") {
+      if (!root["p"].is<unsigned>() || root["p"].as<unsigned>() >= model.page_data.records.size()) return false;
+      const unsigned index = root["p"].as<unsigned>();
+      if ((op == "page" && (transfer.active || (transfer.pages & (1u << index)))) ||
+          (op == "bar" && !transfer.active)) return false;
+      page_protocol::Page next;
+      if (!parse_bar(root["items"], next.bar)) return false;
+      if (op == "page") {
+        if (!page_protocol::key(string(root["id"]), next.id) || !root["home_control"].is<bool>() ||
+            !root["excluded"].is<bool>() || !root["title"].is<const char *>() ||
+            root["title"].as<std::string>().size() > 96) return false;
+        for (size_t i = 0; i < model.page_data.records.size(); ++i)
+          if ((transfer.pages & (1u << i)) && model.page_data.records[i].id == next.id) return false;
+        next.title = string(root["title"], 96);
+        next.home_control = root["home_control"].as<bool>();
+        next.excluded = root["excluded"].as<bool>();
+        if (!transfer.page(index)) return false;
+        model.page_data.records[index] = std::move(next);
+      } else {
+        auto &current = model.page_data.records[index].bar;
+        bool same = current.count == next.bar.count;
+        for (size_t i = 0; same && i < current.count; ++i) same = current.items[i] == next.bar.items[i];
+        current = std::move(next.bar);
+        if (!same && shown_page && *shown_page == static_cast<int>(index)) refresh_header_only();
       }
-      next.received = true;
-      bool same = header.received && header.count == next.count;
-      for (size_t i = 0; same && i < next.count; ++i) same = header.items[i] == next.items[i];
-      header = next;
       last_received = esphome::millis();
-      if (!same) refresh_header_only();
-      // The same status as a tile state, so a changing value never flips the inbox entity.
-      result = model.ready() ? "Synced" : "Loading tiles";
+      result = transfer.active ? "Synced" : "Loading tiles";
       return true;
     }
+    if (op == "commit") {
+      // A retried commit with a new sequence acknowledges the same document.
+      // It must not navigate back to the page shown before the transfer.
+      if (transfer.active && model.ready()) {
+        last_received = esphome::millis(); result = "Synced"; return true;
+      }
+      if (!transfer.commit()) { result = "Error: incomplete layout"; return false; }
+      model.configured = true;
+      if (shown_page) *shown_page = model.page_data.restore(previous_page_id, had_previous_page);
+      if (layout_changed) layout_changed();
+      last_received = esphome::millis();
+      refresh_all();
+      result = "Synced";
+      return true;
+    }
+    if (op != "tile" && !transfer.active) { result = "Resend needed"; return false; }
     if (op == "camera") {
       // A link to a camera's image (app 0.2.66+): the answer to camera_request ("full"), or an alert's image ("alert",
       // announced with an empty link before show_alert and sent again with the link), or the media card's cover
@@ -515,11 +519,18 @@ inline std::string receive(const std::string &payload) {
       // "live" (app 0.2.91+): the page's camera tiles as one strip; `e` lists them, "" for one without a picture.
       if (view == "live" ? !valid_entity_list(entity) : !valid_entity(entity) || (view != "full" && view != "alert" && view != "cover")) return false;
       if (!url.empty() && url.rfind("http://", 0) != 0) return false;
+      const uint32_t expected_view = view == "live" ? live_view_id : view == "cover" ? cover_view_id : camera_view_id;
+      if (view != "alert" && (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != expected_view)) {
+        result = "Synced"; return true;
+      }
       camera_answer(view, entity, url);
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
     if (op == "history") {
+      if (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != history_view_id) {
+        result = "Synced"; return true;
+      }
       // A detail card's history (app 0.2.59+), the answer to history_request. Checked whole before it replaces
       // the one the screen holds.
       History next;
@@ -604,6 +615,9 @@ inline std::string receive(const std::string &payload) {
       return true;
     }
     if (op == "options") {
+      if (!root["view"].is<unsigned>() || root["view"].as<unsigned>() != options_view_id) {
+        result = "Synced"; return true;
+      }
       // The names a picker on a light's effects page asked for (options_request), one page per message.
       std::string entity = string(root["e"], 120);
       if (!valid_entity(entity) || !root["o"].is<JsonArray>()) return false;
@@ -632,23 +646,43 @@ inline std::string receive(const std::string &payload) {
       return true;
     }
 #endif
-    if (op != "state" || !root["i"].is<unsigned>() || !root["a"].is<JsonObject>()) return false;
-    unsigned index = root["i"].as<unsigned>();
-    std::string entity = string(root["entity"], 120);
-    if (!model.accepts(index, entity)) { result = "Error: outdated tile"; return false; }
+    const bool initial = op == "tile";
+    if ((!initial && op != "state") || !root["i"].is<unsigned>() || !root["a"].is<JsonObject>() ||
+        !root["state"].is<const char *>() || !root["name"].is<const char *>()) return false;
+    const unsigned index = root["i"].as<unsigned>();
+    const std::string entity = string(root["entity"], 120);
+    if (initial) {
+      if (transfer.active || index >= model.count || model.tiles[index].received || !valid_entity(entity) ||
+          !root["slot"].is<unsigned>() || !root["o"].is<JsonObject>()) return false;
+      const std::string size = string(root["o"]["size"]);
+      if (size != "" && size != "single" && size != "wide" && size != "full") return false;
+      if (!model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", size == "wide")) return false;
+      if (page_entity(entity) && static_cast<unsigned>(entity[12] - '0') > model.pages) return false;
+      if (!page_entity(entity)) for (size_t i = 0; i < model.count; ++i)
+        if (i != index && model.tiles[i].received && model.tiles[i].entity == entity) return false;
+      model.slots[index] = root["slot"].as<unsigned>();
+      model.tiles[index].entity = entity;
+    } else if (!root["o"].isNull() || !root["slot"].isNull() || !model.accepts(index, entity)) {
+      result = "Error: outdated tile or configuration in state"; return false;
+    }
     Tile &tile = model.tiles[index];
+    if (!initial) {
+      uint32_t icon = tile_icon::codepoint(string(root["icon"], 8));
+      tile.icon = icon && has_icon_glyph(icon) ? tile_icon::utf8(icon) : "";
+    }
     auto a = root["a"].as<JsonObject>();
     // The fingerprint of state, attributes and extras (a vacuum's mode or water select changes only
     // there), hashed while serializing so no copy of the message stays behind.
-    Fingerprint revision;
-    revision.add(string(root["state"]));
-    revision.write('\n');
-    serializeJson(a, revision);
-    if (!root["x"].isNull()) serializeJson(root["x"], revision);
+    Fingerprint state_hash;
+    state_hash.add(string(root["state"]));
+    state_hash.write('\n');
+    serializeJson(a, state_hash);
+    if (!root["x"].isNull()) serializeJson(root["x"], state_hash);
     bool was_confirmed=tile.confirmed;
-    tile.observe(revision.value);
+    tile.observe(state_hash.value);
     if(tile.pending && !tile.local_feedback && !was_confirmed && tile.confirmed)
       ESP_LOGI("runtime_action","HA state received entity=%s elapsed=%u ms",entity.c_str(),(unsigned)(esphome::millis()-tile.pending_since));
+    if (initial) {
     auto options = root["o"];
     std::string background=string(options["background"],16);
     tile.background = tile_palette::color(background);
@@ -666,19 +700,19 @@ inline std::string receive(const std::string &payload) {
     tile.subtitle = string(options["sub"], 96); if (tile.subtitle.empty()) tile.subtitle="auto";
     // Direct controls (0.2.19+): the manager sends only the set a wide card really shows.
     tile.controls = string(options["controls"], 16);
-    // Width arrives with the state, after the layout: re-pack the pages when it changes.
-    bool was_wide = tile.wide, was_full = tile.full;
+    // Geometry belongs to initialization and never changes in a live value packet.
     std::string size = string(options["size"]);
     tile.full = size == "full";
     tile.wide = tile.full || size == "wide";
-    bool repack = was_wide != tile.wide || was_full != tile.full;
+
+    }
     // Pre-computed extras: the manager converts time zones and fetches forecasts. What only some tiles
     // carry is collected in `next` and replaces the tile's Extra at the end (see Tile::set_extra).
     auto extra = root["x"];
     Extra next;
     // A tap's own Home Assistant action (app 0.2.67+): {"s": action, "d": [[key, text]], "t": [[key, template]]}.
-    auto act = options["act"];
-    if (act.is<JsonObject>()) {
+    auto act = root["o"]["act"];
+    if (initial && act.is<JsonObject>()) {
       std::string service = string(act["s"], 64);
       auto pairs = [](JsonVariant list, std::vector<std::pair<std::string, std::string>> &out) {
         if (!list.is<JsonArray>()) return;
@@ -693,6 +727,11 @@ inline std::string receive(const std::string &payload) {
         pairs(act["d"], next.action_data);
         pairs(act["t"], next.action_templates);
       }
+    }
+    if (!initial) if (auto *saved = tile.extra_ptr()) {
+      next.action = std::move(saved->action);
+      next.action_data = std::move(saved->action_data);
+      next.action_templates = std::move(saved->action_templates);
     }
     if (extra["days"].is<JsonArray>()) for (JsonVariant day : extra["days"].as<JsonArray>()) {
       if (next.forecast.size() == 5) break;
@@ -818,13 +857,18 @@ inline std::string receive(const std::string &payload) {
     tile.received = true;
     for(auto &w:widgets)if(w.index==index)w.cached_active=-1;
     last_received = esphome::millis();
-    if (repack && layout_changed) layout_changed();
+    if (initial) {
+      transfer.tile(index);
+      result = "Loading tiles";
+      return true;
+    }
     refresh_tile(index);
     if (active_index == static_cast<int>(index) && detail_update) detail_update(tile);
     refresh_detail(index);
     result = model.ready() ? "Synced" : "Loading tiles";
     return true;
   });
+  if (accepted && sequenced) transfer.accepted(packet_sequence, packet_hash.value);
   return result;
 }
 #pragma GCC diagnostic pop
@@ -868,8 +912,10 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
   const uint32_t id = ++last_id;
   *slot = {id, esphome::millis()};
   request.call_id = id;
-  esphome::api::global_api_server->register_action_response_callback(id, [id, entity](const esphome::api::ActionResponse &answer) {
+  const uint64_t session = transfer.lease, revision = transfer.revision;
+  esphome::api::global_api_server->register_action_response_callback(id, [id, entity, session, revision](const esphome::api::ActionResponse &answer) {
     for (auto &c : watched_calls) if (c.id == id) c = {};
+    if (!transfer.active || transfer.lease != session || transfer.revision != revision) return;
     if (answer.is_success() || answer.get_error_message().c_str() == NO_ANSWER) {
       // "It worked" without a new state (a stop on a cover that already stands still) ends the wait in a moment
       // instead of running to the cap.
@@ -958,9 +1004,9 @@ inline void options_request(const std::string &entity, unsigned page) {
   request.service = esphome::StringRef("esphome.screen_options");
   request.is_event = true;
   const std::string number = std::to_string(page);
-  const std::string keys[] = {"inbox", "entity", "page"}, values[] = {inbox, entity, number};
-  request.data.init(3);
-  for (int i = 0; i < 3; ++i) {
+  const std::string keys[] = {"inbox", "entity", "page", "session", "rev", "view"}, values[] = {inbox, entity, number, protocol_key(transfer.lease), layout_rev, std::to_string(++options_view_id)};
+  request.data.init(6);
+  for (int i = 0; i < 6; ++i) {
     esphome::api::HomeassistantServiceMap entry;
     entry.key = esphome::StringRef(keys[i]);
     entry.value = esphome::StringRef(values[i]);
@@ -977,9 +1023,9 @@ inline void history_request(const std::string &entity, uint32_t hours) {
   request.service = esphome::StringRef("esphome.screen_history");
   request.is_event = true;
   const std::string span = std::to_string(hours);
-  const std::string keys[] = {"inbox", "entity", "hours"}, values[] = {inbox, entity, span};
-  request.data.init(3);
-  for (int i = 0; i < 3; ++i) {
+  const std::string keys[] = {"inbox", "entity", "hours", "session", "rev", "view"}, values[] = {inbox, entity, span, protocol_key(transfer.lease), layout_rev, std::to_string(++history_view_id)};
+  request.data.init(6);
+  for (int i = 0; i < 6; ++i) {
     esphome::api::HomeassistantServiceMap entry;
     entry.key = esphome::StringRef(keys[i]);
     entry.value = esphome::StringRef(values[i]);
@@ -4354,7 +4400,7 @@ inline void refresh_all() { dirty_all=true; if(refresh)refresh(); }
 // The starting screen (firmware 0.2.73+): what the screen waits for in the middle of the page with a spinner under it,
 // until the first layout arrives. The first render() makes it and the first layout deletes it, spinner and all.
 inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr;
-inline void boot_status(lv_obj_t *page, const char *text) {
+inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true) {
   const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(page));
   const bool large = ui::large();
   const int ring = ui::px(large ? 48 : 32), gap = ui::px(large ? 24 : 16), text_width = width - 2 * lv_obj_get_style_x(room_label, LV_PART_MAIN);
@@ -4375,19 +4421,36 @@ inline void boot_status(lv_obj_t *page, const char *text) {
     lv_obj_set_width(boot_text, text_width);
     boot_spinner = spinner_create(boot_panel, ring, ui::px(large ? 5 : 4));
   }
-  if (strcmp(lv_label_get_text(boot_text), text) == 0) return;
+  // A protocol mismatch is a clear, blocking message, also when an older
+  // sender connects after a valid layout. Do not leave stale tiles underneath
+  // the text or let an invisible control take the user's tap.
+  if (!waiting) {
+    lv_obj_add_flag(boot_panel, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_color(boot_panel, theme::color(theme::PAGE), 0);
+    lv_obj_set_style_bg_opa(boot_panel, LV_OPA_COVER, 0);
+    lv_obj_move_foreground(boot_panel);
+  } else {
+    lv_obj_remove_flag(boot_panel, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_style_bg_opa(boot_panel, LV_OPA_TRANSP, 0);
+  }
+  if (boot_spinner) set_hidden(boot_spinner, !waiting);
   lv_label_set_text(boot_text, text);
   // The text and the spinner as one block in the middle of the page.
   lv_point_t size;
   lv_text_get_size(&size, text, font, 0, 0, text_width, LV_TEXT_FLAG_NONE);
-  lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, -(ring + gap) / 2);
+  lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, waiting ? -(ring + gap) / 2 : 0);
   if (boot_spinner) lv_obj_align(boot_spinner, LV_ALIGN_CENTER, 0, (size.y + gap) / 2);
 }
 // Before the first layout the screen is starting: HA connects, then ESP Screens sends the tiles.
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room; swipe_profile::Lap lap;
-  if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : txt::status_waiting));
+  if (protocol_problem != ProtocolProblem::none) {
+    boot_status(lv_obj_get_parent(room), tr(protocol_problem == ProtocolProblem::old_addon
+        ? txt::status_configuration_problem : txt::status_configuration_version), false);
+    return;
+  }
+  if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));
   else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
   name_label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
@@ -4402,265 +4465,27 @@ inline void render(lv_obj_t *room) {
   }
 }
 
-// ---- Top bar ----
-// Drawn in the board's pixels by the editor's rules (app.js barLayout): every value, the time too,
-// in one font on the name's baseline; icons and the dial centred on the height of the digits; the
-// gaps measured between glyph ink, so every icon sits equally close to its value.
-// An icon either shows the slate paint or a colour of its own (the item's state colour); `own` and `icon_color`
-// remember which, so an unchanged icon is not styled again.
-struct HeaderSlot { lv_obj_t *icon{}, *text{}; uint32_t icon_color = 0; bool own = false; };
-inline lv_obj_t *header_root = nullptr, *header_ring = nullptr;
-inline std::array<lv_obj_t *, 2> header_hands{};
-inline std::array<HeaderSlot, header_bar::MAX_ITEMS> header_slots{};
-inline lv_point_precise_t header_points[4]{};
-inline int header_dial_key = -1;
-// The home key at the far left of the top bar (firmware 0.2.100+): the house of Material Design Icons, as tall as
-// the capitals of the page title and standing on the same baseline. It stands on every page, the way the logo in a
-// website's header does, and always goes to page 1; `settings_screen::home_button` leaves it out altogether.
-// `home_tap` is the area a finger gets, wider than the glyph, and `back_home` what a tap on it runs.
-// The key's own font: the house alone at a size of its own (firmware 0.2.100+). A house drawn at the bar's icon
-// size has the same ink box as the capitals beside it, but its top third is the point of the roof and carries
-// almost no ink, so it reads smaller than the name. A size above the bar's icons gives it the weight of the text.
-// Without one the bar's icon font draws it.
+// The page owns the header data; this adapter resolves navigation and settings.
 inline const lv_font_t *header_home_font = nullptr;
-inline lv_obj_t *header_home_icon = nullptr, *header_home_tap = nullptr;
-inline lv_obj_t *header_name_owner = nullptr;
-inline int header_name_left = 0;
 inline std::function<void()> back_home;
-// mdi:home, in every board's icon font already (the tile icons); the key needs no font of its own.
-constexpr uint32_t HOME_GLYPH = 0xF02DC;
-inline void set_visible(lv_obj_t *obj, bool visible) {
-  if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) != visible) return;
-  if (visible) lv_obj_remove_flag(obj, LV_OBJ_FLAG_HIDDEN); else lv_obj_add_flag(obj, LV_OBJ_FLAG_HIDDEN);
-}
-// Ink edges of a text from its label's left edge, and its advance (what LVGL sizes a label by).
-struct TextInk { int left = 0, right = 0, advance = 0; };
-inline TextInk text_ink(const lv_font_t *font, const std::string &text) {
-  TextInk ink;
-  bool first = true;
-  size_t i = 0;
-  for (uint32_t cp = header_bar::next_codepoint(text, i); cp; cp = header_bar::next_codepoint(text, i)) {
-    lv_font_glyph_dsc_t g;
-    if (!lv_font_get_glyph_dsc(font, &g, cp, 0)) continue;
-    if (g.box_w > 0) {
-      if (first) { ink.left = ink.advance + g.ofs_x; first = false; }
-      ink.right = ink.advance + g.ofs_x + g.box_w;
-    }
-    ink.advance += g.adv_w;
-  }
-  return ink;
-}
-inline lv_obj_t *header_part(lv_obj_t *parent) {
-  auto *part = lv_label_create(parent);
-  lv_obj_remove_flag(part, LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_add_flag(part, LV_OBJ_FLAG_HIDDEN);
-  lv_obj_add_style(part, theme::style(theme::Paint::slate), 0);
-  return part;
-}
-// `live`: Home Assistant's values may show; without its link or the manager's feed only clocks stay.
+inline page_header::Renderer header_renderer;
 inline void draw_header(bool live) {
-  if (!room_label || !time_label || !header_text_font || !header_icon_font) return;
-  set_visible(time_label, false);
-  auto *page = lv_obj_get_parent(room_label);
-  if (!header_root) {
-    header_root = lv_obj_create(page);
-    lv_obj_remove_style_all(header_root);
-    lv_obj_remove_flag(header_root, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(header_root, LV_OBJ_FLAG_SCROLLABLE);
-    // The clock label's place in the drawing order: under the tiles, cards and overlays.
-    lv_obj_move_to_index(header_root, lv_obj_get_index(time_label));
-    for (auto &slot : header_slots) {
-      slot.icon = header_part(header_root);
-      slot.text = header_part(header_root);
-      lv_obj_set_style_text_font(slot.icon, header_icon_font, 0);
-      lv_obj_set_style_text_font(slot.text, header_text_font, 0);
-    }
-    header_home_icon = header_part(header_root);
-    // The finger's area, over the glyph and bigger than it: an empty object that only takes taps. It sits on the
-    // page itself, one place above the strip that opens the settings page on a long press, so a tap on the house
-    // is the house's; the cards and the alert stay above it and keep every tap of their own.
-    header_home_tap = lv_obj_create(page);
-    lv_obj_remove_style_all(header_home_tap);
-    lv_obj_remove_flag(header_home_tap, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_add_flag(header_home_tap, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_add_flag(header_home_tap, LV_OBJ_FLAG_HIDDEN);
-    lv_obj_move_to_index(header_home_tap, settings_screen::hold_area && lv_obj_get_parent(settings_screen::hold_area) == page
-                                        ? lv_obj_get_index(settings_screen::hold_area) + 1
-                                        : lv_obj_get_index(header_root) + 1);
-    lv_obj_add_event_cb(header_home_tap, [](lv_event_t *) {
-      // 14 is this key's place in the touch guard, beside the page bar's 11 and 12.
-      if (!screen_input::touch_guard.accept(esphome::millis(), 14)) { ESP_LOGI("touch", "home key ignored: %s", screen_input::touch_guard.reason().c_str()); return; }
-      ESP_LOGI("touch", "home key: back to page 1");
-      if (back_home) back_home();
-    }, LV_EVENT_CLICKED, nullptr);
-    header_ring = lv_obj_create(header_root);
-    lv_obj_remove_style_all(header_ring);
-    lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_remove_flag(header_ring, LV_OBJ_FLAG_SCROLLABLE);
-    lv_obj_set_style_radius(header_ring, LV_RADIUS_CIRCLE, 0);
-    lv_obj_add_style(header_ring, theme::style(theme::Paint::slate), 0);
-    lv_obj_set_style_border_opa(header_ring, LV_OPA_COVER, 0);
-    lv_obj_add_flag(header_ring, LV_OBJ_FLAG_HIDDEN);
-    for (auto *&hand : header_hands) {
-      hand = lv_line_create(header_root);
-      lv_obj_remove_flag(hand, LV_OBJ_FLAG_CLICKABLE);
-      lv_obj_set_style_line_rounded(hand, true, 0);
-      lv_obj_add_style(hand, theme::style(theme::Paint::slate), 0);
-      lv_obj_add_flag(hand, LV_OBJ_FLAG_HIDDEN);
-    }
-    // A long name ends in dots instead of running under the items.
-    lv_label_set_long_mode(room_label, LV_LABEL_LONG_DOT);
-  }
-  // Geometry from the profile's own widgets: the name's margin and baseline, the clock's right margin.
-  const lv_font_t *name_font = lv_obj_get_style_text_font(room_label, LV_PART_MAIN);
-  int page_w = lv_obj_get_width(page), left = lv_obj_get_x(room_label);
-  // int32_t is long on the ESP32 toolchain: keep the arithmetic in int.
-  int width = std::max(0, page_w + static_cast<int>(lv_obj_get_style_x(time_label, LV_PART_MAIN)) - left);
-  int baseline = lv_obj_get_y(room_label) + (name_font->line_height - name_font->base_line);
-  lv_obj_set_pos(header_root, 0, 0);
-  lv_obj_set_size(header_root, page_w, baseline + name_font->line_height);
-  lv_font_glyph_dsc_t zero, dial_glyph;
-  if (!lv_font_get_glyph_dsc(header_text_font, &zero, '0', 0) || !zero.box_h) return;
-  // Twice the digits' ink centre keeps the halves exact.
-  int middle2 = 2 * (baseline - zero.ofs_y) - zero.box_h;
-  auto gaps = header_bar::gaps(zero.box_h);
-  // The dial is as large as a round icon (clock-outline) of the icon font.
-  int dial = lv_font_get_glyph_dsc(header_icon_font, &dial_glyph, 0xF0150, 0) && dial_glyph.box_h ? dial_glyph.box_h : zero.box_h * 3 / 2;
-
-  // The manager's items; until it sends them, the clock of show_clock as before the top bar.
-  header_bar::Bar fallback;
-  if (!header.received && screen_settings::current.show_clock) { fallback.items[0].kind = header_bar::Kind::clock; fallback.count = 1; }
-  const header_bar::Bar &bar = header.received ? header : fallback;
-  auto now = now_time ? now_time() : esphome::ESPTime{};
-  struct Part { size_t item = 0; uint32_t icon = 0; int icon_left = 0, icon_w = 0, text_left = 0, text_w = 0, width = 0; bool dial = false; std::string text; };
-  std::array<Part, header_bar::MAX_ITEMS> parts;
-  std::array<int, header_bar::MAX_ITEMS> widths{};
-  size_t count = 0;
-  for (size_t i = 0; i < bar.count; ++i) {
-    const auto &item = bar.items[i];
-    using header_bar::Kind;
-    if ((item.kind == Kind::text || item.kind == Kind::ago) && !live) continue;
-    Part p;
-    p.item = i;
-    if (item.kind == Kind::analog) { p.dial = true; p.width = dial; }
-    else {
-      p.text = item.kind == Kind::clock ? (now.is_valid() ? screen_text::clock_text(hhmm(now), screen_settings::current.clock_24h != 0) : std::string("--:--"))
-             : item.kind == Kind::date ? (now.is_valid() ? header_bar::date_text(now.day_of_week, now.day_of_month, now.month) : std::string("—"))
-             : item.kind == Kind::ago ? header_bar::ago_text(item.epoch, now_epoch()) : item.text;
-      lv_font_glyph_dsc_t g;
-      if (item.icon && lv_font_get_glyph_dsc(header_icon_font, &g, item.icon, 0) && g.box_w) { p.icon = item.icon; p.icon_left = g.ofs_x; p.icon_w = g.box_w; }
-      auto ink = text_ink(header_text_font, p.text);
-      p.text_left = ink.left;
-      p.text_w = std::max(0, ink.right - ink.left);
-      p.width = p.icon_w + (p.icon && p.text_w ? gaps.icon : 0) + p.text_w;
-    }
-    if (!p.width) continue;
-    widths[count] = p.width;
-    parts[count++] = p;
-  }
-  // The home key at the left, before the name (firmware 0.2.100+). It stands where the name starts, the name moves
-  // behind it, and the items on the right keep every pixel they had: only the name gives room. Page 1 has nowhere
-  // to go, so it keeps the bar it always had.
-  if (header_name_owner != room_label) { header_name_owner = room_label; header_name_left = left; }
-  left = header_name_left;
-  // The name may already stand behind the key from the last draw: the room is measured from the profile's own margin.
-  width = std::max(0, page_w + static_cast<int>(lv_obj_get_style_x(time_label, LV_PART_MAIN)) - left);
-  bool home_on = false;
-  lv_font_glyph_dsc_t house;
-  const lv_font_t *house_font = header_home_font ? header_home_font : header_icon_font;
-  if (settings_screen::home_button && lv_font_get_glyph_dsc(house_font, &house, HOME_GLYPH, 0) && house.box_w) {
-    // On the baseline of the name, not centred on it: the house stands on the line the capitals stand on and grows
-    // upward from there, the way a taller letter would. Centring it would hang it below the line by half of what it
-    // is taller, which is exactly the half pixel you see. Without a capital to measure, the digits of the bar.
-    lv_font_glyph_dsc_t cap;
-    const int ink_bottom = lv_font_get_glyph_dsc(name_font, &cap, 'H', 0) && cap.box_h ? baseline - cap.ofs_y
-                                                                                       : (middle2 + house.box_h) / 2;
-    const int ink_top = ink_bottom - house.box_h;
-    // Its own font, or the bar's; without either LVGL draws the missing-glyph box.
-    set_font(header_home_icon, house_font);
-    label(header_home_icon, tile_icon::utf8(HOME_GLYPH));
-    lv_obj_set_pos(header_home_icon, left - house.ofs_x,
-                   ink_top - ((house_font->line_height - house_font->base_line) - house.box_h - house.ofs_y));
-    // The finger gets the whole height of the bar and a little air either side of the glyph, so a tap near the
-    // house is a tap on it; the glyph itself is only a dozen pixels.
-    const int pad = gaps.item / 2;
-    // The band above the tiles, which the board states as the grid's own y; without it the name's line.
-    const int band = tile_grid && lv_obj_get_y(tile_grid) > 0 ? lv_obj_get_y(tile_grid) : baseline + name_font->line_height;
-    lv_obj_set_pos(header_home_tap, std::max(0, left - pad), 0);
-    lv_obj_set_size(header_home_tap, house.box_w + 2 * pad, band);
-    // The same air on both sides of the key: the margin the board keeps from the edge of the glass stands between
-    // the key and the name as well, measured ink to ink like every other gap in this bar.
-    const int shift = house.box_w + header_name_left;
-    left += shift;
-    width -= shift;
-    home_on = true;
-  }
-  set_visible(header_home_icon, home_on);
-  set_visible(header_home_tap, home_on);
-  // The name's own left bearing, so the gap to the key is the gap the bar draws everywhere else.
-  lv_obj_set_x(room_label, home_on ? left - text_ink(name_font, header_name.c_str()).left : left);
-  lv_point_t name_size;
-  lv_text_get_size(&name_size, header_name.c_str(), name_font, 0, 0, LV_COORD_MAX, LV_TEXT_FLAG_EXPAND);
-  auto placement = header_bar::place(widths.data(), count, gaps, width, name_size.x);
-  lv_obj_set_width(room_label, std::max(1, std::min<int>(name_size.x, placement.name_room)));
-  lv_obj_set_height(room_label, lv_font_get_line_height(name_font));
-
-  std::array<bool, header_bar::MAX_ITEMS> icon_on{}, text_on{};
-  bool dial_on = false;
-  for (size_t k = placement.first; k < count; ++k) {
-    const auto &p = parts[k];
-    auto &slot = header_slots[k];
-    int x = left + placement.x[k];
-    if (p.dial) {
-      int top = (middle2 - dial) / 2, stroke = std::max(1, (dial + 5) / 10), hand = std::max(1, (dial * 75 + 500) / 1000);
-      lv_obj_set_pos(header_ring, x, top);
-      lv_obj_set_size(header_ring, dial, dial);
-      if (lv_obj_get_style_border_width(header_ring, LV_PART_MAIN) != stroke) lv_obj_set_style_border_width(header_ring, stroke, 0);
-      int minute = now.is_valid() ? now.hour * 60 + now.minute : 0;
-      int key = ((minute * 1024 + x) * 1024 + top) * 64 + dial;
-      if (key != header_dial_key) {
-        header_dial_key = key;
-        float centre = dial / 2.0f, hour_angle = (minute % 720) * 3.14159265f / 360, minute_angle = (minute % 60) * 3.14159265f / 30;
-        header_points[0] = header_points[2] = {(lv_value_precise_t)centre, (lv_value_precise_t)centre};
-        header_points[1] = {(lv_value_precise_t)(centre + 0.24f * dial * sinf(hour_angle)), (lv_value_precise_t)(centre - 0.24f * dial * cosf(hour_angle))};
-        header_points[3] = {(lv_value_precise_t)(centre + 0.34f * dial * sinf(minute_angle)), (lv_value_precise_t)(centre - 0.34f * dial * cosf(minute_angle))};
-        for (size_t h = 0; h < header_hands.size(); ++h) {
-          lv_line_set_points(header_hands[h], header_points + 2 * h, 2);
-          lv_obj_set_pos(header_hands[h], x, top);
-          set_line_width(header_hands[h], hand);
-        }
-      }
-      dial_on = true;
-      continue;
-    }
-    if (p.icon) {
-      lv_font_glyph_dsc_t g;
-      lv_font_get_glyph_dsc(header_icon_font, &g, p.icon, 0);
-      label(slot.icon, tile_icon::utf8(p.icon));
-      // LVGL draws a glyph's ink from (line_height - base_line) - box_h - ofs_y below the label top.
-      int ink_top = (middle2 - g.box_h) / 2;
-      lv_obj_set_pos(slot.icon, x - g.ofs_x, ink_top - ((header_icon_font->line_height - header_icon_font->base_line) - g.box_h - g.ofs_y));
-      const auto &item = bar.items[p.item];
-      // The words, icons and dial of the top bar take the slate paint; an item's own colour sits on top of it.
-      const uint32_t color = item.has_color ? theme::foreground(item.color) : 0;
-      if (slot.own != item.has_color || slot.icon_color != color) {
-        if (item.has_color) lv_obj_set_style_text_color(slot.icon, lv_color_hex(color), 0);
-        else lv_obj_remove_local_style_prop(slot.icon, LV_STYLE_TEXT_COLOR, 0);
-        slot.own = item.has_color;
-        slot.icon_color = color;
-      }
-      icon_on[k] = true;
-      x += p.icon_w + (p.text_w ? gaps.icon : 0);
-    }
-    if (p.text_w) {
-      label(slot.text, p.text);
-      lv_obj_set_pos(slot.text, x - p.text_left, baseline - (header_text_font->line_height - header_text_font->base_line));
-      text_on[k] = true;
-    }
-  }
-  for (size_t k = 0; k < header_slots.size(); ++k) { set_visible(header_slots[k].icon, icon_on[k]); set_visible(header_slots[k].text, text_on[k]); }
-  set_visible(header_ring, dial_on);
-  for (auto *hand : header_hands) set_visible(hand, dial_on);
+  const int index = shown_page ? *shown_page : 0;
+  const auto *record = model.configured && index >= 0 && static_cast<size_t>(index) < model.page_data.records.size()
+                     ? &model.page_data.records[index] : nullptr;
+  const header_bar::Bar empty;
+  using page_header::Leading;
+  const auto leading = !record ? Leading::none : header_back() ? Leading::back
+                     : record->home_control && settings_screen::home_button ? Leading::home : Leading::none;
+  header_renderer.draw({room_label, time_label, tile_grid, settings_screen::hold_area,
+                        header_text_font, header_icon_font, header_home_font},
+                       {record ? record->bar : empty, header_name, now_time ? now_time() : esphome::ESPTime{},
+                        now_epoch(), leading, live, screen_settings::current.clock_24h != 0}, []() {
+    // The leading key keeps its existing place in the shared action guard.
+    if (!screen_input::touch_guard.accept(esphome::millis(), 14)) return;
+    if (header_back()) go_back();
+    else if (back_home) back_home();
+  });
 }
 inline void render_header() {
   if (enabled) draw_header(ha_connected() && feed_alive());
@@ -4668,7 +4493,7 @@ inline void render_header() {
 
 // Inspect actual LVGL coordinates, including padding and the loaded font metrics.
 // The Previous and Next bar and the page number between them (show_page binds them).
-inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr;
+inline lv_obj_t *nav_prev=nullptr,*nav_next=nullptr,*nav_number=nullptr,*nav_back_label=nullptr;
 // Whether the Previous and Next bar was on screen at the last placement (the grid is taller without it).
 inline bool applied_bar=true;
 inline bool check_tile_geometry() {
@@ -4824,18 +4649,20 @@ inline int place_page(int page) {
   std::array<Placement,TILES_MAX> placement;
   int pages=place(model,placement);
   page=std::clamp(page,0,pages-1);
-  const bool bar=pages>1 && page_buttons;
+  const unsigned sequential_count = model.page_data.count();
+  const bool bar=model.configured && model.page_data.footer(page_buttons);
+  const bool detail=bar && model.page_data.detail(page);
+  const bool sequential=bar && !detail && sequential_count>1 && page_buttons;
   applied_bar=bar;
-  // With the Previous and Next bar on screen the tile area keeps the height the board gave it; without it (one
-  // page, or the Page buttons setting off, firmware 0.2.69+) it reaches down to the bottom edge, keeping the
-  // margin the sides have. The cells share whatever height the area has.
+  // Footer space belongs to the whole layout, not the current page. Switching
+  // between a sequential page and a detail page never changes tile geometry.
   if(tile_grid){
     auto *screen=lv_obj_get_parent(tile_grid);
     const int height=bar||!screen?grid_base_height:lv_obj_get_height(screen)-lv_obj_get_y(tile_grid)-grid_margin;
     if(lv_obj_get_style_height(tile_grid,LV_PART_MAIN)!=height)lv_obj_set_height(tile_grid,height);
   }
   for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=grid.max_tiles();widgets[slot].wide=false;widgets[slot].full=false;widgets[slot].cached_active=-1;}
-  for(size_t i=0;i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;w.full=model.tiles[i].full;}
+  for(size_t i=0;model.configured && i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;w.full=model.tiles[i].full;}
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
     if(slot<grid.slots() && w.index<model.count){
@@ -4847,13 +4674,27 @@ inline int place_page(int page) {
     }
     else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}
   }
-  for(auto *control:{nav_prev,nav_next,nav_number})set_hidden(control,!bar);
-  if(page==0)lv_obj_add_state(nav_prev,LV_STATE_DISABLED);else lv_obj_remove_state(nav_prev,LV_STATE_DISABLED);
-  if(page==pages-1)lv_obj_add_state(nav_next,LV_STATE_DISABLED);else lv_obj_remove_state(nav_next,LV_STATE_DISABLED);
+  set_hidden(nav_prev,!(sequential || detail));
+  for(auto *control:{nav_next,nav_number})set_hidden(control,!sequential);
+  if(nav_back_label){
+    set_hidden(nav_back_label,!detail);
+    if(detail){
+      label(nav_back_label,tr(txt::navigation_back));
+      set_color(nav_back_label,LV_STYLE_TEXT_COLOR,theme::color(theme::INK));
+      if(header_text_font)set_font(nav_back_label,header_text_font);
+      lv_obj_align_to(nav_back_label,lv_obj_get_child(nav_prev,0),LV_ALIGN_OUT_RIGHT_MID,ui::px(4),0);
+    }
+  }
+  // Paint the document's destinations even while an error overlay blocks input.
+  // Settings can re-place this page under that overlay; using the action guard
+  // here would leave the arrows disabled when the same document recovers.
+  const int previous=detail?navigation_history.target(model.page_data,page):model.page_data.step(page,-1);
+  if(previous==page)lv_obj_add_state(nav_prev,LV_STATE_DISABLED);else lv_obj_remove_state(nav_prev,LV_STATE_DISABLED);
+  if(model.page_data.step(page,1)==page)lv_obj_add_state(nav_next,LV_STATE_DISABLED);else lv_obj_remove_state(nav_next,LV_STATE_DISABLED);
   for(auto *control:{nav_prev,nav_next})if(lv_obj_get_child_count(control))
     set_number(lv_obj_get_child(control,0),LV_STYLE_TEXT_OPA,lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER);
   // The dots between the two chevrons (firmware 0.2.69+): the page on screen in ink.
-  if(bar && nav_number)settings_screen::page_dots(nav_number,page,pages,ui::large());
+  if(sequential && nav_number)settings_screen::page_dots(nav_number,model.page_data.ordinal(page),sequential_count,ui::large());
   // The cards are drawn from the sizes the grid gives them, so it lays out before anything reads one.
   if(tile_grid)lv_obj_update_layout(tile_grid);
   lap(swipe_profile::PLACE);
@@ -4865,6 +4706,11 @@ inline void apply_page(int page) {
 }
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
   nav_prev=previous;nav_next=next;nav_number=number;shown_page=&page;
+  if(!nav_back_label && previous){
+    nav_back_label=lv_label_create(previous);
+    lv_obj_remove_flag(nav_back_label,LV_OBJ_FLAG_CLICKABLE);
+    set_color(nav_back_label,LV_STYLE_TEXT_COLOR,theme::color(theme::INK));
+  }
   int requested=page;
   page=std::clamp(page,0,int(page_count())-1);
   // A swipe past the first or last page: the page on screen is already right, so nothing is
@@ -4889,15 +4735,24 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   swipe_profile::content_complete();
 }
 // A navigation tile (screen.page, firmware 0.2.62+): the page it names, kept within the pages the screen has.
-inline void go_to_page(int page) {
+inline void go_to_page(int page, bool remember) {
   if(!shown_page || !nav_number)return;
-  *shown_page=std::clamp(page,0,int(page_count())-1);
+  if (!model.ready() || !transfer.active || protocol_problem != ProtocolProblem::none) return;
+  const int target=std::clamp(page,0,int(page_count())-1);
+  if(remember)navigation_history.push(model.page_data,*shown_page,target);
+  else navigation_history.clear();
+  *shown_page=target;
+  show_page(*shown_page,nav_prev,nav_next,nav_number);
+}
+inline void go_back() {
+  if(!shown_page || !nav_number || !model.ready() || !transfer.active || protocol_problem != ProtocolProblem::none)return;
+  *shown_page=navigation_history.pop(model.page_data,*shown_page);
   show_page(*shown_page,nav_prev,nav_next,nav_number);
 }
 // The Page buttons setting changed (firmware 0.2.69+): the same page again, with the bar and the cards in their new places.
 inline void page_buttons_changed() {
   if(!shown_page || !nav_number || applied_page<0)return;
-  if(applied_bar!=(page_count()>1 && page_buttons))apply_page(applied_page);
+  apply_page(applied_page);
 }
 
 #ifdef SWIPE_PROFILE
@@ -5014,8 +4869,9 @@ inline void tick() {
 // open card painted in code is drawn again here, in the same pass, so no frame shows half of each look.
 inline void restyle() {
   for (auto &w : widgets) { w.cached_active = -1; w.panel_dirty = true; }
-  if (nav_number && applied_bar && applied_page >= 0) settings_screen::page_dots(nav_number, applied_page, page_count(), ui::large());
-  for (auto &slot : header_slots) { slot.own = true; slot.icon_color = UINT32_MAX; }
+  if (nav_number && applied_bar && applied_page >= 0)
+    settings_screen::page_dots(nav_number, model.page_data.ordinal(applied_page), model.page_data.count(), ui::large());
+  header_renderer.restyle();
   if (room_label) { dirty_all = true; render(room_label); }
   if (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN) && detail_index < model.count) show_detail(detail_index);
 }
@@ -5324,9 +5180,9 @@ inline void live_request() {
   request.is_event = true;
   char size_text[12];
   snprintf(size_text, sizeof(size_text), "%d", live_wish.size);
-  const std::string keys[] = {"inbox", "tiles", "size", "bg"}, values[] = {inbox, live_wish.entities, size_text, live_wish.grounds};
-  request.data.init(4);
-  for (int i = 0; i < 4; ++i) {
+  const std::string keys[] = {"inbox", "tiles", "size", "bg", "session", "rev", "view"}, values[] = {inbox, live_wish.entities, size_text, live_wish.grounds, protocol_key(transfer.lease), layout_rev, std::to_string(++live_view_id)};
+  request.data.init(7);
+  for (int i = 0; i < 7; ++i) {
     esphome::api::HomeassistantServiceMap entry;
     entry.key = esphome::StringRef(keys[i]);
     entry.value = esphome::StringRef(values[i]);
@@ -5381,8 +5237,8 @@ inline void camera_request(const std::string &entity, int size, uint32_t backgro
   request.is_event = true;
   char size_text[12] = "", background_text[8] = "";
   if (size > 0) { snprintf(size_text, sizeof(size_text), "%d", size); snprintf(background_text, sizeof(background_text), "%06X", (unsigned) background); }
-  const std::string keys[] = {"inbox", "entity", "size", "bg"}, values[] = {inbox, entity, size_text, background_text};
-  const int count = size > 0 ? 4 : 2;
+  const std::string keys[] = {"inbox", "entity", "size", "bg", "session", "rev", "view"}, values[] = {inbox, entity, size_text, background_text, protocol_key(transfer.lease), layout_rev, std::to_string(size > 0 ? ++cover_view_id : ++camera_view_id)};
+  const int count = 7;
   request.data.init(count);
   for (int i = 0; i < count; ++i) {
     esphome::api::HomeassistantServiceMap entry;
@@ -5804,6 +5660,7 @@ inline void moved(int x, int y, int id, int state) {
   const auto gesture = screen_input::edge_swipe.update(sx, sy);
   if (gesture == screen_input::EdgeSwipe::Gesture::none) return;
   const char *blocked = !enabled                ? "no runtime tiles"
+                      : !fresh()                ? "configuration not ready"
                       : !swipe_pages            ? "setting off"
                       : camera_visible()        ? "camera open"
                       : (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detail card open"
@@ -5822,6 +5679,7 @@ inline void moved(int x, int y, int id, int state) {
     return;
   }
   const int step = gesture == screen_input::EdgeSwipe::Gesture::next ? 1 : -1;
+  if (!shown_page || sequential_page(*shown_page, step) == *shown_page) return;
   ESP_LOGI("touch", "edge swipe: %d page(s)", step);
   swipe_glow(step > 0 ? Edge::right : Edge::left);
   if (turn_page) turn_page(step);
@@ -5834,4 +5692,23 @@ inline void released() {
   screen_input::edge_swipe.end();
 }
 }  // namespace touch_input
+// Invalidate contacts and asynchronous views before their old tile records are freed.
+inline void cancel_layout_input(bool invalidate_widgets) {
+  screen_input::touch_guard.consume();
+  screen_input::edge_swipe.end();
+  for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
+  captured_slider = nullptr;
+  slider_changed = false;
+  active_index = -1;
+  if (dismiss) dismiss();
+  camera_close();
+  cover_drop();
+  live_release();
+  history_asked_entity.clear();
+  history = History{};
+  if (invalidate_widgets) {
+    for (auto &w : widgets) { w.index = grid.max_tiles(); w.cached_active = -1; }
+    if (layout_changed) layout_changed();
+  }
+}
 }  // namespace runtime_tiles

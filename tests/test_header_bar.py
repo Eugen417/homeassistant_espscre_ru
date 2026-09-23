@@ -1,4 +1,5 @@
 """Top bar (app 0.2.38 / firmware 0.2.32): validation, text, icons, visibility and delivery."""
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import json
@@ -21,6 +22,7 @@ FIRMWARE = (ROOT / 'components/smart_display/header_bar.h').read_text()
 # The firmware's words live in the translations since app 0.2.90 (screen.time in English, the language of reference).
 FIRMWARE += json.dumps(json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['time'])
 TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+HEADER_VIEW = (ROOT / 'components/smart_display/page_header.h').read_text()
 EDITOR = (ROOT / 'web/src/model/topbar.ts').read_text()
 PROFILES = ('checkout/guition.yaml', 'checkout/cyd.yaml')
 
@@ -174,7 +176,7 @@ class TextTests(unittest.TestCase):
         names |= {name for pair in header_bar.BINARY_ICONS.values() for name in pair}
         self.assertLessEqual(names, set(tile_icons.GLYPHS))
         self.assertIn('F0150', tile_icons.GLYPHS.values(), 'the dial is sized by clock-outline')
-        self.assertIn('0xF0150', TILES)
+        self.assertIn('0xF0150', HEADER_VIEW)
 
 class MessageTests(unittest.TestCase):
     def test_message_leaves_hidden_items_out_and_keeps_builtins(self):
@@ -263,7 +265,7 @@ class ParityTests(unittest.TestCase):
         # the first layout deletes them, so no spinner turns behind the tiles.
         render = TILES.split('inline void render(lv_obj_t *room) {', 1)[1].split('\n}', 1)[0]
         self.assertIn('if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? '
-                      'txt::status_connecting : txt::status_waiting));', render)
+                      'txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));', render)
         self.assertIn('else if (boot_panel) { lv_obj_delete(boot_panel);', render)
         self.assertIn('label(room, !model.configured ? std::string() :', render)
         boot = TILES.split('inline void boot_status(', 1)[1].split('\n}', 1)[0]
@@ -310,7 +312,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                                'binary_sensor.door': state('off', device_class='door')}
             async def send(self, inbox, message, action=None):
                 self.messages.append(message)
-        return Manager(HA(), path)
+        return Manager(with_screen_grid(HA()), path)
 
     async def test_header_follows_layout_only_on_new_firmware(self):
         with tempfile.TemporaryDirectory() as temp:

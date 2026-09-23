@@ -14,9 +14,7 @@ script:
   - id: ui_self_test
     mode: single
     then:
-      - logger.log:
-          format: "UI_TEST START: page/overlay render stress, no HA actions"
-          level: INFO  # the core logs from INFO; logger.log is DEBUG by default
+      - lambda: 'ESP_LOGI("ui_test", "UI_TEST START frames=%u: page/overlay render stress, no HA actions", (unsigned) id(rendered_frames));'
       - lambda: 'ESP_LOGI("ui_test", "Light sliders: %s", light_controls::self_test() ? "PASS" : "FAIL");'
       - lambda: 'id(calibration_active) = false;'
       - lvgl.page.show: home_page
@@ -35,21 +33,27 @@ script:
                 lv_obj_update_layout(id(tile_scroll));
                 const int count = runtime_tiles::model.count;
                 // Wide cards take two slots, so visibility follows the runtime packing.
-                const bool paginated = runtime_tiles::enabled ? runtime_tiles::page_count() > 1 : count > 6;
+                const bool paginated = runtime_tiles::enabled
+                    ? runtime_tiles::model.page_data.included(id(tile_page)) && runtime_tiles::model.page_data.count() > 1
+                    : count > 6;
                 // One card per cell of this board's grid: it is on screen when the page has a tile for its cell.
                 bool ok = screen_diagnostics::check_geometry(id(home_page)->obj);
                 for (auto &w : runtime_tiles::widgets) {
                   bool visible = w.index < runtime_tiles::model.count;
                   ok = ok && w.tile && (lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) != visible);
                 }
-                // The bar shows with more than one page, unless the Page buttons setting is off (firmware 0.2.69+).
+                // Sequential arrows become Back on an excluded page. Its tile
+                // area keeps the same height; hiding the footer uses top-bar Back.
                 const bool bar = paginated && (!runtime_tiles::enabled || settings_screen::page_buttons);
-                for (lv_obj_t* control : {id(page_prev), id(page_next), id(page_number)})
+                const bool detail = runtime_tiles::enabled && runtime_tiles::model.page_data.detail(id(tile_page));
+                const bool footer = runtime_tiles::enabled ? runtime_tiles::model.page_data.footer(settings_screen::page_buttons) : bar;
+                ok = ok && (lv_obj_has_flag(id(page_prev), LV_OBJ_FLAG_HIDDEN) != (bar || (detail && footer)));
+                for (lv_obj_t* control : {id(page_next), id(page_number)})
                   ok = ok && (lv_obj_has_flag(control, LV_OBJ_FLAG_HIDDEN) != bar);
                 lv_area_t nav, grid;
                 lv_obj_get_coords(id(page_next), &nav);
                 lv_obj_get_coords(id(tile_scroll), &grid);
-                ok = ok && (!bar || grid.y2 < nav.y1);
+                ok = ok && (!footer || grid.y2 < nav.y1);
                 if(runtime_tiles::enabled)ok = runtime_tiles::check_tile_geometry() && ok;
                 ESP_LOGI("ui_test", "page_check=%s count=%d heap=%u frames=%u grid_bottom=%d nav_top=%d", ok ? "PASS" : "FAIL", count, (unsigned) esp_get_free_heap_size(), (unsigned) id(rendered_frames), (int) grid.y2, (int) nav.y1);
                 id(tile_page) = 0;
@@ -63,6 +67,5 @@ script:
             - delay: 150ms
             - lvgl.widget.hide: alert_overlay
       - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
-      - logger.log:
-          format: "UI_TEST COMPLETE"
-          level: INFO
+      - delay: 150ms
+      - lambda: 'ESP_LOGI("ui_test", "UI_TEST COMPLETE frames=%u", (unsigned) id(rendered_frames));'

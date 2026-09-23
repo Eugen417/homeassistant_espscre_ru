@@ -355,6 +355,40 @@ PROBES = '''    - action: render_finger
             sdl->mouse_x = ${TOUCH_SWAP_XY} ? ay : ax;
             sdl->mouse_y = ${TOUCH_SWAP_XY} ? ax : ay;
             sdl->mouse_down = down;
+    - action: render_navigation
+      then:
+        - lambda: |-
+            lv_obj_update_layout(lv_screen_active());
+            auto center = [](lv_obj_t *o) {
+              lv_area_t a{0, 0, -2, -2};
+              if (o && !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) lv_obj_get_coords(o, &a);
+              return lv_point_t{(lv_coord_t)((a.x1+a.x2)/2), (lv_coord_t)((a.y1+a.y2)/2)};
+            };
+            const auto tile = center(runtime_tiles::widgets[0].tile), prev = center(id(page_prev)),
+                       header = center(runtime_tiles::header_renderer.leading_target());
+            ESP_LOGI("render", "navigation page=%d footer=%d back=%d grid_height=%d tile=%d,%d prev=%d,%d header=%d,%d",
+                     (int) id(tile_page), (int) runtime_tiles::applied_bar, (int) runtime_tiles::header_back(),
+                     (int) lv_obj_get_height(id(tile_scroll)), (int) tile.x, (int) tile.y,
+                     (int) prev.x, (int) prev.y, (int) header.x, (int) header.y);
+    - action: render_problem
+      then:
+        - lambda: |-
+            lv_obj_update_layout(lv_screen_active());
+            auto *panel = runtime_tiles::boot_panel;
+            bool covers = false;
+            if (panel) {
+              lv_area_t a, b; lv_obj_get_coords(panel, &a); lv_obj_get_coords(lv_obj_get_parent(panel), &b);
+              covers = a.x1 <= b.x1 && a.y1 <= b.y1 && a.x2 >= b.x2 && a.y2 >= b.y2
+                       && lv_obj_get_style_bg_opa(panel, LV_PART_MAIN) == LV_OPA_COVER
+                       && lv_obj_has_flag(panel, LV_OBJ_FLAG_CLICKABLE)
+                       && lv_obj_get_index(panel) == lv_obj_get_child_count(lv_obj_get_parent(panel)) - 1;
+              ESP_LOGI("render", "problem bounds=%d,%d,%d,%d parent=%d,%d,%d,%d opaque=%u index=%ld children=%u clickable=%d",
+                       (int)a.x1, (int)a.y1, (int)a.x2, (int)a.y2, (int)b.x1, (int)b.y1, (int)b.x2, (int)b.y2,
+                       (unsigned)lv_obj_get_style_bg_opa(panel, LV_PART_MAIN), (long)lv_obj_get_index(panel),
+                       (unsigned)lv_obj_get_child_count(lv_obj_get_parent(panel)), (int)lv_obj_has_flag(panel, LV_OBJ_FLAG_CLICKABLE));
+            }
+            ESP_LOGI("render", "problem=%u covers=%d spinner=%d", (unsigned) runtime_tiles::protocol_problem,
+                     (int) covers, (int) (runtime_tiles::boot_spinner && !lv_obj_has_flag(runtime_tiles::boot_spinner, LV_OBJ_FLAG_HIDDEN)));
     - action: render_state
       then:
         - lambda: |-

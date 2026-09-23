@@ -43,7 +43,8 @@ class SettingsPage(unittest.TestCase):
     def test_the_frozen_settings_block_keeps_exactly_eleven_keys(self):
         # Firmware before 0.2.44 refuses a `settings` object of any other size; that is why the newer
         # settings travel as their own keys.
-        self.assertEqual(re.search(r'if \(obj\.size\(\) != (\d+)\) return false;', RUNTIME).group(1), '11')
+        self.assertEqual(len(FROZEN), 11)
+        self.assertNotIn('parse_settings(', RUNTIME, 'new firmware has no legacy settings decoder')
         self.assertEqual(FROZEN, set(SETTING_RULES) & FROZEN)
 
     def test_new_settings_default_and_validate(self):

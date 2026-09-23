@@ -125,7 +125,7 @@
       "ends": "Fine",
       "night_brightness": "Luminosità notte",
       "night_lit": "Schermo acceso di notte",
-      "back_to_page_1": "Torna a pagina 1",
+      "back_to_page_1": "Torna a Home",
       "after": "Dopo",
       "also_on_standby": "Anche in standby",
       "swipe_between_pages": "Scorri tra le pagine",
@@ -412,6 +412,9 @@
         "vertical": "Verticale",
         "horizontal": "Orizzontale"
       }
+    },
+    "navigation": {
+      "back": "Indietro"
     }
   },
   "addon": {
@@ -1148,7 +1151,6 @@
       "saved": {
         "current": "Salvato. Il tuo schermo si sta aggiornando.",
         "other": "Salvato. {name} si sta aggiornando.",
-        "other_unnamed": "Salvato. Lo schermo si sta aggiornando.",
         "newer_edit": "Salvato. La tua ultima modifica non è ancora stata inviata: premi di nuovo Salva e invia."
       },
       "identified": "{name} lampeggia e mostra una scheda per qualche secondo.",
@@ -1183,11 +1185,8 @@
       "no_free_page": "Nessuna pagina è libera per un riquadro a pagina intera. Libera prima una pagina.",
       "page_taken": "Questo schermo ha già un riquadro che porta a pagina {page}.",
       "copied": "Disposizione di {name} copiata. Salva e invia quando ti sembra giusta.",
-      "copied_part": "Disposizione di {name} copiata. Riquadri compatibili con il firmware di questo schermo: {kept} su {total}. Salva e invia quando ti sembra giusta.",
       "imported": "Disposizione importata. Salva e invia quando ti sembra giusta.",
-      "imported_part": "Disposizione importata. Riquadri compatibili con il firmware di questo schermo: {kept} su {total}. Salva e invia quando ti sembra giusta.",
       "not_json": "Questo non è JSON. Esporta prima una disposizione, oppure incollane una da un altro ESP Screens.",
-      "no_tiles_in_file": "Nessun riquadro in questo file. Serve una disposizione esportata da ESP Screens.",
       "count": "{n} pagina · {tiles} / {limit} riquadri | {n} pagine · {tiles} / {limit} riquadri",
       "no_tiles": "Aggiungi la tua prima luce, scena o dispositivo dalla libreria.",
       "how_to": "Tocca la barra superiore o un riquadro per cambiarne le impostazioni. Trascina per spostare; rilascia sulla pagina successiva per crearne una nuova.",
@@ -1516,7 +1515,7 @@
         "night_end": "Fine",
         "night_brightness": "Luminosità notte",
         "night_lit": "Schermo acceso di notte",
-        "auto_home": "Torna a pagina 1",
+        "auto_home": "Torna a Home",
         "auto_home_seconds": "Dopo",
         "home_on_standby": "Anche in standby",
         "swipe_pages": "Scorri tra le pagine",
@@ -1544,16 +1543,7 @@
       },
       "other_screen_busy": "Sto ancora salvando le impostazioni dell'altro schermo. Riprova tra poco.",
       "reach": {
-        "intro": "I pulsanti pagina e lo scorrimento sono disattivati, quindi solo i riquadri «Vai alla pagina» cambiano pagina.",
-        "pages": "pagina {list} | pagine {list}",
-        "tiles": "Hai {n} riquadro «Vai alla pagina», che porta a {targets}. | Hai {n} riquadri «Vai alla pagina», che portano a {targets}.",
-        "tiles_missing_one": "Hai {n} riquadro «Vai alla pagina», che porta a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerla. | Hai {n} riquadri «Vai alla pagina», che portano a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerla.",
-        "tiles_missing_more": "Hai {n} riquadro «Vai alla pagina», che porta a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerle. | Hai {n} riquadri «Vai alla pagina», che portano a {targets}, ma nessuno a {missing}, quindi non puoi raggiungerle.",
-        "none": "Non hai riquadri «Vai alla pagina».",
-        "none_missing_one": "Non hai riquadri «Vai alla pagina» che portano a {missing}, quindi non puoi raggiungerla.",
-        "none_missing_more": "Non hai riquadri «Vai alla pagina» che portano a {missing}, quindi non puoi raggiungerle.",
-        "cut_off": "I riquadri che portano a {pages} sono solo su pagine che non puoi raggiungere.",
-        "no_way_back": "Da {pages} nessun riquadro riporta a pagina 1."
+        "pages": "pagina {list} | pagine {list}"
       },
       "status": {
         "offline": "Questo schermo è offline. Le sue impostazioni si potranno cambiare quando torna online.",

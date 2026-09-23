@@ -110,7 +110,7 @@ export type BarLayout = ReturnType<typeof barLayout>;
 // the page title, on the same baseline, with the same air between it and the name as between it and the edge.
 export const HOME_GLYPH = "F02DC";
 export function barLayout(items: HeaderItem[], metrics: BarMetrics, nameText: string, viewOf: (item: HeaderItem) => ItemView,
-                          home = false) {
+                          home = false, back = false) {
   const fonts = barFonts(metrics);
   // The firmware reads the digit height as a whole number of pixels (the glyph box of "0").
   const zero = inkOf("0", fonts.text), cap = Math.round(zero.bottom - zero.top), gaps = barGaps(cap);
@@ -128,7 +128,8 @@ export function barLayout(items: HeaderItem[], metrics: BarMetrics, nameText: st
   });
   const shown = parts.filter((p) => p.shown);
   // The home key takes the name's place and the name moves behind it; the items on the right keep every pixel.
-  const key = home ? { glyph: glyph(HOME_GLYPH), ink: inkOf(glyph(HOME_GLYPH), fonts.icon) } : null;
+  const leading = back ? 'F0141' : HOME_GLYPH;
+  const key = home || back ? { glyph: glyph(leading), ink: inkOf(glyph(leading), fonts.icon) } : null;
   const homeShift = key ? Math.round(key.ink.right - key.ink.left) + metrics.inset : 0;
   const width = Math.max(0, metrics.width - homeShift);
   const natural = inkOf(nameText, fonts.name).advance;

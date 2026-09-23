@@ -1,3 +1,4 @@
+from manager_fixtures import edit_layout
 """Grid positions (app 0.2.31 / firmware 0.2.26): explicit slots, empty cells, in-order fallback."""
 import json
 import tempfile
@@ -77,7 +78,7 @@ class PositionsOnTheWire(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             m = test_portal.ManagerTests().setup_manager(Path(tmp) / 'screens.json')
             m.ha.states['light.b'] = {'state': 'off', 'attributes': {}}
-            m.save('text.screen', {'title': 'Home', 'tiles': tiles(('light.b', 7), ('light.a', 2))})
+            edit_layout(m, 'text.screen', {'title': 'Home', 'tiles': tiles(('light.b', 7), ('light.a', 2))})
             await m.sync_one('text.screen', m.layouts['text.screen'])
             wire = m.ha.messages[0][1]
             self.assertEqual(wire['entities'], ['light.a', 'light.b'])
@@ -86,13 +87,13 @@ class PositionsOnTheWire(unittest.IsolatedAsyncioTestCase):
             self.assertEqual([(msg['i'], msg['entity']) for _, msg in m.ha.messages[1:]], [(0, 'light.a'), (1, 'light.b')])
             # Moving a tile changes the layout message, so the whole layout goes out again.
             m.ha.messages.clear()
-            m.save('text.screen', {'title': 'Home', 'tiles': tiles(('light.b', 6), ('light.a', 2))})
+            edit_layout(m, 'text.screen', {'title': 'Home', 'tiles': tiles(('light.b', 6), ('light.a', 2))})
             await m.sync_one('text.screen', m.layouts['text.screen'])
             self.assertEqual(m.ha.messages[0][1]['slots'], [2, 6])
             self.assertEqual(len(m.ha.messages), 3)
-            self.assertNotIn('pages', m.ha.messages[0][1])
+            self.assertEqual(m.ha.messages[0][1]['pages'], 2)
             m.ha.messages.clear()
-            m.save('text.screen', {'title': 'Home', 'tiles': tiles(('light.b', 6), ('light.a', 2)), 'pages': 4})
+            edit_layout(m, 'text.screen', {'title': 'Home', 'tiles': tiles(('light.b', 6), ('light.a', 2)), 'pages': 4})
             await m.sync_one('text.screen', m.layouts['text.screen'])
             self.assertEqual(m.ha.messages[0][1]['pages'], 4)
 
@@ -105,13 +106,13 @@ class PositionsOnTheWire(unittest.IsolatedAsyncioTestCase):
             self.assertEqual([t['slot'] for t in m.layouts['text.screen']['tiles']], [0, 2])
             m.ha.states['light.b'] = {'state': 'off', 'attributes': {}}
             # The editor moves light.b to page two; an older editor that saves without positions packs again.
-            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.a', 'slot': 1}, {'entity': 'light.b', 'slot': 6, 'options': {'size': 'wide'}}]})
+            edit_layout(m, 'text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.a', 'slot': 1}, {'entity': 'light.b', 'slot': 6, 'options': {'size': 'wide'}}]})
             self.assertEqual([t['slot'] for t in m.layouts['text.screen']['tiles']], [1, 6])
-            self.assertEqual(json.loads(path.read_text())['screens']['text.screen']['tiles'][1]['slot'], 6)
-            m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.b'}, {'entity': 'light.a'}]})
-            saved = m.layouts['text.screen']['tiles']
-            self.assertEqual([(t['entity'], t['slot']) for t in saved], [('light.b', 0), ('light.a', 2)])
-            self.assertEqual(saved[0]['options'], {'size': 'wide'}, 'options survive an old editor, as before')
+            self.assertEqual(m.layouts['text.screen']['tiles'][1]['slot'], 6)
+            before = m.store.get('text.screen')
+            with self.assertRaisesRegex(ValueError, 'Reload the editor'):
+                m.save('text.screen', {'title': 'Home', 'tiles': [{'entity': 'light.b'}, {'entity': 'light.a'}]})
+            self.assertEqual(m.store.get('text.screen'), before, 'an old structural save cannot repack migrated pages')
 
 if __name__ == '__main__':
     unittest.main()

@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens niet actief",
       "choose_tiles": "Kies tegels in HA",
       "home": "Thuis",
-      "no_network": "Geen netwerk"
+      "no_network": "Geen netwerk",
+      "configuration_problem": "Configuratieprobleem.\nWerk de add-on bij.",
+      "configuration_version": "Configuratieprobleem.\nControleer de versies van scherm en add-on."
     },
     "settings": {
       "title": "Instellingen",
@@ -125,7 +127,7 @@
       "ends": "Eindigt",
       "night_brightness": "Helderheid nacht",
       "night_lit": "Scherm aan 's nachts",
-      "back_to_page_1": "Terug naar pagina 1",
+      "back_to_page_1": "Terug naar Thuis",
       "after": "Na",
       "also_on_standby": "Ook bij stand-by",
       "swipe_between_pages": "Vegen tussen pagina's",
@@ -412,6 +414,9 @@
         "vertical": "Verticaal",
         "horizontal": "Horizontaal"
       }
+    },
+    "navigation": {
+      "back": "Terug"
     }
   },
   "addon": {
@@ -601,6 +606,8 @@
     "status": {
       "first_tiles": "Kies je eerste tegels",
       "saved": "Opgeslagen; wacht op synchronisatie",
+      "applying": "Indeling toepassen",
+      "applied": "Indeling toegepast",
       "firmware_needed": "Indeling bewaard; firmware {version}+ nodig voor deze tegels",
       "too_large": "Indeling bewaard; te groot voor één bericht aan het scherm, verwijder een paar tegels",
       "sent": "Verstuurd naar Home Assistant",
@@ -1148,7 +1155,6 @@
       "saved": {
         "current": "Opgeslagen. Je scherm wordt bijgewerkt.",
         "other": "Opgeslagen. {name} wordt bijgewerkt.",
-        "other_unnamed": "Opgeslagen. Het scherm wordt bijgewerkt.",
         "newer_edit": "Opgeslagen. Je laatste wijziging is nog niet verstuurd: druk nog eens op Opslaan & versturen."
       },
       "identified": "{name} knippert en toont een paar seconden een kaart.",
@@ -1183,11 +1189,8 @@
       "no_free_page": "Er is geen lege pagina voor een paginavullende tegel. Maak eerst een pagina vrij.",
       "page_taken": "Dit scherm heeft al een tegel die naar pagina {page} gaat.",
       "copied": "Indeling van {name} gekopieerd. Druk op Opslaan & versturen als alles klopt.",
-      "copied_part": "Indeling van {name} gekopieerd: {kept} van de {total} tegels passen bij de firmware van dit scherm. Druk op Opslaan & versturen als alles klopt.",
       "imported": "Indeling geïmporteerd. Druk op Opslaan & versturen als alles klopt.",
-      "imported_part": "Indeling geïmporteerd: {kept} van de {total} tegels passen bij de firmware van dit scherm. Druk op Opslaan & versturen als alles klopt.",
       "not_json": "Dat is geen JSON. Exporteer eerst een indeling, of plak er een uit een andere ESP Screens.",
-      "no_tiles_in_file": "Dit bestand heeft geen tegels. Gebruik een indeling die uit ESP Screens is geëxporteerd.",
       "count": "{n} pagina · {tiles} / {limit} tegels | {n} pagina's · {tiles} / {limit} tegels",
       "no_tiles": "Voeg je eerste lamp, scène of apparaat toe uit de bibliotheek.",
       "how_to": "Tik op de bovenbalk of een tegel om die aan te passen. Sleep om te verplaatsen, of naar de volgende pagina voor een nieuwe pagina.",
@@ -1516,7 +1519,7 @@
         "night_end": "Eindigt",
         "night_brightness": "Helderheid nacht",
         "night_lit": "Scherm aan 's nachts",
-        "auto_home": "Terug naar pagina 1",
+        "auto_home": "Terug naar Thuis",
         "auto_home_seconds": "Na",
         "home_on_standby": "Ook bij stand-by",
         "swipe_pages": "Vegen tussen pagina's",
@@ -1544,16 +1547,7 @@
       },
       "other_screen_busy": "De instellingen van het andere scherm worden nog opgeslagen. Probeer het zo nog eens.",
       "reach": {
-        "intro": "Paginaknoppen en vegen staan uit, dus alleen “Ga naar pagina”-tegels wisselen van pagina.",
-        "pages": "pagina {list} | pagina's {list}",
-        "tiles": "Je hebt {n} “Ga naar pagina”-tegel, naar {targets}. | Je hebt {n} “Ga naar pagina”-tegels, naar {targets}.",
-        "tiles_missing_one": "Je hebt {n} “Ga naar pagina”-tegel, naar {targets}, maar geen naar {missing}, dus die kun je niet bereiken. | Je hebt {n} “Ga naar pagina”-tegels, naar {targets}, maar geen naar {missing}, dus die kun je niet bereiken.",
-        "tiles_missing_more": "Je hebt {n} “Ga naar pagina”-tegel, naar {targets}, maar geen naar {missing}, dus die kun je niet bereiken. | Je hebt {n} “Ga naar pagina”-tegels, naar {targets}, maar geen naar {missing}, dus die kun je niet bereiken.",
-        "none": "Je hebt geen “Ga naar pagina”-tegels.",
-        "none_missing_one": "Je hebt geen “Ga naar pagina”-tegels naar {missing}, dus die kun je niet bereiken.",
-        "none_missing_more": "Je hebt geen “Ga naar pagina”-tegels naar {missing}, dus die kun je niet bereiken.",
-        "cut_off": "De tegels naar {pages} staan alleen op pagina's die je niet kunt bereiken.",
-        "no_way_back": "Vanaf {pages} leidt geen tegel terug naar pagina 1."
+        "pages": "pagina {list} | pagina's {list}"
       },
       "status": {
         "offline": "Dit scherm is offline. Je kunt de instellingen wijzigen zodra het terug is.",
@@ -1947,6 +1941,76 @@
     "mockup": {
       "home": "Thuis",
       "unknown": "Onbekend"
+    },
+    "pages": {
+      "mode": "Editormodus",
+      "simple": "Eenvoudig",
+      "advanced": "Geavanceerd",
+      "redo": "Opnieuw",
+      "title": "Paginatitel",
+      "title_hint": "Laat leeg om de schermtitel te gebruiken.",
+      "is_home": "Thuispagina",
+      "set_home": "Instellen als thuis",
+      "drag_home": "Thuispagina. Sleep naar een andere pagina om Thuis te verplaatsen.",
+      "exclude": "Toon niet in paginanavigatie",
+      "exclude_hint": "Directe links openen deze pagina nog steeds. Terug verschijnt in de onderbalk, of vervangt Thuis als die balk verborgen is.",
+      "home_control": "Toon een thuisknop op deze pagina",
+      "edit_topbar": "Bewerk de topbalk van deze pagina",
+      "order": "Paginavolgorde",
+      "order_hint": "Show page-acties met een nummer volgen deze volgorde. Paginategels blijven naar dezelfde pagina wijzen.",
+      "map_position": "Positie op de kaart",
+      "left": "Naar links",
+      "up": "Omhoog",
+      "down": "Omlaag",
+      "right": "Naar rechts",
+      "routes": "Paginaverbindingen",
+      "no_routes": "No navigation tiles link to or from this page.",
+      "edit_page": "Pagina bewerken",
+      "copy_conflict": "Deze pagina bevat entiteiten die al op dit scherm staan. Maak een lege pagina met dezelfde topbalk.",
+      "duplicate": "Pagina dupliceren",
+      "empty_copy": "Nieuwe lege pagina met deze topbalk",
+      "position_occupied": "Op deze plek staat al een pagina. Kies een vrije plek.",
+      "map_hint": "Verplaats pagina’s om de kaart in te delen. De paginavolgorde blijft gelijk.",
+      "arrange": "Ordenen vanaf Thuis",
+      "zoom_out": "Uitzoomen",
+      "zoom_in": "Inzoomen",
+      "choose_destination": "Kies de bestemmingspagina voor deze navigatietegel.",
+      "move_map": "Verplaats {name} op de kaart",
+      "change_destination": "Wijzig de bestemming van een navigatietegel op {name}",
+      "deeplink": "Deeplink",
+      "page_settings": "Pagina-instellingen",
+      "back_map": "Terug naar de kaart",
+      "wait_grid": "Verbind het scherm om het tegelraster vast te stellen.",
+      "update_notice": "Werk het scherm bij om de nieuwe topbalk en indeling te gebruiken",
+      "conflict": "Another editor saved changes. Your draft is still here. Review the latest saved layout before saving again.",
+      "shared_bar": "This screen still uses shared top-bar items. Changes to these items apply to every page until the firmware is updated.",
+      "unreachable": "Vanaf Thuis is er geen route naar {pages}. Voeg een navigatietegel toe of toon de pagina in de paginanavigatie.",
+      "no_way_home": "Vanaf {pages} is er geen route terug naar Thuis. Voeg een terugkeertegel toe of zet de thuisknop aan.",
+      "navigation": "Paginanavigatie",
+      "previous": "Vorige pagina",
+      "next": "Volgende pagina",
+      "go_home": "Naar Home",
+      "try_navigation": "Navigatie uitproberen",
+      "preview_hint": "Alleen een voorbeeld. Paginalinks werken hier; entiteiten bedienen geen apparaten.",
+      "swipe_previous": "Veeg naar vorige pagina",
+      "swipe_next": "Veeg naar volgende pagina",
+      "copy_bar": "Topbalk kopiëren",
+      "copy_from": "Van pagina",
+      "copy_to": "Naar geselecteerde pagina’s",
+      "copy_content": "Kopiëren",
+      "copy_items": "Alleen items, behoud titels en Home-knoppen",
+      "copy_whole": "Hele balk, inclusief titel en Home-knop",
+      "copy_apply": "Kopieer naar geselecteerde pagina’s",
+      "history_label": "Geschiedenis, {hours} uur",
+      "history_loading": "Geschiedenis laden…",
+      "history_empty": "Geen geschiedenis beschikbaar",
+      "grid_changed": "Het raster van het scherm is gewijzigd. Bekijk de tegelposities voor je opslaat of verstuurt.",
+      "grid_review": "Rasteraanpassing bekijken",
+      "grid_review_hint": "Vergelijk de opgeslagen posities links met het voorstel rechts. Elke tegel blijft op zijn eigen pagina. Pas na opslaan wordt de indeling verstuurd.",
+      "grid_accept": "Gebruik deze posities",
+      "selected_full": "Deze pagina is vol. Kies een lege cel op een andere pagina.",
+      "choose_page": "Pagina",
+      "all_connections": "Alle verbindingen"
     }
   }
 }

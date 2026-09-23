@@ -16,6 +16,7 @@ class TwentyTiles(unittest.IsolatedAsyncioTestCase):
             for tile in layout['tiles']:m.ha.states[tile['entity']]={'state':'on','attributes':{}}
             with self.assertRaises(ValueError):m.save('text.screen',layout)
             m.ha.registry[0]['device_id']='screen-device'
+            next(item for item in m.ha.registry if item.get('original_name') == 'Screen layout')['device_id']='screen-device'
             m.ha.registry.append({'entity_id':'sensor.version','platform':'esphome','original_name':'Screen firmware','device_id':'screen-device'})
             m.ha.states['sensor.version']={'state':'0.2.7'}
             m.save('text.screen',layout)
@@ -33,4 +34,4 @@ class TwentyTiles(unittest.IsolatedAsyncioTestCase):
             m.ha.messages.clear()
             await m.sync_one('text.screen',m.layouts['text.screen'],True)
             self.assertEqual(m.ha.messages,[])
-            self.assertEqual(len(json.loads(m.path.read_text())['screens']['text.screen']['tiles']),20)
+            self.assertEqual(len(m.layouts['text.screen']['tiles']),20)

@@ -125,7 +125,7 @@
       "ends": "Fin",
       "night_brightness": "Luminosité de nuit",
       "night_lit": "Écran allumé la nuit",
-      "back_to_page_1": "Retour à la page 1",
+      "back_to_page_1": "Retour à l’accueil",
       "after": "Après",
       "also_on_standby": "Aussi en veille",
       "swipe_between_pages": "Balayer entre les pages",
@@ -412,6 +412,9 @@
         "vertical": "Verticale",
         "horizontal": "Horizontale"
       }
+    },
+    "navigation": {
+      "back": "Retour"
     }
   },
   "addon": {
@@ -1148,7 +1151,6 @@
       "saved": {
         "current": "Enregistré. Votre écran est en cours de mise à jour.",
         "other": "Enregistré. {name} est en cours de mise à jour.",
-        "other_unnamed": "Enregistré. L'écran est en cours de mise à jour.",
         "newer_edit": "Enregistré. Votre dernière modification n'est pas encore envoyée : appuyez à nouveau sur Enregistrer et envoyer."
       },
       "identified": "{name} clignote et affiche une carte pendant quelques secondes.",
@@ -1183,11 +1185,8 @@
       "no_free_page": "Aucune page n'est libre pour une tuile pleine page. Libérez d'abord une page.",
       "page_taken": "Cet écran a déjà une tuile qui mène à la page {page}.",
       "copied": "Mise en page de {name} copiée. Appuyez sur Enregistrer et envoyer quand elle vous convient.",
-      "copied_part": "Mise en page de {name} copiée. Tuiles compatibles avec le firmware de cet écran : {kept} sur {total}. Appuyez sur Enregistrer et envoyer quand elle vous convient.",
       "imported": "Mise en page importée. Appuyez sur Enregistrer et envoyer quand elle vous convient.",
-      "imported_part": "Mise en page importée. Tuiles compatibles avec le firmware de cet écran : {kept} sur {total}. Appuyez sur Enregistrer et envoyer quand elle vous convient.",
       "not_json": "Ce n'est pas du JSON. Exportez d'abord une mise en page, ou collez-en une d'un autre ESP Screens.",
-      "no_tiles_in_file": "Aucune tuile dans ce fichier. Une mise en page exportée depuis ESP Screens était attendue.",
       "count": "{n} page · {tiles} / {limit} tuiles | {n} pages · {tiles} / {limit} tuiles",
       "no_tiles": "Ajoutez votre première lumière, scène ou appareil depuis la bibliothèque.",
       "how_to": "Appuyez sur la barre supérieure ou sur une tuile pour la modifier. Faites glisser pour déplacer ; déposez sur la page suivante pour en créer une nouvelle.",
@@ -1516,7 +1515,7 @@
         "night_end": "Fin",
         "night_brightness": "Luminosité de nuit",
         "night_lit": "Écran allumé la nuit",
-        "auto_home": "Retour à la page 1",
+        "auto_home": "Retour à l’accueil",
         "auto_home_seconds": "Après",
         "home_on_standby": "Aussi en veille",
         "swipe_pages": "Balayer entre les pages",
@@ -1544,16 +1543,7 @@
       },
       "other_screen_busy": "Les paramètres de l'autre écran sont encore en cours d'enregistrement. Réessayez dans un instant.",
       "reach": {
-        "intro": "Les boutons de page et le balayage sont désactivés : seules les tuiles « Aller à la page » changent de page.",
-        "pages": "la page {list} | les pages {list}",
-        "tiles": "Vous avez {n} tuile « Aller à la page », vers {targets}. | Vous avez {n} tuiles « Aller à la page », vers {targets}.",
-        "tiles_missing_one": "Vous avez {n} tuile « Aller à la page », vers {targets}, mais aucune vers {missing} : vous ne pouvez donc pas l'atteindre. | Vous avez {n} tuiles « Aller à la page », vers {targets}, mais aucune vers {missing} : vous ne pouvez donc pas l'atteindre.",
-        "tiles_missing_more": "Vous avez {n} tuile « Aller à la page », vers {targets}, mais aucune vers {missing} : vous ne pouvez donc pas les atteindre. | Vous avez {n} tuiles « Aller à la page », vers {targets}, mais aucune vers {missing} : vous ne pouvez donc pas les atteindre.",
-        "none": "Vous n'avez aucune tuile « Aller à la page ».",
-        "none_missing_one": "Vous n'avez aucune tuile « Aller à la page » vers {missing} : vous ne pouvez donc pas l'atteindre.",
-        "none_missing_more": "Vous n'avez aucune tuile « Aller à la page » vers {missing} : vous ne pouvez donc pas les atteindre.",
-        "cut_off": "Les tuiles vers {pages} se trouvent uniquement sur des pages que vous ne pouvez pas atteindre.",
-        "no_way_back": "Depuis {pages}, aucune tuile ne ramène à la page 1."
+        "pages": "la page {list} | les pages {list}"
       },
       "status": {
         "offline": "Cet écran est hors ligne. Ses paramètres pourront être modifiés à son retour.",

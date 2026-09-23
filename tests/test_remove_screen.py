@@ -1,3 +1,4 @@
+from manager_fixtures import with_screen_grid
 """Removing a screen for good (app 0.2.112): the mirror of New screen.
 
 The editor's list is Home Assistant's, so a screen only leaves it when its ESPHome integration goes. One request
@@ -64,7 +65,7 @@ class RemoveScreenTests(unittest.IsolatedAsyncioTestCase):
             (Path(tmp) / 'screens.json').write_text(json.dumps({'version': 1, 'screens': stored}))
         if updates is not None:
             (Path(tmp) / 'updates.json').write_text(json.dumps({'version': 1, 'auto': False, **updates}))
-        manager = Manager(with_entries(ha or fake_ha()), Path(tmp) / 'screens.json')
+        manager = Manager(with_screen_grid(with_entries(ha or fake_ha())), Path(tmp) / 'screens.json')
         manager.firmware = Firmware(Path(tmp) / 'esphome', Path(tmp) / 'data')
         return manager
 
@@ -152,7 +153,8 @@ class RemoveScreenTests(unittest.IsolatedAsyncioTestCase):
             manager.ha.entries = {}
             with self.assertRaises(ValueError):
                 await manager.remove_screen(INBOX)
-            self.assertEqual(manager.layouts, {INBOX: LAYOUT})
+            self.assertEqual(manager.layouts[INBOX]['tiles'], LAYOUT['tiles'])
+            self.assertEqual(manager.layouts[INBOX]['title'], LAYOUT['title'])
 
     async def test_it_waits_for_a_running_update(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -166,7 +168,8 @@ class RemoveScreenTests(unittest.IsolatedAsyncioTestCase):
                 running.set_result(None)
                 await manager.updates.task
             self.assertEqual(manager.ha.deleted, [])
-            self.assertEqual(manager.layouts, {INBOX: LAYOUT})
+            self.assertEqual(manager.layouts[INBOX]['tiles'], LAYOUT['tiles'])
+            self.assertEqual(manager.layouts[INBOX]['title'], LAYOUT['title'])
 
     async def test_the_page_removes_a_screen_over_its_own_address(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,5 +1,6 @@
 """Camera images on a Guition (app 0.2.66, firmware 0.2.57): the app fetches, sizes and serves the image on its own
 port; the screen asks with esphome.screen_camera and loads the link with ESPHome's online_image."""
+from manager_fixtures import with_screen_grid, seed_layout
 import asyncio
 import contextlib
 import importlib.util
@@ -385,10 +386,31 @@ class App(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         camera_feed.base_url.__defaults__[0].clear()
 
+    async def test_camera_alert_announcement_and_image_use_the_page_session(self):
+        from page_delivery import Sender
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (640, 360)))
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            async def wire(message):
+                ha.log.append(('send', 'text.d1_tiles', message))
+                return {**{key: message[key] for key in ('session', 'seq', 'rev')},
+                        'protocol': 2, 'status': 'Synced', 'applied': True}
+            sender = Sender(wire)
+            sender.protocol, sender.session, sender.confirmed = 2, 'a' * 16, 'b' * 16
+            m.page_senders['text.d1_tiles'] = sender
+            await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'camera': 'camera.front_door'})
+            sends = [entry for entry in ha.log if entry[0] == 'send']
+            self.assertEqual(len(sends), 2)
+            self.assertEqual(sends[0][2]['u'], '')
+            self.assertTrue(sends[1][2]['u'])
+            for _, _, message in sends:
+                self.assertEqual((message['v'], message['session'], message['rev']), (2, 'a' * 16, 'b' * 16))
+            self.assertLess(ha.log.index(sends[0]), next(i for i, entry in enumerate(ha.log) if entry[0] == 'call'))
+
     async def test_an_alert_with_a_camera(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(picture('JPEG', (1920, 1080)))
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             await m.broadcast(BROADCAST_SHOW, {'title': 'Someone is at the door', 'camera': 'camera.front_door'})
             sends = [entry for entry in ha.log if entry[0] == 'send']
             calls = [entry for entry in ha.log if entry[0] == 'call']
@@ -413,7 +435,7 @@ class App(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(picture('JPEG', (1080, 1440)))
             ha.states['sensor.d1_fw']['state'] = '0.2.103'
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             await m.broadcast(BROADCAST_SHOW, {'title': 'Someone is at the door', 'camera': 'camera.front_door'})
             sends = [entry for entry in ha.log if entry[0] == 'send']
             token = sends[1][2]['u'].rsplit('/', 1)[1][:-4]
@@ -434,7 +456,7 @@ class App(unittest.IsolatedAsyncioTestCase):
             ha = fake_ha(picture('JPEG', (1080, 1440)))
             ha.states['sensor.d1_fw']['state'] = '0.2.103'
             ha.states['sensor.d3_fw']['state'] = '0.2.102'
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             await m.broadcast(BROADCAST_SHOW, {'title': 'Someone is at the door', 'camera': 'camera.front_door'})
             links = {inbox: message['u'] for _, inbox, message in (e for e in ha.log if e[0] == 'send') if message['u']}
             self.assertEqual(set(links), {'text.d1_tiles', 'text.d3_tiles'})
@@ -455,7 +477,7 @@ class App(unittest.IsolatedAsyncioTestCase):
     async def test_an_alert_whose_camera_has_no_image_still_goes_out(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(None)
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             with self.assertLogs('screen_manager', 'INFO') as logs:
                 await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'camera': 'camera.front_door'})
             sends = [entry for entry in ha.log if entry[0] == 'send']
@@ -466,7 +488,7 @@ class App(unittest.IsolatedAsyncioTestCase):
     async def test_an_unusable_camera_is_named_and_left_out(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(picture('JPEG', (64, 36)))
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             with self.assertLogs('screen_manager', 'INFO') as logs:
                 await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'camera': 'light.hall'})
             self.assertEqual([entry[0] for entry in ha.log], ['call'] * 3)
@@ -475,8 +497,8 @@ class App(unittest.IsolatedAsyncioTestCase):
     async def test_a_screen_asks_for_a_camera_it_may_show(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(picture('JPEG', (1920, 1080)))
-            m = Manager(ha, Path(tmp) / 'screens.json')
-            m.layouts['text.d1_tiles'] = validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.max', 'name': ''}]})
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.max', 'name': ''}]}))
             with self.assertLogs('screen_manager', 'INFO'):
                 await m.answer_camera({'inbox': 'text.d1_tiles', 'entity': 'camera.max'})
             (_, inbox, message), = [entry for entry in ha.log if entry[0] == 'send']
@@ -494,7 +516,7 @@ class App(unittest.IsolatedAsyncioTestCase):
     async def test_camera_tiles_only_on_a_board_that_draws_them(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha()
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             m.inventory = lambda: (m.screens(), [{'id': 'camera.max'}])
             m.write_layouts = lambda layouts: None
             m.notify = lambda: None
@@ -678,11 +700,11 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(picture('JPEG', (1920, 1080)))
             ha.states['sensor.d1_fw']['state'] = '0.2.77'
-            m = Manager(ha, Path(tmp) / 'screens.json')
-            m.layouts['text.d1_tiles'] = validate_layout({'title': 'Hall', 'tiles': [
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Hall', 'tiles': [
                 {'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}},
                 {'entity': 'camera.garden', 'name': '', 'options': {'display': 'live', 'refresh': 30}},
-                {'entity': 'camera.shed', 'name': ''}]})
+                {'entity': 'camera.shed', 'name': ''}]}))
             with self.assertLogs('screen_manager', 'INFO'):
                 await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,camera.garden', 'size': '54', 'bg': 'FFFFFF,FADADD'})
             (_, inbox, message), = [entry for entry in ha.log if entry[0] == 'send']
@@ -703,12 +725,12 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(picture('JPEG', (1920, 1080)))
             ha.states['sensor.d1_fw']['state'] = '0.2.78'
-            m = Manager(ha, Path(tmp) / 'screens.json')
-            m.layouts['text.d1_tiles'] = validate_layout({'title': 'Hall', 'tiles': [
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Hall', 'tiles': [
                 {'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}},
                 {'entity': 'media_player.sonos', 'name': '', 'options': {'display': 'cover', 'size': 'wide'}},
                 {'entity': 'media_player.radio', 'name': '', 'options': {'display': 'cover'}},
-                {'entity': 'media_player.tv', 'name': ''}]})
+                {'entity': 'media_player.tv', 'name': ''}]}))
             with self.assertLogs('screen_manager', 'INFO'):
                 await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,media_player.sonos,media_player.radio', 'size': '54', 'bg': 'FFFFFF,FFFFFF,FADADD'})
             (_, inbox, message), = [entry for entry in ha.log if entry[0] == 'send']
@@ -724,8 +746,8 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(None)
             ha.states['sensor.d1_fw']['state'] = '0.2.77'
-            m = Manager(ha, Path(tmp) / 'screens.json')
-            m.layouts['text.d1_tiles'] = validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}}]})
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.max', 'name': '', 'options': {'display': 'live'}}]}))
             with self.assertLogs('screen_manager', 'INFO') as logs:
                 await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max', 'size': '54', 'bg': 'FFFFFF'})
             (_, _, message), = [entry for entry in ha.log if entry[0] == 'send']

@@ -1,3 +1,4 @@
+from manager_fixtures import with_screen_grid, seed_layout
 """Firmware update offers, profile matching and the one-at-a-time update round."""
 import asyncio
 from datetime import datetime, timezone
@@ -148,7 +149,7 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
             def __init__(self): self.messages, self.calls = [], []
             async def send(self, inbox, message, action=None): self.messages.append((inbox, message))
             async def request(self, kind, **data): self.calls.append((kind, data))
-        manager = Manager(HA(), Path(path) / 'screens.json')
+        manager = Manager(with_screen_grid(HA()), Path(path) / 'screens.json')
         manager.firmware = FakeFirmware(manager.ha, outcome)
         for attr in ('verify_timeout', 'settle_seconds', 'pause_seconds', 'poll_seconds'):
             setattr(manager.updates, attr, 0.01 if attr == 'verify_timeout' else 0)
@@ -253,9 +254,9 @@ class UpdaterTests(unittest.IsolatedAsyncioTestCase):
     async def test_manager_watches_only_layout_and_screen_entities(self):
         with tempfile.TemporaryDirectory() as tmp:
             m = self.setup_manager(tmp)
-            m.layouts['text.screen1'] = {'title': 'Home', 'tiles': [{'entity': 'light.lamp'}]}
+            seed_layout(m, 'text.screen1', {'title': 'Home', 'tiles': [{'entity': 'light.lamp'}]})
             watched = m.watched_entities()
-            self.assertEqual(watched, {'light.lamp', 'text.screen1', 'text.node1', 'text.ip1', 'text.fw1', 'text.screen2', 'text.fw2'})
+            self.assertEqual(watched, {'light.lamp', 'text.screen1', 'text.node1', 'text.ip1', 'text.fw1', 'text.screen2', 'text.fw2', 'sensor.test_grid_text_screen1', 'sensor.test_grid_text_screen2'})
 
     async def test_http_endpoints(self):
         from server import create_app

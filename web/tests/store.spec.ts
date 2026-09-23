@@ -1,3 +1,4 @@
+import { seedLayout, seedTiles, seedPages, seedTitles, appendTiles, screenFixture, documentFixture, current } from "./page-fixtures";
 // The store: selecting a screen, editing its layout, what's new, progress, copy and import.
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -7,7 +8,7 @@ import {
 } from "../src/store";
 import type { Inventory, Screen } from "../src/types";
 
-const screen = (id: string, name: string, firmware: string, tiles: any[]): Screen => ({
+const screen = (id: string, name: string, firmware: string, tiles: any[]): Screen => screenFixture({
   id, name, online: true, firmware, board: "guition", layout: { title: name, tiles }, update: { available: true, target: "0.2.62" },
   alert_action: `esphome.${id}_show_alert`,
 } as unknown as Screen);
@@ -41,7 +42,7 @@ beforeEach(() => {
   vi.spyOn(window, "confirm").mockReturnValue(true);
   state.inventory = inventory();
   state.selected = null;
-  state.layout = null;
+  seedLayout(null);
   state.dirty = false;
   state.liveStates = {};
   state.toast = null;
@@ -72,13 +73,13 @@ describe("selecting and editing", () => {
     select("living");
     const sensor = state.layout!.tiles[1];
     setTileOption(sensor, "size", "wide");
-    expect(sensor.slot).toBe(2);
+    expect(current(sensor).slot).toBe(2);
     expect(state.layout!.tiles.map((t) => t.slot)).toEqual([0, 2]);
     const lamp = state.layout!.tiles[0];
     setTileOption(lamp, "size", "wide");
     setTileOption(lamp, "controls", "brightness");
     setTileOption(lamp, "display", "watch");
-    expect(lamp.options).toMatchObject({ size: "wide", display: "watch", controls: "none", inline: "none" });
+    expect(current(lamp).options).toMatchObject({ size: "wide", display: "watch", controls: "none", inline: "none" });
   });
   it("removes a tile and offers to undo", () => {
     select("living");
@@ -90,7 +91,7 @@ describe("selecting and editing", () => {
   });
   it("shows the clock of the stored setting when there is no top bar yet", () => {
     select("living");
-    expect(topbarItems()).toEqual([{ type: "clock" }]);
+    expect(topbarItems()).toEqual([expect.objectContaining({ type: "clock" })]);
     state.now = new Date(2026, 8, 15, 10, 8).getTime();
     expect(topbarView({ type: "clock" }).text).toBe("10:08");
     expect(topbarView({ type: "date" }).text).toBe("Tu 15 Sep");
@@ -108,25 +109,29 @@ describe("live values", () => {
 });
 
 describe("copy, export and import", () => {
-  it("copies another screen's tiles and keeps this screen's title", () => {
+  it("copies the entire layout including the screen title, with fresh identities", () => {
     select("living");
     copyLayoutFrom("kitchen");
-    expect(state.layout!.title).toBe("Living room");
+    expect(state.layout!.title).toBe("Kitchen");
     expect(state.layout!.tiles.map((t) => t.entity)).toEqual(["switch.c"]);
     expect(state.layout!.tiles[0].options).toEqual({ background: "orange" });
     expect(state.dirty).toBe(true);
-    expect(JSON.parse(layoutJson())).toMatchObject({ esp_screens_layout: 1, title: "Living room", tiles: [{ entity: "switch.c" }] });
+    expect(JSON.parse(layoutJson())).toMatchObject({ esp_screens_layout: 2, sourceGrid: { columns: 2, rows: 3 },
+      layout: { title: "Kitchen", pages: [{ tiles: [{ content: { kind: "entity", entityId: "switch.c" } }] }] } });
+    const source = state.inventory.screens[1].page_document!;
+    if (source.format === "pages-v2") expect(state.document!.pages[0].id).not.toBe(source.layout.pages[0].id);
   });
-  it("refuses garbage, drops duplicates and trims to the firmware's limit", () => {
+  it("refuses garbage or a rejected import without changing or trimming the draft", async () => {
     select("kitchen"); // firmware 0.2.6: ten tiles
-    importLayout("not json");
+    await importLayout("not json");
     expect(state.toast?.message).toMatch(/isn't JSON/);
-    importLayout(JSON.stringify({ hello: 1 }));
-    expect(state.toast?.message).toMatch(/No tiles/);
+    const before = JSON.stringify(state.document);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ error: "Invalid layout" }), { status: 400 })));
+    await importLayout(JSON.stringify({ hello: 1 }));
+    expect(state.toast?.message).toBe("Invalid layout");
     const many = Array.from({ length: 14 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i }));
-    importLayout(JSON.stringify({ tiles: [...many, { entity: "light.l0" }, { bogus: true }, { entity: "no-dot" }] }));
-    expect(state.layout!.tiles).toHaveLength(10);
-    expect(state.toast?.message).toMatch(/10 of 14 tiles/);
+    await importLayout(JSON.stringify({ tiles: [...many, { entity: "light.l0" }, { bogus: true }, { entity: "no-dot" }] }));
+    expect(JSON.stringify(state.document)).toBe(before);
   });
   // Home Assistant over plain http has no Clipboard API (GitHub #33): a button that passes no element copies the text
   // itself through a hidden textarea, and leaves nothing behind.
@@ -190,26 +195,26 @@ describe("full-page and navigation tiles", () => {
     select("living");
     const [lamp, sensor] = state.layout!.tiles;
     setTileOption(lamp, "size", "full");
-    expect(lamp.slot).toBe(0);
-    expect(sensor.slot).toBe(6);
+    expect(current(lamp).slot).toBe(0);
+    expect(current(sensor).slot).toBe(6);
     expect(state.layout!.pages).toBe(2);
     expect(state.toast).toBeNull();
   });
   it("takes the first empty page when the others cannot move, and gives up with a toast when none is free", () => {
     select("living");
-    state.layout!.tiles = Array.from({ length: 48 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i }));
+    seedTiles(Array.from({ length: 48 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i })));
     const first = state.layout!.tiles[0];
     setTileOption(first, "size", "full");
-    expect(first.options?.size).toBe("single");
+    expect(current(first).options?.size ?? "single").toBe("single");
     expect(state.toast?.message).toMatch(/No page is free/);
   });
   it("lets a navigation tile point at another page, once per page", () => {
     select("living");
     addTile("screen.page_2");
     const nav = state.layout!.tiles.find((t) => t.entity === "screen.page_2")!;
-    expect(nav.options).toBeUndefined();
+    expect(current(nav).options).toBeUndefined();
     expect(retargetPageTile(nav, 3)).toBe(true);
-    expect(nav.entity).toBe("screen.page_3");
+    expect(current(nav).entity).toBe("screen.page_3");
     addTile("screen.page_4");
     expect(retargetPageTile(nav, 4)).toBe(false);
     expect(state.toast?.message).toMatch(/already has a tile that goes to page 4/);
@@ -234,6 +239,7 @@ describe("the open screen chosen again (app 0.2.78)", () => {
   it("reads the stored layout again when nothing is unsaved, so a change from Claude or another tab shows up", () => {
     select("living");
     state.inventory.screens[0].layout.tiles.push({ entity: "light.b", name: "", slot: 2 });
+    state.inventory.screens[0].page_document = documentFixture(state.inventory.screens[0].layout);
     select("living");
     expect(state.layout!.tiles.map((t) => t.entity)).toEqual(["light.a", "sensor.t", "light.b"]);
     expect(state.dirty).toBe(false);
@@ -246,7 +252,11 @@ describe("saving while you keep editing (app 0.2.78)", () => {
     const control = { answer: () => {} };
     const fetchMock = vi.fn((_url: string, init?: RequestInit) => init?.method !== "PUT"
       ? Promise.reject(new Error("offline"))
-      : new Promise((resolve) => { control.answer = () => resolve({ ok: true, status: 200, text: async () => "{}", json: async () => ({}) }); }));
+      : new Promise((resolve) => { control.answer = () => {
+        const body = JSON.parse(String(init.body));
+        resolve(new Response(JSON.stringify({ saved: true, document: { format: "pages-v2", revision: "saved-revision",
+          layout: body.layout, sourceGrid: { columns: 2, rows: 3 }, workspace: { revision: "workspace-revision", positions: {} } } }), { status: 200 }));
+      }; }));
     vi.stubGlobal("fetch", fetchMock);
     return { control, fetchMock };
   }
@@ -274,8 +284,8 @@ describe("saving while you keep editing (app 0.2.78)", () => {
     expect(state.toast?.message).toBe("Saved. Your newest change isn't sent yet: press Save & send again.");
     // What went out is the layout from before that change.
     const body = JSON.parse((fetchMock.mock.calls[0] as any[])[1].body);
-    expect(body.tiles.map((t: any) => t.entity)).toEqual(["light.a", "sensor.t", "light.b"]);
-    expect(body.tiles[0].options?.background).toBeUndefined();
+    expect(body.layout.pages[0].tiles.map((t: any) => t.content.entityId)).toEqual(["light.a", "sensor.t", "light.b"]);
+    expect(body.layout.pages[0].tiles[0].appearance.background).toBeUndefined();
   });
   it("leaves the unsaved flag of a screen opened meanwhile alone", async () => {
     select("living");
@@ -296,13 +306,13 @@ describe("moving a tile to another page without dragging (app 0.2.78)", () => {
   it("takes the first free cell of that page, or a new page after the last one", () => {
     select("living");
     const [lamp, sensor] = state.layout!.tiles;
-    state.layout!.pages = 2;
+    seedPages(2);
     expect(moveTileToPage(sensor, 1)).toBe(true);
-    expect(sensor.slot).toBe(6);
+    expect(current(sensor).slot).toBe(6);
     expect(moveTileToPage(lamp, 1)).toBe(true);
-    expect(lamp.slot).toBe(7);
+    expect(current(lamp).slot).toBe(7);
     expect(moveTileToPage(lamp, 2)).toBe(true);
-    expect(lamp.slot).toBe(12);
+    expect(current(lamp).slot).toBe(12);
     expect(state.layout!.pages).toBe(3);
     expect(state.dirty).toBe(true);
     expect(moveTileToPage(lamp, 2)).toBe(false);
@@ -310,37 +320,37 @@ describe("moving a tile to another page without dragging (app 0.2.78)", () => {
   });
   it("swaps with the first tile of a full page, as a drop there does", () => {
     select("living");
-    state.layout!.tiles = [
+    seedTiles([
       ...Array.from({ length: 6 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i })),
       { entity: "light.b", name: "", slot: 6 },
-    ];
+    ]);
     const b = state.layout!.tiles[6];
     expect(moveTileToPage(b, 0)).toBe(true);
-    expect(b.slot).toBe(0);
+    expect(current(b).slot).toBe(0);
     expect(state.layout!.tiles.find((t) => t.entity === "light.l0")!.slot).toBe(6);
   });
   it("moves a full-page tile to a page of its own and says so when a tile finds no room", () => {
     select("living");
-    state.layout!.tiles = [
+    seedTiles([
       { entity: "light.big", name: "", slot: 0, options: { size: "full" } },
       { entity: "light.w", name: "", slot: 6, options: { size: "wide" } },
       ...[8, 9, 10, 11].map((slot) => ({ entity: `light.p${slot}`, name: "", slot })),
       ...Array.from({ length: 36 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: 12 + i })),
-    ];
+    ]);
     const [big, wide] = state.layout!.tiles;
     // Page 1 holds the full-page tile and every other page is taken: the wide tile would have to push it off.
     expect(moveTileToPage(wide, 0)).toBe(false);
-    expect(wide.slot).toBe(6);
+    expect(current(wide).slot).toBe(6);
     expect(state.toast?.message).toBe("There is no room for this tile on page 1.");
     // The full-page tile and the tiles of page 2 change places.
     expect(moveTileToPage(big, 1)).toBe(true);
-    expect(big.slot).toBe(6);
+    expect(current(big).slot).toBe(6);
     expect(state.layout!.tiles.filter((t) => t.slot < 6).map((t) => t.entity).sort()).toEqual(["light.p10", "light.p11", "light.p8", "light.p9", "light.w"]);
   });
 });
 
 describe("what the add-on says about a screen's firmware (app 0.2.78)", () => {
-  it("takes the tile limit and the features from the screen entry", () => {
+  it("takes the tile limit and the features from the screen entry", async () => {
     const living = state.inventory.screens[0];
     Object.assign(living, { firmware: "unknown", firmware_known: null, tile_limit: 48, full_page: true, page_tiles_repeat: true });
     select("living");
@@ -349,7 +359,9 @@ describe("what the add-on says about a screen's firmware (app 0.2.78)", () => {
     expect(pageTilesRepeat.value).toBe(true);
     // A version Home Assistant can't report right now no longer cuts a copied or imported layout to ten.
     const many = Array.from({ length: 30 }, (_, i) => ({ entity: `light.l${i}`, name: "", slot: i }));
-    importLayout(JSON.stringify({ tiles: many }));
+    const imported = documentFixture({ title: "Imported", tiles: many });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(imported), { status: 200 })));
+    await importLayout(JSON.stringify({ tiles: many }));
     expect(state.layout!.tiles).toHaveLength(30);
     expect(state.toast?.message).toBe("Layout imported. Save & send when it looks right.");
   });
@@ -395,7 +407,7 @@ describe("the changelog from the full inventory (app 0.2.78)", () => {
 });
 
 describe("several tiles that go to the same page (firmware 0.2.65)", () => {
-  it("adds, retargets and imports another copy when the screen takes them", () => {
+  it("adds, retargets and imports another copy when the screen takes them", async () => {
     Object.assign(state.inventory.screens[0], { firmware: "0.2.65", page_tiles_repeat: true });
     select("living");
     addTile("screen.page_1");
@@ -408,9 +420,11 @@ describe("several tiles that go to the same page (firmware 0.2.65)", () => {
     // Only a navigation tile repeats; any other entity still appears once.
     addTile("light.a");
     expect(state.layout!.tiles.filter((t) => t.entity === "light.a")).toHaveLength(1);
-    importLayout(JSON.stringify({ tiles: [
-      { entity: "screen.page_1", slot: 0 }, { entity: "screen.page_1", slot: 6 }, { entity: "light.a", slot: 1 }, { entity: "light.a", slot: 2 },
-    ] }));
+    const imported = documentFixture({ title: "Imported", tiles: [
+      { entity: "screen.page_1", name: "", slot: 0 }, { entity: "light.a", name: "", slot: 1 }, { entity: "screen.page_1", name: "", slot: 6 },
+    ] });
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(imported), { status: 200 })));
+    await importLayout(JSON.stringify({ esp_screens_layout: 2, layout: imported.layout, sourceGrid: imported.sourceGrid }));
     expect(state.layout!.tiles.map((t) => t.entity)).toEqual(["screen.page_1", "light.a", "screen.page_1"]);
   });
   it("keeps one tile per page when the screen doesn't", () => {
@@ -438,18 +452,16 @@ describe("several tiles that go to the same page (firmware 0.2.65)", () => {
 describe("page buttons and swiping both off (firmware 0.2.69)", () => {
   const settings = (values: Record<string, unknown>) =>
     Object.assign(state.inventory.screens[0], { settings: { owner: "screen", values, keys: Object.keys(values), unavailable: [] } });
-  const tiles = (list: [string, number][]) => { state.layout!.tiles = list.map(([entity, slot]) => ({ entity, name: "", slot, options: {} })); state.layout!.pages = 1; };
+  const tiles = (list: [string, number][]) => { seedTiles(list.map(([entity, slot]) => ({ entity, name: "", slot, options: {} }))); seedPages(1); };
   it("says which pages the Go to page tiles lead to, and which one they leave out", () => {
     settings({ page_buttons: false, swipe_pages: false });
     select("living");
     tiles([["screen.page_2", 0], ["screen.page_3", 1], ["screen.page_1", 6], ["screen.page_1", 12], ["light.a", 18]]);
-    expect(pageReachWarning()).toBe("Page buttons and swiping are off, so only Go to page tiles change the page. "
-      + "You have 4 Go to page tiles, to pages 1, 2 and 3, but none to page 4, so you can't reach it.");
+    expect(pageReachWarning()).toBe("From Home there is no route to page 4. Add a navigation tile or include the page in page navigation.");
     tiles([["light.a", 0], ["light.b", 6], ["switch.c", 12]]);
-    expect(pageReachWarning()).toBe("Page buttons and swiping are off, so only Go to page tiles change the page. "
-      + "You have no Go to page tiles to pages 2 and 3, so you can't reach them.");
+    expect(pageReachWarning()).toBe("From Home there is no route to pages 2 and 3. Add a navigation tile or include the page in page navigation.");
     tiles([["screen.page_2", 0], ["light.a", 6]]);
-    expect(pageReachWarning()).toMatch(/You have 1 Go to page tile, to page 2\. From page 2 no tile leads back to page 1\.$/);
+    expect(pageReachWarning()).toBe("From page 2 there is no route back to Home. Add a return tile or enable the Home control.");
   });
   it("stays quiet while either way of paging is on, the values are unknown, or every page can be reached and left", () => {
     select("living");
@@ -472,7 +484,7 @@ describe("page buttons and swiping both off (firmware 0.2.69)", () => {
 // square screen with less glass).
 describe("the mockup of a screen, whichever way it hangs", () => {
   const shaped = (shape: Record<string, unknown>) => {
-    Object.assign(state.inventory.screens[0], { shape });
+    state.inventory.screens[0] = screenFixture({ ...state.inventory.screens[0], shape, layout: { title: 'Screen', tiles: [] } } as any);
     select("living");
   };
   const px = (style: Record<string, string>) => Number(style["--mockup-width"].replace("px", ""));
@@ -525,13 +537,13 @@ describe("moving a whole page", () => {
   // Three pages: page 1 leads to the other two, page 2 has a title of its own, page 3 leads back.
   function threePages() {
     select("living");
-    state.layout!.tiles = [
+    seedTiles([
       { entity: "screen.page_2", name: "", slot: 0 }, { entity: "screen.page_3", name: "", slot: 1 },
       { entity: "light.a", name: "", slot: 6 }, { entity: "light.w", name: "", slot: 8, options: { size: "wide" } },
       { entity: "screen.page_1", name: "", slot: 12 },
-    ];
-    state.layout!.pages = 3;
-    state.layout!.page_titles = ["", "Kitchen"];
+    ]);
+    seedPages(3);
+    seedTitles(["", "Kitchen"]);
     state.dirty = false;
   }
   it("takes the tiles on their own cells, the page's own title, and the tiles that lead to it", () => {
@@ -573,9 +585,9 @@ describe("moving a whole page", () => {
   });
   it("takes the pages after a removed one up with their titles and the tiles that lead to them", () => {
     select("living");
-    state.layout!.tiles = [{ entity: "screen.page_3", name: "", slot: 0 }, { entity: "light.a", name: "", slot: 12 }];
-    state.layout!.pages = 3;
-    state.layout!.page_titles = ["", "Kitchen", "Bedroom"];
+    seedTiles([{ entity: "screen.page_3", name: "", slot: 0 }, { entity: "light.a", name: "", slot: 12 }]);
+    seedPages(3);
+    seedTitles(["", "Kitchen", "Bedroom"]);
     // Page 2 is empty, so it can go; page 3 becomes page 2, with its title and the tile that leads to it.
     removePage(1);
     expect(state.layout!.tiles.find((t) => t.entity === "light.a")!.slot).toBe(6);
@@ -602,8 +614,8 @@ describe("moving a whole page", () => {
   });
   it("says a page went without tiles, and never takes the only page", () => {
     threePages();
-    state.layout!.tiles = [{ entity: "light.a", name: "", slot: 0 }];
-    state.layout!.pages = 2;
+    seedTiles([{ entity: "light.a", name: "", slot: 0 }]);
+    seedPages(2);
     removePage(1);
     expect(state.toast?.message).toBe("Page 2 is gone.");
     expect(state.layout!.pages).toBe(1);

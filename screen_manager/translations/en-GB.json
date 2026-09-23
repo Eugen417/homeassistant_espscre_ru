@@ -160,6 +160,9 @@
         "vertical": "Vertical",
         "horizontal": "Horizontal"
       }
+    },
+    "navigation": {
+      "back": "Back"
     }
   },
   "editor": {

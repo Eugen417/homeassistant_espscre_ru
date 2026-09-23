@@ -1,5 +1,6 @@
 """Vacuum card rows (app 0.2.46 / firmware 0.2.39): the cleaning mode and water selects of the robot's
 device, the suction speeds to offer and the battery sensor, as Home Assistant 2026.9 reports a Roborock."""
+from manager_fixtures import with_screen_grid
 import importlib.util
 from pathlib import Path
 import sys
@@ -114,7 +115,7 @@ class VacuumSync(unittest.IsolatedAsyncioTestCase):
             states, device = roborock()
             ha.states.update(states)
             ha.registry = ha.registry + device
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': VACUUM, 'name': ''}, {'entity': 'light.a', 'name': ''}]})
             layout = m.layouts['text.screen']
             watched = m.watched_entities()

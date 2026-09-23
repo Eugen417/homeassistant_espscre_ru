@@ -1,5 +1,6 @@
 """Settings -> Language & region (app 0.2.90): how the screens write the clock and numbers, the language each screen's
 messages go in, the language in the screens' YAML and the 24 hours an app from before it kept."""
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import json
@@ -209,7 +210,7 @@ class ClockPinTests(unittest.IsolatedAsyncioTestCase):
                 ha.states[f'switch.clock_{index}'] = {'state': state}
         ha.ha_language = 'en'
         ha.services_changed = asyncio.Event()
-        return Manager(ha, path)
+        return Manager(with_screen_grid(ha), path)
 
     async def test_a_new_install_follows_the_language_from_the_start(self):
         with tempfile.TemporaryDirectory() as tmp:

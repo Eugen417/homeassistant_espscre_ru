@@ -7,9 +7,16 @@ import { numberText, t, te } from "../i18n";
 import { displayName, effectiveControls, grid, isFull, isWide, pageOf, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
+import { tilePalette, tileActive } from "../model/tile-palette";
 import type { Tile } from "../types";
+import SensorHistory from './SensorHistory.vue';
 
-const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean }>();
+const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean; preview?: boolean }>();
+const emit = defineEmits<{ navigate: [tileId: string] }>();
+function activate() {
+  if (props.preview) { if (goesTo.value && props.tile.id) emit('navigate', props.tile.id); }
+  else if (live.value) openTile(props.tile);
+}
 // A built-in card is named as the screens name it, in their language (app 0.2.90).
 const name = computed(() => props.tile.name || (domain.value === "screen" && screenBuiltinName(props.tile.entity)) || entityName(props.tile.entity));
 const full = computed(() => isFull(props.tile));
@@ -24,16 +31,22 @@ const domain = computed(() => props.tile.entity.split(".")[0]);
 const cp = computed(() => state.inventory.icons?.controls || {});
 const key = (n: string) => (cp.value[n] ? glyph(cp.value[n]) : "");
 const chosen = computed(() => isSelected(props.tile) && state.inspector?.kind === "tile");
-const live = computed(() => !props.placeholder && state.layout?.tiles.includes(props.tile));
+const live = computed(() => !props.placeholder && state.layout?.tiles.some((tile) => tile.id === props.tile.id));
 const label = computed(() => t("editor.tile_card.label", { name: name.value, slot: (props.slot % grid.slots) + 1, page: pageOf(props.slot) + 1 }));
 const now = computed(() => new Date(state.now));
 const hourAngle = computed(() => (now.value.getHours() % 12 + now.value.getMinutes() / 60) * 30);
 const minuteAngle = computed(() => now.value.getMinutes() * 6);
+const clockDate = computed(() => screenText('screen.date.full', {
+  weekday: screenText(`screen.date.weekdays.${now.value.getDay()}`),
+  day: now.value.getDate(),
+  month: screenText(`screen.date.months.${now.value.getMonth()}`),
+}));
 
 // ---- Live values ----
 const current = computed(() => (domain.value === "screen" ? null : liveOf(props.tile.entity)));
+const palette = computed(() => tilePalette(props.tile.entity, current.value));
 const gone = computed(() => !current.value || ["unavailable", "unknown", ""].includes(current.value.state));
-const on = computed(() => Boolean(current.value) && !gone.value && current.value!.state !== "off" && current.value!.state !== "closed" && current.value!.state !== "standby" && current.value!.state !== "idle" && current.value!.state !== "docked");
+const on = computed(() => tileActive(props.tile.entity, current.value));
 const isOn = computed(() => ["light", "switch", "input_boolean", "fan"].includes(domain.value) && current.value?.state === "on");
 const unit = computed(() => current.value?.a?.unit_of_measurement as string | undefined);
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");
@@ -90,8 +103,8 @@ const fill = computed(() => {
 // The key on a scene, script or button, and the page a navigation tile opens, as the screen labels them.
 const runText = computed(() => screenText(`screen.ha.button.${({ scene: "activate", script: "run" } as Record<string, string>)[domain.value] || "press"}`));
 const pageLink = computed(() => `${screenText("screen.tile.page", { n: goesTo.value })} ›`);
-const sliderStyle = computed(() => ({ background: `linear-gradient(to right, ${fill.value ? "#ffbf38" : "#c9ccd1"} ${fill.value}%, ${fill.value ? "#fff1d3" : "#e6e8ec"} ${fill.value}%)` }));
-const volumeStyle = computed(() => ({ background: `linear-gradient(to right, #2196f3 ${fill.value}%, #d3e8fb ${fill.value}%)` }));
+const sliderStyle = computed(() => ({ background: `linear-gradient(to right, ${palette.value.accent} ${fill.value}%, ${palette.value.track} ${fill.value}%)` }));
+const volumeStyle = sliderStyle;
 // The screens give a control that fills its room the content width of one cell, so its edges stand where the
 // cards above and below have theirs (runtime_tiles::cell_content_width); keys, a switch and a run key keep their
 // own size. A double-width card is two cells, so that is half its room minus the gap and the paddings.
@@ -103,7 +116,8 @@ const setpoint = computed(() => {
 });
 
 async function onKey(e: KeyboardEvent) {
-  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTile(props.tile); return; }
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); return; }
+  if (props.preview) return;
   // Up and down are a row of the screen's grid, whatever its columns; left and right one cell.
   const step = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -grid.columns, ArrowDown: grid.columns } as Record<string, number>)[e.key];
   if (!step) return;
@@ -117,10 +131,10 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="tile" :class="{ wide, full, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot"
-    :style="background && !bare ? { backgroundColor: background } : undefined"
-    :tabindex="live ? 0 : -1" :role="live ? 'button' : undefined" :aria-label="live ? label : undefined"
-    v-drag="{ kind: 'tile', tile }" @click="live && openTile(tile)" @keydown="live && onKey($event)">
+  <div class="tile" :class="{ wide, full, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id"
+    :style="{ ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
+    :tabindex="(preview ? goesTo : live) ? 0 : -1" :role="(preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
+    v-drag="preview ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
     <template v-if="display === 'analog'">
       <svg class="clockface" viewBox="0 0 60 60" aria-hidden="true">
         <circle cx="30" cy="30" r="27" fill="#fff" stroke="#c9ccd1" />
@@ -132,8 +146,11 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="wide" class="lead"><span class="tx"><span class="nm">{{ name }}</span><span class="st">{{ note }}</span></span></span>
     </template>
     <template v-else-if="display === 'digital' && domain === 'screen'">
-      <span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span>
-      <span class="lead"><span class="big">{{ clockText(clock24, now) }}</span><span class="nm">{{ name }}</span></span>
+      <span class="digital-clock"><span class="big">{{ clockText(clock24, now) }}</span><span class="st">{{ clockDate }}</span></span>
+    </template>
+    <template v-else-if="display === 'graph' && domain === 'sensor'">
+      <span class="head"><span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span><span class="tx"><span class="nm">{{ name }}</span><span class="st">{{ status }}</span></span></span>
+      <SensorHistory :entity="tile.entity" :hours="Number(tile.options?.history_hours || 24)" />
     </template>
     <template v-else-if="full">
       <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' || display === 'cover' }">{{ glyph(tileIconCp(tile)) }}</span>
@@ -151,7 +168,7 @@ async function onKey(e: KeyboardEvent) {
         <template v-else-if="controls === 'playback'"><span class="key mdi">{{ key("skip-previous") }}</span><span class="key mdi">{{ key(on ? "pause" : "play") || key("play") }}</span><span class="key mdi">{{ key("skip-next") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
         <span v-else-if="controls === 'run'" class="run">{{ runText }}</span>
-        <span v-else class="range" :style="{ background: `linear-gradient(to right, #2196f3 ${fill}%, #d3e8fb ${fill}%)` }"></span>
+        <span v-else class="range" :style="sliderStyle"></span>
       </span>
     </template>
     <template v-else-if="wide">
@@ -177,7 +194,7 @@ async function onKey(e: KeyboardEvent) {
         <template v-else-if="controls === 'buttons' && domain === 'vacuum'"><span class="key mdi">{{ key("play") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("home-map-marker") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'timer'"><span class="key mdi">{{ key("play") }}</span><span class="key mdi">{{ key("close") }}</span></template>
         <span v-else-if="controls === 'run'" class="run">{{ runText }}</span>
-        <span v-else class="range" :style="{ background: `linear-gradient(to right, #2196f3 ${fill}%, #d3e8fb ${fill}%)` }"></span>
+        <span v-else class="range" :style="sliderStyle"></span>
       </span>
     </template>
     <template v-else>
@@ -194,6 +211,14 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
     </template>
-    <button v-if="live" type="button" class="remove" :title="t('editor.tile_card.remove')" :aria-label="t('editor.tile_card.remove_named', { name })" @click.stop="removeTile(tile)">✕</button>
+    <button v-if="live && !preview" type="button" class="remove" :title="t('editor.tile_card.remove')" :aria-label="t('editor.tile_card.remove_named', { name })" @click.stop="removeTile(tile)">✕</button>
   </div>
 </template>
+
+<style scoped>
+.tile .ic:not(.thumb) { color: var(--tile-icon); background: var(--tile-circle); border-radius: 50%; padding: 5px; }
+.tile .tog:not(.off) { background: var(--tile-accent); }
+.digital-clock { display: grid; gap: 3px; align-content: center; text-align: center; min-width: 0; width: 100%; height: 100%; }
+.digital-clock .big { font-size: 28px; font-weight: 400; }
+.digital-clock .st { font-size: 9px; }
+</style>

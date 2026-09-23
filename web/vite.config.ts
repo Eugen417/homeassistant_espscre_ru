@@ -4,6 +4,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import { pageTexts, TRANSLATIONS } from "./translations";
+import { firmwareTheme } from "./firmware-theme";
 
 // Before vue-i18n's plugin compiles a file into the page's messages: only its page part goes in. Every language's
 // `_meta` (its name, plural rule, whether it is checked) comes with the page as virtual:esp-screens-languages, so the
@@ -41,7 +42,7 @@ export const translations = (runtimeOnly = true) =>
 // files change. `npm run dev` proxies /api to a running server (the demo home or SCREEN_DEV).
 export default defineConfig({
   base: "./",
-  plugins: [editorTexts(), translations(), vue()],
+  plugins: [editorTexts(), firmwareTheme(), translations(), vue()],
   // No vue-i18n devtools in the build; its other switches come from the plugin above.
   define: { __INTLIFY_PROD_DEVTOOLS__: false },
   build: {

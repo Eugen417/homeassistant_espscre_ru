@@ -5,6 +5,7 @@ it, ESP Screen Manager saved the layout and resent the whole screen, and the scr
 again while a finger was on a slider. Touch input stalled, and the GT911's stray (0, 0) contact became
 the finger's last position, so LVGL moved the slider to its end on release. Each link is checked here.
 """
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import re
@@ -42,20 +43,22 @@ class SettingEvents(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ha = test_scaling.fake_ha(firmware='0.2.47')
             ha.setting_events = []
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             m.save('text.screen', {'title': 'Studio', 'tiles': [{'entity': 'light.a', 'name': ''}],
                                    'settings': validate_settings({'standby_seconds': 86400})})
             ha.changed.set()
             await self.run_loop_for(m, 0.6)
             self.assertEqual([msg['op'] for _, msg, _ in ha.messages], ['layout', 'header', 'state'], 'first pass sends everything')
             ha.messages.clear()
-            stored = m.layouts['text.screen']
+            stored = m.store.get('text.screen')
+            persisted = m.path.read_bytes()
             # An automation sets "Standby after" to 86400 on every light change; the screen reports it.
             ha.setting_events.append({'inbox': 'text.screen', 'key': 'standby_seconds', 'value': '86400'})
             ha.changed.set()
             await self.run_loop_for(m, 0.6)
             self.assertEqual(ha.messages, [], 'nothing changed: no resend of the whole screen')
-            self.assertIs(m.layouts['text.screen'], stored, 'and no save')
+            self.assertEqual(m.store.get('text.screen'), stored, 'and no saved revision change')
+            self.assertEqual(m.path.read_bytes(), persisted, 'and no storage rewrite')
             self.assertEqual(ha.setting_events, [], 'the event is handled all the same')
             # A real change is kept (app 0.2.57), and not sent back: the screen has it already, and an echo that
             # arrives after the screen stepped further would undo that step (a held + on its settings page).
@@ -95,13 +98,12 @@ class Firmware(unittest.TestCase):
             self.assertNotIn('runtime_tiles::setting_event("', text, f'{name}: settings are reported through set() only')
 
     def test_a_repeated_layout_does_not_redraw_the_page(self):
-        block = RUNTIME[RUNTIME.index('if (op == "layout")'):RUNTIME.index('if (op == "ping")')]
-        guard = re.search(r'if \((.*)\) \{\s+if \(layout_changed\) layout_changed\(\);\s+refresh_all\(\);\s+\}', block)
-        self.assertTrue(guard, 'layout_changed/refresh_all must only run for a layout that differs')
-        for reason in ('changed', 'moved', '!was_configured', 'rotation_changed', 'model.pages != previous_pages',
-                       'model.title != previous_title'):
-            self.assertIn(reason, guard[1])
-        self.assertEqual(block.count('layout_changed()'), 1)
+        block = RUNTIME[RUNTIME.index('if (op == "begin")'):RUNTIME.index('if (op == "ping")')]
+        unchanged = block.index('if (begin == page_protocol::Begin::unchanged)')
+        self.assertLess(unchanged, block.index('cancel_layout_input();'))
+        self.assertLess(unchanged, block.index('model.begin('))
+        commit = RUNTIME[RUNTIME.index('if (op == "commit")'):RUNTIME.index('if (op == "camera")')]
+        self.assertLess(commit.index('if (transfer.active && model.ready())'), commit.index('layout_changed()'))
 
     def test_the_guition_hides_the_stray_gt911_contact_from_lvgl_and_the_edge_swipe(self):
         for name in ('checkout/guition.yaml', 'packages/guition.yaml'):

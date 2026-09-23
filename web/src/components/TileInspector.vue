@@ -4,7 +4,7 @@ import { computed, ref, toRaw } from "vue";
 import { t } from "../i18n";
 import { domainInfo, entriesOf, grid, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, markDirty, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, setTileName, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -129,8 +129,7 @@ const backgrounds = computed(() => Object.entries(state.inventory.backgrounds ||
 const fromHA = computed(() => Boolean(state.inventory.entities.find((e) => e.id === props.tile.entity)?.icon));
 const showIcon = computed(() => Boolean(state.inventory.icons) && (domain.value !== "screen" || goesTo.value > 0) && !["forecast", "sunpath"].includes(display.value));
 function rename(value: string) {
-  props.tile.name = value;
-  markDirty();
+  setTileName(props.tile, value);
 }
 function inspect() {
   state.inspector = { kind: "inspect", entity: props.tile.entity };

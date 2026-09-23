@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // The top bar: the name on the left; on the right up to six items: the time, an analog clock, the date, or an
-// entity's state or last change. Choices apply live; the bar on every page follows.
+// entity's state or last change. Edits belong to the selected page.
 import { computed, ref } from "vue";
 import { t } from "../i18n";
 import { entriesOf, pageCount } from "../model/layout";
@@ -8,15 +8,17 @@ import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from ".
 import {
   automaticIcon, barMetrics, clock24, closeInspector, entityName, iconNamed, markDirty, moveTopbarItem, openBar, openBarAdd,
   removeTopbarItem, screenLanguage, screenText, setTopbarItems, state, supports, topbarItems, topbarLabel, topbarMax, topbarView, pageTitle,
-  pageTitleShown, screenTitle, setPageTitle, setScreenTitle,
+  pageTitleShown, screenTitle, setPageTitle, setScreenTitle, pageReady,
 } from "../store";
 import type { HeaderItem } from "../types";
 import IconPicker from "./IconPicker.vue";
 import Segmented from "./Segmented.vue";
 import TopbarSvg from "./TopbarSvg.vue";
+import CopyPageBar from './CopyPageBar.vue';
 
 const props = defineProps<{ index: number }>();
-const items = computed(() => topbarItems());
+const draggedItems = ref<HeaderItem[] | null>(null);
+const items = computed(() => draggedItems.value || topbarItems());
 const item = computed<HeaderItem | undefined>(() => items.value[props.index]);
 const lay = computed(() => {
   void state.fontsVersion; void state.now; void state.topbarPreviews;
@@ -102,7 +104,7 @@ function move(e: PointerEvent) {
   if (target !== drag.value.index && state.layout) {
     const list = [...items.value];
     list.splice(target, 0, ...list.splice(drag.value.index, 1));
-    state.layout.header = { items: list };
+    draggedItems.value = list;
     const selectedMoved = props.index === drag.value.index;
     drag.value.index = target;
     drag.value.moved = true;
@@ -118,8 +120,9 @@ function end(e: PointerEvent) {
   document.removeEventListener("touchmove", block);
   if (drag.value.active) {
     suppressUntil = Date.now() + 400;
-    if (drag.value.moved) markDirty();
+    if (drag.value.moved && e.type !== "pointercancel" && draggedItems.value) setTopbarItems(draggedItems.value);
   }
+  draggedItems.value = null;
   drag.value = { index: -1, active: false, moved: false };
   start = null; pointerId = null;
 }
@@ -144,6 +147,8 @@ function onKey(e: KeyboardEvent, i: number) {
     <button type="button" class="icon-btn" :aria-label="t('editor.common.close')" @click="closeInspector">✕</button>
   </div>
   <div class="dr-body">
+    <CopyPageBar v-if="pageReady && state.document && pages > 1" :page-id="state.document.pages[page].id" />
+    <small v-if="!pageReady" class="warn">{{ t('editor.pages.shared_bar') }}</small>
     <div class="f">
       <label class="f-label" for="screen-title">{{ pages > 1 ? t("editor.topbar.screen_name") : t("editor.topbar.name") }}</label>
       <input id="screen-title" :value="screenTitle()" maxlength="60" :aria-describedby="pages > 1 ? 'screen-title-hint' : undefined"

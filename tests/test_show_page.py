@@ -39,7 +39,7 @@ class ShowPage(unittest.TestCase):
             self.assertIn('id(wake_display).execute();', block, name)
             # The settings page and every card close, as go_home does; the page is drawn the way a swipe draws it.
             self.assertIn('settings_screen::close();', block, name)
-            self.assertIn('id(show_tile_page).execute();', block, name)
+            self.assertIn('runtime_tiles::go_to_page(std::clamp((int) page, 1, pages) - 1, false);', block, name)
             # 1 is the first page, and a number past the last page lands on the last page, never outside.
             self.assertIn('std::clamp((int) page, 1, pages) - 1', block, name)
             self.assertIn('runtime_tiles::page_count()', block, name)

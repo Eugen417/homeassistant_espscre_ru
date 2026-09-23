@@ -5,7 +5,7 @@
 // drop off the grid changes nothing. A finished drag never doubles as a click.
 import type { Directive } from "vue";
 import { arrange, entriesOf, newTile, pageOrder, reorderPages } from "./model/layout";
-import { markDirty, movePage, pagesShown, placeTile, state } from "./store";
+import { commitArrangement, loadCapabilities, movePage, pagesShown, placeTile, state } from "./store";
 import type { Tile } from "./types";
 
 export type DragSource = { kind: "tile"; tile: Tile } | { kind: "entity"; id: string } | { kind: "page"; page: number };
@@ -16,12 +16,12 @@ type Drag = {
 };
 const drag: Drag = { source: null, element: null, ghost: null, timer: 0, start: null, offset: { x: 0, y: 0 }, pointerId: null, suppressUntil: 0, last: null, scroller: 0, target: null };
 
-export const vDrag: Directive<HTMLElement, DragSource> = {
+export const vDrag: Directive<HTMLElement, DragSource | null> = {
   mounted(element, binding) {
     (element as any).__dragSource = binding.value;
     element.addEventListener("pointerdown", (e: PointerEvent) => {
       const source = (element as any).__dragSource as DragSource;
-      if (e.button !== 0 || (element as HTMLButtonElement).disabled || (e.target as HTMLElement).closest(".remove")) return;
+      if (!source || e.button !== 0 || (element as HTMLButtonElement).disabled || (e.target as HTMLElement).closest(".remove")) return;
       // No text selection while the mouse drags; touch keeps its default so the page can scroll.
       if (e.pointerType !== "touch") e.preventDefault();
       Object.assign(drag, { source, element, start: { x: e.clientX, y: e.clientY }, pointerId: e.pointerId });
@@ -190,14 +190,7 @@ function endDrag(drop: boolean) {
     return;
   }
   if (drop && preview && moving && state.layout) {
-    const before = state.layout.tiles.map((t) => `${t.entity}@${t.slot}`).join();
-    // By the tile itself, not its entity: a screen can have several tiles that go to the same page (firmware 0.2.65).
-    const added = !state.layout.tiles.includes(moving);
-    for (const { tile, slot } of preview) { tile.slot = slot; if (!state.layout.tiles.includes(tile)) state.layout.tiles.push(tile); }
-    state.layout.tiles.sort((a, b) => a.slot - b.slot);
-    if (state.layout.tiles.map((t) => `${t.entity}@${t.slot}`).join() !== before) markDirty();
-    // Placing goes through the same rules as a click; a new tile also asks for its capabilities.
-    if (added) placeTile(moving, moving.slot);
+    if (commitArrangement(preview)) loadCapabilities([moving.entity]);
   }
 }
 window.addEventListener("click", (e) => { if (Date.now() < drag.suppressUntil) { e.stopPropagation(); e.preventDefault(); } }, true);

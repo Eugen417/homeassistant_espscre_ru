@@ -8,6 +8,7 @@ now falls back to that. Only a plain X.Y.Z counts, as before: "0.2.65-dev" is no
 Each screen in the inventory says what that means for the editor: `firmware_known`, `tile_limit`, `full_page` and
 `page_tiles_repeat` (the contract with web/src/store.ts).
 """
+from manager_fixtures import with_screen_grid
 import importlib.util
 from pathlib import Path
 import sys
@@ -91,7 +92,7 @@ class Saving(unittest.IsolatedAsyncioTestCase):
             ha.devices[0]['sw_version'] = sw_version
         if not online:
             ha.states['text.screen']['state'] = 'unavailable'
-        return Manager(ha, Path(tmp) / 'screens.json')
+        return Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
 
     async def test_an_offline_screen_keeps_its_features(self):
         with tempfile.TemporaryDirectory() as tmp:

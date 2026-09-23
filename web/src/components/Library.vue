@@ -2,12 +2,13 @@
 // The entities a tile can show, with a search, a filter per domain and per room, and a switch that hides what is
 // already on the screen. A click adds the entity to the marked empty cell or the first free one; a drag puts it
 // exactly where it lands.
-import { computed, ref } from "vue";
+import { computed, ref, watch } from "vue";
 import { vDrag } from "../drag";
 import { t } from "../i18n";
 import { domainInfo } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { addTile, automaticIcon, pictures, repeatable, state, tileLimit } from "../store";
+import { tilePalette } from "../model/tile-palette";
+import { addTile, automaticIcon, liveOf, loadLibraryStates, pictures, repeatable, state, tileLimit } from "../store";
 
 // The domains to filter on; the label of each is editor.library.filters.<domain>, "all" for no filter.
 const FILTERS = [
@@ -38,6 +39,10 @@ const pool = computed(() => {
 });
 const inDomain = (id: string, filter: string) => !filter || id.startsWith(filter + ".") || ALIAS[filter] === id.split(".")[0];
 const matches = computed(() => pool.value.filter((e) => inDomain(e.id, state.filter)));
+watch(() => [matches.value.slice(0, 80).map((entity) => entity.id).join('|'), Math.floor(state.now / 60000)], (_, __, cleanup) => {
+  const timer = window.setTimeout(() => loadLibraryStates(matches.value.slice(0, 80).map((entity) => entity.id)), 180);
+  cleanup(() => clearTimeout(timer));
+}, { immediate: true });
 // The domains the results actually hold, so searching narrows the chips the way it narrows the list: type
 // "temperature" and Climate is one of the few left standing instead of the third of nineteen. The chosen one stays
 // on show even when nothing matches it any more, otherwise an empty list would have nothing to explain it.
@@ -69,7 +74,7 @@ const tone = (e: { id: string; state?: string }) => {
       <input id="search" v-model="state.search" type="search" :placeholder="t('editor.library.search')" autocomplete="off" :aria-label="t('editor.library.search_label')" />
       <div class="filters" id="filters">
         <button v-for="value in shown" :key="value" type="button" :aria-pressed="state.filter === value ? 'true' : 'false'" @click="state.filter = value">
-          <span v-if="value" class="domain-icon" :style="{ color: domainInfo(value + '.')[2], background: domainInfo(value + '.')[3] }" aria-hidden="true">{{ domainInfo(value + ".")[1] }}</span>{{ t(`editor.library.filters.${value || "all"}`) }}
+          <span v-if="value" class="domain-icon mdi" :style="{ color: domainInfo(value + '.')[2], background: domainInfo(value + '.')[3] }" aria-hidden="true">{{ glyph(automaticIcon(value + ".")) }}</span>{{ t(`editor.library.filters.${value || "all"}`) }}
         </button>
         <button v-if="folded || filtersOpen" type="button" class="more" id="more-filters" :aria-expanded="filtersOpen ? 'true' : 'false'"
           @click="filtersOpen = !filtersOpen">{{ filtersOpen ? t("editor.library.fewer") : t("editor.library.more", { n: folded }) }}</button>
@@ -85,7 +90,7 @@ const tone = (e: { id: string; state?: string }) => {
     <div class="lib-list" id="results" aria-live="polite">
       <button v-for="entity in matches.slice(0, 80)" :key="entity.id" type="button" class="ent" :title="entity.id"
         :disabled="placed(entity.id) || full" v-drag="{ kind: 'entity', id: entity.id }" @click="addTile(entity.id)">
-        <span class="av mdi" :class="tone(entity)" :style="{ color: domainInfo(entity.id)[2], background: domainInfo(entity.id)[3] }">{{ state.inventory.icons ? glyph(automaticIcon(entity.id)) : domainInfo(entity.id)[1] }}</span>
+        <span class="av mdi" :class="tone(entity)" :style="{ color: tilePalette(entity.id, liveOf(entity.id)).icon, background: tilePalette(entity.id, liveOf(entity.id)).circle }">{{ glyph(automaticIcon(entity.id)) }}</span>
         <span class="tx">
           <b>{{ entity.name }}</b>
           <small>{{ [domainInfo(entity.id)[0], entity.area, entity.device].filter(Boolean).join(" · ") }}</small>

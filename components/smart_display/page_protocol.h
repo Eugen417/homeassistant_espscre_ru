@@ -1,0 +1,173 @@
+#pragma once
+#include <array>
+#include <cstdint>
+#include <string>
+#include <vector>
+#include "header_bar.h"
+#include "layout_memory.h"
+
+// The page configuration and transport guard contain no LVGL or HA dependencies.
+// A page has one bar. There is no inherited/global bar and no legacy decoder.
+namespace page_protocol {
+constexpr unsigned VERSION = 2;
+constexpr unsigned MAX_PAGES = 8;
+constexpr unsigned MAX_TILES = 64;
+
+inline bool key(const std::string &text, uint64_t &out) {
+  if (text.size() != 16) return false;
+  uint64_t value = 0;
+  for (char c : text) {
+    if (!((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'))) return false;
+    value = (value << 4) | static_cast<unsigned>(c <= '9' ? c - '0' : c - 'a' + 10);
+  }
+  out = value;
+  return true;
+}
+
+struct Page {
+  uint64_t id = 0;
+  // Empty means the explicitly selected screen-title source. Custom titles are nonempty.
+  std::string title;
+  header_bar::Bar bar;
+  bool home_control = false;
+  bool excluded = false;
+};
+
+struct Pages {
+  layout_memory::Vector<Page> records;
+  uint8_t home = 0;
+
+  int index_of(uint64_t id) const {
+    for (size_t i = 0; i < records.size(); ++i) if (records[i].id == id) return static_cast<int>(i);
+    return -1;
+  }
+  bool included(int index) const {
+    return index >= 0 && static_cast<size_t>(index) < records.size() && !records[index].excluded;
+  }
+  unsigned count() const {
+    unsigned result = 0;
+    for (const auto &page : records) if (!page.excluded) ++result;
+    return result;
+  }
+  int ordinal(int index) const {
+    if (!included(index)) return -1;
+    int result = -1;
+    for (int i = 0; i <= index; ++i) if (included(i)) ++result;
+    return result;
+  }
+  int step(int index, int direction) const {
+    if (!included(index) || (direction != -1 && direction != 1)) return index;
+    for (int i = index + direction; i >= 0 && static_cast<size_t>(i) < records.size(); i += direction)
+      if (included(i)) return i;
+    return index;
+  }
+  int restore(uint64_t previous, bool had_previous) const {
+    const int found = had_previous ? index_of(previous) : -1;
+    return found >= 0 ? found : home;
+  }
+  bool footer(bool page_buttons) const {
+    // Reserve the same room on every page. When hidden, detail pages offer
+    // Back through the leading top-bar control instead.
+    return records.size() > 1 && page_buttons;
+  }
+  bool detail(int index) const {
+    return index >= 0 && static_cast<size_t>(index) < records.size() && records[index].excluded;
+  }
+};
+
+// Only page IDs, never a second configuration or tile data. Home starts a new
+// route; Back pops it. IDs survive reordering and deleted destinations are skipped.
+struct NavigationHistory {
+  std::array<uint64_t, MAX_PAGES> ids{};
+  uint8_t size = 0;
+  void clear() { size = 0; }
+  void push(const Pages &pages, int from, int to) {
+    if (from == to || from < 0 || static_cast<size_t>(from) >= pages.records.size()) return;
+    if (size == ids.size()) {
+      for (unsigned i = 1; i < size; ++i) ids[i - 1] = ids[i];
+      --size;
+    }
+    ids[size++] = pages.records[from].id;
+  }
+  int target(const Pages &pages, int current) const {
+    for (unsigned i = size; i > 0; --i) {
+      const int found = pages.index_of(ids[i - 1]);
+      if (found >= 0 && found != current) return found;
+    }
+    return pages.home;
+  }
+  int pop(const Pages &pages, int current) {
+    while (size) {
+      const int found = pages.index_of(ids[--size]);
+      if (found >= 0 && found != current) return found;
+    }
+    return pages.home;
+  }
+};
+
+enum class Packet : uint8_t { reject, duplicate, accept };
+enum class Begin : uint8_t { reject, unchanged, replace };
+
+// A fresh hello grants a device-generated lease. A delayed begin from a prior
+// sender cannot take it over. One serialized sender and one monotonic sequence
+// cover every indexed operation, avoiding per-tile sequence arrays on the board.
+// The caller only advances the sequence after validating and applying a packet.
+struct Transfer {
+  uint64_t lease = 0, hello_id = 0, revision = 0;
+  uint64_t tiles = 0;
+  uint32_t sequence = 0, digest = 0;
+  uint8_t pages = 0, expected_pages = 0, expected_tiles = 0;
+  bool granted = false, begun = false, active = false;
+
+  uint64_t grant(uint64_t request, uint64_t random_token) {
+    if (granted && request == hello_id) return lease;
+    hello_id = request;
+    lease = random_token;
+    granted = true;
+    begun = false;
+    sequence = digest = 0;
+    return lease;
+  }
+  Packet packet(uint64_t token, uint32_t next, uint32_t hash) const {
+    if (!granted || token != lease || next == 0 || next < sequence) return Packet::reject;
+    if (next == sequence) return hash == digest ? Packet::duplicate : Packet::reject;
+    return Packet::accept;
+  }
+  void accepted(uint32_t next, uint32_t hash) { sequence = next; digest = hash; }
+  Begin begin(uint64_t rev, unsigned page_count, unsigned tile_count) {
+    if (!granted || page_count == 0 || page_count > MAX_PAGES || tile_count > MAX_TILES) return Begin::reject;
+    // A session has only one begin. Repeating its exact packet is handled by packet().
+    if (begun) return Begin::reject;
+    begun = true;
+    if (active && revision == rev && expected_pages == page_count && expected_tiles == tile_count)
+      return Begin::unchanged;
+    active = false;
+    revision = rev;
+    expected_pages = static_cast<uint8_t>(page_count);
+    expected_tiles = static_cast<uint8_t>(tile_count);
+    pages = 0;
+    tiles = 0;
+    return Begin::replace;
+  }
+  bool matches(uint64_t rev) const { return begun && revision == rev; }
+  bool page(unsigned index) {
+    if (!begun || active || index >= expected_pages || (pages & (1u << index))) return false;
+    pages |= static_cast<uint8_t>(1u << index);
+    return true;
+  }
+  bool tile(unsigned index) {
+    if (!begun || active || index >= expected_tiles || (tiles & (uint64_t{1} << index))) return false;
+    tiles |= uint64_t{1} << index;
+    return true;
+  }
+  bool complete() const {
+    const uint64_t wanted = expected_tiles == 64 ? UINT64_MAX : (uint64_t{1} << expected_tiles) - 1;
+    return begun && expected_pages && pages == (1u << expected_pages) - 1 && tiles == wanted;
+  }
+  bool commit() {
+    if (!complete()) return false;
+    active = true;
+    return true;
+  }
+};
+}  // namespace page_protocol

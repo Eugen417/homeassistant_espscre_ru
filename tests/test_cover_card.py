@@ -7,6 +7,7 @@
   Assistant showed "unknown" and ESP Screens could not change it.
 - While a screen restarts its device name sensor reads "unavailable", which the app took for the device name.
 """
+from manager_fixtures import with_screen_grid
 import importlib.util
 import re
 import sys
@@ -81,7 +82,7 @@ class CoverSync(unittest.IsolatedAsyncioTestCase):
             ha = test_scaling.fake_ha(firmware='0.2.50')
             ha.registry = ha.registry + [{**item} for item in device]
             ha.states.update(states)
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': BLIND, 'name': ''}]})
             self.assertIn('sensor.venetianblind_0001_batterij', m.watched_entities(), 'a battery change wakes the sync')
             self.assertEqual(m.related_entities({'entity': BLIND}), ('sensor.venetianblind_0001_batterij',))

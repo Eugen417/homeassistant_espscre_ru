@@ -1,3 +1,4 @@
+import { seedLayout, seedTiles, seedPages, seedTitles, appendTiles, screenFixture, documentFixture, current } from "./page-fixtures";
 // The editor's texts (app 0.2.90): English from en.json with the page, another language when it is needed, the plural
 // rules of the screens, and which language the page, the add-on's answers and the mockup speak.
 import { mount } from "@vue/test-utils";
@@ -35,7 +36,7 @@ describe("English", () => {
   it("comes with the page: the editor's texts and the screens' words the mockup draws, and every language's _meta", () => {
     // The build keeps the rest of the screens' texts and the add-on's out (vite.config.ts); the tests import it the same way.
     expect(Object.keys(en).sort()).toEqual(["editor", "screen"]);
-    expect(Object.keys((en as any).screen).sort()).toEqual(["date", "ha", "number", "tile", "time"]);
+    expect(Object.keys((en as any).screen).sort()).toEqual(["date", "ha", "navigation", "number", "tile", "time"]);
     expect(Object.keys((en as any).screen.tile)).toEqual(["page"]);
     expect(languageMeta("en")?.plural).toBe("one_other");
     expect(languages()[0]).toBe("en");
@@ -186,7 +187,7 @@ describe("the mockup speaks the screens' language", () => {
       language: { setting: "td", effective: "td", ha: "en", languages: [], numbers: "auto", numbers_effective: "comma", group_min: 2 },
       controls: { script: { default: "run", choices: [{ key: "run", label: "Run" }, { key: "none", label: "None" }] } },
     } as any;
-    state.layout = { title: "Living room", tiles: [] };
+    seedLayout({ title: "Living room", tiles: [] });
     state.liveStates = {
       "light.c": { state: "on", word: null, a: {} },
       "weather.home": { state: "windy-variant", word: null, a: { temperature: 12.5 } },
@@ -196,7 +197,7 @@ describe("the mockup speaks the screens' language", () => {
     };
     const card = (entity: string, slot: number, options?: Record<string, unknown>) => {
       const tile = { entity, name: "", slot, ...(options ? { options } : {}) };
-      state.layout!.tiles.push(tile);
+      appendTiles(tile);
       return mount(TileCard, { props: { tile, slot } });
     };
     const gone = card("light.b", 0);

@@ -1,5 +1,6 @@
 """The media card (app 0.2.77, firmware 0.2.64): what the app pre-computes for it, and the album cover the app serves
 like a camera image (camera_feed), at the size the card asks for, with the corners rounded over the colour behind them."""
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import io
@@ -240,7 +241,7 @@ class Answer(unittest.TestCase):
 
     def manager(self, ha):
         import tempfile
-        manager = Manager(ha, Path(tempfile.mkdtemp()) / 'screens.json')
+        manager = Manager(with_screen_grid(ha), Path(tempfile.mkdtemp()) / 'screens.json')
         manager.save('text.hall_tile_settings', {'title': 'Hall', 'tiles': [{'entity': 'media_player.office', 'name': ''}, {'entity': 'media_player.radio', 'name': ''}]})
         return manager
 

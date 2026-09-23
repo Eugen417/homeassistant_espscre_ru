@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens not active",
       "choose_tiles": "Choose tiles in HA",
       "home": "Home",
-      "no_network": "No network"
+      "no_network": "No network",
+      "configuration_problem": "Configuration problem.\nUpdate add-on.",
+      "configuration_version": "Configuration problem.\nCheck screen and add-on versions."
     },
     "settings": {
       "title": "Settings",
@@ -125,7 +127,7 @@
       "ends": "Ends",
       "night_brightness": "Night brightness",
       "night_lit": "Screen on at night",
-      "back_to_page_1": "Back to page 1",
+      "back_to_page_1": "Back to Home",
       "after": "After",
       "also_on_standby": "Also on standby",
       "swipe_between_pages": "Swipe between pages",
@@ -412,6 +414,9 @@
         "vertical": "Vertical",
         "horizontal": "Horizontal"
       }
+    },
+    "navigation": {
+      "back": "Back"
     }
   },
   "addon": {
@@ -601,6 +606,8 @@
     "status": {
       "first_tiles": "Choose your first tiles",
       "saved": "Saved; waiting for sync",
+      "applying": "Applying layout",
+      "applied": "Layout applied",
       "firmware_needed": "Layout saved; firmware {version}+ needed for these tiles",
       "too_large": "Layout saved; too large for one message to the screen, remove a few tiles",
       "sent": "Sent to Home Assistant",
@@ -1148,7 +1155,6 @@
       "saved": {
         "current": "Saved. Your screen is being updated.",
         "other": "Saved. {name} is being updated.",
-        "other_unnamed": "Saved. The screen is being updated.",
         "newer_edit": "Saved. Your newest change isn't sent yet: press Save & send again."
       },
       "identified": "{name} blinks and shows a card for a few seconds.",
@@ -1183,11 +1189,8 @@
       "no_free_page": "No page is free for a full-page tile. Free a page first.",
       "page_taken": "This screen already has a tile that goes to page {page}.",
       "copied": "Layout of {name} copied. Save & send when it looks right.",
-      "copied_part": "Layout of {name} copied: {kept} of {total} tiles fit this screen's firmware. Save & send when it looks right.",
       "imported": "Layout imported. Save & send when it looks right.",
-      "imported_part": "Layout imported: {kept} of {total} tiles fit this screen's firmware. Save & send when it looks right.",
       "not_json": "That isn't JSON. Export a layout first, or paste one from another ESP Screens.",
-      "no_tiles_in_file": "No tiles in this file. Expected a layout exported from ESP Screens.",
       "count": "{n} page · {tiles} / {limit} tiles | {n} pages · {tiles} / {limit} tiles",
       "no_tiles": "Add your first light, scene, or device from the library.",
       "how_to": "Tap the top bar or a tile to change it. Drag to move; drop on the next page for a new one.",
@@ -1516,7 +1519,7 @@
         "night_end": "Ends",
         "night_brightness": "Night brightness",
         "night_lit": "Screen on at night",
-        "auto_home": "Back to page 1",
+        "auto_home": "Back to Home",
         "auto_home_seconds": "After",
         "home_on_standby": "Also on standby",
         "swipe_pages": "Swipe between pages",
@@ -1544,16 +1547,7 @@
       },
       "other_screen_busy": "Still saving the other screen's settings. Try again in a moment.",
       "reach": {
-        "intro": "Page buttons and swiping are off, so only Go to page tiles change the page.",
-        "pages": "page {list} | pages {list}",
-        "tiles": "You have {n} Go to page tile, to {targets}. | You have {n} Go to page tiles, to {targets}.",
-        "tiles_missing_one": "You have {n} Go to page tile, to {targets}, but none to {missing}, so you can't reach it. | You have {n} Go to page tiles, to {targets}, but none to {missing}, so you can't reach it.",
-        "tiles_missing_more": "You have {n} Go to page tile, to {targets}, but none to {missing}, so you can't reach them. | You have {n} Go to page tiles, to {targets}, but none to {missing}, so you can't reach them.",
-        "none": "You have no Go to page tiles.",
-        "none_missing_one": "You have no Go to page tiles to {missing}, so you can't reach it.",
-        "none_missing_more": "You have no Go to page tiles to {missing}, so you can't reach them.",
-        "cut_off": "The tiles to {pages} are only on pages you can't reach.",
-        "no_way_back": "From {pages} no tile leads back to page 1."
+        "pages": "page {list} | pages {list}"
       },
       "status": {
         "offline": "This screen is offline. Its settings can change once it's back.",
@@ -1947,6 +1941,76 @@
     "mockup": {
       "home": "Home",
       "unknown": "Unknown"
+    },
+    "pages": {
+      "mode": "Editor mode",
+      "simple": "Simple",
+      "advanced": "Advanced",
+      "redo": "Redo",
+      "title": "Page title",
+      "title_hint": "Leave empty to use the screen title.",
+      "is_home": "Home page",
+      "set_home": "Set as Home",
+      "drag_home": "Home page. Drag to another page to move Home.",
+      "exclude": "Do not show in page navigation",
+      "exclude_hint": "Direct links still open this page. Back appears in the bottom bar, or replaces Home when that bar is hidden.",
+      "home_control": "Show a Home control on this page",
+      "edit_topbar": "Edit this page’s top bar",
+      "order": "Page order",
+      "order_hint": "Numeric Show page commands follow this order. Named page links keep their destination.",
+      "map_position": "Position on the map",
+      "left": "Move left",
+      "up": "Move up",
+      "down": "Move down",
+      "right": "Move right",
+      "routes": "Page connections",
+      "no_routes": "No navigation tiles link to or from this page.",
+      "edit_page": "Edit page",
+      "copy_conflict": "A full copy would duplicate entities already on this screen. You can create an empty page with the same top bar.",
+      "duplicate": "Duplicate page",
+      "empty_copy": "New empty page with this top bar",
+      "position_occupied": "A page is already in that map position.",
+      "map_hint": "Move pages to organize this map. Page order stays the same.",
+      "arrange": "Arrange from Home",
+      "zoom_out": "Zoom out",
+      "zoom_in": "Zoom in",
+      "choose_destination": "Choose the destination page.",
+      "move_map": "Move {name} on the map",
+      "change_destination": "Change a navigation tile’s destination on {name}",
+      "deeplink": "Deeplink",
+      "page_settings": "Page settings",
+      "back_map": "Back to map",
+      "wait_grid": "Connect this screen to load its verified grid before editing.",
+      "update_notice": "Update screen to use the new titlebar and layout",
+      "conflict": "Another editor saved changes. Your draft is still here. Review the latest saved layout before saving again.",
+      "shared_bar": "This screen still uses shared top-bar items. Changes to these items apply to every page until the firmware is updated.",
+      "unreachable": "From Home there is no route to {pages}. Add a navigation tile or include the page in page navigation.",
+      "no_way_home": "From {pages} there is no route back to Home. Add a return tile or enable the Home control.",
+      "navigation": "Page navigation",
+      "previous": "Previous page",
+      "next": "Next page",
+      "go_home": "Go Home",
+      "try_navigation": "Try navigation",
+      "preview_hint": "Preview only. Page links work here; entity controls do not operate devices.",
+      "swipe_previous": "Swipe to previous page",
+      "swipe_next": "Swipe to next page",
+      "copy_bar": "Copy a top bar",
+      "copy_from": "From page",
+      "copy_to": "To selected pages",
+      "copy_content": "Copy",
+      "copy_items": "Items only, keep titles and Home controls",
+      "copy_whole": "Whole bar, including title and Home control",
+      "copy_apply": "Copy to selected pages",
+      "history_label": "Recorder history, {hours} hours",
+      "history_loading": "Loading history…",
+      "history_empty": "No recorded history",
+      "grid_changed": "The screen grid has changed. Review tile positions before saving or sending.",
+      "grid_review": "Review grid adaptation",
+      "grid_review_hint": "Compare the saved positions on the left with the proposed positions on the right. Every tile stays on its original page. Nothing is sent until you save.",
+      "grid_accept": "Use these positions",
+      "selected_full": "This page is full. Select an empty cell on another page.",
+      "choose_page": "Page",
+      "all_connections": "All connections"
     }
   }
 }

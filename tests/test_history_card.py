@@ -3,6 +3,7 @@
 Numbers: 24 time-weighted averages, the highest and lowest moment, an axis in round steps for every kind of unit.
 States: a timeline in runs of slots with Home Assistant's words and the time in each state.
 """
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import json
@@ -294,7 +295,7 @@ class Requests(unittest.IsolatedAsyncioTestCase):
             return [(now - hours * 3600, 'off'), (now - 1800, 'on'), (now - 1500, 'off')] if entity == 'binary_sensor.door' else \
                 [(now - hours * 3600, '21.0'), (now - 600, '22.5')]
         ha.statistic_rows, ha.state_changes = statistic_rows, state_changes
-        m = Manager(ha, Path(tmp) / 'screens.json')
+        m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
         m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'sensor.t', 'name': ''}, {'entity': 'binary_sensor.door', 'name': ''},
                                                               {'entity': 'light.a', 'name': ''}]})
         return m
@@ -376,7 +377,7 @@ class Firmware(unittest.TestCase):
         request = request[:request.index('\n}\n')]
         self.assertIn('request.service = esphome::StringRef("esphome.screen_history");', request)
         self.assertIn('request.is_event = true;', request, 'an event needs no permission to call actions')
-        self.assertIn('const std::string keys[] = {"inbox", "entity", "hours"}', request)
+        self.assertIn('const std::string keys[] = {"inbox", "entity", "hours", "session", "rev", "view"}', request)
         receive = RUNTIME[RUNTIME.index('if (op == "history") {'):]
         receive = receive[:receive.index('#ifdef SWIPE_PROFILE')]
         self.assertIn('if (next.entity != history_asked_entity || next.hours != history_asked_hours) {', receive)

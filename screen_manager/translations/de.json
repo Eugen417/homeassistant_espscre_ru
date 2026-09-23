@@ -125,7 +125,7 @@
       "ends": "Endet",
       "night_brightness": "Helligkeit nachts",
       "night_lit": "Bildschirm nachts an",
-      "back_to_page_1": "Zurück zu Seite 1",
+      "back_to_page_1": "Zurück zur Startseite",
       "after": "Nach",
       "also_on_standby": "Auch im Standby",
       "swipe_between_pages": "Zwischen Seiten wischen",
@@ -412,6 +412,9 @@
         "vertical": "Vertikal",
         "horizontal": "Horizontal"
       }
+    },
+    "navigation": {
+      "back": "Zurück"
     }
   },
   "addon": {
@@ -1148,7 +1151,6 @@
       "saved": {
         "current": "Gespeichert. Dein Bildschirm wird aktualisiert.",
         "other": "Gespeichert. {name} wird aktualisiert.",
-        "other_unnamed": "Gespeichert. Der Bildschirm wird aktualisiert.",
         "newer_edit": "Gespeichert. Deine neueste Änderung ist noch nicht gesendet: Drücke noch einmal auf „Speichern & senden“."
       },
       "identified": "{name} blinkt und zeigt ein paar Sekunden lang eine Karte.",
@@ -1183,11 +1185,8 @@
       "no_free_page": "Keine Seite ist frei für eine ganzseitige Kachel. Mach zuerst eine Seite frei.",
       "page_taken": "Dieser Bildschirm hat schon eine Kachel, die zu Seite {page} führt.",
       "copied": "Layout von {name} kopiert. Drücke „Speichern & senden“, wenn alles passt.",
-      "copied_part": "Layout von {name} kopiert: {kept} von {total} Kacheln passen zur Firmware dieses Bildschirms. Drücke „Speichern & senden“, wenn alles passt.",
       "imported": "Layout importiert. Drücke „Speichern & senden“, wenn alles passt.",
-      "imported_part": "Layout importiert: {kept} von {total} Kacheln passen zur Firmware dieses Bildschirms. Drücke „Speichern & senden“, wenn alles passt.",
       "not_json": "Das ist kein JSON. Exportiere zuerst ein Layout oder füge eines aus einer anderen ESP Screens-Installation ein.",
-      "no_tiles_in_file": "Keine Kacheln in dieser Datei. Erwartet wird ein aus ESP Screens exportiertes Layout.",
       "count": "{n} Seite · {tiles} / {limit} Kacheln | {n} Seiten · {tiles} / {limit} Kacheln",
       "no_tiles": "Füge aus der Bibliothek deine erste Leuchte, Szene oder dein erstes Gerät hinzu.",
       "how_to": "Tippe auf die Kopfleiste oder eine Kachel, um sie zu ändern. Ziehen verschiebt; Ablegen auf der nächsten Seite legt eine neue an.",
@@ -1516,7 +1515,7 @@
         "night_end": "Endet",
         "night_brightness": "Helligkeit nachts",
         "night_lit": "Bildschirm nachts an",
-        "auto_home": "Zurück zu Seite 1",
+        "auto_home": "Zurück zur Startseite",
         "auto_home_seconds": "Nach",
         "home_on_standby": "Auch im Standby",
         "swipe_pages": "Zwischen Seiten wischen",
@@ -1544,16 +1543,7 @@
       },
       "other_screen_busy": "Die Einstellungen des anderen Bildschirms werden noch gespeichert. Versuche es gleich noch einmal.",
       "reach": {
-        "intro": "Seitentasten und Wischen sind aus, daher wechseln nur Navigationskacheln die Seite.",
-        "pages": "Seite {list} | den Seiten {list}",
-        "tiles": "Du hast {n} Navigationskachel zu {targets}. | Du hast {n} Navigationskacheln zu {targets}.",
-        "tiles_missing_one": "Du hast {n} Navigationskachel zu {targets}, aber keine zu {missing}, daher erreichst du sie nicht. | Du hast {n} Navigationskacheln zu {targets}, aber keine zu {missing}, daher erreichst du sie nicht.",
-        "tiles_missing_more": "Du hast {n} Navigationskachel zu {targets}, aber keine zu {missing}, daher erreichst du sie nicht. | Du hast {n} Navigationskacheln zu {targets}, aber keine zu {missing}, daher erreichst du sie nicht.",
-        "none": "Du hast keine Navigationskacheln.",
-        "none_missing_one": "Du hast keine Navigationskacheln zu {missing}, daher erreichst du sie nicht.",
-        "none_missing_more": "Du hast keine Navigationskacheln zu {missing}, daher erreichst du sie nicht.",
-        "cut_off": "Die Kacheln zu {pages} liegen nur auf Seiten, die du nicht erreichst.",
-        "no_way_back": "Von {pages} führt keine Kachel zurück zu Seite 1."
+        "pages": "Seite {list} | den Seiten {list}"
       },
       "status": {
         "offline": "Dieser Bildschirm ist offline. Seine Einstellungen lassen sich ändern, sobald er wieder da ist.",

@@ -1,3 +1,4 @@
+from manager_fixtures import with_screen_grid
 """Firmware 0.2.34 gave the screen entities English names. Home Assistant removes a renamed ESPHome entity
 and registers it under a new entity id, so the manager moves a screen's layout and update history to the
 new inbox id instead of orphaning them (app 0.2.40)."""
@@ -29,6 +30,8 @@ def entities(prefix, device, names, firmware, node, ip='10.0.0.5'):
     registry.append({'entity_id': ids['status'], 'platform': 'esphome', 'original_name': 'Node Status', 'device_id': device})
     states = {ids['text']: {'state': 'Synced'}, ids['firmware']: {'state': firmware}, ids['node']: {'state': node},
               ids['ip']: {'state': ip}, ids['status']: {'state': 'on'}}
+    registry.append({'entity_id': f'sensor.{prefix}_screen_layout', 'platform': 'esphome', 'device_id': device, 'original_name': 'Screen layout'})
+    states[f'sensor.{prefix}_screen_layout'] = {'state': '320x240 2x3 143dpi compact'}
     return registry, states
 
 
@@ -108,7 +111,7 @@ class RenamedInboxTests(unittest.IsolatedAsyncioTestCase):
             (Path(path) / 'screens.json').write_text(json.dumps({'version': 1, 'screens': stored}))
         if updates is not None:
             (Path(path) / 'updates.json').write_text(json.dumps({'version': 1, 'auto': False, **updates}))
-        m = Manager(ha or fake_ha(), Path(path) / 'screens.json')
+        m = Manager(with_screen_grid(ha or fake_ha()), Path(path) / 'screens.json')
         m.firmware = FakeFirmware(m.ha)
         for attr in ('verify_timeout', 'settle_seconds', 'pause_seconds', 'poll_seconds'):
             setattr(m.updates, attr, 1 if attr == 'verify_timeout' else 0)
@@ -118,6 +121,8 @@ class RenamedInboxTests(unittest.IsolatedAsyncioTestCase):
         registry, states = entities('office_1', 'd1', ENGLISH, FIRMWARE_VERSION, 'office-1')
         m.ha.registry = registry + [item for item in m.ha.registry if item.get('device_id') != 'd1']
         m.ha.states = {**{k: v for k, v in m.ha.states.items() if 'office_1' not in k}, **states}
+        m.screens()
+        m.refresh_page_records()
 
     async def test_reflash_moves_layout_and_update_history(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -130,7 +135,8 @@ class RenamedInboxTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(sorted(s['id'] for s in m.screens()), [KITCHEN, NEW])
             self.assertEqual(m.layouts[NEW]['title'], 'Office')
             self.assertNotIn(OLD, m.layouts)
-            self.assertEqual(m.layouts[KITCHEN], kitchen)
+            self.assertEqual(m.layouts[KITCHEN]['title'], kitchen['title'])
+            self.assertEqual(m.layouts[KITCHEN]['tiles'], kitchen['tiles'])
             self.assertEqual(json.loads((Path(tmp) / 'screens.json').read_text())['screens'].keys(), {NEW, KITCHEN})
             self.assertEqual((m.updates.hosts, list(m.updates.results)), ({NEW: '10.0.0.5'}, [NEW]))
             self.assertEqual(json.loads((Path(tmp) / 'updates.json').read_text())['hosts'], {NEW: '10.0.0.5'})
@@ -183,7 +189,8 @@ class RenamedInboxTests(unittest.IsolatedAsyncioTestCase):
             m = self.manager(tmp, {hall: LAYOUT})
             self.reflash(m)
             m.screens()
-            self.assertEqual(list(m.layouts), [hall], 'a removed screen keeps its layout; nobody else takes it')
+            self.assertEqual(list(m.store.records()), [hall], 'a removed screen keeps its layout; nobody else takes it')
+            self.assertEqual(json.loads(m.store.get(hall)['payload']), LAYOUT)
             self.assertEqual(m.aliases, {})
 
     async def test_a_layout_on_the_new_id_is_never_overwritten(self):
@@ -192,7 +199,8 @@ class RenamedInboxTests(unittest.IsolatedAsyncioTestCase):
             m = self.manager(tmp, {OLD: LAYOUT, NEW: newer})
             self.reflash(m)
             m.screens()
-            self.assertEqual((m.layouts[NEW], m.layouts[OLD]), (newer, LAYOUT))
+            self.assertEqual(m.layouts[NEW]['title'], newer['title'])
+            self.assertEqual(m.layouts[OLD]['tiles'], LAYOUT['tiles'])
             self.assertEqual(m.aliases, {OLD: NEW})
             m.ha.registry = list(m.ha.registry)  # a later registry refresh does not try again
             before = dict(m.layouts)

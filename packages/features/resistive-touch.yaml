@@ -68,7 +68,7 @@ substitutions:
       // page from the right.
       runtime_tiles::swipe_glow(direction==LV_DIR_LEFT?runtime_tiles::Edge::right:runtime_tiles::Edge::left);
       ESP_LOGI("touch","page swipe: page %d -> %d",id(tile_page),id(tile_page)+(direction==LV_DIR_LEFT?1:-1));
-      id(tile_page)+=direction==LV_DIR_LEFT?1:-1;
+      id(tile_page)=runtime_tiles::sequential_page(id(tile_page),direction==LV_DIR_LEFT?1:-1);
       id(show_tile_page).execute();
     }, LV_EVENT_GESTURE, nullptr);
   # after the cards' hooks, before the settings page's: the calibration wizard

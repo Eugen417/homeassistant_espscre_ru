@@ -3,7 +3,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { t } from "../i18n";
 import {
-  canAlert, closeInspector, copyLayoutFrom, currentScreen, exportLayout, go, identify, importLayout, needsUpdate, save, screenText, startUpdate, state,
+  canAlert, closeInspector, copyLayoutFrom, currentScreen, exportLayout, go, identify, importLayout, needsUpdate, redo, save, screenText, startUpdate, state, undo,
 } from "../store";
 import LayoutView from "./LayoutView.vue";
 import SettingsTab from "./SettingsTab.vue";
@@ -51,6 +51,9 @@ function onKey(e: KeyboardEvent) {
   } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") {
     e.preventDefault();
     if (state.dirty) save();
+  } else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z" && !(e.target as HTMLElement)?.closest('input, textarea, [contenteditable]')) {
+    e.preventDefault();
+    if (e.shiftKey) redo(); else undo();
   }
 }
 function onDocClick(e: MouseEvent) {

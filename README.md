@@ -27,7 +27,7 @@ it over Wi-Fi and sends it your tiles. Changing a screen is pick, drag and **Sav
 no reflash, no YAML to write, no blueprint, MQTT or token. Brightness, night hours and Dark mode can
 also be changed on the screen or by an automation, and your own YAML for one screen survives every update.
 
-**[Install it](#installing-from-home-assistant)** · [Full reference](README_EXTENDED.md) · [What's new](screen_manager/CHANGELOG.md)
+**[Install it](#installing-from-home-assistant)** · [Pages and navigation](docs/PAGES.md) · [Full reference](README_EXTENDED.md) · [What's new](screen_manager/CHANGELOG.md)
 
 ## In real life
 

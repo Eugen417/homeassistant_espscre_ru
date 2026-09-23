@@ -24,6 +24,7 @@ async def main():
         failures = []
         passes = []
         frames = []
+        boundaries = []
         slider_pass = []
         def log(msg):
             text = msg.message.decode(errors='replace') if isinstance(msg.message, bytes) else msg.message
@@ -34,6 +35,9 @@ async def main():
                 match = re.search(r'frames=(\d+)', text)
                 if match: frames.append(int(match[1]))
             if 'Light sliders: PASS' in text: slider_pass.append(text)
+            if 'UI_TEST START' in text or 'UI_TEST COMPLETE' in text:
+                match = re.search(r'frames=(\d+)', text)
+                if match: boundaries.append(int(match[1]))
             if 'FAIL' in text: failures.append(text)
             if 'UI_TEST COMPLETE' in text: done.set()
         client.subscribe_logs(log, log_level=LogLevel.LOG_LEVEL_DEBUG, dump_config=False)
@@ -42,7 +46,12 @@ async def main():
         assert len(passes) == 10, f'Expected 10 page checks, got {len(passes)}'
         assert not failures, failures
         assert slider_pass, "Missing light slider event/capability check"
-        assert len(frames) == 10 and frames[-1] - frames[0] >= 40, f'Render callbacks stalled: {frames}' 
+        assert len(frames) == 10 and all(b > a for a, b in zip(frames, frames[1:])), f'Render callbacks stalled: {frames}'
+        # Ten intermediate observations span only nine cycles. New firmware
+        # reports the actual endpoints so the forty-frame check covers all ten,
+        # including the final overlay. A burst cannot conceal a stalled cycle.
+        assert len(boundaries) == 2, 'Update the test firmware to report complete frame boundaries'
+        assert boundaries[1] - boundaries[0] >= 40, f'Too few rendered frames: {boundaries}'
         print('PASS: 10 page checks and 50 overlay render cycles completed', flush=True)
     finally:
         await client.disconnect()

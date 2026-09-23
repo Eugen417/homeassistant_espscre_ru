@@ -3,7 +3,7 @@
 #pragma once
 #include "components/smart_display/screen_text.h"
 
-static_assert(screen_text::KEYS_HASH == 0x03E8B61Cu && screen_text::KEY_COUNT == 327,
+static_assert(screen_text::KEYS_HASH == 0xD7C7473Cu && screen_text::KEY_COUNT == 330,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -87,6 +87,8 @@ const char *const screen_text::TABLE[] = {
     "Choose tiles in HA",
     "Home",
     "No network",
+    "Configuration problem.\012Update add-on.",
+    "Configuration problem.\012Check screen and add-on versions.",
     "Settings",
     "Brightness",
     "Night",
@@ -102,7 +104,7 @@ const char *const screen_text::TABLE[] = {
     "Ends",
     "Night brightness",
     "Screen on at night",
-    "Back to page 1",
+    "Back to Home",
     "After",
     "Also on standby",
     "Swipe between pages",
@@ -332,7 +334,8 @@ const char *const screen_text::TABLE[] = {
     "Off",
     "Both",
     "Vertical",
-    "Horizontal"
+    "Horizontal",
+    "Back"
 };
 const char *const screen_text::LANGUAGE = "en";
 int screen_text::plural_index(int n) { return n == 1 ? 0 : 1; }

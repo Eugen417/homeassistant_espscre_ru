@@ -1,9 +1,11 @@
+from manager_fixtures import seed_layout
 """What Home Assistant says an entity can do (app 0.2.67): the editor offers On / off, a small slider, direct controls
 and displays from Home Assistant's own action list, and a save refuses a new setting Home Assistant doesn't support.
 
 SERVICES are real action descriptions (`get_services` of Home Assistant 2026.9.2, trimmed to what the tests use); the
 entities carry the supported_features of real devices. On that installation `local_actions` gave the same answer as
 Home Assistant's `get_services_for_target` for 30 entities out of 30."""
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import json
@@ -230,7 +232,7 @@ class AskingHomeAssistant(unittest.IsolatedAsyncioTestCase):
     async def test_saving_and_tile_events_refuse_only_new_settings(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'screens.json'
-            m = Manager(fake_ha(), path)
+            m = Manager(with_screen_grid(fake_ha()), path)
             tiles = [{'entity': 'cover.curtains', 'name': '', 'slot': 0, 'options': {'tap': 'toggle'}},
                      {'entity': 'media_player.sonos', 'name': '', 'slot': 1}]
             data = {'title': 'Living room', 'tiles': tiles}
@@ -240,7 +242,9 @@ class AskingHomeAssistant(unittest.IsolatedAsyncioTestCase):
             with self.assertRaisesRegex(ValueError, "can't turn Bathroom on and off"):
                 await m.check_supported('text.d1_tiles', refused)
             # A layout saved before 0.2.67 with On / off on that speaker keeps saving when something else changes.
-            m.layouts['text.d1_tiles']['tiles'][1]['options'] = {'tap': 'toggle'}
+            historic = m.layouts['text.d1_tiles']
+            historic['tiles'][1]['options'] = {'tap': 'toggle'}
+            seed_layout(m, 'text.d1_tiles', historic)
             await m.check_supported('text.d1_tiles', {'title': 'Renamed', 'tiles': [tiles[0], {**tiles[1], 'options': {'tap': 'toggle'}}]})
             # Claude in Home Assistant gets the same answer.
             m.ha.tile_events = asyncio.Queue()
@@ -256,13 +260,13 @@ class AskingHomeAssistant(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(answers[0]['ok'])
             self.assertIn('small slider', answers[0]['error'])
             self.assertTrue(answers[1]['ok'], answers[1])
-            saved = json.loads(path.read_text())['screens']['text.d1_tiles']
+            saved = m.layouts['text.d1_tiles']
             self.assertEqual({t['entity']: t.get('options', {}).get('tap') for t in saved['tiles']},
                              {'cover.curtains': 'toggle', 'media_player.sonos': 'toggle', 'cover.garage': 'toggle'})
 
     async def test_the_editor_asks_for_several_entities_at_once(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha()), Path(tmp) / 'screens.json')
             async with TestClient(TestServer(create_app(m, True))) as client:
                 answer = await (await client.get('/api/capabilities?entity=cover.curtains&entity=media_player.sonos&entity=light.unknown')).json()
         found = answer['capabilities']

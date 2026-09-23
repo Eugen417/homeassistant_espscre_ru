@@ -7,6 +7,7 @@
 #include <vector>
 #include "screen_text.h"
 #include "ui_scale.h"
+#include "page_protocol.h"
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -451,37 +452,13 @@ struct Tile {
 };
 // Slot position of a tile within the fixed two-column, three-row pages.
 struct Placement { uint8_t page = 0, slot = 0; };
-#ifdef USE_ESP32
-// ESPHome's allocator prefers PSRAM and falls back to the internal heap; this wrapper gives it the comparison
-// std::vector wants. RAMAllocator answers nullptr when neither has room, and std::vector (no exceptions on the
-// ESP32) would write the tiles through it: set_layout checks the room first (tile_room), and anything that still
-// gets here stops with a log line instead of corrupting memory (firmware 0.2.65+).
-template<class T> struct TileAllocator {
-  using value_type = T;
-  TileAllocator() = default;
-  template<class U> TileAllocator(const TileAllocator<U> &) {}
-  T *allocate(size_t n) {
-    T *p = esphome::RAMAllocator<T>().allocate(n);
-    if (!p) {
-      ESP_LOGE("runtime", "No memory for %u tiles (%u bytes)", static_cast<unsigned>(n), static_cast<unsigned>(n * sizeof(T)));
-      abort();
-    }
-    return p;
-  }
-  void deallocate(T *p, size_t n) { esphome::RAMAllocator<T>().deallocate(p, n); }
-  bool operator==(const TileAllocator &) const { return true; }
-  bool operator!=(const TileAllocator &) const { return false; }
-};
-using TileList = std::vector<Tile, TileAllocator<Tile>>;
-#else
-using TileList = std::vector<Tile>;
-#endif
+using TileList = layout_memory::Vector<Tile>;
 // The largest block the tile list could get: ESPHome's own answer on the ESP32 (PSRAM or the internal heap,
 // whichever has the larger one). Nothing on the host, which has room; the tests put in a figure of their own.
 #ifdef USE_ESP32
 inline size_t largest_tile_block() { return esphome::RAMAllocator<Tile>().get_max_free_block_size(); }
 inline size_t (*tile_room)() = largest_tile_block;
-// What is left of the memory inside the chip. Strings, std::vector and everything else that goes through the
+// What is left of the memory inside the chip. Strings and everything else that goes through the
 // ordinary allocator lands there, PSRAM or no PSRAM, and an allocation that fails is not an error the firmware
 // can catch: it aborts, which a user sees as the screen restarting. Anything that grows with what Home
 // Assistant sends asks this first. Boards differ by a lot: an 800x480 RGB panel keeps two bounce buffers of
@@ -521,67 +498,48 @@ struct Model {
   uint8_t pages = 1;
   size_t count = 0;
   std::string title = screen_text::tr(screen_text::txt::status_choose_tiles);
-  // A title of its own for a page (firmware 0.2.90+). The screen's title stands on every page, which is what
-  // most screens want; a page that says something else says it here. Empty, or missing, means the screen's.
-  // A vector and not an array of grid.pages(): a screen where nobody set one pays nothing for the possibility.
-  std::vector<std::string> page_titles;
+  page_protocol::Pages page_data;
   // What the top bar says on `page`, counted from 0.
   const std::string &title_of(int page) const {
-    if (page >= 0 && static_cast<size_t>(page) < page_titles.size() && !page_titles[page].empty()) return page_titles[page];
+    if (page >= 0 && static_cast<size_t>(page) < page_data.records.size() && !page_data.records[page].title.empty())
+      return page_data.records[page].title;
     return title;
   }
   bool configured = false;
-  // Why the last set_layout refused a layout, for the manager's inbox status; empty when it took the layout or the
-  // message itself was wrong (the status then says "invalid message", as before).
+  // Why beginning a configuration failed, reported to the manager.
   std::string refusal;
-  bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed) {
-    bool moved = false;
-    return set_layout(entities, name, changed, {}, moved);
-  }
-  // `changed`: the tiles differ, states restart. `moved`: same tiles on other
-  // positions, the pages re-place without touching states or an open card.
-  bool set_layout(const std::vector<std::string> &entities, const std::string &name, bool &changed,
-                  const std::vector<uint8_t> &positions, bool &moved) {
-    refusal.clear();
-    if (entities.size() > grid.max_tiles() || name.size() > 96) return false;
-    for (size_t i = 0; i < entities.size(); ++i) {
-      if (!valid_entity(entities[i])) return false;
-      // A Home Assistant entity appears once on a screen; a navigation tile may sit on several pages (firmware 0.2.65+).
-      // Everything that reaches a tile goes by its index (Model::accepts), so each copy gets its own options.
-      if (page_entity(entities[i])) continue;
-      for (size_t j = 0; j < i; ++j) if (entities[i] == entities[j]) return false;
-    }
-    if (!positions.empty()) {
-      if (positions.size() != entities.size()) return false;
-      for (size_t i = 0; i < positions.size(); ++i) {
-        if (positions[i] >= grid.max_slots()) return false;
-        for (size_t j = 0; j < i; ++j) if (positions[i] == positions[j]) return false;
-      }
-    }
-    changed = !configured || count != entities.size();
-    for (size_t i = 0; i < entities.size() && i < tiles.size(); ++i) if (tiles[i].entity != entities[i]) changed = true;
-    moved = !changed && (explicit_slots != !positions.empty());
-    for (size_t i = 0; i < positions.size() && !changed; ++i) if (slots[i] != positions[i]) moved = true;
-    // A longer list needs one block that holds every tile. Without it the layout is refused before anything changes, so
-    // the screen keeps the tiles it shows and the manager hears why (firmware 0.2.65+).
-    if (entities.size() > tiles.capacity() && tile_room && tile_room() < entities.size() * sizeof(Tile)) {
-      refusal = "Error: no memory for " + std::to_string(entities.size()) + " tiles";
+  // Start a replacement in the only configuration store. Release old strings and
+  // tiles before allocation; retain only the active page's ID in the receiver.
+  bool begin(unsigned tile_count, unsigned page_count, const std::string &name) {
+    configured = false;
+    count = 0;
+    tiles.clear();
+    tiles.shrink_to_fit();
+    page_data.records.clear();
+    page_data.records.shrink_to_fit();
+    slots.fill(0);
+    if (tile_count > grid.max_tiles() || !page_count || page_count > grid.pages() || name.size() > 96) return false;
+    if (tile_room && tile_room() < tile_count * sizeof(Tile) + page_count * sizeof(page_protocol::Page)) {
+      refusal = "Error: insufficient layout memory";
       return false;
     }
-    // A title-only update must not interrupt an open control card.
-    title = name.empty() ? std::string(screen_text::tr(screen_text::txt::status_home)) : name;
-    if (changed) {
-      // Freed before the new list is made, so the heap never holds both.
-      tiles.clear();
-      tiles.shrink_to_fit();
-      tiles.resize(entities.size());
-      count = entities.size();
-      for (size_t i = 0; i < count; ++i) tiles[i].entity = entities[i];
+    tiles.resize(tile_count);
+    page_data.records.resize(page_count);
+    count = tile_count;
+    pages = page_count;
+    title = name;
+    explicit_slots = true;
+    refusal.clear();
+    return true;
+  }
+  bool valid_placement(unsigned index, unsigned slot, bool full, bool wide) const {
+    if (index >= count || slot >= pages * grid.slots() || (full && slot % grid.slots()) ||
+        (!full && wide && !grid.wide_fits(slot))) return false;
+    const unsigned cells = full ? grid.slots() : wide ? grid.wide_span() : 1;
+    for (size_t i = 0; i < count; ++i) if (i != index && tiles[i].received) {
+      const unsigned end = slots[i] + tiles[i].cells();
+      if (slot < end && slots[i] < slot + cells) return false;
     }
-    explicit_slots = !positions.empty();
-    slots.fill(0);
-    for (size_t i = 0; i < positions.size(); ++i) slots[i] = positions[i];
-    configured = true;
     return true;
   }
   bool ready() const {

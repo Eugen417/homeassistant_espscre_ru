@@ -6,6 +6,7 @@ writes from (backgrounds, direct controls, the alert reference, the icons) say w
 shows that another language reaches the editor through the request's X-ESP-Screens-Language header and the screens
 through Settings -> Language & region, while what the app hands Home Assistant as data stays English.
 """
+from manager_fixtures import with_screen_grid
 import ast
 import asyncio
 import importlib.util
@@ -204,6 +205,8 @@ class Updates(unittest.IsolatedAsyncioTestCase):
             def profile_names(self):
                 return {'hall.yaml': {'node': 'hall', 'friendly': 'Hall'}}
         class Owner:
+            def preflight_update(self, inbox):
+                pass  # This translation fixture has no stored layout.
             def __init__(self):
                 self.ha, self.firmware = HA(), Firmware()
                 self.firmware.start = start
@@ -258,7 +261,7 @@ class Updates(unittest.IsolatedAsyncioTestCase):
 class Editor(unittest.IsolatedAsyncioTestCase):
     async def test_the_editor_gets_the_app_s_texts_in_its_language(self):
         with tempfile.TemporaryDirectory() as tmp, Language('addon.'):
-            manager = Manager(test_scaling.fake_ha(firmware=core.FIRMWARE_VERSION), Path(tmp) / 'screens.json')
+            manager = Manager(with_screen_grid(test_scaling.fake_ha(firmware=core.FIRMWARE_VERSION)), Path(tmp) / 'screens.json')
             xx = {'X-ESP-Screens-Language': 'xx'}
             async with TestClient(TestServer(create_app(manager, True))) as client:
                 full = await (await client.get('/api/inventory', headers=xx)).json()
@@ -310,7 +313,7 @@ class Editor(unittest.IsolatedAsyncioTestCase):
             async def call(action, data):
                 ha.calls.append((action, data))
             ha.call = call
-            manager = Manager(ha, Path(tmp) / 'screens.json')
+            manager = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             i18n.set_screens('xx', 'point')
             async with TestClient(TestServer(create_app(manager, True))) as client:
                 csrf = (await (await client.get('/api/inventory?light=1')).json())['csrf']
@@ -331,7 +334,7 @@ class Editor(unittest.IsolatedAsyncioTestCase):
     async def test_a_tile_event_answers_home_assistant_in_english(self):
         with tempfile.TemporaryDirectory() as tmp, Language('addon.'):
             ha = test_scaling.fake_ha(firmware=core.FIRMWARE_VERSION)
-            manager = Manager(ha, Path(tmp) / 'screens.json')
+            manager = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             i18n.set_screens('xx', 'point')
             with self.assertRaises(ValueError) as caught:
                 await manager.tile_event('esp_screens_add_tile', {'entity': 'foo.bar'})

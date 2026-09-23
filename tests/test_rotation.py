@@ -57,6 +57,8 @@ class RotationTests(unittest.IsolatedAsyncioTestCase):
             layout={'title':'Home','tiles':[{'entity':'light.a'}],'settings':{'rotation':90}}
             with self.assertRaises(ValueError):m.save('text.screen',layout)
             m.ha.registry[0]['device_id']='guition'
+            next(item for item in m.ha.registry if item.get('original_name') == 'Screen layout')['device_id'] = 'guition'
+            m.ha.states[next(item['entity_id'] for item in m.ha.registry if item.get('original_name') == 'Screen layout')] = {'state': '480x480 2x3 170dpi standard'}
             m.ha.registry.append({'entity_id':'sensor.board','device_id':'guition','platform':'esphome','original_name':'Guition screen type'})
             # Capability stays discoverable with the panel offline or renamed.
             m.ha.states['sensor.board']={'state':'unavailable'}

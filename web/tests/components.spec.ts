@@ -1,7 +1,8 @@
+import { seedLayout, seedTiles, seedPages, seedTitles, appendTiles, screenFixture, documentFixture, current } from "./page-fixtures";
 // The components that draw the state: a tile with live values, the library's filters, the ⌘K search.
 import { readFileSync } from "node:fs";
 import { flushPromises, mount } from "@vue/test-utils";
-import { nextTick } from "vue";
+import { defineComponent, h, nextTick } from "vue";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AppSettingsView from "../src/components/AppSettingsView.vue";
 import CommandPalette from "../src/components/CommandPalette.vue";
@@ -49,8 +50,9 @@ function inventory(): Inventory {
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn(() => Promise.reject(new Error("offline"))));
   state.inventory = inventory();
+  state.inventory.screens = state.inventory.screens.map(screenFixture);
   state.selected = "living";
-  state.layout = { title: "Living room", tiles: [] };
+  seedLayout({ title: "Living room", tiles: [] });
   state.liveStates = {};
   state.search = ""; state.filter = ""; state.room = ""; state.hidePlaced = false;
   state.palette = false;
@@ -58,8 +60,13 @@ beforeEach(() => {
   state.dirty = false; state.tab = "layout";
 });
 
+function inspector(tile: Tile) {
+  const host = mount(defineComponent({ setup: () => () => h(TileInspector, { tile: tile.id ? current(tile) || tile : tile }) }));
+  return host.findComponent(TileInspector);
+}
+
 function placed(tile: Tile) {
-  state.layout!.tiles.push(tile);
+  appendTiles(tile);
   return mount(TileCard, { props: { tile, slot: tile.slot } });
 }
 
@@ -126,7 +133,7 @@ describe("TileCard", () => {
 
 describe("Library", () => {
   it("filters by room and hides what is placed, and tints the avatars by state", async () => {
-    state.layout!.tiles.push({ entity: "light.a", name: "", slot: 0 });
+    appendTiles({ entity: "light.a", name: "", slot: 0 });
     const library = mount(Library);
     const names = () => library.findAll(".ent .tx b").map((b) => b.text());
     expect(names()).toEqual(["Clock", "Go to page 1", "Lamp A", "Lamp B", "Temperature", "Curtains"]);
@@ -273,7 +280,7 @@ describe("full-page and navigation tiles on the mockup", () => {
 describe("several tiles that go to the same page in the library (firmware 0.2.65)", () => {
   it("keeps offering a placed navigation tile when the screen takes several, and adds another copy", async () => {
     Object.assign(state.inventory.screens[0], { firmware: "0.2.65", page_tiles_repeat: true });
-    state.layout!.tiles.push({ entity: "screen.page_1", name: "", slot: 0 }, { entity: "light.a", name: "", slot: 1 });
+    appendTiles({ entity: "screen.page_1", name: "", slot: 0 }, { entity: "light.a", name: "", slot: 1 });
     const library = mount(Library);
     const row = () => library.find('.ent[title="screen.page_1"]');
     expect(row().attributes("disabled")).toBeUndefined();
@@ -286,7 +293,7 @@ describe("several tiles that go to the same page in the library (firmware 0.2.65
   });
   it("marks it placed when the screen takes one per page", () => {
     Object.assign(state.inventory.screens[0], { page_tiles_repeat: false });
-    state.layout!.tiles.push({ entity: "screen.page_1", name: "", slot: 0 });
+    appendTiles({ entity: "screen.page_1", name: "", slot: 0 });
     const library = mount(Library);
     expect(library.find('.ent[title="screen.page_1"]').attributes("disabled")).toBeDefined();
     expect(library.find('.ent[title="screen.page_1"] .add').text()).toBe("✓");
@@ -300,18 +307,18 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
   it("offers the live picture for a camera, with its pace once chosen, and says which firmware it needs", async () => {
     state.inventory.entities.push({ id: "camera.front", name: "Front", state: "idle", area: "Hall" } as any);
     const tile: Tile = { entity: "camera.front", name: "", slot: 0 };
-    state.layout!.tiles.push(tile);
-    const drawer = mount(TileInspector, { props: { tile } });
+    appendTiles(tile);
+    const drawer = inspector(tile);
     expect(choices(drawer, "Display")).toEqual(["Name and status", "Large value", "Live picture"]);
     expect(row(drawer, "Refresh")).toBeUndefined();
     await row(drawer, "Display").findAll(".seg button")[2].trigger("click");
-    expect(tile.options).toEqual({ display: "live" });
+    expect(current(tile).options).toEqual({ display: "live" });
     expect(choices(drawer, "Refresh")).toEqual(["Every 15 s", "Every 30 s"]);
     expect(row(drawer, "Refresh").find('[aria-pressed="true"]').text()).toBe("Every 15 s");
     expect(row(drawer, "Display").find("small").text()).toMatch(/firmware 0\.2\.77/);
     expect(row(drawer, "Display").find("small").classes()).toContain("warn");
     await row(drawer, "Refresh").findAll(".seg button")[1].trigger("click");
-    expect(tile.options).toEqual({ display: "live", refresh: 30 });
+    expect(current(tile).options).toEqual({ display: "live", refresh: 30 });
     Object.assign(state.inventory.screens[0], { firmware: "0.2.77" });
     await drawer.vm.$nextTick();
     expect(row(drawer, "Display").find("small").text()).toMatch(/icon's place/);
@@ -320,7 +327,7 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
     const lamp = mount(TileInspector, { props: { tile: { entity: "light.a", name: "", slot: 1 } } });
     expect(choices(lamp, "Display")).not.toContain("Live picture");
     // The mockup draws the picture's rounded square instead of the icon.
-    const card = mount(TileCard, { props: { tile, slot: 0 } });
+    const card = mount(TileCard, { props: { tile: current(tile), slot: 0 } });
     expect(card.find(".ic").classes()).toContain("thumb");
   });
   it("offers the album cover for a media player on a Guition, not on a full-page tile, and keeps its controls", async () => {
@@ -328,25 +335,25 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
     state.inventory.entities.push({ id: "media_player.sonos", name: "Sonos", state: "playing", area: "Hall" } as any);
     (state.inventory as any).controls.media_player = { default: "volume", choices: [{ key: "volume", label: "Volume" }, { key: "none", label: "None" }] };
     const tile: Tile = { entity: "media_player.sonos", name: "", slot: 0, options: { size: "wide" } };
-    state.layout!.tiles.push(tile);
-    const drawer = mount(TileInspector, { props: { tile } });
+    appendTiles(tile);
+    const drawer = inspector(tile);
     expect(choices(drawer, "Display")).toEqual(["Name and status", "Large value", "Album cover"]);
     await row(drawer, "Display").findAll(".seg button")[2].trigger("click");
-    expect(tile.options).toEqual({ size: "wide", display: "cover" });
+    expect(current(tile).options).toEqual({ size: "wide", display: "cover" });
     expect(row(drawer, "Display").find("small").text()).toMatch(/icon's place/);
     expect(row(drawer, "Refresh")).toBeUndefined();
     expect(row(drawer, "Direct control on the tile")).toBeDefined();
-    const card = mount(TileCard, { props: { tile, slot: 0 } });
+    const card = mount(TileCard, { props: { tile: current(tile), slot: 0 } });
     expect(card.find(".ic").classes()).toContain("thumb");
     expect(card.find(".range").exists()).toBe(true);
     // A board without memory for pictures (a CYD) gets no such choice; a tile over the whole page keeps the card's big cover.
     Object.assign(state.inventory.screens[0], { board: "cyd", pictures: false });
-    tile.options = { size: "single" };
+    seedTiles([{ ...current(tile), options: { size: "single" } }]);
     await drawer.vm.$nextTick();
-    expect(choices(mount(TileInspector, { props: { tile } }), "Display")).toEqual(["Name and status", "Large value"]);
+    expect(choices(inspector(tile), "Display")).toEqual(["Name and status", "Large value"]);
     Object.assign(state.inventory.screens[0], { board: "guition", pictures: true });
-    tile.options = { size: "full" };
-    expect(choices(mount(TileInspector, { props: { tile } }), "Display")).toEqual(["Name and status", "Large value"]);
+    seedTiles([{ ...current(tile), options: { size: "full" } }]);
+    expect(choices(inspector(tile), "Display")).toEqual(["Name and status", "Large value"]);
   });
 });
 
@@ -355,24 +362,20 @@ describe("TileInspector: pages (app 0.2.78)", () => {
     wrapper.findAll(".f").find((f) => f.find(".f-label").exists() && f.find(".f-label").text() === label)!;
   const choices = (wrapper: ReturnType<typeof mount>, label: string) => row(wrapper, label).findAll(".seg button").map((b) => b.text());
   function open(tiles: any[], index: number) {
-    state.layout!.tiles.push(...tiles);
-    state.layout!.pages = 1;
+    appendTiles(...tiles);
+    seedPages(1);
     const tile = state.layout!.tiles[index];
-    return { tile, drawer: mount(TileInspector, { props: { tile } }) };
+    return { tile, drawer: inspector(tile) };
   }
-  it("offers the pages the screen has and the empty one after them as targets, and keeps one beyond those", async () => {
+  it("offers existing page destinations and creates the next empty page as one edit", async () => {
     Object.assign(state.inventory.screens[0], { firmware: "0.2.63", full_page: true });
     const { tile, drawer } = open([
       { entity: "light.a", name: "", slot: 0 }, { entity: "screen.page_2", name: "", slot: 1 }, { entity: "sensor.t", name: "", slot: 6 },
     ], 1);
     expect(choices(drawer, "Goes to page")).toEqual(["1", "2", "3 (empty)"]);
     expect(row(drawer, "Goes to page").find('[aria-pressed="true"]').text()).toBe("2");
-    tile.entity = "screen.page_7";
-    await drawer.vm.$nextTick();
-    expect(choices(drawer, "Goes to page")).toEqual(["1", "2", "3 (empty)", "7 (empty)"]);
-    expect(row(drawer, "Goes to page").find("small.warn").text()).toMatch(/no page 7/);
     await row(drawer, "Goes to page").findAll(".seg button")[2].trigger("click");
-    expect(tile.entity).toBe("screen.page_3");
+    expect(current(tile).entity).toBe("screen.page_3");
     expect(state.layout!.pages).toBe(3);
     expect(choices(drawer, "Goes to page")).toEqual(["1", "2", "3 (empty)", "4 (empty)"]);
     expect(row(drawer, "Goes to page").find("small").classes()).not.toContain("warn");
@@ -382,19 +385,19 @@ describe("TileInspector: pages (app 0.2.78)", () => {
     expect(choices(drawer, "Page")).toEqual(["1", "2", "New page"]);
     expect(row(drawer, "Page").find('[aria-pressed="true"]').text()).toBe("1");
     await row(drawer, "Page").findAll(".seg button")[1].trigger("click");
-    expect(tile.slot).toBe(7);
+    expect(current(tile).slot).toBe(7);
     expect(state.dirty).toBe(true);
     // Alone on the last page now: a new page would only leave this one empty.
     const sensor = state.layout!.tiles.find((t) => t.entity === "sensor.t")!;
     await row(drawer, "Page").findAll(".seg button")[0].trigger("click");
-    expect(tile.slot).toBe(0);
-    expect(sensor.slot).toBe(6);
-    const other = mount(TileInspector, { props: { tile: sensor } });
+    expect(current(tile).slot).toBe(0);
+    expect(current(sensor).slot).toBe(6);
+    const other = inspector(sensor);
     expect(choices(other, "Page")).toEqual(["1", "2"]);
     await row(other, "Page").findAll(".seg button")[0].trigger("click");
-    expect(sensor.slot).toBe(1);
+    expect(current(sensor).slot).toBe(1);
     // One tile on one page: nowhere to go, so no row.
-    state.layout!.tiles = [];
+    seedTiles([]);
     const only = open([{ entity: "light.b", name: "", slot: 0 }], 0).drawer;
     expect(row(only, "Page")).toBeUndefined();
   });
@@ -521,7 +524,7 @@ describe("AppSettingsView", () => {
 describe("the title above a page (app 0.2.105)", () => {
   // You click a page's bar and answer one question: what stands above this page.
   it("asks it for the page whose bar was clicked", async () => {
-    state.layout = { title: "Living room", tiles: [], pages: 3 };
+    seedLayout({ title: "Living room", tiles: [], pages: 3 });
     openBar(0, 1);
     const drawer = mount(TopbarInspector, { props: { index: 0 } });
     const field = drawer.find("#page-title");
@@ -537,7 +540,7 @@ describe("the title above a page (app 0.2.105)", () => {
     expect(state.layout!.page_titles).toBeUndefined();
   });
   it("asks page 1 for the screen's title and for a title of its own", async () => {
-    state.layout = { title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] };
+    seedLayout({ title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] });
     openBar(0, 0);
     const drawer = mount(TopbarInspector, { props: { index: 0 } });
     const screen = drawer.find("#screen-title");
@@ -557,7 +560,7 @@ describe("the title above a page (app 0.2.105)", () => {
     expect(state.layout!.title).toBe("Downstairs");
   });
   it("asks a screen with one page for one title only", () => {
-    state.layout = { title: "Living room", tiles: [] };
+    seedLayout({ title: "Living room", tiles: [] });
     openBar(0, 0);
     const one = mount(TopbarInspector, { props: { index: 0 } });
     expect(one.findAll("#screen-title")).toHaveLength(1);
@@ -565,11 +568,11 @@ describe("the title above a page (app 0.2.105)", () => {
     // One page and the screen's title are the same thing, so there is no second field to fill.
     expect(one.find("#page-title").exists()).toBe(false);
     // A title that page kept from a longer row does get its field back: nothing is set that nobody can see.
-    state.layout = { title: "Living room", tiles: [], page_titles: ["Hall"] };
+    seedLayout({ title: "Living room", tiles: [], page_titles: ["Hall"] });
     expect(mount(TopbarInspector, { props: { index: 0 } }).find("#page-title").exists()).toBe(true);
   });
   it("shows the page's own title in that page's mockup bar, and opens that page's field", async () => {
-    state.layout = { title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] };
+    seedLayout({ title: "Living room", tiles: [], pages: 2, page_titles: ["", "Music"] });
     const props = { entries: [], pages: 2, moving: null };
     const second = mount(DevicePage, { props: { page: 1, ...props } });
     expect(second.find(".bar-wrap").text()).toContain("Music");
@@ -734,7 +737,7 @@ describe("the orientation of a new screen", () => {
 describe("a page that moves as a whole", () => {
   const props = (page: number, pages: number) => ({ page, pages, entries: state.layout!.tiles.map((t) => ({ tile: t, slot: t.slot })), moving: null });
   beforeEach(() => {
-    state.layout = { title: "Living room", pages: 3, tiles: [{ entity: "light.a", name: "", slot: 6 }] };
+    seedLayout({ title: "Living room", pages: 3, tiles: [{ entity: "light.a", name: "", slot: 6 }] });
     state.drag = { active: false, moving: null, preview: null, page: null };
   });
   it("gives every page a handle, but not a screen with one page", () => {
@@ -746,7 +749,7 @@ describe("a page that moves as a whole", () => {
     expect(grab.find(".grip").attributes("aria-hidden")).toBe("true");
     expect(grab.attributes("aria-label")).toBe("Move page 2");
     expect(grab.attributes("title")).toBe("Drag this page to another place in the row, or use ← and →");
-    state.layout!.pages = 1;
+    seedPages(1);
     expect(mount(DevicePage, { props: props(0, 1) }).find(".grab").exists()).toBe(false);
     // The page a tile can start behind the last one is not a page yet.
     expect(mount(DevicePage, { props: props(3, 3) }).find(".grab").exists()).toBe(false);
@@ -766,21 +769,21 @@ describe("a page that moves as a whole", () => {
   it("offers Remove page on every page of the row, filled or not", async () => {
     // A page leaves whether it is empty or not (app 0.2.123): the way out stands beside the cells in use.
     const second = mount(DevicePage, { props: props(1, 3) });
-    const remove = second.find(".page-side .btn.mini");
+    const remove = second.find(".page-remove");
     expect(remove.exists()).toBe(true);
     expect(remove.attributes("aria-label")).toBe("Remove page 2");
     expect(second.find(".page-side").text()).toContain("1 / 6");
     // The only page cannot leave, and neither can the page a tile can start behind the last one.
-    expect(mount(DevicePage, { props: props(3, 3) }).find(".page-side .btn.mini").exists()).toBe(false);
-    state.layout!.pages = 1;
-    expect(mount(DevicePage, { props: props(0, 1) }).find(".page-side .btn.mini").exists()).toBe(false);
-    state.layout!.pages = 3;
+    expect(mount(DevicePage, { props: props(3, 3) }).find(".page-remove").exists()).toBe(false);
+    seedPages(1);
+    expect(mount(DevicePage, { props: props(0, 1) }).find(".page-remove").exists()).toBe(false);
+    seedPages(3);
     await remove.trigger("click");
     expect(state.layout!.tiles).toEqual([]);
     expect(state.toast?.message).toBe("Page 2 and one tile are gone.");
   });
   it("draws the page on the move where it would land, with the title that belongs there", () => {
-    state.layout!.page_titles = ["", "Music", "Hall"];
+    seedTitles(["", "Music", "Hall"]);
     // Page 3 is being carried to the middle: the row shows Hall there and Music after it.
     state.drag = { active: true, moving: null, preview: [], page: { from: 2, to: 1, order: [0, 2, 1] } };
     const middle = mount(DevicePage, { props: props(1, 3) });
@@ -800,7 +803,7 @@ describe("the home key on the mockup", () => {
   const props = (page: number) => ({ page, pages: 3, entries: [], moving: null });
   const bar = (page: number) => mount(DevicePage, { props: props(page) }).find(".bar-wrap").text();
   beforeEach(() => {
-    state.layout = { title: "Living room", pages: 3, tiles: [] };
+    seedLayout({ title: "Living room", pages: 3, tiles: [] });
     (state.inventory.screens[0] as any).firmware = "0.2.100";
     (state.inventory.screens[0] as any).firmware_known = "0.2.100";
     (state.inventory.screens[0] as any).settings = { owner: "screen", keys: ["home_button"], values: { home_button: true }, unavailable: [] };

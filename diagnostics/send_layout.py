@@ -6,6 +6,7 @@ manager restores the real layout on its next keepalive (about two minutes).
 """
 import argparse
 import asyncio
+import json
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import sys
@@ -14,7 +15,10 @@ import yaml
 from aioesphomeapi import APIClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'screen_manager/app'))
-from core import extras, packets, state_message, validate_layout  # noqa: E402
+from core import Grid, extras, state_message, validate_layout, parse_shape  # noqa: E402
+from layout_migrations import migrate_legacy  # noqa: E402
+from page_layout import compile_tiles  # noqa: E402
+from page_delivery import Sender  # noqa: E402
 
 def demo_layout():
     return validate_layout({'title': 'Demo cards', 'tiles': [
@@ -101,9 +105,12 @@ def demo_hourly(now):
              'precipitation': [0.4, 0.2, 0, 0, 0, 0, 0, 2.1, 1.0, 0][i], 'precipitation_probability': [70, 55, 10, 5, 0, 0, 15, 85, 60, 20][i]}
             for i in range(10)]
 
-def messages(inbox, rotate=0, digital=False, wide=False, controls=False, now=None):
-    """The layout and state messages of the demo, for an inbox. `now` fixes the moment the states are of (the renders
-    of tools/render/run.py use one, so a timer or the sun shows the same in every render)."""
+def configuration(grid, rotate=0, digital=False, wide=False, controls=False, now=None, titles=None):
+    """A canonical synthetic fixture, using the real board grid and formatter.
+
+    The explicit fixture import is the only legacy-format boundary here. The
+    screen receives protocol 2 through the same acknowledged sender as the app.
+    """
     now = now or datetime.now(timezone.utc)
     layout, states = (controls_layout(), controls_states(now)) if controls else (demo_layout(), demo_states(now))
     if digital:
@@ -111,15 +118,45 @@ def messages(inbox, rotate=0, digital=False, wide=False, controls=False, now=Non
     elif wide:
         layout['tiles'][0]['options'] = {'display': 'analog', 'size': 'wide'}
     layout['tiles'] = layout['tiles'][rotate:] + layout['tiles'][:rotate]
-    out = [{'v': 1, 'op': 'layout', 'inbox': inbox, 'title': layout['title'], 'entities': [t['entity'] for t in layout['tiles']]}]
-    for i, tile in enumerate(layout['tiles']):
+    for tile, slot in zip(layout['tiles'], grid.pack(layout['tiles'])):
+        tile['slot'] = slot
+    if titles: layout['page_titles'] = titles
+    record = migrate_legacy(layout, grid)
+    tiles = compile_tiles(record['layout'], grid)
+    values = []
+    for i, tile in enumerate(tiles):
         forecast = demo_forecast(now) if tile['entity'].startswith('weather.') else None
         hourly = demo_hourly(now) if tile['entity'].startswith('weather.') else None
         message = state_message(i, tile, states, extras(tile, states, forecast, None, hourly, now))
         if tile['entity'].startswith('sensor.'):
             message['history'] = {'hours': 24, 'values': [round(18 + 4 * ((k * 7) % 11) / 10, 2) if k % 5 else None for k in range(24)]}
-        out.append(message)
-    return out
+        values.append(message)
+    bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
+    region = {'keepalive': 120, 'clock_24h': True, 'numbers': 'point', 'group_min': 1, 'percent_space': False}
+    return record, values, bars, region
+
+
+def api_sender(client, services):
+    """Native ESPHome responses acknowledge this call, never a cached text state."""
+    service = next(service for service in services if service.name == 'screen_message')
+    async def send(message):
+        answer = await client.execute_service(service, {'message': json.dumps(message, ensure_ascii=False, separators=(',', ':'))}, return_response=True)
+        if answer is None or not answer.success:
+            raise RuntimeError(answer.error_message if answer else 'No screen response')
+        return json.loads(answer.response_data)
+    return Sender(send)
+
+
+async def screen_grid(client, entities):
+    """Wait for this connected board's reported grid; never guess its shape."""
+    diagnostic = next(entity for entity in entities if entity.name == 'Screen layout')
+    found = asyncio.get_running_loop().create_future()
+    def state(update):
+        if getattr(update, 'key', None) != diagnostic.key: return
+        shape = parse_shape(getattr(update, 'state', None))
+        if shape and not found.done(): found.set_result(Grid(shape['columns'], shape['rows']))
+    client.subscribe_states(state)
+    return await asyncio.wait_for(found, 10)
 
 async def main():
     p = argparse.ArgumentParser(description=__doc__)
@@ -135,27 +172,16 @@ async def main():
                        client_info='Demo layout', expected_name=args.name)
     await client.connect(login=True)
     try:
-        entities, _ = await client.list_entities_services()
+        entities, services = await client.list_entities_services()
         # Firmware built before the English translation still names this entity in Dutch.
         inbox = next(e for e in entities if type(e).__name__ == 'TextInfo' and e.name in ('Tile settings', 'Tegelinstellingen'))
-        # The firmware answers through the inbox entity's state, not the log.
-        replies = []
-        def state(update):
-            if getattr(update, 'key', None) == inbox.key and getattr(update, 'state', None):
-                replies.append(update.state)
-        client.subscribe_states(state)
+        grid = await screen_grid(client, entities)
         started = time.monotonic()
         count = len(controls_layout()['tiles']) if args.controls else 9
-        for message in messages(inbox.object_id if hasattr(inbox, 'object_id') else 'text.inbox', args.rotate % count, args.digital, args.wide, args.controls):
-            for packet in packets(message):
-                client.text_command(inbox.key, packet)
-                await asyncio.sleep(0.05)
-        await asyncio.sleep(1.5)
-        print(f'Demo layout sent in {time.monotonic() - started:.1f}s; inbox reports: {" / ".join(dict.fromkeys(replies)) or "(no status change)"}')
-        # Firmware built before the English translation still reports the Dutch originals.
-        accepted = ('Layout received', 'Synced', 'Loading tiles', 'Indeling ontvangen', 'Gesynchroniseerd', 'Tegels laden')
-        if not any(r in accepted for r in replies):
-            raise SystemExit('The firmware did not accept the demo layout.')
+        record, values, bars, region = configuration(grid, args.rotate % count, args.digital, args.wide, args.controls)
+        sender = api_sender(client, services)
+        await sender.synchronize(inbox.object_id, record, region, values, bars)
+        print(f'Demo layout applied in {time.monotonic() - started:.1f}s; {len(record["layout"]["pages"])} pages, {len(values)} tiles')
     finally:
         await client.disconnect()
 

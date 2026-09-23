@@ -1,5 +1,7 @@
+from manager_fixtures import edit_layout
 """Daily efficiency with many screens: incremental sync, one action per message, the keepalive ping,
 bundled history in the background and the cached screen list (app 0.2.39 / firmware 0.2.33)."""
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import json
@@ -86,7 +88,7 @@ def fake_ha(firmware='0.2.33', node='office-1'):
 @unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
 class IncrementalSync(unittest.IsolatedAsyncioTestCase):
     def manager(self, tmp, **kw):
-        m = Manager(fake_ha(**kw), Path(tmp) / 'screens.json')
+        m = Manager(with_screen_grid(fake_ha(**kw)), Path(tmp) / 'screens.json')
         m.save('text.screen', {'title': 'Office 1', 'tiles': [{'entity': 'light.a', 'name': ''}, {'entity': 'light.b', 'name': ''}],
                                'header': {'items': [{'type': 'clock'}, {'type': 'entity', 'entity': 'sensor.t', 'content': 'state', 'icon': 'auto', 'show': 'always'}]}})
         return m
@@ -163,7 +165,7 @@ class IncrementalSync(unittest.IsolatedAsyncioTestCase):
             await self.run_loop_for(m, 0.6)
             ops = [msg['op'] for _, msg, _ in m.ha.messages]
             self.assertEqual(ops, ['layout', 'header', 'state', 'state'], 'first pass sends everything')
-            self.assertEqual(m.ha.relevant, {'light.a', 'light.b', 'sensor.t', 'text.screen', 'sensor.fw', 'text.node'})
+            self.assertEqual(m.ha.relevant, {'light.a', 'light.b', 'sensor.t', 'text.screen', 'sensor.fw', 'text.node', 'sensor.test_grid_text_screen'})
             m.ha.messages.clear()
             # A wake without dirty entities sends nothing, not even a ping before its time.
             m.ha.changed.set()
@@ -225,7 +227,7 @@ class IncrementalSync(unittest.IsolatedAsyncioTestCase):
 class ScreenCache(unittest.IsolatedAsyncioTestCase):
     async def test_screens_are_rediscovered_only_when_their_inputs_change(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha()), Path(tmp) / 'screens.json')
             with patch.object(server, 'discover_screens', wraps=server.discover_screens) as found:
                 first = m.screens()
                 self.assertEqual([s['id'] for s in first], ['text.screen'])
@@ -257,7 +259,7 @@ class ScreenCache(unittest.IsolatedAsyncioTestCase):
 class HistoryInTheBackground(unittest.IsolatedAsyncioTestCase):
     async def test_statistics_bundle_rest_fallback_and_dirty_marking(self):
         with tempfile.TemporaryDirectory() as tmp:
-            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(fake_ha()), Path(tmp) / 'screens.json')
             m.ha.stats = {'sensor.t': [21.0] * 24}
             m.save('text.screen', {'title': 'K', 'tiles': [{'entity': 'sensor.t', 'name': '', 'options': {'history_hours': 24}},
                                                             {'entity': 'sensor.co2', 'name': '', 'options': {'history_hours': 6}},
@@ -289,7 +291,7 @@ class HistoryInTheBackground(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(len(m.ha.stat_calls), 2)
             self.assertEqual(m.ha.dirty, set(), 'same values: no resend')
             # A tile that left the layout drops out of the cache.
-            m.save('text.screen', {'title': 'K', 'tiles': [{'entity': 'sensor.t', 'name': ''}]})
+            edit_layout(m, 'text.screen', {'title': 'K', 'tiles': [{'entity': 'sensor.t', 'name': ''}]})
             await m.refresh_histories()
             self.assertEqual(set(m.histories), {('sensor.t', 24)})
 

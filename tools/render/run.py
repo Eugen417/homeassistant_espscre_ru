@@ -59,6 +59,7 @@ ALERTS = (
 )
 PROBE = re.compile(r'probe page=(-?\d+) applied=(-?\d+) shown=(\d+) tiles=(\d+) alert=(\d) pages=(\d+)')
 HEADER = re.compile(r'state page=(-?\d+) name=\[(.*?)\] shown=\[(.*?)\] name_box=(-?\d+),(-?\d+),(-?\d+),(-?\d+)')
+NAVIGATION = re.compile(r'navigation page=(-?\d+) footer=(\d) back=(\d) grid_height=(\d+) tile=(-?\d+),(-?\d+) prev=(-?\d+),(-?\d+) header=(-?\d+),(-?\d+)')
 ALERT = re.compile(r'alert on=(\d) ' + ' '.join(f'{part}=(-?\\d+),(-?\\d+),(-?\\d+),(-?\\d+)'
                                               for part in ('card', 'frame', 'icon', 'title', 'subtitle', 'button')))
 # A page's own title (app 0.2.123): a long one among them, the kind that stood in dots after a page change (GitHub #27).
@@ -213,10 +214,8 @@ class Run:
         return image
 
     async def send(self, message):
-        from core import packets
-        for packet in packets(message):
-            self.client.text_command(self.inbox.key, packet)
-            await asyncio.sleep(0.02)
+        if not await self.sender.auxiliary(message, session=self.sender.session, revision=self.sender.confirmed):
+            raise RuntimeError('The render configuration was superseded')
 
     async def alert(self, name, reference, **given):
         """One alert over page 1, rendered and dismissed; page 1 must then look as it did."""
@@ -273,12 +272,16 @@ class Run:
         # milliseconds, so the finger rests on the edge long enough to be seen there, then moves the way a finger does,
         # a little further at every read (LVGL's gesture, the CYD's page swipe, starts counting again when it stops).
         start, stop = (0.99, 0.3) if forward else (0.01, 0.7)
-        points = [int(width * (start + (stop - start) * i / 14)) for i in range(15)]
+        # Update faster than the touchscreen/LVGL read timers. Leaving the
+        # virtual finger still for 20 ms between jumps creates zero-velocity
+        # reads and can reset LVGL's gesture accumulator on the small CYD.
+        # A physical moving finger does not stop between sensor samples.
+        points = [int(width * (start + (stop - start) * i / 28)) for i in range(29)]
         await self.call('render_finger', x=points[0], y=y, down=True)
         await asyncio.sleep(0.15)
         for x in points[1:]:
             await self.call('render_finger', x=x, y=y, down=True)
-            await asyncio.sleep(0.02)
+            await asyncio.sleep(0.005)
         await self.call('render_finger', x=points[-1], y=y, down=False)
         seen, steady, end = [], 0, time.monotonic() + 6
         while time.monotonic() < end:
@@ -328,6 +331,125 @@ class Run:
         self.failures += [f'self test: {l.strip()}' for l in failed]
         return len(checks)
 
+    async def navigation_state(self):
+        start = len(self.lines)
+        await self.call('render_navigation')
+        line = await self.until(lambda line: NAVIGATION.search(line), 10, 'navigation probe', start)
+        values = [int(value) for value in NAVIGATION.search(line).groups()]
+        return dict(page=values[0], footer=bool(values[1]), back=bool(values[2]), height=values[3],
+                    tile=values[4:6], previous=values[6:8], header=values[8:10])
+
+    async def tap_navigation(self, control, target, titles):
+        before = await self.navigation_state()
+        x, y = before[control]
+        if x < 0 or y < 0:
+            raise RuntimeError(f'{control} is hidden on page {before["page"] + 1}')
+        await self.call('render_finger', x=x, y=y, down=True)
+        await asyncio.sleep(0.2)
+        await self.call('render_finger', x=x, y=y, down=False)
+        end = time.monotonic() + 8
+        while time.monotonic() < end:
+            state = await self.state()
+            if state['page'] == target:
+                if state['name'] != titles[target] or '...' in state['shown']:
+                    raise RuntimeError(f'Tap reached page {target + 1} with a stale/truncated title: {state}')
+                break
+            await asyncio.sleep(0.05)
+        else:
+            raise RuntimeError(f'{control} tap did not reach page {target + 1}: {state}')
+        after = await self.navigation_state()
+        if after['height'] != before['height']:
+            raise RuntimeError(f'Tile height changed across a page tap: {before} -> {after}')
+        await asyncio.sleep(0.2)  # separate fingers, including the repeat-action guard
+        return after
+
+    async def detail_navigation(self, grid, entities):
+        """Real touchscreen taps, nested Back, hidden footer and excluded swipes.
+
+        This replaces the demo only after its render checks. There are no HA
+        actions: every card navigates to a page. No test hooks ship on a board.
+        """
+        from core import state_message
+        from layout_migrations import migrate_legacy
+        from page_layout import compile_tiles
+        # Larger grids can have only three pages within the existing 64-cell
+        # limit. Keep a nested detail route on those boards too.
+        extra_overview = grid.pages >= 4
+        titles = ['Lighting', *(['Overview'] if extra_overview else []), 'Details', 'Nested']
+        home_page, detail_page, nested_page = int(extra_overview), len(titles) - 2, len(titles) - 1
+        targets = [detail_page + 1] * detail_page + [nested_page + 1, 1]
+        record = migrate_legacy({'title': 'Navigation', 'pages': len(titles), 'page_titles': titles, 'tiles': [
+            {'entity': f'screen.page_{target}', 'name': titles[target - 1], 'slot': index * grid.slots}
+            for index, target in enumerate(targets)]}, grid)
+        document = record['layout']
+        document['homePageId'] = document['pages'][home_page]['id']
+        for page in document['pages'][detail_page:]: page['navigation']['excludeFromPagination'] = True
+        values = [state_message(i, tile, {}) for i, tile in enumerate(compile_tiles(document, grid))]
+        bars = [[{'k': 'clock'}] for _ in document['pages']]
+        region = {'keepalive': 120, 'clock_24h': True, 'numbers': 'point', 'group_min': 1, 'percent_space': False}
+        await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+        buttons = next(e for e in entities if getattr(e, 'name', '') == 'Page buttons')
+        home = next(e for e in entities if getattr(e, 'name', '') == 'Show home button')
+        self.client.switch_command(self.swipe_switch.key, True)
+        for footer in (True, False):
+            self.client.switch_command(buttons.key, footer)
+            self.client.switch_command(home.key, footer)  # Back also works with ordinary Home disabled.
+            await self.call('show_page', page=1)
+            await self.page_done(0)
+            await asyncio.sleep(0.3)
+            start = await self.navigation_state()
+            assert start['footer'] == footer, start
+            back_control = 'previous' if footer else 'header'
+            detail = await self.tap_navigation('tile', detail_page, titles)
+            assert detail['footer'] == footer and detail['back'] != footer, detail
+            await self.render('detail-footer' if footer else 'detail-header')
+            await self.tap_navigation('tile', nested_page, titles)
+            await self.tap_navigation(back_control, detail_page, titles)
+            await self.tap_navigation(back_control, 0, titles)  # source is not Home
+            await self.call('show_page', page=nested_page + 1)  # external entry has no prior route
+            await self.page_done(nested_page)
+            await self.tap_navigation(back_control, home_page, titles)
+            await self.call('show_page', page=1)
+            await self.page_done(0)
+            assert (await self.swipe(True))[-1]['page'] == home_page, 'swipe must stay within included pages'
+            assert (await self.swipe(True))[-1]['page'] == home_page, 'swipe must stop before excluded pages'
+            await self.call('show_page', page=detail_page + 1)
+            await self.page_done(detail_page)
+            assert (await self.swipe(False))[-1]['page'] == detail_page, 'detail pages have no sequential exit'
+            self.warnings.append(f'Detail Back: nested/source/Home fallback, stable height and swipes; footer={footer}')
+        self.client.switch_command(buttons.key, True)
+        self.client.switch_command(home.key, True)
+        await asyncio.sleep(0.3)
+        await self.call('show_page', page=1)
+        await self.page_done(0)
+        reference = await self.render('_before-protocol-error', keep=False)
+        for version, problem in ((1, 1), (99, 2)):
+            await self.sender.send({'v': version, 'op': 'layout'})
+            # A setting may arrive while the error blocks navigation. Re-place
+            # the underlying page, then require its arrows to recover too.
+            self.client.switch_command(buttons.key, False)
+            await asyncio.sleep(0.2)
+            self.client.switch_command(buttons.key, True)
+            await asyncio.sleep(0.2)
+            # The API acknowledges before the queued LVGL refresh; wait for
+            # a stable rendered frame before inspecting its widget geometry.
+            await self.render(f'protocol-error-{version}')
+            start = len(self.lines)
+            await self.call('render_problem')
+            line = await self.until(lambda line: 'problem=' in line, 5, 'Missing error view diagnostic', start)
+            assert f'problem={problem} covers=1 spinner=0' in line, line
+            # A covered navigation tile must not respond to a real touch.
+            await self.tap_navigation('tile', 0, titles)
+            self.sender.disconnected()
+            await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+            await self.page_done(0)
+            restored = await self.render('_after-protocol-error', keep=False)
+            if restored.tobytes() != reference.tobytes():
+                reference.save(self.out / 'recovery-expected.png')
+                restored.save(self.out / 'recovery-actual.png')
+            assert restored.tobytes() == reference.tobytes(), 'Recovery must restore the same complete screen'
+        return await self.self_test()
+
     async def drive(self):
         self.client = APIClient('127.0.0.1', self.item.port, None)
         for _ in range(240):
@@ -351,11 +473,13 @@ class Run:
         if 'render_skip_calibration' in self.services:
             await self.call('render_skip_calibration')
         await self.call('render_time', epoch=int(MOMENT.timestamp()))
-        messages = send_layout.messages(self.inbox.object_id, now=MOMENT)
-        messages[0]['page_titles'] = PAGE_TITLES
-        for message in messages:
-            await self.send(message)
-        tiles = len(messages[0]['entities'])
+        side = json.loads((REPO / 'screen_manager/app/boards.json').read_text())[self.item.board]['orientations']
+        side = side['portrait' if self.item.rotation else 'landscape']
+        grid = send_layout.Grid(side['columns'], side['rows'])
+        record, values, bars, region = send_layout.configuration(grid, now=MOMENT, titles=PAGE_TITLES)
+        self.sender = send_layout.api_sender(self.client, services)
+        await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+        tiles = len(values)
         end = time.monotonic() + 30
         while True:
             p = await self.probe()
@@ -365,8 +489,6 @@ class Run:
                 raise RuntimeError(f'the layout never arrived: {p}, {tiles} tiles expected')
             await asyncio.sleep(0.2)
         pages = p[5]
-        side = json.loads((REPO / 'screen_manager/app/boards.json').read_text())[self.item.board]['orientations']
-        side = side['portrait' if self.item.rotation else 'landscape']
         self.canvas = (side['width'], side['height'])
         checks = await self.self_test()
         await self.moments(pages)
@@ -392,6 +514,7 @@ class Run:
         (self.out / '_dark.ppm').unlink(missing_ok=True)
         await self.render('page-1-dark')
         self.client.switch_command(dark.key, False)
+        checks += await self.detail_navigation(grid, entities)
         return pages, checks
 
     async def run(self):

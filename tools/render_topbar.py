@@ -1,4 +1,4 @@
-"""Render the real top bar code (runtime_tiles::draw_header) for both boards on this computer.
+"""Render the real top bar component (page_header::Renderer) for both boards on this computer.
 
 Builds a small ESPHome host project (SDL2 display, LVGL 9.5 as the screens run it) with the
 fonts copied verbatim from both board profiles, draws a set of scenarios through the firmware's
@@ -24,8 +24,9 @@ PROFILES = {'guition': 'checkout/guition.yaml', 'cyd': 'checkout/cyd.yaml'}
 sys.path.insert(0, str(ROOT / 'tools'))
 import profiles  # noqa: E402
 FONTS = ('headline', 'time_label', 'sublabel_big', 'label', 'materialdesign_icons', 'materialdesign_icons_mini')
-# Hardware headers the host cannot compile; the top bar needs none of them.
-SKIP = {'screen_diagnostics.h', '__pycache__'}
+# Compile the renderer independently of the device model, transport and cards.
+HEADER_SOURCES = {'__init__.py', 'screen_text_gen.py', 'screen_text.h', 'screen_text_keys.h',
+                  'header_bar.h', 'page_header.h', 'theme.h', 'tile_icon.h'}
 # Header band per board: page width and height above the tiles.
 BANDS = {'guition': (480, 72), 'cyd': (320, 40)}
 
@@ -50,7 +51,7 @@ def font_blocks(board):
         if not m:
             raise SystemExit(f'Font {font_id} not found in {PROFILES[board]}')
         block = m.group(0).replace(f'id: {font_id}\n', f'id: {font_id}_{board}\n')
-        block = re.sub(r'file: "fonts/([^"]+)"', lambda f: f'file: "{ROOT}/fonts/{f[1]}"', block)
+        block = re.sub(r'file: "(?:\.\./)?fonts/([^"]+)"', lambda f: f'file: "{ROOT}/fonts/{f[1]}"', block)
         out += block.replace('&tile_icons', f'&tile_icons_{board}').replace('*tile_icons\n', f'*tile_icons_{board}\n')
     return out
 
@@ -104,15 +105,12 @@ def band(board, y):
 
 def render_lambda(out):
     scenarios = ',\n'.join(f'  {{"{slug}", "{title}", {{{", ".join(items)}}}}}' for slug, title, items in SCENARIOS)
-    return f'''using namespace runtime_tiles;
-using header_bar::Kind;
+    return f'''using header_bar::Kind;
+page_header::Renderer renderer;
 static const std::string OUT = "{out}/";
 // A fixed moment, 14 september 2026 18:04 in the Netherlands, so renders compare between runs.
 static const int64_t NOW = 1789401840;
 auto fixed = esphome::ESPTime::from_epoch_local(NOW);
-now_time = [fixed]() {{ return fixed; }};
-enabled = true;
-screen_settings::current.clock_24h = 1;
 auto text = [](uint32_t icon, const char *value, uint32_t color = 0) {{
   header_bar::Item item; item.kind = Kind::text; item.icon = icon; item.text = value;
   if (color) {{ item.color = color; item.has_color = true; }}
@@ -132,15 +130,19 @@ std::vector<Board> boards = {{
 for (auto &scenario : scenarios) {{
   for (auto &board : boards) {{
     // A fresh bar per board: the runtime keeps one set of objects.
-    if (header_root) {{ lv_obj_delete(header_root); header_root = nullptr; header_ring = nullptr; header_hands = {{}}; header_slots = {{}}; header_dial_key = -1; }}
-    room_label = board.room; time_label = board.time; header_text_font = board.text_font; header_icon_font = board.icon_font;
+    renderer.reset();
     lv_label_set_long_mode(board.room, LV_LABEL_LONG_WRAP);
     lv_obj_set_size(board.room, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
     lv_label_set_text(board.room, scenario.title);
-    header = header_bar::Bar{{}};
+    header_bar::Bar header;
     for (auto &item : scenario.items) header.items[header.count++] = item;
     header.received = true;
-    for (int pass = 0; pass < 2; ++pass) {{ lv_obj_update_layout(board.page); draw_header(true); }}
+    const std::string title = scenario.title;
+    for (int pass = 0; pass < 2; ++pass) {{
+      lv_obj_update_layout(board.page);
+      renderer.draw({{board.room, board.time, nullptr, nullptr, board.text_font, board.icon_font, nullptr}},
+                           {{header, title, fixed, NOW, page_header::Leading::none, true, true}}, nullptr);
+    }}
     lv_obj_update_layout(board.page);
     lv_draw_buf_t *buf = lv_snapshot_take(board.page, LV_COLOR_FORMAT_RGB888);
     std::string path = OUT + scenario.slug + "-" + board.name + ".ppm";
@@ -188,13 +190,8 @@ time:
   - platform: host
     timezone: Europe/Amsterdam
 
-api:
-  homeassistant_services: true
-  reboot_timeout: 0s
-
-text:
-  - platform: smart_display
-    name: "Tile settings"
+smart_display:
+  language: en
 
 display:
   - platform: sdl
@@ -214,25 +211,12 @@ lvgl:
       scrollable: false
       widgets:
         # Never shown: they make ESPHome compile the widgets the component code creates.
-        - slider:
-            hidden: true
-        - switch:
-            hidden: true
-        - spinner:
-            hidden: true
-            spin_time: 1s
-            arc_length: 60deg
         - line:
             hidden: true
             points:
               - 0, 0
               - 1, 1
 {band('guition', 0)}{band('cyd', 220)}
-script:
-  - id: action_seed
-    then:
-      - homeassistant.action:
-          action: light.turn_on
 '''
 
 def png(path, width, height, rgb):
@@ -283,7 +267,7 @@ def main():
     shutil.rmtree(components, ignore_errors=True)
     components.mkdir(parents=True)
     for source in (ROOT / 'components/smart_display').iterdir():
-        if source.name not in SKIP:
+        if source.name in HEADER_SOURCES:
             (components / source.name).symlink_to(source)
     config = WORK / 'render-topbar.yaml'
     config.write_text(project(out))

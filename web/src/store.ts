@@ -4,18 +4,21 @@ import { computed, reactive, toRaw, watch, watchEffect } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import {
-  arrange, cellsOf, entriesOf, firstFree, fits, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
+  arrange, cellsOf, entriesOf, firstFree, fits, grid, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
   pageOrder, pagePlaces, pageTarget, reorderPages, reorderTitles, retargetedPage, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages,
   supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { versionAtLeast } from "./model/layout";
-import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile } from "./types";
+import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile, PageLayout, PageDocument, PageGrid, PageWorkspace } from "./types";
+
+import * as pages from "./model/pages";
 
 export type Inspector =
   | { kind: "tile" }
   | { kind: "bar"; index: number }
   | { kind: "bar-add" }
+  | { kind: "page"; id: string }
   | { kind: "inspect"; entity?: string };
 // A whole page on its way to another place in the row (app 0.2.121): where it came from, where it is heading, and
 // the row as it stands while it is in the air (`order[position]` is the page drawn there).
@@ -29,7 +32,20 @@ export const state = reactive({
   connected: false,
   reachable: true,
   selected: null as string | null,
-  layout: null as Layout | null,
+  document: null as PageLayout | null,
+  gridReview: null as { record: PageDocument; layout: PageLayout; target: PageGrid; copy: boolean; message: string } | null,
+  documentRevision: null as string | null,
+  documentGrid: null as PageGrid | null,
+  workspace: { revision: "", positions: {} } as PageWorkspace,
+  workspaceDirty: false,
+  editorMode: "simple" as "simple" | "advanced",
+  focusedPageId: null as string | null,
+  connectingTileId: null as string | null,
+  selectedPageId: null as string | null,
+  conflict: false,
+  undoCount: 0,
+  redoCount: 0,
+  get layout(): Layout | null { return renderedLayout.value; },
   dirty: false,
   busy: false,
   saved: 0,
@@ -71,6 +87,11 @@ export const state = reactive({
   palette: false,
   firmwareJob: null as null | { job: any; logs: string[] },
 });
+
+// This is a cached render projection of the one canonical draft. Mutations go
+// through document operations below, never through this flattened view.
+const renderedLayout = computed<Layout | null>(() => state.document && state.documentGrid
+  ? pages.projectLayout(state.document, state.documentGrid) : null);
 
 export const currentScreen = computed<Screen | undefined>(() => state.inventory.screens.find((s) => s.id === state.selected));
 // The firmware version a screen's features go by, as the add-on works it out (firmware_known, app 0.2.78; null when it
@@ -123,10 +144,10 @@ export const deviceStyle = computed(() => {
   const rounded = Math.round(width * 10) / 10;
   return {
     "--screen-aspect": `${shape.width} / ${shape.height}`,
-    "--screen-columns": String(shape.columns),
-    "--screen-rows": String(shape.rows),
+    "--screen-columns": String(state.documentGrid?.columns ?? shape.columns),
+    "--screen-rows": String(state.documentGrid?.rows ?? shape.rows),
     // A wide tile is two cells, or the only one on a single-column screen (layout.ts: spanOf).
-    "--screen-wide-span": String(Math.min(2, shape.columns)),
+    "--screen-wide-span": String(Math.min(2, state.documentGrid?.columns ?? shape.columns)),
     "--mockup-width": `${rounded}px`,
   };
 });
@@ -136,11 +157,13 @@ export const deviceStyle = computed(() => {
 // still the standard look, and on its width alone it would have read as a CYD.
 export const isCompact = computed(() =>
   screenShape.value.look ? screenShape.value.look === "compact" : Math.min(screenShape.value.width, screenShape.value.height) < 300);
-watchEffect(() => setGrid(screenShape.value.columns, screenShape.value.rows));
-export const currentTile = computed<Tile | undefined>(() =>
-  state.selectedTile && state.layout?.tiles.includes(state.selectedTile) ? state.selectedTile : undefined);
-// The reactive copy and the plain object are the same tile.
-export const isSelected = (tile: Tile) => Boolean(state.selectedTile) && toRaw(state.selectedTile) === toRaw(tile);
+watchEffect(() => setGrid(state.documentGrid?.columns ?? screenShape.value.columns, state.documentGrid?.rows ?? screenShape.value.rows));
+export const currentTile = computed<Tile | undefined>(() => state.selectedTile?.id
+  ? state.layout?.tiles.find((tile) => tile.id === state.selectedTile!.id) : undefined);
+export const isSelected = (tile: Tile) => Boolean(tile.id) && state.selectedTile?.id === tile.id;
+const currentView = (tile: Tile, layout = state.layout) => tile.id ? layout?.tiles.find((item) => item.id === tile.id) : tile;
+export const pageReady = computed(() => currentScreen.value?.page_capability === "ready");
+export const pageAt = (index: number) => state.document?.pages[state.drag.page?.order[index] ?? index];
 
 // ---- Toasts ----
 let toastTimer = 0;
@@ -284,19 +307,33 @@ export async function loadEntityActions(entity: string) {
 // ---- Live values on the mockup (app 0.2.73): what the screen shows right now ----
 let statesFlight = false;
 export async function loadStates() {
+  const selection = selectionEpoch;
   const entities = [...new Set((state.layout?.tiles || []).map((t) => t.entity).filter((id) => !id.startsWith("screen.")))];
   if (!entities.length || statesFlight) return;
   statesFlight = true;
   try {
     for (let i = 0; i < entities.length; i += 60) {
       const query = entities.slice(i, i + 60).map((id) => `entity=${encodeURIComponent(id)}`).join("&");
-      Object.assign(state.liveStates, (await getJson(`states?${query}`)).states || {});
+      const values = await getJson(`states?${query}`);
+      if (selection !== selectionEpoch) return;
+      Object.assign(state.liveStates, values.states || {});
     }
   } catch {
     // The next tick tries again; the mockup keeps the last values.
   } finally {
     statesFlight = false;
   }
+}
+export async function loadLibraryStates(ids: string[]) {
+  const selection = selectionEpoch;
+  const entities = [...new Set(ids.filter((id) => !id.startsWith('screen.')))].slice(0, 80);
+  try {
+    for (let i = 0; i < entities.length; i += 60) {
+      const values = await getJson(`states?${entities.slice(i, i + 60).map((id) => `entity=${encodeURIComponent(id)}`).join('&')}`);
+      if (selection !== selectionEpoch) return;
+      Object.assign(state.liveStates, values.states || {});
+    }
+  } catch { /* Inventory state remains visible until the next refresh. */ }
 }
 // The live value, else what the inventory knew when it was fetched, else nothing.
 export function liveOf(entity: string): Live | null {
@@ -309,155 +346,247 @@ export function liveOf(entity: string): Live | null {
 // ---- Selecting a screen and editing its layout ----
 // Every edit counts, so a save only clears the edits it sent (app 0.2.78).
 let edits = 0;
+let committedLayout: PageLayout | null = null;
+let committedGrid: PageGrid | null = null;
+let selectionEpoch = 0;
 export function markDirty() {
-  state.dirty = true;
+  state.dirty = JSON.stringify(state.document) !== JSON.stringify(committedLayout) || JSON.stringify(state.documentGrid) !== JSON.stringify(committedGrid);
   state.saved = 0;
   edits++;
 }
+type DraftSnapshot = { layout: PageLayout; grid: PageGrid; positions: PageWorkspace["positions"]; page: string | null; tile: string | null };
+const undoHistory: DraftSnapshot[] = [], redoHistory: DraftSnapshot[] = [];
+const snapshot = (): DraftSnapshot => ({ layout: pages.clone(state.document!), grid: pages.clone(state.documentGrid!), positions: pages.clone(state.workspace.positions),
+  page: state.selectedPageId, tile: state.selectedTile?.id || null });
+function historyCounts() { state.undoCount = undoHistory.length; state.redoCount = redoHistory.length; }
+function applyDocument(next: PageLayout, remember = true, nextGrid = state.documentGrid) {
+  if (!state.document || !state.documentGrid) return false;
+  if (!nextGrid) return false;
+  pages.validatePages(next, nextGrid);
+  if (JSON.stringify(next) === JSON.stringify(state.document) && pages.sameGrid(nextGrid, state.documentGrid)) return false;
+  if (remember) {
+    undoHistory.push(snapshot());
+    if (undoHistory.length > 100) undoHistory.shift();
+    redoHistory.length = 0;
+    historyCounts();
+  }
+  const barId = state.document.pages[state.barPage]?.id;
+  state.documentGrid = pages.clone(nextGrid);
+  state.document = next;
+  const barIndex = next.pages.findIndex((page) => page.id === barId);
+  state.barPage = Math.max(0, barIndex);
+  const ids = new Set(next.pages.map((page) => page.id));
+  const positions = Object.fromEntries(Object.entries(state.workspace.positions).filter(([id]) => ids.has(id)));
+  if (Object.keys(positions).length !== Object.keys(state.workspace.positions).length) {
+    state.workspace.positions = positions; state.workspaceDirty = true;
+  }
+  if (state.editorMode === "advanced" || Object.keys(positions).length) initializeWorkspace();
+  if (state.selectedPageId && !ids.has(state.selectedPageId)) state.selectedPageId = next.homePageId;
+  if (state.focusedPageId && !ids.has(state.focusedPageId)) state.focusedPageId = null;
+  if (state.selectedTile?.id && !next.pages.some((page) => page.tiles.some((tile) => tile.id === state.selectedTile!.id))) closeInspector();
+  markDirty();
+  loadTopbarPreview();
+  return true;
+}
+export function editDocument(apply: (draft: PageLayout) => void) {
+  if (!state.document || !state.documentGrid) return false;
+  try { return applyDocument(pages.changePages(state.document, state.documentGrid, apply)); }
+  catch (error: any) { toast(error.message); return false; }
+}
+function restoreSnapshot(value: DraftSnapshot) {
+  applyDocument(value.layout, false, value.grid);
+  state.workspace.positions = value.positions; state.workspaceDirty = true;
+  state.selectedPageId = value.page;
+  state.selectedTile = state.layout?.tiles.find((tile) => tile.id === value.tile) || null;
+  historyCounts();
+  scheduleWorkspaceSave();
+}
+export function undo() { const value = undoHistory.pop(); if (value) { redoHistory.push(snapshot()); restoreSnapshot(value); } }
+export function redo() { const value = redoHistory.pop(); if (value) { undoHistory.push(snapshot()); restoreSnapshot(value); } }
+function readMode(id: string): "simple" | "advanced" {
+  try { return localStorage.getItem(`esp-screens-mode:${id}`) === "advanced" ? "advanced" : "simple"; } catch { return "simple"; }
+}
+export function setEditorMode(mode: "simple" | "advanced") {
+  state.editorMode = mode;
+  state.focusedPageId = null;
+  state.connectingTileId = null;
+  state.drag.active = false; state.drag.preview = null; state.drag.page = null; state.drag.moving = null;
+  if (mode === "advanced") initializeWorkspace();
+  try { if (state.selected) localStorage.setItem(`esp-screens-mode:${state.selected}`, mode); } catch {}
+}
+function loadDocument(screen: Screen) {
+  selectionEpoch++;
+  const record = screen.page_document;
+  state.document = record?.format === "legacy-v1" ? null : record?.format === "pages-v2"
+    ? pages.clone(record.layout) : pages.emptyLayout(screen.layout.title || screen.name);
+  state.documentGrid = record?.format === "pages-v2" ? pages.clone(record.sourceGrid)
+    : screen.source_grid ? pages.clone(screen.source_grid) : null;
+  committedLayout = pages.clone(state.document);
+  committedGrid = pages.clone(state.documentGrid);
+  state.gridReview = null;
+  state.documentRevision = record?.format === "pages-v2" ? record.revision : null;
+  state.workspace = record?.format === "pages-v2" && record.workspace ? pages.clone(record.workspace) : { revision: "", positions: {} };
+  state.workspaceDirty = false;
+  state.selectedPageId = state.document?.homePageId || null;
+  state.focusedPageId = null;
+  state.conflict = false;
+  undoHistory.length = redoHistory.length = 0; historyCounts();
+}
 export function select(id: string | null) {
-  // The open screen again, the way back from Firmware & USB, Alerts or Settings: its unsaved edits stay (app 0.2.78).
-  // Without edits it reads the stored layout again, which picks up what Claude or another tab changed meanwhile.
-  if (id === state.selected && state.layout && state.dirty) {
-    closeInspector();
-    state.tab = "layout";
-    state.menuOpen = false;
-    go("");
-    return;
+  if (id === state.selected && state.document && state.dirty) {
+    state.tab = "layout"; state.menuOpen = false; closeInspector(); go(""); return;
   }
   if (id !== state.selected && state.dirty && !confirm(t("editor.screen_view.confirm.switch"))) return;
-  if (id !== state.selected) {
-    flushSettings();
-    state.settingEdits = {};
-  }
-  state.selected = id;
-  state.selectedTile = null;
-  state.inspector = null;
-  state.tab = "layout";
-  state.menuOpen = false;
-  const screen = state.inventory.screens.find((s) => s.id === id);
-  if (!screen) { state.layout = null; return; }
-  // A plain copy: the inventory is reactive, and structuredClone refuses a proxy.
-  const layout: Layout = JSON.parse(JSON.stringify(screen.layout));
-  normalize(layout);
-  layout.pages = pageCount(entriesOf(layout), layout.pages);
-  state.layout = layout;
-  state.insertAt = -1;
-  state.dirty = false;
-  state.saved = 0;
+  if (id !== state.selected) { flushSettings(); state.settingEdits = {}; }
+  state.selected = id; state.selectedTile = null; state.inspector = null;
+  state.tab = "layout"; state.menuOpen = false;
+  const screen = state.inventory.screens.find((item) => item.id === id);
+  if (!screen) { state.document = null; state.documentGrid = null; return; }
+  loadDocument(screen);
+  state.editorMode = readMode(screen.id);
+  if (state.editorMode === "advanced") initializeWorkspace();
+  state.insertAt = -1; state.dirty = false; state.saved = 0;
   loadTopbarPreview(0);
-  loadCapabilities(layout.tiles.map((t) => t.entity));
-  loadStates();
-  go("");
+  loadCapabilities(state.layout?.tiles.map((tile) => tile.entity) || []);
+  loadStates(); go("");
 }
 export const liveEntries = () => (state.layout ? entriesOf(state.layout) : []);
 // Apply an arrangement; a new tile joins the layout. True when anything changed.
-function commit(result: { tile: Tile; slot: number }[]) {
-  const layout = state.layout!;
-  const before = layout.tiles.map((t) => `${t.entity}@${t.slot}`).join();
-  for (const { tile, slot } of result) { tile.slot = slot; if (!layout.tiles.includes(tile)) layout.tiles.push(tile); }
-  normalize(layout);
-  layout.pages = pageCount(entriesOf(layout), layout.pages);
-  const changed = layout.tiles.map((t) => `${t.entity}@${t.slot}`).join() !== before;
-  if (changed) markDirty();
-  return changed;
+export function commitArrangement(result: { tile: Tile; slot: number }[]) {
+  if (!state.document || !state.documentGrid) return false;
+  try {
+    // Adding a numbered destination from the library explicitly creates that
+    // page, in the same undo operation as its navigation tile.
+    const draft = pages.clone(state.document);
+    const count = Math.max(draft.pages.length, ...result.filter(({ tile }) => !tile.id).map(({ tile }) => pageTarget(tile.entity)));
+    if (count > pages.pageLimit(state.documentGrid)) throw new Error("This screen has no room for another page");
+    while (draft.pages.length < count) draft.pages.push(pages.emptyPage(draft.pages.at(-1)!.topbar));
+    return applyDocument(pages.arrangeTiles(draft, state.documentGrid, result));
+  }
+  catch (error: any) { toast(error.message); return false; }
 }
 export function placeTile(tile: Tile, target: number) {
   if (!state.layout) return false;
   loadCapabilities([tile.entity]);
-  const result = arrange(state.layout.tiles, tile, target);
-  const placed = result ? commit(result) : false;
+  const result = arrange(state.layout.tiles, currentView(tile) || tile, target);
+  const placed = result ? commitArrangement(result) : false;
   if (placed && !state.liveStates[tile.entity]) loadStates();
   return placed;
 }
-// A click in the picker: the marked empty cell, else the first free cell.
+// A click in the picker: the marked empty cell, else the selected page's first
+// free cell. Never silently spill a library click onto another page.
 export function addTile(id: string) {
   const layout = state.layout;
   if (!layout || (!repeatable(id) && layout.tiles.some((t) => t.entity === id)) || layout.tiles.length >= tileLimit.value) return;
   const tile = newTile(id);
-  const slot = state.insertAt >= 0 ? state.insertAt : firstFree(occupied(entriesOf(layout)), sizeOf(tile));
+  const page = Math.max(0, state.document!.pages.findIndex((page) => page.id === state.selectedPageId));
+  const target = state.insertAt >= 0 ? state.insertAt : firstFree(occupied(entriesOf(layout)), sizeOf(tile), page * grid.slots);
+  const slot = state.insertAt >= 0 || target < (page + 1) * grid.slots ? target : -1;
   state.insertAt = -1;
-  if (slot >= 0 && placeTile(tile, slot)) openTile(tile);
+  if (slot < 0) return toast(t('editor.pages.selected_full'));
+  if (slot >= 0 && placeTile(tile, slot)) {
+    const added = state.layout!.tiles.find((item) => item.entity === id && item.slot === slot);
+    if (added) openTile(added);
+  }
 }
 export function removeTile(tile: Tile) {
-  const layout = state.layout;
-  if (!layout) return;
-  const index = layout.tiles.indexOf(tile);
-  if (index < 0) return;
-  layout.tiles.splice(index, 1);
-  if (isSelected(tile)) closeInspector();
-  markDirty();
-  layout.pages = pageCount(entriesOf(layout), layout.pages);
-  toast(t("editor.layout.removed", { name: tile.name || entityName(tile.entity) }), { label: t("editor.common.undo"), run: () => placeTile(tile, tile.slot) });
+  if (!tile.id) return;
+  if (editDocument((draft) => { for (const page of draft.pages) page.tiles = page.tiles.filter((item) => item.id !== tile.id); }))
+    toast(t("editor.layout.removed", { name: tile.name || entityName(tile.entity) }), { label: t("editor.common.undo"), run: undo });
 }
 export function addPage() {
-  const layout = state.layout;
-  if (!layout) return;
-  layout.pages = Math.min(MAX_PAGES, pageCount(entriesOf(layout), layout.pages) + 1);
-  markDirty();
+  let created = '';
+  if (editDocument((draft) => {
+    const selected = draft.pages.find((page) => page.id === state.selectedPageId) || draft.pages.at(-1)!;
+    const page = pages.emptyPage(selected.topbar); created = page.id; draft.pages.push(page);
+  })) state.selectedPageId = created;
 }
-// The pages stand in `order` from now on (app 0.2.121): every tile keeps its own cell of its own page, a page's
-// own title travels with it, and a Go to page tile keeps pointing at the page it means, wherever that page ends up.
-function applyPageOrder(layout: Layout, order: number[]) {
-  const places = pagePlaces(order);
-  for (const { tile, slot } of reorderPages(entriesOf(layout), order)) tile.slot = slot;
-  for (const tile of layout.tiles) tile.entity = retargetedPage(tile.entity, (page) => (places[page - 1] ?? page - 1) + 1);
-  layout.tiles.sort((a, b) => a.slot - b.slot);
-  const names = reorderTitles(layout.page_titles, order);
-  layout.page_titles = names.length ? names : undefined;
-  state.insertAt = -1;
-  markDirty();
-}
-// A whole page to another place in the row, by dragging it or with the arrow keys. `from` and `to` count from 0.
-// A move costs nothing: every page carries its own title, page 1 included (app 0.2.123).
 export function movePage(from: number, to: number) {
-  const layout = state.layout;
-  if (!layout) return false;
-  const pages = pageCount(entriesOf(layout), layout.pages);
-  if (!Number.isInteger(from) || !Number.isInteger(to) || from === to) return false;
-  if (Math.min(from, to) < 0 || Math.max(from, to) >= pages) return false;
-  applyPageOrder(layout, pageOrder(pages, from, to));
-  return true;
+  if (!state.document || !state.documentGrid || from === to || !Number.isInteger(from) || !Number.isInteger(to) ||
+      from < 0 || to < 0 || from >= state.document.pages.length || to >= state.document.pages.length) return false;
+  try { return applyDocument(pages.reorderPage(state.document, state.documentGrid, state.document.pages[from]?.id, to)); }
+  catch (error: any) { toast(error.message); return false; }
 }
-// A page goes, whether it is empty or not (app 0.2.123), and takes what was only its own: the tiles in its cells,
-// its own title, and the Go to page tiles that led to it, which would otherwise open a page nobody has. The pages
-// after it move up, with their titles and the tiles that lead to them: the page travels to the end of the row
-// first, so everything behind it shifts up one, and then the row is one shorter. The toast says how many tiles
-// went and hands the whole page back.
 export function removePage(page: number) {
-  const layout = state.layout;
-  if (!layout) return;
-  const pages = pageCount(entriesOf(layout), layout.pages);
-  if (pages < 2 || page < 0 || page >= pages) return;
-  // The way back, by the tiles themselves: where each one stood and which page it opened before the move.
-  const before = layout.tiles.map((tile) => ({ tile, slot: tile.slot, entity: tile.entity }));
-  const titles = layout.page_titles ? [...layout.page_titles] : undefined;
-  const wanted = layout.pages;
-  const gone = new Set(layout.tiles.filter((tile) => pageOf(tile.slot) === page || pageTarget(tile.entity) === page + 1));
-  if (state.selectedTile && gone.has(state.selectedTile)) closeInspector();
-  layout.tiles = layout.tiles.filter((tile) => !gone.has(tile));
-  applyPageOrder(layout, pageOrder(pages, page, pages - 1));
-  const names = (layout.page_titles || []).slice(0, pages - 1);
-  while (names.length && !names[names.length - 1]) names.pop();
-  layout.page_titles = names.length ? names : undefined;
-  layout.pages = Math.max(1, pages - 1);
-  markDirty();
-  toast(gone.size ? t("editor.layout.page_removed_tiles", { page: page + 1 }, gone.size) : t("editor.layout.page_removed", { page: page + 1 }), {
-    label: t("editor.common.undo"),
-    run: () => {
-      for (const { tile, slot, entity } of before) { tile.slot = slot; tile.entity = entity; }
-      layout.tiles = before.map((entry) => entry.tile);
-      layout.page_titles = titles;
-      layout.pages = wanted;
-      state.insertAt = -1;
-      markDirty();
-    },
+  if (!state.document || !state.documentGrid || !state.document.pages[page] || state.document.pages.length === 1) return;
+  const id = state.document.pages[page].id;
+  try {
+    const next = pages.deletePage(state.document, state.documentGrid, id);
+    const removed = state.layout!.tiles.length - pages.projectLayout(next, state.documentGrid).tiles.length;
+    if (applyDocument(next)) toast(removed ? t("editor.layout.page_removed_tiles", { page: page + 1 }, removed)
+      : t("editor.layout.page_removed", { page: page + 1 }), { label: t("editor.common.undo"), run: undo });
+  } catch (error: any) { toast(error.message); }
+}
+export function setHomePage(id: string) { return editDocument((draft) => { draft.homePageId = id; }); }
+export function openPage(id: string) {
+  state.selectedPageId = id; state.selectedTile = null;
+  state.inspector = { kind: "page", id };
+}
+export function connectTile(tileId: string, target: string | "home") {
+  return editDocument((draft) => {
+    const tile = draft.pages.flatMap((page) => page.tiles).find((item) => item.id === tileId);
+    if (tile?.content.kind !== "navigation") throw new Error("Select a page-navigation tile to change its destination");
+    tile.content.target = target === "home" ? { kind: "home" } : { kind: "page", pageId: target };
   });
+}
+export function setPageExcluded(id: string, excluded: boolean) {
+  return editDocument((draft) => { const page = draft.pages.find((item) => item.id === id); if (page) page.navigation.excludeFromPagination = excluded; });
+}
+export function duplicateEditorPage(id: string, empty: boolean) {
+  if (!state.document || !state.documentGrid) return false;
+  try { return applyDocument(pages.duplicatePage(state.document, state.documentGrid, id, empty)); }
+  catch (error: any) { toast(error.message); return false; }
+}
+export function setPageHomeControl(id: string, visible: boolean) {
+  return editDocument((draft) => { const page = draft.pages.find((item) => item.id === id); if (page)
+    page.topbar.leading = visible ? page.topbar.leading.length ? page.topbar.leading : [{ id: pages.instanceId(), kind: "home" }] : []; });
+}
+export function moveWorkspacePage(id: string, x: number, y: number) {
+  if (!state.document?.pages.some((page) => page.id === id)) return;
+  const positions = workspacePositions();
+  if (![x, y].every(Number.isInteger) || x < 0 || y < 0 || x > 100 || y > 100) return;
+  if (Object.entries(positions).some(([key, point]) => key !== id && point.x === x && point.y === y)) {
+    toast(t("editor.pages.position_occupied")); return;
+  }
+  if (positions[id]?.x === x && positions[id]?.y === y) return;
+  undoHistory.push(snapshot()); redoHistory.length = 0; historyCounts();
+  state.workspace.positions = { ...positions, [id]: { x, y } };
+  state.workspaceDirty = true; scheduleWorkspaceSave();
+}
+export function workspacePositions() {
+  if (!state.document) return {};
+  const positions = pages.clone(state.workspace.positions), defaults = pages.initialPositions(state.document);
+  const occupied = new Set(Object.values(positions).map((point) => `${point.x},${point.y}`));
+  for (const page of state.document.pages) if (!positions[page.id]) {
+    const point = { ...defaults[page.id] };
+    while (occupied.has(`${point.x},${point.y}`)) {
+      point.x++;
+      if (point.x > 100) { point.x = 0; point.y++; }
+    }
+    positions[page.id] = point;
+    occupied.add(`${point.x},${point.y}`);
+  }
+  return positions;
+}
+function initializeWorkspace() {
+  const positions = workspacePositions();
+  if (JSON.stringify(positions) === JSON.stringify(state.workspace.positions)) return;
+  state.workspace.positions = positions;
+  state.workspaceDirty = true;
+  scheduleWorkspaceSave();
+}
+export function arrangeFromHome() {
+  if (!state.document) return;
+  undoHistory.push(snapshot()); redoHistory.length = 0; historyCounts();
+  state.workspace.positions = pages.initialPositions(state.document);
+  state.workspaceDirty = true; scheduleWorkspaceSave();
 }
 // Moving a tile without dragging it (app 0.2.78), for a finger on a phone and for anyone who can't drag: the first
 // free cell of that page, else its first cell, where the tile in the way swaps places as it does for a drop or an
 // arrow key. `page` counts from 0; the page after the last one starts a new page.
 export function moveTileToPage(tile: Tile, page: number) {
   const layout = state.layout;
+  tile = currentView(tile) || tile;
   if (!layout || !Number.isInteger(page) || page < 0 || page >= MAX_PAGES || page === pageOf(tile.slot)) return false;
   const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), sizeOf(tile), page * SLOTS_PER_PAGE);
   const moved = placeTile(tile, slot >= 0 && pageOf(slot) === page ? slot : page * SLOTS_PER_PAGE);
@@ -476,6 +605,9 @@ export function pagesShown() {
 // The tile's options change live; a card that becomes double-wide keeps its row when the cell beside it is
 // free, else it takes the nearest free row (below first); every other tile stays where it is.
 export function setTileOption(tile: Tile, key: string, value: unknown) {
+  if (!state.layout) return;
+  const layout = pages.clone(state.layout);
+  tile = currentView(tile, layout) || tile;
   const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasWide = isWide(tile), wasSize = sizeOf(tile);
   tile.options = { ...tile.options, [key]: value };
   // Direct controls need the standard layout without a mini slider, and vice versa.
@@ -487,9 +619,6 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
   const catalogue = state.inventory.controls?.[domain];
   if (key === "size" && value === "wide" && caps && catalogue && !("controls" in tile.options) && !caps.controls.includes(catalogue.default))
     tile.options.controls = catalogue.choices.find((c) => c.key !== "none" && caps.controls.includes(c.key))?.key || "none";
-  markDirty();
-  const layout = state.layout;
-  if (!layout) return;
   // A card that grows to the whole page keeps its page: the other tiles there move to the first free
   // cells after it. With no room for them it takes the first empty page, or stays as it was.
   if (isFull(tile) && wasSize !== "full") {
@@ -514,24 +643,31 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
     if (slot >= 0) tile.slot = slot;
   }
   normalize(layout);
-  layout.pages = pageCount(entriesOf(layout), layout.pages);
+  commitArrangement(layout.tiles.map((item) => ({ tile: item, slot: item.slot })));
 }
 // A navigation tile goes to another page: its entity changes (screen.page_<n>). One tile per page it goes to, unless
 // the firmware takes several (0.2.65). The page after the last one becomes a new, empty page to fill (app 0.2.78).
 export function retargetPageTile(tile: Tile, page: number) {
-  const entity = `screen.page_${page}`, layout = state.layout;
-  if (!layout || entity === tile.entity || !pageTarget(entity)) return false;
-  if (!repeatable(entity) && layout.tiles.some((t) => t.entity === entity)) { toast(t("editor.layout.page_taken", { page })); return false; }
-  tile.entity = entity;
-  layout.pages = Math.max(pageCount(entriesOf(layout), layout.pages), page);
-  markDirty();
-  return true;
+  if (!tile.id || !Number.isInteger(page) || page < 1 || page > MAX_PAGES) return false;
+  if (!pageTilesRepeat.value && state.layout?.tiles.some((other) => other.id !== tile.id && pageTarget(other.entity) === page)) {
+    toast(t("editor.layout.page_taken", { page })); return false;
+  }
+  return editDocument((draft) => {
+    while (draft.pages.length < page) draft.pages.push(pages.emptyPage(draft.pages.at(-1)!.topbar));
+    const source = draft.pages.flatMap((item) => item.tiles).find((item) => item.id === tile.id);
+    if (!source || source.content.kind !== "navigation") throw new Error("The navigation tile no longer exists");
+    source.content.target = { kind: "page", pageId: draft.pages[page - 1].id };
+  });
+}
+export function setTileName(tile: Tile, value: string) {
+  editDocument((draft) => { const found = draft.pages.flatMap((page) => page.tiles).find((item) => item.id === tile.id); if (found) found.appearance.label = value; });
 }
 
 // ---- Inspector (the drawer) ----
 export function openTile(tile: Tile) {
   if (!isSelected(tile)) { state.iconPickerOpen = false; state.actionPickerOpen = false; state.actionSearch = ""; }
   state.selectedTile = tile;
+  state.selectedPageId = state.document?.pages.find((page) => page.tiles.some((item) => item.id === tile.id))?.id || state.selectedPageId;
   state.inspector = { kind: "tile" };
   loadCapabilities([tile.entity]);
 }
@@ -541,8 +677,7 @@ export function openTile(tile: Tile) {
 export const screenTitle = () => state.layout?.title ?? "";
 export function setScreenTitle(value: string) {
   if (!state.layout) return;
-  state.layout.title = value;
-  markDirty();
+  editDocument((draft) => { draft.title = value; });
 }
 // The title of one page (app 0.2.105), the one thing the top bar's inspector asks per page. A title belongs to the
 // page and travels with it, page 1 included (app 0.2.123), so reordering the row never costs a name. Stored as one
@@ -556,20 +691,15 @@ export const pageTitleShown = (page: number) => {
   return pageTitle(order ? order[page] ?? page : page) || state.layout?.title || "";
 };
 export function setPageTitle(page: number, value: string) {
-  if (!state.layout) return;
-  const names = [...(state.layout.page_titles ?? [])];
-  while (names.length <= page) names.push("");
-  names[page] = value;
-  while (names.length && !names[names.length - 1]) names.pop();
-  state.layout.page_titles = names.length ? names : undefined;
-  markDirty();
+  editDocument((draft) => { if (draft.pages[page]) draft.pages[page].topbar.title = value.trim() ? { source: "text", text: value } : { source: "screen" }; });
 }
 // `page` is the page whose bar was clicked (app 0.2.105): the inspector changes that page's own title there,
 // which is where you look for it after clicking the bar.
-export function openBar(index: number, page = 0) {
+export function openBar(index: number, page = state.barPage) {
   if (!(state.inspector?.kind === "bar" && state.inspector.index === index)) state.iconPickerOpen = false;
   state.selectedTile = null;
   state.barPage = page;
+  state.selectedPageId = state.document?.pages[page]?.id || null;
   state.inspector = { kind: "bar", index };
 }
 export function openBarAdd() {
@@ -582,30 +712,72 @@ export function closeInspector() {
 }
 
 // ---- Save ----
+function acceptSave(record: PageDocument, submitted: PageLayout, submittedWorkspace: PageWorkspace | undefined, sent: number) {
+  state.documentRevision = record.revision;
+  committedLayout = pages.clone(submitted);
+  committedGrid = pages.clone(record.sourceGrid);
+  if (record.workspace) {
+    state.workspace.revision = record.workspace.revision;
+    if (!submittedWorkspace || JSON.stringify(state.workspace.positions) === JSON.stringify(submittedWorkspace.positions)) {
+      state.workspace.positions = pages.clone(record.workspace.positions); state.workspaceDirty = false;
+    }
+  }
+  state.dirty = JSON.stringify(state.document) !== JSON.stringify(committedLayout) || JSON.stringify(state.documentGrid) !== JSON.stringify(committedGrid);
+  state.conflict = false;
+  if (edits === sent) { state.saved = Date.now(); toast(t("editor.screen_view.saved.current")); }
+  else toast(t("editor.screen_view.saved.newer_edit"));
+}
 export async function save() {
-  if (state.busy || !state.layout || !state.selected) return;
+  if (state.busy || !state.document || !state.selected || !state.documentGrid) return;
   state.busy = true;
-  // The layout as it leaves: a drag, the drawer or Add still work while the request is on its way (the add-on's check
-  // can take seconds after Copy or Import), and those changes aren't in it (app 0.2.78).
-  const sent = edits, screen = state.selected;
+  const sent = edits, screen = state.selected, selection = selectionEpoch, submitted = pages.clone(state.document), submittedGrid = pages.clone(state.documentGrid);
+  const workspace = state.workspaceDirty ? pages.clone(state.workspace) : undefined;
+  const adaptation = committedGrid && !pages.sameGrid(committedGrid, submittedGrid) ? { from: committedGrid, to: submittedGrid } : undefined;
+  const request = { format: "pages-v2", revision: state.documentRevision, layout: submitted, ...(workspace ? { workspace } : {}), ...(adaptation ? { adaptation } : {}) };
   try {
-    // Screen settings apply on their own (flushSettings); the stored ones stay as they are.
-    const { settings: _settings, ...tiles } = state.layout;
-    await send(`screens/${encodeURIComponent(state.selected)}`, "PUT", tiles);
-    if (state.selected !== screen) {
-      const name = state.inventory.screens.find((s) => s.id === screen)?.name;
-      toast(name ? t("editor.screen_view.saved.other", { name }) : t("editor.screen_view.saved.other_unnamed"));
-    } else if (edits === sent) {
-      state.dirty = false;
-      state.saved = Date.now();
-      toast(t("editor.screen_view.saved.current"));
-    } else toast(t("editor.screen_view.saved.newer_edit"));
-    await refresh();
-  } catch (e: any) {
-    toast(e.message);
+    const result = await send<{ saved: boolean; document: PageDocument }>(`screens/${encodeURIComponent(screen)}`, "PUT", request);
+    if (state.selected === screen && selection === selectionEpoch) acceptSave(result.document, submitted, workspace, sent);
+    else toast(t("editor.screen_view.saved.other", { name: state.inventory.screens.find((s) => s.id === screen)?.name || screen }));
+    await refresh(false);
+  } catch (error: any) {
+    // A lost HTTP answer does not prove the save failed. Read the authoritative
+    // revision before another attempt; edits made meanwhile remain the draft.
+    try {
+      const inventory = await getJson<Inventory>("inventory?light=1");
+      const record = inventory.screens.find((item) => item.id === screen)?.page_document;
+      if (state.selected === screen && selection === selectionEpoch && record?.format === "pages-v2" && pages.sameGrid(record.sourceGrid, submittedGrid) && JSON.stringify(record.layout) === JSON.stringify(submitted) &&
+          (!workspace || JSON.stringify(record.workspace?.positions) === JSON.stringify(workspace.positions))) {
+        acceptSave(record, submitted, workspace, sent);
+        return;
+      }
+      if (state.selected === screen && selection === selectionEpoch && record?.format === "pages-v2" && record.revision !== state.documentRevision) state.conflict = true;
+    } catch { /* Keep the draft and its expected revision until the server can be reached. */ }
+    toast(error.message);
   } finally {
     state.busy = false;
+    if (state.workspaceDirty) scheduleWorkspaceSave();
   }
+}
+let workspaceTimer = 0, workspaceFlight = false;
+function scheduleWorkspaceSave() {
+  clearTimeout(workspaceTimer);
+  workspaceTimer = window.setTimeout(saveWorkspace, 400);
+}
+export async function saveWorkspace() {
+  if (workspaceFlight || state.busy || !state.workspaceDirty || !state.selected || !state.documentRevision || !committedLayout) return;
+  const committedIds = new Set(committedLayout.pages.map((page) => page.id));
+  if (Object.keys(state.workspace.positions).some((id) => !committedIds.has(id))) return;
+  const screen = state.selected, selection = selectionEpoch, workspace = pages.clone(state.workspace), revision = state.documentRevision;
+  workspaceFlight = true;
+  try {
+    const saved = await send<PageWorkspace>(`screens/${encodeURIComponent(screen)}/workspace`, "PUT", { revision, workspace });
+    if (state.selected === screen && selection === selectionEpoch) {
+      state.workspace.revision = saved.revision;
+      state.workspaceDirty = JSON.stringify(state.workspace.positions) !== JSON.stringify(saved.positions);
+      if (state.workspaceDirty) scheduleWorkspaceSave();
+    }
+  } catch (error: any) { toast(error.message); }
+  finally { workspaceFlight = false; }
 }
 
 // ---- Identify and the test alert (app 0.2.73): a screen's own show_alert action ----
@@ -666,7 +838,9 @@ function forgetOpenScreen() {
   state.settingPending = false;
   state.dirty = false;
   state.selected = null;
-  state.layout = null;
+  state.document = null;
+  state.documentGrid = null;
+  state.gridReview = null;
   state.selectedTile = null;
   state.inspector = null;
   state.menuOpen = false;
@@ -677,43 +851,45 @@ export async function sendTestAlert(target: string, data: Record<string, unknown
 }
 
 // ---- Copying and sharing a layout (app 0.2.73) ----
-const LAYOUT_KEYS = ["title", "tiles", "header", "pages"] as const;
-// `said` tells what happened, with how many tiles fit when not all of them do.
-function adopt(source: Partial<Layout>, said: (fit?: { kept: number; total: number }) => string) {
-  const layout = state.layout;
-  if (!layout) return;
-  const tiles = (Array.isArray(source.tiles) ? source.tiles : [])
-    .filter((t): t is Tile => Boolean(t && typeof t === "object" && typeof t.entity === "string" && t.entity.includes(".")))
-    .map((t) => ({ entity: t.entity, name: typeof t.name === "string" ? t.name : "", slot: Number.isInteger(t.slot) ? t.slot : -1,
-                   ...(t.options && typeof t.options === "object" ? { options: { ...t.options } } : {}) }) as Tile);
-  const seen = new Set<string>();
-  const unique = tiles.filter((t) => repeatable(t.entity) || (!seen.has(t.entity) && seen.add(t.entity)));
-  const kept = unique.slice(0, tileLimit.value);
-  layout.tiles = kept;
-  if (source.header && Array.isArray(source.header.items)) layout.header = { items: source.header.items.map((i) => ({ ...i })) };
-  else delete layout.header;
-  layout.pages = Number.isInteger(source.pages) ? (source.pages as number) : 1;
-  normalize(layout);
-  layout.pages = pageCount(entriesOf(layout), layout.pages);
-  closeInspector();
-  markDirty();
-  loadCapabilities(kept.map((t) => t.entity));
-  loadStates();
-  loadTopbarPreview(0);
-  toast(said(kept.length < unique.length ? { kept: kept.length, total: unique.length } : undefined));
+function adopt(record: PageDocument, message: string) {
+  if (!state.documentGrid) return;
+  if (!pages.sameGrid(record.sourceGrid, state.documentGrid)) return reviewGrid(record, state.documentGrid, true, message);
+  try {
+    const copied = pages.remapLayout(record.layout, state.documentGrid), idMap = new Map(record.layout.pages.map((page, index) => [page.id, copied.pages[index].id]));
+    applyDocument(copied);
+    state.workspace.positions = Object.fromEntries(Object.entries(record.workspace?.positions || {}).map(([id, point]) => [idMap.get(id)!, pages.clone(point)]));
+    state.workspaceDirty = true;
+    closeInspector(); loadCapabilities(state.layout!.tiles.map((tile) => tile.entity)); loadStates();
+    toast(message);
+  } catch (error: any) { toast(error.message); }
+}
+export const gridChanged = computed(() => !!state.documentGrid && !!currentScreen.value?.shape &&
+  !pages.sameGrid(state.documentGrid, currentScreen.value.shape));
+function reviewGrid(record: PageDocument, target: PageGrid, copy: boolean, message = '') {
+  try { state.gridReview = { record: pages.clone(record), layout: pages.adaptGrid(record.layout, record.sourceGrid, target),
+    target: { columns: target.columns, rows: target.rows }, copy, message }; }
+  catch (error: any) { toast(error.message); }
+}
+export function reviewScreenGrid() {
+  if (!state.document || !state.documentGrid || !currentScreen.value?.shape) return;
+  reviewGrid({ format: 'pages-v2', layout: state.document, sourceGrid: state.documentGrid, revision: state.documentRevision || '' }, currentScreen.value.shape, false);
+}
+export function acceptGridReview() {
+  const review = state.gridReview;
+  if (!review) return;
+  state.gridReview = null;
+  if (review.copy) adopt({ ...review.record, layout: review.layout, sourceGrid: review.target }, review.message);
+  else applyDocument(review.layout, true, review.target);
 }
 export function copyLayoutFrom(id: string) {
-  const other = state.inventory.screens.find((s) => s.id === id);
-  if (!other || !state.layout) return;
-  adopt(JSON.parse(JSON.stringify(other.layout)), (fit) =>
-    fit ? t("editor.layout.copied_part", { name: other.name, ...fit }) : t("editor.layout.copied", { name: other.name }));
+  const other = state.inventory.screens.find((screen) => screen.id === id);
+  if (other?.page_document?.format !== "pages-v2") { toast("Connect the source screen to finish its layout migration first."); return; }
+  adopt(other.page_document, t("editor.layout.copied", { name: other.name }));
 }
 export function layoutJson() {
-  const layout = state.layout;
-  if (!layout) return "";
-  const out: Record<string, unknown> = { esp_screens_layout: 1 };
-  for (const key of LAYOUT_KEYS) if (layout[key] !== undefined) out[key] = layout[key];
-  return JSON.stringify(out, null, 2);
+  if (!state.document || !state.documentGrid) return "";
+  return JSON.stringify({ esp_screens_layout: 2, sourceGrid: state.documentGrid, layout: state.document,
+    editor: { positions: workspacePositions() } }, null, 2);
 }
 export function exportLayout() {
   const text = layoutJson();
@@ -725,11 +901,18 @@ export function exportLayout() {
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   copyText(text, undefined, "layout_json");
 }
-export function importLayout(text: string) {
+export async function importLayout(text: string) {
   let data: any;
   try { data = JSON.parse(text); } catch { toast(t("editor.layout.not_json")); return; }
-  if (!data || typeof data !== "object" || !Array.isArray(data.tiles)) { toast(t("editor.layout.no_tiles_in_file")); return; }
-  adopt(data, (fit) => (fit ? t("editor.layout.imported_part", fit) : t("editor.layout.imported")));
+  if (!state.selected || !state.documentGrid) return;
+  const screen = state.selected, selection = selectionEpoch;
+  if (data?.esp_screens_layout !== 2 && !confirm(`This older export does not record its grid. Import it as ${state.documentGrid.columns} × ${state.documentGrid.rows} cells per page?`)) return;
+  try {
+    const record = await send<PageDocument>(`screens/${encodeURIComponent(screen)}/import`, "POST", {
+      document: data, sourceGrid: data?.sourceGrid || state.documentGrid,
+    });
+    if (state.selected === screen && selection === selectionEpoch) adopt(record, t("editor.layout.imported"));
+  } catch (error: any) { toast(error.message); }
 }
 
 // ---- Updates with content (app 0.2.73): what a screen gets, and how far its update is ----
@@ -778,25 +961,35 @@ export function updateProgress(screen: Screen): { percent: number; text: string 
 
 // ---- Top bar ----
 // Without a stored top bar the screen shows what it always did: the clock of show_clock.
-export const topbarItems = (): HeaderItem[] =>
-  state.layout?.header?.items ?? ((state.layout?.settings?.show_clock ?? true) ? [{ type: "clock" }] : []);
+export const topbarItems = (page = state.barPage): HeaderItem[] => pageAt(page)?.topbar.trailing || [];
 export const topbarMax = () => state.inventory.header?.max_items || 6;
-export function setTopbarItems(items: HeaderItem[]) {
-  if (!state.layout) return;
-  state.layout.header = { items };
-  markDirty();
-  loadTopbarPreview();
+export function setTopbarItems(items: HeaderItem[], page = state.barPage) {
+  if (!state.document || !state.documentGrid || !state.document.pages[page]) return;
+  try { applyDocument(pages.setBarItems(state.document, state.documentGrid, state.document.pages[page].id, items, !pageReady.value)); }
+  catch (error: any) { toast(error.message); }
+}
+export function copyPageBars(source: string, targets: string[], whole: boolean) {
+  if (!pageReady.value || !state.document || !state.documentGrid || !targets.length) return false;
+  try { return applyDocument(pages.replaceBar(state.document, state.documentGrid, source, targets, whole)); }
+  catch (error: any) { toast(error.message); return false; }
 }
 let topbarTimer = 0;
 // Entity text as the screen will show it, for the items not previewed yet.
 export function loadTopbarPreview(delay = 150) {
   clearTimeout(topbarTimer);
   topbarTimer = window.setTimeout(async () => {
-    const items = topbarItems();
-    if (!items.some((item) => item.type === "entity")) return;
+    const screen = state.selected;
+    const items = [...new Map((state.document?.pages.flatMap((page) => page.topbar.trailing) || []).map((item) => [itemKey(item), item])).values()];
+    const entities = items.filter((item) => item.type === "entity");
+    if (!entities.length) return;
     try {
-      const data = await send("header-preview", "POST", { header: { items } });
-      items.forEach((item, i) => (state.topbarPreviews[itemKey(item)] = data.items[i]));
+      // Each request stays within the actual six-item header bound.
+      for (let at = 0; at < entities.length; at += 6) {
+        const batch = entities.slice(at, at + 6), data = await send("header-preview", "POST", { header: { items: batch.map(({ id: _id, ...item }) => item) } });
+        if (state.selected !== screen) return;
+        const stillUsed = new Set(state.document?.pages.flatMap((page) => page.topbar.trailing.map(itemKey)) || []);
+        batch.forEach((item, i) => { if (stillUsed.has(itemKey(item))) state.topbarPreviews[itemKey(item)] = data.items[i]; });
+      }
     } catch {
       // Keep the last preview; the next edit or refresh tries again.
     }
@@ -877,28 +1070,23 @@ export const settingLabel = (row: SettingRow) => t(`editor.screen_settings.rows.
 // A choice in the same words in every language: the rotation's angle. The clock left this page for Settings → Language
 // & region, one choice for every screen (app 0.2.90).
 export const choiceText = (_row: SettingRow, value: unknown) => `${value}°`;
-// Page buttons and swiping both off (firmware 0.2.69+): only Go to page tiles change the page, so the editor says which
-// pages the Go to page tiles lead to and which page that leaves out, or has no way back to page 1. Empty when either
-// is on or still unknown, or every page can be reached and left.
-export function pageReachWarning(entries = liveEntries(), pages = state.layout ? pageCount(entries, state.layout.pages) : 1) {
+// Device navigation settings are separate from the page document. Unknown
+// settings remain permissive for warnings, avoiding a false unreachable report.
+export function navigationSettings(): pages.NavigationSettings {
   const values = settingValues();
-  if (pages < 2 || values.page_buttons !== false || values.swipe_pages !== false) return "";
-  const { tiles, targets, unreachable, noWayBack } = strandedPages(entries, pages);
-  if (!unreachable.length && !noWayBack.length) return "";
-  // "page 2" or "pages 2, 3 and 4", in the editor's language.
-  const named = (list: number[]) => t("editor.screen_settings.reach.pages", { list: andList(list) }, list.length);
-  // A page that tiles lead to but only from pages that can't be reached themselves.
-  const missing = unreachable.filter((page) => !targets.includes(page)), cutOff = unreachable.filter((page) => targets.includes(page));
-  // Whole sentences: "it" or "them" follows how many pages are out of reach.
-  const lost = missing.length === 1 ? "one" : "more";
-  const sentences = [t("editor.screen_settings.reach.intro")];
-  if (tiles && missing.length) sentences.push(t(`editor.screen_settings.reach.tiles_missing_${lost}`, { targets: named(targets), missing: named(missing) }, tiles));
-  else if (tiles) sentences.push(t("editor.screen_settings.reach.tiles", { targets: named(targets) }, tiles));
-  else if (missing.length) sentences.push(t(`editor.screen_settings.reach.none_missing_${lost}`, { missing: named(missing) }));
-  else sentences.push(t("editor.screen_settings.reach.none"));
-  if (cutOff.length) sentences.push(t("editor.screen_settings.reach.cut_off", { pages: named(cutOff) }));
-  if (noWayBack.length) sentences.push(t("editor.screen_settings.reach.no_way_back", { pages: named(noWayBack) }));
-  return sentences.join(" ");
+  return { pageButtons: values.page_buttons !== false, swipe: values.swipe_pages !== false,
+    homeButton: supports(0, 2, 100) && values.home_button !== false };
+}
+export function pageReachWarning() {
+  if (!state.document) return "";
+  const result = pages.reachability(state.document, navigationSettings());
+  const named = (ids: string[]) => t("editor.screen_settings.reach.pages", {
+    list: andList(ids.map((id) => state.document!.pages.findIndex((page) => page.id === id) + 1)),
+  }, ids.length);
+  const messages: string[] = [];
+  if (result.unreachable.length) messages.push(t("editor.pages.unreachable", { pages: named(result.unreachable) }));
+  if (result.noWayHome.length) messages.push(t("editor.pages.no_way_home", { pages: named(result.noWayHome) }));
+  return messages.join(" ");
 }
 // Changes made here that the screen has not reported back yet win over what Home Assistant still shows for a
 // few seconds, so a value never flicks back while it travels.
@@ -912,7 +1100,7 @@ export function settingValues(): Record<string, any> {
 }
 // The house in the top bar of the mockup (app 0.2.122, firmware 0.2.100+): on every page, as on the screen, unless
 // the screen's Show home button is off. A screen whose value nobody can read right now (offline) is drawn as set.
-export const homeKeyShown = () => supports(0, 2, 100) && settingValues().home_button !== false;
+export const homeKeyShown = (page = state.barPage) => supports(0, 2, 100) && settingValues().home_button !== false && Boolean(pageAt(page)?.topbar.leading.length);
 // The same steps as settings_screen.h: seconds low down, quarters of an hour up top; times by the quarter,
 // whole hours while held.
 export const ladderStep = (seconds: number) => (seconds < 300 ? 30 : seconds < 900 ? 60 : seconds < 3600 ? 300 : seconds < 7200 ? 900 : 1800);
@@ -1099,6 +1287,21 @@ export async function saveLanguage(changes: { setting?: string; clock?: string; 
   }
 }
 
+function reconcileDocument() {
+  const screen = currentScreen.value, record = screen?.page_document;
+  if (!screen || state.busy) return;
+  if (record?.format === "pages-v2" && record.revision !== state.documentRevision) {
+    if (state.dirty || state.workspaceDirty) { state.conflict = true; return; }
+    const selected = state.selectedPageId, focused = state.focusedPageId, tile = state.selectedTile?.id;
+    loadDocument(screen);
+    if (state.document?.pages.some((page) => page.id === selected)) state.selectedPageId = selected;
+    if (state.document?.pages.some((page) => page.id === focused)) state.focusedPageId = focused;
+    state.selectedTile = state.layout?.tiles.find((item) => item.id === tile) || null;
+  } else if (record?.format === "pages-v2" && record.workspace && !state.workspaceDirty) {
+    state.workspace = pages.clone(record.workspace);
+  } else if (!state.documentGrid && screen.source_grid && !state.dirty) loadDocument(screen);
+}
+
 // ---- Inventory: full catalogue, light polls, and the live stream ----
 export async function refresh(full = true) {
   try {
@@ -1109,7 +1312,7 @@ export async function refresh(full = true) {
     state.connected = Boolean(state.inventory.connected);
     state.reachable = true;
     for (const screen of state.inventory.screens) if (screen.update?.state === "running") state.updating = state.updating.filter((id) => id !== screen.id);
-    if (state.selected) settleSettings();
+    if (state.selected) { settleSettings(); reconcileDocument(); }
   } catch {
     state.reachable = false;
   }
@@ -1118,7 +1321,7 @@ function applyLive(data: Partial<Inventory>) {
   state.inventory = { ...state.inventory, ...data } as Inventory;
   state.connected = Boolean(state.inventory.connected);
   for (const screen of state.inventory.screens) if (screen.update?.state === "running") state.updating = state.updating.filter((id) => id !== screen.id);
-  if (state.selected) settleSettings();
+  if (state.selected) { settleSettings(); reconcileDocument(); }
 }
 let pollTimer = 0, lastFull = Date.now(), live = false, stream: EventSource | null = null;
 function listen() {

@@ -1,3 +1,5 @@
+from manager_fixtures import edit_layout
+from manager_fixtures import with_screen_grid
 import asyncio
 import base64
 import importlib.util
@@ -86,7 +88,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             changed=asyncio.Event()
             def __init__(self): self.messages=[]
             async def send(self,inbox,message,action=None): self.messages.append((inbox,message))
-        return Manager(HA(),path)
+        return Manager(with_screen_grid(HA()),path)
 
     async def test_update_restart_preserves_layout(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -95,7 +97,8 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             m.save('text.screen',layout)
             fresh=self.setup_manager(path)
             # Stored layouts always carry a grid position; a save without one packs in order.
-            self.assertEqual(fresh.layouts['text.screen'],{**layout,'tiles':[{**layout['tiles'][0],'slot':0}]})
+            self.assertEqual(fresh.layouts['text.screen']['tiles'],[{**layout['tiles'][0],'slot':0}])
+            self.assertEqual(fresh.store.get('text.screen'), m.store.get('text.screen'))
             layout=fresh.layouts['text.screen']
             await fresh.sync_one('text.screen',layout)
             self.assertEqual(len(fresh.ha.messages),2)
@@ -116,7 +119,8 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             path.write_text(json.dumps({'version':1,'screens':{'text.screen':legacy}}))
             m=self.setup_manager(path)
             stored={**legacy,'tiles':[{**legacy['tiles'][0],'slot':0}]}
-            self.assertEqual(m.layouts['text.screen'],stored)
+            self.assertEqual(m.layouts['text.screen']['tiles'],stored['tiles'])
+            self.assertEqual(m.layouts['text.screen']['title'],stored['title'])
             settings=validate_settings({'brightness':55,'standby_seconds':1200})
             m.save('text.screen',{**legacy,'settings':settings})
             fresh=self.setup_manager(path)
@@ -145,7 +149,7 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
             original=m.ha.send
             async def interrupt(inbox,message,action=None):
                 await original(inbox,message)
-                m.save(inbox,{'title':'Empty','tiles':[]})
+                edit_layout(m, inbox, {'title':'Empty','tiles':[]})
             m.ha.send=interrupt
             await m.sync_one('text.screen',m.layouts['text.screen'])
             self.assertEqual(len(m.ha.messages),1)

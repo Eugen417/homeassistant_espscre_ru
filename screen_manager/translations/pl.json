@@ -125,7 +125,7 @@
       "ends": "Koniec",
       "night_brightness": "Jasność nocna",
       "night_lit": "Ekran włączony w nocy",
-      "back_to_page_1": "Wróć do strony 1",
+      "back_to_page_1": "Powrót do strony głównej",
       "after": "Po",
       "also_on_standby": "Także w czuwaniu",
       "swipe_between_pages": "Przesuwanie stron",
@@ -412,6 +412,9 @@
         "vertical": "ruch pionowy",
         "horizontal": "ruch poziomy"
       }
+    },
+    "navigation": {
+      "back": "Wstecz"
     }
   },
   "addon": {
@@ -1148,7 +1151,6 @@
       "saved": {
         "current": "Zapisano. Twój ekran jest aktualizowany.",
         "other": "Zapisano. Trwa aktualizacja: {name}.",
-        "other_unnamed": "Zapisano. Ekran jest aktualizowany.",
         "newer_edit": "Zapisano. Twoja najnowsza zmiana nie została jeszcze wysłana: naciśnij ponownie „Zapisz i wyślij”."
       },
       "identified": "{name} miga i przez kilka sekund pokazuje kartę.",
@@ -1183,11 +1185,8 @@
       "no_free_page": "Brak wolnej strony dla kafelka na całą stronę. Najpierw zwolnij stronę.",
       "page_taken": "Ten ekran ma już kafelek, który prowadzi do strony {page}.",
       "copied": "Skopiowano układ ekranu {name}. Gdy wygląda dobrze, naciśnij „Zapisz i wyślij”.",
-      "copied_part": "Skopiowano układ ekranu {name}. Kafelki zgodne z firmware tego ekranu: {kept} z {total}. Gdy wygląda dobrze, naciśnij „Zapisz i wyślij”.",
       "imported": "Zaimportowano układ. Gdy wygląda dobrze, naciśnij „Zapisz i wyślij”.",
-      "imported_part": "Zaimportowano układ. Kafelki zgodne z firmware tego ekranu: {kept} z {total}. Gdy wygląda dobrze, naciśnij „Zapisz i wyślij”.",
       "not_json": "To nie jest JSON. Najpierw wyeksportuj układ albo wklej układ z innej instalacji ESP Screens.",
-      "no_tiles_in_file": "Brak kafelków w tym pliku. Oczekiwano układu wyeksportowanego z ESP Screens.",
       "count": "{n} strona · kafelki: {tiles} / {limit} | {n} strony · kafelki: {tiles} / {limit} | {n} stron · kafelki: {tiles} / {limit}",
       "no_tiles": "Dodaj pierwsze światło, scenę lub urządzenie z biblioteki.",
       "how_to": "Kliknij górny pasek lub kafelek, aby go zmienić. Przeciągnij, aby przenieść; upuść na następnej stronie, aby utworzyć nową.",
@@ -1516,7 +1515,7 @@
         "night_end": "Koniec",
         "night_brightness": "Jasność nocna",
         "night_lit": "Ekran włączony w nocy",
-        "auto_home": "Wróć do strony 1",
+        "auto_home": "Powrót do strony głównej",
         "auto_home_seconds": "Po",
         "home_on_standby": "Także w czuwaniu",
         "swipe_pages": "Przesuwanie stron",
@@ -1544,16 +1543,7 @@
       },
       "other_screen_busy": "Trwa jeszcze zapisywanie ustawień innego ekranu. Spróbuj ponownie za chwilę.",
       "reach": {
-        "intro": "Przyciski stron i przesuwanie są wyłączone, więc stronę zmieniają tylko kafelki „Przejdź do strony”.",
-        "pages": "strony {list} | stron {list} | stron {list}",
-        "tiles": "Masz {n} kafelek „Przejdź do strony” (do {targets}). | Masz {n} kafelki „Przejdź do strony” (do {targets}). | Masz {n} kafelków „Przejdź do strony” (do {targets}).",
-        "tiles_missing_one": "Masz {n} kafelek „Przejdź do strony” (do {targets}), ale żadnego do {missing}, więc nie możesz do niej dotrzeć. | Masz {n} kafelki „Przejdź do strony” (do {targets}), ale żadnego do {missing}, więc nie możesz do niej dotrzeć. | Masz {n} kafelków „Przejdź do strony” (do {targets}), ale żadnego do {missing}, więc nie możesz do niej dotrzeć.",
-        "tiles_missing_more": "Masz {n} kafelek „Przejdź do strony” (do {targets}), ale żadnego do {missing}, więc nie możesz do nich dotrzeć. | Masz {n} kafelki „Przejdź do strony” (do {targets}), ale żadnego do {missing}, więc nie możesz do nich dotrzeć. | Masz {n} kafelków „Przejdź do strony” (do {targets}), ale żadnego do {missing}, więc nie możesz do nich dotrzeć.",
-        "none": "Nie masz kafelków „Przejdź do strony”.",
-        "none_missing_one": "Żaden kafelek „Przejdź do strony” nie prowadzi do {missing}, więc nie możesz do niej dotrzeć.",
-        "none_missing_more": "Żaden kafelek „Przejdź do strony” nie prowadzi do {missing}, więc nie możesz do nich dotrzeć.",
-        "cut_off": "Kafelki do {pages} są tylko na stronach, do których nie możesz dotrzeć.",
-        "no_way_back": "Ze {pages} żaden kafelek nie prowadzi z powrotem do strony 1."
+        "pages": "strony {list} | stron {list} | stron {list}"
       },
       "status": {
         "offline": "Ten ekran jest offline. Jego ustawienia można zmienić, gdy wróci.",

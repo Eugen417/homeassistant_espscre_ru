@@ -185,6 +185,7 @@ class Updater:
             raise ValueError(t('addon.errors.updates.no_profile'))
         if not host:
             raise ValueError(t('addon.errors.updates.ip_unknown'))
+        self.manager.preflight_update(inbox)
         self.launch([inbox])
         return self.state_for(screen)
 
@@ -194,6 +195,8 @@ class Updater:
         pending = self.pending()
         if not pending:
             raise ValueError(t('addon.errors.updates.all_updated'))
+        for inbox in pending:
+            self.manager.preflight_update(inbox)
         self.launch(pending)
         return pending
 
@@ -245,6 +248,9 @@ class Updater:
             return 'skipped'
         self.phase = 'install'
         try:
+            # Recheck when a queued/nightly screen reaches the front of the
+            # queue; its saved configuration can change while another builds.
+            self.manager.preflight_update(inbox)
             self.manager.firmware.start({'file': profile, 'action': 'install', 'target': host})
             await self.manager.firmware.task
         except ValueError as error:

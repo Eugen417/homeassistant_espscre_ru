@@ -3,17 +3,16 @@
 import { computed } from "vue";
 import { t } from "../i18n";
 import { barLayout, dotted, inkOf, type BarPart } from "../model/topbar";
-import { barMetrics, screenText, state, topbarItems, topbarView } from "../store";
+import { barMetrics, state, topbarView } from "../store";
 
-const props = defineProps<{ items?: any[]; nameText?: string; single?: boolean; home?: boolean }>();
+const props = defineProps<{ items: any[]; nameText?: string; single?: boolean; home?: boolean; back?: boolean }>();
 
 const lay = computed(() => {
   void state.fontsVersion;
   void state.now;
   void state.topbarPreviews;
-  const items = props.items || topbarItems();
-  return barLayout(items, barMetrics.value, props.nameText ?? (state.layout?.title || screenText("editor.mockup.home")), topbarView,
-                   Boolean(props.home) && !props.single);
+  return barLayout(props.items, barMetrics.value, props.nameText ?? '', topbarView,
+                   Boolean(props.home) && !props.single, Boolean(props.back) && !props.single);
 });
 const m = computed(() => lay.value.metrics);
 const height = computed(() => (props.single ? Math.round(m.value.text * 1.4) : m.value.top + Math.round(m.value.name * 0.45)));

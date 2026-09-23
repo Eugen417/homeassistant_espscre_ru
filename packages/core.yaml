@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.2.104"
+  SCREEN_FIRMWARE_VERSION: "0.3.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -202,7 +202,7 @@ esphome:
           runtime_tiles::back_home = []() { id(go_home).execute(); };
           runtime_tiles::touch_input::turn_page = [](int step) {
             ESP_LOGI("touch", "edge swipe: page %d -> %d", id(tile_page), id(tile_page) + step);
-            id(tile_page) += step;
+            id(tile_page) = runtime_tiles::sequential_page(id(tile_page), step);
             id(show_tile_page).execute();
           };
           // The board states its density with the decimals it has (DISPLAY_DPI); the firmware scales by the nearest
@@ -428,8 +428,7 @@ api:
             settings_screen::close();
             const int pages = runtime_tiles::enabled ? std::max(1, (int) runtime_tiles::page_count())
                                                      : (runtime_tiles::model.count > 6 ? 2 : 1);
-            id(tile_page) = std::clamp((int) page, 1, pages) - 1;
-            id(show_tile_page).execute();
+            runtime_tiles::go_to_page(std::clamp((int) page, 1, pages) - 1, false);
             ESP_LOGI("navigation", "page %d of %d open from Home Assistant", id(tile_page) + 1, pages);
 
     # Diagnostics: the busy sheet of a tile, without touching the glass or Home Assistant.
@@ -493,6 +492,15 @@ api:
                   data: !lambda |-
                     root["status"] = id(dashboard_inbox).state;
                     root["rev"] = runtime_tiles::layout_rev;
+                    root["protocol"] = page_protocol::VERSION;
+                    root["request"] = runtime_tiles::protocol_key(runtime_tiles::transfer.hello_id);
+                    root["session"] = runtime_tiles::protocol_key(runtime_tiles::transfer.lease);
+                    root["seq"] = runtime_tiles::transfer.sequence;
+                    root["applied"] = runtime_tiles::transfer.active && runtime_tiles::model.ready();
+                    // Read-only navigation diagnostics, no additional stored state.
+                    root["page"] = runtime_tiles::shown_page ? *runtime_tiles::shown_page + 1 : 0;
+                    root["home"] = runtime_tiles::model.page_data.home + 1;
+                    root["pagination_count"] = runtime_tiles::model.page_data.count();
 
 interval:
   - interval: 250ms
@@ -1723,7 +1731,7 @@ lvgl:
                   condition:
                     lambda: 'return screen_input::touch_guard.accept_repeat(millis(), 11);'
                   then:
-                    - lambda: 'id(tile_page) = std::max(0, id(tile_page) - 1);'
+                    - lambda: 'id(tile_page) = runtime_tiles::previous_button_page(id(tile_page));'
                     - script.execute: show_tile_page
             widgets:
               - label:
@@ -1764,7 +1772,7 @@ lvgl:
                   condition:
                     lambda: 'return screen_input::touch_guard.accept_repeat(millis(), 12);'
                   then:
-                    - lambda: 'id(tile_page) += 1;'
+                    - lambda: 'id(tile_page) = runtime_tiles::sequential_page(id(tile_page), 1);'
                     - script.execute: show_tile_page
             widgets:
               - label:
@@ -2060,7 +2068,7 @@ script:
     then:
       - lambda: 'settings_screen::close();'
       - script.execute: close_cards
-      - lambda: 'id(tile_page) = 0;'
+      - lambda: 'runtime_tiles::navigation_history.clear(); id(tile_page) = runtime_tiles::home_page();'
       - script.execute: show_tile_page
 
   # Back to page 1 by itself (0.2.44+). A card, a settings page or a second page left open keeps
@@ -2075,7 +2083,7 @@ script:
             lambda: |-
               if (!runtime_tiles::auto_home || id(touch_down) || id(calibration_active) || id(alert_active)) return false;
               if (id(display_dimmed)) return false;
-              bool away = settings_screen::visible() ||${AWAY_EXTRA} !id(active_entity).empty() || id(tile_page) != 0 ||
+              bool away = settings_screen::visible() ||${AWAY_EXTRA} !id(active_entity).empty() || id(tile_page) != runtime_tiles::home_page() ||
                           (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN));
               return away && (millis() - id(last_use_ms)) > (uint32_t) runtime_tiles::auto_home_seconds * 1000UL;
           then:

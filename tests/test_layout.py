@@ -101,8 +101,8 @@ class LayoutTests(unittest.TestCase):
             self.assertIn('clickable: false', number, name)
             self.assertIn(f'height: {band}\n', number, name)
         runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
-        self.assertIn('settings_screen::page_dots(nav_number,page,pages,', runtime)
-        self.assertIn('set_hidden(control,!bar)', runtime)
+        self.assertIn('settings_screen::page_dots(nav_number,model.page_data.ordinal(page),sequential_count,', runtime)
+        self.assertIn('set_hidden(control,!sequential)', runtime)
 
     def test_nothing_is_placed_before_a_layout_arrives(self):
         """Until ESP Screens sends a layout the cells stay empty; place_page hides every slot the page has no card for."""

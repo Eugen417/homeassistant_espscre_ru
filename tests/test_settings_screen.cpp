@@ -105,7 +105,7 @@ int main() {
     assert(!visible_row(night_page) && !visible_row(night_mode) && !visible_row(night_brightness) && !visible_row(also_on_standby));
     for (uint8_t i = 0; i < pages[2].count; ++i) assert(!visible_row(pages[2].rows[i]));
     // What it can still do stays: the brightness, the dark look, and every row of the Screen page but that one.
-    assert(visible_row(brightness) && visible_row(row_named(light, "Dark mode")) && visible_row(row_named(pages[3], "Back to page 1")));
+    assert(visible_row(brightness) && visible_row(row_named(light, "Dark mode")) && visible_row(row_named(pages[3], "Back to Home")));
     // A board that can neither dim nor go dark shows neither the percentage nor the switch.
     dimmable = false;
     assert(!visible_row(standby) && !visible_row(standby_switch));
@@ -148,7 +148,7 @@ int main() {
   for (uint8_t i = 0; i < screen.count; ++i) assert(std::string(label_text(screen.rows[i])) != "Clock");
   set("clock_24h", 0);
   assert(screen_settings::current.clock_24h == 0);
-  const Row &home = row_named(screen, "Back to page 1");
+  const Row &home = row_named(screen, "Back to Home");
   home.write(0);
   assert(auto_home == 0 && value_text(home) == "Off");
   // Two rows say Rotation: the half turn of every board, and the quarter turns a square screen adds; one shows.

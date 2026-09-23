@@ -1,4 +1,8 @@
 /// <reference types="vite/client" />
+declare module "virtual:esp-screens-theme" {
+  const theme: { ha: Record<string, number>; roles: Record<string, { light: number; dark: number }>; iconBase: number; iconWeight: number };
+  export default theme;
+}
 declare module "*.vue" {
   import type { DefineComponent } from "vue";
   const component: DefineComponent<{}, {}, any>;

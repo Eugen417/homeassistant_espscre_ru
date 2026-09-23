@@ -2,17 +2,19 @@
 
 ## Layout of the code and data
 
-- `main` is the only distribution branch for the app **and both** firmware packages.
+- `main` is the only distribution branch for the app **and all** firmware packages.
   The old Guition branch is no longer updated; all board work goes to main.
 - `screen_manager/config.yaml` holds the app version. Bump it on every app release.
   A Git push alone isn't enough to offer an existing app an update.
 - The app image contains only code (and the CHANGELOG, for the Update badge's What's new). Layouts live in `/data/screens.json`
-  (`version: 1`, `screens: {...}`). An update/rebuild preserves this volume data.
+  (`version: 2`, `screens: {...}` since 0.3.0). An update/rebuild preserves this volume data.
+  Version 1 is backed up and migrated per screen when its source grid is known; see [Pages](PAGES.md).
 - The device's own ESPHome YAML contains the name, Wi-Fi references, and unique API/OTA keys.
   Shared packages contain no secrets, fixed owner entities, or Wi-Fi.
 - CYD calibration lives in ESP32 preferences. Preserve the preference key, structure,
   and partition layout, or write an explicit migration.
-- The tile protocol uses `v: 1`. Keep older fields and domains usable.
+- Firmware 0.3.0 uses only protocol `v: 2`. The add-on retains a wire adapter for older screens.
+  Firmware updated before its add-on shows an update message; matching versions activate automatically.
   A changed storage version must get a tested migration with a backup.
   The app refuses unknown versions instead of overwriting the data blank.
 
@@ -29,7 +31,7 @@
    `clang++ -std=c++17 -Wall -Wextra -Werror -I.`, `tools/check_packages.py`, `tools/generate_icons.py --check`, and the editor's
    `npm ci`, `npm test`, `npm run check` and `npm run build`, and fails when that fresh build differs from the
    `screen_manager/app/static` in Git (committed or staged). For a firmware change, `tools/check.sh --firmware`
-   compiles both board profiles with placeholder secrets from a temporary folder (never the real `secrets.yaml`) and
+   compiles every board profile with placeholder secrets from a temporary folder (never the real `secrets.yaml`) and
    applies the flash budget below; `--all` does both. `tools/check.sh --render` builds every board as a program for
    this computer (tools/render/run.py, needs SDL2): its self test must pass lying down and standing up, and it saves
    what every board draws under `.esphome/render/out`. CI (`.github/workflows/ci.yml`) runs the same script on every

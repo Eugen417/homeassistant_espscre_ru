@@ -1,6 +1,7 @@
 """Perform action (app 0.2.67, firmware 0.2.58): a tap runs an action Home Assistant offers for the tile's entity, with
 data for its fields. The editor lists the actions under Home Assistant's own names, a save accepts only what Home
 Assistant would take, and the screen gets a compact form it sends as ESPHome action data and templates."""
+from manager_fixtures import with_screen_grid
 import asyncio
 import copy
 import importlib.util
@@ -164,7 +165,7 @@ class SavingAndTheEditor(unittest.IsolatedAsyncioTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha()
             ha.services = DESCRIBED
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             def layout(action):
                 return {'title': 'Living room', 'tiles': [{'entity': 'cover.curtains', 'name': '', 'slot': 0,
                                                            'options': {'tap': 'action', 'action': action}}]}
@@ -179,7 +180,7 @@ class SavingAndTheEditor(unittest.IsolatedAsyncioTestCase):
             ha.services = {key: value for key, value in DESCRIBED.items() if key != 'cover'}
             ha.services_rev += 1
             await m.check_supported('text.d1_tiles', {**good, 'title': 'Renamed'})
-            saved = json.loads((Path(tmp) / 'screens.json').read_text())['screens']['text.d1_tiles']
+            saved = m.layouts['text.d1_tiles']
             self.assertEqual(saved['tiles'][0]['options']['action'], {'action': 'cover.set_cover_position', 'data': {'position': 50}})
 
     async def test_claude_in_home_assistant_sets_an_action(self):
@@ -187,7 +188,7 @@ class SavingAndTheEditor(unittest.IsolatedAsyncioTestCase):
             path = Path(tmp) / 'screens.json'
             ha = fake_ha()
             ha.services = DESCRIBED
-            m = Manager(ha, path)
+            m = Manager(with_screen_grid(ha), path)
             ha.tile_events = asyncio.Queue()
             ha.tile_events.put_nowait(('esp_screens_add_tile', {'entity': 'cover.curtains', 'action': 'cover.set_cover_position'}))
             ha.tile_events.put_nowait(('esp_screens_add_tile', {'entity': 'cover.curtains', 'action': 'cover.set_cover_position', 'data': {'position': 70}}))
@@ -201,14 +202,14 @@ class SavingAndTheEditor(unittest.IsolatedAsyncioTestCase):
             self.assertFalse(answers[0]['ok'])
             self.assertIn('needs a value for position', answers[0]['error'])
             self.assertTrue(answers[1]['ok'], answers[1])
-            tile = json.loads(path.read_text())['screens']['text.d1_tiles']['tiles'][0]
+            tile = m.layouts['text.d1_tiles']['tiles'][0]
             self.assertEqual(screen_options(tile, {})['act'], {'s': 'cover.set_cover_position', 't': [['position', '{{ "70" | from_json }}']]})
 
     async def test_the_editor_asks_for_an_entitys_actions(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha()
             ha.services, ha.service_names = DESCRIBED, NAMES
-            m = Manager(ha, Path(tmp) / 'screens.json')
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
             async with TestClient(TestServer(create_app(m, True))) as client:
                 found = (await (await client.get('/api/entity-actions?entity=cover.curtains')).json())['actions']
                 unknown = (await (await client.get('/api/entity-actions?entity=light.unknown')).json())['actions']

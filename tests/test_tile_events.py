@@ -1,3 +1,4 @@
+from manager_fixtures import with_screen_grid
 """Tiles from a Home Assistant event (app 0.2.51): Claude in Home Assistant, or any automation, puts
 something on a screen, moves it or orders a page, and the app saves and pushes it like the editor does."""
 import asyncio
@@ -185,7 +186,7 @@ class Through(unittest.IsolatedAsyncioTestCase):
     async def test_an_event_saves_the_layout_and_answers(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'screens.json'
-            m = Manager(fake_ha(), path)
+            m = Manager(with_screen_grid(fake_ha()), path)
             m.ha.tile_events.put_nowait(('esp_screens_add_tile', {'entity': 'vacuum.s8', 'screen': 'living room'}))
             m.ha.tile_events.put_nowait(('esp_screens_add_tile', {'entity': 'light.reading', 'controls': 'brightness'}))
             worker = asyncio.create_task(m.tile_loop())
@@ -194,7 +195,7 @@ class Through(unittest.IsolatedAsyncioTestCase):
                 if len(m.ha.fired) == 2:
                     break
             worker.cancel()
-            saved = json.loads(path.read_text())['screens']['text.d1_tiles']
+            saved = m.layouts['text.d1_tiles']
             self.assertEqual([(t['entity'], t['slot']) for t in saved['tiles']], [('vacuum.s8', 0), ('light.reading', 2)])
             self.assertEqual(saved['tiles'][1]['options'], {'controls': 'brightness', 'size': 'wide'})
             self.assertEqual([(event, answer['ok'], answer['entity']) for event, answer in m.ha.fired],
@@ -206,7 +207,7 @@ class Through(unittest.IsolatedAsyncioTestCase):
     async def test_a_refused_event_changes_nothing_and_says_why(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / 'screens.json'
-            m = Manager(fake_ha(), path)
+            m = Manager(with_screen_grid(fake_ha()), path)
             m.ha.tile_events.put_nowait(('esp_screens_add_tile', {'entity': 'light.reading', 'screen': 'attic'}))
             worker = asyncio.create_task(m.tile_loop())
             with self.assertLogs('screen_manager', 'INFO') as logs:

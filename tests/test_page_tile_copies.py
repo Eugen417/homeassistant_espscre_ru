@@ -5,6 +5,7 @@ Every other entity is on a screen once. A layout with copies needs firmware 0.2.
 page (`from_slot`/`from_page` for a move) and acts on the first copy, in spot order, when it doesn't; the answer says
 which tile it was, and the layout sensor lists every copy.
 """
+from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
 import json
@@ -132,7 +133,7 @@ class Through(unittest.IsolatedAsyncioTestCase):
         ha.states['sensor.d1_fw']['state'] = firmware
         ha.registry.append({'entity_id': 'light.a', 'platform': 'demo', 'original_name': 'A', 'device_id': 'd9'})
         ha.states['light.a'] = {'state': 'on', 'attributes': {'friendly_name': 'A'}}
-        return Manager(ha, Path(tmp) / 'screens.json')
+        return Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
 
     async def events(self, m, *events):
         for data in events:
@@ -152,7 +153,7 @@ class Through(unittest.IsolatedAsyncioTestCase):
             answers = await self.events(m, {'entity': BACK, 'page': 2, 'name': 'Back'}, {'entity': BACK, 'page': 3, 'name': 'Back'})
             self.assertEqual([(a['ok'], a['page'], a['slot']) for a in answers], [(True, 2, 7), (True, 3, 12)], answers)
             self.assertEqual(answers[0]['event'], 'esp_screens_add_tile')
-            saved = json.loads(m.path.read_text())['screens']['text.d1_tiles']['tiles']
+            saved = m.layouts['text.d1_tiles']['tiles']
             self.assertEqual([(t['entity'], t['slot']) for t in saved], [('light.a', 0), ('light.reading', 6), (BACK, 7), (BACK, 12)])
             _, attributes = m.ha.published['sensor.esp_screens_living_room']
             self.assertEqual([t['slot'] for t in attributes['tiles'] if t['entity'] == BACK], [7, 12])

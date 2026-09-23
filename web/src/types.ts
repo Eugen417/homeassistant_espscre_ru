@@ -10,8 +10,36 @@ export type TileOptions = {
   action?: { action: string; data?: Record<string, unknown> };
   [key: string]: unknown;
 };
-export type Tile = { entity: string; name: string; slot: number; options?: TileOptions };
-export type HeaderItem = { type: string; entity?: string; content?: string; icon?: string; show?: string };
+export type Tile = { id?: string; entity: string; name: string; slot: number; options?: TileOptions };
+export type HeaderItem = { id?: string; type: string; entity?: string; content?: string; icon?: string; show?: string };
+export type PageGrid = Readonly<{ columns: number; rows: number }>;
+export type PageTarget = { kind: "page"; pageId: string } | { kind: "home" };
+export type PageTile = {
+  id: string;
+  content: { kind: "entity"; entityId: string } | { kind: "builtin"; name: "clock" | "settings" } | { kind: "navigation"; target: PageTarget };
+  // A footprint is a rectangle. The renderer's capabilities decide which
+  // rectangles it supports; the page's grid is never user-overridable.
+  placement: { row: number; column: number; columns: number; rows: number };
+  appearance: { label: string; presentation?: "single" | "wide" | "full"; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string };
+  interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"] };
+};
+export type Page = {
+  id: string;
+  navigation: { excludeFromPagination: boolean };
+  topbar: {
+    leading: { id: string; kind: "home" }[];
+    title: { source: "screen" } | { source: "text"; text: string };
+    trailing: (HeaderItem & { id: string })[];
+  };
+  tiles: PageTile[];
+};
+export type PageLayout = { title: string; homePageId: string; pages: Page[] };
+export type PageWorkspace = { revision: string; positions: Record<string, { x: number; y: number }> };
+export type PageDocument = {
+  format: "pages-v2"; sourceGrid: PageGrid; revision: string; layout: PageLayout;
+  workspace?: PageWorkspace;
+};
+export type PendingMigration = { format: "legacy-v1"; migrationError: string };
 export type Layout = {
   title: string;
   tiles: Tile[];
@@ -52,6 +80,12 @@ export type BoardChoice = BoardCatalog & {
 export type Screen = {
   id: string; name: string; online: boolean; area?: string; firmware?: string; board?: string;
   layout: Layout; update?: UpdateInfo; settings?: SettingsView; delivery?: string; status?: string;
+  page_document?: PageDocument | PendingMigration | null;
+  source_grid?: PageGrid | null;
+  page_capability?: "ready" | "update_screen";
+  page_delivery?: string;
+  page_saved_revision?: string | null;
+  page_applied_revision?: string | null;
   // The layout is out and the screen holds it (app 0.2.108): the editor then shows no delivery line.
   in_sync?: boolean;
   alert_action?: string; dismiss_action?: string;
