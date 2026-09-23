@@ -102,7 +102,7 @@ nothing falls outside its area), and saves every page, the alerts (a camera pict
 pictures) and Dark mode as PNGs under `.esphome/render/out/<board>/`, with a sheet of all of them. A board whose glass
 is not square is done standing up as well (`<board>-portrait`). That catches a cramped forecast, a clipped name or a
 card that falls outside its area without a board on the desk. `tools/check.sh --render` does it for every board, and
-CI does it on every push and pull request.
+CI does it on every push and pull request. docs/TESTING.md says what it checks and what only the glass shows.
 
 ## 6. Then the board itself
 

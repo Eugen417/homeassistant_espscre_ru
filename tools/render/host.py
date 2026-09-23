@@ -159,6 +159,7 @@ class Chain:
     touches: list = field(default_factory=list)
     files: list = field(default_factory=list)
     notes: list = field(default_factory=list)
+    touch_interval: str = ''  # how often the board reads its touch panel; the SDL one is read as often
 
 
 def host_file(text, chain, rel):
@@ -183,6 +184,9 @@ def host_file(text, chain, rel):
         block = text[start:end]
         if re.search(r'(?m)^  (- )?platform:', block):
             chain.touches += re.findall(r'(?m)^  (?:- )?id: (\w+)', block) + re.findall(r'(?m)^    id: (\w+)', block)
+            interval = re.search(r'(?m)^    update_interval: (\S+)', block)
+            if interval:
+                chain.touch_interval = interval[1]
             changes.append((start, end, ''))
             chain.notes.append(f'{rel}: dropped touchscreen: platform')
         elif 'calibration:' in block:
@@ -251,6 +255,10 @@ touchscreen:
     id: {touches[0]}
     display: {displays[0]}
 '''
+    # Read as often as the board reads its own touch panel: LVGL's swipe counts movement between reads, so a panel
+    # read more slowly than the real one would make a finger look like it stops.
+    if chain.touch_interval:
+        text += f'    update_interval: {chain.touch_interval}\n'
     outputs = list(dict.fromkeys(chain.outputs))
     if outputs:
         text += '\noutput:\n' + ''.join(f"  - platform: template\n    id: {i}\n    type: float\n    write_action:\n"
@@ -318,6 +326,60 @@ ACTIONS = '''    - action: render_png
             runtime_tiles::now_time = [fixed]() { return fixed; };
             if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
 '''
+# What a finger does and what is on the glass in the moment after it, for the checks that must look into that moment
+# instead of at the page once it has settled (the top bar's name in dots for a second after a page change, GitHub #27;
+# an alert card before and after its picture arrives): a second pointer whose point and state the driver sets, and one
+# log line with the page title as the label shows it and every part of the alert card where LVGL placed it.
+PROBES = '''    - action: render_finger
+      variables:
+        x: int
+        y: int
+        down: bool
+      then:
+        - lambda: |-
+            // A finger on the SDL touchscreen, so it takes the path a finger on the glass takes: ESPHome's touchscreen
+            // (its transform, on_update and on_release, the touch guard, the page swipe) and LVGL after it. The point
+            // (x, y) of the screen goes back through the turn ESPHome's LVGL gives a touch (LvglComponent::
+            // rotate_coordinates, LVGL_ROTATION) to the panel's pixels, and back through the board's touch transform
+            // (TOUCH_SWAP_XY, TOUCH_MIRROR_X, TOUCH_MIRROR_Y) to what its touch controller would report.
+            auto *sdl = id(my_display);
+            const int w = sdl->get_width(), h = sdl->get_height();
+            int nx = x, ny = y;
+            switch ((int) id(screen_lvgl).get_rotation()) {
+              case 90: nx = w - y - 1; ny = x; break;
+              case 180: nx = w - x - 1; ny = h - y - 1; break;
+              case 270: nx = y; ny = h - x - 1; break;
+              default: break;
+            }
+            const int ax = ${TOUCH_MIRROR_X} ? w - 1 - nx : nx, ay = ${TOUCH_MIRROR_Y} ? h - 1 - ny : ny;
+            sdl->mouse_x = ${TOUCH_SWAP_XY} ? ay : ax;
+            sdl->mouse_y = ${TOUCH_SWAP_XY} ? ax : ay;
+            sdl->mouse_down = down;
+    - action: render_state
+      then:
+        - lambda: |-
+            lv_obj_update_layout(lv_screen_active());
+            auto box = [](lv_obj_t *o) {
+              lv_area_t a{0, 0, -1, -1};
+              if (o && !lv_obj_has_flag(o, LV_OBJ_FLAG_HIDDEN)) lv_obj_get_coords(o, &a);
+              return a;
+            };
+            auto *room = runtime_tiles::room_label;
+            const lv_area_t name = box(room);
+            ESP_LOGI("render", "state page=%d name=[%s] shown=[%s] name_box=%d,%d,%d,%d", (int) id(tile_page),
+                     runtime_tiles::header_name.c_str(), room ? lv_label_get_text(room) : "", (int) name.x1, (int) name.y1,
+                     (int) name.x2, (int) name.y2);
+            const auto &p = runtime_tiles::alert_parts;
+            const bool on = id(alert_active) && p.card && !lv_obj_has_flag(lv_obj_get_parent(p.card), LV_OBJ_FLAG_HIDDEN);
+            const lv_area_t card = box(p.card), frame = box(runtime_tiles::alert_frame), icon = box(p.icon), title = box(p.title),
+                            subtitle = box(p.subtitle), button = box(p.button);
+            ESP_LOGI("render", "alert on=%d card=%d,%d,%d,%d frame=%d,%d,%d,%d icon=%d,%d,%d,%d title=%d,%d,%d,%d "
+                     "subtitle=%d,%d,%d,%d button=%d,%d,%d,%d picture=%d", (int) on,
+                     (int) card.x1, (int) card.y1, (int) card.x2, (int) card.y2, (int) frame.x1, (int) frame.y1, (int) frame.x2,
+                     (int) frame.y2, (int) icon.x1, (int) icon.y1, (int) icon.x2, (int) icon.y2, (int) title.x1, (int) title.y1,
+                     (int) title.x2, (int) title.y2, (int) subtitle.x1, (int) subtitle.y1, (int) subtitle.x2, (int) subtitle.y2,
+                     (int) button.x1, (int) button.y1, (int) button.x2, (int) button.y2, (int) (runtime_tiles::alert_picture != nullptr));
+'''
 # A board with the calibration wizard shows it on the first start; the renders skip it, as a calibrated screen does.
 SKIP_CALIBRATION = '''    - action: render_skip_calibration
       then:
@@ -367,7 +429,7 @@ class Build:
         (mirror_root / 'host-hw.yaml').write_text(host_hw(board.read_text(), chain))
         (mirror_root / 'chain.txt').write_text('\n'.join([str(f) for f in chain.files] + [''] + chain.notes) + '\n')
         chain_text = ''.join((mirror / f).read_text() for f in chain.files)
-        actions = ACTIONS + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
+        actions = ACTIONS + PROBES + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
         turned = f'\n  LVGL_ROTATION: "{item.rotation}"' if item.rotation else ''
         rel = f'host/{item.key}'
         return f'''# Host build of {item.key} from {tree} (tools/render/host.py): core and board chain, hardware swapped for SDL.

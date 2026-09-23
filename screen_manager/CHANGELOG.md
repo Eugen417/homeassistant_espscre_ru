@@ -1,3 +1,10 @@
+## 0.2.130 (firmware 0.2.104)
+
+For contributors: every change is now checked the way a finger and Home Assistant use a screen. Nothing changes on your screens.
+
+- The check that builds every board on a computer changes pages with a finger from the edge of the glass, through the screen's own touch handling, and reads the page title back in the moment after the swipe, so a title that stands in dots for a second is caught. It reads the alert card back as it opens, before its picture and right after it.
+- docs/TESTING.md describes the levels of testing, from the fast checks to the whole chain through a real Home Assistant, and docs/TEST_RESULTS_02130.md what was tested for these releases.
+
 ## 0.2.129 (firmware 0.2.104)
 
 New screen is drawn from one board catalog, and a CYD can be built for its other display controller.

@@ -34,7 +34,8 @@
    this computer (tools/render/run.py, needs SDL2): its self test must pass lying down and standing up, and it saves
    what every board draws under `.esphome/render/out`. CI (`.github/workflows/ci.yml`) runs the same script on every
    push and pull request to main, and its render job compares the renders with the commit before (the `renders`
-   artifact: the pictures, a sheet, and a before/after/difference picture of every render that changed). Compile sequentially: profiles with the same `DEVICE_NAME` share one build folder,
+   artifact: the pictures, a sheet, and a before/after/difference picture of every render that changed).
+   docs/TESTING.md describes the levels of testing, up to the whole chain through a real Home Assistant. Compile sequentially: profiles with the same `DEVICE_NAME` share one build folder,
    and a parallel build can make an upload pick the wrong `firmware.bin` (the check builds are called `check-cyd` and
    `check-guition` and build under `.esphome/check`, apart from the bench profiles). Check that no secrets are in Git.
 

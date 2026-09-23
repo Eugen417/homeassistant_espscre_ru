@@ -58,6 +58,30 @@ ALERTS = (
     ('alert-button', dict(title='Doorbell', subtitle='', icon='doorbell', button_text='Coming')),
 )
 PROBE = re.compile(r'probe page=(-?\d+) applied=(-?\d+) shown=(\d+) tiles=(\d+) alert=(\d) pages=(\d+)')
+HEADER = re.compile(r'state page=(-?\d+) name=\[(.*?)\] shown=\[(.*?)\] name_box=(-?\d+),(-?\d+),(-?\d+),(-?\d+)')
+ALERT = re.compile(r'alert on=(\d) ' + ' '.join(f'{part}=(-?\\d+),(-?\\d+),(-?\\d+),(-?\\d+)'
+                                              for part in ('card', 'frame', 'icon', 'title', 'subtitle', 'button')))
+# A page's own title (app 0.2.123): a long one among them, the kind that stood in dots after a page change (GitHub #27).
+PAGE_TITLES = ['Demo cards', 'Living room downstairs', 'Kitchen']
+
+
+def overlap(a, b):
+    return a[0] <= b[2] and b[0] <= a[2] and a[1] <= b[3] and b[1] <= a[3]
+
+
+def alert_faults(state):
+    """What is wrong with an alert card as LVGL placed it: a part outside the card, or two parts over each other."""
+    parts = {name: box for name, box in state.items() if name != 'card' and box[2] >= box[0]}
+    card, faults = state['card'], []
+    for name, box in parts.items():
+        if not (card[0] <= box[0] and box[2] <= card[2] and card[1] <= box[1] and box[3] <= card[3]):
+            faults.append(f'{name} {box} outside the card {card}')
+    names = list(parts)
+    for i, one in enumerate(names):
+        for other in names[i + 1:]:
+            if overlap(parts[one], parts[other]):
+                faults.append(f'{one} {parts[one]} over {other} {parts[other]}')
+    return faults
 
 
 def porch(width, height):
@@ -201,8 +225,15 @@ class Run:
         start = len(self.lines)
         await self.call('show_alert', **args)
         await self.until(lambda l: '[alert' in l and 'show "' in l, 10, f'{name}: the alert never showed', start)
+        state = await self.state()
+        self.failures += [f'{name}, as it opens: {fault}' for fault in alert_faults(state['boxes'])]
         if name == 'alert-camera':
+            if state['boxes']['frame'][2] < state['boxes']['frame'][0]:
+                self.failures.append(f'{name}: no frame for the picture while it loads')
+            await self.render(f'{name}-waiting')
             await self.camera_link(start)
+            state = await self.state()
+            self.failures += [f'{name}, with its picture: {fault}' for fault in alert_faults(state['boxes'])]
         await self.render(name)
         start = len(self.lines)
         await self.call('dismiss_alert')
@@ -221,6 +252,69 @@ class Run:
         if 'failed' in line:
             raise RuntimeError(f'alert-camera: {line}')
         self.warnings.append(f'alert-camera: a {self.camera[0]} x {self.camera[1]} camera, sent at {box[0]} x {box[1]}')
+
+    async def state(self):
+        """The page title as its label shows it, and every part of the alert card, read back now."""
+        start = len(self.lines)
+        await self.call('render_state')
+        line = await self.until(lambda l: ALERT.search(l), 10, 'render_state', start)
+        header = next(HEADER.search(l) for l in self.lines[start:] if HEADER.search(l))
+        values = [int(v) for v in ALERT.search(line).groups()]
+        boxes = {name: tuple(values[1 + 4 * i:5 + 4 * i]) for i, name in enumerate(('card', 'frame', 'icon', 'title', 'subtitle', 'button'))}
+        return {'page': int(header[1]), 'name': header[2], 'shown': header[3], 'alert': values[0], 'boxes': boxes}
+
+    async def swipe(self, forward):
+        """A finger across the tiles, the way a page is changed on the glass; returns the title label as it was read back
+        every 50 ms from the release until it had been the same for a second."""
+        width, height = self.canvas
+        y = int(height * 0.6)
+        # From the edge of the glass, as a page is changed on the glass: a wipe over the tiles is never a page flip on the
+        # capacitive boards (features/capacitive-touch.yaml, the edge swipe). The touch panel is read every few tens of
+        # milliseconds, so the finger rests on the edge long enough to be seen there, then moves the way a finger does,
+        # a little further at every read (LVGL's gesture, the CYD's page swipe, starts counting again when it stops).
+        start, stop = (0.99, 0.3) if forward else (0.01, 0.7)
+        points = [int(width * (start + (stop - start) * i / 14)) for i in range(15)]
+        await self.call('render_finger', x=points[0], y=y, down=True)
+        await asyncio.sleep(0.15)
+        for x in points[1:]:
+            await self.call('render_finger', x=x, y=y, down=True)
+            await asyncio.sleep(0.02)
+        await self.call('render_finger', x=points[-1], y=y, down=False)
+        seen, steady, end = [], 0, time.monotonic() + 6
+        while time.monotonic() < end:
+            state = await self.state()
+            seen.append(state)
+            steady = steady + 1 if len(seen) > 1 and (state['page'], state['shown']) == (seen[-2]['page'], seen[-2]['shown']) else 0
+            if steady >= 20:
+                break
+            await asyncio.sleep(0.05)
+        return seen
+
+    async def moments(self, pages):
+        """A page change by a finger, forward and back to page 1, with the title read back in the moment after it."""
+        if pages < 2:
+            return 0
+        # "Swipe between pages" is off until someone turns it on; its switch, as Home Assistant turns it on.
+        self.client.switch_command(self.swipe_switch.key, True)
+        await asyncio.sleep(0.3)
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        count = 0
+        for forward, target in ((True, 1), (False, 0)):
+            seen = await self.swipe(forward)
+            count += len(seen)
+            if seen[-1]['page'] != target:
+                self.failures.append(f'swipe {"forward" if forward else "back"}: page {seen[-1]["page"] + 1}, not {target + 1}')
+                continue
+            final = seen[-1]['shown']
+            if seen[-1]['name'] != PAGE_TITLES[target]:
+                self.failures.append(f'page {target + 1} is named {seen[-1]["name"]!r}, not {PAGE_TITLES[target]!r}')
+            for state in seen:
+                if state['page'] == target and '...' in state['shown'] and '...' not in final:
+                    self.failures.append(f'page {target + 1}: its title stood as {state["shown"]!r} for a moment, then {final!r}')
+                    break
+            self.warnings.append(f'swipe to page {target + 1}: title {final!r}, {len(seen)} read-backs')
+        return count
 
     async def self_test(self):
         start = len(self.lines)
@@ -250,6 +344,7 @@ class Run:
         self.services = {s.name: s for s in services}
         self.inbox = next(e for e in entities if type(e).__name__ == 'TextInfo' and e.name == 'Tile settings')
         dark = next(e for e in entities if getattr(e, 'name', '') == 'Dark mode')
+        self.swipe_switch = next(e for e in entities if getattr(e, 'name', '') == 'Swipe between pages')
         self.client.subscribe_logs(lambda m: self.lines.append(re.sub(r'\x1b\[[0-9;]*m', '', m.message.decode(errors='replace')
                                                                       if isinstance(m.message, bytes) else m.message)),
                                    log_level=LogLevel.LOG_LEVEL_DEBUG, dump_config=False)
@@ -257,6 +352,7 @@ class Run:
             await self.call('render_skip_calibration')
         await self.call('render_time', epoch=int(MOMENT.timestamp()))
         messages = send_layout.messages(self.inbox.object_id, now=MOMENT)
+        messages[0]['page_titles'] = PAGE_TITLES
         for message in messages:
             await self.send(message)
         tiles = len(messages[0]['entities'])
@@ -269,7 +365,11 @@ class Run:
                 raise RuntimeError(f'the layout never arrived: {p}, {tiles} tiles expected')
             await asyncio.sleep(0.2)
         pages = p[5]
+        side = json.loads((REPO / 'screen_manager/app/boards.json').read_text())[self.item.board]['orientations']
+        side = side['portrait' if self.item.rotation else 'landscape']
+        self.canvas = (side['width'], side['height'])
         checks = await self.self_test()
+        await self.moments(pages)
         for page in range(pages):
             await self.call('render_page', page=page)
             await self.page_done(page)

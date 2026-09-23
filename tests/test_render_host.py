@@ -41,8 +41,12 @@ class HostBuild(unittest.TestCase):
                 for path in (mirror / 'packages').rglob('*.yaml'):
                     blocks = set(re.findall(r'(?m)^([a-z_0-9]+):', path.read_text()))
                     self.assertFalse(blocks & set(host.HARDWARE_BLOCKS), f'{item.key}: {path.name}')
-                self.assertEqual('LVGL_ROTATION' in text, item.key.endswith('-portrait'), item.key)
-                self.assertIn('- action: render_png', text)
+                self.assertEqual('\n  LVGL_ROTATION: "' in text, item.key.endswith('-portrait'), item.key)
+                for action in ('render_png', 'render_finger', 'render_state'):
+                    self.assertIn(f'- action: {action}', text)
+                # The SDL panel is read as often as the board reads its own: a finger that moves between reads is what
+                # LVGL counts as a swipe.
+                self.assertIn('    update_interval: 20ms\n', hardware, item.key)
                 self.assertIn('platform: host', (mirror / 'packages' / 'core.yaml').read_text())
 
 
