@@ -71,6 +71,32 @@ function placed(tile: Tile) {
 }
 
 describe("TileCard", () => {
+  it('keeps the cover primary control when slats are selected or the tile shrinks', async () => {
+    state.inventory.controls!.cover = { default: 'buttons', choices: [
+      { key: 'buttons', label: 'Open, stop, close' }, { key: 'position', label: 'Position' },
+      { key: 'tilt', label: 'Tilt' }, { key: 'position_tilt', label: 'Position and tilt' }, { key: 'none', label: 'None' },
+    ] };
+    state.capabilities['cover.c'] = { controls: ['buttons', 'position', 'tilt', 'position_tilt', 'buttons_tilt'], toggle: true, inline: true, displays: ['standard'] };
+    state.liveStates['cover.c'] = { state: 'open', word: 'Open', a: { supported_features: 255, current_position: 45, current_tilt_position: 65 } };
+    const tile: Tile = { entity: 'cover.c', name: '', slot: 0, options: { size: 'square', controls: 'position' } };
+    appendTiles(tile);
+    const settings = inspector(tile);
+    expect(settings.find('.tilt-choice input').exists()).toBe(true);
+    await settings.find('.tilt-choice input').setValue(true);
+    expect(current(tile)?.options?.controls ?? tile.options?.controls).toBe('position_tilt');
+    await settings.find('.tilt-choice input').setValue(false);
+    expect(current(tile)?.options?.controls ?? tile.options?.controls).toBe('position');
+    const card = mount(TileCard, { props: { tile: { ...tile, options: { size: 'tall', controls: 'position_tilt' } }, slot: 0 } });
+    expect(card.findComponent({ name: 'CoverTilePreview' }).exists()).toBe(true);
+    await card.setProps({ tile: { ...tile, options: { size: 'wide', controls: 'position_tilt' } } });
+    expect(card.find('.cover-preview').exists()).toBe(false);
+    expect(card.find('.ctl .range').exists()).toBe(true);
+    for (const controls of ['none', 'tilt']) {
+      await card.setProps({ tile: { ...tile, options: { size: 'wide', controls } } });
+      expect(card.find('.ctl').exists()).toBe(false);
+    }
+  });
+
   it("extends only taller tiles and waits for actual artwork before using white text", async () => {
     state.inventory.controls!.media_player = { default: 'playback', choices: [] };
     state.liveStates['media_player.a'] = { state: 'playing', word: 'Playing', a: { media_title: 'A track', media_artist: 'An artist', artwork_mark: 'first', supported_features: 49 } };

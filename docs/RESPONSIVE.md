@@ -261,3 +261,24 @@ event and the layout sensor count rows, columns and pages the same way.
   on top of the board's own `LVGL_ROTATION`, and each board's Rotation select offers the angles its glass allows.
 - The lab boards (`packages/boards/lab-*.yaml`) are generated and disposable; a real board gets a hardware
   section checked on glass and an entry in `tools/profiles.py`.
+
+
+### Optional cover slat controls
+
+Taller and full-page cover tiles can explicitly select a slat group alongside
+an optional primary control. The editor keeps those choices separate; resizing
+never enables the extra group. Supported HA actions determine whether the group
+contains a tilt-position slider or individual open, stop and close tilt keys.
+
+`cover_tile.h` lays out the selected groups using measured body dimensions,
+caption height and the active look's physical touch size. It changes a vertical
+key stack to a row when that makes the groups fit. If space is insufficient,
+only the primary controls remain on the tile, and the existing detail overlay
+keeps the supported slat controls. No board identity or fixed glass resolution
+participates in this decision.
+
+The tile and overlay share `cover_slider`, `cover_tilt_keys`, and
+`cover_position_action`. Position fills the closed part of the blind; slat tilt
+uses the HA tilt percentage directly. The tile also uses the existing captured
+slider lifecycle, so a lost press cannot send an action. Capability and pending
+checks run again when an interaction commits.

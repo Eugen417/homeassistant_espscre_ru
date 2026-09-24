@@ -1,4 +1,5 @@
 #include "../components/smart_display/tall_tile.h"
+#include "../components/smart_display/cover_tile.h"
 #include <cassert>
 #include <cstdio>
 using namespace tall_tile;
@@ -41,6 +42,27 @@ int main(){
     assert(a.title.w==width&&a.state.w==width);
     assert(std::abs(a.icon.y-(height-a.state.bottom()))<=1);
   }
+  // Extended covers never overlap groups or squeeze a touch target to fit.
+  // Sweep independent dimensions, densities and partial capability sets.
+  unsigned covers=0;
+  for(int touch:{28,39,48,60})for(int width=20;width<800;width+=31)
+  for(int height=20;height<600;height+=23)for(int keys=0;keys<4;++keys)
+  for(int tilt_keys=0;tilt_keys<4;++tilt_keys){
+    const auto c=cover_tile::layout({0,0,width,height},touch,6,16,2*touch,keys==0,keys,tilt_keys==0,tilt_keys);
+    if(!c.fits)continue;
+    for(const auto &g:c.groups){
+      if(g.area.empty())continue;
+      assert(inside(g.control,width,height)&&inside(g.caption,width,height));
+      assert(g.control.w>=touch&&g.control.h>=touch&&g.control.bottom()<g.caption.y);
+      if(g.slider)assert(g.control.h>=2*touch);
+      else if(g.horizontal)assert(g.control.w>=g.keys*touch+(g.keys-1)*6);
+      else assert(g.control.h>=g.keys*touch+(g.keys-1)*6);
+    }
+    assert(c.groups[0].area.right()<c.groups[1].area.x);++covers;
+  }
+  assert(covers>1000);
+  assert(!cover_tile::layout({0,0,131,60},39,4,13,91,true,0,true,0).fits);
+  assert(cover_tile::layout({0,0,204,180},48,8,19,150,true,0,true,0).fits);
   // A CYD-sized cell accepts one row, but cannot promise two physical rows.
   Metrics compact{131,92,13,13,28,4,39,280,{39,39},1};
   assert(layout(compact).fits);compact.row_count=2;assert(!layout(compact).fits);

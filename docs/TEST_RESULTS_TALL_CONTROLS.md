@@ -11,7 +11,7 @@ compositions. The existing single-row renderer is preserved.
   setpoint between round keys, or shows measured temperature with selected modes.
 - Size and control selection remain separate. Resizing preserves the existing
   selection; extra height never enables a control automatically. One control
-  group is selected at a time. The editor exposes the larger layouts only with
+  primary group is selected at a time; covers can also opt into slat tilt. The editor exposes the larger layouts only with
   `SCREEN_EDITOR_ENV=development`.
 - Geometry uses the actual available rectangle, measured fonts and physical
   touch limits. Optional secondary text gives way before controls. A layout too
@@ -65,7 +65,7 @@ selects with fewer than two options and unavailable entities. The local test HA
 returned capability descriptions for 40 entities across 11 domains. This was a
 read-only catalogue check, not 40 real-device action tests.
 
-The extension retains one selected control group and the existing maximum of
+The extension retains one primary control group, optional cover slat tilt, and the existing maximum of
 three inline climate mode keys. Further modes and richer controls remain in the
 detail overlay. It does not automatically place every possible HA control on a
 tile. A duplicate ordinary tile on another page no longer prevents fetching the
@@ -142,3 +142,51 @@ background-aware marquee change. No physical finger test was performed.
 All six final firmware builds pass. The CYD image uses 1,640,384 bytes of its
 1,835,008-byte update slot, with 194,624 bytes free. These short render/API checks
 are not a long-term soak test.
+
+
+## Optional cover slat controls
+
+The editor now offers a separate slat-tilt checkbox for taller and full-page
+cover tiles. Resizing does not select it. The primary choice remains independent:
+none, open/stop/close, or position. Home Assistant must offer a tilt action before
+an unselected checkbox is offered. Saved selections survive resizing and lost
+capabilities, while unavailable controls stay inert.
+
+The existing controls field stores `tilt`, `buttons_tilt`, or `position_tilt`.
+No storage version, migration, duplicate renderer or image buffer was added.
+Legacy firmware delivery rejects these selections with the existing update
+notice. The minimum firmware is 0.3.1, the pending rectangular-tile release.
+
+The firmware reuses the overlay's slat slider, feature-filtered tilt keys and
+percentage action mapping. Layout measures the available body, fonts and
+physical touch size. Keys may form a row when a vertical stack does not fit.
+If the additional group cannot fit, the primary group stays on the tile and
+slat controls remain in the detail view. Single-row designs are preserved.
+Only visible controls allocate LVGL objects; the cover extension does not
+allocate the custom-card graph-point buffer.
+
+Validation after this addition:
+
+- All 14 fast check groups pass: 734 Python tests, 26 C++ programs, 294 editor
+  tests, types, generated resources and the committed editor bundle.
+- Capability checks cover all 256 cover feature masks. The shared percentage
+  helper checks clamping, opposite position/tilt directions and unavailable
+  entities. The editor checks independent selection and shrinking a tile.
+- 576 native LVGL captures across ten board/orientation variants, in light and
+  dark themes, pass geometry checks. These include ordinary sizes, taller and
+  full-page cards, position sliders, partial tilt-key support and covers that
+  have lost tilt support. The runs also pass 100 page checks.
+- Eight additional native event-path checks capture the exact outgoing actions
+  for position, tilt and all three tilt keys. A cancelled drag, lost capability
+  and a pending action each suppress dispatch. No calls are forwarded to HA.
+- All six firmware builds pass. CYD uses 1,643,424 bytes of its 1,835,008-byte OTA
+  slot, with 191,584 bytes free. Growth from the preceding switch/action polish
+  is 3,040 bytes. This is a flash measurement, not a measured heap delta.
+- The disposable Guition runs the build compiled on 24 September 2026 at
+  17:37:35 +0200. Ten page checks and fifty overlay cycles pass. Three temporary
+  configurations were saved through real Ingress, acknowledged by the board and
+  captured: position plus tilt, no controls, and buttons plus tilt. The original
+  document was restored unchanged and the board returned to its home page.
+
+Physical captures verify the running device's renderer and configuration path.
+They do not constitute a real-finger touch test. No household cover was moved.

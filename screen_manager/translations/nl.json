@@ -713,7 +713,10 @@
         },
         "cover": {
           "buttons": "Open, stop, dicht",
-          "position": "Positieslider"
+          "position": "Positieslider",
+          "tilt": "Lamellen",
+          "buttons_tilt": "Open, stop, dicht en lamellen",
+          "position_tilt": "Positie en lamellen"
         },
         "media_player": {
           "volume": "Volume en dempen",
@@ -1405,7 +1408,9 @@
         "full_hint": "Onderaan de paginavullende tegel; een tik ergens anders werkt zoals hieronder ingesteld.",
         "wide_hint": "Rechts op de dubbelbrede tegel, zoals de rijen in Home Assistant. Tikken op de naam werkt zoals hieronder ingesteld.",
         "needs_firmware": "Het scherm toont directe bediening vanaf firmware 0.2.19; tot die tijd blijft de tegel zoals hij was.",
-        "tall_hint": "Kies de bediening in de extra hoogte. Vergroten behoudt je keuze en voegt nooit automatisch bediening toe."
+        "tall_hint": "Kies de bediening in de extra hoogte. Vergroten behoudt je keuze en voegt nooit automatisch bediening toe.",
+        "tilt": "Lamellenbediening",
+        "tilt_hint": "Voegt de ondersteunde lamellenschuif of kantelknoppen toe als er genoeg ruimte is. Gebruik op kleinere tegels de detailweergave. Je keuze voor open/dicht blijft behouden."
       },
       "tap": {
         "label": "Bij aantikken",

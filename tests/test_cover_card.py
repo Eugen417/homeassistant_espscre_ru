@@ -128,8 +128,12 @@ class Firmware(unittest.TestCase):
                           text, f'{name}: the preview opens the card a hold opens')
 
     def test_the_card_commits_on_release_and_keeps_its_status_line(self):
-        self.assertIn('action("cover.set_cover_position",t.entity,"position",std::to_string(100-percent));', RUNTIME)
-        self.assertIn('action("cover.set_cover_tilt_position",t.entity,"tilt_position",std::to_string(percent));', RUNTIME)
+        # Both views dispatch through the capability-checked percentage helper.
+        # Percentage direction and all feature masks are exercised in C++.
+        event = RUNTIME[RUNTIME.index('inline void cover_slider_event('):RUNTIME.index('inline lv_obj_t *cover_slider(')]
+        self.assertIn('code!=LV_EVENT_RELEASED', event)
+        self.assertIn('tile_controls::cover_position_action(t,lv_slider_get_value(slider),tilt)', event)
+        self.assertIn('if(call.valid())action(call.service,t.entity,call.key,call.value)', event)
         self.assertIn('if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);', RUNTIME)
         # The once-a-second tick of an open card must not replace "Open · 60% · Tilt 40%" with the raw state.
         tick = RUNTIME[RUNTIME.index('inline void tick() {'):]

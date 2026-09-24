@@ -70,6 +70,31 @@ int main() {
   unknown.controls = "buttons";
   assert(keys_for(unknown, keys) == 0);
 
+  // Slat selection never replaces primary controls or invents capabilities.
+  for(uint32_t flags=0;flags<256;++flags){
+    Tile t=make("cover.test","open",flags);t.controls="position_tilt";
+    assert(cover_tilt_selected(t)&&panel_kind(t)=="position");
+    assert(panel_available(t)==bool(flags&feature::COVER_POSITION));
+    t.controls="buttons_tilt";assert(panel_kind(t)=="buttons");
+    assert(keys_for(t,keys)==unsigned(bool(flags&1)+bool(flags&8)+bool(flags&2)));
+    for(int raw:{-100,0,255,1000,1200})for(bool tilt:{false,true}){
+      const auto call=cover_position_action(t,raw,tilt);
+      assert(call.valid()==bool(flags&(tilt?128:4)));
+      if(call.valid()){
+        const int percent=(int)std::lround(std::clamp(raw,0,1000)/10.0f);
+        assert(call.value==std::to_string(tilt?percent:100-percent));
+        assert(call.key==(tilt?"tilt_position":"position"));
+        assert(call.service==(tilt?"cover.set_cover_tilt_position":"cover.set_cover_position"));
+      }
+    }
+    t.controls="tilt";assert(panel_kind(t).empty()&&!panel_available(t));
+    assert(cover_card(t).tilt==bool(flags&128));
+    assert(cover_tilt_keys(t,keys)==unsigned(bool(flags&16)+bool(flags&64)+bool(flags&32)));
+  }
+
+  auto absent=make("cover.test","unavailable",255);
+  assert(!cover_position_action(absent,500,true).valid()&&!cover_position_action(absent,500,false).valid());
+
   // Vacuum: the state decides which key the first one is, never whether a key can be pressed (firmware 0.2.90+).
   // A robot still saying "docked" while it is already cleaning used to leave Stop and Dock unreachable, exactly
   // when they were wanted: a state word is Home Assistant's news, and news can be late.

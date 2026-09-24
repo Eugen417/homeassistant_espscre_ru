@@ -293,7 +293,9 @@ CONTROLS = {
     'light': (('toggle', 'On/off switch'), ('brightness', 'Brightness slider')),
     'fan': (('toggle', 'On/off switch'), ('speed', 'Speed slider')),
     'vacuum': (('buttons', 'Start, stop, dock'),),
-    'cover': (('buttons', 'Open, stop, close'), ('position', 'Position slider')),
+    'cover': (('buttons', 'Open, stop, close'), ('position', 'Position slider'),
+              ('tilt', 'Slat tilt'), ('buttons_tilt', 'Open, stop, close and slat tilt'),
+              ('position_tilt', 'Position and slat tilt')),
     'media_player': (('volume', 'Volume and mute'), ('playback', 'Previous, play/pause, next')),
     'number': (('stepper', 'Value − / +'), ('slider', 'Slider')),
     'input_number': (('stepper', 'Value − / +'), ('slider', 'Slider')),
@@ -321,6 +323,8 @@ def resolve_controls(tile):
         return None
     # A full-page card is one big button unless a control was chosen for it; a wide card shows its usual one.
     choice = options.get('controls', 'none' if options.get('size') in ('tall', 'full') else CONTROLS[domain][0][0])
+    if domain == 'cover' and options.get('size') == 'wide':
+        choice = 'none' if choice == 'tilt' else choice.removesuffix('_tilt')
     return None if choice == 'none' else choice
 
 # Diagnostic entities every ESP Screens firmware exposes; the manager watches them for screens.
@@ -848,6 +852,9 @@ def repeated_page_tiles(tiles):
 
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
+    if any(tile.get('options', {}).get('controls') in ('tilt', 'buttons_tilt', 'position_tilt')
+           for tile in layout['tiles']):
+        return (0, 3, 1)
     if repeated_page_tiles(layout['tiles']):
         return PAGE_TILE_REPEAT_MIN_FIRMWARE
     if len(layout['tiles']) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in layout['tiles']):

@@ -36,6 +36,22 @@ class ControlChoices(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_layout({'title': 'T', 'tiles': [{'entity': entity, 'options': {'size': 'wide', 'controls': choice}}]})
 
+    def test_cover_tilt_choices_roundtrip_without_a_new_schema(self):
+        import page_layout
+        from layout_migrations import migrate_legacy
+        for choice in ('tilt', 'buttons_tilt', 'position_tilt'):
+            old = validate_layout({'title': 'Covers', 'tiles': [
+                {'entity': 'cover.test', 'options': {'size': 'full', 'controls': choice}}]})
+            record = migrate_legacy(old, page_layout.Grid())
+            document = page_layout.validate_document(record['layout'], page_layout.Grid())
+            tiles = page_layout.compile_tiles(document, page_layout.Grid())
+            self.assertEqual(tiles[0]['options']['controls'], choice)
+            self.assertEqual(resolve_controls(tiles[0]), choice)
+            self.assertEqual(min_firmware(old), (0, 3, 1))
+            self.assertFalse(page_layout.legacy_compatible(document, page_layout.Grid()))
+            with self.assertRaises(page_layout.LayoutError):
+                page_layout.legacy_projection(record)
+
     def test_wide_cards_get_the_default_set_only_in_the_standard_layout(self):
         self.assertEqual(resolve_controls({'entity': 'climate.a', 'options': {'size': 'wide'}}), 'setpoint')
         self.assertEqual(resolve_controls({'entity': 'media_player.a', 'options': {'size': 'wide', 'controls': 'playback'}}), 'playback')

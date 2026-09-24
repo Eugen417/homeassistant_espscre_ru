@@ -34,6 +34,7 @@ export function controlKeys(domain: string, kind: string, state: string, a: Attr
 }
 export function availableControl(domain: string, kind: string | null, state: string, a: Attributes): string {
   if (!kind || ['unavailable', 'unknown', ''].includes(state)) return '';
+  if (domain === 'cover') kind = coverPrimary(kind);
   const f = Number(a.supported_features || 0);
   if (['buttons', 'playback', 'mode'].includes(kind) || kind === 'stepper' && domain.endsWith('select'))
     return controlKeys(domain, kind, state, a).length ? kind : '';
@@ -46,4 +47,22 @@ export function availableControl(domain: string, kind: string | null, state: str
   if (kind === 'toggle') return ['light', 'switch', 'input_boolean', 'fan'].includes(domain) ? kind : '';
   if (kind === 'run') return ['scene', 'script', 'button', 'input_button'].includes(domain) ? kind : '';
   return '';
+}
+
+// Preserve the primary choice while toggling the additional slat group.
+export const hasCoverTilt = (kind: string | null | undefined) => ['tilt', 'buttons_tilt', 'position_tilt'].includes(kind || '');
+export const coverPrimary = (kind: string | null | undefined) => kind === 'tilt' ? 'none' : (kind || 'none').replace(/_tilt$/, '');
+export const withCoverTilt = (primary: string, tilt: boolean) => tilt ? (primary === 'none' ? 'tilt' : primary + '_tilt') : primary;
+export function coverTiltKind(state: string, a: Attributes): '' | 'position' | 'buttons' {
+  if (['unavailable', 'unknown', ''].includes(state)) return '';
+  const f = Number(a.supported_features || 0);
+  return f & 128 ? 'position' : f & 112 ? 'buttons' : '';
+}
+export function coverTiltKeys(a: Attributes): ControlKey[] {
+  const f = Number(a.supported_features || 0), value = a.current_tilt_position;
+  return [
+    ...(f & 16 ? [{ icon: 'blinds-open', disabled: typeof value === 'number' && value >= 99.5 }] : []),
+    ...(f & 64 ? [{ icon: 'stop' }] : []),
+    ...(f & 32 ? [{ icon: 'blinds', disabled: typeof value === 'number' && value <= .5 }] : []),
+  ];
 }

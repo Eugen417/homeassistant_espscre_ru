@@ -31,8 +31,8 @@ export function documentFixture(view: Layout, grid = testGrid): PageDocument {
     for (const key of ["tap", "inline", "controls", "action"] as const) if (o[key] !== undefined) Object.assign(interaction, { [key]: clone(o[key]) });
     layout.pages[Math.floor(tile.slot / cells)].tiles.push({ id: tile.id, content, appearance, interaction,
       placement: { row: Math.floor(tile.slot % cells / grid.columns), column: tile.slot % grid.columns,
-        columns: o.size === "full" ? grid.columns : o.size === "wide" ? Math.min(2, grid.columns) : 1,
-        rows: o.size === "full" ? grid.rows : 1 } });
+        columns: o.size === "full" ? grid.columns : ["wide", "square"].includes(o.size || "") ? Math.min(2, grid.columns) : 1,
+        rows: o.size === "full" ? grid.rows : ["tall", "square"].includes(o.size || "") ? 2 : 1 } });
   }
   return { format: "pages-v2", revision: instanceId(), sourceGrid: clone(grid), layout,
     workspace: { revision: instanceId(), positions: {} } };

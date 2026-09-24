@@ -36,7 +36,9 @@ CONTROLS = {
     'fan': {'toggle': (('fan.toggle', None),), 'speed': INLINE['fan']},
     'vacuum': {'buttons': tuple((action, None) for action in ('vacuum.start', 'vacuum.pause', 'vacuum.stop', 'vacuum.return_to_base', 'vacuum.turn_on'))},
     'cover': {'buttons': tuple((action, None) for action in ('cover.open_cover', 'cover.close_cover', 'cover.stop_cover')),
-              'position': INLINE['cover']},
+              'position': INLINE['cover'],
+              'tilt': tuple((action, None) for action in ('cover.set_cover_tilt_position', 'cover.open_cover_tilt',
+                                                         'cover.close_cover_tilt', 'cover.stop_cover_tilt'))},
     'media_player': {'volume': (('media_player.volume_set', None), ('media_player.volume_mute', None)),
                      'playback': tuple((action, None) for action in ('media_player.media_play_pause', 'media_player.media_play',
                                                                      'media_player.media_pause', 'media_player.media_next_track',
@@ -178,14 +180,17 @@ def capabilities(entity_id, actions, state, services):
     elif domain == 'media_player':
         # The album cover in the icon's place (app 0.2.92), a Guition again.
         displays.append('cover')
+    controls = [key for key, requirements in CONTROLS.get(domain, {}).items()
+                if _fits(requirements, actions, attributes, services)
+                and not (domain == 'climate' and key == 'setpoint'
+                         and isinstance(attributes.get('supported_features'), int)
+                         and not attributes['supported_features'] & 1)]
+    if domain == 'cover' and 'tilt' in controls:
+        controls += [key + '_tilt' for key in ('buttons', 'position') if key in controls]
     return {
         'toggle': TOGGLE.format(domain=domain) in actions,
         'inline': domain in INLINE and _fits(INLINE[domain], actions, attributes, services),
-        'controls': [key for key, requirements in CONTROLS.get(domain, {}).items()
-                     if _fits(requirements, actions, attributes, services)
-                     and not (domain == 'climate' and key == 'setpoint'
-                              and isinstance(attributes.get('supported_features'), int)
-                              and not attributes['supported_features'] & 1)],
+        'controls': controls,
         'displays': displays,
     }
 

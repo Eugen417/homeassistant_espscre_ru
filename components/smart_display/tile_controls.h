@@ -55,9 +55,15 @@ inline std::string inline_kind(const std::string &domain) {
   if (domain == "number" || domain == "input_number") return "slider";
   return {};
 }
+// The extra slat choice lives in the existing controls field. The primary group
+// stays independent, including when capabilities or the tile size change.
+inline bool cover_tilt_selected(const Tile &t) {
+  return t.domain()=="cover" && (t.controls=="tilt"||t.controls=="buttons_tilt"||t.controls=="position_tilt");
+}
 // A select's "stepper" is a pair of chevron keys; numbers and climate get the -/+ pill.
 inline std::string panel_kind(const Tile &t) {
   auto c = t.controls, d = t.domain();
+  if(d=="cover"){if(c=="tilt")return {};if(c=="buttons_tilt")return "buttons";if(c=="position_tilt")return "position";}
   // The small slider of a wide card is that domain's slider: the manager sends no control set beside it
   // (resolve_controls), so the kind comes from the domain.
   if (c.empty() && t.inline_control == "slider") return inline_kind(d);
@@ -431,6 +437,13 @@ inline unsigned cover_tilt_keys(const Tile &t, std::array<Key, 3> &out) {
   if (t.supported & feature::COVER_STOP_TILT) out[n++] = Key{glyph::STOP, COVER_STOP_TILT, "", false, false};
   if (t.supported & feature::COVER_CLOSE_TILT) out[n++] = Key{glyph::BLINDS, COVER_CLOSE_TILT, "", false, std::isfinite(tilt) && tilt <= 0.5f};
   return n;
+}
+// The same percentage direction and capability guard for overlay and tile.
+inline Action cover_position_action(const Tile &t,int raw,bool tilt) {
+  if(t.domain()!="cover"||!t.available()||!(t.supported&(tilt?feature::COVER_TILT_POSITION:feature::COVER_POSITION)))return {};
+  const int percent=(int)std::lround(std::clamp(raw,0,1000)/10.0f);
+  return tilt?Action{"cover.set_cover_tilt_position","tilt_position",std::to_string(percent)}
+             :Action{"cover.set_cover_position","position",std::to_string(100-percent)};
 }
 // The row of up to three pill keys for a key-row panel; returns how many.
 //

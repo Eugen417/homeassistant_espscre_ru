@@ -34,3 +34,23 @@ it('limits modes to real choices and disables selects with fewer than two option
   expect(controlKeys('climate', 'mode', 'cool', { hvac_modes: ['fan_only', 'cool', 'off'] }).map(k => k.mode)).toEqual(['off', 'cool', 'fan_only']);
   expect(controlKeys('select', 'stepper', 'Eco', { options: ['Eco'] }).every(k => k.disabled)).toBe(true);
 });
+
+it('keeps slats independent of the primary choice and follows every cover feature mask', async () => {
+  const { coverPrimary, hasCoverTilt, withCoverTilt, coverTiltKind, coverTiltKeys } = await import('../src/model/tall-controls');
+  for (const primary of ['none', 'buttons', 'position']) {
+    const selected = withCoverTilt(primary, true);
+    expect(hasCoverTilt(selected)).toBe(true);
+    expect(coverPrimary(selected)).toBe(primary);
+    expect(withCoverTilt(coverPrimary(selected), false)).toBe(primary);
+  }
+  for (let flags = 0; flags < 256; flags++) {
+    const attrs = { supported_features: flags, current_tilt_position: 100 };
+    expect(coverTiltKind('open', attrs)).toBe(flags & 128 ? 'position' : flags & 112 ? 'buttons' : '');
+    expect(coverTiltKind('unavailable', attrs)).toBe('');
+    expect(coverTiltKeys(attrs).map(k => k.icon)).toEqual([
+      ...(flags & 16 ? ['blinds-open'] : []), ...(flags & 64 ? ['stop'] : []), ...(flags & 32 ? ['blinds'] : []),
+    ]);
+    expect(availableControl('cover', 'position_tilt', 'open', attrs)).toBe(flags & 4 ? 'position' : '');
+    expect(availableControl('cover', 'tilt', 'open', attrs)).toBe('');
+  }
+});

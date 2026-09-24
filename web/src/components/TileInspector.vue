@@ -14,6 +14,7 @@ import { currentScreen, automaticIcon, closeInspector, entityName, fullPage, loa
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
+import { coverPrimary, hasCoverTilt, withCoverTilt } from "../model/tall-controls";
 import Segmented from "./Segmented.vue";
 import { textDraft } from '../model/text-draft';
 
@@ -77,9 +78,16 @@ const size = computed(() => current("size", "single") as string);
 const taller = computed(() => ["tall", "square"].includes(size.value));
 const catalogue = computed(() => state.inventory.controls?.[domain.value]);
 const controls = computed(() => taller.value && current("inline", "none") === "slider" ? inlineControlKind(domain.value) : current("controls", ["tall", "full"].includes(size.value) ? "none" : catalogue.value?.default) as string);
+const primaryControl = computed(() => domain.value === 'cover' ? coverPrimary(controls.value) : controls.value);
+const tiltSelected = computed(() => domain.value === 'cover' && hasCoverTilt(controls.value));
+const offerTilt = computed(() => domain.value === 'cover' && ['tall', 'square', 'full'].includes(size.value)
+  && (tiltSelected.value || caps.value?.controls.includes('tilt')));
+function pickControl(value: string) {
+  setTileOption(props.tile, 'controls', domain.value === 'cover' ? withCoverTilt(value, tiltSelected.value) : value);
+}
 const controlChoices = computed(() => {
   const c = caps.value;
-  return (catalogue.value?.choices || []).filter((ch) => !c || ch.key === "none" || ch.key === controls.value || c.controls.includes(ch.key)).map((ch) => [ch.key, ch.label] as [string, string]);
+  return (catalogue.value?.choices || []).filter(ch => domain.value !== "cover" || !hasCoverTilt(ch.key)).filter((ch) => !c || ch.key === "none" || ch.key === primaryControl.value || c.controls.includes(ch.key)).map((ch) => [ch.key, ch.label] as [string, string]);
 });
 const controlHint = computed(() => {
   const c = caps.value;
@@ -185,8 +193,12 @@ function inspect() {
     </div>
     <div v-if="catalogue && ['wide', 'tall', 'square', 'full'].includes(size) && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.controls.label") }}</span>
-      <Segmented :choices="controlChoices" :value="controls" @pick="(v) => setTileOption(tile, 'controls', v)" />
+      <Segmented :choices="controlChoices" :value="primaryControl" @pick="pickControl" />
       <template v-if="controlHint"><small v-if="controlHint.warn" class="warn">{{ controlHint.text }}</small><HelpTip v-else :text="controlHint.text" /></template>
+    </div>
+    <div v-if="offerTilt" class="f">
+      <label class="check tilt-choice"><input type="checkbox" :checked="tiltSelected" @change="setTileOption(tile, 'controls', withCoverTilt(primaryControl, !tiltSelected))" /> {{ t('editor.tile.controls.tilt') }}</label>
+      <HelpTip :text="t('editor.tile.controls.tilt_hint')" />
     </div>
     <div v-if="domain !== 'screen' && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.tap.label") }}</span>

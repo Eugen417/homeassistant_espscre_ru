@@ -713,7 +713,10 @@
         },
         "cover": {
           "buttons": "Otwórz, stop, zamknij",
-          "position": "Suwak pozycji"
+          "position": "Suwak pozycji",
+          "tilt": "",
+          "buttons_tilt": "",
+          "position_tilt": ""
         },
         "media_player": {
           "volume": "Głośność i wyciszenie",
@@ -1405,7 +1408,9 @@
         "full_hint": "Na dole kafelka na całą stronę; dotknięcie w innym miejscu działa zgodnie z ustawieniem poniżej.",
         "wide_hint": "Po prawej stronie kafelka podwójnej szerokości, jak w wierszach encji w Home Assistant. Dotknięcie nazwy działa zgodnie z ustawieniem poniżej.",
         "needs_firmware": "Ekran pokazuje bezpośrednie sterowanie od wersji firmware 0.2.19; do tego czasu kafelek pozostaje bez zmian.",
-        "tall_hint": ""
+        "tall_hint": "",
+        "tilt": "",
+        "tilt_hint": ""
       },
       "tap": {
         "label": "Po dotknięciu",

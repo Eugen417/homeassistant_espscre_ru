@@ -713,7 +713,10 @@
         },
         "cover": {
           "buttons": "Apri, ferma, chiudi",
-          "position": "Cursore della posizione"
+          "position": "Cursore della posizione",
+          "tilt": "",
+          "buttons_tilt": "",
+          "position_tilt": ""
         },
         "media_player": {
           "volume": "Volume e muto",
@@ -1405,7 +1408,9 @@
         "full_hint": "In basso nel riquadro a pagina intera; un tocco altrove funziona come impostato qui sotto.",
         "wide_hint": "A destra del riquadro a larghezza doppia, come le righe in Home Assistant. Un tocco sul nome funziona come impostato qui sotto.",
         "needs_firmware": "Lo schermo mostra il controllo diretto a partire dal firmware 0.2.19; fino ad allora il riquadro resta com'era.",
-        "tall_hint": ""
+        "tall_hint": "",
+        "tilt": "",
+        "tilt_hint": ""
       },
       "tap": {
         "label": "Al tocco",

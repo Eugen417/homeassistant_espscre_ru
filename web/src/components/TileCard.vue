@@ -14,6 +14,8 @@ import { tilePalette, tileActive } from "../model/tile-palette";
 import type { Tile } from "../types";
 import TileResize from "./TileResize.vue";
 import { availableControl, controlKeys } from "../model/tall-controls";
+import { coverPrimary, hasCoverTilt } from "../model/tall-controls";
+import CoverTilePreview from "./CoverTilePreview.vue";
 import MarqueeText from "./MarqueeText.vue";
 import SensorHistory from './SensorHistory.vue';
 
@@ -26,7 +28,7 @@ function activate() {
 // A built-in card is named as the screens name it, in their language (app 0.2.90).
 const name = computed(() => props.tile.name || (domain.value === "screen" && screenBuiltinName(props.tile.entity)) || entityName(props.tile.entity));
 const shape = computed(() => dimensions(sizeOf(props.tile), grid));
-const tall = computed(() => shape.value.rows > 1 && !full.value && ["standard", "cover"].includes(display.value));
+const tall = computed(() => shape.value.rows > 1 && (!full.value || coverExtended.value) && ["standard", "cover"].includes(display.value));
 const full = computed(() => isFull(props.tile));
 const wide = computed(() => isWide(props.tile) && !full.value);
 const tallAction = computed(() => tall.value && (props.tile.entity === "screen.settings" || !!goesTo.value));
@@ -35,7 +37,13 @@ const background = computed(() => state.inventory.backgrounds?.[props.tile.optio
 const bare = computed(() => props.tile.options?.background === "none");
 const display = computed(() => props.tile.options?.display || "standard");
 const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
-const controls = computed(() => effectiveControls(props.tile, state.inventory));
+const controls = computed(() => {
+  const selected = effectiveControls(props.tile, state.inventory);
+  if (domain.value !== 'cover') return selected;
+  const primary = coverPrimary(selected);
+  return primary === 'none' ? null : primary;
+});
+const coverExtended = computed(() => domain.value === 'cover' && hasCoverTilt(effectiveControls(props.tile, state.inventory)) && shape.value.rows > 1);
 const tallControls = computed(() => availableControl(domain.value,
   props.tile.options?.inline === 'slider' ? inlineControlKind(domain.value) : controls.value,
   current.value?.state || '', current.value?.a || {}));
@@ -172,7 +180,7 @@ async function onKey(e: KeyboardEvent) {
       <span class="head"><span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span><span class="tx"><span class="nm">{{ name }}</span><span class="st">{{ status }}</span></span></span>
       <SensorHistory :entity="tile.entity" :hours="Number(tile.options?.history_hours || 24)" />
     </template>
-    <template v-else-if="full">
+    <template v-else-if="full && !tall">
       <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' || display === 'cover' }">{{ glyph(tileIconCp(tile)) }}</span>
       <span class="lead">
         <span class="nm">{{ name }}</span>
@@ -197,7 +205,8 @@ async function onKey(e: KeyboardEvent) {
         <span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span>
         <span class="tx"><span class="nm">{{ name }}</span><span v-if="status" class="st" :class="{ off: gone }">{{ status }}</span></span>
       </span>
-      <span v-if="domain === 'climate' && tallControls === 'setpoint'" class="tall-setpoint">
+      <CoverTilePreview v-if="coverExtended" :primary="tallControls" :entity-state="current?.state || ''" :attributes="current?.a || {}" />
+      <span v-else-if="domain === 'climate' && tallControls === 'setpoint'" class="tall-setpoint">
         <span class="target"><span class="key mdi">{{ key('minus') || '−' }}</span><b>{{ setpoint }}</b><span class="key mdi">{{ key('plus') || '+' }}</span></span>
         <span class="st">{{ current?.a?.current_temperature !== undefined ? screenText('screen.climate.now', { value: `${num(current.a.current_temperature)}°` }) : status }}</span>
       </span>
@@ -274,6 +283,7 @@ async function onKey(e: KeyboardEvent) {
 /* Additional rows extend the existing header and controls. All single-row selectors remain unchanged. */
 .tile.tall { flex-direction: column; align-items: stretch; justify-content: start; container-type: size; }
 .tile.tall .head { flex: none; }
+.tile.full.tall { justify-content: start; text-align: left; }
 .tile.tall.tall-action { justify-content: center; }
 .tile.tall.tall-action .head { flex-direction: column; justify-content: center; text-align: center; }
 .tile.tall.tall-action .tx { flex: none; width: 100%; }

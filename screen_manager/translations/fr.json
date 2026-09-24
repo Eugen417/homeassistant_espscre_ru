@@ -713,7 +713,10 @@
         },
         "cover": {
           "buttons": "Ouvrir, arrêter, fermer",
-          "position": "Curseur de position"
+          "position": "Curseur de position",
+          "tilt": "",
+          "buttons_tilt": "",
+          "position_tilt": ""
         },
         "media_player": {
           "volume": "Volume et sourdine",
@@ -1405,7 +1408,9 @@
         "full_hint": "En bas de la tuile pleine page ; toucher ailleurs agit comme réglé ci-dessous.",
         "wide_hint": "À droite de la tuile double largeur, comme les lignes dans Home Assistant. Toucher le nom agit comme réglé ci-dessous.",
         "needs_firmware": "L'écran affiche la commande directe à partir du firmware 0.2.19 ; d'ici là, la tuile reste comme avant.",
-        "tall_hint": ""
+        "tall_hint": "",
+        "tilt": "",
+        "tilt_hint": ""
       },
       "tap": {
         "label": "Au toucher",

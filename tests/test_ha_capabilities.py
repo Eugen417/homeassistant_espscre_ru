@@ -114,6 +114,19 @@ class ActionsForAnEntity(unittest.TestCase):
         self.assertTrue(ha_catalogue.field_matches({'selector': {}}, {}), 'a field without a filter is always there')
 
 
+class CoverTiltCapabilities(unittest.TestCase):
+    def test_tilt_combinations_require_both_groups_of_actions(self):
+        choices = ['cover.open_cover', 'cover.set_cover_position', 'cover.set_cover_tilt_position',
+                   'cover.open_cover_tilt', 'cover.stop_cover_tilt', 'cover.close_cover_tilt']
+        for mask in range(1 << len(choices)):
+            actions = [action for i, action in enumerate(choices) if mask & (1 << i)]
+            controls = ha_catalogue.capabilities('cover.test', actions, {'state': 'open'}, {})['controls']
+            tilt = bool(mask & 60)
+            self.assertEqual('tilt' in controls, tilt)
+            self.assertEqual('buttons_tilt' in controls, tilt and bool(mask & 1))
+            self.assertEqual('position_tilt' in controls, tilt and bool(mask & 2))
+
+
 class WhatTheEditorOffers(unittest.TestCase):
     def test_on_off_follows_home_assistant(self):
         self.assertFalse(caps('media_player.sonos')['toggle'])

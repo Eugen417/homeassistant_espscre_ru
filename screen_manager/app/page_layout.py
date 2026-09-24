@@ -347,7 +347,8 @@ def legacy_compatible(layout, grid):
             and all(not page['navigation']['excludeFromPagination'] and page['topbar']['leading']
                     and bar_items(page) == items for page in pages)
             and all(footprint_size(tile['placement']['columns'], tile['placement']['rows'], grid, tile['appearance'].get('presentation'))
-                    not in ('tall', 'square') for page in pages for tile in page['tiles']))
+                    not in ('tall', 'square') and tile['interaction'].get('controls') not in ('tilt', 'buttons_tilt', 'position_tilt')
+                    for page in pages for tile in page['tiles']))
 
 
 def legacy_projection(record, require_representable=True):

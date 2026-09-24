@@ -713,7 +713,10 @@
         },
         "cover": {
           "buttons": "Abrir, detener, cerrar",
-          "position": "Control deslizante de posición"
+          "position": "Control deslizante de posición",
+          "tilt": "",
+          "buttons_tilt": "",
+          "position_tilt": ""
         },
         "media_player": {
           "volume": "Volumen y silenciar",
@@ -1405,7 +1408,9 @@
         "full_hint": "En la parte inferior del mosaico de página completa; un toque en cualquier otro sitio funciona como se indica más abajo.",
         "wide_hint": "A la derecha del mosaico de doble ancho, como las filas de Home Assistant. Tocar el nombre funciona como se indica más abajo.",
         "needs_firmware": "La pantalla muestra el control directo a partir del firmware 0.2.19; hasta entonces, el mosaico se queda como estaba.",
-        "tall_hint": ""
+        "tall_hint": "",
+        "tilt": "",
+        "tilt_hint": ""
       },
       "tap": {
         "label": "Al tocar",

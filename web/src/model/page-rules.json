@@ -134,7 +134,10 @@
     ],
     "cover": [
       "buttons",
-      "position"
+      "position",
+      "tilt",
+      "buttons_tilt",
+      "position_tilt"
     ],
     "media_player": [
       "volume",

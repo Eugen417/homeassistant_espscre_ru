@@ -713,7 +713,10 @@
         },
         "cover": {
           "buttons": "Open, stop, close",
-          "position": "Position slider"
+          "position": "Position slider",
+          "tilt": "Slat tilt",
+          "buttons_tilt": "Open, stop, close and slat tilt",
+          "position_tilt": "Position and slat tilt"
         },
         "media_player": {
           "volume": "Volume and mute",
@@ -1405,7 +1408,9 @@
         "full_hint": "At the bottom of the full-page tile; a tap anywhere else works as set below.",
         "wide_hint": "On the right of the double-width tile, like the rows in Home Assistant. Tapping the name works as set below.",
         "needs_firmware": "The screen shows direct control from firmware 0.2.19; until then the tile stays as it was.",
-        "tall_hint": "Choose the controls shown in the extra height. Resizing keeps your selection; it never adds controls automatically."
+        "tall_hint": "Choose the controls shown in the extra height. Resizing keeps your selection; it never adds controls automatically.",
+        "tilt": "Slat tilt",
+        "tilt_hint": "Adds the supported slat slider or tilt buttons when there is enough room. On smaller tiles, use the detail view. Your open/close selection stays unchanged."
       },
       "tap": {
         "label": "On tap",

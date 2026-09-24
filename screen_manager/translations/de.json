@@ -713,7 +713,10 @@
         },
         "cover": {
           "buttons": "Öffnen, Stopp, Schließen",
-          "position": "Positionsregler"
+          "position": "Positionsregler",
+          "tilt": "",
+          "buttons_tilt": "",
+          "position_tilt": ""
         },
         "media_player": {
           "volume": "Lautstärke und Stumm",
@@ -1405,7 +1408,9 @@
         "full_hint": "Am unteren Rand der ganzseitigen Kachel; ein Tippen woanders wirkt wie unten eingestellt.",
         "wide_hint": "Rechts auf der doppelt breiten Kachel, wie die Zeilen in Home Assistant. Ein Tippen auf den Namen wirkt wie unten eingestellt.",
         "needs_firmware": "Der Bildschirm zeigt die direkte Steuerung ab Firmware 0.2.19; bis dahin bleibt die Kachel, wie sie war.",
-        "tall_hint": ""
+        "tall_hint": "",
+        "tilt": "",
+        "tilt_hint": ""
       },
       "tap": {
         "label": "Beim Tippen",
