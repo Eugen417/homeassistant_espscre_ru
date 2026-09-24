@@ -9,6 +9,8 @@ and hardware acceptance steps are in [PAGE_REVIEW_STATUS.md](PAGE_REVIEW_STATUS.
 Pages retain independent top bars and freely draggable map positions. The positive
 "Show in page dots and swipes" option is enabled by default. Taller 1 by 2 and
 2 by 2 tiles remain in this release, with their original separate feature commit.
+Their editor choices now require `SCREEN_EDITOR_ENV=development` while the designs
+are refined. Firmware support and existing saved rectangles remain unchanged.
 These choices intentionally differ from the review's proposed default-bar model,
 automatic map layout and separate release branch.
 
@@ -43,10 +45,15 @@ automatic map layout and separate release branch.
   entity selection; one-time room/domain naming when a drop creates a page;
   contextual Floating Vue help with focus, tap and Escape support. Important
   status and error messages remain visible.
+- **Editor experiments and resizing:** `SCREEN_EDITOR_ENV=development` exposes
+  taller sizes without changing firmware, authentication or existing documents.
+  Border-centred edge grips resize into free cells at a fixed anchor. Vertical
+  resizing requires the developer flag. Pointer previews, cancellation, keyboard
+  resizing and one-step undo share the same size and occupancy checks.
 
 ## Verification and remaining limits
 
-The full check passes: 724 Python tests, 25 C++ programs, 275 editor tests,
+The full check passes: 725 Python tests, 25 C++ programs, 283 editor tests,
 translations, generated files, type checking and the committed frontend build.
 Firmware builds pass for all six current profiles and all five profiles eligible
 for the minimum ESPHome version. The ten host variants pass 380 page checks,
@@ -57,6 +64,8 @@ current compiler, leaving 200,656 bytes in its OTA slot.
 Real Ingress browser checks cover wizard cancellation, configured page creation,
 one-step undo, tap/focus help, Escape and a narrow-screen layout. The test-HA
 restart retained configuration and the board acknowledged the saved revision.
+Subsequent browser checks cover normal/developer size choices, preserved saved
+rectangles, horizontal and vertical dragging, undo, and resizing at 80% map zoom.
 
 The disposable Guition runs the review firmware and passed ten geometry checks
 and fifty overlay render cycles. These are software-driven checks, not physical

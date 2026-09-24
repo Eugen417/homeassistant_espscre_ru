@@ -1443,6 +1443,10 @@
       "background": {
         "label": "Fond pastel",
         "aria": "Fond : {name}"
+      },
+      "resize": {
+        "columns": "Redimensionner la largeur (flèches gauche/droite)",
+        "rows": "Redimensionner la hauteur (flèches haut/bas)"
       }
     },
     "tile_card": {

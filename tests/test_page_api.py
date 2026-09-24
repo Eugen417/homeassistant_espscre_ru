@@ -17,6 +17,19 @@ from server import create_app, status_text
 
 
 class PageApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_editor_experiments_are_opt_in_and_independent_of_dev_server(self):
+        for value, expected in [('', False), ('production', False), ('1', False), ('development', True)]:
+            with patch.dict('os.environ', {'SCREEN_EDITOR_ENV': value}):
+                client = TestClient(TestServer(create_app(self.manager, development=True)))
+            await client.start_server()
+            try:
+                for suffix in ('', '?light=1'):
+                    response = await client.get('/api/inventory' + suffix)
+                    self.assertEqual(response.status, 200)
+                    self.assertEqual((await response.json())['editor_features'], {'tall_tiles': expected})
+            finally:
+                await client.close()
+
     async def test_cached_delivery_refusal_is_translated_for_each_reader(self):
         from i18n import english
         from page_delivery import Refused

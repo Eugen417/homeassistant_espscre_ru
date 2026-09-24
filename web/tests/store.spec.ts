@@ -52,6 +52,7 @@ beforeEach(() => {
 
 describe("selecting and editing", () => {
   it("gates taller sizes and resizes without taking a neighbor's cells", () => {
+    state.inventory.editor_features = { tall_tiles: true };
     select('living');
     const lamp = state.layout!.tiles[0];
     setTileOption(lamp, 'size', 'tall');

@@ -2,6 +2,7 @@
 import { editorLayout } from "../store";
 const { grid, pageCount, pageOf } = editorLayout;
 
+import { tileSizeChoices } from "../store";
 import HelpTip from "./HelpTip.vue";
 // One tile's settings. Every change applies live, so the card on the mockup shows the result while you pick.
 import { computed, ref, toRaw } from "vue";
@@ -45,15 +46,7 @@ const onPage = computed(() => {
   if (pageTotal.value < grid.pages && !(alone.value && pageHere.value === pageTotal.value)) list.push([pageTotal.value + 1, t("editor.tile.page.new")]);
   return list;
 });
-const sizes = computed<[string, string][]>(() => {
-  const keys = ["single", "wide"];
-  for (const key of ["tall", "square"]) {
-    if (key === "tall" && ["forecast", "sunpath"].includes(String(props.tile.options?.display))) continue;
-    if (props.tile.options?.size === key || (currentScreen.value?.tile_sizes?.includes(key) && grid.rows >= 2 && (key !== "square" || grid.columns >= 2))) keys.push(key);
-  }
-  if (!goesTo.value) keys.push("full");
-  return keys.map((key) => [key, t(`editor.tile.size.${key}`)]);
-});
+const sizes = computed<[string, string][]>(() => tileSizeChoices(props.tile).map(key => [key, t(`editor.tile.size.${key}`)]));
 const sizeHint = computed(() => ["tall", "square"].includes(String(props.tile.options?.size)) ? t("editor.tile.size.rectangle_hint") : goesTo.value ? "" : fullPage.value ? t("editor.tile.size.full_hint") : t("editor.tile.size.needs_firmware"));
 const caps = computed(() => state.capabilities[props.tile.entity]);
 const current = (key: string, fallback: unknown) => props.tile.options?.[key] ?? fallback;

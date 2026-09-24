@@ -1443,6 +1443,10 @@
       "background": {
         "label": "Pastel background",
         "aria": "Background: {name}"
+      },
+      "resize": {
+        "columns": "Resize width (left/right arrow keys)",
+        "rows": "Resize height (up/down arrow keys)"
       }
     },
     "tile_card": {

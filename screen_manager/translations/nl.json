@@ -1443,6 +1443,10 @@
       "background": {
         "label": "Pastelachtergrond",
         "aria": "Achtergrond: {name}"
+      },
+      "resize": {
+        "columns": "Breedte aanpassen (pijltjes links/rechts)",
+        "rows": "Hoogte aanpassen (pijltjes omhoog/omlaag)"
       }
     },
     "tile_card": {

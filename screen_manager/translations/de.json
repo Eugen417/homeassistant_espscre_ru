@@ -1443,6 +1443,10 @@
       "background": {
         "label": "Pastellhintergrund",
         "aria": "Hintergrund: {name}"
+      },
+      "resize": {
+        "columns": "Breite ändern (Pfeiltasten links/rechts)",
+        "rows": "Höhe ändern (Pfeiltasten auf/ab)"
       }
     },
     "tile_card": {

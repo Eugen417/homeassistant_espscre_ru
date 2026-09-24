@@ -127,6 +127,7 @@ export type ChangelogSection = { app: string; firmware: string; lines: string[] 
 export type Entity = { id: string; name: string; area?: string; device?: string; icon?: string; state?: string; tile?: boolean; screen_name?: string };
 export type IconInfo = { name: string; cp: string; label: string };
 export type Inventory = {
+  editor_features?: { tall_tiles?: boolean };
   csrf?: string;
   connected?: boolean;
   screens: Screen[];

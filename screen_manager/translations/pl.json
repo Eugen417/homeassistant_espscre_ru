@@ -1443,6 +1443,10 @@
       "background": {
         "label": "Pastelowe tło",
         "aria": "Tło: {name}"
+      },
+      "resize": {
+        "columns": "Zmień szerokość (strzałki w lewo/prawo)",
+        "rows": "Zmień wysokość (strzałki w górę/dół)"
       }
     },
     "tile_card": {

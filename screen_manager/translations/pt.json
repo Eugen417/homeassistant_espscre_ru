@@ -1443,6 +1443,10 @@
       "background": {
         "label": "Fundo pastel",
         "aria": "Fundo: {name}"
+      },
+      "resize": {
+        "columns": "Alterar largura (setas esquerda/direita)",
+        "rows": "Alterar altura (setas cima/baixo)"
       }
     },
     "tile_card": {

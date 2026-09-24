@@ -5,12 +5,13 @@ import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import { entriesOf, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
-import { createLayout, versionAtLeast } from "./model/layout";
+import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile, PageLayout, PageDocument, PageGrid, PageWorkspace } from "./types";
 
 import * as pages from "./model/pages";
 import { DraftHistory, type HistoryScope } from './model/draft-history';
 import { suggestedPageTitle } from './model/page-naming';
+import { validateCardOptions } from './model/page-validation';
 import { completePositions, workspaceSaver } from './model/page-workspace';
 import { resolveConflict, savedDraft } from './model/page-conflict';
 
@@ -630,14 +631,49 @@ export function pagesShown() {
   // in the row it is already in, so the row stays as long as it is.
   return state.drag.active && !state.drag.page && pages < grid.pages ? pages + 1 : pages;
 }
-// Resizing keeps the tile's position when its rectangle is free, otherwise it finds
-// the nearest fitting rectangle. Every other tile stays where it is.
+/** UI experiments are opt-in; saved documents and device support stay independent. */
+export const tallerTilesEnabled = computed(() => state.inventory.editor_features?.tall_tiles === true);
+export function tileSizeChoices(tile: Tile): Size[] {
+  const choices: Size[] = ['single', 'wide'];
+  if (tallerTilesEnabled.value) for (const size of ['tall', 'square'] as const) {
+    if (!currentScreen.value?.tile_sizes?.includes(size) || grid.rows < 2 || (size === 'square' && grid.columns < 2)) continue;
+    if (size === 'tall' && ['forecast', 'sunpath'].includes(String(tile.options?.display))) continue;
+    choices.push(size);
+  }
+  if (!pageTarget(tile.entity)) choices.push('full');
+  return choices;
+}
+/** Edge resizing keeps the anchor and every neighbouring tile in place. */
+export function resizeChoices(tile: Tile, axis: 'columns' | 'rows'): Size[] {
+  const current = currentView(tile);
+  if (!current || !state.layout || isFull(current) || (axis === 'rows' && !tallerTilesEnabled.value)) return [];
+  const before = dimensions(sizeOf(current), grid), other = axis === 'columns' ? 'rows' : 'columns';
+  const taken = occupied(entriesOf(state.layout).filter(entry => entry.tile.id !== current.id));
+  const owned = state.document?.pages.flatMap(page => page.tiles).find(item => item.id === current.id);
+  return tileSizeChoices(current).filter(size => {
+    if (!owned || size === 'full' || dimensions(size, grid)[other] !== before[other] || !fits(taken, current.slot, size)) return false;
+    try { validateCardOptions(owned, current.entity, size); return true; }
+    catch { return false; }
+  });
+}
+export function resizeTile(tile: Tile, size: Size, axis: 'columns' | 'rows') {
+  const current = currentView(tile);
+  if (!current || size === sizeOf(current) || !resizeChoices(current, axis).includes(size)) return false;
+  return editDocument(draft => {
+    const owned = draft.pages.flatMap(page => page.tiles).find(item => item.id === current.id)!;
+    Object.assign(owned.placement, dimensions(size, grid));
+    if (size === 'single') delete owned.appearance.presentation;
+    else owned.appearance.presentation = size;
+  });
+}
+// Inspector resizing may find the nearest fitting rectangle. Edge handles above
+// keep the anchor fixed so that dragging an edge never moves the tile.
 export function setTileOption(tile: Tile, key: string, value: unknown) {
   if (!state.layout) return;
   const layout = pages.clone(state.layout);
   tile = currentView(tile, layout) || tile;
   const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasSize = sizeOf(tile);
-  if (key === "size" && ["tall", "square"].includes(String(value)) && !currentScreen.value?.tile_sizes?.includes(String(value))) return;
+  if (key === "size" && ["tall", "square"].includes(String(value)) && (!tallerTilesEnabled.value || !currentScreen.value?.tile_sizes?.includes(String(value)))) return;
   if (key === "size" && value === "tall" && ["forecast", "sunpath"].includes(String(tile.options?.display))) return;
   tile.options = { ...tile.options, [key]: value };
   // Direct controls need the standard layout without a mini slider, and vice versa.

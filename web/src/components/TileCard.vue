@@ -12,6 +12,7 @@ import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
 import { tilePalette, tileActive } from "../model/tile-palette";
 import type { Tile } from "../types";
+import TileResize from "./TileResize.vue";
 import SensorHistory from './SensorHistory.vue';
 
 const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean; preview?: boolean }>();
@@ -215,6 +216,7 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="display === 'watch'" class="big">{{ bigValue }}<small v-if="unit && !gone">{{ unit }}</small></span>
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
     </template>
+    <TileResize v-if="live && !preview && !placeholder" :tile="tile" />
     <button v-if="live && !preview" type="button" class="remove" :title="t('editor.tile_card.remove')" :aria-label="t('editor.tile_card.remove_named', { name })" @click.stop="removeTile(tile)">✕</button>
   </div>
 </template>

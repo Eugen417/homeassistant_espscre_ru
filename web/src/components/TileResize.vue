@@ -1,0 +1,109 @@
+<script setup lang="ts">
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { t } from '../i18n';
+import { glyph } from '../model/topbar';
+import { dimensions, sizeOf, type Size } from '../model/layout';
+import { grid, resizeChoices, resizeTile, state } from '../store';
+import type { Tile } from '../types';
+
+const props = defineProps<{ tile: Tile }>();
+type Axis = 'columns' | 'rows';
+const axes: Axis[] = ['columns', 'rows'];
+const available = computed(() => axes.filter(axis => resizeChoices(props.tile, axis).some(size => size !== sizeOf(props.tile))));
+const gesture = ref<{ axis: Axis; pointer: number; start: number; pitch: number; gap: number;
+  left: number; top: number; width: number; height: number; original: number; size: Size; choices: Size[] }>();
+const outline = computed(() => {
+  const g = gesture.value;
+  if (!g) return {};
+  const length = dimensions(g.size, grid)[g.axis] * g.pitch - g.gap;
+  return { left: `${g.left}px`, top: `${g.top}px`, width: `${g.axis === 'columns' ? length : g.width}px`,
+    height: `${g.axis === 'rows' ? length : g.height}px` };
+});
+function start(event: PointerEvent, axis: Axis) {
+  if (event.button !== 0 || gesture.value) return;
+  const element = (event.currentTarget as HTMLElement).closest<HTMLElement>('.tile');
+  if (!element?.parentElement) return;
+  const choices = resizeChoices(props.tile, axis);
+  if (choices.length < 2) return;
+  const rect = element.getBoundingClientRect(), shape = dimensions(sizeOf(props.tile), grid);
+  // Bounding rectangles include the advanced map's zoom. CSS gaps do not.
+  const scale = element.offsetWidth ? rect.width / element.offsetWidth : 1;
+  const gap = (parseFloat(getComputedStyle(element.parentElement)[axis === 'columns' ? 'columnGap' : 'rowGap']) || 0) * scale;
+  gesture.value = { axis, pointer: event.pointerId, start: axis === 'columns' ? event.clientX : event.clientY,
+    pitch: ((axis === 'columns' ? rect.width : rect.height) + gap) / shape[axis], gap,
+    left: rect.left, top: rect.top, width: rect.width, height: rect.height,
+    original: shape[axis], size: sizeOf(props.tile), choices };
+  event.preventDefault();
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', finish);
+  window.addEventListener('pointercancel', cancel);
+  window.addEventListener('keydown', escape, true);
+  window.addEventListener('scroll', cancel, true);
+}
+function move(event: PointerEvent) {
+  const g = gesture.value;
+  if (!g || event.pointerId !== g.pointer) return;
+  event.preventDefault();
+  const wanted = g.original + ((g.axis === 'columns' ? event.clientX : event.clientY) - g.start) / g.pitch;
+  g.size = g.choices.reduce((best, size) => Math.abs(dimensions(size, grid)[g.axis] - wanted) < Math.abs(dimensions(best, grid)[g.axis] - wanted) ? size : best, sizeOf(props.tile));
+}
+function cancel() {
+  gesture.value = undefined;
+  window.removeEventListener('pointermove', move);
+  window.removeEventListener('pointerup', finish);
+  window.removeEventListener('pointercancel', cancel);
+  window.removeEventListener('keydown', escape, true);
+  window.removeEventListener('scroll', cancel, true);
+}
+function finish(event: PointerEvent) {
+  const g = gesture.value;
+  if (!g || event.pointerId !== g.pointer) return;
+  move(event);
+  const { size, axis } = g;
+  cancel();
+  resizeTile(props.tile, size, axis);
+}
+function escape(event: KeyboardEvent) {
+  if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); cancel(); }
+}
+function keyboard(event: KeyboardEvent, axis: Axis) {
+  const direction = axis === 'columns' ? ({ ArrowLeft: -1, ArrowRight: 1 } as Record<string, number>)[event.key]
+    : ({ ArrowUp: -1, ArrowDown: 1 } as Record<string, number>)[event.key];
+  if (!direction) return;
+  event.preventDefault();
+  const choices = resizeChoices(props.tile, axis).sort((a, b) => dimensions(a, grid)[axis] - dimensions(b, grid)[axis]);
+  const target = choices[choices.indexOf(sizeOf(props.tile)) + direction];
+  if (target) resizeTile(props.tile, target, axis);
+}
+watch(() => state.selected, cancel);
+onBeforeUnmount(cancel);
+</script>
+
+<template>
+  <button v-for="axis in available" :key="axis" type="button" class="resize-handle" :class="axis"
+    :aria-label="t(`editor.tile.resize.${axis}`)" :title="t(`editor.tile.resize.${axis}`)"
+    @pointerdown.stop="start($event, axis)" @click.stop @keydown.stop="keyboard($event, axis)">
+    <span class="mdi" aria-hidden="true">{{ glyph('F01DB') }}</span>
+  </button>
+  <Teleport to="body">
+    <div v-if="gesture" class="tile-resize-preview" :style="outline" aria-hidden="true">
+      <span>{{ dimensions(gesture.size, grid).columns }} × {{ dimensions(gesture.size, grid).rows }}</span>
+    </div>
+  </Teleport>
+</template>
+
+<style>
+.resize-handle { position: absolute; z-index: 3; display: grid; place-items: center; padding: 0; border: 0; background: transparent; opacity: 0; pointer-events: none; touch-action: none; }
+.tile:has(> .resize-handle) { overflow: visible; }
+.tile:has(> .resize-handle):is(:hover, :focus-within) { z-index: 4; }
+/* Absolute offsets start inside the 1px border. Centre the grip on its stroke. */
+.resize-handle.columns { right: -.5px; top: 50%; width: 24px; height: 40px; transform: translate(50%, -50%); cursor: ew-resize; }
+.resize-handle.rows { bottom: -.5px; left: 50%; width: 40px; height: 24px; transform: translate(-50%, 50%); cursor: ns-resize; }
+.resize-handle span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 12px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); box-shadow: 0 1px 3px rgb(0 0 0 / .12); font-size: 14px; }
+.resize-handle.rows span { transform: translate(-50%, -50%) rotate(90deg); }
+.tile:hover .resize-handle, .tile:focus-within .resize-handle, .resize-handle:focus-visible { opacity: 1; pointer-events: auto; }
+.resize-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tile-resize-preview { position: fixed; z-index: 10000; box-sizing: border-box; pointer-events: none; border: 2px solid var(--accent); border-radius: 12px; background: var(--accent-soft); opacity: .85; }
+.tile-resize-preview > span { position: absolute; right: 6px; bottom: 6px; padding: 3px 6px; border-radius: 5px; background: var(--surface); color: var(--ink); font-size: 12px; }
+@media (hover: none) { .tile.chosen .resize-handle { opacity: 1; pointer-events: auto; } }
+</style>

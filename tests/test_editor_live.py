@@ -226,7 +226,7 @@ class Editor(unittest.TestCase):
         for marker in ('export const SIZES: Size[] = ["single", "wide", "tall", "square", "full"];', 'export const pageTarget', 'versionAtLeast(firmware, "0.2.62") ? grid.maxSlots'):
             self.assertIn(marker, layout, marker)
         drawer = editor_sources.component('TileInspector')
-        for marker in ('keys.push("full")', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):
+        for marker in ('tileSizeChoices(props.tile)', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):
             self.assertIn(marker, drawer, marker)
         self.assertEqual((editor_sources.text('tile.size.full'), editor_sources.text('tile.goes_to.label')), ('Full page', 'Goes to page'))
         self.assertIn(':class="{ wide, full, bare, placeholder: placeholder || !live, chosen }"', editor_sources.component('TileCard'))

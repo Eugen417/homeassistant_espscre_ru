@@ -1443,6 +1443,10 @@
       "background": {
         "label": "Sfondo pastello",
         "aria": "Sfondo: {name}"
+      },
+      "resize": {
+        "columns": "Modifica larghezza (frecce sinistra/destra)",
+        "rows": "Modifica altezza (frecce su/giù)"
       }
     },
     "tile_card": {
