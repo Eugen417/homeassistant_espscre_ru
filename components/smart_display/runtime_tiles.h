@@ -311,6 +311,7 @@ inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
 }
 
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
+inline bool live_marquee_ready(const Widgets &w, const Tile &t);
 inline bool tall_art(const Tile &t) {return t.row_span()>1 && !t.full && t.cover_tile();}
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
 inline bool has_icon_glyph(uint32_t codepoint) {
@@ -2223,8 +2224,13 @@ inline lv_obj_t *media_picture_show(lv_obj_t *parent,lv_obj_t *existing,const me
 }
 // A media text that is wider than its line rolls by, round and round, and stands still when it fits (firmware 0.2.77+):
 // LVGL's own circular scroll, at its own pace, where the dots of LV_LABEL_LONG_DOT cut a long title short.
-inline void marquee(lv_obj_t *label,bool reading_pause=false){
-  if(!label||lv_label_get_long_mode(label)==LV_LABEL_LONG_SCROLL_CIRCULAR)return;
+inline void marquee(lv_obj_t *label,bool reading_pause=false,bool ready=true){
+  if(!label)return;
+  if(!ready){
+    if(lv_label_get_long_mode(label)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(label,LV_LABEL_LONG_DOT);
+    return;
+  }
+  if(lv_label_get_long_mode(label)==LV_LABEL_LONG_SCROLL_CIRCULAR)return;
   if(reading_pause){
     static const lv_anim_t timing=[](){lv_anim_t a;lv_anim_init(&a);lv_anim_set_delay(&a,1400);lv_anim_set_repeat_delay(&a,1800);lv_anim_set_repeat_count(&a,LV_ANIM_REPEAT_INFINITE);return a;}();
     lv_obj_set_style_anim(label,&timing,0);
@@ -3519,7 +3525,7 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   auto text=[&](int i,const std::string &value,const lv_font_t *font,tall_tile::Rect area,lv_text_align_t align){
     if(value.empty()||area.h<(int)lv_font_get_line_height(font))return;
     auto *p=part_label(w,i,font,area.x,area.y,area.w,align,value);
-    if(d=="media_player"&&i==0)marquee(p,true);
+    if(d=="media_player"&&i==0)marquee(p,true,live_marquee_ready(w,t));
     else if(lv_label_get_long_mode(p)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);
     lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);
   };
@@ -4853,6 +4859,22 @@ inline void live_place(Widgets &w, const Tile &t, int size, int x, int y) {
   (void) w; (void) t; (void) size; (void) x; (void) y;
 #endif
 }
+// Background downloads share the drawing loop. Keep the title readable but still
+// until the picture is placed (or the load has failed), then reuse LVGL's reading
+// pause. No extra animation or per-tile timer is needed.
+inline bool live_marquee_ready(const Widgets &w, const Tile &t) {
+  if (!tall_art(t) || !live_supported()) return true;
+  if (list_index(live_wish.entities, t.entity) < 0 || !live.animation_ready()) return false;
+  return !live.loaded || list_index(live_have, t.entity) < 0 ||
+         (w.picture && !lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN));
+}
+inline void live_marquees() {
+  for (auto &w : widgets) {
+    if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= model.count || w.extra_mode != "tall") continue;
+    const auto &t = model.tiles[w.index];
+    if (tall_art(t)) marquee(w.parts[0], true, live_marquee_ready(w, t));
+  }
+}
 // Asks for the page's strip: `esphome.screen_camera` with the tiles, the size and the grounds (app 0.2.91+).
 inline void live_request() {
   if (inbox.empty()) return;
@@ -4882,6 +4904,7 @@ inline void live_tick(uint32_t now) {
     // Covers alone load once per link (a new track is a new wish); a camera sets the pace.
     if (!want.entities.empty()) live.open(want.entities, !want.cameras, want.every);
   }
+  live_marquees();
   if (!live.open() || camera_root || card_open() || !awake()) return;
   if (alert_image_due() || alert_thumb_loading || cover.loading || camera.loading) return;  // one picture at a time
   if (live.should_ask(now)) {
@@ -4892,6 +4915,7 @@ inline void live_tick(uint32_t now) {
     auto *input = lv_indev_get_next(nullptr);
     if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
     live.start(now);
+    live_marquees();  // Stop before the download can block the drawing loop.
     camera_live.load(live.url);
   }
 }
@@ -4907,6 +4931,7 @@ inline void live_loaded(bool cached) {
 inline void live_failed() {
   if (!live.loading) return;
   live.finish(esphome::millis(), false);
+  live_marquees();
   ESP_LOGI("camera", "live tiles failed");
 }
 

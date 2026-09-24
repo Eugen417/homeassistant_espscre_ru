@@ -107,6 +107,35 @@ int main() {
   bare.ask(0);
   bare.link("");
   assert(bare.empty && !bare.should_ask(ASK_AGAIN_MS) && !bare.should_ask(100 * ASK_AGAIN_MS) && !bare.should_load(ASK_AGAIN_MS));
+  // Background media titles wait for the first image, and pause on refresh or
+  // retry. Missing images and failed downloads still permit fallback motion.
+  Feed background;
+  background.open("media_player.background", true);
+  assert(!background.animation_ready());
+  background.ask(10);
+  assert(!background.animation_ready());
+  background.link("http://h/background.bmp");
+  assert(!background.animation_ready());
+  background.start(20);
+  assert(!background.animation_ready());
+  background.finish(30, true);
+  assert(background.animation_ready());
+  background.start(40);
+  assert(!background.animation_ready());
+  background.finish(50, false);
+  assert(background.animation_ready());
+  background.link("http://h/new-track.bmp");
+  assert(!background.animation_ready());
+  background.start(60);background.finish(70, false);
+  assert(background.animation_ready());
+  background.start(900);
+  assert(!background.animation_ready());
+  background.finish(950, true);
+  assert(background.animation_ready());
+  background.open("media_player.other", true);
+  assert(!background.animation_ready());
+  background.link("");
+  assert(background.animation_ready());
   // A camera feed keeps its clock: open() without the flag.
   Feed live;
   live.open("camera.front_door");

@@ -98,3 +98,21 @@ preview and capability polish was covered by component tests and a production
 build instead. Native LVGL captures three seconds apart confirm movement of
 long titles in both narrow tall and 2-by-2 media cards. The existing firmware
 marquee helper is shared with the media overlay and full-page card.
+
+## Background artwork and marquee start
+
+Tall media titles now remain static while their background atlas is pending or
+loading. Once the image is placed, the existing LVGL marquee starts with its
+normal reading pause. Empty image responses and failed download attempts allow
+fallback text to scroll. A subsequent download pauses it before image I/O starts.
+Compact cards, full-page media cards and media overlays keep their existing
+behavior. This reuses the image feed state and marquee helper without adding a
+per-tile timer, animation implementation or image buffer.
+
+The image-feed regression test covers initial requests, successful downloads,
+refreshes, failed attempts, retries, new tracks and empty responses. Native
+Guition LVGL tests also delayed the image response and separately returned no
+image: each run checked four waiting and four resumed title states across tall
+and 2-by-2 cards in both themes, rendered ten views and passed ten page checks.
+These checks verify animation state transitions, not perceived smoothness on
+physical hardware. This follow-up has not been flashed to the physical board.

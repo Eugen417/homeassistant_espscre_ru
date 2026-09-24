@@ -31,6 +31,11 @@ struct Feed {
 
   void open(const std::string &camera, bool one_load = false, uint32_t every_ms = REFRESH_MS) { *this = Feed{}; entity = camera; once = one_load; every = every_ms; }
   bool open() const { return !entity.empty(); }
+  // Decorative motion waits for the initial image attempt. A failed or missing
+  // image must not hold readable fallback text still forever. Retries pause it
+  // again before loading; an unchanged completed image does not restart it.
+  bool animation_ready() const { return !loading && (loaded || empty || finished_at != 0); }
+
   // A cover the app has none of (or an app that knows no covers) is asked for once: the card keeps its placeholder.
   // A feed whose app has no picture asks again at its own pace, never sooner than ASK_AGAIN_MS.
   bool should_ask(uint32_t now) const {
