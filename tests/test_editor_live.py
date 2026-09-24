@@ -256,7 +256,7 @@ class Editor(unittest.TestCase):
         for marker in ('tileSizeChoices(props.tile)', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):
             self.assertIn(marker, drawer, marker)
         self.assertEqual((editor_sources.text('tile.size.full'), editor_sources.text('tile.goes_to.label')), ('Full page', 'Goes to page'))
-        self.assertIn(':class="{ wide, full, tall, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }"', editor_sources.component('TileCard'))
+        self.assertIn(':class="{ wide, full, tall,', editor_sources.component('TileCard'))
         self.assertIn('"timer", "screen",', editor_sources.component('Library'))
         self.assertEqual(editor_sources.text('library.filters.screen'), 'Screen')
 

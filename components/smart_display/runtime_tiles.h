@@ -3180,11 +3180,17 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     m.key_h=std::max(ui::touch_min(),ui::px(large?48:34));m.key_w=m.key_h;
     m.pill_w=std::min(content_w,ui::control_max_width());m.pill_key=m.key_h;
     m.slider_h=m.key_h;m.toggle_h=m.key_h;m.ext=0;
+    if(mode=="toggle"){
+      const auto toggle=tall_tile::toggle(content_w,m.toggle_h);
+      if(toggle.empty()){hide_panel(w);return 0;}
+      m.toggle_w=toggle.w;
+    }
     m.slider_w=std::max(ui::touch_min(),m.pill_w-m.key_h-m.gap);
     // A resized panel is rebuilt once, not on each live state update.
     if(w.panel_layout_w!=content_w||w.panel_layout_h!=content_h){end_panel(w);w.panel_mode.clear();}
     w.panel_layout_w=content_w;w.panel_layout_h=content_h;
   }
+  const int knob_pad=taller?ui::px(large?4:3):4;
   const lv_font_t *icon_font=w.full?w.icon_font:mini_icon_font?mini_icon_font:w.icon_font;
   const lv_font_t *text_font=control_font?control_font:lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
   auto d=t.domain();
@@ -3230,7 +3236,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
       if(mode=="volume"){panel_key(w,0,w.panel,m,m.key_h,m.key_h,false);panel_icon(w,0,icon_font);w.key_commands[0]=tile_controls::MEDIA_MUTE;}
     }else if(mode=="toggle"){
       panel_key(w,0,w.panel,m,m.toggle_w,m.toggle_h,false);lv_obj_set_style_radius(w.keys[0],LV_RADIUS_CIRCLE,0);
-      w.knob=panel_obj(w.keys[0],false);lv_obj_set_size(w.knob,m.toggle_h-8,m.toggle_h-8);lv_obj_set_y(w.knob,4);
+      w.knob=panel_obj(w.keys[0],false);lv_obj_set_size(w.knob,m.toggle_h-2*knob_pad,m.toggle_h-2*knob_pad);lv_obj_set_y(w.knob,knob_pad);
       lv_obj_set_style_radius(w.knob,LV_RADIUS_CIRCLE,0);lv_obj_set_style_bg_opa(w.knob,LV_OPA_COVER,0);lv_obj_add_style(w.knob,theme::style(theme::Paint::knob),0);
       w.key_commands[0]=tile_controls::TOGGLE;
     }else if(mode=="run"){
@@ -3286,7 +3292,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     bool on=t.pending && !t.confirmed ? t.optimistic_on : t.state=="on";
     if(on && w.key_checked[0]!=1)lv_obj_set_style_bg_color(w.keys[0],w.panel_accent,LV_STATE_CHECKED);
     set_checked(0,on);
-    if(w.knob_on!=(int)on){w.knob_on=on;lv_obj_set_x(w.knob,on?m.toggle_w-(m.toggle_h-8)-4:4);}
+    if(w.knob_on!=(int)on){w.knob_on=on;lv_obj_set_x(w.knob,on?m.toggle_w-m.toggle_h+knob_pad:knob_pad);}
     panel_w=m.toggle_w;panel_h=m.toggle_h;
   }else if(mode=="run"){
     // The requested width: a key created in this pass has no coordinates before LVGL's layout.
@@ -3502,6 +3508,21 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   if(!l.fits){selected=false;m.row_count=0;l=tall_tile::layout(m);}
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
   if(!l.fits){hide_extra(w);hide_panel(w);return;}
+  if(t.is_settings()||t.is_page()){
+    const auto action=tall_tile::action(width,height,w.base_circle,lv_font_get_line_height(w.icon_font),
+      m.name_h,lv_label_get_text(w.value)[0]?m.state_h:0,gap);
+    if(action.fits){
+      hide_panel(w);hide_extra(w);
+      lv_obj_set_size(w.circle,action.icon.w,action.icon.h);lv_obj_set_pos(w.circle,action.icon.x,action.icon.y);
+      set_font(w.icon,w.icon_font);lv_obj_center(w.icon);
+      set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_CENTER);
+      lv_obj_set_pos(w.title,action.title.x,action.title.y);lv_obj_set_size(w.title,action.title.w,action.title.h);
+      set_font(w.value,w.value_font);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);
+      lv_obj_set_pos(w.value,action.state.x,action.state.y);lv_obj_set_size(w.value,action.state.w,std::max(1,action.state.h));
+      set_hidden(w.value,action.state.empty());
+      return;
+    }
+  }
   const int circle=std::min({w.base_circle,l.header.h,width/3});
   const int tx=circle+gap,tw=std::max(1,width-tx),lines=m.name_h+(l.state?m.state_h:0);
   const int y=(l.header.h-lines)/2;
@@ -3546,6 +3567,7 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       return;
     }
   }
+  if(panel&&w.panel_mode=="toggle")return;  // The heading already states On/Off.
   auto body=l.body;
   if(d=="media_player"){
     const auto &x=t.extra();
@@ -4176,7 +4198,20 @@ inline bool check_tile_geometry() {
       if(!applied_bar)placed=placed && area.y2>=screen.y2-margin-3;
       if(!placed){fits=false;ESP_LOGE("ui_test","Card place FAIL slot=%u card=%d..%d area=%d..%d screen_bottom=%d bar=%d",(unsigned)w.index,(int)card.y1,(int)card.y2,(int)area.y1,(int)area.y2,(int)screen.y2,applied_bar);}
     }
-    if(extended){
+    const bool centered_action=w.index<model.count && model.tiles[w.index].row_span()>1 && !w.full &&
+      (model.tiles[w.index].is_settings()||model.tiles[w.index].is_page()) &&
+      lv_obj_get_style_text_align(w.title,LV_PART_MAIN)==LV_TEXT_ALIGN_CENTER;
+    if(centered_action){
+      lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
+      const bool state=!lv_obj_has_flag(w.value,LV_OBJ_FLAG_HIDDEN);
+      const int bottom=state?value.y2:title.y2;
+      fits=fits&&circle.x1>=content.x1&&circle.x2<=content.x2&&circle.y1>=content.y1&&circle.y2<title.y1;
+      fits=fits&&title.x1>=content.x1&&title.x2<=content.x2&&bottom<=content.y2;
+      if(state)fits=fits&&value.x1>=content.x1&&value.x2<=content.x2&&title.y2<value.y1;
+      fits=fits&&std::abs(circle.x1+circle.x2-content.x1-content.x2)<=1&&
+        std::abs(title.x1+title.x2-content.x1-content.x2)<=1&&
+        std::abs(circle.y1+bottom-content.y1-content.y2)<=1;
+    }else if(extended){
       lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
       fits=fits&&title.x1>=content.x1&&title.x2<=content.x2&&title.y1>=content.y1&&title.y2<=content.y2;
       if(!lv_obj_has_flag(w.value,LV_OBJ_FLAG_HIDDEN))fits=fits&&title.y2<value.y1&&value.x1>=content.x1&&value.x2<=content.x2&&value.y2<=content.y2;

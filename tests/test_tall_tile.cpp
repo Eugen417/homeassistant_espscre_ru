@@ -25,6 +25,22 @@ int main(){
     if(groups)assert(end==height);
     ++checked;
   }
+  // A switch always has horizontal travel and a full-height touch target.
+  for(int touch:{28,39,47,60,84})for(int width=1;width<500;++width){
+    const auto track=toggle(width,touch);
+    if(track.empty()){assert(width<touch+touch/2);continue;}
+    assert(track.w<=width&&track.h==touch&&track.w>=touch+touch/2);
+  }
+  // Centre an action's icon and text within the actual available card area.
+  for(int width:{40,80,131,218,300,500})for(int height=20;height<600;height+=7){
+    auto a=action(width,height,54,28,16,14,8);
+    if(!a.fits)continue;
+    assert(inside(a.icon,width,height)&&inside(a.title,width,height)&&inside(a.state,width,height));
+    assert(a.title.y>=a.icon.bottom()+8&&a.state.y>=a.title.bottom());
+    assert(std::abs(2*a.icon.x+a.icon.w-width)<=1);
+    assert(a.title.w==width&&a.state.w==width);
+    assert(std::abs(a.icon.y-(height-a.state.bottom()))<=1);
+  }
   // A CYD-sized cell accepts one row, but cannot promise two physical rows.
   Metrics compact{131,92,13,13,28,4,39,280,{39,39},1};
   assert(layout(compact).fits);compact.row_count=2;assert(!layout(compact).fits);

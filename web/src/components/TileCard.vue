@@ -29,6 +29,7 @@ const shape = computed(() => dimensions(sizeOf(props.tile), grid));
 const tall = computed(() => shape.value.rows > 1 && !full.value && ["standard", "cover"].includes(display.value));
 const full = computed(() => isFull(props.tile));
 const wide = computed(() => isWide(props.tile) && !full.value);
+const tallAction = computed(() => tall.value && (props.tile.entity === "screen.settings" || !!goesTo.value));
 const goesTo = computed(() => pageTarget(props.tile.entity));
 const background = computed(() => state.inventory.backgrounds?.[props.tile.options?.background || ""]?.color);
 const bare = computed(() => props.tile.options?.background === "none");
@@ -150,7 +151,7 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="tile" :class="{ wide, full, tall, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+  <div class="tile" :class="{ wide, full, tall, 'tall-action': tallAction, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
     :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
     :tabindex="(preview ? goesTo : live) ? 0 : -1" :role="(preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
@@ -201,12 +202,12 @@ async function onKey(e: KeyboardEvent) {
         <span class="st">{{ current?.a?.current_temperature !== undefined ? screenText('screen.climate.now', { value: `${num(current.a.current_temperature)}°` }) : status }}</span>
       </span>
       <template v-else>
-        <span class="tall-body">
+        <span v-if="!tallAction" class="tall-body">
           <template v-if="domain === 'media_player' && !gone">
             <MarqueeText class="track-title" :text="String(current?.a?.media_title || '')" /><span v-if="mediaSubtitle" class="st">{{ mediaSubtitle }}</span>
           </template>
           <span v-else-if="domain === 'climate' && !gone" class="target-value">{{ current?.a?.current_temperature !== undefined ? `${num(current.a.current_temperature)}°` : '—' }}</span>
-          <span v-else-if="domain !== 'screen' && !gone" class="target-value">{{ domain === 'light' && isOn ? `${fill}%` : status }}</span>
+          <span v-else-if="domain !== 'screen' && !gone && tallControls !== 'toggle'" class="target-value">{{ domain === 'light' && isOn ? `${fill}%` : status }}</span>
         </span>
       <span v-if="tallControls" class="ctl" :class="{ playback: tallControls === 'playback' }">
         <span v-if="tallControls === 'toggle'" class="tog" :class="{ off: !on }"></span>
@@ -273,6 +274,12 @@ async function onKey(e: KeyboardEvent) {
 /* Additional rows extend the existing header and controls. All single-row selectors remain unchanged. */
 .tile.tall { flex-direction: column; align-items: stretch; justify-content: start; container-type: size; }
 .tile.tall .head { flex: none; }
+.tile.tall.tall-action { justify-content: center; }
+.tile.tall.tall-action .head { flex-direction: column; justify-content: center; text-align: center; }
+.tile.tall.tall-action .tx { flex: none; width: 100%; }
+.tile.tall .tog { --toggle-height: clamp(22px, 18cqh, 36px); height: var(--toggle-height); width: calc(2 * var(--toggle-height)); border-radius: 99px; flex: none; }
+.tile.tall .tog::after { width: calc(var(--toggle-height) - 6px); height: calc(var(--toggle-height) - 6px); top: 3px; right: 3px; }
+.tile.tall .tog.off::after { right: auto; left: 3px; }
 .tile.tall .tall-body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; overflow: hidden; gap: 3px; }
 .track-title { font-weight: 600; font-size: clamp(12px, 9cqh, 21px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tile.tall .ctl { justify-content: center; width: 100%; }

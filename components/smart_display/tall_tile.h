@@ -60,6 +60,24 @@ inline std::array<Rect,3> keys(Rect row,int count,int desired,int touch,int gap)
   for(int i=0;i<count;++i)result[i]={row.x+(row.w-width)/2+i*(side+gap),row.y+(row.h-side)/2,side,side};
   return result;
 }
+// A toggle needs visible travel, not a circle. Keep the touch height while
+// fitting the width, or explicitly fall back to the tile's detail action.
+inline Rect toggle(int width,int touch) {
+  if(touch<=0||width<touch+touch/2)return {};
+  return {0,0,std::min(width,2*touch),touch};
+}
+struct ActionLayout { bool fits=false; Rect icon,title,state; };
+// Built-in action tiles have no extra controls. Centre their measured stack,
+// giving up the optional subtitle before reducing the icon below its glyph.
+inline ActionLayout action(int width,int height,int icon,int glyph,int name,int state,int gap) {
+  if(width<=0||height<=0||icon<=0||glyph<=0||name<=0||gap<0)return {};
+  if(height<glyph+gap+name+state)state=0;
+  const int side=std::min({icon,width,height-gap-name-state});
+  if(side<glyph)return {};
+  const int y=(height-side-gap-name-state)/2;
+  return {true,{(width-side)/2,y,side,side},{0,y+side+gap,width,name},
+          {0,y+side+gap+name,width,state}};
+}
 // Font selection also uses measured width. A large display with a dense grid can
 // have less room than a small display with two columns.
 inline bool fits_text(Rect area,int width,int line_height) {

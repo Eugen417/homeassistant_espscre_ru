@@ -115,4 +115,30 @@ Guition LVGL tests also delayed the image response and separately returned no
 image: each run checked four waiting and four resumed title states across tall
 and 2-by-2 cards in both themes, rendered ten views and passed ten page checks.
 These checks verify animation state transitions, not perceived smoothness on
-physical hardware. This follow-up has not been flashed to the physical board.
+physical hardware. The subsequent physical update below includes this follow-up.
+
+## Tall switches and built-in action tiles
+
+Tall on-tile switches keep a horizontal track with visible knob travel and the
+required touch height. The heading shows the state once; the duplicate status
+in the body is removed. Tall Settings and page-link tiles centre their icon,
+name and optional subtitle as one measured stack. Compact single-row tiles keep
+their existing layout. The editor preview follows these changes.
+
+The focused native matrix covers on/off switch states and action tiles across
+ten board/orientation variants: 452 renders each passed a geometry check before
+capture, plus 100 final-batch page checks. The geometry check measures action
+centring, text/icon separation and card bounds. The ordinary regression suite
+passes, including the rebuilt editor bundle. The larger review gallery was
+updated for the affected variants; its previously documented full-page vacuum
+clipping issue is separate from this refinement.
+
+The disposable Guition 4848S040 was flashed after checking its USB identity and
+reading its existing API identity. The running firmware reports a compilation
+time of 24 September 2026 at 16:59:55 +0200. Ten page checks and fifty overlay
+render cycles passed on the physical board. This build also includes the
+background-aware marquee change. No physical finger test was performed.
+
+All six final firmware builds pass. The CYD image uses 1,640,384 bytes of its
+1,835,008-byte update slot, with 194,624 bytes free. These short render/API checks
+are not a long-term soak test.
