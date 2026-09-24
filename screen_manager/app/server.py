@@ -28,6 +28,11 @@ import history_card
 import i18n
 from i18n import REQUEST_LANGUAGE, TRANSLATIONS, Region, english, screen_t, shown, t
 from zoneinfo import ZoneInfo
+from layout_store import LayoutStore, Conflict
+from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, compile_tiles, grid_of_record,
+                         legacy_projection, legacy_edit, validate_document, bar_items, replace_tiles, CompiledLayouts, fingerprint)
+from layout_migrations import migrate_legacy
+import page_delivery
 
 
 def row_icon(eid, state, attrs, entry):
@@ -617,13 +622,6 @@ class HomeAssistant:
         rows = (result or {}).get(entity) if isinstance(result, dict) else None
         return rows if isinstance(rows, list) else []
 
-from layout_store import LayoutStore, Conflict
-from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, compile_tiles, grid_of_record,
-                         legacy_projection, legacy_edit, validate_document, bar_items, replace_tiles, CompiledLayouts)
-from layout_migrations import migrate_legacy
-import page_delivery
-
-
 class Manager:
     def __init__(self, ha, path):
         self.ha, self.path = ha, Path(path)
@@ -655,6 +653,7 @@ class Manager:
         self._registry_source, self._registry_index = None, {}
         self._items_source, self._items = None, []
         self._screens_key, self._screens = None, []
+        self._verified_screens_key, self._verified_screens = None, {}
         self._watched_key, self._watched = None, set()
         self._seen_registry = None
         # Inbox entity ids seen this run with their Home Assistant device, and old inbox ids that a screen
@@ -717,8 +716,12 @@ class Manager:
         # Discovery is pure here: following renames can write storage, so it must
         # not run recursively from the store's migration callback.
         ha = self.ha
-        screens = discover_screens(screen_items(ha.registry), ha.states, ha.devices, ha.areas)
-        screen = next((item for item in screens if item['id'] == inbox), None)
+        items = self.screen_registry()
+        key = (id(ha.registry), id(ha.devices), id(ha.areas), tuple(ha.states.get(item['entity_id'], {}).get('state') for item in items))
+        if key != self._verified_screens_key:
+            self._verified_screens_key = key
+            self._verified_screens = {item['id']: item for item in discover_screens(items, ha.states, ha.devices, ha.areas)}
+        screen = self._verified_screens.get(inbox)
         if screen is None:
             return None
         shape = screen.get('shape')
@@ -839,7 +842,8 @@ class Manager:
         document = validate_document(data.get('layout'), grid)
         candidate = {'format': PAGE_FORMAT, 'sourceGrid': {'columns': grid.columns, 'rows': grid.rows}, 'layout': document}
         sender = self.page_senders.get(inbox)
-        if not sender or sender.protocol != 2:
+        verified_protocol = (sender.protocol if sender.protocol is not None else sender.last_protocol) if sender else None
+        if verified_protocol != 2:
             # An existing v2-only document survives disconnects and downgrades.
             # Introducing new-only features first requires proof from the board.
             already_requires_v2 = False
@@ -852,8 +856,12 @@ class Manager:
                     raise LayoutError('Update screen to use the new titlebar and layout') from None
         flat = legacy_projection(candidate, require_representable=False)
         required_sizes = {tile.get('options', {}).get('size', 'single') for tile in flat['tiles']} & {'tall', 'square'}
-        if required_sizes and (not sender or not required_sizes <= getattr(sender, 'tile_sizes', set())):
+        supported_sizes = getattr(sender, 'tile_sizes' if sender.protocol is not None else 'last_tile_sizes', set()) if sender else set()
+        if required_sizes and not required_sizes <= supported_sizes:
             raise LayoutError('Update screen to use taller tiles')
+        limit = firmware_features(self.firmware_version(inbox, screen), grid)['tile_limit']
+        if len(flat['tiles']) > limit:
+            raise LayoutError(t('addon.errors.layout.tiles_max', n=limit))
         if any(tile['entity'].split('.')[0] in CAMERA_DOMAINS for tile in flat['tiles']) and board_of(screen) not in camera_feed.BOXES:
             raise LayoutError(t('addon.errors.layout.camera_unsupported'))
         needed = self.needs_firmware(inbox, flat, screen)
@@ -1235,9 +1243,12 @@ class Manager:
         without sending it back, which could undo a change it made after reporting this one; its revision
         stays, so the next ping still matches."""
         base = self.layouts.get(inbox) or {'title': (screen or {}).get('name') or screen_t('screen.status.home'), 'tiles': []}
-        layout = validate_layout({**base, 'settings': settings}, grid=self.grid_of(screen) if screen else None)
-        if not self.store.get(inbox):
-            record = migrate_legacy(base, self.verified_grid(inbox) or self.grid_of(screen))
+        previous = self.store.get(inbox)
+        grid = self.verified_grid(inbox) or (grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
+        layout = validate_layout({**base, 'settings': settings}, grid=grid)
+        if not previous:
+            if grid is None: raise LayoutError('Source grid is not known')
+            record = migrate_legacy(base, grid)
             self.store.save(inbox, record['layout'], None, settings=settings)
         else:
             self.store.save_settings(inbox, settings)
@@ -1844,6 +1855,24 @@ class Manager:
         finally:
             i18n.SCREEN.reset(token)
 
+    async def sync_pending_legacy(self, inbox, screen, sender, dirty):
+        """Keep a readable pending record working on verified old firmware.
+
+        This recovery boundary is used only while migration is pending. It
+        neither changes the original payload nor guesses an unreadable layout.
+        New firmware deliberately has no legacy decoder.
+        """
+        record = self.store.get(inbox)
+        if sender.protocol != 1 or not record or record['format'] != 'legacy-v1': return False
+        grid = self.verified_grid(inbox)
+        if grid is None: return False
+        try:
+            layout = validate_layout(json.loads(record['payload']), stored=True, grid=grid)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return False
+        force = time.monotonic() - self.last.get(inbox, 0) >= KEEPALIVE_SECONDS
+        return await self.sync_one(inbox, layout, force=force, screen=screen, dirty=dirty)
+
     async def _sync_one(self, inbox, layout, force, screen, dirty, context):
         needed = self.needs_firmware(inbox, layout, screen)
         if needed:
@@ -2004,6 +2033,7 @@ class Manager:
                         previous_protocol = sender.protocol if sender else None
                         sender = await self.probe_pages(inbox, screen)
                         changed = changed or previous_protocol != sender.protocol
+                        changed = await self.sync_pending_legacy(inbox, screen, sender, dirty) or changed
                         continue
                     now = time.monotonic()
                     pings = self.supports_ping(inbox, screen)
@@ -2441,7 +2471,8 @@ def create_app(manager, development=False):
             # A screen without tiles yet: the title the screen itself shows without one, in its language (app 0.2.90).
             screen['layout'] = manager.layouts.get(screen['id'], {'title': screen_t('screen.status.home'), 'tiles': []})
             record = manager.store.get(screen['id'])
-            screen['page_document'] = record
+            screen['page_document'] = ({**record, 'migrationRevision': fingerprint(record['payload'])}
+                                       if record and record['format'] == 'legacy-v1' else record)
             source = manager.verified_grid(screen['id'])
             screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
             sender = manager.page_senders.get(screen['id'])
@@ -2550,6 +2581,18 @@ def create_app(manager, development=False):
             record = {**migrate_legacy({key: value for key, value in source.items() if key != 'esp_screens_layout'}, grid), 'revision': ''}
         return web.json_response(record)
 
+    async def start_fresh(request):
+        data = await request.json()
+        if not isinstance(data, dict) or set(data) != {'revision'}:
+            raise LayoutError('Invalid recovery request')
+        inbox = manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
+        screen = manager.screen(inbox)
+        if not screen: raise LayoutError('Connect this screen before starting fresh')
+        record = manager.store.start_fresh(inbox, data['revision'], screen_t('screen.status.home'))
+        manager.ha.changed.set()
+        manager.notify()
+        return web.json_response(record)
+
     async def dismiss_migration(request):
         data = await request.json()
         if not isinstance(data, dict) or set(data) != {'revision'}:
@@ -2594,6 +2637,10 @@ def create_app(manager, development=False):
         return response
     async def save(request):
         data = await request.json()
+        inbox = manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
+        if manager.screen(inbox) is None: raise LayoutError(t('addon.errors.not_paired'))
+        if not isinstance(data, dict) or data.get('format') != PAGE_FORMAT:
+            raise LayoutError(t('addon.errors.editor_reload'))
         await manager.check_supported(request.match_info['inbox'], data)
         record = manager.save(request.match_info['inbox'], data)
         return web.json_response({'saved': True, **({'document': record} if record else {})})
@@ -2824,6 +2871,7 @@ def create_app(manager, development=False):
     app.router.add_put('/api/screens/{inbox}', save)
     app.router.add_post('/api/screens/{inbox}/import', import_document)
     app.router.add_post('/api/screens/{inbox}/migration/dismiss', dismiss_migration)
+    app.router.add_post('/api/screens/{inbox}/migration/reset', start_fresh)
     app.router.add_put('/api/screens/{inbox}/workspace', save_workspace)
     app.router.add_delete('/api/screens/{inbox}', remove_screen)
     app.router.add_put('/api/screens/{inbox}/settings', change_settings)

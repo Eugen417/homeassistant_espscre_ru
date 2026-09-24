@@ -7,7 +7,7 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "screen_manager/app"))
 from core import Grid
 from layout_migrations import migrate_legacy
-from page_delivery import Sender, DeliveryError, Refused, Superseded, configuration
+from page_delivery import Sender, DeliveryError, Refused, Superseded, configuration, bar_value_messages
 
 
 class Screen:
@@ -64,6 +64,41 @@ class Screen:
 
 
 class DeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_shared_bar_values_use_one_negotiated_packet(self):
+        async def newer(message):
+            answer = await self.screen.send(message)
+            if message['op'] == 'hello': answer['bar_values'] = 1
+            return answer
+        self.sender = Sender(newer)
+        self.bars = [[{'k': 'text', 't': '21 °C'}] for _ in self.bars]
+        await self.sync()
+        self.screen.messages.clear()
+        for bar in self.bars: bar[0]['t'] = '22 °C'
+        await self.sync()
+        self.assertEqual(len(self.screen.messages), 1)
+        message = self.screen.messages[0]
+        self.assertEqual(message['op'], 'bar_value')
+        self.assertEqual(message['targets'], [0, 6])
+        self.assertEqual(message['item']['t'], '22 °C')
+        self.screen.messages.clear()
+        await self.sync()
+        self.assertEqual(self.screen.messages, [])
+        self.sender.disconnected()
+        self.assertFalse(self.sender.bar_values)
+
+    def test_eight_bars_group_identical_values_but_keep_format_choices(self):
+        before = [[{'k': 'text', 't': '21 °C'}, {'k': 'text', 't': '21'}] for _ in range(8)]
+        after = [[{'k': 'text', 't': '22 °C'}, {'k': 'text', 't': '22'}] for _ in range(8)]
+        messages = list(bar_value_messages(after, before))
+        self.assertEqual(len(messages), 2)
+        self.assertEqual(messages[0]['targets'], list(range(0, 48, 6)))
+        self.assertEqual(messages[1]['targets'], list(range(1, 48, 6)))
+
+    def test_conditional_visibility_replaces_the_bar_when_item_count_changes(self):
+        value = {'k': 'text', 't': 'Motion'}
+        self.assertEqual(list(bar_value_messages([[]], [[value]])), [{'op': 'bar', 'p': 0, 'items': []}])
+        self.assertEqual(list(bar_value_messages([[value]], [[]])), [{'op': 'bar', 'p': 0, 'items': [value]}])
+
     async def test_disconnect_keeps_capabilities_for_offline_editing_only(self):
         async def newer(message):
             answer = await self.screen.send(message)

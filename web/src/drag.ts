@@ -128,7 +128,7 @@ function aim(x: number, y: number) {
 }
 // The cell under the pointer: the nearest card or empty cell (the gaps between them count
 // too); on a wide card the left or right half decides. -1 away from the mockup.
-function slotAt(x: number, y: number) {
+export function slotAt(x: number, y: number) {
   let best: { cell: HTMLElement; r: DOMRect } | null = null, nearest = Infinity;
   for (const cell of document.querySelectorAll<HTMLElement>(".pages [data-slot]")) {
     const r = cell.getBoundingClientRect();

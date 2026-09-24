@@ -6,7 +6,8 @@ changing normal saves, state delivery or the firmware.
 """
 from copy import deepcopy
 
-from core import header_items, tile_size, validate_layout
+from core import header_items, page_target, tile_size, validate_layout
+from i18n import screen_t
 from page_layout import APPEARANCE, INTERACTION, FORMAT, LayoutError, _object, new_id, tile_from_fields, validate_document
 
 
@@ -17,15 +18,26 @@ def _recover_tiles(raw, grid):
     backup and do not prevent known card fields from entering the new document.
     Imports can retain strict validation by not selecting this recovery path.
     """
-    _object(raw, {"title", "tiles", "pages", "page_titles", "header", "settings"}, {"title", "tiles"})
-    if not isinstance(raw["tiles"], list):
+    if not isinstance(raw, dict) or not isinstance(raw.get("tiles"), list):
         raise LayoutError("Invalid legacy tiles")
-    base = {**deepcopy(raw), "tiles": []}
-    validate_layout(base, stored=True, grid=grid)
+    base = {'title': screen_t('screen.status.home'), 'tiles': []}
+    adjusted = []
+    for key in ('title', 'pages', 'page_titles', 'header', 'settings'):
+        if key not in raw: continue
+        try:
+            validate_layout({**base, key: raw[key]}, grid=grid)
+        except (ValueError, TypeError, KeyError, OverflowError):
+            adjusted.append(key)
+        else:
+            base[key] = deepcopy(raw[key])
+    if set(raw) - {'title', 'tiles', 'pages', 'page_titles', 'header', 'settings'}:
+        adjusted.append('other')
     kept, dropped = [], []
     for tile in raw["tiles"]:
         try:
             _object(tile, {"entity", "name", "slot", "options"}, {"entity"})
+            if isinstance(tile.get('entity'), str) and page_target(tile['entity']) > grid.pages:
+                raise LayoutError("Navigation target exceeds this board's page capacity")
             tile = deepcopy(tile)
             if isinstance(tile.get("options"), dict):
                 known = {*APPEARANCE.values(), *INTERACTION.values(), "size"}
@@ -41,7 +53,7 @@ def _recover_tiles(raw, grid):
                             "reason": "invalid_legacy_tile"})
         else:
             kept.append(tile)
-    return {**base, "tiles": kept}, dropped
+    return {**base, "tiles": kept}, dropped, adjusted
 
 
 def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
@@ -50,9 +62,9 @@ def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
     Call before a legacy loader packs missing slots on its default grid. The
     caller retains the original payload when conversion is not lossless.
     """
-    dropped = []
+    dropped, adjusted = [], []
     if recover:
-        raw, dropped = _recover_tiles(raw, grid)
+        raw, dropped, adjusted = _recover_tiles(raw, grid)
     _object(raw, {"title", "tiles", "pages", "page_titles", "header", "settings"}, {"title", "tiles"})
     if not isinstance(raw["tiles"], list):
         raise LayoutError("Invalid legacy tiles")
@@ -61,6 +73,8 @@ def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
     legacy = validate_layout(deepcopy(raw), stored=recover, grid=grid)
     used = max((tile["slot"] + grid.cells(tile_size(tile)) for tile in legacy["tiles"]), default=0)
     count = max(1, legacy.get("pages", 1), (used + grid.slots - 1) // grid.slots)
+    if recover:
+        count = max(count, max((page_target(tile['entity']) for tile in legacy['tiles']), default=0))
     if count > grid.pages:
         raise LayoutError("Legacy layout exceeds the verified source grid")
     ids = [id_factory() for _ in range(count)]
@@ -86,4 +100,6 @@ def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
         record["migration"] = {"inactivePageTitles": deepcopy(titles[count:])}
     if dropped:
         record.setdefault("migration", {})["droppedTiles"] = dropped
+    if adjusted:
+        record.setdefault("migration", {})["adjustedFields"] = adjusted
     return record

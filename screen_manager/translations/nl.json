@@ -601,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} heeft geen kalibratie: het aanraakscherm geeft zelf door waar je het aanraakt, dus er valt niets te meten.",
         "offline": "{name} is offline. De kalibratie kan beginnen zodra het scherm terug is."
-      }
+      },
+      "editor_reload": "Herlaad de editor voordat je opslaat. Dit tabblad gebruikt een oudere indeling."
     },
     "status": {
       "first_tiles": "Kies je eerste tegels",
@@ -1980,6 +1981,8 @@
       "include_navigation": "Toon in paginabolletjes en veegnavigatie",
       "migration_dropped": "{count} tegels konden niet worden overgenomen: {names}. De oorspronkelijke indeling blijft bewaard in screens.v1.backup.json.",
       "dismiss_migration": "Melding sluiten",
+      "start_fresh": "Opnieuw beginnen voor dit scherm",
+      "start_fresh_confirm": "Beginnen met één lege pagina op dit scherm? De oorspronkelijke indeling blijft in de migratieback-up bewaard. Andere schermen blijven ongewijzigd.",
       "offline_notice": "Wachten tot het scherm weer verbonden is. De editor gebruikt de laatst gecontroleerde mogelijkheden.",
       "include_navigation_hint": "Als dit uit staat, blijft de pagina bereikbaar via directe links. Terug verschijnt in de onderbalk, of vervangt Thuis als die balk verborgen is.",
       "home_control": "Toon een thuisknop op deze pagina",
@@ -1992,7 +1995,7 @@
       "down": "Omlaag",
       "right": "Naar rechts",
       "routes": "Paginaverbindingen",
-      "no_routes": "No navigation tiles link to or from this page.",
+      "no_routes": "Er leiden geen navigatietegels naar of vanaf deze pagina.",
       "edit_page": "Pagina bewerken",
       "copy_conflict": "Deze pagina bevat entiteiten die al op dit scherm staan. Maak een lege pagina met dezelfde topbalk.",
       "duplicate": "Pagina dupliceren",
@@ -2013,7 +2016,7 @@
       "conflict": "Een andere editor heeft wijzigingen opgeslagen. Laad de opgeslagen versie om je ontwerp te verwerpen, of behoud je eigen ontwerp en vervang de opgeslagen indeling.",
       "reload_saved": "Opgeslagen versie laden",
       "keep_mine": "Mijn ontwerp behouden en opslaan",
-      "shared_bar": "This screen still uses shared top-bar items. Changes to these items apply to every page until the firmware is updated.",
+      "shared_bar": "Dit scherm gebruikt nog gedeelde bovenbalkitems. Wijzigingen gelden voor alle pagina’s totdat de firmware is bijgewerkt.",
       "unreachable": "Vanaf Thuis is er geen route naar {pages}. Voeg een navigatietegel toe of toon de pagina in de paginanavigatie.",
       "no_way_home": "Vanaf {pages} is er geen route terug naar Thuis. Voeg een terugkeertegel toe of zet de thuisknop aan.",
       "navigation": "Paginanavigatie",
@@ -2040,7 +2043,8 @@
       "grid_accept": "Gebruik deze posities",
       "selected_full": "Deze pagina is vol. Kies een lege cel op een andere pagina.",
       "choose_page": "Pagina",
-      "all_connections": "Alle verbindingen"
+      "all_connections": "Alle verbindingen",
+      "migration_adjusted": "Ongeldige oude instellingen zijn vervangen door standaardwaarden: {fields}. De originelen blijven in de migratieback-up bewaard."
     }
   }
 }

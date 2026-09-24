@@ -6,6 +6,7 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest.mock import AsyncMock
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'screen_manager/app'))
 from server import Manager
@@ -13,6 +14,38 @@ from page_layout import compile_tiles, grid_of_record
 
 
 class Upgrade02133(unittest.TestCase):
+    def test_readable_pending_record_is_delivered_only_to_verified_old_firmware(self):
+        async def check():
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / 'screens.json'
+                raw = {'title': 'Screen', 'tiles': [{'entity': 'light.a', 'name': '', 'slot': 0}]}
+                path.write_text(json.dumps({'version': 1, 'screens': {'text.old': raw}}))
+                ha = SimpleNamespace(online=False, registry=[], states={}, devices=[], areas=[], changed=asyncio.Event())
+                manager = Manager(ha, path)
+                ha.registry = [{'entity_id': 'text.old', 'platform': 'esphome', 'original_name': 'Tile settings', 'device_id': 'old'}]
+                ha.states = {'text.old': {'state': 'Ready'}}
+                screen = manager.screens()[0]
+                original = path.read_bytes()
+                manager._sync_one = AsyncMock(return_value=True)
+                self.assertTrue(await manager.sync_pending_legacy('text.old', screen, SimpleNamespace(protocol=1), set()))
+                self.assertEqual(manager._sync_one.call_args.args[1]['tiles'][0]['entity'], 'light.a')
+                manager._sync_one.reset_mock()
+                self.assertFalse(await manager.sync_pending_legacy('text.old', screen, SimpleNamespace(protocol=2), set()))
+                manager._sync_one.assert_not_awaited()
+                self.assertEqual(path.read_bytes(), original)
+        asyncio.run(check())
+
+    def test_bad_metadata_does_not_hide_usable_tiles_and_links_keep_their_destinations(self):
+        from core import Grid
+        from layout_migrations import migrate_legacy
+        raw = {'title': '', 'pages': float('nan'), 'header': {'items': 'bad'}, 'settings': {'unknown': 1},
+               'tiles': [{'entity': 'light.a', 'slot': 0}, {'entity': 'screen.page_5', 'slot': 1}]}
+        record = migrate_legacy(raw, Grid(), recover=True)
+        self.assertEqual(len(record['layout']['pages']), 5)
+        self.assertEqual(record['migration']['adjustedFields'], ['title', 'pages', 'header', 'settings'])
+        self.assertEqual([tile['entity'] for tile in compile_tiles(record['layout'], Grid())], ['light.a', 'screen.page_5'])
+        self.assertNotIn('droppedTiles', record['migration'])
+
     def test_discovery_finishes_migration_and_keeps_usable_tiles(self):
         # Same envelope and writer options as main 0.2.133; no shape sensor,
         # installed profile, network contact or mocked conversion function.

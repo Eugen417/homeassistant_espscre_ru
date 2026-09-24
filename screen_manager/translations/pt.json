@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens inativo",
       "choose_tiles": "Escolha os mosaicos no HA",
       "home": "Casa",
-      "no_network": "Sem rede"
+      "no_network": "Sem rede",
+      "configuration_problem": "Problema de configuração.\nAtualize o complemento.",
+      "configuration_version": "Problema de configuração.\nVerifique as versões do ecrã e do complemento."
     },
     "settings": {
       "title": "Definições",
@@ -599,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} não tem calibração: o painel tátil indica onde lhe tocou, por isso não há nada para medir.",
         "offline": "{name} está offline. A calibração pode começar quando voltar."
-      }
+      },
+      "editor_reload": "Recarregue o editor antes de guardar. Este separador usa um formato de disposição antigo."
     },
     "status": {
       "first_tiles": "Escolha os primeiros mosaicos",
@@ -616,7 +619,9 @@
         "resend_needed": "É preciso reenviar",
         "ready": "Pronto para os mosaicos",
         "error": "Erro: {reason}"
-      }
+      },
+      "applying": "A aplicar disposição",
+      "applied": "Disposição aplicada"
     },
     "updates": {
       "offline": "O ecrã estava offline; vai tentar novamente da próxima vez.",
@@ -1962,6 +1967,84 @@
     "mockup": {
       "home": "Casa",
       "unknown": "Desconhecido"
+    },
+    "pages": {
+      "mode": "Modo do editor",
+      "simple": "Simples",
+      "advanced": "Avançado",
+      "redo": "Refazer",
+      "title": "Título da página",
+      "title_hint": "Deixe vazio para usar o título do ecrã.",
+      "is_home": "Página inicial",
+      "set_home": "Definir como página inicial",
+      "drag_home": "Página inicial. Arraste para outra página para mudar a página inicial.",
+      "include_navigation": "Mostrar nos pontos de página e na navegação por deslize",
+      "migration_dropped": "Não foi possível transferir {count} cartões: {names}. A disposição original fica guardada em screens.v1.backup.json.",
+      "dismiss_migration": "Fechar aviso",
+      "start_fresh": "Começar de novo neste ecrã",
+      "start_fresh_confirm": "Começar com uma página vazia neste ecrã? A disposição original permanece na cópia de migração. Os outros ecrãs não são alterados.",
+      "offline_notice": "A aguardar que o ecrã volte a ligar. O editor usa as últimas capacidades verificadas.",
+      "include_navigation_hint": "Se estiver desligado, as ligações diretas continuam a abrir esta página. Voltar aparece na barra inferior ou substitui Início se a barra estiver oculta.",
+      "home_control": "Mostrar um botão de início nesta página",
+      "edit_topbar": "Editar a barra superior desta página",
+      "order": "Ordem das páginas",
+      "order_hint": "Os comandos numéricos seguem esta ordem. As ligações de página com nome mantêm o destino.",
+      "map_position": "Posição no mapa",
+      "left": "Mover para a esquerda",
+      "up": "Mover para cima",
+      "down": "Mover para baixo",
+      "right": "Mover para a direita",
+      "routes": "Ligações entre páginas",
+      "no_routes": "Nenhum cartão de navegação liga a esta página ou parte dela.",
+      "edit_page": "Editar página",
+      "copy_conflict": "Uma cópia completa duplicaria entidades neste ecrã. Pode criar uma página vazia com a mesma barra superior.",
+      "duplicate": "Duplicar página",
+      "empty_copy": "Nova página vazia com esta barra superior",
+      "position_occupied": "Já existe uma página nessa posição do mapa.",
+      "map_hint": "Mova as páginas para organizar o mapa. A ordem das páginas mantém-se.",
+      "arrange": "Organizar a partir do início",
+      "zoom_out": "Reduzir zoom",
+      "zoom_in": "Aumentar zoom",
+      "choose_destination": "Escolha a página de destino.",
+      "move_map": "Mover {name} no mapa",
+      "change_destination": "Alterar o destino de um cartão de navegação em {name}",
+      "deeplink": "Ligação direta",
+      "page_settings": "Definições da página",
+      "back_map": "Voltar ao mapa",
+      "wait_grid": "Ligue este ecrã para carregar a grelha verificada antes de editar.",
+      "update_notice": "Atualize o ecrã para usar a nova barra de título e a nova disposição",
+      "conflict": "Outro editor guardou alterações. Carregue a versão guardada para descartar o rascunho ou mantenha a sua disposição e substitua a guardada.",
+      "reload_saved": "Carregar versão guardada",
+      "keep_mine": "Manter a minha disposição e guardar",
+      "shared_bar": "Este ecrã ainda usa elementos partilhados na barra superior. As alterações aplicam-se a todas as páginas até atualizar o firmware.",
+      "unreachable": "Não existe percurso desde o início até {pages}. Adicione um cartão de navegação ou inclua a página na navegação.",
+      "no_way_home": "Não existe regresso ao início desde {pages}. Adicione um cartão de regresso ou ative o botão de início.",
+      "navigation": "Navegação entre páginas",
+      "previous": "Página anterior",
+      "next": "Página seguinte",
+      "go_home": "Ir para o início",
+      "try_navigation": "Experimentar navegação",
+      "preview_hint": "Apenas pré-visualização. As ligações funcionam aqui; os controlos de entidades não acionam dispositivos.",
+      "swipe_previous": "Deslizar para a página anterior",
+      "swipe_next": "Deslizar para a página seguinte",
+      "copy_bar": "Copiar uma barra superior",
+      "copy_from": "Da página",
+      "copy_to": "Para as páginas selecionadas",
+      "copy_content": "Copiar",
+      "copy_items": "Só elementos, manter títulos e botões de início",
+      "copy_whole": "Barra completa, incluindo título e botão de início",
+      "copy_apply": "Copiar para as páginas selecionadas",
+      "history_label": "Histórico registado, {hours} horas",
+      "history_loading": "A carregar histórico…",
+      "history_empty": "Sem histórico registado",
+      "grid_changed": "A grelha do ecrã mudou. Reveja as posições antes de guardar ou enviar.",
+      "grid_review": "Rever adaptação da grelha",
+      "grid_review_hint": "Compare as posições guardadas à esquerda com as propostas à direita. Cada cartão permanece na sua página. Nada é enviado até guardar.",
+      "grid_accept": "Usar estas posições",
+      "selected_full": "Esta página está cheia. Selecione uma célula vazia noutra página.",
+      "choose_page": "Página",
+      "all_connections": "Todas as ligações",
+      "migration_adjusted": "As definições antigas inválidas foram substituídas pelos valores predefinidos: {fields}. Os originais permanecem na cópia de migração."
     }
   }
 }

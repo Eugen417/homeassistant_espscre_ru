@@ -10,32 +10,35 @@ default checkbox. No changes have been published.
 | Item | Implemented | Still open |
 | --- | --- | --- |
 | 1. Taller-tile scope | Sizes remain in 0.3.1 as selected; the feature has a separate commit. | No branch split is requested. |
-| 2. Migration | Historical grid fallback verified against Git history; per-tile recovery, unknown option filtering, NaN isolation, original backup, dismissible dropped-tile notes, real startup-order tests. | Recovery for malformed page metadata and dangling links; pending-layout delivery and explicit Start fresh. |
-| 3. Upgrade communication | Easy Setup and changelog explain update order, backup, downgrade and old editor tabs. | Complete firmware translations. |
-| 4. Translations | New editor messages have English and Dutch keys. | Complete other languages, remove user-facing literal errors and enforce missing keys. |
-| 5. Firmware safety | Checked record reservations replace the aborting allocator. Failed reservations retain the old model and transfer; equal-size replacements reuse storage. Navigation no longer requires HA connectivity. | All-board host regression with disconnected HA and refusal scenarios; remove obsolete packing path; physical CYD acceptance. |
+| 2. Migration | Historical grid fallback verified against Git history; per-tile and malformed metadata recovery, dangling-link destinations retained, unknown option filtering, NaN isolation, original backup, dismissible recovery notes, real startup-order tests. Readable pending records can still reach verified old firmware. Explicit Start fresh preserves the backup and checks the pending revision. | Broader editor acceptance. |
+| 3. Upgrade communication | Easy Setup and changelog explain update order, backup, downgrade and old editor tabs. Firmware messages translated in all languages, with regional inheritance. | None. |
+| 4. Translations | Page-editor, delivery and firmware messages translated in all base languages. Missing keys now fail the check, with regression coverage; regional variants inherit. | Remove user-facing literal validation errors. |
+| 5. Firmware safety | Checked record reservations replace the aborting allocator. Failed reservations retain the old model and transfer; equal-size replacements reuse storage. Navigation no longer requires HA connectivity. Obsolete packing code removed. | All-board host regression with disconnected HA and refusal scenarios; physical CYD acceptance. |
 | 6. Editor defects | Explicit conflict recovery, offline capability retention during a connection outage, removal-toast expiry, grouped text undo, destination-title preservation. | Broader UI acceptance and capability retention across add-on restarts. |
-| 7. Page top bars | Independent page bars retained as selected. | Negotiate deduplicated state delivery for shared entity references. |
-| 8. Pagination wording | Positive checkbox, default on; English/Dutch and page documentation updated. | Other translations. |
-| 9. Editor modes | Free map positions retained as selected. Simple offers navigation preview; unavailable duplication is hidden; empty copy is prominent. | Isolate map-history actions from Simple-mode undo. |
+| 7. Page top bars | Independent page bars retained as selected. Negotiated `bar_values` sends identical resolved values once to bounded explicit destinations; differing formats stay independent. Conditional visibility changes replace the affected bar. | Host parser acceptance in progress. |
+| 8. Pagination wording | Positive checkbox, default on; all translations and page documentation updated. | None. |
+| 9. Editor modes | Free map positions retained as selected. Simple offers navigation preview; unavailable duplication is hidden; empty copy is prominent. Scoped history skips map actions in Simple and does not restore invisible positions. | Broader UI acceptance. |
 
 Additional work still includes receiver/service extraction, cosmetic in-place
-updates, a shared size capability table, old-editor revision enforcement,
-conformance fixtures and editor model cleanup. The compiled-layout read cache
-now uses the file stamp, and navigation logging only reports an accepted move.
+updates, conformance fixtures and editor model cleanup. A single size capability
+table now drives advertisement and validation. Old editor saves are refused;
+settings use the verified grid and saves enforce the older firmware tile limit.
+The compiled-layout read cache uses the file stamp; verified discovery is cached
+by registry identity and diagnostic state. Navigation logging only reports an
+accepted move. Tile arrangements must retain every existing tile ID.
 
 ## Verification completed during this review
 
-- Full fast checks: 702 Python tests, 25 C++ programs and 209 editor tests, plus
+- Full fast checks: 712 Python tests, 25 C++ programs and 211 editor tests, plus
   type checking, generated files and the editor build.
 - Address/undefined-behavior sanitizers on the runtime model and page protocol.
   Fault injection refuses either record allocation and checks that the original
   model, record addresses and active state survive.
-- All six firmware variants compile with ESPHome 2026.9.0. CYD is 1,631,888 B,
-  leaving 203,120 B in its OTA slot. Growth against the matching 0.2.104 baseline
-  is 3,424 B; this is 912 B smaller than the preceding 0.3.1 review build.
+- All six firmware variants compile with ESPHome 2026.9.0. CYD is 1,632,464 B,
+  leaving 202,544 B in its OTA slot. Growth against the matching 0.2.104 baseline
+  is 4,000 B.
 - All five eligible profiles also compile with minimum ESPHome 2026.6.2. CYD
-  uses 1,657,152 B (90.3%), leaving 177,856 B, with 3,296 B growth against its
+  uses 1,657,744 B (90.3%), leaving 177,264 B, with 3,888 B growth against its
   matching baseline. The existing tight-flash warning remains. The P4 requires
   ESPHome 2026.8.0 and is excluded from this minimum-version run.
 - CYD host rendering passes 40 page checks. This is simulated input, not a

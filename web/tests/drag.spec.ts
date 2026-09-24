@@ -1,7 +1,8 @@
 // What a drag near an edge scrolls (app 0.2.78): on a phone the row of pages sideways and the page itself up and
 // down, on a wide window the canvas both ways.
 import { beforeEach, describe, expect, it } from "vitest";
-import { dragScrollers, edgeStep, nearestRect, scrollsAlong } from "../src/drag";
+import { dragScrollers, edgeStep, nearestRect, scrollsAlong, slotAt } from "../src/drag";
+import { setGrid } from '../src/model/layout';
 
 // jsdom has no layout: give an element the sizes a browser would measure, and the overflow longhands it computes.
 function sized(element: HTMLElement, size: { scrollWidth?: number; clientWidth?: number; scrollHeight?: number; clientHeight?: number }) {
@@ -16,6 +17,21 @@ beforeEach(() => {
 });
 
 describe("the scroller of a drag", () => {
+  it('targets each covered cell of a multi-row tile and clamps nearby gaps', () => {
+    setGrid(3, 3);
+    pages.innerHTML = '<div data-slot="10" data-columns="2" data-rows="2"></div>';
+    const tile = pages.firstElementChild as HTMLElement;
+    tile.getBoundingClientRect = () => ({ left: 20, top: 40, right: 220, bottom: 240, width: 200, height: 200 } as DOMRect);
+    expect(slotAt(30, 50)).toBe(10);
+    expect(slotAt(150, 50)).toBe(11);
+    expect(slotAt(30, 170)).toBe(13);
+    expect(slotAt(150, 170)).toBe(14);
+    expect(slotAt(230, 250)).toBe(14);
+    expect(slotAt(260, 270)).toBe(-1);
+    tile.dataset.columns = '1';
+    expect(slotAt(150, 170)).toBe(13);
+    setGrid(2, 3);
+  });
   it("scrolls the canvas both ways on a wide window", () => {
     // The canvas scrolls (overflow: auto); the row of pages is wider than it but doesn't scroll itself.
     Object.assign(canvas.style, { overflowX: "auto", overflowY: "auto" });

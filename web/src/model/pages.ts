@@ -281,6 +281,8 @@ export function replaceBar(layout: PageLayout, grid: PageGrid, source: string, t
 export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile: Tile; slot: number }[]) {
   return changePages(layout, grid, (draft) => {
     const cells = grid.columns * grid.rows, existing = new Map(draft.pages.flatMap((page) => page.tiles.map((tile) => [tile.id, tile] as const)));
+    const returned = new Set(entries.map(({ tile }) => tile.id).filter(Boolean));
+    if ([...existing.keys()].some((id) => !returned.has(id))) throw new Error("A tile arrangement must retain every existing tile");
     const required = Math.max(draft.pages.length, ...entries.map(({ slot }) => Math.floor(slot / cells) + 1));
     if (required > pageLimit(grid)) throw new Error("This screen has no room for another page");
     while (draft.pages.length < required) draft.pages.push(emptyPage(draft.pages.at(-1)!.topbar));

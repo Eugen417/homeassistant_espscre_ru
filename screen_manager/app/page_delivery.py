@@ -60,6 +60,28 @@ def tile_message(message, tile, *, initial):
     return message
 
 
+def bar_value_messages(bars, previous):
+    """Send each changed resolved value once, with bounded explicit destinations.
+
+    Pages still own their bars. Only identical rendered values share a packet;
+    different formatting or colour choices remain independent.
+    """
+    grouped, replacements = {}, []
+    for page, items in enumerate(bars):
+        # Conditional visibility can change the number of rendered items without
+        # a configuration edit. Replace that bar before addressing its slots.
+        if page >= len(previous) or len(items) != len(previous[page]):
+            replacements.append({"op": "bar", "p": page, "items": items})
+            continue
+        for index, item in enumerate(items):
+            if page < len(previous) and index < len(previous[page]) and item == previous[page][index]:
+                continue
+            key = json.dumps(item, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+            message = grouped.setdefault(key, {"op": "bar_value", "item": item, "targets": []})
+            message["targets"].append(page * 6 + index)
+    return [*replacements, *grouped.values()]
+
+
 def prepare(inbox, record, region, values, bars):
     """Compile and bound the entire transaction before persistence or delivery.
 
@@ -104,10 +126,12 @@ class Sender:
         self.tile_sizes = {"single", "wide", "full"}
         self.last_protocol = None
         self.last_tile_sizes = set(self.tile_sizes)
+        self.bar_values = False
 
     def disconnected(self):
         self.session = self.confirmed = self.protocol = None
         self.tile_sizes = {"single", "wide", "full"}
+        self.bar_values = False
         self.phase = "waiting"
         self.failed_revision = self.failure = None
 
@@ -124,6 +148,7 @@ class Sender:
             self.tile_sizes = {size for size in sizes if isinstance(size, str)} if isinstance(sizes, list) else {"single", "wide", "full"}
             self.protocol, self.session, self.sequence = PROTOCOL, session, 0
             self.last_protocol, self.last_tile_sizes = PROTOCOL, set(self.tile_sizes)
+            self.bar_values = answer.get("bar_values") == 1
             return PROTOCOL
         # This is an answer from the running old firmware, not cached registry metadata.
         if isinstance(answer, dict) and answer.get("protocol") in (None, 1) and answer.get("status") == "Error: protocol version":
@@ -203,10 +228,13 @@ class Sender:
                     if i >= len(self.values) or message != self.values[i]:
                         await self._packet(message, revision)
                         current()
-                for i, (page, items) in enumerate(zip(pages, bars)):
-                    if i >= len(self.bars) or items != self.bars[i]:
-                        await self._packet(page_message(page, i, items, initial=False), revision)
-                        current()
+                updates = bar_value_messages(bars, self.bars) if self.bar_values else (
+                    page_message(page, i, items, initial=False)
+                    for i, (page, items) in enumerate(zip(pages, bars))
+                    if i >= len(self.bars) or items != self.bars[i])
+                for message in updates:
+                    await self._packet(message, revision)
+                    current()
                 self.values, self.bars = deepcopy(live_values), deepcopy(bars)
                 self.confirmed, self.phase = revision, "applied"
                 self.failed_revision = self.failure = None

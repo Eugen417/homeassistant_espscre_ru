@@ -38,9 +38,9 @@ export type PageWorkspace = { revision: string; positions: Record<string, { x: n
 export type PageDocument = {
   format: "pages-v2"; sourceGrid: PageGrid; revision: string; layout: PageLayout;
   workspace?: PageWorkspace;
-  migration?: { inactivePageTitles?: string[]; droppedTiles?: { entity: string; name: string; reason: string }[] };
+  migration?: { inactivePageTitles?: string[]; droppedTiles?: { entity: string; name: string; reason: string }[]; adjustedFields?: string[] };
 };
-export type PendingMigration = { format: "legacy-v1"; migrationError: string };
+export type PendingMigration = { format: "legacy-v1"; migrationError: string; migrationRevision: string };
 export type Layout = {
   title: string;
   tiles: Tile[];

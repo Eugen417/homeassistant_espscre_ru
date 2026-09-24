@@ -6,6 +6,7 @@ Try taller tiles with the existing tile designs.
 - Sizes stay within the screen's own grid. No additional tiles or free scrolling are introduced.
 - Update the screen to enable these sizes. The add-on verifies support before replacing its configuration; existing sizes keep working on older screens.
 - With page buttons hidden, Back replaces Home at the same visible height, title position and touch target.
+- Screens advertise only tile sizes their current grid can hold. A refused allocation keeps the previous layout, and local page navigation remains available while Home Assistant reconnects.
 
 ## 0.3.0 (firmware 0.3.0)
 

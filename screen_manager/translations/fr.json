@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens inactif",
       "choose_tiles": "Choisissez les tuiles dans HA",
       "home": "Accueil",
-      "no_network": "Pas de réseau"
+      "no_network": "Pas de réseau",
+      "configuration_problem": "Problème de configuration.\nMettez à jour le module.",
+      "configuration_version": "Problème de configuration.\nVérifiez les versions de l’écran et du module."
     },
     "settings": {
       "title": "Paramètres",
@@ -599,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} n'a pas d'étalonnage : sa dalle tactile indique elle-même où vous l'avez touchée, il n'y a donc rien à mesurer.",
         "offline": "{name} est hors ligne. L'étalonnage pourra démarrer à son retour."
-      }
+      },
+      "editor_reload": "Rechargez l’éditeur avant d’enregistrer. Cet onglet utilise un ancien format de disposition."
     },
     "status": {
       "first_tiles": "Choisissez vos premières tuiles",
@@ -616,7 +619,9 @@
         "resend_needed": "Nouvel envoi nécessaire",
         "ready": "Prêt pour les tuiles",
         "error": "Erreur : {reason}"
-      }
+      },
+      "applying": "Application de la disposition",
+      "applied": "Disposition appliquée"
     },
     "updates": {
       "offline": "L'écran était hors ligne ; nouvel essai la prochaine fois.",
@@ -1962,6 +1967,84 @@
     "mockup": {
       "home": "Accueil",
       "unknown": "Inconnu"
+    },
+    "pages": {
+      "mode": "Mode de l’éditeur",
+      "simple": "Simple",
+      "advanced": "Avancé",
+      "redo": "Rétablir",
+      "title": "Titre de la page",
+      "title_hint": "Laisser vide pour utiliser le titre de l’écran.",
+      "is_home": "Page d’accueil",
+      "set_home": "Définir comme accueil",
+      "drag_home": "Page d’accueil. Glisser vers une autre page pour changer l’accueil.",
+      "include_navigation": "Afficher dans les points de pagination et la navigation par balayage",
+      "migration_dropped": "{count} tuiles n’ont pas pu être transférées : {names}. La disposition d’origine est conservée dans screens.v1.backup.json.",
+      "dismiss_migration": "Fermer cet avis",
+      "start_fresh": "Repartir de zéro pour cet écran",
+      "start_fresh_confirm": "Commencer avec une page vide sur cet écran ? La disposition d’origine reste dans la sauvegarde de migration. Les autres écrans restent inchangés.",
+      "offline_notice": "En attente de reconnexion de l’écran. L’éditeur utilise ses dernières capacités vérifiées.",
+      "include_navigation_hint": "Si désactivé, les liens directs ouvrent toujours cette page. Retour apparaît en bas, ou remplace Accueil si la barre est masquée.",
+      "home_control": "Afficher un bouton d’accueil sur cette page",
+      "edit_topbar": "Modifier la barre supérieure de cette page",
+      "order": "Ordre des pages",
+      "order_hint": "Les commandes numériques suivent cet ordre. Les liens de page nommés conservent leur destination.",
+      "map_position": "Position sur la carte",
+      "left": "Déplacer à gauche",
+      "up": "Déplacer vers le haut",
+      "down": "Déplacer vers le bas",
+      "right": "Déplacer à droite",
+      "routes": "Connexions entre pages",
+      "no_routes": "Aucune tuile de navigation ne mène vers ou depuis cette page.",
+      "edit_page": "Modifier la page",
+      "copy_conflict": "Une copie complète dupliquerait des entités de cet écran. Vous pouvez créer une page vide avec la même barre supérieure.",
+      "duplicate": "Dupliquer la page",
+      "empty_copy": "Nouvelle page vide avec cette barre supérieure",
+      "position_occupied": "Une page occupe déjà cette position sur la carte.",
+      "map_hint": "Déplacez les pages pour organiser la carte. Leur ordre reste inchangé.",
+      "arrange": "Organiser depuis l’accueil",
+      "zoom_out": "Dézoomer",
+      "zoom_in": "Zoomer",
+      "choose_destination": "Choisissez la page de destination.",
+      "move_map": "Déplacer {name} sur la carte",
+      "change_destination": "Changer la destination d’une tuile de navigation sur {name}",
+      "deeplink": "Lien direct",
+      "page_settings": "Paramètres de la page",
+      "back_map": "Retour à la carte",
+      "wait_grid": "Connectez cet écran pour charger sa grille vérifiée avant de modifier.",
+      "update_notice": "Mettez à jour l’écran pour utiliser la nouvelle barre de titre et la nouvelle disposition",
+      "conflict": "Un autre éditeur a enregistré des changements. Chargez la version enregistrée pour abandonner votre brouillon, ou conservez votre disposition pour remplacer celle enregistrée.",
+      "reload_saved": "Charger la version enregistrée",
+      "keep_mine": "Conserver ma disposition et enregistrer",
+      "shared_bar": "Cet écran utilise encore une barre supérieure partagée. Les modifications s’appliquent à toutes les pages jusqu’à la mise à jour du firmware.",
+      "unreachable": "Aucun chemin depuis l’accueil vers {pages}. Ajoutez une tuile de navigation ou incluez la page dans la navigation.",
+      "no_way_home": "Aucun retour vers l’accueil depuis {pages}. Ajoutez une tuile de retour ou activez le bouton d’accueil.",
+      "navigation": "Navigation entre pages",
+      "previous": "Page précédente",
+      "next": "Page suivante",
+      "go_home": "Aller à l’accueil",
+      "try_navigation": "Essayer la navigation",
+      "preview_hint": "Aperçu uniquement. Les liens de page fonctionnent ici ; les commandes d’entités n’actionnent aucun appareil.",
+      "swipe_previous": "Balayer vers la page précédente",
+      "swipe_next": "Balayer vers la page suivante",
+      "copy_bar": "Copier une barre supérieure",
+      "copy_from": "Depuis la page",
+      "copy_to": "Vers les pages sélectionnées",
+      "copy_content": "Copier",
+      "copy_items": "Éléments seuls, conserver titres et boutons d’accueil",
+      "copy_whole": "Barre entière, avec titre et bouton d’accueil",
+      "copy_apply": "Copier vers les pages sélectionnées",
+      "history_label": "Historique enregistré, {hours} heures",
+      "history_loading": "Chargement de l’historique…",
+      "history_empty": "Aucun historique enregistré",
+      "grid_changed": "La grille de l’écran a changé. Vérifiez les positions avant d’enregistrer ou d’envoyer.",
+      "grid_review": "Vérifier l’adaptation de la grille",
+      "grid_review_hint": "Comparez les positions enregistrées à gauche aux propositions à droite. Chaque tuile reste sur sa page. Rien n’est envoyé avant l’enregistrement.",
+      "grid_accept": "Utiliser ces positions",
+      "selected_full": "Cette page est pleine. Sélectionnez une cellule vide sur une autre page.",
+      "choose_page": "Page",
+      "all_connections": "Toutes les connexions",
+      "migration_adjusted": "Les anciens paramètres invalides ont été remplacés par les valeurs par défaut : {fields}. Les originaux restent dans la sauvegarde de migration."
     }
   }
 }

@@ -63,31 +63,25 @@ static void the_cards_are_sized_for_the_bigger_grid() {
   assert(CELLS_MAX <= TILES_MAX);
 }
 
-static void a_layout_packs_into_whichever_grid_is_live() {
-  TileList tiles;
-  tiles.resize(4);
-  for (auto &tile : tiles) tile.entity = "light.one";
-  tiles[1].wide = true;
+static void explicit_placements_use_the_live_grid() {
+  Model model;
   std::array<Placement, TILES_MAX> out;
-
-  // Lying down a wide card needs the cell beside it, so a wide card in the right-hand column moves on.
   grid_select(320, 240);
-  unsigned pages = pack(tiles, 4, out);
-  assert(out[0].slot == 0 && out[1].slot == 2 && out[2].slot == 4 && out[3].slot == 5);
-  assert(pages == 1);
-
-  // Standing up there is one column, so the same wide card is simply the cell it stands in and nothing shifts.
+  assert(model.begin(4, 1, "Landscape"));
+  model.slots[0] = 0; model.slots[1] = 2; model.slots[2] = 4; model.slots[3] = 5;
+  model.tiles[1].wide = true;
+  assert(!model.valid_placement(1, 1, false, true));
+  assert(place(model, out) == 1 && out[1].slot == 2 && out[3].slot == 5);
   grid_select(240, 320);
-  pages = pack(tiles, 4, out);
-  assert(out[0].slot == 0 && out[1].slot == 1 && out[2].slot == 2 && out[3].slot == 3);
-  assert(pages == 1);
-
-  // A full card takes the page it is on, whatever that page holds.
-  tiles[1].wide = false; tiles[1].full = true;
-  pages = pack(tiles, 4, out);
-  assert(out[0].slot == 0 && out[1].page == 1 && out[1].slot == 0 && out[2].page == 2);
-  assert(pages == 3);
-
+  assert(model.begin(4, 1, "Portrait"));
+  for (unsigned i = 0; i < 4; ++i) model.slots[i] = i;
+  model.tiles[1].wide = true;
+  assert(model.valid_placement(1, 1, false, true));
+  assert(place(model, out) == 1 && out[1].slot == 1 && out[3].slot == 3);
+  assert(model.begin(4, 3, "Full page"));
+  model.slots[0] = 0; model.slots[1] = 4; model.slots[2] = 8; model.slots[3] = 9;
+  model.tiles[1].full = true;
+  assert(place(model, out) == 3 && out[1].page == 1 && out[2].page == 2);
   grid_select(320, 240);
 }
 
@@ -103,6 +97,6 @@ int main() {
   the_grid_counts_like_the_manager_does();
   the_canvas_picks_the_grid();
   the_cards_are_sized_for_the_bigger_grid();
-  a_layout_packs_into_whichever_grid_is_live();
+  explicit_placements_use_the_live_grid();
   a_navigation_tile_may_only_name_a_page_that_exists();
 }

@@ -361,11 +361,8 @@ inline std::string protocol_key(uint64_t value) {
   snprintf(text, sizeof(text), "%08x%08x", static_cast<unsigned>(value >> 32), static_cast<unsigned>(value));
   return text;
 }
-inline bool parse_bar(JsonVariant items, header_bar::Bar &out) {
-  if (!items.is<JsonArray>() || items.as<JsonArray>().size() > header_bar::MAX_ITEMS) return false;
-  for (JsonVariant value : items.as<JsonArray>()) {
+inline bool parse_bar_item(JsonVariant value, header_bar::Item &item) {
     if (!value.is<JsonObject>()) return false;
-    header_bar::Item item;
     item.kind = header_bar::kind(string(value["k"], 8));
     if (item.kind == header_bar::Kind::none) return false;
     uint32_t icon = tile_icon::codepoint(string(value["i"], 8));
@@ -374,6 +371,13 @@ inline bool parse_bar(JsonVariant items, header_bar::Bar &out) {
     item.epoch = value["e"].is<unsigned>() ? value["e"].as<uint32_t>() : 0;
     item.has_color = header_bar::color(string(value["c"], 8), item.color);
     if (item.kind == header_bar::Kind::ago && item.epoch == 0) return false;
+    return true;
+}
+inline bool parse_bar(JsonVariant items, header_bar::Bar &out) {
+  if (!items.is<JsonArray>() || items.as<JsonArray>().size() > header_bar::MAX_ITEMS) return false;
+  for (JsonVariant value : items.as<JsonArray>()) {
+    header_bar::Item item;
+    if (!parse_bar_item(value, item)) return false;
     out.items[out.count++] = std::move(item);
   }
   out.received = true;
@@ -472,6 +476,38 @@ inline std::string receive(const std::string &payload) {
     if (op == "ping") {
       last_received = esphome::millis();
       result = transfer.active && model.ready() ? "Synced" : "Resend needed";
+      return true;
+    }
+    if (op == "bar_value") {
+      if (!transfer.active || !root["targets"].is<JsonArray>()) return false;
+      const auto targets = root["targets"].as<JsonArray>();
+      if (targets.size() == 0 || targets.size() > page_protocol::MAX_PAGES * header_bar::MAX_ITEMS) return false;
+      header_bar::Item item;
+      if (!parse_bar_item(root["item"], item)) return false;
+      uint64_t seen = 0;
+      // Validate every destination before changing any page. No staging copy
+      // of the page bars or additional persistent firmware storage is needed.
+      for (JsonVariant value : targets) {
+        if (!value.is<unsigned>()) return false;
+        const unsigned target = value.as<unsigned>();
+        const unsigned page = target / header_bar::MAX_ITEMS, index = target % header_bar::MAX_ITEMS;
+        if (page >= model.page_data.records.size() || index >= model.page_data.records[page].bar.count ||
+            (seen & (uint64_t{1} << target))) return false;
+        seen |= uint64_t{1} << target;
+      }
+      bool visible_changed = false;
+      for (JsonVariant value : targets) {
+        const unsigned target = value.as<unsigned>();
+        const unsigned page = target / header_bar::MAX_ITEMS, index = target % header_bar::MAX_ITEMS;
+        auto &current = model.page_data.records[page].bar.items[index];
+        if (!(current == item)) {
+          current = item;
+          visible_changed |= shown_page && *shown_page == static_cast<int>(page);
+        }
+      }
+      if (visible_changed) refresh_header_only();
+      last_received = esphome::millis();
+      result = "Synced";
       return true;
     }
     if (op == "page" || op == "bar") {
@@ -663,8 +699,8 @@ inline std::string receive(const std::string &payload) {
       if (transfer.active || index >= model.count || model.tiles[index].received || !valid_entity(entity) ||
           !root["slot"].is<unsigned>() || !root["o"].is<JsonObject>()) return false;
       const std::string size = string(root["o"]["size"]);
-      if (size != "" && size != "single" && size != "wide" && size != "tall" && size != "square" && size != "full") return false;
-      if ((size == "square" && grid.columns < 2) || !model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", size == "wide" || size == "square", (size == "tall" || size == "square") ? 2 : 1)) return false;
+      if (!page_protocol::accepts_size(size, grid.columns, grid.rows)) return false;
+      if (!model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", size == "wide" || size == "square", (size == "tall" || size == "square") ? 2 : 1)) return false;
       if (page_entity(entity) && static_cast<unsigned>(entity[12] - '0') > model.pages) return false;
       if (!page_entity(entity)) for (size_t i = 0; i < model.count; ++i)
         if (i != index && model.tiles[i].received && model.tiles[i].entity == entity) return false;

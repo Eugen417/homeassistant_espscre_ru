@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens nicht aktiv",
       "choose_tiles": "Kacheln in HA wählen",
       "home": "Zuhause",
-      "no_network": "Kein Netzwerk"
+      "no_network": "Kein Netzwerk",
+      "configuration_problem": "Konfigurationsproblem.\nAdd-on aktualisieren.",
+      "configuration_version": "Konfigurationsproblem.\nBildschirm- und Add-on-Versionen prüfen."
     },
     "settings": {
       "title": "Einstellungen",
@@ -599,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} hat keine Kalibrierung: Der Touchscreen meldet selbst, wo er berührt wurde, es gibt also nichts zu messen.",
         "offline": "{name} ist offline. Die Kalibrierung kann beginnen, sobald der Bildschirm wieder da ist."
-      }
+      },
+      "editor_reload": "Editor vor dem Speichern neu laden. Dieser Tab verwendet ein älteres Layoutformat."
     },
     "status": {
       "first_tiles": "Wähle deine ersten Kacheln",
@@ -616,7 +619,9 @@
         "resend_needed": "Erneutes Senden nötig",
         "ready": "Bereit für die Kacheln",
         "error": "Fehler: {reason}"
-      }
+      },
+      "applying": "Layout wird angewendet",
+      "applied": "Layout angewendet"
     },
     "updates": {
       "offline": "Bildschirm war offline; neuer Versuch beim nächsten Mal.",
@@ -1962,6 +1967,84 @@
     "mockup": {
       "home": "Zuhause",
       "unknown": "Unbekannt"
+    },
+    "pages": {
+      "mode": "Editormodus",
+      "simple": "Einfach",
+      "advanced": "Erweitert",
+      "redo": "Wiederholen",
+      "title": "Seitentitel",
+      "title_hint": "Leer lassen, um den Bildschirmtitel zu verwenden.",
+      "is_home": "Startseite",
+      "set_home": "Als Startseite festlegen",
+      "drag_home": "Startseite. Auf eine andere Seite ziehen, um die Startseite zu ändern.",
+      "include_navigation": "In Seitenpunkten und Wischnavigation anzeigen",
+      "migration_dropped": "{count} Kacheln konnten nicht übernommen werden: {names}. Das ursprüngliche Layout bleibt in screens.v1.backup.json erhalten.",
+      "dismiss_migration": "Hinweis schließen",
+      "start_fresh": "Für diesen Bildschirm neu beginnen",
+      "start_fresh_confirm": "Mit einer leeren Seite auf diesem Bildschirm beginnen? Das ursprüngliche Layout bleibt in der Migrationssicherung erhalten. Andere Bildschirme bleiben unverändert.",
+      "offline_notice": "Warten auf die erneute Verbindung des Bildschirms. Der Editor verwendet die zuletzt geprüften Funktionen.",
+      "include_navigation_hint": "Wenn ausgeschaltet, bleibt die Seite über direkte Links erreichbar. Zurück erscheint unten oder ersetzt das Haus, wenn die untere Leiste ausgeblendet ist.",
+      "home_control": "Startseiten-Schaltfläche auf dieser Seite anzeigen",
+      "edit_topbar": "Kopfleiste dieser Seite bearbeiten",
+      "order": "Seitenreihenfolge",
+      "order_hint": "Numerische Seitenbefehle folgen dieser Reihenfolge. Benannte Seitenlinks behalten ihr Ziel.",
+      "map_position": "Position auf der Karte",
+      "left": "Nach links",
+      "up": "Nach oben",
+      "down": "Nach unten",
+      "right": "Nach rechts",
+      "routes": "Seitenverbindungen",
+      "no_routes": "Keine Navigationskacheln führen zu oder von dieser Seite.",
+      "edit_page": "Seite bearbeiten",
+      "copy_conflict": "Eine vollständige Kopie würde Entitäten auf diesem Bildschirm duplizieren. Eine leere Seite mit derselben Kopfleiste ist möglich.",
+      "duplicate": "Seite duplizieren",
+      "empty_copy": "Neue leere Seite mit dieser Kopfleiste",
+      "position_occupied": "An dieser Kartenposition liegt bereits eine Seite.",
+      "map_hint": "Seiten verschieben, um die Karte zu ordnen. Die Seitenreihenfolge bleibt gleich.",
+      "arrange": "Ab Startseite anordnen",
+      "zoom_out": "Verkleinern",
+      "zoom_in": "Vergrößern",
+      "choose_destination": "Zielseite auswählen.",
+      "move_map": "{name} auf der Karte verschieben",
+      "change_destination": "Ziel einer Navigationskachel auf {name} ändern",
+      "deeplink": "Direktlink",
+      "page_settings": "Seiteneinstellungen",
+      "back_map": "Zurück zur Karte",
+      "wait_grid": "Bildschirm verbinden, um vor dem Bearbeiten sein geprüftes Raster zu laden.",
+      "update_notice": "Bildschirm aktualisieren, um die neue Titelleiste und das neue Layout zu verwenden",
+      "conflict": "Ein anderer Editor hat Änderungen gespeichert. Die gespeicherte Version verwirft deinen Entwurf; deinen Entwurf behalten ersetzt das gespeicherte Layout.",
+      "reload_saved": "Gespeicherte Version laden",
+      "keep_mine": "Meinen Entwurf behalten und speichern",
+      "shared_bar": "Dieser Bildschirm verwendet noch gemeinsame Kopfleisten. Änderungen gelten bis zum Firmware-Update für alle Seiten.",
+      "unreachable": "Von der Startseite führt kein Weg zu {pages}. Navigationskachel hinzufügen oder die Seite in die Seitennavigation aufnehmen.",
+      "no_way_home": "Von {pages} führt kein Weg zurück zur Startseite. Rückkehrkachel hinzufügen oder die Startseiten-Schaltfläche aktivieren.",
+      "navigation": "Seitennavigation",
+      "previous": "Vorherige Seite",
+      "next": "Nächste Seite",
+      "go_home": "Zur Startseite",
+      "try_navigation": "Navigation ausprobieren",
+      "preview_hint": "Nur Vorschau. Seitenlinks funktionieren hier; Entitätsregler steuern keine Geräte.",
+      "swipe_previous": "Zur vorherigen Seite wischen",
+      "swipe_next": "Zur nächsten Seite wischen",
+      "copy_bar": "Kopfleiste kopieren",
+      "copy_from": "Von Seite",
+      "copy_to": "Auf ausgewählte Seiten",
+      "copy_content": "Kopieren",
+      "copy_items": "Nur Elemente, Titel und Startseiten-Schaltflächen behalten",
+      "copy_whole": "Ganze Leiste, einschließlich Titel und Startseiten-Schaltfläche",
+      "copy_apply": "Auf ausgewählte Seiten kopieren",
+      "history_label": "Aufgezeichneter Verlauf, {hours} Stunden",
+      "history_loading": "Verlauf wird geladen…",
+      "history_empty": "Kein aufgezeichneter Verlauf",
+      "grid_changed": "Das Bildschirmraster hat sich geändert. Kachelpositionen vor dem Speichern oder Senden prüfen.",
+      "grid_review": "Rasteranpassung prüfen",
+      "grid_review_hint": "Gespeicherte Positionen links mit dem Vorschlag rechts vergleichen. Jede Kachel bleibt auf ihrer Seite. Gesendet wird erst nach dem Speichern.",
+      "grid_accept": "Diese Positionen verwenden",
+      "selected_full": "Diese Seite ist voll. Eine freie Zelle auf einer anderen Seite auswählen.",
+      "choose_page": "Seite",
+      "all_connections": "Alle Verbindungen",
+      "migration_adjusted": "Ungültige alte Einstellungen wurden durch Standardwerte ersetzt: {fields}. Die Originale bleiben in der Migrationssicherung erhalten."
     }
   }
 }

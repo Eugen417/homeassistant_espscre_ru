@@ -29,6 +29,25 @@ beforeEach(() => {
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe("one draft in both editor modes", () => {
+  it('skips map history in Simple and never restores an invisible map position', () => {
+    setEditorMode('advanced');
+    const id = state.document!.pages[0].id;
+    const original = workspacePositions()[id];
+    setPageTitle(0, 'Changed');
+    moveWorkspacePage(id, 8, 8);
+    setEditorMode('simple');
+    expect(state.undoCount).toBe(1);
+    undo();
+    expect(state.document!.pages[0].topbar.title).not.toEqual({ source: 'text', text: 'Changed' });
+    expect(workspacePositions()[id]).toEqual({ x: 8, y: 8 });
+    expect(state.undoCount).toBe(0);
+    redo();
+    expect(workspacePositions()[id]).toEqual({ x: 8, y: 8 });
+    setEditorMode('advanced');
+    // The most recently redone document change comes first, then the map move.
+    undo(); undo();
+    expect(workspacePositions()[id]).toEqual(original);
+  });
   it('groups typing until blur and gives the next focus its own undo step', async () => {
     const view = mount(PageInspector, { props: { id: state.document!.pages[0].id } });
     const input = view.find('#owned-page-title');

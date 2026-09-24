@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens non attivo",
       "choose_tiles": "Scegli i riquadri in HA",
       "home": "Casa",
-      "no_network": "Nessuna rete"
+      "no_network": "Nessuna rete",
+      "configuration_problem": "Problema di configurazione.\nAggiorna il componente aggiuntivo.",
+      "configuration_version": "Problema di configurazione.\nControlla le versioni dello schermo e del componente aggiuntivo."
     },
     "settings": {
       "title": "Impostazioni",
@@ -599,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} non ha una calibrazione: il suo pannello touch indica dove lo hai toccato, quindi non c'è nulla da misurare.",
         "offline": "{name} è offline. La calibrazione può iniziare quando torna."
-      }
+      },
+      "editor_reload": "Ricarica l’editor prima di salvare. Questa scheda usa un formato di layout precedente."
     },
     "status": {
       "first_tiles": "Scegli i tuoi primi riquadri",
@@ -616,7 +619,9 @@
         "resend_needed": "Serve un nuovo invio",
         "ready": "Pronto per i riquadri",
         "error": "Errore: {reason}"
-      }
+      },
+      "applying": "Applicazione del layout",
+      "applied": "Layout applicato"
     },
     "updates": {
       "offline": "Lo schermo era offline; nuovo tentativo la prossima volta.",
@@ -1962,6 +1967,84 @@
     "mockup": {
       "home": "Casa",
       "unknown": "Sconosciuto"
+    },
+    "pages": {
+      "mode": "Modalità editor",
+      "simple": "Semplice",
+      "advanced": "Avanzato",
+      "redo": "Ripristina",
+      "title": "Titolo della pagina",
+      "title_hint": "Lascia vuoto per usare il titolo dello schermo.",
+      "is_home": "Pagina iniziale",
+      "set_home": "Imposta come pagina iniziale",
+      "drag_home": "Pagina iniziale. Trascina su un’altra pagina per cambiare la pagina iniziale.",
+      "include_navigation": "Mostra nei punti di pagina e nella navigazione a scorrimento",
+      "migration_dropped": "Non è stato possibile trasferire {count} riquadri: {names}. Il layout originale è conservato in screens.v1.backup.json.",
+      "dismiss_migration": "Chiudi avviso",
+      "start_fresh": "Ricomincia da zero per questo schermo",
+      "start_fresh_confirm": "Iniziare con una pagina vuota su questo schermo? Il layout originale rimane nel backup di migrazione. Gli altri schermi non cambiano.",
+      "offline_notice": "In attesa che lo schermo si riconnetta. L’editor usa le ultime funzionalità verificate.",
+      "include_navigation_hint": "Se disattivato, i collegamenti diretti aprono comunque questa pagina. Indietro appare nella barra inferiore o sostituisce Home se la barra è nascosta.",
+      "home_control": "Mostra un pulsante Home su questa pagina",
+      "edit_topbar": "Modifica la barra superiore di questa pagina",
+      "order": "Ordine delle pagine",
+      "order_hint": "I comandi numerici seguono questo ordine. I collegamenti alle pagine mantengono la destinazione.",
+      "map_position": "Posizione sulla mappa",
+      "left": "Sposta a sinistra",
+      "up": "Sposta in alto",
+      "down": "Sposta in basso",
+      "right": "Sposta a destra",
+      "routes": "Collegamenti tra pagine",
+      "no_routes": "Nessun riquadro di navigazione collega questa pagina ad altre.",
+      "edit_page": "Modifica pagina",
+      "copy_conflict": "Una copia completa duplicherebbe le entità su questo schermo. Puoi creare una pagina vuota con la stessa barra superiore.",
+      "duplicate": "Duplica pagina",
+      "empty_copy": "Nuova pagina vuota con questa barra superiore",
+      "position_occupied": "Una pagina occupa già questa posizione sulla mappa.",
+      "map_hint": "Sposta le pagine per organizzare la mappa. L’ordine delle pagine non cambia.",
+      "arrange": "Disponi dalla pagina iniziale",
+      "zoom_out": "Riduci zoom",
+      "zoom_in": "Aumenta zoom",
+      "choose_destination": "Scegli la pagina di destinazione.",
+      "move_map": "Sposta {name} sulla mappa",
+      "change_destination": "Cambia la destinazione di un riquadro di navigazione su {name}",
+      "deeplink": "Collegamento diretto",
+      "page_settings": "Impostazioni pagina",
+      "back_map": "Torna alla mappa",
+      "wait_grid": "Collega questo schermo per caricare la griglia verificata prima di modificare.",
+      "update_notice": "Aggiorna lo schermo per usare la nuova barra del titolo e il nuovo layout",
+      "conflict": "Un altro editor ha salvato modifiche. Carica la versione salvata per scartare la bozza, oppure mantieni il tuo layout e sostituisci quello salvato.",
+      "reload_saved": "Carica versione salvata",
+      "keep_mine": "Mantieni il mio layout e salva",
+      "shared_bar": "Questo schermo usa ancora elementi condivisi nella barra superiore. Le modifiche valgono per tutte le pagine fino all’aggiornamento del firmware.",
+      "unreachable": "Non c’è un percorso dalla pagina iniziale a {pages}. Aggiungi un riquadro di navigazione o includi la pagina nella navigazione.",
+      "no_way_home": "Non c’è un percorso da {pages} alla pagina iniziale. Aggiungi un riquadro di ritorno o attiva il pulsante Home.",
+      "navigation": "Navigazione tra pagine",
+      "previous": "Pagina precedente",
+      "next": "Pagina successiva",
+      "go_home": "Vai alla pagina iniziale",
+      "try_navigation": "Prova la navigazione",
+      "preview_hint": "Solo anteprima. I collegamenti funzionano qui; i controlli delle entità non azionano dispositivi.",
+      "swipe_previous": "Scorri alla pagina precedente",
+      "swipe_next": "Scorri alla pagina successiva",
+      "copy_bar": "Copia una barra superiore",
+      "copy_from": "Dalla pagina",
+      "copy_to": "Alle pagine selezionate",
+      "copy_content": "Copia",
+      "copy_items": "Solo elementi, mantieni titoli e pulsanti Home",
+      "copy_whole": "Barra intera, inclusi titolo e pulsante Home",
+      "copy_apply": "Copia alle pagine selezionate",
+      "history_label": "Cronologia registrata, {hours} ore",
+      "history_loading": "Caricamento cronologia…",
+      "history_empty": "Nessuna cronologia registrata",
+      "grid_changed": "La griglia dello schermo è cambiata. Controlla le posizioni prima di salvare o inviare.",
+      "grid_review": "Controlla adattamento della griglia",
+      "grid_review_hint": "Confronta le posizioni salvate a sinistra con quelle proposte a destra. Ogni riquadro resta nella propria pagina. Nulla viene inviato finché non salvi.",
+      "grid_accept": "Usa queste posizioni",
+      "selected_full": "Questa pagina è piena. Seleziona una cella vuota su un’altra pagina.",
+      "choose_page": "Pagina",
+      "all_connections": "Tutti i collegamenti",
+      "migration_adjusted": "Le vecchie impostazioni non valide sono state sostituite con i valori predefiniti: {fields}. Gli originali restano nel backup di migrazione."
     }
   }
 }

@@ -167,7 +167,8 @@ class ManagerTests(unittest.IsolatedAsyncioTestCase):
                 response=await client.put('/api/screens/text.other',headers=headers,json={'title':'Test','tiles':[]})
                 self.assertEqual(response.status,400)
                 response=await client.put('/api/screens/text.screen',headers=headers,json={'title':'Test','tiles':[]})
-                self.assertEqual(response.status,200)
+                self.assertEqual(response.status,400)
+                self.assertIn('Reload', (await response.json())['error'])
                 from firmware import Firmware
                 m.firmware=Firmware(Path(temp)/'esphome',Path(temp))
                 profile={'board':'guition','name':'screen-new','friendly_name':'New','wifi_ssid':'net','wifi_password':'pw'}

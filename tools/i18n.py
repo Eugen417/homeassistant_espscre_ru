@@ -102,8 +102,13 @@ def check():
         for key in own.keys() - base.keys():
             problems.append(f'{code}: {key} is not in en.json')
         missing = [key for key in base if key not in own]
+        # Regional variants intentionally override only their base language,
+        # for example British spelling over en. Full languages must be complete.
+        if '-' in code and code.split('-')[0] in langs:
+            parent = dict(gen.flatten({k: v for k, v in langs[code.split('-')[0]].items() if k != '_meta'}))
+            missing = [key for key in missing if key not in parent]
         if code != 'en' and missing:
-            notes.append(f'{code}: {len(missing)} of {len(base)} texts still in English')
+            problems.append(f'{code}: missing translations: {", ".join(missing)}')
         for key, text in own.items():
             if key not in base or not isinstance(text, str):
                 continue

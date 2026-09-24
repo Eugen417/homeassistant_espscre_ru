@@ -58,6 +58,21 @@ On opening a version 1 store, the add-on creates a durable `screens.v1.backup.js
 
 Normal saves write only version 2. State changes never rerun storage migration. Saves compare revisions and use a shared file lock, atomic replacement and durability checks. A stale editor receives a conflict instead of overwriting a newer edit. A failed send leaves a successful save intact for automatic retry.
 
+Migration keeps valid tiles when individual tiles or old page settings are
+invalid. The editor lists dropped tiles and settings replaced with defaults;
+dismissing that note leaves the original backup intact. A readable pending
+layout can still be sent to verified old firmware. For unreadable data,
+**Start fresh for this screen** creates one empty page after confirmation,
+retains the backup, and leaves other screens unchanged.
+
+Top-bar value updates negotiate the `bar_values` capability. Identical rendered
+values share one `bar_value` packet with explicit destinations, encoded as
+`page index * 6 + item index`. The receiver validates all destinations before
+changing any item. There are at most 48 destinations and no additional stored
+firmware configuration. Different formatting remains independent; a change in
+the number of visible items replaces that page's bar. Peers without the
+capability continue receiving individual `bar` messages.
+
 Keep the pre-upgrade backup if an older add-on must be restored. Older add-ons cannot read version 2. Stop the add-on before restoring a backup; restoring it deliberately discards changes made after that backup. Unknown future storage versions are refused without rewriting them.
 
 ## Code boundaries and later features

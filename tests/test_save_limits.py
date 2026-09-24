@@ -137,10 +137,16 @@ class Saving(unittest.IsolatedAsyncioTestCase):
             m = self.manager(tmp, layout_tiles)
             async with TestClient(TestServer(create_app(m, True))) as client:
                 headers = {'X-Screen-CSRF': (await (await client.get('/api/inventory?light=1')).json())['csrf']}
-                raw = json.dumps(body).encode()
+                from layout_migrations import migrate_legacy
+                from core import Grid
+                document = migrate_legacy(body, Grid())
+                raw = json.dumps({'format': 'pages-v2', 'revision': None, 'layout': document['layout']}).encode()
                 self.assertGreater(len(raw), 48 * 1024, 'far past the old 16 KB')
                 response = await client.put('/api/screens/text.screen', data=raw, headers={**headers, 'Content-Type': 'application/json'})
-                self.assertEqual((response.status, await response.json()), (200, {'saved': True}))
+                result = await response.json()
+                self.assertEqual(response.status, 200, result)
+                self.assertTrue(result['saved'])
+                self.assertEqual(result['document']['layout'], document['layout'])
                 self.assertEqual(len(m.layouts['text.screen']['tiles']), 48)
                 encode(m.layout_message('text.screen', m.layouts['text.screen'], m.screen('text.screen')))
                 huge = json.dumps({'title': 'Hall', 'tiles': [], 'filler': 'x' * (128 * 1024)}).encode()

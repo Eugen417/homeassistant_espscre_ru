@@ -13,6 +13,7 @@ import { versionAtLeast } from "./model/layout";
 import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile, PageLayout, PageDocument, PageGrid, PageWorkspace } from "./types";
 
 import * as pages from "./model/pages";
+import { DraftHistory, type HistoryScope } from './model/draft-history';
 
 export type Inspector =
   | { kind: "tile" }
@@ -356,14 +357,15 @@ export function markDirty() {
   edits++;
 }
 type DraftSnapshot = { layout: PageLayout; grid: PageGrid; positions: PageWorkspace["positions"]; page: string | null; tile: string | null };
-const undoHistory: DraftSnapshot[] = [], redoHistory: DraftSnapshot[] = [];
+const draftHistory = new DraftHistory<DraftSnapshot>();
 const snapshot = (): DraftSnapshot => ({ layout: pages.clone(state.document!), grid: pages.clone(state.documentGrid!), positions: pages.clone(state.workspace.positions),
   page: state.selectedPageId, tile: state.selectedTile?.id || null });
 function historyCounts() {
   // A removal toast only belongs to the latest history entry. Once another
   // edit, map move, undo or screen selection changes history, retire it.
   if (state.toast?.action?.run === undo) dismissToast();
-  state.undoCount = undoHistory.length; state.redoCount = redoHistory.length;
+  const counts = draftHistory.counts(state.editorMode === 'advanced');
+  state.undoCount = counts.undo; state.redoCount = counts.redo;
 }
 function applyDocument(next: PageLayout, remember = true, nextGrid = state.documentGrid) {
   if (!state.document || !state.documentGrid) return false;
@@ -371,9 +373,7 @@ function applyDocument(next: PageLayout, remember = true, nextGrid = state.docum
   pages.validatePages(next, nextGrid);
   if (JSON.stringify(next) === JSON.stringify(state.document) && pages.sameGrid(nextGrid, state.documentGrid)) return false;
   if (remember) {
-    undoHistory.push(snapshot());
-    if (undoHistory.length > 100) undoHistory.shift();
-    redoHistory.length = 0;
+    draftHistory.remember(snapshot());
     historyCounts();
   }
   const barId = state.document.pages[state.barPage]?.id;
@@ -407,22 +407,40 @@ export function editDocument(apply: (draft: PageLayout) => void, field?: string)
   }
   catch (error: any) { toast(error.message); return false; }
 }
-function restoreSnapshot(value: DraftSnapshot) {
+function restoreSnapshot(value: DraftSnapshot, scope: HistoryScope) {
   endFieldEdit();
-  applyDocument(value.layout, false, value.grid);
-  state.workspace.positions = value.positions; state.workspaceDirty = true;
-  state.selectedPageId = value.page;
-  state.selectedTile = state.layout?.tiles.find((tile) => tile.id === value.tile) || null;
+  if (scope === 'document') {
+    const positions = pages.clone(state.workspace.positions);
+    applyDocument(value.layout, false, value.grid);
+    // Keep current positions; recover a deleted page's position from its snapshot.
+    state.workspace.positions = Object.fromEntries(value.layout.pages.flatMap((page) => {
+      const point = positions[page.id] || value.positions[page.id];
+      return point ? [[page.id, point]] : [];
+    }));
+    state.selectedPageId = value.page;
+    state.selectedTile = state.layout?.tiles.find((tile) => tile.id === value.tile) || null;
+  } else {
+    const ids = new Set(state.document!.pages.map((page) => page.id));
+    state.workspace.positions = Object.fromEntries(Object.entries(value.positions).filter(([id]) => ids.has(id)));
+  }
+  if (state.editorMode === 'advanced') initializeWorkspace();
+  state.workspaceDirty = true;
   historyCounts();
   scheduleWorkspaceSave();
 }
-export function undo() { const value = undoHistory.pop(); if (value) { redoHistory.push(snapshot()); restoreSnapshot(value); } }
-export function redo() { const value = redoHistory.pop(); if (value) { undoHistory.push(snapshot()); restoreSnapshot(value); } }
+function historyStep(direction: 'undo' | 'redo') {
+  if (!state.document || !state.documentGrid) return;
+  const entry = draftHistory.step(direction, snapshot(), state.editorMode === 'advanced');
+  if (entry) restoreSnapshot(entry.value, entry.scope);
+}
+export function undo() { historyStep('undo'); }
+export function redo() { historyStep('redo'); }
 function readMode(id: string): "simple" | "advanced" {
   try { return localStorage.getItem(`esp-screens-mode:${id}`) === "advanced" ? "advanced" : "simple"; } catch { return "simple"; }
 }
 export function setEditorMode(mode: "simple" | "advanced") {
   state.editorMode = mode;
+  historyCounts();
   state.focusedPageId = null;
   state.connectingTileId = null;
   state.drag.active = false; state.drag.preview = null; state.drag.page = null; state.drag.moving = null;
@@ -446,7 +464,7 @@ function loadDocument(screen: Screen) {
   state.selectedPageId = state.document?.homePageId || null;
   state.focusedPageId = null;
   state.conflict = false;
-  undoHistory.length = redoHistory.length = 0; historyCounts();
+  draftHistory.clear(); historyCounts();
 }
 export function select(id: string | null) {
   if (id === state.selected && state.document && state.dirty) {
@@ -566,7 +584,7 @@ export function moveWorkspacePage(id: string, x: number, y: number) {
     toast(t("editor.pages.position_occupied")); return;
   }
   if (positions[id]?.x === x && positions[id]?.y === y) return;
-  undoHistory.push(snapshot()); redoHistory.length = 0; historyCounts();
+  draftHistory.remember(snapshot(), 'workspace'); historyCounts();
   state.workspace.positions = { ...positions, [id]: { x, y } };
   state.workspaceDirty = true; scheduleWorkspaceSave();
 }
@@ -594,7 +612,7 @@ function initializeWorkspace() {
 }
 export function arrangeFromHome() {
   if (!state.document) return;
-  undoHistory.push(snapshot()); redoHistory.length = 0; historyCounts();
+  draftHistory.remember(snapshot(), 'workspace'); historyCounts();
   state.workspace.positions = pages.initialPositions(state.document);
   state.workspaceDirty = true; scheduleWorkspaceSave();
 }
@@ -1315,6 +1333,15 @@ export async function dismissMigrationNote() {
   if (!screen || record?.format !== 'pages-v2') return;
   try {
     await send(`screens/${encodeURIComponent(screen.id)}/migration/dismiss`, 'POST', { revision: record.revision });
+    await refresh(false);
+  } catch (error: any) { toast(error.message); }
+}
+
+export async function startFreshLayout() {
+  const screen = currentScreen.value, record = screen?.page_document;
+  if (!screen || record?.format !== 'legacy-v1' || !confirm(t('editor.pages.start_fresh_confirm'))) return;
+  try {
+    await send(`screens/${encodeURIComponent(screen.id)}/migration/reset`, 'POST', { revision: record.migrationRevision });
     await refresh(false);
   } catch (error: any) { toast(error.message); }
 }

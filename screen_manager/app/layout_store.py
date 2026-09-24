@@ -218,12 +218,15 @@ class LayoutStore:
                 if "settings" in record: validate_settings(record["settings"])
                 if "migration" in record:
                     migration = record["migration"]
-                    if (not isinstance(migration, dict) or set(migration) - {"inactivePageTitles", "droppedTiles"}
+                    if (not isinstance(migration, dict) or set(migration) - {"inactivePageTitles", "droppedTiles", "adjustedFields"}
                             or not isinstance(migration.get("inactivePageTitles", []), list)
                             or len(migration.get("inactivePageTitles", [])) > 8
                             or any(not isinstance(title, str) or len(title.encode()) > 96 for title in migration.get("inactivePageTitles", []))):
                         raise LayoutError("Invalid migration recovery metadata")
                     dropped = migration.get("droppedTiles", [])
+                    adjusted = migration.get('adjustedFields', [])
+                    if not isinstance(adjusted, list) or len(adjusted) > 6 or any(key not in ('title', 'pages', 'page_titles', 'header', 'settings', 'other') for key in adjusted):
+                        raise LayoutError("Invalid migration recovery metadata")
                     if (not isinstance(dropped, list) or any(not isinstance(tile, dict)
                             or set(tile) != {"entity", "name", "reason"}
                             or any(not isinstance(value, str) for value in tile.values()) for tile in dropped)):
@@ -328,6 +331,27 @@ class LayoutStore:
             self._replace({**self._records, inbox: {**previous, "workspace": value}})
             return deepcopy(value)
 
+    def start_fresh(self, inbox, expected_payload_revision, title):
+        """Explicit recovery of an unreadable screen, keeping its original backup."""
+        with self._locked():
+            self._reload()
+            previous = self._records.get(inbox)
+            if not previous or previous['format'] != LEGACY or fingerprint(previous['payload']) != expected_payload_revision:
+                raise Conflict("The pending layout changed; reload before starting fresh")
+            grid = self.grid_for(inbox)
+            if grid is None: raise LayoutError("Source grid is not known")
+            page_id = new_id()
+            document = validate_document({'title': title, 'homePageId': page_id, 'pages': [{
+                'id': page_id, 'navigation': {'excludeFromPagination': False}, 'tiles': [],
+                'topbar': {'leading': [{'id': new_id(), 'kind': 'home'}], 'title': {'source': 'screen'},
+                           'trailing': [{'id': new_id(), 'type': 'clock'}]},
+            }]}, grid)
+            record = {'format': FORMAT, 'sourceGrid': {'columns': grid.columns, 'rows': grid.rows},
+                      'layout': document, 'revision': new_id()}
+            if 'settings' in previous: record['settings'] = deepcopy(previous['settings'])
+            self._replace({**self._records, inbox: record})
+            return deepcopy(record)
+
     def dismiss_migration(self, inbox, expected_revision):
         """Acknowledge recovery notes without changing layout or its backup."""
         with self._locked():
@@ -338,6 +362,7 @@ class LayoutStore:
             updated = deepcopy(previous)
             migration = updated.get('migration', {})
             migration.pop('droppedTiles', None)
+            migration.pop('adjustedFields', None)
             if not migration: updated.pop('migration', None)
             if updated != previous: self._replace({**self._records, inbox: updated})
             return deepcopy(updated)

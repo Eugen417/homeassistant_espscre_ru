@@ -17,6 +17,41 @@ from server import create_app, status_text
 
 
 class PageApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_offline_save_uses_last_negotiated_page_capability(self):
+        from page_delivery import Sender
+        sender = Sender(AsyncMock())
+        sender.last_protocol = 2
+        self.manager.page_senders['text.screen'] = sender
+        before = self.record()
+        draft = deepcopy(before['layout'])
+        draft['homePageId'] = draft['pages'][1]['id']
+        request = {'format': 'pages-v2', 'revision': before['revision'], 'layout': draft}
+        response = await self.client.put('/api/screens/text.screen', headers=self.headers, json=request)
+        self.assertEqual(response.status, 200, await response.text())
+        self.assertEqual(self.record()['layout']['homePageId'], draft['homePageId'])
+        sender.send.assert_not_awaited()
+
+    async def test_old_firmware_tile_limit_is_enforced_by_the_save_endpoint(self):
+        raw = {'title': 'Many tiles', 'tiles': [{'entity': f'light.test_{i}', 'slot': i} for i in range(21)]}
+        document = migrate_legacy(raw, Grid())['layout']
+        request = {'format': 'pages-v2', 'revision': self.record()['revision'], 'layout': document}
+        with patch.object(self.manager, 'firmware_version', return_value=(0, 2, 7)):
+            response = await self.client.put('/api/screens/text.screen', headers=self.headers, json=request)
+        self.assertEqual(response.status, 400)
+        self.assertIn('20', (await response.json())['error'])
+
+    async def test_unreadable_screen_can_start_fresh_without_losing_backup(self):
+        original = json.dumps({'version': 1, 'screens': {'text.screen': []}})
+        self.path.write_text(original)
+        inventory = await (await self.client.get('/api/inventory?light=1')).json()
+        pending = next(screen for screen in inventory['screens'] if screen['id'] == 'text.screen')['page_document']
+        self.assertEqual(pending['format'], 'legacy-v1')
+        response = await self.client.post('/api/screens/text.screen/migration/reset', headers=self.headers,
+                                         json={'revision': pending['migrationRevision']})
+        self.assertEqual(response.status, 200)
+        self.assertEqual((await response.json())['format'], 'pages-v2')
+        self.assertEqual(self.path.with_name('screens.v1.backup.json').read_text(), original)
+
     async def test_migration_note_acknowledgment_checks_revision(self):
         before = self.record()
         response = await self.client.post('/api/screens/text.screen/migration/dismiss', headers=self.headers,

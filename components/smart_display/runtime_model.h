@@ -472,44 +472,13 @@ inline size_t (*heap_room)() = internal_free;
 inline size_t (*tile_room)() = nullptr;
 inline size_t (*heap_room)() = nullptr;
 #endif
-// Wide tiles start in the left column and take the whole row; a right-column gap before them stays
-// empty. A full tile starts a page of its own; the slots it leaves behind stay empty. Returns the page
-// count (at least one).
-inline unsigned pack(const TileList &tiles, size_t count, std::array<Placement, TILES_MAX> &out) {
-  std::array<bool, TILES_MAX> taken{};
-  unsigned position = 0, last = 0;
-  for (size_t i = 0; i < count && i < grid.max_tiles(); ++i) {
-    const auto &tile = tiles[i];
-    const unsigned columns = tile.column_span(), rows = tile.row_span();
-    for (; position < grid.max_tiles(); ++position) {
-      if ((tile.full && position % grid.slots()) || position % grid.columns + columns > grid.columns ||
-          position % grid.slots() / grid.columns + rows > grid.rows) continue;
-      bool free = true;
-      for (unsigned y = 0; y < rows; ++y) for (unsigned x = 0; x < columns; ++x)
-        if (taken[position + y * grid.columns + x]) free = false;
-      if (free) break;
-    }
-    if (position >= grid.max_tiles()) return grid.pages() + 1;
-    out[i] = {static_cast<uint8_t>(position / grid.slots()), static_cast<uint8_t>(position % grid.slots())};
-    for (unsigned y = 0; y < rows; ++y) for (unsigned x = 0; x < columns; ++x)
-      taken[position + y * grid.columns + x] = true;
-    last = std::max(last, position + (rows - 1) * static_cast<unsigned>(grid.columns) + columns);
-    position += columns;
-  }
-  return std::max(1u, (last + static_cast<unsigned>(grid.slots()) - 1) / static_cast<unsigned>(grid.slots()));
-}
-
-// Grid position per tile: the explicit slots when the manager sent them (a wide
-// card always starts in the left column), else the in-order packing. Returns the
-// page count (at least one); an empty page between two used ones stays a page.
+// Every received tile has an explicit page-local placement.
 struct Model;
 inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out);
 struct Model {
   TileList tiles;
-  // Absolute grid slot per tile when the manager sent `slots` (0.2.26+): gaps stay
-  // empty and a tile keeps its place. Without them the tiles pack in order.
+  // Absolute grid slot per tile: gaps and page ownership stay unchanged.
   std::array<uint8_t, TILES_MAX> slots{};
-  bool explicit_slots = false;
   // Pages the manager wants shown even when the last ones are still empty (0.2.26+).
   uint8_t pages = 1;
   size_t count = 0;
@@ -547,8 +516,7 @@ struct Model {
     slots.fill(0);
     count = tile_count;
     pages = page_count;
-    title = name;
-    explicit_slots = true;
+    title = name.empty() ? screen_text::tr(screen_text::txt::status_home) : name;
     refusal.clear();
     return true;
   }
@@ -575,7 +543,6 @@ struct Model {
   }
 };
 inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out) {
-  if (!m.explicit_slots) return pack(m.tiles, m.count, out);
   unsigned last = 0;
   for (size_t i = 0; i < m.count && i < grid.max_tiles(); ++i) {
     unsigned slot = m.slots[i];

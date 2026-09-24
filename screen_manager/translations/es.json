@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens no activo",
       "choose_tiles": "Elige los mosaicos en HA",
       "home": "Casa",
-      "no_network": "Sin red"
+      "no_network": "Sin red",
+      "configuration_problem": "Problema de configuración.\nActualiza el complemento.",
+      "configuration_version": "Problema de configuración.\nComprueba las versiones de pantalla y complemento."
     },
     "settings": {
       "title": "Configuración",
@@ -599,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} no tiene calibración: su panel táctil indica dónde lo has tocado, así que no hay nada que medir.",
         "offline": "{name} está sin conexión. La calibración puede empezar cuando vuelva."
-      }
+      },
+      "editor_reload": "Recarga el editor antes de guardar. Esta pestaña usa un formato de diseño anterior."
     },
     "status": {
       "first_tiles": "Elige tus primeros mosaicos",
@@ -616,7 +619,9 @@
         "resend_needed": "Hay que volver a enviar",
         "ready": "Listo para los mosaicos",
         "error": "Error: {reason}"
-      }
+      },
+      "applying": "Aplicando diseño",
+      "applied": "Diseño aplicado"
     },
     "updates": {
       "offline": "La pantalla estaba sin conexión; se volverá a intentar la próxima vez.",
@@ -1962,6 +1967,84 @@
     "mockup": {
       "home": "Casa",
       "unknown": "Desconocido"
+    },
+    "pages": {
+      "mode": "Modo del editor",
+      "simple": "Sencillo",
+      "advanced": "Avanzado",
+      "redo": "Rehacer",
+      "title": "Título de la página",
+      "title_hint": "Déjalo vacío para usar el título de la pantalla.",
+      "is_home": "Página de inicio",
+      "set_home": "Usar como inicio",
+      "drag_home": "Página de inicio. Arrastra a otra página para cambiar el inicio.",
+      "include_navigation": "Mostrar en los puntos de página y la navegación por deslizamiento",
+      "migration_dropped": "No se pudieron transferir {count} tarjetas: {names}. El diseño original se conserva en screens.v1.backup.json.",
+      "dismiss_migration": "Cerrar aviso",
+      "start_fresh": "Empezar de cero en esta pantalla",
+      "start_fresh_confirm": "¿Empezar con una página vacía en esta pantalla? El diseño original se conserva en la copia de migración. Las demás pantallas no cambian.",
+      "offline_notice": "Esperando a que la pantalla vuelva a conectarse. El editor usa las últimas funciones verificadas.",
+      "include_navigation_hint": "Si se desactiva, los enlaces directos siguen abriendo esta página. Volver aparece en la barra inferior o sustituye a Inicio si la barra está oculta.",
+      "home_control": "Mostrar un botón de inicio en esta página",
+      "edit_topbar": "Editar la barra superior de esta página",
+      "order": "Orden de las páginas",
+      "order_hint": "Los comandos numéricos siguen este orden. Los enlaces de página con nombre mantienen su destino.",
+      "map_position": "Posición en el mapa",
+      "left": "Mover a la izquierda",
+      "up": "Mover hacia arriba",
+      "down": "Mover hacia abajo",
+      "right": "Mover a la derecha",
+      "routes": "Conexiones entre páginas",
+      "no_routes": "Ninguna tarjeta de navegación enlaza desde o hacia esta página.",
+      "edit_page": "Editar página",
+      "copy_conflict": "Una copia completa duplicaría entidades de esta pantalla. Puedes crear una página vacía con la misma barra superior.",
+      "duplicate": "Duplicar página",
+      "empty_copy": "Nueva página vacía con esta barra superior",
+      "position_occupied": "Ya hay una página en esa posición del mapa.",
+      "map_hint": "Mueve páginas para organizar el mapa. El orden de las páginas no cambia.",
+      "arrange": "Ordenar desde Inicio",
+      "zoom_out": "Alejar",
+      "zoom_in": "Acercar",
+      "choose_destination": "Elige la página de destino.",
+      "move_map": "Mover {name} en el mapa",
+      "change_destination": "Cambiar el destino de una tarjeta de navegación en {name}",
+      "deeplink": "Enlace directo",
+      "page_settings": "Ajustes de página",
+      "back_map": "Volver al mapa",
+      "wait_grid": "Conecta esta pantalla para cargar su cuadrícula verificada antes de editar.",
+      "update_notice": "Actualiza la pantalla para usar la nueva barra de título y el nuevo diseño",
+      "conflict": "Otro editor ha guardado cambios. Carga la versión guardada para descartar tu borrador, o conserva tu diseño y sustituye el guardado.",
+      "reload_saved": "Cargar versión guardada",
+      "keep_mine": "Conservar mi diseño y guardar",
+      "shared_bar": "Esta pantalla aún usa elementos compartidos en la barra superior. Los cambios se aplican a todas las páginas hasta actualizar el firmware.",
+      "unreachable": "Desde Inicio no hay ruta a {pages}. Añade una tarjeta de navegación o incluye la página en la navegación.",
+      "no_way_home": "Desde {pages} no hay ruta de vuelta a Inicio. Añade una tarjeta de retorno o activa el botón de inicio.",
+      "navigation": "Navegación entre páginas",
+      "previous": "Página anterior",
+      "next": "Página siguiente",
+      "go_home": "Ir a Inicio",
+      "try_navigation": "Probar navegación",
+      "preview_hint": "Solo vista previa. Los enlaces funcionan aquí; los controles de entidades no accionan dispositivos.",
+      "swipe_previous": "Deslizar a la página anterior",
+      "swipe_next": "Deslizar a la página siguiente",
+      "copy_bar": "Copiar una barra superior",
+      "copy_from": "Desde la página",
+      "copy_to": "A las páginas seleccionadas",
+      "copy_content": "Copiar",
+      "copy_items": "Solo elementos, mantener títulos y botones de inicio",
+      "copy_whole": "Barra completa, incluidos título y botón de inicio",
+      "copy_apply": "Copiar a las páginas seleccionadas",
+      "history_label": "Historial registrado, {hours} horas",
+      "history_loading": "Cargando historial…",
+      "history_empty": "No hay historial registrado",
+      "grid_changed": "La cuadrícula ha cambiado. Revisa las posiciones antes de guardar o enviar.",
+      "grid_review": "Revisar adaptación de la cuadrícula",
+      "grid_review_hint": "Compara las posiciones guardadas a la izquierda con las propuestas a la derecha. Cada tarjeta permanece en su página. No se envía nada hasta guardar.",
+      "grid_accept": "Usar estas posiciones",
+      "selected_full": "Esta página está llena. Selecciona una celda vacía en otra página.",
+      "choose_page": "Página",
+      "all_connections": "Todas las conexiones",
+      "migration_adjusted": "Los ajustes antiguos no válidos se sustituyeron por valores predeterminados: {fields}. Los originales se conservan en la copia de migración."
     }
   }
 }

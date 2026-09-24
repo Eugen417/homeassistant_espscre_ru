@@ -107,7 +107,9 @@
       "manager_not_active": "ESP Screens nieaktywny",
       "choose_tiles": "Wybierz kafelki w HA",
       "home": "Dom",
-      "no_network": "Brak sieci"
+      "no_network": "Brak sieci",
+      "configuration_problem": "Błąd konfiguracji.\nZaktualizuj dodatek.",
+      "configuration_version": "Błąd konfiguracji.\nSprawdź wersje ekranu i dodatku."
     },
     "settings": {
       "title": "Ustawienia",
@@ -599,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} nie ma kalibracji: jego panel dotykowy sam podaje, gdzie go dotknięto, więc nie ma czego mierzyć.",
         "offline": "{name} jest offline. Kalibracja może się zacząć, gdy ekran wróci."
-      }
+      },
+      "editor_reload": "Odśwież edytor przed zapisem. Ta karta używa starszego formatu układu."
     },
     "status": {
       "first_tiles": "Wybierz pierwsze kafelki",
@@ -616,7 +619,9 @@
         "resend_needed": "Wymagane ponowne wysłanie",
         "ready": "Gotowy na kafelki",
         "error": "Błąd: {reason}"
-      }
+      },
+      "applying": "Stosowanie układu",
+      "applied": "Układ zastosowany"
     },
     "updates": {
       "offline": "Ekran był offline; kolejna próba następnym razem.",
@@ -1962,6 +1967,84 @@
     "mockup": {
       "home": "Dom",
       "unknown": "Nieznany"
+    },
+    "pages": {
+      "mode": "Tryb edytora",
+      "simple": "Prosty",
+      "advanced": "Zaawansowany",
+      "redo": "Ponów",
+      "title": "Tytuł strony",
+      "title_hint": "Pozostaw puste, aby użyć tytułu ekranu.",
+      "is_home": "Strona główna",
+      "set_home": "Ustaw jako główną",
+      "drag_home": "Strona główna. Przeciągnij na inną stronę, aby zmienić stronę główną.",
+      "include_navigation": "Pokaż w kropkach stron i nawigacji gestami",
+      "migration_dropped": "Nie udało się przenieść {count} kafelków: {names}. Oryginalny układ pozostaje w screens.v1.backup.json.",
+      "dismiss_migration": "Zamknij powiadomienie",
+      "start_fresh": "Zacznij od nowa dla tego ekranu",
+      "start_fresh_confirm": "Zacząć od jednej pustej strony na tym ekranie? Oryginalny układ pozostaje w kopii migracji. Pozostałe ekrany nie zmienią się.",
+      "offline_notice": "Oczekiwanie na ponowne połączenie ekranu. Edytor używa ostatnio sprawdzonych możliwości.",
+      "include_navigation_hint": "Po wyłączeniu stronę nadal otwierają bezpośrednie linki. Wstecz pojawia się na dolnym pasku lub zastępuje przycisk strony głównej, gdy pasek jest ukryty.",
+      "home_control": "Pokaż przycisk strony głównej na tej stronie",
+      "edit_topbar": "Edytuj górny pasek tej strony",
+      "order": "Kolejność stron",
+      "order_hint": "Polecenia z numerami stron używają tej kolejności. Nazwane linki zachowują cel.",
+      "map_position": "Pozycja na mapie",
+      "left": "Przesuń w lewo",
+      "up": "Przesuń w górę",
+      "down": "Przesuń w dół",
+      "right": "Przesuń w prawo",
+      "routes": "Połączenia stron",
+      "no_routes": "Żaden kafelek nawigacyjny nie prowadzi do ani z tej strony.",
+      "edit_page": "Edytuj stronę",
+      "copy_conflict": "Pełna kopia powieliłaby encje na tym ekranie. Możesz utworzyć pustą stronę z takim samym górnym paskiem.",
+      "duplicate": "Duplikuj stronę",
+      "empty_copy": "Nowa pusta strona z tym górnym paskiem",
+      "position_occupied": "W tej pozycji na mapie jest już strona.",
+      "map_hint": "Przesuwaj strony, aby uporządkować mapę. Kolejność stron pozostaje bez zmian.",
+      "arrange": "Ułóż od strony głównej",
+      "zoom_out": "Oddal",
+      "zoom_in": "Przybliż",
+      "choose_destination": "Wybierz stronę docelową.",
+      "move_map": "Przesuń {name} na mapie",
+      "change_destination": "Zmień cel kafelka nawigacyjnego na {name}",
+      "deeplink": "Link bezpośredni",
+      "page_settings": "Ustawienia strony",
+      "back_map": "Wróć do mapy",
+      "wait_grid": "Połącz ekran, aby przed edycją wczytać sprawdzoną siatkę.",
+      "update_notice": "Zaktualizuj ekran, aby używać nowego paska tytułu i układu",
+      "conflict": "Inny edytor zapisał zmiany. Wczytaj zapisaną wersję, aby odrzucić szkic, lub zachowaj własny układ i zastąp zapisany.",
+      "reload_saved": "Wczytaj zapisaną wersję",
+      "keep_mine": "Zachowaj mój układ i zapisz",
+      "shared_bar": "Ten ekran nadal używa wspólnych elementów górnego paska. Zmiany dotyczą wszystkich stron do czasu aktualizacji oprogramowania.",
+      "unreachable": "Ze strony głównej nie ma drogi do {pages}. Dodaj kafelek nawigacyjny lub włącz stronę w nawigacji.",
+      "no_way_home": "Z {pages} nie ma drogi do strony głównej. Dodaj kafelek powrotu lub włącz przycisk strony głównej.",
+      "navigation": "Nawigacja stron",
+      "previous": "Poprzednia strona",
+      "next": "Następna strona",
+      "go_home": "Przejdź do strony głównej",
+      "try_navigation": "Wypróbuj nawigację",
+      "preview_hint": "Tylko podgląd. Linki stron działają tutaj, ale kontrolki encji nie sterują urządzeniami.",
+      "swipe_previous": "Przesuń do poprzedniej strony",
+      "swipe_next": "Przesuń do następnej strony",
+      "copy_bar": "Kopiuj górny pasek",
+      "copy_from": "Ze strony",
+      "copy_to": "Do wybranych stron",
+      "copy_content": "Kopiuj",
+      "copy_items": "Tylko elementy, zachowaj tytuły i przyciski strony głównej",
+      "copy_whole": "Cały pasek, wraz z tytułem i przyciskiem strony głównej",
+      "copy_apply": "Kopiuj do wybranych stron",
+      "history_label": "Zapisana historia, {hours} godzin",
+      "history_loading": "Wczytywanie historii…",
+      "history_empty": "Brak zapisanej historii",
+      "grid_changed": "Siatka ekranu się zmieniła. Sprawdź pozycje kafelków przed zapisem lub wysłaniem.",
+      "grid_review": "Sprawdź dostosowanie siatki",
+      "grid_review_hint": "Porównaj zapisane pozycje po lewej z proponowanymi po prawej. Każdy kafelek pozostaje na swojej stronie. Nic nie zostanie wysłane przed zapisem.",
+      "grid_accept": "Użyj tych pozycji",
+      "selected_full": "Ta strona jest pełna. Wybierz pustą komórkę na innej stronie.",
+      "choose_page": "Strona",
+      "all_connections": "Wszystkie połączenia",
+      "migration_adjusted": "Nieprawidłowe stare ustawienia zastąpiono domyślnymi: {fields}. Oryginały pozostają w kopii migracji."
     }
   }
 }

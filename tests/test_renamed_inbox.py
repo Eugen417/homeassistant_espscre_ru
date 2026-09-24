@@ -168,7 +168,9 @@ class RenamedInboxTests(unittest.IsolatedAsyncioTestCase):
                 self.assertEqual((office['id'], office['layout']['title']), (NEW, 'Office'))
                 inspected = await (await client.get(f'/api/screens/{OLD}/inspect')).json()
                 self.assertEqual((inspected['screen']['id'], [t['entity'] for t in inspected['tiles']]), (NEW, ['light.a']))
-                saved = await client.put(f'/api/screens/{OLD}', headers={'X-Screen-CSRF': csrf}, json={**LAYOUT, 'title': 'Office 3'})
+                document = m.store.get(NEW)
+                saved = await client.put(f'/api/screens/{OLD}', headers={'X-Screen-CSRF': csrf}, json={
+                    'format': 'pages-v2', 'revision': document['revision'], 'layout': {**document['layout'], 'title': 'Office 3'}})
                 self.assertEqual(saved.status, 200)
                 self.assertEqual((m.layouts[NEW]['title'], OLD in m.layouts), ('Office 3', False))
 

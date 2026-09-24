@@ -9,11 +9,15 @@ import Library from "./Library.vue";
 import PageMap from "./PageMap.vue";
 import NavigationPreview from './NavigationPreview.vue';
 import GridReview from './GridReview.vue';
-import { dismissMigrationNote, resolveLayoutConflict } from '../store';
+import { dismissMigrationNote, resolveLayoutConflict, startFreshLayout } from '../store';
 import { titleOf } from '../model/pages';
 const preview = ref(false);
 const droppedTiles = computed(() => currentScreen.value?.page_document?.format === 'pages-v2'
   ? currentScreen.value.page_document.migration?.droppedTiles || [] : []);
+const adjustedFields = computed(() => currentScreen.value?.page_document?.format === 'pages-v2'
+  ? currentScreen.value.page_document.migration?.adjustedFields || [] : []);
+const recoveryField = (field: string) => t(({ title: 'editor.topbar.screen_name', pages: 'editor.pages.choose_page',
+  page_titles: 'editor.pages.title', header: 'editor.topbar.title', settings: 'editor.screen_view.tabs.settings' } as Record<string, string>)[field] || 'editor.common.unknown');
 const narrow = ref(window.innerWidth <= 700);
 const resize = () => { narrow.value = window.innerWidth <= 700; };
 onMounted(() => window.addEventListener('resize', resize));
@@ -44,10 +48,12 @@ function onCanvasClick(e: MouseEvent) {
   <div class="canvas" id="canvas" @click="onCanvasClick">
     <div v-if="!state.layout" class="page-notice" role="status">
       {{ currentScreen?.page_document?.format === 'legacy-v1' ? currentScreen.page_document.migrationError : t('editor.pages.wait_grid') }}
+      <button v-if="currentScreen?.page_document?.format === 'legacy-v1' && currentScreen.source_grid" type="button" class="btn mini" @click="startFreshLayout">{{ t('editor.pages.start_fresh') }}</button>
     </div>
     <template v-else>
-    <div v-if="droppedTiles.length" class="page-notice" role="status">
-      <span>{{ t('editor.pages.migration_dropped', { count: droppedTiles.length, names: droppedTiles.map(tile => tile.name || tile.entity || t('editor.common.unknown')).join(', ') }) }}</span>
+    <div v-if="droppedTiles.length || adjustedFields.length" class="page-notice" role="status">
+      <span v-if="droppedTiles.length">{{ t('editor.pages.migration_dropped', { count: droppedTiles.length, names: droppedTiles.map(tile => tile.name || tile.entity || t('editor.common.unknown')).join(', ') }) }}</span>
+      <span v-if="adjustedFields.length">{{ t('editor.pages.migration_adjusted', { fields: adjustedFields.map(recoveryField).join(', ') }) }}</span>
       <button type="button" class="btn mini" @click="dismissMigrationNote">{{ t('editor.pages.dismiss_migration') }}</button>
     </div>
     <div class="editor-toolbar">

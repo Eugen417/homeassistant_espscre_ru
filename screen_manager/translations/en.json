@@ -601,7 +601,8 @@
       "calibrate": {
         "no_wizard": "{name} has no calibration: its touch panel says where you touched it, so there is nothing to measure.",
         "offline": "{name} is offline. The calibration can start once it's back."
-      }
+      },
+      "editor_reload": "Reload the editor before saving. This tab uses an older layout format."
     },
     "status": {
       "first_tiles": "Choose your first tiles",
@@ -1980,6 +1981,8 @@
       "include_navigation": "Show in page dots and swipe navigation",
       "migration_dropped": "{count} tiles could not be carried over: {names}. The original layout is preserved in screens.v1.backup.json.",
       "dismiss_migration": "Dismiss this note",
+      "start_fresh": "Start fresh for this screen",
+      "start_fresh_confirm": "Start with one empty page on this screen? The original layout remains in the migration backup. Other screens are unchanged.",
       "offline_notice": "Waiting for the screen to reconnect. Editing uses its last verified capabilities.",
       "include_navigation_hint": "When off, direct links still open this page. Back appears in the bottom bar, or replaces Home when that bar is hidden.",
       "home_control": "Show a Home control on this page",
@@ -2040,7 +2043,8 @@
       "grid_accept": "Use these positions",
       "selected_full": "This page is full. Select an empty cell on another page.",
       "choose_page": "Page",
-      "all_connections": "All connections"
+      "all_connections": "All connections",
+      "migration_adjusted": "Invalid legacy settings were replaced with defaults: {fields}. The originals remain in the migration backup."
     }
   }
 }

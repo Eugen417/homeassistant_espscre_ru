@@ -500,8 +500,10 @@ api:
                     root["status"] = id(dashboard_inbox).state;
                     root["rev"] = runtime_tiles::layout_rev;
                     root["protocol"] = page_protocol::VERSION;
+                    root["bar_values"] = 1;
                     auto sizes = root["tile_sizes"].to<JsonArray>();
-                    for (const char *size : {"single", "wide", "full", "tall", "square"}) sizes.add(size);
+                    for (const auto &size : page_protocol::TILE_SIZES)
+                      if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);
                     root["request"] = runtime_tiles::protocol_key(runtime_tiles::transfer.hello_id);
                     root["session"] = runtime_tiles::protocol_key(runtime_tiles::transfer.lease);
                     root["seq"] = runtime_tiles::transfer.sequence;

@@ -19,6 +19,13 @@ function homeTile(): PageTile {
 }
 
 describe("page-owned document operations", () => {
+  it('refuses an arrangement that accidentally omits an existing tile', () => {
+    const layout = fixture(), original = clone(layout);
+    const entries = projectLayout(layout, grid).tiles.map(tile => ({ tile, slot: tile.slot! }));
+    expect(() => arrangeTiles(layout, grid, entries.slice(1))).toThrow('retain every existing tile');
+    expect(layout).toEqual(original);
+    expect(arrangeTiles(layout, grid, entries).pages.flatMap(page => page.tiles)).toHaveLength(entries.length);
+  });
   it('proposes another grid without changing page identity, navigation, or the source', () => {
     const source = fixture(), before = clone(source), target = { columns: 1, rows: 4 };
     source.pages[1].navigation.excludeFromPagination = true;

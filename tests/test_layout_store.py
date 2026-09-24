@@ -11,11 +11,26 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "screen_manager/app"))
 from core import Grid
 from layout_store import CommitUncertain, Conflict, LayoutStore
-from page_layout import FORMAT, LayoutError, delete_page
+from page_layout import FORMAT, LayoutError, delete_page, fingerprint
 from layout_migrations import migrate_legacy
 
 
 class LayoutStoreTests(unittest.TestCase):
+    def test_explicit_fresh_start_preserves_backup_and_other_screens(self):
+        original = json.dumps({'version': 1, 'screens': {'screen.a': [], 'screen.b': {'title': 'Other', 'tiles': []}}})
+        self.path.write_text(original)
+        store = self.store()
+        pending, other = store.get('screen.a'), store.get('screen.b')
+        self.assertEqual(pending['format'], 'legacy-v1')
+        with self.assertRaises(Conflict): store.start_fresh('screen.a', 'stale', 'Home')
+        fresh = store.start_fresh('screen.a', fingerprint(pending['payload']), 'Home')
+        self.assertEqual(fresh['format'], 'pages-v2')
+        self.assertEqual(len(fresh['layout']['pages']), 1)
+        self.assertEqual(fresh['layout']['pages'][0]['tiles'], [])
+        self.assertEqual(store.get('screen.b'), other)
+        self.assertEqual(self.path.with_name('screens.v1.backup.json').read_text(), original)
+        with self.assertRaises(Conflict): store.start_fresh('screen.a', fingerprint(pending['payload']), 'Home')
+
     def test_cached_snapshot_detects_other_writers_without_copying_unchanged_data(self):
         store = self.store()
         first = store.save('screen.a', self.document(), None)

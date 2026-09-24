@@ -12,6 +12,23 @@ namespace page_protocol {
 constexpr unsigned VERSION = 2;
 constexpr unsigned MAX_PAGES = 8;
 constexpr unsigned MAX_TILES = 64;
+struct TileSize {
+  const char *name;
+  uint8_t minimum_columns, minimum_rows;
+  constexpr bool fits(unsigned columns, unsigned rows) const {
+    return columns >= minimum_columns && rows >= minimum_rows;
+  }
+};
+// Wide retains its historical one-column presentation on portrait grids.
+// Square requires two actual columns. Advertisement and input use this table.
+inline constexpr std::array<TileSize, 5> TILE_SIZES{{
+    {"single", 1, 1}, {"wide", 1, 1}, {"full", 1, 1}, {"tall", 1, 2}, {"square", 2, 2}}};
+inline bool accepts_size(const std::string &name, unsigned columns, unsigned rows) {
+  if (name.empty()) return TILE_SIZES[0].fits(columns, rows);  // Default is single.
+  for (const auto &size : TILE_SIZES)
+    if (name == size.name && size.fits(columns, rows)) return true;
+  return false;
+}
 
 inline bool key(const std::string &text, uint64_t &out) {
   if (text.size() != 16) return false;

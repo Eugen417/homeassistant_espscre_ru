@@ -7,6 +7,15 @@
 using namespace page_protocol;
 
 int main() {
+  for (unsigned columns = 1; columns <= 3; ++columns) for (unsigned rows = 1; rows <= 4; ++rows) {
+    for (const auto &size : TILE_SIZES)
+      assert(accepts_size(size.name, columns, rows) == size.fits(columns, rows));
+    assert(accepts_size("", columns, rows));
+    assert(!accepts_size("unknown", columns, rows));
+  }
+  assert(!accepts_size("square", 1, 4) && !accepts_size("square", 2, 1));
+  assert(accepts_size("square", 2, 3) && accepts_size("tall", 1, 4));
+  assert(!accepts_size("tall", 3, 1) && accepts_size("wide", 1, 4));
   uint64_t id = 0;
   assert(key("ffffffffffffffff", id) && id == UINT64_MAX);
   assert(key("0000000000000000", id) && id == 0);

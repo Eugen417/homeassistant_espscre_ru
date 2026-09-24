@@ -155,7 +155,8 @@ firmware update.
     `Manager.sync_one` sets that screen for the texts it writes (`i18n.SCREEN`).
   - Editor texts: go through vue-i18n.
 - **Every release:** Claude drafts the new texts for every language, with Home Assistant's own words as the glossary,
-  and leaves them unchecked for a speaker of the language. A missing text shows in English and never blocks a release.
+  and leaves them unchecked for a speaker of the language. A missing text falls back to English at runtime,
+  but the release check refuses missing keys in a full language. Regional variants may inherit from their base language.
 - **Before a release:**
   - `python3 tools/i18n.py check`: keys, placeholders, plurals, letters the screens can't draw, long screen texts.
   - `python3 tools/i18n.py lint`: English left in the firmware's code. What stays English on purpose is listed in

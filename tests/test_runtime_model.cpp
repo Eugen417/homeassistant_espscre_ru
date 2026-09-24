@@ -29,9 +29,10 @@ int main() {
   assert(!m.begin(0, 9, "Too many pages"));
   assert(!m.begin(0, 0, "No page"));
   assert(m.begin(0, 1, "Empty")); m.configured = true; assert(m.ready());
+  assert(m.begin(0, 1, "") && m.title == screen_text::tr(screen_text::txt::status_home));
 }
 // Built-in and new Home Assistant domains, plus wide-tile packing.
-static void test_domains_and_packing() {
+static void test_domains_and_sizes() {
   using namespace runtime_tiles;
   Model m;
   assert(valid_entity("screen.clock") && !valid_entity("screen.other"));
@@ -50,33 +51,10 @@ static void test_domains_and_packing() {
   m.tiles[4].state = "home"; assert(m.tiles[4].active());
   m.tiles[5].state = "active"; assert(m.tiles[5].active());
   m.tiles[5].state = "idle"; assert(!m.tiles[5].active());
-  std::array<Placement, TILES_MAX> p;
-  assert(pack(m.tiles, 0, p) == 1);
-  assert(pack(m.tiles, m.count, p) == 2 && p[6].page == 1 && p[6].slot == 0);
-  // A wide tile after a left-column tile skips the right column.
-  m.tiles[1].wide = true;
-  assert(pack(m.tiles, m.count, p) == 2);
-  assert(p[0].slot == 0 && p[1].slot == 2 && p[2].slot == 4 && p[3].slot == 5);
-  assert(p[4].page == 1 && p[4].slot == 0 && p[6].page == 1 && p[6].slot == 2);
-  // Wide tiles ending exactly on a page boundary do not open an empty page.
-  for (auto &t : m.tiles) t.wide = false;
-  m.tiles[0].wide = m.tiles[2].wide = true;
-  assert(pack(m.tiles, 3, p) == 1 && p[0].slot == 0 && p[1].slot == 2 && p[2].slot == 4);
-  m.tiles[3].wide = true;
-  assert(pack(m.tiles, 4, p) == 2 && p[3].page == 1 && p[3].slot == 0);
-  // A full tile (firmware 0.2.62+) takes a page of its own: it starts one when its page is in use, and the
-  // tiles after it start the next page. Tiles at page starts keep their page.
-  for (auto &t : m.tiles) { t.wide = false; t.full = false; }
   m.tiles[1].full = true; m.tiles[1].wide = true;
   assert(m.tiles[1].cells() == 6 && m.tiles[0].cells() == 1);
-  assert(pack(m.tiles, 3, p) == 3 && p[0].page == 0 && p[1].page == 1 && p[1].slot == 0 && p[2].page == 2 && p[2].slot == 0);
-  m.tiles[0].full = true; m.tiles[0].wide = true;
-  assert(pack(m.tiles, 3, p) == 3 && p[0].page == 0 && p[0].slot == 0 && p[1].page == 1 && p[2].page == 2);
-  m.tiles[1].full = m.tiles[1].wide = false;
-  assert(pack(m.tiles, 3, p) == 2 && p[1].page == 1 && p[1].slot == 0 && p[2].page == 1 && p[2].slot == 1);
-  for (auto &t : m.tiles) { t.wide = false; t.full = false; }
 }
-struct RunExtra { RunExtra() { test_domains_and_packing(); } } run_extra;
+struct RunExtra { RunExtra() { test_domains_and_sizes(); } } run_extra;
 // Placement checks reject overlap before a received tile can occupy the grid.
 static void test_explicit_slots() {
   using namespace runtime_tiles;
@@ -114,10 +92,6 @@ static void test_rectangular_slots() {
   assert(m.tiles[1].cells() == 4);
   assert(!m.valid_placement(2, 9, false, false));
   assert(m.valid_placement(2, 10, false, true));
-  std::array<Placement, TILES_MAX> positions;
-  TileList tiles(3); tiles[0].height = 2;
-  assert(pack(tiles, 3, positions) == 1);
-  assert(positions[0].slot == 0 && positions[1].slot == 1 && positions[2].slot == 3);
 }
 struct RunRectangles { RunRectangles() { test_rectangular_slots(); } } run_rectangles;
 // What only some tiles carry lives in an Extra that exists only while a state needs it.
