@@ -17,6 +17,7 @@ enum class Leading { none, home, back };
 struct Surface {
   lv_obj_t *title, *clock_anchor, *grid, *hold_area;
   const lv_font_t *text_font, *icon_font, *home_font;
+  const lv_font_t *back_font = nullptr;
 };
 struct View {
   const header_bar::Bar &bar;
@@ -210,20 +211,25 @@ public:
     lv_font_glyph_dsc_t house;
     const bool back = view.leading == Leading::back;
     const uint32_t leading_glyph = back ? 0xF0141 : HOME_GLYPH;
-    const lv_font_t *house_font = back ? header_icon_font : header_home_font ? header_home_font : header_icon_font;
-    if (view.leading != Leading::none && lv_font_get_glyph_dsc(house_font, &house, leading_glyph, 0) && house.box_w) {
+    const lv_font_t *house_font = header_home_font ? header_home_font : header_icon_font;
+    const lv_font_t *leading_font = back ? (surface.back_font ? surface.back_font : header_icon_font) : house_font;
+    lv_font_glyph_dsc_t leading;
+    if (view.leading != Leading::none && lv_font_get_glyph_dsc(house_font, &house, HOME_GLYPH, 0) && house.box_w &&
+        lv_font_get_glyph_dsc(leading_font, &leading, leading_glyph, 0) && leading.box_w) {
       // On the baseline of the name, not centred on it: the house stands on the line the capitals stand on and grows
       // upward from there, the way a taller letter would. Centring it would hang it below the line by half of what it
       // is taller, which is exactly the half pixel you see. Without a capital to measure, the digits of the bar.
       lv_font_glyph_dsc_t cap;
       const int ink_bottom = lv_font_get_glyph_dsc(name_font, &cap, 'H', 0) && cap.box_h ? baseline - cap.ofs_y
                                                                                          : (middle2 + house.box_h) / 2;
-      const int ink_top = ink_bottom - house.box_h;
+      const int ink_top = ink_bottom - leading.box_h;
       // Its own font, or the bar's; without either LVGL draws the missing-glyph box.
-      set_font(header_home_icon, house_font);
+      set_font(header_home_icon, leading_font);
       label(header_home_icon, tile_icon::utf8(leading_glyph));
-      lv_obj_set_pos(header_home_icon, left - house.ofs_x,
-                     ink_top - ((house_font->line_height - house_font->base_line) - house.box_h - house.ofs_y));
+      // Back replaces Home inside the same ink slot. Keep the title and touch
+      // target fixed even though a chevron is naturally narrower than a house.
+      lv_obj_set_pos(header_home_icon, left + (house.box_w - leading.box_w) / 2 - leading.ofs_x,
+                     ink_top - ((leading_font->line_height - leading_font->base_line) - leading.box_h - leading.ofs_y));
       // The finger gets the whole height of the bar and a little air either side of the glyph, so a tap near the
       // house is a tap on it; the glyph itself is only a dozen pixels.
       const int pad = gaps.item / 2;

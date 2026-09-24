@@ -4475,6 +4475,7 @@ inline void render(lv_obj_t *room) {
 
 // The page owns the header data; this adapter resolves navigation and settings.
 inline const lv_font_t *header_home_font = nullptr;
+inline const lv_font_t *header_back_font = nullptr;
 inline std::function<void()> back_home;
 inline page_header::Renderer header_renderer;
 inline void draw_header(bool live) {
@@ -4486,7 +4487,7 @@ inline void draw_header(bool live) {
   const auto leading = !record ? Leading::none : header_back() ? Leading::back
                      : record->home_control && settings_screen::home_button ? Leading::home : Leading::none;
   header_renderer.draw({room_label, time_label, tile_grid, settings_screen::hold_area,
-                        header_text_font, header_icon_font, header_home_font},
+                        header_text_font, header_icon_font, header_home_font, header_back_font},
                        {record ? record->bar : empty, header_name, now_time ? now_time() : esphome::ESPTime{},
                         now_epoch(), leading, live, screen_settings::current.clock_24h != 0}, []() {
     // The leading key keeps its existing place in the shared action guard.

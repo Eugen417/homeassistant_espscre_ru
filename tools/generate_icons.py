@@ -56,9 +56,9 @@ def glyph_list(anchor='tile_icons', names=None):
     return '\n'.join(lines) + '\n'
 
 def profile(text):
-    # The home key's font is one glyph written out by hand (packages/core.yaml, firmware 0.2.100+): it carries the
-    # house and nothing else, so this generator leaves it alone and still expects the four it does write.
-    blocks = [block for block in FONT_BLOCK.finditer(text) if not re.search(r'id: \w+_home\n', block[1])]
+    # The Home and Back fonts each carry one handwritten glyph at their own
+    # optical size. Leave both alone and generate the four shared icon sets.
+    blocks = [block for block in FONT_BLOCK.finditer(text) if not re.search(r'id: \w+_(?:home|back)\n', block[1])]
     if len(blocks) != 4:
         raise SystemExit(f'Expected four generated icon fonts, found {len(blocks)}')
     out, last = [], 0

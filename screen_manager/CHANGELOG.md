@@ -5,6 +5,7 @@ Try taller tiles with the existing tile designs.
 - New 1 × 2 and 2 × 2 sizes use width × height in grid cells. The editor and firmware reserve the complete rectangle, including during moves, resizing and page changes.
 - Sizes stay within the screen's own grid. No additional tiles or free scrolling are introduced.
 - Update the screen to enable these sizes. The add-on verifies support before replacing its configuration; existing sizes keep working on older screens.
+- With page buttons hidden, Back replaces Home at the same visible height, title position and touch target.
 
 ## 0.3.0 (firmware 0.3.0)
 

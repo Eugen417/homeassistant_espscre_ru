@@ -335,6 +335,8 @@ class Run:
         start = len(self.lines)
         await self.call('render_navigation')
         line = await self.until(lambda line: NAVIGATION.search(line), 10, 'navigation probe', start)
+        ink = next(re.search(r'leading heights home=(\d+) back=(\d+)', line) for line in self.lines[start:] if 'leading heights home=' in line)
+        assert int(ink[1]) > 0 and abs(int(ink[1]) - int(ink[2])) <= 1, 'Back must match Home ink height within raster rounding'
         values = [int(value) for value in NAVIGATION.search(line).groups()]
         return dict(page=values[0], footer=bool(values[1]), back=bool(values[2]), height=values[3],
                     tile=values[4:6], previous=values[6:8], header=values[8:10])

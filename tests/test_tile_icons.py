@@ -29,15 +29,16 @@ class IconSetTests(unittest.TestCase):
             # The home key's font carries the house and nothing else (firmware 0.2.100+), written out by hand in the
             # shared core; every other icon font carries the whole set.
             self.assertEqual([font for font, _ in fonts], ['materialdesign_icons', 'materialdesign_icons_mini',
-                                                           'materialdesign_icons_home', 'materialdesign_icons_big', 'watch_icon'], name)
+                                                           'materialdesign_icons_home', 'materialdesign_icons_back', 'materialdesign_icons_big', 'watch_icon'], name)
             home = dict(fonts)['materialdesign_icons_home']
             self.assertEqual(home.strip(), '["\\U000F02DC"]', name)
+            self.assertEqual(dict(fonts)['materialdesign_icons_back'].strip(), '["\\U000F0141"]', name)
             self.assertTrue(fonts[0][1].startswith('&tile_icons ')
-                            and all(g == '*tile_icons' for font, g in fonts[1:] if font not in ('materialdesign_icons_big', 'materialdesign_icons_home')), name)
+                            and all(g == '*tile_icons' for font, g in fonts[1:] if font not in ('materialdesign_icons_big', 'materialdesign_icons_home', 'materialdesign_icons_back')), name)
             block = text.split('glyphs: &tile_icons ', 1)[1].split('\n\n', 1)[0]
             self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', block), wanted, name)
             # The big font of the full-page card (firmware 0.2.62+) carries the subset the screen draws on its own.
-            self.assertEqual(fonts[3][1].split('  #')[0].strip(), '&tile_icons_big', name)
+            self.assertEqual(dict(fonts)['materialdesign_icons_big'].split('  #')[0].strip(), '&tile_icons_big', name)
             big = text.split('glyphs: &tile_icons_big', 1)[1].split('\n\n', 1)[0]
             self.assertEqual(re.findall(r'- "(\\U000F[0-9A-F]{4})"', big), [f'\\U000{tile_icons.GLYPHS[n]}' for n in tile_icons.BIG_GLYPHS], name)
             self.assertNotIn('MDI_GLYPH', text, name)

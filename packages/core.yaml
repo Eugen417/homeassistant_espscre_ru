@@ -130,6 +130,7 @@ esphome:
           runtime_tiles::header_text_font = id(sublabel_big)->get_lv_font();
           runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();
           runtime_tiles::header_home_font = id(materialdesign_icons_home)->get_lv_font();
+          runtime_tiles::header_back_font = id(materialdesign_icons_back)->get_lv_font();
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
           // Turning (firmware 0.2.80 on every board): a half turn keeps the canvas and the grid, so every screen
@@ -1081,6 +1082,14 @@ font:
     size: ${FONT_ICON_HOME_SIZE}
     bpp: 4
     glyphs: ["\U000F02DC"]
+
+  # MDI Home has 363 units of outline height, chevron-left 256. Match their
+  # visible height at build time, without a runtime image-scaling buffer.
+  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
+    id: materialdesign_icons_back
+    size: ${ (FONT_ICON_HOME_SIZE | int * 363 / 256) | round | int }
+    bpp: 4
+    glyphs: ["\U000F0141"]
 
   # The large icon of a card that takes the whole page (firmware 0.2.62+): the domain icons only,
   # so the flash stays free for other things; a chosen icon outside this set keeps its usual size.

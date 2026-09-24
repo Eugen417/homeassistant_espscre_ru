@@ -42,3 +42,9 @@ All six boards compile with ESPHome 2026.9.0 after the clock correction.
 | Waveshare 4B | 2,035,504 B |
 
 The CYD retains 202,464 bytes in its OTA slot. Growth against the matching 0.3.0 build is 1,424 bytes. These are flash measurements; the long memory workloads documented for 0.3.0 were not repeated for this extension.
+
+## Follow-up: Home-sized Back chevron
+
+The hidden-footer Back control now uses a dedicated single-glyph MDI font, sized at build time to match Home's visible outline height. Both controls reserve Home's width and touch target, so the title stays fixed. This needs no runtime image-scaling buffer.
+
+After this correction, the full fast checks and all six firmware builds passed again. CYD and Guition host runs passed 80 page checks, including hidden-footer Back with Home disabled. The host probes verify that Home and Back ink heights differ by no more than one raster pixel. A newly flashed physical Guition rendered both controls on the same page, and the title region was pixel-identical. No physical finger test was performed for this correction. The final CYD image is 1,632,800 bytes, 256 bytes larger than the rectangular-tile build above.
