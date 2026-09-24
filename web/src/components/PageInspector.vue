@@ -3,6 +3,7 @@ import { computed } from "vue";
 import { t } from "../i18n";
 import { connections, titleOf } from "../model/pages";
 import { glyph } from "../model/topbar";
+import { beginFieldEdit, endFieldEdit } from '../store';
 import { closeInspector, duplicateEditorPage, movePage, moveWorkspacePage, openBar, openTile, pageReady, removePage,
   setHomePage, setPageExcluded, setPageHomeControl, setPageTitle, state, workspacePositions } from "../store";
 
@@ -28,15 +29,16 @@ function editRoute(tileId: string) { const tile = state.layout?.tiles.find((item
       <div class="f">
         <label class="f-label" for="owned-page-title">{{ t('editor.pages.title') }}</label>
         <input id="owned-page-title" :value="page.topbar.title.source === 'text' ? page.topbar.title.text : ''" :placeholder="state.document?.title"
+          @focus="beginFieldEdit(`page:${id}`)" @blur="endFieldEdit"
           @input="setPageTitle(index, ($event.target as HTMLInputElement).value)" />
         <small>{{ t('editor.pages.title_hint') }}</small>
       </div>
       <button type="button" class="btn" :disabled="home || !pageReady" @click="setHomePage(id)">
         <span class="mdi">{{ glyph('F02DC') }}</span> {{ t(home ? 'editor.pages.is_home' : 'editor.pages.set_home') }}
       </button>
-      <label class="page-check"><input type="checkbox" :checked="page.navigation.excludeFromPagination" :disabled="!pageReady"
-        @change="setPageExcluded(id, ($event.target as HTMLInputElement).checked)" />{{ t('editor.pages.exclude') }}</label>
-      <small>{{ t('editor.pages.exclude_hint') }}</small>
+      <label class="page-check"><input type="checkbox" :checked="!page.navigation.excludeFromPagination" :disabled="!pageReady"
+        @change="setPageExcluded(id, !($event.target as HTMLInputElement).checked)" />{{ t('editor.pages.include_navigation') }}</label>
+      <small>{{ t('editor.pages.include_navigation_hint') }}</small>
       <label class="page-check"><input type="checkbox" :checked="!!page.topbar.leading.length" :disabled="!pageReady"
         @change="setPageHomeControl(id, ($event.target as HTMLInputElement).checked)" />{{ t('editor.pages.home_control') }}</label>
       <button type="button" class="btn" @click="openBar(0, index)">{{ t('editor.pages.edit_topbar') }}</button>
@@ -65,9 +67,8 @@ function editRoute(tileId: string) { const tile = state.layout?.tiles.find((item
         <button type="button" class="btn primary" @click="state.focusedPageId = id; closeInspector()">{{ t('editor.pages.edit_page') }}</button>
       </template>
       <div class="f">
-        <button class="btn" type="button" :disabled="!canCopy" :title="canCopy ? '' : t('editor.pages.copy_conflict')" @click="duplicateEditorPage(id, false)">{{ t('editor.pages.duplicate') }}</button>
-        <small v-if="!canCopy">{{ t('editor.pages.copy_conflict') }}</small>
-        <button class="btn" type="button" @click="duplicateEditorPage(id, true)">{{ t('editor.pages.empty_copy') }}</button>
+        <button v-if="canCopy" class="btn" type="button" @click="duplicateEditorPage(id, false)">{{ t('editor.pages.duplicate') }}</button>
+        <button class="btn primary" type="button" @click="duplicateEditorPage(id, true)">{{ t('editor.pages.empty_copy') }}</button>
       </div>
     </div>
     <div class="dr-foot"><button class="btn danger" type="button" :disabled="state.document!.pages.length < 2" @click="removePage(index)">{{ t('editor.page.remove') }}</button></div>

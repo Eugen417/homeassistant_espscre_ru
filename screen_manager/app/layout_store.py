@@ -60,7 +60,7 @@ def _members(text, start=0):
         index += 1
 
 
-def _json(text):
+def _json(text, *, legacy=False):
     def pairs(items):
         result = {}
         for key, value in items:
@@ -68,7 +68,9 @@ def _json(text):
                 raise LayoutError("Duplicate keys in stored JSON")
             result[key] = value
         return result
-    def constant(_):
+    def constant(value):
+        if legacy:
+            return float(value.replace("Infinity", "inf"))
         raise LayoutError("Non-finite value in stored JSON")
     try:
         return json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
@@ -153,12 +155,12 @@ class LayoutStore:
             if os.path.exists(name): os.unlink(name)
 
     def _converted(self, inbox, payload):
-        grid = self.grid_for(inbox)
-        if grid is None:
-            return {"format": LEGACY, "payload": payload, "migrationError": "Source grid is not known"}
         try:
-            record = migrate_legacy(_json(payload), grid)
-        except ValueError as error:
+            grid = self.grid_for(inbox)
+            if grid is None:
+                return {"format": LEGACY, "payload": payload, "migrationError": "Source grid is not known"}
+            record = migrate_legacy(_json(payload, legacy=True), grid, recover=True)
+        except Exception as error:
             return {"format": LEGACY, "payload": payload, "migrationError": str(error)}
         return {**record, "revision": new_id()}
 
@@ -179,7 +181,10 @@ class LayoutStore:
             return
         original = self.path.read_bytes()
         text = original.decode("utf8")
-        envelope = _json(text)
+        # Main's v1 writer allowed NaN/Infinity. Parse the envelope permissively
+        # so one historical tile cannot prevent all screens from starting.
+        # Converted documents still pass strict validation and finite JSON writes.
+        envelope = _json(text, legacy=True)
         if (not isinstance(envelope, dict) or set(envelope) != {"version", "screens"}
                 or type(envelope.get("version")) is not int or envelope["version"] not in (1, VERSION)
                 or not isinstance(envelope.get("screens"), dict)):
@@ -203,7 +208,7 @@ class LayoutStore:
             if record.get("format") == LEGACY:
                 if set(record) - {"format", "payload", "migrationError", "settings"} or not isinstance(record.get("payload"), str):
                     raise LayoutError("Invalid pending migration record")
-                _json(record["payload"])
+                _json(record["payload"], legacy=True)
                 if "settings" in record: validate_settings(record["settings"])
             elif record.get("format") == FORMAT:
                 allowed = {"format", "sourceGrid", "layout", "revision", "settings", "migration", "workspace"}
@@ -213,10 +218,15 @@ class LayoutStore:
                 if "settings" in record: validate_settings(record["settings"])
                 if "migration" in record:
                     migration = record["migration"]
-                    if (not isinstance(migration, dict) or set(migration) != {"inactivePageTitles"}
-                            or not isinstance(migration["inactivePageTitles"], list)
-                            or len(migration["inactivePageTitles"]) > 8
-                            or any(not isinstance(title, str) or len(title.encode()) > 96 for title in migration["inactivePageTitles"])):
+                    if (not isinstance(migration, dict) or set(migration) - {"inactivePageTitles", "droppedTiles"}
+                            or not isinstance(migration.get("inactivePageTitles", []), list)
+                            or len(migration.get("inactivePageTitles", [])) > 8
+                            or any(not isinstance(title, str) or len(title.encode()) > 96 for title in migration.get("inactivePageTitles", []))):
+                        raise LayoutError("Invalid migration recovery metadata")
+                    dropped = migration.get("droppedTiles", [])
+                    if (not isinstance(dropped, list) or any(not isinstance(tile, dict)
+                            or set(tile) != {"entity", "name", "reason"}
+                            or any(not isinstance(value, str) for value in tile.values()) for tile in dropped)):
                         raise LayoutError("Invalid migration recovery metadata")
                 if "workspace" in record:
                     LayoutStore._workspace(record["workspace"], {p["id"] for p in record["layout"]["pages"]})

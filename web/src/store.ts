@@ -162,7 +162,8 @@ export const currentTile = computed<Tile | undefined>(() => state.selectedTile?.
   ? state.layout?.tiles.find((tile) => tile.id === state.selectedTile!.id) : undefined);
 export const isSelected = (tile: Tile) => Boolean(tile.id) && state.selectedTile?.id === tile.id;
 const currentView = (tile: Tile, layout = state.layout) => tile.id ? layout?.tiles.find((item) => item.id === tile.id) : tile;
-export const pageReady = computed(() => currentScreen.value?.page_capability === "ready");
+export const pageReady = computed(() => currentScreen.value?.page_capability === "ready" ||
+  (currentScreen.value?.page_capability === "offline" && currentScreen.value?.page_last_capability === "ready"));
 export const pageAt = (index: number) => state.document?.pages[state.drag.page?.order[index] ?? index];
 
 // ---- Toasts ----
@@ -358,7 +359,12 @@ type DraftSnapshot = { layout: PageLayout; grid: PageGrid; positions: PageWorksp
 const undoHistory: DraftSnapshot[] = [], redoHistory: DraftSnapshot[] = [];
 const snapshot = (): DraftSnapshot => ({ layout: pages.clone(state.document!), grid: pages.clone(state.documentGrid!), positions: pages.clone(state.workspace.positions),
   page: state.selectedPageId, tile: state.selectedTile?.id || null });
-function historyCounts() { state.undoCount = undoHistory.length; state.redoCount = redoHistory.length; }
+function historyCounts() {
+  // A removal toast only belongs to the latest history entry. Once another
+  // edit, map move, undo or screen selection changes history, retire it.
+  if (state.toast?.action?.run === undo) dismissToast();
+  state.undoCount = undoHistory.length; state.redoCount = redoHistory.length;
+}
 function applyDocument(next: PageLayout, remember = true, nextGrid = state.documentGrid) {
   if (!state.document || !state.documentGrid) return false;
   if (!nextGrid) return false;
@@ -388,12 +394,21 @@ function applyDocument(next: PageLayout, remember = true, nextGrid = state.docum
   loadTopbarPreview();
   return true;
 }
-export function editDocument(apply: (draft: PageLayout) => void) {
+let focusedField: string | null = null, groupedEdit = -1;
+export function beginFieldEdit(key: string) { focusedField = key; groupedEdit = -1; }
+export function endFieldEdit() { focusedField = null; groupedEdit = -1; }
+export function editDocument(apply: (draft: PageLayout) => void, field?: string) {
   if (!state.document || !state.documentGrid) return false;
-  try { return applyDocument(pages.changePages(state.document, state.documentGrid, apply)); }
+  try {
+    const grouped = field !== undefined && focusedField === field;
+    const changed = applyDocument(pages.changePages(state.document, state.documentGrid, apply), !(grouped && groupedEdit === edits));
+    if (changed) groupedEdit = grouped ? edits : -1;
+    return changed;
+  }
   catch (error: any) { toast(error.message); return false; }
 }
 function restoreSnapshot(value: DraftSnapshot) {
+  endFieldEdit();
   applyDocument(value.layout, false, value.grid);
   state.workspace.positions = value.positions; state.workspaceDirty = true;
   state.selectedPageId = value.page;
@@ -415,6 +430,7 @@ export function setEditorMode(mode: "simple" | "advanced") {
   try { if (state.selected) localStorage.setItem(`esp-screens-mode:${state.selected}`, mode); } catch {}
 }
 function loadDocument(screen: Screen) {
+  endFieldEdit();
   selectionEpoch++;
   const record = screen.page_document;
   state.document = record?.format === "legacy-v1" ? null : record?.format === "pages-v2"
@@ -542,6 +558,7 @@ export function setPageHomeControl(id: string, visible: boolean) {
     page.topbar.leading = visible ? page.topbar.leading.length ? page.topbar.leading : [{ id: pages.instanceId(), kind: "home" }] : []; });
 }
 export function moveWorkspacePage(id: string, x: number, y: number) {
+  endFieldEdit();
   if (!state.document?.pages.some((page) => page.id === id)) return;
   const positions = workspacePositions();
   if (![x, y].every(Number.isInteger) || x < 0 || y < 0 || x > 100 || y > 100) return;
@@ -663,7 +680,7 @@ export function retargetPageTile(tile: Tile, page: number) {
   });
 }
 export function setTileName(tile: Tile, value: string) {
-  editDocument((draft) => { const found = draft.pages.flatMap((page) => page.tiles).find((item) => item.id === tile.id); if (found) found.appearance.label = value; });
+  editDocument((draft) => { const found = draft.pages.flatMap((page) => page.tiles).find((item) => item.id === tile.id); if (found) found.appearance.label = value; }, `tile:${tile.id}`);
 }
 
 // ---- Inspector (the drawer) ----
@@ -680,7 +697,7 @@ export function openTile(tile: Tile) {
 export const screenTitle = () => state.layout?.title ?? "";
 export function setScreenTitle(value: string) {
   if (!state.layout) return;
-  editDocument((draft) => { draft.title = value; });
+  editDocument((draft) => { draft.title = value; }, 'screen-title');
 }
 // The title of one page (app 0.2.105), the one thing the top bar's inspector asks per page. A title belongs to the
 // page and travels with it, page 1 included (app 0.2.123), so reordering the row never costs a name. Stored as one
@@ -694,7 +711,7 @@ export const pageTitleShown = (page: number) => {
   return pageTitle(order ? order[page] ?? page : page) || state.layout?.title || "";
 };
 export function setPageTitle(page: number, value: string) {
-  editDocument((draft) => { if (draft.pages[page]) draft.pages[page].topbar.title = value.trim() ? { source: "text", text: value } : { source: "screen" }; });
+  editDocument((draft) => { if (draft.pages[page]) draft.pages[page].topbar.title = value.trim() ? { source: "text", text: value } : { source: "screen" }; }, `page:${state.document?.pages[page]?.id}`);
 }
 // `page` is the page whose bar was clicked (app 0.2.105): the inspector changes that page's own title there,
 // which is where you look for it after clicking the bar.
@@ -767,7 +784,7 @@ function scheduleWorkspaceSave() {
   workspaceTimer = window.setTimeout(saveWorkspace, 400);
 }
 export async function saveWorkspace() {
-  if (workspaceFlight || state.busy || !state.workspaceDirty || !state.selected || !state.documentRevision || !committedLayout) return;
+  if (workspaceFlight || state.busy || state.conflict || !state.workspaceDirty || !state.selected || !state.documentRevision || !committedLayout) return;
   const committedIds = new Set(committedLayout.pages.map((page) => page.id));
   if (Object.keys(state.workspace.positions).some((id) => !committedIds.has(id))) return;
   const screen = state.selected, selection = selectionEpoch, workspace = pages.clone(state.workspace), revision = state.documentRevision;
@@ -887,7 +904,9 @@ export function acceptGridReview() {
 export function copyLayoutFrom(id: string) {
   const other = state.inventory.screens.find((screen) => screen.id === id);
   if (other?.page_document?.format !== "pages-v2") { toast("Connect the source screen to finish its layout migration first."); return; }
-  adopt(other.page_document, t("editor.layout.copied", { name: other.name }));
+  const copy = pages.clone(other.page_document);
+  copy.layout.title = state.document?.title || copy.layout.title;
+  adopt(copy, t("editor.layout.copied", { name: other.name }));
 }
 export function layoutJson() {
   if (!state.document || !state.documentGrid) return "";
@@ -1288,6 +1307,29 @@ export async function saveLanguage(changes: { setting?: string; clock?: string; 
     toast(e.message);
     return false;
   }
+}
+
+/** Resolve against a fresh server revision; failed requests always retain the draft. */
+export async function resolveLayoutConflict(choice: 'reload' | 'keep') {
+  if (state.busy || !state.conflict) return;
+  const selected = state.selected, selection = selectionEpoch;
+  await refresh(false);
+  if (!state.reachable || state.selected !== selected || selectionEpoch !== selection) return;
+  const screen = currentScreen.value, record = screen?.page_document;
+  if (!screen || record?.format !== 'pages-v2') return;
+  if (choice === 'reload') {
+    closeInspector();
+    loadDocument(screen);
+    state.dirty = false;
+    return;
+  }
+  // Explicit Keep mine authorizes replacing this revision only. Another save
+  // racing this request is still rejected by the server's revision check.
+  state.documentRevision = record.revision;
+  committedLayout = pages.clone(record.layout);
+  committedGrid = pages.clone(record.sourceGrid);
+  state.workspace.revision = record.workspace?.revision || '';
+  await save();
 }
 
 function reconcileDocument() {

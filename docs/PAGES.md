@@ -4,7 +4,7 @@ ESP Screens 0.3.0 stores each page as a complete unit: its tiles, top bar, navig
 
 ## Editing
 
-**Simple** is the default. Drag entities from the library onto the page grid, or select an empty cell and add an entity. Page settings contain the title, top-bar items, Home designation and **Do not show in page navigation**. Every page can have different top-bar items. A title can follow the screen title or use custom text. Copying a bar creates independent items on the chosen pages.
+**Simple** is the default. Drag entities from the library onto the page grid, or select an empty cell and add an entity. Page settings contain the title, top-bar items, Home designation and **Show in page dots and swipe navigation**. Every page can have different top-bar items. A title can follow the screen title or use custom text. Copying a bar creates independent items on the chosen pages.
 
 **Advanced** adds a spatial page map and links from navigation tiles to their destinations. Workspace positions belong to the editor, so arranging pages vertically does not change their order on the device. Reordering pages changes the device order while preserving destinations. Returning to Simple removes the map connections and keeps the same pages and tiles.
 
@@ -14,7 +14,7 @@ The navigation preview runs locally. It does not switch entities in Home Assista
 
 Choose any page as Home. Home controls, automatic return and return on standby use that destination. Existing Home settings and entity identifiers stay compatible. Home Assistant entities whose names still say "Back to page 1" now return to the configured Home page; their existing names and IDs are retained so automations keep working.
 
-Every page initially participates in the bottom paginator and sequential swipes. **Do not show in page navigation** opts a page out. Links and the existing numeric Show page action can still open it. Numeric actions follow the current editor order; links stored in the layout follow stable page IDs.
+Every page initially participates in the bottom paginator and sequential swipes. Turn off **Show in page dots and swipe navigation** to opt a page out. Links and the existing numeric Show page action can still open it. Numeric actions follow the current editor order; links stored in the layout follow stable page IDs.
 
 An excluded page is a detail page:
 

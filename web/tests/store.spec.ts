@@ -122,15 +122,15 @@ describe("live values", () => {
 });
 
 describe("copy, export and import", () => {
-  it("copies the entire layout including the screen title, with fresh identities", () => {
+  it("copies a layout with fresh identities and keeps this screen's title", () => {
     select("living");
     copyLayoutFrom("kitchen");
-    expect(state.layout!.title).toBe("Kitchen");
+    expect(state.layout!.title).toBe("Living room");
     expect(state.layout!.tiles.map((t) => t.entity)).toEqual(["switch.c"]);
     expect(state.layout!.tiles[0].options).toEqual({ background: "orange" });
     expect(state.dirty).toBe(true);
     expect(JSON.parse(layoutJson())).toMatchObject({ esp_screens_layout: 2, sourceGrid: { columns: 2, rows: 3 },
-      layout: { title: "Kitchen", pages: [{ tiles: [{ content: { kind: "entity", entityId: "switch.c" } }] }] } });
+      layout: { title: "Living room", pages: [{ tiles: [{ content: { kind: "entity", entityId: "switch.c" } }] }] } });
     const source = state.inventory.screens[1].page_document!;
     if (source.format === "pages-v2") expect(state.document!.pages[0].id).not.toBe(source.layout.pages[0].id);
   });

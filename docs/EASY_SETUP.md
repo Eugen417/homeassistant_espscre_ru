@@ -291,10 +291,16 @@ the device's own ESPHome configurations. **Removing/reinstalling** an app is not
 as updating; that can wipe the data folder. Keep the device name and the
 entity ID of **Tile settings** the same, so the existing layout stays linked.
 
-For a newly supported card, update the app first, then the firmware.
-The maintainer keeps protocol and data migrations backward compatible;
-see [RELEASING.md](RELEASING.md). To roll back, you can temporarily replace `ref: main`
-in your own YAML with an earlier release tag, without changing the keys.
+Update ESP Screen Manager first, then update the screens. The page-owned layout
+release changes the storage and firmware protocol. New firmware connected to an
+older app displays "Configuration problem. Update add-on." Screens can update at
+different times: the new app keeps sending compatible layouts to older firmware.
+
+The app saves the original layout file as `screens.v1.backup.json` before migrating
+it once. Returning to an older app requires your backup or that original file and
+loses layout edits made after migration. A firmware rollback alone does not undo
+the storage migration. See [PAGES.md](PAGES.md) and [RELEASING.md](RELEASING.md).
+Reload any editor tabs left open during the update before saving changes.
 
 ## 6. Removing a screen
 

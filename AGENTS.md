@@ -61,6 +61,10 @@ and screens for lookups and tests. If that file is missing you are not on his ma
 
 ## Code and regressions
 
+- The page-owned layout release deliberately replaces the old firmware decoder.
+  Future protocol extensions must be negotiated, as with `tile_sizes`, rather
+  than requiring another protocol break. Keep legacy delivery in the add-on,
+  never as a second configuration or decoder on the screen.
 - Keep the shared UI in `packages/core.yaml` and a board's hardware and sizes in its file under
   `packages/boards/`; the cards of a board's grid are `packages/cells/<count>.yaml`, written by
   `tools/generate_cells.py`, and what the add-on knows of a board is `screen_manager/app/boards.json`, written by

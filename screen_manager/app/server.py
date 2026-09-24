@@ -702,7 +702,14 @@ class Manager:
         return self._compiled_layouts
 
     def verified_grid(self, inbox):
-        """Migration never guesses the source layout's grid from the CYD default."""
+        """Resolve the reported grid, then the installed profile or known board.
+
+        Before fc953e8 (firmware 0.2.77), screens had no shape sensor and
+        both shipped boards used 2x3. The first different grid, Waveshare
+        4.3 in be66856, shipped after that sensor. An otherwise unidentified
+        legacy screen therefore uses 2x3 once it appears in HA's registry.
+        An absent screen still waits for discovery rather than being guessed.
+        """
         # Discovery is pure here: following renames can write storage, so it must
         # not run recursively from the store's migration callback.
         ha = self.ha
@@ -716,7 +723,9 @@ class Manager:
         profile = self.built_as(screen)
         if profile.get('package') and board_of({**screen, 'package': profile['package']}) in SHAPES:
             return self.grid_of(screen)
-        return None
+        if board_of(screen) in SHAPES:
+            return self.grid_of(screen)
+        return Grid(2, 3)
 
     def refresh_page_records(self):
         """Online metadata completes pending migrations without a browser Save."""
@@ -749,6 +758,8 @@ class Manager:
         marker = (screen.get('firmware'), screen.get('node'))
         if getattr(sender, 'device_marker', None) != marker:
             sender.disconnected()
+            sender.last_protocol = None
+            sender.last_tile_sizes = {'single', 'wide', 'full'}
             sender.device_marker = marker
         if sender.protocol is None and self.answers(inbox, screen):
             await sender.probe()
@@ -2430,8 +2441,11 @@ def create_app(manager, development=False):
             source = manager.verified_grid(screen['id'])
             screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
             sender = manager.page_senders.get(screen['id'])
-            screen['tile_sizes'] = sorted(getattr(sender, 'tile_sizes', {'single', 'wide', 'full'})) if sender else ['single', 'wide', 'full']
-            screen['page_capability'] = 'ready' if sender and sender.protocol == 2 else 'update_screen'
+            screen['tile_sizes'] = sorted(sender.tile_sizes if sender.protocol is not None else sender.last_tile_sizes) if sender else ['single', 'wide', 'full']
+            screen['page_capability'] = ('offline' if not screen.get('online') or not sender or sender.protocol is None
+                                         else 'ready' if sender.protocol == 2 else 'update_screen')
+            screen['page_last_capability'] = ('ready' if sender and sender.last_protocol == 2
+                                              else 'update_screen' if sender and sender.last_protocol == 1 else None)
             screen['page_delivery'] = sender.phase if sender else 'waiting'
             screen['page_saved_revision'] = record.get('revision') if record else None
             screen['page_applied_revision'] = manager.sent.get(screen['id'], {}).get('saved_revision')

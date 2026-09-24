@@ -102,6 +102,8 @@ class Sender:
         self.phase = "waiting"
         self.protocol = None
         self.tile_sizes = {"single", "wide", "full"}
+        self.last_protocol = None
+        self.last_tile_sizes = set(self.tile_sizes)
 
     def disconnected(self):
         self.session = self.confirmed = self.protocol = None
@@ -121,10 +123,12 @@ class Sender:
             sizes = answer.get("tile_sizes", ["single", "wide", "full"])
             self.tile_sizes = {size for size in sizes if isinstance(size, str)} if isinstance(sizes, list) else {"single", "wide", "full"}
             self.protocol, self.session, self.sequence = PROTOCOL, session, 0
+            self.last_protocol, self.last_tile_sizes = PROTOCOL, set(self.tile_sizes)
             return PROTOCOL
         # This is an answer from the running old firmware, not cached registry metadata.
         if isinstance(answer, dict) and answer.get("protocol") in (None, 1) and answer.get("status") == "Error: protocol version":
             self.protocol, self.session = 1, None
+            self.last_protocol, self.last_tile_sizes = 1, {"single", "wide", "full"}
             return 1
         raise DeliveryError("The running screen's protocol could not be verified")
 

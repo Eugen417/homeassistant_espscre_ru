@@ -2,6 +2,7 @@
 // One tile's settings. Every change applies live, so the card on the mockup shows the result while you pick.
 import { computed, ref, toRaw } from "vue";
 import { t } from "../i18n";
+import { beginFieldEdit, endFieldEdit } from '../store';
 import { domainInfo, entriesOf, grid, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { currentScreen, automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, setTileName, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
@@ -153,7 +154,7 @@ function inspect() {
   <div class="dr-body">
     <div class="f">
       <label class="f-label" for="tile-name">{{ t("editor.tile.name") }}</label>
-      <input id="tile-name" :value="tile.name" :placeholder="name" maxlength="60" @input="rename(($event.target as HTMLInputElement).value)" />
+      <input id="tile-name" :value="tile.name" :placeholder="name" maxlength="60" @focus="beginFieldEdit(`tile:${tile.id}`)" @blur="endFieldEdit" @input="rename(($event.target as HTMLInputElement).value)" />
     </div>
     <IconPicker v-if="showIcon" :selected="tile.options?.icon || 'auto'" :automatic="automaticIcon(tile.entity)"
       :auto-label="t(fromHA ? 'editor.tile.icon.auto_ha' : 'editor.tile.icon.auto_default')"

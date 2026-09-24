@@ -9,6 +9,8 @@ Try taller tiles with the existing tile designs.
 
 ## 0.3.0 (firmware 0.3.0)
 
+Update ESP Screen Manager before updating screens. Take a backup first: returning to an older add-on requires that backup or `screens.v1.backup.json` and loses layout edits made after migration.
+
 Pages own their tiles and top bars. Home and page links keep their destinations when pages move.
 
 - Each page has its own title, Home control and top-bar items. Choose which page is Home and opt pages out of sequential page navigation while keeping direct links to them.
@@ -16,6 +18,7 @@ Pages own their tiles and top bars. Home and page links keep their destinations 
 - The familiar Simple editor remains the default. Advanced shows page connections and a movable page map. Both edit the same configuration.
 - Existing layouts migrate once in the add-on, with a persistent backup. Screens can update at different times. The editor reports when a screen needs updating and applies the saved layout automatically once it is ready.
 - Firmware uses one configuration store and the new protocol only. Update ESP Screen Manager first; newer firmware receiving an older protocol shows “Configuration problem. Update add-on.”
+- Reload editor tabs left open during the update. Older editor saves without explicit tile positions are refused to protect the current layout.
 
 ## 0.2.133 (firmware 0.2.104)
 

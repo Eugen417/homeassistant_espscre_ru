@@ -3,6 +3,7 @@
 // entity's state or last change. Edits belong to the selected page.
 import { computed, ref } from "vue";
 import { t } from "../i18n";
+import { beginFieldEdit, endFieldEdit } from '../store';
 import { entriesOf, pageCount } from "../model/layout";
 import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from "../model/topbar";
 import {
@@ -152,12 +153,14 @@ function onKey(e: KeyboardEvent, i: number) {
     <div class="f">
       <label class="f-label" for="screen-title">{{ pages > 1 ? t("editor.topbar.screen_name") : t("editor.topbar.name") }}</label>
       <input id="screen-title" :value="screenTitle()" maxlength="60" :aria-describedby="pages > 1 ? 'screen-title-hint' : undefined"
+        @focus="beginFieldEdit('screen-title')" @blur="endFieldEdit"
         :placeholder="t('editor.topbar.name_placeholder')" @input="setScreenTitle(($event.target as HTMLInputElement).value)" />
       <small v-if="pages > 1" id="screen-title-hint">{{ t("editor.topbar.screen_name_hint") }}</small>
     </div>
     <div v-if="asksPageTitle" class="f">
       <label class="f-label" for="page-title">{{ t("editor.topbar.page_name", { page: page + 1 }) }}</label>
       <input id="page-title" :value="pageTitle(page)" maxlength="60" aria-describedby="page-title-hint"
+        @focus="beginFieldEdit(`page:${state.document?.pages[page]?.id}`)" @blur="endFieldEdit"
         :placeholder="screenTitle() || t('editor.topbar.name_placeholder')"
         @input="setPageTitle(page, ($event.target as HTMLInputElement).value)" />
       <small id="page-title-hint">{{ t("editor.topbar.page_name_hint") }}</small>

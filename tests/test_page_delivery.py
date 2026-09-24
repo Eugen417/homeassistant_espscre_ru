@@ -64,6 +64,19 @@ class Screen:
 
 
 class DeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_disconnect_keeps_capabilities_for_offline_editing_only(self):
+        async def newer(message):
+            answer = await self.screen.send(message)
+            if message['op'] == 'hello': answer['tile_sizes'] = ['single', 'wide', 'full', 'tall', 'square']
+            return answer
+        sender = Sender(newer)
+        await sender.probe()
+        sender.disconnected()
+        self.assertIsNone(sender.protocol)
+        self.assertIsNone(sender.session)
+        self.assertEqual(sender.last_protocol, 2)
+        self.assertIn('square', sender.last_tile_sizes)
+
     async def test_taller_tiles_are_refused_before_replacing_an_older_screen(self):
         tile = self.record['layout']['pages'][0]['tiles'][0]
         tile['placement']['rows'] = 2

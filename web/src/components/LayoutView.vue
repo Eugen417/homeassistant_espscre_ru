@@ -9,6 +9,7 @@ import Library from "./Library.vue";
 import PageMap from "./PageMap.vue";
 import NavigationPreview from './NavigationPreview.vue';
 import GridReview from './GridReview.vue';
+import { resolveLayoutConflict } from '../store';
 import { titleOf } from '../model/pages';
 const preview = ref(false);
 const narrow = ref(window.innerWidth <= 700);
@@ -49,16 +50,21 @@ function onCanvasClick(e: MouseEvent) {
         <button type="button" :aria-pressed="state.editorMode === 'advanced'" @click="setEditorMode('advanced')">{{ t('editor.pages.advanced') }}</button>
       </div>
       <span class="spacer"></span>
-      <button v-if="state.editorMode === 'advanced'" type="button" class="btn mini" @click="preview = true">{{ t('editor.pages.try_navigation') }}</button>
+      <button type="button" class="btn mini" @click="preview = true">{{ t('editor.pages.try_navigation') }}</button>
       <button type="button" class="btn mini" :disabled="!state.undoCount" @click="undo">{{ t('editor.common.undo') }}</button>
       <button type="button" class="btn mini" :disabled="!state.redoCount" @click="redo">{{ t('editor.pages.redo') }}</button>
       <button v-if="state.editorMode === 'advanced'" type="button" class="btn mini" :disabled="!canAdd" @click="addPage">{{ t('editor.layout.add_page') }}</button>
     </div>
-    <div v-if="currentScreen?.page_capability !== 'ready'" class="page-notice" role="status">
+    <div v-if="currentScreen?.page_capability === 'offline'" class="page-notice" role="status">{{ t('editor.pages.offline_notice') }}</div>
+    <div v-if="currentScreen?.page_capability === 'update_screen'" class="page-notice" role="status">
       <span>{{ t('editor.pages.update_notice') }}</span>
       <button v-if="currentScreen?.online && currentScreen.update?.profile" type="button" class="btn mini" @click="startUpdate(currentScreen)">{{ t('editor.screen_view.menu.update') }}</button>
     </div>
-    <div v-if="state.conflict" class="page-notice conflict" role="alert">{{ t('editor.pages.conflict') }}</div>
+    <div v-if="state.conflict" class="page-notice conflict" role="alert">
+      <span>{{ t('editor.pages.conflict') }}</span>
+      <button type="button" class="btn mini" :disabled="state.busy" @click="resolveLayoutConflict('reload')">{{ t('editor.pages.reload_saved') }}</button>
+      <button type="button" class="btn mini" :disabled="state.busy" @click="resolveLayoutConflict('keep')">{{ t('editor.pages.keep_mine') }}</button>
+    </div>
     <div v-if="gridChanged" class="page-notice" role="status"><span>{{ t('editor.pages.grid_changed') }}</span><button class="btn mini" @click="reviewScreenGrid">{{ t('editor.pages.grid_review') }}</button></div>
     <div class="canvas-head">
       <b id="count">{{ t("editor.layout.count", { tiles: layout.tiles.length, limit: tileLimit }, pages) }}</b>

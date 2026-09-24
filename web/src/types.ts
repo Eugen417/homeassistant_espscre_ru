@@ -83,7 +83,8 @@ export type Screen = {
   page_document?: PageDocument | PendingMigration | null;
   source_grid?: PageGrid | null;
   tile_sizes?: string[];
-  page_capability?: "ready" | "update_screen";
+  page_capability?: "ready" | "update_screen" | "offline";
+  page_last_capability?: "ready" | "update_screen" | null;
   page_delivery?: string;
   page_saved_revision?: string | null;
   page_applied_revision?: string | null;

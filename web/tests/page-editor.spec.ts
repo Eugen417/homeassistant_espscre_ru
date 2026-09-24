@@ -3,6 +3,8 @@ import { nextTick } from "vue";
 import { mount } from "@vue/test-utils";
 import LayoutView from "../src/components/LayoutView.vue";
 import NavigationPreview from '../src/components/NavigationPreview.vue';
+import PageInspector from '../src/components/PageInspector.vue';
+import { pageReady, removeTile, resolveLayoutConflict } from '../src/store';
 import { addPage, addTile, connectTile, copyLayoutFrom, importLayout, layoutJson, movePage, moveWorkspacePage, redo,
   acceptGridReview, gridChanged, refresh, reviewScreenGrid, save, saveWorkspace, select, setEditorMode, setHomePage, setPageExcluded, setPageTitle, setTopbarItems, state, undo, workspacePositions } from "../src/store";
 import { documentFixture, screenFixture } from "./page-fixtures";
@@ -27,6 +29,49 @@ beforeEach(() => {
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe("one draft in both editor modes", () => {
+  it('groups typing until blur and gives the next focus its own undo step', async () => {
+    const view = mount(PageInspector, { props: { id: state.document!.pages[0].id } });
+    const input = view.find('#owned-page-title');
+    const original = JSON.stringify(state.document!.pages[0].topbar.title);
+    await input.trigger('focus');
+    for (const text of ['K', 'Ki', 'Kitchen']) await input.setValue(text);
+    await input.trigger('blur');
+    expect(state.undoCount).toBe(1);
+    await input.trigger('focus');
+    for (const text of ['Kitchen ', 'Kitchen lights']) await input.setValue(text);
+    await input.trigger('blur');
+    expect(state.undoCount).toBe(2);
+    undo(); expect(state.document!.pages[0].topbar.title).toEqual({ source: 'text', text: 'Kitchen' });
+    undo(); expect(JSON.stringify(state.document!.pages[0].topbar.title)).toBe(original);
+    redo(); expect(state.document!.pages[0].topbar.title).toEqual({ source: 'text', text: 'Kitchen' });
+  });
+  it('keeps verified page editing available offline without asking for an update', () => {
+    Object.assign(state.inventory.screens[0], { online: false, page_capability: 'offline', page_last_capability: 'ready' });
+    const view = mount(LayoutView);
+    expect(pageReady.value).toBe(true);
+    expect(view.text()).not.toContain('Update screen to use the new titlebar and layout');
+    expect(view.text()).toContain('Waiting for the screen to reconnect');
+  });
+  it('retires a removal undo toast when a later edit becomes the history head', () => {
+    const tile = state.layout!.tiles[0];
+    removeTile(tile);
+    expect(state.toast?.action).toBeDefined();
+    setPageTitle(0, 'Later edit');
+    expect(state.toast).toBeNull();
+    undo();
+    expect(state.layout!.tiles).toHaveLength(0);
+    undo();
+    expect(state.layout!.tiles[0].id).toBe(tile.id);
+  });
+  it('offers participation in dots and swipes as an enabled-by-default checkbox', async () => {
+    const view = mount(PageInspector, { props: { id: state.document!.pages[0].id } });
+    const checkbox = view.find('.page-check input');
+    expect((checkbox.element as HTMLInputElement).checked).toBe(true);
+    await checkbox.setValue(false);
+    expect(state.document!.pages[0].navigation.excludeFromPagination).toBe(true);
+    await checkbox.setValue(true);
+    expect(state.document!.pages[0].navigation.excludeFromPagination).toBe(false);
+  });
   it('adds a library item only to the selected page and leaves other pages alone when full', () => {
     state.selectedPageId = state.document!.pages[1].id;
     addTile('light.selected');
@@ -225,6 +270,45 @@ describe("editor positions never alter firmware configuration", () => {
 });
 
 describe("revisions and portable layouts", () => {
+  it('reloads the competing saved document only when explicitly chosen', async () => {
+    addPage(); state.conflict = true;
+    const other = { ...record(), revision: 'newer' };
+    vi.stubGlobal('fetch', vi.fn(async () => reply({ screens: [{ ...state.inventory.screens[0], page_document: other }] })));
+    await resolveLayoutConflict('reload');
+    expect(state.document).toEqual(other.layout);
+    expect(state.dirty).toBe(false);
+    expect(state.conflict).toBe(false);
+    expect(state.undoCount).toBe(0);
+  });
+  it('keeps the draft and uses the latest revision for an explicit overwrite', async () => {
+    addPage(); state.conflict = true;
+    const draft = JSON.parse(JSON.stringify(state.document));
+    let other = { ...record(), revision: 'newer' };
+    const fetch = vi.fn(async (_url: string, options?: RequestInit) => {
+      if (options?.method === 'PUT') {
+        const body = JSON.parse(String(options.body));
+        expect(body.revision).toBe('newer'); expect(body.layout).toEqual(draft);
+        other = { ...other, revision: 'saved', layout: body.layout };
+        return reply({ saved: true, document: other });
+      }
+      return reply({ screens: [{ ...state.inventory.screens[0], page_document: other }] });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await resolveLayoutConflict('keep');
+    expect(state.document).toEqual(draft);
+    expect(state.dirty).toBe(false);
+    expect(state.conflict).toBe(false);
+    expect(state.documentRevision).toBe('saved');
+  });
+  it('preserves the destination screen title when copying another layout', () => {
+    state.document!.title = 'Destination';
+    const source = screenFixture({ ...state.inventory.screens[0], id: 'source', name: 'Source' });
+    (source.page_document as PageDocument).layout.title = 'Source title';
+    state.inventory.screens.push(source);
+    copyLayoutFrom('source');
+    expect(state.document!.title).toBe('Destination');
+    expect((source.page_document as PageDocument).layout.title).toBe('Source title');
+  });
   it("keeps a rejected save as a draft and exposes the competing revision", async () => {
     addPage(); const draft = JSON.stringify(state.document);
     const other = { ...record(), revision: "changed-elsewhere" };
