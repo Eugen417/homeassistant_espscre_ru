@@ -1,10 +1,14 @@
 <script setup lang="ts">
+import { editorLayout } from "../store";
+const { pageCount } = editorLayout;
+
+import HelpTip from "./HelpTip.vue";
 // The top bar: the name on the left; on the right up to six items: the time, an analog clock, the date, or an
 // entity's state or last change. Edits belong to the selected page.
 import { computed, ref } from "vue";
 import { t } from "../i18n";
 import { beginFieldEdit, endFieldEdit } from '../store';
-import { entriesOf, pageCount } from "../model/layout";
+import { entriesOf } from "../model/layout";
 import { barLayout, BUILTIN_ICONS, clockText, dateText, glyph, itemKey } from "../model/topbar";
 import {
   automaticIcon, barMetrics, clock24, closeInspector, entityName, iconNamed, markDirty, moveTopbarItem, openBar, openBarAdd,
@@ -157,7 +161,7 @@ function onKey(e: KeyboardEvent, i: number) {
       <input id="screen-title" :value="titleDraft.value.value" maxlength="60" :aria-describedby="pages > 1 ? 'screen-title-hint' : undefined"
         @focus="beginFieldEdit('screen-title'); titleDraft.focus()" @blur="endFieldEdit(); titleDraft.blur()"
         :placeholder="t('editor.topbar.name_placeholder')" @input="titleDraft.input(($event.target as HTMLInputElement).value)" />
-      <small v-if="pages > 1" id="screen-title-hint">{{ t("editor.topbar.screen_name_hint") }}</small>
+      <HelpTip v-if="pages > 1" id="screen-title-hint" :text="t('editor.topbar.screen_name_hint')" />
     </div>
     <div v-if="asksPageTitle" class="f">
       <label class="f-label" for="page-title">{{ t("editor.topbar.page_name", { page: page + 1 }) }}</label>
@@ -165,7 +169,7 @@ function onKey(e: KeyboardEvent, i: number) {
         @focus="beginFieldEdit(`page:${state.document?.pages[page]?.id}`)" @blur="endFieldEdit"
         :placeholder="screenTitle() || t('editor.topbar.name_placeholder')"
         @input="setPageTitle(page, ($event.target as HTMLInputElement).value)" />
-      <small id="page-title-hint">{{ t("editor.topbar.page_name_hint") }}</small>
+      <HelpTip id="page-title-hint" :text="t('editor.topbar.page_name_hint')" />
     </div>
     <div class="f">
       <span class="f-label" id="topbar-caption">{{ t("editor.topbar.right") }} <span style="text-transform: none; letter-spacing: 0; font-weight: 500"> · {{ items.length }} / {{ topbarMax() }}</span></span>
@@ -181,7 +185,7 @@ function onKey(e: KeyboardEvent, i: number) {
         </div>
         <button type="button" class="ghost-btn" id="topbar-add" :disabled="items.length >= topbarMax()" :title="items.length >= topbarMax() ? t('editor.topbar.max', topbarMax()) : t('editor.topbar.add_title')" @click="openBarAdd">{{ t("editor.topbar.add_button") }}</button>
       </div>
-      <small id="topbar-hint" :class="{ warn: overflow.size > 0 && supported }">{{ hint }}</small>
+      <small v-if="overflow.size > 0 || !supported" id="topbar-hint" class="warn">{{ hint }}</small><HelpTip v-else :text="hint" />
     </div>
     <template v-if="item">
       <div class="live" id="topbar-live">
@@ -192,13 +196,13 @@ function onKey(e: KeyboardEvent, i: number) {
         <div class="f">
           <span class="f-label">{{ t("editor.topbar.content.label") }}</span>
           <Segmented :choices="(state.inventory.header?.contents || []).map((c) => [c.key, c.label] as [string, string])" :value="item.content" @pick="(v) => update({ content: v })" />
-          <small>{{ t("editor.topbar.content.hint") }}</small>
+          <HelpTip :text="t('editor.topbar.content.hint')" />
         </div>
         <IconPicker :selected="item.icon || 'auto'" :automatic="state.topbarPreviews[itemKey(item)]?.auto_icon || automaticIcon(item.entity!)" :auto-label="t('editor.topbar.auto_icon')" allow-none @pick="(n) => update({ icon: n })" />
         <div class="f">
           <span class="f-label">{{ t("editor.topbar.show.label") }}</span>
           <Segmented :choices="(state.inventory.header?.shows || []).map((s) => [s.key, s.label] as [string, string])" :value="item.show" @pick="(v) => update({ show: v })" />
-          <small>{{ t("editor.topbar.show.hint") }}</small>
+          <HelpTip :text="t('editor.topbar.show.hint')" />
         </div>
       </template>
       <!-- The clock's format is one choice for every screen, under Settings → Language & region (app 0.2.90). -->

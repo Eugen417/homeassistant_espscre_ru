@@ -1,19 +1,18 @@
 // One reactive state for the whole editor. The Python API (server.py) is unchanged: this file is the
 // former app.js state and its calls, with the DOM work moved into the components.
-import { computed, reactive, toRaw, watch, watchEffect } from "vue";
+import { computed, reactive, toRaw, watch } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
-import {
-  arrange, cellsOf, entriesOf, firstFree, fits, grid, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
-  pageOrder, pagePlaces, pageTarget, reorderPages, reorderTitles, retargetedPage, rowStart, startOf, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages,
-  supportsFirmware as supportsVersion, tileLimit as limitFor,
-} from "./model/layout";
+import { entriesOf, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
-import { versionAtLeast } from "./model/layout";
+import { createLayout, versionAtLeast } from "./model/layout";
 import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile, PageLayout, PageDocument, PageGrid, PageWorkspace } from "./types";
 
 import * as pages from "./model/pages";
 import { DraftHistory, type HistoryScope } from './model/draft-history';
+import { suggestedPageTitle } from './model/page-naming';
+import { completePositions, workspaceSaver } from './model/page-workspace';
+import { resolveConflict, savedDraft } from './model/page-conflict';
 
 export type Inspector =
   | { kind: "tile" }
@@ -64,8 +63,8 @@ export const state = reactive({
   entityActions: {} as Record<string, EntityAction[] | null | undefined>,
   // Per entity, the values its second line may say: Home Assistant's own named attributes (app 0.2.105).
   subtitleValues: {} as Record<string, { key: string; name: string }[] | undefined>,
-  // The page whose top bar the inspector is showing (app 0.2.105).
-  barPage: 0,
+  // Index projection for older view helpers; selection itself is always an ID.
+  get barPage(): number { return Math.max(0, state.document?.pages.findIndex(page => page.id === state.selectedPageId) ?? 0); },
   topbarPreviews: {} as Record<string, any>,
   topbarAdded: null as null | { key: string; time: number },
   topbarOverflow: [] as number[],
@@ -158,7 +157,9 @@ export const deviceStyle = computed(() => {
 // still the standard look, and on its width alone it would have read as a CYD.
 export const isCompact = computed(() =>
   screenShape.value.look ? screenShape.value.look === "compact" : Math.min(screenShape.value.width, screenShape.value.height) < 300);
-watchEffect(() => setGrid(state.documentGrid?.columns ?? screenShape.value.columns, state.documentGrid?.rows ?? screenShape.value.rows));
+export const editorLayout = createLayout(() => state.documentGrid ?? screenShape.value);
+export const grid = editorLayout.grid;
+const { arrange, cellsOf, firstFree, fits, nearestFree, normalize, occupied, pageCount, pageOf, reorderPages, rowStart, startOf, strandedPages, tileLimit: limitFor } = editorLayout;
 export const currentTile = computed<Tile | undefined>(() => state.selectedTile?.id
   ? state.layout?.tiles.find((tile) => tile.id === state.selectedTile!.id) : undefined);
 export const isSelected = (tile: Tile) => Boolean(tile.id) && state.selectedTile?.id === tile.id;
@@ -376,11 +377,8 @@ function applyDocument(next: PageLayout, remember = true, nextGrid = state.docum
     draftHistory.remember(snapshot());
     historyCounts();
   }
-  const barId = state.document.pages[state.barPage]?.id;
   state.documentGrid = pages.clone(nextGrid);
   state.document = next;
-  const barIndex = next.pages.findIndex((page) => page.id === barId);
-  state.barPage = Math.max(0, barIndex);
   const ids = new Set(next.pages.map((page) => page.id));
   const positions = Object.fromEntries(Object.entries(state.workspace.positions).filter(([id]) => ids.has(id)));
   if (Object.keys(positions).length !== Object.keys(state.workspace.positions).length) {
@@ -495,7 +493,13 @@ export function commitArrangement(result: { tile: Tile; slot: number }[]) {
     const count = Math.max(draft.pages.length, ...result.filter(({ tile }) => !tile.id).map(({ tile }) => pageTarget(tile.entity)));
     if (count > pages.pageLimit(state.documentGrid)) throw new Error(t("addon.errors.pages.pages_full"));
     while (draft.pages.length < count) draft.pages.push(pages.emptyPage(draft.pages.at(-1)!.topbar));
-    return applyDocument(pages.arrangeTiles(draft, state.documentGrid, result));
+    const arranged = pages.arrangeTiles(draft, state.documentGrid, result);
+    const existing = new Set(state.document.pages.map(page => page.id));
+    for (const page of arranged.pages) if (!existing.has(page.id)) {
+      const title = suggestedPageTitle(page, state.inventory.entities);
+      page.topbar.title = title ? { source: 'text', text: title } : { source: 'screen' };
+    }
+    return applyDocument(arranged);
   }
   catch (error: any) { toast(error.message); return false; }
 }
@@ -528,12 +532,13 @@ export function removeTile(tile: Tile) {
   if (editDocument((draft) => { for (const page of draft.pages) page.tiles = page.tiles.filter((item) => item.id !== tile.id); }))
     toast(t("editor.layout.removed", { name: tile.name || entityName(tile.entity) }), { label: t("editor.common.undo"), run: undo });
 }
-export function addPage() {
+export function addPage(bar?: PageLayout["pages"][number]["topbar"]) {
   let created = '';
   if (editDocument((draft) => {
     const selected = draft.pages.find((page) => page.id === state.selectedPageId) || draft.pages.at(-1)!;
-    const page = pages.emptyPage(selected.topbar); created = page.id; draft.pages.push(page);
-  })) state.selectedPageId = created;
+    const page = pages.emptyPage(bar || selected.topbar); created = page.id; draft.pages.push(page);
+  })) { state.selectedPageId = created; return true; }
+  return false;
 }
 export function movePage(from: number, to: number) {
   if (!state.document || !state.documentGrid || from === to || !Number.isInteger(from) || !Number.isInteger(to) ||
@@ -589,19 +594,7 @@ export function moveWorkspacePage(id: string, x: number, y: number) {
   state.workspaceDirty = true; scheduleWorkspaceSave();
 }
 export function workspacePositions() {
-  if (!state.document) return {};
-  const positions = pages.clone(state.workspace.positions), defaults = pages.initialPositions(state.document);
-  const occupied = new Set(Object.values(positions).map((point) => `${point.x},${point.y}`));
-  for (const page of state.document.pages) if (!positions[page.id]) {
-    const point = { ...defaults[page.id] };
-    while (occupied.has(`${point.x},${point.y}`)) {
-      point.x++;
-      if (point.x > 100) { point.x = 0; point.y++; }
-    }
-    positions[page.id] = point;
-    occupied.add(`${point.x},${point.y}`);
-  }
-  return positions;
+  return completePositions(state.document, state.workspace.positions);
 }
 function initializeWorkspace() {
   const positions = workspacePositions();
@@ -622,9 +615,9 @@ export function arrangeFromHome() {
 export function moveTileToPage(tile: Tile, page: number) {
   const layout = state.layout;
   tile = currentView(tile) || tile;
-  if (!layout || !Number.isInteger(page) || page < 0 || page >= MAX_PAGES || page === pageOf(tile.slot)) return false;
-  const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), sizeOf(tile), page * SLOTS_PER_PAGE);
-  const moved = placeTile(tile, slot >= 0 && pageOf(slot) === page ? slot : page * SLOTS_PER_PAGE);
+  if (!layout || !Number.isInteger(page) || page < 0 || page >= grid.pages || page === pageOf(tile.slot)) return false;
+  const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), sizeOf(tile), page * grid.slots);
+  const moved = placeTile(tile, slot >= 0 && pageOf(slot) === page ? slot : page * grid.slots);
   if (!moved) toast(t("editor.layout.no_room", { page: page + 1 }));
   return moved;
 }
@@ -635,7 +628,7 @@ export function pagesShown() {
   const pages = pageCount(entries, layout.pages);
   // While a tile is being dragged, one more page waits after the last one. A page on the move is looking for a place
   // in the row it is already in, so the row stays as long as it is.
-  return state.drag.active && !state.drag.page && pages < MAX_PAGES ? pages + 1 : pages;
+  return state.drag.active && !state.drag.page && pages < grid.pages ? pages + 1 : pages;
 }
 // Resizing keeps the tile's position when its rectangle is free, otherwise it finds
 // the nearest fitting rectangle. Every other tile stays where it is.
@@ -663,12 +656,12 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
     const taken = occupied(entriesOf(layout).filter((e) => e.tile !== tile && !others.includes(e.tile)));
     const moved: [Tile, number][] = [];
     for (const other of others) {
-      const slot = firstFree(taken, sizeOf(other), (page + 1) * SLOTS_PER_PAGE);
+      const slot = firstFree(taken, sizeOf(other), (page + 1) * grid.slots);
       if (slot < 0) { moved.length = 0; break; }
       moved.push([other, slot]);
       for (const c of cellsOf(slot, sizeOf(other))) taken.add(c);
     }
-    if (moved.length === others.length) { for (const [other, slot] of moved) other.slot = slot; tile.slot = page * SLOTS_PER_PAGE; }
+    if (moved.length === others.length) { for (const [other, slot] of moved) other.slot = slot; tile.slot = page * grid.slots; }
     else {
       const slot = firstFree(occupied(entriesOf(layout).filter((e) => e.tile !== tile)), "full");
       if (slot >= 0) tile.slot = slot;
@@ -686,7 +679,7 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
 // A navigation tile goes to another page: its entity changes (screen.page_<n>). One tile per page it goes to, unless
 // the firmware takes several (0.2.65). The page after the last one becomes a new, empty page to fill (app 0.2.78).
 export function retargetPageTile(tile: Tile, page: number) {
-  if (!tile.id || !Number.isInteger(page) || page < 1 || page > MAX_PAGES) return false;
+  if (!tile.id || !Number.isInteger(page) || page < 1 || page > grid.pages) return false;
   if (!pageTilesRepeat.value && state.layout?.tiles.some((other) => other.id !== tile.id && pageTarget(other.entity) === page)) {
     toast(t("editor.layout.page_taken", { page })); return false;
   }
@@ -736,7 +729,6 @@ export function setPageTitle(page: number, value: string) {
 export function openBar(index: number, page = state.barPage) {
   if (!(state.inspector?.kind === "bar" && state.inspector.index === index)) state.iconPickerOpen = false;
   state.selectedTile = null;
-  state.barPage = page;
   state.selectedPageId = state.document?.pages[page]?.id || null;
   state.inspector = { kind: "bar", index };
 }
@@ -783,8 +775,7 @@ export async function save() {
     try {
       const inventory = await getJson<Inventory>("inventory?light=1");
       const record = inventory.screens.find((item) => item.id === screen)?.page_document;
-      if (state.selected === screen && selection === selectionEpoch && record?.format === "pages-v2" && pages.sameGrid(record.sourceGrid, submittedGrid) && JSON.stringify(record.layout) === JSON.stringify(submitted) &&
-          (!workspace || JSON.stringify(record.workspace?.positions) === JSON.stringify(workspace.positions))) {
+      if (state.selected === screen && selection === selectionEpoch && savedDraft(record, submitted, submittedGrid, workspace)) {
         acceptSave(record, submitted, workspace, sent);
         return;
       }
@@ -796,27 +787,13 @@ export async function save() {
     if (state.workspaceDirty) scheduleWorkspaceSave();
   }
 }
-let workspaceTimer = 0, workspaceFlight = false;
-function scheduleWorkspaceSave() {
-  clearTimeout(workspaceTimer);
-  workspaceTimer = window.setTimeout(saveWorkspace, 400);
-}
-export async function saveWorkspace() {
-  if (workspaceFlight || state.busy || state.conflict || !state.workspaceDirty || !state.selected || !state.documentRevision || !committedLayout) return;
-  const committedIds = new Set(committedLayout.pages.map((page) => page.id));
-  if (Object.keys(state.workspace.positions).some((id) => !committedIds.has(id))) return;
-  const screen = state.selected, selection = selectionEpoch, workspace = pages.clone(state.workspace), revision = state.documentRevision;
-  workspaceFlight = true;
-  try {
-    const saved = await send<PageWorkspace>(`screens/${encodeURIComponent(screen)}/workspace`, "PUT", { revision, workspace });
-    if (state.selected === screen && selection === selectionEpoch) {
-      state.workspace.revision = saved.revision;
-      state.workspaceDirty = JSON.stringify(state.workspace.positions) !== JSON.stringify(saved.positions);
-      if (state.workspaceDirty) scheduleWorkspaceSave();
-    }
-  } catch (error: any) { toast(error.message); }
-  finally { workspaceFlight = false; }
-}
+const mapSaver = workspaceSaver(state, {
+  epoch: () => selectionEpoch, committed: () => committedLayout,
+  put: (screen, revision, workspace) => send<PageWorkspace>(`screens/${encodeURIComponent(screen)}/workspace`, 'PUT', { revision, workspace }),
+  error: (error: any) => toast(error.message),
+});
+function scheduleWorkspaceSave() { mapSaver.schedule(); }
+export async function saveWorkspace() { await mapSaver.save(); }
 
 // ---- Identify and the test alert (app 0.2.73): a screen's own show_alert action ----
 export const canAlert = (screen: Screen | undefined) =>
@@ -1347,25 +1324,12 @@ export async function startFreshLayout() {
 }
 
 export async function resolveLayoutConflict(choice: 'reload' | 'keep') {
-  if (state.busy || !state.conflict) return;
-  const selected = state.selected, selection = selectionEpoch;
-  await refresh(false);
-  if (!state.reachable || state.selected !== selected || selectionEpoch !== selection) return;
-  const screen = currentScreen.value, record = screen?.page_document;
-  if (!screen || record?.format !== 'pages-v2') return;
-  if (choice === 'reload') {
-    closeInspector();
-    loadDocument(screen);
-    state.dirty = false;
-    return;
-  }
-  // Explicit Keep mine authorizes replacing this revision only. Another save
-  // racing this request is still rejected by the server's revision check.
-  state.documentRevision = record.revision;
-  committedLayout = pages.clone(record.layout);
-  committedGrid = pages.clone(record.sourceGrid);
-  state.workspace.revision = record.workspace?.revision || '';
-  await save();
+  await resolveConflict(choice, state, {
+    epoch: () => selectionEpoch, refresh: () => refresh(false), screen: () => currentScreen.value,
+    load: screen => { closeInspector(); loadDocument(screen); },
+    acceptBase: record => { committedLayout = pages.clone(record.layout); committedGrid = pages.clone(record.sourceGrid); },
+    save,
+  });
 }
 
 function reconcileDocument() {

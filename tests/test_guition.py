@@ -1,4 +1,5 @@
 """Guition-specific geometry, hardware isolation and capacitive touch checks."""
+from firmware_sources import runtime_source
 from pathlib import Path
 import re
 import sys
@@ -56,7 +57,7 @@ class GuitionTests(unittest.TestCase):
 
     def test_every_card_label_is_one_line_with_an_ellipsis(self):
         """The runtime gives every card's name and state a one-line box and an ellipsis, on every board."""
-        runtime=(ROOT/'components/smart_display/runtime_tiles.h').read_text()
+        runtime=runtime_source()
         self.assertIn('lv_obj_set_height(title,lv_font_get_line_height(lv_obj_get_style_text_font(title,LV_PART_MAIN)));',runtime)
         self.assertIn('lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);lv_label_set_long_mode(value,LV_LABEL_LONG_DOT);',runtime)
         self.assertEqual(VALUES['AUTO_DIM_TIMEOUT'],'600')

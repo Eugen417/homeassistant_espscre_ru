@@ -639,7 +639,8 @@
         "ambiguous_tile": "La source de l’événement de tuile est ambiguë ; précisez sa page",
         "save_first": "Enregistrez la disposition des pages avant ses paramètres",
         "destination_exists": "L’écran de destination possède déjà une disposition enregistrée",
-        "update_tall": "Mettez l’écran à jour pour utiliser des tuiles plus hautes"
+        "update_tall": "Mettez l’écran à jour pour utiliser des tuiles plus hautes",
+        "memory": "L’écran ne dispose pas de suffisamment de mémoire libre pour cette disposition. Utilisez moins de tuiles."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "En attente de reconnexion de l’écran. L’éditeur utilise ses dernières capacités vérifiées.",
       "include_navigation_hint": "Si désactivé, les liens directs ouvrent toujours cette page. Retour apparaît en bas, ou remplace Accueil si la barre est masquée.",
       "home_control": "Afficher un bouton d’accueil sur cette page",
+      "clock_control": "Heure",
       "edit_topbar": "Modifier la barre supérieure de cette page",
       "order": "Ordre des pages",
       "order_hint": "Les commandes numériques suivent cet ordre. Les liens de page nommés conservent leur destination.",

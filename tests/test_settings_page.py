@@ -4,6 +4,7 @@ Two halves have to agree without ever seeing each other: the row table in settin
 that only mean something if ESP Screens knows them, and the eleven-key `settings` block older firmware
 insists on may never grow. Both are checked here, against the real files.
 """
+from firmware_sources import runtime_source
 import importlib.util
 import json
 import re
@@ -22,7 +23,7 @@ from core import (BUILTIN, SETTING_RULES, SETTINGS_BESIDE_BLOCK, entity_id, min_
                   validate_settings)
 
 SCREEN = (ROOT / 'components/smart_display/settings_screen.h').read_text()
-RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+RUNTIME = runtime_source()
 CORE = (ROOT / 'packages/core.yaml').read_text()
 # The keys the firmware's own block still carries; everything newer travels as its own key.
 FROZEN = {'standby_enabled', 'standby_seconds', 'brightness', 'standby_brightness', 'night_enabled',

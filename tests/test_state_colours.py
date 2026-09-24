@@ -6,6 +6,7 @@ entity in its colour or grey, and stateColorCss() (src/common/entity/state_color
 checks keep the tables in step with each other and with Home Assistant's palette; tests/test_runtime_model.cpp and
 tests/test_tile_controls.cpp check the rules state by state.
 """
+from firmware_sources import runtime_source
 import re
 import sys
 import unittest
@@ -18,7 +19,7 @@ import tile_icons  # noqa: E402
 
 COMPONENT = ROOT / 'components/smart_display'
 CONTROLS = (COMPONENT / 'tile_controls.h').read_text()
-TILES = (COMPONENT / 'runtime_tiles.h').read_text()
+TILES = runtime_source()
 MODEL = (COMPONENT / 'runtime_model.h').read_text()
 THEME = (COMPONENT / 'theme.h').read_text()
 

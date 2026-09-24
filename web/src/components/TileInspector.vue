@@ -1,9 +1,13 @@
 <script setup lang="ts">
+import { editorLayout } from "../store";
+const { grid, pageCount, pageOf } = editorLayout;
+
+import HelpTip from "./HelpTip.vue";
 // One tile's settings. Every change applies live, so the card on the mockup shows the result while you pick.
 import { computed, ref, toRaw } from "vue";
 import { t } from "../i18n";
 import { beginFieldEdit, endFieldEdit } from '../store';
-import { domainInfo, entriesOf, grid, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
+import { domainInfo, entriesOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { currentScreen, automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, setTileName, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
@@ -164,7 +168,7 @@ function inspect() {
     <div v-if="goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.goes_to.label") }}</span>
       <Segmented :choices="pages" :value="goesTo" @pick="(v) => retargetPageTile(tile, Number(v))" />
-      <small :class="{ warn: goesToHint.warn }">{{ goesToHint.text }}</small>
+      <template v-if="goesToHint"><small v-if="goesToHint.warn" class="warn">{{ goesToHint.text }}</small><HelpTip v-else :text="goesToHint.text" /></template>
     </div>
     <div v-else class="f">
       <span class="f-label">{{ t("editor.tile.display.label") }}</span>
@@ -178,7 +182,7 @@ function inspect() {
     <div class="f">
       <span class="f-label">{{ t("editor.tile.size.label") }}</span>
       <Segmented :choices="sizes" :value="size" @pick="(v) => setTileOption(tile, 'size', v)" />
-      <small v-if="sizeHint">{{ sizeHint }}</small>
+      <HelpTip v-if="sizeHint" :text="sizeHint" />
     </div>
     <div v-if="onPage.length > 1" class="f">
       <span class="f-label">{{ t("editor.tile.page.label") }}</span>
@@ -187,12 +191,12 @@ function inspect() {
     <div v-if="catalogue && ['wide', 'square', 'full'].includes(size) && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.controls.label") }}</span>
       <Segmented :choices="controlChoices" :value="controls" @pick="(v) => setTileOption(tile, 'controls', v)" />
-      <small :class="{ warn: controlHint.warn }">{{ controlHint.text }}</small>
+      <template v-if="controlHint"><small v-if="controlHint.warn" class="warn">{{ controlHint.text }}</small><HelpTip v-else :text="controlHint.text" /></template>
     </div>
     <div v-if="domain !== 'screen' && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.tap.label") }}</span>
       <Segmented :choices="taps" :value="tap" @pick="(v) => setTileOption(tile, 'tap', v)" />
-      <small v-if="tapHint" :class="{ warn: tapHint.warn }">{{ tapHint.text }}</small>
+      <template v-if="tapHint"><small v-if="tapHint.warn" class="warn">{{ tapHint.text }}</small><HelpTip v-else :text="tapHint.text" /></template>
     </div>
     <ActionPicker v-if="domain !== 'screen' && !goesTo && tap === 'action'" :tile="tile" />
     <div class="f">
@@ -205,7 +209,7 @@ function inspect() {
       <input v-if="subKind === 'text'" class="sub-text" :value="subText" maxlength="60"
         :placeholder="t('editor.tile.sub.text_placeholder')" :aria-label="t('editor.tile.sub.text_aria')"
         @input="writeSubText(($event.target as HTMLInputElement).value)" />
-      <small>{{ t(`editor.tile.sub.hint_${subKind}`) }}</small>
+      <HelpTip :text="t(`editor.tile.sub.hint_${subKind}`)" />
     </div>
     <div v-if="showSlider && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.slider.label") }}</span>

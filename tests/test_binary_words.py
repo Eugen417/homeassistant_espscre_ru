@@ -4,6 +4,7 @@ The screen maps the device class itself (`tile_controls::binary_state_text`), fr
 state message has carried since app 0.2.23: nothing new on the wire, so it works with older apps too. These tests keep
 its table equal to the add-on's `header_bar.BINARY_STATES`, which the top bar and the history card use.
 """
+from firmware_sources import runtime_source
 import json
 import re
 import sys
@@ -19,7 +20,7 @@ import history_card  # noqa: E402
 from core import state_message  # noqa: E402
 
 CONTROLS = (ROOT / 'components/smart_display/tile_controls.h').read_text()
-TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+TILES = runtime_source()
 PROFILES = ('checkout/guition.yaml', 'checkout/cyd.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
 
 

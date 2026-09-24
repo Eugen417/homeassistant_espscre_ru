@@ -1,3 +1,4 @@
+from firmware_sources import runtime_source
 import re
 import tempfile
 import unittest
@@ -105,7 +106,7 @@ class EdgeBandTests(unittest.TestCase):
         core = (self.ROOT / 'packages' / 'core.yaml').read_text()
         self.assertIn('runtime_tiles::touch_input::to_screen', core)
         self.assertIn('rotate_coordinates', core)
-        touch = (self.ROOT / 'components' / 'smart_display' / 'runtime_tiles.h').read_text()
+        touch = runtime_source()
         # The band is armed against the live canvas, not a number from the board file, so it is the same band of
         # glass on a screen built standing up (firmware 0.2.92+).
         self.assertIn('screen_input::edge_swipe.begin(sx, sy, overlay_card::screen_width(), overlay_card::screen_height())', touch)

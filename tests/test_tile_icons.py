@@ -1,3 +1,4 @@
+from firmware_sources import runtime_source
 import re
 import sys
 import tempfile
@@ -13,7 +14,7 @@ import test_portal
 import tile_icons
 from core import discover, packets, state_message, validate_layout
 
-HEADER = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+HEADER = runtime_source()
 
 class IconSetTests(unittest.TestCase):
     def test_set_is_complete_and_carried_by_every_icon_font(self):

@@ -17,6 +17,16 @@ from server import create_app, status_text
 
 
 class PageApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_cached_delivery_refusal_is_translated_for_each_reader(self):
+        from i18n import english
+        from page_delivery import Refused
+        refusal = Refused(english('addon.errors.pages.memory'))
+        self.manager.status['text.screen'] = refusal.message
+        for language, fragment in [('nl', 'onvoldoende vrij geheugen'), ('de', 'nicht genug freien Speicher'), ('en', 'not have enough free memory')]:
+            response = await self.client.get('/api/inventory?light=1', headers={'X-ESP-Screens-Language': language})
+            screen = next(s for s in (await response.json())['screens'] if s['id'] == 'text.screen')
+            self.assertIn(fragment, screen['delivery'])
+
     async def test_offline_edit_after_manager_restart_uses_only_saved_handshake_hints(self):
         screen = {**self.manager.screen('text.screen'), 'device_id': 'test-device'}
         async def answer(message):

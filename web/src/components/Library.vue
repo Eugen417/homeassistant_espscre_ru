@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from "./HelpTip.vue";
 // The entities a tile can show, with a search, a filter per domain and per room, and a switch that hides what is
 // already on the screen. A click adds the entity to the marked empty cell or the first free one; a drag puts it
 // exactly where it lands.
@@ -70,7 +71,7 @@ const tone = (e: { id: string; state?: string }) => {
 <template>
   <aside class="library" id="library">
     <div class="lib-head">
-      <div class="lib-title">{{ t("editor.library.title") }} <small>{{ t("editor.library.entities", count) }}</small></div>
+      <div class="lib-title">{{ t("editor.library.title") }} <HelpTip :text="t('editor.library.hint')" /> <small>{{ t("editor.library.entities", count) }}</small></div>
       <input id="search" v-model="state.search" type="search" :placeholder="t('editor.library.search')" autocomplete="off" :aria-label="t('editor.library.search_label')" />
       <div class="filters" id="filters">
         <button v-for="value in shown" :key="value" type="button" :aria-pressed="state.filter === value ? 'true' : 'false'" @click="state.filter = value">
@@ -100,6 +101,6 @@ const tone = (e: { id: string; state?: string }) => {
       <p v-if="!matches.length" class="hint">{{ state.hidePlaced && !state.search && !state.filter && !state.room ? t("editor.library.all_placed") : t("editor.library.none_found") }}</p>
       <p v-else-if="matches.length > 80" class="hint">{{ t("editor.common.results", matches.length) }}</p>
     </div>
-    <div class="lib-foot">{{ full ? t(tileLimit < 48 ? "editor.library.full_update" : "editor.library.full", tileLimit) : t("editor.library.hint") }}</div>
+    <div v-if="full" class="lib-foot">{{ t(tileLimit < 48 ? "editor.library.full_update" : "editor.library.full", tileLimit) }}</div>
   </aside>
 </template>

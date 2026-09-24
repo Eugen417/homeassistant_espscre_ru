@@ -639,7 +639,8 @@
         "ambiguous_tile": "De tegelopdracht heeft meerdere mogelijke bronnen; geef de pagina op",
         "save_first": "Sla eerst de pagina-indeling op voordat je de instellingen opslaat",
         "destination_exists": "Het doelscherm heeft al een opgeslagen indeling",
-        "update_tall": "Werk het scherm bij om hogere tegels te gebruiken"
+        "update_tall": "Werk het scherm bij om hogere tegels te gebruiken",
+        "memory": "Het scherm heeft onvoldoende vrij geheugen voor deze indeling. Gebruik minder tegels."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "Wachten tot het scherm weer verbonden is. De editor gebruikt de laatst gecontroleerde mogelijkheden.",
       "include_navigation_hint": "Als dit uit staat, blijft de pagina bereikbaar via directe links. Terug verschijnt in de onderbalk, of vervangt Thuis als die balk verborgen is.",
       "home_control": "Toon een thuisknop op deze pagina",
+      "clock_control": "Tijd",
       "edit_topbar": "Bewerk de topbalk van deze pagina",
       "order": "Paginavolgorde",
       "order_hint": "Show page-acties met een nummer volgen deze volgorde. Paginategels blijven naar dezelfde pagina wijzen.",

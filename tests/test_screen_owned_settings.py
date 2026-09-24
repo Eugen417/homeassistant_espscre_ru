@@ -9,6 +9,7 @@
 - The layout sensors come back after Home Assistant restarts, the settings tile opens without Home
   Assistant, and a weather entity is only asked for the forecasts it has.
 """
+from firmware_sources import runtime_source
 from manager_fixtures import with_screen_grid, seed_layout
 import asyncio
 import importlib.util
@@ -43,7 +44,7 @@ PROFILES = {'cyd': 'checkout/cyd.yaml', 'guition': 'checkout/guition.yaml', 'wav
 PACKAGES = {'cyd': 'packages/cyd.yaml', 'guition': 'packages/guition.yaml', 'waveshare43': 'packages/waveshare43.yaml',
             'jc8012p4a1': 'packages/jc8012p4a1.yaml', 'waveshare7': 'packages/waveshare7.yaml',
             'waveshare4b': 'packages/waveshare4b.yaml'}
-RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+RUNTIME = runtime_source()
 SCREEN_PAGE = (ROOT / 'components/smart_display/settings_screen.h').read_text()
 STATIC = ROOT / 'screen_manager/app/static'
 

@@ -10,6 +10,17 @@ ESP Screens 0.3.0 stores each page as a complete unit: its tiles, top bar, navig
 
 The navigation preview runs locally. It does not switch entities in Home Assistant. Entity values and available history come from Home Assistant; unavailable history is left empty.
 
+Explicitly adding a page opens a compact setup dialog for its title, Home control,
+clock and optional Home Assistant entities. Cancelling leaves the document unchanged;
+creating the page is one undo step. Dragging a tile onto a new page skips the dialog.
+The new page gets a title from its shared HA area, or from its entity domain when
+there is no shared area. Mixed content without a common area uses the screen title.
+Suggestions are applied only at creation and never rename an existing page.
+
+Contextual help uses Floating Vue through `HelpTip.vue`. Help icons work with
+keyboard focus, pointer hover and a tap; Escape or leaving the help closes it.
+Errors, compatibility notices and unsaved-change status remain visible.
+
 ## Home and detail pages
 
 Choose any page as Home. Home controls, automatic return and return on standby use that destination. Existing Home settings and entity identifiers stay compatible. Home Assistant entities whose names still say "Back to page 1" now return to the configured Home page; their existing names and IDs are retained so automations keep working.
@@ -73,6 +84,14 @@ firmware configuration. Different formatting remains independent; a change in
 the number of visible items replaces that page's bar. Peers without the
 capability continue receiving individual `bar` messages.
 
+Title, label and background-only saves negotiate `appearance_updates`. The
+add-on compares the remaining configuration before choosing one atomic
+`appearance` packet, bound to the current revision. The receiver checks every
+index and value before updating the existing records. Open cards, page history
+and tile storage remain in place. Structural changes, older peers and edits
+that exceed one bounded packet use the full transaction. No second layout or
+compatibility decoder is stored on the screen.
+
 Keep the pre-upgrade backup if an older add-on must be restored. Older add-ons cannot read version 2. Stop the add-on before restoring a backup; restoring it deliberately discards changes made after that backup. Unknown future storage versions are refused without rewriting them.
 
 ## Code boundaries and later features
@@ -83,11 +102,16 @@ Keep the pre-upgrade backup if an older add-on must be restored. Older add-ons c
 | Historical storage/export conversion only | `screen_manager/app/layout_migrations.py` |
 | Durable storage, backups, revisions and editor workspace | `screen_manager/app/layout_store.py` |
 | Acknowledged device delivery and stale-response protection | `screen_manager/app/page_delivery.py` |
+| Page save policy and capability checks | `screen_manager/app/page_service.py` |
+| Editor history, workspace persistence and conflict recovery | `web/src/model/draft-history.ts`, `page-workspace.ts`, `page-conflict.ts` |
 | Editor page operations and preview navigation | `web/src/model/pages.ts` |
 | Firmware page metadata, navigation history and transfer guards | `components/smart_display/page_protocol.h` |
+| Firmware transaction and appearance receiver | `components/smart_display/page_receiver.h` |
 | Header widgets with explicit view data and a guarded action callback | `components/smart_display/page_header.h` |
 
-The firmware keeps one configuration. A replacement releases old records before allocating new ones and becomes usable only when complete. Acknowledged sessions and revisions reject stale values and delayed responses. Pages and tiles share the existing PSRAM-first allocator; boards without PSRAM use their internal heap. The small Back history holds IDs only.
+The firmware keeps one active configuration. A structural replacement checks its required record reservations before releasing old storage; equal-size replacements reuse it. A failed reservation leaves the old model usable. A replacement becomes usable only when complete. Acknowledged sessions and revisions reject stale values and delayed responses. Pages and tiles share the existing PSRAM-first allocator; boards without PSRAM use their internal heap. The small Back history holds IDs only.
+
+Editor placement helpers use a document-owned `createLayout` instance. They read the current document grid synchronously, without a shared mutable grid or watcher. The slot view remains a rendering and drag adapter; an arrangement must include every existing tile ID.
 
 Tile placement has row, column, row span and column span, separated from content, appearance and interaction. Version 0.3.1 adds 1×2 and 2×2 to the permitted sizes. A future 2×3 climate design can extend the negotiated rendering capability without replacing the page model. A full-page card still means the whole current grid, even when its dimensions match another presentation.
 

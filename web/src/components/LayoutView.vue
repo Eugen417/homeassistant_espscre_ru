@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import { editorLayout } from "../store";
+const { grid, hasGaps, pageCount } = editorLayout;
+
+import HelpTip from "./HelpTip.vue";
 // The pages side by side, like swiping on the screen, and the library on the right.
 import { computed, onBeforeUnmount, onMounted, ref } from "vue";
 import { t } from "../i18n";
-import { entriesOf, grid, hasGaps, pageCount } from "../model/layout";
-import { addPage, closeInspector, currentScreen, deviceStyle, gridChanged, isCompact, pageReachWarning, pagesShown, redo, reviewScreenGrid, setEditorMode, startUpdate, state, supports, tileLimit, undo } from "../store";
+import { entriesOf } from "../model/layout";
+import { closeInspector, currentScreen, deviceStyle, gridChanged, isCompact, pageReachWarning, pagesShown, redo, reviewScreenGrid, setEditorMode, startUpdate, state, supports, tileLimit, undo } from "../store";
+import PageWizard from "./PageWizard.vue";
 import DevicePage from "./DevicePage.vue";
 import Library from "./Library.vue";
 import PageMap from "./PageMap.vue";
@@ -12,6 +17,7 @@ import GridReview from './GridReview.vue';
 import { dismissMigrationNote, resolveLayoutConflict, startFreshLayout } from '../store';
 import { titleOf } from '../model/pages';
 const preview = ref(false);
+const pageWizard = ref(false);
 const droppedTiles = computed(() => currentScreen.value?.page_document?.format === 'pages-v2'
   ? currentScreen.value.page_document.migration?.droppedTiles || [] : []);
 const adjustedFields = computed(() => currentScreen.value?.page_document?.format === 'pages-v2'
@@ -65,7 +71,7 @@ function onCanvasClick(e: MouseEvent) {
       <button type="button" class="btn mini" @click="preview = true">{{ t('editor.pages.try_navigation') }}</button>
       <button type="button" class="btn mini" :disabled="!state.undoCount" @click="undo">{{ t('editor.common.undo') }}</button>
       <button type="button" class="btn mini" :disabled="!state.redoCount" @click="redo">{{ t('editor.pages.redo') }}</button>
-      <button v-if="state.editorMode === 'advanced'" type="button" class="btn mini" :disabled="!canAdd" @click="addPage">{{ t('editor.layout.add_page') }}</button>
+      <button v-if="state.editorMode === 'advanced'" type="button" class="btn mini" :disabled="!canAdd" @click="pageWizard = true">{{ t('editor.layout.add_page') }}</button>
     </div>
     <div v-if="currentScreen?.page_capability === 'offline'" class="page-notice" role="status">{{ t('editor.pages.offline_notice') }}</div>
     <div v-if="currentScreen?.page_capability === 'update_screen'" class="page-notice" role="status">
@@ -81,8 +87,8 @@ function onCanvasClick(e: MouseEvent) {
     <div class="canvas-head">
       <b id="count">{{ t("editor.layout.count", { tiles: layout.tiles.length, limit: tileLimit }, pages) }}</b>
       <span v-if="!layout.tiles.length" id="no-tiles">{{ t("editor.layout.no_tiles") }}</span>
-      <span v-else>{{ t("editor.layout.how_to") }}</span>
-      <span v-if="pages > 1" id="how-to-pages">{{ t("editor.layout.how_to_pages") }}</span>
+      <HelpTip v-else :text="t('editor.layout.how_to')" />
+      <HelpTip v-if="pages > 1" id="how-to-pages" :text="t('editor.layout.how_to_pages')" />
       <span v-if="positionsHint" id="positions-hint" class="warn">{{ positionsHint }}</span>
       <span v-if="reachHint" id="page-reach-hint" class="warn">{{ reachHint }}</span>
     </div>
@@ -96,10 +102,10 @@ function onCanvasClick(e: MouseEvent) {
         <option v-for="(page, index) in state.document!.pages" :key="page.id" :value="page.id">{{ index + 1 }} · {{ titleOf(state.document!, page) }}</option>
       </select></label>
       <DevicePage v-for="page in simplePages" :key="state.document?.pages[page - 1]?.id || page" :page="page - 1" :entries="entries" :pages="pages" :moving="state.drag.moving" />
-      <button v-if="narrow" class="btn" :disabled="!canAdd" @click="addPage">{{ t('editor.layout.add_page') }}</button>
+      <button v-if="narrow" class="btn" :disabled="!canAdd" @click="pageWizard = true">{{ t('editor.layout.add_page') }}</button>
       <div v-else class="page ghost" :style="deviceStyle" :class="{ disabled: !canAdd }">
         <div class="page-label"><span>{{ t("editor.page.label", { page: shown + 1 }) }}</span></div>
-        <div class="device" :class="{ compact: isCompact }" :style="deviceStyle" id="add-page" role="button" :tabindex="canAdd ? 0 : -1" @click="canAdd && addPage()" @keydown.enter.prevent="canAdd && addPage()">
+        <div class="device" :class="{ compact: isCompact }" :style="deviceStyle" id="add-page" role="button" :tabindex="canAdd ? 0 : -1" @click="canAdd && (pageWizard = true)" @keydown.enter.prevent="canAdd && (pageWizard = true)">
           {{ canAdd ? t("editor.layout.add_page") : t("editor.layout.max_pages", grid.pages) }}
         </div>
       </div>
@@ -108,6 +114,7 @@ function onCanvasClick(e: MouseEvent) {
   </div>
   <Library v-if="state.layout" />
   <NavigationPreview v-if="preview && state.document" :key="state.selected || ''" @close="preview = false" />
+  <PageWizard v-if="pageWizard" :key="state.selected || ''" @close="pageWizard = false" />
   <GridReview v-if="state.gridReview" />
 </template>
 

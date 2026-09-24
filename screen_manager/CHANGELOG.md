@@ -7,6 +7,10 @@ Try taller tiles with the existing tile designs.
 - Update the screen to enable these sizes. The add-on verifies support before replacing its configuration; existing sizes keep working on older screens.
 - With page buttons hidden, Back replaces Home at the same visible height, title position and touch target.
 - Screens advertise only tile sizes their current grid can hold. A refused allocation keeps the previous layout, and local page navigation remains available while Home Assistant reconnects.
+- Title, tile-label and background-colour edits update in place on screens that advertise this capability, preserving open cards. Other screens keep the acknowledged full-layout path.
+- Adding a page opens a compact setup dialog. Dropping a tile onto a new page suggests a title from its Home Assistant area or domain. Existing page titles stay unchanged.
+- Contextual help moves into keyboard- and touch-accessible tooltips. Compatibility notices and errors remain visible.
+- Editor grid helpers read the selected document directly, and pending map saves survive a screen switch while an earlier save is in flight.
 
 ## 0.3.0 (firmware 0.3.0)
 
@@ -14,6 +18,7 @@ Update ESP Screen Manager before updating screens. Take a backup first: returnin
 
 Pages own their tiles and top bars. Home and page links keep their destinations when pages move.
 
+- A page without custom title text uses the screen title, rather than a fixed Home label.
 - Each page has its own title, Home control and top-bar items. Choose which page is Home and opt pages out of sequential page navigation while keeping direct links to them.
 - Detail pages reuse the bottom strip for Back without resizing tiles. When the strip is hidden, a left chevron replaces Home in the top bar. Nested Back remembers the route without using a tile.
 - The familiar Simple editor remains the default. Advanced shows page connections and a movable page map. Both edit the same configuration.

@@ -1,4 +1,5 @@
 """Top bar (app 0.2.38 / firmware 0.2.32): validation, text, icons, visibility and delivery."""
+from firmware_sources import runtime_source
 from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
@@ -21,7 +22,7 @@ from core import FIRMWARE_VERSION, HEADER_MIN_FIRMWARE, discover, header_items, 
 FIRMWARE = (ROOT / 'components/smart_display/header_bar.h').read_text()
 # The firmware's words live in the translations since app 0.2.90 (screen.time in English, the language of reference).
 FIRMWARE += json.dumps(json.loads((ROOT / 'screen_manager/translations/en.json').read_text(encoding='utf-8'))['screen']['time'])
-TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+TILES = runtime_source()
 HEADER_VIEW = (ROOT / 'components/smart_display/page_header.h').read_text()
 EDITOR = (ROOT / 'web/src/model/topbar.ts').read_text()
 PROFILES = ('checkout/guition.yaml', 'checkout/cyd.yaml')

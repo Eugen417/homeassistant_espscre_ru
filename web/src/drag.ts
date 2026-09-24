@@ -1,10 +1,12 @@
+import { editorLayout } from "./store";
+const { grid, arrange, reorderPages } = editorLayout;
 // Pointer-based drag & drop, mouse and touch, from the library into the mockup, between
 // cells, and a whole page to another place in the row (app 0.2.121). Touch starts after a
 // short hold so the page still scrolls. While dragging, the
 // mockup already shows where everything ends up; the drop confirms exactly that, and a
 // drop off the grid changes nothing. A finished drag never doubles as a click.
 import type { Directive } from "vue";
-import { grid, arrange, entriesOf, newTile, pageOrder, reorderPages } from "./model/layout";
+import { entriesOf, newTile, pageOrder } from "./model/layout";
 import { commitArrangement, loadCapabilities, movePage, pagesShown, placeTile, state } from "./store";
 import type { Tile } from "./types";
 

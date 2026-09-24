@@ -639,7 +639,8 @@
         "ambiguous_tile": "El evento de tarjeta tiene un origen ambiguo; especifica su página",
         "save_first": "Guarda la distribución de páginas antes de guardar sus ajustes",
         "destination_exists": "La pantalla de destino ya tiene una distribución guardada",
-        "update_tall": "Actualiza la pantalla para usar tarjetas más altas"
+        "update_tall": "Actualiza la pantalla para usar tarjetas más altas",
+        "memory": "La pantalla no tiene suficiente memoria libre para este diseño. Usa menos tarjetas."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "Esperando a que la pantalla vuelva a conectarse. El editor usa las últimas funciones verificadas.",
       "include_navigation_hint": "Si se desactiva, los enlaces directos siguen abriendo esta página. Volver aparece en la barra inferior o sustituye a Inicio si la barra está oculta.",
       "home_control": "Mostrar un botón de inicio en esta página",
+      "clock_control": "Hora",
       "edit_topbar": "Editar la barra superior de esta página",
       "order": "Orden de las páginas",
       "order_hint": "Los comandos numéricos siguen este orden. Los enlaces de página con nombre mantienen su destino.",

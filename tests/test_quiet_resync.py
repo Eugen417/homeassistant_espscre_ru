@@ -5,6 +5,7 @@ it, ESP Screen Manager saved the layout and resent the whole screen, and the scr
 again while a finger was on a slider. Touch input stalled, and the GT911's stray (0, 0) contact became
 the finger's last position, so LVGL moved the slider to its end on release. Each link is checked here.
 """
+from firmware_sources import runtime_source
 from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
@@ -22,7 +23,7 @@ sys.path.insert(0, str(ROOT / 'tests'))
 from core import validate_settings  # noqa: E402
 
 PROFILES = ('checkout/cyd.yaml', 'checkout/guition.yaml', 'packages/cyd.yaml', 'packages/guition.yaml')
-RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+RUNTIME = runtime_source()
 LIGHT_CONTROLS = (ROOT / 'components/smart_display/light_controls.h').read_text()
 
 

@@ -47,7 +47,7 @@ substitutions:
   # what LVGL's gesture over the tiles does: a page swipe, as such glass has no edge band
   BOOT_PAGE_GESTURE: |-
     lv_obj_add_event_cb(id(home_page)->obj, [](lv_event_t *event) {
-      if(!runtime_tiles::enabled || !runtime_tiles::swipe_pages || id(display_dimmed) || id(calibration_active) ||
+      if(!runtime_tiles::enabled || !runtime_tiles::navigation_ready() || !runtime_tiles::swipe_pages || id(display_dimmed) || id(calibration_active) ||
          !id(active_entity).empty() || (runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root,LV_OBJ_FLAG_HIDDEN)))return;
       auto *input=lv_indev_active();if(!input)return;
       auto direction=lv_indev_get_gesture_dir(input);
@@ -66,10 +66,7 @@ substitutions:
       }
       // The edge the page comes from lights up for a moment (firmware 0.2.100+): swiping left brings in the next
       // page from the right.
-      runtime_tiles::swipe_glow(direction==LV_DIR_LEFT?runtime_tiles::Edge::right:runtime_tiles::Edge::left);
-      ESP_LOGI("touch","page swipe: page %d -> %d",id(tile_page),id(tile_page)+(direction==LV_DIR_LEFT?1:-1));
-      id(tile_page)=runtime_tiles::sequential_page(id(tile_page),direction==LV_DIR_LEFT?1:-1);
-      id(show_tile_page).execute();
+      runtime_tiles::touch_input::step_page(direction==LV_DIR_LEFT?1:-1);
     }, LV_EVENT_GESTURE, nullptr);
   # after the cards' hooks, before the settings page's: the calibration wizard
   BOOT_CARDS_TAIL: |-

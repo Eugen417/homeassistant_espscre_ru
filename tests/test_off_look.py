@@ -3,6 +3,7 @@
 Home Assistant's own light icon is a bulb that is crossed out while off (`mdi:lightbulb-off`), and every entity that is
 off is grey. An icon of its own, or one chosen in ESP Screens, stays the same and turns grey, as in Home Assistant.
 """
+from firmware_sources import runtime_source
 import sys
 import unittest
 from pathlib import Path
@@ -14,7 +15,7 @@ sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import header_bar  # noqa: E402
 import tile_icons  # noqa: E402
 
-TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+TILES = runtime_source()
 THEME = (ROOT / 'components/smart_display/theme.h').read_text()
 
 

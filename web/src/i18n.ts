@@ -1,6 +1,6 @@
 // The editor's texts (app 0.2.90). Every language is one file in screen_manager/translations, the same file the firmware
 // and the add-on read (docs/TRANSLATING.md). The page takes its `editor` section, and for the mockup the words the screens
-// themselves show (`screen.ha`, `time`, `date`, `number`, `tile.page`); the build leaves the rest out and compiles every
+// themselves show, plus the shared page/card validation errors; the build leaves the rest out and compiles every
 // text (vite.config.ts). English is the source and comes with the page. Another language loads the first time the
 // editor or a mockup needs it, and a text it doesn't have yet shows in English.
 import metas from "virtual:esp-screens-languages";

@@ -1,10 +1,9 @@
 // The grid rules: the same ones the add-on applies (core.pack_slots, validate_layout) and the firmware draws.
 import { describe, expect, it } from "vitest";
-import {
-  arrange, cellsOf, controlsLabel, defaultOptions, effectiveControls, firstFree, fits, grid, hasGaps, MAX_PAGES, MAX_SLOTS, nearestFree,
-  newTile, normalize, occupied, packSlots, pageCount, pageOrder, pagePlaces, pageStart, pageTarget, reorderPages, reorderTitles,
-  retargetedPage, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, spanOf, strandedPages, tileLimit, versionAtLeast,
-} from "../src/model/layout";
+import { createLayout, controlsLabel, defaultOptions, effectiveControls, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, versionAtLeast } from "../src/model/layout";
+let shape = { columns: 2, rows: 3 };
+const setGrid = (columns = 2, rows = 3) => { shape = { columns, rows }; };
+const { arrange, cellsOf, firstFree, fits, grid, hasGaps, nearestFree, normalize, occupied, packSlots, pageCount, pageStart, reorderPages, rowStart, spanOf, strandedPages, tileLimit } = createLayout(() => shape);
 import type { Inventory, Layout, Tile } from "../src/types";
 
 const tile = (entity: string, slot: number, options: Tile["options"] = {}): Tile => ({ entity, name: "", slot, options });
@@ -44,8 +43,8 @@ describe("packing and positions", () => {
     expect(fits(taken, 2, false)).toBe(false);
     expect(fits(taken, 1, true)).toBe(false); // a wide tile starts in the left column
     expect(fits(taken, 4, true)).toBe(true);
-    expect(fits(taken, MAX_SLOTS - 1, true)).toBe(false);
-    expect(fits(taken, MAX_SLOTS, false)).toBe(false);
+    expect(fits(taken, grid.maxSlots - 1, true)).toBe(false);
+    expect(fits(taken, grid.maxSlots, false)).toBe(false);
     expect(firstFree(taken, false)).toBe(1);
     expect(firstFree(taken, true)).toBe(4);
     expect(rowStart(5)).toBe(4);
@@ -61,7 +60,7 @@ describe("packing and positions", () => {
 describe("the grid of the screen being edited", () => {
   it("packs a wide tile so it never straddles two rows, whatever the columns", () => {
     setGrid(3, 2);
-    expect(SLOTS_PER_PAGE).toBe(6);
+    expect(grid.slots).toBe(6);
     // Three single tiles fill the first row; a wide one then starts the second, not the last cell of the first.
     const tiles = [tile("a", -1), tile("b", -1), tile("c", -1), tile("d", -1, { size: "wide" })];
     expect(packSlots(tiles)).toEqual([0, 1, 2, 3]);
@@ -73,27 +72,27 @@ describe("the grid of the screen being edited", () => {
   });
   it("gives a one-column screen a wide tile that is simply the cell itself", () => {
     setGrid(1, 4);
-    expect(SLOTS_PER_PAGE).toBe(4);
+    expect(grid.slots).toBe(4);
     expect(spanOf("wide")).toBe(1);
     expect(packSlots([tile("a", -1, { size: "wide" }), tile("b", -1)])).toEqual([0, 1]);
     expect(pageStart(5)).toBe(4);
     setGrid(2, 3);
   });
   it("takes the pages from the firmware's cap of 64 tiles", () => {
-    // components/smart_display/runtime_model.h: MAX_PAGES = min(64 / SLOTS_PER_PAGE, 8).
+    // components/smart_display/runtime_model.h: grid.pages = min(64 / grid.slots, 8).
     setGrid(3, 3);
-    expect([MAX_PAGES, MAX_SLOTS, grid.pages]).toEqual([7, 63, 7]);
+    expect([grid.pages, grid.maxSlots, grid.pages]).toEqual([7, 63, 7]);
     expect(pageCount(entries([tile("a", 0)]), 99)).toBe(7);
     expect(tileLimit("0.2.80")).toBe(63);
     setGrid(4, 4);
-    expect([MAX_PAGES, MAX_SLOTS]).toEqual([4, 64]);
+    expect([grid.pages, grid.maxSlots]).toEqual([4, 64]);
     setGrid(1, 4);
-    expect([MAX_PAGES, MAX_SLOTS]).toEqual([8, 32]);
+    expect([grid.pages, grid.maxSlots]).toEqual([8, 32]);
     setGrid(2, 3);
   });
   it("comes back to two columns and three rows for the boards that shipped first", () => {
     setGrid(undefined, undefined);
-    expect([SLOTS_PER_PAGE, MAX_PAGES, MAX_SLOTS, spanOf("full")]).toEqual([6, 8, 48, 6]);
+    expect([grid.slots, grid.pages, grid.maxSlots, spanOf("full")]).toEqual([6, 8, 48, 6]);
   });
 });
 
@@ -116,18 +115,18 @@ describe("arrange", () => {
   it("snaps a wide tile to the start of its row and refuses a target off the grid", () => {
     const w = tile("w", 0, { size: "wide" });
     expect(arrange([w], w, 3)![0].slot).toBe(2);
-    expect(arrange([w], w, MAX_SLOTS)).toBeNull();
+    expect(arrange([w], w, grid.maxSlots)).toBeNull();
     const single = tile("s", 0);
     expect(arrange([single], single, -1)).toBeNull();
-    expect(arrange([single], single, MAX_SLOTS)).toBeNull();
+    expect(arrange([single], single, grid.maxSlots)).toBeNull();
   });
   it("counts the pages the tiles need, never more than eight", () => {
     expect(pageCount(entries([tile("a", 0)]))).toBe(1);
     expect(pageCount(entries([tile("a", 6)]))).toBe(2);
     expect(pageCount(entries([tile("w", 4, { size: "wide" })]))).toBe(1);
     expect(pageCount(entries([tile("a", 0)]), 3)).toBe(3);
-    expect(pageCount(entries([tile("a", 0)]), 99)).toBe(MAX_PAGES);
-    expect(SLOTS_PER_PAGE * MAX_PAGES).toBe(MAX_SLOTS);
+    expect(pageCount(entries([tile("a", 0)]), 99)).toBe(grid.pages);
+    expect(grid.slots * grid.pages).toBe(grid.maxSlots);
   });
 });
 
@@ -265,4 +264,17 @@ describe("a whole page that moves (app 0.2.121)", () => {
     expect(retargetedPage("screen.page_8", () => 9)).toBe("screen.page_8");
     expect(retargetedPage("screen.page_2", () => 0)).toBe("screen.page_2");
   });
+});
+
+
+it('keeps simultaneous layout instances independent and reads a shape change immediately', () => {
+  let documentGrid = { columns: 2, rows: 3 };
+  const editor = createLayout(() => documentGrid);
+  const other = createLayout(() => ({ columns: 3, rows: 3 }));
+  expect(editor.cellsOf(0, 'square')).toEqual([0, 1, 2, 3]);
+  expect(other.cellsOf(0, 'square')).toEqual([0, 1, 3, 4]);
+  documentGrid = { columns: 4, rows: 4 };
+  expect(editor.cellsOf(0, 'square')).toEqual([0, 1, 4, 5]);
+  expect(editor.grid.pages).toBe(4);
+  expect(other.grid.pages).toBe(7);
 });

@@ -223,7 +223,7 @@ class Editor(unittest.TestCase):
     def test_full_page_and_navigation_tiles_are_in_the_editor(self):
         import editor_sources
         layout = editor_sources.source('model/layout.ts')
-        for marker in ('export const SIZES: Size[] = ["single", "wide", "tall", "square", "full"];', 'export const pageTarget', 'versionAtLeast(firmware, "0.2.62") ? MAX_SLOTS'):
+        for marker in ('export const SIZES: Size[] = ["single", "wide", "tall", "square", "full"];', 'export const pageTarget', 'versionAtLeast(firmware, "0.2.62") ? grid.maxSlots'):
             self.assertIn(marker, layout, marker)
         drawer = editor_sources.component('TileInspector')
         for marker in ('keys.push("full")', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):

@@ -639,7 +639,8 @@
         "ambiguous_tile": "Zdarzenie kafelka ma niejednoznaczne źródło; podaj jego stronę",
         "save_first": "Zapisz układ stron przed zapisaniem ustawień",
         "destination_exists": "Ekran docelowy ma już zapisany układ",
-        "update_tall": "Zaktualizuj ekran, aby używać wyższych kafelków"
+        "update_tall": "Zaktualizuj ekran, aby używać wyższych kafelków",
+        "memory": "Ekran nie ma wystarczającej ilości wolnej pamięci dla tego układu. Użyj mniejszej liczby kafelków."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "Oczekiwanie na ponowne połączenie ekranu. Edytor używa ostatnio sprawdzonych możliwości.",
       "include_navigation_hint": "Po wyłączeniu stronę nadal otwierają bezpośrednie linki. Wstecz pojawia się na dolnym pasku lub zastępuje przycisk strony głównej, gdy pasek jest ukryty.",
       "home_control": "Pokaż przycisk strony głównej na tej stronie",
+      "clock_control": "Godzina",
       "edit_topbar": "Edytuj górny pasek tej strony",
       "order": "Kolejność stron",
       "order_hint": "Polecenia z numerami stron używają tej kolejności. Nazwane linki zachowują cel.",

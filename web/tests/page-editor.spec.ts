@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { nextTick } from "vue";
 import { mount } from "@vue/test-utils";
+import PageWizard from "../src/components/PageWizard.vue";
 import LayoutView from "../src/components/LayoutView.vue";
 import NavigationPreview from '../src/components/NavigationPreview.vue';
 import PageInspector from '../src/components/PageInspector.vue';
 import TopbarInspector from '../src/components/TopbarInspector.vue';
-import { dismissMigrationNote, pageReady, removeTile, resolveLayoutConflict } from '../src/store';
+import { placeTile, dismissMigrationNote, pageReady, removeTile, resolveLayoutConflict } from '../src/store';
 import { addPage, addTile, connectTile, copyLayoutFrom, importLayout, layoutJson, movePage, moveWorkspacePage, redo,
   acceptGridReview, gridChanged, refresh, reviewScreenGrid, save, saveWorkspace, select, setEditorMode, setHomePage, setPageExcluded, setPageTitle, setTopbarItems, state, undo, workspacePositions } from "../src/store";
 import { documentFixture, screenFixture } from "./page-fixtures";
@@ -216,7 +217,7 @@ describe("one draft in both editor modes", () => {
   it("keeps Home, links, exclusions and per-page bars attached through a reorder and undo", () => {
     const [home, controls] = state.document!.pages.map((page) => page.id);
     setHomePage(controls); setPageExcluded(controls, true);
-    state.barPage = 1; setTopbarItems([{ type: "date" }]);
+    state.selectedPageId = state.document!.pages[1].id; setTopbarItems([{ type: "date" }]);
     const before = JSON.stringify(state.document);
     movePage(1, 0);
     expect(state.document!.homePageId).toBe(controls);
@@ -407,5 +408,42 @@ describe("revisions and portable layouts", () => {
     select("other"); const before = JSON.stringify(state.document);
     resolve(reply(imported)); await pending;
     expect(JSON.stringify(state.document)).toBe(before); expect(state.dirty).toBe(false);
+  });
+});
+
+
+describe('creating a page', () => {
+  it('cancels the wizard without a layout mutation or undo entry', async () => {
+    const before = JSON.stringify(state.document);
+    const view = mount(PageWizard);
+    await view.find('#new-page-title').setValue('Unfinished');
+    await view.find('footer button[type=button]').trigger('click');
+    expect(view.emitted('close')).toHaveLength(1);
+    expect(JSON.stringify(state.document)).toBe(before);
+    expect(state.undoCount).toBe(0);
+  });
+  it('creates a configured independent bar and undoes the whole creation in one step', async () => {
+    state.inventory.entities = [{ id: 'sensor.room', name: 'Temperature', area: 'Study' }];
+    const before = JSON.stringify(state.document);
+    const view = mount(PageWizard);
+    await view.find('#new-page-title').setValue('Study');
+    await view.find('.bar-choices input').setValue(false);
+    await view.find('.entity-options input').setValue(true);
+    await view.find('form').trigger('submit');
+    const page = state.document!.pages.at(-1)!;
+    expect(page.topbar.title).toEqual({ source: 'text', text: 'Study' });
+    expect(page.topbar.leading).toEqual([]);
+    expect(page.topbar.trailing.map(item => item.type)).toEqual(['clock', 'entity']);
+    expect(state.selectedPageId).toBe(page.id);
+    expect(view.emitted('close')).toHaveLength(1);
+    undo(); expect(JSON.stringify(state.document)).toBe(before);
+  });
+  it('names a drop-created page once and preserves it when more entities are added', () => {
+    state.inventory.entities = [{ id: 'light.study', name: 'Desk', area: 'Study' }];
+    const count = state.document!.pages.length;
+    expect(placeTile({ entity: 'light.study', name: '', slot: -1 }, count * 6)).toBe(true);
+    expect(state.document!.pages.at(-1)!.topbar.title).toEqual({ source: 'text', text: 'Study' });
+    expect(placeTile({ entity: 'sensor.outside', name: '', slot: -1 }, count * 6 + 1)).toBe(true);
+    expect(state.document!.pages.at(-1)!.topbar.title).toEqual({ source: 'text', text: 'Study' });
   });
 });

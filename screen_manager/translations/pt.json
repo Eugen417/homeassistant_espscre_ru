@@ -639,7 +639,8 @@
         "ambiguous_tile": "O evento do cartão tem uma origem ambígua; indica a página",
         "save_first": "Guarda a disposição das páginas antes de guardar as definições",
         "destination_exists": "O ecrã de destino já tem uma disposição guardada",
-        "update_tall": "Atualiza o ecrã para usar cartões mais altos"
+        "update_tall": "Atualiza o ecrã para usar cartões mais altos",
+        "memory": "O ecrã não tem memória livre suficiente para esta disposição. Use menos blocos."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "A aguardar que o ecrã volte a ligar. O editor usa as últimas capacidades verificadas.",
       "include_navigation_hint": "Se estiver desligado, as ligações diretas continuam a abrir esta página. Voltar aparece na barra inferior ou substitui Início se a barra estiver oculta.",
       "home_control": "Mostrar um botão de início nesta página",
+      "clock_control": "Hora",
       "edit_topbar": "Editar a barra superior desta página",
       "order": "Ordem das páginas",
       "order_hint": "Os comandos numéricos seguem esta ordem. As ligações de página com nome mantêm o destino.",

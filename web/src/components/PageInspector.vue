@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import HelpTip from "./HelpTip.vue";
 import { computed } from "vue";
 import { t } from "../i18n";
 import { connections, titleOf } from "../model/pages";
@@ -31,14 +32,14 @@ function editRoute(tileId: string) { const tile = state.layout?.tiles.find((item
         <input id="owned-page-title" :value="page.topbar.title.source === 'text' ? page.topbar.title.text : ''" :placeholder="state.document?.title"
           @focus="beginFieldEdit(`page:${id}`)" @blur="endFieldEdit"
           @input="setPageTitle(index, ($event.target as HTMLInputElement).value)" />
-        <small>{{ t('editor.pages.title_hint') }}</small>
+        <HelpTip :text="t('editor.pages.title_hint')" />
       </div>
       <button type="button" class="btn" :disabled="home || !pageReady" @click="setHomePage(id)">
         <span class="mdi">{{ glyph('F02DC') }}</span> {{ t(home ? 'editor.pages.is_home' : 'editor.pages.set_home') }}
       </button>
       <label class="page-check"><input type="checkbox" :checked="!page.navigation.excludeFromPagination" :disabled="!pageReady"
         @change="setPageExcluded(id, !($event.target as HTMLInputElement).checked)" />{{ t('editor.pages.include_navigation') }}</label>
-      <small>{{ t('editor.pages.include_navigation_hint') }}</small>
+      <HelpTip :text="t('editor.pages.include_navigation_hint')" />
       <label class="page-check"><input type="checkbox" :checked="!!page.topbar.leading.length" :disabled="!pageReady"
         @change="setPageHomeControl(id, ($event.target as HTMLInputElement).checked)" />{{ t('editor.pages.home_control') }}</label>
       <button type="button" class="btn" @click="openBar(0, index)">{{ t('editor.pages.edit_topbar') }}</button>
@@ -47,7 +48,7 @@ function editRoute(tileId: string) { const tile = state.layout?.tiles.find((item
         <select id="page-order" :value="index" @change="movePage(index, Number(($event.target as HTMLSelectElement).value))">
           <option v-for="(_, at) in state.document?.pages" :key="at" :value="at">{{ t('editor.page.label', { page: at + 1 }) }}</option>
         </select>
-        <small>{{ t('editor.pages.order_hint') }}</small>
+        <HelpTip :text="t('editor.pages.order_hint')" />
       </div>
       <template v-if="state.editorMode === 'advanced'">
         <div class="f">

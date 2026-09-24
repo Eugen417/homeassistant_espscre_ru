@@ -9,6 +9,7 @@ from copy import deepcopy
 import json
 
 from page_layout import compile_tiles, fingerprint, grid_of_record, new_id
+from i18n import english
 
 PROTOCOL = 2
 MAX_MESSAGE = 4096
@@ -21,6 +22,10 @@ class DeliveryError(RuntimeError):
 class Refused(DeliveryError):
     """The device refused deterministic input. Do not repeatedly reload it."""
 
+    def __init__(self, message):
+        super().__init__(message)
+        self.message = message  # Retain a translated Text's key for later readers.
+
 
 class Superseded(DeliveryError):
     """A newer saved document replaced this delivery target."""
@@ -28,13 +33,29 @@ class Superseded(DeliveryError):
 
 def bounded(message):
     if len(json.dumps(message, ensure_ascii=False, separators=(",", ":")).encode()) > MAX_MESSAGE:
-        raise Refused("A page message exceeds the screen's 4096-byte limit")
+        raise Refused(english('addon.errors.too_large'))
     return message
 
 
 def configuration(record, region):
     """Editor workspace and legacy device settings never change this revision."""
     return fingerprint({"layout": record["layout"], "grid": record["sourceGrid"], "region": region})
+
+
+def appearance_configuration(record, region, initial_tiles):
+    """Separate paint-only fields without keeping another document on the board."""
+    layout = deepcopy(record['layout'])
+    appearance = {'title': layout.pop('title'), 'pages': [], 'tiles': []}
+    index = 0
+    for page_index, page in enumerate(layout['pages']):
+        title = page['topbar'].pop('title')
+        appearance['pages'].append({'p': page_index, 'title': title.get('text', '') if title['source'] == 'text' else ''})
+        for tile in sorted(page['tiles'], key=lambda tile: (tile['placement']['row'], tile['placement']['column'])):
+            tile['appearance'].pop('label')
+            background = tile['appearance'].pop('background', 'auto')
+            appearance['tiles'].append({'i': index, 'name': initial_tiles[index]['name'], 'background': background})
+            index += 1
+    return fingerprint({'layout': layout, 'grid': record['sourceGrid'], 'region': region}), appearance
 
 
 def page_message(page, index, items, *, initial):
@@ -92,7 +113,7 @@ def prepare(inbox, record, region, values, bars):
     tiles = compile_tiles(record["layout"], grid_of_record(record))
     pages = record["layout"]["pages"]
     if len(values) != len(tiles) or len(bars) != len(pages):
-        raise Refused("Incomplete resolved page configuration")
+        raise Refused(english('addon.errors.pages.fields'))
     initial_tiles = [tile_message(value, tile, initial=True) for value, tile in zip(values, tiles)]
     initial_bars = [page_message(page, i, bar, initial=True) for i, (page, bar) in enumerate(zip(pages, bars))]
     live_values = [tile_message(value, tile, initial=False) for value, tile in zip(values, tiles)]
@@ -127,11 +148,15 @@ class Sender:
         self.last_protocol = None
         self.last_tile_sizes = set(self.tile_sizes)
         self.bar_values = False
+        self.appearance_updates = False
+        self.structure, self.appearance = None, None
 
     def disconnected(self):
         self.session = self.confirmed = self.protocol = None
         self.tile_sizes = {"single", "wide", "full"}
         self.bar_values = False
+        self.appearance_updates = False
+        self.structure, self.appearance = None, None
         self.phase = "waiting"
         self.failed_revision = self.failure = None
 
@@ -149,6 +174,7 @@ class Sender:
             self.protocol, self.session, self.sequence = PROTOCOL, session, 0
             self.last_protocol, self.last_tile_sizes = PROTOCOL, set(self.tile_sizes)
             self.bar_values = answer.get("bar_values") == 1
+            self.appearance_updates = answer.get("appearance_updates") == 1
             return PROTOCOL
         # This is an answer from the running old firmware, not cached registry metadata.
         if isinstance(answer, dict) and answer.get("protocol") in (None, 1) and answer.get("status") == "Error: protocol version":
@@ -175,7 +201,7 @@ class Sender:
             # useful refusal, but never treat a stale success as acknowledgment.
             status = answer.get("status", "") if isinstance(answer, dict) else ""
             if status.startswith("Error: insufficient") or status.startswith("Error: invalid") or status.startswith("Error: incomplete"):
-                raise Refused(status)
+                raise Refused(english('addon.errors.pages.memory' if status.startswith('Error: insufficient') else 'addon.errors.pages.fields'))
             raise DeliveryError(status or "No matching screen acknowledgment")
         if answer.get("status") not in ("Synced", "Loading tiles"):
             raise DeliveryError(answer.get("status") or "Screen requested synchronization")
@@ -196,7 +222,7 @@ class Sender:
         except Refused as error:
             # No begin was sent, so an already applied document remains valid.
             # Resolved live values may shrink again without a layout edit.
-            self.failure, self.phase = str(error), "refused"
+            self.failure, self.phase = error.message, "refused"
             raise
         async with self.lock:
             def current():
@@ -204,12 +230,28 @@ class Sender:
             try:
                 current()
                 replace = self.confirmed != revision or not self.session
+                structure, appearance = (appearance_configuration(record, region, initial_tiles) if replace
+                                         else (self.structure, self.appearance))
+                if replace and self.session and self.confirmed and self.appearance_updates and structure == self.structure:
+                    update = {'op': 'appearance', 'base': self.confirmed, 'title': appearance['title'],
+                              'pages': [item for item, old in zip(appearance['pages'], self.appearance['pages']) if item != old],
+                              'tiles': [item for item, old in zip(appearance['tiles'], self.appearance['tiles']) if item != old]}
+                    try:
+                        bounded({**update, 'v': PROTOCOL, 'session': self.session, 'seq': 0xFFFFFFFF, 'rev': revision})
+                    except Refused:
+                        pass  # An unusually large paint edit uses the bounded full transaction.
+                    else:
+                        answer = await self._packet(update, revision)
+                        current()
+                        if not answer.get('applied'): raise DeliveryError('The appearance update was not activated')
+                        self.revision = revision
+                        replace = False
                 if replace:
                     self.phase = "applying"
                     if await self._hello() != PROTOCOL:
-                        raise Refused("Update screen to use the new titlebar and layout")
+                        raise Refused(english('editor.pages.update_notice'))
                     if any(message["o"].get("size", "single") not in self.tile_sizes for message in initial_tiles):
-                        raise Refused("Update screen to use taller tiles")
+                        raise Refused(english('addon.errors.pages.update_tall'))
                     current()
                     answer = await self._packet(begin, revision)
                     self.revision = revision
@@ -237,10 +279,11 @@ class Sender:
                     current()
                 self.values, self.bars = deepcopy(live_values), deepcopy(bars)
                 self.confirmed, self.phase = revision, "applied"
+                self.structure, self.appearance = structure, appearance
                 self.failed_revision = self.failure = None
                 return revision
             except Refused as error:
-                self.failed_revision, self.failure = revision, str(error)
+                self.failed_revision, self.failure = revision, error.message
                 self.session = self.confirmed = None
                 self.phase = "refused"
                 raise

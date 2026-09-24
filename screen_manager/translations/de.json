@@ -639,7 +639,8 @@
         "ambiguous_tile": "Der Kachelbefehl hat mehrere mögliche Quellen; gib die Seite an",
         "save_first": "Speichere zuerst das Seitenlayout und danach die Einstellungen",
         "destination_exists": "Der Zielbildschirm hat bereits ein gespeichertes Layout",
-        "update_tall": "Aktualisiere den Bildschirm, um höhere Kacheln zu verwenden"
+        "update_tall": "Aktualisiere den Bildschirm, um höhere Kacheln zu verwenden",
+        "memory": "Der Bildschirm hat nicht genug freien Speicher für dieses Layout. Verwende weniger Kacheln."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "Warten auf die erneute Verbindung des Bildschirms. Der Editor verwendet die zuletzt geprüften Funktionen.",
       "include_navigation_hint": "Wenn ausgeschaltet, bleibt die Seite über direkte Links erreichbar. Zurück erscheint unten oder ersetzt das Haus, wenn die untere Leiste ausgeblendet ist.",
       "home_control": "Startseiten-Schaltfläche auf dieser Seite anzeigen",
+      "clock_control": "Uhrzeit",
       "edit_topbar": "Kopfleiste dieser Seite bearbeiten",
       "order": "Seitenreihenfolge",
       "order_hint": "Numerische Seitenbefehle folgen dieser Reihenfolge. Benannte Seitenlinks behalten ihr Ziel.",

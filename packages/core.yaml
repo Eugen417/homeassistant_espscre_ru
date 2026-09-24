@@ -201,10 +201,7 @@ esphome:
           // The way home for the house in the top bar and for a swipe up from the bottom edge (firmware 0.2.100+):
           // the same script the Back to page 1 timeout and Home Assistant use, so there is one way home.
           runtime_tiles::back_home = []() { id(go_home).execute(); };
-          runtime_tiles::touch_input::turn_page = [](int step) {
-            const int target = runtime_tiles::sequential_page(id(tile_page), step);
-            if (target == id(tile_page)) return;
-            ESP_LOGI("touch", "edge swipe: page %d -> %d", id(tile_page), target);
+          runtime_tiles::touch_input::turn_page = [](int target) {
             id(tile_page) = target;
             id(show_tile_page).execute();
           };
@@ -501,6 +498,7 @@ api:
                     root["rev"] = runtime_tiles::layout_rev;
                     root["protocol"] = page_protocol::VERSION;
                     root["bar_values"] = 1;
+                    root["appearance_updates"] = 1;
                     auto sizes = root["tile_sizes"].to<JsonArray>();
                     for (const auto &size : page_protocol::TILE_SIZES)
                       if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);

@@ -4,7 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "devEngines": {
-    "runtime": { "name": "node", "version": ">=22.13.0", "onFail": "error" }
+    "runtime": {
+      "name": "node",
+      "version": ">=22.13.0",
+      "onFail": "error"
+    }
   },
   "scripts": {
     "dev": "vite",
@@ -15,6 +19,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "floating-vue": "^5.4.0",
     "vue": "^3.5.18",
     "vue-i18n": "^11.4.12"
   },

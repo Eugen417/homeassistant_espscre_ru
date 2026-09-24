@@ -639,7 +639,8 @@
         "ambiguous_tile": "Tile event has an ambiguous source; specify its page",
         "save_first": "Save a page document before saving document settings",
         "destination_exists": "Destination screen already has a saved layout",
-        "update_tall": "Update screen to use taller tiles"
+        "update_tall": "Update screen to use taller tiles",
+        "memory": "The screen does not have enough free memory for this layout. Reduce the number of tiles."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "Waiting for the screen to reconnect. Editing uses its last verified capabilities.",
       "include_navigation_hint": "When off, direct links still open this page. Back appears in the bottom bar, or replaces Home when that bar is hidden.",
       "home_control": "Show a Home control on this page",
+      "clock_control": "Time",
       "edit_topbar": "Edit this page’s top bar",
       "order": "Page order",
       "order_hint": "Numeric Show page commands follow this order. Named page links keep their destination.",

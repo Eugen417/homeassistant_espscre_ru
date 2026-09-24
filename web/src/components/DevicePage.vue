@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import { editorLayout } from "../store";
+const { cellsOf, grid, pageOf, spanOf } = editorLayout;
+
 // One page of the screen as the mockup draws it: the top bar and the screen's own grid of cells.
 import { computed, nextTick, onBeforeUnmount } from "vue";
 import { vDrag } from "../drag";
 import { t } from "../i18n";
-import { cellsOf, grid, pageOf, sizeOf, spanOf } from "../model/layout";
+import { sizeOf } from "../model/layout";
 import { deviceStyle, homeKeyShown, isCompact, movePage, navigationSettings, openBar, openPage, pageAt, pageReady, pageTitleShown, removePage, screenText, setHomePage, state, topbarItems } from "../store";
 import { glyph } from "../model/topbar";
 import type { Tile } from "../types";

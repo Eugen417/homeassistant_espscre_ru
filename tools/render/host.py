@@ -311,6 +311,18 @@ ACTIONS = '''    - action: render_png
             lv_draw_buf_destroy(base);
             if (top) lv_draw_buf_destroy(top);
             ESP_LOGI("render", "saved %s", path.c_str());
+    - action: render_appearance_probe
+      variables:
+        control: int
+      then:
+        - lambda: |-
+            if (control > 0) runtime_tiles::show_detail(0);
+            if (control < 0) id(close_cards).execute();
+            ESP_LOGI("render", "appearance tiles=%p pages=%p detail=%p active=%d visible=%d title=[%s] name=[%s] blue=%d",
+                     runtime_tiles::model.tiles.begin(), runtime_tiles::model.page_data.records.begin(), runtime_tiles::detail_root,
+                     runtime_tiles::active_index, runtime_tiles::detail_root && !lv_obj_has_flag(runtime_tiles::detail_root, LV_OBJ_FLAG_HIDDEN),
+                     runtime_tiles::model.title.c_str(), runtime_tiles::model.tiles[0].name.c_str(),
+                     runtime_tiles::model.tiles[0].background == tile_palette::color("blue"));
     - action: render_probe
       then:
         - lambda: |-

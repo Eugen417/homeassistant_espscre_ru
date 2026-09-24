@@ -1,4 +1,5 @@
 """The alert a Home Assistant action puts over the whole screen: both board profiles and both remote packages."""
+from firmware_sources import runtime_source
 import json
 import re
 import sys
@@ -66,7 +67,7 @@ class AlertTests(unittest.TestCase):
             self.assertIn('text_font: headline\n', title, name)
         # The height is the title font's own line (firmware 0.2.103+): screen_alert::layout takes it from the font the
         # label draws with, on every board, so no board can state one that is off by a pixel.
-        tiles = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        tiles = runtime_source()
         self.assertIn('lv_font_get_line_height(lv_obj_get_style_text_font(p.title, LV_PART_MAIN))', tiles)
         self.assertIn('lv_obj_set_size(p.title, l.text_w, l.title_h);', tiles)
         header = (ROOT / 'components/smart_display/alert_overlay.h').read_text()

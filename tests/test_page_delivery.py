@@ -47,6 +47,9 @@ class Screen:
                 self.initial, self.pages = [], []
             self.begin = message
             self.revision = message["rev"]
+        if op == 'appearance':
+            assert self.active and message['base'] == self.revision
+            self.revision = message['rev']
         assert message["rev"] == self.revision
         if op == "tile":
             assert not self.active
@@ -64,6 +67,83 @@ class Screen:
 
 
 class DeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def enable_appearance_updates(self):
+        async def newer(message):
+            answer = await self.screen.send(message)
+            if message['op'] == 'hello': answer['appearance_updates'] = 1
+            return answer
+        self.sender = Sender(newer)
+        await self.sync()
+        self.screen.messages.clear()
+
+    async def test_cosmetic_save_uses_negotiated_atomic_edit_without_begin(self):
+        await self.enable_appearance_updates()
+        previous = self.sender.confirmed
+        self.record['layout']['title'] = 'New title'
+        self.record['layout']['pages'][0]['topbar']['title'] = {'source': 'text', 'text': 'Room'}
+        self.record['layout']['pages'][0]['tiles'][0]['appearance'].update(label='New desk', background='blue')
+        self.values[0]['name'] = 'New desk'
+        await self.sync()
+        ops = [m['op'] for m in self.screen.messages]
+        self.assertEqual(ops, ['appearance', 'state'])
+        edit = self.screen.messages[0]
+        self.assertEqual(edit['base'], previous)
+        self.assertEqual(edit['tiles'], [{'i': 0, 'name': 'New desk', 'background': 'blue'}])
+        self.assertEqual(edit['pages'], [{'p': 0, 'title': 'Room'}])
+        self.assertEqual(self.sender.confirmed, self.screen.revision)
+        self.assertNotEqual(self.sender.confirmed, previous)
+        self.assertTrue(await self.sender.ping())
+
+    async def test_unnegotiated_cosmetic_save_and_structural_edits_keep_full_transaction(self):
+        await self.sync()
+        self.screen.messages.clear()
+        self.record['layout']['title'] = 'Old peer'
+        await self.sync()
+        self.assertIn('begin', [m['op'] for m in self.screen.messages])
+        await self.enable_appearance_updates()
+        self.record['layout']['pages'][0]['navigation']['excludeFromPagination'] = True
+        await self.sync()
+        self.assertIn('begin', [m['op'] for m in self.screen.messages])
+        self.assertNotIn('appearance', [m['op'] for m in self.screen.messages])
+
+    async def test_interrupted_cosmetic_save_recovers_the_saved_document(self):
+        await self.enable_appearance_updates()
+        self.record['layout']['title'] = 'Retry title'
+        self.screen.failure = 'appearance'
+        with self.assertRaises(TimeoutError): await self.sync()
+        await self.sync()
+        self.assertEqual(self.sender.confirmed, configuration(self.record, self.region))
+        self.assertTrue(self.screen.active)
+
+    def test_cosmetic_tile_indexes_follow_wire_placement_order(self):
+        from page_delivery import appearance_configuration
+        doc = deepcopy(self.record)
+        tile = doc['layout']['pages'][0]['tiles'][0]
+        other = deepcopy(tile)
+        other['placement']['column'] = 1
+        other['appearance']['background'] = 'red'
+        tile['appearance']['background'] = 'blue'
+        doc['layout']['pages'][0]['tiles'] = [other, tile]
+        _, paint = appearance_configuration(doc, self.region, [{'name': 'First'}, {'name': 'Second'}, {'name': 'Home'}])
+        self.assertEqual([t['background'] for t in paint['tiles']][:2], ['blue', 'red'])
+
+    async def test_large_cosmetic_batch_falls_back_before_sending_a_patch(self):
+        from core import state_message
+        from page_layout import compile_tiles
+        grid = Grid(2, 4)
+        self.record = migrate_legacy({'title': 'Many', 'tiles': [
+            {'entity': f'light.test_{i}', 'name': 'Before', 'slot': i} for i in range(64)]}, grid)
+        self.values = [state_message(i, tile, {}) for i, tile in enumerate(compile_tiles(self.record['layout'], grid))]
+        self.bars = [[] for _ in self.record['layout']['pages']]
+        await self.enable_appearance_updates()
+        for page in self.record['layout']['pages']:
+            for tile in page['tiles']: tile['appearance']['label'] = 'é' * 40
+        self.values = [state_message(i, tile, {}) for i, tile in enumerate(compile_tiles(self.record['layout'], grid))]
+        await self.sync()
+        ops = [message['op'] for message in self.screen.messages]
+        self.assertIn('begin', ops)
+        self.assertNotIn('appearance', ops)
+
     async def test_shared_bar_values_use_one_negotiated_packet(self):
         async def newer(message):
             answer = await self.screen.send(message)

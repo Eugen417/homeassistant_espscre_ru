@@ -1,5 +1,6 @@
 """Camera images on a Guition (app 0.2.66, firmware 0.2.57): the app fetches, sizes and serves the image on its own
 port; the screen asks with esphome.screen_camera and loads the link with ESPHome's online_image."""
+from firmware_sources import runtime_source
 from manager_fixtures import with_screen_grid, seed_layout
 import asyncio
 import contextlib
@@ -25,7 +26,7 @@ if HAS_AIOHTTP:
     from server import HomeAssistant, Manager
 
 PROFILE = profiles.text('checkout/guition.yaml')
-TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+TILES = runtime_source()
 
 
 def picture(fmt, size, mode='RGB'):

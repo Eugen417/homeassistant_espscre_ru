@@ -378,7 +378,7 @@ describe("TileInspector: pages (app 0.2.78)", () => {
     expect(current(tile).entity).toBe("screen.page_3");
     expect(state.layout!.pages).toBe(3);
     expect(choices(drawer, "Goes to page")).toEqual(["1", "2", "3 (empty)", "4 (empty)"]);
-    expect(row(drawer, "Goes to page").find("small").classes()).not.toContain("warn");
+    expect(row(drawer, "Goes to page").find(".warn").exists()).toBe(false);
   });
   it("moves the tile to another page or a new one with a tap", async () => {
     const { tile, drawer } = open([{ entity: "light.a", name: "", slot: 0 }, { entity: "sensor.t", name: "", slot: 6 }], 0);
@@ -532,7 +532,7 @@ describe("the title above a page (app 0.2.105)", () => {
     // Empty says what page 1 says, so a page that follows it looks like it does.
     expect((field.element as HTMLInputElement).value).toBe("");
     expect(field.attributes("placeholder")).toBe("Living room");
-    expect(drawer.find("#page-title-hint").text()).toBe("Leave empty and this page says the screen's title.");
+    expect(drawer.find("#page-title-hint button").attributes("aria-label")).toBe("Leave empty and this page says the screen's title.");
     await field.setValue("Music");
     expect(state.layout!.page_titles).toEqual(["", "Music"]);
     // Clearing it hands the page back and leaves nothing behind.
@@ -546,7 +546,7 @@ describe("the title above a page (app 0.2.105)", () => {
     const screen = drawer.find("#screen-title");
     expect(drawer.find("label[for='screen-title']").text()).toBe("Screen title");
     expect((screen.element as HTMLInputElement).value).toBe("Living room");
-    expect(drawer.find("#screen-title-hint").text()).toBe("Every page without a title of its own says this.");
+    expect(drawer.find("#screen-title-hint button").attributes("aria-label")).toBe("Every page without a title of its own says this.");
     await screen.setValue("Downstairs");
     expect(state.layout!.title).toBe("Downstairs");
     expect(state.layout!.page_titles).toEqual(["", "Music"]);

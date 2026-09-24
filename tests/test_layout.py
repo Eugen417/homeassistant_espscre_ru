@@ -1,4 +1,5 @@
 """Regression checks for the page geometry (the board's grid) and the event guards."""
+from firmware_sources import runtime_source
 from pathlib import Path
 import re
 import sys
@@ -61,7 +62,7 @@ class LayoutTests(unittest.TestCase):
         self.assertIn('type: GRID', SOURCE)
         self.assertNotRegex(SOURCE, r'id: tile\d+\n\s+x: ')
         self.assertEqual(SOURCE.count('grid_cell_row_pos: 0'), int(VALUES['GRID_COLS']) * int(VALUES['GRID_ROWS']))
-        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        runtime = runtime_source()
         self.assertIn('lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());', runtime)
         self.assertIn('lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_STRETCH,column,span_x,LV_GRID_ALIGN_STRETCH,row,span_y);', runtime)
 
@@ -71,7 +72,7 @@ class LayoutTests(unittest.TestCase):
         for n in range(1, cells + 1):
             self.assertIn(f'runtime_tiles::bind({n - 1}, id(tile{n})', SOURCE)
         self.assertNotIn(f'runtime_tiles::bind({cells}, ', SOURCE)
-        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        runtime = runtime_source()
         self.assertIn('if (!allowed(esphome::millis(), 100 + w.index, model.tiles[w.index].entity)) return;', runtime)
 
     def test_navigation_is_above_grid_but_below_modal_overlays(self):
@@ -100,7 +101,7 @@ class LayoutTests(unittest.TestCase):
             number = source.split('            id: page_number\n', 1)[1].split('\n        - ', 1)[0]
             self.assertIn('clickable: false', number, name)
             self.assertIn(f'height: {band}\n', number, name)
-        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        runtime = runtime_source()
         self.assertIn('settings_screen::page_dots(nav_number,model.page_data.ordinal(page),sequential_count,', runtime)
         self.assertIn('set_hidden(control,!sequential)', runtime)
 
@@ -109,7 +110,7 @@ class LayoutTests(unittest.TestCase):
         block = SOURCE.split('  - id: show_tile_page\n', 1)[1].split('  - id: apply_screen_settings', 1)[0]
         self.assertIn('lv_obj_add_flag(w.tile, LV_OBJ_FLAG_HIDDEN)', block)
         self.assertIn('id(page_prev), id(page_next), id(page_number)', block)
-        runtime = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+        runtime = runtime_source()
         self.assertIn('else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}', runtime)
 
     def test_self_test_cannot_call_a_home_assistant_action(self):

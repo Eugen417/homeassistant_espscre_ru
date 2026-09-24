@@ -8,7 +8,7 @@ import time
 import camera_feed
 import page_delivery
 from core import BUILTIN, CAMERA_DOMAINS, board_of, firmware_features, page_target, state_message
-from i18n import t
+from i18n import t, shown, english
 from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, bar_items, compile_tiles,
                          grid_of_record, legacy_projection, validate_document)
 
@@ -33,7 +33,7 @@ def preflight_pages(manager, inbox, record):
     values = [state_message(i, tile, manager.ha.states) for i, tile in enumerate(flat)]
     bars = [manager.header_message({'header': {'items': bar_items(page)}})['items'] for page in record['layout']['pages']]
     try: page_delivery.prepare(inbox, record, manager.page_region(), values, bars)
-    except page_delivery.Refused as error: raise LayoutError(str(error)) from error
+    except page_delivery.Refused as error: raise LayoutError(shown(error.message)) from error
 
 
 def preflight_profile(manager, data):
@@ -115,7 +115,7 @@ def save_pages(manager, inbox, data):
 async def sync_pages(manager, inbox, record, screen, dirty=None, force=False, context=None):
     grid = manager.verified_grid(inbox)
     if grid is None or grid != grid_of_record(record):
-        manager.status[inbox] = 'Screen grid changed or is unavailable; review the layout before applying'
+        manager.status[inbox] = english('addon.errors.pages.adaptation')
         return False
     sender = manager.page_sender(inbox, screen)
     flat = manager.layouts[inbox]
@@ -146,7 +146,7 @@ async def sync_pages(manager, inbox, record, screen, dirty=None, force=False, co
         manager.ha.changed.set()
         return True
     except page_delivery.Refused as error:
-        manager.status[inbox] = str(error)
+        manager.status[inbox] = error.message
         return False
     if not current():
         manager.ha.changed.set()

@@ -6,6 +6,7 @@ the firmware asks theme.h for roles, so a new look is a refill of a few styles p
 way: no colour written anywhere else, every paint defined and filled, and the look applied at boot and after
 every settings change. tests/test_theme.cpp checks the values themselves.
 """
+from firmware_sources import runtime_source
 import json
 import re
 import sys
@@ -111,7 +112,7 @@ class Paints(unittest.TestCase):
             self.assertIn('lv_color_hex(theme::surface(alert.color))', text)
 
     def test_the_firmware_draws_long_lived_parts_with_paints(self):
-        tiles = (COMPONENT / 'runtime_tiles.h').read_text()
+        tiles = runtime_source()
         for needle in ('lv_obj_add_style(w.slider,theme::style(theme::Paint::knob),LV_PART_KNOB);',
                        'lv_obj_add_style(w.busy,theme::style(theme::Paint::veil),0);',
                        'lv_obj_add_style(spinner, theme::style(theme::Paint::spinner), LV_PART_MAIN);',
@@ -141,7 +142,7 @@ class RedrawnTheSame(unittest.TestCase):
         self.assertIn('plain(track, knob_x(w, h, on), inset, size, size)', pill)
 
     def test_the_sun_path_keeps_its_own_fill_after_a_palette_change(self):
-        tiles = (COMPONENT / 'runtime_tiles.h').read_text()
+        tiles = runtime_source()
         self.assertIn('w.fill_color=lv_color_hex(theme::ha::SUNNY);', tiles)
         self.assertIn('if(w.extra_mode!="sunpath")w.fill_color=color;', tiles)
         self.assertEqual(len(re.findall(r'\bw\.fill_color=', tiles)), 2, 'the sun path and the palette are the only two')

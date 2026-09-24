@@ -385,6 +385,49 @@ class Run:
         await asyncio.sleep(0.2)  # separate fingers, including the repeat-action guard
         return after
 
+    async def appearance_edits(self, grid):
+        from core import state_message
+        from layout_migrations import migrate_legacy
+        from page_layout import compile_tiles
+        from page_delivery import Refused
+        record = migrate_legacy({'title': 'Before edit', 'tiles': [
+            {'entity': 'light.test', 'name': 'Before name', 'slot': 0}]}, grid)
+        states = {'light.test': {'state': 'on', 'attributes': {'brightness': 140, 'supported_color_modes': ['brightness']}}}
+        def values():
+            return [state_message(i, tile, states) for i, tile in enumerate(compile_tiles(record['layout'], grid))]
+        region = {'keepalive': 120, 'clock_24h': True, 'numbers': 'point', 'group_min': 1, 'percent_space': False}
+        await self.sender.synchronize(self.inbox.object_id, record, region, values(), [[]])
+        await self.render('_appearance-start', keep=False)
+        async def probe(control=0):
+            start = len(self.lines)
+            await self.call('render_appearance_probe', control=control)
+            line = await self.until(lambda line: 'appearance tiles=' in line, 5, 'appearance probe', start)
+            return re.search(r'appearance tiles=(\S+) pages=(\S+) detail=(\S+) active=(-?\d+) visible=(\d) title=\[(.*?)\] name=\[(.*?)\] blue=(\d)', line).groups()
+        before = await probe(1)
+        assert before[4] == '1', before
+        reference = await self.render('_appearance-open', keep=False)
+        revision = self.sender.confirmed
+        try:
+            await self.sender._packet({'op': 'appearance', 'base': revision, 'title': 'Must not appear', 'pages': [],
+                                       'tiles': [{'i': 0, 'name': 'Invalid batch', 'background': 'red'},
+                                                 {'i': 64, 'name': 'Invalid', 'background': 'blue'}]}, 'fffffffffffffffe')
+        except Refused:
+            pass
+        else: raise AssertionError('Out-of-range appearance edit was accepted')
+        assert (await self.render('_appearance-refused', keep=False)).tobytes() == reference.tobytes()
+        assert await probe() == before, 'Refused appearance edit mutated the model'
+        record['layout']['title'] = 'After edit'
+        record['layout']['pages'][0]['tiles'][0]['appearance'].update(label='After name', background='blue')
+        old_session = self.sender.session
+        await self.sender.synchronize(self.inbox.object_id, record, region, values(), [[]])
+        after = await probe()
+        assert self.sender.session == old_session, 'A cosmetic save renegotiated a full layout'
+        assert after[:5] == before[:5], (before, after)
+        assert after[5:] == ('After edit', 'After name', '1'), after
+        assert await self.sender.ping()
+        await self.render('appearance-card-kept-open')
+        await probe(-1)
+
     async def detail_navigation(self, grid, entities):
         """Real touchscreen taps, nested Back, hidden footer and excluded swipes.
 
@@ -594,6 +637,7 @@ class Run:
         (self.out / '_dark.ppm').unlink(missing_ok=True)
         await self.render('page-1-dark')
         self.client.switch_command(dark.key, False)
+        await self.appearance_edits(grid)
         checks += await self.detail_navigation(grid, entities)
         checks += await self.rectangular_tiles(grid)
         return pages, checks

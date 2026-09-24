@@ -1,10 +1,13 @@
 <script setup lang="ts">
+import { editorLayout } from "../store";
+const { grid, pageOf } = editorLayout;
+
 // A card on the mockup, drawn with what Home Assistant reports right now. A placeholder is the tile being
 // dragged, drawn where it will land.
 import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
-import { dimensions, sizeOf, displayName, effectiveControls, grid, isFull, isWide, pageOf, pageTarget } from "../model/layout";
+import { dimensions, sizeOf, displayName, effectiveControls, isFull, isWide, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
 import { tilePalette, tileActive } from "../model/tile-palette";

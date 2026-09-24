@@ -7,6 +7,7 @@
   Assistant showed "unknown" and ESP Screens could not change it.
 - While a screen restarts its device name sensor reads "unavailable", which the app took for the device name.
 """
+from firmware_sources import runtime_source
 from manager_fixtures import with_screen_grid
 import importlib.util
 import re
@@ -23,7 +24,7 @@ sys.path.insert(0, str(ROOT / 'tests'))
 from core import ATTRS, cover_related, discover_screens, extras, state_message  # noqa: E402
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
-RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+RUNTIME = runtime_source()
 PROFILES = {name: profiles.text(name) for name in ('checkout/guition.yaml', 'checkout/cyd.yaml', 'packages/guition.yaml', 'packages/cyd.yaml')}
 BLIND = 'cover.venetianblind_0001'
 

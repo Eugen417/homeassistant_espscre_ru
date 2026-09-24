@@ -1,5 +1,6 @@
 """The media card (app 0.2.77, firmware 0.2.64): what the app pre-computes for it, and the album cover the app serves
 like a camera image (camera_feed), at the size the card asks for, with the corners rounded over the colour behind them."""
+from firmware_sources import runtime_source
 from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
@@ -19,7 +20,7 @@ HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:
     from server import Manager
 
-TILES = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+TILES = runtime_source()
 MODEL = (ROOT / 'components/smart_display/runtime_model.h').read_text()
 CARD = (ROOT / 'components/smart_display/media_card.h').read_text()
 SONOS = {'friendly_name': 'Office', 'media_title': 'Woman at the Loom', 'media_artist': 'KATZROAR', 'media_album_name': 'Invocation',

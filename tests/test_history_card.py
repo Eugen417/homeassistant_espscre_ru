@@ -3,6 +3,7 @@
 Numbers: 24 time-weighted averages, the highest and lowest moment, an axis in round steps for every kind of unit.
 States: a timeline in runs of slots with Home Assistant's words and the time in each state.
 """
+from firmware_sources import runtime_source
 from manager_fixtures import with_screen_grid
 import asyncio
 import importlib.util
@@ -23,7 +24,7 @@ sys.path.insert(0, str(ROOT / 'tests'))
 import history_card as hc  # noqa: E402
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
-RUNTIME = (ROOT / 'components/smart_display/runtime_tiles.h').read_text()
+RUNTIME = runtime_source()
 
 AMSTERDAM = ZoneInfo('Europe/Amsterdam')
 

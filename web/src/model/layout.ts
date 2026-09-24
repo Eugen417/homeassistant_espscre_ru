@@ -5,11 +5,10 @@
 // right and covers both; a full tile (firmware 0.2.62+) starts a page and covers every cell of it. Empty cells
 // are allowed and stay exactly where they are.
 //
-// `setGrid` is called when the screen being edited changes, before anything is drawn or packed: the editor then
-// places tiles the way that screen will, instead of the way the first two boards did.
-import { reactive } from "vue";
+// Grid-dependent operations belong to an explicit layout instance. Its shape is read
+// directly from the owning document, without a watcher or mutable module-global grid.
 import { t } from "../i18n";
-import type { Inventory, Layout, Tile } from "../types";
+import type { Inventory, Layout, Tile, PageGrid } from "../types";
 
 // The firmware's own caps (components/smart_display/runtime_model.h): at most eight pages, and never more than 64
 // tiles on one screen (one dirty bit each), so a page of nine cells gives seven pages. The add-on counts the same way
@@ -17,31 +16,6 @@ import type { Inventory, Layout, Tile } from "../types";
 export const FIRMWARE_MAX_PAGES = 8;
 export const FIRMWARE_MAX_TILES = 64;
 export const DEFAULT_GRID = { columns: 2, rows: 3 };
-// Live bindings: importers see the grid of the screen they are editing (ES module exports update with them).
-export let COLUMNS = DEFAULT_GRID.columns;
-export let ROWS = DEFAULT_GRID.rows;
-export let SLOTS_PER_PAGE = COLUMNS * ROWS;
-export let MAX_PAGES = Math.min(FIRMWARE_MAX_PAGES, Math.floor(FIRMWARE_MAX_TILES / SLOTS_PER_PAGE));
-export let MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
-// The same grid as something Vue can watch. A plain `let` is a live binding for other modules, but a computed()
-// that reads one never re-runs when it changes: the mockup of a 3 x 3 screen kept drawing six cells while the
-// counter beside it already said nine. Anything reactive reads `grid`, the helpers below keep the constants.
-export const grid = reactive({ ...DEFAULT_GRID, slots: SLOTS_PER_PAGE, pages: MAX_PAGES, maxSlots: MAX_SLOTS });
-export function setGrid(columns?: number, rows?: number) {
-  const cols = Math.min(12, Math.max(1, Math.round(columns || DEFAULT_GRID.columns)));
-  const lines = Math.min(12, Math.max(1, Math.round(rows || DEFAULT_GRID.rows)));
-  COLUMNS = cols;
-  ROWS = lines;
-  SLOTS_PER_PAGE = cols * lines;
-  MAX_PAGES = Math.max(1, Math.min(FIRMWARE_MAX_PAGES, Math.floor(FIRMWARE_MAX_TILES / SLOTS_PER_PAGE)));
-  MAX_SLOTS = MAX_PAGES * SLOTS_PER_PAGE;
-  grid.columns = cols;
-  grid.rows = lines;
-  grid.slots = SLOTS_PER_PAGE;
-  grid.pages = MAX_PAGES;
-  grid.maxSlots = MAX_SLOTS;
-}
-
 export type Entry = { tile: Tile; slot: number };
 // Dimensions are resolved on the screen's grid; `true` still means wide.
 export type Size = "single" | "wide" | "tall" | "square" | "full";
@@ -54,100 +28,14 @@ export const pageTarget = (id: string) => (/^screen\.page_[1-8]$/.test(id) ? Num
 export const sizeOf = (tile: Tile): Size => (SIZES.includes(tile.options?.size as Size) ? (tile.options!.size as Size) : "single");
 export const isWide = (tile: Tile) => ["wide", "square", "full"].includes(sizeOf(tile));
 export const isFull = (tile: Tile) => sizeOf(tile) === "full";
-export const pageStart = (slot: number) => slot - (slot % SLOTS_PER_PAGE);
-export const rowStart = (slot: number) => slot - (slot % COLUMNS);
-export const pageOf = (slot: number) => Math.floor(slot / SLOTS_PER_PAGE);
-// A wide tile takes two cells, unless the screen has a single column: then it is as wide as the page already.
-export function dimensions(size: SizeLike, shape = { columns: COLUMNS, rows: ROWS }) {
+// Wide spans at most two columns; full spans the complete supplied grid.
+export function dimensions(size: SizeLike, shape: PageGrid = DEFAULT_GRID) {
   const value = asSize(size);
   return value === "full" ? { columns: shape.columns, rows: shape.rows }
     : value === "square" ? { columns: 2, rows: 2 }
     : value === "tall" ? { columns: 1, rows: 2 }
     : { columns: value === "wide" ? Math.min(2, shape.columns) : 1, rows: 1 };
 }
-export const spanOf = (size: SizeLike) => { const d = dimensions(size); return d.columns * d.rows; };
-export const cellsOf = (slot: number, size: SizeLike) => {
-  const d = dimensions(size), first = asSize(size) === "full" ? pageStart(slot) : slot;
-  return Array.from({ length: d.rows }, (_, row) => Array.from({ length: d.columns }, (_, column) => first + row * COLUMNS + column)).flat();
-};
-// Keep the requested row, fitting the rectangle horizontally. Vertical overflow is refused.
-export const startOf = (slot: number, size: SizeLike) => asSize(size) === "full" ? pageStart(slot)
-  : rowStart(slot) + Math.min(slot % COLUMNS, Math.max(0, COLUMNS - dimensions(size).columns));
-export const entriesOf = (layout: Layout): Entry[] => layout.tiles.map((tile) => ({ tile, slot: tile.slot }));
-
-// In-order packing: the rule before positions existed, and what firmware below 0.2.26 still draws.
-export function packSlots(tiles: Tile[]) {
-  let position = 0;
-  const taken = new Set<number>();
-  return tiles.map((tile) => {
-    const size = sizeOf(tile), slot = firstFree(taken, size, position);
-    if (slot < 0) throw new Error("Tiles do not fit this screen grid");
-    for (const cell of cellsOf(slot, size)) taken.add(cell);
-    position = slot + dimensions(size).columns;
-    return slot;
-  });
-}
-
-export function hasGaps(tiles: Tile[]) {
-  const packed = packSlots(tiles);
-  return tiles.some((tile, i) => tile.slot !== packed[i]);
-}
-// Every tile gets a position (older layouts pack in order) and the list stays in reading order.
-export function normalize(layout: Layout) {
-  if (layout.tiles.some((t) => !Number.isInteger(t.slot))) {
-    const packed = packSlots(layout.tiles);
-    layout.tiles.forEach((t, i) => (t.slot = packed[i]));
-  }
-  layout.tiles.sort((a, b) => a.slot - b.slot);
-}
-export function occupied(entries: Entry[]) {
-  const taken = new Set<number>();
-  for (const { tile, slot } of entries) for (const cell of cellsOf(slot, sizeOf(tile))) taken.add(cell);
-  return taken;
-}
-export const fits = (taken: Set<number>, slot: number, size: SizeLike) =>
-  Number.isInteger(slot) && slot >= 0 && slot < MAX_SLOTS &&
-  (asSize(size) !== "full" || slot % SLOTS_PER_PAGE === 0) &&
-  slot % COLUMNS + dimensions(size).columns <= COLUMNS &&
-  Math.floor(slot % SLOTS_PER_PAGE / COLUMNS) + dimensions(size).rows <= ROWS &&
-  cellsOf(slot, size).every((c) => !taken.has(c));
-export function firstFree(taken: Set<number>, size: SizeLike, from = 0) {
-  for (let slot = from; slot < MAX_SLOTS; slot++) if (fits(taken, slot, size)) return slot;
-  return -1;
-}
-// The free position closest to `origin`; on a tie the later one, so a nudged tile moves down, not up.
-export function nearestFree(taken: Set<number>, size: SizeLike, origin: number) {
-  let best = -1;
-  for (let slot = 0; slot < MAX_SLOTS; slot++)
-    if (fits(taken, slot, size) && (best < 0 || Math.abs(slot - origin) <= Math.abs(best - origin))) best = slot;
-  return best;
-}
-// The arrangement after putting `moving` (a tile on the grid, or a new one) at `target`:
-// it lands exactly there; tiles in its way take the cells it left (a swap) or else the
-// nearest free cell; everything else stays put. Null when the target is off the grid.
-export function arrange(tiles: Tile[], moving: Tile, target: number): Entry[] | null {
-  const size = sizeOf(moving);
-  target = startOf(target, size);
-  if (!fits(new Set(), target, size)) return null;
-  const footprint = cellsOf(target, size);
-  const vacated = tiles.includes(moving) ? cellsOf(moving.slot, size) : [];
-  const result: Entry[] = [{ tile: moving, slot: target }];
-  const displaced: Tile[] = [];
-  for (const tile of tiles) {
-    if (tile === moving) continue;
-    if (cellsOf(tile.slot, sizeOf(tile)).some((c) => footprint.includes(c))) displaced.push(tile);
-    else result.push({ tile, slot: tile.slot });
-  }
-  for (const tile of displaced) {
-    const w = sizeOf(tile), taken = occupied(result);
-    let slot = vacated.map((c) => startOf(c, w)).find((c) => fits(taken, c, w));
-    if (slot === undefined) slot = nearestFree(taken, w, tile.slot);
-    if (slot < 0) return null;
-    result.push({ tile, slot });
-  }
-  return result.sort((a, b) => a.slot - b.slot);
-}
-// ---- Whole pages ----
 // A page moves as a whole (app 0.2.121). `pageOrder` is the row after the page at `from` is dropped at `to`:
 // `order[position]` is the page that ends up there. Moving is a move, not a swap, so the pages in between shift
 // up or down one, the way a list reorders. An index outside the row leaves the order as it was.
@@ -162,17 +50,6 @@ export function pagePlaces(order: number[]) {
   const places = order.map(() => 0);
   order.forEach((page, position) => (places[page] = position));
   return places;
-}
-// The tiles once the pages stand in `order`: every tile keeps its own cell of its own page, the page itself moves.
-// A tile on a page the order doesn't name stays exactly where it is.
-export function reorderPages(entries: Entry[], order: number[]): Entry[] {
-  const places = pagePlaces(order);
-  return entries
-    .map(({ tile, slot }) => {
-      const place = places[pageOf(slot)];
-      return { tile, slot: place === undefined ? slot : place * SLOTS_PER_PAGE + (slot % SLOTS_PER_PAGE) };
-    })
-    .sort((a, b) => a.slot - b.slot);
 }
 // The page titles once the pages stand in `order`. A title belongs to its page and travels with it, page 1
 // included (app 0.2.123): a page without a title of its own says the screen's title, wherever it stands, so
@@ -189,39 +66,155 @@ export function retargetedPage(id: string, to: (page: number) => number) {
   const moved = target ? to(target) : 0;
   return moved !== target && moved >= 1 && moved <= FIRMWARE_MAX_PAGES ? `screen.page_${moved}` : id;
 }
-// Pages the tiles need, or more when the user keeps empty pages on purpose (`layout.pages`).
-export function pageCount(entries: Entry[], wanted = 1) {
-  const last = Math.max(0, ...entries.map(({ tile, slot }) => slot + spanOf(sizeOf(tile))));
-  return Math.min(MAX_PAGES, Math.max(1, Math.ceil(last / SLOTS_PER_PAGE), wanted || 1));
-}
-// With the page buttons and swiping both off (firmware 0.2.69+) only Go to page tiles change the page. Pages count
-// from 1: `tiles` is how many Go to page tiles lead to a page the screen has, `targets` the pages they lead to,
-// `unreachable` the pages no chain of them reaches from page 1, `noWayBack` the reachable ones they never lead back from.
-export function strandedPages(entries: Entry[], pages: number) {
-  const links = Array.from({ length: pages }, () => new Set<number>());
-  let tiles = 0;
-  for (const { tile, slot } of entries) {
-    const to = pageTarget(tile.entity) - 1, from = pageOf(slot);
-    if (to < 0 || to >= pages || from >= pages) continue;
-    tiles++;
-    links[from].add(to);
+export const entriesOf = (layout: Layout): Entry[] => layout.tiles.map((tile) => ({ tile, slot: tile.slot }));
+
+/** A document-owned view of placement rules. Reading a new shape is synchronous. */
+export function createLayout(shape: () => PageGrid) {
+  const grid = {
+    get columns() { return shape().columns; },
+    get rows() { return shape().rows; },
+    get slots() { return this.columns * this.rows; },
+    get pages() { return Math.min(FIRMWARE_MAX_PAGES, Math.floor(FIRMWARE_MAX_TILES / this.slots)); },
+    get maxSlots() { return this.pages * this.slots; },
+  };
+  const tileDimensions = (size: SizeLike) => dimensions(size, grid);
+  const pageStart = (slot: number) => slot - (slot % grid.slots);
+  const rowStart = (slot: number) => slot - (slot % grid.columns);
+  const pageOf = (slot: number) => Math.floor(slot / grid.slots);
+  const spanOf = (size: SizeLike) => { const d = tileDimensions(size); return d.columns * d.rows; };
+  const cellsOf = (slot: number, size: SizeLike) => {
+    const d = tileDimensions(size), first = asSize(size) === "full" ? pageStart(slot) : slot;
+    return Array.from({ length: d.rows }, (_, row) => Array.from({ length: d.columns }, (_, column) => first + row * grid.columns + column)).flat();
+  };
+  // Keep the requested row, fitting the rectangle horizontally. Vertical overflow is refused.
+  const startOf = (slot: number, size: SizeLike) => asSize(size) === "full" ? pageStart(slot)
+    : rowStart(slot) + Math.min(slot % grid.columns, Math.max(0, grid.columns - tileDimensions(size).columns));
+
+  // In-order packing: the rule before positions existed, and what firmware below 0.2.26 still draws.
+  function packSlots(tiles: Tile[]) {
+    let position = 0;
+    const taken = new Set<number>();
+    return tiles.map((tile) => {
+      const size = sizeOf(tile), slot = firstFree(taken, size, position);
+      if (slot < 0) throw new Error("Tiles do not fit this screen grid");
+      for (const cell of cellsOf(slot, size)) taken.add(cell);
+      position = slot + tileDimensions(size).columns;
+      return slot;
+    });
   }
-  const reach = (next: (page: number) => number[]) => {
-    const seen = new Set([0]), queue = [0];
-    while (queue.length) for (const page of next(queue.shift()!)) if (!seen.has(page)) { seen.add(page); queue.push(page); }
-    return seen;
-  };
-  const forward = reach((page) => [...links[page]]);
-  const back = reach((page) => links.flatMap((to, from) => (to.has(page) ? [from] : [])));
-  const all = Array.from({ length: pages }, (_, page) => page);
-  const numbers = (list: number[]) => list.map((page) => page + 1);
-  return {
-    tiles,
-    targets: numbers(all.filter((page) => links.some((to) => to.has(page)))),
-    unreachable: numbers(all.filter((page) => !forward.has(page))),
-    noWayBack: numbers(all.filter((page) => forward.has(page) && !back.has(page))),
-  };
+
+  function hasGaps(tiles: Tile[]) {
+    const packed = packSlots(tiles);
+    return tiles.some((tile, i) => tile.slot !== packed[i]);
+  }
+  // Every tile gets a position (older layouts pack in order) and the list stays in reading order.
+  function normalize(layout: Layout) {
+    if (layout.tiles.some((t) => !Number.isInteger(t.slot))) {
+      const packed = packSlots(layout.tiles);
+      layout.tiles.forEach((t, i) => (t.slot = packed[i]));
+    }
+    layout.tiles.sort((a, b) => a.slot - b.slot);
+  }
+  function occupied(entries: Entry[]) {
+    const taken = new Set<number>();
+    for (const { tile, slot } of entries) for (const cell of cellsOf(slot, sizeOf(tile))) taken.add(cell);
+    return taken;
+  }
+  const fits = (taken: Set<number>, slot: number, size: SizeLike) =>
+    Number.isInteger(slot) && slot >= 0 && slot < grid.maxSlots &&
+    (asSize(size) !== "full" || slot % grid.slots === 0) &&
+    slot % grid.columns + tileDimensions(size).columns <= grid.columns &&
+    Math.floor(slot % grid.slots / grid.columns) + tileDimensions(size).rows <= grid.rows &&
+    cellsOf(slot, size).every((c) => !taken.has(c));
+  function firstFree(taken: Set<number>, size: SizeLike, from = 0) {
+    for (let slot = from; slot < grid.maxSlots; slot++) if (fits(taken, slot, size)) return slot;
+    return -1;
+  }
+  // The free position closest to `origin`; on a tie the later one, so a nudged tile moves down, not up.
+  function nearestFree(taken: Set<number>, size: SizeLike, origin: number) {
+    let best = -1;
+    for (let slot = 0; slot < grid.maxSlots; slot++)
+      if (fits(taken, slot, size) && (best < 0 || Math.abs(slot - origin) <= Math.abs(best - origin))) best = slot;
+    return best;
+  }
+  // The arrangement after putting `moving` (a tile on the grid, or a new one) at `target`:
+  // it lands exactly there; tiles in its way take the cells it left (a swap) or else the
+  // nearest free cell; everything else stays put. Null when the target is off the grid.
+  function arrange(tiles: Tile[], moving: Tile, target: number): Entry[] | null {
+    const size = sizeOf(moving);
+    target = startOf(target, size);
+    if (!fits(new Set(), target, size)) return null;
+    const footprint = cellsOf(target, size);
+    const vacated = tiles.includes(moving) ? cellsOf(moving.slot, size) : [];
+    const result: Entry[] = [{ tile: moving, slot: target }];
+    const displaced: Tile[] = [];
+    for (const tile of tiles) {
+      if (tile === moving) continue;
+      if (cellsOf(tile.slot, sizeOf(tile)).some((c) => footprint.includes(c))) displaced.push(tile);
+      else result.push({ tile, slot: tile.slot });
+    }
+    for (const tile of displaced) {
+      const w = sizeOf(tile), taken = occupied(result);
+      let slot = vacated.map((c) => startOf(c, w)).find((c) => fits(taken, c, w));
+      if (slot === undefined) slot = nearestFree(taken, w, tile.slot);
+      if (slot < 0) return null;
+      result.push({ tile, slot });
+    }
+    return result.sort((a, b) => a.slot - b.slot);
+  }
+  // ---- Whole pages ----
+  // The tiles once the pages stand in `order`: every tile keeps its own cell of its own page, the page itself moves.
+  // A tile on a page the order doesn't name stays exactly where it is.
+  function reorderPages(entries: Entry[], order: number[]): Entry[] {
+    const places = pagePlaces(order);
+    return entries
+      .map(({ tile, slot }) => {
+        const place = places[pageOf(slot)];
+        return { tile, slot: place === undefined ? slot : place * grid.slots + (slot % grid.slots) };
+      })
+      .sort((a, b) => a.slot - b.slot);
+  }
+  // Pages the tiles need, or more when the user keeps empty pages on purpose (`layout.pages`).
+  function pageCount(entries: Entry[], wanted = 1) {
+    const last = Math.max(0, ...entries.map(({ tile, slot }) => slot + spanOf(sizeOf(tile))));
+    return Math.min(grid.pages, Math.max(1, Math.ceil(last / grid.slots), wanted || 1));
+  }
+  // With the page buttons and swiping both off (firmware 0.2.69+) only Go to page tiles change the page. Pages count
+  // from 1: `tiles` is how many Go to page tiles lead to a page the screen has, `targets` the pages they lead to,
+  // `unreachable` the pages no chain of them reaches from page 1, `noWayBack` the reachable ones they never lead back from.
+  function strandedPages(entries: Entry[], pages: number) {
+    const links = Array.from({ length: pages }, () => new Set<number>());
+    let tiles = 0;
+    for (const { tile, slot } of entries) {
+      const to = pageTarget(tile.entity) - 1, from = pageOf(slot);
+      if (to < 0 || to >= pages || from >= pages) continue;
+      tiles++;
+      links[from].add(to);
+    }
+    const reach = (next: (page: number) => number[]) => {
+      const seen = new Set([0]), queue = [0];
+      while (queue.length) for (const page of next(queue.shift()!)) if (!seen.has(page)) { seen.add(page); queue.push(page); }
+      return seen;
+    };
+    const forward = reach((page) => [...links[page]]);
+    const back = reach((page) => links.flatMap((to, from) => (to.has(page) ? [from] : [])));
+    const all = Array.from({ length: pages }, (_, page) => page);
+    const numbers = (list: number[]) => list.map((page) => page + 1);
+    return {
+      tiles,
+      targets: numbers(all.filter((page) => links.some((to) => to.has(page)))),
+      unreachable: numbers(all.filter((page) => !forward.has(page))),
+      noWayBack: numbers(all.filter((page) => forward.has(page) && !back.has(page))),
+    };
+  }
+
+  function tileLimit(firmware: string | undefined | null) {
+    if (parseVersion(firmware).length !== 3) return 10;
+    return versionAtLeast(firmware, "0.2.62") ? grid.maxSlots : versionAtLeast(firmware, "0.2.7") ? 20 : 10;
+  }
+  return { grid, dimensions: tileDimensions, pageStart, rowStart, pageOf, spanOf, cellsOf, startOf, packSlots, hasGaps, normalize, occupied, fits, firstFree, nearestFree, arrange, reorderPages, pageCount, strandedPages, tileLimit };
 }
+
 // New tiles start with the card that shows the entity best.
 export function defaultOptions(id: string): Partial<Tile> {
   const domain = id.split(".")[0];
@@ -259,10 +252,7 @@ export const supportsFirmware = (firmware: string | undefined | null, major: num
   versionAtLeast(firmware, `${major}.${minor}.${patch}`);
 // Firmware 0.2.62 holds one tile per cell of its pages (48 on two by three); 0.2.7 twenty; older firmware ten. The
 // add-on tells the editor per screen (tile_limit, app 0.2.78); this rule stays for a screen entry without it.
-export function tileLimit(firmware: string | undefined | null) {
-  if (parseVersion(firmware).length !== 3) return 10;
-  return versionAtLeast(firmware, "0.2.62") ? MAX_SLOTS : versionAtLeast(firmware, "0.2.7") ? 20 : 10;
-}
+
 // What a tile shows and how big it is, in a few words (editor.displays, editor.sizes); a key it doesn't know stays as it is.
 export const DISPLAYS = ["standard", "watch", "forecast", "graph", "digital", "analog", "sunpath", "live", "cover"];
 export const displayName = (display: string) => (DISPLAYS.includes(display) ? t(`editor.displays.${display}`) : display);

@@ -639,7 +639,8 @@
         "ambiguous_tile": "L’evento della tessera ha un’origine ambigua; specifica la pagina",
         "save_first": "Salva la disposizione delle pagine prima delle relative impostazioni",
         "destination_exists": "Lo schermo di destinazione ha già una disposizione salvata",
-        "update_tall": "Aggiorna lo schermo per usare tessere più alte"
+        "update_tall": "Aggiorna lo schermo per usare tessere più alte",
+        "memory": "Lo schermo non ha abbastanza memoria libera per questo layout. Usa meno riquadri."
       }
     },
     "status": {
@@ -2024,6 +2025,7 @@
       "offline_notice": "In attesa che lo schermo si riconnetta. L’editor usa le ultime funzionalità verificate.",
       "include_navigation_hint": "Se disattivato, i collegamenti diretti aprono comunque questa pagina. Indietro appare nella barra inferiore o sostituisce Home se la barra è nascosta.",
       "home_control": "Mostra un pulsante Home su questa pagina",
+      "clock_control": "Ora",
       "edit_topbar": "Modifica la barra superiore di questa pagina",
       "order": "Ordine delle pagine",
       "order_hint": "I comandi numerici seguono questo ordine. I collegamenti alle pagine mantengono la destinazione.",
