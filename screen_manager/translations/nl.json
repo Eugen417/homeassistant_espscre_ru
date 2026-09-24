@@ -1978,6 +1978,8 @@
       "set_home": "Instellen als thuis",
       "drag_home": "Thuispagina. Sleep naar een andere pagina om Thuis te verplaatsen.",
       "include_navigation": "Toon in paginabolletjes en veegnavigatie",
+      "migration_dropped": "{count} tegels konden niet worden overgenomen: {names}. De oorspronkelijke indeling blijft bewaard in screens.v1.backup.json.",
+      "dismiss_migration": "Melding sluiten",
       "offline_notice": "Wachten tot het scherm weer verbonden is. De editor gebruikt de laatst gecontroleerde mogelijkheden.",
       "include_navigation_hint": "Als dit uit staat, blijft de pagina bereikbaar via directe links. Terug verschijnt in de onderbalk, of vervangt Thuis als die balk verborgen is.",
       "home_control": "Toon een thuisknop op deze pagina",

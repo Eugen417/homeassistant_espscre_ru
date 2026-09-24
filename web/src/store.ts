@@ -1310,6 +1310,15 @@ export async function saveLanguage(changes: { setting?: string; clock?: string; 
 }
 
 /** Resolve against a fresh server revision; failed requests always retain the draft. */
+export async function dismissMigrationNote() {
+  const screen = currentScreen.value, record = screen?.page_document;
+  if (!screen || record?.format !== 'pages-v2') return;
+  try {
+    await send(`screens/${encodeURIComponent(screen.id)}/migration/dismiss`, 'POST', { revision: record.revision });
+    await refresh(false);
+  } catch (error: any) { toast(error.message); }
+}
+
 export async function resolveLayoutConflict(choice: 'reload' | 'keep') {
   if (state.busy || !state.conflict) return;
   const selected = state.selected, selection = selectionEpoch;

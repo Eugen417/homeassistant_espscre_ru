@@ -16,6 +16,36 @@ from layout_migrations import migrate_legacy
 
 
 class LayoutStoreTests(unittest.TestCase):
+    def test_cached_snapshot_detects_other_writers_without_copying_unchanged_data(self):
+        store = self.store()
+        first = store.save('screen.a', self.document(), None)
+        stamp, snapshot = store.snapshot_since(object())
+        self.assertEqual(snapshot['screen.a'], first)
+        snapshot['screen.a']['layout']['title'] = 'Not saved'
+        with patch.object(store, '_locked', side_effect=AssertionError('unchanged read must not lock')):
+            self.assertEqual(store.snapshot_since(stamp), (stamp, None))
+        other = self.store()
+        changed = deepcopy(first['layout']); changed['title'] = 'Changed elsewhere'
+        other.save('screen.a', changed, first['revision'])
+        new_stamp, snapshot = store.snapshot_since(stamp)
+        self.assertNotEqual(new_stamp, stamp)
+        self.assertEqual(snapshot['screen.a']['layout']['title'], 'Changed elsewhere')
+
+    def test_dismissing_recovery_note_keeps_backup_and_layout_revision(self):
+        original = json.dumps({'version': 1, 'screens': {'screen.a': {'title': 'Screen', 'tiles': [
+            {'entity': 'light.a', 'slot': 0}, {'entity': 'light.b', 'slot': 80}]}}})
+        self.path.write_text(original)
+        store = self.store()
+        before = store.get('screen.a')
+        self.assertEqual(len(before['migration']['droppedTiles']), 1)
+        with self.assertRaises(Conflict): store.dismiss_migration('screen.a', 'stale')
+        after = store.dismiss_migration('screen.a', before['revision'])
+        self.assertNotIn('migration', after)
+        self.assertEqual(after['revision'], before['revision'])
+        self.assertEqual(after['layout'], before['layout'])
+        self.assertEqual(self.store().get('screen.a'), after)
+        self.assertEqual(self.path.with_name('screens.v1.backup.json').read_text(), original)
+
     def test_grid_change_requires_explicit_commit_and_changes_revision_even_for_empty_pages(self):
         store = self.store()
         first = store.save('screen.a', self.document(), None)

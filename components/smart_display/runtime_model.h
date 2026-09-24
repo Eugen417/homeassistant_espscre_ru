@@ -524,23 +524,27 @@ struct Model {
   bool configured = false;
   // Why beginning a configuration failed, reported to the manager.
   std::string refusal;
-  // Start a replacement in the only configuration store. Release old strings and
-  // tiles before allocation; retain only the active page's ID in the receiver.
-  bool begin(unsigned tile_count, unsigned page_count, const std::string &name) {
-    configured = false;
-    count = 0;
-    tiles.clear();
-    tiles.shrink_to_fit();
-    page_data.records.clear();
-    page_data.records.shrink_to_fit();
-    slots.fill(0);
-    if (tile_count > grid.max_tiles() || !page_count || page_count > grid.pages() || name.size() > 96) return false;
-    if (tile_room && tile_room() < tile_count * sizeof(Tile) + page_count * sizeof(page_protocol::Page)) {
+  // Reserve both raw buffers before changing the only configuration store.
+  // Refusal leaves the running layout intact; same-size saves reuse capacity.
+  bool begin(unsigned tile_count, unsigned page_count, const std::string &name, void (*before_replace)() = nullptr) {
+    if (tile_count > grid.max_tiles() || !page_count || page_count > grid.pages() || name.size() > 96) {
+      refusal = "Error: invalid layout"; return false;
+    }
+    const size_t required = (tile_count > tiles.capacity() ? tile_count * sizeof(Tile) : 0) +
+                            (page_count > page_data.records.capacity() ? page_count * sizeof(page_protocol::Page) : 0);
+    if (tile_room && tile_room() < required) {
       refusal = "Error: insufficient layout memory";
       return false;
     }
-    tiles.resize(tile_count);
-    page_data.records.resize(page_count);
+    auto tile_storage = tiles.prepare(tile_count);
+    if (!tile_storage) { refusal = "Error: insufficient layout memory"; return false; }
+    auto page_storage = page_data.records.prepare(page_count);
+    if (!page_storage) { refusal = "Error: insufficient layout memory"; return false; }
+    if (before_replace) before_replace();
+    tiles.reset(tile_storage);
+    page_data.records.reset(page_storage);
+    configured = false;
+    slots.fill(0);
     count = tile_count;
     pages = page_count;
     title = name;

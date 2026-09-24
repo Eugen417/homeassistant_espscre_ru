@@ -633,6 +633,7 @@ class Manager:
         self.sent, self.status, self.last, self.pinged = {}, {}, {}, {}
         self.page_senders = {}
         self._compiled_records, self._compiled_layouts = None, {}
+        self._compiled_store_stamp = object()
         self._migration_metadata = None
         # (entity, hours) -> (monotonic, 24 samples); filled by history_loop, read by sync_one.
         self.histories = {}
@@ -693,12 +694,15 @@ class Manager:
         """Read-only compiled views for existing entity/card helpers, never saved."""
         if not hasattr(self, 'store'):
             return {}
-        records = self.store.records()
+        stamp, records = self.store.snapshot_since(self._compiled_store_stamp)
+        if records is None:
+            return self._compiled_layouts
         key = {inbox: (record['revision'], record.get('settings')) for inbox, record in records.items()
                if record['format'] == PAGE_FORMAT}
         if key != self._compiled_records:
             self._compiled_layouts = CompiledLayouts(records)
             self._compiled_records = key
+        self._compiled_store_stamp = stamp
         return self._compiled_layouts
 
     def verified_grid(self, inbox):
@@ -2546,6 +2550,15 @@ def create_app(manager, development=False):
             record = {**migrate_legacy({key: value for key, value in source.items() if key != 'esp_screens_layout'}, grid), 'revision': ''}
         return web.json_response(record)
 
+    async def dismiss_migration(request):
+        data = await request.json()
+        if not isinstance(data, dict) or set(data) != {'revision'}:
+            raise LayoutError('Invalid migration acknowledgment')
+        inbox = manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
+        record = manager.store.dismiss_migration(inbox, data['revision'])
+        manager.notify()
+        return web.json_response(record)
+
     async def save_workspace(request):
         data = await request.json()
         if not isinstance(data, dict) or set(data) != {'revision', 'workspace'}:
@@ -2810,6 +2823,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/events', events)
     app.router.add_put('/api/screens/{inbox}', save)
     app.router.add_post('/api/screens/{inbox}/import', import_document)
+    app.router.add_post('/api/screens/{inbox}/migration/dismiss', dismiss_migration)
     app.router.add_put('/api/screens/{inbox}/workspace', save_workspace)
     app.router.add_delete('/api/screens/{inbox}', remove_screen)
     app.router.add_put('/api/screens/{inbox}/settings', change_settings)

@@ -17,6 +17,16 @@ from server import create_app, status_text
 
 
 class PageApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_migration_note_acknowledgment_checks_revision(self):
+        before = self.record()
+        response = await self.client.post('/api/screens/text.screen/migration/dismiss', headers=self.headers,
+                                         json={'revision': 'stale'})
+        self.assertEqual(response.status, 409)
+        response = await self.client.post('/api/screens/text.screen/migration/dismiss', headers=self.headers,
+                                         json={'revision': before['revision']})
+        self.assertEqual(response.status, 200)
+        self.assertEqual(await response.json(), before)
+
     async def test_page_delivery_status_follows_editor_language(self):
         for status, translated in [('Saved, waiting for screen', 'Opgeslagen; wacht op synchronisatie'),
                                    ('Applying', 'Indeling toepassen'), ('Applied', 'Indeling toegepast')]:

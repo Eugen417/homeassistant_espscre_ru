@@ -96,16 +96,19 @@ inline page_protocol::Transfer transfer;
 inline page_protocol::NavigationHistory navigation_history;
 enum class ProtocolProblem : uint8_t { none, old_addon, unsupported };
 inline ProtocolProblem protocol_problem = ProtocolProblem::none;
+inline bool navigation_ready() {
+  return protocol_problem == ProtocolProblem::none && transfer.active && model.ready();
+}
 inline uint64_t previous_page_id = 0;
 inline bool had_previous_page = false;
 inline uint32_t history_view_id = 0, options_view_id = 0, camera_view_id = 0, cover_view_id = 0, live_view_id = 0;
 inline void cancel_layout_input(bool invalidate_widgets = true);
 inline int home_page() { return model.page_data.home; }
 inline int sequential_page(int page, int step) {
-  return protocol_problem == ProtocolProblem::none ? model.page_data.step(page, step) : page;
+  return navigation_ready() ? model.page_data.step(page, step) : page;
 }
 inline int previous_button_page(int page) {
-  if (protocol_problem != ProtocolProblem::none) return page;
+  if (!navigation_ready()) return page;
   return model.page_data.detail(page) ? navigation_history.pop(model.page_data, page) : sequential_page(page, -1);
 }
 inline bool header_back() {
@@ -427,13 +430,15 @@ inline std::string receive(const std::string &payload) {
           !root["keepalive"].is<unsigned>() || root["keepalive"].as<unsigned>() < 5 || root["keepalive"].as<unsigned>() > 3600)
         return false;
       const bool was_active = transfer.active && model.ready();
-      const auto begin = transfer.begin(revision, root["pages"].as<unsigned>(), root["tiles"].as<unsigned>());
+      auto candidate = transfer;
+      const auto begin = candidate.begin(revision, root["pages"].as<unsigned>(), root["tiles"].as<unsigned>());
       if (begin == page_protocol::Begin::reject) return false;
       const bool was_problem = protocol_problem != ProtocolProblem::none;
-      protocol_problem = ProtocolProblem::none;
-      last_received = esphome::millis();
-      keepalive_seconds = root["keepalive"].as<unsigned>();
       if (begin == page_protocol::Begin::unchanged) {
+        transfer = candidate;
+        protocol_problem = ProtocolProblem::none;
+        last_received = esphome::millis();
+        keepalive_seconds = root["keepalive"].as<unsigned>();
         if (was_problem) refresh_all();
         result = "Synced"; return true;
       }
@@ -441,10 +446,13 @@ inline std::string receive(const std::string &payload) {
         previous_page_id = model.page_data.records[*shown_page].id;
         had_previous_page = true;
       }
-      cancel_layout_input();
-      if (!model.begin(root["tiles"].as<unsigned>(), root["pages"].as<unsigned>(), string(root["title"], 96))) {
+      if (!model.begin(root["tiles"].as<unsigned>(), root["pages"].as<unsigned>(), string(root["title"], 96), [] { cancel_layout_input(); })) {
         refresh_all(); result = model.refusal.empty() ? "Error: layout" : model.refusal; return false;
       }
+      transfer = candidate;
+      protocol_problem = ProtocolProblem::none;
+      last_received = esphome::millis();
+      keepalive_seconds = root["keepalive"].as<unsigned>();
       model.page_data.home = root["home"].as<unsigned>();
       inbox = string(root["inbox"], 160);
       layout_rev = protocol_key(revision);
@@ -4458,7 +4466,8 @@ inline void render(lv_obj_t *room) {
         ? txt::status_configuration_problem : txt::status_configuration_version), false);
     return;
   }
-  if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));
+  if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
+  else if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));
   else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
   name_label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
@@ -4491,7 +4500,7 @@ inline void draw_header(bool live) {
                        {record ? record->bar : empty, header_name, now_time ? now_time() : esphome::ESPTime{},
                         now_epoch(), leading, live, screen_settings::current.clock_24h != 0}, []() {
     // The leading key keeps its existing place in the shared action guard.
-    if (!screen_input::touch_guard.accept(esphome::millis(), 14)) return;
+    if (!allowed(esphome::millis(), 14, "header navigation")) return;
     if (header_back()) go_back();
     else if (back_home) back_home();
   });
@@ -4761,7 +4770,7 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
 // A navigation tile (screen.page, firmware 0.2.62+): the page it names, kept within the pages the screen has.
 inline void go_to_page(int page, bool remember) {
   if(!shown_page || !nav_number)return;
-  if (!model.ready() || !transfer.active || protocol_problem != ProtocolProblem::none) return;
+  if (!navigation_ready()) return;
   const int target=std::clamp(page,0,int(page_count())-1);
   if(remember)navigation_history.push(model.page_data,*shown_page,target);
   else navigation_history.clear();
@@ -4769,7 +4778,7 @@ inline void go_to_page(int page, bool remember) {
   show_page(*shown_page,nav_prev,nav_next,nav_number);
 }
 inline void go_back() {
-  if(!shown_page || !nav_number || !model.ready() || !transfer.active || protocol_problem != ProtocolProblem::none)return;
+  if(!shown_page || !nav_number || !navigation_ready())return;
   *shown_page=navigation_history.pop(model.page_data,*shown_page);
   show_page(*shown_page,nav_prev,nav_next,nav_number);
 }
@@ -5684,7 +5693,7 @@ inline void moved(int x, int y, int id, int state) {
   const auto gesture = screen_input::edge_swipe.update(sx, sy);
   if (gesture == screen_input::EdgeSwipe::Gesture::none) return;
   const char *blocked = !enabled                ? "no runtime tiles"
-                      : !fresh()                ? "configuration not ready"
+                      : !navigation_ready()     ? "configuration not ready"
                       : !swipe_pages            ? "setting off"
                       : camera_visible()        ? "camera open"
                       : (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN)) ? "detail card open"

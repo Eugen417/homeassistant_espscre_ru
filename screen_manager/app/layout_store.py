@@ -245,6 +245,18 @@ class LayoutStore:
                 raise LayoutError("Invalid workspace position")
         return deepcopy(value)
 
+    def snapshot_since(self, stamp):
+        """Read a new snapshot only after an atomic file replacement.
+
+        Hot read paths need one stat, not a lock and a deep copy of every
+        screen. Writers still reload under the shared process/file lock.
+        """
+        if stamp == self._file_stamp():
+            return stamp, None
+        with self._locked():
+            self._reload()
+            return self._stamp, deepcopy(self._records)
+
     def records(self):
         with self._locked():
             self._reload()
@@ -315,6 +327,20 @@ class LayoutStore:
             value["revision"] = new_id()
             self._replace({**self._records, inbox: {**previous, "workspace": value}})
             return deepcopy(value)
+
+    def dismiss_migration(self, inbox, expected_revision):
+        """Acknowledge recovery notes without changing layout or its backup."""
+        with self._locked():
+            self._reload()
+            previous = self._records.get(inbox)
+            if not previous or previous['format'] != FORMAT or previous['revision'] != expected_revision:
+                raise Conflict("Page document changed before the migration note was dismissed")
+            updated = deepcopy(previous)
+            migration = updated.get('migration', {})
+            migration.pop('droppedTiles', None)
+            if not migration: updated.pop('migration', None)
+            if updated != previous: self._replace({**self._records, inbox: updated})
+            return deepcopy(updated)
 
     def save_settings(self, inbox, settings):
         settings = validate_settings(settings)

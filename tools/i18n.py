@@ -194,10 +194,10 @@ LINT_KEEP = {
     # Protocol 2 handshakes/refusals stay stable across screen languages. The
     # configuration problem shown on the glass uses a translated key below.
     'Configuration problem. Update add-on.', 'Session:', 'Error: obsolete message',
-    'Error: layout', 'Error: incomplete layout', 'Error: insufficient layout memory',
+    'Error: layout', 'Error: invalid layout', 'Error: incomplete layout', 'Error: insufficient layout memory',
     'Error: outdated tile or configuration in state',
     # Only a log line or the rate limiter's reason shows these.
-    'history range', 'card button ', 'media key ', 'let go', 'too short (', 'already handled in this contact',
+    'history range', 'card button ', 'header navigation', 'media key ', 'let go', 'too short (', 'already handled in this contact',
     'same button within the debounce window', 'no runtime tiles', 'setting off', 'screen dimmed', 'card open',
     'detail card open', 'camera open', 'a slider is being dragged', 'USB calibration ready; no tile actions',
     'GT911 touch test ready; no tile actions',

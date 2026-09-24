@@ -4,7 +4,7 @@ import { mount } from "@vue/test-utils";
 import LayoutView from "../src/components/LayoutView.vue";
 import NavigationPreview from '../src/components/NavigationPreview.vue';
 import PageInspector from '../src/components/PageInspector.vue';
-import { pageReady, removeTile, resolveLayoutConflict } from '../src/store';
+import { dismissMigrationNote, pageReady, removeTile, resolveLayoutConflict } from '../src/store';
 import { addPage, addTile, connectTile, copyLayoutFrom, importLayout, layoutJson, movePage, moveWorkspacePage, redo,
   acceptGridReview, gridChanged, refresh, reviewScreenGrid, save, saveWorkspace, select, setEditorMode, setHomePage, setPageExcluded, setPageTitle, setTopbarItems, state, undo, workspacePositions } from "../src/store";
 import { documentFixture, screenFixture } from "./page-fixtures";
@@ -270,6 +270,26 @@ describe("editor positions never alter firmware configuration", () => {
 });
 
 describe("revisions and portable layouts", () => {
+  it('acknowledges dropped tiles without discarding a current draft', async () => {
+    record().migration = { droppedTiles: [{ entity: 'light.missing', name: 'Missing lamp', reason: 'invalid_legacy_tile' }] };
+    addPage(); const draft = JSON.stringify(state.document);
+    const view = mount(LayoutView);
+    expect(view.text()).toContain('Missing lamp');
+    const acknowledged = JSON.parse(JSON.stringify(record())); delete acknowledged.migration;
+    const fetch = vi.fn(async (url: string, options?: RequestInit) => {
+      if (options?.method === 'POST') {
+        expect(url).toBe('api/screens/test/migration/dismiss');
+        expect(JSON.parse(String(options.body))).toEqual({ revision: record().revision });
+        return reply(acknowledged);
+      }
+      return reply({ screens: [{ ...state.inventory.screens[0], page_document: acknowledged }] });
+    });
+    vi.stubGlobal('fetch', fetch);
+    await dismissMigrationNote(); await nextTick();
+    expect(view.text()).not.toContain('Missing lamp');
+    expect(JSON.stringify(state.document)).toBe(draft);
+    expect(state.dirty).toBe(true);
+  });
   it('reloads the competing saved document only when explicitly chosen', async () => {
     addPage(); state.conflict = true;
     const other = { ...record(), revision: 'newer' };

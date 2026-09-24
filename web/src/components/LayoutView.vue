@@ -9,9 +9,11 @@ import Library from "./Library.vue";
 import PageMap from "./PageMap.vue";
 import NavigationPreview from './NavigationPreview.vue';
 import GridReview from './GridReview.vue';
-import { resolveLayoutConflict } from '../store';
+import { dismissMigrationNote, resolveLayoutConflict } from '../store';
 import { titleOf } from '../model/pages';
 const preview = ref(false);
+const droppedTiles = computed(() => currentScreen.value?.page_document?.format === 'pages-v2'
+  ? currentScreen.value.page_document.migration?.droppedTiles || [] : []);
 const narrow = ref(window.innerWidth <= 700);
 const resize = () => { narrow.value = window.innerWidth <= 700; };
 onMounted(() => window.addEventListener('resize', resize));
@@ -44,6 +46,10 @@ function onCanvasClick(e: MouseEvent) {
       {{ currentScreen?.page_document?.format === 'legacy-v1' ? currentScreen.page_document.migrationError : t('editor.pages.wait_grid') }}
     </div>
     <template v-else>
+    <div v-if="droppedTiles.length" class="page-notice" role="status">
+      <span>{{ t('editor.pages.migration_dropped', { count: droppedTiles.length, names: droppedTiles.map(tile => tile.name || tile.entity || t('editor.common.unknown')).join(', ') }) }}</span>
+      <button type="button" class="btn mini" @click="dismissMigrationNote">{{ t('editor.pages.dismiss_migration') }}</button>
+    </div>
     <div class="editor-toolbar">
       <div class="seg" role="group" :aria-label="t('editor.pages.mode')">
         <button type="button" :aria-pressed="state.editorMode === 'simple'" @click="setEditorMode('simple')">{{ t('editor.pages.simple') }}</button>

@@ -202,8 +202,10 @@ esphome:
           // the same script the Back to page 1 timeout and Home Assistant use, so there is one way home.
           runtime_tiles::back_home = []() { id(go_home).execute(); };
           runtime_tiles::touch_input::turn_page = [](int step) {
-            ESP_LOGI("touch", "edge swipe: page %d -> %d", id(tile_page), id(tile_page) + step);
-            id(tile_page) = runtime_tiles::sequential_page(id(tile_page), step);
+            const int target = runtime_tiles::sequential_page(id(tile_page), step);
+            if (target == id(tile_page)) return;
+            ESP_LOGI("touch", "edge swipe: page %d -> %d", id(tile_page), target);
+            id(tile_page) = target;
             id(show_tile_page).execute();
           };
           // The board states its density with the decimals it has (DISPLAY_DPI); the firmware scales by the nearest
@@ -424,6 +426,10 @@ api:
         page: int
       then:
         - lambda: |-
+            if (!runtime_tiles::navigation_ready()) {
+              ESP_LOGI("navigation", "show page ignored: configuration not ready");
+              return;
+            }
             id(last_use_ms) = millis();
             id(wake_display).execute();
             settings_screen::close();

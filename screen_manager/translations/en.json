@@ -1978,6 +1978,8 @@
       "set_home": "Set as Home",
       "drag_home": "Home page. Drag to another page to move Home.",
       "include_navigation": "Show in page dots and swipe navigation",
+      "migration_dropped": "{count} tiles could not be carried over: {names}. The original layout is preserved in screens.v1.backup.json.",
+      "dismiss_migration": "Dismiss this note",
       "offline_notice": "Waiting for the screen to reconnect. Editing uses its last verified capabilities.",
       "include_navigation_hint": "When off, direct links still open this page. Back appears in the bottom bar, or replaces Home when that bar is hidden.",
       "home_control": "Show a Home control on this page",

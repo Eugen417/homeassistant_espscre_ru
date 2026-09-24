@@ -21,11 +21,11 @@ int main() {
   for (auto &tile : m.tiles) tile.received = true;
   assert(m.ready() && m.accepts(0, "light.a"));
   assert(!m.accepts(10, "light.a") && !m.accepts(0, "light.removed"));
-  // Beginning a new configuration frees old states before allocating the new.
+  // Beginning a replacement clears old states after reserving the new buffers.
   assert(m.begin(12, 3, "Twelve") && m.tiles.size() == 12 && m.count == 12);
   assert(!m.configured && m.tiles[0].state.empty());
   assert(m.begin(48, 8, "Maximum") && m.count == 48 && m.page_data.records.size() == 8);
-  assert(!m.begin(49, 8, "Too many") && !m.configured && m.count == 0);
+  assert(!m.begin(49, 8, "Too many") && !m.configured && m.count == 48);
   assert(!m.begin(0, 9, "Too many pages"));
   assert(!m.begin(0, 0, "No page"));
   assert(m.begin(0, 1, "Empty")); m.configured = true; assert(m.ready());
@@ -237,14 +237,45 @@ static void test_tile_room() {
   tile_room = [] { return test_room; };
   test_room = 48 * sizeof(Tile) + 8 * sizeof(page_protocol::Page) - 1;
   assert(!m.begin(48, 8, "Maximum"));
-  assert(m.refusal == "Error: insufficient layout memory" && !m.configured && !m.count);
+  assert(m.refusal == "Error: insufficient layout memory" && m.configured && m.count == 1);
+  assert(m.tiles[0].entity == "light.a" && m.title == "Home");
   ++test_room;
   assert(m.begin(48, 8, "Maximum") && m.count == 48 && m.refusal.empty());
   test_room = 0;
-  assert(!m.begin(0, 1, "Empty"));  // An empty page still owns a title and bar.
+  assert(m.begin(0, 1, "Empty"));  // Existing capacity needs no new allocation.
+  Model empty;
+  assert(!empty.begin(0, 1, "Empty"));  // A first empty page still needs a bar.
   tile_room = nullptr;
 }
 struct RunTileRoom { RunTileRoom() { test_tile_room(); } } run_tile_room;
+static unsigned allocation_attempt = 0, fail_attempt = 0;
+static bool cancelled_for_replacement = false;
+static void test_allocation_failure_preserves_layout() {
+  using namespace runtime_tiles;
+  for (unsigned failure : {1u, 2u}) {
+    Model m;
+    seed(m, {"light.a"});
+    m.tiles[0].received = true;
+    m.tiles[0].state = "on";
+    m.page_data.records[0].id = 123;
+    auto *original = &m.tiles[0];
+    allocation_attempt = 0; fail_attempt = failure; cancelled_for_replacement = false;
+    layout_memory::allocation_allowed = [](size_t) { return ++allocation_attempt != fail_attempt; };
+    assert(!m.begin(12, 3, "Replacement", [] { cancelled_for_replacement = true; }));
+    assert(!cancelled_for_replacement && m.ready() && m.count == 1 && m.title == "Home");
+    assert(&m.tiles[0] == original && m.tiles[0].state == "on" && m.page_data.records[0].id == 123);
+    assert(m.refusal == "Error: insufficient layout memory");
+    // Retry with the same capacity under total allocation failure: no extra
+    // record memory is needed and cancellation occurs only after preparation.
+    allocation_attempt = 0;
+    layout_memory::allocation_allowed = [](size_t) { ++allocation_attempt; return false; };
+    assert(m.begin(1, 1, "Replacement", [] { cancelled_for_replacement = true; }));
+    assert(cancelled_for_replacement && allocation_attempt == 0 && m.refusal.empty());
+    assert(&m.tiles[0] == original && m.tiles[0].state.empty() && !m.configured);
+    layout_memory::allocation_allowed = nullptr;
+  }
+}
+struct RunAllocationFailure { RunAllocationFailure() { test_allocation_failure_preserves_layout(); } } run_allocation_failure;
 // One redraw bit for each of the 48 tiles (firmware 0.2.65+); 32 bits sent tiles 33-48 through a full redraw.
 static void test_tile_bits() {
   using namespace runtime_tiles;
