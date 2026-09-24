@@ -1827,6 +1827,12 @@ ALERT_CAMERA_FIELD = ('camera', 'Camera', 'A camera or image entity. Every scree
 # screen only reports the press (ALERT_EVENT, action "ok") and the app does the rest, so every firmware from 0.2.31 has it.
 ALERT_ACTION_FIELD = ('action', 'Action', 'A Home Assistant action, such as script.open_gate or light.turn_off, performed once when the button is pressed on any screen. `data` gives its fields (entity_id, brightness, ...). A timeout or a new alert leaves it unperformed. Only through the esp_screens_show_alert event.', 'script.open_gate')
 ALERT_ACTION_MAX_BYTES = 4096
+# Who gets it (app 0.2.133): without a `screen` the event goes to every screen, as it always did; with one, only to the
+# screens it names. That is how one screen gets a camera picture or a button action, which its own show_alert action cannot
+# take: Home Assistant makes every field of a device's action required, so show_alert keeps its seven. A name is the
+# device name, the name Home Assistant shows, or a room (every screen in it), written loosely (case, spaces, dashes and
+# underscores don't matter); a list names several. A name that matches no screen sends nothing, never to everyone.
+ALERT_SCREEN_FIELD = ('screen', 'Screen', 'Which screen gets the alert: its device name (such as kitchen-screen), the name Home Assistant shows, or a room, which reaches every screen in it. A list, such as [kitchen-screen, hallway], reaches several. Leave it out for every screen. A name that matches no screen sends nothing; the ESP Screen Manager log names the screens it knows. Only through the esp_screens_show_alert and esp_screens_dismiss_alert events.', 'kitchen-screen')
 # The firmware's MAX_TIMEOUT_SECONDS.
 ALERT_MAX_TIMEOUT = 86400
 # One alert for every screen (app 0.2.45): an automation fires one of these Home Assistant events and the
@@ -1858,6 +1864,8 @@ def alert_reference():
                        for name, kind, _, _, value in ALERT_FIELDS],
             'camera': {'name': camera, 'label': t(f'addon.alerts.fields.{camera}.label'), 'help': t(f'addon.alerts.fields.{camera}.help'),
                        'example': ALERT_CAMERA_FIELD[3]},
+            'screen': {'name': ALERT_SCREEN_FIELD[0], 'label': t(f'addon.alerts.fields.{ALERT_SCREEN_FIELD[0]}.label'),
+                       'help': t(f'addon.alerts.fields.{ALERT_SCREEN_FIELD[0]}.help'), 'example': ALERT_SCREEN_FIELD[3]},
             'action': {'name': ALERT_ACTION_FIELD[0], 'label': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.label'),
                        'help': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.help'), 'example': ALERT_ACTION_FIELD[3]},
             'limits': ALERT_LIMITS,
@@ -1935,6 +1943,28 @@ def alert_action(data):
     except (TypeError, ValueError):
         return None, False
     return (value.strip(), dict(fields or {})), True
+
+def alert_screen_names(data):
+    """(names, usable): what the event's `screen` field asks for, as a list; ([], True) without one, ([], False) when it is
+    neither a name nor a list of names."""
+    value = data.get(ALERT_SCREEN_FIELD[0]) if isinstance(data, dict) else None
+    if value is None or value == '' or value == []:
+        return [], True
+    values = value if isinstance(value, list) else [value]
+    if not all(isinstance(item, (str, int)) and not isinstance(item, bool) and loose(item) for item in values):
+        return [], False
+    return [str(item).strip() for item in values], True
+
+def alert_screen_choice(screens, names):
+    """(chosen, unknown): the screens `names` mean, in the order of `screens`, and the names that match none. A name
+    matches a screen's device name, the name Home Assistant shows for it, or its room, whole and loosely written; a room
+    matches every screen in it."""
+    def names_of(screen):
+        return {loose(value) for value in (screen.get('node'), screen.get('name'), screen.get('device'), screen.get('area')) if value}
+    wanted = [(name, loose(name)) for name in names]
+    chosen = [screen for screen in screens if any(key in names_of(screen) for _, key in wanted)]
+    unknown = [name for name, key in wanted if not any(key in names_of(screen) for screen in screens)]
+    return chosen, unknown
 
 def alert_targets(screens):
     """(ready, skipped): the paired screens that can show an alert now, and the others with the reason, in English for the

@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 sys.path.insert(0, str(ROOT / 'tests'))
 from core import (ALERT_EVENT, ALERT_FIELDS, ALERT_MAX_TIMEOUT, BROADCAST_DISMISS, BROADCAST_EVENTS, BROADCAST_SHOW,  # noqa: E402
-                  alert_action, alert_data, alert_reference, alert_targets)
+                  alert_action, alert_data, alert_reference, alert_screen_choice, alert_screen_names, alert_targets)
 
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
 if HAS_AIOHTTP:
@@ -88,6 +88,41 @@ class AlertTargets(unittest.TestCase):
         self.assertEqual(alert_targets([]), ([], []))
 
 
+class AlertScreens(unittest.TestCase):
+    """One screen or a few (app 0.2.133): the event's `screen` names who gets it."""
+
+    def test_the_field_is_a_name_or_a_list_of_names(self):
+        self.assertEqual(alert_screen_names({'title': 'Door'}), ([], True))
+        for empty in ({'screen': None}, {'screen': ''}, {'screen': []}, None, 'text'):
+            self.assertEqual(alert_screen_names(empty), ([], True), empty)
+        self.assertEqual(alert_screen_names({'screen': ' kitchen-screen '}), (['kitchen-screen'], True))
+        self.assertEqual(alert_screen_names({'screen': ['kitchen-screen', 'Hall']}), (['kitchen-screen', 'Hall'], True))
+        for broken in ({'screen': True}, {'screen': {'name': 'hall'}}, {'screen': ['hall', None]}, {'screen': '  '}, {'screen': ['hall', '']}):
+            self.assertEqual(alert_screen_names(broken), ([], False), broken)
+
+    def test_a_name_matches_the_device_name_the_ha_name_or_the_room(self):
+        screens = [{'node': 'kitchen-screen', 'name': 'Kitchen Screen', 'area': 'Kitchen'},
+                   {'node': 'wohnzimmer-screen', 'name': 'Wohnzimmer', 'area': 'Living room'},
+                   {'node': 'reading', 'name': 'Reading corner', 'area': 'Living room'}]
+        pick = lambda *names: [s['node'] for s in alert_screen_choice(screens, list(names))[0]]
+        self.assertEqual(pick('kitchen-screen'), ['kitchen-screen'])
+        # Written loosely: the action's underscores, another case, spaces.
+        self.assertEqual(pick('wohnzimmer_screen'), ['wohnzimmer-screen'])
+        self.assertEqual(pick('KITCHEN SCREEN'), ['kitchen-screen'])
+        self.assertEqual(pick('Wohnzimmer'), ['wohnzimmer-screen'])
+        # A room reaches every screen in it; a list several, each once and in the screens' order.
+        self.assertEqual(pick('living room'), ['wohnzimmer-screen', 'reading'])
+        self.assertEqual(pick('reading', 'kitchen-screen', 'Reading corner'), ['kitchen-screen', 'reading'])
+        # Whole names only: part of a name is no match, so a typo never reaches another screen.
+        self.assertEqual(alert_screen_choice(screens, ['kitchen']), ([screens[0]], []), 'the room is called Kitchen')
+        self.assertEqual(alert_screen_choice(screens, ['kitch', 'hall']), ([], ['kitch', 'hall']))
+        self.assertEqual(alert_screen_choice(screens, ['hall', 'reading']), ([screens[2]], ['hall']))
+
+    def test_the_cheatsheet_and_the_skill_describe_it(self):
+        self.assertEqual(alert_reference()['screen']['name'], 'screen')
+        self.assertTrue(alert_reference()['screen']['help'])
+
+
 def fake_ha():
     """Three paired screens as Home Assistant's registry describes them: two current, one too old."""
     class HA:
@@ -134,6 +169,48 @@ class Broadcast(unittest.IsolatedAsyncioTestCase):
             m.ha.calls.clear()
             await m.broadcast(BROADCAST_DISMISS, {'title': 'ignored'})
             self.assertEqual(sorted(m.ha.calls), [('esphome.hall_dismiss_alert', {}), ('esphome.kitchen_screen_dismiss_alert', {})])
+
+    async def test_the_screen_field_picks_who_gets_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            with self.assertLogs('screen_manager', 'INFO') as logs:
+                result = await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'screen': 'kitchen_screen', 'action': 'script.open_gate'})
+            self.assertEqual(result, {'sent': 1, 'skipped': 0, 'failed': 0, 'unknown': []})
+            self.assertEqual([action for action, _ in m.ha.calls], ['esphome.kitchen_screen_show_alert'])
+            self.assertNotIn('screen', m.ha.calls[0][1], 'show_alert keeps its seven fields')
+            self.assertIn('esp_screens_show_alert: 1 of 1 screens for kitchen_screen', logs.output[-1])
+            self.assertEqual(list(m.alert_actions), ['kitchen-screen'], 'the button action waits on that screen only')
+            # A screen that cannot show it now is named, as for every screen.
+            m.ha.calls.clear()
+            with self.assertLogs('screen_manager', 'INFO') as logs:
+                result = await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'screen': ['hall', 'Attic']})
+            self.assertEqual(result, {'sent': 1, 'skipped': 1, 'failed': 0, 'unknown': []})
+            self.assertEqual([action for action, _ in m.ha.calls], ['esphome.hall_show_alert'])
+            self.assertIn('1 of 2 screens for hall, Attic (not: Attic firmware 0.2.30)', logs.output[-1])
+            # Dismiss takes it too.
+            m.ha.calls.clear()
+            await m.broadcast(BROADCAST_DISMISS, {'screen': 'hall'})
+            self.assertEqual(m.ha.calls, [('esphome.hall_dismiss_alert', {})])
+
+    async def test_a_screen_nobody_has_gets_nothing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            m = Manager(fake_ha(), Path(tmp) / 'screens.json')
+            with self.assertLogs('screen_manager', 'WARNING') as logs:
+                result = await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'screen': 'hallway'})
+            self.assertEqual(result, {'sent': 0, 'skipped': 0, 'failed': 0, 'unknown': ['hallway']})
+            self.assertEqual(m.ha.calls, [])
+            self.assertIn('no screen called hallway (screens: attic, hall, kitchen-screen)', logs.output[-1])
+            # One name known, one not: the known one gets it, the other is named.
+            with self.assertLogs('screen_manager', 'INFO') as logs:
+                result = await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'screen': ['hallway', 'hall']})
+            self.assertEqual(result['unknown'], ['hallway'])
+            self.assertEqual([action for action, _ in m.ha.calls], ['esphome.hall_show_alert'])
+            # A field that is no name at all sends nothing either.
+            m.ha.calls.clear()
+            with self.assertLogs('screen_manager', 'WARNING') as logs:
+                await m.broadcast(BROADCAST_SHOW, {'title': 'Door', 'screen': True})
+            self.assertEqual(m.ha.calls, [])
+            self.assertIn('unusable screen, sent to no screen', logs.output[-1])
 
     async def test_a_screen_added_later_gets_the_next_alert(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -268,6 +345,11 @@ class Page(unittest.TestCase):
         self.assertIn('Settings → Claude', editor_sources.text('alerts.tips.claude'))
         for marker in ('const allYaml = computed', 'broadcast?.show', 'copyText(allYaml, undefined, \'yaml\')'):
             self.assertIn(marker, cheatsheet, marker)
+        # One screen through the same event (app 0.2.133): what goes after `screen:` for every screen, and an example.
+        for marker in ('id="alerts-one"', '"alerts-one",', 'id="alerts-one-table"', 'id="alerts-one-example"', 'alert-screen-value',
+                       "copyText(screenValue(screen), undefined, 'screen_name')"):
+            self.assertIn(marker, cheatsheet, marker)
+        self.assertEqual(editor_sources.text('alerts.nav.one'), 'One screen')
 
 
 if __name__ == '__main__':

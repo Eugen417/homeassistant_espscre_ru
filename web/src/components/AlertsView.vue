@@ -91,6 +91,25 @@ const allYaml = computed(() => {
   if (camera) lines.push(`  # ${camera.name}: ${camera.example}   # a Guition shows its picture on the card`);
   return `event: ${alerts.value?.broadcast?.show || "esp_screens_show_alert"}\nevent_data:\n${lines.join("\n")}`;
 });
+// One screen through the same event (app 0.2.133): what goes after `screen:` for each paired screen, and the example for the
+// one chosen. The device name is what the screen reports itself and what its actions are named after; a screen that has
+// not said it yet goes by the name Home Assistant shows, which the app matches as well.
+const screenValue = (screen: { node?: string; name: string }) => screen.node || screen.name;
+const yamlName = (text: string) => (/^[a-z][a-z0-9_-]*$/.test(text) ? text : yamlString(text));
+const oneScreenId = ref("");
+// The example starts at the screen that is open in the editor, else the first in the list.
+const oneScreen = computed(() => {
+  const [first] = state.inventory.screens;
+  return state.inventory.screens.find((s) => s.id === (oneScreenId.value || state.selected)) || first;
+});
+const oneYaml = computed(() => {
+  const screen = oneScreen.value;
+  const lines = [`  screen: ${screen ? yamlName(screenValue(screen)) : alerts.value?.screen?.example || "kitchen-screen"}`,
+    ...(alerts.value?.fields || []).map((f: any) => `  ${f.name}: ${fieldValue(f)}`)];
+  // The picture only where the board draws one; a CYD gets the same alert without it.
+  if (alerts.value?.camera && (!screen || screen.pictures)) lines.push(`  ${alerts.value.camera.name}: ${alerts.value.camera.example}`);
+  return `event: ${alerts.value?.broadcast?.show || "esp_screens_show_alert"}\nevent_data:\n${lines.join("\n")}`;
+});
 const iconGroups = computed(() => {
   if (!alerts.value || !icons.value) return [];
   const query = iconQuery.value.trim().toLowerCase();
@@ -103,7 +122,7 @@ const orange = computed(() => alerts.value?.colors?.find((c: any) => c.name === 
 const typeName = (type: string) => (["string", "int", "bool"].includes(type) ? t(`editor.alerts.fields.types.${type}`) : type);
 function jump(id: string) { document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }); }
 // The sections by id; each one's name in the bar is editor.alerts.nav.<the id without "alerts-">.
-const sections = ["alerts-try", "alerts-screens", "alerts-howto", "alerts-all", "alerts-fields", "alerts-icons", "alerts-colors", "alerts-behaviour", "alerts-events", "alerts-tips"];
+const sections = ["alerts-try", "alerts-screens", "alerts-howto", "alerts-all", "alerts-one", "alerts-fields", "alerts-icons", "alerts-colors", "alerts-behaviour", "alerts-events", "alerts-tips"];
 </script>
 
 <template>
@@ -177,6 +196,10 @@ const sections = ["alerts-try", "alerts-screens", "alerts-howto", "alerts-all", 
               <span class="copy-label">{{ label }}</span><code>{{ action || "esphome.<device_name>_show_alert" }}</code>
               <button v-if="action" type="button" class="btn quiet mini" @click="copyText(action!, undefined, 'action_name')">{{ t("editor.common.copy") }}</button>
             </div>
+            <div class="copy-line alert-screen-value">
+              <span class="copy-label">{{ t("editor.alerts.one.value") }}</span><code>{{ screenValue(screen) }}</code>
+              <button type="button" class="btn quiet mini" @click="copyText(screenValue(screen), undefined, 'screen_name')">{{ t("editor.common.copy") }}</button>
+            </div>
           </div>
         </div>
       </section>
@@ -222,6 +245,40 @@ const sections = ["alerts-try", "alerts-screens", "alerts-howto", "alerts-all", 
           <button type="button" class="btn quiet mini" id="alerts-all-copy" @click="copyText(allYaml, undefined, 'yaml')">{{ t("editor.alerts.copy_yaml") }}</button>
         </div>
       </section>
+      <section id="alerts-one" class="card">
+        <h2>{{ t("editor.alerts.one.title") }}</h2>
+        <i18n-t keypath="editor.alerts.one.text" tag="p" scope="global">
+          <template #screen><code>screen:</code></template>
+          <template #camera><code>camera</code></template>
+          <template #action><code>action</code></template>
+        </i18n-t>
+        <div class="table-scroll">
+          <table id="alerts-one-table">
+            <tr><th>{{ t("editor.alerts.one.value") }}</th><th>{{ t("editor.alerts.one.name") }}</th><th>{{ t("editor.alerts.one.room") }}</th><th>{{ t("editor.alerts.one.picture") }}</th></tr>
+            <tr v-for="screen in state.inventory.screens" :key="screen.id">
+              <td><span class="copy-line"><code>{{ screenValue(screen) }}</code>
+                <button type="button" class="btn quiet mini" @click="copyText(screenValue(screen), undefined, 'screen_name')">{{ t("editor.common.copy") }}</button></span></td>
+              <td>{{ screen.name }}</td>
+              <td>{{ screen.area || "—" }}</td>
+              <td>{{ screen.pictures ? t("editor.alerts.one.picture_yes") : t("editor.alerts.one.picture_no") }}</td>
+            </tr>
+            <tr v-if="!state.inventory.screens.length"><td colspan="4" class="hint">{{ t("editor.alerts.one.none") }}</td></tr>
+          </table>
+        </div>
+        <i18n-t keypath="editor.alerts.one.more" tag="p" scope="global">
+          <template #list><code>screen: [{{ state.inventory.screens.slice(0, 2).map(screenValue).join(", ") || "kitchen-screen, hallway" }}]</code></template>
+        </i18n-t>
+        <div v-if="state.inventory.screens.length" class="field">
+          <label class="f-label" for="alerts-one-screen">{{ t("editor.alerts.howto.example_for") }}</label>
+          <select id="alerts-one-screen" :value="oneScreen?.id" style="max-width: 360px" @change="oneScreenId = ($event.target as HTMLSelectElement).value">
+            <option v-for="screen in state.inventory.screens" :key="screen.id" :value="screen.id">{{ screen.name }}</option>
+          </select>
+        </div>
+        <div class="copy-line">
+          <pre id="alerts-one-example">{{ oneYaml }}</pre>
+          <button type="button" class="btn quiet mini" id="alerts-one-copy" @click="copyText(oneYaml, undefined, 'yaml')">{{ t("editor.alerts.copy_yaml") }}</button>
+        </div>
+      </section>
       <section id="alerts-fields" class="card">
         <h2>{{ t("editor.alerts.nav.fields") }}</h2>
         <p>{{ t("editor.alerts.fields.text") }}</p>
@@ -241,6 +298,13 @@ const sections = ["alerts-try", "alerts-screens", "alerts-howto", "alerts-all", 
               <td>{{ alerts.camera.help }}</td>
               <td><code>{{ alerts.camera.example }}</code></td>
               <td>{{ t("editor.alerts.fields.camera_limit") }}</td>
+            </tr>
+            <tr v-if="alerts.screen">
+              <td><code>{{ alerts.screen.name }}</code><small>{{ alerts.screen.label }}</small></td>
+              <td>{{ t("editor.alerts.fields.types.string") }}</td>
+              <td>{{ alerts.screen.help }}</td>
+              <td><code>{{ oneScreen ? screenValue(oneScreen) : alerts.screen.example }}</code></td>
+              <td>{{ t("editor.alerts.fields.screen_limit") }}</td>
             </tr>
           </table>
         </div>

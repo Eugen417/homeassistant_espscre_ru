@@ -9,7 +9,7 @@ that cannot (see below). The numbers further down were measured on the 4-inch Gu
   image is there (firmware 0.2.73). The image is refreshed every four seconds while it is open. It
   is not video: ESPHome has no video decoder.
 - **An alert with a picture.** Add `camera: camera.front_door` to the `esp_screens_show_alert`
-  event. The card shows the picture of that moment (it stays that picture), with the card's round
+  event, and `screen: hallway-screen` for one screen only (app 0.2.133). The card shows the picture of that moment (it stays that picture), with the card's round
   corners (firmware 0.2.73); a tap on it opens the camera full screen over the alert, and Back
   returns to the alert. Since firmware 0.2.103 the card makes room for the picture in the picture's
   own proportions: a wide camera across the top of the card, a square or standing doorbell camera

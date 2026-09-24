@@ -12,7 +12,7 @@ The navigation preview runs locally. It does not switch entities in Home Assista
 
 ## Home and detail pages
 
-Choose any page as Home. Home controls, automatic return and return on standby use that destination. Existing Home settings and entity identifiers stay compatible.
+Choose any page as Home. Home controls, automatic return and return on standby use that destination. Existing Home settings and entity identifiers stay compatible. Home Assistant entities whose names still say "Back to page 1" now return to the configured Home page; their existing names and IDs are retained so automations keep working.
 
 Every page initially participates in the bottom paginator and sequential swipes. **Do not show in page navigation** opts a page out. Links and the existing numeric Show page action can still open it. Numeric actions follow the current editor order; links stored in the layout follow stable page IDs.
 

@@ -771,6 +771,10 @@
         "action": {
           "label": "Action",
           "help": "Une action Home Assistant, comme script.open_gate ou light.turn_off, exécutée une fois quand le bouton est pressé sur n'importe quel écran. `data` donne ses champs (entity_id, brightness, ...). Un délai dépassé ou une nouvelle alerte la laisse sans effet. Uniquement via l'événement esp_screens_show_alert."
+        },
+        "screen": {
+          "label": "Écran",
+          "help": "L'écran qui reçoit l'alerte : son nom d'appareil (comme kitchen-screen), le nom affiché par Home Assistant, ou une pièce, qui atteint chaque écran qui s'y trouve. Une liste, comme [kitchen-screen, hallway], en atteint plusieurs. Omettez-le pour tous les écrans. Un nom qui ne correspond à aucun écran n'envoie rien ; le journal d'ESP Screen Manager nomme alors les écrans qu'il connaît. Uniquement via les événements esp_screens_show_alert et esp_screens_dismiss_alert."
         }
       },
       "endings": {
@@ -1066,6 +1070,10 @@
       "color_name": {
         "copied": "Nom de la couleur copié.",
         "selected": "Le nom de la couleur est sélectionné. Copiez-le avec Ctrl+C ou Command+C."
+      },
+      "screen_name": {
+        "copied": "Nom de l'écran copié.",
+        "selected": "Le nom de l'écran est sélectionné. Copiez avec Ctrl+C ou Commande+C."
       }
     },
     "sidebar": {
@@ -1784,7 +1792,8 @@
         "colors": "Couleurs",
         "behaviour": "Comportement",
         "events": "Événements",
-        "tips": "Astuces"
+        "tips": "Astuces",
+        "one": "Un écran"
       },
       "try": {
         "text": "Envoyez une alerte maintenant, avec les mêmes champs qu'une automatisation. L'écran affiche la carte et, si le clignotement est activé, fait clignoter son rétroéclairage.",
@@ -1850,7 +1859,8 @@
         },
         "bytes": "{limits} octets",
         "seconds": "0 à 86400 s",
-        "camera_limit": "Tous sauf le CYD, firmware 0.2.57+"
+        "camera_limit": "Tous sauf le CYD, firmware 0.2.57+",
+        "screen_limit": "App 0.2.133+"
       },
       "icons": {
         "text": "Indiquez le nom dans {field}, par exemple {example}. {mdi} et le code hexadécimal ({hex}) fonctionnent aussi. Seules ces icônes sont incluses dans le firmware ; tout autre nom affiche le triangle d'avertissement. Appuyez sur une icône pour copier son nom.",
@@ -1900,6 +1910,18 @@
       "wait_yaml": {
         "comment": "Sonnette : afficher l’alerte et attendre qu’on appuie sur le bouton.",
         "message": "Quelqu’un arrive à la porte."
+      },
+      "one": {
+        "title": "Un écran, avec une caméra ou une action de bouton",
+        "text": "Ajoutez {screen} au même événement et seul cet écran reçoit l'alerte. C'est ainsi qu'un seul écran affiche une image {camera} ou exécute une {action} depuis son bouton : l'action propre de l'écran n'a pas de champs pour cela. Après {screen} vient l'une des valeurs de la liste ci-dessous.",
+        "more": "Quelques écrans ? Donnez une liste, comme {list}. Une pièce fonctionne aussi et atteint chaque écran qui s'y trouve. Un nom qui ne correspond à aucun écran n'envoie rien ; le journal d'ESP Screen Manager nomme alors les écrans qu'il connaît.",
+        "value": "Après screen:",
+        "name": "Nom dans Home Assistant",
+        "room": "Pièce",
+        "picture": "Image de caméra",
+        "picture_yes": "Oui",
+        "picture_no": "Non, l'alerte arrive sans",
+        "none": "Aucun écran associé pour l'instant. Dès qu'un écran est associé, ce qu'il faut saisir pour lui apparaît ici."
       }
     },
     "override": {

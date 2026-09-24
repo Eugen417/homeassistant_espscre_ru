@@ -2,7 +2,7 @@
 
 Status: implemented for 0.3.0, with release acceptance recorded separately. This document preserves the design decisions and acceptance requirements reviewed on 23 September 2026. See [Pages](PAGES.md) for current behaviour, source boundaries and upgrade rules.
 
-Main reviewed through `803bb39` (add-on 0.2.132), including the standby-override hotfix in `a40b3e4` (0.2.131). Preserve both fixes while implementing this proposal; their implications are included in capability resolution and editor acceptance below.
+Main reviewed and integrated through `8130856` (add-on 0.2.133), including the standby-override hotfix in `a40b3e4` (0.2.131), clipboard support in `803bb39` (0.2.132), and camera alerts addressed to selected screens. These changes remain covered by capability resolution, editor acceptance and protocol-2 camera delivery tests.
 
 Give every page an identity and one complete top-bar configuration. Editing, moving, deleting, copying and restoring a page must operate on that configuration together with the page's tiles. The device should already hold every page's bar before the user navigates to it.
 

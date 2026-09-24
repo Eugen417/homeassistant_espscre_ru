@@ -1388,8 +1388,8 @@ switch:
       - lambda: 'settings_screen::set("page_buttons", 1);'
     turn_off_action:
       - lambda: 'settings_screen::set("page_buttons", 0);'
-  # The house at the far left of the top bar, which takes the screen back to page 1 (firmware 0.2.100+).
-  # Page 1 draws none: there is nowhere to go from home.
+  # The house at the far left returns to the configured Home page (firmware 0.3.0+).
+  # A detail page with hidden bottom navigation uses this position for Back, even when Home is disabled.
   - platform: template
     id: setting_home_button
     name: "Show home button"

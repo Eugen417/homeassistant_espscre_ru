@@ -176,7 +176,7 @@ export function dismissToast() {
   state.toast = null;
 }
 // What was copied, each with its own sentences so every language can say it its own way.
-export type Copied = "api_key" | "layout_json" | "action_name" | "yaml" | "icon_name" | "empty_color" | "color_name";
+export type Copied = "api_key" | "layout_json" | "action_name" | "yaml" | "icon_name" | "empty_color" | "color_name" | "screen_name";
 export async function copyText(text: string, element?: Element | null, what: Copied = "api_key") {
   try {
     if (!navigator.clipboard || !window.isSecureContext) throw new Error();

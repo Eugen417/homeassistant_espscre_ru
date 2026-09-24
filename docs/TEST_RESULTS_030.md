@@ -4,7 +4,7 @@ Tested on 23 and 24 September 2026. Environment: an isolated Home Assistant OS V
 
 ## Automated contracts
 
-`tools/check.sh` passes 684 Python tests, 25 C++ programs and 196 editor tests, plus package, grid, board, icon, translation, type and generated-bundle checks.
+`tools/check.sh` passes 690 Python tests, 25 C++ programs and 198 editor tests, plus package, grid, board, icon, translation, type and generated-bundle checks. This includes the final merge of main through `8130856` (0.2.133), with a regression check that a targeted camera alert preserves its protocol-2 session and reaches only the selected screen.
 
 The page-specific tests cover stable references after reorder/copy/delete, Home on another page, pagination exclusions, bounded Back history, rectangular placement validation, grid adaptation, independently copied bars and empty layouts. Storage tests cover atomic replacement, a durable original backup, pending migrations, unknown versions, revision conflicts and interrupted writes. Delivery tests cover stale sessions, stale state, incomplete configurations, lost acknowledgments and automatic retry.
 
@@ -19,6 +19,8 @@ The new add-on continued delivering a representable layout to the older physical
 Browser checks exercised Simple and Advanced, the entity library, colored tiles, an inline brightness slider, real recorder history, Home reassignment, page reorder, navigation links, pagination opt-out, Undo, map arrangement and the local navigation preview. The browser was also checked at a 390 by 844 viewport. Simple pages, including a page marked as a deeplink, have equal preview widths. The dark navigation dialog and its Back route were inspected visually.
 
 Whole-chain controls used only HA demo entities. Two virtual taps toggled a demo light on and off; dragging the actual LVGL slider changed a demo light's brightness from 180 to 40. The original brightness was restored. A real demo-camera alert passed through HA, the manager and protocol 2, loaded its picture with valid geometry, and was dismissed through the virtual touchscreen.
+
+After integrating 0.2.133, a camera alert addressed to the disposable physical Guition also loaded its demo picture and was dismissed with a targeted HA event. The final four-page example was saved through actual Ingress and acknowledged by the board. It has Home on page 2, page 4 excluded from pagination and 16 mixed tiles. LVGL snapshots verify the bottom Back strip and the top chevron with both the bottom strip and ordinary Home control disabled.
 
 ## Physical memory measurements
 
@@ -51,7 +53,7 @@ All six boards compile with the add-on's ESPHome 2026.9.0. All ten host variants
 | Waveshare 7 | 1,834,112 B |
 | Waveshare 4B | 2,034,144 B |
 
-The CYD uses 88.9% of its OTA slot, leaving 203,888 B. Its growth against the baseline built with the same compiler is 2,656 B. With minimum ESPHome 2026.6.2 the CYD uses 1,656,464 B, 90.3%, leaving 178,544 B. That is the documented tight-budget warning, with growth of 2,608 B against the matching minimum-compiler baseline of 1,653,856 B. The P4 profile requires ESPHome 2026.8.0 and is not a 2026.6.2 target.
+The CYD uses 88.9% of its OTA slot, leaving 203,888 B. Its growth against the baseline built with the same compiler is 2,656 B. All five profiles supporting minimum ESPHome 2026.6.2 also compile with that version. On that compiler the CYD uses 1,656,464 B, 90.3%, leaving 178,544 B. That is the documented tight-budget warning, with growth of 2,608 B against the matching minimum-compiler baseline of 1,653,856 B. The P4 profile requires ESPHome 2026.8.0 and is not a 2026.6.2 target.
 
 ## Scope of physical evidence
 

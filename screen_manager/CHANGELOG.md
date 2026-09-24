@@ -8,6 +8,15 @@ Pages own their tiles and top bars. Home and page links keep their destinations 
 - Existing layouts migrate once in the add-on, with a persistent backup. Screens can update at different times. The editor reports when a screen needs updating and applies the saved layout automatically once it is ready.
 - Firmware uses one configuration store and the new protocol only. Update ESP Screen Manager first; newer firmware receiving an older protocol shows “Configuration problem. Update add-on.”
 
+## 0.2.133 (firmware 0.2.104)
+
+An alert with a camera picture on one screen (GitHub #35).
+
+- The `esp_screens_show_alert` event takes `screen`: only the screens it names get the alert. That is how one screen gets a camera picture or a button that runs an action, which the screen's own `show_alert` action cannot take, because Home Assistant makes every field of a device's action required. Without `screen` the event goes to every screen, as before.
+- Fill in the screen's device name, the name Home Assistant shows, or a room, which reaches every screen in it. Case, spaces, dashes and underscores don't matter, and a list reaches several screens. A name that matches no screen sends nothing, and the log then names the screens it knows. `esp_screens_dismiss_alert` takes `screen` too.
+- **Alerts** in ESP Screens has a new **One screen** part: for every screen what to fill in after `screen:`, ready to copy, and the example for the screen you choose. **Your screens** shows the same value next to the actions.
+- Nothing to do for your screens: the firmware is unchanged at 0.2.104.
+
 ## 0.2.132 (firmware 0.2.104)
 
 Copy API key works when Home Assistant is opened over plain http, and stays available after pairing.

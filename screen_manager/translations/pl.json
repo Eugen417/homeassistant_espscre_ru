@@ -771,6 +771,10 @@
         "action": {
           "label": "Akcja",
           "help": "Akcja Home Assistant, na przykład script.open_gate lub light.turn_off, wykonywana raz po naciśnięciu przycisku na dowolnym ekranie. `data` podaje jej pola (entity_id, brightness, ...). Po upływie czasu lub przy nowym alercie pozostaje niewykonana. Tylko przez zdarzenie esp_screens_show_alert."
+        },
+        "screen": {
+          "label": "Ekran",
+          "help": "Który ekran dostaje alert: jego nazwa urządzenia (np. kitchen-screen), nazwa wyświetlana w Home Assistant albo pomieszczenie, które obejmuje każdy ekran w nim. Lista, np. [kitchen-screen, hallway], obejmuje kilka. Pomiń, aby wysłać na wszystkie ekrany. Nazwa, która nie pasuje do żadnego ekranu, nie wysyła niczego; dziennik ESP Screen Manager podaje wtedy znane mu ekrany. Tylko przez zdarzenia esp_screens_show_alert i esp_screens_dismiss_alert."
         }
       },
       "endings": {
@@ -1066,6 +1070,10 @@
       "color_name": {
         "copied": "Skopiowano nazwę koloru.",
         "selected": "Nazwa koloru jest zaznaczona. Skopiuj skrótem Ctrl+C lub Command+C."
+      },
+      "screen_name": {
+        "copied": "Skopiowano nazwę ekranu.",
+        "selected": "Nazwa ekranu jest zaznaczona. Skopiuj ją klawiszami Ctrl+C lub Command+C."
       }
     },
     "sidebar": {
@@ -1784,7 +1792,8 @@
         "colors": "Kolory",
         "behaviour": "Działanie",
         "events": "Zdarzenia",
-        "tips": "Wskazówki"
+        "tips": "Wskazówki",
+        "one": "Jeden ekran"
       },
       "try": {
         "text": "Wyślij teraz jeden alert z tymi samymi polami, które wysyła automatyzacja. Ekran pokaże kartę, a przy włączonym miganiu mignie podświetleniem.",
@@ -1850,7 +1859,8 @@
         },
         "bytes": "{limits} B",
         "seconds": "od 0 do 86400 s",
-        "camera_limit": "Każdy ekran poza CYD, firmware 0.2.57+"
+        "camera_limit": "Każdy ekran poza CYD, firmware 0.2.57+",
+        "screen_limit": "Aplikacja 0.2.133+"
       },
       "icons": {
         "text": "Wpisz nazwę w polu {field}, na przykład {example}. Działa też {mdi} i kod szesnastkowy ({hex}). Firmware zawiera tylko te ikony; każda inna nazwa pokazuje trójkąt ostrzegawczy. Kliknij ikonę, aby skopiować jej nazwę.",
@@ -1900,6 +1910,18 @@
       "wait_yaml": {
         "comment": "Dzwonek: pokaż alert i poczekaj, aż ktoś naciśnie przycisk.",
         "message": "Ktoś idzie do drzwi."
+      },
+      "one": {
+        "title": "Jeden ekran, z kamerą lub akcją przycisku",
+        "text": "Dodaj {screen} do tego samego zdarzenia, a alert dostanie tylko ten ekran. Tak pojedynczy ekran pokazuje obraz z {camera} albo wykonuje {action} z przycisku: własna akcja ekranu nie ma na to pól. Po {screen} wpisz jedną z wartości z listy poniżej.",
+        "more": "Kilka ekranów? Podaj listę, np. {list}. Pomieszczenie też działa i obejmuje każdy ekran w nim. Nazwa, która nie pasuje do żadnego ekranu, nie wysyła niczego; dziennik ESP Screen Manager podaje wtedy znane mu ekrany.",
+        "value": "Po screen:",
+        "name": "Nazwa w Home Assistant",
+        "room": "Pomieszczenie",
+        "picture": "Obraz z kamery",
+        "picture_yes": "Tak",
+        "picture_no": "Nie, alert przychodzi bez niego",
+        "none": "Nie sparowano jeszcze żadnego ekranu. Gdy ekran zostanie sparowany, tutaj pojawi się, co dla niego wpisać."
       }
     },
     "override": {

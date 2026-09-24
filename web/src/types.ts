@@ -89,6 +89,8 @@ export type Screen = {
   // The layout is out and the screen holds it (app 0.2.108): the editor then shows no delivery line.
   in_sync?: boolean;
   alert_action?: string; dismiss_action?: string;
+  // The screen's device name (its ESPHome name): what its actions are named after and what an alert's `screen` takes.
+  node?: string;
   // The API key in the screen's own YAML (app 0.2.132), for pairing it again; null when the add-on has no profile for it.
   api_key?: string | null;
   // What the add-on reads from the firmware (app 0.2.78): its X.Y.Z (null when unknown), how many tiles it holds,
