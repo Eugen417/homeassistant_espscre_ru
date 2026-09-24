@@ -187,6 +187,47 @@
   "rows": 4,
   "width": 1280
  },
+ "checkout/waveshare35.yaml": {
+  "alert": {
+   "line": 23,
+   "title_line": 30
+  },
+  "board": "waveshare35",
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 3.5,
+   "model": "ESP32-S3-Touch-LCD-3.5",
+   "name": "Waveshare",
+   "order": 6,
+   "status": "stable",
+   "touch": "FT63X6"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 165,
+  "height": 320,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "columns": 2,
+    "height": 320,
+    "rotation": 90,
+    "rows": 2,
+    "width": 480
+   },
+   "portrait": {
+    "columns": 1,
+    "height": 480,
+    "rotation": 180,
+    "rows": 3,
+    "width": 320
+   }
+  },
+  "rows": 2,
+  "width": 480
+ },
  "checkout/waveshare43.yaml": {
   "alert": {
    "line": 32,
@@ -776,6 +817,47 @@
   "rows": 4,
   "width": 1280
  },
+ "packages/waveshare35.yaml": {
+  "alert": {
+   "line": 23,
+   "title_line": 30
+  },
+  "board": "waveshare35",
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 3.5,
+   "model": "ESP32-S3-Touch-LCD-3.5",
+   "name": "Waveshare",
+   "order": 6,
+   "status": "stable",
+   "touch": "FT63X6"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 165,
+  "height": 320,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "columns": 2,
+    "height": 320,
+    "rotation": 90,
+    "rows": 2,
+    "width": 480
+   },
+   "portrait": {
+    "columns": 1,
+    "height": 480,
+    "rotation": 180,
+    "rows": 3,
+    "width": 320
+   }
+  },
+  "rows": 2,
+  "width": 480
+ },
  "packages/waveshare43.yaml": {
   "alert": {
    "line": 32,
@@ -988,6 +1070,47 @@
   },
   "rows": 4,
   "width": 800
+ },
+ "waveshare35": {
+  "alert": {
+   "line": 23,
+   "title_line": 30
+  },
+  "board": "waveshare35",
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 3.5,
+   "model": "ESP32-S3-Touch-LCD-3.5",
+   "name": "Waveshare",
+   "order": 6,
+   "status": "stable",
+   "touch": "FT63X6"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 165,
+  "height": 320,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "columns": 2,
+    "height": 320,
+    "rotation": 90,
+    "rows": 2,
+    "width": 480
+   },
+   "portrait": {
+    "columns": 1,
+    "height": 480,
+    "rotation": 180,
+    "rows": 3,
+    "width": 320
+   }
+  },
+  "rows": 2,
+  "width": 480
  },
  "waveshare43": {
   "alert": {

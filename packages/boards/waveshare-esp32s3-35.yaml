@@ -1,0 +1,106 @@
+# ESP Screens - waveshare35: a 3.5-inch 480 x 320 panel (ST7796 over SPI, ESPHome's mipi_spi component) with
+# FT6336 capacitive touch over I2C, an ESP32-S3 with 16MB flash. PSRAM is embedded but stays disabled: enabling
+# it (any mode/speed) hangs the boot silently right after the bootloader, no panic or brownout message - not
+# fully root-caused, but disabling it entirely is sufficient and is the confirmed working config. A TCA9554 I2C
+# expander drives the display's reset (EXIO1) and CS (EXIO2) lines; no other on-board chips (RTC, IMU) are used.
+packages:
+  build: !include ../hardware/esp-idf.yaml
+  cells: !include ../cells/4.yaml
+  look: !include ../looks/standard.yaml
+  touch: !include ../features/capacitive-touch.yaml
+  backlight: !include ../features/backlight.yaml
+  self_test: !include ../features/self-test.yaml
+
+substitutions:
+  # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
+  BOARD_ID: "waveshare35"
+  DEVICE_NAME: "waveshare35-new"
+  DEVICE_FRIENDLY_NAME: "My Waveshare"
+
+  # The glass: the panel's own pixels and its density, 577 diagonal pixels over 3.5 inches.
+  PANEL_W: "320"
+  PANEL_H: "480"
+  DISPLAY_DPI: "165.000"
+  # The LVGL angle that lays this panel out lying down (480 x 320). Standing up is a quarter further.
+  ROTATION_LANDSCAPE: "90"
+  # The tile grid: columns and rows of cells lying down, and standing up.
+  GRID_COLS: "2"
+  GRID_ROWS: "2"
+  GRID_COLS_PORTRAIT: "1"
+  GRID_ROWS_PORTRAIT: "3"
+  LVGL_BUFFER_SIZE: "12%"                       # LVGL's draw buffer as a share of the screen; no PSRAM to spare
+
+  # TOUCH_SWAP_XY/MIRROR_X/MIRROR_Y not overridden: this panel's FT6336 needs none of packages/core.yaml's
+  # "false" defaults changed, confirmed by logging raw touch.x/y at ROTATION_LANDSCAPE=0 against known tap
+  # corners in two physical orientations (no calibration wizard exists for a capacitive panel).
+
+  BACKLIGHT_FREQUENCY: "20000Hz"                # the backlight's PWM (see the output block)
+
+# ============================================================
+# No need to edit below this line.
+# ============================================================
+
+esp32:
+  board: esp32-s3-devkitc-1
+  variant: esp32s3
+  flash_size: 16MB
+  cpu_frequency: 240MHz
+
+# One SPI bus (display only), one I2C bus (touch + the LCD reset/CS GPIO expander). No relay outputs.
+spi:
+  id: lcd
+  clk_pin: GPIO5
+  mosi_pin: GPIO1
+  miso_pin: GPIO2   # wired on the schematic; the write-only display doesn't read it
+
+i2c:
+  id: touch_bus
+  sda: GPIO8
+  scl: GPIO7
+  scan: true
+  # Also carries an RTC and IMU on the schematic that this board doesn't use.
+
+# TCA9554 GPIO expander, addr 0x20; pca9554 is ESPHome's compatible component for it. Drives the LCD
+# reset (EXIO1) and CS (EXIO2) lines, below.
+pca9554:
+  id: io_expander
+  address: 0x20
+  i2c_id: touch_bus
+
+output:
+  - platform: ledc
+    pin: GPIO6
+    id: gpio_backlight_pwm
+    frequency: ${BACKLIGHT_FREQUENCY}
+
+# No interrupt line wired (Waveshare's own demo polls too); confirmed responsive enough in practice.
+touchscreen:
+  - platform: ft63x6
+    id: ts_touch
+    i2c_id: touch_bus
+    display: my_display
+    update_interval: 20ms
+
+# ESPHome's mipi_spi driver covers ST7796 natively. dc_pin/cs_pin/reset_pin all take ESPHome's generic pin
+# schema, which is why cs_pin/reset_pin below can point straight at the pca9554 expander pins.
+display:
+  - platform: mipi_spi
+    id: my_display
+    model: ST7796
+    spi_id: lcd
+    dimensions: {width: 320, height: 480}
+    color_order: bgr   # confirmed on real hardware; rgb was the wrong initial guess
+    invert_colors: false
+    dc_pin: GPIO3   # ESPHome flags this as a strapping pin; confirmed harmless in practice on this board
+    cs_pin:   # via the expander, not grounded - confirmed on real hardware
+      pca9554: io_expander
+      number: 2
+      mode: OUTPUT
+    reset_pin:   # mipi_spi does the reset toggle itself during setup; built-in timing is sufficient
+      pca9554: io_expander
+      number: 1
+      mode: OUTPUT
+    spi_mode: 1   # required - display never responds without it; bare integer, not the "MODEx" string form
+    data_rate: 40MHz   # conservative; raise once the rest of the profile is confirmed stable
+    update_interval: never
+    auto_clear_enabled: false
