@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { t } from '../i18n';
-import { glyph } from '../model/topbar';
 import { dimensions, sizeOf, type Size } from '../model/layout';
 import { grid, resizeChoices, resizeTile, state } from '../store';
 import type { Tile } from '../types';
@@ -83,7 +82,13 @@ onBeforeUnmount(cancel);
   <button v-for="axis in available" :key="axis" type="button" class="resize-handle" :class="axis"
     :aria-label="t(`editor.tile.resize.${axis}`)" :title="t(`editor.tile.resize.${axis}`)"
     @pointerdown.stop="start($event, axis)" @click.stop @keydown.stop="keyboard($event, axis)">
-    <span class="mdi" aria-hidden="true">{{ glyph('F01DB') }}</span>
+    <span aria-hidden="true">
+      <!-- MDI drag-horizontal from the bundled font, centred on its ink bounds.
+           SVG avoids the font baseline shifting the dots inside the grip. -->
+      <svg viewBox="0 -64 512 512" focusable="false">
+        <path d="M64 128V171H107V128ZM64 213V256H107V213ZM149 128V171H192V128ZM149 213V256H192V213ZM235 128V171H277V128ZM235 213V256H277V213ZM320 128V171H363V128ZM320 213V256H363V213ZM405 128V171H448V128ZM405 213V256H448V213Z" />
+      </svg>
+    </span>
   </button>
   <Teleport to="body">
     <div v-if="gesture" class="tile-resize-preview" :style="outline" aria-hidden="true">
@@ -100,7 +105,9 @@ onBeforeUnmount(cancel);
 .resize-handle.columns { right: -.5px; top: 50%; width: 24px; height: 40px; transform: translate(50%, -50%); cursor: ew-resize; }
 .resize-handle.rows { bottom: -.5px; left: 50%; width: 40px; height: 24px; transform: translate(-50%, 50%); cursor: ns-resize; }
 .resize-handle span { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; place-items: center; width: 12px; height: 30px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--muted); box-shadow: 0 1px 3px rgb(0 0 0 / .12); font-size: 14px; }
-.resize-handle.rows span { transform: translate(-50%, -50%) rotate(90deg); }
+.resize-handle.rows span { width: 30px; height: 12px; }
+.resize-handle svg { position: absolute; top: 50%; left: 50%; width: 18px; height: 18px; fill: currentColor; transform: translate(-50%, -50%); }
+.resize-handle.columns svg { transform: translate(-50%, -50%) rotate(90deg); }
 .tile:hover .resize-handle, .tile:focus-within .resize-handle, .resize-handle:focus-visible { opacity: 1; pointer-events: auto; }
 .resize-handle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .tile-resize-preview { position: fixed; z-index: 10000; box-sizing: border-box; pointer-events: none; border: 2px solid var(--accent); border-radius: 12px; background: var(--accent-soft); opacity: .85; }
