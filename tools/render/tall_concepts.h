@@ -9,7 +9,11 @@
 #include <string>
 #include <vector>
 namespace tall_concepts {
-struct Fonts {const lv_font_t *name,*note,*headline,*value,*digits,*icon;};
+inline std::string media_title="Weightless",media_artist="Marconi Union";
+#if LV_USE_IMAGE
+inline const lv_image_dsc_t *media_art=nullptr;
+#endif
+struct Fonts {const lv_font_t *name,*note,*headline,*value,*digits,*icon,*tile_icon;};
 struct Board {const char *name,*look; int width,height,dpi,cols,rows,top,footer,margin,gx,gy; Fonts f;};
 struct Rect {int x,y,w,h;};
 inline lv_obj_t *box(lv_obj_t *parent,Rect r,theme::Role color,int radius=0) {
@@ -28,92 +32,157 @@ inline lv_obj_t *text(lv_obj_t *p,const std::string &s,int x,int y,int width,con
 inline void glyph(lv_obj_t *p,const char *s,Rect r,const Fonts &f,theme::Role color=theme::INK) {
  text(p,s,r.x,r.y+(r.h-lv_font_get_line_height(f.icon))/2,r.w,f.icon,color,LV_TEXT_ALIGN_CENTER);
 }
-inline void key(lv_obj_t *p,Rect r,const char *s,const Fonts &f,bool active=false) {
- assert(r.w>=ui::touch_min() && r.h>=ui::touch_min());
- auto *o=box(p,r,active?theme::ACCENT_TINT:theme::TRACK,ui::px(12));
- glyph(o,s,{0,0,r.w,r.h},f,active?theme::ACCENT:theme::INK);
-}
 // All layout decisions derive from available room and measured font heights.
 // Fixed physical touch sizes win over optional artwork, secondary words and ornament.
-struct Metrics {int pad,gap,w,h,key,head,controls_y; bool artist,art;};
+struct Metrics {int pad,gap,w,h,key,head,controls_y; };
 inline Metrics metrics(int width,int height,const Fonts &f,bool controls) {
  Metrics m{};m.pad=ui::px(ui::large()?12:8);m.gap=ui::px(ui::large()?8:4);
- m.w=width-2*m.pad;m.h=height-2*m.pad;m.key=std::max(ui::touch_min(),ui::px(44));
- m.head=std::max(lv_font_get_line_height(f.name),ui::px(ui::large()?30:18));
+ m.w=width-2*m.pad;m.h=height-2*m.pad;m.key=std::max(ui::touch_min(),ui::px(40));
+ m.head=std::max(lv_font_get_line_height(f.name),ui::px(ui::large()?54:28));
  m.controls_y=controls?m.h-m.key:m.h;
- m.artist=m.controls_y-m.head-2*m.gap>=lv_font_get_line_height(f.headline)+lv_font_get_line_height(f.note);
- m.art=m.w>=ui::px(280) && m.controls_y>=ui::px(64);
  return m;
 }
-inline void album(lv_obj_t *p,Rect r,const Fonts &f) {
- // Deliberately illustrative cover placeholder: no image decoder/cache is claimed here.
- auto *a=box(p,r,theme::BUTTON,ui::px(12));
- auto *disc=box(a,{r.w/5,r.h/5,r.w*3/5,r.h*3/5},theme::ACCENT,LV_RADIUS_CIRCLE);
- const int size=r.w/5;box(disc,{(r.w*3/5-size)/2,(r.h*3/5-size)/2,size,size},theme::ACCENT_TINT,LV_RADIUS_CIRCLE);
+// State colour is data, using the same Home Assistant palette as device cards.
+inline void paint(lv_obj_t *o,uint32_t color) {lv_obj_set_style_bg_color(o,lv_color_hex(color),0);}
+inline int text_width(const char *s,const lv_font_t *font) {
+ lv_point_t size;lv_text_get_size(&size,s,font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_NONE);return size.x;
 }
-inline void controls(lv_obj_t *p,const Metrics&m,const Fonts&f,const std::string&kind,bool bold) {
- int y=m.controls_y;
+inline void state_glyph(lv_obj_t *p,const char *s,Rect r,const Fonts &f,uint32_t color) {
+ auto *o=text(p,s,r.x,r.y+(r.h-lv_font_get_line_height(f.icon))/2,r.w,f.icon,theme::INK,LV_TEXT_ALIGN_CENTER);
+ lv_obj_set_style_text_color(o,lv_color_hex(theme::icon(color)),0);
+}
+inline void album(lv_obj_t *p,Rect r,const Fonts &) {
+ // An abstract cover fixture drawn by LVGL, not a fetched or decoded album image.
+ #if LV_USE_IMAGE
+ if(media_art){
+  auto *frame=box(p,r,theme::CARD,ui::px(8));lv_obj_set_style_clip_corner(frame,true,0);
+  auto *art=lv_image_create(frame);lv_obj_remove_style_all(art);lv_image_set_src(art,media_art);lv_obj_set_size(art,r.w,r.h);lv_image_set_inner_align(art,LV_IMAGE_ALIGN_COVER);
+  lv_obj_set_style_radius(art,ui::px(8),0);return;
+ }
+#endif
+ auto *a=box(p,r,theme::BUTTON,ui::px(14));
+ paint(a,theme::surface(theme::swatch("blue")));
+ const int inset=r.w/8;
+ auto *field=box(a,{inset,inset,r.w-2*inset,r.h-2*inset},theme::ACCENT_TINT,ui::px(8));
+ paint(field,theme::surface(theme::swatch("mint")));
+ int size=r.w/2;
+ auto *disc=box(field,{(r.w-2*inset-size)/2,(r.h-2*inset-size)/2,size,size},theme::ACCENT,LV_RADIUS_CIRCLE);
+ paint(disc,theme::foreground(theme::ha::TEAL));
+ box(disc,{size/3,size/3,size/3,size/3},theme::ACCENT_TINT,LV_RADIUS_CIRCLE);
+}
+inline void round_key(lv_obj_t *p,Rect r,const char *s,const Fonts &f,uint32_t color,bool primary=false,bool naked=false,bool photo=false) {
+ assert(r.w>=ui::touch_min() && r.h>=ui::touch_min());
+ auto *o=box(p,r,theme::TRACK,LV_RADIUS_CIRCLE);
+ if(naked)lv_obj_set_style_bg_opa(o,LV_OPA_TRANSP,0);
+ else if(primary)paint(o,theme::state(color));
+ if(photo){if(primary)paint(o,theme::hex(theme::CAMERA_INK));glyph(o,s,{0,0,r.w,r.h},f,primary?theme::CAMERA_PAGE:theme::CAMERA_INK);}
+ else if(primary)glyph(o,s,{0,0,r.w,r.h},f,theme::ON_ACCENT);else glyph(o,s,{0,0,r.w,r.h},f);
+}
+inline void controls(lv_obj_t *p,const Metrics&m,const Fonts&f,const std::string&kind,bool tonal,bool photo=false) {
+ const int y=m.controls_y;
  if(kind=="playback"||kind=="vacuum"||kind=="modes") {
   if(m.w<3*ui::touch_min()+2*m.gap) {text(p,"Open controls",0,y,m.w,f.note);return;}
-  int w=(m.w-2*m.gap)/3;
+  const int k=std::min(m.key,(m.w-2*m.gap)/3);
+  const int width=3*k+2*m.gap,x=(m.w-width)/2;
   const char *a=kind=="modes"?"\U000F0425":kind=="vacuum"?"\U000F040A":"\U000F04AE";
   const char *b=kind=="modes"?"\U000F0717":kind=="vacuum"?"\U000F04DB":"\U000F03E4";
   const char *c=kind=="modes"?"\U000F0238":kind=="vacuum"?"\U000F05F8":"\U000F04AD";
-  key(p,{0,y,w,m.key},a,f);key(p,{w+m.gap,y,w,m.key},b,f,bold && kind!="modes");key(p,{2*(w+m.gap),y,m.w-2*(w+m.gap),m.key},c,f,kind=="modes");
+  const uint32_t color=kind=="modes"?theme::ha::DEEP_ORANGE:theme::ha::LIGHT_BLUE;
+  round_key(p,{x,y,k,m.key},a,f,color,false,photo,photo);
+  round_key(p,{x+k+m.gap,y,k,m.key},b,f,color,kind=="playback",false,photo);
+  round_key(p,{x+2*(k+m.gap),y,k,m.key},c,f,color,kind=="modes",photo,photo);
  } else if(kind=="setpoint") {
-  auto *pill=box(p,{0,y,m.w,m.key},theme::TRACK,ui::px(12));
+  auto *pill=box(p,{0,y,m.w,m.key},theme::TRACK,ui::px(18));
+  if(tonal)paint(pill,theme::tint(theme::ha::DEEP_ORANGE,24));
   glyph(pill,"\U000F0374",{0,0,m.key,m.key},f);glyph(pill,"\U000F0415",{m.w-m.key,0,m.key,m.key},f);
   text(pill,"21.5°",m.key,(m.key-lv_font_get_line_height(f.name))/2,m.w-2*m.key,f.name,theme::INK,LV_TEXT_ALIGN_CENTER);
  } else if(kind=="brightness"||kind=="volume") {
   int track_w=m.w;
-  if(kind=="volume"){track_w-=m.key+m.gap;key(p,{track_w+m.gap,y,m.key,m.key},"\U000F057E",f);}
-  auto *track=box(p,{0,y,track_w,m.key},kind=="brightness"?theme::AMBER_TRACK:theme::ACCENT_TINT,ui::px(12));
-  auto *fill=box(track,{0,0,track_w*65/100,m.key},kind=="brightness"?theme::SUN_PATH:theme::ACCENT,ui::px(12));
+  if(kind=="volume"){track_w-=m.key+m.gap;round_key(p,{track_w+m.gap,y,m.key,m.key},"\U000F057E",f,theme::ha::LIGHT_BLUE);}
+  const uint32_t color=kind=="brightness"?theme::ha::ORANGE:theme::ha::LIGHT_BLUE;
+  auto *track=box(p,{0,y,track_w,m.key},theme::TRACK,ui::px(16));paint(track,theme::tint(color,45));
+  auto *fill=box(track,{0,0,track_w*65/100,m.key},theme::ACCENT,ui::px(16));paint(fill,theme::state(color));
   box(fill,{track_w*65/100-ui::px(10),m.key/4,ui::px(4),m.key/2},theme::ON_ACCENT,ui::px(2));
  }
 }
 inline void card(lv_obj_t *root,Rect r,const Fonts &f,const std::string&kind,const std::string&chosen,int variant,bool tall=true) {
- auto *outer=box(root,r,theme::CARD,ui::px(ui::large()?20:14));
- lv_obj_set_style_border_width(outer,1,0);lv_obj_set_style_border_color(outer,theme::color(theme::LINE),0);
  const bool enabled=!chosen.empty();auto m=metrics(r.w,r.h,f,enabled);
- auto *p=box(outer,{m.pad,m.pad,m.w,m.h},theme::CARD);
+ bool photo=false;
+#if LV_USE_IMAGE
+ photo=variant && kind=="media" && media_art;
+#endif
+ const uint32_t color=kind=="climate"?theme::ha::DEEP_ORANGE:kind=="light"?theme::ha::ORANGE:theme::ha::LIGHT_BLUE;
+ const uint32_t surface=theme::hex(theme::CARD);
+ auto *outer=box(root,r,theme::CARD,ui::px(ui::large()?22:18));paint(outer,surface);
+ if(!photo){lv_obj_set_style_border_width(outer,1,0);lv_obj_set_style_border_color(outer,theme::color(theme::LINE),0);}
+ #if LV_USE_IMAGE
+ if(photo){
+  // Host-only clipping; device acceptance must use its existing pre-rounded image path.
+  lv_obj_set_style_clip_corner(outer,true,0);
+  auto *art=lv_image_create(outer);lv_obj_remove_style_all(art);lv_image_set_src(art,media_art);
+  lv_obj_set_size(art,r.w,r.h);lv_image_set_inner_align(art,LV_IMAGE_ALIGN_COVER);
+  lv_obj_set_style_radius(art,ui::px(ui::large()?22:18),0);
+  auto *shade=box(outer,{0,0,r.w,r.h},theme::CAMERA_PAGE,ui::px(ui::large()?22:18));
+  lv_obj_set_style_bg_opa(shade,170,0);
+ }
+#endif
+ auto *p=box(outer,{m.pad,m.pad,m.w,m.h},theme::CARD);lv_obj_set_style_bg_opa(p,LV_OPA_TRANSP,0);
  const char *icon=kind=="media"?"\U000F075A":kind=="climate"?"\U000F050F":kind=="light"?"\U000F0335":"\U000F070D";
  const char *name=kind=="media"?"Living room":kind=="climate"?"Climate":kind=="light"?"Lights":"Vacuum";
- int cover=(kind=="media" && variant==1 && m.art)?std::min(m.controls_y-m.gap,ui::px(100)):0;
- if(cover)album(p,{0,0,cover,cover},f);
- int circle=m.head;
- auto *badge=box(p,{cover?cover+m.gap:0,0,circle,circle},kind=="light"?theme::AMBER_TRACK:theme::TRACK,LV_RADIUS_CIRCLE);
- glyph(badge,icon,{0,0,circle,circle},f,kind=="light"?theme::SUN_PATH:theme::SLATE);
- text(p,name,(cover?cover+m.gap:0)+circle+m.gap,(circle-lv_font_get_line_height(f.name))/2,m.w-(cover?cover+m.gap:0)-circle-m.gap,f.name);
- int top=m.head+m.gap,room=m.controls_y-top-(enabled?m.gap:0);
+ const int head=m.head;Fonts badge_fonts=f;badge_fonts.icon=f.tile_icon;
+ auto *badge=box(p,{0,0,head,head},theme::TRACK,LV_RADIUS_CIRCLE);paint(badge,theme::tint(color,40));
+ if(photo){paint(badge,theme::hex(theme::CAMERA_INK));lv_obj_set_style_bg_opa(badge,35,0);glyph(badge,icon,{0,0,head,head},badge_fonts,theme::CAMERA_INK);}
+ else state_glyph(badge,icon,{0,0,head,head},badge_fonts,color);
+ const int title_h=lv_font_get_line_height(f.name),note_h=lv_font_get_line_height(f.note);
+ const bool header_note=head>=title_h+note_h;
+ const int header_y=(head-title_h-(header_note?note_h:0))/2;
+ text(p,name,head+m.gap,header_y,m.w-head-m.gap,f.name,photo?theme::CAMERA_INK:theme::INK);
+ if(header_note)text(p,kind=="media"?"Playing":kind=="climate"?"Heating":kind=="light"?"On":"Docked",
+   head+m.gap,header_y+title_h,m.w-head-m.gap,f.note,photo?theme::CAMERA_INK:theme::MUTED);
+ const int top=head+m.gap,room=m.controls_y-top-(enabled?m.gap:0);
  if(kind=="media") {
-  int tx=0,tw=m.w;
-  if(cover) {tx=cover+m.gap;tw=m.w-tx;}
-  int block=lv_font_get_line_height(f.headline)+(m.artist?lv_font_get_line_height(f.note)+m.gap/2:0);
+  const lv_font_t *title_font=f.headline;
+  if(lv_font_get_line_height(title_font)>room)title_font=f.name;
+  if(lv_font_get_line_height(title_font)>room)title_font=f.note;
+  const int title_h=lv_font_get_line_height(title_font);
+  const bool artist=room>=title_h+lv_font_get_line_height(f.note)+m.gap/2;
+  const int block=title_h+(artist?lv_font_get_line_height(f.note)+m.gap/2:0);
+  int cover=!photo && m.w>=ui::px(300) && room>=ui::px(64)?std::min(room,ui::px(100)):0;
+  int tw=m.w-(cover?cover+2*m.gap:0);
+  if(cover)album(p,{m.w-cover,top+(room-cover)/2,cover,cover},f);
   int y=top+std::max(0,(room-block)/2);
-  text(p,"Weightless",tx,y,tw,f.headline);
-  if(m.artist)text(p,"Marconi Union",tx,y+lv_font_get_line_height(f.headline)+m.gap/2,tw,f.note,theme::MUTED);
+  text(p,media_title,0,y,tw,title_font,photo?theme::CAMERA_INK:theme::INK);
+  if(artist)text(p,media_artist,0,y+title_h+m.gap/2,tw,f.note,photo?theme::CAMERA_INK:theme::MUTED);
  } else if(kind=="climate") {
-  const lv_font_t *number=room>=lv_font_get_line_height(f.value)?f.value:f.headline;
-  bool hero=variant==1 && room>=lv_font_get_line_height(f.digits)+lv_font_get_line_height(f.note)+m.gap;
-  if(hero)number=f.digits;
+  if(!variant && chosen=="setpoint") {
+   // Put the selected controls around the target. Measure the remaining label
+   // width before choosing a font; never steal room from physical touch targets.
+   const int bottom=lv_font_get_line_height(f.note),available=m.h-top-bottom-m.gap;
+   const int center_w=m.w-2*m.key-2*m.gap;
+   const lv_font_t *number=f.name;
+   for(auto *candidate:{f.digits,f.value,f.headline,f.name})
+    if(text_width("21.5°",candidate)<=center_w && lv_font_get_line_height(candidate)<=available){number=candidate;break;}
+   const int nh=lv_font_get_line_height(number),row=std::max(m.key,nh),y=top+std::max(0,(available-row)/2);
+   round_key(p,{0,y+(row-m.key)/2,m.key,m.key},"\U000F0374",f,color,false,false);
+   round_key(p,{m.w-m.key,y+(row-m.key)/2,m.key,m.key},"\U000F0415",f,color,false,false);
+   text(p,"21.5°",m.key+m.gap,y+(row-nh)/2,center_w,number,theme::INK,LV_TEXT_ALIGN_CENTER);
+   text(p,"Now 20.8°",0,m.h-bottom,m.w,f.note,theme::MUTED,LV_TEXT_ALIGN_CENTER);
+   return;
+  }
+  const lv_font_t *number=room>=lv_font_get_line_height(f.value)+lv_font_get_line_height(f.note)+m.gap?f.value:f.headline;
+  if(lv_font_get_line_height(number)>room)number=f.note;
   int h=lv_font_get_line_height(number),nh=lv_font_get_line_height(f.note);
   bool note=room>=h+nh+m.gap/2;
   int y=top+std::max(0,(room-h-(note?nh+m.gap/2:0))/2);
-  text(p,hero?"21.5°":"20.8°",0,y,m.w,number,theme::INK,LV_TEXT_ALIGN_CENTER);
-  if(note)text(p,hero?"Room 20.8° · heating":"Room · heating",0,y+h+m.gap/2,m.w,f.note,theme::MUTED,LV_TEXT_ALIGN_CENTER);
-  // B distributes the SAME selected setpoint controls around the target, no mode row added.
-  if(hero && chosen=="setpoint") {
-   int w=(m.w-m.gap)/2;key(p,{0,m.controls_y,w,m.key},"\U000F0374",f);key(p,{w+m.gap,m.controls_y,m.w-w-m.gap,m.key},"\U000F0415",f);
-   return;
-  }
+  text(p,"20.8°",0,y,m.w,number,theme::INK,LV_TEXT_ALIGN_CENTER);
+  if(note)text(p,"Room temperature",0,y+h+m.gap/2,m.w,f.note,theme::MUTED,LV_TEXT_ALIGN_CENTER);
  } else {
   const char *value=kind=="light"?"65%":"Docked";
-  const auto *font=room>=lv_font_get_line_height(f.value)?f.value:f.headline;
+  const auto *font=room>=lv_font_get_line_height(f.value)?f.value:room>=lv_font_get_line_height(f.headline)?f.headline:f.note;
   int h=lv_font_get_line_height(font),y=top+std::max(0,(room-h)/2);
   text(p,value,0,y,m.w,font,theme::INK,LV_TEXT_ALIGN_CENTER);
  }
- if(enabled)controls(p,m,f,chosen,variant==1);
+ if(enabled)controls(p,m,f,chosen,variant==1,photo);
 }
 inline int check_bounds(lv_obj_t *parent) {
  int count=0;lv_area_t p;lv_obj_get_coords(parent,&p);
