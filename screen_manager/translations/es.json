@@ -1377,7 +1377,8 @@
         "cover_hint": "La carátula de lo que suena en el lugar del icono, como en el propio mosaico de Home Assistant; un reproductor sin imagen conserva su icono. Un toque sigue abriendo la tarjeta.",
         "cover_needs_firmware": "La carátula en el mosaico necesita el firmware 0.2.78 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
         "no_graph": "Home Assistant no tiene valores numéricos para esta entidad, así que el gráfico queda vacío. Elige otra presentación.",
-        "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación."
+        "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación.",
+        "tall_cover_hint": ""
       },
       "refresh": {
         "label": "Actualizar",
@@ -1403,7 +1404,8 @@
         "not_offered": "Home Assistant no ofrece este control para esta entidad, así que en la pantalla queda vacío. Elige otro.",
         "full_hint": "En la parte inferior del mosaico de página completa; un toque en cualquier otro sitio funciona como se indica más abajo.",
         "wide_hint": "A la derecha del mosaico de doble ancho, como las filas de Home Assistant. Tocar el nombre funciona como se indica más abajo.",
-        "needs_firmware": "La pantalla muestra el control directo a partir del firmware 0.2.19; hasta entonces, el mosaico se queda como estaba."
+        "needs_firmware": "La pantalla muestra el control directo a partir del firmware 0.2.19; hasta entonces, el mosaico se queda como estaba.",
+        "tall_hint": ""
       },
       "tap": {
         "label": "Al tocar",

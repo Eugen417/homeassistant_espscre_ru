@@ -1377,7 +1377,8 @@
         "cover_hint": "Das Albumcover des laufenden Titels anstelle des Symbols, wie auf der eigenen Kachel von Home Assistant; ein Player ohne Bild behält sein Symbol. Ein Tipp öffnet weiterhin die Karte.",
         "cover_needs_firmware": "Das Albumcover auf der Kachel braucht Firmware 0.2.78 oder neuer: Nach dem Speichern beim Bildschirm auf Aktualisieren drücken.",
         "no_graph": "Home Assistant hat für diese Entität keine Zahlen, daher bleibt das Diagramm leer. Wähle eine andere Anzeige.",
-        "no_forecast": "Dieser Wetterdienst hat in Home Assistant keine Tagesvorhersage. Wähle eine andere Anzeige."
+        "no_forecast": "Dieser Wetterdienst hat in Home Assistant keine Tagesvorhersage. Wähle eine andere Anzeige.",
+        "tall_cover_hint": ""
       },
       "refresh": {
         "label": "Auffrischen",
@@ -1403,7 +1404,8 @@
         "not_offered": "Home Assistant bietet diese Steuerung für diese Entität nicht an, daher bleibt sie auf dem Bildschirm leer. Wähle eine andere.",
         "full_hint": "Am unteren Rand der ganzseitigen Kachel; ein Tippen woanders wirkt wie unten eingestellt.",
         "wide_hint": "Rechts auf der doppelt breiten Kachel, wie die Zeilen in Home Assistant. Ein Tippen auf den Namen wirkt wie unten eingestellt.",
-        "needs_firmware": "Der Bildschirm zeigt die direkte Steuerung ab Firmware 0.2.19; bis dahin bleibt die Kachel, wie sie war."
+        "needs_firmware": "Der Bildschirm zeigt die direkte Steuerung ab Firmware 0.2.19; bis dahin bleibt die Kachel, wie sie war.",
+        "tall_hint": ""
       },
       "tap": {
         "label": "Beim Tippen",

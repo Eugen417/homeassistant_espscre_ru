@@ -71,6 +71,44 @@ function placed(tile: Tile) {
 }
 
 describe("TileCard", () => {
+  it("extends only taller tiles and waits for actual artwork before using white text", async () => {
+    state.inventory.controls!.media_player = { default: 'playback', choices: [] };
+    state.liveStates['media_player.a'] = { state: 'playing', word: 'Playing', a: { media_title: 'A track', media_artist: 'An artist', artwork_mark: 'first', supported_features: 49 } };
+    const card = placed({ entity: 'media_player.a', name: 'Music', slot: 0, options: { size: 'tall', display: 'cover', controls: 'playback' } });
+    expect(card.classes()).toContain('tall');
+    expect(card.find('.track-title').text()).toBe('A track');
+    expect(card.findAll('.ctl .key')).toHaveLength(3);
+    state.liveStates['media_player.a'].a.supported_features = 1;
+    await nextTick();
+    expect(card.findAll('.ctl .key')).toHaveLength(1);
+    expect(card.find('.ctl .key').classes()).toContain('primary');
+    expect(card.find('img').attributes('src')).toBe('api/media-art?entity=media_player.a&v=first');
+    expect(card.classes()).not.toContain('photo');
+    await card.find('img').trigger('load');
+    expect(card.classes()).toContain('photo');
+    state.liveStates['media_player.a'].a.artwork_mark = 'second';
+    await nextTick();
+    expect(card.classes()).not.toContain('photo');
+    await card.find('img').trigger('error');
+    expect(card.classes()).not.toContain('photo');
+    await card.setProps({ tile: { entity: 'media_player.a', name: 'Music', slot: 0, options: { size: 'wide', display: 'cover', controls: 'playback' } } });
+    expect(card.classes()).not.toContain('tall');
+    expect(card.find('.tall-body').exists()).toBe(false);
+    expect(card.find('img').exists()).toBe(false);
+  });
+  it("shows the selected climate target or modes, and adds no controls to an unconfigured tall tile", () => {
+    state.inventory.controls!.climate = { default: 'setpoint', choices: [] };
+    state.liveStates['climate.a'] = { state: 'cool', word: 'Cooling', a: { supported_features: 1, current_temperature: 24, temperature: 21, hvac_modes: ['off', 'cool'] } };
+    const plain = placed({ entity: 'climate.a', name: 'Climate', slot: 0, options: { size: 'tall' } });
+    expect(plain.find('.ctl').exists()).toBe(false);
+    expect(plain.find('.tall-setpoint').exists()).toBe(false);
+    const target = placed({ entity: 'climate.a', name: 'Climate', slot: 0, options: { size: 'tall', controls: 'setpoint' } });
+    expect(target.find('.target b').text()).toBe('21°');
+    expect(target.find('.tall-setpoint .st').text()).toBe('Now 24°');
+    const modes = placed({ entity: 'climate.a', name: 'Climate', slot: 0, options: { size: 'square', controls: 'mode' } });
+    expect(modes.findAll('.ctl .key')).toHaveLength(2);
+  });
+
   it("shows a sensor's value with its unit and a light that is on as lit", () => {
     state.liveStates["sensor.t"] = { state: "21.4", word: null, a: { unit_of_measurement: "°C" } };
     state.liveStates["light.a"] = { state: "on", word: "On", a: { brightness: 128 } };

@@ -2,7 +2,7 @@
 
 This is a host-only LVGL design study, not a change to the device renderer or
 editor. The developer gate, saved layout and control selections are unchanged.
-The two directions are meant for visual review before implementation.
+The two directions are retained for visual comparison. The production extension uses media B and climate A, including narrow tall tiles; see [Pages](PAGES.md#taller-tiles-031).
 
 ## Preservation boundary
 
@@ -10,8 +10,9 @@ This is a responsive extension, not a redesign of existing tiles. Existing
 single-cell and double-width, single-row tiles keep their renderer, spacing,
 fonts, colours and controls. Only a footprint with more than one row is eligible
 for the new arrangement. The existing overlays are the visual and data reference.
-The study changes no production renderer, so compact tiles are currently untouched.
-A later implementation must prove this with identical before/after native renders.
+The study itself changes no production renderer. The subsequent implementation
+compares 39 compact cards and overlays with pixel-identical results; see
+[responsive controls acceptance](TEST_RESULTS_TALL_CONTROLS.md).
 
 ## Directions
 

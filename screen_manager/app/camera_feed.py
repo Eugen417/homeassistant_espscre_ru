@@ -20,6 +20,7 @@ import re
 import secrets
 import time
 
+import tile_art
 import alert_layout
 from core import SHAPES, board_of, screen_firmware, shape_of
 
@@ -163,7 +164,7 @@ def can_show_live(screen):
     return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= LIVE_MIN_FIRMWARE
 
 
-def live_request(request):
+def live_request(request, atlas=False):
     """(entities, size, grounds) a screen asked live pictures for, or None when it is not a request the app can serve:
     `tiles` the camera tiles of its page as a comma-separated list, `size` the square's side within LIVE_SIZES and
     `bg` one colour of six hex digits per tile, the tile's own, behind the corners."""
@@ -175,7 +176,7 @@ def live_request(request):
         size = int(request.get('size'))
     except (TypeError, ValueError):
         return None
-    if not 1 <= len(entities) <= LIVE_MAX_TILES or len(colours) != len(entities) or len(set(entities)) != len(entities):
+    if not 1 <= len(entities) <= (64 if atlas else LIVE_MAX_TILES) or len(colours) != len(entities) or (not atlas and len(set(entities)) != len(entities)):
         return None
     if not LIVE_SIZES[0] <= size <= LIVE_SIZES[1] or not all(supported(e) or cover_supported(e) for e in entities) or not all(re.fullmatch(r'[0-9A-Fa-f]{6}', c) for c in colours):
         return None
@@ -462,19 +463,19 @@ class CameraFeed:
             self.refresh(entity, watch)
         return watch.raw
 
-    async def live(self, entities, size, grounds, paces, wait=FIRST_FRAME_SECONDS):
+    async def live(self, entities, size, grounds, paces, wait=FIRST_FRAME_SECONDS, *, atlas=None):
         """(etag, BMP, entities with '' where a camera has no snapshot) of the strip for a page's camera tiles at
         `size` with `grounds` behind the corners and `paces` in seconds per tile, or None when no camera has one."""
         raws = await asyncio.gather(*(self.live_one(entity, pace, wait) for entity, pace in zip(entities, paces)))
         if all(raw is None for raw in raws):
             return None
         digests = [self.watches[entity].digest if raw is not None else '' for entity, raw in zip(entities, raws)]
-        key = ('live', size, tuple(grounds), tuple(digests))
-        tag = f'"{hashlib.sha1("|".join(digests).encode()).hexdigest()[:16]}-l{size}"'  # names the strip; not sent
+        key = ('live', size, tuple(grounds), tuple(digests), atlas)
+        tag = f'"{hashlib.sha1(repr(key).encode()).hexdigest()[:16]}-l{size}"'  # names the strip; not sent
         cached = self.strips.get(key)
         if cached is None:
             try:
-                image = await asyncio.get_running_loop().run_in_executor(None, encode_live, raws, size, grounds)
+                image = await asyncio.get_running_loop().run_in_executor(None, tile_art.encode, raws, grounds, atlas) if atlas else await asyncio.get_running_loop().run_in_executor(None, encode_live, raws, size, grounds)
             except Exception as error:
                 LOG.info('The live pictures of %s cannot be read (%s)', ', '.join(entities), type(error).__name__)
                 return None
@@ -529,6 +530,22 @@ class CameraFeed:
                 return None
         return watch.raw
 
+    async def cover_preview(self, entity):
+        """Bounded editor pixels with source proportions intact for CSS cover crop."""
+        raw = await self.cover_raw(entity, FIRST_FRAME_SECONDS)
+        if raw is None:
+            return None
+        watch = self.watch(entity)
+        key = ('editor', 512)
+        cached = watch.frames.get(key)
+        if cached is None or cached[0] != watch.digest:
+            try:
+                image = await asyncio.get_running_loop().run_in_executor(None, encode, raw, (512, 512))
+            except Exception:
+                return None
+            cached = watch.frames[key] = (watch.digest, image)
+        return f'"{watch.digest[:16]}-editor"', cached[1]
+
     async def cover(self, entity, size, background, wait=FIRST_FRAME_SECONDS):
         """(etag, BMP) of the player's cover at `size` with `background` behind its corners, or None when the player
         shows no picture or it cannot be fetched."""
@@ -577,7 +594,7 @@ class CameraFeed:
             # error flag every time, and a page of slow cameras (a radar every five minutes) would do that every 15 s.
             # The strip is small; the screen draws its squares again either way. The tag still goes out as an ETag:
             # online_image warns at every load about a missing one.
-            found = await self.live(*link.live)
+            found = await self.live(*link.live[:4], **({"atlas": link.live[4]} if len(link.live) > 4 else {}))
             return (503, None, '') if found is None else (200, found[1], found[0])
         found = await self.cover(link.entity, *link.cover) if link.cover else await self.frame(link.entity, link.box)
         if found is None:

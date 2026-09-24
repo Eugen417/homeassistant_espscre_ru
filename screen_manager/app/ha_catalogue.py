@@ -181,7 +181,11 @@ def capabilities(entity_id, actions, state, services):
     return {
         'toggle': TOGGLE.format(domain=domain) in actions,
         'inline': domain in INLINE and _fits(INLINE[domain], actions, attributes, services),
-        'controls': [key for key, requirements in CONTROLS.get(domain, {}).items() if _fits(requirements, actions, attributes, services)],
+        'controls': [key for key, requirements in CONTROLS.get(domain, {}).items()
+                     if _fits(requirements, actions, attributes, services)
+                     and not (domain == 'climate' and key == 'setpoint'
+                              and isinstance(attributes.get('supported_features'), int)
+                              and not attributes['supported_features'] & 1)],
         'displays': displays,
     }
 

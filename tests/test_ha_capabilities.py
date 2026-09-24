@@ -78,6 +78,12 @@ def caps(entity):
 
 
 class ActionsForAnEntity(unittest.TestCase):
+    def test_range_only_climate_does_not_offer_single_target_control(self):
+        state = {'state': 'heat_cool', 'attributes': {'supported_features': 2}}
+        result = ha_catalogue.capabilities('climate.range', ['climate.set_temperature', 'climate.set_hvac_mode'], state, SERVICES)
+        self.assertNotIn('setpoint', result['controls'])
+        self.assertIn('mode', result['controls'])
+
     def test_home_assistants_target_filters(self):
         # Every mask of an action must be supported completely: a Sonos lacks on and off, a TV has both.
         self.assertNotIn('media_player.toggle', actions('media_player.sonos'))

@@ -4,15 +4,17 @@ const { grid, pageOf } = editorLayout;
 
 // A card on the mockup, drawn with what Home Assistant reports right now. A placeholder is the tile being
 // dragged, drawn where it will land.
-import { computed, nextTick } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
-import { dimensions, sizeOf, displayName, effectiveControls, isFull, isWide, pageTarget } from "../model/layout";
+import { dimensions, sizeOf, inlineControlKind, displayName, effectiveControls, isFull, isWide, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
 import { tilePalette, tileActive } from "../model/tile-palette";
 import type { Tile } from "../types";
 import TileResize from "./TileResize.vue";
+import { availableControl, controlKeys } from "../model/tall-controls";
+import MarqueeText from "./MarqueeText.vue";
 import SensorHistory from './SensorHistory.vue';
 
 const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean; preview?: boolean }>();
@@ -24,6 +26,7 @@ function activate() {
 // A built-in card is named as the screens name it, in their language (app 0.2.90).
 const name = computed(() => props.tile.name || (domain.value === "screen" && screenBuiltinName(props.tile.entity)) || entityName(props.tile.entity));
 const shape = computed(() => dimensions(sizeOf(props.tile), grid));
+const tall = computed(() => shape.value.rows > 1 && !full.value && ["standard", "cover"].includes(display.value));
 const full = computed(() => isFull(props.tile));
 const wide = computed(() => isWide(props.tile) && !full.value);
 const goesTo = computed(() => pageTarget(props.tile.entity));
@@ -32,6 +35,10 @@ const bare = computed(() => props.tile.options?.background === "none");
 const display = computed(() => props.tile.options?.display || "standard");
 const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
 const controls = computed(() => effectiveControls(props.tile, state.inventory));
+const tallControls = computed(() => availableControl(domain.value,
+  props.tile.options?.inline === 'slider' ? inlineControlKind(domain.value) : controls.value,
+  current.value?.state || '', current.value?.a || {}));
+const tallKeys = computed(() => controlKeys(domain.value, tallControls.value, current.value?.state || '', current.value?.a || {}));
 const domain = computed(() => props.tile.entity.split(".")[0]);
 const cp = computed(() => state.inventory.icons?.controls || {});
 const key = (n: string) => (cp.value[n] ? glyph(cp.value[n]) : "");
@@ -110,6 +117,13 @@ const runText = computed(() => screenText(`screen.ha.button.${({ scene: "activat
 const pageLink = computed(() => `${screenText("screen.tile.page", { n: goesTo.value })} ›`);
 const sliderStyle = computed(() => ({ background: `linear-gradient(to right, ${palette.value.accent} ${fill.value}%, ${palette.value.track} ${fill.value}%)` }));
 const volumeStyle = sliderStyle;
+// The add-on prepares artwork; source URLs and HA credentials stay server-side.
+const artwork = computed(() => tall.value && display.value === 'cover' && domain.value === 'media_player' && current.value?.a?.artwork_mark
+  ? `api/media-art?entity=${encodeURIComponent(props.tile.entity)}&v=${encodeURIComponent(String(current.value.a.artwork_mark))}` : '');
+const artworkLoaded = ref(false);
+watch(artwork, () => { artworkLoaded.value = false; });
+const mediaSubtitle = computed(() => [current.value?.a?.media_artist, current.value?.a?.media_album_name].filter(Boolean).join(' · '));
+const features = computed(() => Number(current.value?.a?.supported_features || 0));
 // The screens give a control that fills its room the content width of one cell, so its edges stand where the
 // cards above and below have theirs (runtime_tiles::cell_content_width); keys, a switch and a run key keep their
 // own size. A double-width card is two cells, so that is half its room minus the gap and the paddings.
@@ -136,7 +150,7 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="tile" :class="{ wide, full, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+  <div class="tile" :class="{ wide, full, tall, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
     :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
     :tabindex="(preview ? goesTo : live) ? 0 : -1" :role="(preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
@@ -175,6 +189,35 @@ async function onKey(e: KeyboardEvent) {
         <span v-else-if="controls === 'run'" class="run">{{ runText }}</span>
         <span v-else class="range" :style="sliderStyle"></span>
       </span>
+    </template>
+    <template v-else-if="tall">
+      <img v-if="artwork" :key="artwork" class="tall-art" :src="artwork" alt="" @load="artworkLoaded = true" @error="artworkLoaded = false" />
+      <span class="head">
+        <span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span>
+        <span class="tx"><span class="nm">{{ name }}</span><span v-if="status" class="st" :class="{ off: gone }">{{ status }}</span></span>
+      </span>
+      <span v-if="domain === 'climate' && tallControls === 'setpoint'" class="tall-setpoint">
+        <span class="target"><span class="key mdi">{{ key('minus') || '−' }}</span><b>{{ setpoint }}</b><span class="key mdi">{{ key('plus') || '+' }}</span></span>
+        <span class="st">{{ current?.a?.current_temperature !== undefined ? screenText('screen.climate.now', { value: `${num(current.a.current_temperature)}°` }) : status }}</span>
+      </span>
+      <template v-else>
+        <span class="tall-body">
+          <template v-if="domain === 'media_player' && !gone">
+            <MarqueeText class="track-title" :text="String(current?.a?.media_title || '')" /><span v-if="mediaSubtitle" class="st">{{ mediaSubtitle }}</span>
+          </template>
+          <span v-else-if="domain === 'climate' && !gone" class="target-value">{{ current?.a?.current_temperature !== undefined ? `${num(current.a.current_temperature)}°` : '—' }}</span>
+          <span v-else-if="domain !== 'screen' && !gone" class="target-value">{{ domain === 'light' && isOn ? `${fill}%` : status }}</span>
+        </span>
+      <span v-if="tallControls" class="ctl" :class="{ playback: tallControls === 'playback' }">
+        <span v-if="tallControls === 'toggle'" class="tog" :class="{ off: !on }"></span>
+        <span v-else-if="tallControls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <template v-else-if="tallKeys.length"><span v-for="(control, i) in tallKeys" :key="i" class="key mdi" :class="{ primary: control.primary, disabled: control.disabled, active: control.mode === current?.state }">{{ key(control.icon) }}</span></template>
+        <span v-else-if="tallControls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <template v-else-if="tallControls === 'volume'"><span v-if="features & 4" class="range" :style="volumeStyle"></span><span v-if="features & 8" class="key mdi">{{ key(current?.a?.is_volume_muted ? 'volume-off' : 'volume-high') }}</span></template>
+        <span v-else-if="tallControls === 'run'" class="run">{{ runText }}</span>
+        <span v-else class="range" :style="sliderStyle"></span>
+      </span>
+      </template>
     </template>
     <template v-else-if="wide">
       <span class="lead">
@@ -227,4 +270,25 @@ async function onKey(e: KeyboardEvent) {
 .digital-clock { display: grid; gap: 3px; align-content: center; text-align: center; min-width: 0; width: 100%; height: 100%; }
 .digital-clock .big { font-size: 28px; font-weight: 400; }
 .digital-clock .st { font-size: 9px; }
+/* Additional rows extend the existing header and controls. All single-row selectors remain unchanged. */
+.tile.tall { flex-direction: column; align-items: stretch; justify-content: start; container-type: size; }
+.tile.tall .head { flex: none; }
+.tile.tall .tall-body { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: center; overflow: hidden; gap: 3px; }
+.track-title { font-weight: 600; font-size: clamp(12px, 9cqh, 21px); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tile.tall .ctl { justify-content: center; width: 100%; }
+.tile.tall .range { flex: 1; height: clamp(22px, 18cqh, 36px); border-radius: 10px; position: relative; }
+.tile.tall .range::after { content: ''; width: 3px; height: 50%; background: white; border-radius: 2px; position: absolute; left: clamp(4px, v-bind('fill + "%"'), calc(100% - 6px)); top: 25%; }
+.tile.tall .key.disabled { opacity: .35; }
+.tile.tall .key { width: clamp(22px, 18cqh, 36px); height: clamp(22px, 18cqh, 36px); min-width: 0; padding: 0; border-radius: 50%; }
+.tile.tall .playback .key.primary, .tile.tall .key.active { background: var(--tile-accent); color: white; }
+.tall-setpoint { flex: 1; display: flex; flex-direction: column; min-height: 0; justify-content: center; gap: 5px; text-align: center; }
+.target { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+.target b, .target-value { font-size: clamp(16px, 18cqh, 42px); font-weight: 400; text-align: center; }
+.tile.tall .tall-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; opacity: 0; filter: brightness(.333); pointer-events: none; }
+.tile.tall .head, .tile.tall .tall-body, .tile.tall .ctl, .tile.tall .tall-setpoint { position: relative; }
+.tile.tall.photo .tall-art { opacity: 1; }
+.tile.tall.photo, .tile.tall.photo .st, .tile.tall.photo .ctl { color: white; }
+.tile.tall.photo .ic { background: #333; color: white; }
+.tile.tall.photo .playback .key { background: transparent; }
+.tile.tall.photo .playback .key.primary { background: white; color: #111; }
 </style>

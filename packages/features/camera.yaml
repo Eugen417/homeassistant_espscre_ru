@@ -103,7 +103,8 @@ online_image:
       - lambda: 'runtime_tiles::camera_loaded(true, cached);'
     on_error:
       - lambda: 'runtime_tiles::camera_failed(true);'
-  # The live pictures of a page's camera tiles (firmware 0.2.77+): one strip of small squares, at most ~70 KB.
+  # One decoded image for all pictured tiles. Compact tiles use a strip; taller media
+  # tiles use an add-on-prepared atlas bounded by the screen canvas (RGB565, 2 bytes/pixel).
   - id: tile_image
     url: "http://127.0.0.1/camera.bmp"  # set when a page with live camera tiles is on screen
     format: BMP

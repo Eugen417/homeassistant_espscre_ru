@@ -3,7 +3,7 @@
 import { computed, reactive, toRaw, watch } from "vue";
 import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
-import { entriesOf, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
+import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
 import type { Capability, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile, PageLayout, PageDocument, PageGrid, PageWorkspace } from "./types";
@@ -661,6 +661,9 @@ export function resizeTile(tile: Tile, size: Size, axis: 'columns' | 'rows') {
   if (!current || size === sizeOf(current) || !resizeChoices(current, axis).includes(size)) return false;
   return editDocument(draft => {
     const owned = draft.pages.flatMap(page => page.tiles).find(item => item.id === current.id)!;
+    // Gaining height exposes choices, it never opts into a default control.
+    if (owned.placement.rows === 1 && dimensions(size, grid).rows > 1 && owned.interaction.controls === undefined)
+      owned.interaction.controls = effectiveControls(current, state.inventory) || 'none';
     Object.assign(owned.placement, dimensions(size, grid));
     if (size === 'single') delete owned.appearance.presentation;
     else owned.appearance.presentation = size;
@@ -675,12 +678,16 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
   const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasSize = sizeOf(tile);
   if (key === "size" && ["tall", "square"].includes(String(value)) && (!tallerTilesEnabled.value || !currentScreen.value?.tile_sizes?.includes(String(value)))) return;
   if (key === "size" && value === "tall" && ["forecast", "sunpath"].includes(String(tile.options?.display))) return;
+  const previousControls = effectiveControls(tile, state.inventory);
   tile.options = { ...tile.options, [key]: value };
+  if (key === 'size' && ['tall', 'square'].includes(String(value)) && dimensions(wasSize, grid).rows === 1 && !('controls' in tile.options))
+    tile.options.controls = previousControls || 'none';
   // Direct controls need the standard layout without a mini slider, and vice versa.
   if (key === "display" && value === "watch") { tile.options.inline = "none"; if (state.inventory.controls?.[domain]) tile.options.controls = "none"; }
   if (key === "display" && ["forecast", "sunpath"].includes(value as string) && !isWide(tile)) tile.options.size = "wide";
   if (key === "inline" && value === "slider") { tile.options.display = "standard"; if (state.inventory.controls?.[domain]) tile.options.controls = "none"; }
-  if (key === "controls" && value !== "none") { tile.options.display = "standard"; tile.options.inline = "none"; }
+  if (key === "controls" && value === "none" && ["tall", "square"].includes(sizeOf(tile))) tile.options.inline = "none";
+  if (key === "controls" && value !== "none") { if (tile.options.display !== "cover") tile.options.display = "standard"; tile.options.inline = "none"; }
   // A card that becomes wide gets the first direct control Home Assistant offers when the usual one isn't there.
   const catalogue = state.inventory.controls?.[domain];
   if (key === "size" && ["wide", "square"].includes(String(value)) && caps && catalogue && !("controls" in tile.options) && !caps.controls.includes(catalogue.default))

@@ -19,7 +19,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import (Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
@@ -2068,28 +2068,42 @@ class Manager:
     async def answer_live(self, inbox, screen, request):
         """The strip for a page's live camera tiles: every tile the screen names must be a camera tile of its layout
         set to a live picture; the pace of each comes from that tile's own setting."""
-        live = camera_feed.live_request(request)
+        atlas = None
+        if 'atlas' in request:
+            shape = camera_feed.shape_of(screen) if screen else {}
+            count = len(request.get('tiles', '').split(',')) if isinstance(request.get('tiles'), str) else 0
+            atlas = camera_feed.tile_art.parse(request['atlas'], (shape.get('width', 0), shape.get('height', 0)), count)
+            if atlas is None:
+                return
+        live = camera_feed.live_request(request, atlas=atlas is not None)
         if not live or not camera_feed.can_show_live(screen) or not screen.get('online'):
             return
         action = self.transport(inbox, screen)
         if not action:
             return
         entities, size, grounds = live
-        tiles = {tile['entity']: tile.get('options') or {} for tile in self.layouts.get(inbox, {}).get('tiles', [])}
-        # A camera tile set to a live picture, or a media tile set to its cover (app 0.2.92).
-        wanted = {'live', 'cover'}
-        if any(entity not in tiles or tiles[entity].get('display') not in wanted
-               or (tiles[entity].get('display') == 'cover') != camera_feed.cover_supported(entity) for entity in entities):
+        # The same entity may have a cover on one page and an ordinary tile on
+        # another. Authorize against any configured pictured tile, not the last
+        # occurrence of an entity in the document.
+        tiles = {}
+        for tile in self.layouts.get(inbox, {}).get('tiles', []):
+            options = tile.get('options') or {}
+            display = options.get('display')
+            entity = tile['entity']
+            if display in ('live', 'cover') and (display == 'cover') == camera_feed.cover_supported(entity):
+                tiles.setdefault(entity, []).append(options)
+        if any(entity not in tiles for entity in entities):
             LOG.info('Live pictures for %s: not the pictured tiles of %s', ', '.join(entities), screen['name'])
             return
-        paces = [tiles[entity].get('refresh', camera_feed.LIVE_REFRESH[0]) if tiles[entity].get('display') == 'live' else 0 for entity in entities]
+        paces = [min(option.get('refresh', camera_feed.LIVE_REFRESH[0]) if option.get('display') == 'live' else 0
+                     for option in tiles[entity]) for entity in entities]
         url, listing = '', ','.join(entities)
         base = await camera_feed.base_url(self.ha.request)
         if base:
-            found = await self.camera.live(entities, size, grounds, paces)
+            found = await self.camera.live(entities, size, grounds, paces, **({"atlas": atlas} if atlas else {}))
             if found:
                 listing = ','.join(found[2])
-                token = self.camera.link(listing, (size, size), live=(entities, size, grounds, paces))
+                token = self.camera.link(listing, atlas[:2] if atlas else (size, size), live=(entities, size, grounds, paces) + ((atlas,) if atlas else ()))
                 url = f'{base}/camera/{token}.bmp'
         else:
             LOG.warning('Live pictures: no address for this app on the LAN; set SCREEN_CAMERA_URL')
@@ -2627,6 +2641,20 @@ def create_app(manager, development=False):
         async with preview_history_slots:
             return web.json_response({'history': await manager.card_history(entity, hours, 'line')})
 
+    async def media_art_preview(request):
+        # The browser receives only prepared pixels, never HA tokens or source URLs.
+        entity = request.query.get('entity', '')
+        if not camera_feed.cover_supported(entity) or entity not in manager.ha.states:
+            raise web.HTTPNotFound()
+        result = await manager.camera.cover_preview(entity)
+        if result is None:
+            raise web.HTTPNotFound()
+        tag, body = result
+        headers = {'ETag': tag, 'Cache-Control': 'private, max-age=30'}
+        if request.headers.get('If-None-Match') == tag:
+            return web.Response(status=304, headers=headers)
+        return web.Response(body=body, content_type='image/bmp', headers=headers)
+
     async def states(request):
         """Live values for the editor's mockup (app 0.2.73): the state, Home Assistant's word and the attributes a
         card shows, for the tiles on the page, saved or not. At most sixty entities per request."""
@@ -2639,7 +2667,14 @@ def create_app(manager, development=False):
             entry = index.get(eid)
             message = state_message(0, {'entity': eid, 'name': ''}, manager.ha.states,
                                     precision=header_bar.precision_of(entry) if eid.startswith('sensor.') else None)
-            result[eid] = {'state': message['state'], 'a': message['a'],
+            attributes = dict(message['a'])
+            if eid.startswith('media_player.'):
+                for key in ('media_title', 'media_artist', 'media_album_name', 'media_duration', 'media_position'):
+                    value = state.get('attributes', {}).get(key)
+                    if isinstance(value, (str, int, float)):
+                        attributes[key] = value
+                attributes['artwork_mark'] = (media_extras(state.get('attributes', {})) or {}).get('pic', '')
+            result[eid] = {'state': message['state'], 'a': attributes,
                            'word': state_word(eid, state.get('state'), state.get('attributes'), entry, getattr(manager.ha, 'state_words', None))}
         return web.json_response({'states': result})
     def one_alert_target(inbox):
@@ -2749,6 +2784,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/capabilities', capabilities)
     app.router.add_get('/api/states', states)
     app.router.add_get('/api/history-preview', preview_history)
+    app.router.add_get('/api/media-art', media_art_preview)
     app.router.add_post('/api/screens/{inbox}/identify', identify)
     app.router.add_post('/api/screens/{inbox}/calibrate', calibrate)
     app.router.add_post('/api/alerts/test', test_alert)

@@ -765,6 +765,40 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
             await m.answer_camera({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,media_player.tv', 'size': '54', 'bg': 'FFFFFF,FFFFFF'})
             self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
 
+    async def test_tall_artwork_is_bounded_and_reuses_the_live_image_endpoint(self):
+        from PIL import Image
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            ha = fake_ha(picture('JPEG', (900, 600)))
+            ha.states['sensor.d1_fw']['state'] = '0.2.103'
+            m = Manager(with_screen_grid(ha), Path(tmp) / 'screens.json')
+            seed_layout(m, 'text.d1_tiles', validate_layout({'title': 'Media', 'tiles': [
+                {'entity': 'media_player.sonos', 'name': '', 'options': {'display': 'cover', 'size': 'wide'}}]}))
+            request = {'inbox': 'text.d1_tiles', 'tiles': 'media_player.sonos,media_player.sonos',
+                       'size': '54', 'bg': 'E6E6E6,FFFFFF',
+                       'atlas': json.dumps([[16, 70, 220, 220, 20, 170], [260, 80, 54, 54, 9, 0]])}
+            await m.answer_camera(request)
+            message = [entry[2] for entry in ha.log if entry[0] == 'send'][-1]
+            token = message['u'].rsplit('/', 1)[1][:-4]
+            status, raw, tag = await m.camera.serve(token)
+            self.assertEqual(status, 200)
+            with Image.open(io.BytesIO(raw)) as image:
+                self.assertEqual(image.size, (314, 290))
+                self.assertLess(image.getpixel((110, 180))[0], image.getpixel((285, 105))[0])
+            # An ordinary duplicate on a different page does not revoke the cover.
+            m.layouts['text.d1_tiles']['tiles'].append({'entity': 'media_player.sonos', 'name': 'Plain'})
+            ha.log.clear()
+            await m.answer_camera(request)
+            self.assertTrue(any(entry[0] == 'send' for entry in ha.log))
+            # Repeated sources are valid in an atlas, but never allocate twice per tile.
+            self.assertEqual(len(m.camera.strips), 1)
+            # Even a paired device cannot request images outside its native canvas.
+            ha.log.clear()
+            for bad in ('not json', '[[0,0,481,480,0,170]]', '[[0,0,220,220,0,170],[20,20,54,54,0,0]]'):
+                await m.answer_camera({**request, 'atlas': bad})
+            await m.answer_camera({**request, 'tiles': 'media_player.other,media_player.sonos'})
+            self.assertEqual([entry for entry in ha.log if entry[0] == 'send'], [])
+
     async def test_a_camera_without_a_picture_keeps_its_icon(self):
         with tempfile.TemporaryDirectory() as tmp:
             ha = fake_ha(None)

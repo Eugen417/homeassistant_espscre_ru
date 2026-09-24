@@ -464,7 +464,7 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out, uint32_t now = 
     add(glyph::CLOSE, TIMER_CANCEL);
   } else if (c == "playback") {
     if (t.supported & feature::MEDIA_PREVIOUS) add(glyph::PREVIOUS, MEDIA_PREVIOUS);
-    if (t.supported & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE);
+    if (t.supported & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE, !(t.supported & (t.state == "playing" ? feature::MEDIA_PAUSE : feature::MEDIA_PLAY)));
     if (t.supported & feature::MEDIA_NEXT) add(glyph::NEXT, MEDIA_NEXT);
   } else if (c == "mode") {
     // Three keys fit beside the name; Home Assistant lists modes in device order.
@@ -506,7 +506,11 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
     case VACUUM_STOP: return {(t.supported & feature::VACUUM_STOP) ? "vacuum.stop" : "vacuum.turn_off", "", ""};
     case VACUUM_DOCK: return {"vacuum.return_to_base", "", ""};
     case MEDIA_PREVIOUS: return {"media_player.media_previous_track", "", ""};
-    case MEDIA_PLAY_PAUSE: return {"media_player.media_play_pause", "", ""};
+    case MEDIA_PLAY_PAUSE:
+      if((t.supported&(feature::MEDIA_PLAY|feature::MEDIA_PAUSE))==(feature::MEDIA_PLAY|feature::MEDIA_PAUSE))return {"media_player.media_play_pause", "", ""};
+      if(t.state=="playing"&&(t.supported&feature::MEDIA_PAUSE))return {"media_player.media_pause", "", ""};
+      if(t.state!="playing"&&(t.supported&feature::MEDIA_PLAY))return {"media_player.media_play", "", ""};
+      return {};
     case MEDIA_NEXT: return {"media_player.media_next_track", "", ""};
     case MEDIA_MUTE: return {"media_player.volume_mute", "is_volume_muted", t.muted ? "false" : "true"};
     case TIMER_START: return {"timer.start", "", ""};
@@ -643,6 +647,23 @@ inline bool light_dims(const Tile &t) {
   if (t.modes.empty()) return true;
   return t.modes.find("brightness") != std::string::npos || light_colour(t) ||
          t.modes.find("white") != std::string::npos;
+}
+
+// A saved tall-tile selection can outlive the entity's capabilities. Keep the
+// selection in configuration, but do not draw or dispatch an unsupported panel.
+inline bool panel_available(const Tile &t) {
+  if(!t.available())return false;
+  const auto mode=panel_kind(t),domain=t.domain();
+  if(is_key_row(mode)){std::array<Key,3> keys;return keys_for(t,keys)>0;}
+  if(mode=="brightness")return domain=="light"&&light_dims(t);
+  if(mode=="speed")return domain=="fan"&&(t.supported&1);
+  if(mode=="position")return domain=="cover"&&(t.supported&feature::COVER_POSITION);
+  if(mode=="volume")return domain=="media_player"&&(t.supported&(feature::MEDIA_VOLUME_SET|feature::MEDIA_VOLUME_MUTE));
+  if(mode=="setpoint")return domain=="climate"&&(t.supported&1); // single target, not a heat/cool range
+  if(mode=="slider"||mode=="stepper")return domain=="number"||domain=="input_number";
+  if(mode=="toggle")return domain=="light"||domain=="switch"||domain=="input_boolean"||domain=="fan";
+  if(mode=="run")return domain=="scene"||domain=="script"||domain=="button"||domain=="input_button";
+  return false;
 }
 
 inline Tap tap_route(const Tile &t, bool hold) {

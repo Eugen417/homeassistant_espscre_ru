@@ -8,7 +8,7 @@ import HelpTip from "./HelpTip.vue";
 import { computed, ref, toRaw } from "vue";
 import { t } from "../i18n";
 import { beginFieldEdit, endFieldEdit } from '../store';
-import { domainInfo, entriesOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
+import { domainInfo, entriesOf, inlineControlKind, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { currentScreen, automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, setTileName, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
@@ -68,13 +68,15 @@ const displayHint = computed(() => {
   if (c && display.value === "graph" && !c.displays.includes("graph")) return t("editor.tile.display.no_graph");
   if (c && display.value === "forecast" && !c.displays.includes("forecast")) return t("editor.tile.display.no_forecast");
   if (display.value === "live") return t(supports(0, 2, 77) ? "editor.tile.display.live_hint" : "editor.tile.display.live_needs_firmware");
+  if (display.value === "cover" && taller.value) return t("editor.tile.display.tall_cover_hint");
   if (display.value === "cover") return t(supports(0, 2, 78) ? "editor.tile.display.cover_hint" : "editor.tile.display.cover_needs_firmware");
   return "";
 });
 const refresh = computed(() => current("refresh", 15) as number);
 const size = computed(() => current("size", "single") as string);
+const taller = computed(() => ["tall", "square"].includes(size.value));
 const catalogue = computed(() => state.inventory.controls?.[domain.value]);
-const controls = computed(() => current("controls", size.value === "full" ? "none" : catalogue.value?.default) as string);
+const controls = computed(() => taller.value && current("inline", "none") === "slider" ? inlineControlKind(domain.value) : current("controls", ["tall", "full"].includes(size.value) ? "none" : catalogue.value?.default) as string);
 const controlChoices = computed(() => {
   const c = caps.value;
   return (catalogue.value?.choices || []).filter((ch) => !c || ch.key === "none" || ch.key === controls.value || c.controls.includes(ch.key)).map((ch) => [ch.key, ch.label] as [string, string]);
@@ -83,7 +85,7 @@ const controlHint = computed(() => {
   const c = caps.value;
   if (c && controls.value !== "none" && !c.controls.includes(controls.value)) return { text: t("editor.tile.controls.not_offered"), warn: true };
   return { text: supports(0, 2, 19)
-    ? t(size.value === "full" ? "editor.tile.controls.full_hint" : "editor.tile.controls.wide_hint")
+    ? t(taller.value ? "editor.tile.controls.tall_hint" : size.value === "full" ? "editor.tile.controls.full_hint" : "editor.tile.controls.wide_hint")
     : t("editor.tile.controls.needs_firmware"), warn: false };
 });
 const tap = computed(() => current("tap", "auto") as string);
@@ -130,7 +132,7 @@ function writeSubText(value: string) {
   setTileOption(props.tile, "sub", words ? `text:${words}` : "none");
 }
 const inline = computed(() => current("inline", "none") as string);
-const showSlider = computed(() => SLIDER_DOMAINS.includes(domain.value) && (!caps.value || caps.value.inline || inline.value === "slider"));
+const showSlider = computed(() => !taller.value && SLIDER_DOMAINS.includes(domain.value) && (!caps.value || caps.value.inline || inline.value === "slider"));
 const sliderWarn = computed(() => inline.value === "slider" && caps.value && !caps.value.inline);
 const history = computed(() => current("history_hours", 24) as number);
 const backgrounds = computed(() => Object.entries(state.inventory.backgrounds || {}));
@@ -181,7 +183,7 @@ function inspect() {
       <span class="f-label">{{ t("editor.tile.page.label") }}</span>
       <Segmented :choices="onPage" :value="pageHere" @pick="(v) => moveTileToPage(tile, Number(v) - 1)" />
     </div>
-    <div v-if="catalogue && ['wide', 'square', 'full'].includes(size) && !goesTo" class="f">
+    <div v-if="catalogue && ['wide', 'tall', 'square', 'full'].includes(size) && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.controls.label") }}</span>
       <Segmented :choices="controlChoices" :value="controls" @pick="(v) => setTileOption(tile, 'controls', v)" />
       <template v-if="controlHint"><small v-if="controlHint.warn" class="warn">{{ controlHint.text }}</small><HelpTip v-else :text="controlHint.text" /></template>

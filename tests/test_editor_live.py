@@ -120,6 +120,33 @@ class Endpoints(unittest.IsolatedAsyncioTestCase):
         await self.client.close()
         self.tmp.cleanup()
 
+    async def test_media_preview_hides_source_urls_and_preserves_image_proportions(self):
+        import io
+        from PIL import Image
+        from unittest.mock import AsyncMock
+        attributes = {'media_title': 'A track', 'media_artist': 'An artist',
+                      'entity_picture': '/api/media/artwork?token=private', 'access_token': 'private'}
+        self.ha.states['media_player.test'] = {'state': 'playing', 'attributes': attributes}
+        response = await self.client.get('/api/states?entity=media_player.test')
+        result = await response.json()
+        self.assertEqual(response.status, 200)
+        self.assertNotIn('private', str(result))
+        self.assertEqual(result['states']['media_player.test']['a']['media_title'], 'A track')
+        self.assertEqual(len(result['states']['media_player.test']['a']['artwork_mark']), 10)
+        source = io.BytesIO()
+        Image.new('RGB', (1200, 600), (80, 130, 210)).save(source, 'JPEG')
+        self.manager.camera.picture = lambda entity: attributes['entity_picture']
+        self.manager.camera.fetch_cover = AsyncMock(return_value=source.getvalue())
+        response = await self.client.get('/api/media-art?entity=media_player.test')
+        self.assertEqual(response.status, 200)
+        tag = response.headers['ETag']
+        with Image.open(io.BytesIO(await response.read())) as image:
+            self.assertEqual(image.size, (512, 256))
+        response = await self.client.get('/api/media-art?entity=media_player.test', headers={'If-None-Match': tag})
+        self.assertEqual(response.status, 304)
+        self.assertEqual((await self.client.get('/api/media-art?entity=light.a')).status, 404)
+        self.assertEqual((await self.client.get('/api/media-art?entity=media_player.unknown')).status, 404)
+
     async def test_states_give_the_value_word_and_attributes_per_entity(self):
         response = await self.client.get('/api/states?entity=light.a&entity=sensor.t&entity=light.nope&entity=screen.clock')
         states = (await response.json())['states']
@@ -229,7 +256,7 @@ class Editor(unittest.TestCase):
         for marker in ('tileSizeChoices(props.tile)', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):
             self.assertIn(marker, drawer, marker)
         self.assertEqual((editor_sources.text('tile.size.full'), editor_sources.text('tile.goes_to.label')), ('Full page', 'Goes to page'))
-        self.assertIn(':class="{ wide, full, bare, placeholder: placeholder || !live, chosen }"', editor_sources.component('TileCard'))
+        self.assertIn(':class="{ wide, full, tall, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }"', editor_sources.component('TileCard'))
         self.assertIn('"timer", "screen",', editor_sources.component('Library'))
         self.assertEqual(editor_sources.text('library.filters.screen'), 'Screen')
 

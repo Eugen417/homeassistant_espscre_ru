@@ -1377,7 +1377,8 @@
         "cover_hint": "La copertina di ciò che suona al posto dell'icona, come nel riquadro di Home Assistant; un lettore senza immagine mantiene la sua icona. Un tocco apre ancora la scheda.",
         "cover_needs_firmware": "La copertina sul riquadro richiede il firmware 0.2.78 o più recente: premi Aggiorna sullo schermo dopo il salvataggio.",
         "no_graph": "Home Assistant non ha valori numerici per questa entità, quindi il grafico resta vuoto. Scegli un'altra visualizzazione.",
-        "no_forecast": "Questo servizio meteo non ha previsioni giornaliere in Home Assistant. Scegli un'altra visualizzazione."
+        "no_forecast": "Questo servizio meteo non ha previsioni giornaliere in Home Assistant. Scegli un'altra visualizzazione.",
+        "tall_cover_hint": ""
       },
       "refresh": {
         "label": "Aggiorna",
@@ -1403,7 +1404,8 @@
         "not_offered": "Home Assistant non offre questo controllo per questa entità, quindi sullo schermo resta vuoto. Scegline un altro.",
         "full_hint": "In basso nel riquadro a pagina intera; un tocco altrove funziona come impostato qui sotto.",
         "wide_hint": "A destra del riquadro a larghezza doppia, come le righe in Home Assistant. Un tocco sul nome funziona come impostato qui sotto.",
-        "needs_firmware": "Lo schermo mostra il controllo diretto a partire dal firmware 0.2.19; fino ad allora il riquadro resta com'era."
+        "needs_firmware": "Lo schermo mostra il controllo diretto a partire dal firmware 0.2.19; fino ad allora il riquadro resta com'era.",
+        "tall_hint": ""
       },
       "tap": {
         "label": "Al tocco",

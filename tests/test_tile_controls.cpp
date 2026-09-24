@@ -104,6 +104,12 @@ int main() {
   assert(keys_for(radio, keys) == 1 && !strcmp(keys[0].icon, glyph::PLAY));
   assert(status_text(radio) == "Idle");
 
+  radio.supported=feature::MEDIA_PLAY; radio.state="idle";
+  assert(key_action(radio,MEDIA_PLAY_PAUSE).service=="media_player.media_play");
+  radio.state="playing";assert(keys_for(radio,keys)==1&&keys[0].disabled);assert(!key_action(radio,MEDIA_PLAY_PAUSE).valid());
+  radio.supported=feature::MEDIA_PAUSE;assert(key_action(radio,MEDIA_PLAY_PAUSE).service=="media_player.media_pause");
+  radio.state="idle";assert(keys_for(radio,keys)==1&&keys[0].disabled);assert(!key_action(radio,MEDIA_PLAY_PAUSE).valid());
+
   // Climate: mode keys in priority order, at most three, the active one checked.
   Tile ac = make("climate.ac", "cool"); ac.edit_extra().hvac_modes = "[\"off\",\"heat_cool\",\"cool\",\"heat\",\"fan_only\",\"dry\"]"; ac.controls = "mode"; ac.current = 21.5f; ac.target = 20; ac.step = 1;
   assert(keys_for(ac, keys) == 3);
@@ -308,5 +314,18 @@ int main() {
   // Fan and swing settings in Home Assistant's words where it names them, an integration's own as its name.
   assert(climate_setting_text('f', "low") == "Low" && climate_setting_text('s', "both") == "Both");
   assert(climate_setting_text('f', "quiet_night") == "Quiet night" && climate_setting_text('s', "low") == "Low");
+  // Tall panels retain their chosen group but suppress unavailable capabilities.
+  Tile limited = make("light.relay", "on"); limited.controls="brightness"; limited.modes="[\"onoff\"]";
+  assert(!panel_available(limited)); limited.modes="[\"brightness\"]"; assert(panel_available(limited));
+  limited=make("cover.blind","open",3); limited.controls="position"; assert(!panel_available(limited));
+  limited.supported=4; assert(panel_available(limited));
+  limited=make("fan.simple","on",0); limited.controls="speed"; assert(!panel_available(limited));
+  limited.supported=1; assert(panel_available(limited));
+  limited=make("climate.range","heat_cool",2); limited.controls="setpoint"; assert(!panel_available(limited));
+  limited.supported=1; assert(panel_available(limited));
+  limited=make("media_player.mute","playing",8); limited.controls="volume"; assert(panel_available(limited));
+  limited.controls="playback"; assert(!panel_available(limited));
+  limited.supported=16; assert(panel_available(limited));
+  limited.state="unavailable"; assert(!panel_available(limited));
   return 0;
 }

@@ -92,3 +92,21 @@ it('previews a pointer gesture without changing the document and cancels on Esca
   expect(JSON.stringify(state.document)).toBe(before);
   view.unmount(); host.remove();
 });
+
+it('gaining height never opts into a default control, through either resize route', () => {
+  state.inventory.editor_features = { tall_tiles: true };
+  state.inventory.controls = { light: { default: 'toggle', choices: [{ key: 'toggle', label: 'Power' }, { key: 'none', label: 'None' }] } };
+  expect(resizeTile(tile(), 'tall', 'rows')).toBe(true);
+  expect(tile().options?.controls).toBe('none');
+  undo();
+  setTileOption(tile(), 'size', 'square');
+  expect(tile().options?.controls).toBe('none');
+});
+
+it('keeps already chosen controls when a wide tile gains height', () => {
+  state.inventory.editor_features = { tall_tiles: true };
+  setTileOption(tile(), 'size', 'wide');
+  setTileOption(tile(), 'controls', 'brightness');
+  expect(resizeTile(tile(), 'square', 'rows')).toBe(true);
+  expect(tile().options?.controls).toBe('brightness');
+});

@@ -166,6 +166,14 @@
     }
   },
   "editor": {
-    "installer": {}
+    "installer": {},
+    "tile": {
+      "controls": {
+        "tall_hint": ""
+      },
+      "display": {
+        "tall_cover_hint": ""
+      }
+    }
   }
 }

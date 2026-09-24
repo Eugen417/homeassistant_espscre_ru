@@ -55,6 +55,13 @@ class Rectangles(unittest.TestCase):
         self.assertEqual(resolve_controls(tile('light.test', 0, 'square')), resolve_controls(tile('light.test', 0, 'wide')))
         self.assertIsNone(resolve_controls(tile('light.test', 0, 'tall')))
 
+    def test_tall_controls_are_explicit_and_resize_events_keep_the_footprint(self):
+        item = tile('media_player.test', 0, 'tall')
+        self.assertIsNone(resolve_controls(item))
+        item['options']['controls'] = 'playback'
+        self.assertEqual(resolve_controls(item), 'playback')
+        self.assertEqual(tile_options({'size': 'tall'}, {'controls': 'playback'})['size'], 'tall')
+
     def test_events_keep_square_controls_and_in_order_packing(self):
         self.assertEqual(tile_options({'size': 'square'}, {'controls': 'playback'})['size'], 'square')
         items = [tile('sensor.a', 0), tile('sensor.b', 0), tile('light.c', 0, 'wide'), tile('sensor.d', 0)]

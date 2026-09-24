@@ -1377,7 +1377,8 @@
         "cover_hint": "De albumhoes van wat er speelt op de plek van het icoon, zoals de eigen tile van Home Assistant; een speler zonder afbeelding houdt zijn icoon. Een tik opent nog steeds de kaart.",
         "cover_needs_firmware": "De albumhoes op de tile heeft firmware 0.2.78 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
         "no_graph": "Home Assistant heeft geen getallen voor deze entiteit, dus de grafiek blijft leeg. Kies een andere weergave.",
-        "no_forecast": "Deze weerdienst heeft geen dagverwachting in Home Assistant. Kies een andere weergave."
+        "no_forecast": "Deze weerdienst heeft geen dagverwachting in Home Assistant. Kies een andere weergave.",
+        "tall_cover_hint": "Gebruikt de albumhoes als donkere achtergrond. Zonder afbeelding blijft de normale tegel zichtbaar."
       },
       "refresh": {
         "label": "Verversen",
@@ -1403,7 +1404,8 @@
         "not_offered": "Home Assistant biedt deze bediening niet voor deze entiteit, dus die blijft leeg op het scherm. Kies een andere.",
         "full_hint": "Onderaan de paginavullende tegel; een tik ergens anders werkt zoals hieronder ingesteld.",
         "wide_hint": "Rechts op de dubbelbrede tegel, zoals de rijen in Home Assistant. Tikken op de naam werkt zoals hieronder ingesteld.",
-        "needs_firmware": "Het scherm toont directe bediening vanaf firmware 0.2.19; tot die tijd blijft de tegel zoals hij was."
+        "needs_firmware": "Het scherm toont directe bediening vanaf firmware 0.2.19; tot die tijd blijft de tegel zoals hij was.",
+        "tall_hint": "Kies de bediening in de extra hoogte. Vergroten behoudt je keuze en voegt nooit automatisch bediening toe."
       },
       "tap": {
         "label": "Bij aantikken",

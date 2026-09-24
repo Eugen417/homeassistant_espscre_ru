@@ -1377,7 +1377,8 @@
         "cover_hint": "Okładka albumu tego, co gra, w miejscu ikony, jak na kafelku Home Assistant; odtwarzacz bez obrazu zachowuje ikonę. Dotknięcie nadal otwiera kartę.",
         "cover_needs_firmware": "Okładka albumu na kafelku wymaga firmware 0.2.78 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
         "no_graph": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wykres pozostanie pusty. Wybierz inny widok.",
-        "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok."
+        "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok.",
+        "tall_cover_hint": ""
       },
       "refresh": {
         "label": "Odświeżanie",
@@ -1403,7 +1404,8 @@
         "not_offered": "Home Assistant nie oferuje tego sterowania dla tej encji, więc na ekranie to miejsce pozostanie puste. Wybierz inne.",
         "full_hint": "Na dole kafelka na całą stronę; dotknięcie w innym miejscu działa zgodnie z ustawieniem poniżej.",
         "wide_hint": "Po prawej stronie kafelka podwójnej szerokości, jak w wierszach encji w Home Assistant. Dotknięcie nazwy działa zgodnie z ustawieniem poniżej.",
-        "needs_firmware": "Ekran pokazuje bezpośrednie sterowanie od wersji firmware 0.2.19; do tego czasu kafelek pozostaje bez zmian."
+        "needs_firmware": "Ekran pokazuje bezpośrednie sterowanie od wersji firmware 0.2.19; do tego czasu kafelek pozostaje bez zmian.",
+        "tall_hint": ""
       },
       "tap": {
         "label": "Po dotknięciu",

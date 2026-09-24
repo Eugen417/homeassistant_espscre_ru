@@ -46,6 +46,12 @@ Hover over a tile or focus its edge handle to resize it. The right handle change
 
 These sizes reuse existing designs. A 1 × 2 tile keeps the single-column design, including its optional slider or graph. A 2 × 2 tile keeps the double-width design and its direct controls. Extra height does not enable a different control set or force a full-page design. Moving, copying, exporting and undoing keep the rectangular footprint with the tile.
 
+Taller standard tiles extend the existing header. Media uses the selected playback or volume controls below track information. Selecting **Album cover** uses the artwork as a dimmed background on boards that support pictures. Climate can put the target between round minus and plus controls, or show the measured temperature above selected HVAC modes. Light brightness and other sliders reuse the existing large controls. Unavailable entities keep their unavailable state and their detail action.
+
+Controls remain an explicit choice in the tile inspector. Increasing height preserves a previously selected group and does not enable a default group on a previously unconfigured tile. There is one selected group per tile; additional height alone does not combine playback with volume or setpoint with modes. All single-row tiles and existing full-page designs keep their original renderer.
+
+The layout measures the available content rectangle, active fonts and physical touch sizes. Optional text gives way before touch targets. A control group that cannot fit an unusually dense custom grid is left in the detail view instead of drawing overlapping buttons. Source artwork is cropped, dimmed and rounded by the add-on, then decoded into the screen's existing shared image buffer. It does not allocate an additional image per tile. The atlas is bounded by the reported screen canvas; a missing or changed picture returns to the normal tile palette. The editor fetches prepared pixels through its relative Ingress API, never a Home Assistant token or source URL.
+
 Update the screen before choosing a taller size. Its supported sizes are negotiated, separately from the page protocol. The add-on checks them before starting a replacement, so a saved rectangle cannot be silently reduced on an older screen. The storage version and migration path are unchanged.
 
 Before downgrading to 0.3.0, change taller tiles back to Normal, Double width or Full page and save. Older add-ons cannot read the new presentations, even though the surrounding page-document structure is unchanged.
@@ -123,3 +129,6 @@ Historical readers and the older wire adapter are separate add-on concerns. They
 
 See the [0.3.0 test results](TEST_RESULTS_030.md) for upgrade checks, board builds, measured memory use and the limits of physical validation.
 The [0.3.1 test results](TEST_RESULTS_031.md) cover taller tiles and their rendering and compatibility checks.
+
+Responsive tall controls and their validation are described in
+[the acceptance report](TEST_RESULTS_TALL_CONTROLS.md).

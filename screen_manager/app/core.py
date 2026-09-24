@@ -317,10 +317,10 @@ def resolve_controls(tile):
     options = tile.get('options', {})
     domain = tile['entity'].split('.')[0]
     # The album cover in the icon's place (app 0.2.92) is the standard layout with a picture: the controls stay.
-    if domain not in CONTROLS or options.get('size') not in ('wide', 'square', 'full') or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
+    if domain not in CONTROLS or options.get('size') not in ('wide', 'tall', 'square', 'full') or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
         return None
     # A full-page card is one big button unless a control was chosen for it; a wide card shows its usual one.
-    choice = options.get('controls', 'none' if options.get('size') == 'full' else CONTROLS[domain][0][0])
+    choice = options.get('controls', 'none' if options.get('size') in ('tall', 'full') else CONTROLS[domain][0][0])
     return None if choice == 'none' else choice
 
 # Diagnostic entities every ESP Screens firmware exposes; the manager watches them for screens.
@@ -978,7 +978,7 @@ def tile_options(data, current=None):
         options['action'] = {'action': str(data['action']).strip(), **({'data': data['data']} if isinstance(data.get('data'), dict) and data['data'] else {})}
         if data.get('tap') in (None, ''):
             options['tap'] = 'action'
-    if (options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY) and options.get('size') not in ('square', 'full'):
+    if (options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY) and options.get('size') not in ('tall', 'square', 'full'):
         options['size'] = 'wide'
     return {key: value for key, value in options.items() if value not in (None, '')}
 

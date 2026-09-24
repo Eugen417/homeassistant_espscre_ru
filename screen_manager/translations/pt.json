@@ -1377,7 +1377,8 @@
         "cover_hint": "A capa do álbum do que está a tocar no lugar do ícone, como no próprio mosaico do Home Assistant; um leitor sem imagem mantém o seu ícone. Um toque continua a abrir o cartão.",
         "cover_needs_firmware": "A capa do álbum no mosaico precisa do firmware 0.2.78 ou mais recente: prima Atualizar no ecrã depois de guardar.",
         "no_graph": "O Home Assistant não tem valores numéricos para esta entidade, por isso o gráfico fica vazio. Escolha outra apresentação.",
-        "no_forecast": "Este serviço meteorológico não tem previsão diária no Home Assistant. Escolha outra apresentação."
+        "no_forecast": "Este serviço meteorológico não tem previsão diária no Home Assistant. Escolha outra apresentação.",
+        "tall_cover_hint": ""
       },
       "refresh": {
         "label": "Atualizar",
@@ -1403,7 +1404,8 @@
         "not_offered": "O Home Assistant não oferece este controlo para esta entidade, por isso fica vazio no ecrã. Escolha outro.",
         "full_hint": "Na parte de baixo do mosaico de página inteira; um toque em qualquer outro sítio funciona como definido abaixo.",
         "wide_hint": "À direita do mosaico de largura dupla, como as linhas no Home Assistant. Tocar no nome funciona como definido abaixo.",
-        "needs_firmware": "O ecrã mostra o controlo direto a partir do firmware 0.2.19; até lá, o mosaico fica como estava."
+        "needs_firmware": "O ecrã mostra o controlo direto a partir do firmware 0.2.19; até lá, o mosaico fica como estava.",
+        "tall_hint": ""
       },
       "tap": {
         "label": "Ao tocar",

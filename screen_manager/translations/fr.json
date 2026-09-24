@@ -1377,7 +1377,8 @@
         "cover_hint": "La pochette de ce qui joue à la place de l'icône, comme la tuile de Home Assistant ; un lecteur sans image garde son icône. Un appui ouvre toujours la carte.",
         "cover_needs_firmware": "La pochette sur la tuile demande le firmware 0.2.78 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
         "no_graph": "Home Assistant n'a pas de valeurs numériques pour cette entité : le graphique reste donc vide. Choisissez un autre affichage.",
-        "no_forecast": "Ce service météo n'a pas de prévisions journalières dans Home Assistant. Choisissez un autre affichage."
+        "no_forecast": "Ce service météo n'a pas de prévisions journalières dans Home Assistant. Choisissez un autre affichage.",
+        "tall_cover_hint": ""
       },
       "refresh": {
         "label": "Rafraîchir",
@@ -1403,7 +1404,8 @@
         "not_offered": "Home Assistant ne propose pas cette commande pour cette entité : elle reste donc vide sur l'écran. Choisissez-en une autre.",
         "full_hint": "En bas de la tuile pleine page ; toucher ailleurs agit comme réglé ci-dessous.",
         "wide_hint": "À droite de la tuile double largeur, comme les lignes dans Home Assistant. Toucher le nom agit comme réglé ci-dessous.",
-        "needs_firmware": "L'écran affiche la commande directe à partir du firmware 0.2.19 ; d'ici là, la tuile reste comme avant."
+        "needs_firmware": "L'écran affiche la commande directe à partir du firmware 0.2.19 ; d'ici là, la tuile reste comme avant.",
+        "tall_hint": ""
       },
       "tap": {
         "label": "Au toucher",
