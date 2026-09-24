@@ -493,7 +493,7 @@ export function commitArrangement(result: { tile: Tile; slot: number }[]) {
     // page, in the same undo operation as its navigation tile.
     const draft = pages.clone(state.document);
     const count = Math.max(draft.pages.length, ...result.filter(({ tile }) => !tile.id).map(({ tile }) => pageTarget(tile.entity)));
-    if (count > pages.pageLimit(state.documentGrid)) throw new Error("This screen has no room for another page");
+    if (count > pages.pageLimit(state.documentGrid)) throw new Error(t("addon.errors.pages.pages_full"));
     while (draft.pages.length < count) draft.pages.push(pages.emptyPage(draft.pages.at(-1)!.topbar));
     return applyDocument(pages.arrangeTiles(draft, state.documentGrid, result));
   }
@@ -559,7 +559,7 @@ export function openPage(id: string) {
 export function connectTile(tileId: string, target: string | "home") {
   return editDocument((draft) => {
     const tile = draft.pages.flatMap((page) => page.tiles).find((item) => item.id === tileId);
-    if (tile?.content.kind !== "navigation") throw new Error("Select a page-navigation tile to change its destination");
+    if (tile?.content.kind !== "navigation") throw new Error(t("addon.errors.pages.select_link"));
     tile.content.target = target === "home" ? { kind: "home" } : { kind: "page", pageId: target };
   });
 }
@@ -693,7 +693,7 @@ export function retargetPageTile(tile: Tile, page: number) {
   return editDocument((draft) => {
     while (draft.pages.length < page) draft.pages.push(pages.emptyPage(draft.pages.at(-1)!.topbar));
     const source = draft.pages.flatMap((item) => item.tiles).find((item) => item.id === tile.id);
-    if (!source || source.content.kind !== "navigation") throw new Error("The navigation tile no longer exists");
+    if (!source || source.content.kind !== "navigation") throw new Error(t("addon.errors.pages.tile_missing"));
     source.content.target = { kind: "page", pageId: draft.pages[page - 1].id };
   });
 }
@@ -946,7 +946,7 @@ export async function importLayout(text: string) {
   try { data = JSON.parse(text); } catch { toast(t("editor.layout.not_json")); return; }
   if (!state.selected || !state.documentGrid) return;
   const screen = state.selected, selection = selectionEpoch;
-  if (data?.esp_screens_layout !== 2 && !confirm(`This older export does not record its grid. Import it as ${state.documentGrid.columns} × ${state.documentGrid.rows} cells per page?`)) return;
+  if (data?.esp_screens_layout !== 2 && !confirm(t("addon.errors.pages.import_grid", { columns: state.documentGrid.columns, rows: state.documentGrid.rows }))) return;
   try {
     const record = await send<PageDocument>(`screens/${encodeURIComponent(screen)}/import`, "POST", {
       document: data, sourceGrid: data?.sourceGrid || state.documentGrid,

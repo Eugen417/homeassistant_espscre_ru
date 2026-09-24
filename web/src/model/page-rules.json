@@ -1,0 +1,342 @@
+{
+  "domains": [
+    "binary_sensor",
+    "button",
+    "camera",
+    "climate",
+    "cover",
+    "fan",
+    "image",
+    "input_boolean",
+    "input_button",
+    "input_number",
+    "input_select",
+    "light",
+    "media_player",
+    "number",
+    "person",
+    "scene",
+    "script",
+    "select",
+    "sensor",
+    "sun",
+    "switch",
+    "timer",
+    "vacuum",
+    "weather"
+  ],
+  "headerDomains": [
+    "alarm_control_panel",
+    "binary_sensor",
+    "button",
+    "climate",
+    "counter",
+    "cover",
+    "device_tracker",
+    "event",
+    "fan",
+    "humidifier",
+    "input_boolean",
+    "input_button",
+    "input_datetime",
+    "input_number",
+    "input_select",
+    "input_text",
+    "light",
+    "lock",
+    "media_player",
+    "number",
+    "person",
+    "scene",
+    "script",
+    "select",
+    "sensor",
+    "sun",
+    "switch",
+    "timer",
+    "vacuum",
+    "water_heater",
+    "weather",
+    "zone"
+  ],
+  "headerBuiltin": [
+    "clock",
+    "analog",
+    "date"
+  ],
+  "headerContents": [
+    "state",
+    "last_changed"
+  ],
+  "headerShows": [
+    "always",
+    "active"
+  ],
+  "displays": {
+    "weather": [
+      "standard",
+      "watch",
+      "forecast"
+    ],
+    "sensor": [
+      "standard",
+      "watch",
+      "graph"
+    ],
+    "screen": [
+      "digital",
+      "analog"
+    ],
+    "sun": [
+      "standard",
+      "watch",
+      "sunpath"
+    ],
+    "camera": [
+      "standard",
+      "live"
+    ],
+    "image": [
+      "standard",
+      "live"
+    ],
+    "media_player": [
+      "standard",
+      "watch",
+      "cover"
+    ]
+  },
+  "wideOnly": [
+    "forecast",
+    "sunpath"
+  ],
+  "controls": {
+    "climate": [
+      "setpoint",
+      "mode"
+    ],
+    "switch": [
+      "toggle"
+    ],
+    "input_boolean": [
+      "toggle"
+    ],
+    "light": [
+      "toggle",
+      "brightness"
+    ],
+    "fan": [
+      "toggle",
+      "speed"
+    ],
+    "vacuum": [
+      "buttons"
+    ],
+    "cover": [
+      "buttons",
+      "position"
+    ],
+    "media_player": [
+      "volume",
+      "playback"
+    ],
+    "number": [
+      "stepper",
+      "slider"
+    ],
+    "input_number": [
+      "stepper",
+      "slider"
+    ],
+    "select": [
+      "stepper"
+    ],
+    "input_select": [
+      "stepper"
+    ],
+    "timer": [
+      "buttons"
+    ],
+    "scene": [
+      "run"
+    ],
+    "script": [
+      "run"
+    ],
+    "button": [
+      "run"
+    ],
+    "input_button": [
+      "run"
+    ]
+  },
+  "backgrounds": [
+    "auto",
+    "none",
+    "red",
+    "orange",
+    "yellow",
+    "green",
+    "mint",
+    "blue",
+    "purple",
+    "pink",
+    "gray"
+  ],
+  "refresh": [
+    15,
+    30
+  ],
+  "icons": [
+    "account",
+    "account-child",
+    "account-group",
+    "air-conditioner",
+    "air-purifier",
+    "airplane",
+    "alarm",
+    "alarm-light",
+    "album",
+    "alert-outline",
+    "awning-outline",
+    "bathtub",
+    "battery-high",
+    "bed",
+    "bell",
+    "bell-ring",
+    "bike",
+    "blinds",
+    "blinds-open",
+    "briefcase",
+    "broom",
+    "calendar",
+    "car",
+    "car-electric",
+    "cast",
+    "cat",
+    "cctv",
+    "ceiling-fan",
+    "ceiling-light",
+    "chandelier",
+    "chef-hat",
+    "clock-outline",
+    "coffee-maker",
+    "cog",
+    "curtains",
+    "curtains-closed",
+    "desk",
+    "desk-lamp",
+    "dishwasher",
+    "dog",
+    "door-closed",
+    "door-open",
+    "doorbell",
+    "ev-station",
+    "fan",
+    "fire",
+    "fireplace",
+    "flash",
+    "floor-lamp",
+    "flower",
+    "fridge",
+    "gamepad-variant",
+    "garage",
+    "gauge",
+    "gesture-tap-button",
+    "grass",
+    "grill",
+    "guitar-acoustic",
+    "headphones",
+    "heart",
+    "heat-pump",
+    "home",
+    "home-account",
+    "home-battery",
+    "kettle",
+    "lamp",
+    "laptop",
+    "led-strip-variant",
+    "light-recessed",
+    "lightbulb",
+    "lightbulb-group",
+    "lock",
+    "lock-open-variant",
+    "mailbox",
+    "map-marker",
+    "meter-electric",
+    "meter-gas",
+    "microwave",
+    "molecule-co2",
+    "motion-sensor",
+    "movie-open",
+    "music",
+    "music-note",
+    "outdoor-lamp",
+    "palette",
+    "piano",
+    "play",
+    "playlist-music",
+    "podcast",
+    "pool",
+    "power",
+    "power-plug",
+    "power-socket-eu",
+    "printer-3d",
+    "projector",
+    "radiator",
+    "radio",
+    "record-player",
+    "recycle",
+    "remote-tv",
+    "robot-mower",
+    "robot-vacuum",
+    "roller-shade-closed",
+    "router-wireless",
+    "run",
+    "script-text",
+    "shield-home",
+    "shower",
+    "silverware-fork-knife",
+    "sleep",
+    "smoke-detector",
+    "snowflake",
+    "sofa",
+    "solar-panel",
+    "solar-power",
+    "soundbar",
+    "speaker",
+    "speaker-multiple",
+    "spotify",
+    "spotlight-beam",
+    "sprinkler",
+    "sprout",
+    "stove",
+    "television",
+    "thermometer",
+    "thermostat",
+    "timer-outline",
+    "toaster-oven",
+    "toggle-switch",
+    "toilet",
+    "trash-can",
+    "tree",
+    "tumble-dryer",
+    "wall-sconce-flat",
+    "washing-machine",
+    "water",
+    "water-alert",
+    "water-boiler",
+    "water-percent",
+    "weather-cloudy",
+    "weather-night",
+    "weather-partly-cloudy",
+    "weather-rainy",
+    "weather-snowy",
+    "weather-sunny",
+    "weather-sunset-up",
+    "weather-windy",
+    "window-closed-variant",
+    "window-shutter",
+    "window-shutter-open"
+  ]
+}

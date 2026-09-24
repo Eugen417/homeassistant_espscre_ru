@@ -33,6 +33,8 @@ from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, compile_tiles, grid
                          legacy_projection, legacy_edit, validate_document, bar_items, replace_tiles, CompiledLayouts, fingerprint)
 from layout_migrations import migrate_legacy
 import page_delivery
+import page_service
+from page_capabilities import CapabilityCache, identity as page_identity
 
 
 def row_icon(eid, state, attrs, entry):
@@ -630,6 +632,7 @@ class Manager:
         # last: the last full send; pinged: the last keepalive ping.
         self.sent, self.status, self.last, self.pinged = {}, {}, {}, {}
         self.page_senders = {}
+        self.page_capabilities = CapabilityCache(self.path.parent / 'page-capabilities.json')
         self._compiled_records, self._compiled_layouts = None, {}
         self._compiled_store_stamp = object()
         self._migration_metadata = None
@@ -753,7 +756,17 @@ class Manager:
                 current = self.screen(inbox) or screen
                 return await self.ha.send(inbox, message, message_action(current.get('node')), respond=True)
             self.page_senders[inbox] = page_delivery.Sender(send)
-        return self.page_senders[inbox]
+            self.page_capabilities.restore(inbox, screen, self.page_senders[inbox])
+        sender = self.page_senders[inbox]
+        marker = page_identity(screen)
+        previous = getattr(sender, 'device_marker', None)
+        if previous is not None and any(previous.get(key) != value for key, value in marker.items()):
+            sender.disconnected()
+            sender.last_protocol = None
+            sender.last_tile_sizes = {'single', 'wide', 'full'}
+            self.page_capabilities.restore(inbox, screen, sender)
+        sender.device_marker = {**(previous or {}), **marker}
+        return sender
 
     async def probe_pages(self, inbox, screen):
         """Learn capabilities before the first Save, once per device connection.
@@ -762,14 +775,9 @@ class Manager:
         session is in use. Firmware/node changes invalidate cached capability.
         """
         sender = self.page_sender(inbox, screen)
-        marker = (screen.get('firmware'), screen.get('node'))
-        if getattr(sender, 'device_marker', None) != marker:
-            sender.disconnected()
-            sender.last_protocol = None
-            sender.last_tile_sizes = {'single', 'wide', 'full'}
-            sender.device_marker = marker
         if sender.protocol is None and self.answers(inbox, screen):
             await sender.probe()
+            self.page_capabilities.remember(inbox, screen, sender)
         return sender
 
     async def send_auxiliary(self, inbox, message, action, request):
@@ -796,99 +804,16 @@ class Manager:
                 'percent_space': self.region.percent_space()}
 
     def preflight_update(self, inbox):
-        """Do not install firmware that cannot use this screen's saved data."""
-        inbox = self.aliases.get(inbox, inbox)
-        record = self.store.retry_migrations().get(inbox)
-        if record is None: return  # A newly installed screen has no saved layout yet.
-        if record['format'] != PAGE_FORMAT:
-            raise LayoutError('Resolve the saved layout migration before updating this screen: ' + record.get('migrationError', 'source grid unavailable'))
-        grid = self.verified_grid(inbox)
-        if grid is None or grid != grid_of_record(record):
-            raise LayoutError('Review the saved layout for this screen grid before updating the screen')
-        validate_document(record['layout'], grid)
-        self.preflight_pages(inbox, record)
+        return page_service.preflight_update(self, inbox=inbox)
 
     def preflight_pages(self, inbox, record):
-        """Bound immutable options and current values before save or install."""
-        flat = compile_tiles(record['layout'], grid_of_record(record))
-        values = [state_message(i, tile, self.ha.states) for i, tile in enumerate(flat)]
-        bars = [self.header_message({'header': {'items': bar_items(page)}})['items'] for page in record['layout']['pages']]
-        try: page_delivery.prepare(inbox, record, self.page_region(), values, bars)
-        except page_delivery.Refused as error: raise LayoutError(str(error)) from error
+        return page_service.preflight_pages(self, inbox=inbox, record=record)
 
     def preflight_profile(self, data):
-        if not isinstance(data, dict) or data.get('action') != 'install': return
-        profiles = self.firmware.profile_names()
-        for screen in self.screens():
-            profile, _ = self.updates.resolve(screen, profiles)
-            if profile and profile == data.get('file'):
-                self.preflight_update(screen['id'])
+        return page_service.preflight_profile(self, data=data)
 
     def save_pages(self, inbox, data):
-        """Commit a validated page document before any delivery is scheduled."""
-        if not isinstance(data, dict) or set(data) - {'format', 'layout', 'revision', 'workspace', 'adaptation'} or data.get('format') != PAGE_FORMAT:
-            raise LayoutError('Unsupported editor format; reload the editor')
-        inbox = self.aliases.get(inbox, inbox)
-        screen = self.screen(inbox)
-        if screen is None: raise LayoutError(t('addon.errors.not_paired'))
-        previous = self.store.get(inbox)
-        grid = self.verified_grid(inbox) or (grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
-        if grid is None: raise LayoutError('The source grid is not known; connect this screen first')
-        adaptation = data.get('adaptation')
-        if adaptation is not None:
-            expected = {'from': previous.get('sourceGrid') if previous else None, 'to': {'columns': grid.columns, 'rows': grid.rows}}
-            if not previous or previous['format'] != PAGE_FORMAT or adaptation != expected or self.verified_grid(inbox) is None:
-                raise LayoutError('Screen grid changed; review the adaptation again')
-        document = validate_document(data.get('layout'), grid)
-        candidate = {'format': PAGE_FORMAT, 'sourceGrid': {'columns': grid.columns, 'rows': grid.rows}, 'layout': document}
-        sender = self.page_senders.get(inbox)
-        verified_protocol = (sender.protocol if sender.protocol is not None else sender.last_protocol) if sender else None
-        if verified_protocol != 2:
-            # An existing v2-only document survives disconnects and downgrades.
-            # Introducing new-only features first requires proof from the board.
-            already_requires_v2 = False
-            if previous and previous['format'] == PAGE_FORMAT:
-                try: legacy_projection(previous)
-                except LayoutError: already_requires_v2 = True
-            if not already_requires_v2:
-                try: legacy_projection(candidate)
-                except LayoutError:
-                    raise LayoutError('Update screen to use the new titlebar and layout') from None
-        flat = legacy_projection(candidate, require_representable=False)
-        required_sizes = {tile.get('options', {}).get('size', 'single') for tile in flat['tiles']} & {'tall', 'square'}
-        supported_sizes = getattr(sender, 'tile_sizes' if sender.protocol is not None else 'last_tile_sizes', set()) if sender else set()
-        if required_sizes and not required_sizes <= supported_sizes:
-            raise LayoutError('Update screen to use taller tiles')
-        limit = firmware_features(self.firmware_version(inbox, screen), grid)['tile_limit']
-        if len(flat['tiles']) > limit:
-            raise LayoutError(t('addon.errors.layout.tiles_max', n=limit))
-        if any(tile['entity'].split('.')[0] in CAMERA_DOMAINS for tile in flat['tiles']) and board_of(screen) not in camera_feed.BOXES:
-            raise LayoutError(t('addon.errors.layout.camera_unsupported'))
-        needed = self.needs_firmware(inbox, flat, screen)
-        if needed: raise LayoutError(t('addon.errors.layout.firmware_first', version=needed))
-        _, entities = self.inventory()
-        known = {e['id'] for e in entities} | set(BUILTIN)
-        existing = {tile['entity'] for tile in self.layouts.get(inbox, {}).get('tiles', [])}
-        if any(tile['entity'] not in known and tile['entity'] not in existing and not page_target(tile['entity']) for tile in flat['tiles']):
-            raise LayoutError(t('addon.errors.layout.entity_gone'))
-        existing_headers = {item['entity'] for page in previous['layout']['pages'] for item in bar_items(page)
-                            if item['type'] == 'entity'} if previous and previous['format'] == PAGE_FORMAT else set()
-        for page in document['pages']:
-            if any(item['type'] == 'entity' and item['entity'] not in known and item['entity'] not in self.ha.states
-                   and item['entity'] not in existing_headers
-                   for item in bar_items(page)):
-                raise LayoutError(t('addon.errors.top_bar.entity_gone'))
-        # Configuration options, including explicit actions, must fit before a
-        # durable save. Delivery checks the full refreshed state again because
-        # forecasts, history and HA attributes can change independently.
-        self.preflight_pages(inbox, candidate)
-        record = self.store.save(inbox, document, data.get('revision'), data.get('workspace'), adapt_grid=adaptation is not None)
-        self.sent.pop(inbox, None)
-        self.status[inbox] = 'Saved, waiting for screen'
-        self.history_wake.set()
-        self.ha.changed.set()
-        self.notify()
-        return record
+        return page_service.save_pages(self, inbox=inbox, data=data)
 
     def resolve_clock_pin(self):
         """The pinned 24 hours of an app from before Language & region become 12 when every screen's own "24-hour clock"
@@ -1003,6 +928,7 @@ class Manager:
         elif old in records:
             LOG.warning('Screen %s already has a layout; the one stored under %s stays untouched', new, old)
         self.page_senders.pop(old, None)
+        self.page_capabilities.forget(old)
         self.page_values.pop(old, None)
         if self.updates.renamed(old, new):
             moved.append('update history')
@@ -1022,6 +948,7 @@ class Manager:
         history, and what the sync loop remembered about it. The mirror of `rename_inbox` (app 0.2.112)."""
         self.store.forget(inbox)
         self.page_senders.pop(inbox, None)
+        self.page_capabilities.forget(inbox)
         self.page_values.pop(inbox, None)
         self.updates.forget(inbox)
         for store in (self.sent, self.status, self.last, self.pinged, self.published, self.retry_at, self.retries):
@@ -1247,7 +1174,7 @@ class Manager:
         grid = self.verified_grid(inbox) or (grid_of_record(previous) if previous and previous['format'] == PAGE_FORMAT else None)
         layout = validate_layout({**base, 'settings': settings}, grid=grid)
         if not previous:
-            if grid is None: raise LayoutError('Source grid is not known')
+            if grid is None: raise LayoutError(t('addon.errors.pages.source_grid'))
             record = migrate_legacy(base, grid)
             self.store.save(inbox, record['layout'], None, settings=settings)
         else:
@@ -1585,7 +1512,7 @@ class Manager:
         previous = self.store.get(inbox)
         if previous:
             if previous['format'] != PAGE_FORMAT:
-                raise LayoutError('Resolve the pending source-grid migration before editing')
+                raise LayoutError(t('addon.errors.pages.migration_pending'))
             document = legacy_edit(previous, layout)
         else:
             document = migrate_legacy(layout, grid)['layout']
@@ -1784,50 +1711,7 @@ class Manager:
         return message
 
     async def sync_pages(self, inbox, record, screen, dirty=None, force=False, context=None):
-        grid = self.verified_grid(inbox)
-        if grid is None or grid != grid_of_record(record):
-            self.status[inbox] = 'Screen grid changed or is unavailable; review the layout before applying'
-            return False
-        sender = self.page_sender(inbox, screen)
-        flat = self.layouts[inbox]
-        cached = self.page_values.get(inbox)
-        full = force or dirty is None or not cached or cached['revision'] != record['revision'] or cached['context'] != context
-        if full:
-            dependencies = [{item['entity'] for item in bar_items(page) if item['type'] == 'entity'} for page in record['layout']['pages']]
-        else:
-            dependencies = cached['dependencies']
-        values = []
-        for i, tile in enumerate(flat['tiles']):
-            reuse = not full and tile['entity'] not in dirty and dirty.isdisjoint(self.related_entities(tile))
-            if reuse and tile['entity'].startswith('weather.') and self.forecast_due(tile['entity']): reuse = False
-            values.append(cached['values'][i] if reuse else await self.tile_message(i, tile))
-        bars = [cached['bars'][i] if not full and dirty.isdisjoint(dependencies[i]) else
-                self.header_message({'header': {'items': bar_items(page)}})['items'] for i, page in enumerate(record['layout']['pages'])]
-        expected = record['revision']
-        def current():
-            saved = self.store.get(inbox)
-            return saved is not None and saved.get('revision') == expected
-        before = sender.confirmed
-        if before != page_delivery.configuration(record, self.page_region()):
-            self.status[inbox] = 'Applying'
-            self.notify()
-        try:
-            rev = await sender.synchronize(inbox, record, self.page_region(), values, bars, current)
-        except page_delivery.Superseded:
-            self.ha.changed.set()
-            return True
-        except page_delivery.Refused as error:
-            self.status[inbox] = str(error)
-            return False
-        if not current():
-            self.ha.changed.set()
-            return True
-        self.sent[inbox] = {'protocol': 2, 'rev': rev, 'saved_revision': expected}
-        self.page_values[inbox] = {'revision': expected, 'context': context, 'dependencies': dependencies, 'values': values, 'bars': bars}
-        self.status[inbox] = 'Applied'
-        self.last[inbox] = time.monotonic()
-        if before != rev: self.pinged[inbox] = self.last[inbox]
-        return before != rev
+        return await page_service.sync_pages(self, inbox=inbox, record=record, screen=screen, dirty=dirty, force=force, context=context)
 
     async def sync_one(self, inbox, layout, force=False, screen=None, dirty=None):
         """Send the screen what it lacks; True when something went out.
@@ -2471,11 +2355,14 @@ def create_app(manager, development=False):
             # A screen without tiles yet: the title the screen itself shows without one, in its language (app 0.2.90).
             screen['layout'] = manager.layouts.get(screen['id'], {'title': screen_t('screen.status.home'), 'tiles': []})
             record = manager.store.get(screen['id'])
-            screen['page_document'] = ({**record, 'migrationRevision': fingerprint(record['payload'])}
+            screen['page_document'] = ({**record, 'migrationRevision': fingerprint(record['payload']),
+                                       'migrationError': t(record['migrationError'] if record.get('migrationError') in
+                                                           ('addon.errors.pages.source_grid', 'addon.errors.pages.migration_unreadable')
+                                                           else 'addon.errors.pages.migration_unreadable')}
                                        if record and record['format'] == 'legacy-v1' else record)
             source = manager.verified_grid(screen['id'])
             screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
-            sender = manager.page_senders.get(screen['id'])
+            sender = manager.page_sender(screen['id'], screen)
             screen['tile_sizes'] = sorted(sender.tile_sizes if sender.protocol is not None else sender.last_tile_sizes) if sender else ['single', 'wide', 'full']
             screen['page_capability'] = ('offline' if not screen.get('online') or not sender or sender.protocol is None
                                          else 'ready' if sender.protocol == 2 else 'update_screen')
@@ -2558,23 +2445,23 @@ def create_app(manager, development=False):
             raise LayoutError(t('addon.errors.not_paired'))
         data = await request.json()
         if not isinstance(data, dict) or set(data) != {'document', 'sourceGrid'}:
-            raise LayoutError('Invalid layout import')
+            raise LayoutError(t('addon.errors.layout.invalid'))
         source = data['document']
-        if not isinstance(source, dict): raise LayoutError('Invalid layout export')
+        if not isinstance(source, dict): raise LayoutError(t('addon.errors.layout.invalid'))
         if source.get('esp_screens_layout') == 2:
             if set(source) - {'esp_screens_layout', 'sourceGrid', 'layout', 'editor'}:
-                raise LayoutError('Unknown layout export fields')
+                raise LayoutError(t('addon.errors.layout.invalid'))
             grid = grid_of_record(source)
             record = {'format': PAGE_FORMAT, 'sourceGrid': source['sourceGrid'],
                       'layout': validate_document(source.get('layout'), grid), 'revision': ''}
             if 'editor' in source:
                 editor = source['editor']
                 if not isinstance(editor, dict) or set(editor) != {'positions'}:
-                    raise LayoutError('Invalid exported workspace')
+                    raise LayoutError(t('addon.errors.pages.workspace_refs'))
                 record['workspace'] = LayoutStore._workspace({'revision': '', 'positions': editor['positions']},
                                                               {page['id'] for page in record['layout']['pages']})
         else:
-            if source.get('esp_screens_layout', 1) != 1: raise LayoutError('Unknown layout export version')
+            if source.get('esp_screens_layout', 1) != 1: raise LayoutError(t('addon.errors.layout.invalid'))
             # Old exports omitted their source grid. The editor asks the user
             # to confirm it explicitly before crossing this migration boundary.
             grid = grid_of_record({'sourceGrid': data['sourceGrid']})
@@ -2584,10 +2471,10 @@ def create_app(manager, development=False):
     async def start_fresh(request):
         data = await request.json()
         if not isinstance(data, dict) or set(data) != {'revision'}:
-            raise LayoutError('Invalid recovery request')
+            raise LayoutError(t('addon.errors.pages.fields'))
         inbox = manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
         screen = manager.screen(inbox)
-        if not screen: raise LayoutError('Connect this screen before starting fresh')
+        if not screen: raise LayoutError(t('addon.errors.pages.source_grid'))
         record = manager.store.start_fresh(inbox, data['revision'], screen_t('screen.status.home'))
         manager.ha.changed.set()
         manager.notify()
@@ -2596,7 +2483,7 @@ def create_app(manager, development=False):
     async def dismiss_migration(request):
         data = await request.json()
         if not isinstance(data, dict) or set(data) != {'revision'}:
-            raise LayoutError('Invalid migration acknowledgment')
+            raise LayoutError(t('addon.errors.pages.fields'))
         inbox = manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
         record = manager.store.dismiss_migration(inbox, data['revision'])
         manager.notify()
@@ -2605,7 +2492,7 @@ def create_app(manager, development=False):
     async def save_workspace(request):
         data = await request.json()
         if not isinstance(data, dict) or set(data) != {'revision', 'workspace'}:
-            raise LayoutError('Invalid workspace save')
+            raise LayoutError(t('addon.errors.pages.workspace_refs'))
         inbox = manager.aliases.get(request.match_info['inbox'], request.match_info['inbox'])
         workspace = manager.store.save_workspace(inbox, data['revision'], data['workspace'])
         manager.notify()

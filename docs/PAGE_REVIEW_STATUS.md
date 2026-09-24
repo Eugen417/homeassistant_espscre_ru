@@ -12,15 +12,18 @@ default checkbox. No changes have been published.
 | 1. Taller-tile scope | Sizes remain in 0.3.1 as selected; the feature has a separate commit. | No branch split is requested. |
 | 2. Migration | Historical grid fallback verified against Git history; per-tile and malformed metadata recovery, dangling-link destinations retained, unknown option filtering, NaN isolation, original backup, dismissible recovery notes, real startup-order tests. Readable pending records can still reach verified old firmware. Explicit Start fresh preserves the backup and checks the pending revision. | Broader editor acceptance. |
 | 3. Upgrade communication | Easy Setup and changelog explain update order, backup, downgrade and old editor tabs. Firmware messages translated in all languages, with regional inheritance. | None. |
-| 4. Translations | Page-editor, delivery and firmware messages translated in all base languages. Missing keys now fail the check, with regression coverage; regional variants inherit. | Remove user-facing literal validation errors. |
-| 5. Firmware safety | Checked record reservations replace the aborting allocator. Failed reservations retain the old model and transfer; equal-size replacements reuse storage. Navigation no longer requires HA connectivity. Obsolete packing code removed. | All-board host regression with disconnected HA and refusal scenarios; physical CYD acceptance. |
-| 6. Editor defects | Explicit conflict recovery, offline capability retention during a connection outage, removal-toast expiry, grouped text undo, destination-title preservation. | Broader UI acceptance and capability retention across add-on restarts. |
-| 7. Page top bars | Independent page bars retained as selected. Negotiated `bar_values` sends identical resolved values once to bounded explicit destinations; differing formats stay independent. Conditional visibility changes replace the affected bar. | Host parser acceptance in progress. |
+| 4. Translations | Page-editor, delivery and firmware messages translated in all base languages. Missing keys now fail the check, with regression coverage; regional variants inherit. | Static page and storage validation errors are translated, including pending migration errors per reader. Delivery refusals still need a final pass. |
+| 5. Firmware safety | Checked record reservations replace the aborting allocator. Failed reservations retain the old model and transfer; equal-size replacements reuse storage. Navigation no longer requires HA connectivity. Obsolete packing code removed. | Physical CYD acceptance. |
+| 6. Editor defects | Explicit conflict recovery, offline capability retention during an outage and across add-on restarts, bound to the device and known firmware, removal-toast expiry, grouped text undo, destination-title preservation. | Broader UI acceptance. |
+| 7. Page top bars | Independent page bars retained as selected. Negotiated `bar_values` sends identical resolved values once to bounded explicit destinations; differing formats stay independent. Conditional visibility changes replace the affected bar. | Host parser acceptance passed, including refusal without partial changes. |
 | 8. Pagination wording | Positive checkbox, default on; all translations and page documentation updated. | None. |
 | 9. Editor modes | Free map positions retained as selected. Simple offers navigation preview; unavailable duplication is hidden; empty copy is prominent. Scoped history skips map actions in Simple and does not restore invisible positions. | Broader UI acceptance. |
 
-Additional work still includes receiver/service extraction, cosmetic in-place
-updates, conformance fixtures and editor model cleanup. A single size capability
+Page save and delivery policy now lives in `page_service.py`. Editor and server
+run the same 52 conformance documents, with generated card choices. Text editing
+keeps unfinished input locally while the document remains canonical.
+Additional work still includes receiver extraction, cosmetic in-place updates
+and editor workspace/conflict model cleanup. A single size capability
 table now drives advertisement and validation. Old editor saves are refused;
 settings use the verified grid and saves enforce the older firmware tile limit.
 The compiled-layout read cache uses the file stamp; verified discovery is cached
@@ -29,7 +32,7 @@ accepted move. Tile arrangements must retain every existing tile ID.
 
 ## Verification completed during this review
 
-- Full fast checks: 712 Python tests, 25 C++ programs and 211 editor tests, plus
+- Full fast checks: 718 Python tests, 25 C++ programs and 266 editor tests, plus
   type checking, generated files and the editor build.
 - Address/undefined-behavior sanitizers on the runtime model and page protocol.
   Fault injection refuses either record allocation and checks that the original
@@ -41,9 +44,13 @@ accepted move. Tile arrangements must retain every existing tile ID.
   uses 1,657,744 B (90.3%), leaving 177,264 B, with 3,888 B growth against its
   matching baseline. The existing tight-flash warning remains. The P4 requires
   ESPHome 2026.8.0 and is excluded from this minimum-version run.
-- CYD host rendering passes 40 page checks. This is simulated input, not a
-  physical touchscreen test and not yet a disconnected-HA swipe test.
-- The disposable Guition was flashed and its compilation identity verified.
+- All ten host variants pass 380 page checks in total. Real SDL touch events
+  navigate forward and back while the native API is disconnected. Malformed
+  shared bar updates and an oversize layout leave the active rendered pages
+  unchanged. Offscreen rendering prevents desktop pointer events interfering
+  with synthetic input. These are not physical touchscreen tests.
+- The disposable Guition was flashed at an earlier review checkpoint and its
+  compilation identity verified. The latest review firmware still needs flashing.
   Its unchanged eight-tile layout passed ten geometry checks and fifty overlay
   render cycles. No physical taps or household device actions were performed.
 

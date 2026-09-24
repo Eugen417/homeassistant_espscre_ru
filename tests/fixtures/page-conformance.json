@@ -1,0 +1,3079 @@
+[
+  {
+    "name": "minimal canonical page",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001"
+    ]
+  },
+  {
+    "name": "empty page",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": []
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001"
+    ]
+  },
+  {
+    "name": "square media tile",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "media_player.room"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 2,
+                "rows": 2
+              },
+              "appearance": {
+                "label": "Desk",
+                "presentation": "square"
+              },
+              "interaction": {
+                "controls": "playback"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001"
+    ]
+  },
+  {
+    "name": "tall light",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 2
+              },
+              "appearance": {
+                "label": "Desk",
+                "presentation": "tall"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001"
+    ]
+  },
+  {
+    "name": "explicit custom title",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "text",
+              "text": "Kitchen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001"
+    ]
+  },
+  {
+    "name": "all pages excluded",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": true
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": []
+  },
+  {
+    "name": "automatic bar defaults",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "temperature",
+                "type": "entity",
+                "entity": "sensor.temperature"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001"
+    ]
+  },
+  {
+    "name": "custom action",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "tap": "action",
+                "action": {
+                  "action": "light.turn_on",
+                  "data": {
+                    "brightness": 150,
+                    "transition": 1,
+                    "profile": "Reading"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001"
+    ]
+  },
+  {
+    "name": "unknown root field",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ],
+      "unknown": true
+    }
+  },
+  {
+    "name": "unknown page field",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ],
+          "unknown": true
+        }
+      ]
+    }
+  },
+  {
+    "name": "numeric page identity",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": 1000000000000001,
+      "pages": [
+        {
+          "id": 1000000000000001,
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate instance identity",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "home",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown home",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000002",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "pagination not boolean",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": 1
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "extra text on inherited title",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen",
+              "text": "Ignored"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown title source",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "other",
+              "text": "Test"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty custom title",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "text",
+              "text": "  "
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "untrimmed screen title",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": " House ",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "untrimmed tile label",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": " Desk "
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "invalid tile domain",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "unsupported.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown built-in tile",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "builtin",
+                "name": "other"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown tile content",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "other"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "dangling navigation",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "navigation",
+                "target": {
+                  "kind": "page",
+                  "pageId": "0000000000000002"
+                }
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "home link with extra destination",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "navigation",
+                "target": {
+                  "kind": "home",
+                  "pageId": "0000000000000001"
+                }
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "overlapping tiles",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            },
+            {
+              "id": "other",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.other"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "fractional position",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0.5,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "rectangle beyond page",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 2,
+                "column": 0,
+                "columns": 1,
+                "rows": 2
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "null presentation",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "presentation": null
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "future presentation",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "presentation": "triple"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "presentation does not match rectangle",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "presentation": "wide"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown appearance field",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "future": true
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "unknown interaction field",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "future": true
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "invalid colour",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "background": "not-a-colour"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "invalid icon",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "icon": "not-an-icon"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "forecast requires normalization",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "weather.home"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "display": "forecast"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "stale refresh",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "refresh": 15
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "stale action",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "action": {
+                  "action": "light.turn_on"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "action targets another entity",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "tap": "action",
+                "action": {
+                  "action": "light.turn_on",
+                  "data": {
+                    "entity_id": "light.other"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "empty action data needs normalization",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "tap": "action",
+                "action": {
+                  "action": "light.turn_on",
+                  "data": {}
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "watch and slider conflict",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "display": "watch"
+              },
+              "interaction": {
+                "inline": "slider"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "wrong control domain",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "controls": "setpoint"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "subtitle auto needs normalization",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "subtitle": "auto"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "subtitle whitespace needs normalization",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "subtitle": "text: words "
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate normalized header",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "a",
+                "type": "entity",
+                "entity": "sensor.temperature"
+              },
+              {
+                "id": "b",
+                "type": "entity",
+                "entity": "sensor.temperature",
+                "content": "state",
+                "icon": "auto",
+                "show": "always"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "null header content",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "a",
+                "type": "entity",
+                "entity": "sensor.temperature",
+                "content": null
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "camera in header",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "a",
+                "type": "entity",
+                "entity": "camera.front"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "home links survive deleting the original home",
+    "valid": true,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        },
+        {
+          "id": "0000000000000002",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home2",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock2",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "back",
+              "content": {
+                "kind": "navigation",
+                "target": {
+                  "kind": "home"
+                }
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    },
+    "pagination": [
+      "0000000000000001",
+      "0000000000000002"
+    ],
+    "delete": {
+      "id": "0000000000000001",
+      "entities": [
+        "screen.page_1"
+      ]
+    }
+  },
+  {
+    "name": "entity newline",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk\n"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "tile identity newline",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light\n",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "action newline",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "tap": "action",
+                "action": {
+                  "action": "light.turn_on\n",
+                  "data": {
+                    "brightness": 123
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "action field newline",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk"
+              },
+              "interaction": {
+                "tap": "action",
+                "action": {
+                  "action": "light.turn_on",
+                  "data": {
+                    "brightness\n": 123
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "name": "subtitle attribute newline",
+    "valid": false,
+    "grid": {
+      "columns": 2,
+      "rows": 3
+    },
+    "document": {
+      "title": "House",
+      "homePageId": "0000000000000001",
+      "pages": [
+        {
+          "id": "0000000000000001",
+          "navigation": {
+            "excludeFromPagination": false
+          },
+          "topbar": {
+            "title": {
+              "source": "screen"
+            },
+            "leading": [
+              {
+                "id": "home",
+                "kind": "home"
+              }
+            ],
+            "trailing": [
+              {
+                "id": "clock",
+                "type": "clock"
+              }
+            ]
+          },
+          "tiles": [
+            {
+              "id": "light",
+              "content": {
+                "kind": "entity",
+                "entityId": "light.desk"
+              },
+              "placement": {
+                "row": 0,
+                "column": 0,
+                "columns": 1,
+                "rows": 1
+              },
+              "appearance": {
+                "label": "Desk",
+                "subtitle": "attr:brightness\n"
+              },
+              "interaction": {}
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

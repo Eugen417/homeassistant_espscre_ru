@@ -131,6 +131,16 @@ def host_core(tree):
     """packages/core.yaml with the host's stand-ins: no debug component, Wi-Fi or Wi-Fi sensors, a fixed IP text, the
     host's clock, and LVGL's snapshot for the render action."""
     text = (tree / 'packages' / 'core.yaml').read_text()
+    # Keep the complete production boot action. Adding a list in another package
+    # would replace its shorthand mapping instead of appending an automation.
+    def offscreen_boot(match):
+        original = ''.join('  ' + line if line.strip() else line for line in match[1].splitlines(keepends=True))
+        original = original.replace('      priority:', '    - priority:', 1)
+        return ('  on_boot:\n    - priority: 1000\n      then:\n'
+                '        - lambda: id(my_display).set_headless(true);\n' + original)
+    text, n = re.subn(r'(?m)^  on_boot:\n((?:^    [^\n]*\n|^\n)+)', offscreen_boot, text, count=1)
+    if n != 1:
+        shape_error('esphome.on_boot of packages/core.yaml')
     text, _ = drop_blocks(text, 'debug')
     text, _ = drop_blocks(text, 'wifi')
     text = drop_items(text, 'sensor', lambda item: re.match(r'  - platform: (debug|wifi_signal)\b', item))
@@ -240,7 +250,7 @@ def host_hw(board_text, chain):
     displays, touches = sorted(set(chain.displays)) or ['my_display'], sorted(set(chain.touches)) or ['ts_touch']
     if len(displays) != 1 or len(touches) != 1:
         raise SystemExit(f'expected one display and one touchscreen in the chain, found {displays} and {touches}')
-    text = f'''# Host stand-ins for the board's hardware (tools/render/host.py): the panel's own pixels in an SDL window.
+    text = f'''# Host stand-ins for the board's hardware (tools/render/host.py): the panel's own pixels on an offscreen SDL surface.
 display:
   - platform: sdl
     id: {displays[0]}
@@ -355,6 +365,42 @@ PROBES = '''    - action: render_finger
             sdl->mouse_x = ${TOUCH_SWAP_XY} ? ay : ax;
             sdl->mouse_y = ${TOUCH_SWAP_XY} ? ax : ay;
             sdl->mouse_down = down;
+    - action: render_offline_swipe
+      variables:
+        forward: bool
+      then:
+        - lambda: |-
+            id(render_offline_verified) = false;
+            auto *sdl = id(my_display);
+            sdl->set_timeout("offline-start", 1000, [sdl, forward]() {
+              id(render_offline_verified) = !runtime_tiles::ha_connected();
+              const uint32_t start = esphome::millis();
+              sdl->set_interval("offline-finger", 5, [sdl, forward, start]() {
+                id(render_offline_verified) &= !runtime_tiles::ha_connected();
+                const uint32_t elapsed = esphome::millis() - start;
+                const float progress = std::min(1.0f, elapsed < 150 ? 0.0f : (elapsed - 150) / 180.0f);
+                const int w = sdl->get_width(), h = sdl->get_height();
+                const int cw = lv_display_get_horizontal_resolution(lv_display_get_default());
+                const int ch = lv_display_get_vertical_resolution(lv_display_get_default());
+                const int x = cw * (forward ? 0.99f - 0.69f * progress : 0.01f + 0.69f * progress);
+                const int y = ch * 0.6f;
+                int nx = x, ny = y;
+                switch ((int) id(screen_lvgl).get_rotation()) {
+                  case 90: nx = w - y - 1; ny = x; break;
+                  case 180: nx = w - x - 1; ny = h - y - 1; break;
+                  case 270: nx = y; ny = h - x - 1; break;
+                  default: break;
+                }
+                const int ax = ${TOUCH_MIRROR_X} ? w - 1 - nx : nx, ay = ${TOUCH_MIRROR_Y} ? h - 1 - ny : ny;
+                sdl->mouse_x = ${TOUCH_SWAP_XY} ? ay : ax;
+                sdl->mouse_y = ${TOUCH_SWAP_XY} ? ax : ay;
+                sdl->mouse_down = elapsed < 335;
+                if (elapsed >= 335) sdl->cancel_interval("offline-finger");
+              });
+            });
+    - action: render_offline_result
+      then:
+        - lambda: 'ESP_LOGI("render", "offline verified=%d", (int) id(render_offline_verified));'
     - action: render_navigation
       then:
         - lambda: |-
@@ -484,6 +530,11 @@ external_components:
       type: local
       path: components
     components: [smart_display]
+
+globals:
+  - id: render_offline_verified
+    type: bool
+    initial_value: 'false'
 
 api:
   port: {item.port}

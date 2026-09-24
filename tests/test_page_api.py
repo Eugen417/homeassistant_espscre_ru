@@ -17,6 +17,40 @@ from server import create_app, status_text
 
 
 class PageApiTests(unittest.IsolatedAsyncioTestCase):
+    async def test_offline_edit_after_manager_restart_uses_only_saved_handshake_hints(self):
+        screen = {**self.manager.screen('text.screen'), 'device_id': 'test-device'}
+        async def answer(message):
+            return {'protocol': 2, 'request': message['request'], 'session': 'a' * 16,
+                    'status': 'Session:' + 'a' * 16, 'tile_sizes': ['single', 'wide', 'full', 'tall', 'square']}
+        sender = self.manager.page_sender('text.screen', screen)
+        sender.send = AsyncMock(side_effect=answer)
+        with patch.object(self.manager, 'answers', return_value=True):
+            await self.manager.probe_pages('text.screen', screen)
+        restarted = test_portal.ManagerTests.setup_manager(self, self.path)
+        restarted.ha.online = False
+        restarted.ha.send = AsyncMock()
+        before = restarted.store.get('text.screen')
+        draft = deepcopy(before['layout'])
+        draft['homePageId'] = draft['pages'][1]['id']
+        with patch.object(restarted, 'screen', return_value={**screen, 'online': False}):
+            result = restarted.save_pages('text.screen', {'format': 'pages-v2', 'revision': before['revision'], 'layout': draft})
+        self.assertEqual(result['layout'], draft)
+        restored = restarted.page_senders['text.screen']
+        self.assertEqual(restored.last_tile_sizes, {'single', 'wide', 'full', 'tall', 'square'})
+        self.assertIsNone(restored.protocol)
+        self.assertIsNone(restored.session)
+        restarted.ha.send.assert_not_awaited()
+
+    async def test_pending_migration_error_follows_each_readers_language(self):
+        self.path.write_text(json.dumps({'version': 1, 'screens': {'text.screen': []}}))
+        record = self.manager.store.get('text.screen')
+        self.assertEqual(record['migrationError'], 'addon.errors.pages.migration_unreadable')
+        for language, fragment in [('nl', 'De oude indeling'), ('de', 'Das alte Layout'), ('en', 'The old layout')]:
+            response = await self.client.get('/api/inventory?light=1', headers={'X-ESP-Screens-Language': language})
+            screen = next(s for s in (await response.json())['screens'] if s['id'] == 'text.screen')
+            self.assertIn(fragment, screen['page_document']['migrationError'])
+        self.assertEqual(self.manager.store.get('text.screen'), record)
+
     async def test_offline_save_uses_last_negotiated_page_capability(self):
         from page_delivery import Sender
         sender = Sender(AsyncMock())

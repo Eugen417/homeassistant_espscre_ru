@@ -14,6 +14,7 @@ from pathlib import Path
 import tempfile
 import threading
 
+from i18n import t
 from core import validate_settings
 from page_layout import FORMAT, LayoutError, fingerprint, grid_of_record, new_id, validate_document
 from layout_migrations import migrate_legacy
@@ -41,14 +42,14 @@ def _members(text, start=0):
     while index < len(text) and text[index].isspace():
         index += 1
     if index >= len(text) or text[index] != "{":
-        raise LayoutError("Expected a JSON object")
+        raise LayoutError(t('addon.errors.pages.fields'))
     index += 1
     while True:
         while text[index].isspace(): index += 1
         if text[index] == "}": return
         key, index = decoder.raw_decode(text, index)
         while text[index].isspace(): index += 1
-        if text[index] != ":": raise LayoutError("Invalid storage JSON")
+        if text[index] != ":": raise LayoutError(t('addon.errors.pages.storage_json'))
         index += 1
         while text[index].isspace(): index += 1
         begin = index
@@ -56,7 +57,7 @@ def _members(text, start=0):
         yield key, text[begin:index]
         while text[index].isspace(): index += 1
         if text[index] == "}": return
-        if text[index] != ",": raise LayoutError("Invalid storage JSON")
+        if text[index] != ",": raise LayoutError(t('addon.errors.pages.storage_json'))
         index += 1
 
 
@@ -65,17 +66,17 @@ def _json(text, *, legacy=False):
         result = {}
         for key, value in items:
             if key in result:
-                raise LayoutError("Duplicate keys in stored JSON")
+                raise LayoutError(t('addon.errors.pages.storage_duplicate'))
             result[key] = value
         return result
     def constant(value):
         if legacy:
             return float(value.replace("Infinity", "inf"))
-        raise LayoutError("Non-finite value in stored JSON")
+        raise LayoutError(t('addon.errors.pages.storage_nonfinite'))
     try:
         return json.loads(text, object_pairs_hook=pairs, parse_constant=constant)
     except (ValueError, TypeError) as error:
-        raise LayoutError("Invalid storage JSON; data stays unchanged") from error
+        raise LayoutError(t('addon.errors.pages.storage_json')) from error
 
 
 class LayoutStore:
@@ -138,7 +139,7 @@ class LayoutStore:
             backup = self.path.with_name(self.path.stem + ".v1." + fingerprint(original.decode("utf8")) + ".backup.json")
             if backup.exists():
                 if backup.read_bytes() != original:
-                    raise LayoutError("Conflicting migration backup; data stays unchanged")
+                    raise LayoutError(t('addon.errors.pages.backup_conflict'))
                 return
         descriptor, name = tempfile.mkstemp(prefix=backup.name + ".", suffix=".tmp", dir=self.path.parent)
         try:
@@ -158,10 +159,10 @@ class LayoutStore:
         try:
             grid = self.grid_for(inbox)
             if grid is None:
-                return {"format": LEGACY, "payload": payload, "migrationError": "Source grid is not known"}
+                return {"format": LEGACY, "payload": payload, "migrationError": "addon.errors.pages.source_grid"}
             record = migrate_legacy(_json(payload, legacy=True), grid, recover=True)
         except Exception as error:
-            return {"format": LEGACY, "payload": payload, "migrationError": str(error)}
+            return {"format": LEGACY, "payload": payload, "migrationError": "addon.errors.pages.migration_unreadable"}
         return {**record, "revision": new_id()}
 
     def _file_stamp(self):
@@ -188,7 +189,7 @@ class LayoutStore:
         if (not isinstance(envelope, dict) or set(envelope) != {"version", "screens"}
                 or type(envelope.get("version")) is not int or envelope["version"] not in (1, VERSION)
                 or not isinstance(envelope.get("screens"), dict)):
-            raise LayoutError("Unknown storage version; data stays unchanged")
+            raise LayoutError(t('addon.errors.pages.storage_version'))
         if envelope["version"] == 1:
             screens_text = next(value for key, value in _members(text) if key == "screens")
             records = {inbox: self._converted(inbox, payload) for inbox, payload in _members(screens_text)}
@@ -204,16 +205,16 @@ class LayoutStore:
     def _validate_records(records):
         for inbox, record in records.items():
             if not isinstance(inbox, str) or not isinstance(record, dict):
-                raise LayoutError("Invalid stored screen record")
+                raise LayoutError(t('addon.errors.pages.storage_record'))
             if record.get("format") == LEGACY:
                 if set(record) - {"format", "payload", "migrationError", "settings"} or not isinstance(record.get("payload"), str):
-                    raise LayoutError("Invalid pending migration record")
+                    raise LayoutError(t('addon.errors.pages.storage_record'))
                 _json(record["payload"], legacy=True)
                 if "settings" in record: validate_settings(record["settings"])
             elif record.get("format") == FORMAT:
                 allowed = {"format", "sourceGrid", "layout", "revision", "settings", "migration", "workspace"}
                 if set(record) - allowed or not isinstance(record.get("revision"), str):
-                    raise LayoutError("Unknown stored document fields")
+                    raise LayoutError(t('addon.errors.pages.fields'))
                 validate_document(record.get("layout"), grid_of_record(record))
                 if "settings" in record: validate_settings(record["settings"])
                 if "migration" in record:
@@ -222,30 +223,30 @@ class LayoutStore:
                             or not isinstance(migration.get("inactivePageTitles", []), list)
                             or len(migration.get("inactivePageTitles", [])) > 8
                             or any(not isinstance(title, str) or len(title.encode()) > 96 for title in migration.get("inactivePageTitles", []))):
-                        raise LayoutError("Invalid migration recovery metadata")
+                        raise LayoutError(t('addon.errors.pages.storage_metadata'))
                     dropped = migration.get("droppedTiles", [])
                     adjusted = migration.get('adjustedFields', [])
                     if not isinstance(adjusted, list) or len(adjusted) > 6 or any(key not in ('title', 'pages', 'page_titles', 'header', 'settings', 'other') for key in adjusted):
-                        raise LayoutError("Invalid migration recovery metadata")
+                        raise LayoutError(t('addon.errors.pages.storage_metadata'))
                     if (not isinstance(dropped, list) or any(not isinstance(tile, dict)
                             or set(tile) != {"entity", "name", "reason"}
                             or any(not isinstance(value, str) for value in tile.values()) for tile in dropped)):
-                        raise LayoutError("Invalid migration recovery metadata")
+                        raise LayoutError(t('addon.errors.pages.storage_metadata'))
                 if "workspace" in record:
                     LayoutStore._workspace(record["workspace"], {p["id"] for p in record["layout"]["pages"]})
             else:
-                raise LayoutError("Unknown per-screen layout format; data stays unchanged")
+                raise LayoutError(t('addon.errors.pages.storage_version'))
 
     @staticmethod
     def _workspace(value, page_ids):
         if (not isinstance(value, dict) or set(value) != {"revision", "positions"}
                 or not isinstance(value["revision"], str) or not isinstance(value["positions"], dict)
                 or set(value["positions"]) - page_ids):
-            raise LayoutError("Invalid workspace references")
+            raise LayoutError(t('addon.errors.pages.workspace_refs'))
         for point in value["positions"].values():
             if (not isinstance(point, dict) or set(point) != {"x", "y"}
                     or any(type(v) is not int or not -100000 <= v <= 100000 for v in point.values())):
-                raise LayoutError("Invalid workspace position")
+                raise LayoutError(t('addon.errors.pages.workspace_position'))
         return deepcopy(value)
 
     def snapshot_since(self, stamp):
@@ -285,15 +286,15 @@ class LayoutStore:
             self._reload()
             previous = self._records.get(inbox)
             if previous and previous["format"] != FORMAT:
-                raise LayoutError("Resolve this screen's pending migration before editing pages")
+                raise LayoutError(t('addon.errors.pages.migration_pending'))
             if expected_revision != (previous["revision"] if previous else None):
-                raise Conflict("Layout changed in another editor; reload and reconcile the draft")
+                raise Conflict(t('addon.errors.pages.layout_conflict'))
             grid = self.grid_for(inbox) or (grid_of_record(previous) if previous else None)
             if grid is None:
-                raise LayoutError("Source grid is not known")
+                raise LayoutError(t('addon.errors.pages.source_grid'))
             changed_grid = previous and grid != grid_of_record(previous)
             if changed_grid and not adapt_grid:
-                raise LayoutError("Screen grid changed; explicit layout adaptation is required")
+                raise LayoutError(t('addon.errors.pages.adaptation'))
             document = validate_document(layout, grid)
             record = deepcopy(previous) if previous else {"format": FORMAT, "sourceGrid": {"columns": grid.columns, "rows": grid.rows}}
             record["layout"] = document
@@ -305,7 +306,7 @@ class LayoutStore:
             if workspace is not None:
                 before = (previous or {}).get("workspace", {"revision": "", "positions": {}})
                 if not isinstance(workspace, dict) or workspace.get("revision") != before["revision"]:
-                    raise Conflict("Workspace changed in another editor")
+                    raise Conflict(t('addon.errors.pages.workspace_conflict'))
                 record["workspace"] = self._workspace({**workspace, "revision": new_id()}, page_ids)
             elif "workspace" in record:
                 positions = {key: point for key, point in record["workspace"]["positions"].items() if key in page_ids}
@@ -321,10 +322,10 @@ class LayoutStore:
             self._reload()
             previous = self._records.get(inbox)
             if not previous or previous["format"] != FORMAT or previous["revision"] != expected_revision:
-                raise Conflict("Page document changed before the workspace was saved")
+                raise Conflict(t('addon.errors.pages.layout_conflict'))
             current = previous.get("workspace", {"revision": "", "positions": {}})
             if not isinstance(workspace, dict) or workspace.get("revision") != current["revision"]:
-                raise Conflict("Workspace changed in another editor")
+                raise Conflict(t('addon.errors.pages.workspace_conflict'))
             value = self._workspace(workspace, {p["id"] for p in previous["layout"]["pages"]})
             if value["positions"] == current["positions"]: return deepcopy(current)
             value["revision"] = new_id()
@@ -337,9 +338,9 @@ class LayoutStore:
             self._reload()
             previous = self._records.get(inbox)
             if not previous or previous['format'] != LEGACY or fingerprint(previous['payload']) != expected_payload_revision:
-                raise Conflict("The pending layout changed; reload before starting fresh")
+                raise Conflict(t('addon.errors.pages.layout_conflict'))
             grid = self.grid_for(inbox)
-            if grid is None: raise LayoutError("Source grid is not known")
+            if grid is None: raise LayoutError(t('addon.errors.pages.source_grid'))
             page_id = new_id()
             document = validate_document({'title': title, 'homePageId': page_id, 'pages': [{
                 'id': page_id, 'navigation': {'excludeFromPagination': False}, 'tiles': [],
@@ -358,7 +359,7 @@ class LayoutStore:
             self._reload()
             previous = self._records.get(inbox)
             if not previous or previous['format'] != FORMAT or previous['revision'] != expected_revision:
-                raise Conflict("Page document changed before the migration note was dismissed")
+                raise Conflict(t('addon.errors.pages.layout_conflict'))
             updated = deepcopy(previous)
             migration = updated.get('migration', {})
             migration.pop('droppedTiles', None)
@@ -373,7 +374,7 @@ class LayoutStore:
             self._reload()
             previous = self._records.get(inbox)
             if not previous:
-                raise LayoutError("Save a page document before saving document settings")
+                raise LayoutError(t('addon.errors.pages.save_first'))
             self._replace({**self._records, inbox: {**previous, "settings": settings}})
 
     def forget(self, inbox):
@@ -387,6 +388,6 @@ class LayoutStore:
         with self._locked():
             self._reload()
             if old not in self._records: return False
-            if new in self._records: raise Conflict("Destination screen already has a saved layout")
+            if new in self._records: raise Conflict(t('addon.errors.pages.destination_exists'))
             self._replace({(new if key == old else key): value for key, value in self._records.items()})
             return True

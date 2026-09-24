@@ -10,8 +10,10 @@ import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
 import Segmented from "./Segmented.vue";
+import { textDraft } from '../model/text-draft';
 
 const props = defineProps<{ tile: Tile }>();
+const nameDraft = textDraft(() => props.tile.name, value => setTileName(props.tile, value));
 const domain = computed(() => props.tile.entity.split(".")[0]);
 const name = computed(() => entityName(props.tile.entity));
 // A navigation tile (screen.page_<n>): the page it opens, its size, icon and colour; nothing else applies.
@@ -137,9 +139,6 @@ const history = computed(() => current("history_hours", 24) as number);
 const backgrounds = computed(() => Object.entries(state.inventory.backgrounds || {}));
 const fromHA = computed(() => Boolean(state.inventory.entities.find((e) => e.id === props.tile.entity)?.icon));
 const showIcon = computed(() => Boolean(state.inventory.icons) && (domain.value !== "screen" || goesTo.value > 0) && !["forecast", "sunpath"].includes(display.value));
-function rename(value: string) {
-  setTileName(props.tile, value);
-}
 function inspect() {
   state.inspector = { kind: "inspect", entity: props.tile.entity };
 }
@@ -154,7 +153,9 @@ function inspect() {
   <div class="dr-body">
     <div class="f">
       <label class="f-label" for="tile-name">{{ t("editor.tile.name") }}</label>
-      <input id="tile-name" :value="tile.name" :placeholder="name" maxlength="60" @focus="beginFieldEdit(`tile:${tile.id}`)" @blur="endFieldEdit" @input="rename(($event.target as HTMLInputElement).value)" />
+      <input id="tile-name" :value="nameDraft.value.value" :placeholder="name" maxlength="60"
+        @focus="beginFieldEdit(`tile:${tile.id}`); nameDraft.focus()" @blur="endFieldEdit(); nameDraft.blur()"
+        @input="nameDraft.input(($event.target as HTMLInputElement).value)" />
     </div>
     <IconPicker v-if="showIcon" :selected="tile.options?.icon || 'auto'" :automatic="automaticIcon(tile.entity)"
       :auto-label="t(fromHA ? 'editor.tile.icon.auto_ha' : 'editor.tile.icon.auto_default')"

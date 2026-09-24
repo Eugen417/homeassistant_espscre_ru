@@ -1,9 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { i18n, loadLanguage } from '../src/i18n';
 import type { PageGrid, PageLayout, PageTile } from "../src/types";
 import { arrangeTiles, changePages, clone, connections, deletePage, duplicatePage, emptyLayout, emptyPage,
   adaptGrid, initialPositions, instanceId, navigationFooter, navigationStep, navigationTarget, pagination, projectLayout, reachability, remapLayout, reorderPage, replaceBar, sequentialTarget, setBarItems, validatePages } from "../src/model/pages";
 
 const grid: PageGrid = { columns: 2, rows: 3 };
+it('renders draft validation errors in the selected editor language', async () => {
+  await loadLanguage('nl');
+  i18n.global.locale.value = 'nl';
+  try {
+    expect(() => validatePages({ ...emptyLayout('Test'), homePageId: 'missing' }, grid)).toThrow('Home moet een bestaande pagina zijn');
+  } finally { i18n.global.locale.value = 'en'; }
+});
 function fixture() {
   const layout = emptyLayout("House");
   layout.pages.push(emptyPage(), emptyPage());
@@ -173,7 +181,7 @@ describe("page-owned document operations", () => {
 
   it("refuses full copies with duplicate entities and offers a separate empty copy", () => {
     const layout = fixture(), first = layout.pages[0];
-    expect(() => duplicatePage(layout, grid, first.id)).toThrow("already has a tile");
+    expect(() => duplicatePage(layout, grid, first.id)).toThrow("only appear once");
     first.navigation.excludeFromPagination = true;
     const result = duplicatePage(layout, grid, first.id, true), copy = result.pages[1];
     expect(copy.tiles).toEqual([]);
@@ -191,7 +199,7 @@ describe("page-owned document operations", () => {
 
   it("refuses overlap and preserves each board's capacity", () => {
     const layout = fixture(), view = projectLayout(layout, grid);
-    expect(() => arrangeTiles(layout, grid, view.tiles.map((tile) => ({ tile, slot: 0 })))).toThrow("overlap");
+    expect(() => arrangeTiles(layout, grid, view.tiles.map((tile) => ({ tile, slot: 0 })))).toThrow("same spot");
     for (const board of [grid, { columns: 3, rows: 3 }]) {
       const full = emptyLayout("Capacity"), limit = Math.min(8, Math.floor(64 / (board.columns * board.rows)));
       while (full.pages.length < limit) full.pages.push(emptyPage());

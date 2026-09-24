@@ -4,6 +4,7 @@ import { mount } from "@vue/test-utils";
 import LayoutView from "../src/components/LayoutView.vue";
 import NavigationPreview from '../src/components/NavigationPreview.vue';
 import PageInspector from '../src/components/PageInspector.vue';
+import TopbarInspector from '../src/components/TopbarInspector.vue';
 import { dismissMigrationNote, pageReady, removeTile, resolveLayoutConflict } from '../src/store';
 import { addPage, addTile, connectTile, copyLayoutFrom, importLayout, layoutJson, movePage, moveWorkspacePage, redo,
   acceptGridReview, gridChanged, refresh, reviewScreenGrid, save, saveWorkspace, select, setEditorMode, setHomePage, setPageExcluded, setPageTitle, setTopbarItems, state, undo, workspacePositions } from "../src/store";
@@ -29,6 +30,23 @@ beforeEach(() => {
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
 describe("one draft in both editor modes", () => {
+  it('keeps spaces and temporary empty titles while storing valid text with one undo step', async () => {
+    const view = mount(TopbarInspector, { props: { index: -1 } });
+    const input = view.find('#screen-title');
+    const original = state.document!.title;
+    await input.trigger('focus');
+    await input.setValue('');
+    expect((input.element as HTMLInputElement).value).toBe('');
+    expect(state.document!.title).toBe(original);
+    await input.setValue('Living ');
+    expect((input.element as HTMLInputElement).value).toBe('Living ');
+    expect(state.document!.title).toBe('Living');
+    await input.setValue('Living room');
+    await input.trigger('blur');
+    expect(state.document!.title).toBe('Living room');
+    expect(state.undoCount).toBe(1);
+    undo(); expect(state.document!.title).toBe(original);
+  });
   it('skips map history in Simple and never restores an invisible map position', () => {
     setEditorMode('advanced');
     const id = state.document!.pages[0].id;

@@ -16,8 +16,10 @@ import IconPicker from "./IconPicker.vue";
 import Segmented from "./Segmented.vue";
 import TopbarSvg from "./TopbarSvg.vue";
 import CopyPageBar from './CopyPageBar.vue';
+import { textDraft } from '../model/text-draft';
 
 const props = defineProps<{ index: number }>();
+const titleDraft = textDraft(screenTitle, setScreenTitle, true);
 const draggedItems = ref<HeaderItem[] | null>(null);
 const items = computed(() => draggedItems.value || topbarItems());
 const item = computed<HeaderItem | undefined>(() => items.value[props.index]);
@@ -152,9 +154,9 @@ function onKey(e: KeyboardEvent, i: number) {
     <small v-if="!pageReady" class="warn">{{ t('editor.pages.shared_bar') }}</small>
     <div class="f">
       <label class="f-label" for="screen-title">{{ pages > 1 ? t("editor.topbar.screen_name") : t("editor.topbar.name") }}</label>
-      <input id="screen-title" :value="screenTitle()" maxlength="60" :aria-describedby="pages > 1 ? 'screen-title-hint' : undefined"
-        @focus="beginFieldEdit('screen-title')" @blur="endFieldEdit"
-        :placeholder="t('editor.topbar.name_placeholder')" @input="setScreenTitle(($event.target as HTMLInputElement).value)" />
+      <input id="screen-title" :value="titleDraft.value.value" maxlength="60" :aria-describedby="pages > 1 ? 'screen-title-hint' : undefined"
+        @focus="beginFieldEdit('screen-title'); titleDraft.focus()" @blur="endFieldEdit(); titleDraft.blur()"
+        :placeholder="t('editor.topbar.name_placeholder')" @input="titleDraft.input(($event.target as HTMLInputElement).value)" />
       <small v-if="pages > 1" id="screen-title-hint">{{ t("editor.topbar.screen_name_hint") }}</small>
     </div>
     <div v-if="asksPageTitle" class="f">

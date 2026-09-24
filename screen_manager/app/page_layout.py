@@ -11,6 +11,7 @@ import json
 import re
 import secrets
 
+from i18n import t
 from core import Grid, header_items, page_target, tile_size, validate_header, validate_layout
 
 FORMAT = "pages-v2"
@@ -45,7 +46,7 @@ class CompiledLayouts(Mapping):
 
     def legacy(self, key):
         if key not in self._legacy:
-            raise LayoutError("Update screen to use the new titlebar and layout")
+            raise LayoutError(t('editor.pages.update_notice'))
         return self[key]
 
 
@@ -70,10 +71,10 @@ def legacy_edit(record, data):
     after = validate_layout(data, grid=grid)
     structure = lambda value: [(tile["entity"], tile["slot"]) for tile in value["tiles"]]
     if structure(after) != structure(before) or after.get("pages", before["pages"]) != before["pages"]:
-        raise LayoutError("Reload the editor before adding, moving or deleting pages or tiles")
+        raise LayoutError(t('addon.errors.editor_reload'))
     for field in ("header", "page_titles"):
         if field in after and after[field] != before.get(field):
-            raise LayoutError("Reload the editor to edit a page's top bar")
+            raise LayoutError(t('addon.errors.editor_reload'))
     result = deepcopy(record["layout"])
     result["title"] = after["title"]
     page_ids = [page["id"] for page in result["pages"]]
@@ -120,7 +121,7 @@ def replace_tiles(record, flat):
         old = assigned.get(n)
         if old is None:
             candidates = [old for old, view in existing if old['id'] not in used and view['entity'] == wire['entity']]
-            if len(candidates) > 1: raise LayoutError('Tile event has an ambiguous source; specify its page')
+            if len(candidates) > 1: raise LayoutError(t('addon.errors.pages.ambiguous_tile'))
             old = candidates[0] if candidates else None
         if old is not None:
             tile['id'] = old['id']
@@ -134,19 +135,19 @@ def replace_tiles(record, flat):
 
 def _object(value, allowed, required=()):
     if not isinstance(value, dict) or set(value) - set(allowed) or set(required) - set(value):
-        raise LayoutError("Invalid or unsupported page configuration fields")
+        raise LayoutError(t('addon.errors.pages.fields'))
     return value
 
 
 def _integer(value, low, high):
     if type(value) is not int or not low <= value <= high:
-        raise LayoutError("Tile position is outside the board's fixed grid")
+        raise LayoutError(t('addon.errors.layout.position'))
     return value
 
 
 def _identity(value, seen, page=False):
     if not isinstance(value, str) or not (PAGE_ID if page else INSTANCE_ID).fullmatch(value) or value in seen:
-        raise LayoutError("Missing, invalid or duplicate instance ID")
+        raise LayoutError(t('addon.errors.pages.identity'))
     seen.add(value)
     return value
 
@@ -156,7 +157,7 @@ def grid_of_record(record):
     columns = _integer(source["columns"], 1, 64)
     rows = _integer(source["rows"], 1, 64)
     if columns * rows > 64:
-        raise LayoutError("Invalid source grid")
+        raise LayoutError(t('addon.errors.layout.position'))
     return Grid(columns, rows)
 
 
@@ -166,12 +167,12 @@ def _entity(content, page_indexes, home):
         _object(content, {"kind", "entityId"}, {"kind", "entityId"})
         entity = content["entityId"]
         if not isinstance(entity, str) or entity.startswith("screen."):
-            raise LayoutError("An entity tile must reference a Home Assistant entity")
+            raise LayoutError(t('addon.errors.layout.unsupported'))
         return entity
     if content["kind"] == "builtin":
         _object(content, {"kind", "name"}, {"kind", "name"})
         if content["name"] not in ("clock", "settings"):
-            raise LayoutError("Unsupported built-in tile")
+            raise LayoutError(t('addon.errors.layout.unsupported'))
         return "screen." + content["name"]
     if content["kind"] == "navigation":
         _object(content, {"kind", "target"}, {"kind", "target"})
@@ -183,11 +184,11 @@ def _entity(content, page_indexes, home):
             _object(target, {"kind", "pageId"}, {"kind", "pageId"})
             destination = target["pageId"]
         else:
-            raise LayoutError("Unsupported navigation action")
+            raise LayoutError(t('addon.errors.pages.navigation'))
         if not isinstance(destination, str) or destination not in page_indexes:
-            raise LayoutError("Navigation destination does not exist")
+            raise LayoutError(t('addon.errors.pages.page_missing'))
         return f"screen.page_{page_indexes[destination] + 1}"
-    raise LayoutError("Unsupported tile content")
+    raise LayoutError(t('addon.errors.layout.unsupported'))
 
 
 def footprint_size(columns, rows, grid, presentation=None):
@@ -199,14 +200,14 @@ def footprint_size(columns, rows, grid, presentation=None):
     if presentation is not None:
         supported = {"single": (1, 1), "wide": (grid.wide_span, 1), "tall": (1, 2), "square": (2, 2), "full": (grid.columns, grid.rows)}
         if not isinstance(presentation, str) or presentation not in supported or supported[presentation] != (columns, rows):
-            raise LayoutError("This tile presentation and footprint require a future screen capability")
+            raise LayoutError(t('addon.errors.pages.footprint'))
         return presentation
     if (columns, rows) == (1, 1): return "single"
     if (columns, rows) == (grid.wide_span, 1): return "wide"
     if (columns, rows) == (grid.columns, grid.rows): return "full"
     if (columns, rows) == (1, 2): return "tall"
     if (columns, rows) == (2, 2): return "square"
-    raise LayoutError("This tile footprint requires a future screen capability")
+    raise LayoutError(t('addon.errors.pages.footprint'))
 
 
 def _tile(tile, page_index, grid, page_indexes, home, seen):
@@ -220,7 +221,7 @@ def _tile(tile, page_index, grid, page_indexes, home, seen):
     rows = _integer(placement["rows"], 1, grid.rows)
     appearance = _object(tile["appearance"], {"label", "presentation", *APPEARANCE}, {"label"})
     if 'presentation' in appearance and not isinstance(appearance['presentation'], str):
-        raise LayoutError('Invalid tile presentation')
+        raise LayoutError(t('addon.errors.pages.size'))
     size = footprint_size(columns, rows, grid, appearance.get("presentation"))
     interaction = _object(tile["interaction"], INTERACTION)
     options = {wire: deepcopy(appearance[key]) for key, wire in APPEARANCE.items() if key in appearance}
@@ -245,7 +246,7 @@ def tile_from_fields(tile, grid, page_ids, id_factory=new_id):
     target = page_target(entity)
     if target:
         if target > len(page_ids):
-            raise LayoutError("Navigation target is outside the configured pages")
+            raise LayoutError(t('addon.errors.pages.page_missing'))
         content = {"kind": "navigation", "target": {"kind": "page", "pageId": page_ids[target - 1]}}
     elif entity.startswith("screen."):
         content = {"kind": "builtin", "name": entity.split(".", 1)[1]}
@@ -288,18 +289,18 @@ def validate_document(data, grid):
     _object(data, {"title", "homePageId", "pages"}, {"title", "homePageId", "pages"})
     pages = data["pages"]
     if not isinstance(pages, list) or not 1 <= len(pages) <= grid.pages:
-        raise LayoutError("Page count exceeds this board's fixed capacity")
+        raise LayoutError(t('addon.errors.pages.pages_full'))
     seen = set()
     for page in pages:
         _object(page, {"id", "navigation", "topbar", "tiles"}, {"id", "navigation", "topbar", "tiles"})
         _identity(page["id"], seen, page=True)
     page_ids = seen.copy()
     if not isinstance(data["homePageId"], str) or data["homePageId"] not in page_ids:
-        raise LayoutError("Exactly one existing page must be Home")
+        raise LayoutError(t('addon.errors.pages.home_invalid'))
     for page in pages:
         navigation = _object(page["navigation"], {"excludeFromPagination"}, {"excludeFromPagination"})
         if type(navigation["excludeFromPagination"]) is not bool:
-            raise LayoutError("Pagination exclusion must be a boolean")
+            raise LayoutError(t('addon.errors.pages.navigation'))
         bar = _object(page["topbar"], {"leading", "title", "trailing"}, {"leading", "title", "trailing"})
         title = _object(bar["title"], {"source", "text"}, {"source"})
         if title["source"] == "screen":
@@ -307,25 +308,25 @@ def validate_document(data, grid):
         elif title["source"] == "text":
             _object(title, {"source", "text"}, {"source", "text"})
             if not isinstance(title["text"], str) or not title["text"].strip() or len(title["text"].encode()) > 96:
-                raise LayoutError("A custom title must contain at most 96 UTF-8 bytes")
+                raise LayoutError(t('addon.errors.layout.page_title'))
         else:
-            raise LayoutError("Unsupported title source")
+            raise LayoutError(t('addon.errors.top_bar.invalid_setting'))
         if not isinstance(bar["leading"], list) or len(bar["leading"]) > 1:
-            raise LayoutError("Only one leading Home control is supported")
+            raise LayoutError(t('addon.errors.top_bar.invalid_setting'))
         for control in bar["leading"]:
             _object(control, {"id", "kind"}, {"id", "kind"})
             _identity(control["id"], seen)
             if control["kind"] != "home":
-                raise LayoutError("Unsupported top-bar control")
+                raise LayoutError(t('addon.errors.top_bar.invalid_setting'))
         if not isinstance(bar["trailing"], list):
-            raise LayoutError("Invalid top-bar items")
+            raise LayoutError(t('addon.errors.top_bar.invalid'))
         for item in bar["trailing"]:
             if not isinstance(item, dict):
-                raise LayoutError("Invalid top-bar item")
+                raise LayoutError(t('addon.errors.top_bar.invalid'))
             _identity(item.get("id"), seen)
         bar_items(page)
         if not isinstance(page["tiles"], list):
-            raise LayoutError("Invalid page tiles")
+            raise LayoutError(t('addon.errors.layout.invalid'))
         for tile in page["tiles"]:
             _tile(tile, 0, grid, {p["id"]: i for i, p in enumerate(pages)}, data["homePageId"], seen)
     flat = {"title": data["title"], "tiles": compile_tiles(data, grid), "pages": len(pages)}
@@ -333,7 +334,7 @@ def validate_document(data, grid):
     # The legacy validator sorts by slot and normalizes documented defaults.
     # Incompatible size/action combinations must not escape into a document.
     if checked["title"] != data["title"] or checked["tiles"] != flat["tiles"]:
-        raise LayoutError("Tile options need normalization before saving the page document")
+        raise LayoutError(t('addon.errors.pages.normalization'))
     return deepcopy(data)
 
 
@@ -356,7 +357,7 @@ def legacy_projection(record, require_representable=True):
     pages = layout["pages"]
     items = bar_items(pages[0])
     if require_representable and not legacy_compatible(layout, grid):
-        raise LayoutError("Update screen to use the new titlebar and layout")
+        raise LayoutError(t('editor.pages.update_notice'))
     titles = [page["topbar"]["title"].get("text", "") for page in pages]
     titles += record.get("migration", {}).get("inactivePageTitles", [])
     while titles and not titles[-1]:
@@ -384,7 +385,7 @@ def delete_page(layout, page_id, grid):
     """One operation, including incoming links and Home; caller owns undo."""
     result = deepcopy(layout)
     if len(result["pages"]) == 1 or page_id not in {p["id"] for p in result["pages"]}:
-        raise LayoutError("Cannot delete this page")
+        raise LayoutError(t('addon.errors.pages.delete'))
     result["pages"] = [p for p in result["pages"] if p["id"] != page_id]
     if result["homePageId"] == page_id:
         result["homePageId"] = result["pages"][0]["id"]
@@ -398,7 +399,7 @@ def copy_page(layout, page_id, grid, empty=False, id_factory=new_id):
     result = deepcopy(layout)
     source = next((p for p in result["pages"] if p["id"] == page_id), None)
     if source is None:
-        raise LayoutError("Page does not exist")
+        raise LayoutError(t('addon.errors.pages.page_missing'))
     copied = deepcopy(source)
     copied["id"] = id_factory()
     if empty:

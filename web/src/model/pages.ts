@@ -1,3 +1,4 @@
+import { t } from "../i18n";
 /** Page document operations. Neither editor mode nor a live HA value owns configuration.
  *
  * All operations return a complete validated replacement. Tile/card renderers
@@ -7,6 +8,7 @@
 import type { HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
 
 import { dimensions, SIZES, type Size } from "./layout";
+import { validateCardOptions, validatePageShape } from './page-validation';
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 export const instanceId = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -100,7 +102,7 @@ export function footprintSize(tile: PageTile, grid: PageGrid): Size {
   if (presentation) {
     const sizes = { single: [1, 1], wide: [Math.min(2, grid.columns), 1], tall: [1, 2], square: [2, 2], full: [grid.columns, grid.rows] };
     const size = sizes[presentation];
-    if (!size || size[0] !== columns || size[1] !== rows) throw new Error("This tile presentation and footprint require a future screen capability");
+    if (!size || size[0] !== columns || size[1] !== rows) throw new Error(t("addon.errors.pages.footprint"));
     return presentation;
   }
   if (columns === 1 && rows === 1) return "single";
@@ -108,14 +110,14 @@ export function footprintSize(tile: PageTile, grid: PageGrid): Size {
   if (columns === grid.columns && rows === grid.rows) return "full";
   if (columns === 1 && rows === 2) return "tall";
   if (columns === 2 && rows === 2) return "square";
-  throw new Error("This tile footprint requires a future screen capability");
+  throw new Error(t("addon.errors.pages.footprint"));
 }
 /** An explicit review proposal. It never changes page membership, drops a tile,
  * adds capacity or retargets links. The caller must show it before adoption.
  */
 export function adaptGrid(layout: PageLayout, source: PageGrid, target: PageGrid): PageLayout {
   validatePages(layout, source);
-  if (layout.pages.length > pageLimit(target)) throw new Error('This layout has more pages than the destination screen supports');
+  if (layout.pages.length > pageLimit(target)) throw new Error(t("addon.errors.pages.adapt_pages"));
   const draft = clone(layout);
   for (const page of draft.pages) {
     const occupied = new Set<string>(), pending: PageTile[] = [];
@@ -141,7 +143,7 @@ export function adaptGrid(layout: PageLayout, source: PageGrid, target: PageGrid
       for (let row = 0; row < target.rows && !found; row++) for (let column = 0; column < target.columns && !found; column++) {
         if (fits(tile, row, column)) { place(tile, row, column); found = true; }
       }
-      if (!found) throw new Error('A page has more tiles than the destination grid can hold. No tiles were removed.');
+      if (!found) throw new Error(t("addon.errors.pages.adapt_full"));
     }
   }
   return validatePages(draft, target);
@@ -151,7 +153,7 @@ export function entityOf(layout: PageLayout, tile: PageTile): string {
   if (content.kind === "entity") return content.entityId;
   if (content.kind === "builtin") return `screen.${content.name}`;
   const index = layout.pages.findIndex((page) => page.id === destination(layout, content.target));
-  if (index < 0) throw new Error("The navigation destination no longer exists");
+  if (index < 0) throw new Error(t("addon.errors.pages.page_missing"));
   return `screen.page_${index + 1}`;
 }
 const appearanceKeys = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub" } as const;
@@ -178,25 +180,26 @@ export function projectLayout(layout: PageLayout, grid: PageGrid): Layout {
 }
 
 export function validatePages(layout: PageLayout, grid: PageGrid): PageLayout {
+  validatePageShape(layout);
   if (![grid.columns, grid.rows].every((n) => Number.isInteger(n) && n > 0) || grid.columns * grid.rows > 64)
-    throw new Error("The screen grid is not known");
-  if (!layout.pages.length || layout.pages.length > pageLimit(grid)) throw new Error("This screen has no room for another page");
-  if (!layout.pages.some((page) => page.id === layout.homePageId)) throw new Error("Home must be an existing page");
+    throw new Error(t("editor.pages.wait_grid"));
+  if (!layout.pages.length || layout.pages.length > pageLimit(grid)) throw new Error(t("addon.errors.pages.pages_full"));
+  if (!layout.pages.some((page) => page.id === layout.homePageId)) throw new Error(t("addon.errors.pages.home_invalid"));
   const ids = new Set<string>(), entities = new Set<string>();
   const identity = (id: string, page = false) => {
-    if (!(page ? /^[0-9a-f]{16}$/ : /^[a-zA-Z0-9_-]{1,64}$/).test(id) || ids.has(id)) throw new Error("Invalid or duplicate instance ID");
+    if (typeof id !== 'string' || id.match(page ? /^[0-9a-f]{16}$/ : /^[a-zA-Z0-9_-]{1,64}$/)?.[0] !== id || ids.has(id)) throw new Error(t("addon.errors.pages.identity"));
     ids.add(id);
   };
   for (const page of layout.pages) identity(page.id, true);
   for (const page of layout.pages) {
     const bar = page.topbar;
-    if (typeof page.navigation.excludeFromPagination !== "boolean") throw new Error("Invalid page navigation setting");
-    if (bar.leading.length > 1 || bar.trailing.length > 6) throw new Error("Too many top-bar items");
+    if (typeof page.navigation.excludeFromPagination !== "boolean") throw new Error(t("addon.errors.pages.navigation"));
+    if (bar.leading.length > 1 || bar.trailing.length > 6) throw new Error(t("addon.errors.top_bar.full", { n: 6 }));
     if (bar.title.source !== "screen" && (bar.title.source !== "text" || !bar.title.text.trim() || byteLength(bar.title.text) > 96))
-      throw new Error("The page title must contain at most 96 UTF-8 bytes");
+      throw new Error(t("addon.errors.layout.page_title"));
     for (const item of bar.leading) {
       identity(item.id);
-      if (item.kind !== "home") throw new Error("Unsupported leading control");
+      if (item.kind !== "home") throw new Error(t("addon.errors.top_bar.unknown_item"));
     }
     for (const item of bar.trailing) identity(item.id);
     const occupied = new Set<number>();
@@ -204,16 +207,17 @@ export function validatePages(layout: PageLayout, grid: PageGrid): PageLayout {
       identity(tile.id);
       const { row, column, columns, rows } = tile.placement;
       if (![row, column, columns, rows].every(Number.isInteger) || row < 0 || column < 0 || columns < 1 || rows < 1 ||
-          row + rows > grid.rows || column + columns > grid.columns) throw new Error("A tile must fit inside its page");
+          row + rows > grid.rows || column + columns > grid.columns) throw new Error(t("addon.errors.layout.position"));
       footprintSize(tile, grid);
       for (let y = row; y < row + rows; y++) for (let x = column; x < column + columns; x++) {
         const cell = y * grid.columns + x;
-        if (occupied.has(cell)) throw new Error("Tiles cannot overlap");
+        if (occupied.has(cell)) throw new Error(t("addon.errors.layout.same_spot"));
         occupied.add(cell);
       }
       const entity = entityOf(layout, tile);
+      validateCardOptions(tile, entity, footprintSize(tile, grid));
       if (tile.content.kind !== "navigation") {
-        if (entities.has(entity)) throw new Error("This entity already has a tile on this screen");
+        if (entities.has(entity)) throw new Error(t("addon.errors.layout.once"));
         entities.add(entity);
       }
     }
@@ -229,13 +233,13 @@ export function changePages(layout: PageLayout, grid: PageGrid, apply: (draft: P
 export function reorderPage(layout: PageLayout, grid: PageGrid, pageId: string, to: number) {
   return changePages(layout, grid, (draft) => {
     const from = draft.pages.findIndex((page) => page.id === pageId);
-    if (from < 0 || !Number.isInteger(to) || to < 0 || to >= draft.pages.length) throw new Error("Invalid page order");
+    if (from < 0 || !Number.isInteger(to) || to < 0 || to >= draft.pages.length) throw new Error(t("addon.errors.pages.order"));
     draft.pages.splice(to, 0, ...draft.pages.splice(from, 1));
   });
 }
 export function deletePage(layout: PageLayout, grid: PageGrid, pageId: string) {
   return changePages(layout, grid, (draft) => {
-    if (draft.pages.length === 1 || !draft.pages.some((page) => page.id === pageId)) throw new Error("Cannot delete this page");
+    if (draft.pages.length === 1 || !draft.pages.some((page) => page.id === pageId)) throw new Error(t("addon.errors.pages.delete"));
     draft.pages = draft.pages.filter((page) => page.id !== pageId);
     if (draft.homePageId === pageId) draft.homePageId = draft.pages[0].id;
     for (const page of draft.pages) page.tiles = page.tiles.filter((tile) => tile.content.kind !== "navigation" ||
@@ -245,7 +249,7 @@ export function deletePage(layout: PageLayout, grid: PageGrid, pageId: string) {
 export function duplicatePage(layout: PageLayout, grid: PageGrid, pageId: string, empty = false) {
   return changePages(layout, grid, (draft) => {
     const index = draft.pages.findIndex((page) => page.id === pageId);
-    if (index < 0) throw new Error("The page no longer exists");
+    if (index < 0) throw new Error(t("addon.errors.pages.page_missing"));
     const source = draft.pages[index], copy = emptyPage(source.topbar);
     if (!empty) {
       copy.navigation = clone(source.navigation);
@@ -262,10 +266,10 @@ export function duplicatePage(layout: PageLayout, grid: PageGrid, pageId: string
 export function replaceBar(layout: PageLayout, grid: PageGrid, source: string, targets: string[], whole = true) {
   return changePages(layout, grid, (draft) => {
     const bar = draft.pages.find((page) => page.id === source)?.topbar;
-    if (!bar) throw new Error("The source page no longer exists");
+    if (!bar) throw new Error(t("addon.errors.pages.page_missing"));
     for (const id of targets) {
       const page = draft.pages.find((item) => item.id === id);
-      if (!page) throw new Error("The destination page no longer exists");
+      if (!page) throw new Error(t("addon.errors.pages.page_missing"));
       if (id !== source) {
         const copy = copyBar(bar);
         if (whole) page.topbar = copy;
@@ -282,27 +286,27 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
   return changePages(layout, grid, (draft) => {
     const cells = grid.columns * grid.rows, existing = new Map(draft.pages.flatMap((page) => page.tiles.map((tile) => [tile.id, tile] as const)));
     const returned = new Set(entries.map(({ tile }) => tile.id).filter(Boolean));
-    if ([...existing.keys()].some((id) => !returned.has(id))) throw new Error("A tile arrangement must retain every existing tile");
+    if ([...existing.keys()].some((id) => !returned.has(id))) throw new Error(t("addon.errors.pages.arrangement"));
     const required = Math.max(draft.pages.length, ...entries.map(({ slot }) => Math.floor(slot / cells) + 1));
-    if (required > pageLimit(grid)) throw new Error("This screen has no room for another page");
+    if (required > pageLimit(grid)) throw new Error(t("addon.errors.pages.pages_full"));
     while (draft.pages.length < required) draft.pages.push(emptyPage(draft.pages.at(-1)!.topbar));
     for (const page of draft.pages) page.tiles = [];
     for (const { tile, slot } of entries) {
-      if (!Number.isInteger(slot) || slot < 0) throw new Error("Invalid tile position");
+      if (!Number.isInteger(slot) || slot < 0) throw new Error(t("addon.errors.layout.position"));
       const old = tile.id ? existing.get(tile.id) : undefined, options = tile.options || {};
-      if (tile.id && !old) throw new Error("The tile no longer exists");
+      if (tile.id && !old) throw new Error(t("addon.errors.pages.tile_missing"));
       const target = /^screen\.page_([1-8])$/.exec(tile.entity);
       let content: PageTile["content"];
       if (target) {
         const page = draft.pages[Number(target[1]) - 1];
-        if (!page) throw new Error("The navigation destination no longer exists");
+        if (!page) throw new Error(t("addon.errors.pages.page_missing"));
         content = old?.content.kind === "navigation" && old.content.target.kind === "home" && entityOf(layout, old) === tile.entity
           ? clone(old.content) : { kind: "navigation", target: { kind: "page", pageId: page.id } };
       } else if (tile.entity === "screen.clock" || tile.entity === "screen.settings") {
         content = { kind: "builtin", name: tile.entity.slice(7) as "clock" | "settings" };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
-      if (!SIZES.includes(size as Size)) throw new Error("Unsupported tile size");
+      if (!SIZES.includes(size as Size)) throw new Error(t("addon.errors.pages.size"));
       const appearance: PageTile["appearance"] = { label: tile.name };
       if (size !== "single") appearance.presentation = size as Size;
       for (const [key, wire] of Object.entries(appearanceKeys)) {
@@ -329,7 +333,7 @@ export function remapLayout(layout: PageLayout, grid: PageGrid) {
       tile.id = instanceId();
       if (tile.content.kind === "navigation" && tile.content.target.kind === "page") {
         const id = ids.get(tile.content.target.pageId);
-        if (!id) throw new Error("The navigation destination no longer exists");
+        if (!id) throw new Error(t("addon.errors.pages.page_missing"));
         tile.content.target.pageId = id;
       }
     }

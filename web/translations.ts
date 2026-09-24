@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 export const TRANSLATIONS = join(__dirname, "..", "screen_manager", "translations");
 // Of the screens' texts the page takes the ones its mockup draws: Home Assistant's words, times, dates, numbers and the
-// page label. The rest of `screen` and all of `addon` stay out.
+// page label. The draft validator also shares the add-on's page/card errors.
 const SCREEN_PARTS = ["ha", "time", "date", "number", "navigation"];
 
 // An empty text is one the language doesn't have yet: it stays out, so English shows, as on the screens. A space is
@@ -21,5 +21,7 @@ export function pageTexts(data: any) {
   const screen = data?.screen || {};
   const words: Record<string, unknown> = Object.fromEntries(SCREEN_PARTS.filter((part) => part in screen).map((part) => [part, screen[part]]));
   if (screen.tile?.page !== undefined) words.tile = { page: screen.tile.page };
-  return (filled({ editor: data?.editor, screen: words }) || {}) as Record<string, unknown>;
+  const errors = Object.fromEntries(['pages', 'layout', 'top_bar'].filter((key) => data?.addon?.errors?.[key])
+    .map((key) => [key, data.addon.errors[key]]));
+  return (filled({ editor: data?.editor, screen: words, addon: { errors } }) || {}) as Record<string, unknown>;
 }

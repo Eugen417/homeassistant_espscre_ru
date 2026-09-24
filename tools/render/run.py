@@ -160,6 +160,26 @@ class Run:
     async def call(self, name, **args):
         await self.client.execute_service(self.services[name], args)
 
+    def subscribe_logs(self):
+        self.client.subscribe_logs(lambda m: self.lines.append(re.sub(r'\x1b\[[0-9;]*m', '', m.message.decode(errors='replace')
+                                                                      if isinstance(m.message, bytes) else m.message)),
+                                   log_level=LogLevel.LOG_LEVEL_DEBUG, dump_config=False)
+
+    async def offline_swipe(self, forward, expected):
+        """Schedule SDL input, then actually disconnect the only API client."""
+        await self.call('render_offline_swipe', forward=forward)
+        await asyncio.sleep(0.1)
+        await self.client.disconnect()
+        await asyncio.sleep(2)
+        await self.client.connect(login=True)
+        self.subscribe_logs()
+        start = len(self.lines)
+        await self.call('render_offline_result')
+        line = await self.until(lambda line: 'offline verified=' in line, 10, 'offline input diagnostic', start)
+        assert 'offline verified=1' in line, 'An API client stayed connected during the gesture'
+        actual = await self.state()
+        assert actual['page'] == expected, f'Offline swipe reached the wrong page: {actual}'
+
     async def until(self, test, timeout, what, start=None):
         start, end = len(self.lines) if start is None else start, time.monotonic() + timeout
         while time.monotonic() < end:
@@ -390,6 +410,25 @@ class Run:
         bars = [[{'k': 'clock'}] for _ in document['pages']]
         region = {'keepalive': 120, 'clock_24h': True, 'numbers': 'point', 'group_min': 1, 'percent_space': False}
         await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+        # The real ArduinoJson receiver must refuse every malformed destination
+        # atomically, and keep the current layout after an oversize replacement.
+        from page_delivery import Refused
+        reference = await self.render('_before-refusal', keep=False)
+        for message, revision in [
+            ({'op': 'bar_value', 'item': {'k': 'text', 't': 'Must not appear'}, 'targets': [0, 48]}, self.sender.confirmed),
+            ({'op': 'bar_value', 'item': {'k': 'text', 't': 'Must not appear'}, 'targets': [0, 0]}, self.sender.confirmed),
+            ({'op': 'begin', 'inbox': self.inbox.object_id, 'title': 'Too large', 'pages': 1,
+              'tiles': 65, 'home': 0, **region}, 'ffffffffffffffff'),
+        ]:
+            try:
+                await self.sender._packet(message, revision)
+            except Refused:
+                pass
+            else:
+                raise AssertionError('Malformed packet was not refused')
+            restored = await self.render('_after-refusal', keep=False)
+            assert restored.tobytes() == reference.tobytes(), 'Refusal changed the active layout or a bar'
+        assert await self.sender.ping(), 'The original configuration must remain active after refusal'
         buttons = next(e for e in entities if getattr(e, 'name', '') == 'Page buttons')
         home = next(e for e in entities if getattr(e, 'name', '') == 'Show home button')
         self.client.switch_command(self.swipe_switch.key, True)
@@ -450,6 +489,11 @@ class Run:
                 reference.save(self.out / 'recovery-expected.png')
                 restored.save(self.out / 'recovery-actual.png')
             assert restored.tobytes() == reference.tobytes(), 'Recovery must restore the same complete screen'
+        await self.call('show_page', page=1)
+        await self.page_done(0)
+        await self.offline_swipe(True, home_page)
+        await self.offline_swipe(False, 0)
+        self.warnings.append('Offline swipes passed with the API client disconnected; active layout survived malformed updates')
         return await self.self_test()
 
     async def rectangular_tiles(self, grid):
@@ -505,9 +549,7 @@ class Run:
         self.inbox = next(e for e in entities if type(e).__name__ == 'TextInfo' and e.name == 'Tile settings')
         dark = next(e for e in entities if getattr(e, 'name', '') == 'Dark mode')
         self.swipe_switch = next(e for e in entities if getattr(e, 'name', '') == 'Swipe between pages')
-        self.client.subscribe_logs(lambda m: self.lines.append(re.sub(r'\x1b\[[0-9;]*m', '', m.message.decode(errors='replace')
-                                                                      if isinstance(m.message, bytes) else m.message)),
-                                   log_level=LogLevel.LOG_LEVEL_DEBUG, dump_config=False)
+        self.subscribe_logs()
         if 'render_skip_calibration' in self.services:
             await self.call('render_skip_calibration')
         await self.call('render_time', epoch=int(MOMENT.timestamp()))

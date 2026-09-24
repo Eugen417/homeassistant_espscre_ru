@@ -7,7 +7,7 @@ changing normal saves, state delivery or the firmware.
 from copy import deepcopy
 
 from core import header_items, page_target, tile_size, validate_layout
-from i18n import screen_t
+from i18n import screen_t, t
 from page_layout import APPEARANCE, INTERACTION, FORMAT, LayoutError, _object, new_id, tile_from_fields, validate_document
 
 
@@ -19,7 +19,7 @@ def _recover_tiles(raw, grid):
     Imports can retain strict validation by not selecting this recovery path.
     """
     if not isinstance(raw, dict) or not isinstance(raw.get("tiles"), list):
-        raise LayoutError("Invalid legacy tiles")
+        raise LayoutError(t('addon.errors.layout.invalid'))
     base = {'title': screen_t('screen.status.home'), 'tiles': []}
     adjusted = []
     for key in ('title', 'pages', 'page_titles', 'header', 'settings'):
@@ -37,7 +37,7 @@ def _recover_tiles(raw, grid):
         try:
             _object(tile, {"entity", "name", "slot", "options"}, {"entity"})
             if isinstance(tile.get('entity'), str) and page_target(tile['entity']) > grid.pages:
-                raise LayoutError("Navigation target exceeds this board's page capacity")
+                raise LayoutError(t('addon.errors.pages.adapt_pages'))
             tile = deepcopy(tile)
             if isinstance(tile.get("options"), dict):
                 known = {*APPEARANCE.values(), *INTERACTION.values(), "size"}
@@ -67,7 +67,7 @@ def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
         raw, dropped, adjusted = _recover_tiles(raw, grid)
     _object(raw, {"title", "tiles", "pages", "page_titles", "header", "settings"}, {"title", "tiles"})
     if not isinstance(raw["tiles"], list):
-        raise LayoutError("Invalid legacy tiles")
+        raise LayoutError(t('addon.errors.layout.invalid'))
     for tile in raw["tiles"]:
         _object(tile, {"entity", "name", "slot", "options"}, {"entity"})
     legacy = validate_layout(deepcopy(raw), stored=recover, grid=grid)
@@ -76,7 +76,7 @@ def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
     if recover:
         count = max(count, max((page_target(tile['entity']) for tile in legacy['tiles']), default=0))
     if count > grid.pages:
-        raise LayoutError("Legacy layout exceeds the verified source grid")
+        raise LayoutError(t('addon.errors.pages.adapt_full'))
     ids = [id_factory() for _ in range(count)]
     titles = legacy.get("page_titles", [])
     pages = []

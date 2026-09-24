@@ -35,7 +35,8 @@ afterEach(() => {
 describe("English", () => {
   it("comes with the page: the editor's texts and the screens' words the mockup draws, and every language's _meta", () => {
     // The build keeps the rest of the screens' texts and the add-on's out (vite.config.ts); the tests import it the same way.
-    expect(Object.keys(en).sort()).toEqual(["editor", "screen"]);
+    expect(Object.keys(en).sort()).toEqual(["addon", "editor", "screen"]);
+    expect(Object.keys((en as any).addon.errors).sort()).toEqual(['layout', 'pages', 'top_bar']);
     expect(Object.keys((en as any).screen).sort()).toEqual(["date", "ha", "navigation", "number", "tile", "time"]);
     expect(Object.keys((en as any).screen.tile)).toEqual(["page"]);
     expect(languageMeta("en")?.plural).toBe("one_other");
