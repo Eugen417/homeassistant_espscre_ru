@@ -1345,7 +1345,10 @@
         "wide": "Doppelt breit",
         "full": "Ganze Seite",
         "full_hint": "Ganze Seite: eine große Taste in der eigenen Farbe der Kachel; am unteren Rand sitzen ein Schieberegler, Bedienelemente oder ein Diagramm.",
-        "needs_firmware": "Eine ganzseitige Kachel braucht Firmware 0.2.62: Drücke zuerst beim Bildschirm auf „Aktualisieren“."
+        "needs_firmware": "Eine ganzseitige Kachel braucht Firmware 0.2.62: Drücke zuerst beim Bildschirm auf „Aktualisieren“.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Breite × Höhe in Rasterzellen. Verwendet das bestehende Kacheldesign."
       },
       "page": {
         "label": "Seite",

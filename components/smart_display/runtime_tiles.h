@@ -655,8 +655,8 @@ inline std::string receive(const std::string &payload) {
       if (transfer.active || index >= model.count || model.tiles[index].received || !valid_entity(entity) ||
           !root["slot"].is<unsigned>() || !root["o"].is<JsonObject>()) return false;
       const std::string size = string(root["o"]["size"]);
-      if (size != "" && size != "single" && size != "wide" && size != "full") return false;
-      if (!model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", size == "wide")) return false;
+      if (size != "" && size != "single" && size != "wide" && size != "tall" && size != "square" && size != "full") return false;
+      if ((size == "square" && grid.columns < 2) || !model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", size == "wide" || size == "square", (size == "tall" || size == "square") ? 2 : 1)) return false;
       if (page_entity(entity) && static_cast<unsigned>(entity[12] - '0') > model.pages) return false;
       if (!page_entity(entity)) for (size_t i = 0; i < model.count; ++i)
         if (i != index && model.tiles[i].received && model.tiles[i].entity == entity) return false;
@@ -703,7 +703,8 @@ inline std::string receive(const std::string &payload) {
     // Geometry belongs to initialization and never changes in a live value packet.
     std::string size = string(options["size"]);
     tile.full = size == "full";
-    tile.wide = tile.full || size == "wide";
+    tile.wide = tile.full || size == "wide" || size == "square";
+    tile.height = (size == "tall" || size == "square") ? 2 : 1;
 
     }
     // Pre-computed extras: the manager converts time zones and fetches forecasts. What only some tiles
@@ -3392,6 +3393,13 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   if(!w.full && !w.wide)dial=std::min(dial,w.base_height-(tile_height(w)-height));
   // A single card whose width has no room for the date beside the dial centres the dial instead.
   bool date_fits=true;
+  if(!w.full && w.wide){
+    // Multi-row cards can be taller than they are wide. Keep the dial centred
+    // when its usual time/date column has no room beside it.
+    const int room=width-dial-ui::px(large?16:8);
+    const int need=std::max(text_width(time_text(now),big),with_date?text_width(date_text(now),small):0);
+    date_fits=room>=need;
+  }
   if(!w.full && !w.wide){
     int room=width-dial-(ui::px(large?10:6)),need=0;lv_point_t sz;
     if(large){
@@ -4506,13 +4514,27 @@ inline bool check_tile_geometry() {
     lv_obj_get_coords(w.title,&title);lv_obj_get_coords(w.value,&value);
     bool custom=lv_obj_has_flag(w.title,LV_OBJ_FLAG_HIDDEN);
     bool fits=true;
+    if(w.index<model.count && model.tiles[w.index].height>1 && tile_grid){
+      const int gap=lv_obj_get_style_pad_row(tile_grid,LV_PART_MAIN);
+      const int cell=(lv_obj_get_content_height(tile_grid)-(int)(grid.rows-1)*gap)/(int)grid.rows;
+      if(std::abs(lv_obj_get_height(w.tile)-((int)model.tiles[w.index].row_span()*cell+((int)model.tiles[w.index].row_span()-1)*gap))>2){
+        fits=false;ESP_LOGE("ui_test","Tall card height FAIL slot=%u",(unsigned)w.index);
+      }
+    }
+    for(const auto &other:widgets) if(other.tile && other.tile!=w.tile && !lv_obj_has_flag(other.tile,LV_OBJ_FLAG_HIDDEN)){
+      lv_area_t a,b;lv_obj_get_coords(w.tile,&a);lv_obj_get_coords(other.tile,&b);
+      if(a.x1<=b.x2 && b.x1<=a.x2 && a.y1<=b.y2 && b.y1<=a.y2){
+        fits=false;ESP_LOGE("ui_test","Card overlap FAIL slots=%u,%u",(unsigned)w.index,(unsigned)other.index);
+      }
+    }
     if(w.wide && !w.full && grid.columns>1 && tile_grid){
       // A wide card is two cells of its row plus the gap between them.
       const int gap=lv_obj_get_style_pad_column(tile_grid,LV_PART_MAIN);
       const int cell=(lv_obj_get_content_width(tile_grid)-(int)(grid.columns-1)*gap)/(int)grid.columns;
       int expected=2*cell+gap;
-      fits=std::abs(lv_obj_get_width(w.tile)-expected)<=1;
-      if(!fits)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,(int)lv_obj_get_width(w.tile),expected);
+      const bool width_ok=std::abs(lv_obj_get_width(w.tile)-expected)<=1;
+      fits=fits && width_ok;
+      if(!width_ok)ESP_LOGE("ui_test","Wide width FAIL slot=%u width=%d expected=%d",(unsigned)w.index,(int)lv_obj_get_width(w.tile),expected);
     }
     {
       // Every card lies inside the tile area, a full card reaches its end, and the area stays clear of the page bar
@@ -4668,7 +4690,8 @@ inline int place_page(int page) {
     if(slot<grid.slots() && w.index<model.count){
       // A wide card takes two cells of its row (one on a single-column board), a full card the whole page.
       const int32_t column=w.full?0:(int32_t)(slot%grid.columns),row=w.full?0:(int32_t)(slot/grid.columns);
-      const int32_t span_x=w.full?(int32_t)grid.columns:w.wide?(int32_t)grid.wide_span():1,span_y=w.full?(int32_t)grid.rows:1;
+      const auto &tile=model.tiles[w.index];
+      const int32_t span_x=tile.column_span(),span_y=tile.row_span();
       lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_STRETCH,column,span_x,LV_GRID_ALIGN_STRETCH,row,span_y);
       lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
     }

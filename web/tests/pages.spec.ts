@@ -99,12 +99,26 @@ describe("page-owned document operations", () => {
     const updated = arrangeTiles(layout, portrait, projectLayout(layout, portrait).tiles.map((tile) => ({ tile, slot: tile.slot })));
     expect(updated).toEqual(layout);
   });
-  it("uses rectangle footprints and refuses future render sizes without changing the draft", () => {
+  it("rejects a footprint that disagrees with its presentation without changing the draft", () => {
     const layout = fixture(), before = clone(layout);
     expect(layout.pages[0].tiles[0].placement).toEqual({ row: 0, column: 0, rows: 1, columns: 2 });
     expect(() => changePages(layout, grid, (draft) => { draft.pages[0].tiles[0].placement.rows = 2; })).toThrow("future screen capability");
     expect(layout).toEqual(before);
     expect(projectLayout(layout, grid).tiles[0].options).toEqual({ size: "wide", inline: "slider" });
+  });
+  it("roundtrips tall and square presentations and preserves their rectangles on grid adaptation", () => {
+    const layout = arrangeTiles(emptyLayout('Rectangles'), grid, [
+      { tile: { entity: 'light.tall', name: '', slot: 0, options: { size: 'tall' } }, slot: 0 },
+      { tile: { entity: 'sensor.neighbor', name: '', slot: 1 }, slot: 1 },
+      { tile: { entity: 'climate.square', name: '', slot: 6, options: { size: 'square' } }, slot: 6 },
+    ]);
+    expect(layout.pages[0].tiles[0].placement).toEqual({ row: 0, column: 0, rows: 2, columns: 1 });
+    expect(layout.pages[1].tiles[0].placement).toEqual({ row: 0, column: 0, rows: 2, columns: 2 });
+    const projection = projectLayout(layout, grid);
+    expect(arrangeTiles(layout, grid, projection.tiles.map((tile) => ({ tile, slot: tile.slot })))).toEqual(layout);
+    const adapted = adaptGrid(layout, grid, { columns: 3, rows: 3 });
+    expect(adapted.pages[1].tiles[0].placement).toEqual(layout.pages[1].tiles[0].placement);
+    expect(() => adaptGrid(layout, grid, { columns: 1, rows: 3 })).toThrow();
   });
 
   it("keeps page IDs, bars, Home and destinations when reordering", () => {

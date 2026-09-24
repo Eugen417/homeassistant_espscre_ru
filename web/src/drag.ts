@@ -4,7 +4,7 @@
 // mockup already shows where everything ends up; the drop confirms exactly that, and a
 // drop off the grid changes nothing. A finished drag never doubles as a click.
 import type { Directive } from "vue";
-import { arrange, entriesOf, newTile, pageOrder, reorderPages } from "./model/layout";
+import { grid, arrange, entriesOf, newTile, pageOrder, reorderPages } from "./model/layout";
 import { commitArrangement, loadCapabilities, movePage, pagesShown, placeTile, state } from "./store";
 import type { Tile } from "./types";
 
@@ -137,7 +137,10 @@ function slotAt(x: number, y: number) {
   }
   if (!best || nearest > 16) return -1;
   let slot = Number(best.cell.dataset.slot);
-  if (best.cell.classList.contains("wide") && x > (best.r.left + best.r.right) / 2) slot += 1;
+  const columns = Number(best.cell.dataset.columns || 1), rows = Number(best.cell.dataset.rows || 1);
+  const column = Math.max(0, Math.min(columns - 1, Math.floor((x - best.r.left) / best.r.width * columns)));
+  const row = Math.max(0, Math.min(rows - 1, Math.floor((y - best.r.top) / best.r.height * rows)));
+  slot += row * grid.columns + column;
   return slot;
 }
 // The place in the row under the pointer, by the mockups as they stand right now: the page nearest to it, which

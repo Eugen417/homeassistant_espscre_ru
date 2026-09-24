@@ -22,6 +22,7 @@ const covered = computed(() => new Set(props.entries.flatMap((e) => cellsOf(e.sl
 const cells = computed(() => Array.from({ length: grid.slots }, (_, cell) => props.page * grid.slots + cell).filter((slot) => !covered.value.has(slot)));
 const barSelected = computed(() => state.barPage === props.page && (state.inspector?.kind === "bar" || state.inspector?.kind === "bar-add"));
 const filled = computed(() => props.entries.filter((e) => pageOf(e.slot) === props.page).reduce((n, e) => n + spanOf(sizeOf(e.tile)), 0));
+const cellStyle = (slot: number) => ({ gridColumn: slot % grid.columns + 1, gridRow: Math.floor(slot % grid.slots / grid.columns) + 1 });
 function pickCell(slot: number) {
   state.selectedPageId = owned.value?.id || state.selectedPageId;
   const marked = state.insertAt === slot;
@@ -90,8 +91,8 @@ async function onKey(e: KeyboardEvent) {
       <div class="tiles">
         <template v-for="slot in cells" :key="slot">
           <TileCard v-if="bySlot.get(slot)" :tile="bySlot.get(slot)!.tile" :slot="slot" :placeholder="bySlot.get(slot)!.tile === moving" :preview="preview" @navigate="emit('navigate', { kind: 'tile', tileId: $event })" />
-          <span v-else-if="preview" class="cell preview-empty"></span>
-          <button v-else type="button" class="cell" :class="{ 'insert-here': state.insertAt === slot }" :data-slot="slot"
+          <span v-else-if="preview" class="cell preview-empty" :style="cellStyle(slot)"></span>
+          <button v-else type="button" class="cell" :style="cellStyle(slot)" :class="{ 'insert-here': state.insertAt === slot }" :data-slot="slot"
             :title="t('editor.page.cell.title')"
             :aria-label="t('editor.page.cell.aria', { slot: (slot % grid.slots) + 1, page: page + 1 })" @click="pickCell(slot)">
             <span>+</span><small>{{ state.insertAt === slot ? t("editor.page.cell.next") : t("editor.page.cell.empty") }}</small>

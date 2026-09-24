@@ -836,6 +836,9 @@ class Manager:
                 except LayoutError:
                     raise LayoutError('Update screen to use the new titlebar and layout') from None
         flat = legacy_projection(candidate, require_representable=False)
+        required_sizes = {tile.get('options', {}).get('size', 'single') for tile in flat['tiles']} & {'tall', 'square'}
+        if required_sizes and (not sender or not required_sizes <= getattr(sender, 'tile_sizes', set())):
+            raise LayoutError('Update screen to use taller tiles')
         if any(tile['entity'].split('.')[0] in CAMERA_DOMAINS for tile in flat['tiles']) and board_of(screen) not in camera_feed.BOXES:
             raise LayoutError(t('addon.errors.layout.camera_unsupported'))
         needed = self.needs_firmware(inbox, flat, screen)
@@ -2427,6 +2430,7 @@ def create_app(manager, development=False):
             source = manager.verified_grid(screen['id'])
             screen['source_grid'] = {'columns': source.columns, 'rows': source.rows} if source else None
             sender = manager.page_senders.get(screen['id'])
+            screen['tile_sizes'] = sorted(getattr(sender, 'tile_sizes', {'single', 'wide', 'full'})) if sender else ['single', 'wide', 'full']
             screen['page_capability'] = 'ready' if sender and sender.protocol == 2 else 'update_screen'
             screen['page_delivery'] = sender.phase if sender else 'waiting'
             screen['page_saved_revision'] = record.get('revision') if record else None

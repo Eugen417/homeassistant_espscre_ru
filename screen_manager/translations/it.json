@@ -1345,7 +1345,10 @@
         "wide": "Larghezza doppia",
         "full": "Pagina intera",
         "full_hint": "Pagina intera: un grande pulsante nel colore del riquadro; in basso trovano posto un cursore, i comandi o un grafico.",
-        "needs_firmware": "Un riquadro a pagina intera richiede il firmware 0.2.62: premi prima Aggiorna per questo schermo."
+        "needs_firmware": "Un riquadro a pagina intera richiede il firmware 0.2.62: premi prima Aggiorna per questo schermo.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Larghezza × altezza in celle. Usa il design attuale della tessera."
       },
       "page": {
         "label": "Pagina",

@@ -223,10 +223,10 @@ class Editor(unittest.TestCase):
     def test_full_page_and_navigation_tiles_are_in_the_editor(self):
         import editor_sources
         layout = editor_sources.source('model/layout.ts')
-        for marker in ('export const SIZES: Size[] = ["single", "wide", "full"];', 'export const pageTarget', 'versionAtLeast(firmware, "0.2.62") ? MAX_SLOTS'):
+        for marker in ('export const SIZES: Size[] = ["single", "wide", "tall", "square", "full"];', 'export const pageTarget', 'versionAtLeast(firmware, "0.2.62") ? MAX_SLOTS'):
             self.assertIn(marker, layout, marker)
         drawer = editor_sources.component('TileInspector')
-        for marker in ('["single", "wide", "full"]', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):
+        for marker in ('keys.push("full")', 't("editor.tile.goes_to.label")', 'retargetPageTile(tile, Number(v))'):
             self.assertIn(marker, drawer, marker)
         self.assertEqual((editor_sources.text('tile.size.full'), editor_sources.text('tile.goes_to.label')), ('Full page', 'Goes to page'))
         self.assertIn(':class="{ wide, full, bare, placeholder: placeholder || !live, chosen }"', editor_sources.component('TileCard'))

@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.3.0"
+  SCREEN_FIRMWARE_VERSION: "0.3.1"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -493,6 +493,8 @@ api:
                     root["status"] = id(dashboard_inbox).state;
                     root["rev"] = runtime_tiles::layout_rev;
                     root["protocol"] = page_protocol::VERSION;
+                    auto sizes = root["tile_sizes"].to<JsonArray>();
+                    for (const char *size : {"single", "wide", "full", "tall", "square"}) sizes.add(size);
                     root["request"] = runtime_tiles::protocol_key(runtime_tiles::transfer.hello_id);
                     root["session"] = runtime_tiles::protocol_key(runtime_tiles::transfer.lease);
                     root["seq"] = runtime_tiles::transfer.sequence;

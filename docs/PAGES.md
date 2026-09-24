@@ -25,6 +25,16 @@ An excluded page is a detail page:
 
 A single-page layout retains the existing absence of a bottom strip. Device grid dimensions and tile capacity remain authoritative. They cannot be overridden per page.
 
+## Taller tiles, 0.3.1
+
+The tile inspector offers **1 × 2** and **2 × 2**, expressed as width × height in grid cells, when the connected firmware reports support. Each reserves two rows, including their normal gap. Tiles cannot overlap or extend beyond a page, and the screen's tile capacity does not change. If there is no free rectangle during resizing, the previous size and position stay intact.
+
+These sizes reuse existing designs. A 1 × 2 tile keeps the single-column design, including its optional slider or graph. A 2 × 2 tile keeps the double-width design and its direct controls. Extra height does not enable a different control set or force a full-page design. Moving, copying, exporting and undoing keep the rectangular footprint with the tile.
+
+Update the screen before choosing a taller size. Its supported sizes are negotiated, separately from the page protocol. The add-on checks them before starting a replacement, so a saved rectangle cannot be silently reduced on an older screen. The storage version and migration path are unchanged.
+
+Before downgrading to 0.3.0, change taller tiles back to Normal, Double width or Full page and save. Older add-ons cannot read the new presentations, even though the surrounding page-document structure is unchanged.
+
 ## Updating at different times
 
 Update the add-on and screens in either order. Screens are negotiated individually.
@@ -64,8 +74,9 @@ Keep the pre-upgrade backup if an older add-on must be restored. Older add-ons c
 
 The firmware keeps one configuration. A replacement releases old records before allocating new ones and becomes usable only when complete. Acknowledged sessions and revisions reject stale values and delayed responses. Pages and tiles share the existing PSRAM-first allocator; boards without PSRAM use their internal heap. The small Back history holds IDs only.
 
-Tile placement already has row, column, row span and column span, separated from content, appearance and interaction. Today the validator permits only existing renderable sizes. A future 2×2 player or 2×3 climate card can add a renderer capability and placement rules without replacing the page model. Those larger cards are not part of 0.3.0.
+Tile placement has row, column, row span and column span, separated from content, appearance and interaction. Version 0.3.1 adds 1×2 and 2×2 to the permitted sizes. A future 2×3 climate design can extend the negotiated rendering capability without replacing the page model. A full-page card still means the whole current grid, even when its dimensions match another presentation.
 
 Historical readers and the older wire adapter are separate add-on concerns. They can be retired independently after documenting a minimum supported source version and an intermediate upgrade or offline conversion route. Removing them never requires keeping migration machinery in firmware or changing current documents.
 
 See the [0.3.0 test results](TEST_RESULTS_030.md) for upgrade checks, board builds, measured memory use and the limits of physical validation.
+The [0.3.1 test results](TEST_RESULTS_031.md) cover taller tiles and their rendering and compatibility checks.

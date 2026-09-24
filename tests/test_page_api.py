@@ -146,7 +146,7 @@ class PageApiTests(unittest.IsolatedAsyncioTestCase):
         record = self.record()
         valid = {'esp_screens_layout': 2, 'sourceGrid': record['sourceGrid'], 'layout': record['layout']}
         rectangle, dangling = deepcopy(valid), deepcopy(valid)
-        rectangle['layout']['pages'][0]['tiles'][0]['placement'].update(columns=2, rows=2)
+        rectangle['layout']['pages'][0]['tiles'][0]['placement'].update(columns=1, rows=3)
         dangling['layout']['pages'][0]['tiles'][0]['content'] = {'kind': 'navigation', 'target': {'kind': 'page', 'pageId': 'f' * 16}}
         before = self.path.read_bytes()
         for source in [{**valid, 'api_key': 'never-import'}, {**valid, 'esp_screens_layout': 99}, rectangle, dangling]:

@@ -6,6 +6,8 @@
  */
 import type { HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
 
+import { dimensions, SIZES, type Size } from "./layout";
+
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 export const instanceId = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
 export const pageLimit = (grid: PageGrid) => Math.min(8, Math.floor(64 / (grid.columns * grid.rows)));
@@ -92,11 +94,11 @@ export function reachability(layout: PageLayout, settings: NavigationSettings) {
     noWayHome: layout.pages.filter((page) => reachable.has(page.id) && !returns.has(page.id)).map((page) => page.id) };
 }
 
-export function footprintSize(tile: PageTile, grid: PageGrid): "single" | "wide" | "full" {
+export function footprintSize(tile: PageTile, grid: PageGrid): Size {
   const { columns, rows } = tile.placement;
   const presentation = tile.appearance.presentation;
   if (presentation) {
-    const sizes = { single: [1, 1], wide: [Math.min(2, grid.columns), 1], full: [grid.columns, grid.rows] };
+    const sizes = { single: [1, 1], wide: [Math.min(2, grid.columns), 1], tall: [1, 2], square: [2, 2], full: [grid.columns, grid.rows] };
     const size = sizes[presentation];
     if (!size || size[0] !== columns || size[1] !== rows) throw new Error("This tile presentation and footprint require a future screen capability");
     return presentation;
@@ -104,6 +106,8 @@ export function footprintSize(tile: PageTile, grid: PageGrid): "single" | "wide"
   if (columns === 1 && rows === 1) return "single";
   if (columns === Math.min(2, grid.columns) && rows === 1) return "wide";
   if (columns === grid.columns && rows === grid.rows) return "full";
+  if (columns === 1 && rows === 2) return "tall";
+  if (columns === 2 && rows === 2) return "square";
   throw new Error("This tile footprint requires a future screen capability");
 }
 /** An explicit review proposal. It never changes page membership, drops a tile,
@@ -128,8 +132,7 @@ export function adaptGrid(layout: PageLayout, source: PageGrid, target: PageGrid
     for (const tile of page.tiles) {
       const presentation = footprintSize(tile, source);
       tile.appearance.presentation = presentation;
-      tile.placement.columns = presentation === 'full' ? target.columns : presentation === 'wide' ? Math.min(2, target.columns) : 1;
-      tile.placement.rows = presentation === 'full' ? target.rows : 1;
+      Object.assign(tile.placement, dimensions(presentation, target));
       if (fits(tile, tile.placement.row, tile.placement.column)) place(tile, tile.placement.row, tile.placement.column);
       else pending.push(tile);
     }
@@ -297,9 +300,9 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
         content = { kind: "builtin", name: tile.entity.slice(7) as "clock" | "settings" };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
-      if (!["single", "wide", "full"].includes(size)) throw new Error("Unsupported tile size");
+      if (!SIZES.includes(size as Size)) throw new Error("Unsupported tile size");
       const appearance: PageTile["appearance"] = { label: tile.name };
-      if (size !== "single") appearance.presentation = size as "wide" | "full";
+      if (size !== "single") appearance.presentation = size as Size;
       for (const [key, wire] of Object.entries(appearanceKeys)) {
         if (options[wire] !== undefined) Object.assign(appearance, { [key]: clone(options[wire]) });
       }
@@ -309,8 +312,7 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
       }
       draft.pages[Math.floor(slot / cells)].tiles.push({ id: old?.id || instanceId(), content, appearance, interaction,
         placement: { row: Math.floor((slot % cells) / grid.columns), column: slot % grid.columns,
-          columns: size === "full" ? grid.columns : size === "wide" ? Math.min(2, grid.columns) : 1,
-          rows: size === "full" ? grid.rows : 1 } });
+          ...dimensions(size as Size, grid) } });
     }
   });
 }

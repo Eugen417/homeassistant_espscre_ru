@@ -42,8 +42,8 @@ for a new panel from the nearest real board; its sizes come from the look (docs/
 `packages/core.yaml` gives the tile area (`tile_scroll`) an LVGL grid layout; `runtime_tiles::grid_bind` fills in
 the board's columns and rows as free units (`lv_obj_set_grid_dsc_array`), so LVGL divides the area over the cells
 and keeps the gaps (`pad_row`, `pad_column`) and the side margin (the container's padding). `place_page` says only
-which cell a card takes and how many it spans: `lv_obj_set_grid_cell(tile, STRETCH, column, span, STRETCH, row, 1)`,
-a wide card two columns, a full card the whole page. No coordinate is computed in C++ any more, and the cards grow
+which cell a card takes and how many it spans: `lv_obj_set_grid_cell(tile, STRETCH, column, columns, STRETCH, row, rows)`,
+a wide card two columns, the 0.3.1 taller cards two rows, and a full card the whole page. No coordinate is computed in C++ any more, and the cards grow
 by themselves when the page bar goes (the container then reaches the bottom edge, keeping the side margin).
 
 The cards themselves are LVGL widgets, so they live in YAML, and ESPHome has no loop: `tools/generate_cells.py`

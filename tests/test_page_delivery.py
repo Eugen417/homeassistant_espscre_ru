@@ -64,6 +64,26 @@ class Screen:
 
 
 class DeliveryTests(unittest.IsolatedAsyncioTestCase):
+    async def test_taller_tiles_are_refused_before_replacing_an_older_screen(self):
+        tile = self.record['layout']['pages'][0]['tiles'][0]
+        tile['placement']['rows'] = 2
+        tile['appearance']['presentation'] = 'square'
+        self.values[0]['o']['size'] = 'square'
+        with self.assertRaisesRegex(Refused, 'taller tiles'):
+            await self.sync()
+        self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
+
+        async def newer(message):
+            answer = await self.screen.send(message)
+            if message['op'] == 'hello': answer['tile_sizes'] = ['single', 'wide', 'full', 'tall', 'square']
+            return answer
+        self.sender = Sender(newer)
+        await self.sync()
+        self.assertEqual(self.screen.initial[0]['o']['size'], 'square')
+        self.assertTrue(self.screen.active)
+        self.sender.disconnected()
+        self.assertNotIn('square', self.sender.tile_sizes)
+
     def setUp(self):
         self.record = migrate_legacy({"title": "Test", "pages": 2, "tiles": [
             {"entity": "light.test", "name": "Desk", "slot": 0, "options": {"size": "wide"}},

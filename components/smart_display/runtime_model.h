@@ -296,6 +296,7 @@ struct Tile {
   bool pictured() const { return live() || cover_tile(); }
   // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
   bool wide = false, full = false;
+  uint8_t height = 1;  // Row span; independent of the card design and page height.
   // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.
   std::string controls, device_class;
   bool muted = false;
@@ -413,7 +414,9 @@ struct Tile {
   bool is_page() const { return page_entity(entity); }
   int page_target() const { return is_page() ? entity[12] - '0' : 0; }
   // Slots a tile takes: one, a row of two, or the six of a page.
-  unsigned cells() const { return full ? grid.slots() : wide ? grid.wide_span() : 1u; }
+  unsigned column_span() const { return full ? grid.columns : wide ? grid.wide_span() : 1u; }
+  unsigned row_span() const { return full ? grid.rows : height; }
+  unsigned cells() const { return column_span() * row_span(); }
   // A scene, button or input button that never ran is "unknown" in Home Assistant, which still lets you press it
   // (hui-button-entity-row disables only an unavailable one): its state is the moment it last ran (firmware 0.2.58+).
   bool available() const {
@@ -473,16 +476,29 @@ inline size_t (*heap_room)() = nullptr;
 // empty. A full tile starts a page of its own; the slots it leaves behind stay empty. Returns the page
 // count (at least one).
 inline unsigned pack(const TileList &tiles, size_t count, std::array<Placement, TILES_MAX> &out) {
-  unsigned position = 0;
+  std::array<bool, TILES_MAX> taken{};
+  unsigned position = 0, last = 0;
   for (size_t i = 0; i < count && i < grid.max_tiles(); ++i) {
-    if (tiles[i].full && position % grid.slots()) position += grid.slots() - position % grid.slots();
-    else if (tiles[i].wide && !grid.wide_fits(position)) ++position;
+    const auto &tile = tiles[i];
+    const unsigned columns = tile.column_span(), rows = tile.row_span();
+    for (; position < grid.max_tiles(); ++position) {
+      if ((tile.full && position % grid.slots()) || position % grid.columns + columns > grid.columns ||
+          position % grid.slots() / grid.columns + rows > grid.rows) continue;
+      bool free = true;
+      for (unsigned y = 0; y < rows; ++y) for (unsigned x = 0; x < columns; ++x)
+        if (taken[position + y * grid.columns + x]) free = false;
+      if (free) break;
+    }
+    if (position >= grid.max_tiles()) return grid.pages() + 1;
     out[i] = {static_cast<uint8_t>(position / grid.slots()), static_cast<uint8_t>(position % grid.slots())};
-    position += tiles[i].cells();
+    for (unsigned y = 0; y < rows; ++y) for (unsigned x = 0; x < columns; ++x)
+      taken[position + y * grid.columns + x] = true;
+    last = std::max(last, position + (rows - 1) * static_cast<unsigned>(grid.columns) + columns);
+    position += columns;
   }
-  unsigned pages = (position + grid.slots() - 1) / grid.slots();
-  return pages ? pages : 1;
+  return std::max(1u, (last + static_cast<unsigned>(grid.slots()) - 1) / static_cast<unsigned>(grid.slots()));
 }
+
 // Grid position per tile: the explicit slots when the manager sent them (a wide
 // card always starts in the left column), else the in-order packing. Returns the
 // page count (at least one); an empty page between two used ones stays a page.
@@ -532,13 +548,16 @@ struct Model {
     refusal.clear();
     return true;
   }
-  bool valid_placement(unsigned index, unsigned slot, bool full, bool wide) const {
-    if (index >= count || slot >= pages * grid.slots() || (full && slot % grid.slots()) ||
-        (!full && wide && !grid.wide_fits(slot))) return false;
-    const unsigned cells = full ? grid.slots() : wide ? grid.wide_span() : 1;
-    for (size_t i = 0; i < count; ++i) if (i != index && tiles[i].received) {
-      const unsigned end = slots[i] + tiles[i].cells();
-      if (slot < end && slots[i] < slot + cells) return false;
+  bool valid_placement(unsigned index, unsigned slot, bool full, bool wide, unsigned height = 1) const {
+    const unsigned columns = full ? grid.columns : wide ? grid.wide_span() : 1;
+    const unsigned rows = full ? grid.rows : height;
+    const unsigned x = slot % grid.columns, y = slot % grid.slots() / grid.columns;
+    if (!rows || index >= count || slot >= pages * grid.slots() || (full && slot % grid.slots()) ||
+        x + columns > grid.columns || y + rows > grid.rows) return false;
+    for (size_t i = 0; i < count; ++i) if (i != index && tiles[i].received && slots[i] / grid.slots() == slot / grid.slots()) {
+      const unsigned other_x = slots[i] % grid.columns, other_y = slots[i] % grid.slots() / grid.columns;
+      if (x < other_x + tiles[i].column_span() && other_x < x + columns &&
+          y < other_y + tiles[i].row_span() && other_y < y + rows) return false;
     }
     return true;
   }
@@ -559,7 +578,7 @@ inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out) {
     if (m.tiles[i].full) slot -= slot % grid.slots();
     else if (m.tiles[i].wide && !grid.wide_fits(slot)) --slot;
     out[i] = {static_cast<uint8_t>(slot / grid.slots()), static_cast<uint8_t>(slot % grid.slots())};
-    last = std::max(last, slot + m.tiles[i].cells());
+    last = std::max(last, slot + (m.tiles[i].row_span() - 1) * static_cast<unsigned>(grid.columns) + m.tiles[i].column_span());
   }
   unsigned pages = (last + grid.slots() - 1) / grid.slots();
   return std::max({pages, 1u, std::min<unsigned>(m.pages, grid.pages())});

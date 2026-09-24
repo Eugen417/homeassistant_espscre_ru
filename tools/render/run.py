@@ -450,6 +450,42 @@ class Run:
             assert restored.tobytes() == reference.tobytes(), 'Recovery must restore the same complete screen'
         return await self.self_test()
 
+    async def rectangular_tiles(self, grid):
+        """Real cards in multi-row cells, beside ordinary neighbors, on every board."""
+        if grid.rows < 2: return 0
+        checks = 0
+        for size in ['tall', *(['square'] if grid.columns >= 2 else [])]:
+            examples = ([('light.demo', {'inline': 'slider'}), ('sensor.demo_temperature', {'display': 'graph'}),
+                         ('screen.clock', {'display': 'analog'})] if size == 'tall' else
+                        [('media_player.demo_sonos', {'controls': 'playback'}), ('climate.demo_ac', {}),
+                         ('screen.clock', {'display': 'analog'})])
+            states = {**send_layout.demo_states(MOMENT), **send_layout.controls_states(MOMENT)}
+            tiles = []
+            for page, (entity, options) in enumerate(examples[:grid.pages]):
+                slot = page * grid.slots
+                tiles.append(dict(entity=entity, name=f'{size} card', slot=slot, options={**options, 'size': size}))
+                occupied = set(grid.footprint(slot, size))
+                neighbor = next((cell for cell in range(slot, slot + grid.slots) if cell not in occupied), None)
+                if neighbor is not None:
+                    entity = f'sensor.neighbor_{page}'
+                    tiles.append(dict(entity=entity, name='Neighbor', slot=neighbor))
+                    states[entity] = {'state': '21', 'attributes': {'unit_of_measurement': '°C'}}
+            record = send_layout.migrate_legacy(dict(title='Rectangles', tiles=tiles), grid)
+            values = []
+            for index, tile in enumerate(send_layout.compile_tiles(record['layout'], grid)):
+                message = send_layout.state_message(index, tile, states)
+                if tile['entity'] == 'sensor.demo_temperature': message['history'] = {'hours': 24, 'values': [18, 20, 19, 23, 21]}
+                values.append(message)
+            bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
+            region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
+            await self.sender.synchronize(self.inbox.object_id, record, region, values, bars)
+            checks += await self.self_test()
+            for page in range(len(bars)):
+                await self.call('render_page', page=page)
+                await self.page_done(page)
+                await self.render(f'{size}-{page + 1}')
+        return checks
+
     async def drive(self):
         self.client = APIClient('127.0.0.1', self.item.port, None)
         for _ in range(240):
@@ -515,6 +551,7 @@ class Run:
         await self.render('page-1-dark')
         self.client.switch_command(dark.key, False)
         checks += await self.detail_navigation(grid, entities)
+        checks += await self.rectangular_tiles(grid)
         return pages, checks
 
     async def run(self):

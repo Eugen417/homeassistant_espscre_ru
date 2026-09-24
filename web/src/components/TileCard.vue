@@ -4,7 +4,7 @@
 import { computed, nextTick } from "vue";
 import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
-import { displayName, effectiveControls, grid, isFull, isWide, pageOf, pageTarget } from "../model/layout";
+import { dimensions, sizeOf, displayName, effectiveControls, grid, isFull, isWide, pageOf, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, unitSuffix } from "../store";
 import { tilePalette, tileActive } from "../model/tile-palette";
@@ -19,6 +19,7 @@ function activate() {
 }
 // A built-in card is named as the screens name it, in their language (app 0.2.90).
 const name = computed(() => props.tile.name || (domain.value === "screen" && screenBuiltinName(props.tile.entity)) || entityName(props.tile.entity));
+const shape = computed(() => dimensions(sizeOf(props.tile), grid));
 const full = computed(() => isFull(props.tile));
 const wide = computed(() => isWide(props.tile) && !full.value);
 const goesTo = computed(() => pageTarget(props.tile.entity));
@@ -123,7 +124,7 @@ async function onKey(e: KeyboardEvent) {
   if (!step) return;
   e.preventDefault();
   // A wide card owns its row: every arrow means the row above or below. A full card moves by the page.
-  if (placeTile(props.tile, props.tile.slot + (full.value ? Math.sign(step) * grid.slots : wide.value ? Math.sign(step) * grid.columns : step))) {
+  if (placeTile(props.tile, props.tile.slot + (full.value ? Math.sign(step) * grid.slots : step))) {
     await nextTick();
     document.querySelector<HTMLElement>(`.pages [data-slot="${props.tile.slot}"]`)?.focus();
   }
@@ -131,8 +132,8 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="tile" :class="{ wide, full, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id"
-    :style="{ ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
+  <div class="tile" :class="{ wide, full, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+    :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
     :tabindex="(preview ? goesTo : live) ? 0 : -1" :role="(preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
     <template v-if="display === 'analog'">

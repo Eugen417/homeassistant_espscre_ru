@@ -1345,7 +1345,10 @@
         "wide": "Largura dupla",
         "full": "Página inteira",
         "full_hint": "Página inteira: um botão grande na cor do próprio mosaico; em baixo ficam um deslizador, controlos ou um gráfico.",
-        "needs_firmware": "Um mosaico de página inteira precisa do firmware 0.2.62: prima primeiro Atualizar na lista de ecrãs."
+        "needs_firmware": "Um mosaico de página inteira precisa do firmware 0.2.62: prima primeiro Atualizar na lista de ecrãs.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Largura × altura em células. Usa o desenho atual do cartão."
       },
       "page": {
         "label": "Página",

@@ -11,6 +11,19 @@ const tile = (entity: string, slot: number, options: Tile["options"] = {}): Tile
 const entries = (tiles: Tile[]) => tiles.map((t) => ({ tile: t, slot: t.slot }));
 
 describe("packing and positions", () => {
+  it("keeps the adjacent column free for tall cards and refuses rectangles crossing a page", () => {
+    setGrid(2, 3);
+    expect(cellsOf(1, 'tall')).toEqual([1, 3]);
+    expect(cellsOf(0, 'square')).toEqual([0, 1, 2, 3]);
+    expect(fits(new Set([1, 3]), 2, 'single')).toBe(true);
+    expect(fits(new Set([1, 3]), 2, 'wide')).toBe(false);
+    expect(fits(new Set(), 4, 'tall')).toBe(false);
+    expect(packSlots([tile('a', -1, { size: 'tall' }), tile('b', -1), tile('c', -1)])).toEqual([0, 1, 3]);
+    const moving = tile('a', 0, { size: 'tall' }), neighbor = tile('b', 1);
+    const result = arrange([moving, neighbor], moving, 1)!;
+    expect(result.find((entry) => entry.tile === neighbor)!.slot).toBe(0);
+    expect(occupied(result).size).toBe(3);
+  });
   it("packs in reading order and moves a wide tile to the start of a row", () => {
     const tiles = [tile("a", -1), tile("b", -1, { size: "wide" }), tile("c", -1)];
     expect(packSlots(tiles)).toEqual([0, 2, 4]);

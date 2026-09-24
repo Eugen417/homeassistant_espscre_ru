@@ -1345,7 +1345,10 @@
         "wide": "Podwójna szerokość",
         "full": "Cała strona",
         "full_hint": "Cała strona: jeden duży przycisk w kolorze kafelka; suwak, przyciski lub wykres są na jego dole.",
-        "needs_firmware": "Kafelek na całą stronę wymaga wersji firmware 0.2.62: najpierw naciśnij „Aktualizuj” przy tym ekranie."
+        "needs_firmware": "Kafelek na całą stronę wymaga wersji firmware 0.2.62: najpierw naciśnij „Aktualizuj” przy tym ekranie.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Szerokość × wysokość w komórkach. Używa obecnego wyglądu kafelka."
       },
       "page": {
         "label": "Strona",

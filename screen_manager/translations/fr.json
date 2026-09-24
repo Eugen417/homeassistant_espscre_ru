@@ -1345,7 +1345,10 @@
         "wide": "Double largeur",
         "full": "Pleine page",
         "full_hint": "Pleine page : un grand bouton dans la couleur de la tuile ; un curseur, des commandes ou un graphique se placent en bas.",
-        "needs_firmware": "Une tuile pleine page nécessite le firmware 0.2.62 : appuyez d'abord sur Mettre à jour pour cet écran."
+        "needs_firmware": "Une tuile pleine page nécessite le firmware 0.2.62 : appuyez d'abord sur Mettre à jour pour cet écran.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Largeur × hauteur en cellules. Utilise le design actuel de la tuile."
       },
       "page": {
         "label": "Page",

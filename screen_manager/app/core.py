@@ -53,7 +53,7 @@ REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 # The branch a screen's YAML builds its board package from. Which boards there are is boards.json's (BOARD_KEYS).
 REF = 'main'
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.3.0'
+FIRMWARE_VERSION = '0.3.1'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -152,8 +152,24 @@ class Grid:
         """A wide tile takes two cells, or the one there is on a single-column screen."""
         return min(2, self.columns)
 
+    def dimensions(self, size):
+        """Width and height in grid cells, independent of the tile's content."""
+        if size == 'full': return self.columns, self.rows
+        if size in ('wide', True): return self.wide_span, 1
+        if size == 'tall': return 1, 2
+        if size == 'square': return 2, 2
+        return 1, 1
+
     def cells(self, size):
-        return self.slots if size == 'full' else self.wide_span if size in ('wide', True) else 1
+        columns, rows = self.dimensions(size)
+        return columns * rows
+
+    def fits(self, slot, size):
+        columns, rows = self.dimensions(size)
+        return (type(slot) is int and 0 <= slot < self.max_slots
+                and (size != 'full' or slot % self.slots == 0)
+                and slot % self.columns + columns <= self.columns
+                and slot % self.slots // self.columns + rows <= self.rows)
 
     def page_start(self, slot):
         return slot - slot % self.slots
@@ -169,20 +185,23 @@ class Grid:
         """The cells a tile of `size` takes from `slot` (True still means wide)."""
         if size == 'full':
             return tuple(range(self.page_start(slot), self.page_start(slot) + self.slots))
-        return tuple(range(slot, slot + self.wide_span)) if size in ('wide', True) else (slot,)
+        columns, rows = self.dimensions(size)
+        return tuple(slot + row * self.columns + column for row in range(rows) for column in range(columns))
 
     def pack(self, tiles):
         """In-order packing, the rule before explicit positions and what firmware without `slots` still does:
         fill left to right, a wide card that would straddle two rows starts the next, a full one a new page."""
-        position, slots = 0, []
+        position, slots, taken = 0, [], set()
         for tile in tiles:
             size = tile_size(tile)
-            if size == 'full' and position % self.slots:
-                position += self.slots - position % self.slots
-            elif size == 'wide' and not self.wide_fits(position):
-                position = self.row_start(position) + self.columns
+            columns, rows = self.dimensions(size)
+            if columns > self.columns or rows > self.rows:
+                raise ValueError(t('addon.errors.layout.eight_pages'))
+            while not self.fits(position % self.slots, size) or taken.intersection(self.footprint(position, size)):
+                position += 1
             slots.append(position)
-            position += self.cells(size)
+            taken.update(self.footprint(position, size))
+            position += self.dimensions(size)[0]
         return slots
 
     def holds(self, tiles):
@@ -191,7 +210,7 @@ class Grid:
             slot, size = tile.get('slot'), tile_size(tile)
             if type(slot) is not int or not 0 <= slot < self.max_slots:
                 return False
-            if size == 'full' and slot % self.slots or size == 'wide' and not self.wide_fits(slot):
+            if not self.fits(slot, size):
                 return False
         return True
 
@@ -221,10 +240,10 @@ MAX_PAGES = DEFAULT_GRID.pages
 MAX_SLOTS = DEFAULT_GRID.max_slots
 MAX_TILES = DEFAULT_GRID.max_tiles
 
-TILE_SIZES_ON_SCREEN = ('single', 'wide', 'full')
+TILE_SIZES_ON_SCREEN = ('single', 'wide', 'tall', 'square', 'full')
 
 def tile_size(tile):
-    """'single', 'wide' (a row) or 'full' (the whole page, firmware 0.2.62+)."""
+    """The symbolic presentation size; dimensions are resolved by the screen's grid."""
     size = tile.get('options', {}).get('size', 'single')
     return size if size in TILE_SIZES_ON_SCREEN else 'single'
 
@@ -298,7 +317,7 @@ def resolve_controls(tile):
     options = tile.get('options', {})
     domain = tile['entity'].split('.')[0]
     # The album cover in the icon's place (app 0.2.92) is the standard layout with a picture: the controls stay.
-    if domain not in CONTROLS or options.get('size') not in ('wide', 'full') or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
+    if domain not in CONTROLS or options.get('size') not in ('wide', 'square', 'full') or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
         return None
     # A full-page card is one big button unless a control was chosen for it; a wide card shows its usual one.
     choice = options.get('controls', 'none' if options.get('size') == 'full' else CONTROLS[domain][0][0])
@@ -909,7 +928,7 @@ def free_slot(tiles, size, page=None, skip=None, grid=DEFAULT_GRID):
     for slot in range(first, last):
         if size == 'full' and slot % grid.slots:
             continue
-        if size == 'wide' and (not grid.wide_fits(slot) or slot + grid.wide_span > last):
+        if not grid.fits(slot, size):
             continue
         if not set(grid.footprint(slot, size)) & cells:
             return slot
@@ -921,9 +940,11 @@ def place_tile(tile, tiles, page=None, slot=None, grid=DEFAULT_GRID):
     if slot is not None:
         if size == 'full':
             slot = grid.page_start(slot)
-        elif size == 'wide' and not grid.wide_fits(slot):
+        elif size in ('wide', 'square') and not grid.wide_fits(slot):
             # The last column has no cell beside it: the tile starts one column earlier, in the same row.
             slot -= 1
+        if not grid.fits(slot, size):
+            raise ValueError(t('addon.errors.layout.position'))
         wanted = set(grid.footprint(slot, size))
         taken = next((t for t in tiles if t is not tile and 'slot' in t and wanted & set(grid.footprint(t['slot'], tile_size(t)))), None)
         if taken:
@@ -957,7 +978,7 @@ def tile_options(data, current=None):
         options['action'] = {'action': str(data['action']).strip(), **({'data': data['data']} if isinstance(data.get('data'), dict) and data['data'] else {})}
         if data.get('tap') in (None, ''):
             options['tap'] = 'action'
-    if (options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY) and options.get('size') != 'full':
+    if (options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY) and options.get('size') not in ('square', 'full'):
         options['size'] = 'wide'
     return {key: value for key, value in options.items() if value not in (None, '')}
 
@@ -1031,18 +1052,12 @@ def not_there(entity, page, slot):
 
 def pack_page(tiles, page, grid=DEFAULT_GRID):
     """Give these tiles the cells of one page, in the order they are in."""
-    position = page * grid.slots
-    last = position + grid.slots
-    for tile in tiles:
-        size = tile_size(tile)
-        if size == 'full' and (position != page * grid.slots or len(tiles) > 1):
-            raise ValueError(t('addon.errors.events.full_page_alone', page=page + 1))
-        if size == 'wide' and not grid.wide_fits(position):
-            position = grid.row_start(position) + grid.columns
-        if position + grid.cells(size) > last:
+    if len(tiles) > 1 and any(tile_size(tile) == 'full' for tile in tiles):
+        raise ValueError(t('addon.errors.events.full_page_alone', page=page + 1))
+    for tile, slot in zip(tiles, grid.pack(tiles)):
+        if slot >= grid.slots:
             raise ValueError(t('addon.errors.events.does_not_fit', page=page + 1))
-        tile['slot'] = position
-        position += grid.cells(size)
+        tile['slot'] = page * grid.slots + slot
 
 def run_tile_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID):
     """(layout, tile): the layout after one tile event and the tile it placed, changed, moved or removed (None for an
@@ -1148,8 +1163,8 @@ def run_tile_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID):
         move = found is None or had_slot is None or (not chosen and (page is not None or slot is not None))
         if not move and size != was_size:
             # A tile that just grew keeps its spot when the cells it needs are free.
-            start = grid.page_start(had_slot) if size == 'full' else had_slot - (0 if grid.wide_fits(had_slot) else 1) if size == 'wide' else had_slot
-            move = start != had_slot or bool(set(grid.footprint(start, size)) & occupied_cells([t for t in tiles if t is not tile], grid=grid))
+            start = grid.page_start(had_slot) if size == 'full' else had_slot - (0 if grid.wide_fits(had_slot) else 1) if size in ('wide', 'square') else had_slot
+            move = not grid.fits(start, size) or start != had_slot or bool(set(grid.footprint(start, size)) & occupied_cells([t for t in tiles if t is not tile], grid=grid))
         if move:
             tile.pop('slot', None)
             if size == 'full' and had_slot is not None and ((page is None and slot is None) or chosen):
@@ -1309,7 +1324,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 if sub == 'auto':
                     options = {k: v for k, v in options.items() if k != 'sub'}
             # The five-day strip and the sun path only fit a double-width card (or the whole page).
-            if options.get('display') in WIDE_ONLY and options.get('size') != 'full':
+            if options.get('display') in WIDE_ONLY and options.get('size') not in ('wide', 'square', 'full'):
                 options = {**options, 'size': 'wide'}
             # On / off sends <domain>.toggle. Whether Home Assistant offers that for the entity is checked when saving
             # (Manager.check_supported, app 0.2.67); the built-in cards have nothing to switch.
@@ -1355,6 +1370,8 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 raise ValueError(t('addon.errors.layout.full_page_top'))
             if size == 'wide' and not grid.wide_fits(slot):
                 raise ValueError(t('addon.errors.layout.wide_left'))
+            if not grid.fits(slot, size):
+                raise ValueError(t('addon.errors.layout.position'))
             for cell in grid.footprint(slot, size):
                 if cell in occupied:
                     raise ValueError(t('addon.errors.layout.same_spot'))

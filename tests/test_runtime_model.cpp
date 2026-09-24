@@ -98,6 +98,28 @@ static void test_explicit_slots() {
   assert(place(m, p) == 3 && p[0].slot == 4 && p[1].page == 1 && p[2].page == 2);
 }
 struct RunSlots { RunSlots() { test_explicit_slots(); } } run_slots;
+static void test_rectangular_slots() {
+  using namespace runtime_tiles;
+  Model m;
+  assert(m.begin(3, 2, "Rectangles"));
+  assert(m.valid_placement(0, 1, false, false, 2));
+  m.slots[0] = 1; m.tiles[0].height = 2; m.tiles[0].received = true;
+  assert(m.tiles[0].cells() == 2);
+  assert(m.valid_placement(1, 2, false, false));
+  assert(!m.valid_placement(1, 3, false, false));
+  assert(!m.valid_placement(1, 4, false, false, 2));
+  assert(!m.valid_placement(1, 1, false, true, 2));
+  assert(m.valid_placement(1, 6, false, true, 2));
+  m.slots[1] = 6; m.tiles[1].wide = m.tiles[1].received = true; m.tiles[1].height = 2;
+  assert(m.tiles[1].cells() == 4);
+  assert(!m.valid_placement(2, 9, false, false));
+  assert(m.valid_placement(2, 10, false, true));
+  std::array<Placement, TILES_MAX> positions;
+  TileList tiles(3); tiles[0].height = 2;
+  assert(pack(tiles, 3, positions) == 1);
+  assert(positions[0].slot == 0 && positions[1].slot == 1 && positions[2].slot == 3);
+}
+struct RunRectangles { RunRectangles() { test_rectangular_slots(); } } run_rectangles;
 // What only some tiles carry lives in an Extra that exists only while a state needs it.
 static void test_extra() {
   using namespace runtime_tiles;

@@ -43,41 +43,51 @@ export function setGrid(columns?: number, rows?: number) {
 }
 
 export type Entry = { tile: Tile; slot: number };
-// A tile is single, wide (a row) or full (the whole page); `true` still means wide.
-export type Size = "single" | "wide" | "full";
-export const SIZES: Size[] = ["single", "wide", "full"];
+// Dimensions are resolved on the screen's grid; `true` still means wide.
+export type Size = "single" | "wide" | "tall" | "square" | "full";
+export const SIZES: Size[] = ["single", "wide", "tall", "square", "full"];
 type SizeLike = Size | boolean;
 const asSize = (size: SizeLike): Size => (size === true ? "wide" : size === false ? "single" : size);
 
 // A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it opens; 0 for any other entity.
 export const pageTarget = (id: string) => (/^screen\.page_[1-8]$/.test(id) ? Number(id.slice(-1)) : 0);
 export const sizeOf = (tile: Tile): Size => (SIZES.includes(tile.options?.size as Size) ? (tile.options!.size as Size) : "single");
-export const isWide = (tile: Tile) => sizeOf(tile) !== "single";
+export const isWide = (tile: Tile) => ["wide", "square", "full"].includes(sizeOf(tile));
 export const isFull = (tile: Tile) => sizeOf(tile) === "full";
 export const pageStart = (slot: number) => slot - (slot % SLOTS_PER_PAGE);
 export const rowStart = (slot: number) => slot - (slot % COLUMNS);
 export const pageOf = (slot: number) => Math.floor(slot / SLOTS_PER_PAGE);
 // A wide tile takes two cells, unless the screen has a single column: then it is as wide as the page already.
-export const spanOf = (size: SizeLike) => (asSize(size) === "full" ? SLOTS_PER_PAGE : asSize(size) === "wide" ? Math.min(2, COLUMNS) : 1);
-export const cellsOf = (slot: number, size: SizeLike) =>
-  asSize(size) === "full" ? Array.from({ length: SLOTS_PER_PAGE }, (_, i) => pageStart(slot) + i)
-    : Array.from({ length: spanOf(size) }, (_, i) => slot + i);
-// The cell a tile of `size` starts at when dropped on `slot`.
-export const startOf = (slot: number, size: SizeLike) => (asSize(size) === "full" ? pageStart(slot) : asSize(size) === "wide" ? rowStart(slot) : slot);
+export function dimensions(size: SizeLike, shape = { columns: COLUMNS, rows: ROWS }) {
+  const value = asSize(size);
+  return value === "full" ? { columns: shape.columns, rows: shape.rows }
+    : value === "square" ? { columns: 2, rows: 2 }
+    : value === "tall" ? { columns: 1, rows: 2 }
+    : { columns: value === "wide" ? Math.min(2, shape.columns) : 1, rows: 1 };
+}
+export const spanOf = (size: SizeLike) => { const d = dimensions(size); return d.columns * d.rows; };
+export const cellsOf = (slot: number, size: SizeLike) => {
+  const d = dimensions(size), first = asSize(size) === "full" ? pageStart(slot) : slot;
+  return Array.from({ length: d.rows }, (_, row) => Array.from({ length: d.columns }, (_, column) => first + row * COLUMNS + column)).flat();
+};
+// Keep the requested row, fitting the rectangle horizontally. Vertical overflow is refused.
+export const startOf = (slot: number, size: SizeLike) => asSize(size) === "full" ? pageStart(slot)
+  : rowStart(slot) + Math.min(slot % COLUMNS, Math.max(0, COLUMNS - dimensions(size).columns));
 export const entriesOf = (layout: Layout): Entry[] => layout.tiles.map((tile) => ({ tile, slot: tile.slot }));
 
 // In-order packing: the rule before positions existed, and what firmware below 0.2.26 still draws.
 export function packSlots(tiles: Tile[]) {
   let position = 0;
+  const taken = new Set<number>();
   return tiles.map((tile) => {
-    const size = sizeOf(tile);
-    if (size === "full" && position % SLOTS_PER_PAGE) position += SLOTS_PER_PAGE - (position % SLOTS_PER_PAGE);
-    else if (size === "wide" && COLUMNS > 1 && position % COLUMNS === COLUMNS - 1) position++;
-    const slot = position;
-    position += spanOf(size);
+    const size = sizeOf(tile), slot = firstFree(taken, size, position);
+    if (slot < 0) throw new Error("Tiles do not fit this screen grid");
+    for (const cell of cellsOf(slot, size)) taken.add(cell);
+    position = slot + dimensions(size).columns;
     return slot;
   });
 }
+
 export function hasGaps(tiles: Tile[]) {
   const packed = packSlots(tiles);
   return tiles.some((tile, i) => tile.slot !== packed[i]);
@@ -97,9 +107,9 @@ export function occupied(entries: Entry[]) {
 }
 export const fits = (taken: Set<number>, slot: number, size: SizeLike) =>
   Number.isInteger(slot) && slot >= 0 && slot < MAX_SLOTS &&
-  // A wide tile needs a cell beside it in the same row, wherever the screen's columns fall.
-  (asSize(size) === "full" ? slot % SLOTS_PER_PAGE === 0
-    : asSize(size) === "wide" ? slot + spanOf(size) <= MAX_SLOTS && slot % COLUMNS <= COLUMNS - spanOf(size) : true) &&
+  (asSize(size) !== "full" || slot % SLOTS_PER_PAGE === 0) &&
+  slot % COLUMNS + dimensions(size).columns <= COLUMNS &&
+  Math.floor(slot % SLOTS_PER_PAGE / COLUMNS) + dimensions(size).rows <= ROWS &&
   cellsOf(slot, size).every((c) => !taken.has(c));
 export function firstFree(taken: Set<number>, size: SizeLike, from = 0) {
   for (let slot = from; slot < MAX_SLOTS; slot++) if (fits(taken, slot, size)) return slot;
@@ -227,7 +237,7 @@ export const newTile = (id: string): Tile => ({ entity: id, name: "", slot: -1, 
 // without a choice the domain's first control set applies to a wide card, none to a full one.
 export function effectiveControls(tile: Tile, inventory: Inventory): string | null {
   const domain = tile.entity.split(".")[0], catalogue = inventory.controls?.[domain], o = tile.options || {};
-  if (!catalogue || !["wide", "full"].includes(o.size as string) || !["standard", "cover"].includes((o.display || "standard") as string) || o.inline === "slider") return null;
+  if (!catalogue || !["wide", "square", "full"].includes(o.size as string) || !["standard", "cover"].includes((o.display || "standard") as string) || o.inline === "slider") return null;
   const choice = o.controls ?? (o.size === "full" ? "none" : catalogue.default);
   return choice === "none" ? null : choice;
 }

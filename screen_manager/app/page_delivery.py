@@ -101,9 +101,11 @@ class Sender:
         self.values, self.bars = [], []
         self.phase = "waiting"
         self.protocol = None
+        self.tile_sizes = {"single", "wide", "full"}
 
     def disconnected(self):
         self.session = self.confirmed = self.protocol = None
+        self.tile_sizes = {"single", "wide", "full"}
         self.phase = "waiting"
         self.failed_revision = self.failure = None
 
@@ -116,6 +118,8 @@ class Sender:
                 raise DeliveryError("The screen returned an unrelated session")
             if answer.get("status") != "Session:" + session:
                 raise DeliveryError("The screen did not grant a session")
+            sizes = answer.get("tile_sizes", ["single", "wide", "full"])
+            self.tile_sizes = {size for size in sizes if isinstance(size, str)} if isinstance(sizes, list) else {"single", "wide", "full"}
             self.protocol, self.session, self.sequence = PROTOCOL, session, 0
             return PROTOCOL
         # This is an answer from the running old firmware, not cached registry metadata.
@@ -175,6 +179,8 @@ class Sender:
                     self.phase = "applying"
                     if await self._hello() != PROTOCOL:
                         raise Refused("Update screen to use the new titlebar and layout")
+                    if any(message["o"].get("size", "single") not in self.tile_sizes for message in initial_tiles):
+                        raise Refused("Update screen to use taller tiles")
                     current()
                     answer = await self._packet(begin, revision)
                     self.revision = revision

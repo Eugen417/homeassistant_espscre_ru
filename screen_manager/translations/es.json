@@ -1345,7 +1345,10 @@
         "wide": "Doble ancho",
         "full": "Página completa",
         "full_hint": "Página completa: un botón grande en el color del propio mosaico; en la parte inferior va un control deslizante, unos controles o un gráfico.",
-        "needs_firmware": "Un mosaico de página completa necesita el firmware 0.2.62: pulsa antes Actualizar en la lista de pantallas."
+        "needs_firmware": "Un mosaico de página completa necesita el firmware 0.2.62: pulsa antes Actualizar en la lista de pantallas.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Ancho × alto en celdas. Usa el diseño actual de la tarjeta."
       },
       "page": {
         "label": "Página",

@@ -4,7 +4,7 @@ import { computed, ref, toRaw } from "vue";
 import { t } from "../i18n";
 import { domainInfo, entriesOf, grid, pageCount, pageOf, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
-import { automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, setTileName, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
+import { currentScreen, automaticIcon, closeInspector, entityName, fullPage, loadSubtitleValues, setTileName, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
 import ActionPicker from "./ActionPicker.vue";
 import IconPicker from "./IconPicker.vue";
@@ -38,8 +38,16 @@ const onPage = computed(() => {
   if (pageTotal.value < grid.pages && !(alone.value && pageHere.value === pageTotal.value)) list.push([pageTotal.value + 1, t("editor.tile.page.new")]);
   return list;
 });
-const sizes = computed<[string, string][]>(() => (goesTo.value ? ["single", "wide"] : ["single", "wide", "full"]).map((key) => [key, t(`editor.tile.size.${key}`)]));
-const sizeHint = computed(() => goesTo.value ? "" : fullPage.value ? t("editor.tile.size.full_hint") : t("editor.tile.size.needs_firmware"));
+const sizes = computed<[string, string][]>(() => {
+  const keys = ["single", "wide"];
+  for (const key of ["tall", "square"]) {
+    if (key === "tall" && ["forecast", "sunpath"].includes(String(props.tile.options?.display))) continue;
+    if (props.tile.options?.size === key || (currentScreen.value?.tile_sizes?.includes(key) && grid.rows >= 2 && (key !== "square" || grid.columns >= 2))) keys.push(key);
+  }
+  if (!goesTo.value) keys.push("full");
+  return keys.map((key) => [key, t(`editor.tile.size.${key}`)]);
+});
+const sizeHint = computed(() => ["tall", "square"].includes(String(props.tile.options?.size)) ? t("editor.tile.size.rectangle_hint") : goesTo.value ? "" : fullPage.value ? t("editor.tile.size.full_hint") : t("editor.tile.size.needs_firmware"));
 const caps = computed(() => state.capabilities[props.tile.entity]);
 const current = (key: string, fallback: unknown) => props.tile.options?.[key] ?? fallback;
 const display = computed(() => current("display", domain.value === "screen" ? "digital" : "standard") as string);
@@ -174,7 +182,7 @@ function inspect() {
       <span class="f-label">{{ t("editor.tile.page.label") }}</span>
       <Segmented :choices="onPage" :value="pageHere" @pick="(v) => moveTileToPage(tile, Number(v) - 1)" />
     </div>
-    <div v-if="catalogue && size !== 'single' && !goesTo" class="f">
+    <div v-if="catalogue && ['wide', 'square', 'full'].includes(size) && !goesTo" class="f">
       <span class="f-label">{{ t("editor.tile.controls.label") }}</span>
       <Segmented :choices="controlChoices" :value="controls" @pick="(v) => setTileOption(tile, 'controls', v)" />
       <small :class="{ warn: controlHint.warn }">{{ controlHint.text }}</small>

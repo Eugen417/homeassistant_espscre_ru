@@ -1349,7 +1349,10 @@
         "wide": "Dubbelbreed",
         "full": "Hele pagina",
         "full_hint": "Hele pagina: één grote knop in de eigen kleur van de tile; onderaan staat een slider, bediening of grafiek.",
-        "needs_firmware": "Een paginavullende tegel heeft firmware 0.2.62 nodig: druk eerst bij het scherm op Bijwerken."
+        "needs_firmware": "Een paginavullende tegel heeft firmware 0.2.62 nodig: druk eerst bij het scherm op Bijwerken.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Breedte × hoogte in rastercellen. Gebruikt het bestaande tegelontwerp."
       },
       "page": {
         "label": "Pagina",

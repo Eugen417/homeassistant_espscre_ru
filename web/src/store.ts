@@ -5,7 +5,7 @@ import { api, getJson, send, setCsrf } from "./api";
 import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, pickLanguage, STYLE_MARKS, t } from "./i18n";
 import {
   arrange, cellsOf, entriesOf, firstFree, fits, grid, isFull, isWide, MAX_PAGES, nearestFree, newTile, normalize, occupied, pageCount, pageOf,
-  pageOrder, pagePlaces, pageTarget, reorderPages, reorderTitles, retargetedPage, rowStart, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages,
+  pageOrder, pagePlaces, pageTarget, reorderPages, reorderTitles, retargetedPage, rowStart, startOf, setGrid, sizeOf, SLOTS_PER_PAGE, strandedPages,
   supportsFirmware as supportsVersion, tileLimit as limitFor,
 } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
@@ -602,22 +602,24 @@ export function pagesShown() {
   // in the row it is already in, so the row stays as long as it is.
   return state.drag.active && !state.drag.page && pages < MAX_PAGES ? pages + 1 : pages;
 }
-// The tile's options change live; a card that becomes double-wide keeps its row when the cell beside it is
-// free, else it takes the nearest free row (below first); every other tile stays where it is.
+// Resizing keeps the tile's position when its rectangle is free, otherwise it finds
+// the nearest fitting rectangle. Every other tile stays where it is.
 export function setTileOption(tile: Tile, key: string, value: unknown) {
   if (!state.layout) return;
   const layout = pages.clone(state.layout);
   tile = currentView(tile, layout) || tile;
-  const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasWide = isWide(tile), wasSize = sizeOf(tile);
+  const domain = tile.entity.split(".")[0], caps = state.capabilities[tile.entity], wasSize = sizeOf(tile);
+  if (key === "size" && ["tall", "square"].includes(String(value)) && !currentScreen.value?.tile_sizes?.includes(String(value))) return;
+  if (key === "size" && value === "tall" && ["forecast", "sunpath"].includes(String(tile.options?.display))) return;
   tile.options = { ...tile.options, [key]: value };
   // Direct controls need the standard layout without a mini slider, and vice versa.
   if (key === "display" && value === "watch") { tile.options.inline = "none"; if (state.inventory.controls?.[domain]) tile.options.controls = "none"; }
-  if (key === "display" && ["forecast", "sunpath"].includes(value as string)) tile.options.size = "wide";
+  if (key === "display" && ["forecast", "sunpath"].includes(value as string) && !isWide(tile)) tile.options.size = "wide";
   if (key === "inline" && value === "slider") { tile.options.display = "standard"; if (state.inventory.controls?.[domain]) tile.options.controls = "none"; }
   if (key === "controls" && value !== "none") { tile.options.display = "standard"; tile.options.inline = "none"; }
   // A card that becomes wide gets the first direct control Home Assistant offers when the usual one isn't there.
   const catalogue = state.inventory.controls?.[domain];
-  if (key === "size" && value === "wide" && caps && catalogue && !("controls" in tile.options) && !caps.controls.includes(catalogue.default))
+  if (key === "size" && ["wide", "square"].includes(String(value)) && caps && catalogue && !("controls" in tile.options) && !caps.controls.includes(catalogue.default))
     tile.options.controls = catalogue.choices.find((c) => c.key !== "none" && caps.controls.includes(c.key))?.key || "none";
   // A card that grows to the whole page keeps its page: the other tiles there move to the first free
   // cells after it. With no room for them it takes the first empty page, or stays as it was.
@@ -637,10 +639,11 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
       if (slot >= 0) tile.slot = slot;
       else { tile.options.size = wasSize; toast(t("editor.layout.no_free_page")); }
     }
-  } else if (isWide(tile) && !wasWide) {
-    const taken = occupied(entriesOf(layout).filter((e) => e.tile !== tile)), own = rowStart(tile.slot);
-    const slot = fits(taken, own, "wide") ? own : nearestFree(taken, "wide", own);
+  } else if (sizeOf(tile) !== wasSize) {
+    const size = sizeOf(tile), taken = occupied(entriesOf(layout).filter((e) => e.tile !== tile)), own = startOf(tile.slot, size);
+    const slot = fits(taken, own, size) ? own : nearestFree(taken, size, own);
     if (slot >= 0) tile.slot = slot;
+    else { tile.options.size = wasSize; toast(t("editor.layout.no_room", { page: pageOf(tile.slot) + 1 })); return; }
   }
   normalize(layout);
   commitArrangement(layout.tiles.map((item) => ({ tile: item, slot: item.slot })));

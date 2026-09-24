@@ -37,7 +37,7 @@ class CompiledLayouts(Mapping):
         self._values = {key: legacy_projection(record, require_representable=False)
                         for key, record in records.items() if record['format'] == FORMAT}
         self._legacy = {key for key, record in records.items()
-                        if record['format'] == FORMAT and legacy_compatible(record['layout'])}
+                        if record['format'] == FORMAT and legacy_compatible(record['layout'], grid_of_record(record))}
 
     def __getitem__(self, key): return deepcopy(self._values[key])
     def __iter__(self): return iter(self._values)
@@ -193,17 +193,19 @@ def _entity(content, page_indexes, home):
 def footprint_size(columns, rows, grid, presentation=None):
     """Current rendering capability, separate from the persistent rectangle.
 
-    Future 2x2 or 2x3 cards can extend this resolver and the renderer without
+    Future sizes can extend this resolver and the renderer without
     changing page/tile identity, storage positions or the board's fixed grid.
     """
     if presentation is not None:
-        supported = {"single": (1, 1), "wide": (grid.wide_span, 1), "full": (grid.columns, grid.rows)}
+        supported = {"single": (1, 1), "wide": (grid.wide_span, 1), "tall": (1, 2), "square": (2, 2), "full": (grid.columns, grid.rows)}
         if not isinstance(presentation, str) or presentation not in supported or supported[presentation] != (columns, rows):
             raise LayoutError("This tile presentation and footprint require a future screen capability")
         return presentation
     if (columns, rows) == (1, 1): return "single"
     if (columns, rows) == (grid.wide_span, 1): return "wide"
     if (columns, rows) == (grid.columns, grid.rows): return "full"
+    if (columns, rows) == (1, 2): return "tall"
+    if (columns, rows) == (2, 2): return "square"
     raise LayoutError("This tile footprint requires a future screen capability")
 
 
@@ -253,8 +255,7 @@ def tile_from_fields(tile, grid, page_ids, id_factory=new_id):
     return {
         "id": id_factory(), "content": content,
         "placement": {"row": local // grid.columns, "column": local % grid.columns,
-                      "columns": grid.columns if size == "full" else grid.wide_span if size == "wide" else 1,
-                      "rows": grid.rows if size == "full" else 1},
+                      "columns": grid.dimensions(size)[0], "rows": grid.dimensions(size)[1]},
         "appearance": {"label": tile["name"], **({"presentation": size} if size != "single" else {}),
                        **{key: deepcopy(options[wire]) for key, wire in APPEARANCE.items() if wire in options}},
         "interaction": {key: deepcopy(options[wire]) for key, wire in INTERACTION.items() if wire in options},
@@ -337,13 +338,15 @@ def validate_document(data, grid):
 
 
 
-def legacy_compatible(layout):
+def legacy_compatible(layout, grid):
     """Whether a validated page document fits the older firmware's behaviour."""
     pages = layout['pages']
     items = bar_items(pages[0])
     return (layout['homePageId'] == pages[0]['id']
             and all(not page['navigation']['excludeFromPagination'] and page['topbar']['leading']
-                    and bar_items(page) == items for page in pages))
+                    and bar_items(page) == items for page in pages)
+            and all(footprint_size(tile['placement']['columns'], tile['placement']['rows'], grid, tile['appearance'].get('presentation'))
+                    not in ('tall', 'square') for page in pages for tile in page['tiles']))
 
 
 def legacy_projection(record, require_representable=True):
@@ -352,7 +355,7 @@ def legacy_projection(record, require_representable=True):
     layout = validate_document(record["layout"], grid)
     pages = layout["pages"]
     items = bar_items(pages[0])
-    if require_representable and not legacy_compatible(layout):
+    if require_representable and not legacy_compatible(layout, grid):
         raise LayoutError("Update screen to use the new titlebar and layout")
     titles = [page["topbar"]["title"].get("text", "") for page in pages]
     titles += record.get("migration", {}).get("inactivePageTitles", [])

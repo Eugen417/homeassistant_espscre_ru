@@ -51,6 +51,19 @@ beforeEach(() => {
 });
 
 describe("selecting and editing", () => {
+  it("gates taller sizes and resizes without taking a neighbor's cells", () => {
+    select('living');
+    const lamp = state.layout!.tiles[0];
+    setTileOption(lamp, 'size', 'tall');
+    expect(current(lamp).options?.size).toBeUndefined();
+    state.inventory.screens[0].tile_sizes = ['single', 'wide', 'full', 'tall', 'square'];
+    setTileOption(lamp, 'size', 'tall');
+    expect(current(lamp)).toMatchObject({ slot: 0, options: { size: 'tall' } });
+    expect(state.layout!.tiles.find((tile) => tile.entity === 'sensor.t')!.slot).toBe(1);
+    setTileOption(lamp, 'size', 'square');
+    expect(current(lamp)).toMatchObject({ slot: 2, options: { size: 'square' } });
+    expect(state.layout!.tiles.find((tile) => tile.entity === 'sensor.t')!.slot).toBe(1);
+  });
   it("copies the stored layout so edits never touch the inventory until saved", () => {
     select("living");
     expect(state.layout).not.toBe(state.inventory.screens[0].layout);

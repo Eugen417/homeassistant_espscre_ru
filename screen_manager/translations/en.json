@@ -1349,7 +1349,10 @@
         "wide": "Double-width",
         "full": "Full page",
         "full_hint": "Full page: one big button in the tile's own colour; a slider, controls or a graph sit at the bottom of it.",
-        "needs_firmware": "A full-page tile needs firmware 0.2.62: press Update on the screen first."
+        "needs_firmware": "A full-page tile needs firmware 0.2.62: press Update on the screen first.",
+        "tall": "1 × 2",
+        "square": "2 × 2",
+        "rectangle_hint": "Width × height in grid cells. Uses the existing tile design."
       },
       "page": {
         "label": "Page",
