@@ -13,7 +13,7 @@ import zipfile
 
 from i18n import t
 import tile_icons
-from core import (ALERT_ACTION_FIELD, ALERT_CAMERA_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT, BOARD_KEYS, SHAPES, limit_boards,
+from core import (ALERT_ACTION_FIELD, ALERT_CAMERA_FIELD, ALERT_SCREEN_FIELD, ALERT_ENDINGS, ALERT_EVENT, ALERT_FALLBACK_ICON, ALERT_FIELDS, ALERT_LIMITS, ALERT_MAX_TIMEOUT, BOARD_KEYS, SHAPES, limit_boards,
                   ALERT_MIN_FIRMWARE, ALERT_SUGGESTED_ICONS, AUTO_STANDBY_MIN_FIRMWARE, BROADCAST_DISMISS, BROADCAST_SHOW,
                   CONTROLS, COVER_TILE_MIN_FIRMWARE, DISPLAYS, FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES, FULL_PAGE_MIN_FIRMWARE, LIVE_MIN_FIRMWARE,
                   PAGE_TILE_REPEAT_MIN_FIRMWARE, SETTINGS_PAGE_MIN_FIRMWARE, TILE_BACKGROUNDS, TILE_EVENTS, TILE_RESULT_EVENT,
@@ -178,9 +178,9 @@ ESP Screens answers every event with `{TILE_RESULT_EVENT}`, carrying `ok`, the `
 3. Fire the events one at a time and read `{TILE_RESULT_EVENT}` (or the sensor) before the next one.
 4. Sorting by how much something is used comes from Home Assistant itself (history or the logbook), not from the screen.
 
-## All screens: fire an event
+## All screens, or one: fire an event
 
-ESP Screen Manager listens for two Home Assistant events and passes them on to every paired screen that is online, screens added later included. Screens need firmware {ALERT_MIN_FIRMWARE} or newer, and the app has to be running.
+ESP Screen Manager listens for two Home Assistant events and passes them on to every paired screen that is online, screens added later included, or only to the screens its `{ALERT_SCREEN_FIELD[0]}` names. Screens need firmware {ALERT_MIN_FIRMWARE} or newer, and the app has to be running.
 
 ```yaml
 actions:
@@ -195,9 +195,24 @@ actions:
       flash: true
 ```
 
-`{BROADCAST_DISMISS}` (no data) takes the alert off every screen. Every field of the event is optional: a missing or unusable value becomes empty text, `0` or off. Templates in `event_data` work as usual. For an alert right now, without an automation, fire the same event through Home Assistant's REST API (`POST /api/events/{BROADCAST_SHOW}` with the fields as JSON; inside a Home Assistant app such as Claude Code that is `http://supervisor/core/api/events/{BROADCAST_SHOW}` with `$SUPERVISOR_TOKEN` as the bearer token) or under Developer tools → Events. The ESP Screen Manager log tells how many screens got it.
+`{BROADCAST_DISMISS}` (no data, or only a `screen`) takes the alert off every screen, or off the screens it names. Every field of the event is optional: a missing or unusable value becomes empty text, `0` or off. Templates in `event_data` work as usual. For an alert right now, without an automation, fire the same event through Home Assistant's REST API (`POST /api/events/{BROADCAST_SHOW}` with the fields as JSON; inside a Home Assistant app such as Claude Code that is `http://supervisor/core/api/events/{BROADCAST_SHOW}` with `$SUPERVISOR_TOKEN` as the bearer token) or under Developer tools → Events. The ESP Screen Manager log tells how many screens got it.
 
-## One screen: call its action
+## One screen: the event with `{ALERT_SCREEN_FIELD[0]}`, or its action
+
+`{ALERT_SCREEN_FIELD[0]}` (app 0.2.133): {ALERT_SCREEN_FIELD[2]} The part of a screen's action between `esphome.` and `_show_alert` works as is (`kitchen_screen`). Use the event with `{ALERT_SCREEN_FIELD[0]}` whenever one screen should get a `{ALERT_CAMERA_FIELD[0]}` picture or an `{ALERT_ACTION_FIELD[0]}`; the screen's own action cannot take those.
+
+```yaml
+actions:
+  - event: {BROADCAST_SHOW}
+    event_data:
+      {ALERT_SCREEN_FIELD[0]}: kitchen-screen
+      title: "Someone is at the door"
+      icon: doorbell
+      color: orange
+      {ALERT_CAMERA_FIELD[0]}: camera.front_door
+```
+
+A plain alert on one screen can also use its own action:
 
 Every screen also has its own actions, `esphome.<device_name>_show_alert` and `esphome.<device_name>_dismiss_alert` (dashes in the device name become underscores). List Home Assistant's `esphome` actions to see which screens exist. These actions need all seven fields; send `""`, `0` or `false` for the ones you don't use.
 
@@ -220,7 +235,7 @@ actions:
 |---|---|---|---|
 {fields}
 
-The event for every screen takes one more field, `{ALERT_CAMERA_FIELD[0]}`: {ALERT_CAMERA_FIELD[2]} Example: `{ALERT_CAMERA_FIELD[0]}: {ALERT_CAMERA_FIELD[3]}`. Use a real `camera.*` or `image.*` entity from this Home Assistant (a doorbell integration usually has one); the per-screen actions have no such field.
+The event for every screen takes one more field, `{ALERT_CAMERA_FIELD[0]}`: {ALERT_CAMERA_FIELD[2]} Example: `{ALERT_CAMERA_FIELD[0]}: {ALERT_CAMERA_FIELD[3]}`. Use a real `camera.*` or `image.*` entity from this Home Assistant (a doorbell integration usually has one); the per-screen actions have no such field, so for one screen add `{ALERT_SCREEN_FIELD[0]}`.
 
 It also takes `{ALERT_ACTION_FIELD[0]}` (app 0.2.91): {ALERT_ACTION_FIELD[2]} Example: `{ALERT_ACTION_FIELD[0]}: {ALERT_ACTION_FIELD[3]}`, or `action: light.turn_off` with `data: {{entity_id: light.hall}}`. Use an action Home Assistant lists; give `button_text` a word that says what the button does ("Open", "Turn off"). The per-screen actions have no such field either.
 

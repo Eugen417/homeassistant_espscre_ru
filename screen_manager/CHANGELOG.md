@@ -1,3 +1,27 @@
+## 0.2.133 (firmware 0.2.104)
+
+An alert with a camera picture on one screen (GitHub #35).
+
+- The `esp_screens_show_alert` event takes `screen`: only the screens it names get the alert. That is how one screen gets a camera picture or a button that runs an action, which the screen's own `show_alert` action cannot take, because Home Assistant makes every field of a device's action required. Without `screen` the event goes to every screen, as before.
+- Fill in the screen's device name, the name Home Assistant shows, or a room, which reaches every screen in it. Case, spaces, dashes and underscores don't matter, and a list reaches several screens. A name that matches no screen sends nothing, and the log then names the screens it knows. `esp_screens_dismiss_alert` takes `screen` too.
+- **Alerts** in ESP Screens has a new **One screen** part: for every screen what to fill in after `screen:`, ready to copy, and the example for the screen you choose. **Your screens** shows the same value next to the actions.
+- Nothing to do for your screens: the firmware is unchanged at 0.2.104.
+
+## 0.2.132 (firmware 0.2.104)
+
+Copy API key works when Home Assistant is opened over plain http, and stays available after pairing.
+
+- **Copy API key** on the *not yet in Home Assistant* card said it copied, but left the clipboard empty when Home Assistant was opened over http (for example `http://homeassistant.local:8123`), because the browser keeps its clipboard for secure pages there (GitHub #33). It copies now, and so do the copy buttons on the Alerts page. When even that fails, the key shows in a box, selected and ready to copy.
+- A paired screen offers **Copy API key** too: open it in the sidebar. Home Assistant asks for the key again when the screen is removed and added back, or paired with another Home Assistant.
+- Nothing to do for your screens: the firmware is unchanged at 0.2.104.
+
+## 0.2.131 (firmware 0.2.104)
+
+Sleep and Wake from Home Assistant on a Waveshare with a dimmable backlight.
+
+- A Waveshare whose backlight was modded to dim (docs/WAVESHARE7.md) and whose override says `CAN_STANDBY: "true"` now also shows **Wake**, **Sleep** and the standby and night settings in Home Assistant. Until now standby worked on the screen itself, but those entities stayed hidden from the ESPHome integration.
+- Press **Update firmware** once on such a screen. Every other screen builds the same firmware as before.
+
 ## 0.2.130 (firmware 0.2.104)
 
 For contributors: every change is now checked the way a finger and Home Assistant use a screen. Nothing changes on your screens.

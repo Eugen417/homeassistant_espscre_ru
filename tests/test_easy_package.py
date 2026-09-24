@@ -103,7 +103,9 @@ class PackageTests(unittest.TestCase):
             seen[board] = can
             text = profiles.text(profiles.PROFILES[list(profiles.BOARDS).index(board)])
             for entity in entities:
-                extended = re.search(rf'^  - id: !extend {entity}\n    internal: true\n', text, re.M) is not None
+                # The entity follows the flag, so a board modded to go dark (an override with CAN_STANDBY "true") shows it.
+                extended = re.search(rf'^  - id: !extend {entity}\n    internal: \$\{{ \(CAN_STANDBY \| string \| lower\) != "true" \}}\n',
+                                     text, re.M) is not None
                 self.assertEqual(extended, not can, f'{path.name}: {entity} {"stays visible" if can else "must be internal"}')
             # The one way a board says it cannot: it includes features/backlight-always-on.yaml.
             always_on = any(item.name == 'backlight-always-on.yaml' for item in profiles.chain(path))

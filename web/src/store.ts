@@ -153,21 +153,50 @@ export function dismissToast() {
   state.toast = null;
 }
 // What was copied, each with its own sentences so every language can say it its own way.
-export type Copied = "api_key" | "layout_json" | "action_name" | "yaml" | "icon_name" | "empty_color" | "color_name";
+export type Copied = "api_key" | "layout_json" | "action_name" | "yaml" | "icon_name" | "empty_color" | "color_name" | "screen_name";
 export async function copyText(text: string, element?: Element | null, what: Copied = "api_key") {
   try {
     if (!navigator.clipboard || !window.isSecureContext) throw new Error();
     await navigator.clipboard.writeText(text);
     toast(t(`editor.copy.${what}.copied`));
   } catch {
+    // Home Assistant over plain http is no secure context, so the Clipboard API is missing there. The old way copies
+    // what is selected: the text on the page when there is one, else a hidden textarea holding it. Without anything
+    // selected, execCommand still says it copied, and the clipboard stays empty (GitHub #33).
+    let spare: HTMLTextAreaElement | null = null;
+    const focused = document.activeElement as HTMLElement | null;
+    const selection = window.getSelection();
     if (element) {
       const range = document.createRange();
       range.selectNodeContents(element);
-      const selection = window.getSelection();
       selection?.removeAllRanges();
       selection?.addRange(range);
+    } else {
+      spare = document.createElement("textarea");
+      spare.value = text;
+      spare.setAttribute("readonly", "");
+      spare.style.cssText = "position: fixed; top: 0; left: 0; width: 1px; height: 1px; opacity: 0";
+      document.body.appendChild(spare);
+      spare.focus();
+      spare.select();
     }
-    toast(t(document.execCommand("copy") ? `editor.copy.${what}.copied` : `editor.copy.${what}.selected`));
+    let copied = false;
+    try {
+      copied = document.execCommand("copy");
+    } catch {
+      copied = false;
+    }
+    if (spare) {
+      spare.remove();
+      selection?.removeAllRanges();
+      focused?.focus?.();
+      // Nothing on the page to leave selected: a prompt shows the text selected, which is what "selected" promises.
+      if (!copied) {
+        window.prompt(t(`editor.copy.${what}.selected`), text);
+        return;
+      }
+    }
+    toast(t(copied ? `editor.copy.${what}.copied` : `editor.copy.${what}.selected`));
   }
 }
 export function openIntegrations() {

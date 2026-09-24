@@ -768,6 +768,10 @@
         "action": {
           "label": "Actie",
           "help": "Een Home Assistant-actie, zoals script.open_gate of light.turn_off, eenmaal uitgevoerd zodra de knop op een van de schermen wordt ingedrukt. `data` geeft de velden (entity_id, brightness, ...). Bij een time-out of een nieuwe alert blijft hij achterwege. Alleen via de gebeurtenis esp_screens_show_alert."
+        },
+        "screen": {
+          "label": "Scherm",
+          "help": "Welk scherm de melding krijgt: de apparaatnaam (zoals kitchen-screen), de naam die Home Assistant toont, of een ruimte, die elk scherm daarin bereikt. Een lijst, zoals [kitchen-screen, hallway], bereikt er meerdere. Laat het weg voor alle schermen. Een naam die bij geen scherm past stuurt niets; het log van ESP Screen Manager noemt dan de schermen die het kent. Alleen via de events esp_screens_show_alert en esp_screens_dismiss_alert."
         }
       },
       "endings": {
@@ -1063,6 +1067,10 @@
       "color_name": {
         "copied": "Kleurnaam gekopieerd.",
         "selected": "Kleurnaam is geselecteerd. Kopieer met Ctrl+C of Command+C."
+      },
+      "screen_name": {
+        "copied": "Schermnaam gekopieerd.",
+        "selected": "Schermnaam is geselecteerd. Kopieer met Ctrl+C of Command+C."
       }
     },
     "sidebar": {
@@ -1794,7 +1802,8 @@
         "colors": "Kleuren",
         "behaviour": "Gedrag",
         "events": "Gebeurtenissen",
-        "tips": "Tips"
+        "tips": "Tips",
+        "one": "Eén scherm"
       },
       "try": {
         "text": "Stuur nu één alert, met dezelfde velden die een automatisering stuurt. Het scherm toont de kaart en laat, met knipperen aan, de backlight knipperen.",
@@ -1860,7 +1869,8 @@
         },
         "bytes": "{limits} bytes",
         "seconds": "0 tot 86400 s",
-        "camera_limit": "Elk scherm behalve de CYD, firmware 0.2.57+"
+        "camera_limit": "Elk scherm behalve de CYD, firmware 0.2.57+",
+        "screen_limit": "App 0.2.133+"
       },
       "icons": {
         "text": "Vul de naam in bij {field}, bijvoorbeeld {example}. {mdi} en de hex-codepoint ({hex}) werken ook. Alleen deze iconen zitten in de firmware; elke andere naam toont de waarschuwingsdriehoek. Tik op een icoon om de naam te kopiëren.",
@@ -1910,6 +1920,18 @@
       "wait_yaml": {
         "comment": "Deurbel: toon de alert en wacht tot iemand op de knop drukt.",
         "message": "Er komt iemand naar de deur."
+      },
+      "one": {
+        "title": "Eén scherm, met een camera of een knopactie",
+        "text": "Zet {screen} in hetzelfde event en alleen dat scherm krijgt de melding. Zo toont één scherm een beeld van {camera} of voert de knop een {action} uit: de eigen actie van het scherm heeft daar geen velden voor. Achter {screen} komt een van de waarden uit de lijst hieronder.",
+        "more": "Een paar schermen? Geef een lijst, zoals {list}. Een ruimte werkt ook en bereikt elk scherm daarin. Een naam die bij geen scherm past stuurt niets; het log van ESP Screen Manager noemt dan de schermen die het kent.",
+        "value": "Achter screen:",
+        "name": "Naam in Home Assistant",
+        "room": "Ruimte",
+        "picture": "Camerabeeld",
+        "picture_yes": "Ja",
+        "picture_no": "Nee, de melding komt zonder",
+        "none": "Nog geen schermen gekoppeld. Zodra een scherm gekoppeld is, staat hier wat je ervoor invult."
       }
     },
     "override": {

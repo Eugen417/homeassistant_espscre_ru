@@ -98,7 +98,7 @@ a:hover { text-decoration: underline; }
 /* Removing a screen (app 0.2.114): the details make room for what goes, so nobody presses it by accident. The way
    in is a quiet line at the foot of the details, red only where it is read. The question itself drops the indent
    under the icon and uses the whole column, so its lines read as sentences instead of two words each. */
-.screen-details .remove-screen { justify-self: start; }
+.screen-details .remove-screen, .screen-details .copy-key { justify-self: start; }
 .screen-details.asking { padding-left: 14px; }
 .screen-remove { display: grid; gap: 7px; font-size: 11.5px; color: var(--ink-2); }
 .screen-remove strong { font-size: 12.5px; color: var(--ink); }
@@ -485,6 +485,9 @@ details.log-wrap pre { margin-top: 8px; }
 .copy-line .copy-label { flex: none; width: 96px; font-size: 12px; color: var(--muted); padding-top: 2px; }
 .copy-line > code { flex: 1; min-width: 0; padding: 4px 8px; }
 .copy-line pre { flex: 1; min-width: 0; }
+/* What goes after screen: stays whole beside its Copy button; the table scrolls instead (app 0.2.133). */
+#alerts-one-table .copy-line { flex-wrap: nowrap; align-items: center; }
+#alerts-one-table .copy-line > code { flex: none; white-space: nowrap; }
 .table-scroll { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-size: 12.5px; min-width: 560px; }
 th, td { text-align: left; vertical-align: top; padding: 8px 12px 8px 0; border-bottom: 1px solid var(--line); }
