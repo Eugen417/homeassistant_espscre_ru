@@ -164,18 +164,30 @@ inline void media_action(Tile &t, int cmd);
 inline const char *icon_for(const Tile &tile);
 inline void label(lv_obj_t *obj, const std::string &text);
 // An icon in a circle or a key sits on the centre of its ink, not of its label box: a Material Design glyph's box
-// carries the font's side bearings and line gap, so a box-centred icon sat a few pixels off (firmware 0.3.1).
-// Words and empty labels keep the plain centre.
+// carries the font's side bearings and line gap, so a box-centred icon sat a few pixels off. Some glyphs fill their
+// whole box (the air conditioner, the robot) and ran into the edge of their circle: when the ink's corners reach past
+// 78 % of the circle's radius, that icon takes the control keys' icon font instead, the same glyph smaller. Words and
+// empty labels keep the plain centre (firmware 0.3.1).
+inline bool icon_ink(lv_obj_t *icon,const lv_font_t *font,lv_font_glyph_dsc_t &g){
+  const char *text=lv_label_get_text(icon);if(!text||!*text||!font)return false;
+  const std::string shown(text);size_t i=0;const uint32_t cp=header_bar::next_codepoint(shown,i);
+  return i==shown.size()&&cp>=0xF0000&&lv_font_get_glyph_dsc(font,&g,cp,0)&&g.box_w&&g.box_h;
+}
 inline void center_icon(lv_obj_t *icon){
-  const char *text=lv_label_get_text(icon);const lv_font_t *font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
+  const lv_font_t *font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   lv_font_glyph_dsc_t g;int dx=0,dy=0;
-  if(text&&*text&&font){
-    const std::string shown(text);size_t i=0;const uint32_t cp=header_bar::next_codepoint(shown,i);
-    if(i==shown.size()&&cp>=0xF0000&&lv_font_get_glyph_dsc(font,&g,cp,0)&&g.box_w&&g.box_h){
-      const int top=(font->line_height-font->base_line)-(int)g.box_h-g.ofs_y;  // the ink's top in the label
-      dx=(int)g.adv_w/2-(g.ofs_x+(int)g.box_w/2);
-      dy=(int)font->line_height/2-(top+(int)g.box_h/2);
+  if(icon_ink(icon,font,g)){
+    auto *holder=lv_obj_get_parent(icon);
+    const int side=holder?(int)std::min(lv_obj_get_style_width(holder,LV_PART_MAIN),lv_obj_get_style_height(holder,LV_PART_MAIN)):0;
+    const auto reach=[&](const lv_font_glyph_dsc_t &d){return 4*((int)d.box_w*(int)d.box_w+(int)d.box_h*(int)d.box_h);};  // (2 x half-diagonal)^2
+    const int limit=side*78/100;
+    lv_font_glyph_dsc_t small;
+    if(side>0&&mini_icon_font&&font!=mini_icon_font&&reach(g)>4*limit*limit&&icon_ink(icon,mini_icon_font,small)){
+      lv_obj_set_style_text_font(icon,mini_icon_font,0);font=mini_icon_font;g=small;
     }
+    const int top=(font->line_height-font->base_line)-(int)g.box_h-g.ofs_y;  // the ink's top in the label
+    dx=(int)g.adv_w/2-(g.ofs_x+(int)g.box_w/2);
+    dy=(int)font->line_height/2-(top+(int)g.box_h/2);
   }
   lv_obj_align(icon,LV_ALIGN_CENTER,dx,dy);
 }
