@@ -17,8 +17,8 @@ from server import create_app, status_text
 
 
 class PageApiTests(unittest.IsolatedAsyncioTestCase):
-    async def test_editor_experiments_are_opt_in_and_independent_of_dev_server(self):
-        for value, expected in [('', False), ('production', False), ('1', False), ('development', True)]:
+    async def test_taller_tiles_are_offered_in_every_editor(self):
+        for value, expected in [('', True), ('production', True), ('1', True), ('development', True)]:
             with patch.dict('os.environ', {'SCREEN_EDITOR_ENV': value}):
                 client = TestClient(TestServer(create_app(self.manager, development=True)))
             await client.start_server()

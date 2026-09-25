@@ -38,11 +38,11 @@ A single-page layout retains the existing absence of a bottom strip. Device grid
 
 ## Taller tiles, 0.3.1
 
-The developer editor offers **1 × 2** and **2 × 2**, expressed as width × height in grid cells, when the connected firmware reports support. Set `SCREEN_EDITOR_ENV=development` in the add-on process environment and restart it to enable these experimental choices. They are hidden by default while their designs are being refined. Existing saved taller tiles remain intact when the flag is removed. The firmware and document format do not depend on this editor flag.
+The tile inspector offers **1 × 2** and **2 × 2**, expressed as width × height in grid cells, when the connected firmware reports support.
 
 Each size reserves two rows, including their normal gap. Tiles cannot overlap or extend beyond a page, and the screen's tile capacity does not change. If there is no free rectangle during resizing, the previous size and position stay intact.
 
-Hover over a tile or focus its edge handle to resize it. The right handle changes width; the bottom handle changes height and only appears in the developer editor. Handles offer only supported sizes that fit at the current position without moving neighbours. Drag to preview, release to apply, or press Escape to cancel. Arrow keys work on a focused handle. Each completed resize is one undo step. Full-page cards retain their existing inspector setting and do not have edge handles.
+Hover over a tile or focus its edge handle to resize it. The right handle changes width; the bottom handle changes height. Handles offer only supported sizes that fit at the current position without moving neighbours. Drag to preview, release to apply, or press Escape to cancel. Arrow keys work on a focused handle. Each completed resize is one undo step. Full-page cards retain their existing inspector setting and do not have edge handles.
 
 These sizes reuse existing designs. A 1 × 2 tile keeps the single-column design, including its optional slider or graph. A 2 × 2 tile keeps the double-width design and its direct controls. Extra height does not enable a different control set or force a full-page design. Moving, copying, exporting and undoing keep the rectangular footprint with the tile.
 

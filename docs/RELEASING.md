@@ -79,9 +79,8 @@
 
 Editor experiments are controlled separately from the development HTTP server. Set
 `SCREEN_EDITOR_ENV=development` on the add-on process and restart it to expose
-experimental editor features. Omit the variable for the normal editor. Currently
-this enables taller tile choices and vertical resize handles, subject to the
-screen's supported sizes. The server advertises named flags in
+experimental editor features. Omit the variable for the normal editor. No feature
+is experimental at the moment; taller tiles became standard in 0.3.1. The server advertises named flags in
 `inventory.editor_features`; future editor experiments can add flags there.
 This variable does not change authentication, networking, storage or firmware.
 Do not set it in the distributed Dockerfile. `SCREEN_DEV` continues to control

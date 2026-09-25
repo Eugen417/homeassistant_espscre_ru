@@ -2342,8 +2342,9 @@ def create_app(manager, development=False):
 
     # A layout of 48 tiles with actions on their taps passes 16 KB, the limit from the twenty-tile days; the largest the
     # rules allow stays under about 75 KB (app 0.2.78). The YAML override keeps its own 12 KB limit (firmware.py).
-    # Editor experiments never change authentication or firmware capabilities.
-    editor_features = {'tall_tiles': os.environ.get('SCREEN_EDITOR_ENV') == 'development'}
+    # Named editor features. An experiment can sit behind SCREEN_EDITOR_ENV=development here and never changes
+    # authentication or firmware capabilities; taller tiles left that stage in 0.3.1.
+    editor_features = {'tall_tiles': True}
     app = web.Application(middlewares=[guard], client_max_size=128*1024)
     static = Path(__file__).parent / 'static'
 
