@@ -692,8 +692,8 @@
         "none": "Brak",
         "climate": {
           "setpoint": "Temperatura − / +",
-          "mode": "Wył., grzanie, chłodzenie",
-          "setpoint_mode": "Temperatura − / + i tryb"
+          "mode": "Przyciski trybu",
+          "setpoint_mode": "Temperatura − / + i przyciski trybu"
         },
         "switch": {
           "toggle": "Przełącznik wł./wył."

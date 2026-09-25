@@ -51,7 +51,8 @@ const tallControls = computed(() => availableControl(domain.value,
   props.tile.options?.inline === 'slider' ? inlineControlKind(domain.value) : controls.value,
   current.value?.state || '', current.value?.a || {}));
 const tallKeys = computed(() => controlKeys(domain.value, tallControls.value, current.value?.state || '', current.value?.a || {}));
-const modeKeys = computed(() => tallControls.value === 'setpoint_mode' ? controlKeys('climate', 'mode', current.value?.state || '', current.value?.a || {}) : []);
+// As many mode keys as the screen fits: a wider card holds more (firmware 0.3.1 render_tall).
+const modeKeys = computed(() => tallControls.value === 'setpoint_mode' ? controlKeys('climate', 'mode', current.value?.state || '', current.value?.a || {}, shape.value.columns > 1 ? 5 : 3) : []);
 // An on/off card stands as one centred stack, like the built-in action cards (firmware 0.3.1 render_tall).
 const tallStack = computed(() => tall.value && tallControls.value === 'toggle');
 // The value the body shows large; the same words are not repeated under the name (a second line of your own stays).

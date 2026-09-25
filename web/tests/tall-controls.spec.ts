@@ -31,7 +31,10 @@ it('keeps unsupported saved slider/setpoint choices inert', () => {
   expect(availableControl('light', null, 'on', { supported_color_modes: ['brightness'] })).toBe('');
 });
 it('limits modes to real choices and disables selects with fewer than two options', () => {
-  expect(controlKeys('climate', 'mode', 'cool', { hvac_modes: ['fan_only', 'cool', 'off'] }).map(k => k.mode)).toEqual(['off', 'cool', 'fan_only']);
+  expect(controlKeys('climate', 'mode', 'cool', { hvac_modes: ['fan_only', 'cool', 'off'] }).map(k => k.mode)).toEqual(['fan_only', 'cool', 'off']);
+  const six = { hvac_modes: ['off', 'heat_cool', 'cool', 'heat', 'fan_only', 'dry'] };
+  expect(controlKeys('climate', 'mode', 'cool', six).map(k => k.mode ?? k.icon)).toEqual(['off', 'heat_cool', 'dots-horizontal']);
+  expect(controlKeys('climate', 'mode', 'cool', six, 6).map(k => k.mode)).toEqual(six.hvac_modes);
   expect(controlKeys('select', 'stepper', 'Eco', { options: ['Eco'] }).every(k => k.disabled)).toBe(true);
 });
 

@@ -692,8 +692,8 @@
         "none": "Nessuno",
         "climate": {
           "setpoint": "Temperatura − / +",
-          "mode": "Spento, riscaldamento, freddo",
-          "setpoint_mode": "Temperatura − / + e modalità"
+          "mode": "Tasti modalità",
+          "setpoint_mode": "Temperatura − / + e tasti modalità"
         },
         "switch": {
           "toggle": "Interruttore acceso/spento"

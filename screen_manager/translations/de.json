@@ -692,8 +692,8 @@
         "none": "Keine",
         "climate": {
           "setpoint": "Temperatur − / +",
-          "mode": "Aus, Heizen, Kühlen",
-          "setpoint_mode": "Temperatur − / + und Modus"
+          "mode": "Modustasten",
+          "setpoint_mode": "Temperatur − / + und Modustasten"
         },
         "switch": {
           "toggle": "Ein/Aus-Schalter"

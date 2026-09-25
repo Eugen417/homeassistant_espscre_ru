@@ -287,7 +287,7 @@ def has_gaps(tiles, grid=DEFAULT_GRID):
 # when the tile has no explicit choice; 'none' keeps the plain card. The labels in English,
 # as the Claude skill writes them; the editor gets them in its language (controls_catalogue).
 CONTROLS = {
-    'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Off, heat, cool'), ('setpoint_mode', 'Temperature − / + and mode')),
+    'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Mode keys'), ('setpoint_mode', 'Temperature − / + and mode keys')),
     'switch': (('toggle', 'On/off switch'),),
     'input_boolean': (('toggle', 'On/off switch'),),
     'light': (('toggle', 'On/off switch'), ('brightness', 'Brightness slider')),

@@ -692,8 +692,8 @@
         "none": "Ninguno",
         "climate": {
           "setpoint": "Temperatura − / +",
-          "mode": "Apagado, calor, frío",
-          "setpoint_mode": "Temperatura − / + y modo"
+          "mode": "Botones de modo",
+          "setpoint_mode": "Temperatura − / + y botones de modo"
         },
         "switch": {
           "toggle": "Interruptor"

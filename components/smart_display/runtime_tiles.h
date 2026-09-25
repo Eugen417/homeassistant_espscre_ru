@@ -3381,6 +3381,7 @@ inline void control_event(lv_event_t *e) {
     if(w.pill_value){std::string suffix=t.domain()=="climate"?"°":screen_text::unit_suffix(t.unit);label(w.pill_value,tile_controls::format_value(t.edit_value,tile_controls::edit_step(t),suffix.c_str()));}
     return;
   }
+  if(command==tile_controls::OPEN_CARD){active_index=w.index;show_detail(w.index);return;}
   if(t.waiting(now))return;
   auto a=tile_controls::press_key(t,command,w.key_args[n]);
   if(a.valid())action(a.service,t.entity,a.key,a.value);
@@ -3532,15 +3533,20 @@ inline void cover_tile_key_event(lv_event_t *e){
   if(!call.service.empty())action(call.service,t.entity,call.key,call.value);
 }
 // A climate's mode keys under its setpoint (firmware 0.3.1+): the same guard and the same press as a key-row panel.
+// The row holds as many keys as the card's width fits (parts 4..9); the key is found by its place in that row.
+constexpr int CLIMATE_MODE_PARTS=6;
 inline void climate_mode_key_event(lv_event_t *e){
-  const unsigned tag=(uintptr_t)lv_event_get_user_data(e),slot=tag/8,n=tag%8;
-  if(slot>=widgets.size()||n>=3)return;
-  const auto &w=widgets[slot];if(w.index>=model.count||w.extra_mode!="tall")return;
+  const unsigned slot=(uintptr_t)lv_event_get_user_data(e);
+  if(slot>=widgets.size())return;
+  auto &w=widgets[slot];if(w.index>=model.count||w.extra_mode!="tall")return;
+  auto *target=(lv_obj_t*)lv_event_get_target(e);int n=-1,room=0;
+  for(int i=0;i<CLIMATE_MODE_PARTS;++i){auto *p=w.parts[4+i];if(p&&!lv_obj_has_flag(p,LV_OBJ_FLAG_HIDDEN)){if(p==target)n=room;++room;}}
   auto &t=model.tiles[w.index];const uint32_t now=esphome::millis();
-  if(!enabled||!fresh()||!t.available()||t.waiting(now)||!tile_controls::climate_modes_selected(t))return;
-  std::array<tile_controls::Key,3> keys;
-  if(n>=tile_controls::climate_mode_keys(t,keys))return;
+  if(n<0||!enabled||!fresh()||!t.available()||t.waiting(now)||!tile_controls::climate_modes_selected(t))return;
+  std::array<tile_controls::Key,CLIMATE_MODE_PARTS> keys;
+  if(n>=(int)tile_controls::climate_mode_keys(t,keys,room))return;
   if(!allowed(now,700+slot*8+n,"control "+std::to_string(slot)))return;
+  if(keys[n].command==tile_controls::OPEN_CARD){active_index=w.index;show_detail(w.index);return;}
   const auto a=tile_controls::press_key(t,keys[n].command,keys[n].arg);
   if(a.valid())action(a.service,t.entity,a.key,a.value);
 }
@@ -3668,15 +3674,19 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   if(d=="climate"&&panel&&w.panel_mode=="setpoint"){
     // With "Temperature and mode" the mode keys take a row under the setpoint. What gives way when the card is short:
     // first the measured temperature, then the mode row; the setpoint keeps its touch size.
-    std::array<tile_controls::Key,3> modes;
-    const int mode_count=tile_controls::climate_modes_selected(t)?(int)tile_controls::climate_mode_keys(t,modes):0;
     // The keys stand under the setpoint where the card has the height, beside it where it only has the width (a
-    // short, wide card: the CYD's 2 x 2), and not at all where neither fits a finger.
-    const int row=touch+gap,below=height-l.body.y,modes_w=mode_count?mode_count*touch+(mode_count-1)*gap:0;
+    // short, wide card: the CYD's 2 x 2), and not at all where neither fits a finger. How many keys a row holds
+    // follows from its width; Home Assistant's own list of the device's modes decides which they are.
+    std::array<tile_controls::Key,CLIMATE_MODE_PARTS> modes;
+    const bool wanted=tile_controls::climate_modes_selected(t);
+    const int row=touch+gap,below=height-l.body.y,setpoint_min=2*touch+2*gap+ui::px(40);
+    const auto fits=[&](int room){return std::clamp((room+gap)/(touch+gap),0,CLIMATE_MODE_PARTS);};
+    int mode_count=wanted&&below-row>=touch?(int)tile_controls::climate_mode_keys(t,modes,fits(width)):0;
+    const bool under=mode_count>0;
+    if(!under&&wanted&&below>=touch)mode_count=(int)tile_controls::climate_mode_keys(t,modes,fits(width-2*gap-setpoint_min));
+    const bool beside=!under&&mode_count>0,with_modes=under||beside;
+    const int modes_w=mode_count?mode_count*touch+(mode_count-1)*gap:0;
     int caption=std::isfinite(t.current)?m.state_h+gap:0;
-    const bool under=mode_count>0&&width>=modes_w&&below-row>=touch;
-    const bool beside=!under&&mode_count>0&&below>=touch&&width-modes_w-2*gap>=2*touch+2*gap+ui::px(40);
-    const bool with_modes=under||beside;
     if(below-caption-(under?row:0)<touch)caption=0;
     const int ph=below-caption-(under?row:0),area=beside?width-modes_w-2*gap:width;
     const int pw=std::min(area,ui::control_max_width()),key=std::min(touch,ph);
@@ -3693,12 +3703,11 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       if(with_modes){
         const int slot=&w-widgets.data();
         const bool ready=fresh()&&t.available()&&!t.waiting(esphome::millis());
-        const auto keys=tall_tile::keys(under?tall_tile::Rect{0,height-touch,width,touch}:tall_tile::Rect{width-modes_w,l.body.y+(ph-touch)/2,modes_w,touch},
-                                        mode_count,touch,touch,gap);
+        const int x0=under?(width-modes_w)/2:width-modes_w,y0=under?height-touch:l.body.y+(ph-touch)/2;
         for(int n=0;n<mode_count;++n){
           const auto &k=modes[n];auto &part=w.parts[4+n];
-          part=media_key(w.extra,part,{keys[n].x,keys[n].y,keys[n].w,keys[n].h},k.icon,mini_icon_font?mini_icon_font:w.icon_font,
-                         k.checked,false,ready,climate_mode_key_event,(void*)(uintptr_t)(slot*8+n));
+          part=media_key(w.extra,part,{x0+n*(touch+gap),y0,touch,touch},k.icon,mini_icon_font?mini_icon_font:w.icon_font,
+                         k.checked,false,ready,climate_mode_key_event,(void*)(uintptr_t)slot);
           lv_obj_set_ext_click_area(part,0);
           // The active mode in Home Assistant's colour for it, like the mode keys beside the name.
           if(k.checked)set_color(part,LV_STYLE_BG_COLOR,lv_color_hex(tile_controls::mode_color(k.arg)));

@@ -135,11 +135,17 @@ int main() {
   radio.supported=feature::MEDIA_PAUSE;assert(key_action(radio,MEDIA_PLAY_PAUSE).service=="media_player.media_pause");
   radio.state="idle";assert(keys_for(radio,keys)==1&&keys[0].disabled);assert(!key_action(radio,MEDIA_PLAY_PAUSE).valid());
 
-  // Climate: mode keys in priority order, at most three, the active one checked.
+  // Climate: Home Assistant's modes in its own order, as many as the row holds; "…" opens the card when they don't fit.
   Tile ac = make("climate.ac", "cool"); ac.edit_extra().hvac_modes = "[\"off\",\"heat_cool\",\"cool\",\"heat\",\"fan_only\",\"dry\"]"; ac.controls = "mode"; ac.current = 21.5f; ac.target = 20; ac.step = 1;
   assert(keys_for(ac, keys) == 3);
-  assert(keys[0].arg == "off" && keys[1].arg == "heat" && keys[2].arg == "cool" && keys[2].checked && !keys[1].checked);
-  Action mode = key_action(ac, HVAC_MODE, keys[1].arg);
+  assert(keys[0].arg == "off" && keys[1].arg == "heat_cool" && keys[2].command == OPEN_CARD && !keys[0].checked);
+  std::array<Key, 6> mode_row;
+  assert(climate_mode_keys(ac, mode_row) == 6 && mode_row[2].arg == "cool" && mode_row[2].checked && mode_row[5].arg == "dry");
+  assert(climate_mode_keys(ac, mode_row, 4) == 4 && mode_row[2].arg == "cool" && mode_row[3].command == OPEN_CARD);
+  Tile three = ac; three.edit_extra().hvac_modes = "[\"off\",\"heat\",\"cool\"]";
+  assert(keys_for(three, keys) == 3 && keys[2].arg == "cool" && keys[2].checked);
+  Action mode = key_action(ac, HVAC_MODE, "heat");
+  assert(!key_action(ac, OPEN_CARD).valid());
   assert(mode.service == "climate.set_hvac_mode" && mode.key == "hvac_mode" && mode.value == "heat");
   assert(status_text(ac) == "Cool · 21.5°");
   ac.edit_extra().hvac_action = "cooling"; assert(status_text(ac) == "Cooling · 21.5°");

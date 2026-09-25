@@ -29,13 +29,14 @@ constexpr const char *VOLUME = "\U000F057E", *MUTED = "\U000F0581", *UP = "\U000
 constexpr const char *EXPAND = "\U000F084E", *COLLAPSE = "\U000F084C", *DOCK = "\U000F05F8", *PLUS = "\U000F0415", *MINUS = "\U000F0374";
 constexpr const char *LEFT = "\U000F0141", *RIGHT = "\U000F0142", *CLOSE = "\U000F0156", *POWER = "\U000F0425", *FIRE = "\U000F0238";
 constexpr const char *SNOWFLAKE = "\U000F0717", *HEAT_COOL = "\U000F1A79", *AUTO = "\U000F1B17", *DRY = "\U000F058E", *FAN = "\U000F0210";
-constexpr const char *BLINDS_OPEN = "\U000F1011", *BLINDS = "\U000F00AC";
+constexpr const char *BLINDS_OPEN = "\U000F1011", *BLINDS = "\U000F00AC", *MORE = "\U000F01D8";
 }
 enum Command {
   NONE = 0, COVER_OPEN, COVER_STOP, COVER_CLOSE, VACUUM_START, VACUUM_PAUSE, VACUUM_STOP, VACUUM_DOCK,
   MEDIA_PREVIOUS, MEDIA_PLAY_PAUSE, MEDIA_NEXT, MEDIA_MUTE, TIMER_START, TIMER_PAUSE, TIMER_CANCEL,
   HVAC_MODE, SELECT_PREVIOUS, SELECT_NEXT, RUN, TOGGLE, STEP_DOWN, STEP_UP,
-  COVER_OPEN_TILT, COVER_STOP_TILT, COVER_CLOSE_TILT
+  COVER_OPEN_TILT, COVER_STOP_TILT, COVER_CLOSE_TILT,
+  OPEN_CARD  // "…": the modes that did not fit are on the card (firmware 0.3.1+)
 };
 struct Key { const char *icon = ""; int command = NONE; std::string arg; bool checked = false, disabled = false; };
 struct Action { std::string service, key, value; bool valid() const { return !service.empty(); } };
@@ -450,11 +451,20 @@ inline Action cover_position_action(const Tile &t,int raw,bool tilt) {
   return tilt?Action{"cover.set_cover_tilt_position","tilt_position",std::to_string(percent)}
              :Action{"cover.set_cover_position","position",std::to_string(100-percent)};
 }
-// A climate's mode keys: three fit beside the name, and Home Assistant lists its modes in device order.
-inline unsigned climate_mode_keys(const Tile &t, std::array<Key, 3> &out) {
+// A climate's mode keys: the modes Home Assistant lists for this device, in its order, as many as `room` holds.
+// When they do not all fit, the last key is "…" and opens the card, which has every mode (firmware 0.3.1+).
+template <size_t N> inline unsigned climate_mode_keys(const Tile &t, std::array<Key, N> &out, unsigned room = N) {
+  room = std::min<unsigned>(room, N);
+  const auto modes = list_values(t.extra().hvac_modes, 8);
+  const bool more = modes.size() > room;
+  const unsigned shown = more ? (room ? room - 1 : 0) : (unsigned) modes.size();
+  const std::string current = lower_case(t.state);
   unsigned n = 0;
-  for (const char *mode : {"off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"})
-    if (n < out.size() && has_mode(t.extra().hvac_modes, mode)) out[n++] = Key{mode_icon(mode), HVAC_MODE, mode, t.state == mode, false};
+  for (unsigned i = 0; i < shown; ++i) {
+    const std::string mode = lower_case(modes[i]);
+    out[n++] = Key{mode_icon(mode), HVAC_MODE, mode, current == mode, false};
+  }
+  if (more && room) out[n++] = Key{glyph::MORE, OPEN_CARD, "", false, false};
   return n;
 }
 // The row of up to three pill keys for a key-row panel; returns how many.

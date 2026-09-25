@@ -2,7 +2,7 @@
 // display descriptions only; the firmware owns touch and Home Assistant actions.
 type Attributes = Record<string, any>;
 export type ControlKey = { icon: string; primary?: boolean; disabled?: boolean; mode?: string };
-export function controlKeys(domain: string, kind: string, state: string, a: Attributes): ControlKey[] {
+export function controlKeys(domain: string, kind: string, state: string, a: Attributes, room = 3): ControlKey[] {
   const f = Number(a.supported_features || 0), keys: ControlKey[] = [];
   const add = (icon: string, disabled = false, primary = false) => keys.push({ icon, disabled, primary });
   if (kind === 'playback') {
@@ -26,9 +26,12 @@ export function controlKeys(domain: string, kind: string, state: string, a: Attr
   } else if (kind === 'stepper' && domain.endsWith('select')) {
     add('chevron-left', (a.options?.length || 0) < 2); add('chevron-right', (a.options?.length || 0) < 2);
   } else if (kind === 'mode') {
+    // Home Assistant's own modes for this device, in its order; "…" (the card) when they do not all fit (firmware 0.3.1+).
     const icons: Record<string, string> = { off: 'power', heat: 'fire', cool: 'snowflake', heat_cool: 'sun-snowflake-variant', auto: 'thermostat-auto', dry: 'water-percent', fan_only: 'fan' };
-    for (const [mode, icon] of Object.entries(icons))
-      if (Array.isArray(a.hvac_modes) && a.hvac_modes.includes(mode) && keys.length < 3) keys.push({ icon, mode });
+    const modes: string[] = Array.isArray(a.hvac_modes) ? a.hvac_modes.slice(0, 8).map((m: unknown) => String(m).toLowerCase()) : [];
+    const more = modes.length > room;
+    for (const mode of modes.slice(0, more ? room - 1 : room)) keys.push({ icon: icons[mode] || 'fan', mode });
+    if (more && room) keys.push({ icon: 'dots-horizontal' });
   }
   return keys;
 }
