@@ -3210,8 +3210,16 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   // A double-width card's controls fill the cell they stand on (cell_content_width); a card over the whole page
   // keeps the wide sizes of panel_metrics_full, centred under it. A row of keys divides that cell between three
   // of them, and never takes a key above the size the look gives it.
+  // A full card's sizes are the look's, but its glass can be narrower than they are (a small screen standing up):
+  // every width stays inside the card, and a key never below the touch minimum.
+  if(w.full){
+    m.pill_w=std::min(m.pill_w,content_w);
+    m.slider_w=std::min(m.slider_w,std::max(ui::touch_min(),content_w-m.key_h-m.gap));
+    m.toggle_w=std::min(m.toggle_w,content_w);
+  }
   const int fill=(w.full||taller)?m.pill_w:cell_content_width(w);
-  const int key_w=w.full?m.key_w:std::min(m.key_w,std::max(ui::touch_min(),(fill-2*m.gap)/3));
+  const int keys_room=w.full?content_w:fill;
+  const int key_w=std::min(m.key_w,std::max(ui::touch_min(),(keys_room-2*m.gap)/3));
   // A player's volume shares that room with its mute key; every other slider takes it whole.
   const int track=(w.full||taller)?(mode=="volume"?m.slider_w:m.pill_w):(mode=="volume"?std::max(ui::touch_min(),fill-m.gap-m.key_h):fill);
   if(!w.panel){w.panel=panel_obj(w.tile,false);}
@@ -3523,7 +3531,8 @@ inline void cover_tile_key_event(lv_event_t *e){
   if(!call.service.empty())action(call.service,t.entity,call.key,call.value);
 }
 inline cover_tile::Layout cover_tile_layout(const Tile &t,tall_tile::Rect body,int touch,int gap,int caption){
-  if(!fresh()||!t.available()||!tile_controls::cover_tilt_selected(t))return {};
+  // Capability, not freshness, decides the layout: while HA reconnects the same keys stay, greyed out (ready below).
+  if(!tile_controls::cover_tilt_selected(t))return {};
   const auto card=tile_controls::cover_card(t);std::array<tile_controls::Key,3> keys;
   const auto kind=tile_controls::panel_kind(t);
   return cover_tile::layout(body,touch,gap,caption,2*touch,
@@ -3571,7 +3580,9 @@ inline void render_cover_tile(Widgets &w,const Tile &t,const cover_tile::Layout 
 }
 // Additional rows extend the existing heading and controls. Compact tiles never
 // enter this path. The selected control kind and its events remain authoritative.
-inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int height) {
+// False only for a full-page cover whose slat group cannot be drawn here (no tilt, or too little room): the caller
+// then draws the ordinary full card with the primary controls, untouched by this function.
+inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int height) {
   selected=selected&&tile_controls::panel_available(t);
   const bool large=ui::large();const int gap=ui::px(large?8:4);
   const int touch=std::max(ui::touch_min(),ui::px(large?48:34));
@@ -3580,13 +3591,14 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   auto cover_metrics=m;cover_metrics.row_count=0;
   const auto cover_base=tall_tile::layout(cover_metrics);
   const auto cover=cover_tile_layout(t,cover_base.body,touch,gap,m.state_h);
+  if(w.full&&!cover.fits){if(w.extra_mode=="cover_tilt")hide_extra(w);return false;}
   if(cover.fits){selected=false;m.row_count=0;}
   auto l=tall_tile::layout(m);
   // An unusual override can leave too little physical room for the selection.
   // Keep the entity heading and its existing detail action rather than clipping keys.
   if(!l.fits){selected=false;m.row_count=0;l=tall_tile::layout(m);}
   lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
-  if(!l.fits){hide_extra(w);hide_panel(w);return;}
+  if(!l.fits){hide_extra(w);hide_panel(w);return true;}
   if(t.is_settings()||t.is_page()){
     const auto action=tall_tile::action(width,height,w.base_circle,lv_font_get_line_height(w.icon_font),
       m.name_h,lv_label_get_text(w.value)[0]?m.state_h:0,gap);
@@ -3599,7 +3611,7 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       set_font(w.value,w.value_font);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);
       lv_obj_set_pos(w.value,action.state.x,action.state.y);lv_obj_set_size(w.value,action.state.w,std::max(1,action.state.h));
       set_hidden(w.value,action.state.empty());
-      return;
+      return true;
     }
   }
   const int circle=std::min({w.base_circle,l.header.h,width/3});
@@ -3612,7 +3624,7 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   set_font(w.value,w.value_font);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
   lv_obj_set_pos(w.value,tx,y+m.name_h);lv_obj_set_size(w.value,tw,m.state_h);set_hidden(w.value,!l.state);
   live_place(w,t,circle,0,(l.header.h-circle)/2);
-  if(cover.fits){render_cover_tile(w,t,cover,width,height);return;}
+  if(cover.fits){render_cover_tile(w,t,cover,width,height);return true;}
   bool panel=selected&&layout_panel(w,t,large,width,height);
   if(!panel)hide_panel(w);
   if(panel){
@@ -3624,11 +3636,20 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   begin_extra(w,"tall",width,height);
   for(auto *part:w.parts)if(part)lv_obj_add_flag(part,LV_OBJ_FLAG_HIDDEN);
   auto text=[&](int i,const std::string &value,const lv_font_t *font,tall_tile::Rect area,lv_text_align_t align){
-    if(value.empty()||area.h<(int)lv_font_get_line_height(font))return;
+    if(value.empty()||area.h<(int)lv_font_get_line_height(font))return false;
     auto *p=part_label(w,i,font,area.x,area.y,area.w,align,value);
     if(d=="media_player"&&i==0)marquee(p,true,live_marquee_ready(w,t));
     else if(lv_label_get_long_mode(p)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);
     lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);
+    return true;
+  };
+  // A card that shows its value large does not repeat it in small type under the name. A second line of the user's
+  // own (other words, another value) differs from the headline and stays.
+  auto drop_repeat=[&](const std::string &headline){
+    if(headline.empty()||lv_obj_has_flag(w.value,LV_OBJ_FLAG_HIDDEN))return;
+    const std::string state=lv_label_get_text(w.value);
+    if(state!=headline&&state.rfind(headline+" ",0)!=0)return;
+    set_hidden(w.value,true);lv_obj_set_y(w.title,(l.header.h-m.name_h)/2);
   };
   if(d=="climate"&&panel&&w.panel_mode=="setpoint"){
     const int caption=std::isfinite(t.current)?m.state_h+gap:0;
@@ -3644,10 +3665,25 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       for(int n=0;n<2;++n){lv_obj_set_size(w.keys[n],key,key);lv_obj_set_pos(w.keys[n],n?pw-key:0,(ph-key)/2);lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],0);lv_obj_set_style_radius(w.keys[n],LV_RADIUS_CIRCLE,0);lv_obj_center(w.key_icons[n]);}
       set_font(w.pill_value,number);lv_obj_set_pos(w.pill_value,key+gap,(ph-lv_font_get_line_height(number))/2);lv_obj_set_size(w.pill_value,pw-2*key-2*gap,lv_font_get_line_height(number));
       if(caption)text(0,screen_text::fill(txt::climate_now,"value",screen_text::decimal(t.current,1)+"°"),w.value_font,{0,height-m.state_h,width,m.state_h},LV_TEXT_ALIGN_CENTER);
-      return;
+      return true;
     }
   }
-  if(panel&&w.panel_mode=="toggle")return;  // The heading already states On/Off.
+  if(panel&&w.panel_mode=="toggle"){
+    // An on/off card has no value for its body: icon, name, state and the switch stand as one centred stack, the way
+    // a built-in action card does, on every grid and glass. Too little room keeps the heading above the switch.
+    const int pw=lv_obj_get_style_width(w.panel,LV_PART_MAIN),ph=lv_obj_get_style_height(w.panel,LV_PART_MAIN);
+    const auto a=tall_tile::action(width,height,w.base_circle,lv_font_get_line_height(w.icon_font),m.name_h,
+      l.state?m.state_h:0,gap,pw,ph);
+    if(a.fits){
+      lv_obj_set_size(w.circle,a.icon.w,a.icon.h);lv_obj_set_pos(w.circle,a.icon.x,a.icon.y);lv_obj_center(w.icon);
+      set_text_align(w.title,LV_TEXT_ALIGN_CENTER);lv_obj_set_pos(w.title,a.title.x,a.title.y);lv_obj_set_size(w.title,a.title.w,a.title.h);
+      set_text_align(w.value,LV_TEXT_ALIGN_CENTER);lv_obj_set_pos(w.value,a.state.x,a.state.y);lv_obj_set_size(w.value,a.state.w,std::max(1,a.state.h));
+      set_hidden(w.value,a.state.empty());
+      lv_obj_set_pos(w.panel,a.control.x,a.control.y);
+      live_place(w,t,a.icon.w,a.icon.x,a.icon.y);
+    }
+    return true;
+  }
   auto body=l.body;
   if(d=="media_player"){
     const auto &x=t.extra();
@@ -3658,7 +3694,7 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     const std::string artist=media_card::subtitle(x.media_artist,x.media_album);
     const bool secondary=!artist.empty()&&body.h>=fh+m.state_h+gap/2;
     int y=body.y+std::max(0,(body.h-fh-(secondary?m.state_h+gap/2:0))/2);
-    text(0,title,font,{0,y,width,fh},LV_TEXT_ALIGN_LEFT);
+    if(text(0,title,font,{0,y,width,fh},LV_TEXT_ALIGN_LEFT))drop_repeat(title);
     if(secondary)text(1,artist,w.value_font,{0,y+fh+gap/2,width,m.state_h},LV_TEXT_ALIGN_LEFT);
   }else if(d=="climate"&&std::isfinite(t.current)){
     const auto *font=watch_value_font&&lv_font_get_line_height(watch_value_font)<=body.h?watch_value_font:w.value_font;
@@ -3668,8 +3704,10 @@ inline void render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     const lv_font_t *font=w.value_font;
     for(const auto *candidate:{watch_value_font,w.title_font,w.value_font})
       if(candidate&&face_covers(candidate,value)&&tall_tile::fits_text(body,text_width(value,candidate),lv_font_get_line_height(candidate))){font=candidate;break;}
-    text(0,value,font,{0,body.y+std::max(0,(body.h-static_cast<int>(lv_font_get_line_height(font)))/2),width,body.h},LV_TEXT_ALIGN_CENTER);
+    if(text(0,value,font,{0,body.y+std::max(0,(body.h-static_cast<int>(lv_font_get_line_height(font)))/2),width,body.h},LV_TEXT_ALIGN_CENTER))
+      drop_repeat(value);
   }
+  return true;
 }
 inline void style_tall(Widgets &w,const Tile &t){
   if(t.row_span()<2||t.full||w.extra_mode!="tall")return;
@@ -3884,8 +3922,8 @@ inline void render_slot(size_t slot) {
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);  // a big-value card on a short cell hides its circle again below
   if(custom && w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
-  if((taller||(w.full&&tile_controls::cover_tilt_selected(t)))&&!custom&&!watch&&!graph){
-    render_tall(w,t,with_panel,content_w,content_h);
+  if((taller||(w.full&&tile_controls::cover_tilt_selected(t)))&&!custom&&!watch&&!graph&&
+     render_tall(w,t,with_panel,content_w,content_h)){
     lap(swipe_profile::GEOMETRY);
   }else if(w.full){
     lap(swipe_profile::GEOMETRY);
@@ -4278,13 +4316,18 @@ inline bool check_tile_geometry() {
       if(!applied_bar)placed=placed && area.y2>=screen.y2-margin-3;
       if(!placed){fits=false;ESP_LOGE("ui_test","Card place FAIL slot=%u card=%d..%d area=%d..%d screen_bottom=%d bar=%d",(unsigned)w.index,(int)card.y1,(int)card.y2,(int)area.y1,(int)area.y2,(int)screen.y2,applied_bar);}
     }
+    // A centred stack (a built-in action, or an on/off card with its switch under the name).
     const bool centered_action=w.index<model.count && model.tiles[w.index].row_span()>1 && !w.full &&
-      (model.tiles[w.index].is_settings()||model.tiles[w.index].is_page()) &&
       lv_obj_get_style_text_align(w.title,LV_PART_MAIN)==LV_TEXT_ALIGN_CENTER;
     if(centered_action){
       lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
       const bool state=!lv_obj_has_flag(w.value,LV_OBJ_FLAG_HIDDEN);
-      const int bottom=state?value.y2:title.y2;
+      int bottom=state?value.y2:title.y2;
+      if(w.panel&&!lv_obj_has_flag(w.panel,LV_OBJ_FLAG_HIDDEN)){
+        lv_area_t b;lv_obj_get_coords(w.panel,&b);
+        fits=fits&&b.y1>bottom&&b.x1>=content.x1&&b.x2<=content.x2&&b.y2<=content.y2&&std::abs(b.x1+b.x2-content.x1-content.x2)<=1;
+        bottom=b.y2;
+      }
       fits=fits&&circle.x1>=content.x1&&circle.x2<=content.x2&&circle.y1>=content.y1&&circle.y2<title.y1;
       fits=fits&&title.x1>=content.x1&&title.x2<=content.x2&&bottom<=content.y2;
       if(state)fits=fits&&value.x1>=content.x1&&value.x2<=content.x2&&title.y2<value.y1;

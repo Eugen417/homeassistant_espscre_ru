@@ -42,6 +42,16 @@ int main(){
     assert(a.title.w==width&&a.state.w==width);
     assert(std::abs(a.icon.y-(height-a.state.bottom()))<=1);
   }
+  // An on/off card: the same stack with its switch under it, the switch never shrunk, the whole group centred.
+  for(int width:{40,80,131,218,300,500})for(int height=20;height<600;height+=7){
+    auto a=action(width,height,54,28,16,14,8,78,39);
+    if(!a.fits){assert(width<78||height<28+8+16+16+39);continue;}
+    assert(inside(a.icon,width,height)&&inside(a.title,width,height)&&inside(a.control,width,height));
+    assert(a.control.w==78&&a.control.h==39&&a.control.y>=a.state.bottom()+16);
+    assert(std::abs(2*a.control.x+a.control.w-width)<=1);
+    assert(std::abs(a.icon.y-(height-a.control.bottom()))<=1);
+  }
+  assert(action(300,400,54,28,16,14,8).control.empty());
   // Extended covers never overlap groups or squeeze a touch target to fit.
   // Sweep independent dimensions, densities and partial capability sets.
   unsigned covers=0;

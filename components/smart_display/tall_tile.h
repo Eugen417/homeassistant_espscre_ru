@@ -66,17 +66,20 @@ inline Rect toggle(int width,int touch) {
   if(touch<=0||width<touch+touch/2)return {};
   return {0,0,std::min(width,2*touch),touch};
 }
-struct ActionLayout { bool fits=false; Rect icon,title,state; };
-// Built-in action tiles have no extra controls. Centre their measured stack,
-// giving up the optional subtitle before reducing the icon below its glyph.
-inline ActionLayout action(int width,int height,int icon,int glyph,int name,int state,int gap) {
-  if(width<=0||height<=0||icon<=0||glyph<=0||name<=0||gap<0)return {};
-  if(height<glyph+gap+name+state)state=0;
-  const int side=std::min({icon,width,height-gap-name-state});
+struct ActionLayout { bool fits=false; Rect icon,title,state,control; };
+// One centred stack: icon, name, optional state and optionally one control under
+// them (a toggle). Built-in action tiles have no control. The optional state gives
+// way before the icon shrinks below its glyph; the control never shrinks.
+inline ActionLayout action(int width,int height,int icon,int glyph,int name,int state,int gap,
+                           int control_w=0,int control_h=0) {
+  if(width<=0||height<=0||icon<=0||glyph<=0||name<=0||gap<0||control_w<0||control_h<0||control_w>width)return {};
+  const int below=control_h?2*gap+control_h:0;
+  if(height<glyph+gap+name+state+below)state=0;
+  const int side=std::min({icon,width,height-gap-name-state-below});
   if(side<glyph)return {};
-  const int y=(height-side-gap-name-state)/2;
-  return {true,{(width-side)/2,y,side,side},{0,y+side+gap,width,name},
-          {0,y+side+gap+name,width,state}};
+  const int y=(height-side-gap-name-state-below)/2,text=y+side+gap;
+  return {true,{(width-side)/2,y,side,side},{0,text,width,name},{0,text+name,width,state},
+          control_h?Rect{(width-control_w)/2,text+name+state+2*gap,control_w,control_h}:Rect{}};
 }
 // Font selection also uses measured width. A large display with a dense grid can
 // have less room than a small display with two columns.
