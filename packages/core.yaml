@@ -156,7 +156,6 @@ esphome:
             theme::fill(id(style_icon_circle), Paint::accent_tint);
             theme::fill(id(style_value), Paint::muted);
             theme::fill(id(paint_page_soft), Paint::page_soft);
-            theme::fill(id(paint_page_pressed), Paint::page_pressed);
             theme::fill(id(paint_raised), Paint::raised);
             theme::fill(id(paint_key), Paint::key);
             theme::fill(id(paint_ink_soft), Paint::ink_soft);
@@ -1543,7 +1542,6 @@ lvgl:
     # Paints: shared styles without a colour of their own. theme.h fills them (the list in on_boot, theme::paints)
     # and fills them again when Dark mode changes, so a widget names a paint where it used to write a colour.
     - id: paint_page_soft
-    - id: paint_page_pressed
     - id: paint_raised
     - id: paint_key
     - id: paint_ink

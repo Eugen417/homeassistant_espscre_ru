@@ -4576,6 +4576,19 @@ inline void apply_page(int page) {
 }
 // A page key takes touches across its half of the bar, which runs under the page dots; its press shows as a rounded
 // patch around what the key shows (the chevron, or "Back") instead of across that whole half (firmware 0.3.1).
+// The inked box of what a label shows: for a lone icon the glyph's own box from the font, since the label's box
+// carries the font's side bearings and line gap and a patch centred on it would sit off the chevron.
+inline lv_area_t ink_area(lv_obj_t *o){
+  lv_area_t a;lv_obj_get_coords(o,&a);
+  if(!lv_obj_check_type(o,&lv_label_class))return a;
+  const char *text=lv_label_get_text(o);if(!text||!*text)return a;
+  const std::string shown(text);size_t i=0;const uint32_t cp=header_bar::next_codepoint(shown,i);
+  if(i!=shown.size()||cp<0xF0000)return a;  // words ("Back") keep their label box
+  const lv_font_t *font=lv_obj_get_style_text_font(o,LV_PART_MAIN);lv_font_glyph_dsc_t g;
+  if(!font||!lv_font_get_glyph_dsc(font,&g,cp,0)||!g.box_w||!g.box_h)return a;
+  const int32_t top=a.y1+(font->line_height-font->base_line)-(int32_t)g.box_h-g.ofs_y,left=a.x1+g.ofs_x;
+  return lv_area_t{left,top,left+(int32_t)g.box_w-1,top+(int32_t)g.box_h-1};
+}
 inline void nav_key_event(lv_event_t *e){
   auto *key=(lv_obj_t*)lv_event_get_current_target(e);auto *patch=(lv_obj_t*)lv_event_get_user_data(e);
   const auto code=lv_event_get_code(e);
@@ -4586,14 +4599,15 @@ inline void nav_key_event(lv_event_t *e){
   for(uint32_t i=0;i<lv_obj_get_child_count(key);++i){
     auto *child=lv_obj_get_child(key,i);
     if(child==patch||lv_obj_has_flag(child,LV_OBJ_FLAG_HIDDEN))continue;
-    lv_area_t a;lv_obj_get_coords(child,&a);
+    const lv_area_t a=ink_area(child);
     if(!any){c=a;any=true;}else{c.x1=std::min(c.x1,a.x1);c.y1=std::min(c.y1,a.y1);c.x2=std::max(c.x2,a.x2);c.y2=std::max(c.y2,a.y2);}
   }
   if(!any)return;
-  const int pad=ui::px(ui::large()?10:6),bar=lv_area_get_height(&k);
-  const int h=std::min(bar-ui::px(4),lv_area_get_height(&c)+2*pad),w=std::max(h,lv_area_get_width(&c)+2*pad);
-  lv_obj_set_size(patch,w,h);
-  lv_obj_set_pos(patch,(c.x1+c.x2)/2-k.x1-w/2,(c.y1+c.y2)/2-k.y1-h/2);
+  // A circle around a lone chevron, a pill around chevron and word; never taller than the bar.
+  const int pad=ui::px(ui::large()?14:10),bar=(int)lv_area_get_height(&k),iw=(int)lv_area_get_width(&c),ih=(int)lv_area_get_height(&c);
+  const int h=std::min(bar-ui::px(4),std::max(iw,ih)+2*pad),w=std::max(h,iw+2*pad);
+  const int cx=(int)(c.x1+c.x2+1)/2-(int)k.x1,cy=(int)(c.y1+c.y2+1)/2-(int)k.y1;
+  lv_obj_set_size(patch,w,h);lv_obj_set_pos(patch,cx-w/2,cy-h/2);
   lv_obj_remove_flag(patch,LV_OBJ_FLAG_HIDDEN);
 }
 inline void nav_key_patch(lv_obj_t *key){

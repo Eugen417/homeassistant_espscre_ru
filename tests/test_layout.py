@@ -82,6 +82,13 @@ class LayoutTests(unittest.TestCase):
         self.assertLess(grid, nav)
         self.assertLess(nav, modal)
 
+    def test_page_key_press_shows_around_the_chevron(self):
+        from firmware_sources import runtime_source
+        RUNTIME_TILES = runtime_source()
+        self.assertIn('if(!nav_prev){nav_key_patch(previous);nav_key_patch(next);}', RUNTIME_TILES)
+        self.assertIn('theme::style(theme::Paint::page_pressed)', RUNTIME_TILES)
+        self.assertIn('inline lv_area_t ink_area(lv_obj_t *o)', RUNTIME_TILES)
+
     def test_page_keys_are_the_halves_of_the_band_under_the_tiles(self):
         """Firmware 0.2.69+: a chevron in each half of the band, the dots between them take no touches. The half is
         half of the glass, said as a percentage, so it is still half after the screen is built standing up."""
@@ -93,7 +100,8 @@ class LayoutTests(unittest.TestCase):
                 block = source.split(f'            id: {key}\n', 1)[1].split('\n        - ', 1)[0]
                 self.assertIn('width: 50%\n', block, f'{name} {key}')
                 self.assertIn(f'height: {band}\n', block, f'{name} {key}')
-                self.assertIn('styles: paint_page_pressed', block, f'{name} {key}: the half lights up under a finger')
+                # Firmware 0.3.1: the half takes the touch but stays clear; the press shows around the chevron only.
+                self.assertIn('pressed:\n              bg_opa: TRANSP', block, f'{name} {key}: the half stays clear under a finger')
                 self.assertIn(f'\\U000{glyph}', block, f'{name} {key}')
                 self.assertIn('text_font: materialdesign_icons_mini', block, f'{name} {key}')
                 self.assertNotIn('Previous', block)
