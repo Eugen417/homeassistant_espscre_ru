@@ -27,7 +27,11 @@ class GuitionTests(unittest.TestCase):
         self.assertIn('vsync_back_porch: 20',SOURCE)
         self.assertIn('spi_mode: MODE0',SOURCE)
         self.assertIn('[0x3A, 0x60]',SOURCE)
-        self.assertNotIn('CONFIG_LCD_RGB_RESTART_IN_VSYNC',SOURCE)
+        # Only as a warning in a comment: never set (packages/hardware/esp32s3-rgb.yaml says why).
+        self.assertNotIn('CONFIG_LCD_RGB_RESTART_IN_VSYNC:',SOURCE)
+        # The RGB panel settings every ESP32-S3 board shares (firmware 0.3.1): the 4-inch Guition too.
+        self.assertIn('CONFIG_LCD_RGB_ISR_IRAM_SAFE: "y"',SOURCE)
+        self.assertIn('CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"',SOURCE)
         self.assertIn('execute_from_psram: true',SOURCE)
         self.assertNotIn('id: output_red',SOURCE)
         self.assertEqual(VALUES['PANEL_W'],'480')

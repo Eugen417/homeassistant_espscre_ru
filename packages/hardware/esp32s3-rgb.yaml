@@ -1,8 +1,8 @@
 # ESP Screens - an ESP32-S3 with octal PSRAM that drives an RGB panel, for a board file that includes this one.
 #
 # The chip, its memory and the one ESP-IDF setting an RGB panel on this chip needs. The board file adds its flash size
-# (`esp32: flash_size:`) and everything else it has. The 4-inch Guition runs the same chip without that setting and
-# keeps its own `esp32:` block (packages/boards/guition-4848s040.yaml).
+# (`esp32: flash_size:`) and everything else it has. Every ESP32-S3 board with an RGB panel includes it, the 4-inch
+# Guition too (firmware 0.3.1; it had its own copy of this block before and so lacked the settings below).
 packages:
   build: !include esp-idf.yaml
 
@@ -35,6 +35,12 @@ esp32:
       # external-RAM branch). The panel's picture stays in PSRAM; the flash keeps its cache while it is written
       # (execute_from_psram above), so the handlers can read it at any moment.
       CONFIG_LCD_RGB_ISR_IRAM_SAFE: "y"
+      # The panel reads every line out of PSRAM through a ten-line bounce buffer while the CPU uses the same PSRAM. A
+      # full camera view downloads and decodes a 388 KB picture into it every few seconds, and a refill that came too
+      # late put one frame shifted, the overlay's key and title doubled, on the Guition (2026-09-25). 64-byte data
+      # cache lines move PSRAM in fewer, longer bursts, which leaves the panel more of it; Espressif's advice for RGB
+      # panels on PSRAM, and it costs no RAM (the data cache keeps its 32 KB).
+      CONFIG_ESP32S3_DATA_CACHE_LINE_64B: "y"
 
 psram:
   mode: octal

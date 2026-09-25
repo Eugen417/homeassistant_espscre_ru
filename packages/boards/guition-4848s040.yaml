@@ -7,8 +7,9 @@
 # shares. Two entry files include this one: checkout/guition.yaml (a build on this computer) and
 # packages/guition.yaml (the package a screen builds from over GitHub).
 packages:
-  # How every board's firmware is built (ESP-IDF, as ESPHome recommends it).
-  build: !include ../hardware/esp-idf.yaml
+  # The chip, its PSRAM and the ESP-IDF settings every ESP32-S3 RGB panel shares (and through it how every board's
+  # firmware is built).
+  hardware: !include ../hardware/esp32s3-rgb.yaml
   # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
   cells: !include ../cells/6.yaml
   # Every size of the standard look, scaled to DISPLAY_DPI below. This glass is where that look was drawn.
@@ -44,17 +45,7 @@ substitutions:
 # ============================================================
 
 esp32:
-  board: esp32-s3-devkitc-1
-  variant: esp32s3
   flash_size: 16MB
-  cpu_frequency: 240MHz
-  framework:
-    advanced:
-      execute_from_psram: true
-
-psram:
-  mode: octal
-  speed: 80MHz
 
 logger:
   tx_buffer_size: 2048
