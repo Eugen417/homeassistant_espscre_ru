@@ -692,7 +692,8 @@
         "none": "None",
         "climate": {
           "setpoint": "Temperature − / +",
-          "mode": "Off, heat, cool"
+          "mode": "Off, heat, cool",
+          "setpoint_mode": "Temperature − / + and mode"
         },
         "switch": {
           "toggle": "On/off switch"

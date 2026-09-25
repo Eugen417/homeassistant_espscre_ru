@@ -113,7 +113,8 @@
   "controls": {
     "climate": [
       "setpoint",
-      "mode"
+      "mode",
+      "setpoint_mode"
     ],
     "switch": [
       "toggle"

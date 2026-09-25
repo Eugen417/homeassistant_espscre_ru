@@ -692,7 +692,8 @@
         "none": "Nenhum",
         "climate": {
           "setpoint": "Temperatura − / +",
-          "mode": "Desligado, aquecer, arrefecer"
+          "mode": "Desligado, aquecer, arrefecer",
+          "setpoint_mode": "Temperatura − / + e modo"
         },
         "switch": {
           "toggle": "Interruptor"

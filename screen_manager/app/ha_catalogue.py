@@ -187,6 +187,8 @@ def capabilities(entity_id, actions, state, services):
                          and not attributes['supported_features'] & 1)]
     if domain == 'cover' and 'tilt' in controls:
         controls += [key + '_tilt' for key in ('buttons', 'position') if key in controls]
+    if domain == 'climate' and 'setpoint' in controls and 'mode' in controls:
+        controls.append('setpoint_mode')
     return {
         'toggle': TOGGLE.format(domain=domain) in actions,
         'inline': domain in INLINE and _fits(INLINE[domain], actions, attributes, services),

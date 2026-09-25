@@ -692,7 +692,8 @@
         "none": "Aucune",
         "climate": {
           "setpoint": "Température − / +",
-          "mode": "Éteint, chauffage, climatisation"
+          "mode": "Éteint, chauffage, climatisation",
+          "setpoint_mode": "Température − / + et mode"
         },
         "switch": {
           "toggle": "Interrupteur marche/arrêt"

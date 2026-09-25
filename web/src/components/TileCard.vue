@@ -28,7 +28,8 @@ function activate() {
 // A built-in card is named as the screens name it, in their language (app 0.2.90).
 const name = computed(() => props.tile.name || (domain.value === "screen" && screenBuiltinName(props.tile.entity)) || entityName(props.tile.entity));
 const shape = computed(() => dimensions(sizeOf(props.tile), grid));
-const tall = computed(() => shape.value.rows > 1 && (!full.value || coverExtended.value) && ["standard", "cover"].includes(display.value));
+const climateModes = computed(() => domain.value === 'climate' && effectiveControls(props.tile, state.inventory) === 'setpoint_mode' && shape.value.rows > 1);
+const tall = computed(() => shape.value.rows > 1 && (!full.value || coverExtended.value || climateModes.value) && ["standard", "cover"].includes(display.value));
 const full = computed(() => isFull(props.tile));
 const wide = computed(() => isWide(props.tile) && !full.value);
 const tallAction = computed(() => tall.value && (props.tile.entity === "screen.settings" || !!goesTo.value));
@@ -39,6 +40,8 @@ const display = computed(() => props.tile.options?.display || "standard");
 const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
 const controls = computed(() => {
   const selected = effectiveControls(props.tile, state.inventory);
+  // A card one row high draws the setpoint alone, as the screen does (resolve_controls).
+  if (selected === 'setpoint_mode' && shape.value.rows < 2) return 'setpoint';
   if (domain.value !== 'cover') return selected;
   const primary = coverPrimary(selected);
   return primary === 'none' ? null : primary;
@@ -48,6 +51,17 @@ const tallControls = computed(() => availableControl(domain.value,
   props.tile.options?.inline === 'slider' ? inlineControlKind(domain.value) : controls.value,
   current.value?.state || '', current.value?.a || {}));
 const tallKeys = computed(() => controlKeys(domain.value, tallControls.value, current.value?.state || '', current.value?.a || {}));
+const modeKeys = computed(() => tallControls.value === 'setpoint_mode' ? controlKeys('climate', 'mode', current.value?.state || '', current.value?.a || {}) : []);
+// An on/off card stands as one centred stack, like the built-in action cards (firmware 0.3.1 render_tall).
+const tallStack = computed(() => tall.value && tallControls.value === 'toggle');
+// The value the body shows large; the same words are not repeated under the name (a second line of your own stays).
+const bodyText = computed(() => {
+  if (!tall.value || tallAction.value || tallStack.value || gone.value || coverExtended.value) return '';
+  if (domain.value === 'media_player') return String(current.value?.a?.media_title || '');
+  if (domain.value === 'climate' || domain.value === 'screen') return '';
+  return domain.value === 'light' && isOn.value ? `${fill.value}%` : status.value;
+});
+const headStatus = computed(() => bodyText.value && (status.value === bodyText.value || status.value.startsWith(bodyText.value + ' ')) ? '' : status.value);
 const domain = computed(() => props.tile.entity.split(".")[0]);
 const cp = computed(() => state.inventory.icons?.controls || {});
 const key = (n: string) => (cp.value[n] ? glyph(cp.value[n]) : "");
@@ -159,7 +173,7 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="tile" :class="{ wide, full, tall, 'tall-action': tallAction, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+  <div class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
     :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
     :tabindex="(preview ? goesTo : live) ? 0 : -1" :role="(preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
@@ -203,12 +217,13 @@ async function onKey(e: KeyboardEvent) {
       <img v-if="artwork" :key="artwork" class="tall-art" :src="artwork" alt="" @load="artworkLoaded = true" @error="artworkLoaded = false" />
       <span class="head">
         <span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span>
-        <span class="tx"><span class="nm">{{ name }}</span><span v-if="status" class="st" :class="{ off: gone }">{{ status }}</span></span>
+        <span class="tx"><span class="nm">{{ name }}</span><span v-if="headStatus" class="st" :class="{ off: gone }">{{ headStatus }}</span></span>
       </span>
       <CoverTilePreview v-if="coverExtended" :primary="tallControls" :entity-state="current?.state || ''" :attributes="current?.a || {}" />
-      <span v-else-if="domain === 'climate' && tallControls === 'setpoint'" class="tall-setpoint">
+      <span v-else-if="domain === 'climate' && (tallControls === 'setpoint' || tallControls === 'setpoint_mode')" class="tall-setpoint">
         <span class="target"><span class="key mdi">{{ key('minus') || '−' }}</span><b>{{ setpoint }}</b><span class="key mdi">{{ key('plus') || '+' }}</span></span>
         <span class="st">{{ current?.a?.current_temperature !== undefined ? screenText('screen.climate.now', { value: `${num(current.a.current_temperature)}°` }) : status }}</span>
+        <span v-if="modeKeys.length" class="ctl modes"><span v-for="(control, i) in modeKeys" :key="i" class="key mdi" :class="{ active: control.mode === current?.state }">{{ key(control.icon) }}</span></span>
       </span>
       <template v-else>
         <span v-if="!tallAction" class="tall-body">

@@ -3187,7 +3187,8 @@ inline lv_obj_t *panel_icon(Widgets &w,unsigned n,const lv_font_t *font) {
 // from the text, including the gap, or 0 when the card shows no panel.
 inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int content_h) {
   std::string mode=tile_controls::panel_kind(t);
-  const bool taller=t.row_span()>1 && !w.full;
+  // A full card that draws its setpoint and mode keys as rows (render_tall) takes the taller card's control sizes.
+  const bool taller=t.row_span()>1 && (!w.full || tile_controls::climate_modes_selected(t));
   PanelMetrics m=w.full?panel_metrics_full(w.base_height>80):panel_metrics(large);
   if(taller){
     m.key_h=std::max(ui::touch_min(),ui::px(large?48:34));m.key_w=m.key_h;
@@ -3530,6 +3531,19 @@ inline void cover_tile_key_event(lv_event_t *e){
   const auto call=tile_controls::key_action(t,keys[part%3].command);
   if(!call.service.empty())action(call.service,t.entity,call.key,call.value);
 }
+// A climate's mode keys under its setpoint (firmware 0.3.1+): the same guard and the same press as a key-row panel.
+inline void climate_mode_key_event(lv_event_t *e){
+  const unsigned tag=(uintptr_t)lv_event_get_user_data(e),slot=tag/8,n=tag%8;
+  if(slot>=widgets.size()||n>=3)return;
+  const auto &w=widgets[slot];if(w.index>=model.count||w.extra_mode!="tall")return;
+  auto &t=model.tiles[w.index];const uint32_t now=esphome::millis();
+  if(!enabled||!fresh()||!t.available()||t.waiting(now)||!tile_controls::climate_modes_selected(t))return;
+  std::array<tile_controls::Key,3> keys;
+  if(n>=tile_controls::climate_mode_keys(t,keys))return;
+  if(!allowed(now,700+slot*8+n,"control "+std::to_string(slot)))return;
+  const auto a=tile_controls::press_key(t,keys[n].command,keys[n].arg);
+  if(a.valid())action(a.service,t.entity,a.key,a.value);
+}
 inline cover_tile::Layout cover_tile_layout(const Tile &t,tall_tile::Rect body,int touch,int gap,int caption){
   // Capability, not freshness, decides the layout: while HA reconnects the same keys stay, greyed out (ready below).
   if(!tile_controls::cover_tilt_selected(t))return {};
@@ -3591,7 +3605,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   auto cover_metrics=m;cover_metrics.row_count=0;
   const auto cover_base=tall_tile::layout(cover_metrics);
   const auto cover=cover_tile_layout(t,cover_base.body,touch,gap,m.state_h);
-  if(w.full&&!cover.fits){if(w.extra_mode=="cover_tilt")hide_extra(w);return false;}
+  if(w.full&&!cover.fits&&!tile_controls::climate_modes_selected(t)){if(w.extra_mode=="cover_tilt")hide_extra(w);return false;}
   if(cover.fits){selected=false;m.row_count=0;}
   auto l=tall_tile::layout(m);
   // An unusual override can leave too little physical room for the selection.
@@ -3652,19 +3666,45 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     set_hidden(w.value,true);lv_obj_set_y(w.title,(l.header.h-m.name_h)/2);
   };
   if(d=="climate"&&panel&&w.panel_mode=="setpoint"){
-    const int caption=std::isfinite(t.current)?m.state_h+gap:0;
-    const int ph=height-l.body.y-caption;
-    const int pw=std::min(width,ui::control_max_width()),key=std::min(touch,ph);
+    // With "Temperature and mode" the mode keys take a row under the setpoint. What gives way when the card is short:
+    // first the measured temperature, then the mode row; the setpoint keeps its touch size.
+    std::array<tile_controls::Key,3> modes;
+    const int mode_count=tile_controls::climate_modes_selected(t)?(int)tile_controls::climate_mode_keys(t,modes):0;
+    // The keys stand under the setpoint where the card has the height, beside it where it only has the width (a
+    // short, wide card: the CYD's 2 x 2), and not at all where neither fits a finger.
+    const int row=touch+gap,below=height-l.body.y,modes_w=mode_count?mode_count*touch+(mode_count-1)*gap:0;
+    int caption=std::isfinite(t.current)?m.state_h+gap:0;
+    const bool under=mode_count>0&&width>=modes_w&&below-row>=touch;
+    const bool beside=!under&&mode_count>0&&below>=touch&&width-modes_w-2*gap>=2*touch+2*gap+ui::px(40);
+    const bool with_modes=under||beside;
+    if(below-caption-(under?row:0)<touch)caption=0;
+    const int ph=below-caption-(under?row:0),area=beside?width-modes_w-2*gap:width;
+    const int pw=std::min(area,ui::control_max_width()),key=std::min(touch,ph);
     if(ph>=touch && pw>2*key+2*gap){
       const std::string target=lv_label_get_text(w.pill_value);
       const lv_font_t *number=w.title_font;
       for(const auto *candidate:{setpoint_font,watch_value_font,control_font,w.title_font})
         if(candidate&&face_covers(candidate,target)&&tall_tile::fits_text({0,0,pw-2*key-2*gap,ph},text_width(target,candidate),lv_font_get_line_height(candidate))){number=candidate;break;}
-      lv_obj_set_pos(w.panel,(width-pw)/2,l.body.y);lv_obj_set_size(w.panel,pw,ph);
+      lv_obj_set_pos(w.panel,(area-pw)/2,l.body.y);lv_obj_set_size(w.panel,pw,ph);
       lv_obj_set_size(w.pill,pw,ph);lv_obj_set_style_bg_opa(w.pill,LV_OPA_TRANSP,0);
       for(int n=0;n<2;++n){lv_obj_set_size(w.keys[n],key,key);lv_obj_set_pos(w.keys[n],n?pw-key:0,(ph-key)/2);lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],0);lv_obj_set_style_radius(w.keys[n],LV_RADIUS_CIRCLE,0);lv_obj_center(w.key_icons[n]);}
       set_font(w.pill_value,number);lv_obj_set_pos(w.pill_value,key+gap,(ph-lv_font_get_line_height(number))/2);lv_obj_set_size(w.pill_value,pw-2*key-2*gap,lv_font_get_line_height(number));
-      if(caption)text(0,screen_text::fill(txt::climate_now,"value",screen_text::decimal(t.current,1)+"°"),w.value_font,{0,height-m.state_h,width,m.state_h},LV_TEXT_ALIGN_CENTER);
+      if(caption)text(0,screen_text::fill(txt::climate_now,"value",screen_text::decimal(t.current,1)+"°"),w.value_font,{0,l.body.y+ph+gap,area,m.state_h},LV_TEXT_ALIGN_CENTER);
+      if(with_modes){
+        const int slot=&w-widgets.data();
+        const bool ready=fresh()&&t.available()&&!t.waiting(esphome::millis());
+        const auto keys=tall_tile::keys(under?tall_tile::Rect{0,height-touch,width,touch}:tall_tile::Rect{width-modes_w,l.body.y+(ph-touch)/2,modes_w,touch},
+                                        mode_count,touch,touch,gap);
+        for(int n=0;n<mode_count;++n){
+          const auto &k=modes[n];auto &part=w.parts[4+n];
+          part=media_key(w.extra,part,{keys[n].x,keys[n].y,keys[n].w,keys[n].h},k.icon,mini_icon_font?mini_icon_font:w.icon_font,
+                         k.checked,false,ready,climate_mode_key_event,(void*)(uintptr_t)(slot*8+n));
+          lv_obj_set_ext_click_area(part,0);
+          // The active mode in Home Assistant's colour for it, like the mode keys beside the name.
+          if(k.checked)set_color(part,LV_STYLE_BG_COLOR,lv_color_hex(tile_controls::mode_color(k.arg)));
+          lv_obj_remove_flag(part,LV_OBJ_FLAG_HIDDEN);
+        }
+      }
       return true;
     }
   }
@@ -3922,7 +3962,7 @@ inline void render_slot(size_t slot) {
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);  // a big-value card on a short cell hides its circle again below
   if(custom && w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
-  if((taller||(w.full&&tile_controls::cover_tilt_selected(t)))&&!custom&&!watch&&!graph&&
+  if((taller||(w.full&&(tile_controls::cover_tilt_selected(t)||tile_controls::climate_modes_selected(t))))&&!custom&&!watch&&!graph&&
      render_tall(w,t,with_panel,content_w,content_h)){
     lap(swipe_profile::GEOMETRY);
   }else if(w.full){

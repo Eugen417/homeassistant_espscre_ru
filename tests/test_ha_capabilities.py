@@ -143,7 +143,7 @@ class WhatTheEditorOffers(unittest.TestCase):
         self.assertEqual((caps('cover.garage')['inline'], caps('cover.garage')['controls']), (False, ['buttons']))
         self.assertEqual((caps('cover.position_only')['inline'], caps('cover.position_only')['controls']), (True, ['position']))
         self.assertEqual(caps('media_player.sonos')['controls'], ['volume', 'playback'])
-        self.assertEqual(caps('climate.old_thermostat')['controls'], ['setpoint', 'mode'])
+        self.assertEqual(caps('climate.old_thermostat')['controls'], ['setpoint', 'mode', 'setpoint_mode'])
         self.assertEqual((caps('fan.ceiling')['inline'], caps('fan.ceiling')['controls']), (False, ['toggle']))
         self.assertEqual(caps('scene.evening')['controls'], ['run'])
 

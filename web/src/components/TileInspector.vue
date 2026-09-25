@@ -87,7 +87,9 @@ function pickControl(value: string) {
 }
 const controlChoices = computed(() => {
   const c = caps.value;
-  return (catalogue.value?.choices || []).filter(ch => domain.value !== "cover" || !hasCoverTilt(ch.key)).filter((ch) => !c || ch.key === "none" || ch.key === primaryControl.value || c.controls.includes(ch.key)).map((ch) => [ch.key, ch.label] as [string, string]);
+  // Temperature and mode need a second row: offered on 1 x 2, 2 x 2 and full-page cards only.
+  return (catalogue.value?.choices || []).filter(ch => domain.value !== "cover" || !hasCoverTilt(ch.key))
+    .filter(ch => ch.key !== "setpoint_mode" || ["tall", "square", "full"].includes(size.value)).filter((ch) => !c || ch.key === "none" || ch.key === primaryControl.value || c.controls.includes(ch.key)).map((ch) => [ch.key, ch.label] as [string, string]);
 });
 const controlHint = computed(() => {
   const c = caps.value;

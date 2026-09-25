@@ -60,10 +60,15 @@ inline std::string inline_kind(const std::string &domain) {
 inline bool cover_tilt_selected(const Tile &t) {
   return t.domain()=="cover" && (t.controls=="tilt"||t.controls=="buttons_tilt"||t.controls=="position_tilt");
 }
+// A climate's second group (firmware 0.3.1+): the mode keys under the setpoint, where a taller card has the room.
+inline bool climate_modes_selected(const Tile &t) {
+  return t.domain()=="climate" && t.controls=="setpoint_mode";
+}
 // A select's "stepper" is a pair of chevron keys; numbers and climate get the -/+ pill.
 inline std::string panel_kind(const Tile &t) {
   auto c = t.controls, d = t.domain();
   if(d=="cover"){if(c=="tilt")return {};if(c=="buttons_tilt")return "buttons";if(c=="position_tilt")return "position";}
+  if(d=="climate"&&c=="setpoint_mode")return "setpoint";
   // The small slider of a wide card is that domain's slider: the manager sends no control set beside it
   // (resolve_controls), so the kind comes from the domain.
   if (c.empty() && t.inline_control == "slider") return inline_kind(d);
@@ -445,6 +450,13 @@ inline Action cover_position_action(const Tile &t,int raw,bool tilt) {
   return tilt?Action{"cover.set_cover_tilt_position","tilt_position",std::to_string(percent)}
              :Action{"cover.set_cover_position","position",std::to_string(100-percent)};
 }
+// A climate's mode keys: three fit beside the name, and Home Assistant lists its modes in device order.
+inline unsigned climate_mode_keys(const Tile &t, std::array<Key, 3> &out) {
+  unsigned n = 0;
+  for (const char *mode : {"off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"})
+    if (n < out.size() && has_mode(t.extra().hvac_modes, mode)) out[n++] = Key{mode_icon(mode), HVAC_MODE, mode, t.state == mode, false};
+  return n;
+}
 // The row of up to three pill keys for a key-row panel; returns how many.
 //
 // A key is greyed for one reason only (firmware 0.2.90+): a command of this tile is on its way to Home Assistant
@@ -480,9 +492,7 @@ inline unsigned keys_for(const Tile &t, std::array<Key, 3> &out, uint32_t now = 
     if (t.supported & (feature::MEDIA_PLAY | feature::MEDIA_PAUSE)) add(t.state == "playing" ? glyph::PAUSE : glyph::PLAY, MEDIA_PLAY_PAUSE, !(t.supported & (t.state == "playing" ? feature::MEDIA_PAUSE : feature::MEDIA_PLAY)));
     if (t.supported & feature::MEDIA_NEXT) add(glyph::NEXT, MEDIA_NEXT);
   } else if (c == "mode") {
-    // Three keys fit beside the name; Home Assistant lists modes in device order.
-    for (const char *mode : {"off", "heat", "cool", "heat_cool", "auto", "dry", "fan_only"})
-      if (n < 3 && has_mode(t.extra().hvac_modes, mode)) add(mode_icon(mode), HVAC_MODE, false, t.state == mode, mode);
+    n = climate_mode_keys(t, out);
   } else if (c == "chevrons") {
     // Nothing to step through is not a state that can lag: without two options there is no next one.
     add(glyph::LEFT, SELECT_PREVIOUS, t.extra().options.size() < 2);

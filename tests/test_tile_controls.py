@@ -23,7 +23,7 @@ class ControlChoices(unittest.TestCase):
         catalogue = controls_catalogue()
         self.assertEqual(catalogue['media_player']['default'], 'volume')
         self.assertEqual([c['key'] for c in catalogue['media_player']['choices']], ['volume', 'playback', 'none'])
-        self.assertEqual([c['key'] for c in catalogue['climate']['choices']], ['setpoint', 'mode', 'none'])
+        self.assertEqual([c['key'] for c in catalogue['climate']['choices']], ['setpoint', 'mode', 'setpoint_mode', 'none'])
         for domain in ('climate', 'switch', 'vacuum', 'cover', 'media_player'):
             self.assertIn(domain, catalogue)
         self.assertNotIn('sensor', catalogue)

@@ -692,7 +692,8 @@
         "none": "Geen",
         "climate": {
           "setpoint": "Temperatuur − / +",
-          "mode": "Uit, verwarmen, koelen"
+          "mode": "Uit, verwarmen, koelen",
+          "setpoint_mode": "Temperatuur − / + en modus"
         },
         "switch": {
           "toggle": "Aan/uit-schakelaar"

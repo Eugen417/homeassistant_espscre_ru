@@ -287,7 +287,7 @@ def has_gaps(tiles, grid=DEFAULT_GRID):
 # when the tile has no explicit choice; 'none' keeps the plain card. The labels in English,
 # as the Claude skill writes them; the editor gets them in its language (controls_catalogue).
 CONTROLS = {
-    'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Off, heat, cool')),
+    'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Off, heat, cool'), ('setpoint_mode', 'Temperature − / + and mode')),
     'switch': (('toggle', 'On/off switch'),),
     'input_boolean': (('toggle', 'On/off switch'),),
     'light': (('toggle', 'On/off switch'), ('brightness', 'Brightness slider')),
@@ -325,6 +325,9 @@ def resolve_controls(tile):
     choice = options.get('controls', 'none' if options.get('size') in ('tall', 'full') else CONTROLS[domain][0][0])
     if domain == 'cover' and options.get('size') == 'wide':
         choice = 'none' if choice == 'tilt' else choice.removesuffix('_tilt')
+    # A card one row high has room for one group: the setpoint (firmware 0.3.1 draws both on 1 x 2, 2 x 2 and full).
+    if choice == 'setpoint_mode' and options.get('size') == 'wide':
+        choice = 'setpoint'
     return None if choice == 'none' else choice
 
 # Diagnostic entities every ESP Screens firmware exposes; the manager watches them for screens.
@@ -852,7 +855,7 @@ def repeated_page_tiles(tiles):
 
 def min_firmware(layout):
     """Oldest firmware that still accepts this layout; None when any version works."""
-    if any(tile.get('options', {}).get('controls') in ('tilt', 'buttons_tilt', 'position_tilt')
+    if any(tile.get('options', {}).get('controls') in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode')
            for tile in layout['tiles']):
         return (0, 3, 1)
     if repeated_page_tiles(layout['tiles']):
