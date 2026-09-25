@@ -4574,7 +4574,40 @@ inline void apply_page(int page) {
   applied_page=place_page(page);
   if(room_label){dirty_all=true;render(room_label);}else refresh_all();
 }
+// A page key takes touches across its half of the bar, which runs under the page dots; its press shows as a rounded
+// patch around what the key shows (the chevron, or "Back") instead of across that whole half (firmware 0.3.1).
+inline void nav_key_event(lv_event_t *e){
+  auto *key=(lv_obj_t*)lv_event_get_current_target(e);auto *patch=(lv_obj_t*)lv_event_get_user_data(e);
+  const auto code=lv_event_get_code(e);
+  if(code==LV_EVENT_RELEASED||code==LV_EVENT_PRESS_LOST){lv_obj_add_flag(patch,LV_OBJ_FLAG_HIDDEN);return;}
+  if(code!=LV_EVENT_PRESSED)return;
+  // Around everything the key shows: the chevron, and "Back" beside it on a detail page.
+  lv_area_t k,c{};bool any=false;lv_obj_get_coords(key,&k);
+  for(uint32_t i=0;i<lv_obj_get_child_count(key);++i){
+    auto *child=lv_obj_get_child(key,i);
+    if(child==patch||lv_obj_has_flag(child,LV_OBJ_FLAG_HIDDEN))continue;
+    lv_area_t a;lv_obj_get_coords(child,&a);
+    if(!any){c=a;any=true;}else{c.x1=std::min(c.x1,a.x1);c.y1=std::min(c.y1,a.y1);c.x2=std::max(c.x2,a.x2);c.y2=std::max(c.y2,a.y2);}
+  }
+  if(!any)return;
+  const int pad=ui::px(ui::large()?10:6),bar=lv_area_get_height(&k);
+  const int h=std::min(bar-ui::px(4),lv_area_get_height(&c)+2*pad),w=std::max(h,lv_area_get_width(&c)+2*pad);
+  lv_obj_set_size(patch,w,h);
+  lv_obj_set_pos(patch,(c.x1+c.x2)/2-k.x1-w/2,(c.y1+c.y2)/2-k.y1-h/2);
+  lv_obj_remove_flag(patch,LV_OBJ_FLAG_HIDDEN);
+}
+inline void nav_key_patch(lv_obj_t *key){
+  if(!key)return;
+  auto *patch=lv_obj_create(key);lv_obj_remove_style_all(patch);
+  lv_obj_remove_flag(patch,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(patch,LV_OBJ_FLAG_SCROLLABLE);
+  lv_obj_add_flag(patch,LV_OBJ_FLAG_IGNORE_LAYOUT);lv_obj_add_flag(patch,LV_OBJ_FLAG_HIDDEN);
+  lv_obj_add_style(patch,theme::style(theme::Paint::page_pressed),0);lv_obj_set_style_bg_opa(patch,LV_OPA_COVER,0);
+  lv_obj_set_style_radius(patch,LV_RADIUS_CIRCLE,0);
+  lv_obj_move_to_index(patch,0);  // behind the chevron
+  for(auto code:{LV_EVENT_PRESSED,LV_EVENT_RELEASED,LV_EVENT_PRESS_LOST})lv_obj_add_event_cb(key,nav_key_event,code,patch);
+}
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
+  if(!nav_prev){nav_key_patch(previous);nav_key_patch(next);}
   nav_prev=previous;nav_next=next;nav_number=number;shown_page=&page;
   if(!nav_back_label && previous){
     nav_back_label=lv_label_create(previous);

@@ -1744,9 +1744,10 @@ lvgl:
             bg_opa: TRANSP
             border_width: 0
             scrollable: false
+            # Its press shows as a patch around the chevron or "Back" (runtime_tiles nav_key_event), not across
+            # this half of the bar, which runs under the page dots; the half itself stays clear when pressed.
             pressed:
-              styles: paint_page_pressed
-              bg_opa: COVER
+              bg_opa: TRANSP
             # on_click: LVGL sends no short click after a press of 400 ms, so a firm or slow press did nothing
             # (firmware 0.2.65+). The bar has no hold of its own; accept_repeat still drops bounce and a swipe.
             on_click:
@@ -1788,8 +1789,7 @@ lvgl:
             border_width: 0
             scrollable: false
             pressed:
-              styles: paint_page_pressed
-              bg_opa: COVER
+              bg_opa: TRANSP
             on_click:
               - if:
                   condition:
