@@ -1154,7 +1154,13 @@ sensor:
       name: "Heap Free"
       id: heap_free
       on_value:
-        - lambda: 'ESP_LOGI("health", "free_heap=%.0f", x);'
+        - lambda: |-
+            ESP_LOGI("health", "free_heap=%.0f", x);
+            #ifdef USE_ESP32
+            // The least stack the loop task (LVGL, the tiles, the API) ever had left since boot: a layout replacement
+            // runs deepest. loop_task_stack_size in hardware/esp-idf.yaml is sized from this line (firmware 0.3.1+).
+            ESP_LOGI("health", "loop_stack_min_free=%u", (unsigned) uxTaskGetStackHighWaterMark(nullptr));
+            #endif
     fragmentation:
       name: "Heap Fragmentation"
     block:

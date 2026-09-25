@@ -240,6 +240,11 @@ inline std::string receive(const std::string &payload) {
       if (layout_changed) layout_changed();
       last_received = esphome::millis();
       refresh_all();
+#ifdef USE_ESP32
+      // Building every tile inside the API's call is the deepest the loop task goes; this is the figure the
+      // loop_task_stack_size in hardware/esp-idf.yaml is sized from (firmware 0.3.1+).
+      ESP_LOGI("health", "layout applied, loop_stack_min_free=%u", (unsigned) uxTaskGetStackHighWaterMark(nullptr));
+#endif
       result = "Synced";
       return true;
     }
