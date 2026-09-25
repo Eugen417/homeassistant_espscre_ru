@@ -163,6 +163,22 @@ constexpr unsigned MEDIA_PICTURE = 14;
 inline void media_action(Tile &t, int cmd);
 inline const char *icon_for(const Tile &tile);
 inline void label(lv_obj_t *obj, const std::string &text);
+// An icon in a circle or a key sits on the centre of its ink, not of its label box: a Material Design glyph's box
+// carries the font's side bearings and line gap, so a box-centred icon sat a few pixels off (firmware 0.3.1).
+// Words and empty labels keep the plain centre.
+inline void center_icon(lv_obj_t *icon){
+  const char *text=lv_label_get_text(icon);const lv_font_t *font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
+  lv_font_glyph_dsc_t g;int dx=0,dy=0;
+  if(text&&*text&&font){
+    const std::string shown(text);size_t i=0;const uint32_t cp=header_bar::next_codepoint(shown,i);
+    if(i==shown.size()&&cp>=0xF0000&&lv_font_get_glyph_dsc(font,&g,cp,0)&&g.box_w&&g.box_h){
+      const int top=(font->line_height-font->base_line)-(int)g.box_h-g.ofs_y;  // the ink's top in the label
+      dx=(int)g.adv_w/2-(g.ofs_x+(int)g.box_w/2);
+      dy=(int)font->line_height/2-(top+(int)g.box_h/2);
+    }
+  }
+  lv_obj_align(icon,LV_ALIGN_CENTER,dx,dy);
+}
 inline int active_index = -1;
 inline uint32_t last_received = 0;
 // Seconds between the manager's full repeats; every layout message declares it (app
@@ -2196,7 +2212,7 @@ inline lv_obj_t *media_key(lv_obj_t *parent,lv_obj_t *existing,const media_card:
   auto *icon=lv_obj_get_child(key,0);
   if(font)set_font(icon,font);
   set_color(icon,LV_STYLE_TEXT_COLOR,theme::color(accent?theme::ON_ACCENT:theme::INK));
-  label(icon,glyph);lv_obj_center(icon);
+  label(icon,glyph);center_icon(icon);
   if(enabled)lv_obj_remove_state(key,LV_STATE_DISABLED);else lv_obj_add_state(key,LV_STATE_DISABLED);
   return key;
 }
@@ -2276,7 +2292,7 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
   const std::string glyph=icon_for(t);
   const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)?big_icon_font:tile_icon_font();
   auto *icon=lv_label_create(frame);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);lv_obj_set_style_text_font(icon,placeholder_font,0);
-  lv_obj_set_style_text_color(icon,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)),0);lv_label_set_text(icon,glyph.c_str());lv_obj_center(icon);
+  lv_obj_set_style_text_color(icon,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)),0);lv_label_set_text(icon,glyph.c_str());center_icon(icon);
   media_art_rect=at(l.art);media_detail_picture=nullptr;
   const uint32_t ground=theme::hex(theme::PAGE);
   if(camera_supported()&&track&&!x.media_picture.empty()){
@@ -3181,7 +3197,7 @@ inline lv_obj_t *panel_key(Widgets &w,unsigned n,lv_obj_t *parent,const PanelMet
 }
 inline lv_obj_t *panel_icon(Widgets &w,unsigned n,const lv_font_t *font) {
   auto *icon=lv_label_create(w.keys[n]);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);
-  lv_obj_set_style_text_font(icon,font,0);lv_obj_center(icon);w.key_icons[n]=icon;return icon;
+  lv_obj_set_style_text_font(icon,font,0);center_icon(icon);w.key_icons[n]=icon;return icon;
 }
 // Build (once per control set) and lay out the panel; returns the width it takes
 // from the text, including the gap, or 0 when the card shows no panel.
@@ -3282,7 +3298,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     for(unsigned n=0;n<3;++n){
       if(n>=count){lv_obj_add_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);w.key_commands[n]=tile_controls::NONE;continue;}
       lv_obj_remove_flag(w.keys[n],LV_OBJ_FLAG_HIDDEN);lv_obj_set_pos(w.keys[n],n*(key_w+m.gap),0);
-      label(w.key_icons[n],keys[n].icon);w.key_commands[n]=keys[n].command;w.key_args[n]=keys[n].arg;
+      label(w.key_icons[n],keys[n].icon);center_icon(w.key_icons[n]);w.key_commands[n]=keys[n].command;w.key_args[n]=keys[n].arg;
       // The active mode key carries the accent; "off" stays neutral grey.
       if(keys[n].checked && w.key_checked[n]!=1)lv_obj_set_style_bg_color(w.keys[n],keys[n].arg=="off"?theme::color(theme::OFF):w.panel_accent,LV_STATE_CHECKED);
       set_checked(n,keys[n].checked);set_disabled(n,keys[n].disabled);
@@ -3600,6 +3616,14 @@ inline void render_cover_tile(Widgets &w,const Tile &t,const cover_tile::Layout 
 }
 // Additional rows extend the existing heading and controls. Compact tiles never
 // enter this path. The selected control kind and its events remain authoritative.
+// A heading's circle carries the look's icon in the look's proportion (base_circle). On a card too narrow or too short
+// for that, the circle may take up to half the width first; below that the icon steps down to the control keys' icon
+// font (the same glyphs, smaller), so it never spills out of its circle. No icon font of its own (firmware 0.3.1).
+inline const lv_font_t *heading_icon(const Widgets &w,int &circle,int max_side,int width){
+  if(circle>=w.base_circle||!mini_icon_font)return w.icon_font;
+  circle=std::min({w.base_circle,max_side,width/2});
+  return circle>=w.base_circle?w.icon_font:mini_icon_font;
+}
 // False only for a full-page cover whose slat group cannot be drawn here (no tilt, or too little room): the caller
 // then draws the ordinary full card with the primary controls, untouched by this function.
 inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int height) {
@@ -3625,7 +3649,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     if(action.fits){
       hide_panel(w);hide_extra(w);
       lv_obj_set_size(w.circle,action.icon.w,action.icon.h);lv_obj_set_pos(w.circle,action.icon.x,action.icon.y);
-      set_font(w.icon,w.icon_font);lv_obj_center(w.icon);
+      set_font(w.icon,action.icon.w>=w.base_circle||!mini_icon_font?w.icon_font:mini_icon_font);center_icon(w.icon);
       set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_CENTER);
       lv_obj_set_pos(w.title,action.title.x,action.title.y);lv_obj_set_size(w.title,action.title.w,action.title.h);
       set_font(w.value,w.value_font);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);
@@ -3634,11 +3658,12 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       return true;
     }
   }
-  const int circle=std::min({w.base_circle,l.header.h,width/3});
+  int circle=std::min({w.base_circle,l.header.h,width/3});
+  const lv_font_t *heading_font=heading_icon(w,circle,l.header.h,width);
   const int tx=circle+gap,tw=std::max(1,width-tx),lines=m.name_h+(l.state?m.state_h:0);
   const int y=(l.header.h-lines)/2;
   lv_obj_set_size(w.circle,circle,circle);lv_obj_set_pos(w.circle,0,(l.header.h-circle)/2);
-  set_font(w.icon,w.icon_font);lv_obj_center(w.icon);
+  set_font(w.icon,heading_font);center_icon(w.icon);
   set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);
   lv_obj_set_pos(w.title,tx,y);lv_obj_set_size(w.title,tw,m.name_h);
   set_font(w.value,w.value_font);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
@@ -3697,7 +3722,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
         if(candidate&&face_covers(candidate,target)&&tall_tile::fits_text({0,0,pw-2*key-2*gap,ph},text_width(target,candidate),lv_font_get_line_height(candidate))){number=candidate;break;}
       lv_obj_set_pos(w.panel,(area-pw)/2,l.body.y);lv_obj_set_size(w.panel,pw,ph);
       lv_obj_set_size(w.pill,pw,ph);lv_obj_set_style_bg_opa(w.pill,LV_OPA_TRANSP,0);
-      for(int n=0;n<2;++n){lv_obj_set_size(w.keys[n],key,key);lv_obj_set_pos(w.keys[n],n?pw-key:0,(ph-key)/2);lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],0);lv_obj_set_style_radius(w.keys[n],LV_RADIUS_CIRCLE,0);lv_obj_center(w.key_icons[n]);}
+      for(int n=0;n<2;++n){lv_obj_set_size(w.keys[n],key,key);lv_obj_set_pos(w.keys[n],n?pw-key:0,(ph-key)/2);lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],0);lv_obj_set_style_radius(w.keys[n],LV_RADIUS_CIRCLE,0);center_icon(w.key_icons[n]);}
       set_font(w.pill_value,number);lv_obj_set_pos(w.pill_value,key+gap,(ph-lv_font_get_line_height(number))/2);lv_obj_set_size(w.pill_value,pw-2*key-2*gap,lv_font_get_line_height(number));
       if(caption)text(0,screen_text::fill(txt::climate_now,"value",screen_text::decimal(t.current,1)+"°"),w.value_font,{0,l.body.y+ph+gap,area,m.state_h},LV_TEXT_ALIGN_CENTER);
       if(with_modes){
@@ -3724,7 +3749,8 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     const auto a=tall_tile::action(width,height,w.base_circle,lv_font_get_line_height(w.icon_font),m.name_h,
       l.state?m.state_h:0,gap,pw,ph);
     if(a.fits){
-      lv_obj_set_size(w.circle,a.icon.w,a.icon.h);lv_obj_set_pos(w.circle,a.icon.x,a.icon.y);lv_obj_center(w.icon);
+      lv_obj_set_size(w.circle,a.icon.w,a.icon.h);lv_obj_set_pos(w.circle,a.icon.x,a.icon.y);
+      set_font(w.icon,a.icon.w>=w.base_circle||!mini_icon_font?w.icon_font:mini_icon_font);center_icon(w.icon);
       set_text_align(w.title,LV_TEXT_ALIGN_CENTER);lv_obj_set_pos(w.title,a.title.x,a.title.y);lv_obj_set_size(w.title,a.title.w,a.title.h);
       set_text_align(w.value,LV_TEXT_ALIGN_CENTER);lv_obj_set_pos(w.value,a.state.x,a.state.y);lv_obj_set_size(w.value,a.state.w,std::max(1,a.state.h));
       set_hidden(w.value,a.state.empty());
@@ -3800,7 +3826,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
     live_place(w,t,circle,std::max(0,(content_w-circle)/2),top);
     // The big icon font carries the domain icons; another chosen icon keeps its usual size in the big circle.
     const lv_font_t *icon_font=big_icon_font && font_has(big_icon_font,icon_for(t))?big_icon_font:w.icon_font;
-    if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
+    if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font)set_font(w.icon,icon_font);center_icon(w.icon);
     set_font(w.title,name_font);set_text_align(w.title,LV_TEXT_ALIGN_CENTER);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);
     lv_obj_set_height(w.title,name_h);
     lv_obj_set_pos(w.title,0,top+circle+gap);lv_obj_set_width(w.title,content_w);
@@ -3821,7 +3847,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   const HeadRow head=head_row(w,big,w.base_circle>0?w.base_circle:ui::px(big?54:36),head_h,title_h,value.empty()?0:value_h);
   const int circle=head.circle;
   lv_obj_set_size(w.circle,circle,circle);
-  if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font){set_font(w.icon,w.icon_font);lv_obj_center(w.icon);}
+  if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font)set_font(w.icon,w.icon_font);center_icon(w.icon);
   lv_obj_set_pos(w.circle,0,head.circle_y);
   live_place(w,t,circle,0,head.circle_y);
   lv_obj_set_pos(w.title,head.text_x,head.title_y);
@@ -3988,7 +4014,7 @@ inline void render_slot(size_t slot) {
     const int top=std::max(0,(content_h-block)/2);
     lv_obj_set_size(w.circle,circle,circle);lv_obj_set_pos(w.circle,(content_w-circle)/2,top);
     if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font){set_font(w.icon,w.icon_font);}
-    lv_obj_center(w.icon);live_place(w,t,circle,(content_w-circle)/2,top);
+    center_icon(w.icon);live_place(w,t,circle,(content_w-circle)/2,top);
     set_text_align(w.title,LV_TEXT_ALIGN_CENTER);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);
     lv_obj_set_pos(w.title,0,top+circle+gap);lv_obj_set_width(w.title,content_w);
     lv_obj_set_pos(w.value,0,top+circle+gap+title_height+line_gap);lv_obj_set_width(w.value,content_w);
@@ -4048,7 +4074,7 @@ inline void render_slot(size_t slot) {
       text_y+title_height+line_gap+value_height-value_face->base_line+(ui::px(2))>header_height+(ui::px(large_tile?6:3)));
   if(one_line){text_height=title_height;text_y=std::max(0,(header_height-title_height)/2);}
   const lv_font_t *icon_font=watch && watch_icon_font ? watch_icon_font : (mini||graph_strip) && mini_icon_font ? mini_icon_font : w.icon_font;
-  if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font){set_font(w.icon,icon_font);lv_obj_center(w.icon);}
+  if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=icon_font)set_font(w.icon,icon_font);center_icon(w.icon);
   // The plain head (a single or double-width card, with or without a panel) stands by the one rule, head_row,
   // centred on the room it got on this grid. The watch and the strip cards place their smaller circle themselves.
   const bool plain=!watch && !(mini||graph_strip);
