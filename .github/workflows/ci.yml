@@ -99,7 +99,8 @@ jobs:
     name: render
     needs: checks
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    # Sixteen host variants since 0.3.6 take 53 to 54 minutes on a runner: room so a slow one does not stop a release.
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
         with:
