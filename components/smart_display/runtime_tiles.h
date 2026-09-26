@@ -316,6 +316,8 @@ struct Widgets {
   lv_color_t panel_accent{}, panel_text{};
   // Busy sheet: a translucent white cover with a small spinner while a command is under way.
   lv_obj_t *busy{}, *spinner{}; bool busy_drawn=false;
+  // The same spinner, alone on a camera card while its picture loads (firmware 0.3.4).
+  lv_obj_t *loading{};
   // A camera tile's live picture (firmware 0.2.77+) or a media tile's album cover (0.2.78+) in the icon's place.
   lv_obj_t *picture{};
   // The album cover a media card over the whole page shows (firmware 0.3.2+): the player, its picture's mark, the size
@@ -384,6 +386,7 @@ inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
 }
 
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
+inline bool live_waiting(const Tile &t);
 inline bool live_marquee_ready(const Widgets &w, const Tile &t);
 // A picture over the whole card of a 1x2 or 2x2 tile: a media player's cover, dimmed under its track (firmware 0.3.1),
 // and a live camera in full colour with its name at the bottom (0.3.4), on a shade the app puts in the picture.
@@ -3533,6 +3536,16 @@ inline void set_busy(Widgets &w,bool busy,bool large){
   // Controls and custom parts created after the sheet would otherwise paint over its right side.
   if(lv_obj_get_index(w.busy)!=(int32_t)lv_obj_get_child_count(w.tile)-1)lv_obj_move_foreground(w.busy);
 }
+// A camera whose picture fills its card turns the firmware's one spinner in the middle of the card while that picture
+// loads (firmware 0.3.4), the size a busy card's has: a page turn to a camera shows it coming, never an empty card.
+inline void set_loading(Widgets &w,bool on,int width,int height){
+  if(!on){if(w.loading)lv_obj_add_flag(w.loading,LV_OBJ_FLAG_HIDDEN);return;}
+  const bool large=ui::large();const int size=ui::px(large?30:20);
+  if(!w.loading)w.loading=spinner_create(w.tile,size,ui::px(large?4:3));
+  if(!w.loading)return;
+  lv_obj_set_pos(w.loading,(width-size)/2,(height-size)/2);
+  lv_obj_remove_flag(w.loading,LV_OBJ_FLAG_HIDDEN);
+}
 // The card that takes a whole page (firmware 0.2.62+). Without a control it is one big button: the icon in a
 // large circle with the name and the state under it (the circle in the state colour, the card white or its own
 // pastel like every other card), so a wall switch reads from across the room and a push anywhere works. With a
@@ -3775,10 +3788,14 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     // Still a tall card, so style_tall gives the name the picture's ink; it only has no parts of its own.
     hide_panel(w);begin_extra(w,"tall",width,height);
     for(auto *part:w.parts)if(part)lv_obj_add_flag(part,LV_OBJ_FLAG_HIDDEN);
-    if(w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN)){
+    const bool photo=w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN),waiting=!photo&&live_waiting(t);
+    set_loading(w,waiting,width,height);
+    // The name stands where the picture will put it, so the card does not move when the picture comes. A camera the
+    // app has no picture of keeps the head above.
+    if(photo||waiting){
       lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);set_hidden(w.value,true);set_hidden(w.title,!t.overlay);
       lv_obj_set_pos(w.title,0,height-m.name_h);lv_obj_set_size(w.title,width,m.name_h);
-    }
+    }else set_hidden(w.title,false);
     return true;
   }
   if(cover.fits){render_cover_tile(w,t,cover,width,height);return true;}
@@ -4013,6 +4030,8 @@ inline void render_slot(size_t slot) {
   if(!w.tile || w.index>=model.count)return;
   const auto &t = model.tiles[w.index];
   auto d=t.domain();
+  // A slot is another tile on another page: only a camera card that waits for its picture keeps a spinner.
+  if(w.loading&&!(tall_art(t)&&t.live()))lv_obj_add_flag(w.loading,LV_OBJ_FLAG_HIDDEN);
   label(w.title, t.name.empty() ? t.entity : t.name);
   label(w.icon, icon_for(t));
   bool watch=t.display=="watch";
@@ -5669,6 +5688,19 @@ inline lv_image_dsc_t *live_ready(const std::string &entity, int size, int &squa
   auto *src = camera_live.source();
   return src && src->data && (!live_wish.atlas.empty() || src->header.h >= (square + 1) * size) ? src : nullptr;
 }
+// Whether a camera card still waits for its picture: until the page's strip has had its first try at this camera. One the
+// app has no picture of, or a load that failed, stops the spinner; a refresh of a picture on screen never starts it.
+// A screen that cannot ask right now (after a restart, before the app has sent the layout again; Home Assistant away)
+// is not waiting for anything: the card shows its head as every card does then, not a spinner that never ends.
+inline bool live_waiting(const Tile &t) {
+  if (!live_supported() || !fresh() || !awake()) return false;
+  return !(live.open() && list_index(live.entity, t.entity) >= 0 && live.animation_ready());
+}
+// Draws the camera cards again once their wait is over without a picture (a failed load, an app with none).
+inline void live_redraw() {
+  for (auto &w : widgets)
+    if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].pictured()) refresh_tile(w.index);
+}
 // The pictures go before their buffer does (as the cover's do); the tiles draw their circle again.
 inline void live_release() {
   const bool had = live.open();
@@ -5815,6 +5847,7 @@ inline void live_failed() {
   if (!live.loading) return;
   live.finish(esphome::millis(), false);
   live_marquees();
+  live_redraw();
   ESP_LOGI("camera", "live tiles failed");
 }
 
@@ -6027,7 +6060,7 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
     if (!live.open() || !same_list(live.entity, entity)) return;
     live_have = entity;
     live.link(url);
-    if (url.empty()) ESP_LOGI("camera", "no live pictures");
+    if (url.empty()) { ESP_LOGI("camera", "no live pictures"); live_redraw(); }
     return;
   }
   if (url.empty()) {  // announced before its alert

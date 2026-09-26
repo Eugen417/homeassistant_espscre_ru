@@ -79,6 +79,9 @@ class Study(run.Run):
         task.add_done_callback(lambda t: t.exception() and 'superseded' not in str(t.exception()) and self.warnings.append(f'answer failed: {t.exception()!r}'))
 
     async def live(self, data):
+        # A held answer shows the card while it waits for its picture: the spinner (firmware 0.3.4).
+        while self.hold:
+            await asyncio.sleep(0.1)
         entities = data['tiles'].split(',')
         atlas = tile_art.parse(data.get('atlas', ''), self.canvas, len(entities))
         if atlas is None:
@@ -110,7 +113,7 @@ class Study(run.Run):
                 await asyncio.sleep(1)
 
     async def drive(self):
-        self.served, self.turn = 0, asyncio.Lock()
+        self.served, self.turn, self.hold = 0, asyncio.Lock(), False
         self.client = run.APIClient('127.0.0.1', self.item.port, None)
         for _ in range(240):
             if self.process.poll() is not None:
@@ -163,6 +166,14 @@ class Study(run.Run):
                 for page, size in enumerate(sizes):
                     await self.call('render_page', page=page)
                     await self.page_done(page)
+                    if fit == 'fill':
+                        self.hold = True
+                        start = len(self.lines)
+                        await self.call('render_live_reset')
+                        await self.until(lambda line: 'asked for the live tiles' in line, 10, f'{size} waiting: the ask', start)
+                        await asyncio.sleep(0.5)
+                        await self.render(f'{size}-{overlay}-waiting', timeout=3)
+                        self.hold = False
                     await self.picture(f'{size} {fit} {overlay}')
                     await self.render(f'{size}-{overlay}-{fit}')
                     shots += 1
