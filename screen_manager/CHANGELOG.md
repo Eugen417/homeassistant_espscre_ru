@@ -1,3 +1,13 @@
+## 0.3.13 (firmware 0.3.7)
+
+A live camera fills its tile on every size, and can refresh faster.
+
+- **Display → Live picture** now fills the whole tile on every size: a single tile, a double-width one and a tile over the whole page too, not only 1×2 and 2×2. The small square in the icon's place is gone. Two 16:9 cameras fit side by side on a 4-inch Guition.
+- **Picture** (fill the tile or the whole picture) and **On the picture** (name or nothing) are there on every size.
+- **Refresh** adds every 5 and every 10 seconds, next to 15 and 30.
+- A page whose live cameras all refresh every 30 seconds loaded them every 15 seconds; it now keeps to 30.
+- Update the add-on first, then the screen: older firmware keeps the small square on a single, double-width or full-page tile.
+
 ## 0.3.12 (firmware 0.3.6)
 
 Two new clocks, a simple dial and a flip clock, that look right on every tile size.

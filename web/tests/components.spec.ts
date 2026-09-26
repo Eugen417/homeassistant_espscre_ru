@@ -378,37 +378,45 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
     expect(row(drawer, "Refresh")).toBeUndefined();
     await row(drawer, "Display").findAll(".seg button")[1].trigger("click");
     expect(current(tile).options).toEqual({ display: "live" });
-    expect(choices(drawer, "Refresh")).toEqual(["Every 15 s", "Every 30 s"]);
+    expect(choices(drawer, "Refresh")).toEqual(["Every 5 s", "Every 10 s", "Every 15 s", "Every 30 s"]);
     expect(row(drawer, "Refresh").find('[aria-pressed="true"]').text()).toBe("Every 15 s");
     expect(row(drawer, "Display").find("small").text()).toMatch(/firmware 0\.2\.77/);
     expect(row(drawer, "Display").find("small").classes()).toContain("warn");
-    await row(drawer, "Refresh").findAll(".seg button")[1].trigger("click");
+    await row(drawer, "Refresh").findAll(".seg button")[3].trigger("click");
     expect(current(tile).options).toEqual({ display: "live", refresh: 30 });
+    await row(drawer, "Refresh").findAll(".seg button")[1].trigger("click");
+    expect(current(tile).options).toEqual({ display: "live", refresh: 10 });
+    // Firmware that draws the small square in the icon's place is told what fills the tile (app 0.3.12).
     Object.assign(state.inventory.screens[0], { firmware: "0.2.77" });
     await drawer.vm.$nextTick();
-    expect(row(drawer, "Display").find("small").text()).toMatch(/icon's place/);
+    expect(row(drawer, "Display").find("small").text()).toMatch(/firmware 0\.3\.6/);
+    expect(row(drawer, "Display").find("small").classes()).toContain("warn");
+    Object.assign(state.inventory.screens[0], { firmware: "0.3.6" });
+    await drawer.vm.$nextTick();
+    expect(row(drawer, "Display").find("small").text()).toMatch(/fills the tile/);
     expect(row(drawer, "Display").find("small").classes()).not.toContain("warn");
     // A light has no such choice.
     const lamp = mount(TileInspector, { props: { tile: { entity: "light.a", name: "", slot: 1 } } });
     expect(choices(lamp, "Display")).not.toContain("Live picture");
-    // The mockup draws the picture's rounded square instead of the icon.
+    // The mockup draws the add-on's picture over the whole card, one cell high too.
     const card = mount(TileCard, { props: { tile: current(tile), slot: 0 } });
-    expect(card.find(".ic").classes()).toContain("thumb");
+    expect(card.find("img.camera-art").attributes("src")).toBe("api/camera-preview?entity=camera.front");
   });
-  it("lets a live camera on a taller tile fill it, whole or cut, with its name or without, and keeps no defaults (app 0.3.8)", async () => {
+  it("lets a live camera fill its tile, whole or cut, with its name or without, and keeps no defaults (app 0.3.8, every size 0.3.12)", async () => {
     Object.assign(state.inventory, { editor_features: { tall_tiles: true } });
     Object.assign(state.inventory.screens[0], { firmware: "0.3.1", tile_sizes: ["single", "wide", "tall", "square", "full"] });
     state.inventory.entities.push({ id: "camera.garden", name: "Garden", state: "idle", area: "Garden" } as any);
     const tile: Tile = { entity: "camera.garden", name: "", slot: 0, options: { display: "live" } };
     appendTiles(tile);
     const drawer = inspector(tile);
-    // One cell high the picture stays in the icon's place: nothing to fill.
-    expect(row(drawer, "Picture")).toBeUndefined();
+    // One cell high it fills the card as well, from firmware 0.3.6.
+    expect(choices(drawer, "Picture")).toEqual(["Fill the tile", "Whole picture"]);
+    expect(row(drawer, "Display").find("small").text()).toMatch(/firmware 0\.3\.6/);
     setTileOption(current(tile), "size", "tall");
     await drawer.vm.$nextTick();
     expect(choices(drawer, "Picture")).toEqual(["Fill the tile", "Whole picture"]);
     expect(choices(drawer, "On the picture")).toEqual(["Name", "Nothing"]);
-    expect(row(drawer, "Display").find("small").text()).toMatch(/firmware 0\.3\.3/);
+    expect(row(drawer, "Display").find("small").text()).toMatch(/firmware 0\.3\.6/);
     expect(row(drawer, "Display").find("small").classes()).toContain("warn");
     await row(drawer, "Picture").findAll(".seg button")[1].trigger("click");
     await row(drawer, "On the picture").findAll(".seg button")[1].trigger("click");
@@ -422,7 +430,12 @@ describe("TileInspector: a live picture on a camera tile (app 0.2.91)", () => {
     Object.assign(state.inventory.screens[0], { firmware: "0.3.3" });
     setTileOption(current(tile), "display", "live");
     await drawer.vm.$nextTick();
+    // Firmware 0.3.3 fills a 1x2 or 2x2 tile, but a single one only from 0.3.6.
     expect(row(drawer, "Display").find("small").classes()).not.toContain("warn");
+    setTileOption(current(tile), "size", "single");
+    await drawer.vm.$nextTick();
+    expect(row(drawer, "Display").find("small").classes()).toContain("warn");
+    setTileOption(current(tile), "size", "tall");
     // The mockup draws the add-on's picture over the whole card, cut as the tile asks.
     setTileOption(current(tile), "fit", "contain");
     const card = mount(TileCard, { props: { tile: current(tile), slot: 0 } });

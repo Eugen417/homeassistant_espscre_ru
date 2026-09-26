@@ -151,9 +151,9 @@ const artwork = computed(() => tall.value && display.value === 'cover' && domain
   ? `api/media-art?entity=${encodeURIComponent(props.tile.entity)}&v=${encodeURIComponent(String(current.value.a.artwork_mark))}` : '');
 const artworkLoaded = ref(false);
 watch(artwork, () => { artworkLoaded.value = false; });
-// A live camera on a 1x2 or 2x2 tile fills the card (app 0.3.8): the add-on's picture, cut the way the tile asks, with
-// the name at the bottom or nothing on it. Until the picture is here, the head as on the screen.
-const cameraCard = computed(() => shape.value.rows > 1 && !full.value && display.value === 'live' && ['camera', 'image'].includes(domain.value));
+// A live camera fills its card on every size (app 0.3.12; 1x2 and 2x2 since 0.3.8): the add-on's picture, cut the way
+// the tile asks, with the name at the bottom or nothing on it. Until the picture is here, the head as on the screen.
+const cameraCard = computed(() => display.value === 'live' && ['camera', 'image'].includes(domain.value));
 const cameraPicture = computed(() => cameraCard.value ? `api/camera-preview?entity=${encodeURIComponent(props.tile.entity)}` : '');
 const cameraLoaded = ref(false);
 watch(cameraPicture, () => { cameraLoaded.value = false; });

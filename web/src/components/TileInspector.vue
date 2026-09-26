@@ -68,18 +68,19 @@ const displays = computed(() => {
   });
   return keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]);
 });
-// A live camera on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): whole or cut to fill it, its name on it or nothing.
-const pictureCard = computed(() => display.value === "live" && taller.value);
+// A live camera fills its card on every size (app 0.3.12, firmware 0.3.6; 1x2 and 2x2 since app 0.3.8, firmware 0.3.3):
+// whole or cut to fill it, its name on it or nothing.
+const pictureCard = computed(() => display.value === "live");
+const cardFilled = computed(() => supports(0, 3, 6) || (taller.value && supports(0, 3, 3)));
 // A hint is a warning unless the screen's firmware already does what it describes.
 const clockFace = computed(() => clock.value && ["dial", "flip"].includes(display.value));
-const displayWarns = computed(() => !(display.value === "live" && (pictureCard.value ? supports(0, 3, 3) : supports(0, 2, 77))) && !(display.value === "cover" && supports(0, 2, 78)) && !(clockFace.value && supports(0, 3, 6)));
+const displayWarns = computed(() => !(display.value === "live" && cardFilled.value) && !(display.value === "cover" && supports(0, 2, 78)) && !(clockFace.value && supports(0, 3, 6)));
 const pictureChoices = (key: "fit" | "overlay") => rules.picture[key].map((value) => [value, t(`editor.tile.picture.${key}.${value}`)] as [string, string]);
 const displayHint = computed(() => {
   const c = caps.value;
   if (c && display.value === "graph" && !c.displays.includes("graph")) return t("editor.tile.display.no_graph");
   if (c && display.value === "forecast" && !c.displays.includes("forecast")) return t("editor.tile.display.no_forecast");
-  if (display.value === "live" && taller.value) return t(supports(0, 3, 3) ? "editor.tile.display.live_card_hint" : "editor.tile.display.live_card_needs_firmware");
-  if (display.value === "live") return t(supports(0, 2, 77) ? "editor.tile.display.live_hint" : "editor.tile.display.live_needs_firmware");
+  if (display.value === "live") return t(cardFilled.value ? "editor.tile.display.live_card_hint" : supports(0, 2, 77) ? "editor.tile.display.live_card_needs_firmware" : "editor.tile.display.live_needs_firmware");
   if (display.value === "cover" && taller.value) return t("editor.tile.display.tall_cover_hint");
   if (display.value === "cover") return t(supports(0, 2, 78) ? "editor.tile.display.cover_hint" : "editor.tile.display.cover_needs_firmware");
   // The calm dial and the flip clock (firmware 0.3.6): an older screen shows the digital clock until it is updated.
@@ -195,7 +196,7 @@ function inspect() {
     </div>
     <div v-if="display === 'live'" class="f">
       <span class="f-label">{{ t("editor.tile.refresh.label") }}</span>
-      <Segmented :choices="[15, 30].map((seconds) => [seconds, t('editor.tile.refresh.seconds', { n: seconds })] as [number, string])" :value="refresh" @pick="(v) => setTileOption(tile, 'refresh', Number(v))" />
+      <Segmented :choices="rules.refresh.map((seconds) => [seconds, t('editor.tile.refresh.seconds', { n: seconds })] as [number, string])" :value="refresh" @pick="(v) => setTileOption(tile, 'refresh', Number(v))" />
     </div>
     <div v-if="pictureCard" class="f">
       <span class="f-label">{{ t("editor.tile.picture.fit.label") }}</span>
