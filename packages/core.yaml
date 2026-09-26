@@ -200,6 +200,9 @@ esphome:
           // The way home for the house in the top bar and for a swipe up from the bottom edge (firmware 0.2.100+):
           // the same script the Back to page 1 timeout and Home Assistant use, so there is one way home.
           runtime_tiles::back_home = []() { id(go_home).execute(); };
+          // An alarm panel that someone comes in on, or that goes off, wakes the screen as a touch does and opens its
+          // card (firmware 0.3.4+): Back to page 1 counts from now.
+          runtime_tiles::alarm_wake = []() { id(last_use_ms) = millis(); id(wake_display).execute(); };
           runtime_tiles::touch_input::turn_page = [](int target) {
             id(tile_page) = target;
             id(show_tile_page).execute();

@@ -533,7 +533,9 @@ inline std::string receive(const std::string &payload) {
     next.media_position=extra["pos"].is<unsigned>()?extra["pos"].as<uint32_t>():0;
     next.media_position_at=extra["at"].is<unsigned>()?extra["at"].as<uint32_t>():0;
     tile.name = string(root["name"], 80);
+    const std::string before = tile.state;
     tile.state = string(root["state"], 160);
+    if (!initial && tile.received && before != tile.state) tile.changed_at = std::max<uint32_t>(1, esphome::millis());
     tile.unit = string(a["unit_of_measurement"], 20);
     tile.brightness = number(a["brightness"]);
     tile.percentage = number(a["percentage"]);
@@ -616,6 +618,15 @@ inline std::string receive(const std::string &payload) {
     // A value of this entity the second line was set to: the finished line, or seconds for a moment in time.
     next.subtitle = string(extra["s"], 64);
     next.subtitle_at = extra["sm"].is<unsigned>() ? extra["sm"].as<unsigned>() : 0;
+    // An alarm panel (app 0.3.9+, firmware 0.3.4+): how it takes codes, who changed it, and a delay's end.
+    if (tile.domain() == "alarm_control_panel") {
+      next.code_format = string(a["code_format"], 8);
+      next.changed_by = string(a["changed_by"], 48);
+      next.arm_code_free = a["code_arm_required"].is<bool>() && !a["code_arm_required"].as<bool>();
+      next.code_saved = extra["dc"].is<int>() && extra["dc"].as<int>() == 1;
+      next.alarm_end = extra["ae"].is<unsigned>() ? extra["ae"].as<uint32_t>() : 0;
+      next.alarm_delay = extra["ad"].is<unsigned>() ? extra["ad"].as<uint32_t>() : 0;
+    }
     tile.set_extra(std::move(next));
     // Home Assistant reports the edited value: the -/+ pill follows its state again.
     if(std::isfinite(tile.edit_value) && tile.edit_sent && std::fabs(tile_controls::edit_target(tile)-tile.edit_value)<0.051f)tile.edit_value=NAN;
@@ -629,6 +640,7 @@ inline std::string receive(const std::string &payload) {
     }
     refresh_tile(index);
     if (active_index == static_cast<int>(index) && detail_update) detail_update(tile);
+    if (tile.domain() == "alarm_control_panel") alarm_state_arrived(index, before);
     refresh_detail(index);
     result = model.ready() ? "Synced" : "Loading tiles";
     return true;

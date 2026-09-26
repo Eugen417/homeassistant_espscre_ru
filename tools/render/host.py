@@ -481,6 +481,48 @@ PROBES = '''    - action: render_finger
                      (int) title.x2, (int) title.y2, (int) subtitle.x1, (int) subtitle.y1, (int) subtitle.x2, (int) subtitle.y2,
                      (int) button.x1, (int) button.y1, (int) button.x2, (int) button.y2, (int) (runtime_tiles::alert_picture != nullptr));
 '''
+# The alarm panel's card as it stands (firmware 0.3.4+): whether it is open, the keypad, what its lines say, the centre
+# of every key a finger uses (the back key, the mode or Disarm keys in their order, the keypad's twelve), and every part
+# of the card that does not lie inside the glass or that lies over another key.
+ALARM_PROBE = '''    - action: render_alarm
+      then:
+        - lambda: |-
+            using namespace runtime_tiles;
+            lv_obj_update_layout(lv_screen_active());
+            const bool open = detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN);
+            auto centre = [](lv_obj_t *o) {
+              lv_area_t a; lv_obj_get_coords(o, &a);
+              return std::to_string((a.x1 + a.x2) / 2) + "," + std::to_string((a.y1 + a.y2) / 2);
+            };
+            std::string modes, keys, faults;
+            const int sw = lv_display_get_horizontal_resolution(lv_display_get_default()),
+                      sh = lv_display_get_vertical_resolution(lv_display_get_default());
+            std::vector<lv_area_t> hits;
+            auto check = [&](lv_obj_t *o, const char *what) {
+              lv_area_t a; lv_obj_get_coords(o, &a);
+              if (a.x1 < 0 || a.y1 < 0 || a.x2 >= sw || a.y2 >= sh) faults += std::string(what) + " outside;";
+              for (auto &b : hits) if (a.x1 <= b.x2 && b.x1 <= a.x2 && a.y1 <= b.y2 && b.y1 <= a.y2) faults += std::string(what) + " overlaps;";
+              hits.push_back(a);
+            };
+            if (open) {
+              lv_obj_t *back = lv_obj_get_child(detail_root, 0);
+              check(back, "back");
+              for (unsigned i = 0; i < detail_action_count; ++i) { modes += centre(detail_actions[i]) + ";"; check(detail_actions[i], "mode"); }
+              for (auto *k : alarm_keys) if (k) { keys += centre(k) + std::string(lv_obj_has_state(k, LV_STATE_DISABLED) ? "d;" : ";"); check(k, "key"); }
+              for (uint32_t i = 0; i < lv_obj_get_child_count(detail_root); ++i) {
+                lv_area_t a; lv_obj_get_coords(lv_obj_get_child(detail_root, i), &a);
+                if (a.x1 < 0 || a.y1 < 0 || a.x2 >= sw || a.y2 >= sh) faults += "part " + std::to_string(i) + " outside;";
+              }
+              ESP_LOGI("render", "alarm open=%d pad=%d back=%s title=[%s] status=[%s] line=[%s] modes=%s keys=%s faults=%s locked=%u",
+                       (int) open, (int) alarm_pad_open(), centre(back).c_str(),
+                       lv_label_get_text(lv_obj_get_child(detail_root, 1)), detail_status ? lv_label_get_text(detail_status) : "",
+                       alarm_line ? lv_label_get_text(alarm_line) : "", modes.c_str(), keys.c_str(), faults.c_str(),
+                       (unsigned) alarm_lock.remaining_s(esphome::millis()));
+            } else {
+              ESP_LOGI("render", "alarm open=0 pad=0 back= title=[] status=[] line=[] modes= keys= faults= locked=%u",
+                       (unsigned) alarm_lock.remaining_s(esphome::millis()));
+            }
+'''
 # A board with the calibration wizard shows it on the first start; the renders skip it, as a calibrated screen does.
 SKIP_CALIBRATION = '''    - action: render_skip_calibration
       then:
@@ -530,7 +572,7 @@ class Build:
         (mirror_root / 'host-hw.yaml').write_text(host_hw(board.read_text(), chain))
         (mirror_root / 'chain.txt').write_text('\n'.join([str(f) for f in chain.files] + [''] + chain.notes) + '\n')
         chain_text = ''.join((mirror / f).read_text() for f in chain.files)
-        actions = ACTIONS + PROBES + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
+        actions = ACTIONS + PROBES + ALARM_PROBE + (SKIP_CALIBRATION if 'screen_calibration::' in chain_text else '')
         turned = f'\n  LVGL_ROTATION: "{item.rotation}"' if item.rotation else ''
         rel = f'host/{item.key}'
         return f'''# Host build of {item.key} from {tree} (tools/render/host.py): core and board chain, hardware swapped for SDL.

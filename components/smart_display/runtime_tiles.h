@@ -152,6 +152,10 @@ inline void refresh_detail(unsigned index);
 inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
+inline std::string countdown(uint32_t seconds);
+// The alarm panel (firmware 0.3.4+), further down beside the other cards.
+inline void alarm_refused(const std::string &entity);
+inline void alarm_state_arrived(unsigned index, const std::string &before);
 inline std::string last_run_text(uint32_t epoch, bool compact = false);
 // "07:12": a time of day as Home Assistant and ESP Screens send it, for screen_text::clock_text.
 inline std::string hhmm(const esphome::ESPTime &time) {
@@ -244,6 +248,7 @@ inline std::function<void()> layout_changed, refresh, dismiss, settings_changed;
 inline esphome::ESPPreferenceObject settings_preference;
 // The two extra values of 0.2.44+ in one record: going back to page 1 by itself, and after how long.
 struct HomeTimeout { uint32_t enabled = 1, seconds = 120; };
+inline void alarm_load_lock();
 inline void load_settings() {
   settings_preference = esphome::global_preferences->make_preference<screen_settings::Settings>(0x53435231);
   swipe_preference = esphome::global_preferences->make_preference<uint32_t>(0x53575031);
@@ -270,6 +275,7 @@ inline void load_settings() {
   if(rotation_preference.load(&saved_turn) && saved_turn<=270 && saved_turn%90==0 && (saved_turn%180==0 || quarter_turns))rotation=(int32_t)saved_turn;
   screen_settings::Settings saved;
   if (settings_preference.load(&saved) && saved.valid()) screen_settings::current = saved;
+  alarm_load_lock();
 }
 // Everything the screen remembers, written in one go. ESPHome batches the flash writes, so a row of
 // taps on -/+ costs one write, and a value that did not change costs nothing.
@@ -496,6 +502,7 @@ inline void watch_call(esphome::api::HomeassistantActionRequest &request, const 
     }
     ESP_LOGW("runtime_action", "Home Assistant refused the action for %s: %.*s", entity.c_str(),
              (int) answer.get_error_message().size(), answer.get_error_message().c_str());
+    alarm_refused(entity);
     for (size_t i = 0; i < model.tiles.size(); ++i) if (model.tiles[i].entity == entity) {
       model.tiles[i].pending = false;
       model.tiles[i].undo_optimistic();
@@ -666,7 +673,11 @@ inline std::string detail_state(const Tile &t){
   if(!t.extra().state_word.empty())return t.extra().state_word;
   return t.unit.empty()?t.state:screen_text::localize(t.state);
 }
+inline void alarm_close_pad();
+// Every way a card closes (Back, standby, Back to page 1, another card) also forgets a code half typed on an alarm's
+// keypad: it never waits in memory for the next person at the screen.
 inline void hide_detail(){
+  alarm_close_pad();
   if(detail_backdrop)lv_obj_add_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);if(detail_root)lv_obj_add_flag(detail_root,LV_OBJ_FLAG_HIDDEN);}
 inline int slider_value(const Tile &t){
   auto d=t.domain();float value=0;
@@ -780,8 +791,14 @@ inline void choose(Tile &t,Choice &row,const std::string &value){
 }
 // What a key on a card does; `cmd` is the key's command. Shared by the plain keys (detail_button) and the round
 // keys of the media card. -1 is Back.
+inline void alarm_command(int cmd);
+inline bool alarm_pad_open();
 inline void detail_command(int cmd){
+  // Back on the alarm's keypad goes back to its card; everywhere else it closes the card.
+  if(cmd==-1&&alarm_pad_open()){alarm_close_pad();redraw_detail();return;}
   if(cmd==-1){hide_detail();return;}
+  // The alarm panel's modes, digits, Clear and OK (600-621): the digits count every clean tap, like the -/+ keys.
+  if(cmd>=600&&cmd<=621){alarm_command(cmd);return;}
   // History ranges (firmware 0.2.51+): redraw after this event, which belongs to a key the redraw deletes.
   if(cmd>=160&&cmd<163){
     static const uint32_t hours[]={1,24,168};
@@ -1322,6 +1339,7 @@ inline constexpr uint32_t COVER_ACCENT = theme::ha::PURPLE;
 inline uint32_t cover_track(){return theme::tint(COVER_ACCENT,37);}
 inline uint32_t cover_slats(){return theme::tint(COVER_ACCENT,80);}
 inline lv_obj_t *cover_values[2]{};
+inline std::string alarm_card_line(const Tile &t);
 inline std::string cover_status_line(const Tile &t){return t.available()?tile_controls::cover_card_status(t):tr(txt::ha_unavailable);}
 // The line under a card's name: the domain that writes its own says it here, so the card, its refresh and the
 // second-by-second tick all show the same words.
@@ -1329,6 +1347,7 @@ inline std::string card_status(const Tile &t,bool brief=false){
   const auto d=t.domain();
   if(d=="cover")return cover_status_line(t);
   if(d=="climate")return tile_controls::climate_card_status(t,brief);
+  if(d=="alarm_control_panel")return alarm_card_line(t);
   return detail_state(t);
 }
 // Set while the state line lives in a smaller place than its own line (the climate card's caption), so the
@@ -1831,6 +1850,517 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
       segments(l.row_tracks[i].x,l.row_tracks[i].y,l.row_tracks[i].w,l.row_tracks[i].h,row.labels,chosen,
                CLIMATE_ROW_FIRST+i*6,theme::hex(theme::TRACK),false,text,small);
     }
+  }
+}
+// ---- Alarm panel (firmware 0.3.4+): Home Assistant's alarm dialog and its code dialog in this look ----
+// alarm_panel.h decides (the modes, when a code is asked for, the lock after wrong codes, where the parts go); this
+// draws it. The card: the shield on a white card with a key per mode, or one big Disarm key while the alarm counts
+// down or goes off. A mode that needs a code opens the keypad in the card's place: the dots, a line of words and
+// twelve keys. The code goes to Home Assistant with the action and is wiped here as soon as it is sent. The screen
+// never logs it, stores it or puts it in an event.
+inline constexpr int ALARM_MODE_FIRST=600,ALARM_DIGIT_FIRST=610,ALARM_CLEAR=620,ALARM_OK=621;
+// What the keypad of the open card holds. It lives outside the card's widgets, so a new state (the card is drawn
+// again) keeps what was typed.
+struct AlarmPad {
+  bool open=false;
+  unsigned mode=0;
+  std::string code, entity;
+  uint16_t note=0;      // a line in place of "Enter code" (Wrong code, Nothing changed), 0 for none
+  uint32_t note_at=0, shake_at=0;
+};
+inline AlarmPad alarm_pad;
+inline alarm_panel::Attempt alarm_attempt;
+inline std::string alarm_attempt_entity;
+inline alarm_panel::Lockout alarm_lock;
+inline uint16_t alarm_card_note=0;   // a line in place of the card's state (a code with letters)
+inline uint32_t alarm_card_note_at=0;
+inline esphome::ESPPreferenceObject alarm_preference;
+struct AlarmSaved { uint32_t failures=0, seconds=0; };
+inline lv_obj_t *alarm_dots=nullptr,*alarm_line=nullptr,*alarm_ring=nullptr,*alarm_keys[12]{};
+inline unsigned alarm_dots_shown=0;
+// Set by packages/core.yaml: wake the screen as a touch does (the backlight, the dim overlay, open cards closed).
+inline std::function<void()> alarm_wake;
+
+// The card is about to be drawn again from nothing: what pointed into the last one points nowhere now.
+inline void alarm_forget_widgets(){alarm_dots=alarm_line=alarm_ring=nullptr;for(auto *&k:alarm_keys)k=nullptr;}
+inline alarm_panel::Codes alarm_codes(const Tile &t){
+  alarm_panel::Codes c;c.format=t.extra().code_format;c.arm_required=!t.extra().arm_code_free;c.saved=t.extra().code_saved;return c;
+}
+inline const char *alarm_state_text(const std::string &state){
+  using namespace screen_text;
+  if(state=="disarmed")return tr(txt::ha_alarm_disarmed);
+  if(state=="armed_home")return tr(txt::ha_alarm_armed_home);
+  if(state=="armed_away")return tr(txt::ha_alarm_armed_away);
+  if(state=="armed_night")return tr(txt::ha_alarm_armed_night);
+  if(state=="armed_vacation")return tr(txt::ha_alarm_armed_vacation);
+  if(state=="armed_custom_bypass")return tr(txt::ha_alarm_armed_custom_bypass);
+  if(state=="pending")return tr(txt::ha_alarm_pending);
+  if(state=="arming")return tr(txt::ha_alarm_arming);
+  if(state=="disarming")return tr(txt::ha_alarm_disarming);
+  if(state=="triggered")return tr(txt::ha_alarm_triggered);
+  return state.c_str();
+}
+inline const char *alarm_mode_text(unsigned mode){
+  static const uint16_t words[]={txt::ha_alarm_mode_armed_home,txt::ha_alarm_mode_armed_away,txt::ha_alarm_mode_armed_night,
+                                 txt::ha_alarm_mode_armed_vacation,txt::ha_alarm_mode_armed_custom_bypass,txt::ha_alarm_mode_disarmed};
+  return tr(words[mode<alarm_panel::MODE_COUNT?mode:alarm_panel::DISARM]);
+}
+// The keypad's title, as Home Assistant's code dialog names it: Disarm, or the mode that arms.
+inline const char *alarm_action_text(unsigned mode){
+  static const uint16_t words[]={txt::ha_alarm_action_arm_home,txt::ha_alarm_action_arm_away,txt::ha_alarm_action_arm_night,
+                                 txt::ha_alarm_action_arm_vacation,txt::ha_alarm_action_arm_custom_bypass,txt::ha_alarm_action_disarm};
+  return tr(words[mode<alarm_panel::MODE_COUNT?mode:alarm_panel::DISARM]);
+}
+// Seconds left of the exit or entry delay, where the integration says how long it is.
+inline uint32_t alarm_left(const Tile &t){
+  return (t.state=="arming"||t.state=="pending")?alarm_panel::seconds_left(t.extra().alarm_end,now_epoch()):0;
+}
+// The line under the name on the tile and on the card: Home Assistant's word, the time the delay has left, and on
+// the card who changed it last where Home Assistant says so.
+inline std::string alarm_status(const Tile &t,bool card){
+  if(!t.available())return tr(txt::ha_unavailable);
+  std::string text=!t.extra().state_word.empty()?t.extra().state_word:std::string(alarm_state_text(t.state));
+  if(const uint32_t left=alarm_left(t))text+=" · "+countdown(left);
+  if(card&&!t.extra().changed_by.empty()&&!alarm_panel::urgent(t.state))text+=" · "+t.extra().changed_by;
+  return text;
+}
+// The card's line under the name: the state, or for a moment why a mode did nothing (a code with letters).
+inline std::string alarm_card_line(const Tile &t){
+  if(alarm_card_note&&esphome::millis()-alarm_card_note_at<6000)return tr(alarm_card_note);
+  return alarm_status(t,true);
+}
+inline bool alarm_pad_open(){return alarm_pad.open&&detail_index<model.count&&model.tiles[detail_index].entity==alarm_pad.entity;}
+// A code leaves no copy behind: the bytes are overwritten before the string lets them go.
+inline void alarm_wipe(std::string &code){for(char &c:code)c='\0';code.clear();}
+inline void alarm_close_pad(){alarm_wipe(alarm_pad.code);alarm_pad.open=false;alarm_pad.note=0;}
+inline void alarm_save_lock(){
+  AlarmSaved saved{alarm_lock.failures,alarm_lock.remaining_s(esphome::millis())};
+  alarm_preference.save(&saved);
+}
+inline void alarm_load_lock(){
+  alarm_preference=esphome::global_preferences->make_preference<AlarmSaved>(0x414C4D31);
+  AlarmSaved saved;
+  if(alarm_preference.load(&saved)&&saved.failures<1000)alarm_lock.resume(saved.failures,saved.seconds,esphome::millis());
+}
+// Home Assistant hears of every wrong code (an event, like the manual alarm's manual_alarm_bad_code_attempt), with
+// the panel, how many in a row and how long the keypad is locked; never the code.
+inline void alarm_refused_event(const std::string &entity,uint32_t locked){
+  esphome::api::HomeassistantActionRequest request;
+  request.service=esphome::StringRef("esphome.screen_alarm_code_refused");
+  request.is_event=true;
+  const std::string failures=std::to_string(alarm_lock.failures),seconds=std::to_string(locked);
+  const std::string keys[]={"entity_id","failures","locked"},values[]={entity,failures,seconds};
+  request.data.init(3);
+  for(int i=0;i<3;++i){esphome::api::HomeassistantServiceMap entry;entry.key=esphome::StringRef(keys[i]);entry.value=esphome::StringRef(values[i]);request.data.push_back(entry);}
+  esphome::api::global_api_server->send_homeassistant_action(request);
+}
+inline void redraw_detail();
+// The end of an attempt with a code: accepted closes the keypad and opens the lock again; failed counts, may lock the
+// keypad, tells Home Assistant and shakes the dots.
+inline void alarm_settled(alarm_panel::Outcome outcome,bool silent){
+  using alarm_panel::Outcome;
+  if(outcome==Outcome::WAITING)return;
+  const uint32_t now=esphome::millis();
+  if(outcome==Outcome::ACCEPTED){
+    if(alarm_attempt.with_code&&alarm_lock.failures){alarm_lock.success();alarm_save_lock();}
+    if(alarm_pad.open)alarm_close_pad();
+    ESP_LOGI("alarm","%s accepted",alarm_attempt_entity.c_str());
+  }else{
+    if(!alarm_attempt.with_code)return;
+    const uint32_t locked=alarm_lock.fail(now);
+    alarm_save_lock();
+    alarm_refused_event(alarm_attempt_entity,locked);
+    alarm_pad.note=silent?txt::alarm_nothing_changed:txt::alarm_wrong_code;alarm_pad.note_at=now;alarm_pad.shake_at=now;
+    ESP_LOGW("alarm","%s: code not accepted (%s), %u in a row, keypad locked for %u s",alarm_attempt_entity.c_str(),
+             silent?"ignored":"refused",(unsigned)alarm_lock.failures,(unsigned)locked);
+  }
+  redraw_detail();
+}
+// Home Assistant refused an action (watch_call): an attempt with a code on its way failed.
+inline void alarm_refused(const std::string &entity){
+  if(alarm_attempt.active&&entity==alarm_attempt_entity)alarm_settled(alarm_attempt.refused(),false);
+}
+// A mode key: straight to Home Assistant when no code is needed, else the keypad.
+inline void alarm_choose(Tile &t,unsigned mode){
+  using namespace alarm_panel;
+  if(mode>=MODE_COUNT||t.state==MODES[mode].state)return;
+  const Codes codes=alarm_codes(t);
+  if(needs_code(codes,mode)){
+    if(!code_typable(codes)){alarm_card_note=txt::alarm_letters;alarm_card_note_at=esphome::millis();redraw_detail();return;}
+    alarm_wipe(alarm_pad.code);alarm_pad.open=true;alarm_pad.mode=mode;alarm_pad.note=0;alarm_pad.entity=t.entity;
+    redraw_detail();
+    return;
+  }
+  alarm_attempt.begin(mode,false,esphome::millis());alarm_attempt_entity=t.entity;
+  action(MODES[mode].service,t.entity);
+}
+inline void alarm_send(Tile &t){
+  using namespace alarm_panel;
+  const uint32_t now=esphome::millis();
+  if(alarm_pad.code.empty()||alarm_lock.locked(now)||alarm_attempt.active)return;
+  alarm_attempt.begin(alarm_pad.mode,true,now);alarm_attempt_entity=t.entity;
+  alarm_pad.note=0;
+  // The one place the code leaves the screen: the action's `code`, as Home Assistant's own dialogs send it.
+  action(MODES[alarm_pad.mode].service,t.entity,"code",alarm_pad.code);
+  alarm_wipe(alarm_pad.code);
+  redraw_detail();
+}
+
+// ---- The animations: they show what the alarm does, never how a card opens, and only inside the shield's circle ----
+// A ring that grows out of the circle and fades (a heartbeat: slow while arming, fast while someone is inside, in Home
+// Assistant's one-second rhythm while it goes off), a ring that closes round the shield when it arms, and a short
+// spring of the circle when it arms or disarms. They run on the circle only, so the CYD redraws a small square.
+enum AlarmLook : uint8_t { LOOK_NONE, LOOK_ARMING, LOOK_PENDING, LOOK_TRIGGERED };
+inline AlarmLook alarm_look(const Tile &t){
+  if(!t.available())return LOOK_NONE;
+  if(t.state=="triggered")return LOOK_TRIGGERED;
+  if(t.state=="pending")return LOOK_PENDING;
+  if(t.state=="arming")return LOOK_ARMING;
+  return LOOK_NONE;
+}
+inline void alarm_beat_exec(lv_anim_t *a,int32_t v){
+  auto *o=static_cast<lv_obj_t *>(a->var);const int reach=(int)(intptr_t)lv_anim_get_user_data(a);
+  lv_obj_set_style_outline_width(o,reach*v/255,0);
+  lv_obj_set_style_outline_opa(o,(lv_opa_t)(150*(255-v)/255),0);
+}
+// The spring grows the circle by a few pixels on every side: transform_width and _height draw it bigger in place,
+// without the layer a scale or a rotation would give it (tests/test_layer_free.py).
+inline void alarm_spring_exec(void *o,int32_t v){
+  auto *obj=static_cast<lv_obj_t *>(o);lv_obj_set_style_transform_width(obj,v,0);lv_obj_set_style_transform_height(obj,v,0);
+}
+inline void alarm_still(lv_obj_t *o){
+  if(!o)return;
+  lv_anim_delete(o,nullptr);
+  lv_obj_set_style_outline_width(o,0,0);lv_obj_set_style_outline_opa(o,LV_OPA_TRANSP,0);
+  lv_obj_set_style_transform_width(o,0,0);lv_obj_set_style_transform_height(o,0,0);
+}
+// A heartbeat of `period` ms, forever, or once.
+inline void alarm_beat(lv_obj_t *o,uint32_t colour,uint32_t period,int reach,bool once){
+  lv_obj_set_style_outline_color(o,lv_color_hex(colour),0);lv_obj_set_style_outline_pad(o,0,0);
+  lv_anim_t a;lv_anim_init(&a);lv_anim_set_var(&a,o);lv_anim_set_values(&a,0,255);lv_anim_set_duration(&a,period);
+  lv_anim_set_custom_exec_cb(&a,alarm_beat_exec);lv_anim_set_user_data(&a,(void *)(intptr_t)reach);lv_anim_set_path_cb(&a,lv_anim_path_ease_out);
+  lv_anim_set_repeat_count(&a,once?1:LV_ANIM_REPEAT_INFINITE);
+  lv_anim_start(&a);
+}
+inline void alarm_spring(lv_obj_t *o,uint32_t delay){
+  lv_obj_set_style_radius(o,LV_RADIUS_CIRCLE,0);
+  const int32_t grow=std::max<int32_t>(2,lv_obj_get_width(o)/24);
+  lv_anim_t a;lv_anim_init(&a);lv_anim_set_var(&a,o);lv_anim_set_values(&a,0,grow);lv_anim_set_duration(&a,150);
+  lv_anim_set_reverse_duration(&a,200);lv_anim_set_delay(&a,delay);lv_anim_set_exec_cb(&a,alarm_spring_exec);
+  lv_anim_set_path_cb(&a,lv_anim_path_ease_out);
+  lv_anim_start(&a);
+}
+// How long after a change of state the arrival is still shown: a card drawn later (opened a minute after arming)
+// shows the shield standing still.
+constexpr uint32_t ALARM_ARRIVAL_MS=1500;
+inline bool alarm_arrived(const Tile &t){return t.changed_at&&esphome::millis()-t.changed_at<ALARM_ARRIVAL_MS;}
+// The tile's circle, after every render of its slot and once a second from tick(): the heartbeat of the state while
+// the screen is awake, the arrival once.
+inline uint8_t alarm_tile_looks[CELLS_MAX]{};
+inline uint32_t alarm_tile_marks[CELLS_MAX]{};
+inline void alarm_tile_look(size_t slot,const Tile *t){
+  if(slot>=widgets.size()||!widgets[slot].circle)return;
+  lv_obj_t *circle=widgets[slot].circle;
+  const bool alarm=t&&t->domain()=="alarm_control_panel";
+  // The slot shows another tile now: its circle stands still.
+  if(!alarm){
+    if(alarm_tile_looks[slot]||alarm_tile_marks[slot])alarm_still(circle);
+    alarm_tile_looks[slot]=LOOK_NONE;alarm_tile_marks[slot]=0;
+    return;
+  }
+  const AlarmLook want=alarm&&awake()&&fresh()?alarm_look(*t):LOOK_NONE;
+  const bool large=ui::large();
+  if(alarm&&want==LOOK_NONE&&alarm_arrived(*t)&&alarm_tile_marks[slot]!=t->changed_at&&awake()){
+    alarm_tile_marks[slot]=t->changed_at;alarm_still(circle);alarm_tile_looks[slot]=LOOK_NONE;
+    if(alarm_panel::armed(t->state))alarm_beat(circle,theme::state(alarm_panel::GREEN),600,ui::px(large?10:5),true);
+    alarm_spring(circle,alarm_panel::armed(t->state)?120:0);
+    return;
+  }
+  if(want==alarm_tile_looks[slot])return;
+  alarm_tile_looks[slot]=want;alarm_still(circle);
+  if(want==LOOK_NONE)return;
+  const uint32_t colour=theme::state(alarm_panel::color(t->state));
+  alarm_beat(circle,colour,want==LOOK_ARMING?1600:want==LOOK_PENDING?600:1000,ui::px(large?10:5),false);
+}
+// The bell rings while the alarm goes off: it shakes a few pixels either way, then stands still, once a second (a
+// shift, not a rotation, which would need a layer of its own).
+inline void alarm_swing_exec(lv_anim_t *a,int32_t v){
+  const int reach=(int)(intptr_t)lv_anim_get_user_data(a);
+  lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(a->var),v<500?(int32_t)lv_trigo_sin((int16_t)(v*1440/500))*reach*(500-v)/500/32767:0,0);
+}
+#if LV_USE_ARC
+inline void alarm_ring_turn(void *o,int32_t v){lv_arc_set_rotation(static_cast<lv_obj_t *>(o),v);}
+inline void alarm_ring_close(void *o,int32_t v){lv_arc_set_angles(static_cast<lv_obj_t *>(o),0,v);}
+#endif
+// The ring round the card's shield: the exit delay running out where its length is known, a short arc going round
+// where it is not, and the ring closing when the alarm arms.
+inline void alarm_card_ring(const Tile &t,int cx,int cy,int size,int width){
+  alarm_ring=nullptr;
+#if LV_USE_ARC
+  const bool closing=alarm_panel::armed(t.state)&&alarm_arrived(t);
+  if(t.state!="arming"&&!closing)return;
+  const uint32_t colour=theme::state(alarm_panel::color(t.state));
+  auto *arc=lv_arc_create(detail_root);
+  lv_obj_remove_style_all(arc);lv_obj_set_size(arc,size,size);lv_obj_set_pos(arc,cx-size/2,cy-size/2);
+  lv_obj_remove_flag(arc,LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_set_style_arc_width(arc,width,LV_PART_MAIN);lv_obj_set_style_arc_width(arc,width,LV_PART_INDICATOR);
+  lv_obj_set_style_arc_rounded(arc,true,LV_PART_INDICATOR);
+  lv_obj_set_style_arc_color(arc,lv_color_hex(theme::tint(colour,38)),LV_PART_MAIN);lv_obj_set_style_arc_opa(arc,closing?LV_OPA_TRANSP:LV_OPA_COVER,LV_PART_MAIN);
+  lv_obj_set_style_arc_color(arc,lv_color_hex(colour),LV_PART_INDICATOR);lv_obj_set_style_arc_opa(arc,LV_OPA_COVER,LV_PART_INDICATOR);
+  lv_arc_set_rotation(arc,270);lv_arc_set_bg_angles(arc,0,360);
+  lv_anim_t a;lv_anim_init(&a);lv_anim_set_var(&a,arc);
+  if(closing){
+    lv_arc_set_angles(arc,0,0);
+    lv_anim_set_values(&a,0,360);lv_anim_set_duration(&a,500);lv_anim_set_exec_cb(&a,alarm_ring_close);lv_anim_set_path_cb(&a,lv_anim_path_ease_out);
+    lv_anim_set_completed_cb(&a,[](lv_anim_t *done){lv_obj_add_flag(static_cast<lv_obj_t *>(done->var),LV_OBJ_FLAG_HIDDEN);});
+    lv_anim_start(&a);
+    return;
+  }
+  const uint32_t delay=t.extra().alarm_delay,left=alarm_left(t);
+  if(delay&&left){
+    // The part still to run, from the top clockwise; tick() takes a second off it each second.
+    lv_arc_set_range(arc,0,(int32_t)delay);lv_arc_set_mode(arc,LV_ARC_MODE_REVERSE);lv_arc_set_value(arc,(int32_t)std::min(left,delay));
+    alarm_ring=arc;
+    return;
+  }
+  lv_arc_set_angles(arc,0,70);
+  lv_anim_set_values(&a,270,630);lv_anim_set_duration(&a,1600);lv_anim_set_exec_cb(&a,alarm_ring_turn);
+  lv_anim_set_repeat_count(&a,LV_ANIM_REPEAT_INFINITE);lv_anim_start(&a);
+#else
+  (void)t;(void)cx;(void)cy;(void)size;(void)width;
+#endif
+}
+// The dots of the keypad: one filled per digit typed, and empty ones up to four, like a PIN field.
+inline void alarm_draw_dots(const alarm_panel::KeypadLayout &l){
+  if(!alarm_dots)return;
+  lv_obj_clean(alarm_dots);
+  const unsigned n=alarm_pad.code.size(),shown=std::max<unsigned>(4,n);
+  alarm_dots_shown=shown;
+  const int gap=alarm_panel::dot_gap(l.dot),row=(int)shown*l.dot+((int)shown-1)*gap;
+  lv_obj_set_size(alarm_dots,std::max(row,l.dots.w),l.dot);
+  lv_obj_set_x(alarm_dots,l.dots.x+(l.dots.w-row)/2-(std::max(row,l.dots.w)-l.dots.w)/2);
+  const bool bad=alarm_pad.note==txt::alarm_wrong_code||alarm_pad.note==txt::alarm_nothing_changed;
+  for(unsigned i=0;i<shown;++i){
+    auto *dot=detail_shape(alarm_dots,(std::max(row,l.dots.w)-row)/2+(int)i*(l.dot+gap),0,l.dot,l.dot,
+                           i<n?(bad?theme::state(alarm_panel::RED):theme::hex(theme::INK)):theme::hex(theme::CARD),l.dot/2);
+    if(i>=n){lv_obj_set_style_border_width(dot,std::max(1,l.dot/7),0);lv_obj_set_style_border_color(dot,theme::color(theme::TICK),0);}
+  }
+}
+inline alarm_panel::KeypadLayout alarm_keypad_layout;
+inline void alarm_shake_exec(void *o,int32_t v){
+  const int reach=alarm_keypad_layout.dot;
+  lv_obj_set_style_translate_x(static_cast<lv_obj_t *>(o),v<320?(int32_t)lv_trigo_sin((int16_t)(v*1080/320))*reach*(320-v)/320/32767:0,0);
+}
+inline std::string alarm_line_text(){
+  const uint32_t now=esphome::millis();
+  if(alarm_lock.locked(now))return fill(txt::alarm_try_again,"time",countdown(alarm_lock.remaining_s(now)));
+  if(alarm_attempt.active)return tr(txt::tile_command_sent);
+  if(alarm_pad.note&&now-alarm_pad.note_at<4000)return tr(alarm_pad.note);
+  return tr(txt::ha_alarm_action_enter_code);
+}
+// What the keypad's keys may do now: nothing while the lock holds or a code is on its way, and Clear and OK only with
+// a digit to act on.
+inline void alarm_keys_state(){
+  const uint32_t now=esphome::millis();
+  const bool held=alarm_lock.locked(now)||alarm_attempt.active||!fresh();
+  for(int i=0;i<12;++i){
+    if(!alarm_keys[i])continue;
+    const bool off=held||((i==9||i==11)&&alarm_pad.code.empty())||(i!=9&&i!=11&&alarm_pad.code.size()>=alarm_panel::CODE_MAX);
+    if(off)lv_obj_add_state(alarm_keys[i],LV_STATE_DISABLED);else lv_obj_remove_state(alarm_keys[i],LV_STATE_DISABLED);
+  }
+  if(alarm_line){
+    label(alarm_line,alarm_line_text());
+    const bool bad=!alarm_lock.locked(now)&&alarm_pad.note&&now-alarm_pad.note_at<4000;
+    lv_obj_set_style_text_color(alarm_line,bad?lv_color_hex(theme::foreground(alarm_panel::RED)):theme::color(theme::MUTED),0);
+  }
+}
+// A key with an icon and a word side by side, centred: the mode keys and the Disarm key.
+inline void alarm_key_face(lv_obj_t *key,const char *icon,const std::string &word,const lv_font_t *icons,const lv_font_t *text,lv_color_t ink,int w,int h){
+  auto *words=lv_obj_get_child(key,0);
+  lv_obj_set_align(words,LV_ALIGN_TOP_LEFT);   // detail_button centred it; this face places it itself
+  lv_obj_set_style_text_font(words,text,0);lv_label_set_text(words,word.c_str());lv_obj_set_style_text_color(words,ink,0);
+  const int icon_w=icons?lv_font_get_line_height(icons):0,room=std::max(1,w-icon_w-ui::px(8)-2*ui::px(10));
+  // A word that does not fit whole leaves the key to its icon, which says the same thing, rather than to "Vac…".
+  const bool word_fits=text_width(word,text)<=room||!icons;
+  if(!word_fits)lv_obj_add_flag(words,LV_OBJ_FLAG_HIDDEN);
+  const int gap=word_fits?ui::px(8):0,word_w=word_fits?std::min(room,text_width(word,text)):0;
+  lv_obj_set_size(words,std::max(1,word_w),lv_font_get_line_height(text));
+  const int x=(w-icon_w-gap-word_w)/2;
+  lv_obj_set_pos(words,x+icon_w+gap,(h-lv_font_get_line_height(text))/2);lv_obj_set_style_text_align(words,LV_TEXT_ALIGN_LEFT,0);
+  if(icons){
+    auto *glyph=lv_label_create(key);lv_label_set_text(glyph,icon);lv_obj_set_style_text_font(glyph,icons,0);lv_obj_set_style_text_color(glyph,ink,0);
+    lv_obj_set_pos(glyph,x,(h-icon_w)/2);lv_obj_remove_flag(glyph,LV_OBJ_FLAG_CLICKABLE);
+  }
+}
+inline void render_alarm_detail(Tile &t,bool large,int width,int height,lv_obj_t *heading){
+  using namespace alarm_panel;
+  detail_placed=true;
+  if(alarm_pad.entity!=t.entity){alarm_close_pad();alarm_pad.entity=t.entity;}
+  // A keypad to disarm closes when the panel is disarmed another way.
+  if(alarm_pad.open&&(!t.available()||(alarm_pad.mode==DISARM&&t.state=="disarmed")))alarm_close_pad();
+  alarm_forget_widgets();
+  const lv_font_t *text=large?detail_font:(control_font?control_font:detail_font);
+  const lv_font_t *icons=tile_icon_font();
+  const lv_font_t *mini=mini_icon_font?mini_icon_font:detail_font;
+  Metrics m;m.large=large;m.touch=ui::touch_min();m.text_h=lv_font_get_line_height(text);
+  m.icon_h=icons?lv_font_get_line_height(icons):m.text_h;m.side=overlay_card::pad();
+  const int top=ui::px(large?80:50)+lv_font_get_line_height(detail_font)+m.gap(),bottom=height-ui::px(large?18:8);
+  const bool on=t.active(),available=t.available();
+  const uint32_t colour=on?color(t.state):theme::STATE_OFF;
+  if(alarm_pad.open){
+    // The keypad in the card's place, titled as Home Assistant's code dialog: Disarm, Arm away.
+    if(heading)label(heading,alarm_action_text(alarm_pad.mode));
+    const auto l=keypad_layout(m,width,top,bottom,(unsigned)alarm_pad.code.size());
+    alarm_keypad_layout=l;
+    alarm_dots=lv_obj_create(detail_root);lv_obj_remove_style_all(alarm_dots);lv_obj_set_pos(alarm_dots,l.dots.x,l.dots.y);
+    lv_obj_remove_flag(alarm_dots,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(alarm_dots,LV_OBJ_FLAG_SCROLLABLE);
+    alarm_draw_dots(l);
+    if(alarm_pad.shake_at&&esphome::millis()-alarm_pad.shake_at<400){
+      alarm_pad.shake_at=0;
+      lv_anim_t a;lv_anim_init(&a);lv_anim_set_var(&a,alarm_dots);lv_anim_set_values(&a,0,320);lv_anim_set_duration(&a,320);
+      lv_anim_set_exec_cb(&a,alarm_shake_exec);lv_anim_start(&a);
+    }
+    alarm_line=detail_text(detail_root,alarm_line_text(),l.line.x,l.line.y,l.line.w,text,LV_TEXT_ALIGN_CENTER,theme::MUTED);
+    const lv_font_t *digits=watch_font?watch_font:detail_font;
+    const lv_font_t *glyphs=icons&&lv_font_get_line_height(icons)<=l.keys[0].h-ui::px(6)?icons:mini;
+    const unsigned before=detail_action_count;
+    for(int i=0;i<12;++i){
+      const Rect &r=l.keys[i];
+      const bool ok=i==11,clear=i==9;
+      const int digit=i<9?i+1:0;
+      auto *key=detail_button("",r.x,r.y,r.w,r.h,ok?ALARM_OK:clear?ALARM_CLEAR:ALARM_DIGIT_FIRST+digit);
+      lv_obj_set_style_radius(key,r.h/2,0);
+      lv_obj_set_style_bg_color(key,theme::color(ok?theme::ACCENT:theme::CARD),0);
+      lv_obj_set_style_bg_color(key,theme::color(ok?theme::ACCENT_PRESSED:theme::KEY),LV_STATE_PRESSED);
+      lv_obj_set_style_border_width(key,ok?0:1,0);lv_obj_set_style_border_color(key,theme::color(theme::LINE),0);
+      auto *face=lv_obj_get_child(key,0);
+      lv_obj_set_style_text_font(face,ok||clear?glyphs:digits,0);
+      lv_label_set_text(face,ok?glyph::CHECK:clear?glyph::CLOSE:std::to_string(digit).c_str());
+      lv_obj_set_style_text_color(face,theme::color(ok?theme::ON_ACCENT:theme::INK),0);
+      lv_obj_set_size(face,LV_SIZE_CONTENT,LV_SIZE_CONTENT);lv_obj_center(face);
+      alarm_keys[i]=key;
+    }
+    // The keypad keeps its own states (alarm_keys_state), not the card's "wait for Home Assistant" ones.
+    detail_action_count=before;
+    alarm_keys_state();
+    return;
+  }
+  // The card: the shield on its white card, and the modes or the one Disarm key.
+  const bool urgent_card=urgent(t.state)&&available;
+  const auto offered=modes(t.supported);
+  const auto l=card_layout(m,width,top,bottom,urgent_card?0:(unsigned)offered.size(),urgent_card);
+  detail_card(l.hero.x,l.hero.y,l.hero.w,l.hero.h);
+  const int icon_h=m.icon_h,ring_w=ui::px(large?8:5),ring_gap=ui::px(large?8:5);
+  int d=std::min(std::min(l.hero.w,l.hero.h)-2*(ring_w+ring_gap)-ui::px(large?24:12),icon_h*5/2);
+  d=std::max(d,icon_h+ui::px(8));
+  const int cx=l.hero.cx(),cy=l.hero.cy();
+  auto *circle=detail_shape(detail_root,cx-d/2,cy-d/2,d,d,available?theme::tint(theme::state(colour),38):theme::hex(theme::TRACK),d/2);
+  if(icons){
+    auto *icon=detail_text(circle,t.icon.empty()?alarm_panel::icon(t.state):t.icon.c_str(),0,(d-icon_h)/2,d,icons,LV_TEXT_ALIGN_CENTER,
+                           available?theme::icon(theme::state(colour)):theme::hex(theme::OFF));
+    if(t.state=="triggered"&&awake()){
+      lv_anim_t a;lv_anim_init(&a);lv_anim_set_var(&a,icon);lv_anim_set_values(&a,0,1000);lv_anim_set_duration(&a,1000);
+      lv_anim_set_custom_exec_cb(&a,alarm_swing_exec);lv_anim_set_user_data(&a,(void *)(intptr_t)std::max(2,icon_h/10));
+      lv_anim_set_repeat_count(&a,LV_ANIM_REPEAT_INFINITE);lv_anim_start(&a);
+    }
+  }
+  alarm_card_ring(t,cx,cy,d+2*(ring_w+ring_gap),ring_w);
+  if(awake()&&available){
+    const AlarmLook look=alarm_look(t);
+    if(look==LOOK_PENDING||look==LOOK_TRIGGERED)alarm_beat(circle,theme::state(colour),look==LOOK_PENDING?600:1000,ui::px(large?28:14),false);
+    else if(look==LOOK_NONE&&alarm_arrived(t))alarm_spring(circle,armed(t.state)?450:0);
+  }
+  if(urgent_card){
+    auto *key=detail_button("",l.disarm.x,l.disarm.y,l.disarm.w,l.disarm.h,ALARM_MODE_FIRST+DISARM);
+    lv_obj_set_style_radius(key,l.disarm.h/2,0);
+    lv_obj_set_style_bg_color(key,theme::color(theme::BUTTON_DARK),0);lv_obj_set_style_bg_color(key,theme::color(theme::BUTTON_DARK_PRESSED),LV_STATE_PRESSED);
+    alarm_key_face(key,glyph::SHIELD_OFF,alarm_action_text(DISARM),icons&&lv_font_get_line_height(icons)<=l.disarm.h-ui::px(8)?icons:mini,
+                   watch_font?watch_font:text,theme::color(theme::ON_ACCENT),l.disarm.w,l.disarm.h);
+    return;
+  }
+  const lv_font_t *key_icons=icons&&lv_font_get_line_height(icons)<=(l.key_count?l.keys[0].h:0)-ui::px(10)?icons:mini;
+  for(unsigned i=0;i<l.key_count;++i){
+    const unsigned mode=offered[i];
+    const Rect &r=l.keys[i];
+    const bool current=t.state==MODES[mode].state;
+    auto *key=detail_button("",r.x,r.y,r.w,r.h,ALARM_MODE_FIRST+(int)mode);
+    lv_obj_set_style_radius(key,r.h/2,0);
+    const uint32_t mode_colour=mode==DISARM?theme::STATE_OFF:GREEN;
+    lv_obj_set_style_bg_color(key,current?lv_color_hex(theme::state(mode_colour)):theme::color(theme::CARD),0);
+    lv_obj_set_style_bg_color(key,theme::color(theme::KEY),LV_STATE_PRESSED);
+    lv_obj_set_style_border_width(key,current?0:1,0);lv_obj_set_style_border_color(key,theme::color(theme::LINE),0);
+    alarm_key_face(key,MODES[mode].icon,alarm_mode_text(mode),key_icons,text,
+                   current?theme::color(theme::ON_ACCENT):theme::color(theme::INK),r.w,r.h);
+    // The icon in the mode's colour on a white key, as Home Assistant colours its choices.
+    if(!current&&lv_obj_get_child_count(key)>1)lv_obj_set_style_text_color(lv_obj_get_child(key,1),mode==DISARM?theme::color(theme::SLATE):lv_color_hex(theme::foreground(GREEN)),0);
+  }
+}
+// A new state of an alarm panel arrived (page_receiver): an attempt may be settled by it, and someone coming in or
+// the alarm going off wakes the screen with the card open, and the keypad when disarming asks for a code.
+inline void alarm_state_arrived(unsigned index,const std::string &before){
+  if(index>=model.count)return;
+  auto &t=model.tiles[index];
+  if(alarm_attempt.active&&t.entity==alarm_attempt_entity)alarm_settled(alarm_attempt.settle(t.state,esphome::millis()),true);
+  if(!alarm_panel::calls_for_attention(t.state)||alarm_panel::calls_for_attention(before)||!t.available())return;
+  if(!enabled||!model.ready())return;
+  ESP_LOGI("alarm","%s is %s: the screen wakes with its card",t.entity.c_str(),t.state.c_str());
+  if(alarm_wake)alarm_wake();
+  settings_screen::close();
+  const auto codes=alarm_codes(t);
+  if(alarm_pad.entity!=t.entity)alarm_close_pad();
+  alarm_pad.entity=t.entity;
+  if(alarm_panel::needs_code(codes,alarm_panel::DISARM)&&alarm_panel::code_typable(codes)&&!alarm_pad.open){
+    alarm_pad.open=true;alarm_pad.mode=alarm_panel::DISARM;alarm_pad.note=0;alarm_wipe(alarm_pad.code);
+  }
+  active_index=(int)index;
+  show_detail(index);
+}
+// Once a second and on every tick (tick()): an attempt nothing answered runs out, the keypad's lock counts down, the
+// exit delay's ring and the tiles' heartbeats follow the screen's clock and whether it is awake.
+inline void alarm_tick(){
+  const uint32_t now=esphome::millis();
+  if(alarm_attempt.active){
+    std::string state;
+    for(size_t i=0;i<model.count;++i)if(model.tiles[i].entity==alarm_attempt_entity){state=model.tiles[i].state;break;}
+    alarm_settled(alarm_attempt.settle(state,now),true);
+  }
+  if(alarm_keys[0])alarm_keys_state();
+  // A lock that ran out while nobody looked: the count stays, the keypad opens.
+  static bool was_locked=false;
+  const bool locked=alarm_lock.locked(now);
+  if(was_locked&&!locked)alarm_save_lock();
+  was_locked=locked;
+#if LV_USE_ARC
+  if(alarm_ring&&detail_index<model.count){
+    const auto &t=model.tiles[detail_index];
+    lv_arc_set_value(alarm_ring,(int32_t)std::min(alarm_left(t),t.extra().alarm_delay));
+  }
+#endif
+}
+inline void alarm_command(int cmd){
+  if(detail_index>=model.count)return;
+  auto &t=model.tiles[detail_index];
+  if(t.domain()!="alarm_control_panel")return;
+  const uint32_t now=esphome::millis();
+  if(cmd>=ALARM_DIGIT_FIRST&&cmd<ALARM_DIGIT_FIRST+10){
+    if(!alarm_pad.open||alarm_lock.locked(now)||alarm_attempt.active||alarm_pad.code.size()>=alarm_panel::CODE_MAX)return;
+    if(!screen_input::touch_guard.accept_repeat(now,300+cmd))return;
+    alarm_pad.code+=(char)('0'+cmd-ALARM_DIGIT_FIRST);alarm_pad.note=0;
+    // The dots follow the finger at once; a fifth digit makes the row longer, so it is drawn again.
+    alarm_draw_dots(alarm_keypad_layout);
+    alarm_keys_state();
+    return;
+  }
+  if(cmd==ALARM_CLEAR){
+    if(!screen_input::touch_guard.accept_repeat(now,300+cmd))return;
+    alarm_wipe(alarm_pad.code);alarm_pad.note=0;alarm_draw_dots(alarm_keypad_layout);alarm_keys_state();
+    return;
+  }
+  if(!fresh()||!allowed(now,300+cmd,"alarm:"+t.entity)||!t.available())return;
+  if(cmd==ALARM_OK){alarm_send(t);return;}
+  if(cmd>=ALARM_MODE_FIRST&&cmd<ALARM_MODE_FIRST+(int)alarm_panel::MODE_COUNT){
+    if(t.waiting(now))return;
+    alarm_choose(t,(unsigned)(cmd-ALARM_MODE_FIRST));
   }
 }
 // ---- History card (firmware 0.2.51+): numbers as a line with axes, states as a timeline ----
@@ -2393,6 +2923,8 @@ inline void render_media_detail(Tile &t,unsigned index,bool large,int width,int 
 }
 inline void show_detail(unsigned index){
   if(index>=model.count)return;
+  // Another tile's card: a keypad left open for an alarm does not come back with it.
+  if(alarm_pad.open&&model.tiles[index].entity!=alarm_pad.entity)alarm_close_pad();
   // A card that opens starts on a day (an hour for a tile whose graph shows one); switching ranges keeps it open.
   if(!detail_root||lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)||detail_index!=index){
     history_hours=model.tiles[index].history_hours==1?1:24;history_asked_entity.clear();weather_page=0;
@@ -2412,7 +2944,7 @@ inline void show_detail(unsigned index){
   lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
   lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_backdrop);
   detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
-  media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;light_value=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
+  alarm_forget_widgets();media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;light_value=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   // The card's room: capped to what a hand spans and centred, unless it shows a picture (the media card's
   // cover art, a camera), which may fill the glass. Every size below follows from `width`.
@@ -2458,6 +2990,8 @@ inline void show_detail(unsigned index){
     render_light_detail(t,large,width,height,columns);
   }else if(d=="weather"){
     render_weather_detail(t,large,width,height,columns);
+  }else if(d=="alarm_control_panel"){
+    render_alarm_detail(t,large,width,height,heading);
   }else if(d=="timer"){
     detail_label(detail_root,tr(t.state=="active"?txt::timer_running:t.state=="paused"?txt::timer_paused:txt::timer_stopped),pad,top,width-2*pad);
     detail_button(tr(t.state=="active"?txt::timer_pause:txt::timer_start),pad,top+(ui::px(large?50:30)),cw,bh,40);
@@ -2535,6 +3069,7 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "person") return "\U000F0004";
   if (d == "screen") return tile.is_settings() ? "\U000F0493" : tile.is_page() ? "\U000F0054" : "\U000F0150";
   if (d == "camera" || d == "image") return "\U000F07AE";
+  if (d == "alarm_control_panel") return alarm_panel::icon(tile.state);
   return "\U000F0425";
 }
 inline std::string countdown(uint32_t seconds) {
@@ -4029,6 +4564,7 @@ inline void render_slot(size_t slot) {
   else if (d == "camera") value = tr(t.state == "streaming" ? txt::camera_live : t.state == "recording" ? txt::camera_recording : txt::camera_tap_to_view);
   else if (d == "image") value = tr(t.last_run ? txt::camera_tap_to_view : txt::camera_no_image_yet);
   else if (d == "binary_sensor" && (value == "on" || value == "off")) value = tile_controls::binary_state_text(t.device_class, value == "on");
+  else if (d == "alarm_control_panel") value = alarm_status(t, false);
   else if (value == "on") value = tr(txt::ha_on);
   else if (value == "off") value = tr(txt::ha_off);
   else if (value == "cleaning") value = tr(txt::ha_vacuum_cleaning);
@@ -4273,6 +4809,8 @@ inline void render_slot(size_t slot) {
   bool slider_on = fresh() && t.slider_active();
   bool available=fresh() && t.available();
   int palette_state=(available?2:0)|(on?1:0)|(slider_on?4:0)|((tall_art(t)&&w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN))?8:0);
+  // An alarm panel's circle beats while it counts down or goes off, and springs once when it arms or disarms.
+  if (d == "alarm_control_panel" || alarm_tile_looks[slot] || alarm_tile_marks[slot]) alarm_tile_look(slot, &t);
   if (w.cached_active == palette_state && !w.panel_dirty) { style_tall(w,t);lap(swipe_profile::GEOMETRY); return; }
   w.cached_active = palette_state;w.panel_dirty=false;
   // Home Assistant's colour for the state (tile_controls::accent), and a lamp's own colour while it is on.
@@ -5185,6 +5723,7 @@ inline void tick() {
 #ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
   expire_calls(esphome::millis());
 #endif
+  alarm_tick();
   for(size_t i=0;i<model.tiles.size();++i){
     auto &t=model.tiles[i];
     if(t.refused_at && esphome::millis()-t.refused_at>=4000){t.refused_at=0;card(i);}
@@ -5221,6 +5760,8 @@ inline void tick() {
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
       if((t.is_clock() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
+      // An alarm's delay counts down on its tile; its heartbeat stops while the screen sleeps and starts when it wakes.
+      if(t.domain()=="alarm_control_panel"){if(alarm_left(t))card(w.index);alarm_tile_look(slot,&t);}
       // A media tile over the whole page: its bar runs on while the track plays (firmware 0.2.64+).
       if(w.extra_mode=="media" && w.extra && !lv_obj_has_flag(w.extra,LV_OBJ_FLAG_HIDDEN) && w.parts[5] && !lv_obj_has_flag(w.parts[5],LV_OBJ_FLAG_HIDDEN))media_progress(t,w.parts[5],w.parts[6],w.media_bar_w);
       // The second hand moves on its own: only its line is redrawn, and it hides during standby. Only while the

@@ -282,6 +282,13 @@
       "rejected": "Messung verworfen; bitte erneut",
       "save_failed": "Speichern fehlgeschlagen; bitte erneut"
     },
+    "alarm": {
+      "wrong_code": "Falscher Code",
+      "nothing_changed": "Nichts hat sich geändert. Prüfe den Code.",
+      "try_again": "Erneut versuchen in {time}",
+      "too_many": "Zu viele falsche Codes",
+      "letters": "Dieser Code enthält Buchstaben. Gib ihn in Home Assistant ein."
+    },
     "ha": {
       "on": "Ein",
       "off": "Aus",
@@ -429,6 +436,35 @@
         "both": "Beides",
         "vertical": "Vertikal",
         "horizontal": "Horizontal"
+      },
+      "alarm": {
+        "disarmed": "Deaktiviert",
+        "armed_home": "Aktiviert (Zuhause)",
+        "armed_away": "Aktiviert (Abwesend)",
+        "armed_night": "Aktiviert (Nacht)",
+        "armed_vacation": "Aktiviert (Urlaub)",
+        "armed_custom_bypass": "Aktiviert (Mit Bypass)",
+        "pending": "Anstehend",
+        "arming": "Wird aktiviert",
+        "disarming": "Wird deaktiviert",
+        "triggered": "Ausgelöst"
+      },
+      "alarm_mode": {
+        "armed_home": "Zuhause",
+        "armed_away": "Abwesend",
+        "armed_night": "Nacht",
+        "armed_vacation": "Urlaub",
+        "armed_custom_bypass": "Mit Bypass",
+        "disarmed": "Deaktiviert"
+      },
+      "alarm_action": {
+        "disarm": "Deaktivieren",
+        "arm_home": "Aktivieren (Zuhause)",
+        "arm_away": "Aktivieren (Abwesend)",
+        "arm_night": "Aktivieren (Nacht)",
+        "arm_vacation": "Aktivieren (Urlaub)",
+        "arm_custom_bypass": "Aktivieren (Mit Bypass)",
+        "enter_code": "Code eingeben"
       }
     },
     "navigation": {
@@ -1309,7 +1345,8 @@
         "select": "Auswahl",
         "person": "Personen",
         "timer": "Timer",
-        "screen": "Bildschirm"
+        "screen": "Bildschirm",
+        "alarm_control_panel": "Alarm"
       },
       "more": "Mehr ({n})",
       "fewer": "Weniger",
@@ -1349,7 +1386,8 @@
       "person": "Person",
       "camera": "Kamera",
       "image": "Bild",
-      "entity": "Entität"
+      "entity": "Entität",
+      "alarm_control_panel": "Alarmanlage"
     },
     "displays": {
       "standard": "Standard",

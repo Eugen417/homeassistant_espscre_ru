@@ -126,7 +126,7 @@ class Rules(unittest.TestCase):
         self.assertIn('request.service = esphome::StringRef("esphome.screen_camera");', TILES)
         self.assertIn("event_type='esphome.screen_camera'", (ROOT / 'screen_manager/app/server.py').read_text())
         self.assertIn('if (op == "camera") {', TILES)
-        self.assertIn('"camera", "image"})', (ROOT / 'components/smart_display/runtime_model.h').read_text())
+        self.assertIn('"camera", "image",', (ROOT / 'components/smart_display/runtime_model.h').read_text())
         # The profile loads both images and binds them; the CYD has none, so it never opens a camera.
         for needle in ('online_image:\n  - id: camera_image', '  - id: alert_image', 'runtime_tiles::camera_loaded(false, cached);',
                        'runtime_tiles::camera_loaded(true, cached);', 'runtime_tiles::camera_tick();', 'runtime_tiles::alert_prepare();',

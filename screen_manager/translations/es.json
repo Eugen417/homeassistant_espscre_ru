@@ -282,6 +282,13 @@
       "rejected": "Medida rechazada; inténtalo de nuevo",
       "save_failed": "No se pudo guardar; inténtalo de nuevo"
     },
+    "alarm": {
+      "wrong_code": "Código incorrecto",
+      "nothing_changed": "No ha cambiado nada. Comprueba el código.",
+      "try_again": "Vuelve a intentarlo en {time}",
+      "too_many": "Demasiados códigos incorrectos",
+      "letters": "Este código tiene letras. Introdúcelo en Home Assistant."
+    },
     "ha": {
       "on": "Encendido",
       "off": "Apagado",
@@ -429,6 +436,35 @@
         "both": "Ambos",
         "vertical": "Vertical",
         "horizontal": "Horizontal"
+      },
+      "alarm": {
+        "disarmed": "Desarmada",
+        "armed_home": "Armada en casa",
+        "armed_away": "Armada ausente",
+        "armed_night": "Armada noche",
+        "armed_vacation": "Armada de vacaciones",
+        "armed_custom_bypass": "Armada personalizada",
+        "pending": "Pendiente",
+        "arming": "Armando",
+        "disarming": "Desarmando",
+        "triggered": "Disparada"
+      },
+      "alarm_mode": {
+        "armed_home": "En Casa",
+        "armed_away": "Ausente",
+        "armed_night": "Noche",
+        "armed_vacation": "Vacaciones",
+        "armed_custom_bypass": "Personalizado",
+        "disarmed": "Desarmada"
+      },
+      "alarm_action": {
+        "disarm": "Desarmar",
+        "arm_home": "Armar en casa",
+        "arm_away": "Armar ausente",
+        "arm_night": "Armar noche",
+        "arm_vacation": "Armar por vacaciones",
+        "arm_custom_bypass": "Bypass personalizada",
+        "enter_code": "Introduce el código"
       }
     },
     "navigation": {
@@ -1309,7 +1345,8 @@
         "select": "Selectores",
         "person": "Personas",
         "timer": "Temporizadores",
-        "screen": "Pantalla"
+        "screen": "Pantalla",
+        "alarm_control_panel": "Alarma"
       },
       "more": "Más ({n})",
       "fewer": "Menos",
@@ -1349,7 +1386,8 @@
       "person": "Persona",
       "camera": "Cámara",
       "image": "Imagen",
-      "entity": "Entidad"
+      "entity": "Entidad",
+      "alarm_control_panel": "Panel de alarma"
     },
     "displays": {
       "standard": "estándar",

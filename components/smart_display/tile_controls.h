@@ -3,6 +3,7 @@
 // own entity rows. Pure logic only: which keys a card shows, what they send, how
 // a -/+ step lands on the entity's grid, and the status line beside them. The
 // LVGL drawing lives in runtime_tiles.h; tests/test_tile_controls.cpp covers this.
+#include "alarm_panel.h"
 #include "screen_input.h"
 #include "runtime_model.h"
 #include "screen_text.h"
@@ -137,6 +138,8 @@ inline uint32_t accent(const Tile &t) {
   if (d == "sun") return t.state == "above_horizon" ? AMBER : INDIGO;
   // At home green; in another zone blue (--state-person-active-color).
   if (d == "person") return t.state == "home" ? GREEN : BLUE;
+  // An alarm panel: armed green, the delays orange, going off red (--state-alarm_control_panel-*-color).
+  if (d == "alarm_control_panel") return alarm_panel::color(t.state);
   if (d == "sensor") {
     // A battery by its charge, as Home Assistant's battery_color.ts: green from 70 %, orange from 30 %, red below.
     if (t.device_class == "battery") {
@@ -660,7 +663,7 @@ struct Tap { TapRoute route = TapRoute::NONE; std::string service; bool busy = f
 inline bool runtime_card_domain(const std::string &d) {
   return d == "sensor" || d == "binary_sensor" || d == "weather" || d == "number" || d == "input_number" || d == "select" ||
          d == "input_select" || d == "media_player" || d == "vacuum" || d == "cover" || d == "sun" || d == "person" ||
-         d == "timer" || d == "climate";
+         d == "timer" || d == "climate" || d == "alarm_control_panel";
 }
 // Whether a light offers a colour or a colour temperature, and so opens the colour card instead of the card
 // with the brightness slider. The modes come from Home Assistant as one string (`supported_color_modes`) and
