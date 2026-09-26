@@ -1,3 +1,11 @@
+## 0.3.6 (firmware 0.3.1)
+
+The 7-inch Guition JC1060P470 on the ESP32-P4, experimental (GitHub #28).
+
+- **New screen** offers the Guition JC1060P470 (also sold as JC1060P470C_I_W_Y): 1024 × 600, four by four tiles lying down and two by seven standing up, a dimmable backlight with standby and night mode, and camera pictures. It is built on ESPHome's own panel model and the pins the ESPHome community runs on this board, and rendered with the firmware's own self test, but not yet tried on the glass: please report how it runs (docs/JC1060P470.md has what to check).
+- Guition ships this board with two LCDs. A board whose rear label says "V2" after the material number is its own choice, **JC1060P470 V2**, with the new panel's settings and a slower Wi-Fi link that keeps streaks out of its picture. The wrong one shows a white screen with a band of noise and does no harm: flash the other one.
+- The 10.1-inch Guition now shares its ESP32-P4 and Wi-Fi hardware file with the 7-inch. Its firmware is unchanged, and nothing changes for existing screens.
+
 ## 0.3.5 (firmware 0.3.1)
 
 A new board: the Waveshare ESP32-S3-Touch-LCD-3.5 (GitHub #40, thanks @noisemaker00).

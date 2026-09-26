@@ -63,3 +63,15 @@ waveshare35:
   name: Waveshare
   model: ESP32-S3-Touch-LCD-3.5
   status: new
+
+jc1060p470:
+  file: guition-jc1060p470.yaml
+  name: Guition
+  model: JC1060P470
+  status: experimental
+
+jc1060p470v2:
+  file: guition-jc1060p470-v2.yaml
+  name: Guition
+  model: JC1060P470 V2
+  status: experimental

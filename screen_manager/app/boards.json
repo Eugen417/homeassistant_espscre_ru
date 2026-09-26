@@ -116,6 +116,148 @@
   "rows": 3,
   "width": 480
  },
+ "checkout/jc1060p470.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "jc1060p470",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "JC1060P470",
+   "name": "Guition",
+   "order": 7,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 600,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
+ },
+ "checkout/jc1060p470v2.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "jc1060p470v2",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "JC1060P470 V2",
+   "name": "Guition",
+   "order": 8,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 600,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
+ },
  "checkout/jc8012p4a1.yaml": {
   "alert": {
    "line": 21,
@@ -558,6 +700,148 @@
   "rows": 3,
   "width": 480
  },
+ "jc1060p470": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "jc1060p470",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "JC1060P470",
+   "name": "Guition",
+   "order": 7,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 600,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
+ },
+ "jc1060p470v2": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "jc1060p470v2",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "JC1060P470 V2",
+   "name": "Guition",
+   "order": 8,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 600,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
+ },
  "jc8012p4a1": {
   "alert": {
    "line": 21,
@@ -745,6 +1029,148 @@
   },
   "rows": 3,
   "width": 480
+ },
+ "packages/jc1060p470.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "jc1060p470",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "JC1060P470",
+   "name": "Guition",
+   "order": 7,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 600,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
+ },
+ "packages/jc1060p470v2.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "jc1060p470v2",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "JC1060P470 V2",
+   "name": "Guition",
+   "order": 8,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "height": 600,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
  },
  "packages/jc8012p4a1.yaml": {
   "alert": {

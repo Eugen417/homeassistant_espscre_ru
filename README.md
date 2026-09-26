@@ -231,6 +231,7 @@ while it keeps your country's clock and numbers.
 | Waveshare ESP32-S3-Touch-LCD-4B, 4 inch (experimental) | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911; dimmable backlight, hardware acceptance pending ([details](docs/WAVESHARE4B.md)) |
 | Waveshare ESP32-S3-Touch-LCD-3.5 (new) | 480 × 320, 2 × 2 tiles | ST7796 SPI / capacitive FT6336; dimmable backlight, no camera pictures ([details](docs/WAVESHARE35.md)) |
 | Guition JC8012P4A1, 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) |
+| Guition JC1060P470 and JC1060P470 V2, 7 inch (experimental) | 1024 × 600, 4 × 4 tiles | MIPI-DSI JD9165 / capacitive GT911, ESP32-P4; hardware acceptance pending ([details](docs/JC1060P470.md)) |
 
 Use these exact board variants: similar-looking product names can have different
 controllers or connectors. Wallbox relays are not controlled by default; a 4-inch Guition with relays

@@ -1,0 +1,23 @@
+# ESP Screens - the 7-inch Guition JC1060P470 apart from its LCD, for a board file that includes this one.
+#
+# Guition ships this board with two LCDs behind the same JD9165 driver: the first one (guition-jc1060p470.yaml) and
+# the one since mid-2026 whose rear label says "V2" after the material number (guition-jc1060p470-v2.yaml). Everything
+# else is the same board, and lives here: the ESP32-P4 and its ESP32-C6 (shared with the 10.1-inch), and the GT911.
+# The board file adds its display.
+packages:
+  hardware: !include guition-esp32p4.yaml
+
+substitutions:
+  # The Wi-Fi link at 20 MHz instead of 40: what community configurations for this board run, for a C6 link that
+  # holds on every panel they shipped to.
+  HOSTED_SDIO_FREQUENCY: "20MHz"
+
+# ESPHome's own gt911 platform; the GT911 reports the panel's own pixels, so the transform stays the core's.
+touchscreen:
+  - platform: gt911
+    id: ts_touch
+    i2c_id: touch_bus
+    display: my_display
+    update_interval: 20ms
+    reset_pin: GPIO22
+    interrupt_pin: GPIO21

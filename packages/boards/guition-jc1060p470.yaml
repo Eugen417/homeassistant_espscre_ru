@@ -1,0 +1,61 @@
+# ESP Screens - Guition JC1060P470 board (sold as JC1060P470C_I_W_Y), EXPERIMENTAL: a 7-inch 1024x600 MIPI-DSI panel
+# with GT911 capacitive touch, on an ESP32-P4 with an ESP32-C6 for Wi-Fi.
+#
+# 1024x600 at 170 dpi, the standard look, a grid of 4 x 4 cells lying down and 2 x 7 standing up, as on the
+# 7-inch Waveshare. The panel is 1024x600 itself, so it lies down without a turn.
+# Built from ESPHome's own panel model and the pins community configurations agree on; nobody on the project has
+# tried it on the glass yet (docs/JC1060P470.md has what to check). Panels whose rear label says "V2" after the
+# material number carry a different LCD and need guition-jc1060p470-v2.yaml instead.
+#
+# A board file is the board's hardware, the facts the shared tree takes from it (its glass and its grid), and the
+# features it has; docs/PROFILES.md says how the files of a screen fit together, docs/ADDING_A_BOARD.md how a board
+# is added. Two entry files include this one: checkout/jc1060p470.yaml (a build on this computer) and
+# packages/jc1060p470.yaml (the package a screen builds from over GitHub).
+packages:
+  # The board apart from its LCD: the ESP32-P4 and its ESP32-C6 (shared with the 10.1-inch) and the GT911, shared
+  # with the V2.
+  hardware: !include ../hardware/guition-jc1060p470.yaml
+  # The cards of this board's grid, one per cell (tools/generate_cells.py writes them; docs/RESPONSIVE.md).
+  cells: !include ../cells/16.yaml
+  look: !include ../looks/standard.yaml
+  touch: !include ../features/capacitive-touch.yaml
+  backlight: !include ../features/backlight.yaml
+  camera: !include ../features/camera.yaml
+  self_test: !include ../features/self-test.yaml
+  snapshot: !include ../features/snapshot.yaml
+
+substitutions:
+  # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
+  BOARD_ID: "jc1060p470"
+  DEVICE_NAME: "jc1060p470-new"
+  DEVICE_FRIENDLY_NAME: "My Guition 7"
+
+  # The glass: the panel's own pixels, which the display block below always drives, and its density: 1187 diagonal
+  # pixels over 7 inches. The look scales its sizes by the exact density, the firmware by the nearest whole number.
+  PANEL_W: "1024"
+  PANEL_H: "600"
+  DISPLAY_DPI: "169.548"
+  # The tile grid: columns and rows of cells. The shared tree places every cell from these
+  # (runtime_tiles::place_page), so a board with more room states more columns or rows.
+  GRID_COLS: "4"
+  GRID_ROWS: "4"
+  # The cells of a page when this screen stands up: two columns of seven keep the standard tile size.
+  GRID_COLS_PORTRAIT: "2"
+  GRID_ROWS_PORTRAIT: "7"
+  # LVGL's draw buffer as a share of the screen. A quarter of 1024x600 is 300 KB, most of what the chip keeps free
+  # inside it, so the buffer goes to PSRAM at once, as on the 10.1-inch (docs/ADDING_A_BOARD.md).
+  LVGL_BUFFER_SIZE: "50%"
+
+# ============================================================
+# No need to edit below this line.
+# ============================================================
+
+# ESPHome's own mipi_dsi platform knows this panel by name: `model: JC1060P470` brings the JD9165's init sequence and
+# its timings. It names no reset pin on purpose (ESPHome pull request 10464): the panel then gets a software reset,
+# which is what brings it back after a restart that kept the power on. The schematic's LCD_RST is GPIO0.
+display:
+  - platform: mipi_dsi
+    id: my_display
+    model: JC1060P470
+    update_interval: never
+    auto_clear_enabled: false
