@@ -4552,8 +4552,9 @@ inline bool check_tile_geometry() {
       if(!applied_bar)placed=placed && area.y2>=screen.y2-margin-3;
       if(!placed){fits=false;ESP_LOGE("ui_test","Card place FAIL slot=%u card=%d..%d area=%d..%d screen_bottom=%d bar=%d",(unsigned)w.index,(int)card.y1,(int)card.y2,(int)area.y1,(int)area.y2,(int)screen.y2,applied_bar);}
     }
-    // A centred stack (a built-in action, or an on/off card with its switch under the name).
-    const bool centered_action=w.index<model.count && model.tiles[w.index].row_span()>1 && !w.full &&
+    // A centred stack (a built-in action, or an on/off card with its switch under the name). Only with its name on the
+    // card: a clock hides the name, which keeps the alignment of whatever the card showed before (firmware 0.3.2).
+    const bool centered_action=!custom && w.index<model.count && model.tiles[w.index].row_span()>1 && !w.full &&
       lv_obj_get_style_text_align(w.title,LV_PART_MAIN)==LV_TEXT_ALIGN_CENTER;
     if(centered_action){
       lv_area_t circle;lv_obj_get_coords(w.circle,&circle);
