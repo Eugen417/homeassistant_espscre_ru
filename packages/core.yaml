@@ -1457,6 +1457,9 @@ datetime:
 
 lvgl:
   id: screen_lvgl
+  # LVGL's own warnings stay out of the firmware (firmware 0.3.1): about 6 KB on the CYD, whose flash is the tightest.
+  # Errors are still logged, and the firmware's own lines (health, ui_test, touch) are ESPHome's logger, not LVGL's.
+  log_level: ERROR
   # The theme's font for text without a font of its own. Every label names its font, so this only keeps
   # ESPHome from building LVGL's Montserrat 14 for nothing (firmware 0.2.65+).
   default_font: ${LVGL_DEFAULT_FONT}
