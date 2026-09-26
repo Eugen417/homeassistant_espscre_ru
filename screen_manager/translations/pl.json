@@ -1393,6 +1393,8 @@
         "live": "Obraz na żywo",
         "live_hint": "Mały obraz z kamery w miejscu ikony, odświeżany w tempie poniżej, dopóki strona jest na ekranie. Dotknięcie nadal otwiera go na pełnym ekranie.",
         "live_needs_firmware": "Obraz na żywo wymaga firmware 0.2.77 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
+        "live_card_hint": "Obraz wypełnia kafelek i odświeża się w tempie poniżej, dopóki strona jest na ekranie. Dotknięcie nadal otwiera go na pełnym ekranie.",
+        "live_card_needs_firmware": "Obraz wypełniający kafelek wymaga firmware 0.3.3 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie. Do tego czasu ekran pokazuje mały obraz w miejscu ikony.",
         "cover": "Okładka albumu",
         "cover_hint": "Okładka albumu tego, co gra, w miejscu ikony, jak na kafelku Home Assistant; odtwarzacz bez obrazu zachowuje ikonę. Dotknięcie nadal otwiera kartę.",
         "cover_needs_firmware": "Okładka albumu na kafelku wymaga firmware 0.2.78 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
@@ -1403,6 +1405,18 @@
       "refresh": {
         "label": "Odświeżanie",
         "seconds": "Co {n} s"
+      },
+      "picture": {
+        "fit": {
+          "label": "Obraz",
+          "fill": "Wypełnij kafelek",
+          "contain": "Cały obraz"
+        },
+        "overlay": {
+          "label": "Na obrazie",
+          "name": "Nazwa",
+          "none": "Nic"
+        }
       },
       "size": {
         "label": "Rozmiar",

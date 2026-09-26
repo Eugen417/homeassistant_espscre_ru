@@ -17,6 +17,7 @@ import IconPicker from "./IconPicker.vue";
 import { coverPrimary, hasCoverTilt, withCoverTilt } from "../model/tall-controls";
 import Segmented from "./Segmented.vue";
 import { textDraft } from '../model/text-draft';
+import rules from "../model/page-rules.json";
 
 const props = defineProps<{ tile: Tile }>();
 const nameDraft = textDraft(() => props.tile.name, value => setTileName(props.tile, value));
@@ -52,22 +53,29 @@ const sizeHint = computed(() => ["tall", "square"].includes(String(props.tile.op
 const caps = computed(() => state.capabilities[props.tile.entity]);
 const current = (key: string, fallback: unknown) => props.tile.options?.[key] ?? fallback;
 const display = computed(() => current("display", domain.value === "screen" ? "digital" : "standard") as string);
+// The add-on's own table of displays per domain (page-rules.json), so the editor never offers one it refuses to save:
+// a camera has no large value (app 0.3.8). What Home Assistant says an entity can do narrows it further.
 const displays = computed(() => {
-  const keys = domain.value === "screen" ? ["digital", "analog"] : ["standard", "watch"];
   const c = caps.value;
-  if (domain.value === "weather" && (!c || c.displays.includes("forecast") || display.value === "forecast")) keys.push("forecast");
-  if (domain.value === "sensor" && (!c || c.displays.includes("graph") || display.value === "graph")) keys.push("graph");
-  if (domain.value === "sun") keys.push("sunpath");
-  // A live picture on a camera tile (app 0.2.91): the library only offers cameras on a board that draws pictures.
-  if (["camera", "image"].includes(domain.value)) keys.push("live");
-  // The album cover on a media tile (app 0.2.92), on a board that draws pictures; the tile over the whole page has the card's big cover.
-  if (domain.value === "media_player" && (pictures.value || display.value === "cover") && size.value !== "full") keys.push("cover");
+  const keys = ((rules.displays as Record<string, string[]>)[domain.value] || ["standard", "watch"]).filter((key) => {
+    if (key === "forecast") return !c || c.displays.includes("forecast") || display.value === "forecast";
+    if (key === "graph") return !c || c.displays.includes("graph") || display.value === "graph";
+    // The album cover on a media tile (app 0.2.92), on a board that draws pictures; the tile over the whole page has the card's big cover.
+    if (key === "cover") return (pictures.value || display.value === "cover") && size.value !== "full";
+    return true;
+  });
   return keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]);
 });
+// A live camera on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): whole or cut to fill it, its name on it or nothing.
+const pictureCard = computed(() => display.value === "live" && taller.value);
+// A hint is a warning unless the screen's firmware already does what it describes.
+const displayWarns = computed(() => !(display.value === "live" && (pictureCard.value ? supports(0, 3, 3) : supports(0, 2, 77))) && !(display.value === "cover" && supports(0, 2, 78)));
+const pictureChoices = (key: "fit" | "overlay") => rules.picture[key].map((value) => [value, t(`editor.tile.picture.${key}.${value}`)] as [string, string]);
 const displayHint = computed(() => {
   const c = caps.value;
   if (c && display.value === "graph" && !c.displays.includes("graph")) return t("editor.tile.display.no_graph");
   if (c && display.value === "forecast" && !c.displays.includes("forecast")) return t("editor.tile.display.no_forecast");
+  if (display.value === "live" && taller.value) return t(supports(0, 3, 3) ? "editor.tile.display.live_card_hint" : "editor.tile.display.live_card_needs_firmware");
   if (display.value === "live") return t(supports(0, 2, 77) ? "editor.tile.display.live_hint" : "editor.tile.display.live_needs_firmware");
   if (display.value === "cover" && taller.value) return t("editor.tile.display.tall_cover_hint");
   if (display.value === "cover") return t(supports(0, 2, 78) ? "editor.tile.display.cover_hint" : "editor.tile.display.cover_needs_firmware");
@@ -178,11 +186,19 @@ function inspect() {
     <div v-else class="f">
       <span class="f-label">{{ t("editor.tile.display.label") }}</span>
       <Segmented :choices="displays" :value="display" @pick="(v) => setTileOption(tile, 'display', v)" />
-      <small v-if="displayHint" :class="{ warn: !(display === 'live' && supports(0, 2, 77)) && !(display === 'cover' && supports(0, 2, 78)) }">{{ displayHint }}</small>
+      <small v-if="displayHint" :class="{ warn: displayWarns }">{{ displayHint }}</small>
     </div>
     <div v-if="display === 'live'" class="f">
       <span class="f-label">{{ t("editor.tile.refresh.label") }}</span>
       <Segmented :choices="[15, 30].map((seconds) => [seconds, t('editor.tile.refresh.seconds', { n: seconds })] as [number, string])" :value="refresh" @pick="(v) => setTileOption(tile, 'refresh', Number(v))" />
+    </div>
+    <div v-if="pictureCard" class="f">
+      <span class="f-label">{{ t("editor.tile.picture.fit.label") }}</span>
+      <Segmented :choices="pictureChoices('fit')" :value="current('fit', 'fill')" @pick="(v) => setTileOption(tile, 'fit', v)" />
+    </div>
+    <div v-if="pictureCard" class="f">
+      <span class="f-label">{{ t("editor.tile.picture.overlay.label") }}</span>
+      <Segmented :choices="pictureChoices('overlay')" :value="current('overlay', 'name')" @pick="(v) => setTileOption(tile, 'overlay', v)" />
     </div>
     <div class="f">
       <span class="f-label">{{ t("editor.tile.size.label") }}</span>

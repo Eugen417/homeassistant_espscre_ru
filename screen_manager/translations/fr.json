@@ -1393,6 +1393,8 @@
         "live": "Image en direct",
         "live_hint": "Une petite image de la caméra à la place de l'icône, rafraîchie au rythme ci-dessous tant que la page est affichée. Un appui l'ouvre toujours en plein écran.",
         "live_needs_firmware": "Une image en direct demande le firmware 0.2.77 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
+        "live_card_hint": "L'image remplit la tuile, rafraîchie au rythme ci-dessous tant que la page est affichée. Un appui l'ouvre toujours en plein écran.",
+        "live_card_needs_firmware": "Une image qui remplit la tuile demande le firmware 0.3.3 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement. D'ici là, l'écran affiche une petite image à la place de l'icône.",
         "cover": "Pochette",
         "cover_hint": "La pochette de ce qui joue à la place de l'icône, comme la tuile de Home Assistant ; un lecteur sans image garde son icône. Un appui ouvre toujours la carte.",
         "cover_needs_firmware": "La pochette sur la tuile demande le firmware 0.2.78 ou plus récent : appuyez sur Mettre à jour sur l'écran après l'enregistrement.",
@@ -1403,6 +1405,18 @@
       "refresh": {
         "label": "Rafraîchir",
         "seconds": "Toutes les {n} s"
+      },
+      "picture": {
+        "fit": {
+          "label": "Image",
+          "fill": "Remplir la tuile",
+          "contain": "Image entière"
+        },
+        "overlay": {
+          "label": "Sur l'image",
+          "name": "Nom",
+          "none": "Rien"
+        }
       },
       "size": {
         "label": "Taille",

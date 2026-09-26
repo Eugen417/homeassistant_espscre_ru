@@ -288,6 +288,9 @@ struct Tile {
   // A camera tile's live picture (firmware 0.2.77+): "display": "live" puts a small picture of the camera in the
   // icon's place, loaded again every `refresh` seconds.
   uint16_t refresh = 15;
+  // On a 1x2 or 2x2 tile the picture fills the card (firmware 0.3.3+) with the name at the bottom; "overlay": "none"
+  // leaves the picture alone. Fill or contain is the app's: it sends the picture cut the way the tile asks.
+  bool overlay = true;
   bool live() const { const auto d = domain(); return display == "live" && (d == "camera" || d == "image"); }
   // A media player's album cover in the icon's place (firmware 0.2.78+): "display": "cover" on a single or double-width
   // tile, while the player has a picture; the tile over the whole page keeps the card's big cover.

@@ -98,6 +98,9 @@ def backgrounds():
 # Display modes per domain; everything else offers standard and watch (large value).
 DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath'),
             'camera': ('standard', 'live'), 'image': ('standard', 'live'), 'media_player': ('standard', 'watch', 'cover')}
+# A live picture on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): cut to fill it or whole on black, with
+# its name on it or nothing. The first choice of each is the default and is never stored.
+PICTURE_OPTIONS = {'fit': ('fill', 'contain'), 'overlay': ('name', 'none')}
 # Displays that only work on a double-width card.
 WIDE_ONLY = ('forecast', 'sunpath')
 
@@ -898,7 +901,7 @@ TILE_RESULT_EVENT = 'esp_screens_tile_result'
 # pastel background.
 TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'display', 'icon': 'icon',
                       'color': 'background', 'background': 'background', 'tap': 'tap', 'inline': 'inline',
-                      'history_hours': 'history_hours', 'refresh': 'refresh'}
+                      'history_hours': 'history_hours', 'refresh': 'refresh', 'fit': 'fit', 'overlay': 'overlay'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
               'single': 'single', 'small': 'single', 'normal': 'single'}
@@ -1303,7 +1306,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 continue
         if 'options' in tile:
             options = tile['options']
-            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub'}:
+            if not isinstance(options, dict) or set(options) - {'tap', 'display', 'inline', 'history_hours', 'background', 'size', 'icon', 'controls', 'action', 'refresh', 'sub', 'fit', 'overlay'}:
                 raise ValueError(t('addon.errors.layout.unknown_settings'))
             # A navigation tile (screen.page_<n>, firmware 0.2.62+) has a name, an icon, a colour and a width; never the page.
             if page_target(tile['entity']):
@@ -1357,11 +1360,17 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if 'history_hours' in options and (type(options['history_hours']) is not int or options['history_hours'] not in (1,6,24)):
                 raise ValueError(t('addon.errors.layout.history_hours'))
             # A live picture's pace (app 0.2.91) belongs to the live display; another display leaves a stale one behind.
+            # So does how its picture fills a taller card and whether its name is on it (app 0.3.8); the defaults are
+            # not stored, so a layout without them means what it always meant.
             if options.get('display') == 'live':
                 if 'refresh' in options and (type(options['refresh']) is not int or options['refresh'] not in LIVE_REFRESH):
                     raise ValueError(t('addon.errors.layout.refresh'))
-            elif 'refresh' in options:
-                options = {key: value for key, value in options.items() if key != 'refresh'}
+                for key, allowed in PICTURE_OPTIONS.items():
+                    if key in options and options[key] not in allowed:
+                        raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
+                options = {key: value for key, value in options.items() if key not in PICTURE_OPTIONS or value != PICTURE_OPTIONS[key][0]}
+            elif set(options) & {'refresh', *PICTURE_OPTIONS}:
+                options = {key: value for key, value in options.items() if key not in ('refresh', *PICTURE_OPTIONS)}
             if options.get('display') == 'watch' and options.get('inline') == 'slider':
                 raise ValueError(t('addon.errors.layout.watch_or_slider'))
             if 'controls' in options:

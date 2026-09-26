@@ -2097,13 +2097,17 @@ class Manager:
             return
         paces = [min(option.get('refresh', camera_feed.LIVE_REFRESH[0]) if option.get('display') == 'live' else 0
                      for option in tiles[entity]) for entity in entities]
+        # How each picture fills its card (app 0.3.8): one tile per entity on a screen, so its options are the tile's.
+        modes = camera_feed.picture_modes(screen, lambda entity: next((o for o in tiles[entity] if o.get('display') == 'live'), None), entities) if atlas else None
         url, listing = '', ','.join(entities)
         base = await camera_feed.base_url(self.ha.request)
         if base:
-            found = await self.camera.live(entities, size, grounds, paces, **({"atlas": atlas} if atlas else {}))
+            # A screen whose decoder reads 8-bit colour gets a third of the bytes (app 0.3.8).
+            extra = {'compact': camera_feed.compact_pictures(screen), **({'atlas': atlas, 'modes': modes} if atlas else {})}
+            found = await self.camera.live(entities, size, grounds, paces, **extra)
             if found:
                 listing = ','.join(found[2])
-                token = self.camera.link(listing, atlas[:2] if atlas else (size, size), live=(entities, size, grounds, paces) + ((atlas,) if atlas else ()))
+                token = self.camera.link(listing, atlas[:2] if atlas else (size, size), live=(entities, size, grounds, paces, extra))
                 url = f'{base}/camera/{token}.bmp'
         else:
             LOG.warning('Live pictures: no address for this app on the LAN; set SCREEN_CAMERA_URL')
@@ -2656,6 +2660,20 @@ def create_app(manager, development=False):
             return web.Response(status=304, headers=headers)
         return web.Response(body=body, content_type='image/bmp', headers=headers)
 
+    async def camera_preview(request):
+        # A camera that fills a taller card on the mockup (app 0.3.8): prepared pixels only, as for a cover.
+        entity = request.query.get('entity', '')
+        if not camera_feed.supported(entity) or entity not in manager.ha.states:
+            raise web.HTTPNotFound()
+        result = await manager.camera.frame(entity, (512, 512), fresh=False)
+        if result is None:
+            raise web.HTTPNotFound()
+        tag, body = result
+        headers = {'ETag': tag, 'Cache-Control': 'private, max-age=30'}
+        if request.headers.get('If-None-Match') == tag:
+            return web.Response(status=304, headers=headers)
+        return web.Response(body=body, content_type='image/bmp', headers=headers)
+
     async def states(request):
         """Live values for the editor's mockup (app 0.2.73): the state, Home Assistant's word and the attributes a
         card shows, for the tiles on the page, saved or not. At most sixty entities per request."""
@@ -2786,6 +2804,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/states', states)
     app.router.add_get('/api/history-preview', preview_history)
     app.router.add_get('/api/media-art', media_art_preview)
+    app.router.add_get('/api/camera-preview', camera_preview)
     app.router.add_post('/api/screens/{inbox}/identify', identify)
     app.router.add_post('/api/screens/{inbox}/calibrate', calibrate)
     app.router.add_post('/api/alerts/test', test_alert)

@@ -1,11 +1,19 @@
 ## 0.3.8 (firmware 0.3.3)
 
-Clearer weather and thermostat tiles, and a select card you can read.
+Clearer weather and thermostat tiles, a select card you can read, and a camera that fills its tile (GitHub #4, thanks @govido).
 
 - **Weather tile.** The weather now sits in its coloured circle like every other tile, each day's icon has the colour of its weather, the high is bold and the low grey, and the chance of rain shows in blue when it is 30 % or more. Today stands on a light pill with room around its digits. A tile of two rows lists the days under each other, each with a bar from its low to its high on one scale for the whole week, coloured from cold to warm.
 - **Thermostat tile.** A tile of two rows shows the temperature between − and +, and a bar with one segment per mode under it, the active one filled in its colour. An airco shows heat and cool first, the mode it is in is always on the bar, and the rest is behind "…". Off is no longer a mode on the bar: tap the tile's circle to turn the thermostat on or off, as on a Home Assistant tile. A short tile puts the stepper and the bar on one row.
 - The − and + of a double-width thermostat or number tile are round white keys in a grey pill, with the number between them in a larger font where it fits.
 - **Select card.** Tapping a select (a washing machine's programme, a mode) opens a list with a check at the option it is on; a tap chooses another at once. Wide screens use two columns, and options that do not fit go to a next page. A select now brings up to 16 options to the screen instead of 8.
+- **A live camera on a 1 × 2 or 2 × 2 tile fills the whole card** with its picture, in full colour, with the camera's name at the bottom on a soft shade. Set the tile to **Display → Live picture** and make it taller.
+- **Picture: Fill the tile or Whole picture.** Fill cuts the picture to the card; Whole picture shows all of it with black above and below or at the sides. ESP Screens prepares the picture pixel for pixel at the size of the card, so the screen only draws it.
+- **On the picture: Name or Nothing.** Nothing leaves the picture alone.
+- The editor shows the camera's own picture on the mockup, cut the way the tile asks.
+- While a camera card waits for its picture, it shows the loading spinner a busy tile has, with the name already in its place.
+- Live pictures go to screens with firmware 0.3.3 in 8-bit colour, a third of the bytes of before, so a picture that fills a tile arrives quickly and the screen keeps answering touches while it loads. The picture already has exactly the pixels of the tile, so a lower resolution would not make it faster.
+- A camera tile no longer offers **Large value**. Its state ("Idle") made no large value, and saving it showed "Invalid or unsupported page configuration fields".
+- A taller camera tile keeps its small picture in the icon's place until the screen has firmware 0.3.3.
 - Update the firmware of your screens to get the new tiles. With older firmware the app keeps working, and a select shows its first 8 options.
 
 ## 0.3.7 (firmware 0.3.2)
