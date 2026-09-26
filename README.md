@@ -68,6 +68,22 @@ home fits on one page.
 </p>
 <p align="center"><sub>The same home standing up. Which way a screen hangs is chosen when it is built, and every board that is not square hangs either way, with a grid of its own: the 10.1-inch Guition 4 × 5 instead of 5 × 4, the 7-inch Waveshare 2 × 7 instead of 4 × 4. Which board is which, and what to look for when you buy one: <a href="#which-screen">Which screen</a>.</sub></p>
 
+## Taller tiles, richer cards
+
+<p align="center">
+  <img src="docs/images/tall-jc8012p4a1.png" width="98%" alt="A full page on the 10.1-inch Guition: a clock with the date, the weather for five days, a media tile two cells wide and two high with the album cover dimmed behind the title and the play keys, the blinds one cell wide and two high with a position slider, the heating two by two with minus, plus and every mode key, a temperature graph, a table lamp dimmer and a coffee machine switch">
+</p>
+<p align="center">
+  <img src="docs/images/tall-guition-media.png" width="32%" alt="The 4-inch Guition: a media tile two by two with the album cover behind the track, the artist and the previous, pause and next keys, above a table lamp with its dimmer">
+  <img src="docs/images/tall-guition-climate.png" width="32%" alt="The heating two by two: the target temperature between minus and plus, the room temperature under it and a row of mode keys, heat lit in orange, above a temperature graph">
+  <img src="docs/images/tall-guition-home.png" width="32%" alt="Two tiles one cell wide and two high: the blinds with their position in large type and a slider, and the coffee machine with its icon, name and switch in the middle; the robot vacuum with start, stop and dock below">
+</p>
+<p align="center">
+  <img src="docs/images/tall-waveshare43-media.png" width="49%" alt="The 4.3-inch Waveshare: the media tile two by two with its album cover, a bedroom thermostat one cell wide and two high, a lamp dimmer and a person">
+  <img src="docs/images/tall-waveshare43-climate.png" width="49%" alt="The same screen in dark mode: the heating two by two with its mode keys beside the setpoint, the blinds one by two, a temperature graph and the coffee machine">
+</p>
+<p align="center"><sub>A tile can be 1 × 2 or 2 × 2 cells as well as one cell, double width or the whole page, and the card follows the room it gets: a player shows its album cover behind the track (every screen but the CYD), the heating shows its setpoint and the modes Home Assistant lists for it (the last key opens the card when they do not all fit), a blind shows its position, and its slats where there is room, an on/off tile stands centred with its switch. Every board works out the same card from its own glass. Each page has its own title and top bar, any page can be Home, and a page can stay out of the page dots and be opened from a tile, with a Back key to return. Rendered from the firmware's own LVGL code with a demo home.</sub></p>
+
 ## On the screen
 
 <p align="center">
