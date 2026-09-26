@@ -313,9 +313,12 @@ inline KeypadLayout keypad_layout(const Metrics &m, int width, int top, int bott
   l.dot = m.dot();
   while (l.dot > 4 && shown * l.dot + (shown - 1) * dot_gap(l.dot) > l.info.w) --l.dot;
   const int row_w = shown * l.dot + (shown - 1) * dot_gap(l.dot);
-  const int block = l.dot + g + m.text_h, by = l.info.y + (l.info.h - block) / 2;
+  // Beside the keys the column is narrow (a CYD lying down leaves it a hundred pixels), so the line under the dots may
+  // take up to three lines there ("Nothing changed. Check the code." cut after its first word otherwise).
+  const int lines = l.beside ? 3 : 1;
+  const int block = l.dot + g + lines * m.text_h, by = l.info.y + (l.info.h - block) / 2;
   l.dots = {l.info.x + (l.info.w - row_w) / 2, by, row_w, l.dot};
-  l.line = {l.info.x, by + l.dot + g, l.info.w, m.text_h};
+  l.line = {l.info.x, by + l.dot + g, l.info.w, lines * m.text_h};
   return l;
 }
 

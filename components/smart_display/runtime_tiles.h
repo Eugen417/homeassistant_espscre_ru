@@ -2322,6 +2322,8 @@ inline void render_alarm_detail(Tile &t,bool large,int width,int height,lv_obj_t
       lv_anim_set_exec_cb(&a,alarm_shake_exec);lv_anim_start(&a);
     }
     alarm_line=detail_text(detail_root,alarm_line_text(),l.line.x,l.line.y,l.line.w,text,LV_TEXT_ALIGN_CENTER,theme::MUTED);
+    // The words wrap within their room instead of ending in dots after the first one (keypad_layout gives it the lines).
+    lv_label_set_long_mode(alarm_line,LV_LABEL_LONG_WRAP);lv_obj_set_height(alarm_line,l.line.h);
     const lv_font_t *digits=watch_font?watch_font:detail_font;
     const lv_font_t *glyphs=icons&&lv_font_get_line_height(icons)<=l.keys[0].h-ui::px(6)?icons:mini;
     const unsigned before=detail_action_count;
