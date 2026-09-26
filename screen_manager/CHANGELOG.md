@@ -1,3 +1,9 @@
+## 0.3.13 (firmware 0.3.6)
+
+A new board: the Hosyond 4-inch ESP32-32E display (GitHub #42, thanks @afyounie).
+
+- New screen offers the Hosyond 4 inch: the 4-inch "CYD" with an ST7796 display and resistive XPT2046 touch, 480 x 320 lying down with two by three tiles, one column of four standing up. It calibrates its touch on the first start, like the CYD. It is marked experimental: built from the configuration a community member shared and the manufacturer's pin table, not yet tried on a real unit by the project. docs/HOSYOND40.md has the details.
+
 ## 0.3.12 (firmware 0.3.6)
 
 Two new clocks, a simple dial and a flip clock, that look right on every tile size.
