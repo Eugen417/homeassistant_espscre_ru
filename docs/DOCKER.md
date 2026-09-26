@@ -14,7 +14,9 @@ This route is new. If something doesn't work on your setup, please
   as in the Home Assistant installation docs. Home Assistant on Docker's bridge network, as
   is usual with Docker Desktop on Windows or macOS, works too: see
   [Home Assistant on a bridge network](#home-assistant-on-a-bridge-network).
-- Docker with Compose on the same host.
+- Docker with Compose on the same host, and `git`: Compose builds the image straight from GitHub. Synology
+  Container Manager has no `git`; download the release's source ZIP instead and point `context:` in
+  `compose.yaml` at its `screen_manager` folder (GitHub #32).
 - The ESPHome integration in Home Assistant, to pair the screens. ESPHome Device Builder
   is optional: the ESPHome CLI is already in this image.
 
@@ -140,7 +142,7 @@ under **Settings → Devices & services** in Home Assistant, and then choose the
   ESPHome folder. `data/build`, `data/esphome`, `data/idf` and `data/platformio` are caches.
 - **Claude:** **Install for Claude Code** is meant for the Claude Code app on Home Assistant
   OS. Use **Download for claude.ai** instead.
-- **Camera images (Guition, app 0.2.66+):** the screens load camera pictures, and from app 0.2.77 the
+- **Camera images (every board except the CYD, the Waveshare 3.5-inch and the Hosyond 4-inch):** the screens load camera pictures, and from app 0.2.77 the
   album covers of the media card, from port **8098** of this host, on all its addresses, so keep that port open to the screens. The app uses Home
   Assistant's own LAN address; when the screens reach this host under another one, set
   `SCREEN_CAMERA_URL` (see below). The links are random and short-lived. [docs/CAMERA.md](CAMERA.md)
@@ -153,7 +155,7 @@ docker compose up -d
 ```
 
 This builds the latest version from `main`, the same one the App store offers. To stay on
-one version, replace `main` in `compose.yaml` with a release tag, such as `screens-v0.2.49`.
+one version, replace `#main` in the `context:` line of `compose.yaml` with a release tag, such as `#screens-v0.3.14`.
 After an update, ESP Screens shows per screen whether newer firmware is available, as usual.
 
 ## Settings in compose.yaml

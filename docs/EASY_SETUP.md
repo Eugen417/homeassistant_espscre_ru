@@ -20,7 +20,7 @@ ESPHome Device Builder is optional:
 | Waveshare 4B, 4 inch (experimental) | ESP32-S3-Touch-LCD-4B, 480×480, ST7701S and GT911 ([details](WAVESHARE4B.md)) |
 | Waveshare, 3.5 inch (new) | ESP32-S3-Touch-LCD-3.5, 480×320, ST7796 and FT6336 ([details](WAVESHARE35.md)) |
 | Hosyond, 4 inch (experimental) | ESP32-32E 4.0 inch (E32R40T), 480×320, ST7796 and XPT2046 ([details](HOSYOND40.md)) |
-| Guition, 10.1 inch | JC8012P4A1, 1280×800, JD9365 MIPI-DSI and GSL3680, ESP32-P4 |
+| Guition, 10.1 inch (new) | JC8012P4A1, 1280×800, JD9365 MIPI-DSI and GSL3680, ESP32-P4 |
 | Guition, 7 inch (experimental) | JC1060P470 or JC1060P470 V2, 1024×600, JD9165 MIPI-DSI and GT911, ESP32-P4 ([details](JC1060P470.md)) |
 
 Other screens with roughly the same name can have different pins. Use
@@ -46,8 +46,10 @@ Use the GitHub version for updates; a local test add-on is a separate app.
 1. Connect the screen with a **USB data cable** to the machine running Home
    Assistant. With multiple boards: connect them one at a time for the first
    installation, or check which port belongs to this screen.
-2. Click **New screen** in the sidebar of ESP Screens, under your screens. Choose CYD
-   or Guition and give the screen a name, for example `Kitchen`. The device name
+2. Click **New screen** in the sidebar of ESP Screens, under your screens. Under
+   **Which screen do you have?** pick the board; a board that can hang both ways also asks
+   **Which way will it hang?** (**Lying down** or **Standing up**, fixed when the screen is built),
+   and a CYD asks for its **Display controller**. Give the screen a name, for example `Kitchen`. The device name
    (`kitchen`) follows from that; use **customize** to choose a different one.
 3. Wi-Fi: if `wifi_ssid` and `wifi_password` are already in the ESPHome `secrets.yaml`,
    the screen uses them automatically. If they're missing, or the file doesn't
@@ -96,7 +98,9 @@ and survives OTA updates. Use the HA device button **Calibrate touch** to
 measure again later. For a panel that stays off, or for a measurement report over
 USB, see [CALIBRATING.md](CALIBRATING.md).
 
-**Guition:** the GT911 touch mapping is baked into the board profile; there's no ADC calibration.
+**Hosyond 4 inch:** its resistive touch calibrates on the first start, the same way as the CYD.
+
+**Every other board:** its capacitive touch reports pixels and its mapping is baked into the board profile; there's no ADC calibration.
 
 ## 3. Pair the screen with Home Assistant
 
@@ -131,10 +135,10 @@ two things: the **Screen title**, which every page without a title of its own sh
 **Title above page N** of the page you tapped, which belongs to that page and travels with it. It has domain filters with
 colored icons, a room filter, and **Hide placed**. You can add one tile for every cell of the screen's pages,
 48 on a CYD, a 4-inch Guition or the experimental Waveshare 4B (firmware 0.2.62+; see below for older firmware).
-The screen preview shows their placement on the screen's own grid: two columns of three on a CYD, a 4-inch Guition or the Waveshare 4B,
-three by three on the Waveshare 4.3-inch, five by four on the 10.1-inch Guition,
-and four by four on the [experimental Waveshare 7-inch](WAVESHARE7.md), lying down,
-up to eight pages. Every tile has a fixed slot that only changes if
+The screen preview shows their placement on the screen's own grid, lying down: two columns of three on a CYD, a 4-inch Guition,
+the Waveshare 4B or the Hosyond 4-inch, two by two on the Waveshare 3.5-inch, three by three on the Waveshare 4.3-inch,
+four by four on the [experimental Waveshare 7-inch](WAVESHARE7.md) and the 7-inch Guition, and five by four on the
+10.1-inch Guition; up to eight pages and 64 tiles. Every tile has a fixed slot that only changes if
 you drag it; empty slots stay empty, wherever you leave them. Drag a tile
 onto an empty slot and it stays there; drag it onto another tile and the two
 swap (the other tile takes the freed-up slot, or otherwise the nearest free
@@ -151,7 +155,7 @@ Click an empty slot to place the next tile from the library
 there. Use the arrow keys to move a focused tile.
 Click a tile and its settings open in a drawer on the right, with the preview
 still in view: a custom name, click behavior, a mini-slider, a large value, a graph
-(sensors), a weather forecast (weather), the size: **Double-width** or **Full
+(sensors), a weather forecast (weather), the size: **Normal**, **Double-width**, **1 × 2**, **2 × 2** (firmware 0.3.1+) or **Full
 page** (firmware 0.2.62+), and on a screen with more pages the **Page** it is on, to move it without dragging.
 A double-width tile for a climate, switch, light, fan,
 vacuum, cover, media player, number, select, timer, scene, script, or button gets **direct
@@ -182,26 +186,28 @@ Click **Save & send** to send your changes.
   (firmware 0.2.58+).
 - Long press a fan: speed, if the device supports percentages.
 - Scene/script: tap to run; button/input_button: tap to press.
-- Media player: tap for the media card with the cover (Guition), the keys, and the volume.
-- Camera or image (Guition): tap for the picture full screen, refreshed every four seconds.
+- Media player: tap for the media card with the cover (boards with camera pictures), the keys, and the volume.
+- Camera or image (every board except the CYD, the Waveshare 3.5-inch and the Hosyond 4-inch): tap for the
+  picture full screen, refreshed every four seconds. **Display → Live picture** fills the tile itself, on every size, and refreshes every 5, 10, 15 or 30 seconds (firmware 0.3.7+, [CAMERA.md](CAMERA.md)).
+- Alarm panel: tap for its card with a key per mode, and a keypad when the panel asks for a code (firmware 0.3.3+).
 - A *Go to page* tile: tap to open its page.
 - Sensor, number, binary sensor, and person: tap for the history card, for 1 hour,
   24 hours, or 1 week. Long press a switch for its history. A sensor's graph on the tile
   shows 1, 6, or 24 hours.
-- Select/input_select: open the picker menu.
+- Select/input_select: tap for a list of its options with a check at the current one (firmware 0.3.3+).
 
 From firmware 0.2.62, one tile fits in every cell of up to eight pages (48 on a CYD or a 4-inch Guition, 63 over
 seven pages on the Waveshare 4.3-inch, 60 over three on the 10.1-inch Guition). The experimental Waveshare 7-inch
 holds 64 over four pages lying down, or 56 over four standing up (firmware 0.2.94+). Firmware 0.2.7 to
 0.2.61 keeps the limit of twenty (four pages) and older firmware ten, until you
 update. In the **Screen settings** tab, **Swipe between pages** turns on swiping.
-On the Guition (firmware 0.2.24+), you then swipe inward from the left or right
+On a board with capacitive touch (every board but the CYD and the Hosyond, firmware 0.2.24+), you then swipe inward from the left or right
 edge, like the back-swipe gesture on a phone; slow or fast, and a swipe starting in the
 middle of the screen does nothing, so tapping and dragging tiles never
-accidentally changes pages. On the CYD, it stays a quick swipe across the screen. Sliders
+accidentally changes pages. On the CYD and the Hosyond, it stays a quick swipe across the screen. Sliders
 only control their value; detail menus and standby don't change pages. Swiping up from the
-bottom edge goes back to page 1 (firmware 0.2.100+), in the same way: from the bottom edge on
-the boards that swipe from an edge, a quick swipe up anywhere on the CYD. Every swipe that is
+bottom edge goes back to the Home page (firmware 0.2.100+; page 1 unless you chose another page as Home, [PAGES.md](PAGES.md)), in the same way: from the bottom edge on
+the boards that swipe from an edge, a quick swipe up anywhere on the CYD and the Hosyond. Every swipe that is
 taken lights the edge it came from for a quarter of a second, so the screen answers the gesture
 before the new page is drawn.
 
@@ -213,7 +219,7 @@ then only swiping and *Go to page* tiles change the page, and the editor says wh
 that leaves out of reach.
 
 Every page carries a house at the far left of the top bar (firmware 0.2.100+): one tap and the
-screen is back on page 1, from wherever it stands. It stands on the baseline of the page title
+screen is back on its Home page, from wherever it stands. It stands on the baseline of the page title
 and is a third taller than the bar's own icons, the page title moves behind it with the same
 air between them as between the house and the edge of the glass, and the items on the right of
 the bar keep every pixel they had. **Show home button** in the **Screen settings** tab, and on
@@ -243,7 +249,7 @@ live outside the shared package and stay the same.
 ### Hardware-specific YAML overrides
 
 Each screen also has a small local file beside its profile, for example
-`kitchen.local.yaml`. Open the screen and click **Override YAML**. The editor is
+`kitchen.local.yaml`. Open the screen and choose **More → Override YAML**. The editor is
 intended for hardware-specific changes such as a different display controller:
 
 ```yaml
@@ -270,10 +276,10 @@ that screen and says where it is set.
 
 | Substitution | Boards | What it changes |
 |---|---|---|
-| `DISPLAY_MODEL` | CYD | ESPHome's `mipi_spi` model of the display controller (`ILI9341`, `ST7789V`, ...) |
-| `DISPLAY_DATA_RATE` | CYD | the display's SPI clock (`40MHz`; some boards want `20MHz`) |
-| `DISPLAY_INVERT_COLORS` | CYD | `true` for a panel that shows its colours inverted |
-| `BACKLIGHT_FREQUENCY` | CYD, 4-inch Guition, Waveshare 4B | the backlight's PWM frequency (the 4-inch Guition runs `150Hz` since firmware 0.3.5, the CYD `20000Hz`) |
+| `DISPLAY_MODEL` | CYD, Hosyond | ESPHome's `mipi_spi` model of the display controller (`ILI9341`, `ST7789V`, ...) |
+| `DISPLAY_DATA_RATE` | CYD, Hosyond | the display's SPI clock (`40MHz`; some boards want `20MHz`) |
+| `DISPLAY_INVERT_COLORS` | CYD, Hosyond | `true` for a panel that shows its colours inverted |
+| `BACKLIGHT_FREQUENCY` | CYD, 4-inch Guition, Waveshare 4B, Waveshare 3.5, Hosyond | the backlight's PWM frequency (the 4-inch Guition runs `150Hz` since firmware 0.3.5, the CYD `20000Hz`) |
 
 The parts an override names stay the same on every board and in every update:
 `my_display` (the display), `ts_touch` (the touch panel), `gpio_backlight_pwm`
@@ -361,21 +367,26 @@ device in Home Assistant ([SETTINGS.md](SETTINGS.md)).
 
 | Setting | Options | Default |
 |---|---|---|
-| Normal brightness | 5–100% | 100% |
+| Brightness | 5–100% (boards with a dimmable backlight) | 100% |
 | Dark mode | On/off: black page, graphite cards, firmware 0.2.54+ | Off |
 | Auto standby | On/off | On |
 | Standby after | 1–1440 minutes after the last touch | 10 minutes |
 | Standby brightness | 0–100%, capped at normal brightness | 20% |
 | Night mode | On/off; applies during standby | On |
-| Night start/end | Hour and minute, can span midnight | 22:00–07:00 |
+| Starts / Ends | Night hours, hour and minute, can span midnight | 22:00–07:00 |
 | Night brightness | 0–100%, capped at normal brightness | 10% |
-| Clock | 24 or 12 hour, the same on every screen: Settings → Language & region in ESP Screens (firmware 0.2.76+); the clock shows no AM/PM | Follows the language |
-| Back to page 1 | Closes an open card and goes back to page 1 after 30 seconds to 60 minutes without a touch, firmware 0.2.44+ | On, 2 minutes |
-| Also on standby | Standby goes back to page 1 too (it always closes an open card) | Off |
+| Clock | 24 or 12 hour, the same on every screen: Settings → Language & region in ESP Screens (firmware 0.2.76+); the Simple dial and Flip clock faces show AM or PM beside the time (firmware 0.3.6+) | Follows the language |
+| Back to Home | Closes an open card and goes back to the Home page after 30 seconds to 60 minutes without a touch, firmware 0.2.44+ | On, 2 minutes |
+| Also on standby | Standby goes back to the Home page too (it always closes an open card) | Off |
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
 | Page buttons | Off: no buttons under the tiles, the tiles take their room, firmware 0.2.69+ | On |
-| Show home button | A house at the far left of the top bar; tapping it goes back to page 1, firmware 0.2.100+ | On |
-| Guition rotation | 0°, 90°, 180°, 270°, firmware 0.2.9+ | 0° |
+| Show home button | A house at the far left of the top bar; tapping it goes back to the Home page, firmware 0.2.100+ | On |
+| Rotation | 0° or 180°, and also 90° and 270° on a square screen; every board from firmware 0.2.80 | 0° |
+
+The Waveshare 4.3-inch and 7-inch have a backlight that is only on or off and no standby, so they show no
+Brightness, standby or night rows. In Home Assistant the Back to Home entities keep their older names
+(**Back to page 1**, **Back to page 1 after**, **Back to page 1 on standby**) so automations keep working; they
+go to the Home page.
 
 Home Assistant shows these settings on each screen's ESPHome device, under *Configuration*:
 with firmware 0.2.49+ every one of them, older firmware the switch **Auto standby**
