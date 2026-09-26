@@ -1,12 +1,13 @@
 ## 0.3.13 (firmware 0.3.7)
 
-A live camera fills its tile on every size and can refresh faster, and a new board: the Hosyond 4-inch ESP32-32E display (GitHub #42, thanks @afyounie).
+A fix for screens that restart on "Loading tiles" with firmware 0.3.6, a live camera that fills its tile on every size and can refresh faster, and a new board: the Hosyond 4-inch ESP32-32E display (GitHub #42, thanks @afyounie).
 
 - **Display → Live picture** now fills the whole tile on every size: a single tile, a double-width one and a tile over the whole page too, not only 1×2 and 2×2. The small square in the icon's place is gone. Two 16:9 cameras fit side by side on a 4-inch Guition.
 - **Picture** (fill the tile or the whole picture) and **On the picture** (name or nothing) are there on every size.
 - **Refresh** adds every 5 and every 10 seconds, next to 15 and 30.
 - A page whose live cameras all refresh every 30 seconds loaded them every 15 seconds; it now keeps to 30.
 - New screen offers the Hosyond 4 inch: the 4-inch "CYD" with an ST7796 display and resistive XPT2046 touch, 480 x 320 lying down with two by three tiles, one column of four standing up. It calibrates its touch on the first start, like the CYD. It is marked experimental: built from the configuration a community member shared and the manufacturer's pin table, not yet tried on a real unit by the project. docs/HOSYOND40.md has the details.
+- **Fixes firmware 0.3.6 (0.3.12).** A screen that keeps its pages (every board with PSRAM) could restart over and over on "Loading tiles" when page 1 held a clock, a graph or a wide card: the size a card draws beyond its edges was read from a card that had just been swapped out. Update the firmware of any screen that runs 0.3.6.
 - Update the add-on first, then the screen: older firmware keeps the small square on a single, double-width or full-page tile. CYD firmware: 1,695,872 bytes, 92.4 % of the update slot (16 bytes more than 0.3.12).
 
 ## 0.3.12 (firmware 0.3.6)
