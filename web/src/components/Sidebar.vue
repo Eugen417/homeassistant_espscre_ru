@@ -31,7 +31,7 @@ function updateState(screen: Screen) {
   // A screen ESP Screens did not install has no YAML here to build from, so there is nothing to press: say why
   // instead of offering a button that cannot work (the nightly round already passes such a screen by).
   if (needsUpdate(screen) && screen.online && !u.profile)
-    return { kind: "blocked", text: t("addon.errors.updates.no_profile") };
+    return { kind: "blocked", text: t("editor.sidebar.update.no_profile") };
   if (needsUpdate(screen) && screen.online)
     return { kind: "available", text: languageOnly(screen) ? newLanguageText() : t("editor.sidebar.update.available", { version: u.target }) };
   if (u.result && Date.now() / 1000 - u.result.time < 86400) return { kind: u.result.state === "failed" ? "failed" : "done", text: u.result.message };
