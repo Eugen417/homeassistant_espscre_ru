@@ -18,6 +18,10 @@ live cameras, cover, vacuum and the sun path. docs/KEPT_PAGES.md describes the d
   had shown a centred on/off card before kept that card's centred name, hidden under the dial, and the geometry
   check took it for a centred stack. The check now reads the alignment only of a name on the card; the screen never
   showed anything wrong (the same could happen without kept pages when a slot changes tile).
+  It also found a real one, older than this round: on the Waveshare 3.5 the month beside a clock's day came out in
+  another font in Dark mode, because the clock, the forecast and the sun path took the font the card's name label
+  had been left in by the card shown there before. They take the card's own now, and every render of both runs
+  matches again.
   On this Mac the Guition variant stopped in its protocol recovery step in both runs, and so did a clean checkout of
   main at 0.3.6, while CI passed it on the same commit: a local timing matter, not this change. CI on the pull request
   ran every variant.
@@ -47,18 +51,22 @@ live cameras, cover, vacuum and the sun path. docs/KEPT_PAGES.md describes the d
   Waveshare about 75 KB, CYD 110 to 120 KB). With every page kept the Guition had 5.3 MB of PSRAM free, the Waveshare
   4.9 MB.
 - **Page keys.** The chevron of the first page's Previous key is grey again (LVGL snapshot).
+- **Back to the owner's layouts.** The release firmware went onto the three screens over OTA and each screen's own
+  layout, saved before the round, was put back through the add-on: the same pages and tiles as before (compared as
+  documents), applied in 2.5 to 4 s, and on the Guition its other six pages were prepared in the background at once
+  (29 to 39 ms each), with the playing player's cover fetched ahead.
 
 ## Firmware sizes (ESPHome 2026.9.0, the user's build shape)
 
 | Board | Firmware | Share of its update slot |
 | --- | ---: | ---: |
 | CYD | 1,649,440 B | 89.9 % (under the 90 % line of docs/RELEASING.md) |
-| Guition | 2,071,328 B | 25.5 % |
-| Waveshare 4.3 | 2,327,648 B | 28.6 % |
+| Guition | 2,071,264 B | 25.5 % |
+| Waveshare 4.3 | 2,327,600 B | 28.6 % |
 | JC8012P4A1 | 2,045,024 B | 25.2 % |
-| Waveshare 7 | 1,857,040 B | 47.2 % |
-| Waveshare 4B | 2,059,248 B | 25.3 % |
-| Waveshare 3.5 | 1,892,384 B | 23.3 % |
+| Waveshare 7 | 1,856,992 B | 47.2 % |
+| Waveshare 4B | 2,059,232 B | 25.3 % |
+| Waveshare 3.5 | 1,892,352 B | 23.3 % |
 | JC1060P470 and V2 | 2,132,656 B | 26.2 % |
 
 ## Limits

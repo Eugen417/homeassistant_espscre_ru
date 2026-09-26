@@ -3003,7 +3003,9 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   begin_extra(w,analog?(w.wide?"analog":"calendar"):"digital",width,height);
   auto now=now_time?now_time():esphome::ESPTime{};
   const lv_font_t *big=clock_font?clock_font:watch_value_font?watch_value_font:w.value_font;
-  const lv_font_t *small=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
+  // The card's own name font, not the name label's: a card that showed a centred name before (a tall on/off card)
+  // left its label in that card's font, and a card reused for another page kept it (firmware 0.3.2).
+  const lv_font_t *small=w.title_font;
   // The date line only appears when both lines fit the card height.
   bool with_date=lv_font_get_line_height(big)+2+lv_font_get_line_height(small)<=height;
   int text_h=lv_font_get_line_height(big)+(with_date?2+lv_font_get_line_height(small):0);
@@ -3116,7 +3118,7 @@ inline int block_min(int icon_h,int temp_h,int text_h){return std::max(icon_h,te
 // Current conditions on the left, five day columns on the right (wide cards only).
 inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int height) {
   begin_extra(w,"forecast",width,height);
-  const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
+  const lv_font_t *title_font=w.title_font;  // the card's own, as in render_clock
   const lv_font_t *temp_font=watch_value_font?watch_value_font:w.value_font,*day_icon=mini_icon_font?mini_icon_font:w.icon_font;
   // The current-conditions block follows the card's text offset, a size the board scales.
   const int text_x=head_text_x(w.base_circle>0?w.base_circle:ui::px(large?54:36),large);
@@ -3200,7 +3202,7 @@ inline void render_graph(Widgets &w,const Tile &t,bool large,int x,int y,int wid
 // position (or below the horizon at night). Wide cards only.
 inline void render_sunpath(Widgets &w,const Tile &t,bool large,int width,int height) {
   begin_extra(w,"sunpath",width,height);
-  const lv_font_t *title_font=lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
+  const lv_font_t *title_font=w.title_font;  // the card's own, as in render_clock
   int title_h=lv_font_get_line_height(title_font),text_h=lv_font_get_line_height(w.value_font);
   // The sun's glow is the widest thing on the path: the path keeps half of it from either side of the card, so the sun at
   // rise or set (and clamped there at night) stays inside it (firmware 0.2.104; the standard look's glow is 30 px against
@@ -3310,7 +3312,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   }
   const int knob_pad=taller?ui::px(large?4:3):4;
   const lv_font_t *icon_font=w.full?w.icon_font:mini_icon_font?mini_icon_font:w.icon_font;
-  const lv_font_t *text_font=control_font?control_font:lv_obj_get_style_text_font(w.title,LV_PART_MAIN);
+  const lv_font_t *text_font=control_font?control_font:w.title_font;
   auto d=t.domain();
   // A double-width card's controls fill the cell they stand on (cell_content_width); a card over the whole page
   // keeps the wide sizes of panel_metrics_full, centred under it. A row of keys divides that cell between three
@@ -4118,6 +4120,9 @@ inline void render_slot(size_t slot) {
     lap(swipe_profile::CUSTOM);
   }else if(custom){
     lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);
+    // The hidden name back to the card's own font and alignment, so nothing of the card the slot showed before (a
+    // centred tall card) stays on it for the next tile to inherit (firmware 0.3.2).
+    set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
     lap(swipe_profile::GEOMETRY);
     if(clock)render_clock(w,t,large_tile,content_w,content_h);
     else if(sunpath)render_sunpath(w,t,large_tile,content_w,content_h);

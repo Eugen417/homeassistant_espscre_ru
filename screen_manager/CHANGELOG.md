@@ -8,6 +8,7 @@ Every page is there the moment you turn to it, and the screen no longer flickers
 - **No more stripes while a picture loads.** Screens with an RGB panel (the 4-inch Guition and the Waveshare 4.3, 4B and 7 inch) showed stripes, doubled text or a shifted frame while a camera picture or a cover loaded, and once every five minutes. A memory check before and after each picture held up the panel's refresh; it no longer runs while the screen is lit, and the Psram Largest Block sensor now updates only while the screen is dark.
 - A playing track's cover is fetched again only when the picture changes. Home Assistant renews the link to it every few minutes, and every screen fetched the same cover again each time; the app now leaves that part of the link out (every firmware gains, this needs no update). A new media card also asked for its cover with the wrong colour behind the rounded corners first, and fetched it a second time.
 - On the first and the last page, the Previous or Next arrow is grey again (it stayed dark since firmware 0.3.1).
+- A clock, forecast or sun path card could draw its small texts, such as the month beside the day, in the font of the card its place showed before (a tall on/off card, say), a little off from its usual look. It always uses its own now.
 - Update the firmware of your screens to get this. The CYD and the Waveshare 3.5 keep building a page when it is shown, as before; a layout, its settings and the screen's calibration stay as they are.
 
 ## 0.3.6 (firmware 0.3.1)
