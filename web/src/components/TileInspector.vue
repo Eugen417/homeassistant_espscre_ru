@@ -52,7 +52,9 @@ const sizes = computed<[string, string][]>(() => tileSizeChoices(props.tile).map
 const sizeHint = computed(() => ["tall", "square"].includes(String(props.tile.options?.size)) ? t("editor.tile.size.rectangle_hint") : goesTo.value ? "" : fullPage.value ? t("editor.tile.size.full_hint") : t("editor.tile.size.needs_firmware"));
 const caps = computed(() => state.capabilities[props.tile.entity]);
 const current = (key: string, fallback: unknown) => props.tile.options?.[key] ?? fallback;
-const display = computed(() => current("display", domain.value === "screen" ? "digital" : "standard") as string);
+const clock = computed(() => props.tile.entity === "screen.clock");
+// The settings card has no face to pick: the screen draws it as a plain card whatever it carries (GitHub #47).
+const display = computed(() => props.tile.entity === "screen.settings" ? "standard" : current("display", clock.value ? "digital" : "standard") as string);
 // The add-on's own table of displays per domain (page-rules.json), so the editor never offers one it refuses to save:
 // a camera has no large value (app 0.3.8). What Home Assistant says an entity can do narrows it further.
 const displays = computed(() => {
@@ -183,7 +185,7 @@ function inspect() {
       <Segmented :choices="pages" :value="goesTo" @pick="(v) => retargetPageTile(tile, Number(v))" />
       <template v-if="goesToHint"><small v-if="goesToHint.warn" class="warn">{{ goesToHint.text }}</small><HelpTip v-else :text="goesToHint.text" /></template>
     </div>
-    <div v-else class="f">
+    <div v-else-if="tile.entity !== 'screen.settings'" class="f">
       <span class="f-label">{{ t("editor.tile.display.label") }}</span>
       <Segmented :choices="displays" :value="display" @pick="(v) => setTileOption(tile, 'display', v)" />
       <small v-if="displayHint" :class="{ warn: displayWarns }">{{ displayHint }}</small>

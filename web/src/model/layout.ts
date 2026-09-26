@@ -221,7 +221,8 @@ export function defaultOptions(id: string): Partial<Tile> {
   if (domain === "sun") return { options: { display: "sunpath", size: "wide" } };
   if (domain === "weather") return { options: { display: "forecast", size: "wide" } };
   if (pageTarget(id)) return {};
-  if (domain === "screen") return { options: { display: "digital", size: "wide" } };
+  // The clock is the one built-in card with a face; the settings card is a plain card, as the screen draws it (GitHub #47).
+  if (id === "screen.clock") return { options: { display: "digital", size: "wide" } };
   return {};
 }
 export const newTile = (id: string): Tile => ({ entity: id, name: "", slot: -1, ...defaultOptions(id) } as Tile);

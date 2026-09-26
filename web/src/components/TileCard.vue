@@ -36,7 +36,8 @@ const tallAction = computed(() => tall.value && (props.tile.entity === "screen.s
 const goesTo = computed(() => pageTarget(props.tile.entity));
 const background = computed(() => state.inventory.backgrounds?.[props.tile.options?.background || ""]?.color);
 const bare = computed(() => props.tile.options?.background === "none");
-const display = computed(() => props.tile.options?.display || "standard");
+// A settings card stays a plain card, as the screen draws it, even when an older layout gave it a clock face (GitHub #47).
+const display = computed(() => props.tile.entity === "screen.settings" ? "standard" : props.tile.options?.display || "standard");
 const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
 const controls = computed(() => {
   const selected = effectiveControls(props.tile, state.inventory);
