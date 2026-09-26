@@ -116,6 +116,47 @@
   "rows": 3,
   "width": 480
  },
+ "checkout/hosyond40.yaml": {
+  "alert": {
+   "line": 16,
+   "title_line": 21
+  },
+  "board": "hosyond40",
+  "can_standby": true,
+  "catalog": {
+   "calibrate": true,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-32E E32R40T",
+   "name": "Hosyond",
+   "order": 9,
+   "status": "experimental",
+   "touch": "XPT2046"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 146,
+  "height": 320,
+  "look": "compact",
+  "orientations": {
+   "landscape": {
+    "columns": 2,
+    "height": 320,
+    "rotation": 90,
+    "rows": 3,
+    "width": 480
+   },
+   "portrait": {
+    "columns": 1,
+    "height": 480,
+    "rotation": 180,
+    "rows": 4,
+    "width": 320
+   }
+  },
+  "rows": 3,
+  "width": 480
+ },
  "checkout/jc1060p470.yaml": {
   "alert": {
    "line": 25,
@@ -700,6 +741,47 @@
   "rows": 3,
   "width": 480
  },
+ "hosyond40": {
+  "alert": {
+   "line": 16,
+   "title_line": 21
+  },
+  "board": "hosyond40",
+  "can_standby": true,
+  "catalog": {
+   "calibrate": true,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-32E E32R40T",
+   "name": "Hosyond",
+   "order": 9,
+   "status": "experimental",
+   "touch": "XPT2046"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 146,
+  "height": 320,
+  "look": "compact",
+  "orientations": {
+   "landscape": {
+    "columns": 2,
+    "height": 320,
+    "rotation": 90,
+    "rows": 3,
+    "width": 480
+   },
+   "portrait": {
+    "columns": 1,
+    "height": 480,
+    "rotation": 180,
+    "rows": 4,
+    "width": 320
+   }
+  },
+  "rows": 3,
+  "width": 480
+ },
  "jc1060p470": {
   "alert": {
    "line": 25,
@@ -1025,6 +1107,47 @@
     "rotation": 0,
     "rows": 3,
     "width": 480
+   }
+  },
+  "rows": 3,
+  "width": 480
+ },
+ "packages/hosyond40.yaml": {
+  "alert": {
+   "line": 16,
+   "title_line": 21
+  },
+  "board": "hosyond40",
+  "can_standby": true,
+  "catalog": {
+   "calibrate": true,
+   "choices": {},
+   "inch": 4.0,
+   "model": "ESP32-32E E32R40T",
+   "name": "Hosyond",
+   "order": 9,
+   "status": "experimental",
+   "touch": "XPT2046"
+  },
+  "columns": 2,
+  "dimmable": true,
+  "dpi": 146,
+  "height": 320,
+  "look": "compact",
+  "orientations": {
+   "landscape": {
+    "columns": 2,
+    "height": 320,
+    "rotation": 90,
+    "rows": 3,
+    "width": 480
+   },
+   "portrait": {
+    "columns": 1,
+    "height": 480,
+    "rotation": 180,
+    "rows": 4,
+    "width": 320
    }
   },
   "rows": 3,
