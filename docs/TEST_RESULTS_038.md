@@ -1,11 +1,67 @@
-# Two buttons and button colours on an alert, 0.3.8 acceptance (firmware 0.3.3)
+# 0.3.8 acceptance (firmware 0.3.3)
+
+This release brings four features together: clearer weather, thermostat and select tiles, camera tiles that fill
+their card, alerts with two buttons, and the alarm panel. Each was tested on its own branch (the sections below), and
+then once more together on the combined release, which is what this first section describes.
+
+## Combined 0.3.8 glass test
+
+Tested on 26 September 2026 on three bench screens (a 4-inch Guition 4848S040, a Waveshare ESP32-S3-Touch-LCD-4.3
+and a CYD ESP32-2432S028) over OTA, with a real Home Assistant and the combined add-on installed as a local add-on.
+The owner was at the screens for the parts that need a finger.
+
+### Firmware on the screens
+
+- CYD and Waveshare 4.3: the final release commit (the keypad text wrap below included), built at 15:06 and 15:09.
+- Guition: the commit before it, built at 14:38; it differs only in that keypad text wrap.
+- All three reported firmware 0.3.3 in `device_info`.
+- CYD image: see the final suite.
+
+### What was checked
+
+- **Weather, thermostat and select tiles (Guition, snapshots of the glass):** a double-width weather tile with the
+  coming days, a weather tile of two rows with the week's temperature bars, a select tile with its chevrons, the
+  select card with a check at the chosen option, and a square thermostat with its mode bar. All as designed. The same
+  layouts were Synced on the CYD and the Waveshare without an error in the log.
+- **Camera tiles (Guition):** a live camera on a 1 x 2 tile and a second one on a 2 x 2 tile, first with Fill and the
+  name, then with Whole picture and nothing on it; both as designed. The screen downloaded 51,238 bytes for the 1 x 2
+  picture and 103,222 bytes for the 2 x 2 one, and no image step took longer than 0.12 s. A page that came back
+  showed its picture at once, and the owner found switching pages fast.
+- **Alert with two buttons (Guition):** two equal buttons, the red one on the left. The owner tapped it: the screen
+  logged `dismissed: button2`, the app performed the second button's action (`persistent_notification.create`) and
+  the notification appeared in Home Assistant; it was dismissed afterwards. The app delivered the alert to one of one
+  screen.
+- **Alarm panel (CYD and Waveshare 4.3):** a test alarm, a state set through Home Assistant's REST API with no
+  integration behind it, removed afterwards. `pending` woke both screens with the keypad to disarm. The CYD ran 5.5
+  minutes with the alarm going off and its card open: no restart, lowest free heap 117 KB. The owner typed three codes
+  with a finger: three `alarm_disarm` actions with a code went to the test alarm, which does not answer, so the screen
+  counted each as failed after ten seconds and locked the keypad for 30 seconds after the third. The Waveshare stayed
+  up for six minutes with its free heap at 93 KB. No real alarm was armed or disarmed.
+- **Page swipes (Guition):** the owner swiped through every page: fast, nothing out of place.
+
+### Found and fixed on the way
+
+- **The S3 boards did not link.** With the four features together, the Guition and the Waveshare 4.3 failed to link
+  with `dangerous relocation: l32r: literal target out of range` in the protocol parser, and the CYD was 1.5 KB from
+  the same error. The parser is now a compilation unit of its own (`components/smart_display/page_receiver.cpp`); every
+  board links again, with about 14 KB of margin on the S3 boards and 66 KB on the CYD. The second unit costs the CYD
+  about 6 KB for the inline helpers it carries. docs/RELEASING.md tells how to recognise the limit.
+- **The keypad's line on the CYD.** Beside the keys the column is about a hundred pixels wide, and "Nothing changed.
+  Check the code." (in the screen's language) ended in dots after its first word. It now wraps over up to three
+  lines there. The owner checked it on the CYD, and the keypad on the Waveshare.
+
+### Known issue for the next release
+
+- A live camera tile set to refresh every 30 seconds downloaded its picture every 15 seconds.
+
+## Two buttons and button colours on an alert
 
 Tested on 26 September 2026 on three bench screens (a 4-inch Guition 4848S040, a Waveshare ESP32-S3-Touch-LCD-4.3 and
 a CYD ESP32-2432S028) over OTA, with a real Home Assistant. The alert gets `show_alert_choice` (the seven fields of
 `show_alert` plus `button_color`, `button2_text` and `button2_color`), and the `esp_screens_show_alert` event gets
 these three and `button2_action` with `button2_data`, all optional.
 
-## Automated checks
+### Automated checks
 
 - `tools/check.sh --all` on 0.3.7 (main b1184b7) with this change: 740 Python tests, 28 C++ programs, the package,
   cell, board shape, entry file, icon and translation checks, and the editor's tests, types, build and bundle. Every
@@ -20,7 +76,7 @@ these three and `button2_action` with `button2_data`, all optional.
   buttons in the column of words. On this Mac a portrait variant once missed a page swipe while the machine was under
   heavy load; it passed when run again.
 
-## Where two buttons go
+### Where two buttons go
 
 Three layouts were rendered on every board before one was chosen:
 
@@ -29,7 +85,7 @@ Three layouts were rendered on every board before one was chosen:
 - the two buttons sharing the row in equal halves, the first on the right (chosen): each is as large as the card
   allows, and the labels fit.
 
-## On the screens
+### On the screens
 
 The alert was sent to each screen through its own `show_alert_choice` action, and someone at the screen pressed the
 button asked for:
@@ -50,7 +106,7 @@ button asked for:
   its `button2_action` through the add-on were not tried on a screen; the add-on's handling of it is covered by the
   tests above, and the screen's side of it (the `button2` ending) by the presses in the table.
 
-## Firmware sizes
+### Firmware sizes
 
 | Board | Image | Share of the update slot |
 |---|---|---|
@@ -121,6 +177,7 @@ integration's `manager.py`, and the frontend's alarm dialog, alarm panel card an
 
 ### Not tested on the glass
 
-- Typing a code with a finger and the lock after wrong codes: nobody was at the bench. The host render harness
-  covered both with real touches through ESPHome's touchscreen.
+- Typing a code with a finger and the lock after wrong codes: nobody was at the bench for this branch's own test. The
+  host render harness covered both with real touches through ESPHome's touchscreen, and the combined glass test above
+  did them on the CYD with a finger.
 - A real alarm integration (Alarmo's countdown, a refusal from a real panel).
