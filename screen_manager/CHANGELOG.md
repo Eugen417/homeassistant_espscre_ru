@@ -1,3 +1,10 @@
+## 0.3.4 (firmware 0.3.1)
+
+The Docker route with Home Assistant on a bridge network (GitHub #29).
+
+- With Docker Desktop on Windows or macOS, or any setup where Home Assistant runs with `ports:` instead of host networking, the hass_ingress panel showed 502: Bad Gateway. docs/DOCKER.md, "Home Assistant on a bridge network", shows how ESP Screens shares the network of the Home Assistant container so the panel opens.
+- Nothing else changes: the app and the firmware work as in 0.3.3.
+
 ## 0.3.3 (firmware 0.3.1)
 
 The relays of a 4-inch Guition wallbox (GitHub #39).

@@ -11,7 +11,9 @@ This route is new. If something doesn't work on your setup, please
 ## What you need
 
 - Home Assistant Container on a Linux host (aarch64 or amd64) with host networking,
-  as in the Home Assistant installation docs.
+  as in the Home Assistant installation docs. Home Assistant on Docker's bridge network, as
+  is usual with Docker Desktop on Windows or macOS, works too: see
+  [Home Assistant on a bridge network](#home-assistant-on-a-bridge-network).
 - Docker with Compose on the same host.
 - The ESPHome integration in Home Assistant, to pair the screens. ESPHome Device Builder
   is optional: the ESPHome CLI is already in this image.
@@ -65,6 +67,61 @@ ssh -L 8099:127.0.0.1:8099 you@docker-host
 
 Then open `http://localhost:8099`. The **Open Devices & services** button only works in
 the sidebar panel; here, open Home Assistant yourself.
+
+### Home Assistant on a bridge network
+
+Without `network_mode: host`, Home Assistant runs on Docker's bridge network with its ports
+published under `ports:`. This is common with Docker Desktop on Windows and macOS, where
+"host" is Docker's own Linux VM and not your computer. Inside the Home Assistant container,
+`127.0.0.1` is then Home Assistant itself, so the sidebar panel shows **502: Bad Gateway**.
+
+Let ESP Screens share the network of the Home Assistant container instead. `127.0.0.1` then
+means the same in both, and the hass_ingress configuration above stays as it is. Put both in
+the same `compose.yaml` and change it like this, with the service name of Home Assistant after
+`service:`:
+
+```yaml
+services:
+  homeassistant:
+    # ... your existing settings ...
+    ports:
+      # ... your existing ports ...
+      - 8098:8098                    # camera images for the screens, published by this container
+
+  esp-screens:
+    # ... build, restart, init, secrets, volumes and healthcheck as in docker/compose.yaml ...
+    network_mode: "service:homeassistant"   # replaces network_mode: host
+    depends_on:
+      - homeassistant
+    environment:
+      SCREEN_DEV: "1"
+      HA_API: http://127.0.0.1:8123/api     # Home Assistant itself, in the shared network
+      HA_TOKEN_FILE: /run/secrets/ha_token
+      ESPHOME_CONFIG: /config
+      SCREEN_DATA: /data
+      SCREEN_CAMERA_URL: http://192.168.1.20:8098   # your Docker host's LAN address
+```
+
+Then run `docker compose up -d` again and check that Home Assistant reaches the app:
+
+```sh
+docker exec homeassistant curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8099/
+```
+
+`200` means the panel works; `000` means the two containers don't share a network yet.
+
+- **Home Assistant on https only:** `https://127.0.0.1:8123` fails the certificate check.
+  Point `HA_API` at an http address that reaches Home Assistant instead, such as a reverse
+  proxy in front of it. On Docker Desktop, `host.docker.internal` is the address of your
+  computer, so `http://host.docker.internal:<port>/api` reaches a port it publishes.
+- **Recreating Home Assistant** (an update, for example) takes the shared network away:
+  run `docker compose up -d` again so ESP Screens is recreated too.
+- **Camera images:** the firewall of the Docker host has to let the screens in on port 8098.
+- **USB:** Docker Desktop passes no USB ports to containers. Use **Download · flash from your
+  own computer** in **New screen** (see below).
+
+This setup is confirmed on Docker Desktop for Windows with WSL 2 for opening the panel.
+Camera images and updates over Wi-Fi haven't been tested on it yet.
 
 ## Using it
 
