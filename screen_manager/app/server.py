@@ -2114,7 +2114,7 @@ class Manager:
         if any(entity not in tiles for entity in entities):
             LOG.info('Live pictures for %s: not the pictured tiles of %s', ', '.join(entities), screen['name'])
             return
-        paces = [min(option.get('refresh', camera_feed.LIVE_REFRESH[0]) if option.get('display') == 'live' else 0
+        paces = [min(option.get('refresh', camera_feed.LIVE_REFRESH_DEFAULT) if option.get('display') == 'live' else 0
                      for option in tiles[entity]) for entity in entities]
         # How each picture fills its card (app 0.3.8): one tile per entity on a screen, so its options are the tile's.
         modes = camera_feed.picture_modes(screen, lambda entity: next((o for o in tiles[entity] if o.get('display') == 'live'), None), entities) if atlas else None

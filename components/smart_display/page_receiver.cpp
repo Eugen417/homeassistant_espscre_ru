@@ -462,7 +462,7 @@ std::string receive(const std::string &payload) {
     tile.icon = icon && has_icon_glyph(icon) ? tile_icon::utf8(icon) : "";
     tile.tap = string(options["tap"]); if (tile.tap.empty()) tile.tap="auto";
     tile.display = string(options["display"]); if (tile.display.empty()) tile.display="standard";
-    // A live picture's pace (0.2.91+): 15 or 30 s; a missing or odd value keeps the default.
+    // A live picture's pace (0.2.91+): 5, 10, 15 or 30 s (5 and 10 from app 0.3.13); a missing or odd value keeps the default.
     const int refresh = options["refresh"].is<int>() ? options["refresh"].as<int>() : 0;
     tile.refresh = refresh >= 5 && refresh <= 3600 ? refresh : 15;
     tile.overlay = string(options["overlay"], 8) != "none";

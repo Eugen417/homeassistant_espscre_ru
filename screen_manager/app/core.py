@@ -37,7 +37,10 @@ CAMERA_DOMAINS = frozenset(('camera', 'image'))
 CAMERA_MIN_FIRMWARE = (0, 2, 57)
 # A live picture on a camera tile ("display": "live", app 0.2.91): firmware from here asks for the page's strip.
 LIVE_MIN_FIRMWARE = (0, 2, 77)
-LIVE_REFRESH = (15, 30)  # the paces a live tile may choose, in seconds; the first is the default
+# The paces a live tile may choose, in seconds (5 and 10 since app 0.3.13; every firmware with live pictures takes
+# 5 to 3600), and the one it has when it chose none.
+LIVE_REFRESH = (5, 10, 15, 30)
+LIVE_REFRESH_DEFAULT = 15
 # A media tile's album cover in the icon's place ("display": "cover", app 0.2.92): the same strip, firmware from here.
 COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
 # The calm dial and the flip clock (firmware 0.3.6+). An older screen draws either as the digital clock, so a layout
@@ -58,7 +61,7 @@ REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 # The branch a screen's YAML builds its board package from. Which boards there are is boards.json's (BOARD_KEYS).
 REF = 'main'
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.3.6'
+FIRMWARE_VERSION = '0.3.7'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
