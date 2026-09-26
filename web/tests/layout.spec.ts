@@ -279,7 +279,7 @@ it('keeps simultaneous layout instances independent and reads a shape change imm
   expect(other.grid.pages).toBe(7);
 });
 
-describe("the alarm panel's colours (app 0.3.9)", () => {
+describe("the alarm panel's colours (app 0.3.11)", () => {
   it("paints an alarm as Home Assistant does: armed green, the delays orange, going off red, disarmed grey", async () => {
     const { tilePalette, tileActive } = await import("../src/model/tile-palette");
     const accent = (state: string) => tilePalette("alarm_control_panel.house", { state }).accent;

@@ -212,7 +212,7 @@ struct Extra {
   // it already says when a script last ran (last_run_text) - one wording, not a second one in Python.
   std::string subtitle;
   uint32_t subtitle_at = 0;
-  // An alarm panel (firmware 0.3.4+): its code_format ("number", "text" or empty), whether arming needs no code
+  // An alarm panel (firmware 0.3.6+): its code_format ("number", "text" or empty), whether arming needs no code
   // (code_arm_required false), whether Home Assistant keeps a default code for it (app, from the entity's registry
   // options; never the code itself), who changed it last, and the end of an exit or entry delay with its length in
   // seconds, where the integration says (Alarmo's `delay`, through the app).
@@ -337,7 +337,7 @@ struct Tile {
   bool pending = false, confirmed = false, local_feedback = false;
   // When Home Assistant refused the action a tap sent (firmware 0.2.58+); the tile says so for a moment.
   uint32_t refused_at = 0;
-  // When the state last changed to another one (firmware 0.3.4+): an alarm panel marks the moment it armed or
+  // When the state last changed to another one (firmware 0.3.6+): an alarm panel marks the moment it armed or
   // disarmed with a short animation.
   uint32_t changed_at = 0;
   ExtraBox extra_box;

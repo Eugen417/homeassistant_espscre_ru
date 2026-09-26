@@ -103,7 +103,7 @@ class Profiles(unittest.TestCase):
             # tree to turn a point for it (the CYD does that for its calibration wizard, firmware 0.2.92+).
             shared = 'runtime_tiles::touch_input::pressed' in touch
             # Five in the shared tree whatever the board (the boot, Home Assistant opening the settings page or a
-            # page of tiles, the UI self test, an alarm panel that wakes the screen with its card, firmware 0.3.4+)
+            # page of tiles, the UI self test, an alarm panel that wakes the screen with its card, firmware 0.3.6+)
             # plus the one in the hook the shared touch handler calls; a board that kept its own three lambdas writes
             # the clock three more times.
             expected = 6 + (0 if shared else 3)

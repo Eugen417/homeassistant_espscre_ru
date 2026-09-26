@@ -1,4 +1,4 @@
-"""The alarm panel (app 0.3.9 / firmware 0.3.4): an alarm_control_panel as a tile with Home Assistant's card and code
+"""The alarm panel (app 0.3.11 / firmware 0.3.6): an alarm_control_panel as a tile with Home Assistant's card and code
 dialog. tests/test_alarm_panel.cpp checks the logic and the layouts of components/smart_display/alarm_panel.h; these
 keep the firmware, the app and the editor in step with each other and with Home Assistant (its 2026.9 frontend and
 core), and hold the rules that keep a code private.
@@ -74,7 +74,7 @@ class HomeAssistantsRules(unittest.TestCase):
 
 class CodesStayPrivate(unittest.TestCase):
     def test_the_screen_never_logs_or_keeps_a_code(self):
-        section = TILES.split('// ---- Alarm panel (firmware 0.3.4+)', 1)[1].split('// ---- History card', 1)[0]
+        section = TILES.split('// ---- Alarm panel (firmware 0.3.6+)', 1)[1].split('// ---- History card', 1)[0]
         for line in section.splitlines():
             if 'ESP_LOG' in line:
                 self.assertNotIn('alarm_pad.code', line)

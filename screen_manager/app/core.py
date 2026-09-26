@@ -72,7 +72,7 @@ HOME_BUTTON_MIN_FIRMWARE = '0.2.100'
 SHOW_PAGE_MIN_FIRMWARE = '0.2.87'
 # An alarm panel as a tile with its card and keypad (components/smart_display/alarm_panel.h); older firmware refuses the
 # domain, so a layout with one waits for the update.
-ALARM_MIN_FIRMWARE = (0, 3, 4)
+ALARM_MIN_FIRMWARE = (0, 3, 6)
 ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted', 'code_arm_required'])
@@ -1463,7 +1463,7 @@ def forecast_time(entry, tz):
         return None
 
 def alarm_extras(state, entry):
-    """What an alarm panel's card needs beside its attributes (firmware 0.3.4+): `dc` 1 when Home Assistant keeps a default
+    """What an alarm panel's card needs beside its attributes (firmware 0.3.6+): `dc` 1 when Home Assistant keeps a default
     code in the entity's registry options (it then fills the code in itself and the screen asks for none, as Home
     Assistant's own dialogs do; the code itself never leaves Home Assistant), and during an exit or entry delay the moment
     it ends (`ae`, epoch) and its length (`ad`, seconds), where the integration reports it (Alarmo's `delay` attribute)."""

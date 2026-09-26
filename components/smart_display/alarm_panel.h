@@ -1,5 +1,5 @@
 #pragma once
-// The alarm panel (firmware 0.3.4+): an alarm_control_panel entity as a tile and a card, the way Home Assistant's own
+// The alarm panel (firmware 0.3.6+): an alarm_control_panel entity as a tile and a card, the way Home Assistant's own
 // alarm dialog and alarm panel card do it. Pure logic only, free of LVGL, so tests/test_alarm_panel.cpp checks it on a
 // PC: which modes a panel offers, when a mode asks for a code, what a tap sends, how the card tells an accepted code
 // from a refused or ignored one, and how long the keypad locks after wrong codes. runtime_tiles.h draws it.

@@ -82,7 +82,7 @@ on the screen itself, and how updates work.
   <img src="docs/images/cyd-full-climate.png" width="32%" alt="A full-page heating tile on the CYD with the mode keys at the bottom">
 </p>
 
-- **Alarm panel** (app 0.3.9 / firmware 0.3.4): an `alarm_control_panel` entity is a tile like any other, in
+- **Alarm panel** (app 0.3.11 / firmware 0.3.6): an `alarm_control_panel` entity is a tile like any other, in
   every size. It takes Home Assistant's colours and icons: grey while disarmed, green while armed, orange while it
   counts down to armed or waits for someone who just came in, red while it goes off. A tap opens its card with a
   key for every mode Home Assistant lists for that panel (home, away, night, vacation, custom bypass) and one to

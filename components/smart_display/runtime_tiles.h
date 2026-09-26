@@ -153,7 +153,7 @@ inline const char *weather_icon(const std::string &condition);
 inline const char *weather_text(const std::string &condition);
 inline std::string timer_text(const Tile &t);
 inline std::string countdown(uint32_t seconds);
-// The alarm panel (firmware 0.3.4+), further down beside the other cards.
+// The alarm panel (firmware 0.3.6+), further down beside the other cards.
 inline void alarm_refused(const std::string &entity);
 inline void alarm_state_arrived(unsigned index, const std::string &before);
 inline std::string last_run_text(uint32_t epoch, bool compact = false);
@@ -1852,7 +1852,7 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
     }
   }
 }
-// ---- Alarm panel (firmware 0.3.4+): Home Assistant's alarm dialog and its code dialog in this look ----
+// ---- Alarm panel (firmware 0.3.6+): Home Assistant's alarm dialog and its code dialog in this look ----
 // alarm_panel.h decides (the modes, when a code is asked for, the lock after wrong codes, where the parts go); this
 // draws it. The card: the shield on a white card with a key per mode, or one big Disarm key while the alarm counts
 // down or goes off. A mode that needs a code opens the keypad in the card's place: the dots, a line of words and

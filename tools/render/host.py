@@ -481,7 +481,7 @@ PROBES = '''    - action: render_finger
                      (int) title.x2, (int) title.y2, (int) subtitle.x1, (int) subtitle.y1, (int) subtitle.x2, (int) subtitle.y2,
                      (int) button.x1, (int) button.y1, (int) button.x2, (int) button.y2, (int) (runtime_tiles::alert_picture != nullptr));
 '''
-# The alarm panel's card as it stands (firmware 0.3.4+): whether it is open, the keypad, what its lines say, the centre
+# The alarm panel's card as it stands (firmware 0.3.6+): whether it is open, the keypad, what its lines say, the centre
 # of every key a finger uses (the back key, the mode or Disarm keys in their order, the keypad's twelve), and every part
 # of the card that does not lie inside the glass or that lies over another key.
 ALARM_PROBE = '''    - action: render_alarm

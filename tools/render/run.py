@@ -604,7 +604,7 @@ class Run:
             await asyncio.sleep(0.15)
 
     async def alarm_panel(self, grid):
-        """The alarm panel (firmware 0.3.4+) the way it is used: a finger on the tile opens its card, a mode opens the
+        """The alarm panel (firmware 0.3.6+) the way it is used: a finger on the tile opens its card, a mode opens the
         keypad, the digits and OK send Home Assistant's action with the code, Home Assistant answers and its states come
         back through the add-on's own messages. Someone coming in wakes the card with the keypad; three wrong codes lock
         it. Every key a finger's size and inside the glass, checked on every board by the card itself (render_alarm)."""
