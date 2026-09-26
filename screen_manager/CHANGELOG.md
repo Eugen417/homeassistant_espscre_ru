@@ -1,6 +1,6 @@
 ## 0.3.8 (firmware 0.3.3)
 
-Clearer weather and thermostat tiles, a select card you can read, and a camera that fills its tile (GitHub #4, thanks @govido).
+Clearer weather and thermostat tiles, a select card you can read, and a camera that fills its tile (GitHub #4, thanks @govido), and alerts with two buttons to choose from.
 
 - **Weather tile.** The weather now sits in its coloured circle like every other tile, each day's icon has the colour of its weather, the high is bold and the low grey, and the chance of rain shows in blue when it is 30 % or more. Today stands on a light pill with room around its digits. A tile of two rows lists the days under each other, each with a bar from its low to its high on one scale for the whole week, coloured from cold to warm.
 - **Thermostat tile.** A tile of two rows shows the temperature between − and +, and a bar with one segment per mode under it, the active one filled in its colour. An airco shows heat and cool first, the mode it is in is always on the bar, and the rest is behind "…". Off is no longer a mode on the bar: tap the tile's circle to turn the thermostat on or off, as on a Home Assistant tile. A short tile puts the stepper and the bar on one row.
@@ -14,7 +14,13 @@ Clearer weather and thermostat tiles, a select card you can read, and a camera t
 - Live pictures go to screens with firmware 0.3.3 in 8-bit colour, a third of the bytes of before, so a picture that fills a tile arrives quickly and the screen keeps answering touches while it loads. The picture already has exactly the pixels of the tile, so a lower resolution would not make it faster.
 - A camera tile no longer offers **Large value**. Its state ("Idle") made no large value, and saving it showed "Invalid or unsupported page configuration fields".
 - A taller camera tile keeps its small picture in the icon's place until the screen has firmware 0.3.3.
-- Update the firmware of your screens to get the new tiles. With older firmware the app keeps working, and a select shows its first 8 options.
+- **Alerts with a choice.** `esp_screens_show_alert` takes `button2_text` for a second button on the left of the first, and `button2_action` with `button2_data` for what it does, the way `action` and `data` work for the first. `button_color` and `button2_color` give a button a full color of its own (the names of `color`: red, green, blue, ...), so a yes can be green and a no red. All of them are optional.
+- The screen's own action `esphome.<screen>_show_alert_choice` does the same without the app. `show_alert` keeps its seven fields, so no automation that calls it breaks.
+- The second button ends the alert as `esphome.screen_alert` with `action: button2`.
+- A screen on older firmware shows the same alert with its first button only, and the log names it.
+- Words too long for a button now end in "..." instead of running past its edge.
+- Alerts in ESP Screens has a "Two buttons" part with an example to copy, and the Claude skill knows the new fields.
+- Update the firmware of your screens to get the new tiles and the second alert button. With older firmware the app keeps working, and a select shows its first 8 options.
 
 ## 0.3.7 (firmware 0.3.2)
 

@@ -839,10 +839,28 @@
         "screen": {
           "label": "Ekran",
           "help": "Który ekran dostaje alert: jego nazwa urządzenia (np. kitchen-screen), nazwa wyświetlana w Home Assistant albo pomieszczenie, które obejmuje każdy ekran w nim. Lista, np. [kitchen-screen, hallway], obejmuje kilka. Pomiń, aby wysłać na wszystkie ekrany. Nazwa, która nie pasuje do żadnego ekranu, nie wysyła niczego; dziennik ESP Screen Manager podaje wtedy znane mu ekrany. Tylko przez zdarzenia esp_screens_show_alert i esp_screens_dismiss_alert."
+        },
+        "button_color": {
+          "label": "Kolor przycisku",
+          "help": "Przycisk we własnym kolorze: red, orange, yellow, green, mint, blue, purple, pink lub gray, jako pełny kolor z białym napisem. Puste zostawia ciemny przycisk."
+        },
+        "button2_text": {
+          "label": "Tekst drugiego przycisku",
+          "help": "Drugi przycisk na lewo od pierwszego, do wyboru, np. Odrzuć i Akceptuj. Puste daje jeden przycisk.",
+          "example": "Nie teraz"
+        },
+        "button2_color": {
+          "label": "Kolor drugiego przycisku",
+          "help": "Drugi przycisk w jednym z tych samych kolorów. Puste zostawia jasny przycisk."
+        },
+        "button2_action": {
+          "label": "Akcja drugiego przycisku",
+          "help": "Akcja Home Assistant wykonywana raz, gdy drugi przycisk zostanie naciśnięty na dowolnym ekranie, jak `action` dla pierwszego. `button2_data` podaje jej pola. Tylko przez zdarzenie esp_screens_show_alert."
         }
       },
       "endings": {
         "ok": "Naciśnięto przycisk",
+        "button2": "Naciśnięto drugi przycisk",
         "timeout": "Upłynął limit czasu",
         "replaced": "Zastąpił go nowy alert",
         "remote": "dismiss_alert z Home Assistant"
@@ -1882,7 +1900,8 @@
         "behaviour": "Działanie",
         "events": "Zdarzenia",
         "tips": "Wskazówki",
-        "one": "Jeden ekran"
+        "one": "Jeden ekran",
+        "choice": "Dwa przyciski"
       },
       "try": {
         "text": "Wyślij teraz jeden alert z tymi samymi polami, które wysyła automatyzacja. Ekran pokaże kartę, a przy włączonym miganiu mignie podświetleniem.",
@@ -2011,6 +2030,12 @@
         "picture_yes": "Tak",
         "picture_no": "Nie, alert przychodzi bez niego",
         "none": "Nie sparowano jeszcze żadnego ekranu. Gdy ekran zostanie sparowany, tutaj pojawi się, co dla niego wpisać."
+      },
+      "choice": {
+        "title": "Dwa przyciski i kolory przycisków",
+        "text": "Dodaj {second}, aby uzyskać drugi przycisk na lewo od pierwszego, żeby osoba przy ekranie mogła wybrać, np. Nie teraz i Otwórz. {first_color} i {second_color} nadają przyciskowi własny kolor, zielony na tak i czerwony na nie. Która odpowiedź jest po której stronie, decydujesz ty: pierwszy przycisk jest zawsze po prawej.",
+        "event": "Przez zdarzenie każde z tych pól jest opcjonalne, a {second_action} z {second_data} uruchamia akcję z drugiego przycisku, tak jak {action} z pierwszego. Ekran z oprogramowaniem starszym niż {version} pokazuje alert z jednym przyciskiem.",
+        "direct": "Wywołujesz ekran bezpośrednio? Jego akcja {choice} przyjmuje pola show_alert oraz te trzy; drugi przycisk kończy alert z {ending}."
       }
     },
     "override": {

@@ -190,6 +190,32 @@ inline uint32_t swatch(const std::string &name) {
   for (const auto &s : SWATCHES) if (name == s.name) return s.light;
   return 0;
 }
+// The same names on an alert's button (firmware 0.3.3+): a full key colour instead of a pastel, so a green Accept and a
+// red Decline stand out on any card. Like Home Assistant's state colours they are the same in both looks; the words on
+// them are white, or ink on the light ones (yellow), whichever reads.
+struct KeySwatch { const char *name; uint32_t key, text; };
+inline constexpr KeySwatch KEY_SWATCHES[] = {
+  {"red", 0xD93A30, 0xFFFFFF},
+  {"orange", 0xEF7D14, 0xFFFFFF},
+  {"yellow", 0xF6C433, 0x1B1B1B},
+  {"green", 0x3C9A4A, 0xFFFFFF},
+  {"mint", 0x13897B, 0xFFFFFF},
+  {"blue", 0x1F7FD6, 0xFFFFFF},
+  {"purple", 0x7B55BE, 0xFFFFFF},
+  {"pink", 0xD3437E, 0xFFFFFF},
+  {"gray", 0x6B7078, 0xFFFFFF},
+};
+// The key colour of a name, 0 for none or an unknown one (the button keeps its own paint).
+inline uint32_t key_swatch(const std::string &name) {
+  for (const auto &s : KEY_SWATCHES) if (name == s.name) return s.key;
+  return 0;
+}
+inline uint32_t key_text(uint32_t key) {
+  for (const auto &s : KEY_SWATCHES) if (key == s.key) return s.text;
+  return 0xFFFFFF;
+}
+// The key under a finger: a little darker, in both looks.
+inline uint32_t key_pressed(uint32_t key) { return mix(key, 0x000000, 210); }
 // A card's own colour (a swatch's light value, or 0 for none) as this look draws it.
 inline uint32_t surface(uint32_t own) {
   if (!own) return hex(CARD);

@@ -19,7 +19,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_data, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import (Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
@@ -2168,6 +2168,15 @@ class Manager:
         button, usable = alert_action(data) if event_type == BROADCAST_SHOW else (None, True)
         if not usable:
             unusable.append('action')
+        # The second button and the buttons' colours (firmware 0.3.3+) and what the second button does (app 0.3.8).
+        choice, bad = alert_choice(data) if event_type == BROADCAST_SHOW else ({}, [])
+        unusable += bad
+        button2, usable = alert_action(data, 'button2_action', 'button2_data') if event_type == BROADCAST_SHOW else (None, True)
+        if not usable:
+            unusable.append('button2_action')
+        if button2 and not choice.get('button2_text'):
+            LOG.warning('%s: button2_action without button2_text, no second button', event_type)
+            button2 = None
         if unusable:
             LOG.warning('%s: unusable %s left empty', event_type, ', '.join(unusable))
         # One screen or a few (app 0.2.133): the event's `screen` narrows it down. A name that matches nothing, or a field
@@ -2194,8 +2203,16 @@ class Manager:
             scopes = {screen['id']: self.page_scope(screen['id']) for screen in viewers}
             await asyncio.gather(*(self.send_auxiliary(screen['id'], pending, self.transport(screen['id'], screen), scopes[screen['id']]) for screen in viewers),
                                  return_exceptions=True)
-        results = await asyncio.gather(*(self.ha.call(alert_service(screen['node'], action), service_data) for screen in ready),
-                                       return_exceptions=True)
+        # An alert with a choice goes as show_alert_choice to a screen that has it, and as show_alert, with one button, to
+        # an older one, which the log names.
+        choice_min = parse_firmware(ALERT_CHOICE_MIN_FIRMWARE)
+        chooses = {screen['node'] for screen in ready if choice and (screen_firmware(screen) or (0, 0, 0)) >= choice_min}
+        older = [screen['name'] for screen in ready if choice and screen['node'] not in chooses]
+        if older:
+            LOG.warning('%s: %s show one button (the second button needs firmware %s)', event_type, ', '.join(older), ALERT_CHOICE_MIN_FIRMWARE)
+        calls = [self.ha.call(alert_service(screen['node'], ALERT_CHOICE_ACTION), choice_service(service_data, choice))
+                 if screen['node'] in chooses else self.ha.call(alert_service(screen['node'], action), service_data) for screen in ready]
+        results = await asyncio.gather(*calls, return_exceptions=True)
         failed = [(screen, type(result).__name__) for screen, result in zip(ready, results) if isinstance(result, BaseException)]
         notes = [f"{screen['name']} {reason}" for screen, reason in skipped + failed]
         LOG.info('%s: %d of %d screens%s%s', event_type, len(ready) - len(failed), len(ready) + len(skipped),
@@ -2204,10 +2221,11 @@ class Manager:
         # The button's action waits on every screen that shows this alert; a dismissal forgets it everywhere.
         for screen in ready:
             self.alert_actions.pop(screen['node'], None)
-        if button and shown:
+        if (button or button2) and shown:
             key = secrets.token_hex(4)
             for screen in shown:
-                self.alert_actions[screen['node']] = (key, *button)
+                # Only a screen that draws the second button can press it.
+                self.alert_actions[screen['node']] = (key, {'ok': button, 'button2': button2 if screen['node'] in chooses else None})
         if viewers and any(screen in shown for screen in viewers):
             await self.alert_images(camera, [screen for screen in viewers if screen in shown])
         result = {'sent': len(ready) - len(failed), 'skipped': len(skipped), 'failed': len(failed)}
@@ -2294,16 +2312,19 @@ class Manager:
         pending = self.alert_actions.pop(node, None) if isinstance(node, str) else None
         if pending is None:
             return
-        key, action, fields = pending
-        for other in [n for n, (k, _, _) in self.alert_actions.items() if k == key]:
+        key, buttons = pending
+        for other in [n for n, (k, _) in self.alert_actions.items() if k == key]:
             del self.alert_actions[other]
-        if data.get('action') != 'ok':
+        chosen = buttons.get(data.get('action')) if isinstance(data.get('action'), str) else None
+        if not chosen:
             return
+        action, fields = chosen
+        which = 'Alert button' if data.get('action') == 'ok' else 'Alert second button'
         try:
             await self.ha.call(action, fields)
-            LOG.info('Alert button on %s: %s performed', node, action)
+            LOG.info('%s on %s: %s performed', which, node, action)
         except Exception as error:
-            LOG.warning('Alert button on %s: %s failed (%s)', node, action, type(error).__name__)
+            LOG.warning('%s on %s: %s failed (%s)', which, node, action, type(error).__name__)
 
 def create_app(manager, development=False):
     csrf = secrets.token_urlsafe(32)

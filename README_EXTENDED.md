@@ -268,7 +268,7 @@ a ready-to-paste example, and all fields, icons, and colors. It starts with **Tr
 the same seven fields, choose one screen or all of them, and send a test alert.
 Home Assistant asks for all seven fields; leave a field empty (`""`, `0`, `false`) if you
 don't use it. A new alert replaces the current one. Every end is reported as the event
-**`esphome.screen_alert`** with `action` (`ok`, `timeout`, `replaced`, or `remote`), `title`,
+**`esphome.screen_alert`** with `action` (`ok`, `button2`, `timeout`, `replaced`, or `remote`), `title`,
 `screen`, and the `device_id` that Home Assistant adds, so an automation can wait for OK.
 **`esphome.<screen>_dismiss_alert`** clears the card remotely. With the event for every screen, the
 button can also perform a Home Assistant action of your choice (below).
@@ -395,6 +395,44 @@ actions:
         entity_id: light.downstairs
         transition: 3
 ```
+
+### Two buttons, and a color per button
+
+<p align="center">
+  <img src="docs/images/guition-alert-choice.png" width="41%" alt="An alert on the Guition with the front door camera's picture and two buttons: Not now in grey and Open in green">
+  <img src="docs/images/guition-alert-choice-colors.png" width="41%" alt="An alert on the Guition asking to open the garage, with a red Decline and a green Accept button side by side">
+</p>
+
+From app 0.3.8 with firmware 0.3.3 an alert can offer a choice. **`button2_text`** adds a second button
+on the left of the first, and **`button2_action`** with **`button2_data`** is what it does, the way
+`action` and `data` work for the first. **`button_color`** and **`button2_color`** give a button a full
+color of its own, from the same names as `color` (`red`, `orange`, `yellow`, `green`, `mint`, `blue`,
+`purple`, `pink`, `gray`), so a yes can be green and a no red. Empty keeps the dark first button and
+the light second one. The first button is always on the right; which answer goes on which side is yours
+to choose.
+
+```yaml
+actions:
+  - event: esp_screens_show_alert
+    event_data:
+      title: "Someone is at the door"
+      subtitle: "Front door camera"
+      icon: doorbell
+      button_text: "Open"
+      button_color: green
+      action: script.open_gate
+      button2_text: "Not now"
+      button2_color: red
+      button2_action: script.doorbell_decline
+```
+
+Every one of these fields is optional in the event. A screen with older firmware shows the same alert
+with its first button only, and the ESP Screen Manager log says which screens did. The second button
+ends the alert as **`esphome.screen_alert`** with `action: button2`, so an automation that waits can
+tell the two answers apart without the app. For one screen, add `screen` to the event, or call its own
+action **`esphome.<screen>_show_alert_choice`**: the seven fields of `show_alert` plus `button_color`,
+`button2_text` and `button2_color`. It is a separate action because Home Assistant makes every field
+of an action required, so `show_alert` keeps its seven and no automation that calls it breaks.
 
 ### Ask Claude
 
