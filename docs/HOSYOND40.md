@@ -7,7 +7,7 @@ ESP32-2432S028: the same chip, the same kind of touch, the same calibration on t
 
 The board is **experimental**: its file was built from the configuration a community member shared for it
 (GitHub #42) and from the manufacturer's pin table, and it builds and renders with the others, but the project has
-not tried it on a real unit yet. If you have one, [tell others how it went](https://tessera-maxgramser.on-forge.com/community/share?type=installation).
+not tried it on a real unit yet. If you have one, [tell others how it went](https://tessera-maxgramser.on-forge.com/community/share?type=installation&board=hosyond40).
 
 ## Install
 
