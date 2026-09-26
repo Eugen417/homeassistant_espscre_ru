@@ -103,6 +103,7 @@
       "connecting": "A ligar ao Home Assistant",
       "waiting": "À espera do ESP Screens",
       "loading_tiles": "A carregar mosaicos...",
+      "preparing_pages": "A preparar páginas {n}/{total}",
       "ha_not_connected": "HA sem ligação",
       "manager_not_active": "ESP Screens inativo",
       "choose_tiles": "Escolha os mosaicos no HA",
@@ -110,6 +111,21 @@
       "no_network": "Sem rede",
       "configuration_problem": "Problema de configuração.\nAtualize o complemento.",
       "configuration_version": "Problema de configuração.\nVerifique as versões do ecrã e do complemento."
+    },
+    "preparing": {
+      "default": "A arrumar os mosaicos",
+      "light": "A espreitar as tuas luzes",
+      "media": "A limpar o pó às capas",
+      "camera": "A polir as lentes das câmaras",
+      "climate": "A espreitar o termóstato",
+      "weather": "A olhar pela janela",
+      "cover": "A espreitar atrás das cortinas",
+      "vacuum": "À procura do robô aspirador",
+      "sensor": "A ler todos os sensores",
+      "sun": "A seguir o sol",
+      "clock": "A dar corda aos relógios",
+      "scene": "A ensaiar as tuas cenas",
+      "switch": "A contar os teus interruptores"
     },
     "settings": {
       "title": "Definições",

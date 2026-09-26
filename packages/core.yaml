@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.3.1"
+  SCREEN_FIRMWARE_VERSION: "0.3.2"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -214,8 +214,10 @@ esphome:
           runtime_tiles::alert_parts = {id(alert_card), id(alert_icon), id(alert_title), id(alert_subtitle), id(alert_ok)};
           runtime_tiles::alert_place(false);
           runtime_tiles::setpoint_font = id(setpoint_digits)->get_lv_font();
-          // The cards of this board's grid (packages/cells/<number>.yaml).
+          // The cards of this board's grid (packages/cells/<number>.yaml), and their styles for the cards of kept pages
+          // (firmware 0.3.2+: runtime_tiles::make_card builds more of them on a board with PSRAM).
           ${BIND_CELLS}
+          runtime_tiles::card_look = {id(style_tile), id(style_icon_circle), id(style_title), id(style_value)};
           runtime_tiles::detail = [](runtime_tiles::Tile &t) {
             light_controls::fallback = light_controls::State{};
             light_controls::fallback.hue = t.hue;
@@ -536,13 +538,14 @@ time:
     on_time_sync:
       then:
         - script.execute: apply_screen_settings
-        - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+        # Only the time moved on: a kept page draws its cards once it is back (firmware 0.3.2+).
+        - lambda: 'runtime_tiles::mark_time(); if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
     on_time:
       - seconds: 0
         minutes: /1
         then:
           - script.execute: apply_screen_settings
-          - lambda: 'if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
+          - lambda: 'runtime_tiles::mark_time(); if (!id(ui_refresh).is_running()) id(ui_refresh).execute();'
 
 globals:
   # Alert overlay (HA action show_alert): standby waits while one is up.
@@ -1159,6 +1162,9 @@ sensor:
             // The least stack the loop task (LVGL, the tiles, the API) ever had left since boot: a layout replacement
             // runs deepest. loop_task_stack_size in hardware/esp-idf.yaml is sized from this line (firmware 0.3.1+).
             ESP_LOGI("health", "loop_stack_min_free=%u", (unsigned) uxTaskGetStackHighWaterMark(nullptr));
+            // Pages kept whole and pictures kept (firmware 0.3.2+): what they hold, and the PSRAM left beside them.
+            ESP_LOGI("health", "kept_pages=%u pictures=%u B psram_free=%u", runtime_tiles::kept_count(),
+                     (unsigned) runtime_tiles::pictures.size(), (unsigned) heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
             #endif
     fragmentation:
       name: "Heap Fragmentation"
@@ -1190,6 +1196,10 @@ sensor:
         return 0;
       #endif
   # A picture needs one block, not a total: 2 MB free in ten pieces holds no 2 MB picture.
+  # Read only while the glass is dark (firmware 0.3.2+): finding the largest block walks the whole PSRAM heap with its
+  # lock held and this core's interrupts off, 1.7 to 2.3 ms on the 4-inch Guition, and an RGB panel refills its bounce
+  # buffer from an interrupt every 0.34 ms. Once every five minutes a lit screen showed a shifted frame; a dark one
+  # shows nothing, so the figure waits for standby at level 0 or Sleep and keeps its last value until then.
   - platform: template
     name: "Psram Largest Block"
     id: psram_largest
@@ -1199,6 +1209,10 @@ sensor:
     update_interval: 300s
     lambda: |-
       #ifdef USE_ESP32
+        if (!heap_caps_get_total_size(MALLOC_CAP_SPIRAM)) return 0;
+        const auto now = id(homeassistant_time).now();
+        const int minute = now.is_valid() ? now.hour * 60 + now.minute : -1;
+        if (!id(display_dimmed) || screen_settings::current.dim_level(minute) != 0) return {};
         return heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM);
       #else
         return 0;
@@ -2078,6 +2092,8 @@ script:
           // The Page buttons setting moves the cards into the bar's room or back (firmware 0.2.69+).
           if (runtime_tiles::enabled) runtime_tiles::page_buttons_changed();
           settings_screen::refresh();
+          // A display setting (the clock's format, say): drawn like a minute turning (firmware 0.3.2+).
+          runtime_tiles::mark_time();
           if (!id(ui_refresh).is_running()) id(ui_refresh).execute();
 
   # Every card closes through runtime_tiles::dismiss (set in on_boot): the runtime detail card, the light,

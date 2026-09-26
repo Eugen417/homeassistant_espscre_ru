@@ -1,3 +1,15 @@
+## 0.3.7 (firmware 0.3.2)
+
+Every page is there the moment you turn to it, and the screen no longer flickers while a picture loads.
+
+- **Pages kept whole.** A screen with PSRAM (every board but the CYD and the Waveshare 3.5) builds each page once and keeps it: turning back to a page shows it at once, and only a card whose tile changed is drawn again. On the 4-inch Guition the next page is on the glass in about 100 ms instead of 130 to 250 ms, and the media card over a whole page in 90 ms instead of 250.
+- **Pages prepared ahead.** After it starts, the screen builds all its pages before the first one opens: "Preparing pages 3/8", with a line about what it is looking at, for one to two seconds. A layout saved in the editor is built in the background while nobody touches the screen, and a page whose tiles changed while it was away is brought up to date the same way.
+- **Pictures kept until they change.** An album cover is fetched once per track, and ahead of time for pages you are not on; a camera page shows its last picture at once and refreshes at its own pace. No picture starts loading while you are turning pages.
+- **No more stripes while a picture loads.** Screens with an RGB panel (the 4-inch Guition and the Waveshare 4.3, 4B and 7 inch) showed stripes, doubled text or a shifted frame while a camera picture or a cover loaded, and once every five minutes. A memory check before and after each picture held up the panel's refresh; it no longer runs while the screen is lit, and the Psram Largest Block sensor now updates only while the screen is dark.
+- A playing track's cover is fetched again only when the picture changes. Home Assistant renews the link to it every few minutes, and every screen fetched the same cover again each time; the app now leaves that part of the link out (every firmware gains, this needs no update). A new media card also asked for its cover with the wrong colour behind the rounded corners first, and fetched it a second time.
+- On the first and the last page, the Previous or Next arrow is grey again (it stayed dark since firmware 0.3.1).
+- Update the firmware of your screens to get this. The CYD and the Waveshare 3.5 keep building a page when it is shown, as before; a layout, its settings and the screen's calibration stay as they are.
+
 ## 0.3.6 (firmware 0.3.1)
 
 The 7-inch Guition JC1060P470 on the ESP32-P4, experimental (GitHub #28).

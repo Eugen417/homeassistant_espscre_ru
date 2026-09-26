@@ -15,6 +15,7 @@ Needs the ESPHome CLI and SDL2 (`brew install sdl2`, or `apt install libsdl2-dev
 .esphome/render/ of this checkout.
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -158,6 +159,10 @@ def host_core(tree):
         text, n = re.subn(r'(?m)^(  platformio_options:\n    build_flags:\n)', r'\1      - -DLV_USE_SNAPSHOT=1\n', text, count=1)
         if n != 1:
             shape_error('esphome.platformio_options.build_flags of packages/core.yaml')
+    # KEPT_PAGES_HOST=1: the host program keeps and prepares its pages as a board with PSRAM does (docs/KEPT_PAGES.md).
+    # Its renders must match a run without it pixel for pixel: tools/compare_renders.py over the two outputs.
+    if os.environ.get('KEPT_PAGES_HOST') == '1':
+        text = re.sub(r'(?m)^(  platformio_options:\n    build_flags:\n)', r'\1      - -DKEPT_PAGES_HOST=1\n', text, count=1)
     return text
 
 

@@ -140,5 +140,16 @@ int main() {
   Feed live;
   live.open("camera.front_door");
   assert(!live.once);
+  // A page that comes back with its camera picture kept (firmware 0.3.2+): the link is asked for as usual, the next
+  // load waits until the kept picture is as old as the feed's pace, and a new link does not undo that.
+  Feed back;
+  back.open("camera.front_door", false, 15000);
+  back.resume(100000);
+  assert(back.should_ask(101000));
+  back.ask(101000);
+  back.link("http://192.168.1.2:8098/camera/abcdefghijklmnopqrstuvwx.jpg");
+  assert(!back.should_load(101000) && !back.should_load(114999) && back.should_load(115000));
+  // Nothing loads between two quick page turns.
+  assert(!settled(10500, 10000) && settled(10000 + SETTLE_MS, 10000));
   return 0;
 }

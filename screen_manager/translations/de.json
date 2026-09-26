@@ -103,6 +103,7 @@
       "connecting": "Verbinde mit Home Assistant",
       "waiting": "Warte auf ESP Screens",
       "loading_tiles": "Kacheln werden geladen...",
+      "preparing_pages": "Seiten werden vorbereitet {n}/{total}",
       "ha_not_connected": "HA nicht verbunden",
       "manager_not_active": "ESP Screens nicht aktiv",
       "choose_tiles": "Kacheln in HA wählen",
@@ -110,6 +111,21 @@
       "no_network": "Kein Netzwerk",
       "configuration_problem": "Konfigurationsproblem.\nAdd-on aktualisieren.",
       "configuration_version": "Konfigurationsproblem.\nBildschirm- und Add-on-Versionen prüfen."
+    },
+    "preparing": {
+      "default": "Kacheln werden sortiert",
+      "light": "Ein Blick auf deine Lampen",
+      "media": "Albumcover werden abgestaubt",
+      "camera": "Kameralinsen werden poliert",
+      "climate": "Ein Blick aufs Thermostat",
+      "weather": "Ein Blick aus dem Fenster",
+      "cover": "Ein Blick hinter die Vorhänge",
+      "vacuum": "Der Saugroboter wird gesucht",
+      "sensor": "Alle Sensoren werden gelesen",
+      "sun": "Der Sonne hinterher",
+      "clock": "Die Uhren werden aufgezogen",
+      "scene": "Deine Szenen werden geprobt",
+      "switch": "Deine Schalter werden gezählt"
     },
     "settings": {
       "title": "Einstellungen",

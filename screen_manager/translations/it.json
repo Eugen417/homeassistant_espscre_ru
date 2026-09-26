@@ -103,6 +103,7 @@
       "connecting": "Connessione a Home Assistant",
       "waiting": "In attesa di ESP Screens",
       "loading_tiles": "Caricamento riquadri...",
+      "preparing_pages": "Preparazione pagine {n}/{total}",
       "ha_not_connected": "HA non connesso",
       "manager_not_active": "ESP Screens non attivo",
       "choose_tiles": "Scegli i riquadri in HA",
@@ -110,6 +111,21 @@
       "no_network": "Nessuna rete",
       "configuration_problem": "Problema di configurazione.\nAggiorna il componente aggiuntivo.",
       "configuration_version": "Problema di configurazione.\nControlla le versioni dello schermo e del componente aggiuntivo."
+    },
+    "preparing": {
+      "default": "Sistemando i riquadri",
+      "light": "Una sbirciata alle tue luci",
+      "media": "Spolverando le copertine",
+      "camera": "Lucidando gli obiettivi",
+      "climate": "Uno sguardo al termostato",
+      "weather": "Uno sguardo fuori dalla finestra",
+      "cover": "Una sbirciata dietro le tende",
+      "vacuum": "Cercando il robot aspirapolvere",
+      "sensor": "Leggendo tutti i sensori",
+      "sun": "Seguendo il sole",
+      "clock": "Caricando gli orologi",
+      "scene": "Provando le tue scene",
+      "switch": "Contando i tuoi interruttori"
     },
     "settings": {
       "title": "Impostazioni",

@@ -103,6 +103,7 @@
       "connecting": "Connecting to Home Assistant",
       "waiting": "Waiting for ESP Screens",
       "loading_tiles": "Loading tiles...",
+      "preparing_pages": "Preparing pages {n}/{total}",
       "ha_not_connected": "HA not connected",
       "manager_not_active": "ESP Screens not active",
       "choose_tiles": "Choose tiles in HA",
@@ -110,6 +111,21 @@
       "no_network": "No network",
       "configuration_problem": "Configuration problem.\nUpdate add-on.",
       "configuration_version": "Configuration problem.\nCheck screen and add-on versions."
+    },
+    "preparing": {
+      "default": "Arranging your tiles",
+      "light": "Peeking at your lights",
+      "media": "Dusting off the album covers",
+      "camera": "Polishing the camera lenses",
+      "climate": "Checking the thermostat",
+      "weather": "Looking out of the window",
+      "cover": "Peeking behind the curtains",
+      "vacuum": "Looking for the robot vacuum",
+      "sensor": "Reading all the sensors",
+      "sun": "Following the sun",
+      "clock": "Winding the clocks",
+      "scene": "Rehearsing your scenes",
+      "switch": "Counting your switches"
     },
     "settings": {
       "title": "Settings",

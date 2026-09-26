@@ -103,6 +103,7 @@
       "connecting": "Connexion à Home Assistant",
       "waiting": "En attente d'ESP Screens",
       "loading_tiles": "Chargement des tuiles...",
+      "preparing_pages": "Préparation des pages {n}/{total}",
       "ha_not_connected": "HA non connecté",
       "manager_not_active": "ESP Screens inactif",
       "choose_tiles": "Choisissez les tuiles dans HA",
@@ -110,6 +111,21 @@
       "no_network": "Pas de réseau",
       "configuration_problem": "Problème de configuration.\nMettez à jour le module.",
       "configuration_version": "Problème de configuration.\nVérifiez les versions de l’écran et du module."
+    },
+    "preparing": {
+      "default": "On range vos tuiles",
+      "light": "Un coup d’œil à vos lampes",
+      "media": "On dépoussière les pochettes",
+      "camera": "On nettoie les objectifs",
+      "climate": "Un coup d’œil au thermostat",
+      "weather": "Un coup d’œil par la fenêtre",
+      "cover": "Un coup d’œil derrière les rideaux",
+      "vacuum": "On cherche le robot aspirateur",
+      "sensor": "On lit tous les capteurs",
+      "sun": "On suit le soleil",
+      "clock": "On remonte les horloges",
+      "scene": "On répète vos scènes",
+      "switch": "On compte vos interrupteurs"
     },
     "settings": {
       "title": "Paramètres",

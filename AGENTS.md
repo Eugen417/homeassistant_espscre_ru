@@ -114,6 +114,10 @@ and screens for lookups and tests. If that file is missing you are not on his ma
   `settings_screen::set()`, and the add-on changes them through the entities in
   `SETTING_ENTITIES`, never through the layout message. docs/SETTINGS.md is the end-to-end
   recipe for adding one; never widen the eleven-key `settings` block older firmware insists on.
+- Pages kept whole, pages prepared ahead and pictures kept until they change (firmware 0.3.2+) follow
+  docs/KEPT_PAGES.md: a card is drawn only while it is on the glass, a card set is exchanged whole, and what a kept page
+  lacks follows from change numbers (`kept_pages::Changes`), never from flags handed around. Never walk the PSRAM heap
+  (`heap_caps_get_largest_free_block`, `heap_caps_get_info`) while an RGB panel is lit: it shifts a frame.
 - Preserve fixed pages, hidden navigation at six tiles or fewer, and a
   minimum default standby of 600 seconds. Don't reintroduce free scrolling
   without physically testing for touch/navigation regressions.

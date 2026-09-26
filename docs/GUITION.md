@@ -217,3 +217,9 @@ those went when the native configuration proved clean without them
 ([the comparison](GUITION_FACTORY_REFERENCE.md)).
 Physically check for occasional glitches under Wi-Fi/render load; a
 software snapshot can't prove a disturbance in the panel signal.
+
+The bounce buffer is refilled from an interrupt every 0.34 ms at this pixel
+clock, so nothing may keep this core's interrupts off for longer. Walking the
+PSRAM heap does (`heap_caps_get_largest_free_block`, 1.7 to 2.3 ms with a
+layout loaded): it shifted a frame on every picture that loaded until firmware
+0.3.2 stopped doing it while the glass is lit ([KEPT_PAGES.md](KEPT_PAGES.md)).

@@ -103,6 +103,7 @@
       "connecting": "Verbinden met Home Assistant",
       "waiting": "Wachten op ESP Screens",
       "loading_tiles": "Tegels laden...",
+      "preparing_pages": "Pagina's voorbereiden {n}/{total}",
       "ha_not_connected": "HA niet verbonden",
       "manager_not_active": "ESP Screens niet actief",
       "choose_tiles": "Kies tegels in HA",
@@ -110,6 +111,21 @@
       "no_network": "Geen netwerk",
       "configuration_problem": "Configuratieprobleem.\nWerk de add-on bij.",
       "configuration_version": "Configuratieprobleem.\nControleer de versies van scherm en add-on."
+    },
+    "preparing": {
+      "default": "Je tegels schikken",
+      "light": "Even naar je lampen gluren",
+      "media": "De albumhoezen afstoffen",
+      "camera": "De cameralenzen poetsen",
+      "climate": "De thermostaat bekijken",
+      "weather": "Even uit het raam kijken",
+      "cover": "Achter de gordijnen gluren",
+      "vacuum": "De robotstofzuiger zoeken",
+      "sensor": "Alle sensoren aflezen",
+      "sun": "De zon volgen",
+      "clock": "De klokken opwinden",
+      "scene": "Je scènes repeteren",
+      "switch": "Je schakelaars tellen"
     },
     "settings": {
       "title": "Instellingen",

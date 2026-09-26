@@ -103,6 +103,7 @@
       "connecting": "Łączenie z Home Assistant",
       "waiting": "Czekam na ESP Screens",
       "loading_tiles": "Ładowanie kafelków...",
+      "preparing_pages": "Przygotowywanie stron {n}/{total}",
       "ha_not_connected": "HA niepołączony",
       "manager_not_active": "ESP Screens nieaktywny",
       "choose_tiles": "Wybierz kafelki w HA",
@@ -110,6 +111,21 @@
       "no_network": "Brak sieci",
       "configuration_problem": "Błąd konfiguracji.\nZaktualizuj dodatek.",
       "configuration_version": "Błąd konfiguracji.\nSprawdź wersje ekranu i dodatku."
+    },
+    "preparing": {
+      "default": "Układanie kafelków",
+      "light": "Zerkamy na twoje lampy",
+      "media": "Odkurzamy okładki albumów",
+      "camera": "Polerujemy obiektywy kamer",
+      "climate": "Zerkamy na termostat",
+      "weather": "Wyglądamy przez okno",
+      "cover": "Zerkamy za zasłony",
+      "vacuum": "Szukamy robota sprzątającego",
+      "sensor": "Odczytujemy wszystkie czujniki",
+      "sun": "Podążamy za słońcem",
+      "clock": "Nakręcamy zegary",
+      "scene": "Próbujemy twoje sceny",
+      "switch": "Liczymy twoje przełączniki"
     },
     "settings": {
       "title": "Ustawienia",

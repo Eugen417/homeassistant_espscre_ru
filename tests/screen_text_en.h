@@ -3,7 +3,7 @@
 #pragma once
 #include "components/smart_display/screen_text.h"
 
-static_assert(screen_text::KEYS_HASH == 0xD7C7473Cu && screen_text::KEY_COUNT == 330,
+static_assert(screen_text::KEYS_HASH == 0x277DC1BAu && screen_text::KEY_COUNT == 344,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -82,6 +82,7 @@ const char *const screen_text::TABLE[] = {
     "Connecting to Home Assistant",
     "Waiting for ESP Screens",
     "Loading tiles...",
+    "Preparing pages {n}/{total}",
     "HA not connected",
     "ESP Screens not active",
     "Choose tiles in HA",
@@ -89,6 +90,19 @@ const char *const screen_text::TABLE[] = {
     "No network",
     "Configuration problem.\012Update add-on.",
     "Configuration problem.\012Check screen and add-on versions.",
+    "Arranging your tiles",
+    "Peeking at your lights",
+    "Dusting off the album covers",
+    "Polishing the camera lenses",
+    "Checking the thermostat",
+    "Looking out of the window",
+    "Peeking behind the curtains",
+    "Looking for the robot vacuum",
+    "Reading all the sensors",
+    "Following the sun",
+    "Winding the clocks",
+    "Rehearsing your scenes",
+    "Counting your switches",
     "Settings",
     "Brightness",
     "Night",

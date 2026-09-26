@@ -193,7 +193,7 @@ EITHER_PLACEHOLDER = {'screen.date.top_bar': {'weekday', 'weekday_min', 'day', '
 LINT_KEEP = {
     # Statuses the app reads and acts on (screen_manager/app/server.py RESEND_STATES, the "Error" prefix): protocol.
     'Synced', 'Loading tiles', 'Layout received', 'Resend needed', 'Ready for tile configuration',
-    'Use the Easy Setup profile', 'Swipe test started', 'no answer', 'Error: message too large',
+    'Use the Easy Setup profile', 'Swipe test started', 'Heap walked', 'Kept pages set', 'no answer', 'Error: message too large',
     'Error: invalid message', 'Error: protocol version', 'Error: screen settings', 'Error: outdated tile',
     'Error: no memory for ', 'Error: incomplete message', 'Error: invalid encoding',
     # Protocol 2 handshakes/refusals stay stable across screen languages. The

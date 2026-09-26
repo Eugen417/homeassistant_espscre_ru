@@ -50,6 +50,40 @@ inline std::string receive(const std::string &payload) {
       return false;
     }
     auto op = string(root["op"]);
+#ifdef SWIPE_PROFILE
+    // Diagnostic builds only, and outside the add-on's session so a bench script can send them (docs/SWIPE_PROFILE.md).
+    if (op == "swipe_test") {
+      // Page switches without a finger, `n` of them `ms` apart; `back` (ms) swipes straight back after each one, like a
+      // quick second swipe.
+      swipe_test(root["n"] | 20u, root["ms"] | 1200u, root["back"] | 0u);
+      result = "Swipe test started";
+      return true;
+    }
+    if (op == "heap_walk") {
+      // How long one walk of each heap holds its lock, the time the panel's bounce-buffer interrupt waits on that core.
+#ifdef USE_ESP32
+      for (const uint32_t caps : {(uint32_t) MALLOC_CAP_INTERNAL, (uint32_t) MALLOC_CAP_SPIRAM}) {
+        multi_heap_info_t info;
+        const int64_t start = esp_timer_get_time();
+        heap_caps_get_info(&info, caps);
+        const int64_t took = esp_timer_get_time() - start;
+        ESP_LOGI("swipe_prof", "heap walk %s: %lld us, %u blocks (%u free), largest %u", caps == MALLOC_CAP_SPIRAM ? "psram" : "internal",
+                 (long long) took, (unsigned) (info.allocated_blocks + info.free_blocks), (unsigned) info.free_blocks,
+                 (unsigned) info.largest_free_block);
+      }
+#endif
+      result = "Heap walked";
+      return true;
+    }
+    if (op == "kept_pages") {
+      // At most `n` pages kept beside the one on the glass (kept_pages.h), -1 for as many as fit: the A/B of that round.
+      kept_limit = root["n"] | -1;
+      forget_kept();
+      ESP_LOGI("swipe_prof", "kept pages: %d", kept_limit);
+      result = "Kept pages set";
+      return true;
+    }
+#endif
     if (op == "hello") {
       uint64_t request;
       if (!page_protocol::key(string(root["request"]), request)) return false;
@@ -238,6 +272,7 @@ inline std::string receive(const std::string &payload) {
       model.configured = true;
       if (shown_page) *shown_page = model.page_data.restore(previous_page_id, had_previous_page);
       if (layout_changed) layout_changed();
+      prepare_start();  // every other page built ahead (firmware 0.3.2+)
       last_received = esphome::millis();
       refresh_all();
 #ifdef USE_ESP32
@@ -375,15 +410,6 @@ inline std::string receive(const std::string &payload) {
       result = model.ready() ? "Synced" : "Loading tiles";
       return true;
     }
-#ifdef SWIPE_PROFILE
-    if (op == "swipe_test") {
-      // Diagnostic builds only: page switches without a finger, `n` of them `ms` apart; `back`
-      // (ms) swipes straight back after each one, like a quick second swipe.
-      swipe_test(root["n"] | 20u, root["ms"] | 1200u, root["back"] | 0u);
-      result = "Swipe test started";
-      return true;
-    }
-#endif
     const bool initial = op == "tile";
     if ((!initial && op != "state") || !root["i"].is<unsigned>() || !root["a"].is<JsonObject>() ||
         !root["state"].is<const char *>() || !root["name"].is<const char *>()) return false;

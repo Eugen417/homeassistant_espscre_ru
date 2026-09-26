@@ -19,6 +19,8 @@
 #include "tile_controls.h"
 #include "history_view.h"
 #include "camera_view.h"
+#include "kept_pages.h"
+#include "picture_store.h"
 #include "media_card.h"
 #include "light_card.h"
 #include "weather_card.h"
@@ -31,6 +33,8 @@
 #include "lvgl.h"
 #include <functional>
 #include <algorithm>
+#include <new>
+#include <cstdlib>
 
 namespace runtime_tiles {
 // What the screen says, in the language its firmware was built for (screen_text.h, app 0.2.90).
@@ -98,13 +102,21 @@ inline page_protocol::Transfer transfer;
 inline page_protocol::NavigationHistory navigation_history;
 enum class ProtocolProblem : uint8_t { none, old_addon, unsupported };
 inline ProtocolProblem protocol_problem = ProtocolProblem::none;
+// Pages prepared ahead (firmware 0.3.2+): after a layout the pages are built off the glass one by one, the first layout
+// since the start under a "Preparing pages" screen, a later one in the background while the screen is idle.
+struct Preparing { bool active = false, foreground = false; unsigned done = 0, total = 0; lv_timer_t *timer = nullptr; };
+inline Preparing preparing;
+inline bool prepare_busy() { return preparing.active; }
+// Pages turn once the layout is complete, and not while the "Preparing pages" screen covers them.
 inline bool navigation_ready() {
-  return protocol_problem == ProtocolProblem::none && transfer.active && model.ready();
+  return protocol_problem == ProtocolProblem::none && transfer.active && model.ready() && !preparing.foreground;
 }
 inline uint64_t previous_page_id = 0;
 inline bool had_previous_page = false;
 inline uint32_t history_view_id = 0, options_view_id = 0, camera_view_id = 0, cover_view_id = 0, live_view_id = 0;
 inline void cancel_layout_input(bool invalidate_widgets = true);
+inline void forget_kept();
+inline void prepare_start();
 inline int home_page() { return model.page_data.home; }
 inline int sequential_page(int page, int step) {
   return navigation_ready() ? model.page_data.step(page, step) : page;
@@ -154,9 +166,12 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
 inline bool camera_supported();
 // The media card's album cover (firmware 0.2.64+): the card or a tile over the whole page says which cover it shows,
 // the board's online_image loads it; see the end of this file.
-enum class CoverOwner : uint8_t { NONE, DETAIL, TILE };
+// PREFETCH (firmware 0.3.2+): a media card on a kept page, fetched ahead while the screen is idle.
+enum class CoverOwner : uint8_t { NONE, DETAIL, TILE, PREFETCH };
 inline void cover_want(const std::string &entity, const std::string &picture, int size, uint32_t background, CoverOwner owner, size_t slot);
 inline lv_image_dsc_t *cover_ready(const std::string &entity, int size, uint32_t background);
+struct Widgets;
+inline lv_image_dsc_t *kept_cover(const Widgets &w);
 // The card's cover on screen, and the part a media tile keeps its cover in; both go with the image buffer.
 inline lv_obj_t *media_detail_picture = nullptr;
 constexpr unsigned MEDIA_PICTURE = 14;
@@ -303,10 +318,37 @@ struct Widgets {
   lv_obj_t *busy{}, *spinner{}; bool busy_drawn=false;
   // A camera tile's live picture (firmware 0.2.77+) or a media tile's album cover (0.2.78+) in the icon's place.
   lv_obj_t *picture{};
+  // The album cover a media card over the whole page shows (firmware 0.3.2+): the player, its picture's mark, the size
+  // and colour asked for and where it goes on the card, so a kept page can have it fetched ahead and put on the card.
+  std::string cover_entity, cover_mark; int cover_size=0; uint32_t cover_ground=0; media_card::Rect cover_rect{};
 };
+// A page is being built off the glass (warm_page): its cards ask for no pictures and wake nothing.
+inline bool warming=false;
 constexpr unsigned POINT_BUFFER = 128;
 // One widget per cell of the board's grid: the cards packages/cells/<number>.yaml brings, bound at boot.
 inline std::array<Widgets, CELLS_MAX> widgets;
+// ---- Pages kept whole (firmware 0.3.2+, kept_pages.h) ----
+// A board with PSRAM keeps the cards of the pages it has shown. `widgets` is always the set on the glass; a page that
+// leaves the glass takes its set onto the shelf, hidden, and a page that comes back brings its own set with it. A card
+// keeps its index in whichever set holds it, and its callbacks name that index (or `&widgets[index]`), so a set is only
+// ever exchanged whole: a callback fires on the glass, where `widgets[index]` is that very card. Cards are drawn only
+// while they are on the glass. The first set is the board's own (packages/cells), make_card builds the others alike.
+using CardSet = std::array<Widgets, CELLS_MAX>;
+inline kept_pages::Shelf shelf;
+inline kept_pages::Changes changes;  // what a card could show, numbered as it is asked for (kept_pages.h)
+inline uint32_t glass_synced = 0;    // the change number the cards on the glass are drawn up to
+inline std::array<CardSet *, kept_pages::MAX_KEPT> kept_sets{};
+// The styles of a card (packages/core.yaml hands them over at boot), for the cards make_card builds.
+struct CardLook { lv_style_t *tile = nullptr, *circle = nullptr, *title = nullptr, *value = nullptr; };
+inline CardLook card_look;
+inline uint32_t last_turn_ms = 0;  // the last page turn: pictures wait until the pages stand still (camera_view::settled)
+inline uint32_t touched_at = 0;    // the last finger on the glass: pages are prepared in the background only after a pause
+inline int kept_limit = -1;        // at most this many pages kept, -1 for as many as fit (a diagnostic build's A/B)
+// Every card, on the glass and kept.
+template <class F> inline void each_card(F f) {
+  for (auto &w : widgets) f(w);
+  for (auto *set : kept_sets) if (set) for (auto &w : *set) f(w);
+}
 // The tile area. Its cells are an LVGL grid of grid.columns by grid.rows free units: LVGL divides the room
 // over the cells and keeps the gaps (the container's pad_row and pad_column) and the side margin (its padding),
 // so a board states columns and rows and nothing here computes a coordinate. place_page only says which cell a
@@ -2561,7 +2603,8 @@ inline bool finger_at(lv_point_t &point) {
 }
 inline void event(lv_event_t *event) {
   auto &w = *static_cast<Widgets *>(lv_event_get_user_data(event));
-  if (!enabled || w.index >= model.count) return;
+  // Only the card on the glass at this index answers (a kept card never gets a finger; kept_pages.h).
+  if (!enabled || w.index >= model.count || w.tile != lv_event_get_current_target(event)) return;
   auto code = lv_event_get_code(event);
   if (code != LV_EVENT_SHORT_CLICKED && code != LV_EVENT_LONG_PRESSED) return;
   // A finger that slid off the card is not a tap or a hold on it (the Guition, firmware 0.2.65+). LVGL keeps the press
@@ -2770,23 +2813,31 @@ inline void press_ground(lv_obj_t *tile, lv_color_t colour) {
     lv_obj_add_style(tile, &press_styles().fade, 0);
   set_color(tile, LV_STYLE_BG_COLOR, colour);
 }
-inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
+// A card into its set at `index`. Its callbacks name the index and `widgets[index]`: they only fire while the card is on
+// the glass, and then that is where it is (the set exchange in keep_page never moves a card to another index).
+// `like`: a card of the board's own set whose measurements this one takes over (make_card), instead of laying the grid
+// out to measure it; that pass walks every card on the screen, kept ones too, and made a new set cost up to a second.
+inline void bind_card(Widgets &into, size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon,
+                      const Widgets *like = nullptr) {
   // A card is measured in the cell it will live in (firmware 0.2.92+). Everything below reads the size the card
   // has here, so it is put in the first cell of the grid first: one cell is exactly what a plain single card
   // gets, whatever the board and whichever way its glass hangs. place_page moves it to its real cell later.
-  if (tile_grid) {
-    lv_obj_set_grid_cell(tile, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
-    lv_obj_update_layout(tile_grid);
+  if (!like) {
+    if (tile_grid) {
+      lv_obj_set_grid_cell(tile, LV_GRID_ALIGN_STRETCH, 0, 1, LV_GRID_ALIGN_STRETCH, 0, 1);
+      lv_obj_update_layout(tile_grid);
+    }
+    lv_obj_update_layout(tile);
   }
-  lv_obj_update_layout(tile);
+  const int width = like ? like->base_width : lv_obj_get_width(tile), height = like ? like->base_height : lv_obj_get_height(tile);
   // Compact cards need room for two text lines and a separate dimmer track.
-  if(lv_obj_get_height(tile)<=80){lv_obj_set_style_pad_top(tile,4,0);lv_obj_set_style_pad_bottom(tile,4,0);}
+  if(height<=80){lv_obj_set_style_pad_top(tile,4,0);lv_obj_set_style_pad_bottom(tile,4,0);}
   lv_obj_set_style_border_width(tile,1,0);
   press_feedback(tile);
-  lv_obj_update_layout(tile);
-  widgets[index] = {tile, title, value, circle, icon, index};
-  auto &w=widgets[index]; w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
-  w.base_width=lv_obj_get_width(tile);w.base_height=lv_obj_get_height(tile);w.base_circle=lv_obj_get_width(circle);
+  if (!like) lv_obj_update_layout(tile);
+  into = {tile, title, value, circle, icon, index};
+  auto &w=into; w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
+  w.base_width=width;w.base_height=height;w.base_circle=like ? like->base_circle : lv_obj_get_width(circle);
   w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
   w.icon_font=lv_obj_get_style_text_font(icon,LV_PART_MAIN);
   w.unit=lv_label_create(tile);lv_obj_set_style_text_font(w.unit,w.value_font,0);lv_obj_remove_flag(w.unit,LV_OBJ_FLAG_CLICKABLE);lv_obj_add_flag(w.unit,LV_OBJ_FLAG_HIDDEN);
@@ -2796,11 +2847,11 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_set_height(value,lv_font_get_line_height(w.value_font));
   lv_label_set_long_mode(title,LV_LABEL_LONG_DOT);lv_label_set_long_mode(value,LV_LABEL_LONG_DOT);
   w.progress=lv_obj_create(tile);lv_obj_remove_style_all(w.progress);lv_obj_set_size(w.progress,0,3);lv_obj_align(w.progress,LV_ALIGN_BOTTOM_LEFT,0,0);lv_obj_add_flag(w.progress,LV_OBJ_FLAG_HIDDEN);
-  w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,lv_obj_get_width(tile)-24,ui::px(ui::large()?28:10));lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);lv_slider_set_range(w.slider,0,1000);
+  w.slider=lv_slider_create(tile);lv_obj_set_size(w.slider,width-24,ui::px(ui::large()?28:10));lv_obj_align(w.slider,LV_ALIGN_BOTTOM_MID,0,0);lv_slider_set_range(w.slider,0,1000);
   // A short white bar inside the fill as handle, like the control sliders (invisible before 0.2.20).
   int strip=ui::px(ui::large()?28:10);
   lv_obj_add_style(w.slider,theme::style(theme::Paint::knob),LV_PART_KNOB);lv_obj_set_style_bg_opa(w.slider,LV_OPA_COVER,LV_PART_KNOB);
-  slider_handle(w.slider,lv_obj_get_width(tile)-24,strip);
+  slider_handle(w.slider,width-24,strip);
   lv_obj_set_style_border_width(w.slider,0,LV_PART_KNOB);lv_obj_set_style_shadow_width(w.slider,0,LV_PART_KNOB);
   // Track and fill follow the card's palette (render_slot), which is drawn before the slider shows.
   lv_obj_set_style_radius(w.slider,2,LV_PART_KNOB);
@@ -2809,6 +2860,31 @@ inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value,
   lv_obj_add_event_cb(w.slider,slider_event,LV_EVENT_ALL,(void*)(uintptr_t)index);
   lv_obj_add_event_cb(tile, event, LV_EVENT_SHORT_CLICKED, &widgets[index]);
   lv_obj_add_event_cb(tile, event, LV_EVENT_LONG_PRESSED, &widgets[index]);
+}
+// The board's own cards (packages/cells/<n>.yaml, bound at boot).
+inline void bind(size_t index, lv_obj_t *tile, lv_obj_t *title, lv_obj_t *value, lv_obj_t *circle, lv_obj_t *icon) {
+  bind_card(widgets[index], index, tile, title, value, circle, icon);
+}
+// A card like the ones packages/cells/<n>.yaml brings (tools/generate_cells.py writes those): the same four styles, the
+// same parts and flags, the board's icon size and icon font as its first card has them. Hidden until a page shows it.
+inline void make_card(Widgets &into, size_t index, const Widgets &like) {
+  auto *tile = lv_obj_create(tile_grid);
+  lv_obj_add_flag(tile, LV_OBJ_FLAG_HIDDEN);  // out of the grid's layout from the start
+  lv_obj_add_style(tile, card_look.tile, 0);
+  lv_obj_set_size(tile, 1, 1);
+  auto *circle = lv_obj_create(tile);
+  lv_obj_add_style(circle, card_look.circle, 0);
+  lv_obj_set_size(circle, like.base_circle, like.base_circle);
+  auto *icon = lv_label_create(circle);
+  lv_obj_set_style_text_font(icon, like.icon_font, 0);
+  lv_obj_align(icon, LV_ALIGN_CENTER, 0, 0);
+  auto *title = lv_label_create(tile);
+  lv_obj_add_style(title, card_look.title, 0);
+  auto *value = lv_label_create(tile);
+  lv_obj_add_style(value, card_look.value, 0);
+  for (auto *o : {tile, circle}) { lv_obj_remove_flag(o, LV_OBJ_FLAG_SCROLLABLE); lv_obj_set_scrollbar_mode(o, LV_SCROLLBAR_MODE_OFF); }
+  for (auto *o : {circle, icon, title, value}) lv_obj_remove_flag(o, LV_OBJ_FLAG_CLICKABLE);
+  bind_card(into, index, tile, title, value, circle, icon, &like);
 }
 inline void label(lv_obj_t *obj, const std::string &text) {
   if (text != lv_label_get_text(obj)) lv_label_set_text(obj, text.c_str());
@@ -3494,11 +3570,19 @@ inline void render_media_full(Widgets &w,const Tile &t,bool big,int content_w,in
   const lv_font_t *placeholder_font=big_icon_font&&font_has(big_icon_font,glyph)?big_icon_font:w.icon_font;
   if(!w.parts[1]){w.parts[1]=lv_label_create(w.parts[0]);lv_obj_remove_flag(w.parts[1],LV_OBJ_FLAG_CLICKABLE);}
   set_font(w.parts[1],placeholder_font);set_color(w.parts[1],LV_STYLE_TEXT_COLOR,theme::rgb(theme::icon(theme::ha::LIGHT_BLUE)));label(w.parts[1],glyph);lv_obj_center(w.parts[1]);
-  const uint32_t ground=theme::of(lv_obj_get_style_bg_color(w.tile,LV_PART_MAIN));
+  // The colour behind the cover's rounded corners: the card's own, as the palette below will paint it (firmware 0.3.2).
+  // Read from the card, it was the colour of whatever the card showed before, so a new card asked for a cover with the
+  // wrong corners first and for the right one after its first drawing.
+  const uint32_t ground=t.transparent?theme::hex(theme::PAGE):theme::surface(t.background);
   lv_image_dsc_t *src=nullptr;
   // A card open over the page owns the cover then; the tile asks again once the card closes (cover_tick).
   const bool card_open=detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN);
-  if(camera_supported()&&track&&!x.media_picture.empty()&&!card_open){cover_want(t.entity,x.media_picture,l.art.w,ground,CoverOwner::TILE,slot);src=cover_ready(t.entity,l.art.w,ground);}
+  const bool pictured=camera_supported()&&track&&!x.media_picture.empty();
+  w.cover_entity=pictured?t.entity:std::string();w.cover_mark=pictured?x.media_picture:std::string();
+  w.cover_size=l.art.w;w.cover_ground=ground;w.cover_rect=at(l.art);
+  // Built off the glass (warm_page): the cover it may already have in the store, without asking for one.
+  if(pictured&&warming)src=kept_cover(w);
+  else if(pictured&&!card_open){cover_want(t.entity,x.media_picture,l.art.w,ground,CoverOwner::TILE,slot);src=cover_ready(t.entity,l.art.w,ground);}
   if(src)w.parts[MEDIA_PICTURE]=media_picture_show(w.extra,w.parts[MEDIA_PICTURE],at(l.art),src);
   else if(w.parts[MEDIA_PICTURE]){lv_obj_delete(w.parts[MEDIA_PICTURE]);w.parts[MEDIA_PICTURE]=nullptr;}
   // Title, artist · album, left-aligned beside the cover.
@@ -4249,18 +4333,36 @@ inline void render_slot(size_t slot) {
 // such as the minute tick and time sync) draws every card.
 inline uint64_t dirty_tiles=0;
 inline bool dirty_all=false, dirty_header=false;
+// The minute turned or a display setting changed (packages/core.yaml says so before its refresh): every card on the
+// glass is drawn, as for a refresh that names nothing, and on a kept page the cards that show the time (firmware 0.3.2+).
+inline bool dirty_time=false;
+// A card whose text or drawing moves on with the clock: a clock, a timer, the sun's arc, a graph's window, a playing
+// track's bar, "5 min ago" under a script or a scene, and a second line that names a moment. A forecast changes with
+// its entity, which Home Assistant updates on its own.
+inline bool shows_time(const Tile &t) {
+  const std::string d=t.domain();
+  return t.is_clock() || t.display=="graph" || t.extra().subtitle_at || d=="timer" || d=="sun" ||
+         (d=="media_player" && media_card::playing(t.state)) ||
+         d=="script" || d=="scene" || d=="button" || d=="input_button" || d=="automation";
+}
+inline void mark_time() {
+  dirty_time=true;
+  for(size_t i=0;i<model.count;++i)if(shows_time(model.tiles[i]))changes.mark_tile(i);
+}
 // The page whose cells are placed right now, -1 before the first one. It lives here and not beside show_page
 // because the top bar reads it: a page with a title of its own says that title (Model::title_of), so render()
 // has to know which page it is drawing.
 inline int applied_page=-1;
-inline void mark_tile(size_t index) { if(uint64_t bit=tile_bit(index))dirty_tiles|=bit; else dirty_all=true; }
+inline void mark_all() { dirty_all=true; changes.mark_all(); }
+inline void mark_tile(size_t index) { changes.mark_tile(index); if(uint64_t bit=tile_bit(index))dirty_tiles|=bit; else dirty_all=true; }
 inline void refresh_tile(size_t index) { mark_tile(index); if(refresh)refresh(); }
 inline void refresh_header_only() { dirty_header=true; if(refresh)refresh(); }
-inline void refresh_all() { dirty_all=true; if(refresh)refresh(); }
+inline void refresh_all() { mark_all(); if(refresh)refresh(); }
 // The starting screen (firmware 0.2.73+): what the screen waits for in the middle of the page with a spinner under it,
 // until the first layout arrives. The first render() makes it and the first layout deletes it, spinner and all.
 inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr;
-inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true) {
+// `cover`: over everything on the page, opaque, with the spinner turning ("Preparing pages", firmware 0.3.2+).
+inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, bool cover = false) {
   const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(page));
   const bool large = ui::large();
   const int ring = ui::px(large ? 48 : 32), gap = ui::px(large ? 24 : 16), text_width = width - 2 * lv_obj_get_style_x(room_label, LV_PART_MAIN);
@@ -4284,7 +4386,7 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true) {
   // A protocol mismatch is a clear, blocking message, also when an older
   // sender connects after a valid layout. Do not leave stale tiles underneath
   // the text or let an invisible control take the user's tap.
-  if (!waiting) {
+  if (!waiting || cover) {
     lv_obj_add_flag(boot_panel, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_style_bg_color(boot_panel, theme::color(theme::PAGE), 0);
     lv_obj_set_style_bg_opa(boot_panel, LV_OPA_COVER, 0);
@@ -4301,6 +4403,46 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true) {
   lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, waiting ? -(ring + gap) / 2 : 0);
   if (boot_spinner) lv_obj_align(boot_spinner, LV_ALIGN_CENTER, 0, (size.y + gap) / 2);
 }
+// A line of fun under "Preparing pages", about what the page being built holds: a joke is welcome where nothing is at
+// stake, and waiting for a screen to load is such a moment. Its first tile of a kind with a line of its own picks it;
+// every line only looks, so nobody wonders what the screen is doing to a device.
+inline uint16_t prepare_joke(int page) {
+  std::array<Placement, TILES_MAX> placement;
+  place(model, placement);
+  std::array<int, CELLS_MAX> first;
+  first.fill(-1);
+  for (size_t i = 0; i < model.count; ++i)
+    if (placement[i].page == page && placement[i].slot < first.size()) first[placement[i].slot] = (int) i;
+  for (int index : first) {
+    if (index < 0) continue;
+    const auto &t = model.tiles[index];
+    const std::string d = t.domain();
+    if (t.is_clock()) return txt::preparing_clock;
+    if (d == "light") return txt::preparing_light;
+    if (d == "media_player") return txt::preparing_media;
+    if (d == "camera" || d == "image") return txt::preparing_camera;
+    if (d == "climate" || d == "water_heater") return txt::preparing_climate;
+    if (d == "weather") return txt::preparing_weather;
+    if (d == "cover") return txt::preparing_cover;
+    if (d == "vacuum" || d == "lawn_mower") return txt::preparing_vacuum;
+    if (d == "sun") return txt::preparing_sun;
+    if (d == "scene" || d == "script" || d == "automation") return txt::preparing_scene;
+    if (d == "switch" || d == "input_boolean" || d == "fan") return txt::preparing_switch;
+    if (d == "sensor" || d == "binary_sensor") return txt::preparing_sensor;
+  }
+  return txt::preparing_default;
+}
+inline int next_to_prepare();
+// "Preparing pages 3/8" over everything while the pages are built after the first layout (firmware 0.3.2+), with the
+// line of fun for the page that is next.
+inline void prepare_status() {
+  if (!room_label) return;
+  const unsigned shown = std::min(preparing.done + 1, std::max(1u, preparing.total));
+  const int next = next_to_prepare();
+  const std::string text = fill(fill(txt::status_preparing_pages, "n", (int) shown), "total", std::to_string(preparing.total)) +
+                           "\n" + tr(next >= 0 ? prepare_joke(next) : txt::preparing_default);
+  boot_status(lv_obj_get_parent(room_label), text.c_str(), true, true);
+}
 // Before the first layout the screen is starting: HA connects, then ESP Screens sends the tiles.
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
@@ -4312,18 +4454,25 @@ inline void render(lv_obj_t *room) {
   }
   if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
   else if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));
+  else if (preparing.foreground) prepare_status();
   else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
   name_label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
   lap(swipe_profile::HEADER);
-  bool all=dirty_all || (!dirty_tiles && !dirty_header);
+  // A refresh that names nothing draws every card (and counts as a change of everything); the minute tick says it is
+  // only the time (dirty_time).
+  if(!dirty_all && !dirty_tiles && !dirty_header && !dirty_time)mark_all();
+  const bool all=dirty_all || dirty_time;
+  const uint32_t upto=changes.last;  // every change asked for so far is drawn below, for the cards on the glass
   uint64_t tiles=dirty_tiles;
-  dirty_all=dirty_header=false;dirty_tiles=0;
+  dirty_all=dirty_header=dirty_time=false;dirty_tiles=0;
   for (size_t slot = 0; slot < grid.slots(); ++slot) {
     const auto &w=widgets[slot];
     if(w.index>=model.count)continue;
     if(all || (tiles & tile_bit(w.index)))render_slot(slot);
   }
+  // Kept pages learn nothing here: what they lack follows from the change numbers when they come back (kept_pages.h).
+  glass_synced=upto;
 }
 
 // The page owns the header data; this adapter resolves navigation and settings.
@@ -4550,8 +4699,26 @@ inline unsigned page_count() {
 // filled two cards each, which read as a page being built up in front of you. The whole pass is
 // about 60 ms of CPU on the Guition and 30 ms on the CYD (docs/SWIPE_PROFILE.md): cheaper to wait
 // for than to watch. Keepalives and re-packing on the same page draw at once. Nothing is allocated.
-// Slot assignment plus card places, sizes and visibility for a page; contents are untouched.
-inline int place_page(int page) {
+// A card's cell, set only when it changes: setting it always lays the whole grid out again.
+inline void set_cell(lv_obj_t *obj, int32_t column, int32_t span_x, int32_t row, int32_t span_y) {
+  if (lv_obj_get_style_grid_cell_column_pos(obj, LV_PART_MAIN) == column && lv_obj_get_style_grid_cell_column_span(obj, LV_PART_MAIN) == span_x &&
+      lv_obj_get_style_grid_cell_row_pos(obj, LV_PART_MAIN) == row && lv_obj_get_style_grid_cell_row_span(obj, LV_PART_MAIN) == span_y &&
+      lv_obj_get_style_grid_cell_x_align(obj, LV_PART_MAIN) == LV_GRID_ALIGN_STRETCH &&
+      lv_obj_get_style_grid_cell_y_align(obj, LV_PART_MAIN) == LV_GRID_ALIGN_STRETCH) return;
+  lv_obj_set_grid_cell(obj, LV_GRID_ALIGN_STRETCH, column, span_x, LV_GRID_ALIGN_STRETCH, row, span_y);
+}
+// What a page key shows: its chevron. Not its first child: since firmware 0.3.1 that is the press patch behind the
+// chevron (nav_key_patch), which made the chevron keep full ink on the first and last page (fixed in firmware 0.3.2).
+inline lv_obj_t *nav_glyph(lv_obj_t *key) {
+  for (uint32_t i = 0; key && i < lv_obj_get_child_count(key); ++i) {
+    auto *child = lv_obj_get_child(key, i);
+    if (child != nav_back_label && lv_obj_check_type(child, &lv_label_class)) return child;
+  }
+  return nullptr;
+}
+// Slot assignment plus card places, sizes and visibility for a page; contents are untouched. `kept`: the cards already
+// show this page (kept_pages.h), so a card that keeps its tile keeps what it knows about its own colours too.
+inline int place_page(int page, bool kept = false) {
   swipe_profile::Lap lap;
   std::array<Placement,TILES_MAX> placement;
   int pages=place(model,placement);
@@ -4568,8 +4735,14 @@ inline int place_page(int page) {
     const int height=bar||!screen?grid_base_height:lv_obj_get_height(screen)-lv_obj_get_y(tile_grid)-grid_margin;
     if(lv_obj_get_style_height(tile_grid,LV_PART_MAIN)!=height)lv_obj_set_height(tile_grid,height);
   }
-  for(size_t slot=0;slot<widgets.size();++slot){widgets[slot].index=grid.max_tiles();widgets[slot].wide=false;widgets[slot].full=false;widgets[slot].cached_active=-1;}
-  for(size_t i=0;model.configured && i<model.count;++i)if(placement[i].page==page){auto &w=widgets[placement[i].slot];w.index=i;w.wide=model.tiles[i].wide;w.full=model.tiles[i].full;}
+  std::array<size_t,CELLS_MAX> shown;shown.fill(grid.max_tiles());
+  for(size_t i=0;model.configured && i<model.count;++i)if(placement[i].page==page && placement[i].slot<shown.size())shown[placement[i].slot]=i;
+  for(size_t slot=0;slot<widgets.size();++slot){
+    auto &w=widgets[slot];
+    if(!kept || w.index!=shown[slot])w.cached_active=-1;
+    w.index=shown[slot];
+    w.wide=w.index<model.count && model.tiles[w.index].wide;w.full=w.index<model.count && model.tiles[w.index].full;
+  }
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
     if(slot<grid.slots() && w.index<model.count){
@@ -4577,7 +4750,7 @@ inline int place_page(int page) {
       const int32_t column=w.full?0:(int32_t)(slot%grid.columns),row=w.full?0:(int32_t)(slot/grid.columns);
       const auto &tile=model.tiles[w.index];
       const int32_t span_x=tile.column_span(),span_y=tile.row_span();
-      lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_STRETCH,column,span_x,LV_GRID_ALIGN_STRETCH,row,span_y);
+      set_cell(w.tile,column,span_x,row,span_y);
       lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);
     }
     else{lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);hide_extra(w);hide_panel(w);}
@@ -4590,7 +4763,7 @@ inline int place_page(int page) {
       label(nav_back_label,tr(txt::navigation_back));
       set_color(nav_back_label,LV_STYLE_TEXT_COLOR,theme::color(theme::INK));
       if(header_text_font)set_font(nav_back_label,header_text_font);
-      lv_obj_align_to(nav_back_label,lv_obj_get_child(nav_prev,0),LV_ALIGN_OUT_RIGHT_MID,ui::px(4),0);
+      if(auto *chevron=nav_glyph(nav_prev))lv_obj_align_to(nav_back_label,chevron,LV_ALIGN_OUT_RIGHT_MID,ui::px(4),0);
     }
   }
   // Paint the document's destinations even while an error overlay blocks input.
@@ -4599,8 +4772,8 @@ inline int place_page(int page) {
   const int previous=detail?navigation_history.target(model.page_data,page):model.page_data.step(page,-1);
   if(previous==page)lv_obj_add_state(nav_prev,LV_STATE_DISABLED);else lv_obj_remove_state(nav_prev,LV_STATE_DISABLED);
   if(model.page_data.step(page,1)==page)lv_obj_add_state(nav_next,LV_STATE_DISABLED);else lv_obj_remove_state(nav_next,LV_STATE_DISABLED);
-  for(auto *control:{nav_prev,nav_next})if(lv_obj_get_child_count(control))
-    set_number(lv_obj_get_child(control,0),LV_STYLE_TEXT_OPA,lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER);
+  for(auto *control:{nav_prev,nav_next})if(auto *chevron=nav_glyph(control))
+    set_number(chevron,LV_STYLE_TEXT_OPA,lv_obj_has_state(control,LV_STATE_DISABLED)?LV_OPA_30:LV_OPA_COVER);
   // The dots between the two chevrons (firmware 0.2.69+): the page on screen in ink.
   if(sequential && nav_number)settings_screen::page_dots(nav_number,model.page_data.ordinal(page),sequential_count,ui::large());
   // The cards are drawn from the sizes the grid gives them, so it lays out before anything reads one.
@@ -4610,7 +4783,7 @@ inline int place_page(int page) {
 }
 inline void apply_page(int page) {
   applied_page=place_page(page);
-  if(room_label){dirty_all=true;render(room_label);}else refresh_all();
+  if(room_label){mark_all();render(room_label);}else refresh_all();
 }
 // A page key takes touches across its half of the bar, which runs under the page dots; its press shows as a rounded
 // patch around what the key shows (the chevron, or "Back") instead of across that whole half (firmware 0.3.1).
@@ -4658,6 +4831,96 @@ inline void nav_key_patch(lv_obj_t *key){
   lv_obj_move_to_index(patch,0);  // behind the chevron
   for(auto code:{LV_EVENT_PRESSED,LV_EVENT_RELEASED,LV_EVENT_PRESS_LOST})lv_obj_add_event_cb(key,nav_key_event,code,patch);
 }
+// ---- Pages kept whole: memory and the exchange of card sets (kept_pages.h) ----
+inline void *kept_allocate(size_t bytes) {
+#ifdef USE_ESP32
+  return heap_caps_malloc(bytes, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+#else
+  return std::malloc(bytes);
+#endif
+}
+inline void kept_free(void *memory) {
+#ifdef USE_ESP32
+  heap_caps_free(memory);
+#else
+  std::free(memory);
+#endif
+}
+inline size_t psram_free() {
+#ifdef USE_ESP32
+  return heap_caps_get_free_size(MALLOC_CAP_SPIRAM);
+#else
+  return SIZE_MAX;
+#endif
+}
+// PSRAM another kept page may never take: the pictures (picture_store.h), a camera full screen and an alert's picture
+// live there too. Measured on the 4-inch Guition (2026-09-26): about 5.6 MB of its 8 MB are free with a layout loaded.
+constexpr size_t KEEP_RESERVE = 2u << 20;
+// How many pages the board keeps beside the one on the glass: none without PSRAM (the CYD), every other page with it,
+// and no new set once PSRAM runs short of KEEP_RESERVE (the sets already made stay in use). A host build keeps none
+// unless kept_limit asks for some, so the renders in tools/render stay what they were.
+inline size_t kept_capacity() {
+#ifdef USE_ESP32
+  size_t room = heap_caps_get_total_size(MALLOC_CAP_SPIRAM) ? kept_pages::MAX_KEPT : 0;
+#elif defined(KEPT_PAGES_HOST)
+  size_t room = kept_pages::MAX_KEPT;  // tools/render with KEPT_PAGES_HOST=1: the path a board with PSRAM takes
+#else
+  size_t room = 0;
+#endif
+  if (kept_limit >= 0) room = std::min<size_t>(kept_limit, kept_pages::MAX_KEPT);
+  const unsigned pages = page_count();
+  room = std::min<size_t>(room, pages > 1 ? pages - 1 : 0);
+  size_t made = 0;
+  while (made < room && kept_sets[made]) ++made;
+  return room > made && psram_free() < KEEP_RESERVE ? made : room;
+}
+// A kept set the board no longer needs (fewer pages, or a smaller limit) goes, cards and all.
+inline void release_kept(size_t from) {
+  for (size_t i = from; i < kept_sets.size(); ++i) {
+    if (!kept_sets[i]) continue;
+    for (auto &w : *kept_sets[i]) if (w.tile) lv_obj_delete(w.tile);
+    kept_sets[i]->~CardSet();
+    kept_free(kept_sets[i]);
+    kept_sets[i] = nullptr;
+    shelf.entries[i] = kept_pages::Shelf::Entry{};
+  }
+}
+inline CardSet *new_card_set() {
+  void *memory = kept_allocate(sizeof(CardSet));
+  if (!memory) return nullptr;
+  auto *set = new (memory) CardSet();
+  const Widgets *like = nullptr;
+  for (const auto &w : widgets) if (w.tile) { like = &w; break; }
+  if (!like) { set->~CardSet(); kept_free(memory); return nullptr; }
+  for (size_t i = 0; i < CELLS_MAX; ++i) if (widgets[i].tile) make_card((*set)[i], i, *like);
+  return set;
+}
+// `page` goes on the glass: its kept set comes back (or a set is made, or the page shown longest ago gives its cards
+// up), and the cards on the glass go onto the shelf for the page leaving. What has to be drawn is in the answer.
+inline kept_pages::Visit keep_page(int page, uint32_t leaving_synced) {
+  shelf.capacity = kept_capacity();
+  release_kept(shelf.capacity);
+  auto visit = shelf.visit(page, applied_page, leaving_synced);
+  if (visit.entry == kept_pages::NONE) return {};
+  auto *&set = kept_sets[visit.entry];
+  if (visit.build) {
+    set = new_card_set();
+    if (!set) { shelf.entries[visit.entry] = kept_pages::Shelf::Entry{}; return {}; }
+    ESP_LOGI("kept", "cards made for another kept page (%u of %u), PSRAM free %u B", (unsigned) visit.entry + 1,
+             (unsigned) shelf.capacity, (unsigned) psram_free());
+  }
+  for (size_t i = 0; i < CELLS_MAX; ++i) {
+    std::swap(widgets[i], (*set)[i]);
+    if ((*set)[i].tile) lv_obj_add_flag((*set)[i].tile, LV_OBJ_FLAG_HIDDEN);
+  }
+  return visit;
+}
+inline unsigned kept_count() { return (unsigned) shelf.pages(); }
+// Nothing kept shows what it did (another layout): the sets stay for the pages to come, their cards drawn anew.
+inline void forget_kept() {
+  shelf.forget();
+  for (auto *set : kept_sets) if (set) for (auto &w : *set) { w.index = grid.max_tiles(); w.cached_active = -1; }
+}
 inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *number) {
   if(!nav_prev){nav_key_patch(previous);nav_key_patch(next);}
   nav_prev=previous;nav_next=next;nav_number=number;shown_page=&page;
@@ -4674,7 +4937,9 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
   if(applied_page<0 || page==applied_page || !room_label){apply_page(page);return;}
   swipe_profile::begin(applied_page,page);
   swipe_profile::FillTimer timer;
-  applied_page=place_page(page);
+  last_turn_ms=esphome::millis();
+  const auto kept=keep_page(page,glass_synced);
+  applied_page=place_page(page,kept.kept);
   // A page with a title of its own carries it into the top bar with the same frame as its tiles, not a tick later.
   // The bar is measured again in that same frame (firmware 0.2.102): a name is given to a label that still has the
   // width of the page before it, so a longer name would stand there in dots until the next render said otherwise.
@@ -4682,11 +4947,14 @@ inline void show_page(int &page, lv_obj_t *previous, lv_obj_t *next, lv_obj_t *n
     name_label(room_label,model.title_of(applied_page));
     render_header();
   }
-  // Every card of the page, in this pass: the refresh that follows shows them together.
+  // Every card of the page, in this pass: the refresh that follows shows them together. A kept page draws only the
+  // cards whose tile changed while it was away; after a minute (or a display setting) they all follow a frame later.
+  const bool all=!kept.kept || changes.all_after(kept.synced);
   for(size_t slot=0;slot<grid.slots();++slot){
     const auto &w=widgets[slot];
-    if(w.tile && w.index<model.count)render_slot(slot);
+    if(w.tile && w.index<model.count && (all || changes.tile_after(w.index,kept.synced)))render_slot(slot);
   }
+  glass_synced=changes.last;
   swipe_profile::content_complete();
 }
 // A navigation tile (screen.page, firmware 0.2.62+): the page it names, kept within the pages the screen has.
@@ -4704,9 +4972,149 @@ inline void go_back() {
   *shown_page=navigation_history.pop(model.page_data,*shown_page);
   show_page(*shown_page,nav_prev,nav_next,nav_number);
 }
+// ---- Pages prepared ahead (firmware 0.3.2+) ----
+// A page is built off the glass in one pass: its set of cards takes the glass's place with LVGL's invalidation off, is
+// laid out by the grid (a hidden card gets no size, lv_grid.c skips LV_OBJ_FLAG_HIDDEN) and drawn into its objects,
+// and goes back onto the shelf before anything reaches the panel. The glass keeps showing what it showed; the page on
+// it gets its own cards back untouched. Its cards ask for no pictures (`warming`): a cover is fetched ahead later.
+inline bool camera_visible();
+inline bool card_open();
+// Whether a kept page lacks a change: one of its tiles, everything or the time took a number after its cards were drawn.
+inline bool page_behind(int page, const std::array<Placement, TILES_MAX> &placement) {
+  const size_t at = shelf.held(page);
+  if (at == kept_pages::NONE) return false;
+  const uint32_t synced = shelf.entries[at].synced;
+  if (changes.all_after(synced)) return true;
+  for (size_t i = 0; i < model.count; ++i) if (placement[i].page == page && changes.tile_after(i, synced)) return true;
+  return false;
+}
+// Builds `page` off the glass, or brings its kept cards up to date (only the ones behind are drawn).
+inline bool warm_page(int page) {
+  if (applied_page < 0 || page == applied_page || !room_label) return false;
+  auto *display = lv_display_get_default();
+  const int glass = applied_page;
+  lv_display_enable_invalidation(display, false);
+  warming = true;
+  const auto visit = keep_page(page, glass_synced);
+  if (visit.entry != kept_pages::NONE) {
+    applied_page = place_page(page, visit.kept);
+    const bool all = !visit.kept || changes.all_after(visit.synced);
+    for (size_t slot = 0; slot < grid.slots(); ++slot) {
+      const auto &w = widgets[slot];
+      if (w.tile && w.index < model.count && (all || changes.tile_after(w.index, visit.synced))) render_slot(slot);
+    }
+    keep_page(glass, changes.last);  // the glass's own cards come back; the page stays on the shelf, drawn up to now
+    applied_page = place_page(glass, true);
+  }
+  warming = false;
+  lv_display_enable_invalidation(display, true);
+  // The page bar was set for the other page and back: drawn again, the rest of the glass never changed.
+  if (nav_prev && lv_obj_get_parent(nav_prev)) lv_obj_invalidate(lv_obj_get_parent(nav_prev));
+  return visit.entry != kept_pages::NONE;
+}
+// The next page to work on: first one that is neither on the glass nor kept (while there is room to keep it), then,
+// unless `build_only`, a kept page that is behind, in turn so no page waits on a busy one.
+inline int prepare_cursor = 0;
+inline int next_to_prepare(bool build_only) {
+  const int pages = (int) page_count();
+  if (applied_page < 0 || pages < 2) return -1;
+  if (shelf.pages() < kept_capacity())
+    for (int page = 0; page < pages; ++page) if (page != applied_page && !shelf.keeps(page)) return page;
+  if (build_only) return -1;
+  std::array<Placement, TILES_MAX> placement;
+  place(model, placement);
+  for (int k = 0; k < pages; ++k) {
+    const int page = (prepare_cursor + k) % pages;
+    if (page != applied_page && page_behind(page, placement)) { prepare_cursor = page + 1; return page; }
+  }
+  return -1;
+}
+inline int next_to_prepare() { return next_to_prepare(false); }
+// In the background a page is worked on only while nobody uses the screen: no finger for a moment, the pages standing
+// still, no card, camera or slider in use. Building one takes 70 to 250 ms of the loop on an S3 (2026-09-26), bringing
+// one up to date less; a kept page is brought up to date at most once a second, so a sensor that changes every second
+// keeps the loop free most of the time.
+constexpr uint32_t PREPARE_QUIET_MS = 1500;   // before a page is built in the background
+constexpr uint32_t FRESHEN_QUIET_MS = 3000;   // before a kept page is brought up to date
+constexpr uint32_t FRESHEN_GAP_MS = 1000;     // between two kept pages brought up to date
+// The "Preparing pages" screen stays at most this long after the last page is built, while the data ESP Screens sends
+// after a layout (a graph's history, a player's details) lands on the cards it belongs to.
+constexpr uint32_t SETTLE_MAX_MS = 3000;
+inline bool prepare_idle(uint32_t now, uint32_t quiet) {
+  if (captured_slider || card_open() || camera_visible()) return false;
+  if (!camera_view::settled(now, last_turn_ms) || now - touched_at < quiet) return false;
+  auto *input = lv_indev_get_next(nullptr);
+  return !(input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED);
+}
+inline bool prepared_once = false;  // the first layout since the start was prepared on screen
+inline uint32_t prepare_built_at = 0, last_freshen = 0;
+inline void prepare_done() {
+  const bool shown = preparing.foreground;
+  preparing.active = preparing.foreground = false;
+  if (preparing.timer) lv_timer_set_period(preparing.timer, 300);  // from now on: kept pages up to date, when idle
+  ESP_LOGI("kept", "pages prepared: %u of %u, PSRAM free %u B", preparing.done, preparing.total, (unsigned) psram_free());
+  // The render takes the "Preparing pages" screen away; the header alone, as nothing on the cards changed.
+  if (shown) { prepared_once = true; refresh_header_only(); }
+}
+inline void prepare_step(lv_timer_t *) {
+  if (protocol_problem != ProtocolProblem::none || !transfer.active || !model.ready()) return;
+  const uint32_t now = esphome::millis();
+  int page = next_to_prepare(true);
+  if (page >= 0) {
+    if (!preparing.foreground && !prepare_idle(now, PREPARE_QUIET_MS)) return;
+    warm_page(page);
+    ++preparing.done;
+    ESP_LOGI("kept", "page %d prepared in %u ms (%u of %u)", page + 1, (unsigned) (esphome::millis() - now), preparing.done, preparing.total);
+    if (preparing.foreground) prepare_status();
+    return;
+  }
+  if (preparing.foreground) {
+    // Every page is built: bring up to date what the data after the layout changed, for a moment at most.
+    if (!prepare_built_at) prepare_built_at = now;
+    page = next_to_prepare();
+    if (page < 0 || now - prepare_built_at > SETTLE_MAX_MS) { prepare_done(); return; }
+    warm_page(page);
+    ESP_LOGD("kept", "page %d brought up to date in %u ms", page + 1, (unsigned) (esphome::millis() - now));
+    return;
+  }
+  if (preparing.active) prepare_done();
+  if (now - last_freshen < FRESHEN_GAP_MS || !prepare_idle(now, FRESHEN_QUIET_MS)) return;
+  page = next_to_prepare();
+  if (page < 0) return;
+  warm_page(page);
+  last_freshen = esphome::millis();
+  ESP_LOGD("kept", "page %d brought up to date in %u ms", page + 1, (unsigned) (last_freshen - now));
+}
+// A layout was applied: build its other pages, the first time since the start on screen, afterwards in
+// the background; from then on kept pages are brought up to date while the screen is idle. A board that keeps no
+// pages (the CYD) builds each page when it is shown, as before.
+inline void prepare_start() {
+  const unsigned pages = page_count();
+  if (!room_label || applied_page < 0 || pages < 2 || !kept_capacity()) return;
+  preparing.active = true;
+  preparing.foreground = !prepared_once;
+  preparing.done = 0;
+  preparing.total = pages - 1;
+  prepare_built_at = 0;
+  if (!preparing.timer) preparing.timer = lv_timer_create(prepare_step, 10, nullptr);
+  lv_timer_set_period(preparing.timer, preparing.foreground ? 10 : 300);
+  lv_timer_reset(preparing.timer);
+  ESP_LOGI("kept", "preparing %u pages %s", preparing.total, preparing.foreground ? "before the first page opens" : "in the background");
+  if (preparing.foreground) prepare_status();
+}
+// Another layout is on its way: its pages are built once it is complete (prepare_start).
+inline void prepare_cancel() {
+  preparing.active = preparing.foreground = false;
+  if (preparing.timer) lv_timer_set_period(preparing.timer, 300);
+}
 // The Page buttons setting changed (firmware 0.2.69+): the same page again, with the bar and the cards in their new places.
+// The settings are applied every minute; only a real change places the page again (firmware 0.3.2+), and then every
+// card, kept ones too, is measured anew for the room the bar leaves.
+inline int applied_buttons=-1;
 inline void page_buttons_changed() {
-  if(!shown_page || !nav_number || applied_page<0)return;
+  if(!shown_page || !nav_number || applied_page<0 || applied_buttons==(page_buttons?1:0))return;
+  applied_buttons=page_buttons?1:0;
+  each_card([](Widgets &w){w.cached_active=-1;w.panel_dirty=true;});
   apply_page(applied_page);
 }
 
@@ -4767,7 +5175,7 @@ inline void tick() {
   auto card=[&](size_t index){ mark_tile(index); redraw=true; };
   // HA dropping or returning and the feed timing out change every card at once.
   bool now_fresh=fresh();
-  if(now_fresh!=was_fresh){was_fresh=now_fresh;dirty_all=true;redraw=true;}
+  if(now_fresh!=was_fresh){was_fresh=now_fresh;mark_all();redraw=true;}
 #ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
   expire_calls(esphome::millis());
 #endif
@@ -4823,11 +5231,11 @@ inline void tick() {
 // A change of look (Dark mode). The paints follow by themselves (theme::set_dark); what the tiles, the top bar and an
 // open card painted in code is drawn again here, in the same pass, so no frame shows half of each look.
 inline void restyle() {
-  for (auto &w : widgets) { w.cached_active = -1; w.panel_dirty = true; }
+  each_card([](Widgets &w) { w.cached_active = -1; w.panel_dirty = true; });
   if (nav_number && applied_bar && applied_page >= 0)
     settings_screen::page_dots(nav_number, model.page_data.ordinal(applied_page), model.page_data.count(), ui::large());
   header_renderer.restyle();
-  if (room_label) { dirty_all = true; render(room_label); }
+  if (room_label) { mark_all(); render(room_label); }
   if (detail_root && !lv_obj_has_flag(detail_root, LV_OBJ_FLAG_HIDDEN) && detail_index < model.count) show_detail(detail_index);
 }
 inline std::string vacuum_option(unsigned index) {
@@ -4861,13 +5269,14 @@ inline camera_view::Feed camera;
 // so the four boards can be compared with the same instrument.
 // `pixels` is what the picture holds when the screen knows it (a cover asks for its own square), 0 when only the
 // app knows (a camera's box comes from the board shape); then only the heaps are worth reading.
+// Free sizes only, no largest block (firmware 0.3.2+): finding the largest block walks every block of that heap with
+// its lock held and the interrupts of this core off. On the 4-inch Guition a walk of the PSRAM took 1.7 ms with one
+// page built and 2.3 ms with eight (2026-09-26, 3,300 and 4,600 blocks), while the RGB panel's bounce buffer is
+// refilled by an interrupt on this core every 0.34 ms: every picture that loaded shifted a frame on the glass.
 inline void picture_memory(const char *stage, const char *what, int pixels) {
 #ifdef USE_ESP32
-  ESP_LOGI("picture", "%s %s: %d px wants %d B; inside free=%u largest=%u, psram free=%u largest=%u", stage, what,
-           pixels, pixels * 2, (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL),
-           (unsigned) heap_caps_get_largest_free_block(MALLOC_CAP_INTERNAL),
-           (unsigned) heap_caps_get_free_size(MALLOC_CAP_SPIRAM),
-           (unsigned) heap_caps_get_largest_free_block(MALLOC_CAP_SPIRAM));
+  ESP_LOGI("picture", "%s %s: %d px wants %d B; inside free=%u, psram free=%u", stage, what, pixels, pixels * 2,
+           (unsigned) heap_caps_get_free_size(MALLOC_CAP_INTERNAL), (unsigned) heap_caps_get_free_size(MALLOC_CAP_SPIRAM));
 #else
   (void) stage; (void) what; (void) pixels;
 #endif
@@ -4936,6 +5345,48 @@ inline bool alert_image_due() {
 inline bool camera_supported() { return static_cast<bool>(camera_full.load); }
 inline bool camera_visible() { return camera_root != nullptr; }
 
+// ---- Pictures kept until they change (firmware 0.3.2+, picture_store.h) ----
+// On a board with PSRAM every picture a card draws (a page's strip, an album cover) is the store's own copy, never the
+// online_image buffer the next download overwrites: a kept page keeps its pictures, a cover is fetched once per track,
+// and a camera shows its last picture at once when its page comes back. A board without PSRAM stores nothing and draws
+// from the download as before.
+inline picture_store::Store<lv_image_dsc_t> pictures;
+inline bool pictures_kept() {
+  if (!pictures.allocate) {
+#ifdef USE_ESP32
+    // At most 1.5 MB, a fifth of the PSRAM: a 4-inch page of tall covers is one 480x400 strip of 384 KB.
+    const size_t psram = heap_caps_get_total_size(MALLOC_CAP_SPIRAM);
+    pictures.budget = std::min<size_t>(1536u << 10, psram / 5);
+#endif
+    pictures.allocate = kept_allocate;
+    pictures.release = kept_free;
+  }
+  return pictures.budget > 0;
+}
+// Whether this image object draws that picture (never on a board whose profile draws no images).
+inline bool draws(lv_obj_t *obj, const lv_image_dsc_t *image) {
+#if LV_USE_IMAGE
+  return obj && lv_image_get_src(obj) == image;
+#else
+  (void) obj; (void) image;
+  return false;
+#endif
+}
+// Whether a card on the glass or kept, or the card open over the page, still draws this picture.
+inline bool picture_shown(const lv_image_dsc_t *image) {
+#if LV_USE_IMAGE
+  bool shown = false;
+  auto on = [&](lv_obj_t *obj) { if (draws(obj, image)) shown = true; };
+  each_card([&](Widgets &w) { on(w.picture); if (w.extra_mode == "media") on(w.parts[MEDIA_PICTURE]); });
+  on(media_detail_picture);
+  return shown;
+#else
+  (void) image;
+  return false;
+#endif
+}
+inline void pictures_collect() { if (pictures_kept()) pictures.collect(picture_shown); }
+
 // ---- The album cover of the media card (firmware 0.2.64+) ----
 // The card, or a media tile over the whole page, says which cover it wants: the player, the mark of its picture, the
 // size and the colour behind the rounded corners (cover_want). The app answers `esphome.screen_camera` with a link to
@@ -4944,6 +5395,21 @@ inline bool camera_visible() { return camera_root != nullptr; }
 // and the cover share that one image buffer, and the camera wins. Everything runs from camera_tick().
 struct CoverWish { std::string entity, picture; int size = 0; uint32_t background = 0; CoverOwner owner = CoverOwner::NONE; size_t slot = 0; };
 inline CoverWish cover_wish;
+// The cover on its way (firmware 0.3.2+): a page turned away while it loads still keeps it once it lands, so the next
+// visit shows it instead of fetching it again.
+inline std::string cover_in_flight;
+// A cover is the same picture as long as the player, its picture's mark, the size and the colour behind it are.
+inline std::string cover_key(const std::string &entity, const std::string &mark, int size, uint32_t background) {
+  char tail[24];
+  snprintf(tail, sizeof(tail), "|%d|%06X", size, (unsigned) background);
+  return "cover|" + entity + "|" + mark + tail;
+}
+inline std::string cover_key(const CoverWish &w) { return cover_key(w.entity, w.picture, w.size, w.background); }
+inline std::string cover_key(const Widgets &w) { return cover_key(w.cover_entity, w.cover_mark, w.cover_size, w.cover_ground); }
+// The cover a media card wants, when the store has it.
+inline lv_image_dsc_t *kept_cover(const Widgets &w) {
+  return pictures_kept() && !w.cover_entity.empty() ? pictures.find(cover_key(w)) : nullptr;
+}
 inline camera_view::Feed cover;
 inline void camera_release();
 inline void camera_request(const std::string &entity, int size = 0, uint32_t background = 0);
@@ -4955,7 +5421,8 @@ inline void cover_forget_pictures() {
 inline void cover_release() {
   const bool had = cover.open();
   cover = camera_view::Feed{};
-  cover_forget_pictures();
+  // A kept copy stays on its cards; only a picture drawn from the download goes with the download.
+  if (!pictures_kept()) cover_forget_pictures();
   if (had && !camera_root) camera_release_due = true;
 }
 inline void cover_want(const std::string &entity, const std::string &picture, int size, uint32_t background, CoverOwner owner, size_t slot) {
@@ -4966,6 +5433,10 @@ inline void cover_want(const std::string &entity, const std::string &picture, in
   cover_release();  // another cover: asked for on the next tick
 }
 inline lv_image_dsc_t *cover_ready(const std::string &entity, int size, uint32_t background) {
+  if (pictures_kept()) {
+    if (cover_wish.entity != entity || cover_wish.size != size || cover_wish.background != background) return nullptr;
+    return pictures.find(cover_key(cover_wish));
+  }
   if (!cover.loaded || cover.entity != entity || cover_wish.size != size || cover_wish.background != background) return nullptr;
   auto *src = camera_full.source();
   return src && src->data ? src : nullptr;
@@ -4980,6 +5451,13 @@ inline bool cover_visible() {
     auto &w = widgets[cover_wish.slot];
     return w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].entity == cover_wish.entity && w.extra_mode == "media";
   }
+  // Fetched ahead: as long as a card, kept or back on the glass by now, still wants exactly this cover.
+  if (cover_wish.owner == CoverOwner::PREFETCH) {
+    const std::string key = cover_key(cover_wish);
+    bool wanted = false;
+    each_card([&](Widgets &w) { if (w.extra_mode == "media" && cover_key(w) == key) wanted = true; });
+    return wanted;
+  }
   return false;
 }
 // Nobody holds the cover and a media tile with a picture is on the page (the card over it just closed, or the
@@ -4990,23 +5468,65 @@ inline void cover_offer() {
     if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= model.count || w.extra_mode != "media") continue;
     const auto &t = model.tiles[w.index];
     if (t.extra().media_picture.empty() || !media_card::has_track(t.state)) continue;
+    // A kept page that came back with its cover on the card needs no new drawing (firmware 0.3.2+).
+    if (w.cover_mark == t.extra().media_picture) if (auto *kept = kept_cover(w)) if (draws(w.parts[MEDIA_PICTURE], kept)) continue;
     refresh_tile(w.index);
     return;
   }
 }
+// Covers the app said it has none of: not asked for ahead again (a new track is a new key).
+inline std::array<std::string, 8> cover_none;
+inline size_t cover_none_next = 0;
+// The screen is idle and a media card on a kept page lacks its cover: fetch it now, one at a time, so the page shows it
+// the moment it comes back (firmware 0.3.2+). Not while pages are being prepared.
+inline bool cover_prefetch() {
+  if (!pictures_kept() || prepare_busy()) return false;
+  for (auto *set : kept_sets) {
+    if (!set) continue;
+    for (const auto &w : *set) {
+      if (w.extra_mode != "media" || w.cover_entity.empty() || w.index >= model.count) continue;
+      const auto &t = model.tiles[w.index];
+      const std::string key = cover_key(w);
+      if (t.entity != w.cover_entity || t.extra().media_picture != w.cover_mark || pictures.entry(key)) continue;
+      if (std::find(cover_none.begin(), cover_none.end(), key) != cover_none.end()) continue;
+      cover_wish = CoverWish{w.cover_entity, w.cover_mark, w.cover_size, w.cover_ground, CoverOwner::PREFETCH, 0};
+      ESP_LOGI("camera", "cover of %s fetched ahead", w.cover_entity.c_str());
+      return true;
+    }
+  }
+  return false;
+}
 // The cover is here: onto the card at once, or the tile draws itself again with it.
 inline void cover_arrived() {
   if (!cover_visible()) return;
-  if (cover_wish.owner == CoverOwner::DETAIL) media_detail_picture = media_picture_show(detail_root, media_detail_picture, media_art_rect, camera_full.source());
+  lv_image_dsc_t *src = camera_full.source();
+  if (pictures_kept() && src && src->data) {
+    src = pictures.put(cover_key(cover_wish), *src, esphome::millis());
+    if (!src) ESP_LOGW("camera", "no room to keep the cover of %s", cover.entity.c_str());
+  }
+  if (cover_wish.owner == CoverOwner::DETAIL) media_detail_picture = media_picture_show(detail_root, media_detail_picture, media_art_rect, src);
+  else if (cover_wish.owner == CoverOwner::PREFETCH) {
+    // Onto the cards that want it (a kept one shows it when its page comes back), and the next one may go.
+    const std::string key = cover_key(cover_wish);
+    each_card([&](Widgets &w) {
+      if (src && w.extra_mode == "media" && cover_key(w) == key) w.parts[MEDIA_PICTURE] = media_picture_show(w.extra, w.parts[MEDIA_PICTURE], w.cover_rect, src);
+    });
+    ESP_LOGI("camera", "cover of %s kept ahead", cover.entity.c_str());
+    cover_drop();
+    return;
+  }
   else refresh_tile(widgets[cover_wish.slot].index);
   ESP_LOGI("camera", "cover of %s shown", cover.entity.c_str());
   picture_memory("after", "cover", cover_wish.size * cover_wish.size);
 }
 inline void cover_tick(uint32_t now) {
   if (camera_root || !camera_supported()) return;
-  if (cover_wish.owner == CoverOwner::NONE) { cover_offer(); return; }
+  if (cover_wish.owner == CoverOwner::NONE) { cover_offer(); if (cover_wish.owner == CoverOwner::NONE && !cover_prefetch()) return; }
+  if (cover_wish.owner == CoverOwner::NONE) return;
   if (!cover_visible()) { cover_drop(); return; }
   if (!awake()) return;
+  // A cover kept from before is on the card already: nothing to fetch until the track changes.
+  if (pictures_kept() && pictures.entry(cover_key(cover_wish))) return;
   if (!cover.open()) cover.open(cover_wish.entity, true);
   if (alert_image_due()) return;  // the alert's picture first
   if (cover.should_ask(now)) {
@@ -5016,7 +5536,9 @@ inline void cover_tick(uint32_t now) {
   } else if (cover.should_load(now)) {
     auto *input = lv_indev_get_next(nullptr);
     if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
+    if (!camera_view::settled(now, last_turn_ms)) return;  // not between two quick page turns
     cover.start(now);
+    cover_in_flight = pictures_kept() ? cover_key(cover_wish) : std::string();
     ESP_LOGI("camera", "cover load %s", cover.entity.c_str());
     picture_memory("before", "cover", cover_wish.size * cover_wish.size);
     camera_full.load(cover.url);
@@ -5104,8 +5626,23 @@ inline LiveWish live_wanted() {
   if(atlas)want.atlas+="]";
   return want;
 }
+// A strip is the same picture as long as the tiles, their colours, their covers' marks and the frames are: a camera's
+// next picture keeps the key and is written over the last one.
+inline std::string live_key(const LiveWish &w) {
+  char size[12];
+  snprintf(size, sizeof(size), "%d", w.size);
+  return "live|" + w.entities + "|" + w.grounds + "|" + w.marks + "|" + w.atlas + "|" + size;
+}
 // The strip's square for a tile, or nullptr while the strip is not here (or has no picture of this camera).
 inline lv_image_dsc_t *live_ready(const std::string &entity, int size, int &square) {
+  if (pictures_kept()) {
+    if (live_wish.atlas.empty() && live_wish.size != size) return nullptr;
+    auto *kept = pictures.entry(live_key(live_wish));
+    if (!kept) return nullptr;
+    square = list_index(kept->note, entity);  // the tiles the app answered for, "" where it had no picture
+    if (square < 0) return nullptr;
+    return !live_wish.atlas.empty() || kept->image.header.h >= (square + 1) * size ? &kept->image : nullptr;
+  }
   if (!live.loaded || (live_wish.atlas.empty() && live_wish.size != size)) return nullptr;
   square = list_index(live_have, entity);
   if (square < 0) return nullptr;
@@ -5117,6 +5654,8 @@ inline void live_release() {
   const bool had = live.open();
   live = camera_view::Feed{};
   live_have.clear();
+  // Kept copies stay on their cards (a page that comes back shows them); only the download goes.
+  if (pictures_kept()) { if (had && camera_live.release) camera_live.release(); return; }
   for (auto &w : widgets) {
     if (!w.picture || lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN)) continue;
 #if LV_USE_IMAGE
@@ -5208,8 +5747,20 @@ inline void live_tick(uint32_t now) {
       want.atlas_x != live_wish.atlas_x || want.atlas_y != live_wish.atlas_y) {
     live_wish = want;
     live_release();
-    // Covers alone load once per link (a new track is a new wish); a camera sets the pace.
-    if (!want.entities.empty()) live.open(want.entities, !want.cameras, want.every);
+    // A strip kept from before goes on the tiles at once: covers alone are then done, a camera loads its next picture
+    // when the kept one is as old as its pace (firmware 0.3.2+). Otherwise covers alone load once per link (a new
+    // track is a new wish) and a camera sets the pace.
+    auto *kept = pictures_kept() && !want.entities.empty() ? pictures.entry(live_key(want)) : nullptr;
+    if (kept) {
+      live_have = kept->note;
+      for (auto &w : widgets)
+        if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].pictured() &&
+            !draws(w.picture, &kept->image)) refresh_tile(w.index);
+    }
+    if (!want.entities.empty() && (!kept || want.cameras)) {
+      live.open(want.entities, !want.cameras, want.every);
+      if (kept) live.resume(kept->stored_at);
+    }
   }
   live_marquees();
   if (!live.open() || camera_root || card_open() || !awake()) return;
@@ -5221,6 +5772,7 @@ inline void live_tick(uint32_t now) {
   } else if (live.should_load(now)) {
     auto *input = lv_indev_get_next(nullptr);
     if (input && lv_indev_get_state(input) == LV_INDEV_STATE_PRESSED) return;
+    if (!camera_view::settled(now, last_turn_ms)) return;  // not between two quick page turns
     live.start(now);
     live_marquees();  // Stop before the download can block the drawing loop.
     camera_live.load(live.url);
@@ -5231,7 +5783,11 @@ inline void live_loaded(bool cached) {
   if (!live.loading) return;
   live.finish(esphome::millis(), true);
   ESP_LOGI("camera", "live tiles %s", cached ? "unchanged" : "loaded");
-  if (auto *strip = camera_live.source()) picture_memory("after", "strip", strip->header.w * strip->header.h);
+  if (auto *strip = camera_live.source()) {
+    picture_memory("after", "strip", strip->header.w * strip->header.h);
+    if (pictures_kept() && strip->data && !pictures.put(live_key(live_wish), *strip, esphome::millis(), live_have))
+      ESP_LOGW("camera", "no room to keep the live tiles");
+  }
   for (auto &w : widgets)
     if (w.tile && !lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) && w.index < model.count && model.tiles[w.index].pictured()) refresh_tile(w.index);
 }
@@ -5287,6 +5843,7 @@ inline void camera_close() {
 }
 
 inline void camera_open(const std::string &entity, const std::string &name) {
+  cover_in_flight.clear();  // the full camera takes the cover's image buffer
   if (!camera_supported() || !valid_entity(entity)) return;
   camera_close();
   // The last camera's image, or a media card's cover, goes before this one loads into the same online_image; the
@@ -5367,6 +5924,7 @@ inline void camera_load(uint32_t now) {
 inline void camera_tick() {
   const uint32_t now = esphome::millis();
   if (camera_release_due && !camera_root) camera_release();
+  pictures_collect();  // copies no card shows any more, and the oldest over the budget
   // A retry, or an alert's picture that waited for a cover on its way (one picture at a time).
   if (alert_retry_at && now >= alert_retry_at && !cover.loading) {
     alert_retry_at = 0;
@@ -5439,6 +5997,10 @@ inline void camera_answer(const std::string &view, const std::string &entity, co
     if (!cover.open() || cover.entity != entity) return;
     cover.link(url);
     if (url.empty()) ESP_LOGI("camera", "no cover for %s", entity.c_str());
+    if (url.empty() && cover_wish.owner == CoverOwner::PREFETCH) {
+      cover_none[cover_none_next++ % cover_none.size()] = cover_key(cover_wish);
+      cover_drop();  // the next card's cover may go
+    }
     return;
   }
   if (view == "live") {  // the page's camera tiles (firmware 0.2.77+): the list as asked, "" where a picture is missing
@@ -5521,8 +6083,14 @@ inline void camera_loaded(bool thumb, bool cached) {
   if (!camera_root) {
     // The media card's cover (firmware 0.2.64+): the same online_image, loaded once.
     if (cover.loading) { cover.finish(esphome::millis(), true); ESP_LOGI("camera", "cover loaded"); cover_arrived(); }
+    else if (!cover_in_flight.empty()) {
+      auto *src = camera_full.source();
+      if (src && src->data && pictures.put(cover_in_flight, *src, esphome::millis())) ESP_LOGI("camera", "cover kept for later");
+    }
+    cover_in_flight.clear();
     return;
   }
+  cover_in_flight.clear();      // the buffer is the camera's now: whatever lands next is not that cover
   if (!camera.loading) return;  // a cover's download that ended after the camera opened: not this camera's picture
   camera.finish(esphome::millis(), true);
   if (auto *shown = camera_full.source()) picture_memory("after", "camera", shown->header.w * shown->header.h);
@@ -5546,6 +6114,7 @@ inline void camera_failed(bool thumb) {
     return;
   }
   if (!camera_root) {
+    cover_in_flight.clear();
     if (cover.loading) { cover.finish(esphome::millis(), false); ESP_LOGI("camera", "cover failed"); }  // tried again after the gap, three times at most
     return;
   }
@@ -5671,6 +6240,7 @@ inline void pressed(int x, int y, int id, bool calibrating) {
 // One contact of one report. Only the contact that started the touch counts.
 inline void moved(int x, int y, int id, int state) {
   if (contact) contact(true);
+  touched_at = esphome::millis();
   // Trace every sample of an edge touch: the log then shows how often the panel delivers.
   if (screen_input::edge_swipe.armed()) ESP_LOGI("touch", "swipe id=%d st=%d x=%d y=%d", id, state, x, y);
   // The stray (0, 0) contact (screen_input::GhostTouch) is not where the finger went.
@@ -5709,6 +6279,7 @@ inline void moved(int x, int y, int id, int state) {
 
 inline void released() {
   if (contact) contact(false);
+  touched_at = esphome::millis();
   if (screen_input::edge_swipe.armed() && screen_input::edge_swipe.inward() > 0)
     ESP_LOGI("touch", "edge swipe not fired: %d px travelled, %d px across", screen_input::edge_swipe.inward(), screen_input::edge_swipe.sideways());
   screen_input::edge_swipe.end();
@@ -5716,6 +6287,7 @@ inline void released() {
 }  // namespace touch_input
 // Invalidate contacts and asynchronous views before their old tile records are freed.
 inline void cancel_layout_input(bool invalidate_widgets) {
+  prepare_cancel();
   screen_input::touch_guard.consume();
   screen_input::edge_swipe.end();
   for (auto *indev = lv_indev_get_next(nullptr); indev; indev = lv_indev_get_next(indev)) lv_indev_wait_release(indev);
@@ -5730,6 +6302,7 @@ inline void cancel_layout_input(bool invalidate_widgets) {
   history = History{};
   if (invalidate_widgets) {
     for (auto &w : widgets) { w.index = grid.max_tiles(); w.cached_active = -1; }
+    forget_kept();
     if (layout_changed) layout_changed();
   }
 }

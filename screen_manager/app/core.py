@@ -53,7 +53,7 @@ REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 # The branch a screen's YAML builds its board package from. Which boards there are is boards.json's (BOARD_KEYS).
 REF = 'main'
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.3.1'
+FIRMWARE_VERSION = '0.3.2'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -1614,7 +1614,11 @@ def media_extras(attrs):
             pass
     picture = attrs.get('entity_picture') or attrs.get('entity_picture_local')
     if isinstance(picture, str) and picture:
-        result['pic'] = hashlib.sha1(picture.encode()).hexdigest()[:10]
+        # Without Home Assistant's access token (app 0.3.7): it changes every few minutes on its own while the picture
+        # stays, and each new token made every screen fetch the same cover again. The link's `cache` part is the
+        # picture's own hash, so the mark still changes with the picture.
+        stable = re.sub(r'([?&])token=[^&]*(&|$)', lambda m: m.group(1) if m.group(2) else '', picture)
+        result['pic'] = hashlib.sha1(stable.encode()).hexdigest()[:10]
     return result or None
 
 

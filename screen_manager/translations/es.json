@@ -103,6 +103,7 @@
       "connecting": "Conectando con Home Assistant",
       "waiting": "Esperando a ESP Screens",
       "loading_tiles": "Cargando mosaicos...",
+      "preparing_pages": "Preparando páginas {n}/{total}",
       "ha_not_connected": "HA no conectado",
       "manager_not_active": "ESP Screens no activo",
       "choose_tiles": "Elige los mosaicos en HA",
@@ -110,6 +111,21 @@
       "no_network": "Sin red",
       "configuration_problem": "Problema de configuración.\nActualiza el complemento.",
       "configuration_version": "Problema de configuración.\nComprueba las versiones de pantalla y complemento."
+    },
+    "preparing": {
+      "default": "Ordenando tus mosaicos",
+      "light": "Echando un vistazo a tus luces",
+      "media": "Quitando el polvo a las portadas",
+      "camera": "Limpiando las lentes de las cámaras",
+      "climate": "Mirando el termostato",
+      "weather": "Mirando por la ventana",
+      "cover": "Mirando detrás de las cortinas",
+      "vacuum": "Buscando el robot aspirador",
+      "sensor": "Leyendo todos los sensores",
+      "sun": "Siguiendo al sol",
+      "clock": "Dando cuerda a los relojes",
+      "scene": "Ensayando tus escenas",
+      "switch": "Contando tus interruptores"
     },
     "settings": {
       "title": "Configuración",

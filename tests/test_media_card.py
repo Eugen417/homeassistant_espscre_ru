@@ -49,6 +49,17 @@ class Extras(unittest.TestCase):
         other = media_extras({**SONOS, 'entity_picture': SONOS['entity_picture'].replace('556b49fd9c3e8ccd', '1')})
         self.assertNotEqual(other['pic'], extra['pic'])
         self.assertEqual(media_extras({**SONOS, 'volume_level': 0.5})['pic'], extra['pic'])
+        # Home Assistant's access token in the link changes every few minutes while the picture stays (app 0.3.7): the
+        # mark does not, so no screen fetches the same cover again.
+        picture = SONOS['entity_picture']
+        self.assertIn('token=', picture)
+        rotated = re.sub(r'token=[^&]*', 'token=0123456789abcdef', picture)
+        self.assertNotEqual(rotated, picture)
+        self.assertEqual(media_extras({**SONOS, 'entity_picture': rotated})['pic'], extra['pic'])
+        self.assertEqual(media_extras({'entity_picture': '/api/media_player_proxy/a?cache=1&token=b'})['pic'],
+                         media_extras({'entity_picture': '/api/media_player_proxy/a?cache=1&token=c'})['pic'])
+        self.assertNotEqual(media_extras({'entity_picture': '/api/media_player_proxy/a?token=b&cache=1'})['pic'],
+                            media_extras({'entity_picture': '/api/media_player_proxy/a?token=b&cache=2'})['pic'])
 
     def test_a_player_without_a_track_gets_no_extras(self):
         self.assertIsNone(media_extras({'friendly_name': 'Bedroom', 'supported_features': 8321599}))

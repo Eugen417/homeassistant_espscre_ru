@@ -111,3 +111,28 @@ on the CYD in build 7) the visible fill cost more in feel than the blocked touch
 table above are therefore two for a switch now (the old page, then the new one), not three or
 four. A fade or a slide stays out for the reason measured above: a screen-wide animation is a
 full software redraw per frame, 50 to 110 ms on these boards.
+
+## Update: firmware 0.3.2, kept and prepared pages
+
+A board with PSRAM now keeps every page it has built and builds them all before the first page opens
+([KEPT_PAGES.md](KEPT_PAGES.md)). Measured on the 4-inch Guition with an eight-page stress layout (median, ms):
+
+| Build | fill | first | slots drawn |
+| --- | --- | --- | --- |
+| Firmware 0.2.104 (app 0.2.133), every page built on the switch | 49 | 134 | every card |
+| Firmware 0.3.1, every page built on the switch | 54 | 134 | every card |
+| Firmware 0.3.2, first tour after the start | 28 | 104 | only a card whose tile changed |
+
+`first` still holds the frame itself, which the cards cannot shorten: 55 to 70 ms of rendering and 20 to 25 ms of
+flush for most pages, about 200 ms for a page with a graph and a sun path. The media card over the whole page went
+from 250 ms to 90 ms, as its cover is kept.
+
+Two things this round found about measuring:
+
+- `swipe_test` is now handled before the add-on's session is checked, so a bench script can send it again (since
+  firmware 0.3.0 it sat behind the session and never ran). It does not count as using the screen: "Back to page 1"
+  brings an untouched screen home in the middle of a test. The screen's own `show_page` action counts as use and gives
+  the same `swipe_prof` lines.
+- The firmware 0.2.104 comparison above came from that firmware on the same board with the add-on's legacy delivery,
+  which sent it only four of the eight pages, so only those four pages are compared.
+

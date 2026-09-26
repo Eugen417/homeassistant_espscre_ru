@@ -16,6 +16,11 @@ constexpr uint32_t GAP_MS = 800;           // at least this long between the end
 constexpr uint32_t ASK_AGAIN_MS = 10000;   // a link that does not come (or an app without an image) is asked for again
 constexpr uint8_t MAX_FAILURES = 3;        // a link that fails this often in a row is old: ask for a new one
 constexpr uint32_t PENDING_MS = 20000;     // an alert's camera announced this long before the alert still belongs to it
+// A page on its way past (firmware 0.3.2+): no picture starts loading until the pages have stood still this long, so a
+// download never lands between two quick page turns and holds the next one up. Asking the app for a link is an event
+// and costs the screen nothing; only the download waits.
+constexpr uint32_t SETTLE_MS = 800;
+inline bool settled(uint32_t now, uint32_t last_turn) { return now - last_turn >= SETTLE_MS; }
 
 struct Feed {
   std::string entity, url;
@@ -28,6 +33,9 @@ struct Feed {
   // camera full screen keeps REFRESH_MS.
   uint32_t every = REFRESH_MS;
   uint8_t failures = 0;
+  // A picture kept from before (picture_store.h) that is still good until this moment (firmware 0.3.2+): the feed asks
+  // for its link as usual but loads nothing sooner. 0: no picture kept.
+  uint32_t kept_until = 0;
 
   void open(const std::string &camera, bool one_load = false, uint32_t every_ms = REFRESH_MS) { *this = Feed{}; entity = camera; once = one_load; every = every_ms; }
   bool open() const { return !entity.empty(); }
@@ -52,8 +60,11 @@ struct Feed {
     started_at = finished_at = 0;
     loaded = false;
   }
+  // The picture on the tiles came from the store, loaded at `loaded_at`: the next load waits for its turn.
+  void resume(uint32_t loaded_at) { kept_until = (loaded_at ? loaded_at : 1) + every; }
   bool should_load(uint32_t now) const {
     if (!open() || loading || url.empty()) return false;
+    if (kept_until && static_cast<int32_t>(now - kept_until) < 0) return false;
     if (!started_at) return true;
     if (once) return !loaded && now - finished_at >= GAP_MS;  // a failed load is tried again, a loaded one stays
     return now - started_at >= every && now - finished_at >= GAP_MS;

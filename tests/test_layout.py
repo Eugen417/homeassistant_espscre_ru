@@ -64,7 +64,9 @@ class LayoutTests(unittest.TestCase):
         self.assertEqual(SOURCE.count('grid_cell_row_pos: 0'), int(VALUES['GRID_COLS']) * int(VALUES['GRID_ROWS']))
         runtime = runtime_source()
         self.assertIn('lv_obj_set_grid_dsc_array(container, grid_columns_dsc.data(), grid_rows_dsc.data());', runtime)
-        self.assertIn('lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_STRETCH,column,span_x,LV_GRID_ALIGN_STRETCH,row,span_y);', runtime)
+        # A card's cell goes through set_cell, which sets it only when it changes (firmware 0.3.2+, kept pages).
+        self.assertIn('set_cell(w.tile,column,span_x,row,span_y);', runtime)
+        self.assertIn('lv_obj_set_grid_cell(obj, LV_GRID_ALIGN_STRETCH, column, span_x, LV_GRID_ALIGN_STRETCH, row, span_y);', runtime)
 
     def test_runtime_binds_every_tile_and_guards_a_tap(self):
         """The tiles are bound by the runtime; it filters a tap before anything happens."""
