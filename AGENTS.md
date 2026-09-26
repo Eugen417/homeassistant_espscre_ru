@@ -54,6 +54,35 @@ physically tap; an agent cannot replace that with software coordinates.
    owner's permission, and report which checks were actually carried out,
    the limitations, and how long the screen stayed up.
 
+## Writing README and docs text
+
+README.md, README_EXTENDED.md and everything under docs/ ships to production and is
+public: people across the open source community read it. Write plain English, not Dutch.
+Never quote the owner or anyone else, in any language. Don't name the owner, or use names,
+IPs, entity ids, or other strings tied to one person's setup; use generic examples instead.
+Don't use em dashes; write a plain comma, period, or "and"/"but" instead.
+
+## Replying to issues and pull requests
+
+A reply on GitHub goes out under the project owner's own account, so every comment on an issue or
+a pull request ends with the same signature: a blank line, a `---` rule, and two italic lines, each its
+own paragraph.
+
+```
+---
+
+_Got a screen running? Tell others which board you have and what works on the [Tessera website](https://tessera-maxgramser.on-forge.com/community/share?type=installation). It helps everyone pick a screen that works._
+
+_Like my work? Consider [buying me a coffee](https://buymeacoffee.com/f5j9jnkmhpv), much appreciated!_
+```
+
+When the thread is about one board, append `&board=<key>` to that link, with the board's key from
+boards.yaml (`cyd`, `guition`, `waveshare43`, ...): the website uses the same keys and opens the
+report for that board. Keep the blank line above the `---`. Without it, markdown reads the rule as underlining and turns the
+last line of the reply into a heading instead of drawing a separator. The signature belongs under
+comments only, never in commit messages, release notes, the README or the docs, where the button
+under the title already does this.
+
 ## Owner's machine
 
 On the owner's machine, git-ignored `.esphome/owner-access.md` says how to reach his Home Assistant

@@ -1,4 +1,20 @@
-# Home Assistant ESP Screens
+<p align="center">
+  <a href="https://tessera-maxgramser.on-forge.com"><img src="docs/images/tessera-mark.svg" width="112" alt="The Tessera logo: four rounded tiles in yellow, blue, purple and green, like a small mosaic"></a>
+</p>
+
+<h1 align="center">Tessera</h1>
+
+<p align="center"><b>Touch screens for Home Assistant. A screen for every room, one simple editor.</b></p>
+
+<p align="center">
+  <a href="https://tessera-maxgramser.on-forge.com"><b>Website</b></a> ·
+  <a href="https://tessera-maxgramser.on-forge.com/docs/getting-started">Get started</a> ·
+  <a href="https://tessera-maxgramser.on-forge.com/screens">Supported screens</a> ·
+  <a href="https://tessera-maxgramser.on-forge.com/community">Community</a> ·
+  <a href="https://tessera-maxgramser.on-forge.com/community/share?type=installation">My screen works</a>
+</p>
+
+<p align="center"><sub>Tessera is the new name for ESP Screens. In Home Assistant the app is still called ESP Screen Manager and its panel ESP Screens; the repository, the add-on and your screens stay exactly as they are.</sub></p>
 
 Thank you! I work on this project with a lot of love, and every bit of support helps. I truly love the Home Assistant community.
 
@@ -27,7 +43,7 @@ it over Wi-Fi and sends it your tiles. Changing a screen is pick, drag and **Sav
 no reflash, no YAML to write, no blueprint, MQTT or token. Brightness, night hours and Dark mode can
 also be changed on the screen or by an automation, and your own YAML for one screen survives every update.
 
-**[Install it](#installing-from-home-assistant)** · [Pages and navigation](docs/PAGES.md) · [Full reference](README_EXTENDED.md) · [What's new](screen_manager/CHANGELOG.md)
+**[Install it](#installing-from-home-assistant)** · [Website](https://tessera-maxgramser.on-forge.com) · [Pages and navigation](docs/PAGES.md) · [Full reference](README_EXTENDED.md) · [What's new](screen_manager/CHANGELOG.md)
 
 ## In real life
 
@@ -224,14 +240,23 @@ while it keeps your country's clock and numbers.
 
 | Screen | Resolution | Display / touch |
 | --- | --- | --- |
-| CYD ESP32-2432S028 | 320 × 240, 2 × 3 tiles | ILI9341 / resistive XPT2046 |
-| Guition ESP32-S3-4848S040, 4 inch | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911 |
-| Waveshare ESP32-S3-Touch-LCD-4.3 | 800 × 480, 3 × 3 tiles | ST7262 RGB / capacitive GT911 (backlight always on: no standby, no night) |
-| Waveshare ESP32-S3-Touch-LCD-7 (experimental) | 800 × 480, 4 × 4 tiles | RGB / capacitive GT911; backlight always on, hardware acceptance pending ([details](docs/WAVESHARE7.md)) |
-| Waveshare ESP32-S3-Touch-LCD-4B, 4 inch (experimental) | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911; dimmable backlight, hardware acceptance pending ([details](docs/WAVESHARE4B.md)) |
-| Waveshare ESP32-S3-Touch-LCD-3.5 (new) | 480 × 320, 2 × 2 tiles | ST7796 SPI / capacitive FT6336; dimmable backlight, no camera pictures ([details](docs/WAVESHARE35.md)) |
-| Guition JC8012P4A1, 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) |
-| Guition JC1060P470 and JC1060P470 V2, 7 inch (experimental) | 1024 × 600, 4 × 4 tiles | MIPI-DSI JD9165 / capacitive GT911, ESP32-P4; hardware acceptance pending ([details](docs/JC1060P470.md)) |
+| [CYD ESP32-2432S028](https://tessera-maxgramser.on-forge.com/screens/cyd) | 320 × 240, 2 × 3 tiles | ILI9341 / resistive XPT2046 |
+| [Guition ESP32-S3-4848S040](https://tessera-maxgramser.on-forge.com/screens/guition), 4 inch | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911 |
+| [Waveshare ESP32-S3-Touch-LCD-4.3](https://tessera-maxgramser.on-forge.com/screens/waveshare43) | 800 × 480, 3 × 3 tiles | ST7262 RGB / capacitive GT911 (backlight always on: no standby, no night) |
+| [Waveshare ESP32-S3-Touch-LCD-7](https://tessera-maxgramser.on-forge.com/screens/waveshare7) (experimental) | 800 × 480, 4 × 4 tiles | RGB / capacitive GT911; backlight always on, hardware acceptance pending ([details](docs/WAVESHARE7.md)) |
+| [Waveshare ESP32-S3-Touch-LCD-4B](https://tessera-maxgramser.on-forge.com/screens/waveshare4b), 4 inch (experimental) | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911; dimmable backlight, hardware acceptance pending ([details](docs/WAVESHARE4B.md)) |
+| [Waveshare ESP32-S3-Touch-LCD-3.5](https://tessera-maxgramser.on-forge.com/screens/waveshare35) (new) | 480 × 320, 2 × 2 tiles | ST7796 SPI / capacitive FT6336; dimmable backlight, no camera pictures ([details](docs/WAVESHARE35.md)) |
+| [Guition JC8012P4A1](https://tessera-maxgramser.on-forge.com/screens/jc8012p4a1), 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) |
+| Guition [JC1060P470](https://tessera-maxgramser.on-forge.com/screens/jc1060p470) and [JC1060P470 V2](https://tessera-maxgramser.on-forge.com/screens/jc1060p470v2), 7 inch (experimental) | 1024 × 600, 4 × 4 tiles | MIPI-DSI JD9165 / capacitive GT911, ESP32-P4; hardware acceptance pending ([details](docs/JC1060P470.md)) |
+
+Each screen links to its page on the [Tessera website](https://tessera-maxgramser.on-forge.com/screens), with what owners report about it.
+
+> **Got your screen working? Tell the next person.** Whether a board is worth buying is something
+> only owners can tell. On the website, [My screen works](https://tessera-maxgramser.on-forge.com/community/share?type=installation)
+> records your exact board, its firmware version and whether the display, touch and connection work,
+> one report per account and board. It takes a minute (you sign in with GitHub), and it is how an
+> experimental board becomes one people can buy with confidence. Something not right?
+> [Report a problem](https://tessera-maxgramser.on-forge.com/community/share?type=issue) there, or open an issue here.
 
 Use these exact board variants: similar-looking product names can have different
 controllers or connectors. Wallbox relays are not controlled by default; a 4-inch Guition with relays
@@ -340,4 +365,4 @@ mounts for the CYD.
 The front door in the camera pictures is a photo by
 [Virginia Marinova](https://unsplash.com/photos/the-door-welcomes-with-plants-on-both-sides-80uwJgdeqWg) on Unsplash.
 
-ESP Screens is MIT licensed, see [LICENSE](LICENSE).
+Tessera (formerly ESP Screens) is MIT licensed, see [LICENSE](LICENSE).
