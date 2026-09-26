@@ -1421,6 +1421,8 @@
       "graph": "Diagramm",
       "digital": "Digitaluhr",
       "analog": "Analoguhr",
+      "dial": "schlichtes Zifferblatt",
+      "flip": "Klappuhr",
       "sunpath": "Sonnenbahn",
       "live": "Livebild",
       "cover": "Albumcover"
@@ -1448,6 +1450,8 @@
         "label": "Anzeige",
         "digital": "Digitaluhr",
         "analog": "Analoguhr",
+        "dial": "Schlichtes Zifferblatt",
+        "flip": "Klappuhr",
         "standard": "Name und Status",
         "watch": "Großer Wert",
         "forecast": "Wettervorhersage",
@@ -1463,7 +1467,8 @@
         "cover_needs_firmware": "Das Albumcover auf der Kachel braucht Firmware 0.2.78 oder neuer: Nach dem Speichern beim Bildschirm auf Aktualisieren drücken.",
         "no_graph": "Home Assistant hat für diese Entität keine Zahlen, daher bleibt das Diagramm leer. Wähle eine andere Anzeige.",
         "no_forecast": "Dieser Wetterdienst hat in Home Assistant keine Tagesvorhersage. Wähle eine andere Anzeige.",
-        "tall_cover_hint": ""
+        "tall_cover_hint": "",
+        "face_needs_firmware": "Diese Uhr braucht Firmware 0.3.6 oder neuer: Nach dem Speichern beim Bildschirm auf Aktualisieren drücken. Bis dahin zeigt der Bildschirm die Digitaluhr."
       },
       "refresh": {
         "label": "Auffrischen",

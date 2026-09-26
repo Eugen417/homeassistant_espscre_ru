@@ -71,7 +71,8 @@ const displays = computed(() => {
 // A live camera on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): whole or cut to fill it, its name on it or nothing.
 const pictureCard = computed(() => display.value === "live" && taller.value);
 // A hint is a warning unless the screen's firmware already does what it describes.
-const displayWarns = computed(() => !(display.value === "live" && (pictureCard.value ? supports(0, 3, 3) : supports(0, 2, 77))) && !(display.value === "cover" && supports(0, 2, 78)));
+const clockFace = computed(() => clock.value && ["dial", "flip"].includes(display.value));
+const displayWarns = computed(() => !(display.value === "live" && (pictureCard.value ? supports(0, 3, 3) : supports(0, 2, 77))) && !(display.value === "cover" && supports(0, 2, 78)) && !(clockFace.value && supports(0, 3, 6)));
 const pictureChoices = (key: "fit" | "overlay") => rules.picture[key].map((value) => [value, t(`editor.tile.picture.${key}.${value}`)] as [string, string]);
 const displayHint = computed(() => {
   const c = caps.value;
@@ -81,6 +82,8 @@ const displayHint = computed(() => {
   if (display.value === "live") return t(supports(0, 2, 77) ? "editor.tile.display.live_hint" : "editor.tile.display.live_needs_firmware");
   if (display.value === "cover" && taller.value) return t("editor.tile.display.tall_cover_hint");
   if (display.value === "cover") return t(supports(0, 2, 78) ? "editor.tile.display.cover_hint" : "editor.tile.display.cover_needs_firmware");
+  // The calm dial and the flip clock (firmware 0.3.6): an older screen shows the digital clock until it is updated.
+  if (clockFace.value && !supports(0, 3, 6)) return t("editor.tile.display.face_needs_firmware");
   return "";
 });
 const refresh = computed(() => current("refresh", 15) as number);

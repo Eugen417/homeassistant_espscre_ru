@@ -1421,6 +1421,8 @@
       "graph": "grafiek",
       "digital": "digitale klok",
       "analog": "analoge klok",
+      "dial": "rustige wijzerplaat",
+      "flip": "flipklok",
       "sunpath": "zonnebaan",
       "live": "livebeeld",
       "cover": "albumhoes"
@@ -1448,6 +1450,8 @@
         "label": "Weergave",
         "digital": "Digitale klok",
         "analog": "Analoge klok",
+        "dial": "Rustige wijzerplaat",
+        "flip": "Flipklok",
         "standard": "Naam en status",
         "watch": "Grote waarde",
         "forecast": "Weersverwachting",
@@ -1463,7 +1467,8 @@
         "cover_needs_firmware": "De albumhoes op de tile heeft firmware 0.2.78 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
         "no_graph": "Home Assistant heeft geen getallen voor deze entiteit, dus de grafiek blijft leeg. Kies een andere weergave.",
         "no_forecast": "Deze weerdienst heeft geen dagverwachting in Home Assistant. Kies een andere weergave.",
-        "tall_cover_hint": "Gebruikt de albumhoes als donkere achtergrond. Zonder afbeelding blijft de normale tegel zichtbaar."
+        "tall_cover_hint": "Gebruikt de albumhoes als donkere achtergrond. Zonder afbeelding blijft de normale tegel zichtbaar.",
+        "face_needs_firmware": "Deze klok heeft firmware 0.3.6 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm. Tot dan toont het scherm de digitale klok."
       },
       "refresh": {
         "label": "Verversen",

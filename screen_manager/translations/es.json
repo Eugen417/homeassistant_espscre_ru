@@ -1421,6 +1421,8 @@
       "graph": "gráfico",
       "digital": "reloj digital",
       "analog": "reloj analógico",
+      "dial": "esfera sencilla",
+      "flip": "reloj de paletas",
       "sunpath": "recorrido del sol",
       "live": "imagen en vivo",
       "cover": "carátula"
@@ -1448,6 +1450,8 @@
         "label": "Presentación",
         "digital": "Reloj digital",
         "analog": "Reloj analógico",
+        "dial": "Esfera sencilla",
+        "flip": "Reloj de paletas",
         "standard": "Nombre y estado",
         "watch": "Valor grande",
         "forecast": "Previsión del tiempo",
@@ -1463,7 +1467,8 @@
         "cover_needs_firmware": "La carátula en el mosaico necesita el firmware 0.2.78 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
         "no_graph": "Home Assistant no tiene valores numéricos para esta entidad, así que el gráfico queda vacío. Elige otra presentación.",
         "no_forecast": "Este servicio meteorológico no tiene previsión diaria en Home Assistant. Elige otra presentación.",
-        "tall_cover_hint": ""
+        "tall_cover_hint": "",
+        "face_needs_firmware": "Este reloj necesita el firmware 0.3.6 o posterior: pulsa Actualizar en la pantalla después de guardar. Hasta entonces la pantalla muestra el reloj digital."
       },
       "refresh": {
         "label": "Actualizar",

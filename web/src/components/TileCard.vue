@@ -73,6 +73,10 @@ const label = computed(() => t("editor.tile_card.label", { name: name.value, slo
 const now = computed(() => new Date(state.now));
 const hourAngle = computed(() => (now.value.getHours() % 12 + now.value.getMinutes() / 60) * 30);
 const minuteAngle = computed(() => now.value.getMinutes() * 6);
+// The flip clock's two blocks, as the screen draws them: "07" "12" on 24 hours, "7" "12" with AM or PM on 12.
+const flipHours = computed(() => clock24.value ? String(now.value.getHours()).padStart(2, "0") : String(now.value.getHours() % 12 || 12));
+const flipMinutes = computed(() => String(now.value.getMinutes()).padStart(2, "0"));
+const amPm = computed(() => screenText(`screen.time.${now.value.getHours() < 12 ? "am" : "pm"}`));
 const clockDate = computed(() => screenText('screen.date.full', {
   weekday: screenText(`screen.date.weekdays.${now.value.getDay()}`),
   day: now.value.getDate(),
@@ -195,6 +199,25 @@ async function onKey(e: KeyboardEvent) {
       </svg>
       <span v-if="wide" class="lead"><span class="tx"><span class="nm">{{ name }}</span><span class="st">{{ note }}</span></span></span>
     </template>
+    <template v-else-if="display === 'dial' && domain === 'screen'">
+      <span class="face-clock" :class="{ upright: !wide || tall || full }">
+        <svg class="calm-dial" viewBox="0 0 60 60" aria-hidden="true">
+          <circle cx="30" cy="30" r="29" fill="#1b1b1b" />
+          <line v-for="a in [0, 90, 180, 270]" :key="a" x1="30" y1="4" x2="30" y2="11" stroke="#fff" stroke-width="3" stroke-linecap="round" :transform="`rotate(${a} 30 30)`" />
+          <circle v-for="a in [30, 60, 120, 150, 210, 240, 300, 330]" :key="a" cx="30" cy="6" r="1.6" fill="#9e9e9e" :transform="`rotate(${a} 30 30)`" />
+          <line x1="30" y1="30" x2="30" y2="15" stroke="#fff" stroke-width="4.5" stroke-linecap="round" :transform="`rotate(${hourAngle} 30 30)`" />
+          <line x1="30" y1="30" x2="30" y2="8" stroke="#2196f3" stroke-width="3" stroke-linecap="round" :transform="`rotate(${minuteAngle} 30 30)`" />
+          <circle cx="30" cy="30" r="3.6" fill="#2196f3" />
+        </svg>
+        <span v-if="wide || tall || full" class="face-text"><span class="big">{{ clockText(clock24, now) }}</span><span class="st">{{ clockDate }}</span></span>
+      </span>
+    </template>
+    <template v-else-if="display === 'flip' && domain === 'screen'">
+      <span class="face-clock flip">
+        <span class="blocks"><span class="block">{{ flipHours }}</span><span class="block">{{ flipMinutes }}</span><small v-if="!clock24">{{ amPm }}</small></span>
+        <span v-if="wide && !tall && !full" class="face-text"><span class="st">{{ clockDate }}</span></span>
+      </span>
+    </template>
     <template v-else-if="display === 'digital' && domain === 'screen'">
       <span class="digital-clock"><span class="big">{{ clockText(clock24, now) }}</span><span class="st">{{ clockDate }}</span></span>
     </template>
@@ -305,6 +328,18 @@ async function onKey(e: KeyboardEvent) {
 <style scoped>
 .tile .ic:not(.thumb) { color: var(--tile-icon); background: var(--tile-circle); border-radius: 50%; padding: 5px; }
 .tile .tog:not(.off) { background: var(--tile-accent); }
+.face-clock { display: flex; align-items: center; gap: 10px; min-width: 0; width: 100%; height: 100%; padding-inline: 2px; }
+.face-clock.upright { flex-direction: column; justify-content: center; gap: 4px; }
+.face-clock .calm-dial { height: 100%; max-height: 100%; aspect-ratio: 1; flex: none; }
+.face-clock.upright .calm-dial { height: auto; width: min(70%, 100%); max-height: 70%; }
+.face-clock .face-text { display: grid; gap: 1px; min-width: 0; }
+.face-clock.upright .face-text { text-align: center; }
+.face-clock .face-text .big { font-size: 22px; font-weight: 500; }
+.face-clock .face-text .st { font-size: 9px; }
+.face-clock.flip { justify-content: center; }
+.face-clock .blocks { display: flex; align-items: baseline; gap: 3px; }
+.face-clock .block { background: #f1f1f1; border-radius: 4px; padding: 1px 5px; font-size: 24px; font-weight: 500; line-height: 1.25; background-image: linear-gradient(transparent calc(50% - .5px), #fff calc(50% - .5px), #fff calc(50% + .5px), transparent calc(50% + .5px)); }
+.face-clock .blocks small { font-size: 9px; margin-left: 2px; }
 .digital-clock { display: grid; gap: 3px; align-content: center; text-align: center; min-width: 0; width: 100%; height: 100%; }
 .digital-clock .big { font-size: 28px; font-weight: 400; }
 .digital-clock .st { font-size: 9px; }

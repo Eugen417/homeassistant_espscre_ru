@@ -40,6 +40,11 @@ LIVE_MIN_FIRMWARE = (0, 2, 77)
 LIVE_REFRESH = (15, 30)  # the paces a live tile may choose, in seconds; the first is the default
 # A media tile's album cover in the icon's place ("display": "cover", app 0.2.92): the same strip, firmware from here.
 COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
+# The calm dial and the flip clock (firmware 0.3.6+). An older screen draws either as the digital clock, so a layout
+# with one is sent as it is; the editor says so.
+CLOCK_FACES_MIN_FIRMWARE = (0, 3, 6)
+CLOCK_DEFAULT_DISPLAY = 'dial'
+
 # The media card with its cover (app 0.2.77): firmware from here draws it and asks for the cover.
 COVER_MIN_FIRMWARE = (0, 2, 64)
 # One tile per slot, a tile over the whole page and the screen.page tile (firmware 0.2.62+). How many tiles a
@@ -99,7 +104,7 @@ def backgrounds():
     return {name: {**item, 'label': t(f'addon.labels.backgrounds.{name}')} for name, item in TILE_BACKGROUNDS.items()}
 
 # Display modes per domain; everything else offers standard and watch (large value).
-DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog'), 'sun': ('standard', 'watch', 'sunpath'),
+DISPLAYS = {'weather': ('standard', 'watch', 'forecast'), 'sensor': ('standard', 'watch', 'graph'), 'screen': ('digital', 'analog', 'dial', 'flip'), 'sun': ('standard', 'watch', 'sunpath'),
             'camera': ('standard', 'live'), 'image': ('standard', 'live'), 'media_player': ('standard', 'watch', 'cover')}
 # A live picture on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): cut to fill it or whole on black, with
 # its name on it or nothing. The first choice of each is the default and is never stored.
@@ -1171,6 +1176,9 @@ def run_tile_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID):
             chosen = found is not None
         was_size, had_slot = tile_size(found) if found else 'single', (found or {}).get('slot')
         options = tile_options(data, (found or {}).get('options'))
+        # A new clock starts with the calm dial, as in the editor (app 0.3.12); an older screen draws it as the digital clock.
+        if found is None and entity == 'screen.clock' and 'display' not in options:
+            options['display'] = CLOCK_DEFAULT_DISPLAY
         tile = found or {'entity': entity, 'name': ''}
         if data.get('name') not in (None, ''):
             tile['name'] = str(data['name']).strip()

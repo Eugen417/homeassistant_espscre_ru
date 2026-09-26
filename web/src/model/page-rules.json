@@ -86,7 +86,9 @@
     ],
     "screen": [
       "digital",
-      "analog"
+      "analog",
+      "dial",
+      "flip"
     ],
     "sun": [
       "standard",

@@ -135,7 +135,7 @@ describe("defaults, controls and versions", () => {
   it("starts a new tile with the card that shows the entity best", () => {
     expect(defaultOptions("weather.home")).toEqual({ options: { display: "forecast", size: "wide" } });
     expect(defaultOptions("sun.sun")).toEqual({ options: { display: "sunpath", size: "wide" } });
-    expect(defaultOptions("screen.clock")).toEqual({ options: { display: "digital", size: "wide" } });
+    expect(defaultOptions("screen.clock")).toEqual({ options: { display: "dial", size: "wide" } });
     // The settings card is a plain card, not a second clock (GitHub #47).
     expect(defaultOptions("screen.settings")).toEqual({});
     expect(defaultOptions("light.a")).toEqual({});

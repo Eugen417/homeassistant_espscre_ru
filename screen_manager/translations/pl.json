@@ -1421,6 +1421,8 @@
       "graph": "wykres",
       "digital": "zegar cyfrowy",
       "analog": "zegar analogowy",
+      "dial": "prosta tarcza",
+      "flip": "zegar klapkowy",
       "sunpath": "tor słońca",
       "live": "obraz na żywo",
       "cover": "okładka albumu"
@@ -1448,6 +1450,8 @@
         "label": "Widok",
         "digital": "Zegar cyfrowy",
         "analog": "Zegar analogowy",
+        "dial": "Prosta tarcza",
+        "flip": "Zegar klapkowy",
         "standard": "Nazwa i stan",
         "watch": "Duża wartość",
         "forecast": "Prognoza pogody",
@@ -1463,7 +1467,8 @@
         "cover_needs_firmware": "Okładka albumu na kafelku wymaga firmware 0.2.78 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie.",
         "no_graph": "Home Assistant nie ma wartości liczbowych dla tej encji, więc wykres pozostanie pusty. Wybierz inny widok.",
         "no_forecast": "Ta usługa pogodowa nie ma prognozy dziennej w Home Assistant. Wybierz inny widok.",
-        "tall_cover_hint": ""
+        "tall_cover_hint": "",
+        "face_needs_firmware": "Ten zegar wymaga oprogramowania 0.3.6 lub nowszego: po zapisaniu naciśnij Aktualizuj przy ekranie. Do tego czasu ekran pokazuje zegar cyfrowy."
       },
       "refresh": {
         "label": "Odświeżanie",

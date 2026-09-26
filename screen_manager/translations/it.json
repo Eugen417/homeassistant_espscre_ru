@@ -1421,6 +1421,8 @@
       "graph": "grafico",
       "digital": "orologio digitale",
       "analog": "orologio analogico",
+      "dial": "quadrante essenziale",
+      "flip": "orologio a palette",
       "sunpath": "percorso del sole",
       "live": "immagine dal vivo",
       "cover": "copertina"
@@ -1448,6 +1450,8 @@
         "label": "Visualizzazione",
         "digital": "Orologio digitale",
         "analog": "Orologio analogico",
+        "dial": "Quadrante essenziale",
+        "flip": "Orologio a palette",
         "standard": "Nome e stato",
         "watch": "Valore grande",
         "forecast": "Previsioni meteo",
@@ -1463,7 +1467,8 @@
         "cover_needs_firmware": "La copertina sul riquadro richiede il firmware 0.2.78 o più recente: premi Aggiorna sullo schermo dopo il salvataggio.",
         "no_graph": "Home Assistant non ha valori numerici per questa entità, quindi il grafico resta vuoto. Scegli un'altra visualizzazione.",
         "no_forecast": "Questo servizio meteo non ha previsioni giornaliere in Home Assistant. Scegli un'altra visualizzazione.",
-        "tall_cover_hint": ""
+        "tall_cover_hint": "",
+        "face_needs_firmware": "Questo orologio richiede il firmware 0.3.6 o successivo: premi Aggiorna sullo schermo dopo aver salvato. Fino ad allora lo schermo mostra l'orologio digitale."
       },
       "refresh": {
         "label": "Aggiorna",
