@@ -191,6 +191,10 @@ struct Metrics {
   int gap() const { return ui::px(large ? 12 : 6); }           // between keys and blocks
   int radius() const { return ui::px(large ? 24 : 16); }
   int hero_min() const { return ui::px(large ? 120 : 64); }    // the shield's card at its smallest
+  // The card at its largest is the Guition's (480 x 480 in the reference look): a bigger screen shows the same card,
+  // as large to the eye, in the middle of its glass, instead of a white field that grows with the panel.
+  int hero_max() const { return ui::px(large ? 150 : 96); }
+  int card_max() const { return ui::px(large ? 440 : 300); }
   int dot() const { return ui::px(large ? 16 : 10); }
   int least_key() const { return touch > text_h + ui::px(8) ? touch : text_h + ui::px(8); }
 };
@@ -204,14 +208,19 @@ struct CardLayout {
 // The card under the bar, between `top` and `bottom`, `width` wide (the room overlay_card gave it).
 inline CardLayout card_layout(const Metrics &m, int width, int top, int bottom, unsigned modes, bool urgent_card) {
   CardLayout l;
-  const int x = m.side, w = width - 2 * m.side, h = bottom - top, g = m.gap();
-  if (w <= 0 || h <= 0) return l;
+  const int room = width - 2 * m.side, h = bottom - top, g = m.gap();
+  if (room <= 0 || h <= 0) return l;
+  // Stacked, the card keeps the Guition's width; beside each other, the shield and the keys share the glass's.
+  const int stacked_w = room < m.card_max() ? room : m.card_max();
+  int x = m.side + (room - stacked_w) / 2, w = stacked_w;
   if (urgent_card) {
     int kh = m.big_h() > m.least_key() ? m.big_h() : m.least_key();
     if (kh > h / 3) kh = h / 3 > m.least_key() ? h / 3 : m.least_key();
     const int kw = w < ui::mm(70) ? w : ui::mm(70);
-    l.disarm = {x + (w - kw) / 2, bottom - kh, kw, kh};
-    l.hero = {x, top, w, h - kh - g};
+    const int hero_h = h - kh - g < m.hero_max() ? h - kh - g : m.hero_max();
+    const int y0 = top + (h - (hero_h + g + kh)) / 2;
+    l.hero = {x, y0, w, hero_h};
+    l.disarm = {x + (w - kw) / 2, y0 + hero_h + g, kw, kh};
     return l;
   }
   l.key_count = modes > MODE_COUNT ? MODE_COUNT : modes;
@@ -221,8 +230,9 @@ inline CardLayout card_layout(const Metrics &m, int width, int top, int bottom, 
   // Under the shield while the keys keep their full height there and the shield its least, as on a square or a
   // standing screen; beside it on glass too short for that (a CYD lying down, a wide 4.3 inch).
   const int stack_rows = (n + (n == 1 ? 0 : 1)) / (n == 1 ? 1 : 2);
-  l.beside = h - (stack_rows * kh + (stack_rows - 1) * g) - g < m.hero_min() && w * 10 >= h * 11;
+  l.beside = h - (stack_rows * kh + (stack_rows - 1) * g) - g < m.hero_min() && room * 10 >= h * 11;
   if (l.beside) {
+    x = m.side; w = room;
     // One column of keys while they fit under each other, else two; the shield takes what is left.
     int columns = n * kh + (n - 1) * g <= h ? 1 : 2;
     const int rows = (n + columns - 1) / columns;
@@ -231,6 +241,7 @@ inline CardLayout card_layout(const Metrics &m, int width, int top, int bottom, 
     int keys_w = w * (columns == 1 ? 46 : 68) / 100;
     if (columns == 1 && keys_w > ui::mm(50)) keys_w = ui::mm(50);
     const int block = rows * kh + (rows - 1) * g, y0 = top + (h - block) / 2, kx = x + w - keys_w;
+    const int hero_h = h < m.hero_max() ? h : (block > m.hero_max() ? block : m.hero_max());
     const int cw = columns == 1 ? keys_w : (keys_w - g) / 2;
     for (int i = 0; i < n; ++i) {
       const int row = i / columns, column = i % columns;
@@ -238,7 +249,7 @@ inline CardLayout card_layout(const Metrics &m, int width, int top, int bottom, 
       const bool alone = columns == 2 && i == n - 1 && n % 2 == 1;
       l.keys[i] = {kx + (alone ? 0 : column * (cw + g)), y0 + row * (kh + g), alone ? keys_w : cw, kh};
     }
-    l.hero = {x, top, w - keys_w - g, h};
+    l.hero = {x, top + (h - hero_h) / 2, w - keys_w - g, hero_h};
     return l;
   }
   // Under the shield: two keys to a row (one when there is one), the shield above them.
@@ -249,13 +260,16 @@ inline CardLayout card_layout(const Metrics &m, int width, int top, int bottom, 
     kh = fit > m.least_key() ? fit : m.least_key();
     block = rows * kh + (rows - 1) * g;
   }
-  const int cw = (w - (columns - 1) * g) / columns, y0 = bottom - block;
+  // The shield takes what is left up to its largest, and the two stand together in the middle of the card.
+  const int hero_h = h - block - g < m.hero_max() ? h - block - g : m.hero_max();
+  const int hero_y = top + (h - (hero_h + g + block)) / 2;
+  const int cw = (w - (columns - 1) * g) / columns, y0 = hero_y + hero_h + g;
   for (int i = 0; i < n; ++i) {
     const int row = i / columns, column = i % columns;
     const bool alone = columns == 2 && i == n - 1 && n % 2 == 1;
     l.keys[i] = {x + (alone ? 0 : column * (cw + g)), y0 + row * (kh + g), alone ? w : cw, kh};
   }
-  l.hero = {x, top, w, h - block - g};
+  l.hero = {x, hero_y, w, hero_h};
   return l;
 }
 
@@ -288,10 +302,14 @@ inline KeypadLayout keypad_layout(const Metrics &m, int width, int top, int bott
   if (kw > third) kw = third;
   if (kw < m.least_key()) kw = m.least_key();
   const int pad_w = 3 * kw + 2 * g, pad_h = 4 * kh + 3 * g;
-  const int px0 = l.beside ? x + w - pad_w : x + (w - pad_w) / 2;
-  const int py0 = l.beside ? top + (h - pad_h) / 2 : bottom - pad_h;
+  // Beside each other on wide glass, the dots keep close to the keys: the two stand together in the middle.
+  const int info_w = l.beside ? (w - pad_w - 2 * g < pad_w ? w - pad_w - 2 * g : pad_w) : w;
+  const int pair_x = l.beside ? x + (w - (info_w + 2 * g + pad_w)) / 2 : x;
+  const int px0 = l.beside ? pair_x + info_w + 2 * g : x + (w - pad_w) / 2;
+  // Under each other, the dots stand right above the keys and the two in the middle of the card, as a phone's.
+  const int py0 = l.beside ? top + (h - pad_h) / 2 : top + (h - (info_h + 2 * g + pad_h)) / 2 + info_h + 2 * g;
   for (int i = 0; i < 12; ++i) l.keys[i] = {px0 + (i % 3) * (kw + g), py0 + (i / 3) * (kh + g), kw, kh};
-  l.info = l.beside ? Rect{x, top, w - pad_w - 2 * g, h} : Rect{x, top, w, py0 - g - top};
+  l.info = l.beside ? Rect{pair_x, top, info_w, h} : Rect{x, py0 - 2 * g - info_h, w, info_h + g};
   l.dot = m.dot();
   while (l.dot > 4 && shown * l.dot + (shown - 1) * dot_gap(l.dot) > l.info.w) --l.dot;
   const int row_w = shown * l.dot + (shown - 1) * dot_gap(l.dot);

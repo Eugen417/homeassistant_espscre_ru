@@ -2251,7 +2251,7 @@ inline void render_alarm_detail(Tile &t,bool large,int width,int height,lv_obj_t
   const auto l=card_layout(m,width,top,bottom,urgent_card?0:(unsigned)offered.size(),urgent_card);
   detail_card(l.hero.x,l.hero.y,l.hero.w,l.hero.h);
   const int icon_h=m.icon_h,ring_w=ui::px(large?8:5),ring_gap=ui::px(large?8:5);
-  int d=std::min(std::min(l.hero.w,l.hero.h)-2*(ring_w+ring_gap)-ui::px(large?24:12),icon_h*5/2);
+  int d=std::min(std::min(l.hero.w,l.hero.h)-2*(ring_w+ring_gap)-ui::px(large?10:6),icon_h*5/2);
   d=std::max(d,icon_h+ui::px(8));
   const int cx=l.hero.cx(),cy=l.hero.cy();
   auto *circle=detail_shape(detail_root,cx-d/2,cy-d/2,d,d,available?theme::tint(theme::state(colour),38):theme::hex(theme::TRACK),d/2);
