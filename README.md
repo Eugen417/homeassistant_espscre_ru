@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://tessera-maxgramser.on-forge.com"><b>Website</b></a> ·
-  <a href="https://tessera-maxgramser.on-forge.com/docs/getting-started">Get started</a> ·
+  <a href="https://tessera-maxgramser.on-forge.com/docs/quick-start">Quick start</a> ·
   <a href="https://tessera-maxgramser.on-forge.com/screens">Supported screens</a> ·
   <a href="https://tessera-maxgramser.on-forge.com/community">Community</a> ·
   <a href="https://tessera-maxgramser.on-forge.com/community/share?type=installation">My screen works</a>
@@ -45,7 +45,7 @@ also be changed on the screen or by an automation, and your own YAML for one scr
 
 **[Install it](#installing-from-home-assistant)** · [Documentation](https://tessera-maxgramser.on-forge.com/docs) · [Pages and tiles](https://tessera-maxgramser.on-forge.com/docs/pages-and-tiles) · [Troubleshooting](https://tessera-maxgramser.on-forge.com/docs/troubleshooting) · [What's new](screen_manager/CHANGELOG.md)
 
-> **The full documentation is on the [Tessera website](https://tessera-maxgramser.on-forge.com/docs):** getting started, pages and tiles, screen settings, cameras, Docker and troubleshooting, kept up to date for users. This README is the overview; the files under `docs/` are the reference for contributors.
+> **The full documentation is on the [Tessera website](https://tessera-maxgramser.on-forge.com/docs):** a [quick start](https://tessera-maxgramser.on-forge.com/docs/quick-start), getting started, pages and tiles, screen settings, cameras, Docker and troubleshooting, kept up to date for users. This README is the overview; the files under `docs/` are the reference for contributors.
 
 ## In real life
 
