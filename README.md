@@ -232,7 +232,8 @@ while it keeps your country's clock and numbers.
 | Guition JC8012P4A1, 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) |
 
 Use these exact board variants: similar-looking product names can have different
-controllers or connectors. Wallbox relays are not controlled.
+controllers or connectors. Wallbox relays are not controlled by default; a 4-inch Guition with relays
+can switch them through its Override YAML ([docs/GUITION.md](docs/GUITION.md#relays)).
 
 The one we use ourselves is the 4-inch Guition, and it has been good to us: bright,
 responsive touch, and it has been on the wall for months without a hiccup. We buy it here:

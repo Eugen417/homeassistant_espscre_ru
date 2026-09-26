@@ -1,0 +1,24 @@
+# A 4-inch Guition sold with relays on its wallbox base (GitHub #39): the three relays as Home Assistant switches.
+# Pins from ESPHome's device page for the GUITION-4848S040; the one-relay base has only the first.
+switch:
+  - platform: gpio
+    id: relay_1
+    name: "Relay 1"
+    restore_mode: RESTORE_DEFAULT_OFF
+    pin:
+      number: GPIO40
+      inverted: true
+  - platform: gpio
+    id: relay_2
+    name: "Relay 2"
+    restore_mode: RESTORE_DEFAULT_OFF
+    pin:
+      number: GPIO2
+      inverted: true
+  - platform: gpio
+    id: relay_3
+    name: "Relay 3"
+    restore_mode: RESTORE_DEFAULT_OFF
+    pin:
+      number: GPIO1
+      inverted: true

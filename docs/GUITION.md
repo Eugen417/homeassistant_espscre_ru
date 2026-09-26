@@ -3,7 +3,8 @@
 The **Guition 4848S040** has a board file of its own, next to the CYD's, for its
 ST7701S RGB display and **GT911 capacitive touch**, ESP32-S3, 16 MB flash, and
 8 MB octal PSRAM. The name/2mm wall plate also describes the enclosure; always
-check the electronics. This profile doesn't configure any relay.
+check the electronics. The board profile doesn't configure any relay; a wallbox sold with relays
+can switch them through the screen's Override YAML ([Relays](#relays)).
 
 Hardware source: the [ESPHome Guition board writeup](https://devices.esphome.io/devices/guition-esp32-s3-4848s040/)
 and the built-in [ST7701S driver](https://esphome.io/components/display/st7701s/).
@@ -131,6 +132,48 @@ climate and vacuum cards, real HA feedback,
 standby, and recovery after a restart. A compile/render test doesn't replace
 that physical check. The original CYD board's test outcome
 says nothing about this new board.
+
+## Relays
+
+The Guition is also sold on a mains-powered wallbox base with one or three relays. The board profile leaves
+them alone, so a screen without relays and one with them run the same firmware. To use the relays, add them in
+the screen's **Override YAML** (docs/EASY_SETUP.md) and build the firmware again:
+
+```yaml
+switch:
+  - platform: gpio
+    id: relay_1
+    name: "Relay 1"
+    restore_mode: RESTORE_DEFAULT_OFF
+    pin:
+      number: GPIO40
+      inverted: true
+  - platform: gpio
+    id: relay_2
+    name: "Relay 2"
+    restore_mode: RESTORE_DEFAULT_OFF
+    pin:
+      number: GPIO2
+      inverted: true
+  - platform: gpio
+    id: relay_3
+    name: "Relay 3"
+    restore_mode: RESTORE_DEFAULT_OFF
+    pin:
+      number: GPIO1
+      inverted: true
+```
+
+The pins are the ones on ESPHome's [device page](https://devices.esphome.io/devices/guition-esp32-s3-4848s040/)
+for this board. The one-relay base only has the first. If a relay clicks on while its switch reads off, change
+`inverted` to `false` for that relay. `RESTORE_DEFAULT_OFF` keeps the state a relay had across a restart.
+
+Each relay shows up in Home Assistant as a switch on the screen's device (`switch.<screen>_relay_1` and so on),
+so it can go on a tile of the screen like any other switch, or in an automation. A tile switches through Home
+Assistant: when Home Assistant is unreachable, the relay keeps its state but the tile can't change it. Rename the
+relays with `name:` to what they switch, for example `"Ceiling light"`.
+
+The base carries mains voltage. Have it wired by someone qualified, and check the relay's rating against the load.
 
 ## Inspecting the rendered interface
 

@@ -22,7 +22,8 @@ ESPHome Device Builder is optional:
 
 Other screens with roughly the same name can have different pins. Use
 the board profile that matches the hardware. Use a USB cable that supports data.
-The wallbox relays are not used.
+Wallbox relays are not used by default; a Guition with relays can switch them
+through its Override YAML (docs/GUITION.md, Relays).
 
 ## 1. Install ESP Screen Manager
 

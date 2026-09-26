@@ -1,3 +1,10 @@
+## 0.3.3 (firmware 0.3.1)
+
+The relays of a 4-inch Guition wallbox (GitHub #39).
+
+- A Guition sold on a mains-powered base with one or three relays can switch them as Home Assistant switches: add them in the screen's Override YAML and update its firmware. docs/GUITION.md, "Relays", has the YAML. The board profile itself still configures no relay, so a screen without them is unchanged.
+- Nothing else changes: the firmware stays at 0.3.1.
+
 ## 0.3.2 (firmware 0.3.1)
 
 µg/m³ keeps its µ (GitHub #43, thanks @ellepdesk).
