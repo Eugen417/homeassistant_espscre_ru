@@ -15,7 +15,7 @@ The owner was at the screens for the parts that need a finger.
 - CYD and Waveshare 4.3: the final release commit (the keypad text wrap below included), built at 15:06 and 15:09.
 - Guition: the commit before it, built at 14:38; it differs only in that keypad text wrap.
 - All three reported firmware 0.3.3 in `device_info`.
-- CYD image: see the final suite.
+- CYD image: 1,689,216 B of 1,835,008 B = 92.1 % (145,792 B free), +39,760 B against 0.3.7 (final `tools/check.sh --all`). Every other board builds; 16 of 16 host render variants pass when each run uses its own `--port-base`.
 
 ### What was checked
 
