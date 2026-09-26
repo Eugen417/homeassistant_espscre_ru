@@ -55,9 +55,12 @@ what plays, with the title, the artist and the album, a progress bar and the key
 ## A live picture on a camera tile
 
 App 0.2.91 with firmware 0.2.77 puts the camera on the tile itself: **Display → Live picture** in the
-tile's settings, with a pace of 15 or 30 seconds (`refresh`). The tile shows a small square of the
-camera's view in the icon's place, the middle of the snapshot cut square with the tile's rounded
-corners, and refreshes it while that page is on the screen. A tap still opens the camera full screen.
+tile's settings, with a pace of 15 or 30 seconds (`refresh`; 5 and 10 seconds too from app 0.3.13). The
+picture refreshes while that page is on the screen, and a tap still opens the camera full screen. From
+app 0.3.13 with firmware 0.3.7 the picture fills the whole tile on every size (see
+[A camera that fills its tile](#a-camera-that-fills-its-tile)). Older firmware shows a small square of the
+camera's view in the icon's place of a single, double-width or full-page tile: the middle of the snapshot
+cut square with the tile's rounded corners, delivered as described below.
 
 - **One download per page.** The screen asks ESP Screen Manager for all the live tiles of the page at
   once (the event `esphome.screen_camera` with `tiles`, the entities in slot order, `size`, the side of
@@ -65,9 +68,10 @@ corners, and refreshes it while that page is on the screen. A tap still opens th
   BMP: a strip of squares, top to bottom in that order, and every tile draws its own square out of it
   (LVGL's image offset). Six live tiles cost the screen one download of about 50 KB; a tile over the
   whole page gets one square of 128 px.
-- **At the pace of the fastest tile.** The page loads its strip every 15 s when any of its tiles says
-  15 s. The app fetches a camera again only when that camera's own pace has passed, so a 30 s camera
-  on a 15 s page is fetched every other load. The strip comes whole every time, never as a 304:
+- **At the pace of the fastest tile.** The page loads its pictures at the pace of its fastest live
+  tile: every 15 s when any of its tiles says 15 s, every 30 s when all of them say 30 s (firmware before
+  0.3.7 loaded such a page every 15 s). The app fetches a camera again only when that camera's own pace
+  has passed, so a 30 s camera on a 15 s page is fetched every other load. The strip comes whole every time, never as a 304:
   ESPHome's `http_request` logs a 304 as a failed request and raises its error flag, which a page of
   slow cameras would do every 15 s. Nobody loading means nothing fetched, as with the camera full
   screen.
@@ -86,10 +90,12 @@ corners, and refreshes it while that page is on the screen. A tap still opens th
 - The strip lives in a third `online_image` of the Guition profile (`tile_image`, PSRAM); the CYD has
   none and the editor does not offer the live picture there.
 
-### A camera that fills a taller tile
+### A camera that fills its tile
 
-From app 0.3.8 with firmware 0.3.3, a live camera on a 1 × 2 or 2 × 2 tile fills the whole card instead
-of the icon's place. Two settings appear in the tile's settings once the tile is taller:
+From app 0.3.13 with firmware 0.3.7, a live camera fills the whole card on every size: a single tile, a
+double-width one, a 1 × 2 or 2 × 2 tile and a tile over the whole page. Two cameras that film in 16:9 fit
+side by side on the 4-inch Guition, one single tile each. App 0.3.8 with firmware 0.3.3 did this on 1 × 2
+and 2 × 2 tiles only. Two settings appear in the tile's settings with the live picture:
 
 - **Picture**: **Fill the tile** (`fit` left out, the default) cuts the picture to the card, the way a
   photo fills a frame. **Whole picture** (`fit: contain`) shows all of it, with black above and below
@@ -102,8 +108,10 @@ the page's pictures as frames (`atlas`: the place, size and corner of each), and
 one BMP in which every picture already has its card's exact size in pixels, its crop or its black bars,
 its rounded corners and, under the name, a soft shade that keeps white text readable on a bright
 picture. The screen draws that image as it is. A smaller picture does not load faster: the picture
-already has exactly as many pixels as the card shows. What sets the pace is the 15 or 30 seconds of the
-tile and the time the camera takes to answer.
+already has exactly as many pixels as the card shows. What sets the pace is the refresh the tile chose
+and the time the camera takes to answer. On the 4-inch Guition two single tiles side by side are about
+50 KB per refresh, and a tile over the whole page about 160 KB. A refresh every 5 seconds works there,
+but the larger the picture and the slower the Wi-Fi, the longer the screen spends reading it.
 
 A screen with firmware 0.3.3 or newer gets its live pictures in 8-bit colour: a palette of the picture's own
 256 colours, dithered so a shade stays smooth. That is a third of the bytes of a 24-bit BMP (a 2 × 2 card
@@ -113,8 +121,9 @@ that arrives sooner and a screen that answers a touch sooner. Preparing the pale
 few milliseconds per picture, also on a Raspberry Pi. Older firmware keeps 24-bit pictures.
 
 The camera's state ("Idle") is not written on the picture. Until the first picture arrives, the tile
-shows its icon and name as any tile does. Older firmware ignores both settings and keeps the small
-picture in the icon's place.
+shows a spinner; a camera that has no picture for Home Assistant (a camera that only streams) keeps its
+icon and name as any tile does. Firmware before 0.3.7 ignores both settings on a single, double-width
+or full-page tile and keeps the small picture in the icon's place there.
 
 ## A doorbell
 

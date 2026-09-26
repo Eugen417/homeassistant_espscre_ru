@@ -48,9 +48,9 @@ LIVE_MIN_FIRMWARE = (0, 2, 77)
 COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
 # A camera on a 1x2 or 2x2 tile fills the card (app 0.3.8, firmware 0.3.3): the tile's own `fit` and `overlay` say how
 # the app cuts its picture and whether it shades the bottom for the name. Older firmware draws the small square there.
-# From firmware 0.3.6 a live camera fills its card on every size (single, double-width and full page too).
+# From firmware 0.3.7 a live camera fills its card on every size (single, double-width and full page too).
 CAMERA_ART_FIRMWARE = (0, 3, 3)
-CAMERA_CARD_FIRMWARE = (0, 3, 6)
+CAMERA_CARD_FIRMWARE = (0, 3, 7)
 # The same firmware is built with an ESPHome whose BMP decoder reads 8-bit pictures: a page's pictures go to it in 8-bit
 # colour (tile_art.bmp), a third of the bytes of 24-bit. Older screens keep 24-bit.
 LIVE_SIZES = (24, 160)   # a square's side, in pixels
@@ -174,7 +174,7 @@ def can_show_live(screen):
 
 def picture_modes(screen, options_of, entities):
     """(fit, fade) per tile of a live strip: how the app prepares each picture. A camera gets its own choices on every
-    card the screen's firmware fills with it (1x2 and 2x2 from 0.3.3, every size from 0.3.6); everything else is
+    card the screen's firmware fills with it (1x2 and 2x2 from 0.3.3, every size from 0.3.7); everything else is
     filled and left alone."""
     firmware = screen_firmware(screen) or (0, 0, 0)
     sizes = None if firmware >= CAMERA_CARD_FIRMWARE else ('tall', 'square') if firmware >= CAMERA_ART_FIRMWARE else ()

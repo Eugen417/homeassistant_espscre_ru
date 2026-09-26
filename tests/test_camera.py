@@ -577,8 +577,8 @@ class App(unittest.IsolatedAsyncioTestCase):
 
 
 class PictureCards(unittest.TestCase):
-    """A live camera that fills its card (1x2 and 2x2 from app 0.3.8 and firmware 0.3.3, every size from app 0.3.12 and
-    firmware 0.3.6): fill or contain, name or nothing."""
+    """A live camera that fills its card (1x2 and 2x2 from app 0.3.8 and firmware 0.3.3, every size from app 0.3.13 and
+    firmware 0.3.7): fill or contain, name or nothing."""
 
     def test_fit_and_overlay_belong_to_the_live_picture_and_keep_no_defaults(self):
         tile = lambda options: validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.front_door', 'name': '', 'options': options}]})['tiles'][0]['options']
@@ -613,8 +613,8 @@ class PictureCards(unittest.TestCase):
                          [('contain', True), ('fill', False), ('fill', False), ('fill', False)])
         # Firmware that draws a small square on a taller camera tile gets that square, as before.
         self.assertEqual(camera_feed.picture_modes({'firmware': '0.3.1'}, options.get, entities), [('fill', False)] * 4)
-        # From firmware 0.3.6 a camera fills its card on every size, so the single tile gets its picture made for that.
-        self.assertEqual(camera_feed.picture_modes({'firmware': '0.3.6'}, options.get, entities),
+        # From firmware 0.3.7 a camera fills its card on every size, so the single tile gets its picture made for that.
+        self.assertEqual(camera_feed.picture_modes({'firmware': '0.3.7'}, options.get, entities),
                          [('contain', True), ('fill', False), ('fill', True), ('fill', False)])
 
     def test_a_live_tile_may_refresh_every_5_to_30_seconds(self):

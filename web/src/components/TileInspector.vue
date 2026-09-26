@@ -68,10 +68,10 @@ const displays = computed(() => {
   });
   return keys.map((key) => [key, t(`editor.tile.display.${key}`)] as [string, string]);
 });
-// A live camera fills its card on every size (app 0.3.12, firmware 0.3.6; 1x2 and 2x2 since app 0.3.8, firmware 0.3.3):
+// A live camera fills its card on every size (app 0.3.13, firmware 0.3.7; 1x2 and 2x2 since app 0.3.8, firmware 0.3.3):
 // whole or cut to fill it, its name on it or nothing.
 const pictureCard = computed(() => display.value === "live");
-const cardFilled = computed(() => supports(0, 3, 6) || (taller.value && supports(0, 3, 3)));
+const cardFilled = computed(() => supports(0, 3, 7) || (taller.value && supports(0, 3, 3)));
 // A hint is a warning unless the screen's firmware already does what it describes.
 const clockFace = computed(() => clock.value && ["dial", "flip"].includes(display.value));
 const displayWarns = computed(() => !(display.value === "live" && cardFilled.value) && !(display.value === "cover" && supports(0, 2, 78)) && !(clockFace.value && supports(0, 3, 6)));

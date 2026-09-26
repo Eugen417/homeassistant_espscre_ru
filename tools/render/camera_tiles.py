@@ -1,5 +1,5 @@
 """Render a live camera that fills its card on every size (1x2 and 2x2 since app 0.3.8 and firmware 0.3.3, single,
-double-width and full page since app 0.3.12 and firmware 0.3.6): fill or contain, with its name or without, with the real firmware on the host (tools/render/host.py) and the add-on's own camera_feed and tile_art.
+double-width and full page since app 0.3.13 and firmware 0.3.7): fill or contain, with its name or without, with the real firmware on the host (tools/render/host.py) and the add-on's own camera_feed and tile_art.
 
     python3 tools/render/camera_tiles.py guition waveshare43
 

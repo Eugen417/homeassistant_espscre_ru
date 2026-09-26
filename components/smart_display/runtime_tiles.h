@@ -402,7 +402,7 @@ inline bool live_waiting(const Tile &t);
 inline bool live_marquee_ready(const Widgets &w, const Tile &t);
 // A picture over the whole card: a media player's cover on a 1x2 or 2x2 tile, dimmed under its track (firmware 0.3.1),
 // and a live camera in full colour with its name at the bottom, on a shade the app puts in the picture: on a 1x2 or 2x2
-// tile since 0.3.3, on every size since 0.3.6 (the small square in the icon's place said too little to be of use).
+// tile since 0.3.3, on every size since 0.3.7 (the small square in the icon's place said too little to be of use).
 inline bool card_art(const Tile &t) {return (t.row_span()>1 && !t.full && t.cover_tile()) || t.live();}
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
 inline bool has_icon_glyph(uint32_t codepoint) {
@@ -6700,7 +6700,7 @@ inline void cover_tick(uint32_t now) {
 // "display": "cover" the album cover of what plays. The pictured tiles of the page on screen share one image: the
 // screen asks for them together (the entities in slot order, the size of the icon's circle and the colour of each tile
 // behind the rounded corners) and the app serves one strip of squares, top to bottom, that every tile takes its own
-// square out of (LVGL's image offset). One download per page at the pace of the fastest camera, 15 or 30 s, in the
+// square out of (LVGL's image offset). One download per page at the pace of the fastest camera, 5 to 30 s, in the
 // board's third online_image; a page of covers alone loads once. It waits for the alert's picture, a cover or the
 // camera full screen: one picture loads at a time. A page turn, a card over the page, another look or another track
 // (the picture's mark in the media state) changes what is wanted: the strip is dropped and asked for again.
@@ -6771,7 +6771,7 @@ inline LiveWish live_wanted() {
     want.grounds += ground;
     if (t.cover_tile()) want.marks += t.extra().media_picture;
     if (!want.size) want.size = lv_obj_get_style_width(w.circle, LV_PART_MAIN);
-    // The page's pace is its quickest camera's: a page of 30 s cameras loaded every 15 s before firmware 0.3.6.
+    // The page's pace is its quickest camera's: a page of 30 s cameras loaded every 15 s before firmware 0.3.7.
     if (t.live()) { want.every = want.cameras ? std::min<uint32_t>(want.every, t.refresh * 1000u) : t.refresh * 1000u; want.cameras = true; }
   }
   if(atlas)want.atlas+="]";

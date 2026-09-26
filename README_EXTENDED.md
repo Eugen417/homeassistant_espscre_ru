@@ -381,14 +381,14 @@ actions:
 </p>
 
 A camera or image entity also works as a **tile** on a Guition: a tap opens it full screen, refreshed
-every four seconds. From app 0.2.91 with firmware 0.2.77 a camera tile can show a **live picture** in
-the icon's place: in the tile's settings choose **Display → Live picture** and a pace, every 15 or
-30 seconds. The picture is a small square with the tile's rounded corners, the middle of the camera's
-view, and it refreshes while that page is on the screen; a tap still opens the camera full screen. The
-camera tiles of one page share one download, so six live tiles cost the screen no more than one.
-On a 1 × 2 or 2 × 2 tile (app 0.3.8, firmware 0.3.3) the live picture fills the whole card, with the
-camera's name at the bottom. The tile's settings choose **Fill the tile** or **Whole picture**, and
-**Name** or **Nothing** on the picture.
+every four seconds. A camera tile can also show a **live picture**: in the tile's settings choose
+**Display → Live picture** and a pace, every 5, 10, 15 or 30 seconds. From app 0.3.13 with firmware 0.3.7
+the picture fills the whole tile on every size, a single tile, a double-width one, a 1 × 2 or 2 × 2 tile
+and a tile over the whole page, with the camera's name at the bottom, so two cameras fit side by side on
+a 4-inch Guition. The tile's settings choose **Fill the tile** or **Whole picture**, and **Name** or
+**Nothing** on the picture. It refreshes while that page is on the screen, and a tap still opens the
+camera full screen. The camera tiles of one page share one download. Older firmware shows a small
+square of the camera in the icon's place (1 × 2 and 2 × 2 tiles fill the card from firmware 0.3.3).
 A media player tile can show its **album cover** the same way (app 0.2.92, firmware 0.2.78):
 **Display → Album cover** puts the cover of what plays in the icon's place, refreshed when the track
 changes, with the tile's controls kept. How the image travels (port 8098 of the app, no token on the
