@@ -5487,7 +5487,51 @@ inline void refresh_header_only() { dirty_header=true; if(refresh)refresh(); }
 inline void refresh_all() { mark_all(); if(refresh)refresh(); }
 // The starting screen (firmware 0.2.73+): what the screen waits for in the middle of the page with a spinner under it,
 // until the first layout arrives. The first render() makes it and the first layout deletes it, spinner and all.
-inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr;
+// Above the text stands the Tessera lockup (firmware 0.3.8+): the mosaic mark beside the name, as the website draws it.
+inline const lv_font_t *brand_font = nullptr;
+inline const void *brand_mark = nullptr;  // the image's lv_image_dsc_t, from the YAML
+inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr, *boot_brand = nullptr;
+// The mark and the name side by side in one box, sized to what they hold. Null where the build has neither.
+inline lv_obj_t *boot_brand_create(lv_obj_t *parent) {
+  if (!brand_font && !brand_mark) return nullptr;
+  auto *box = lv_obj_create(parent);
+  lv_obj_remove_style_all(box);
+  lv_obj_remove_flag(box, LV_OBJ_FLAG_CLICKABLE);
+  lv_obj_remove_flag(box, LV_OBJ_FLAG_SCROLLABLE);
+  int width = 0, height = 0, mark = 0;
+  lv_obj_t *image = nullptr;
+#if LV_USE_IMAGE
+  if (brand_mark) {
+    image = lv_image_create(box);
+    lv_image_set_src(image, brand_mark);
+    lv_obj_remove_flag(image, LV_OBJ_FLAG_CLICKABLE);
+    mark = static_cast<const lv_image_dsc_t *>(brand_mark)->header.w;
+    width = mark;
+    height = static_cast<const lv_image_dsc_t *>(brand_mark)->header.h;
+  }
+#endif
+  if (brand_font) {
+    // The website's wordmark: bold, the letters drawn a little closer together (-0.04 em).
+    const int space = -(int) lv_font_get_line_height(brand_font) / 28;
+    auto *name = lv_label_create(box);
+    lv_obj_add_style(name, theme::style(theme::Paint::ink), 0);
+    lv_obj_set_style_text_font(name, brand_font, 0);
+    lv_obj_set_style_text_letter_space(name, space, 0);
+    lv_label_set_text(name, "tessera");
+    lv_point_t size;
+    lv_text_get_size(&size, "tessera", brand_font, space, 0, LV_COORD_MAX, LV_TEXT_FLAG_NONE);
+    const int gap = mark ? mark / 3 : 0;
+    // Centred on the mark, as the website's header lines them up.
+    const int line = lv_font_get_line_height(brand_font);
+    lv_obj_set_pos(name, width + gap, (std::max(height, line) - line) / 2);
+    width += gap + size.x;
+    height = std::max(height, line);
+  }
+  // The mark centred on the name's line too, where that is the taller.
+  if (image) lv_obj_set_y(image, (height - (int) static_cast<const lv_image_dsc_t *>(brand_mark)->header.h) / 2);
+  lv_obj_set_size(box, width, height);
+  return box;
+}
 // `cover`: over everything on the page, opaque, with the spinner turning ("Preparing pages", firmware 0.3.2+).
 inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, bool cover = false) {
   const int width = lv_display_get_horizontal_resolution(lv_obj_get_display(page));
@@ -5502,6 +5546,7 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
     lv_obj_set_size(boot_panel, lv_pct(100), lv_pct(100));
     // The name's place in the drawing order: under the tiles, the cards and an alert.
     lv_obj_move_to_index(boot_panel, lv_obj_get_index(room_label));
+    boot_brand = boot_brand_create(boot_panel);
     boot_text = lv_label_create(boot_panel);
     lv_obj_add_style(boot_text, theme::style(theme::Paint::ink), 0);
     lv_obj_set_style_text_font(boot_text, font, 0);
@@ -5524,11 +5569,17 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
   }
   if (boot_spinner) set_hidden(boot_spinner, !waiting);
   lv_label_set_text(boot_text, text);
-  // The text and the spinner as one block in the middle of the page.
+  // The lockup, the text and the spinner as one block in the middle of the page, the lockup a wider step away: it
+  // names the screen, the text and the spinner say what it waits for.
   lv_point_t size;
   lv_text_get_size(&size, text, font, 0, 0, text_width, LV_TEXT_FLAG_NONE);
-  lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, waiting ? -(ring + gap) / 2 : 0);
-  if (boot_spinner) lv_obj_align(boot_spinner, LV_ALIGN_CENTER, 0, (size.y + gap) / 2);
+  const int brand = boot_brand ? lv_obj_get_height(boot_brand) : 0, brand_gap = boot_brand ? 2 * gap : 0;
+  const int block = brand + brand_gap + size.y + (waiting ? gap + ring : 0);
+  int top = -block / 2;
+  if (boot_brand) { lv_obj_align(boot_brand, LV_ALIGN_CENTER, 0, top + brand / 2); top += brand + brand_gap; }
+  lv_obj_align(boot_text, LV_ALIGN_CENTER, 0, top + size.y / 2);
+  top += size.y + gap;
+  if (boot_spinner) lv_obj_align(boot_spinner, LV_ALIGN_CENTER, 0, top + ring / 2);
 }
 // A line of fun under "Preparing pages", about what the page being built holds: a joke is welcome where nothing is at
 // stake, and waiting for a screen to load is such a moment. Its first tile of a kind with a line of its own picks it;
@@ -5582,7 +5633,7 @@ inline void render(lv_obj_t *room) {
   if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
   else if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));
   else if (preparing.foreground) prepare_status();
-  else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = nullptr; }
+  else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = boot_brand = nullptr; }
   name_label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
   lap(swipe_profile::HEADER);

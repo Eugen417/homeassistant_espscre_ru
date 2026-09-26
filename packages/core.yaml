@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.3.7"
+  SCREEN_FIRMWARE_VERSION: "0.3.8"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -119,6 +119,8 @@ esphome:
           runtime_tiles::watch_value_font = id(watch_value)->get_lv_font();
           runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
           runtime_tiles::clock_font = id(clock_digits)->get_lv_font();
+          runtime_tiles::brand_font = id(brand_wordmark)->get_lv_font();
+          runtime_tiles::brand_mark = id(tessera_mark)->get_lv_image_dsc();
           runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
           runtime_tiles::screen_awake = []() { return !id(display_dimmed); };
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
@@ -683,6 +685,16 @@ globals:
     restore_value: no
     initial_value: '0'
 
+# The Tessera mark on the starting screen (firmware 0.3.8+), fonts/tessera-mark.png rendered from the website's
+# tessera-mark.svg; ESPHome scales it to the look's size when it builds. The top-level form that ESPHome 2026.6.2
+# (min_version) knows; 2026.7+ reads it as `platform: file`.
+image:
+  - id: tessera_mark
+    file: "${FONT_DIR}/tessera-mark.png"
+    type: RGB565
+    transparency: alpha_channel
+    resize: ${BRAND_MARK_SIZE}x${BRAND_MARK_SIZE}
+
 font:
   - file: "${FONT_DIR}/Roboto-500.ttf"
     id: time_label
@@ -788,6 +800,13 @@ font:
              'Ī','ī','Ķ','ķ','Ļ','ļ','Ņ','ņ','Ū','ū','Ė','ė','Į','į','Ų','ų','Ğ','ğ','İ','ı','Ş','ş','Ċ','ċ',
              'Ġ','ġ','Ħ','ħ','Ŵ','ŵ','Ŷ','ŷ','Ŀ','ŀ','Œ','œ','Ÿ','„','“','”','‘','’','«','»','‹','›','¿','¡',
              '€','£']
+
+  # The name in the starting screen's Tessera lockup (firmware 0.3.8+): only its own letters, a few hundred bytes.
+  - file: "${FONT_DIR}/Roboto-700.ttf"
+    id: brand_wordmark
+    size: ${FONT_BRAND_SIZE}
+    bpp: 4
+    glyphs: ['t','e','s','r','a']
 
   # Material Design Icons (MDI) — included at fonts/materialdesignicons-webfont.ttf (Apache 2.0)
   # Source: https://github.com/Templarian/MaterialDesign-Webfont
@@ -1745,6 +1764,12 @@ lvgl:
             height: 2
             spin_time: 1s
             arc_length: 60deg
+        # Never shown either: it makes ESPHome compile LVGL's image widget, which the starting screen's Tessera mark is
+        # drawn with on every board (firmware 0.3.8+).
+        - image:
+            id: brand_mark_seed
+            hidden: true
+            src: tessera_mark
         # Never shown either: it makes ESPHome compile LVGL's roller, the drum a light's effects page picks from
         # (firmware 0.2.70+).
         - roller:

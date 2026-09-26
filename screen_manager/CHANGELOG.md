@@ -1,3 +1,9 @@
+## 0.3.14 (firmware 0.3.8)
+
+The Tessera logo on a screen that is starting.
+
+- A screen that is starting shows the Tessera logo: the mosaic mark beside the name, as on the website, above what it is waiting for and the spinner. It stays there while the screen connects, waits for its tiles and prepares its pages. It follows the screen's light or dark look and has the same size in millimetres on every board. Update the firmware of a screen to see it. CYD firmware: 1,708,496 bytes, 93.1 % of the update slot (12,512 bytes more than 0.3.13).
+
 ## 0.3.13 (firmware 0.3.7)
 
 A fix for screens that restart on "Loading tiles" with firmware 0.3.6, a live camera that fills its tile on every size and can refresh faster, and a new board: the Hosyond 4-inch ESP32-32E display (GitHub #42, thanks @afyounie).
