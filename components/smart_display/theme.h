@@ -39,6 +39,8 @@ enum Role : uint8_t {
   PANEL_TOGGLE_OFF,     // the toggle on a wide tile while off
   PANEL_TOGGLE_OFF_PRESSED,
   KNOB,                 // handles and knobs
+  STEPPER_KEY,          // the - and + keys inside a thermostat's or a number's grey stepper (firmware 0.3.3)
+  STEPPER_KEY_PRESSED,
   SLIDER_KNOB,          // the round knob of a card's number or volume slider
   SCRIM,                // behind an alert
   VEIL,                 // the sheet over a busy tile, the haze over the value card
@@ -111,6 +113,8 @@ inline constexpr Pair ROLES[ROLE_COUNT] = {
   /* PANEL_TOGGLE_OFF */         {0xD7DADF, 0x393C41},
   /* PANEL_TOGGLE_OFF_PRESSED */ {0xC5C9CF, 0x494D52},
   /* KNOB */                     {0xFFFFFF, 0xE8E8E8},
+  /* STEPPER_KEY */              {0xFFFFFF, 0x3A3A3A},
+  /* STEPPER_KEY_PRESSED */      {0xE4E4E4, 0x4A4A4A},
   /* SLIDER_KNOB */              {0x111111, 0xE8E8E8},
   /* SCRIM */                    {0x101820, 0x000000},
   /* VEIL */                     {0xFFFFFF, 0x1A1A1A},
@@ -232,6 +236,22 @@ constexpr uint32_t ALARM = 0xE53935, CHARGING = 0x43A047;
 // ---- Home Assistant's colours on their way to the glass
 // Grey is what Home Assistant draws for something off; the add-on's timelines add a lighter grey for off and one for no
 // data. In dark those greys come from the table; every other state colour stays itself.
+// A temperature as a colour, from Home Assistant's own hues: indigo in a frost, blue and cyan in the cold, green in
+// the mild, amber and orange in the warm, red in a heatwave. The weather tile draws a day's range from its low to its
+// high in these (firmware 0.3.3), so a cold day reads as a cold day before the digits do. Degrees Celsius.
+inline uint32_t temperature(float celsius) {
+  struct Stop { float at; uint32_t color; };
+  static constexpr Stop STOPS[] = {{-5, ha::INDIGO}, {5, ha::BLUE}, {11, ha::CYAN}, {16, ha::GREEN},
+                                   {20, ha::AMBER}, {25, ha::ORANGE}, {32, ha::RED}};
+  if (!(celsius > STOPS[0].at)) return STOPS[0].color;
+  for (size_t i = 1; i < sizeof(STOPS) / sizeof(STOPS[0]); ++i) {
+    if (celsius > STOPS[i].at) continue;
+    const float share = (celsius - STOPS[i - 1].at) / (STOPS[i].at - STOPS[i - 1].at);
+    return mix(STOPS[i].color, STOPS[i - 1].color, static_cast<uint8_t>(share * 255 + 0.5f));
+  }
+  return STOPS[sizeof(STOPS) / sizeof(STOPS[0]) - 1].color;
+}
+
 constexpr uint32_t STATE_OFF = ha::GREY;
 inline uint32_t state(uint32_t color) {
   if (!dark) return color;

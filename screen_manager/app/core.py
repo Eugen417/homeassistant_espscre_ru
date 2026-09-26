@@ -53,7 +53,7 @@ REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 # The branch a screen's YAML builds its board package from. Which boards there are is boards.json's (BOARD_KEYS).
 REF = 'main'
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.3.2'
+FIRMWARE_VERSION = '0.3.3'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -1798,7 +1798,8 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None):
             bounded[key] = short(value, 48)
         elif isinstance(value, list):
             # Attribute lists have bounded lengths, strings and numeric ranges.
-            limit = 2 if key == 'hs_color' else 4 if key == 'fan_speed_list' else 8
+            # A select's options run to sixteen (firmware 0.3.3 pages through them; older firmware keeps the first eight).
+            limit = 2 if key == 'hs_color' else 4 if key == 'fan_speed_list' else 16 if key == 'options' else 8
             bounded[key] = [short(v, 48) if isinstance(v, str) else v for v in value[:limit]
                             if isinstance(v, str) or isinstance(v, (float, int)) and math.isfinite(v) and abs(v) <= 1000000]
     options = screen_options(tile, attrs, state.get('state'), entry)

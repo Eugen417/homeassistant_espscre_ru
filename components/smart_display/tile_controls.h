@@ -7,6 +7,7 @@
 #include "runtime_model.h"
 #include "screen_text.h"
 #include "theme.h"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstdio>
@@ -467,6 +468,31 @@ template <size_t N> inline unsigned climate_mode_keys(const Tile &t, std::array<
     out[n++] = Key{mode_icon(mode), HVAC_MODE, mode, current == mode, false};
   }
   if (more && room) out[n++] = Key{glyph::MORE, OPEN_CARD, "", false, false};
+  return n;
+}
+// A thermostat tile's mode bar (firmware 0.3.3): heat and cool before the rest, so an airco shows both ways it can go
+// and not only the first Home Assistant lists; never off, which the tile's circle switches; and the mode it is in
+// always among them. When the modes do not all fit, the last place is "…" and opens the card with every mode; a bar
+// with room for two shows two modes rather than one and a "…". A device with one mode has no bar: its circle is
+// all it needs.
+template <size_t N> inline unsigned climate_bar_keys(const Tile &t, std::array<Key, N> &out, unsigned room = N) {
+  static const char *const ORDER[] = {"heat", "cool", "heat_cool", "auto", "dry", "fan_only"};
+  room = std::min<unsigned>(room, N);
+  std::vector<std::string> modes;
+  const auto listed = list_values(t.extra().hvac_modes, 8);
+  for (const char *mode : ORDER)
+    for (const auto &raw : listed)
+      if (lower_case(raw) == mode) { modes.push_back(mode); break; }
+  if (modes.size() < 2 || room < 2) return 0;
+  const bool more = modes.size() > room;
+  const unsigned shown = !more ? (unsigned) modes.size() : room == 2 ? 2 : room - 1;
+  std::vector<std::string> pick(modes.begin(), modes.begin() + shown);
+  const std::string current = lower_case(t.state);
+  if (std::find(modes.begin(), modes.end(), current) != modes.end() && std::find(pick.begin(), pick.end(), current) == pick.end())
+    pick.back() = current;
+  unsigned n = 0;
+  for (const auto &mode : pick) out[n++] = Key{mode_icon(mode), HVAC_MODE, mode, mode == current, false};
+  if (more && shown < room) out[n++] = Key{glyph::MORE, OPEN_CARD, "", false, false};
   return n;
 }
 // The row of up to three pill keys for a key-row panel; returns how many.
