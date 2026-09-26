@@ -839,10 +839,28 @@
         "screen": {
           "label": "Écran",
           "help": "L'écran qui reçoit l'alerte : son nom d'appareil (comme kitchen-screen), le nom affiché par Home Assistant, ou une pièce, qui atteint chaque écran qui s'y trouve. Une liste, comme [kitchen-screen, hallway], en atteint plusieurs. Omettez-le pour tous les écrans. Un nom qui ne correspond à aucun écran n'envoie rien ; le journal d'ESP Screen Manager nomme alors les écrans qu'il connaît. Uniquement via les événements esp_screens_show_alert et esp_screens_dismiss_alert."
+        },
+        "button_color": {
+          "label": "Couleur du bouton",
+          "help": "Le bouton dans une couleur à lui : red, orange, yellow, green, mint, blue, purple, pink ou gray, en couleur pleine avec du texte blanc. Vide garde le bouton sombre."
+        },
+        "button2_text": {
+          "label": "Texte du deuxième bouton",
+          "help": "Un deuxième bouton à gauche du premier, pour un choix comme Refuser et Accepter. Vide donne un seul bouton.",
+          "example": "Pas maintenant"
+        },
+        "button2_color": {
+          "label": "Couleur du deuxième bouton",
+          "help": "Le deuxième bouton dans une des mêmes couleurs. Vide garde le bouton clair."
+        },
+        "button2_action": {
+          "label": "Action du deuxième bouton",
+          "help": "Une action Home Assistant exécutée une fois quand le deuxième bouton est pressé sur un écran, comme `action` pour le premier. `button2_data` donne ses champs. Uniquement via l'événement esp_screens_show_alert."
         }
       },
       "endings": {
         "ok": "Le bouton a été touché",
+        "button2": "Le deuxième bouton a été pressé",
         "timeout": "Le délai a expiré",
         "replaced": "Une nouvelle alerte l'a remplacée",
         "remote": "dismiss_alert depuis Home Assistant"
@@ -1868,7 +1886,8 @@
         "behaviour": "Comportement",
         "events": "Événements",
         "tips": "Astuces",
-        "one": "Un écran"
+        "one": "Un écran",
+        "choice": "Deux boutons"
       },
       "try": {
         "text": "Envoyez une alerte maintenant, avec les mêmes champs qu'une automatisation. L'écran affiche la carte et, si le clignotement est activé, fait clignoter son rétroéclairage.",
@@ -1997,6 +2016,12 @@
         "picture_yes": "Oui",
         "picture_no": "Non, l'alerte arrive sans",
         "none": "Aucun écran associé pour l'instant. Dès qu'un écran est associé, ce qu'il faut saisir pour lui apparaît ici."
+      },
+      "choice": {
+        "title": "Deux boutons et couleurs de bouton",
+        "text": "Ajoutez {second} pour un deuxième bouton à gauche du premier, afin que la personne devant l'écran puisse choisir, par exemple Pas maintenant et Ouvrir. {first_color} et {second_color} donnent à un bouton sa propre couleur, vert pour oui et rouge pour non. Quelle réponse va de quel côté, c'est vous qui choisissez : le premier bouton est toujours à droite.",
+        "event": "Via l'événement, chacun de ces champs est facultatif, et {second_action} avec {second_data} lance une action depuis le deuxième bouton, comme {action} depuis le premier. Un écran dont le firmware est antérieur à {version} affiche l'alerte avec un seul bouton.",
+        "direct": "Vous appelez un écran directement ? Son action {choice} prend les champs de show_alert plus ces trois ; le deuxième bouton termine l'alerte avec {ending}."
       }
     },
     "override": {

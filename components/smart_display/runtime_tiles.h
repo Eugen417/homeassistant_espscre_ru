@@ -5299,8 +5299,24 @@ inline lv_obj_t *alert_frame = nullptr, *alert_picture = nullptr, *alert_frame_i
 // The parts of the alert card the shared tree draws (packages/core.yaml binds them at boot); alert_place puts them.
 struct AlertParts {
   lv_obj_t *card = nullptr, *icon = nullptr, *title = nullptr, *subtitle = nullptr, *button = nullptr;
+  lv_obj_t *label = nullptr, *button2 = nullptr, *label2 = nullptr;  // the words on the button, the second button (0.3.5+)
 };
 inline AlertParts alert_parts;
+// Whether the alert on screen has a second button (show_alert_choice, firmware 0.3.5+); alert_show sets it.
+inline bool alert_two_buttons = false;
+// A button in a key colour of its own (theme::KEY_SWATCHES), or back to its paint for 0.
+inline void alert_key(lv_obj_t *button, lv_obj_t *label, uint32_t key) {
+  if (!button) return;
+  if (!key) {
+    lv_obj_remove_local_style_prop(button, LV_STYLE_BG_COLOR, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_remove_local_style_prop(button, LV_STYLE_BG_COLOR, LV_PART_MAIN | LV_STATE_PRESSED);
+    if (label) lv_obj_remove_local_style_prop(label, LV_STYLE_TEXT_COLOR, LV_PART_MAIN | LV_STATE_DEFAULT);
+    return;
+  }
+  lv_obj_set_style_bg_color(button, theme::rgb(key), LV_PART_MAIN | LV_STATE_DEFAULT);
+  lv_obj_set_style_bg_color(button, theme::rgb(theme::key_pressed(key)), LV_PART_MAIN | LV_STATE_PRESSED);
+  if (label) lv_obj_set_style_text_color(label, theme::rgb(theme::key_text(key)), LV_PART_MAIN | LV_STATE_DEFAULT);
+}
 // Lays the alert card out on this screen's glass (screen_alert::layout, firmware 0.2.103+), with room for a picture of
 // `aw` x `ah` proportions or without one: at boot, when an alert comes (with a picture's frame of a camera's 16:9 until
 // the picture is there), and once more when the picture arrives, for that picture's own proportions.
@@ -5317,9 +5333,26 @@ inline screen_alert::Layout alert_place(bool image, int aw = screen_alert::PICTU
   lv_obj_set_size(p.title, l.text_w, l.title_h);
   lv_obj_set_pos(p.subtitle, l.text_x, l.subtitle_y);
   lv_obj_set_size(p.subtitle, l.text_w, l.subtitle_h);
-  lv_obj_set_size(p.button, l.button_w, l.button_h);
-  // From the card's bottom right, as the card's content area (inside its border) is measured from there too.
-  lv_obj_align(p.button, LV_ALIGN_BOTTOM_RIGHT, -(l.card_w - l.button_x - l.button_w), -(l.card_h - l.button_y - l.button_h));
+  // From the card's bottom right, as the card's content area (inside its border) is measured from there too. A second
+  // button stands on the left of the first (screen_alert::buttons); the words on each end in dots when they are too long.
+  const bool two = alert_two_buttons && p.button2;
+  const auto b = screen_alert::buttons(l, two);
+  const int pad = ui::px(ui::large() ? 12 : 8);
+  const auto place = [&](lv_obj_t *button, lv_obj_t *label, int x, int w) {
+    lv_obj_set_size(button, w, l.button_h);
+    lv_obj_align(button, LV_ALIGN_BOTTOM_RIGHT, -(l.card_w - x - w), -(l.card_h - l.button_y - l.button_h));
+    // One line high: LVGL only ends a DOT label in dots when its text is taller than the label.
+    if (label) lv_obj_set_size(label, std::max(0, w - 2 * pad), lv_font_get_line_height(lv_obj_get_style_text_font(label, LV_PART_MAIN)));
+  };
+  place(p.button, p.label, b.x, b.w);
+  if (p.button2) {
+    if (two) {
+      place(p.button2, p.label2, b.x2, b.w2);
+      lv_obj_remove_flag(p.button2, LV_OBJ_FLAG_HIDDEN);
+    } else {
+      lv_obj_add_flag(p.button2, LV_OBJ_FLAG_HIDDEN);
+    }
+  }
   if (!alert_frame) return l;
   if (l.image_w > 0 && l.image_h > 0) {
     lv_obj_set_pos(alert_frame, l.image_x, l.image_y);

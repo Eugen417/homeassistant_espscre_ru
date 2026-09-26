@@ -1,3 +1,14 @@
+## 0.3.10 (firmware 0.3.5)
+
+Alerts with a choice: a second button, and a color per button.
+
+- `esp_screens_show_alert` takes `button2_text` for a second button on the left of the first, and `button2_action` with `button2_data` for what it does, the way `action` and `data` work for the first. `button_color` and `button2_color` give a button a full color of its own (the names of `color`: red, green, blue, ...), so a yes can be green and a no red. All of them are optional.
+- The screen's own action `esphome.<screen>_show_alert_choice` does the same without the app. `show_alert` keeps its seven fields, so no automation that calls it breaks.
+- The second button ends the alert as `esphome.screen_alert` with `action: button2`.
+- A screen on older firmware shows the same alert with its first button only, and the log names it. Update the firmware for the second button.
+- Words too long for a button now end in "..." instead of running past its edge.
+- Alerts in ESP Screens has a "Two buttons" part with an example to copy, and the Claude skill knows the new fields.
+
 ## 0.3.7 (firmware 0.3.2)
 
 Every page is there the moment you turn to it, and the screen no longer flickers while a picture loads.

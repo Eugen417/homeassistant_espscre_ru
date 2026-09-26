@@ -839,10 +839,28 @@
         "screen": {
           "label": "Bildschirm",
           "help": "Welcher Bildschirm die Meldung bekommt: sein Gerätename (etwa kitchen-screen), der Name, den Home Assistant anzeigt, oder ein Raum, der jeden Bildschirm darin erreicht. Eine Liste wie [kitchen-screen, hallway] erreicht mehrere. Weglassen für alle Bildschirme. Ein Name, der zu keinem Bildschirm passt, sendet nichts; das Log von ESP Screen Manager nennt dann die Bildschirme, die es kennt. Nur über die Events esp_screens_show_alert und esp_screens_dismiss_alert."
+        },
+        "button_color": {
+          "label": "Tastenfarbe",
+          "help": "Die Taste in einer eigenen Farbe: red, orange, yellow, green, mint, blue, purple, pink oder gray, als volle Tastenfarbe mit weißer Schrift. Leer behält die dunkle Taste."
+        },
+        "button2_text": {
+          "label": "Text der zweiten Taste",
+          "help": "Eine zweite Taste links neben der ersten, für eine Wahl wie Ablehnen und Annehmen. Leer ergibt eine Taste.",
+          "example": "Nicht jetzt"
+        },
+        "button2_color": {
+          "label": "Farbe der zweiten Taste",
+          "help": "Die zweite Taste in einer der gleichen Farben. Leer behält die helle Taste."
+        },
+        "button2_action": {
+          "label": "Aktion der zweiten Taste",
+          "help": "Eine Home-Assistant-Aktion, die einmal ausgeführt wird, wenn die zweite Taste auf einem Bildschirm gedrückt wird, wie `action` für die erste. `button2_data` gibt ihre Felder an. Nur über das Event esp_screens_show_alert."
         }
       },
       "endings": {
         "ok": "Die Taste wurde gedrückt",
+        "button2": "Die zweite Taste wurde gedrückt",
         "timeout": "Das Timeout ist abgelaufen",
         "replaced": "Eine neue Meldung hat sie ersetzt",
         "remote": "dismiss_alert aus Home Assistant"
@@ -1868,7 +1886,8 @@
         "behaviour": "Verhalten",
         "events": "Ereignisse",
         "tips": "Tipps",
-        "one": "Ein Bildschirm"
+        "one": "Ein Bildschirm",
+        "choice": "Zwei Tasten"
       },
       "try": {
         "text": "Sende jetzt eine Meldung mit denselben Feldern, die auch eine Automation sendet. Der Bildschirm zeigt die Karte und lässt bei eingeschaltetem Blinken seine Hintergrundbeleuchtung blinken.",
@@ -1997,6 +2016,12 @@
         "picture_yes": "Ja",
         "picture_no": "Nein, die Meldung kommt ohne",
         "none": "Noch keine Bildschirme gekoppelt. Sobald ein Bildschirm gekoppelt ist, steht hier, was du für ihn einträgst."
+      },
+      "choice": {
+        "title": "Zwei Tasten und Tastenfarben",
+        "text": "Füge {second} hinzu für eine zweite Taste links neben der ersten, damit man am Bildschirm wählen kann, etwa Nicht jetzt und Öffnen. {first_color} und {second_color} geben einer Taste eine eigene Farbe, Grün für Ja und Rot für Nein. Welche Antwort auf welcher Seite steht, entscheidest du: Die erste Taste ist immer rechts.",
+        "event": "Über das Event ist jedes dieser Felder optional, und {second_action} mit {second_data} führt eine Aktion von der zweiten Taste aus, wie {action} von der ersten. Ein Bildschirm mit Firmware älter als {version} zeigt die Meldung mit einer Taste.",
+        "direct": "Rufst du einen Bildschirm direkt auf? Seine Aktion {choice} nimmt die Felder von show_alert und diese drei; die zweite Taste beendet die Meldung mit {ending}."
       }
     },
     "override": {

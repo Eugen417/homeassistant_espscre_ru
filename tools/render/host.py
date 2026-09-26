@@ -31,7 +31,8 @@ import profiles  # noqa: E402
 # Top-level blocks that are ESP32 hardware wherever they live (board file or hardware package).
 HARDWARE_BLOCKS = ('esp32', 'psram', 'spi', 'i2c', 'ch422g', 'pca9554', 'tca9554', 'esp_ldo', 'esp32_hosted',
                    'display', 'esp32_rmt', 'i2s_audio')
-PORT_BASE = 6481
+# RENDER_PORT_BASE moves every variant's port, so two checkouts can render at the same time without meeting.
+PORT_BASE = int(os.environ.get('RENDER_PORT_BASE', 6481))
 
 
 @dataclass
@@ -473,13 +474,14 @@ PROBES = '''    - action: render_finger
             const auto &p = runtime_tiles::alert_parts;
             const bool on = id(alert_active) && p.card && !lv_obj_has_flag(lv_obj_get_parent(p.card), LV_OBJ_FLAG_HIDDEN);
             const lv_area_t card = box(p.card), frame = box(runtime_tiles::alert_frame), icon = box(p.icon), title = box(p.title),
-                            subtitle = box(p.subtitle), button = box(p.button);
+                            subtitle = box(p.subtitle), button = box(p.button), button2 = box(p.button2);
             ESP_LOGI("render", "alert on=%d card=%d,%d,%d,%d frame=%d,%d,%d,%d icon=%d,%d,%d,%d title=%d,%d,%d,%d "
-                     "subtitle=%d,%d,%d,%d button=%d,%d,%d,%d picture=%d", (int) on,
+                     "subtitle=%d,%d,%d,%d button=%d,%d,%d,%d button2=%d,%d,%d,%d picture=%d", (int) on,
                      (int) card.x1, (int) card.y1, (int) card.x2, (int) card.y2, (int) frame.x1, (int) frame.y1, (int) frame.x2,
                      (int) frame.y2, (int) icon.x1, (int) icon.y1, (int) icon.x2, (int) icon.y2, (int) title.x1, (int) title.y1,
                      (int) title.x2, (int) title.y2, (int) subtitle.x1, (int) subtitle.y1, (int) subtitle.x2, (int) subtitle.y2,
-                     (int) button.x1, (int) button.y1, (int) button.x2, (int) button.y2, (int) (runtime_tiles::alert_picture != nullptr));
+                     (int) button.x1, (int) button.y1, (int) button.x2, (int) button.y2,
+                     (int) button2.x1, (int) button2.y1, (int) button2.x2, (int) button2.y2, (int) (runtime_tiles::alert_picture != nullptr));
 '''
 # A board with the calibration wizard shows it on the first start; the renders skip it, as a calibrated screen does.
 SKIP_CALIBRATION = '''    - action: render_skip_calibration

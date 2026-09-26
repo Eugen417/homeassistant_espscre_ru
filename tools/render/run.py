@@ -6,7 +6,8 @@ real firmware for the host, starts it, and drives it over its API with no Home A
 - the demo layout of diagnostics/send_layout.py (every kind of card, fixed states at a fixed moment);
 - the firmware's own self test (ui_self_test): every page and overlay rendered, each page's cards and bar checked,
   and on every board the geometry check that nothing falls outside its area. A FAIL fails the run;
-- PNGs of every page, of three alerts (plain, long, with a button), of an alert with a camera picture on the boards
+- PNGs of every page, of the alerts (plain, long, with a button, with two buttons and button colors), of an alert with a camera picture
+  (one button and two) on the boards
   that draw pictures (made by the add-on's own camera_feed for the frame this screen's card makes for it), and of
   page 1 in Dark mode.
 
@@ -56,12 +57,21 @@ ALERTS = (
     ('alert-plain', dict(title='Someone is at the door', subtitle='Front door camera\nTap Coming to let them know', icon='doorbell')),
     ('alert-long', dict(title=LONG_TITLE, subtitle=LONG_SUBTITLE, icon='washing-machine')),
     ('alert-button', dict(title='Doorbell', subtitle='', icon='doorbell', button_text='Coming')),
+    # Two buttons (show_alert_choice, firmware 0.3.5+): in the keys' own paints, in key colours, and on a coloured card.
+    ('alert-choice', dict(title='Someone is at the door', subtitle='Front door camera', icon='doorbell',
+                          button_text='Open', button2_text='Not now')),
+    ('alert-choice-colors', dict(title='Open the garage?', subtitle='The car is on the driveway', icon='garage',
+                                 button_text='Accept', button_color='green', button2_text='Decline', button2_color='red')),
+    ('alert-choice-card', dict(title='Washing machine done', subtitle='Hang the laundry up or move it to the dryer',
+                               icon='washing-machine', color='blue', button_text='Heard', button2_text='Remind me',
+                               button2_color='gray')),
 )
+CHOICE_FIELDS = ('button_color', 'button2_text', 'button2_color')
 PROBE = re.compile(r'probe page=(-?\d+) applied=(-?\d+) shown=(\d+) tiles=(\d+) alert=(\d) pages=(\d+)')
 HEADER = re.compile(r'state page=(-?\d+) name=\[(.*?)\] shown=\[(.*?)\] name_box=(-?\d+),(-?\d+),(-?\d+),(-?\d+)')
 NAVIGATION = re.compile(r'navigation page=(-?\d+) footer=(\d) back=(\d) grid_height=(\d+) tile=(-?\d+),(-?\d+) prev=(-?\d+),(-?\d+) header=(-?\d+),(-?\d+)')
 ALERT = re.compile(r'alert on=(\d) ' + ' '.join(f'{part}=(-?\\d+),(-?\\d+),(-?\\d+),(-?\\d+)'
-                                              for part in ('card', 'frame', 'icon', 'title', 'subtitle', 'button')))
+                                              for part in ('card', 'frame', 'icon', 'title', 'subtitle', 'button', 'button2')))
 # A page's own title (app 0.2.123): a long one among them, the kind that stood in dots after a page change (GitHub #27).
 PAGE_TITLES = ['Demo cards', 'Living room downstairs', 'Kitchen']
 
@@ -240,13 +250,16 @@ class Run:
     async def alert(self, name, reference, **given):
         """One alert over page 1, rendered and dismissed; page 1 must then look as it did."""
         args = dict(title='', subtitle='', icon='', color='', button_text='', timeout=0, flash=False)
+        choice = any(field in given for field in CHOICE_FIELDS)
+        if choice:
+            args.update({field: '' for field in CHOICE_FIELDS})
         args.update(given)
         start = len(self.lines)
-        await self.call('show_alert', **args)
+        await self.call('show_alert_choice' if choice else 'show_alert', **args)
         await self.until(lambda l: '[alert' in l and 'show "' in l, 10, f'{name}: the alert never showed', start)
         state = await self.state()
         self.failures += [f'{name}, as it opens: {fault}' for fault in alert_faults(state['boxes'])]
-        if name == 'alert-camera':
+        if name.startswith('alert-camera'):
             if state['boxes']['frame'][2] < state['boxes']['frame'][0]:
                 self.failures.append(f'{name}: no frame for the picture while it loads')
             await self.render(f'{name}-waiting')
@@ -279,7 +292,7 @@ class Run:
         line = await self.until(lambda l: ALERT.search(l), 10, 'render_state', start)
         header = next(HEADER.search(l) for l in self.lines[start:] if HEADER.search(l))
         values = [int(v) for v in ALERT.search(line).groups()]
-        boxes = {name: tuple(values[1 + 4 * i:5 + 4 * i]) for i, name in enumerate(('card', 'frame', 'icon', 'title', 'subtitle', 'button'))}
+        boxes = {name: tuple(values[1 + 4 * i:5 + 4 * i]) for i, name in enumerate(('card', 'frame', 'icon', 'title', 'subtitle', 'button', 'button2'))}
         return {'page': int(header[1]), 'name': header[2], 'shown': header[3], 'alert': values[0], 'boxes': boxes}
 
     async def swipe(self, forward):
@@ -628,6 +641,9 @@ class Run:
             await self.send({'v': 1, 'op': 'camera', 't': 'alert', 'e': 'camera.front_door', 'u': ''})
             await self.alert('alert-camera', page1, title='Someone is at the door', subtitle='Front door', icon='doorbell',
                              color='orange', button_text='Coming')
+            await self.send({'v': 1, 'op': 'camera', 't': 'alert', 'e': 'camera.front_door', 'u': ''})
+            await self.alert('alert-camera-choice', page1, title='Someone is at the door', subtitle='Front door', icon='doorbell',
+                             button_text='Open', button_color='green', button2_text='Not now')
         self.client.switch_command(dark.key, True)
         end = time.monotonic() + 10
         while (await self.snapshot(self.out / '_dark.ppm')).tobytes() == page1.tobytes():

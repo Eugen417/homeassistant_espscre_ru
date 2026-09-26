@@ -53,7 +53,7 @@ REPO = 'https://github.com/MaxGramser/homeassistant_espscreen'
 # The branch a screen's YAML builds its board package from. Which boards there are is boards.json's (BOARD_KEYS).
 REF = 'main'
 # Firmware shipped with this app release; screens below it get an update offer.
-FIRMWARE_VERSION = '0.3.2'
+FIRMWARE_VERSION = '0.3.5'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -1834,7 +1834,7 @@ def message_action(node):
 # writes them; the cheatsheet gets them in the editor's language (alert_reference, app 0.2.90). -----
 ALERT_MIN_FIRMWARE = '0.2.31'
 ALERT_EVENT = 'esphome.screen_alert'
-ALERT_ENDINGS = (('ok', 'The button was pressed'), ('timeout', 'The timeout ran out'),
+ALERT_ENDINGS = (('ok', 'The button was pressed'), ('button2', 'The second button was pressed'), ('timeout', 'The timeout ran out'),
                  ('replaced', 'A new alert came over it'), ('remote', 'dismiss_alert from Home Assistant'))
 ALERT_FALLBACK_ICON = 'alert-outline'
 # (field, ESPHome type, label, explanation, example) in the order Home Assistant shows them.
@@ -1869,6 +1869,20 @@ ALERT_ACTION_MAX_BYTES = 4096
 # device name, the name Home Assistant shows, or a room (every screen in it), written loosely (case, spaces, dashes and
 # underscores don't matter); a list names several. A name that matches no screen sends nothing, never to everyone.
 ALERT_SCREEN_FIELD = ('screen', 'Screen', 'Which screen gets the alert: its device name (such as kitchen-screen), the name Home Assistant shows, or a room, which reaches every screen in it. A list, such as [kitchen-screen, hallway], reaches several. Leave it out for every screen. A name that matches no screen sends nothing; the ESP Screen Manager log names the screens it knows. Only through the esp_screens_show_alert and esp_screens_dismiss_alert events.', 'kitchen-screen')
+# A second button and a colour per button (firmware 0.3.5+): the screen's own show_alert_choice action, which takes the seven
+# fields of show_alert and these three. Through the event they are optional: an alert that uses any of them goes to a screen
+# with that firmware as show_alert_choice, and to an older one as show_alert, with its one button. (field, ESPHome type,
+# label, explanation, example) like ALERT_FIELDS, in the order show_alert_choice declares them after button_text.
+ALERT_CHOICE_MIN_FIRMWARE = '0.3.5'
+ALERT_CHOICE_ACTION = 'show_alert_choice'
+ALERT_CHOICE_FIELDS = (
+    ('button_color', 'string', 'Button color', 'The button in a color of its own: red, orange, yellow, green, mint, blue, purple, pink or gray, as a full key color with white words. Empty keeps the dark button.', 'green'),
+    ('button2_text', 'string', 'Second button text', 'A second button on the left of the first, for a choice such as Decline and Accept. Empty gives one button.', 'Not now'),
+    ('button2_color', 'string', 'Second button color', 'The second button in one of the same colors. Empty keeps the light button.', 'red'),
+)
+ALERT_CHOICE_ORDER = ('title', 'subtitle', 'icon', 'color', 'button_text', 'button_color', 'button2_text', 'button2_color', 'timeout', 'flash')
+# What the second button does, like `action` and `data` for the first (app 0.3.10): performed once when it is pressed.
+ALERT_ACTION2_FIELD = ('button2_action', 'Second button action', 'A Home Assistant action performed once when the second button is pressed on any screen, like `action` for the first. `button2_data` gives its fields. Only through the esp_screens_show_alert event.', 'script.snooze_reminder')
 # The firmware's MAX_TIMEOUT_SECONDS.
 ALERT_MAX_TIMEOUT = 86400
 # One alert for every screen (app 0.2.45): an automation fires one of these Home Assistant events and the
@@ -1904,6 +1918,13 @@ def alert_reference():
                        'help': t(f'addon.alerts.fields.{ALERT_SCREEN_FIELD[0]}.help'), 'example': ALERT_SCREEN_FIELD[3]},
             'action': {'name': ALERT_ACTION_FIELD[0], 'label': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.label'),
                        'help': t(f'addon.alerts.fields.{ALERT_ACTION_FIELD[0]}.help'), 'example': ALERT_ACTION_FIELD[3]},
+            'choice': {'min_firmware': ALERT_CHOICE_MIN_FIRMWARE, 'action': ALERT_CHOICE_ACTION,
+                       'fields': [{'name': name, 'type': kind, 'label': t(f'addon.alerts.fields.{name}.label'),
+                                   'help': t(f'addon.alerts.fields.{name}.help'),
+                                   'example': t(f'addon.alerts.fields.{name}.example') if name == 'button2_text' else value}
+                                  for name, kind, _, _, value in ALERT_CHOICE_FIELDS],
+                       'action2': {'name': ALERT_ACTION2_FIELD[0], 'label': t(f'addon.alerts.fields.{ALERT_ACTION2_FIELD[0]}.label'),
+                                   'help': t(f'addon.alerts.fields.{ALERT_ACTION2_FIELD[0]}.help'), 'example': ALERT_ACTION2_FIELD[3]}},
             'limits': ALERT_LIMITS,
             'limit_boards': limit_boards(),
             'colors': [{'name': name, 'label': item['label'], 'color': item['color']} for name, item in backgrounds().items() if item['color']],
@@ -1956,6 +1977,28 @@ def alert_data(data):
             unusable.append(name)
     return service, unusable
 
+def alert_choice(data):
+    """(choice fields, unusable field names): the second button's text and the buttons' colours from an event's data, as
+    strings; {} when the event uses none of them, so the alert goes out as show_alert."""
+    data = data if isinstance(data, dict) else {}
+    fields, unusable = {}, []
+    for name, *_ in ALERT_CHOICE_FIELDS:
+        value = data.get(name)
+        if value is None or value == '':
+            continue
+        if isinstance(value, (str, int, float)) and not isinstance(value, bool):
+            fields[name] = str(value)
+        else:
+            unusable.append(name)
+    if not fields:
+        return {}, unusable
+    return {name: fields.get(name, '') for name, *_ in ALERT_CHOICE_FIELDS}, unusable
+
+def choice_service(service_data, choice):
+    """show_alert_choice's ten fields in the order it declares them."""
+    merged = {**service_data, **choice}
+    return {name: merged[name] for name in ALERT_CHOICE_ORDER}
+
 def alert_camera(data):
     """(entity, usable): the alert's `camera` field when it names a camera or image entity; ('', True) without one."""
     value = data.get(ALERT_CAMERA_FIELD[0]) if isinstance(data, dict) else None
@@ -1964,13 +2007,13 @@ def alert_camera(data):
     usable = isinstance(value, str) and re.fullmatch(r'[a-z0-9_]+\.[a-z0-9_]+', value.strip()) is not None and value.strip().split('.')[0] in CAMERA_DOMAINS
     return (value.strip(), True) if usable else ('', False)
 
-def alert_action(data):
-    """((action, data), usable): the alert's `action` and `data` when they name a Home Assistant action with a mapping of
-    fields; (None, True) without one, (None, False) when it is unusable."""
-    value = data.get(ALERT_ACTION_FIELD[0]) if isinstance(data, dict) else None
+def alert_action(data, name=ALERT_ACTION_FIELD[0], data_name='data'):
+    """((action, data), usable): the alert's `action` and `data` (or `button2_action` and `button2_data`) when they name a
+    Home Assistant action with a mapping of fields; (None, True) without one, (None, False) when it is unusable."""
+    value = data.get(name) if isinstance(data, dict) else None
     if value is None or value == '':
         return None, True
-    fields = data.get('data')
+    fields = data.get(data_name)
     if not isinstance(value, str) or not ACTION_NAME.fullmatch(value.strip()) or len(value) > 64 or (fields is not None and not isinstance(fields, dict)):
         return None, False
     try:
