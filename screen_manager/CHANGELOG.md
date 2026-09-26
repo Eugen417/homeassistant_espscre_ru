@@ -1,31 +1,24 @@
 ## 0.3.1 (firmware 0.3.1)
 
-Taller tiles: 1 × 2 and 2 × 2, with designs that adapt to every screen.
+Pages of their own, taller tiles and richer cards (GitHub #9, #30, #36).
 
-- New 1 × 2 and 2 × 2 sizes use width × height in grid cells. The editor and firmware reserve the complete rectangle, including during moves, resizing and page changes.
-- Hover or focus a tile's edge handles to resize it into free space, with a preview, keyboard controls, Escape cancellation and undo.
-- Sizes stay within the screen's own grid. No additional tiles or free scrolling are introduced.
-- Update the screen to enable these sizes. The add-on verifies support before replacing its configuration; existing sizes keep working on older screens.
-- With page buttons hidden, Back replaces Home at the same visible height, title position and touch target.
-- Screens advertise only tile sizes their current grid can hold. A refused allocation keeps the previous layout, and local page navigation remains available while Home Assistant reconnects.
-- Title, tile-label and background-colour edits update in place on screens that advertise this capability, preserving open cards. Other screens keep the acknowledged full-layout path.
-- Adding a page opens a compact setup dialog. Dropping a tile onto a new page suggests a title from its Home Assistant area or domain. Existing page titles stay unchanged.
-- Contextual help moves into keyboard- and touch-accessible tooltips. Compatibility notices and errors remain visible.
-- Editor grid helpers read the selected document directly, and pending map saves survive a screen switch while an earlier save is in flight.
+**Update ESP Screen Manager first, then your screens.** A screen with the new firmware and an older app shows "Configuration problem. Update add-on." until the app is updated. Take a Home Assistant backup before you update: the app moves your layouts to a new format once (keeping `screens.v1.backup.json`), and going back to an older app needs that backup and loses the edits made since.
 
-## 0.3.0 (firmware 0.3.0)
-
-Update ESP Screen Manager before updating screens. Take a backup first: returning to an older add-on requires that backup or `screens.v1.backup.json` and loses layout edits made after migration.
-
-Pages own their tiles and top bars. Home and page links keep their destinations when pages move.
-
-- A page without custom title text uses the screen title, rather than a fixed Home label.
-- Each page has its own title, Home control and top-bar items. Choose which page is Home and opt pages out of sequential page navigation while keeping direct links to them.
-- Detail pages reuse the bottom strip for Back without resizing tiles. When the strip is hidden, a left chevron replaces Home in the top bar. Nested Back remembers the route without using a tile.
-- The familiar Simple editor remains the default. Advanced shows page connections and a movable page map. Both edit the same configuration.
-- Existing layouts migrate once in the add-on, with a persistent backup. Screens can update at different times. The editor reports when a screen needs updating and applies the saved layout automatically once it is ready.
-- Firmware uses one configuration store and the new protocol only. Update ESP Screen Manager first; newer firmware receiving an older protocol shows “Configuration problem. Update add-on.”
-- Reload editor tabs left open during the update. Older editor saves without explicit tile positions are refused to protect the current layout.
+- **Pages.** Every page has its own title and top bar. Any page can be Home, and a page can stay out of the page dots and swipes and be opened from a tile, with a Back key that returns the way you came. Links between pages keep their target when you reorder pages.
+- **Taller tiles.** A tile can be 1 × 2 or 2 × 2 cells as well as one cell, double width or the whole page. Drag its edge or pick the size in the tile settings. The card follows the room it gets on every screen: a player shows its album cover behind the track (every screen but the CYD), an on/off tile stands centred with its switch, and a value is not written twice.
+- **Climate: temperature and mode together.** On 1 × 2, 2 × 2 and full-page tiles the setpoint and the mode keys can share the tile. The mode keys are the modes Home Assistant lists for the device, in its order, as many as fit; when they don't, the last key opens the climate card with all of them. Mode keys on a double-width tile follow the same rule.
+- **Blinds with slats.** A cover with tilt can show its slat control next to the position on taller tiles.
+- **Editor.** Simple stays the default; Advanced shows how pages link. Adding a page opens a short setup, a save conflict can be resolved in the editor, and text edits undo as one step.
+- **Your layouts move over.** Tiles, pages, titles, top bar and settings are carried over once, and a screen keeps working if it updates later. A tile that cannot be carried over is named in the editor instead of silently dropped.
+- **Steadier screens.**
+  - A layout change can no longer restart a screen: the firmware's main task has twice the stack it had (a 2 × 2 save restarted a Guition).
+  - A refused layout keeps the previous one on the screen, and swiping between pages works while Home Assistant reconnects.
+  - The 4-inch Guition gets the panel settings of the other RGB screens, and every one of them reads its picture more efficiently: no more flashes of a shifted frame while a camera picture loads.
+- **Small things.**
+  - A page key lights up around its arrow, not over the page dots.
+  - Icons sit in the centre of their circle and keep a margin in it.
+  - A full-page cover without tilt keeps its keys, and a full-page card fits a narrow screen standing up.
+- Reload any ESP Screens tab left open during the update: an older editor can't save to the new format.
 
 ## 0.2.133 (firmware 0.2.104)
 

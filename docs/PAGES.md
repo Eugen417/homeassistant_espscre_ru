@@ -128,7 +128,4 @@ Tile placement has row, column, row span and column span, separated from content
 Historical readers and the older wire adapter are separate add-on concerns. They can be retired independently after documenting a minimum supported source version and an intermediate upgrade or offline conversion route. Removing them never requires keeping migration machinery in firmware or changing current documents.
 
 See the [0.3.0 test results](TEST_RESULTS_030.md) for upgrade checks, board builds, measured memory use and the limits of physical validation.
-The [0.3.1 test results](TEST_RESULTS_031.md) cover taller tiles and their rendering and compatibility checks.
-
-Responsive tall controls and their validation are described in
-[the acceptance report](TEST_RESULTS_TALL_CONTROLS.md).
+The [0.3.1 test results](TEST_RESULTS_031.md) cover taller tiles, their responsive controls and the tests on real screens.
