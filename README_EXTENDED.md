@@ -37,10 +37,14 @@ on the screen itself, and how updates work.
   the normal colors. Requires firmware 0.2.10 or newer. **None** drops the card
   entirely: the content then sits at the same size directly on the screen background
   (firmware 0.2.16).
-- **Clock:** digital or analog. The analog clock has a mark for every hour (numerals at 12, 3, 6,
-  and 9 on the Guition) and a red second hand while the screen is awake. On a single tile it shows
-  a calendar block next to the dial (weekday, day and month; the CYD the day and month); double-width
-  shows the digital time with the date beside it, and a full-page clock is the dial alone.
+- **Clock:** digital, analog, a simple dial or a flip clock (firmware 0.3.6). A new clock starts as the
+  simple dial: a disc with four strokes and eight dots, dark on a light screen and light on a dark one,
+  with the time and date beside it on a wide tile and under it on a tall tile or a full page. The flip
+  clock shows hours and minutes on two blocks, stacked on a tall tile. With the 12-hour clock, AM or PM
+  stands beside the time. The analog clock has a mark for every hour (numerals at 12, 3, 6, and 9 on
+  the Guition). On a single tile it shows a calendar block next to the dial (weekday, day and month; the
+  CYD the day and month); double-width shows the digital time with the date beside it, and a full-page
+  clock is the dial alone. Both dials have a red second hand while the screen is awake.
 - **Light control:** brightness, rainbow color, and white temperature according to
   the light's capabilities. Open the detailed control with a long touch.
 - **Effects (firmware 0.2.70+):** a light that offers effects (a WLED, a Hue with

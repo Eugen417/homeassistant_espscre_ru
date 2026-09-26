@@ -1,3 +1,15 @@
+## 0.3.12 (firmware 0.3.6)
+
+Two new clocks, a simple dial and a flip clock, that look right on every tile size.
+
+- The clock tile has four faces now: **Digital**, **Analog**, **Simple dial** and **Flip clock**. Pick one under Display when you select the clock in the editor.
+- **Simple dial** is a dark disc with four strokes and eight dots, and no numerals, so it stays readable when the tile is small. On a light screen the disc is dark, on a dark screen it is light. The time and the date stand beside it on a wide tile and under it on a tall tile or a full page.
+- **Flip clock** shows the hours and the minutes on two blocks, with the weekday and date beside them when there is room. On a tall tile the blocks stack.
+- Both work with the 12-hour clock: AM or PM stands beside the time, in the screen's language.
+- A new clock starts as the simple dial, in the editor and when an automation or Claude adds one.
+- On a one-row tile the dial and the blocks use more of the tile's height, and the digits sit in the middle of the tile. The digital clock on a page with page buttons no longer sticks out of its tile.
+- Update the firmware of a screen to see the new faces. Until then, a screen shows them as the digital clock, and the editor says so. CYD firmware: 1,695,856 bytes, 92.4 % of the update slot (6,640 bytes more than 0.3.11).
+
 ## 0.3.11 (firmware 0.3.5)
 
 ESP Screens asks, once, whether your screen works as you expect, so each board model can be improved with what owners run into.
