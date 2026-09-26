@@ -1,3 +1,10 @@
+## 0.3.10 (firmware 0.3.5)
+
+The 4-inch Guition dims over its whole range, and the settings tile no longer looks like a clock in the editor.
+
+- On many 4-inch Guition boards (ESP32-S3-4848S040) every brightness below about 85 to 95 % looked off (GitHub #5). Their backlight driver cannot follow the fast signal the firmware dimmed it with. The firmware now dims it the way ESPHome's own page for this board does, and every level from dim to full shows on every board. Update the firmware of a Guition to get it. If you added the backlight override from GitHub #5, it keeps working, and you can remove it. The other boards only get the new version number.
+- A new Settings tile in the editor started as a wide clock with a clock face to choose, and the preview drew a clock (GitHub #47). It is now a plain tile of one cell, the way the screen draws it. Settings tiles you already placed look right in the preview too.
+
 ## 0.3.9 (firmware 0.3.4)
 
 The 7-inch Guition JC1060P470 starts again after a power cut (GitHub #28).
