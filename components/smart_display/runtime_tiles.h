@@ -29,6 +29,10 @@
 #include "swipe_profile.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
+#ifdef USE_API_HOMEASSISTANT_ACTION_RESPONSES
+// ActionResponse (watch_call): main.cpp had it through esphome.h, page_receiver.cpp only has what this file includes.
+#include "esphome/components/api/homeassistant_service.h"
+#endif
 #include "esphome/core/hal.h"
 #include "esphome/core/util.h"
 #include "esphome/core/time.h"
