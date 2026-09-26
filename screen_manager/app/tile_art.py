@@ -47,7 +47,20 @@ FADE_SHARE = 0.42
 FADE_DEPTH = 150
 
 
-def encode(raws, grounds, atlas, modes=None):
+def bmp(image, compact=False):
+    """A BMP of `image`: 24-bit, or with `compact` 8-bit on a palette of the picture's own 256 colours, dithered so a
+    shade stays smooth (app 0.3.9). A third of the bytes, which is what a screen downloads and decodes in its main loop,
+    at about the quality of its RGB565 glass; Pillow's fast octree keeps it cheap on a Raspberry Pi."""
+    from PIL import Image
+    if compact:
+        palette = image.quantize(256, method=Image.Quantize.FASTOCTREE)
+        image = image.quantize(palette=palette, dither=Image.Dither.FLOYDSTEINBERG)
+    output = io.BytesIO()
+    image.save(output, 'BMP')
+    return output.getvalue()
+
+
+def encode(raws, grounds, atlas, modes=None, compact=False):
     """A native-sized BMP, cropped, dimmed and rounded before transmission.
 
     `modes` gives each frame (fit, fade) for a camera that fills its card (app 0.3.9): fit 'fill' cuts the picture
@@ -87,6 +100,4 @@ def encode(raws, grounds, atlas, modes=None):
             mask = mask.resize((w, h), Image.Resampling.LANCZOS)
             tile.paste(cover, mask=mask)
         image.paste(tile, (x, y))
-    output = io.BytesIO()
-    image.save(output, 'BMP')
-    return output.getvalue()
+    return bmp(image, compact)

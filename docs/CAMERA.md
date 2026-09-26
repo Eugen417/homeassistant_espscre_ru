@@ -105,6 +105,13 @@ picture. The screen draws that image as it is. A smaller picture does not load f
 already has exactly as many pixels as the card shows. What sets the pace is the 15 or 30 seconds of the
 tile and the time the camera takes to answer.
 
+A screen with firmware 0.3.4 or newer gets its live pictures in 8-bit colour: a palette of the picture's own
+256 colours, dithered so a shade stays smooth. That is a third of the bytes of a 24-bit BMP (a 2 × 2 card
+on the 4-inch Guition: about 100 KB instead of 300 KB), at about the quality of the screen's own 16-bit
+colour. ESPHome decodes a BMP while it downloads, in the screen's main loop, so fewer bytes means a picture
+that arrives sooner and a screen that answers a touch sooner. Preparing the palette costs Home Assistant a
+few milliseconds per picture, also on a Raspberry Pi. Older firmware keeps 24-bit pictures.
+
 The camera's state ("Idle") is not written on the picture. Until the first picture arrives, the tile
 shows its icon and name as any tile does. Older firmware ignores both settings and keeps the small
 picture in the icon's place.

@@ -6,8 +6,11 @@ A camera that fills its tile (GitHub #4, thanks @govido).
 - **Picture: Fill the tile or Whole picture.** Fill cuts the picture to the card; Whole picture shows all of it with black above and below or at the sides. ESP Screens prepares the picture pixel for pixel at the size of the card, so the screen only draws it.
 - **On the picture: Name or Nothing.** Nothing leaves the picture alone.
 - The editor shows the camera's own picture on the mockup, cut the way the tile asks.
+- While a camera card waits for its picture, it shows the loading spinner a busy tile has, with the name already in its place.
+- Live pictures go to screens with firmware 0.3.4 in 8-bit colour, a third of the bytes of before, so a picture that fills a tile arrives quickly and the screen keeps answering touches while it loads. The picture already has exactly the pixels of the tile, so a lower resolution would not make it faster.
 - A camera tile no longer offers **Large value**. Its state ("Idle") made no large value, and saving it showed "Invalid or unsupported page configuration fields".
 - Update the screen to firmware 0.3.4 for the new look. Until then a taller camera tile keeps its small picture in the icon's place.
+
 ## 0.3.7 (firmware 0.3.2)
 
 Every page is there the moment you turn to it, and the screen no longer flickers while a picture loads.

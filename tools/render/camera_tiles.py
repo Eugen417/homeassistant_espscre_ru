@@ -90,7 +90,9 @@ class Study(run.Run):
         raw = scene(*self.camera, day=entities[0] == 'camera.front_door')
         grounds = [int(c, 16) for c in data['bg'].split(',')]
         modes = camera_feed.picture_modes({'firmware': core.FIRMWARE_VERSION}, self.options.get, entities)
-        body = tile_art.encode([raw] * len(entities), grounds, atlas, modes)
+        # As the add-on answers this firmware: 8-bit colour (app 0.3.9).
+        screen = {'firmware': core.FIRMWARE_VERSION}
+        body = tile_art.encode([raw] * len(entities), grounds, atlas, modes, camera_feed.compact_pictures(screen))
         self.served += 1
         url = self.pictures.url(f'live-{self.served}.bmp', body)
         async with self.turn:

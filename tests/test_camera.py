@@ -613,6 +613,26 @@ class PictureCards(unittest.TestCase):
         # Firmware that draws a small square on a taller camera tile gets that square, as before.
         self.assertEqual(camera_feed.picture_modes({'firmware': '0.3.1'}, options.get, entities), [('fill', False)] * 4)
 
+    def test_new_screens_get_their_live_pictures_in_8_bit_colour(self):
+        import io, json, tile_art
+        from PIL import Image
+        self.assertTrue(camera_feed.compact_pictures({'firmware': '0.3.4'}))
+        self.assertFalse(camera_feed.compact_pictures({'firmware': '0.3.1'}))
+        source = Image.new('RGB', (1280, 720))
+        for x in range(1280):
+            source.paste((x % 256, (x * 3) % 256, 200), (x, 0, x + 1, 720))
+        raw = io.BytesIO(); source.save(raw, 'JPEG')
+        atlas = tile_art.parse(json.dumps([[0, 0, 448, 228, 12, 0]]), (480, 480), 1)
+        wide = tile_art.encode([raw.getvalue()], [0xE7E7E7], atlas, [('fill', True)])
+        small = tile_art.encode([raw.getvalue()], [0xE7E7E7], atlas, [('fill', True)], compact=True)
+        # The BMP header says 24 and 8 bits per pixel, and the 8-bit one is about a third of the bytes.
+        self.assertEqual((int.from_bytes(wide[28:30], 'little'), int.from_bytes(small[28:30], 'little')), (24, 8))
+        self.assertLess(len(small), len(wide) * 0.36)
+        with Image.open(io.BytesIO(small)) as image:
+            self.assertEqual((image.size, image.mode), ((448, 228), 'P'))
+        strip = camera_feed.encode_live([raw.getvalue()], 54, [0xFFFFFF], compact=True)
+        self.assertEqual(int.from_bytes(strip[28:30], 'little'), 8)
+
     def test_contain_keeps_the_whole_picture_on_black_and_the_name_gets_its_shade(self):
         import io, tile_art
         from PIL import Image, ImageDraw
@@ -790,7 +810,7 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
             (_, inbox, message), = [entry for entry in ha.log if entry[0] == 'send']
             self.assertEqual((inbox, message['op'], message['t'], message['e']), ('text.d1_tiles', 'camera', 'live', 'camera.max,camera.garden'))
             token = message['u'].rsplit('/', 1)[1][:-4]
-            self.assertEqual(m.camera.links[token].live, (['camera.max', 'camera.garden'], 54, [0xFFFFFF, 0xFADADD], [15, 30]))
+            self.assertEqual(m.camera.links[token].live, (['camera.max', 'camera.garden'], 54, [0xFFFFFF, 0xFADADD], [15, 30], {'compact': False}))
             ha.log.clear()
             # A tile that shows its icon, a camera off the layout, a screen on older firmware, a CYD: no strip.
             for request in ({'inbox': 'text.d1_tiles', 'tiles': 'camera.max,camera.shed', 'size': '54', 'bg': 'FFFFFF,FFFFFF'},

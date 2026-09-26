@@ -2102,10 +2102,12 @@ class Manager:
         url, listing = '', ','.join(entities)
         base = await camera_feed.base_url(self.ha.request)
         if base:
-            found = await self.camera.live(entities, size, grounds, paces, **({"atlas": atlas, "modes": modes} if atlas else {}))
+            # A screen whose decoder reads 8-bit colour gets a third of the bytes (app 0.3.9).
+            extra = {'compact': camera_feed.compact_pictures(screen), **({'atlas': atlas, 'modes': modes} if atlas else {})}
+            found = await self.camera.live(entities, size, grounds, paces, **extra)
             if found:
                 listing = ','.join(found[2])
-                token = self.camera.link(listing, atlas[:2] if atlas else (size, size), live=(entities, size, grounds, paces) + ((atlas, modes) if atlas else ()))
+                token = self.camera.link(listing, atlas[:2] if atlas else (size, size), live=(entities, size, grounds, paces, extra))
                 url = f'{base}/camera/{token}.bmp'
         else:
             LOG.warning('Live pictures: no address for this app on the LAN; set SCREEN_CAMERA_URL')
