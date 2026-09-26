@@ -278,3 +278,16 @@ it('keeps simultaneous layout instances independent and reads a shape change imm
   expect(editor.grid.pages).toBe(4);
   expect(other.grid.pages).toBe(7);
 });
+
+describe("the alarm panel's colours (app 0.3.8)", () => {
+  it("paints an alarm as Home Assistant does: armed green, the delays orange, going off red, disarmed grey", async () => {
+    const { tilePalette, tileActive } = await import("../src/model/tile-palette");
+    const accent = (state: string) => tilePalette("alarm_control_panel.house", { state }).accent;
+    expect(accent("armed_away")).toBe("#4caf50");
+    expect(accent("armed_night")).toBe("#4caf50");
+    for (const state of ["arming", "pending", "disarming"]) expect(accent(state)).toBe("#ff9800");
+    expect(accent("triggered")).toBe("#f44336");
+    expect(tileActive("alarm_control_panel.house", { state: "disarmed" })).toBe(false);
+    expect(accent("disarmed")).toBe("#9e9e9e");
+  });
+});

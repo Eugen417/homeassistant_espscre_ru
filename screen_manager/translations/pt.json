@@ -282,6 +282,13 @@
       "rejected": "Medição rejeitada; tente de novo",
       "save_failed": "Falha ao guardar; tente de novo"
     },
+    "alarm": {
+      "wrong_code": "Código errado",
+      "nothing_changed": "Nada mudou. Verifique o código.",
+      "try_again": "Tente de novo em {time}",
+      "too_many": "Demasiados códigos errados",
+      "letters": "Este código tem letras. Introduza-o no Home Assistant."
+    },
     "ha": {
       "on": "Ligado",
       "off": "Desligado",
@@ -429,6 +436,35 @@
         "both": "Ambos",
         "vertical": "Vertical",
         "horizontal": "Horizontal"
+      },
+      "alarm": {
+        "disarmed": "Desarmado",
+        "armed_home": "Armado Casa",
+        "armed_away": "Armado Ausente",
+        "armed_night": "Armado Noite",
+        "armed_vacation": "Armado Férias",
+        "armed_custom_bypass": "Armado Desvio personalizado",
+        "pending": "Pendente",
+        "arming": "A armar",
+        "disarming": "A desarmar",
+        "triggered": "Disparado"
+      },
+      "alarm_mode": {
+        "armed_home": "Em casa",
+        "armed_away": "Ausente",
+        "armed_night": "Noite",
+        "armed_vacation": "Férias",
+        "armed_custom_bypass": "Personalizado",
+        "disarmed": "Desarmado"
+      },
+      "alarm_action": {
+        "disarm": "Desarmar",
+        "arm_home": "Armar em casa",
+        "arm_away": "Armar ausente",
+        "arm_night": "Armado noite",
+        "arm_vacation": "Armado férias",
+        "arm_custom_bypass": "Bypass personalizado",
+        "enter_code": "Inserir Código"
       }
     },
     "navigation": {
@@ -1327,7 +1363,8 @@
         "select": "Seletores",
         "person": "Pessoas",
         "timer": "Temporizadores",
-        "screen": "Ecrã"
+        "screen": "Ecrã",
+        "alarm_control_panel": "Alarme"
       },
       "more": "Mais ({n})",
       "fewer": "Menos",
@@ -1367,7 +1404,8 @@
       "person": "Pessoa",
       "camera": "Câmara",
       "image": "Imagem",
-      "entity": "Entidade"
+      "entity": "Entidade",
+      "alarm_control_panel": "Painel de alarme"
     },
     "displays": {
       "standard": "padrão",

@@ -82,6 +82,29 @@ on the screen itself, and how updates work.
   <img src="docs/images/cyd-full-climate.png" width="32%" alt="A full-page heating tile on the CYD with the mode keys at the bottom">
 </p>
 
+- **Alarm panel** (app 0.3.8 / firmware 0.3.3): an `alarm_control_panel` entity is a tile like any other, in
+  every size. It takes Home Assistant's colours and icons: grey while disarmed, green while armed, orange while it
+  counts down to armed or waits for someone who just came in, red while it goes off. A tap opens its card with a
+  key for every mode Home Assistant lists for that panel (home, away, night, vacation, custom bypass) and one to
+  disarm. When the panel asks for a code, the card shows a keypad first, the way Home Assistant's own code dialog
+  does: arming needs one only when the panel says so, and a default code stored with the entity in Home Assistant
+  means the screen asks for none. Only number codes can be typed on the screen; a panel whose code has letters
+  says so on its card.
+  - **Animations** show what the alarm does: a ring closes around the shield when it arms, the circle beats slowly
+    during the exit delay, fast during the entry delay and in Home Assistant's one-second rhythm while the alarm
+    goes off, and the bell shakes. Where the integration reports how long a delay lasts (Alarmo's `delay`
+    attribute), the ring and the tile count it down.
+  - **Someone comes in:** when the panel goes to `pending` or `triggered`, every screen that has its tile wakes up
+    and opens the card, with the keypad to disarm when a code is needed.
+  - **The code stays private.** The screen sends it to Home Assistant with the action (`code`), exactly as Home
+    Assistant's dialogs do, and forgets it right away. It never logs it, stores it or puts it in an event, and the
+    app never sees it.
+  - **Wrong codes.** Not every integration says so when a code is wrong: some refuse the action, others ignore it.
+    The screen counts a code as wrong when Home Assistant refuses it or when the panel has not moved after ten
+    seconds. Three wrong codes lock the keypad for 30 seconds, and every wrong code after that doubles the time, up
+    to 15 minutes. The lock survives a restart, and a code that works resets the count. Each wrong code fires the
+    event `esphome.screen_alarm_code_refused` with `entity_id`, `failures` and `locked` (seconds), so an automation
+    can send a notification or take a camera snapshot.
 - **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
   Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,
   light, fan), start/stop/dock (vacuum), open/stop/close or a

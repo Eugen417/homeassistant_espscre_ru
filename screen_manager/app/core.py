@@ -11,7 +11,7 @@ import secrets
 from i18n import english, screen_t, t
 import tile_icons
 
-DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image'.split())
+DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image alarm_control_panel'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them. The names in English: a screen gets them in
 # its language and the editor in its own (builtin_name, app 0.2.90).
 BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
@@ -70,9 +70,12 @@ PAGE_BUTTONS_MIN_FIRMWARE = '0.2.69'
 HOME_BUTTON_MIN_FIRMWARE = '0.2.100'
 # Open a page from Home Assistant (esphome.<node>_show_page), the way a Go to page tile does.
 SHOW_PAGE_MIN_FIRMWARE = '0.2.87'
-ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect'.split())
+# An alarm panel as a tile with its card and keypad (components/smart_display/alarm_panel.h); older firmware refuses the
+# domain, so a layout with one waits for the update.
+ALARM_MIN_FIRMWARE = (0, 3, 3)
+ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
-BOOL_ATTRS = frozenset(['is_volume_muted'])
+BOOL_ATTRS = frozenset(['is_volume_muted', 'code_arm_required'])
 
 
 # The labels in English, as the Claude skill writes them; the editor gets them in its language (backgrounds()).
@@ -805,7 +808,7 @@ HEADER_MAX_ITEMS = 6
 # app 0.2.90).
 HEADER_BUILTIN = ('clock', 'analog', 'date')
 # Only shown, never controlled: the top bar takes these besides every tile domain.
-HEADER_ONLY_DOMAINS = frozenset('device_tracker zone lock alarm_control_panel counter event input_datetime input_text water_heater humidifier'.split())
+HEADER_ONLY_DOMAINS = frozenset('device_tracker zone lock counter event input_datetime input_text water_heater humidifier'.split())
 HEADER_CONTENTS = ('state', 'last_changed')
 HEADER_SHOWS = ('always', 'active')
 
@@ -861,6 +864,8 @@ def min_firmware(layout):
     if any(tile.get('options', {}).get('controls') in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode')
            for tile in layout['tiles']):
         return (0, 3, 1)
+    if any(t['entity'].split('.')[0] == 'alarm_control_panel' for t in layout['tiles']):
+        return ALARM_MIN_FIRMWARE
     if repeated_page_tiles(layout['tiles']):
         return PAGE_TILE_REPEAT_MIN_FIRMWARE
     if len(layout['tiles']) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in layout['tiles']):
@@ -1465,6 +1470,26 @@ def forecast_time(entry, tz):
         return datetime.fromisoformat(str(entry.get('datetime')).replace('Z', '+00:00')).astimezone(tz or timezone.utc)
     except (ValueError, TypeError):
         return None
+
+def alarm_extras(state, entry):
+    """What an alarm panel's card needs beside its attributes (firmware 0.3.3+): `dc` 1 when Home Assistant keeps a default
+    code in the entity's registry options (it then fills the code in itself and the screen asks for none, as Home
+    Assistant's own dialogs do; the code itself never leaves Home Assistant), and during an exit or entry delay the moment
+    it ends (`ae`, epoch) and its length (`ad`, seconds), where the integration reports it (Alarmo's `delay` attribute)."""
+    result = {}
+    options = (entry or {}).get('options') if isinstance(entry, dict) else None
+    panel = options.get('alarm_control_panel') if isinstance(options, dict) else None
+    if isinstance(panel, dict) and isinstance(panel.get('default_code'), str) and panel['default_code']:
+        result['dc'] = 1
+    state = state if isinstance(state, dict) else {}
+    delay = (state.get('attributes') or {}).get('delay')
+    if state.get('state') in ('arming', 'pending') and isinstance(delay, (int, float)) and not isinstance(delay, bool) \
+            and math.isfinite(delay) and 0 < delay <= 86400:
+        start = epoch(state.get('last_changed'))
+        if start:
+            result['ae'] = start + int(delay)
+            result['ad'] = int(delay)
+    return result
 
 def epoch(value):
     """Unix time of an ISO timestamp (a scene's state, a script's last_triggered); None when unusable."""

@@ -1468,7 +1468,7 @@ always|active}`. Without `header`, the firmware's prior always-on behavior appli
 `show_clock`); an old editor that omits `header` keeps the stored bar. When
 saving, `settings.show_clock` follows the clock in the bar, so older firmware only shows the
 time if it's in the bar. Besides the tile domains, entities in the bar may
-also be `device_tracker`, `zone`, `lock`, `alarm_control_panel`, `counter`, `event`,
+also be `device_tracker`, `zone`, `lock`, `counter`, `event`,
 `input_datetime`, `input_text`, `water_heater`, and `humidifier`; the inventory
 marks those with `tile: false` so the tile picker skips them.
 

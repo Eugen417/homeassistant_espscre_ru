@@ -282,6 +282,13 @@
       "rejected": "Pomiar odrzucony; spróbuj ponownie",
       "save_failed": "Zapis nieudany; spróbuj ponownie"
     },
+    "alarm": {
+      "wrong_code": "Błędny kod",
+      "nothing_changed": "Nic się nie zmieniło. Sprawdź kod.",
+      "try_again": "Spróbuj ponownie za {time}",
+      "too_many": "Zbyt wiele błędnych kodów",
+      "letters": "Ten kod zawiera litery. Wprowadź go w Home Assistant."
+    },
     "ha": {
       "on": "włączono",
       "off": "wyłączono",
@@ -429,6 +436,35 @@
         "both": "ruch w obu płaszczyznach",
         "vertical": "ruch pionowy",
         "horizontal": "ruch poziomy"
+      },
+      "alarm": {
+        "disarmed": "rozbrojony",
+        "armed_home": "uzbrojony (w domu)",
+        "armed_away": "uzbrojony (poza domem)",
+        "armed_night": "uzbrojony (noc)",
+        "armed_vacation": "uzbrojony (wakacje)",
+        "armed_custom_bypass": "uzbrojony (własny bypass)",
+        "pending": "oczekiwanie",
+        "arming": "uzbrajanie",
+        "disarming": "rozbrajanie",
+        "triggered": "wyzwolony"
+      },
+      "alarm_mode": {
+        "armed_home": "W domu",
+        "armed_away": "Poza domem",
+        "armed_night": "Noc",
+        "armed_vacation": "Wakacje",
+        "armed_custom_bypass": "Niestandardowy",
+        "disarmed": "Rozbrojony"
+      },
+      "alarm_action": {
+        "disarm": "Rozbrój",
+        "arm_home": "Uzbrój (w domu)",
+        "arm_away": "Uzbrój (poza domem)",
+        "arm_night": "Uzbrój (noc)",
+        "arm_vacation": "Uzbrój (tryb wakacyjny)",
+        "arm_custom_bypass": "Niestandardowy bypass",
+        "enter_code": "Wprowadź kod"
       }
     },
     "navigation": {
@@ -1327,7 +1363,8 @@
         "select": "Selektory",
         "person": "Osoby",
         "timer": "Minutniki",
-        "screen": "Ekran"
+        "screen": "Ekran",
+        "alarm_control_panel": "Alarm"
       },
       "more": "Więcej ({n})",
       "fewer": "Mniej",
@@ -1367,7 +1404,8 @@
       "person": "Osoba",
       "camera": "Kamera",
       "image": "Obraz",
-      "entity": "Encja"
+      "entity": "Encja",
+      "alarm_control_panel": "Panel alarmowy"
     },
     "displays": {
       "standard": "standardowy",

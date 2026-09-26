@@ -282,6 +282,13 @@
       "rejected": "Measurement rejected; try again",
       "save_failed": "Save failed; try again"
     },
+    "alarm": {
+      "wrong_code": "Wrong code",
+      "nothing_changed": "Nothing changed. Check the code.",
+      "try_again": "Try again in {time}",
+      "too_many": "Too many wrong codes",
+      "letters": "This code has letters. Enter it in Home Assistant."
+    },
     "ha": {
       "on": "On",
       "off": "Off",
@@ -429,6 +436,35 @@
         "both": "Both",
         "vertical": "Vertical",
         "horizontal": "Horizontal"
+      },
+      "alarm": {
+        "disarmed": "Disarmed",
+        "armed_home": "Armed home",
+        "armed_away": "Armed away",
+        "armed_night": "Armed night",
+        "armed_vacation": "Armed vacation",
+        "armed_custom_bypass": "Armed custom bypass",
+        "pending": "Pending",
+        "arming": "Arming",
+        "disarming": "Disarming",
+        "triggered": "Triggered"
+      },
+      "alarm_mode": {
+        "armed_home": "Home",
+        "armed_away": "Away",
+        "armed_night": "Night",
+        "armed_vacation": "Vacation",
+        "armed_custom_bypass": "Custom",
+        "disarmed": "Disarmed"
+      },
+      "alarm_action": {
+        "disarm": "Disarm",
+        "arm_home": "Arm home",
+        "arm_away": "Arm away",
+        "arm_night": "Arm night",
+        "arm_vacation": "Arm vacation",
+        "arm_custom_bypass": "Custom bypass",
+        "enter_code": "Enter code"
       }
     },
     "navigation": {
@@ -1327,7 +1363,8 @@
         "select": "Selects",
         "person": "People",
         "timer": "Timers",
-        "screen": "Screen"
+        "screen": "Screen",
+        "alarm_control_panel": "Alarm"
       },
       "more": "More ({n})",
       "fewer": "Fewer",
@@ -1367,7 +1404,8 @@
       "person": "Person",
       "camera": "Camera",
       "image": "Image",
-      "entity": "Entity"
+      "entity": "Entity",
+      "alarm_control_panel": "Alarm panel"
     },
     "displays": {
       "standard": "standard",

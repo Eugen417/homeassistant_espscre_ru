@@ -1,6 +1,6 @@
 ## 0.3.8 (firmware 0.3.3)
 
-Clearer weather and thermostat tiles, a select card you can read, and a camera that fills its tile (GitHub #4, thanks @govido), and alerts with two buttons to choose from.
+Clearer weather and thermostat tiles, a select card you can read, a camera that fills its tile (GitHub #4, thanks @govido), alerts with two buttons to choose from, and your alarm as a tile with its keypad.
 
 - **Weather tile.** The weather now sits in its coloured circle like every other tile, each day's icon has the colour of its weather, the high is bold and the low grey, and the chance of rain shows in blue when it is 30 % or more. Today stands on a light pill with room around its digits. A tile of two rows lists the days under each other, each with a bar from its low to its high on one scale for the whole week, coloured from cold to warm.
 - **Thermostat tile.** A tile of two rows shows the temperature between − and +, and a bar with one segment per mode under it, the active one filled in its colour. An airco shows heat and cool first, the mode it is in is always on the bar, and the rest is behind "…". Off is no longer a mode on the bar: tap the tile's circle to turn the thermostat on or off, as on a Home Assistant tile. A short tile puts the stepper and the bar on one row.
@@ -20,7 +20,12 @@ Clearer weather and thermostat tiles, a select card you can read, and a camera t
 - A screen on older firmware shows the same alert with its first button only, and the log names it.
 - Words too long for a button now end in "..." instead of running past its edge.
 - Alerts in ESP Screens has a "Two buttons" part with an example to copy, and the Claude skill knows the new fields.
-- Update the firmware of your screens to get the new tiles and the second alert button. With older firmware the app keeps working, and a select shows its first 8 options.
+- **Alarm panel.** An `alarm_control_panel` entity is now a tile in every size, in Home Assistant's colours and icons: grey while disarmed, green while armed, orange during a delay, red while it goes off. A tap opens its card with a key for every mode the panel has and one to disarm; when the panel asks for a code, a keypad comes first, as in Home Assistant's own code dialog. A default code stored with the entity in Home Assistant means the screen asks for none. Number codes only; a panel whose code has letters says so on its card.
+- Someone coming in (`pending`) or the alarm going off (`triggered`) wakes every screen that has the tile and opens its card, with the keypad to disarm.
+- The code goes to Home Assistant with the action and is forgotten right away: never logged, stored or put in an event, and the app never sees it. Three wrong codes lock the keypad for 30 seconds, doubling up to 15 minutes, also across a restart; each wrong code fires `esphome.screen_alarm_code_refused`.
+- Animations show what the alarm does: a ring that closes when it arms, a heartbeat during the delays and while it goes off, a countdown where the integration reports the delay (Alarmo).
+- The card has the Guition's size on every screen and stands in the middle of bigger ones. The alarm panel makes the CYD firmware 12.7 KB larger.
+- Update the firmware of your screens to get the new tiles, the second alert button and the alarm panel; a screen needs it before an alarm tile can go on it. With older firmware the app keeps working, and a select shows its first 8 options.
 
 ## 0.3.7 (firmware 0.3.2)
 

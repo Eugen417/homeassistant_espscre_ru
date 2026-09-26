@@ -282,6 +282,13 @@
       "rejected": "Misura scartata; riprova",
       "save_failed": "Salvataggio non riuscito; riprova"
     },
+    "alarm": {
+      "wrong_code": "Codice errato",
+      "nothing_changed": "Non è cambiato nulla. Controlla il codice.",
+      "try_again": "Riprova tra {time}",
+      "too_many": "Troppi codici errati",
+      "letters": "Questo codice contiene lettere. Inseriscilo in Home Assistant."
+    },
     "ha": {
       "on": "Acceso",
       "off": "Spento",
@@ -429,6 +436,35 @@
         "both": "Entrambi",
         "vertical": "Verticale",
         "horizontal": "Orizzontale"
+      },
+      "alarm": {
+        "disarmed": "Disattivo",
+        "armed_home": "Attivo in casa",
+        "armed_away": "Attivo fuori casa",
+        "armed_night": "Attivo notte",
+        "armed_vacation": "Attivo in vacanza",
+        "armed_custom_bypass": "Attivo con esclusione personalizzata",
+        "pending": "In attesa",
+        "arming": "In attivazione",
+        "disarming": "In disattivazione",
+        "triggered": "Innescato"
+      },
+      "alarm_mode": {
+        "armed_home": "In casa",
+        "armed_away": "Fuori casa",
+        "armed_night": "Notte",
+        "armed_vacation": "Vacanza",
+        "armed_custom_bypass": "Personalizzato",
+        "disarmed": "Disattivato"
+      },
+      "alarm_action": {
+        "disarm": "Disattiva",
+        "arm_home": "Attiva in casa",
+        "arm_away": "Attiva fuori casa",
+        "arm_night": "Attiva notte",
+        "arm_vacation": "Attiva in vacanza",
+        "arm_custom_bypass": "Esclusione personalizzata",
+        "enter_code": "Inserisci il codice"
       }
     },
     "navigation": {
@@ -1327,7 +1363,8 @@
         "select": "Selezioni",
         "person": "Persone",
         "timer": "Timer",
-        "screen": "Schermo"
+        "screen": "Schermo",
+        "alarm_control_panel": "Allarme"
       },
       "more": "Altri ({n})",
       "fewer": "Meno",
@@ -1367,7 +1404,8 @@
       "person": "Persona",
       "camera": "Telecamera",
       "image": "Immagine",
-      "entity": "Entità"
+      "entity": "Entità",
+      "alarm_control_panel": "Pannello allarme"
     },
     "displays": {
       "standard": "standard",

@@ -282,6 +282,13 @@
       "rejected": "Meting afgekeurd; probeer het opnieuw",
       "save_failed": "Opslaan mislukt; probeer het opnieuw"
     },
+    "alarm": {
+      "wrong_code": "Onjuiste code",
+      "nothing_changed": "Er veranderde niets. Controleer de code.",
+      "try_again": "Probeer opnieuw over {time}",
+      "too_many": "Te veel onjuiste codes",
+      "letters": "Deze code bevat letters. Voer hem in Home Assistant in."
+    },
     "ha": {
       "on": "Aan",
       "off": "Uit",
@@ -429,6 +436,35 @@
         "both": "Beide",
         "vertical": "Verticaal",
         "horizontal": "Horizontaal"
+      },
+      "alarm": {
+        "disarmed": "Uitgeschakeld",
+        "armed_home": "Ingeschakeld thuis",
+        "armed_away": "Ingeschakeld afwezig",
+        "armed_night": "Ingeschakeld nacht",
+        "armed_vacation": "Ingeschakeld vakantie",
+        "armed_custom_bypass": "Ingeschakeld met overbrugging",
+        "pending": "In behandeling",
+        "arming": "Schakelt in",
+        "disarming": "Schakelt uit",
+        "triggered": "Geactiveerd"
+      },
+      "alarm_mode": {
+        "armed_home": "Thuis",
+        "armed_away": "Afwezig",
+        "armed_night": "Nacht",
+        "armed_vacation": "Vakantie",
+        "armed_custom_bypass": "Aangepast",
+        "disarmed": "Uitgeschakeld"
+      },
+      "alarm_action": {
+        "disarm": "Uitschakelen",
+        "arm_home": "Inschakelen thuis",
+        "arm_away": "Inschakelen voor vertrek",
+        "arm_night": "Voor ’s nachts inschakelen",
+        "arm_vacation": "Inschakelen vakantie",
+        "arm_custom_bypass": "Inschakelen met overbrugging",
+        "enter_code": "Code invoeren"
       }
     },
     "navigation": {
@@ -1327,7 +1363,8 @@
         "select": "Keuzelijsten",
         "person": "Personen",
         "timer": "Timers",
-        "screen": "Scherm"
+        "screen": "Scherm",
+        "alarm_control_panel": "Alarm"
       },
       "more": "Meer ({n})",
       "fewer": "Minder",
@@ -1367,7 +1404,8 @@
       "person": "Persoon",
       "camera": "Camera",
       "image": "Afbeelding",
-      "entity": "Entiteit"
+      "entity": "Entiteit",
+      "alarm_control_panel": "Alarmpaneel"
     },
     "displays": {
       "standard": "standaard",
