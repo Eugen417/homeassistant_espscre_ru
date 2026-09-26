@@ -3581,8 +3581,20 @@ inline void end_extra(Widgets &w) {
 }
 // Two triangles per segment between the polyline and its baseline. No canvas
 // buffer is needed, so the CYD can afford it as well.
+// The Widgets whose extra layer this is, wherever keep_page moved it: the slots and the kept sets.
+inline Widgets *extra_owner(lv_obj_t *extra) {
+  for (auto &w : widgets) if (w.extra == extra) return &w;
+  for (auto *set : kept_sets) if (set) for (auto &w : *set) if (w.extra == extra) return &w;
+  return nullptr;
+}
 inline void extra_draw(lv_event_t *e) {
-  auto &w=*static_cast<Widgets *>(lv_event_get_user_data(e));
+  // The pointer given at creation names the slot the layer was made in; after keep_page swapped Widgets it may be
+  // another card's, so the layer's own card is looked up when they differ.
+  auto *given=static_cast<Widgets *>(lv_event_get_user_data(e));
+  auto *extra=static_cast<lv_obj_t *>(lv_event_get_current_target(e));
+  auto *owner=given && given->extra==extra?given:extra_owner(extra);
+  if(!owner)return;
+  auto &w=*owner;
   if(!w.fill_points || w.fill_count<2 || !w.fill_opa)return;
   auto *layer=lv_event_get_layer(e);lv_area_t area;lv_obj_get_coords(w.extra,&area);
   lv_draw_triangle_dsc_t dsc;lv_draw_triangle_dsc_init(&dsc);dsc.color=w.fill_color;dsc.opa=w.fill_opa;
@@ -3599,12 +3611,16 @@ inline void begin_extra(Widgets &w,const char *mode,int width,int height) {
     lv_obj_add_event_cb(w.extra,extra_draw,LV_EVENT_DRAW_MAIN,&w);
     // LVGL draws the children of an object whose overflow is visible only as far as its own extra draw size: a clock
     // face asks for the card's padding, so its dial and a date's descenders show up to the card's edge.
+    // It reads the object itself and its card, never a Widgets pointer: kept pages swap whole Widgets between a slot
+    // and a kept set (keep_page), so a pointer given here would name another card, or a fresh one without parts, and
+    // LVGL asks for this size in any layout pass, also of a hidden kept page (firmware 0.3.6 crash-looped on it).
     lv_obj_add_event_cb(w.extra,[](lv_event_t *e){
-      auto *owner=static_cast<Widgets *>(lv_event_get_user_data(e));
-      if(lv_obj_has_flag(owner->extra,LV_OBJ_FLAG_OVERFLOW_VISIBLE))
-        lv_event_set_ext_draw_size(e,std::max({lv_obj_get_style_space_left(owner->tile,LV_PART_MAIN),lv_obj_get_style_space_top(owner->tile,LV_PART_MAIN),
-                                               lv_obj_get_style_space_right(owner->tile,LV_PART_MAIN),lv_obj_get_style_space_bottom(owner->tile,LV_PART_MAIN)}));
-    },LV_EVENT_REFR_EXT_DRAW_SIZE,&w);
+      auto *extra=static_cast<lv_obj_t *>(lv_event_get_current_target(e));
+      auto *tile=extra?lv_obj_get_parent(extra):nullptr;
+      if(tile && lv_obj_has_flag(extra,LV_OBJ_FLAG_OVERFLOW_VISIBLE))
+        lv_event_set_ext_draw_size(e,std::max({lv_obj_get_style_space_left(tile,LV_PART_MAIN),lv_obj_get_style_space_top(tile,LV_PART_MAIN),
+                                               lv_obj_get_style_space_right(tile,LV_PART_MAIN),lv_obj_get_style_space_bottom(tile,LV_PART_MAIN)}));
+    },LV_EVENT_REFR_EXT_DRAW_SIZE,nullptr);
   }
   if(w.extra_mode!=mode || w.extra_full!=w.full){end_extra(w);w.extra_mode=mode;w.extra_full=w.full;w.points=(w.extra_mode=="tall"||w.extra_mode=="cover_tilt")?nullptr:new lv_point_precise_t[POINT_BUFFER];w.cached_active=-1;}
   w.fill_points=nullptr;w.fill_count=0;
