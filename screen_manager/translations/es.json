@@ -1393,6 +1393,8 @@
         "live": "Imagen en vivo",
         "live_hint": "Una imagen pequeña de la cámara en el lugar del icono, actualizada al ritmo de abajo mientras la página está en pantalla. Un toque la sigue abriendo a pantalla completa.",
         "live_needs_firmware": "Una imagen en vivo necesita el firmware 0.2.77 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
+        "live_card_hint": "La imagen llena el mosaico, actualizada al ritmo de abajo mientras la página está en pantalla. Un toque la sigue abriendo a pantalla completa.",
+        "live_card_needs_firmware": "Una imagen que llena el mosaico necesita el firmware 0.3.4 o más reciente: pulsa Actualizar en la pantalla después de guardar. Hasta entonces la pantalla muestra una imagen pequeña en el lugar del icono.",
         "cover": "Carátula",
         "cover_hint": "La carátula de lo que suena en el lugar del icono, como en el propio mosaico de Home Assistant; un reproductor sin imagen conserva su icono. Un toque sigue abriendo la tarjeta.",
         "cover_needs_firmware": "La carátula en el mosaico necesita el firmware 0.2.78 o más reciente: pulsa Actualizar en la pantalla después de guardar.",
@@ -1403,6 +1405,18 @@
       "refresh": {
         "label": "Actualizar",
         "seconds": "Cada {n} s"
+      },
+      "picture": {
+        "fit": {
+          "label": "Imagen",
+          "fill": "Llenar el mosaico",
+          "contain": "Imagen completa"
+        },
+        "overlay": {
+          "label": "Sobre la imagen",
+          "name": "Nombre",
+          "none": "Nada"
+        }
       },
       "size": {
         "label": "Tamaño",

@@ -191,6 +191,16 @@
     15,
     30
   ],
+  "picture": {
+    "fit": [
+      "fill",
+      "contain"
+    ],
+    "overlay": [
+      "name",
+      "none"
+    ]
+  },
   "icons": [
     "account",
     "account-child",

@@ -352,6 +352,9 @@ the icon's place: in the tile's settings choose **Display → Live picture** and
 30 seconds. The picture is a small square with the tile's rounded corners, the middle of the camera's
 view, and it refreshes while that page is on the screen; a tap still opens the camera full screen. The
 camera tiles of one page share one download, so six live tiles cost the screen no more than one.
+On a 1 × 2 or 2 × 2 tile (app 0.3.9, firmware 0.3.4) the live picture fills the whole card, with the
+camera's name at the bottom. The tile's settings choose **Fill the tile** or **Whole picture**, and
+**Name** or **Nothing** on the picture.
 A media player tile can show its **album cover** the same way (app 0.2.92, firmware 0.2.78):
 **Display → Album cover** puts the cover of what plays in the icon's place, refreshed when the track
 changes, with the tile's controls kept. How the image travels (port 8098 of the app, no token on the

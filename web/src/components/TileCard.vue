@@ -146,6 +146,12 @@ const artwork = computed(() => tall.value && display.value === 'cover' && domain
   ? `api/media-art?entity=${encodeURIComponent(props.tile.entity)}&v=${encodeURIComponent(String(current.value.a.artwork_mark))}` : '');
 const artworkLoaded = ref(false);
 watch(artwork, () => { artworkLoaded.value = false; });
+// A live camera on a 1x2 or 2x2 tile fills the card (app 0.3.9): the add-on's picture, cut the way the tile asks, with
+// the name at the bottom or nothing on it. Until the picture is here, the head as on the screen.
+const cameraCard = computed(() => shape.value.rows > 1 && !full.value && display.value === 'live' && ['camera', 'image'].includes(domain.value));
+const cameraPicture = computed(() => cameraCard.value ? `api/camera-preview?entity=${encodeURIComponent(props.tile.entity)}` : '');
+const cameraLoaded = ref(false);
+watch(cameraPicture, () => { cameraLoaded.value = false; });
 const mediaSubtitle = computed(() => [current.value?.a?.media_artist, current.value?.a?.media_album_name].filter(Boolean).join(' · '));
 const features = computed(() => Number(current.value?.a?.supported_features || 0));
 // The screens give a control that fills its room the content width of one cell, so its edges stand where the
@@ -174,7 +180,7 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, photo: artworkLoaded && !!artwork, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+  <div class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, photo: artworkLoaded && !!artwork, camera: cameraCard && cameraLoaded, bare, placeholder: placeholder || !live, chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
     :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
     :tabindex="(preview ? goesTo : live) ? 0 : -1" :role="(preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
@@ -194,6 +200,11 @@ async function onKey(e: KeyboardEvent) {
     <template v-else-if="display === 'graph' && domain === 'sensor'">
       <span class="head"><span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span><span class="tx"><span class="nm">{{ name }}</span><span class="st">{{ status }}</span></span></span>
       <SensorHistory :entity="tile.entity" :hours="Number(tile.options?.history_hours || 24)" />
+    </template>
+    <template v-else-if="cameraCard">
+      <img v-if="cameraPicture" :key="cameraPicture" class="camera-art" :class="tile.options?.fit === 'contain' ? 'contain' : 'fill'" :src="cameraPicture" alt="" @load="cameraLoaded = true" @error="cameraLoaded = false" />
+      <span v-if="!cameraLoaded" class="head"><span class="ic mdi">{{ glyph(tileIconCp(tile)) }}</span><span class="tx"><span class="nm">{{ name }}</span><span v-if="status" class="st" :class="{ off: gone }">{{ status }}</span></span></span>
+      <span v-else-if="tile.options?.overlay !== 'none'" class="camera-name"><span>{{ name }}</span></span>
     </template>
     <template v-else-if="full && !tall">
       <span class="ic mdi" :class="{ lit: isOn, thumb: display === 'live' || display === 'cover' }">{{ glyph(tileIconCp(tile)) }}</span>
@@ -324,4 +335,12 @@ async function onKey(e: KeyboardEvent) {
 .tile.tall.photo .ic { background: #333; color: white; }
 .tile.tall.photo .playback .key { background: transparent; }
 .tile.tall.photo .playback .key.primary { background: white; color: #111; }
+.tile .camera-art { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: inherit; background: #000; opacity: 0; pointer-events: none; }
+.tile .camera-art.fill { object-fit: cover; }
+.tile .camera-art.contain { object-fit: contain; }
+.tile.camera { justify-content: end; }
+.tile.camera .camera-art { opacity: 1; }
+/* The shade the add-on puts under the name (tile_art.FADE_SHARE, FADE_DEPTH). */
+.tile .camera-name { position: absolute; inset: auto 0 0 0; height: 42%; padding: 0 9px 8px; display: flex; align-items: end; color: white; font-weight: 700; background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, .59)); border-radius: 0 0 inherit inherit; pointer-events: none; }
+.tile .camera-name > span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 </style>

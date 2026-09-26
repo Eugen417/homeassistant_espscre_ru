@@ -1393,6 +1393,8 @@
         "live": "Live picture",
         "live_hint": "A small picture of the camera in the icon's place, refreshed at the pace below while the page is on screen. A tap still opens it full screen.",
         "live_needs_firmware": "A live picture needs firmware 0.2.77 or newer: press Update on the screen after saving.",
+        "live_card_hint": "The picture fills the tile, refreshed at the pace below while the page is on screen. A tap still opens it full screen.",
+        "live_card_needs_firmware": "A picture that fills the tile needs firmware 0.3.4 or newer: press Update on the screen after saving. Until then the screen shows a small picture in the icon's place.",
         "cover": "Album cover",
         "cover_hint": "The album cover of what plays in the icon's place, like Home Assistant's own tile; a player without a picture keeps its icon. A tap still opens the card.",
         "cover_needs_firmware": "The album cover on the tile needs firmware 0.2.78 or newer: press Update on the screen after saving.",
@@ -1403,6 +1405,18 @@
       "refresh": {
         "label": "Refresh",
         "seconds": "Every {n} s"
+      },
+      "picture": {
+        "fit": {
+          "label": "Picture",
+          "fill": "Fill the tile",
+          "contain": "Whole picture"
+        },
+        "overlay": {
+          "label": "On the picture",
+          "name": "Name",
+          "none": "Nothing"
+        }
       },
       "size": {
         "label": "Size",

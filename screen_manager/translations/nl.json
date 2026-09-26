@@ -1393,6 +1393,8 @@
         "live": "Livebeeld",
         "live_hint": "Een klein beeld van de camera op de plek van het icoon, ververst in het tempo hieronder zolang de pagina in beeld is. Een tik opent hem nog steeds schermvullend.",
         "live_needs_firmware": "Een livebeeld heeft firmware 0.2.77 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
+        "live_card_hint": "Het beeld vult de tile en ververst in het tempo hieronder zolang de pagina in beeld is. Een tik opent hem nog steeds schermvullend.",
+        "live_card_needs_firmware": "Een beeld dat de tile vult heeft firmware 0.3.4 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm. Tot dan toont het scherm een klein beeld op de plek van het icoon.",
         "cover": "Albumhoes",
         "cover_hint": "De albumhoes van wat er speelt op de plek van het icoon, zoals de eigen tile van Home Assistant; een speler zonder afbeelding houdt zijn icoon. Een tik opent nog steeds de kaart.",
         "cover_needs_firmware": "De albumhoes op de tile heeft firmware 0.2.78 of nieuwer nodig: druk na het opslaan op Bijwerken bij het scherm.",
@@ -1403,6 +1405,18 @@
       "refresh": {
         "label": "Verversen",
         "seconds": "Elke {n} s"
+      },
+      "picture": {
+        "fit": {
+          "label": "Beeld",
+          "fill": "Tile vullen",
+          "contain": "Hele beeld"
+        },
+        "overlay": {
+          "label": "Op het beeld",
+          "name": "Naam",
+          "none": "Niets"
+        }
       },
       "size": {
         "label": "Grootte",

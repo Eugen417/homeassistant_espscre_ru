@@ -385,7 +385,9 @@ inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
 
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
 inline bool live_marquee_ready(const Widgets &w, const Tile &t);
-inline bool tall_art(const Tile &t) {return t.row_span()>1 && !t.full && t.cover_tile();}
+// A picture over the whole card of a 1x2 or 2x2 tile: a media player's cover, dimmed under its track (firmware 0.3.1),
+// and a live camera in full colour with its name at the bottom (0.3.4), on a shade the app puts in the picture.
+inline bool tall_art(const Tile &t) {return t.row_span()>1 && !t.full && (t.cover_tile() || t.live());}
 // All icon fonts carry the same generated glyph set, so the first bound one answers for all.
 inline bool has_icon_glyph(uint32_t codepoint) {
   for (auto &w : widgets) if (w.icon_font) { lv_font_glyph_dsc_t dsc; return lv_font_get_glyph_dsc(w.icon_font, &dsc, codepoint, 0); }
@@ -3767,6 +3769,18 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   set_font(w.value,w.value_font);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
   lv_obj_set_pos(w.value,tx,y+m.name_h);lv_obj_set_size(w.value,tw,m.state_h);set_hidden(w.value,!l.state);
   live_place(w,t,circle,0,(l.header.h-circle)/2);
+  // A camera's picture is the card: its name at the bottom on the shade the app made there, or nothing on it at all.
+  // A camera's state ("Idle") says nothing next to its own picture. Until the picture is here, the head as above.
+  if(tall_art(t)&&t.live()){
+    // Still a tall card, so style_tall gives the name the picture's ink; it only has no parts of its own.
+    hide_panel(w);begin_extra(w,"tall",width,height);
+    for(auto *part:w.parts)if(part)lv_obj_add_flag(part,LV_OBJ_FLAG_HIDDEN);
+    if(w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN)){
+      lv_obj_add_flag(w.circle,LV_OBJ_FLAG_HIDDEN);set_hidden(w.value,true);set_hidden(w.title,!t.overlay);
+      lv_obj_set_pos(w.title,0,height-m.name_h);lv_obj_set_size(w.title,width,m.name_h);
+    }
+    return true;
+  }
   if(cover.fits){render_cover_tile(w,t,cover,width,height);return true;}
   bool panel=selected&&layout_panel(w,t,large,width,height);
   if(!panel)hide_panel(w);
@@ -5621,7 +5635,7 @@ inline LiveWish live_wanted() {
       const int width=lv_area_get_width(&bounds),height=lv_area_get_height(&bounds);
       const int radius=tall_art(t)?lv_obj_get_style_radius(w.tile,LV_PART_MAIN):width/6;
       char frame[96];snprintf(frame,sizeof(frame),"%s[%d,%d,%d,%d,%d,%d]",want.atlas.size()>1?",":"",
-        (int)bounds.x1-want.atlas_x,(int)bounds.y1-want.atlas_y,width,height,std::min(radius,std::min(width,height)/2),tall_art(t)?170:0);
+        (int)bounds.x1-want.atlas_x,(int)bounds.y1-want.atlas_y,width,height,std::min(radius,std::min(width,height)/2),tall_art(t)&&!t.live()?170:0);
       want.atlas+=frame;
     }
     want.grounds += ground;

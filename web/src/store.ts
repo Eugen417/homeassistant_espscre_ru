@@ -685,6 +685,9 @@ export function setTileOption(tile: Tile, key: string, value: unknown) {
   // Direct controls need the standard layout without a mini slider, and vice versa.
   if (key === "display" && value === "watch") { tile.options.inline = "none"; if (state.inventory.controls?.[domain]) tile.options.controls = "none"; }
   if (key === "display" && ["forecast", "sunpath"].includes(value as string) && !isWide(tile)) tile.options.size = "wide";
+  // A live picture's own settings leave with it, and a default is not stored (the add-on's canonical form, app 0.3.9).
+  if (key === "display" && value !== "live") for (const own of ["refresh", "fit", "overlay"]) delete tile.options[own];
+  if ((key === "fit" && value === "fill") || (key === "overlay" && value === "name")) delete tile.options[key];
   if (key === "inline" && value === "slider") { tile.options.display = "standard"; if (state.inventory.controls?.[domain]) tile.options.controls = "none"; }
   if (key === "controls" && value === "none" && ["tall", "square"].includes(sizeOf(tile))) tile.options.inline = "none";
   if (key === "controls" && value !== "none") { if (tile.options.display !== "cover") tile.options.display = "standard"; tile.options.inline = "none"; }

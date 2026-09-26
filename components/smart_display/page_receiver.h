@@ -459,6 +459,7 @@ inline std::string receive(const std::string &payload) {
     // A live picture's pace (0.2.91+): 15 or 30 s; a missing or odd value keeps the default.
     const int refresh = options["refresh"].is<int>() ? options["refresh"].as<int>() : 0;
     tile.refresh = refresh >= 5 && refresh <= 3600 ? refresh : 15;
+    tile.overlay = string(options["overlay"], 8) != "none";
     tile.inline_control = string(options["inline"]); if (tile.inline_control.empty()) tile.inline_control="none";
     // What the second line says (firmware 0.2.90+); "auto" is the line the screen works out itself, as before.
     tile.subtitle = string(options["sub"], 96); if (tile.subtitle.empty()) tile.subtitle="auto";

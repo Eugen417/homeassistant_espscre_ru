@@ -46,6 +46,9 @@ LIVE_MIN_FIRMWARE = (0, 2, 77)
 # media tile. A cover is fetched when the player's picture address changes, never on a clock; the screen asks for the
 # page again when the picture's mark in the player's state changes.
 COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
+# A camera on a 1x2 or 2x2 tile fills the card (app 0.3.9, firmware 0.3.4): the tile's own `fit` and `overlay` say how
+# the app cuts its picture and whether it shades the bottom for the name. Older firmware draws the small square there.
+CAMERA_ART_FIRMWARE = (0, 3, 4)
 LIVE_SIZES = (24, 160)   # a square's side, in pixels
 LIVE_MAX_TILES = 6       # one page
 LIVE_REFRESH = (15, 30)  # the paces a tile may choose, in seconds
@@ -162,6 +165,20 @@ def can_show_cover(screen):
 def can_show_live(screen):
     """A paired Guition with firmware that draws live pictures on camera tiles."""
     return bool(screen) and board_of(screen) in BOXES and (screen_firmware(screen) or (0, 0, 0)) >= LIVE_MIN_FIRMWARE
+
+
+def picture_modes(screen, options_of, entities):
+    """(fit, fade) per tile of a live strip: how the app prepares each picture. A camera on a taller card gets its own
+    choices once the screen's firmware draws it there; everything else is filled and left alone."""
+    art = (screen_firmware(screen) or (0, 0, 0)) >= CAMERA_ART_FIRMWARE
+    modes = []
+    for entity in entities:
+        options = options_of(entity) or {}
+        if art and supported(entity) and options.get('display') == 'live' and options.get('size') in ('tall', 'square'):
+            modes.append((options.get('fit', 'fill'), options.get('overlay', 'name') != 'none'))
+        else:
+            modes.append(('fill', False))
+    return modes
 
 
 def live_request(request, atlas=False):
@@ -332,7 +349,7 @@ class Link:
         self.entity, self.box, self.used = entity, box, now
         self.still = still
         self.cover = cover  # (size, background) of a media player's cover, else None
-        self.live = live    # (entities, size, grounds, paces) of a page's live camera tiles, else None
+        self.live = live    # (entities, size, grounds, paces[, atlas, modes]) of a page's live camera tiles, else None
         self.etag = f'"{hashlib.sha1(still).hexdigest()[:16]}"' if still else ''
         self.lifetime = STILL_SECONDS if still else LINK_SECONDS
 
@@ -463,19 +480,19 @@ class CameraFeed:
             self.refresh(entity, watch)
         return watch.raw
 
-    async def live(self, entities, size, grounds, paces, wait=FIRST_FRAME_SECONDS, *, atlas=None):
+    async def live(self, entities, size, grounds, paces, wait=FIRST_FRAME_SECONDS, *, atlas=None, modes=None):
         """(etag, BMP, entities with '' where a camera has no snapshot) of the strip for a page's camera tiles at
         `size` with `grounds` behind the corners and `paces` in seconds per tile, or None when no camera has one."""
         raws = await asyncio.gather(*(self.live_one(entity, pace, wait) for entity, pace in zip(entities, paces)))
         if all(raw is None for raw in raws):
             return None
         digests = [self.watches[entity].digest if raw is not None else '' for entity, raw in zip(entities, raws)]
-        key = ('live', size, tuple(grounds), tuple(digests), atlas)
+        key = ('live', size, tuple(grounds), tuple(digests), atlas, tuple(modes or ()))
         tag = f'"{hashlib.sha1(repr(key).encode()).hexdigest()[:16]}-l{size}"'  # names the strip; not sent
         cached = self.strips.get(key)
         if cached is None:
             try:
-                image = await asyncio.get_running_loop().run_in_executor(None, tile_art.encode, raws, grounds, atlas) if atlas else await asyncio.get_running_loop().run_in_executor(None, encode_live, raws, size, grounds)
+                image = await asyncio.get_running_loop().run_in_executor(None, tile_art.encode, raws, grounds, atlas, modes) if atlas else await asyncio.get_running_loop().run_in_executor(None, encode_live, raws, size, grounds)
             except Exception as error:
                 LOG.info('The live pictures of %s cannot be read (%s)', ', '.join(entities), type(error).__name__)
                 return None
@@ -594,7 +611,7 @@ class CameraFeed:
             # error flag every time, and a page of slow cameras (a radar every five minutes) would do that every 15 s.
             # The strip is small; the screen draws its squares again either way. The tag still goes out as an ETag:
             # online_image warns at every load about a missing one.
-            found = await self.live(*link.live[:4], **({"atlas": link.live[4]} if len(link.live) > 4 else {}))
+            found = await self.live(*link.live[:4], **({"atlas": link.live[4], "modes": link.live[5]} if len(link.live) > 4 else {}))
             return (503, None, '') if found is None else (200, found[1], found[0])
         found = await self.cover(link.entity, *link.cover) if link.cover else await self.frame(link.entity, link.box)
         if found is None:

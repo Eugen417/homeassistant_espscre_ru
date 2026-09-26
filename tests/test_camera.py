@@ -576,6 +576,63 @@ class App(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(ha.camera_requests.get_nowait(), {'inbox': 'text.d1_tiles', 'entity': 'camera.max'})
 
 
+class PictureCards(unittest.TestCase):
+    """A live camera that fills a 1x2 or 2x2 tile (app 0.3.9, firmware 0.3.4): fill or contain, name or nothing."""
+
+    def test_fit_and_overlay_belong_to_the_live_picture_and_keep_no_defaults(self):
+        tile = lambda options: validate_layout({'title': 'Hall', 'tiles': [{'entity': 'camera.front_door', 'name': '', 'options': options}]})['tiles'][0]['options']
+        self.assertEqual(tile({'display': 'live', 'size': 'tall', 'fit': 'contain', 'overlay': 'none'}),
+                         {'display': 'live', 'size': 'tall', 'fit': 'contain', 'overlay': 'none'})
+        self.assertEqual(tile({'display': 'live', 'size': 'tall', 'fit': 'fill', 'overlay': 'name'}), {'display': 'live', 'size': 'tall'})
+        self.assertEqual(tile({'display': 'standard', 'fit': 'contain', 'overlay': 'none'}), {'display': 'standard'})
+        for options in ({'display': 'live', 'fit': 'zoom'}, {'display': 'live', 'overlay': True}):
+            with self.assertRaises(ValueError, msg=options):
+                tile(options)
+        from core import tile_options
+        self.assertEqual(tile_options({'display': 'live', 'fit': 'contain', 'overlay': 'none'}), {'display': 'live', 'fit': 'contain', 'overlay': 'none'})
+        # The page document carries them as the tile's appearance, both ways.
+        from layout_migrations import migrate_legacy
+        from page_layout import compile_tiles
+        from core import Grid
+        grid = Grid(2, 3)
+        record = migrate_legacy({'title': 'Hall', 'tiles': [{'entity': 'camera.front_door', 'name': '', 'slot': 0,
+                                                             'options': {'display': 'live', 'size': 'tall', 'fit': 'contain', 'overlay': 'none'}}]}, grid)
+        appearance = record['layout']['pages'][0]['tiles'][0]['appearance']
+        self.assertEqual((appearance['fit'], appearance['overlay']), ('contain', 'none'))
+        self.assertEqual(compile_tiles(record['layout'], grid)[0]['options'], {'display': 'live', 'size': 'tall', 'fit': 'contain', 'overlay': 'none'})
+
+    def test_the_app_prepares_each_picture_the_way_its_tile_asks(self):
+        options = {'camera.front_door': {'display': 'live', 'size': 'tall', 'fit': 'contain'},
+                   'camera.garden': {'display': 'live', 'size': 'square', 'overlay': 'none'},
+                   'camera.hall': {'display': 'live'},
+                   'media_player.sonos': {'display': 'cover', 'size': 'tall'}}
+        entities = list(options)
+        new = {'firmware': '0.3.4'}
+        self.assertEqual(camera_feed.picture_modes(new, options.get, entities),
+                         [('contain', True), ('fill', False), ('fill', False), ('fill', False)])
+        # Firmware that draws a small square on a taller camera tile gets that square, as before.
+        self.assertEqual(camera_feed.picture_modes({'firmware': '0.3.1'}, options.get, entities), [('fill', False)] * 4)
+
+    def test_contain_keeps_the_whole_picture_on_black_and_the_name_gets_its_shade(self):
+        import io, tile_art
+        from PIL import Image, ImageDraw
+        source = Image.new('RGB', (1280, 720), (240, 240, 240))
+        ImageDraw.Draw(source).rectangle([0, 0, 1279, 719], outline=(255, 0, 0), width=12)
+        raw = io.BytesIO(); source.save(raw, 'PNG')
+        atlas = tile_art.parse('[[0,0,200,300,0,0],[200,0,200,300,0,0]]', (480, 480), 2)
+        out = tile_art.encode([raw.getvalue()] * 2, [0xE7E7E7] * 2, atlas, [('contain', False), ('fill', True)])
+        with Image.open(io.BytesIO(out)) as image:
+            image = image.convert('RGB')
+            # Contain: black above and below a 200 x 113 picture whose red edge is all there.
+            self.assertEqual(image.getpixel((100, 10)), (0, 0, 0))
+            self.assertEqual(image.getpixel((100, 290)), (0, 0, 0))
+            self.assertGreater(image.getpixel((1, 150))[0], 200)
+            # Fill: cut at the sides, so no red at the left edge; the bottom darker than the top.
+            self.assertLess(image.getpixel((201, 150))[0] - image.getpixel((201, 150))[1], 40)
+            top, bottom = image.getpixel((300, 40)), image.getpixel((300, 298))
+            self.assertLess(sum(bottom), sum(top) * 0.55)
+
+
 class LiveTiles(unittest.TestCase):
     """A live picture on a camera tile (app 0.2.91, firmware 0.2.77): the page's tiles as one strip."""
 
@@ -600,7 +657,7 @@ class LiveTiles(unittest.TestCase):
         self.assertEqual(tile_options({'display': 'live', 'refresh': '30'}), {'display': 'live', 'refresh': 30})
         # The editor learns the choice from the capabilities.
         import ha_catalogue
-        self.assertEqual(ha_catalogue.capabilities('camera.front_door', [], {}, {})['displays'], ['standard', 'watch', 'live'])
+        self.assertEqual(ha_catalogue.capabilities('camera.front_door', [], {}, {})['displays'], ['standard', 'live'])
         self.assertNotIn('live', ha_catalogue.capabilities('light.hall', [], {}, {})['displays'])
 
     def test_a_media_tile_may_show_its_cover_in_the_icons_place(self):

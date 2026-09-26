@@ -1,3 +1,13 @@
+## 0.3.9 (firmware 0.3.4)
+
+A camera that fills its tile (GitHub #4, thanks @govido).
+
+- **A live camera on a 1 × 2 or 2 × 2 tile fills the whole card** with its picture, in full colour, with the camera's name at the bottom on a soft shade. Set the tile to **Display → Live picture** and make it taller.
+- **Picture: Fill the tile or Whole picture.** Fill cuts the picture to the card; Whole picture shows all of it with black above and below or at the sides. ESP Screens prepares the picture pixel for pixel at the size of the card, so the screen only draws it.
+- **On the picture: Name or Nothing.** Nothing leaves the picture alone.
+- The editor shows the camera's own picture on the mockup, cut the way the tile asks.
+- A camera tile no longer offers **Large value**. Its state ("Idle") made no large value, and saving it showed "Invalid or unsupported page configuration fields".
+- Update the screen to firmware 0.3.4 for the new look. Until then a taller camera tile keeps its small picture in the icon's place.
 ## 0.3.7 (firmware 0.3.2)
 
 Every page is there the moment you turn to it, and the screen no longer flickers while a picture loads.

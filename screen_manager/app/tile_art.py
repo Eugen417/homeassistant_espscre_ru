@@ -42,12 +42,22 @@ def parse(value, canvas, count):
     return right, bottom, tuple(checked)
 
 
-def encode(raws, grounds, atlas):
-    """A native-sized BMP, cropped, dimmed and rounded before transmission."""
+# The shade under a camera's name (app 0.3.9): the bottom share of the card, from clear to this much black.
+FADE_SHARE = 0.42
+FADE_DEPTH = 150
+
+
+def encode(raws, grounds, atlas, modes=None):
+    """A native-sized BMP, cropped, dimmed and rounded before transmission.
+
+    `modes` gives each frame (fit, fade) for a camera that fills its card (app 0.3.9): fit 'fill' cuts the picture
+    to the frame and 'contain' shows all of it on black; fade darkens the bottom of the frame, where the screen
+    writes the name. Without it every frame is filled, as the album covers of firmware 0.3.1 are."""
     from PIL import Image, ImageDraw, ImageOps
     width, height, frames = atlas
     image = Image.new('RGB', (width, height))
-    for raw, background, frame in zip(raws, grounds, frames):
+    modes = modes or [('fill', False)] * len(frames)
+    for raw, background, frame, (fit, fade) in zip(raws, grounds, frames, modes):
         x, y, w, h, radius, shade = frame
         colour = tuple((background >> shift) & 255 for shift in (16, 8, 0))
         tile = Image.new('RGB', (w, h), colour)
@@ -59,7 +69,17 @@ def encode(raws, grounds, atlas):
                 rgba = source.convert('RGBA')
                 opaque = Image.new('RGBA', rgba.size, colour + (255,))
                 opaque.alpha_composite(rgba)
-                cover = ImageOps.fit(opaque.convert('RGB'), (w, h), method=Image.Resampling.LANCZOS)
+                if fit == 'contain':
+                    inner = ImageOps.contain(opaque.convert('RGB'), (w, h), method=Image.Resampling.LANCZOS)
+                    cover = Image.new('RGB', (w, h))
+                    cover.paste(inner, ((w - inner.width) // 2, (h - inner.height) // 2))
+                else:
+                    cover = ImageOps.fit(opaque.convert('RGB'), (w, h), method=Image.Resampling.LANCZOS)
+            if fade:
+                ramp = Image.linear_gradient('L').resize((w, max(1, round(h * FADE_SHARE))))
+                shadow = Image.new('L', (w, h))
+                shadow.paste(ramp.point(lambda v: v * FADE_DEPTH // 255), (0, h - ramp.height))
+                cover = Image.composite(Image.new('RGB', (w, h)), cover, shadow)
             if shade:
                 cover = Image.blend(cover, Image.new('RGB', cover.size), shade/255)
             mask = Image.new('L', (w*4, h*4))
