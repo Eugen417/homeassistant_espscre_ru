@@ -1,3 +1,10 @@
+## 0.3.9 (firmware 0.3.4)
+
+The 7-inch Guition JC1060P470 starts again after a power cut (GitHub #28).
+
+- A JC1060P470 with the first panel ran after it was flashed, but after a power cut or a restart it hung while it started its panel and restarted on its own, over and over. The firmware sent the panel a software reset and its init table straight after it; after a cold start the panel stopped taking commands and the watchdog restarted the chip. The panel now gets a hardware reset on its own reset line and 120 ms before the init table, as the V2 already did. Its timings and init table are unchanged.
+- Update the firmware of a JC1060P470 to get it. A screen caught in the restart loop cannot update over Wi-Fi: flash it once over USB from **New screen** or **Firmware & USB**. The other boards only get the new version number.
+
 ## 0.3.8 (firmware 0.3.3)
 
 Clearer weather and thermostat tiles, a select card you can read, a camera that fills its tile (GitHub #4, thanks @govido), alerts with two buttons to choose from, and your alarm as a tile with its keypad.
