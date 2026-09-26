@@ -79,7 +79,7 @@ int main() {
     assert(keys_for(t,keys)==unsigned(bool(flags&1)+bool(flags&8)+bool(flags&2)));
     for(int raw:{-100,0,255,1000,1200})for(bool tilt:{false,true}){
       const auto call=cover_position_action(t,raw,tilt);
-      assert(call.valid()==bool(flags&(tilt?128:4)));
+      assert(call.valid()==(tilt?bool(flags&128):(flags==0||bool(flags&4))));  // unknown features: position still goes
       if(call.valid()){
         const int percent=(int)std::lround(std::clamp(raw,0,1000)/10.0f);
         assert(call.value==std::to_string(tilt?percent:100-percent));

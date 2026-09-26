@@ -5032,7 +5032,7 @@ inline void cover_tick(uint32_t now) {
 // board's third online_image; a page of covers alone loads once. It waits for the alert's picture, a cover or the
 // camera full screen: one picture loads at a time. A page turn, a card over the page, another look or another track
 // (the picture's mark in the media state) changes what is wanted: the strip is dropped and asked for again.
-struct LiveWish { std::string entities, grounds, marks, atlas; int size = 0; uint32_t every = 15000; bool cameras = false; };
+struct LiveWish { std::string entities, grounds, marks, atlas; int size = 0, atlas_x = 0, atlas_y = 0; uint32_t every = 15000; bool cameras = false; };
 inline LiveWish live_wish;
 inline camera_view::Feed live;  // entity: the list asked for
 inline std::string live_have;   // the list the strip on screen holds, "" for a tile without a picture
@@ -5068,7 +5068,18 @@ inline LiveWish live_wanted() {
   bool atlas=false;
   for(const auto &w:widgets)
     if(w.tile&&!lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN)&&w.index<model.count&&tall_art(model.tiles[w.index]))atlas=true;
-  if(atlas){lv_obj_update_layout(tile_grid);want.atlas="[";}
+  if(atlas){
+    lv_obj_update_layout(tile_grid);want.atlas="[";
+    // The atlas starts at the top left of its pictures, not of the glass: a picture at the bottom right would
+    // otherwise bring a canvas of empty pixels with it on every refresh (firmware 0.3.1).
+    want.atlas_x=want.atlas_y=INT32_MAX;
+    for(auto &w:widgets){
+      if(!w.tile||lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN)||w.index>=model.count||!model.tiles[w.index].pictured())continue;
+      lv_area_t b;lv_obj_get_coords(tall_art(model.tiles[w.index])?w.tile:w.circle,&b);
+      want.atlas_x=std::min<int>(want.atlas_x,b.x1);want.atlas_y=std::min<int>(want.atlas_y,b.y1);
+    }
+    if(want.atlas_x==INT32_MAX)want.atlas_x=want.atlas_y=0;
+  }
   for (auto &w : widgets) {
     if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= model.count) continue;
     const auto &t = model.tiles[w.index];
@@ -5082,7 +5093,7 @@ inline LiveWish live_wanted() {
       const int width=lv_area_get_width(&bounds),height=lv_area_get_height(&bounds);
       const int radius=tall_art(t)?lv_obj_get_style_radius(w.tile,LV_PART_MAIN):width/6;
       char frame[96];snprintf(frame,sizeof(frame),"%s[%d,%d,%d,%d,%d,%d]",want.atlas.size()>1?",":"",
-        (int)bounds.x1,(int)bounds.y1,width,height,std::min(radius,std::min(width,height)/2),tall_art(t)?170:0);
+        (int)bounds.x1-want.atlas_x,(int)bounds.y1-want.atlas_y,width,height,std::min(radius,std::min(width,height)/2),tall_art(t)?170:0);
       want.atlas+=frame;
     }
     want.grounds += ground;
@@ -5133,7 +5144,7 @@ inline void live_place(Widgets &w, const Tile &t, int size, int x, int y) {
       lv_area_t tile;lv_obj_get_coords(w.tile,&tile);
       const bool background=tall_art(t);
       const int left=lv_obj_get_style_space_left(w.tile,LV_PART_MAIN),top=lv_obj_get_style_space_top(w.tile,LV_PART_MAIN);
-      const int ax=tile.x1+(background?0:left+x),ay=tile.y1+(background?0:top+y);
+      const int ax=tile.x1+(background?0:left+x)-live_wish.atlas_x,ay=tile.y1+(background?0:top+y)-live_wish.atlas_y;
       const int width=background?lv_obj_get_width(w.tile):size,height=background?lv_obj_get_height(w.tile):size;
       if(ax<0||ay<0||ax+width>(int)src->header.w||ay+height>(int)src->header.h){lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);return;}
       lv_image_set_offset_x(w.picture,-ax);lv_image_set_offset_y(w.picture,-ay);
@@ -5156,6 +5167,9 @@ inline void live_place(Widgets &w, const Tile &t, int size, int x, int y) {
 // pause. No extra animation or per-tile timer is needed.
 inline bool live_marquee_ready(const Widgets &w, const Tile &t) {
   if (!tall_art(t) || !live_supported()) return true;
+  // A picture already on the glass keeps its title scrolling through a refresh: pausing it for every camera round
+  // started a long title from its first letter again, so it was never read to the end (firmware 0.3.1).
+  if (w.picture && !lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN) && list_index(live_have, t.entity) >= 0) return true;
   if (list_index(live_wish.entities, t.entity) < 0 || !live.animation_ready()) return false;
   return !live.loaded || list_index(live_have, t.entity) < 0 ||
          (w.picture && !lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN));
@@ -5190,7 +5204,8 @@ inline void live_request() {
 inline void live_tick(uint32_t now) {
   if (!live_supported()) return;
   LiveWish want = live_wanted();
-  if (want.entities != live_wish.entities || want.grounds != live_wish.grounds || want.marks != live_wish.marks || want.size != live_wish.size || want.atlas != live_wish.atlas) {
+  if (want.entities != live_wish.entities || want.grounds != live_wish.grounds || want.marks != live_wish.marks || want.size != live_wish.size || want.atlas != live_wish.atlas ||
+      want.atlas_x != live_wish.atlas_x || want.atlas_y != live_wish.atlas_y) {
     live_wish = want;
     live_release();
     // Covers alone load once per link (a new track is a new wish); a camera sets the pace.

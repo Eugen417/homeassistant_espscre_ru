@@ -444,9 +444,11 @@ inline unsigned cover_tilt_keys(const Tile &t, std::array<Key, 3> &out) {
   if (t.supported & feature::COVER_CLOSE_TILT) out[n++] = Key{glyph::BLINDS, COVER_CLOSE_TILT, "", false, std::isfinite(tilt) && tilt <= 0.5f};
   return n;
 }
-// The same percentage direction and capability guard for overlay and tile.
+// The same percentage direction and capability guard for overlay and tile. A cover whose features Home Assistant did
+// not report (0) still takes its position, as the slider did before firmware 0.3.1; the slats only when it says so.
 inline Action cover_position_action(const Tile &t,int raw,bool tilt) {
-  if(t.domain()!="cover"||!t.available()||!(t.supported&(tilt?feature::COVER_TILT_POSITION:feature::COVER_POSITION)))return {};
+  const bool can=tilt?(t.supported&feature::COVER_TILT_POSITION):(!t.supported||(t.supported&feature::COVER_POSITION));
+  if(t.domain()!="cover"||!t.available()||!can)return {};
   const int percent=(int)std::lround(std::clamp(raw,0,1000)/10.0f);
   return tilt?Action{"cover.set_cover_tilt_position","tilt_position",std::to_string(percent)}
              :Action{"cover.set_cover_position","position",std::to_string(100-percent)};
