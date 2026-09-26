@@ -12,6 +12,7 @@ from datetime import datetime, timedelta, timezone
 import math
 import camera_feed
 import claude_skill
+import feedback
 from firmware import Firmware
 import ha_catalogue
 import light_effects
@@ -21,6 +22,7 @@ from updates import Updater
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
 from core import alarm_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
+from core import BOARD_KEYS
 from core import (Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
                   packed_slots, run_tile_event, screen_firmware, shape_of, turns_of, version_text)
 import header_bar
@@ -646,6 +648,8 @@ class Manager:
         self.listeners = set()  # asyncio.Event per open /api/events stream
         self.firmware = Firmware(os.environ.get("ESPHOME_CONFIG", "/homeassistant/esphome"), self.path.parent)
         self.updates = Updater(self, self.path.parent / 'updates.json')
+        # Does this screen work as you expect? One shared answer per board, with its own key (app 0.3.10).
+        self.feedback = feedback.Feedback(self.path.parent / 'feedback.json')
         # Settings -> Language & region (app 0.2.90): the language, clock and numbers of every screen.
         self.region = Region(self.path.parent / 'language.json', ha_language=lambda: getattr(self.ha, 'ha_language', None))
         self.ha.language_of = self.region.language
@@ -1022,6 +1026,18 @@ class Manager:
         profile, _ = self.updates.resolve(screen, profiles)
         profiles = profiles if profiles is not None else self.firmware.profile_names()
         return (profiles.get(profile) or {}) if profile else {}
+
+    def feedback_board(self, screen, profiles=None):
+        """The website's id for this screen's model (the keys of boards.yaml are the website's own), or None for a board
+        this app doesn't ship: never a guess from a name or a resolution."""
+        board = board_of({**screen, 'package': self.package_of(screen, profiles)})
+        return board if board in BOARD_KEYS else None
+
+    def feedback_versions(self, screen):
+        """The versions an answer shares: the screen's firmware and this app, as the website takes them."""
+        changelog = getattr(self.updates, 'changelog', None) or []
+        return {'firmware_version': feedback.clean_version(version_text(self.firmware_version(screen['id'], screen))),
+                'addon_version': feedback.clean_version(changelog[0].get('app') if changelog else None)}
 
     def package_of(self, screen, profiles=None):
         """The board package the screen's profile builds from ("packages/waveshare43.yaml"), or None: what a screen looks
@@ -2452,6 +2468,16 @@ def create_app(manager, development=False):
             version = manager.firmware_version(screen['id'], screen)
             screen['firmware_known'] = version_text(version)
             screen.update(firmware_features(version, manager.grid_of(screen)))
+            # Does it work as you expect (app 0.3.10): only for a board the website knows, and never the key.
+            board, device = (screen['board'] if screen['board'] in BOARD_KEYS else None), screen.get('device_id')
+            if board and device and not manager.feedback.readonly:
+                if screen.get('online'):
+                    manager.feedback.seen_usable(device)
+                screen['feedback'] = {**manager.feedback.view(device), 'board': board,
+                                      'model': (SHAPES.get(board, {}).get('catalog') or {}).get('model'),
+                                      'versions': manager.feedback_versions(screen), 'privacy': feedback.PRIVACY_URL}
+            else:
+                screen['feedback'] = None
         return {'csrf': csrf, 'connected': manager.ha.online, 'screens': screens,
                 'editor_features': editor_features,
                 'pending': manager.pending_profiles(screens, profiles),
@@ -2805,11 +2831,54 @@ def create_app(manager, development=False):
         path, name = manager.firmware.image(request.match_info['file'])
         return web.FileResponse(path, headers={'Content-Type': 'application/octet-stream',
                                                'Content-Disposition': f'attachment; filename="{name}"'})
+    # The answers that are still waiting after a restart try again (feedback.py); a request never runs past shutdown.
+    FEEDBACK_ERRORS = {'outcome': 'addon.errors.feedback.invalid', 'issues': 'addon.errors.feedback.invalid',
+                       'comment': 'addon.errors.feedback.comment', 'board': 'addon.errors.feedback.unknown_board',
+                       'deleting': 'addon.errors.feedback.deleting', 'storage': 'addon.errors.feedback.storage',
+                       'revision': 'addon.errors.feedback.invalid', 'action': 'addon.errors.invalid_input'}
+    async def feedback_start(app):
+        manager.feedback.start()
+    app.on_startup.append(feedback_start)
+    async def feedback_action(request):
+        """The owner's choice on the feedback card: answer, later, never, cancel, retry or delete. The page names the
+        screen; the key, the revision and the model are this app's own, for a screen paired with this Home Assistant."""
+        screen = manager.screen(request.match_info['inbox'])
+        if screen is None:
+            raise ValueError(t('addon.errors.not_paired'))
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError(t('addon.errors.invalid_input'))
+        board, device = manager.feedback_board(screen, manager.firmware.profile_names()), screen.get('device_id')
+        if not board or not device:
+            raise ValueError(t('addon.errors.feedback.unknown_board'))
+        action, store = data.get('action'), manager.feedback
+        try:
+            if store.readonly:
+                raise ValueError('storage')
+            if action == 'answer':
+                await store.answer(device, board, data.get('outcome'), data.get('issues'), data.get('comment'),
+                                   manager.feedback_versions(screen))
+            elif action == 'later':
+                store.later(device)
+            elif action == 'never':
+                store.never(device)
+            elif action == 'cancel':
+                await store.cancel(device)
+            elif action == 'retry':
+                await store.retry(device)
+            elif action == 'delete':
+                await store.delete(device)
+            else:
+                raise ValueError('action')
+        except ValueError as error:
+            raise ValueError(t(FEEDBACK_ERRORS.get(str(error), 'addon.errors.invalid_input'))) from None
+        return web.json_response({'feedback': store.view(device)})
     async def shutdown(app):
         for task in (manager.updates.task, manager.firmware.task):
             if task and not task.done():
                 task.cancel()
                 with contextlib.suppress(asyncio.CancelledError): await task
+        await manager.feedback.close()
     app.on_cleanup.append(shutdown)
     app.router.add_get('/api/screens/{inbox}/inspect', inspector)
     app.router.add_post('/api/screens/{inbox}/update', update_screen)
@@ -2845,6 +2914,7 @@ def create_app(manager, development=False):
     app.router.add_put('/api/screens/{inbox}/workspace', save_workspace)
     app.router.add_delete('/api/screens/{inbox}', remove_screen)
     app.router.add_put('/api/screens/{inbox}/settings', change_settings)
+    app.router.add_post('/api/screens/{inbox}/feedback', feedback_action)
     app.router.add_static('/assets/', static / 'assets')
     return app
 

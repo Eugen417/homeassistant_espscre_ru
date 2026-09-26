@@ -693,6 +693,13 @@
         "destination_exists": "Der Zielbildschirm hat bereits ein gespeichertes Layout",
         "update_tall": "Aktualisiere den Bildschirm, um höhere Kacheln zu verwenden",
         "memory": "Der Bildschirm hat nicht genug freien Speicher für dieses Layout. Verwende weniger Kacheln."
+      },
+      "feedback": {
+        "invalid": "Diese Antwort kann nicht geteilt werden. Wähle Ja oder Nicht ganz und nur die genannten Probleme.",
+        "comment": "Halte die Anmerkung unter 1000 Zeichen.",
+        "unknown_board": "Feedback ist für dieses Board noch nicht verfügbar.",
+        "deleting": "Deine geteilte Antwort wird noch gelöscht. Antworte erneut, sobald das erledigt ist.",
+        "storage": "Feedback ist aus: Die gespeicherten Daten stammen von einer anderen Version von ESP Screens."
       }
     },
     "status": {
@@ -2190,6 +2197,58 @@
       "choose_page": "Seite",
       "all_connections": "Alle Verbindungen",
       "migration_adjusted": "Ungültige alte Einstellungen wurden durch Standardwerte ersetzt: {fields}. Die Originale bleiben in der Migrationssicherung erhalten."
+    },
+    "feedback": {
+      "question": "Funktioniert dein Bildschirm wie erwartet?",
+      "intro": "Hilf uns, dieses Modell zu verbessern. Deine Antwort und das Bildschirmmodell werden mit Tessera geteilt, ohne Konto und ohne deine Home-Assistant-Einstellungen.",
+      "yes": "Ja, funktioniert gut",
+      "no": "Nicht ganz",
+      "later": "Später",
+      "never": "Nicht mehr fragen",
+      "add_something": "Etwas hinzufügen",
+      "issues_question": "Wo hakt es?",
+      "issues": {
+        "display": "Bildschirm",
+        "touch": "Touch",
+        "connection": "Verbindung",
+        "installation": "Installation",
+        "other": "Anderes"
+      },
+      "comment_label": "Anmerkung (optional)",
+      "comment_hint": "Bitte keine persönlichen Daten, Logs, Passwörter oder API-Schlüssel.",
+      "add_details": "Details hinzufügen",
+      "done": "Fertig",
+      "settings_title": "Feedback",
+      "shared": {
+        "working": "Du hast geteilt: funktioniert gut",
+        "not_working": "Du hast geteilt: nicht ganz"
+      },
+      "none_yet": "Du hast für diesen Bildschirm noch keine Antwort geteilt.",
+      "none_now": "Von diesem Bildschirm ist gerade nichts geteilt.",
+      "share": "Antwort teilen",
+      "change": "Antwort ändern",
+      "delete": "Meine geteilte Antwort löschen",
+      "retry": "Erneut versuchen",
+      "status": {
+        "sending": "Wird gesendet…",
+        "received": "Danke, deine Antwort ist angekommen.",
+        "waiting": "Noch nicht gesendet; wir versuchen es später erneut.",
+        "failed": "Nicht gesendet: Tessera war einen Tag lang nicht erreichbar.",
+        "deleting": "Noch nicht gelöscht; wir versuchen es später erneut.",
+        "delete_failed": "Noch nicht gelöscht: Tessera war einen Tag lang nicht erreichbar.",
+        "deleted": "Deine geteilte Antwort wurde gelöscht.",
+        "conflict": "Tessera hat eine andere Antwort für diesen Bildschirm. Ändere deine Antwort, um sie erneut zu teilen.",
+        "rejected": "Tessera hat diese Antwort nicht angenommen."
+      },
+      "what_title": "Was wird geteilt?",
+      "what": {
+        "model": "Das Bildschirmmodell: {model}",
+        "answer": "Deine Antwort, die gewählten Probleme und deine Anmerkung",
+        "firmware": "Die Firmware-Version des Bildschirms: {version}",
+        "addon": "Die Version von ESP Screens: {version}",
+        "nothing_else": "Sonst nichts: kein Name, kein Konto, keine Entitäten, Logs oder Home-Assistant-Einstellungen. Jeder Bildschirm teilt unter einem eigenen zufälligen Schlüssel."
+      },
+      "privacy": "Datenschutz"
     }
   }
 }

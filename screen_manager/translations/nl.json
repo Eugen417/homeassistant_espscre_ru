@@ -693,6 +693,13 @@
         "destination_exists": "Het doelscherm heeft al een opgeslagen indeling",
         "update_tall": "Werk het scherm bij om hogere tegels te gebruiken",
         "memory": "Het scherm heeft onvoldoende vrij geheugen voor deze indeling. Gebruik minder tegels."
+      },
+      "feedback": {
+        "invalid": "Dit antwoord kan niet gedeeld worden. Kies ja of niet helemaal, en alleen de genoemde problemen.",
+        "comment": "Houd de toelichting onder 1000 tekens.",
+        "unknown_board": "Feedback is voor dit bord nog niet beschikbaar.",
+        "deleting": "Je gedeelde antwoord wordt nog verwijderd. Antwoord opnieuw zodra dat klaar is.",
+        "storage": "Feedback staat uit: de bewaarde gegevens zijn door een andere versie van ESP Screens geschreven."
       }
     },
     "status": {
@@ -2190,6 +2197,58 @@
       "choose_page": "Pagina",
       "all_connections": "Alle verbindingen",
       "migration_adjusted": "Ongeldige oude instellingen zijn vervangen door standaardwaarden: {fields}. De originelen blijven in de migratieback-up bewaard."
+    },
+    "feedback": {
+      "question": "Werkt je scherm zoals je verwacht?",
+      "intro": "Help ons dit model te verbeteren. Je antwoord en schermmodel worden met Tessera gedeeld, zonder account of Home Assistant-instellingen.",
+      "yes": "Ja, werkt goed",
+      "no": "Niet helemaal",
+      "later": "Later",
+      "never": "Niet meer vragen",
+      "add_something": "Iets toevoegen",
+      "issues_question": "Waar loop je tegenaan?",
+      "issues": {
+        "display": "Scherm",
+        "touch": "Touch",
+        "connection": "Verbinding",
+        "installation": "Installatie",
+        "other": "Anders"
+      },
+      "comment_label": "Toelichting (optioneel)",
+      "comment_hint": "Laat persoonsgegevens, logs, wachtwoorden en API-keys weg.",
+      "add_details": "Details toevoegen",
+      "done": "Klaar",
+      "settings_title": "Feedback",
+      "shared": {
+        "working": "Je deelde: werkt goed",
+        "not_working": "Je deelde: niet helemaal"
+      },
+      "none_yet": "Je hebt voor dit scherm nog geen antwoord gedeeld.",
+      "none_now": "Van dit scherm is nu niets gedeeld.",
+      "share": "Antwoord delen",
+      "change": "Antwoord aanpassen",
+      "delete": "Verwijder mijn gedeelde antwoord",
+      "retry": "Opnieuw proberen",
+      "status": {
+        "sending": "Versturen…",
+        "received": "Bedankt, je antwoord is ontvangen.",
+        "waiting": "Nog niet verstuurd; we proberen het later opnieuw.",
+        "failed": "Niet verstuurd: Tessera was een dag lang niet bereikbaar.",
+        "deleting": "Nog niet verwijderd; we proberen het later opnieuw.",
+        "delete_failed": "Nog niet verwijderd: Tessera was een dag lang niet bereikbaar.",
+        "deleted": "Je gedeelde antwoord is verwijderd.",
+        "conflict": "Tessera heeft een ander antwoord voor dit scherm. Pas je antwoord aan om het opnieuw te delen.",
+        "rejected": "Tessera heeft dit antwoord niet aangenomen."
+      },
+      "what_title": "Wat wordt meegestuurd?",
+      "what": {
+        "model": "Het schermmodel: {model}",
+        "answer": "Je antwoord, de gekozen problemen en je toelichting",
+        "firmware": "De firmwareversie van het scherm: {version}",
+        "addon": "De versie van ESP Screens: {version}",
+        "nothing_else": "Verder niets: geen naam, account, entiteiten, logs of Home Assistant-instellingen. Elk scherm deelt onder een eigen willekeurige sleutel."
+      },
+      "privacy": "Privacy"
     }
   }
 }

@@ -693,6 +693,13 @@
         "destination_exists": "O ecrã de destino já tem uma disposição guardada",
         "update_tall": "Atualiza o ecrã para usar cartões mais altos",
         "memory": "O ecrã não tem memória livre suficiente para esta disposição. Use menos blocos."
+      },
+      "feedback": {
+        "invalid": "Esta resposta não pode ser partilhada. Escolha sim ou não totalmente, e apenas os problemas indicados.",
+        "comment": "Mantenha a nota abaixo de 1000 caracteres.",
+        "unknown_board": "O feedback ainda não está disponível para esta placa.",
+        "deleting": "A sua resposta partilhada ainda está a ser eliminada. Responda de novo quando terminar.",
+        "storage": "O feedback está desligado: os dados guardados foram escritos por outra versão do ESP Screens."
       }
     },
     "status": {
@@ -2190,6 +2197,58 @@
       "choose_page": "Página",
       "all_connections": "Todas as ligações",
       "migration_adjusted": "As definições antigas inválidas foram substituídas pelos valores predefinidos: {fields}. Os originais permanecem na cópia de migração."
+    },
+    "feedback": {
+      "question": "O seu ecrã funciona como espera?",
+      "intro": "Ajude-nos a melhorar este modelo. A sua resposta e o modelo do ecrã são partilhados com a Tessera, sem conta nem as suas definições do Home Assistant.",
+      "yes": "Sim, funciona bem",
+      "no": "Não totalmente",
+      "later": "Mais tarde",
+      "never": "Não perguntar mais",
+      "add_something": "Acrescentar algo",
+      "issues_question": "O que está a falhar?",
+      "issues": {
+        "display": "Ecrã",
+        "touch": "Toque",
+        "connection": "Ligação",
+        "installation": "Instalação",
+        "other": "Outro"
+      },
+      "comment_label": "Nota (opcional)",
+      "comment_hint": "Não inclua dados pessoais, registos, palavras-passe nem chaves de API.",
+      "add_details": "Acrescentar detalhes",
+      "done": "Concluído",
+      "settings_title": "Feedback",
+      "shared": {
+        "working": "Partilhou: funciona bem",
+        "not_working": "Partilhou: não totalmente"
+      },
+      "none_yet": "Ainda não partilhou uma resposta para este ecrã.",
+      "none_now": "Neste momento nada deste ecrã está partilhado.",
+      "share": "Partilhar uma resposta",
+      "change": "Alterar resposta",
+      "delete": "Eliminar a minha resposta partilhada",
+      "retry": "Tentar novamente",
+      "status": {
+        "sending": "A enviar…",
+        "received": "Obrigado, a sua resposta foi recebida.",
+        "waiting": "Ainda não enviada; tentaremos mais tarde.",
+        "failed": "Não enviada: a Tessera esteve inacessível durante um dia.",
+        "deleting": "Ainda não eliminada; tentaremos mais tarde.",
+        "delete_failed": "Ainda não eliminada: a Tessera esteve inacessível durante um dia.",
+        "deleted": "A sua resposta partilhada foi eliminada.",
+        "conflict": "A Tessera tem outra resposta para este ecrã. Altere a sua resposta para a partilhar de novo.",
+        "rejected": "A Tessera não aceitou esta resposta."
+      },
+      "what_title": "O que é partilhado?",
+      "what": {
+        "model": "O modelo do ecrã: {model}",
+        "answer": "A sua resposta, os problemas escolhidos e a sua nota",
+        "firmware": "A versão de firmware do ecrã: {version}",
+        "addon": "A versão do ESP Screens: {version}",
+        "nothing_else": "Mais nada: nem nome, conta, entidades, registos ou definições do Home Assistant. Cada ecrã partilha com a sua própria chave aleatória."
+      },
+      "privacy": "Privacidade"
     }
   }
 }

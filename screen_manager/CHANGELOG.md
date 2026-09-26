@@ -1,3 +1,15 @@
+## 0.3.11 (firmware 0.3.5)
+
+ESP Screens asks, once, whether your screen works as you expect, so each board model can be improved with what owners run into.
+
+- A day after a screen first came online, its page shows a small card: **Does your screen work as you expect?** with **Yes, works well**, **Not quite**, **Later** and **Don't ask again**. It never covers the editor, and it doesn't show while a screen updates or is offline.
+- One click on Yes or Not quite shares the answer with the Tessera website. After Not quite you can tick what goes wrong (screen, touch, connection, installation, other) and add a note, but you don't have to.
+- **Later** asks again after two weeks, once. **Don't ask again** is for good. Neither sends anything, and neither does the card itself.
+- **Screen settings → Feedback** is always there: share an answer early, change it, or delete it from the website.
+- What is shared: the board model, your answer, the problems you ticked, your note, and the firmware and ESP Screens versions. Nothing else: no name, account, entities, logs, Home Assistant settings or token. **What is shared?** on the card lists it for that screen.
+- Each screen shares under its own random key, kept in the app's private data. It is not derived from the screen, its MAC address or Home Assistant, and two screens of the same model have two keys. Changing an answer replaces the old one.
+- An answer that can't reach the website waits and is tried again later, for at most a day; the card says so instead of claiming it arrived. Deleting stops those tries first, and says it is deleted only once the website confirmed it.
+
 ## 0.3.10 (firmware 0.3.5)
 
 The 4-inch Guition dims over its whole range, and the settings tile no longer looks like a clock in the editor.

@@ -693,6 +693,13 @@
         "destination_exists": "Destination screen already has a saved layout",
         "update_tall": "Update screen to use taller tiles",
         "memory": "The screen does not have enough free memory for this layout. Reduce the number of tiles."
+      },
+      "feedback": {
+        "invalid": "This answer can't be shared. Choose yes or not quite, and only the listed problems.",
+        "comment": "Keep the note under 1000 characters.",
+        "unknown_board": "Feedback isn't available for this board yet.",
+        "deleting": "Your shared answer is still being deleted. Answer again once that's done.",
+        "storage": "Feedback is off: its saved data was written by another version of ESP Screens."
       }
     },
     "status": {
@@ -2190,6 +2197,58 @@
       "choose_page": "Page",
       "all_connections": "All connections",
       "migration_adjusted": "Invalid legacy settings were replaced with defaults: {fields}. The originals remain in the migration backup."
+    },
+    "feedback": {
+      "question": "Does your screen work as you expect?",
+      "intro": "Help us improve this model. Your answer and screen model are shared with Tessera, without an account or your Home Assistant settings.",
+      "yes": "Yes, works well",
+      "no": "Not quite",
+      "later": "Later",
+      "never": "Don't ask again",
+      "add_something": "Add something",
+      "issues_question": "What's getting in the way?",
+      "issues": {
+        "display": "Screen",
+        "touch": "Touch",
+        "connection": "Connection",
+        "installation": "Installation",
+        "other": "Other"
+      },
+      "comment_label": "Anything else? (optional)",
+      "comment_hint": "Please leave out personal details, logs, passwords and API keys.",
+      "add_details": "Add details",
+      "done": "Done",
+      "settings_title": "Feedback",
+      "shared": {
+        "working": "You shared: works well",
+        "not_working": "You shared: not quite"
+      },
+      "none_yet": "You haven't shared an answer for this screen.",
+      "none_now": "Nothing of this screen is shared right now.",
+      "share": "Share an answer",
+      "change": "Change answer",
+      "delete": "Delete my shared answer",
+      "retry": "Try again",
+      "status": {
+        "sending": "Sending…",
+        "received": "Thanks, your answer was received.",
+        "waiting": "Not sent yet; we'll try again later.",
+        "failed": "Not sent: Tessera could not be reached for a day.",
+        "deleting": "Not deleted yet; we'll try again later.",
+        "delete_failed": "Not deleted yet: Tessera could not be reached for a day.",
+        "deleted": "Your shared answer was deleted.",
+        "conflict": "Tessera holds another answer for this screen. Change your answer to share it again.",
+        "rejected": "Tessera did not accept this answer."
+      },
+      "what_title": "What is shared?",
+      "what": {
+        "model": "The screen model: {model}",
+        "answer": "Your answer, the problems you chose and your note",
+        "firmware": "The screen's firmware version: {version}",
+        "addon": "The ESP Screens version: {version}",
+        "nothing_else": "Nothing else: no name, account, entities, logs or Home Assistant settings. Each screen shares under its own random key."
+      },
+      "privacy": "Privacy"
     }
   }
 }
