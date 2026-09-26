@@ -142,6 +142,9 @@ class TextTests(unittest.TestCase):
         self.assertEqual(header_bar.clean_text('Café “Sun” 25 m³'), 'Café “Sun” 25 m³')
         self.assertEqual(header_bar.clean_text('Ångström ✓'), 'Ångström')
         self.assertEqual(header_bar.clean_text('Ǻngström'), 'Angström')
+        # Home Assistant writes μg/m³ with the Greek letter (U+03BC); the screens draw the micro sign (U+00B5).
+        self.assertEqual(header_bar.clean_text('12 μg/m³'), '12 µg/m³')
+        self.assertEqual(header_bar.clean_text('12 µg/m³'), '12 µg/m³')
         self.assertLessEqual(len(header_bar.clean_text('é' * 60).encode()), header_bar.TEXT_BYTES)
 
     def test_active_colour_and_icon(self):

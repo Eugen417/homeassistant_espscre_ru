@@ -15,7 +15,7 @@ import unicodedata
 from datetime import datetime, time
 
 import tile_icons
-from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE, HEADER_SHOWS, epoch, header_items, local_clock, short, state_word
+from core import HEADER_BUILTIN, HEADER_CONTENTS, HEADER_MAX_ITEMS, HEADER_MIN_FIRMWARE, HEADER_SHOWS, epoch, header_items, local_clock, one_mu, short, state_word
 import i18n
 from i18n import TRANSLATIONS, screen_number, screen_t, t
 
@@ -119,7 +119,7 @@ def clean_text(text):
     """Text the screen can draw: known glyphs, accents folded to the base letter, at most TEXT_BYTES."""
     glyphs = LEGACY_GLYPHS if i18n.legacy_screen() else GLYPHS
     out = []
-    for char in unicodedata.normalize('NFC', str(text)):
+    for char in unicodedata.normalize('NFC', one_mu(text)):
         if char in glyphs:
             out.append(char)
             continue

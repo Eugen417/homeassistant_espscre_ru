@@ -1,3 +1,10 @@
+## 0.3.2 (firmware 0.3.1)
+
+µg/m³ keeps its µ (GitHub #43, thanks @ellepdesk).
+
+- Home Assistant writes the unit of fine-dust sensors with the Greek letter mu, while the screens' fonts carry the micro sign. A card, its detail page and a watch card showed "g/m³" with a gap, and the top bar and the high and low under a graph dropped the µ. The app now sends the micro sign for both spellings, so every screen draws µg/m³.
+- Nothing to do for your screens: the firmware is unchanged at 0.3.1.
+
 ## 0.3.1 (firmware 0.3.1)
 
 Pages of their own, taller tiles and richer cards (GitHub #9, #30, #36).

@@ -878,8 +878,13 @@ def min_firmware(layout):
         return TWENTY_TILES_MIN_FIRMWARE
     return None
 
+def one_mu(text):
+    """The Greek small letter mu (U+03BC), which Home Assistant writes in "μg/m³", as the micro sign (U+00B5) the
+    screens have a glyph for. ESPHome's "µs" and most integrations already use the micro sign."""
+    return str(text).replace('μ', 'µ')
+
 def short(value, limit):
-    return str(value).encode('utf-8')[:limit].decode('utf-8', errors='ignore')
+    return one_mu(value).encode('utf-8')[:limit].decode('utf-8', errors='ignore')
 
 # ----- Tiles from a Home Assistant event (app 0.2.51) -----
 # Claude in Home Assistant, or any automation, can put something on a screen without opening the editor:
