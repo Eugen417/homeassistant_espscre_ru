@@ -1,3 +1,13 @@
+## 0.3.11 (firmware 0.3.6)
+
+The alarm panel: an alarm from Home Assistant as a tile with its card and keypad.
+
+- An `alarm_control_panel` entity is now a tile in every size, in Home Assistant's colours and icons: grey while disarmed, green while armed, orange during a delay, red while it goes off. A tap opens its card with a key for every mode the panel has and one to disarm; when the panel asks for a code, a keypad comes first, as in Home Assistant's own code dialog. A default code stored with the entity in Home Assistant means the screen asks for none. Number codes only; a panel whose code has letters says so on its card.
+- Someone coming in (`pending`) or the alarm going off (`triggered`) wakes every screen that has the tile and opens its card, with the keypad to disarm.
+- The code goes to Home Assistant with the action and is forgotten right away: never logged, stored or put in an event, and the app never sees it. Three wrong codes lock the keypad for 30 seconds, doubling up to 15 minutes, also across a restart; each wrong code fires `esphome.screen_alarm_code_refused`.
+- Animations show what the alarm does: a ring that closes when it arms, a heartbeat during the delays and while it goes off, a countdown where the integration reports the delay (Alarmo).
+- The card has the Guition's size on every screen and stands in the middle of bigger ones. The firmware is 12.7 KB larger on the CYD (90.1 % of its update slot).
+- Update the firmware of a screen before you add an alarm tile to it: older firmware does not know the tile.
 ## 0.3.7 (firmware 0.3.2)
 
 Every page is there the moment you turn to it, and the screen no longer flickers while a picture loads.
