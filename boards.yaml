@@ -62,4 +62,4 @@ waveshare35:
   file: waveshare-esp32s3-35.yaml
   name: Waveshare
   model: ESP32-S3-Touch-LCD-3.5
-  status: stable
+  status: new

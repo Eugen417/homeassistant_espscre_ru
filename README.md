@@ -229,6 +229,7 @@ while it keeps your country's clock and numbers.
 | Waveshare ESP32-S3-Touch-LCD-4.3 | 800 × 480, 3 × 3 tiles | ST7262 RGB / capacitive GT911 (backlight always on: no standby, no night) |
 | Waveshare ESP32-S3-Touch-LCD-7 (experimental) | 800 × 480, 4 × 4 tiles | RGB / capacitive GT911; backlight always on, hardware acceptance pending ([details](docs/WAVESHARE7.md)) |
 | Waveshare ESP32-S3-Touch-LCD-4B, 4 inch (experimental) | 480 × 480, 2 × 3 tiles | ST7701S RGB / capacitive GT911; dimmable backlight, hardware acceptance pending ([details](docs/WAVESHARE4B.md)) |
+| Waveshare ESP32-S3-Touch-LCD-3.5 (new) | 480 × 320, 2 × 2 tiles | ST7796 SPI / capacitive FT6336; dimmable backlight, no camera pictures ([details](docs/WAVESHARE35.md)) |
 | Guition JC8012P4A1, 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) |
 
 Use these exact board variants: similar-looking product names can have different

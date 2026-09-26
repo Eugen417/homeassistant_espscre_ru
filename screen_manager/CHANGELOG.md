@@ -1,3 +1,11 @@
+## 0.3.5 (firmware 0.3.1)
+
+A new board: the Waveshare ESP32-S3-Touch-LCD-3.5 (GitHub #40, thanks @noisemaker00).
+
+- New screen offers the Waveshare 3.5 inch: 480 x 320 lying down with two by two tiles, one column of three standing up, ST7796 over SPI and FT6336 touch. It is marked new: tried on a real screen by the contributor, not yet on the project's own. It has no camera pictures, since its PSRAM stays off. docs/WAVESHARE35.md has the details.
+- A screen without an update profile showed `addon.errors.updates.no_profile` in the sidebar instead of the sentence that explains it. It shows the sentence now.
+- Nothing to do for your other screens: the firmware is unchanged at 0.3.1.
+
 ## 0.3.4 (firmware 0.3.1)
 
 The Docker route with Home Assistant on a bridge network (GitHub #29).

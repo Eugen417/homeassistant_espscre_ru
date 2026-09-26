@@ -18,6 +18,7 @@ ESPHome Device Builder is optional:
 | Waveshare, 4.3 inch | ESP32-S3-Touch-LCD-4.3, 800×480, ST7262 and GT911 |
 | Waveshare, 7 inch (experimental) | ESP32-S3-Touch-LCD-7, 800×480, RGB and GT911 |
 | Waveshare 4B, 4 inch (experimental) | ESP32-S3-Touch-LCD-4B, 480×480, ST7701S and GT911 ([details](WAVESHARE4B.md)) |
+| Waveshare, 3.5 inch (new) | ESP32-S3-Touch-LCD-3.5, 480×320, ST7796 and FT6336 ([details](WAVESHARE35.md)) |
 | Guition, 10.1 inch | JC8012P4A1, 1280×800, JD9365 MIPI-DSI and GSL3680, ESP32-P4 |
 
 Other screens with roughly the same name can have different pins. Use

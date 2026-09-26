@@ -201,7 +201,7 @@
    "model": "ESP32-S3-Touch-LCD-3.5",
    "name": "Waveshare",
    "order": 6,
-   "status": "stable",
+   "status": "new",
    "touch": "FT63X6"
   },
   "columns": 2,
@@ -831,7 +831,7 @@
    "model": "ESP32-S3-Touch-LCD-3.5",
    "name": "Waveshare",
    "order": 6,
-   "status": "stable",
+   "status": "new",
    "touch": "FT63X6"
   },
   "columns": 2,
@@ -1085,7 +1085,7 @@
    "model": "ESP32-S3-Touch-LCD-3.5",
    "name": "Waveshare",
    "order": 6,
-   "status": "stable",
+   "status": "new",
    "touch": "FT63X6"
   },
   "columns": 2,
