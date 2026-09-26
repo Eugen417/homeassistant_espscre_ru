@@ -108,6 +108,13 @@ on the screen itself, and how updates work.
   rain or millimeters; **climate card** with an on/off button, mode, fan, and swing settings.
   The target temperature sits big between − / + keys with one row of mode keys below; the
   Guition shows fan and swing right away on a card of their own, the CYD behind ···.
+  A thermostat tile of two rows (firmware 0.3.3) has a − / + stepper and a mode bar with heat and
+  cool first; a tap on its circle turns it on or off.
+- **Weather tile** (firmware 0.3.3): the weather now in its colour, then the coming days with the
+  high in bold, the low in grey and the chance of rain in blue when it matters; today stands on a pill.
+  A tile of two rows lists the days under each other with the week's range as coloured bars.
+- **Select card** (firmware 0.3.3): a select's options as a list with a check at the one it is on,
+  in two columns on wide glass and over pages when there are more (up to 16).
 - **Vacuum card** with the state, battery and charging, start and dock, and how the robot
   cleans: **vacuum, vacuum and mop, or mop only** for robots that offer a cleaning mode in
   Home Assistant (such as Roborock), then suction and water. Only the rows the chosen mode

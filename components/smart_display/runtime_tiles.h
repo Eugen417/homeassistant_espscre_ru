@@ -24,6 +24,8 @@
 #include "media_card.h"
 #include "light_card.h"
 #include "weather_card.h"
+#include "forecast_tile.h"
+#include "climate_tile.h"
 #include "swipe_profile.h"
 #include "esphome/components/json/json_util.h"
 #include "esphome/components/api/api_server.h"
@@ -633,6 +635,8 @@ inline bool detail_placed=false;
 inline constexpr int CLIMATE_MODE_FIRST=200,CLIMATE_ROW_FIRST=210,CLIMATE_POWER=230,CLIMATE_DOWN=231,CLIMATE_UP=232;
 // The power key of a light or fan card (firmware 0.2.80), in the same top bar.
 inline constexpr int LIGHT_POWER=240;
+// The rows of the select card (render_select_detail): option i is SELECT_OPTION_FIRST + i.
+inline constexpr int SELECT_OPTION_FIRST=900;
 inline void climate_step(Tile &t,int direction);
 inline const lv_font_t *tile_icon_font();
 inline unsigned detail_index=0;
@@ -810,6 +814,15 @@ inline void detail_command(int cmd){
   // The media card's keys (20-23); its volume slider goes through commit_slider.
   if(cmd>=20 && cmd<=24)media_action(t,cmd);
   if(cmd>=30 && cmd<38 && cmd-30<(int)t.extra().options.size())action(t.domain()+".select_option",t.entity,"option",t.extra().options[cmd-30]);
+  // A row of the select card: chosen at once on the card, confirmed by Home Assistant's next state.
+  if(cmd>=SELECT_OPTION_FIRST&&cmd<SELECT_OPTION_FIRST+64&&cmd-SELECT_OPTION_FIRST<(int)t.extra().options.size()){
+    const std::string option=t.extra().options[cmd-SELECT_OPTION_FIRST];
+    if(option==t.state)return;
+    t.state=option;t.begin(esphome::millis());
+    action(t.domain()+".select_option",t.entity,"option",option);
+    redraw_detail();
+    return;
+  }
   // Cover keys: 70 + tile_controls::Command (open, stop, close and the tilt keys).
   if(cmd>=70 && cmd<130){auto a=tile_controls::key_action(t,cmd-70);if(a.valid()&&t.domain()=="cover")action(a.service,t.entity,a.key,a.value);}
   if(cmd==40)action(t.state=="active"?"timer.pause":"timer.start",t.entity);
@@ -878,16 +891,17 @@ inline int text_width(const std::string &text,const lv_font_t *font){
 }
 // ---- Weather card: now, the next hours and the coming days, with rain ----
 // The colour of a condition's icon, as this look draws it on a card.
-inline uint32_t weather_accent(const std::string &c) {
+inline uint32_t weather_color_raw(const std::string &c) {
   using namespace theme::ha;
-  if(c=="sunny")return theme::foreground(SUNNY);
-  if(c=="clear-night")return theme::foreground(DEEP_PURPLE);
-  if(c=="rainy"||c=="pouring"||c=="lightning-rainy"||c=="snowy-rainy")return theme::foreground(RAIN);
-  if(c=="snowy"||c=="hail")return theme::foreground(SNOW);
-  if(c=="lightning")return theme::foreground(LIGHTNING);
-  if(c=="partlycloudy")return theme::foreground(PARTLY_CLOUDY);
-  return theme::foreground(CLOUDY);
+  if(c=="sunny")return SUNNY;
+  if(c=="clear-night")return DEEP_PURPLE;
+  if(c=="rainy"||c=="pouring"||c=="lightning-rainy"||c=="snowy-rainy")return RAIN;
+  if(c=="snowy"||c=="hail")return SNOW;
+  if(c=="lightning")return LIGHTNING;
+  if(c=="partlycloudy")return PARTLY_CLOUDY;
+  return CLOUDY;
 }
+inline uint32_t weather_accent(const std::string &c) { return theme::foreground(weather_color_raw(c)); }
 inline lv_obj_t *detail_text(lv_obj_t *parent,const std::string &text,int x,int y,int width,const lv_font_t *font,lv_text_align_t align,uint32_t color){
   auto *l=detail_label(parent,text,x,y,std::max(1,width));lv_obj_set_style_text_font(l,font,0);lv_obj_set_height(l,lv_font_get_line_height(font));
   lv_obj_set_style_text_align(l,align,0);lv_obj_set_style_text_color(l,lv_color_hex(color),0);return l;
@@ -1051,6 +1065,84 @@ inline void render_weather_detail(const Tile &t,bool large,int width,int height,
   }
   if(weather_page>=l.pages)weather_page=0;
   weather_draw_days(t);
+}
+// ---- Select card (firmware 0.3.3) ----
+// A select's options as rows of one white card, like a list in Home Assistant's more-info dialog: the option it is
+// on stands on the pale accent with a check at its end, a tap on another row chooses that one and shows it at once.
+// Wide glass that has more options than one column holds gets a second column (read top to bottom, then the next);
+// options that still do not fit go to a next page with the same chevrons and dots as the tile pages.
+inline int select_page=0;
+inline void select_pager_event(lv_event_t *e){
+  select_page+=(int)(intptr_t)lv_event_get_user_data(e);
+  redraw_detail();
+}
+inline void render_select_detail(const Tile &t,bool large,int width,int height,int pad,int top){
+  const auto &options=t.extra().options;
+  const int n=(int)options.size();
+  if(!n)return;
+  const lv_font_t *text=control_font?control_font:detail_font,*glyphs=mini_icon_font?mini_icon_font:detail_font;
+  const int row_h=std::max(ui::touch_min(),ui::px(large?52:36)),inset=ui::px(large?6:4),gap=ui::px(large?4:2);
+  const int pager_h=std::max(ui::touch_min(),ui::px(large?44:30)),card_w=std::min(width-2*pad,ui::control_max_width());
+  const int room=height-top-pad;
+  auto rows_in=[&](int span){return std::max(1,(span-2*inset+gap)/(row_h+gap));};
+  // Two columns once one does not hold every option and each column keeps room for a word of some length.
+  const int columns=n>rows_in(room)&&card_w>=2*ui::px(large?200:130)+gap?2:1;
+  int rows=rows_in(room);
+  const bool paged=n>rows*columns;
+  if(paged)rows=rows_in(room-pager_h-gap);
+  const int per_page=rows*columns,pages=(n+per_page-1)/per_page;
+  select_page=std::clamp(select_page,0,pages-1);
+  const int first=select_page*per_page,shown=std::min(per_page,n-first);
+  // A card of one page is as tall as its rows; a paged card keeps the height of a full page on every page.
+  const int used_rows=paged?rows:(shown+columns-1)/columns;
+  const int card_h=2*inset+used_rows*row_h+(used_rows-1)*gap,x=(width-card_w)/2;
+  auto *card=detail_card(x,top,card_w,card_h);
+  const int col_w=(card_w-2*inset-(columns-1)*gap)/columns;
+  const std::string current=t.state;
+  for(int k=0;k<shown;++k){
+    const int i=first+k,c=k/used_rows,r=k%used_rows;
+    const bool chosen=options[i]==current;
+    auto *row=lv_obj_create(card);lv_obj_remove_style_all(row);
+    lv_obj_set_pos(row,inset+c*(col_w+gap),inset+r*(row_h+gap));lv_obj_set_size(row,col_w,row_h);
+    lv_obj_add_flag(row,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(row,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_radius(row,ui::px(large?12:8),0);
+    lv_obj_set_style_bg_opa(row,chosen?LV_OPA_COVER:LV_OPA_TRANSP,0);lv_obj_set_style_bg_color(row,theme::color(theme::ACCENT_TINT),0);
+    lv_obj_set_style_bg_opa(row,LV_OPA_COVER,LV_STATE_PRESSED);
+    lv_obj_set_style_bg_color(row,theme::color(chosen?theme::ACCENT_TINT:theme::CARD_PRESSED),LV_STATE_PRESSED);
+    lv_obj_set_style_opa(row,LV_OPA_50,LV_STATE_DISABLED);
+    const int side=ui::px(large?16:10),check=lv_font_get_line_height(glyphs);
+    auto *name=detail_text(row,options[i],side,(row_h-lv_font_get_line_height(text))/2,col_w-2*side-(chosen?check+side/2:0),text,
+                           LV_TEXT_ALIGN_LEFT,theme::INK);
+    lv_label_set_long_mode(name,LV_LABEL_LONG_DOT);lv_obj_remove_flag(name,LV_OBJ_FLAG_CLICKABLE);
+    if(chosen){
+      auto *mark=detail_text(row,"\U000F012C",col_w-side-check,(row_h-check)/2,check,glyphs,LV_TEXT_ALIGN_RIGHT,theme::ACCENT_ICON);
+      lv_obj_remove_flag(mark,LV_OBJ_FLAG_CLICKABLE);
+    }
+    lv_obj_add_event_cb(row,[](lv_event_t *e){detail_command((intptr_t)lv_event_get_user_data(e));},LV_EVENT_SHORT_CLICKED,
+                        (void*)(intptr_t)(SELECT_OPTION_FIRST+i));
+    if(detail_action_count<32)detail_actions[detail_action_count++]=row;
+  }
+  if(!paged)return;
+  // The same pager as the tile pages and the settings page: a chevron in each half, the dots between them.
+  const int py=top+card_h+gap,half=card_w/2-ui::px(10);
+  const int chevron_h=lv_font_get_line_height(glyphs);
+  auto *dots=lv_obj_create(detail_root);lv_obj_remove_style_all(dots);
+  lv_obj_set_pos(dots,x,py);lv_obj_set_size(dots,card_w,pager_h);
+  lv_obj_remove_flag(dots,LV_OBJ_FLAG_SCROLLABLE);lv_obj_remove_flag(dots,LV_OBJ_FLAG_CLICKABLE);
+  settings_screen::page_dots(dots,select_page,pages,large);
+  for(int side=0;side<2;++side){
+    const bool can=side?select_page<pages-1:select_page>0;
+    auto *bar=lv_obj_create(detail_root);lv_obj_remove_style_all(bar);
+    lv_obj_set_pos(bar,side?x+card_w-half:x,py);lv_obj_set_size(bar,half,pager_h);
+    lv_obj_remove_flag(bar,LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_style_bg_opa(bar,LV_OPA_COVER,LV_STATE_PRESSED);lv_obj_set_style_bg_color(bar,theme::color(theme::KEY_PRESSED),LV_STATE_PRESSED);
+    lv_obj_set_style_radius(bar,ui::px(large?12:8),0);
+    auto *glyph=detail_text(bar,side?"\U000F0142":"\U000F0141",ui::px(6),(pager_h-chevron_h)/2,half-ui::px(12),glyphs,
+                            side?LV_TEXT_ALIGN_RIGHT:LV_TEXT_ALIGN_LEFT,can?theme::INK:theme::CHEVRON);
+    lv_obj_remove_flag(glyph,LV_OBJ_FLAG_CLICKABLE);
+    if(can){overlay_card::touchable(bar,pager_h);lv_obj_add_event_cb(bar,select_pager_event,LV_EVENT_CLICKED,(void*)(intptr_t)(side?1:-1));}
+    else lv_obj_remove_flag(bar,LV_OBJ_FLAG_CLICKABLE);
+  }
 }
 // ---- Vacuum card ----
 // A robot with its state and battery, the two commands used most, and one block that says how it cleans:
@@ -2395,7 +2487,7 @@ inline void show_detail(unsigned index){
   if(index>=model.count)return;
   // A card that opens starts on a day (an hour for a tile whose graph shows one); switching ranges keeps it open.
   if(!detail_root||lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)||detail_index!=index){
-    history_hours=model.tiles[index].history_hours==1?1:24;history_asked_entity.clear();weather_page=0;
+    history_hours=model.tiles[index].history_hours==1?1:24;history_asked_entity.clear();weather_page=0;select_page=0;
   }
   detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
@@ -2438,7 +2530,7 @@ inline void show_detail(unsigned index){
   lv_obj_set_style_text_font(heading,title_font,0);lv_obj_set_height(heading,lv_font_get_line_height(title_font));lv_obj_set_style_text_align(heading,LV_TEXT_ALIGN_CENTER,0);
   std::string state=card_status(t);
   // The vacuum and history cards draw their own state.
-  if(d!="vacuum"&&d!="media_player"&&d!="climate"&&d!="light"&&d!="fan"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
+  if(d!="vacuum"&&d!="media_player"&&d!="climate"&&d!="light"&&d!="fan"&&d!="select"&&d!="input_select"&&!with_history){detail_status=detail_label(detail_root,screen_text::with_unit(state,t.unit),pad,ui::px(large?80:50),width-2*pad);lv_obj_set_style_text_align(detail_status,LV_TEXT_ALIGN_CENTER,0);lv_obj_set_style_text_color(detail_status,theme::color(theme::MUTED),0);}
   if(with_history){
     render_history_detail(t,large,width,height,pad);
   }else if(d=="vacuum"){
@@ -2449,8 +2541,7 @@ inline void show_detail(unsigned index){
     if(detail_status && control_font){lv_obj_set_style_text_font(detail_status,control_font,0);lv_obj_set_height(detail_status,lv_font_get_line_height(control_font));}
     render_cover_detail(t,large,width,height,pad,columns);
   }else if(d=="select"||d=="input_select"){
-    const auto &options=t.extra().options;
-    for(unsigned i=0;i<options.size();++i)detail_button(options[i].c_str(),pad+(i%2)*(cw+gap),top+(i/2)*(bh+gap),cw,bh,30+i);
+    render_select_detail(t,large,width,height,pad,top);
   }else if(d=="media_player"){
     // "Now playing" (firmware 0.2.64+): the cover, the track, a running progress bar, round keys and the volume row.
     render_media_detail(t,index,large,width,height,bar_y+bar+(ui::px(large?8:4)));
@@ -2813,6 +2904,23 @@ inline void press_ground(lv_obj_t *tile, lv_color_t colour) {
     lv_obj_add_style(tile, &press_styles().fade, 0);
   set_color(tile, LV_STYLE_BG_COLOR, colour);
 }
+// The circle of a thermostat card with controls switches it on and off (firmware 0.3.3), as the icon of a Home
+// Assistant tile does: off is no mode on the card's mode bar. Turning on restores the mode Home Assistant remembers,
+// as the card's power key does. render_slot makes the circle clickable for such a card only.
+inline void climate_circle_event(lv_event_t *e){
+  const unsigned slot=(uintptr_t)lv_event_get_user_data(e);
+  if(slot>=widgets.size())return;
+  auto &w=widgets[slot];
+  if(!enabled||!fresh()||w.index>=model.count)return;
+  auto &t=model.tiles[w.index];const uint32_t now=esphome::millis();
+  if(t.domain()!="climate"||!t.available()||t.waiting(now))return;
+  if(!allowed(now,2000+slot,"power "+std::to_string(slot)))return;
+  const bool off=tile_controls::climate_off(t);
+  t.begin(now);
+  if(!off)t.state="off";
+  action(off?"climate.turn_on":"climate.turn_off",t.entity);
+  refresh_tile(w.index);
+}
 // A card into its set at `index`. Its callbacks name the index and `widgets[index]`: they only fire while the card is on
 // the glass, and then that is where it is (the set exchange in keep_page never moves a card to another index).
 // `like`: a card of the board's own set whose measurements this one takes over (make_card), instead of laying the grid
@@ -2836,6 +2944,8 @@ inline void bind_card(Widgets &into, size_t index, lv_obj_t *tile, lv_obj_t *tit
   press_feedback(tile);
   if (!like) lv_obj_update_layout(tile);
   into = {tile, title, value, circle, icon, index};
+  lv_obj_add_event_cb(circle,climate_circle_event,LV_EVENT_SHORT_CLICKED,(void*)(uintptr_t)index);
+  lv_obj_set_style_opa(circle,LV_OPA_60,LV_STATE_PRESSED);
   auto &w=into; w.value_font=lv_obj_get_style_text_font(value,LV_PART_MAIN);
   w.base_width=width;w.base_height=height;w.base_circle=like ? like->base_circle : lv_obj_get_width(circle);
   w.title_font=lv_obj_get_style_text_font(title,LV_PART_MAIN);
@@ -3114,73 +3224,134 @@ inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int heigh
   int month_y=day_y+(day_font->line_height-day_font->base_line)-(small->line_height-small->base_line);
   part_label(w,17,small,sx+day_size.x+gap,std::max(0,month_y),std::max(1,int(x+room-(sx+day_size.x+gap))),LV_TEXT_ALIGN_LEFT,month);
 }
-inline int block_min(int icon_h,int temp_h,int text_h){return std::max(icon_h,temp_h)+2+text_h;}
-// Current conditions on the left, five day columns on the right (wide cards only).
+// ---- The weather tile's forecast (firmware 0.3.3): forecast_tile.h decides where, this draws ----
+// Today among the forecast's days: the day's short name as the manager wrote it (screen.date.weekdays_min) against
+// the screen's own clock in the same words. -1 while the clock is not set, or when the two speak another language.
+inline int forecast_today(const Tile &t){
+  const auto now=now_time?now_time():esphome::ESPTime{};
+  if(!now.is_valid()||now.day_of_week<1||now.day_of_week>7)return -1;
+  const std::string name=tr(txt::date_weekdays_min+now.day_of_week-1);
+  const auto &days=t.extra().forecast;
+  for(size_t k=0;k<days.size()&&k<(size_t)forecast_tile::DAYS;++k)if(days[k].day==name)return (int)k;
+  return -1;
+}
+// A rounded bar with a second one inside it: the week's range as the track, one day's range as the fill.
+inline lv_obj_t *part_bar(Widgets &w,unsigned i,int x,int y,int width,int height){
+  auto *&p=w.parts[i];
+  if(!p){
+    p=lv_obj_create(w.extra);
+    for(auto *o:{p,lv_obj_create(p)}){
+      lv_obj_remove_style_all(o);lv_obj_set_style_bg_opa(o,LV_OPA_COVER,0);lv_obj_set_style_radius(o,LV_RADIUS_CIRCLE,0);
+      lv_obj_remove_flag(o,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(o,LV_OBJ_FLAG_SCROLLABLE);
+    }
+    lv_obj_set_style_bg_grad_dir(lv_obj_get_child(p,0),LV_GRAD_DIR_HOR,0);
+  }
+  lv_obj_set_pos(p,x,y);lv_obj_set_size(p,std::max(1,width),std::max(1,height));return p;
+}
+// The weather now (the condition in its circle, the temperature, the word) and the coming days, in the form the
+// card's cell holds: days as columns beside it on a card of one row, as rows under it with the week's range as bars
+// on a taller one. Every colour is set here on every render, because each day has its own: the palette pass that
+// colours the other custom cards leaves these parts alone.
 inline void render_forecast(Widgets &w,const Tile &t,bool large,int width,int height) {
-  begin_extra(w,"forecast",width,height);
-  const lv_font_t *title_font=w.title_font;  // the card's own, as in render_clock
-  const lv_font_t *temp_font=watch_value_font?watch_value_font:w.value_font,*day_icon=mini_icon_font?mini_icon_font:w.icon_font;
-  // The current-conditions block follows the card's text offset, a size the board scales.
-  const int text_x=head_text_x(w.base_circle>0?w.base_circle:ui::px(large?54:36),large);
-  int left=std::min(large?text_x*150/64:text_x*2,width*45/100),icon_h=lv_font_get_line_height(w.icon_font),temp_h=lv_font_get_line_height(temp_font),text_h=lv_font_get_line_height(w.value_font);
-  // A full-page card (firmware 0.2.62+) adds the next hours under the days: time, icon and temperature per column.
-  int day_h=lv_font_get_line_height(title_font),icon_col=lv_font_get_line_height(day_icon);
-  unsigned hours=w.full?std::min<size_t>(t.extra().hours.size(),large?6:4):0;
-  int hours_h=hours?day_h+icon_col+text_h:0;
-  int top_h=hours?std::max(block_min(icon_h,temp_h,text_h),height-hours_h-(ui::px(large?12:6))):height;
-  for(unsigned j=0;j<6;++j){
-    if(j<hours)continue;
-    for(unsigned k=18+3*j;k<21+3*j;++k)if(w.parts[k])lv_obj_add_flag(w.parts[k],LV_OBJ_FLAG_HIDDEN);
+  namespace ft=forecast_tile;
+  const auto &x=t.extra();const auto &days=x.forecast;
+  const lv_font_t *bold=w.title_font?w.title_font:lv_obj_get_style_text_font(w.title,LV_PART_MAIN),*text=w.value_font;
+  const lv_font_t *mini=mini_icon_font?mini_icon_font:w.icon_font;
+  const lv_font_t *faces[ft::FACES]={setpoint_font,watch_value_font,watch_font};
+  char now_text[16];
+  if(std::isfinite(t.current))snprintf(now_text,sizeof(now_text),"%.0f°",t.current);else snprintf(now_text,sizeof(now_text),"--");
+  ft::Metrics m;m.large=large;
+  for(int f=0;f<ft::FACES;++f){
+    const bool usable=faces[f]&&face_covers(faces[f],now_text);
+    m.face_h[f]=usable?lv_font_get_line_height(faces[f]):0;m.face_w[f]=usable?text_width(now_text,faces[f])+2:0;
   }
-  if(hours){
-    int column=width/hours,y0=height-hours_h;
-    for(unsigned j=0;j<hours;++j){
-      const auto &h=t.extra().hours[j];int x=j*column;
-      char temp[16];if(std::isfinite(h.temp))snprintf(temp,sizeof(temp),"%.0f°",h.temp);else temp[0]=0;
-      for(unsigned k=18+3*j;k<21+3*j;++k)if(w.parts[k])lv_obj_remove_flag(w.parts[k],LV_OBJ_FLAG_HIDDEN);
-      part_label(w,18+3*j,day_icon,x,y0+day_h,column,LV_TEXT_ALIGN_CENTER,weather_icon(h.condition));
-      part_label(w,19+3*j,w.value_font,x,y0+day_h+icon_col,column,LV_TEXT_ALIGN_CENTER,temp);
-      part_label(w,20+3*j,title_font,x,y0,column,LV_TEXT_ALIGN_CENTER,screen_text::clock_text(h.time,screen_settings::current.clock_24h!=0,true));
-    }
+  m.text_h=lv_font_get_line_height(text);m.bold_h=lv_font_get_line_height(bold);m.icon_h=lv_font_get_line_height(mini);
+  m.circle=w.base_circle>0?w.base_circle:ui::px(large?54:36);
+  const std::string cond=t.available()?weather_text(t.state):tr(txt::ha_unavailable);
+  std::string line=cond;
+  if(std::isfinite(x.feels))line+=" · "+fill(txt::weather_feels_like,"n",(int)std::lround(x.feels));
+  m.cond_w=text_width(cond,text)+2;m.line_w=text_width(line,text)+2;
+  const int n=(int)std::min<size_t>(days.size(),ft::DAYS),space=ui::px(large?4:2);
+  float lowest=INFINITY,highest=-INFINITY;
+  for(int k=0;k<n;++k){
+    const auto &f=days[k];
+    const int hw=text_width(degrees(f.high),bold),lw=text_width(degrees(f.low),text);
+    m.temps_w=std::max(m.temps_w,hw+space+lw);m.high_w=std::max(m.high_w,hw+2);m.low_w=std::max(m.low_w,lw+2);
+    m.name_w=std::max(m.name_w,text_width(f.day,text)+2);m.row_name_w=std::max(m.row_name_w,text_width(f.day,bold)+2);
+    if(std::isfinite(f.rain)&&f.rain>=30){m.rain=true;m.rain_w=std::max(m.rain_w,text_width(screen_text::percent((int)std::lround(f.rain)),text)+2);}
+    if(std::isfinite(f.low))lowest=std::min(lowest,f.low);
+    if(std::isfinite(f.high))highest=std::max(highest,f.high);
   }
-  height=top_h;
-  // A cell shorter than the block leaves something out instead of drawing past its bottom edge: first Home
-  // Assistant's word for the weather, then the day names over the columns. The icon, the temperature now and
-  // the high/low of each day always stay: that is what a forecast is read for.
-  const bool with_condition=std::max(icon_h,temp_h)+2+text_h<=height;
-  const bool with_day_name=day_h+icon_col+text_h<=height;
-  int block=std::max(icon_h,temp_h)+(with_condition?2+text_h:0),y=std::max(0,(height-block)/2);
-  char b[24];snprintf(b,sizeof(b),"%.0f°",t.current);
-  auto *icon=part_label(w,0,w.icon_font,0,y+(std::max(icon_h,temp_h)-icon_h)/2,icon_h+4,LV_TEXT_ALIGN_LEFT,t.available()?weather_icon(t.state):"\U000F0595");
-  lv_obj_set_width(icon,lv_font_get_line_height(w.icon_font)+4);
-  part_label(w,1,temp_font,icon_h+6,y+(std::max(icon_h,temp_h)-temp_h)/2,left-icon_h-6,LV_TEXT_ALIGN_LEFT,std::isfinite(t.current)?b:"");
-  // Home Assistant's word for the weather can be long ("częściowe zachmurzenie"): it ends in an ellipsis before the days.
-  auto *condition=part_label(w,2,w.value_font,0,y+std::max(icon_h,temp_h)+2,left-4,LV_TEXT_ALIGN_LEFT,with_condition?weather_text(t.state):std::string());
-  if(lv_label_get_long_mode(condition)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(condition,LV_LABEL_LONG_DOT);
-  set_hidden(condition,!with_condition);
-  // As many day columns as the width holds ("22/12" plus air per column): five at most, none below two.
-  lv_point_t probe;lv_text_get_size(&probe,"22/12",w.value_font,0,0,LV_COORD_MAX,LV_TEXT_FLAG_EXPAND);
-  const int min_col=(int)probe.x+(ui::px(large?6:4));
-  int days=std::clamp((width-left)/std::max(1,min_col),0,5);if(days<2)days=0;
-  int column=days?(width-left)/days:0;
-  for(unsigned k=0;k<5;++k){
-    static const Forecast no_day;int x=left+(int)std::min<unsigned>(k,days?days-1:0)*column;bool has=k<days && k<t.extra().forecast.size();const auto &f=has?t.extra().forecast[k]:no_day;
-    if(k>=(unsigned)days){for(unsigned q=3+k*3;q<6+k*3;++q)part_label(w,q,w.value_font,x,0,1,LV_TEXT_ALIGN_LEFT,"");continue;}
-    char temps[24];if(has && std::isfinite(f.high))snprintf(temps,sizeof(temps),std::isfinite(f.low)?"%.0f/%.0f":"%.0f",f.high,f.low);else temps[0]=0;
-    if(large){
-      const int head=with_day_name?day_h:0;
-      int rows=head+icon_col+text_h,top=std::max(0,(height-rows)/2);
-      auto *name=part_label(w,3+k*3,title_font,x,top,column,LV_TEXT_ALIGN_CENTER,with_day_name&&has?f.day:"");
-      set_hidden(name,!with_day_name);
-      part_label(w,4+k*3,day_icon,x,top+head,column,LV_TEXT_ALIGN_CENTER,has?weather_icon(f.condition):"");
-      part_label(w,5+k*3,w.value_font,x,top+head+icon_col,column,LV_TEXT_ALIGN_CENTER,temps);
-    }else{
-      // Two rows on the CYD: day beside its icon, then the high/low pair.
-      int rows=std::max(day_h,icon_col)+text_h,top=std::max(0,(height-rows)/2),day_w=column-icon_col-2;
-      part_label(w,3+k*3,title_font,x,top+(std::max(day_h,icon_col)-day_h)/2,day_w,LV_TEXT_ALIGN_RIGHT,has?f.day:"");
-      part_label(w,4+k*3,day_icon,x+day_w+2,top,icon_col,LV_TEXT_ALIGN_LEFT,has?weather_icon(f.condition):"");
-      part_label(w,5+k*3,w.value_font,x,top+std::max(day_h,icon_col),column,LV_TEXT_ALIGN_CENTER,temps);
+  const bool tall=t.row_span()>1||w.full;
+  const auto l=ft::layout(m,width,height,n,forecast_today(t),tall);
+  const bool rows=l.form==ft::Form::rows;
+  begin_extra(w,rows?"forecast_rows":"forecast",width,height);
+  for(auto *p:w.parts)if(p)lv_obj_add_flag(p,LV_OBJ_FLAG_HIDDEN);
+  auto show=[](lv_obj_t *p){lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);return p;};
+  auto paint=[](lv_obj_t *p,uint32_t color){set_color(p,LV_STYLE_TEXT_COLOR,lv_color_hex(color));};
+  auto words=[&](unsigned i,const lv_font_t *font,ft::Rect r,lv_text_align_t align,const std::string &s,uint32_t color){
+    auto *p=show(part_label(w,i,font,r.x,r.y,r.w,align,s));
+    if(lv_label_get_long_mode(p)!=LV_LABEL_LONG_DOT)lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);
+    paint(p,color);return p;
+  };
+  const uint32_t ink=theme::hex(theme::INK),muted=theme::hex(theme::MUTED),rain=theme::foreground(theme::ha::RAIN);
+  // The weather now. The circle is the look's, in the condition's colour, the icon in it as on every other card.
+  const uint32_t sky=t.available()?weather_color_raw(t.state):theme::STATE_OFF;
+  if(!l.circle.empty()){
+    auto *disc=show(part_dot(w,0,l.circle.x,l.circle.y,l.circle.w));
+    set_color(disc,LV_STYLE_BG_COLOR,lv_color_hex(t.available()?theme::tint(sky,38):theme::hex(theme::TRACK)));
+    const lv_font_t *glyph=l.circle.w>=m.circle||!mini_icon_font?w.icon_font:mini_icon_font;
+    const int gh=lv_font_get_line_height(glyph);
+    paint(show(part_label(w,1,glyph,l.circle.x,l.circle.y+(l.circle.h-gh)/2,l.circle.w,LV_TEXT_ALIGN_CENTER,t.available()?weather_icon(t.state):"\U000F0595")),
+          t.available()?theme::icon(sky):theme::hex(theme::OFF));
+  }
+  if(l.face>=0){
+    words(2,faces[l.face],l.temp,LV_TEXT_ALIGN_LEFT,now_text,ink);
+    if(!l.line.empty())words(3,text,l.line,LV_TEXT_ALIGN_LEFT,l.long_line?line:cond,muted);
+  }
+  // The high in the title font and the low beside it in the value font, on one baseline.
+  const int low_drop=(bold->line_height-bold->base_line)-(text->line_height-text->base_line);
+  if(rows){
+    const float span=highest>lowest?highest-lowest:1.0f;
+    const bool fahrenheit=t.unit.find('F')!=std::string::npos;
+    auto celsius=[&](float v){return fahrenheit?(v-32)*5/9:v;};
+    for(int k=0;k<l.days;++k){
+      const auto &f=days[k];const auto &r=l.rows[k];const unsigned base=4+k*6;
+      words(base,bold,r.name,LV_TEXT_ALIGN_LEFT,f.day,ink);
+      words(base+1,mini,r.icon,LV_TEXT_ALIGN_CENTER,weather_icon(f.condition),weather_accent(f.condition));
+      if(!r.rain.empty()&&std::isfinite(f.rain)&&f.rain>=30)words(base+2,text,r.rain,LV_TEXT_ALIGN_LEFT,screen_text::percent((int)std::lround(f.rain)),rain);
+      words(base+3,text,{r.low.x,r.low.y,r.low.w,r.low.h},LV_TEXT_ALIGN_RIGHT,degrees(f.low),muted);
+      auto *track=show(part_bar(w,base+4,r.bar.x,r.bar.y,r.bar.w,r.bar.h));
+      set_color(track,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));
+      auto *fill_bar=lv_obj_get_child(track,0);
+      if(std::isfinite(f.low)&&std::isfinite(f.high)&&std::isfinite(lowest)){
+        const int from=(int)std::lround((f.low-lowest)/span*r.bar.w),to=(int)std::lround((f.high-lowest)/span*r.bar.w);
+        lv_obj_remove_flag(fill_bar,LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_pos(fill_bar,std::min(from,r.bar.w-r.bar.h),0);lv_obj_set_size(fill_bar,std::max(r.bar.h,to-from),r.bar.h);
+        set_color(fill_bar,LV_STYLE_BG_COLOR,lv_color_hex(theme::temperature(celsius(f.low))));
+        set_color(fill_bar,LV_STYLE_BG_GRAD_COLOR,lv_color_hex(theme::temperature(celsius(f.high))));
+      }else lv_obj_add_flag(fill_bar,LV_OBJ_FLAG_HIDDEN);
+      words(base+5,bold,r.high,LV_TEXT_ALIGN_RIGHT,degrees(f.high),ink);
     }
+    return;
+  }
+  // Today's pill, below everything else it stands behind.
+  if(!l.pill.empty()){
+    auto *pill=show(part_dot(w,4,l.pill.x,l.pill.y,0));
+    lv_obj_set_size(pill,l.pill.w,l.pill.h);lv_obj_set_style_radius(pill,std::min(ui::px(large?14:9),l.pill.h/2),0);
+    set_color(pill,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));
+    if(lv_obj_get_index(pill)!=0)lv_obj_move_to_index(pill,0);
+  }
+  for(int k=0;k<l.days;++k){
+    const auto &f=days[k];const auto &c=l.columns[k];const unsigned base=5+k*5;
+    const bool beside=!c.name.empty()&&c.name.y>c.icon.y;
+    if(!c.name.empty())words(base,text,c.name,beside?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,f.day,muted);
+    words(base+1,mini,c.icon,LV_TEXT_ALIGN_CENTER,weather_icon(f.condition),weather_accent(f.condition));
+    const std::string hi=degrees(f.high),lo=degrees(f.low);
+    const int hw=text_width(hi,bold),lw=text_width(lo,text),x0=c.temps.x+(c.temps.w-(hw+space+lw))/2;
+    words(base+2,bold,{x0,c.temps.y,hw+2,c.temps.h},LV_TEXT_ALIGN_LEFT,hi,ink);
+    words(base+3,text,{x0+hw+space,c.temps.y+low_drop,lw+2,m.text_h},LV_TEXT_ALIGN_LEFT,lo,muted);
+    if(!c.rain.empty()&&std::isfinite(f.rain)&&f.rain>=30)words(base+4,text,c.rain,LV_TEXT_ALIGN_CENTER,screen_text::percent((int)std::lround(f.rain)),rain);
   }
 }
 // Smoothed trend of the manager's 24 history samples with a soft fill beneath.
@@ -3288,6 +3459,26 @@ inline lv_obj_t *panel_key(Widgets &w,unsigned n,lv_obj_t *parent,const PanelMet
 inline lv_obj_t *panel_icon(Widgets &w,unsigned n,const lv_font_t *font) {
   auto *icon=lv_label_create(w.keys[n]);lv_obj_remove_flag(icon,LV_OBJ_FLAG_CLICKABLE);
   lv_obj_set_style_text_font(icon,font,0);center_icon(icon);w.key_icons[n]=icon;return icon;
+}
+// The - and + keys of a stepper as round keys inside its grey pill (firmware 0.3.3), with the number between them
+// in the largest face that fits: the value is what the stepper is for, the keys only change it. The keys keep a
+// finger's reach through their click area, which covers the pill's inset.
+inline void stepper_keys(Widgets &w,int width,int height,const lv_font_t *text_font){
+  const int in=std::max(2,ui::px(ui::large()?4:3)),d=std::max(1,height-2*in);
+  for(int n=0;n<2;++n){
+    if(!w.keys[n])continue;
+    lv_obj_set_size(w.keys[n],d,d);lv_obj_set_pos(w.keys[n],n?width-in-d:in,in);
+    lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],in);center_icon(w.key_icons[n]);
+  }
+  // Measured with a digit to spare, so the number a tap on + makes still fits the face chosen here.
+  const std::string widest=std::string(lv_label_get_text(w.pill_value))+"8";
+  const int room=width-2*(d+in)-ui::px(4);
+  const lv_font_t *face=text_font;
+  for(const auto *candidate:{watch_value_font,text_font})
+    if(candidate&&face_covers(candidate,widest)&&(int)lv_font_get_line_height(candidate)<=height&&text_width(widest,candidate)<=room){face=candidate;break;}
+  set_font(w.pill_value,face);
+  const int lh=lv_font_get_line_height(face);
+  lv_obj_set_pos(w.pill_value,in+d,(height-lh)/2);lv_obj_set_size(w.pill_value,std::max(1,width-2*(in+d)),lh);
 }
 // Build (once per control set) and lay out the panel; returns the width it takes
 // from the text, including the gap, or 0 when the card shows no panel.
@@ -3399,6 +3590,7 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
     std::string suffix=d=="climate"?"°":screen_text::unit_suffix(t.unit);
     label(w.pill_value,tile_controls::format_value(shown,tile_controls::edit_step(t),suffix.c_str()));
     panel_w=fill;panel_h=m.key_h+2;
+    if(!taller)stepper_keys(w,fill,panel_h,text_font);
   }else if(tile_controls::is_slider(mode)){
     bool has_slider=mode!="volume" || (t.supported & tile_controls::feature::MEDIA_VOLUME_SET);
     if(has_slider){
@@ -3447,12 +3639,12 @@ inline void style_panel(Widgets &w,const Tile &t,lv_color_t accent,lv_color_t te
   for(unsigned n=0;n<3;++n){
     auto *key=w.keys[n];if(!key)continue;
     bool in_pill=w.pill && lv_obj_get_parent(key)==w.pill;
-    set_color(key,LV_STYLE_BG_COLOR,in_pill?key_pressed:key_bg);
-    set_color(key,LV_STYLE_BG_COLOR,in_pill?lv_color_hex(theme::key_on(surface,190)):key_pressed,LV_STATE_PRESSED);
+    set_color(key,LV_STYLE_BG_COLOR,in_pill?theme::color(theme::STEPPER_KEY):key_bg);
+    set_color(key,LV_STYLE_BG_COLOR,in_pill?theme::color(theme::STEPPER_KEY_PRESSED):key_pressed,LV_STATE_PRESSED);
     set_color(key,LV_STYLE_BG_COLOR,w.key_args[n]=="off" && w.panel_mode=="mode"?theme::color(theme::OFF):accent,LV_STATE_CHECKED);
     if(w.key_icons[n])set_color(w.key_icons[n],LV_STYLE_TEXT_COLOR,w.key_checked[n]==1?theme::color(theme::ON_ACCENT):text);
   }
-  if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,key_bg);set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
+  if(w.pill){set_color(w.pill,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));set_color(w.pill_value,LV_STYLE_TEXT_COLOR,text);}
   if(w.control_slider){
     bool on=fresh() && t.slider_active();
     lv_color_t fill=on?accent:theme::color(theme::OFF);
@@ -3658,11 +3850,43 @@ inline void climate_mode_key_event(lv_event_t *e){
   auto &t=model.tiles[w.index];const uint32_t now=esphome::millis();
   if(n<0||!enabled||!fresh()||!t.available()||t.waiting(now)||!tile_controls::climate_modes_selected(t))return;
   std::array<tile_controls::Key,CLIMATE_MODE_PARTS> keys;
-  if(n>=(int)tile_controls::climate_mode_keys(t,keys,room))return;
+  if(n>=(int)tile_controls::climate_bar_keys(t,keys,room))return;
   if(!allowed(now,700+slot*8+n,"control "+std::to_string(slot)))return;
   if(keys[n].command==tile_controls::OPEN_CARD){active_index=w.index;show_detail(w.index);return;}
   const auto a=tile_controls::press_key(t,keys[n].command,keys[n].arg);
   if(a.valid())action(a.service,t.entity,a.key,a.value);
+}
+// One segment of a thermostat tile's mode bar: the mode's icon, its word where the bar has room, and the mode it
+// is in filled in Home Assistant's colour for it with a white icon on it.
+inline void mode_segment(Widgets &w,unsigned i,climate_tile::Rect r,const tile_controls::Key &k,bool words,const lv_font_t *glyphs,
+                         const lv_font_t *text,bool ready,int slot){
+  auto *&p=w.parts[i];
+  if(!p){
+    p=lv_obj_create(w.extra);lv_obj_remove_style_all(p);lv_obj_set_style_radius(p,LV_RADIUS_CIRCLE,0);
+    lv_obj_set_style_bg_opa(p,LV_OPA_COVER,LV_STATE_PRESSED);lv_obj_set_style_opa(p,LV_OPA_40,LV_STATE_DISABLED);
+    lv_obj_add_flag(p,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(p,LV_OBJ_FLAG_SCROLLABLE);
+    for(int c=0;c<2;++c){auto *label=lv_label_create(p);lv_obj_remove_flag(label,LV_OBJ_FLAG_CLICKABLE);}
+    lv_obj_add_event_cb(p,climate_mode_key_event,LV_EVENT_SHORT_CLICKED,(void*)(uintptr_t)slot);
+  }
+  lv_obj_set_pos(p,r.x,r.y);lv_obj_set_size(p,r.w,r.h);lv_obj_remove_flag(p,LV_OBJ_FLAG_HIDDEN);
+  const bool mode=k.command==tile_controls::HVAC_MODE;
+  lv_obj_set_style_bg_opa(p,k.checked?LV_OPA_COVER:LV_OPA_TRANSP,0);
+  if(k.checked)set_color(p,LV_STYLE_BG_COLOR,lv_color_hex(theme::foreground(tile_controls::mode_color(k.arg))));
+  set_color(p,LV_STYLE_BG_COLOR,theme::color(theme::KEY_PRESSED),LV_STATE_PRESSED);
+  const auto ink=k.checked?theme::color(theme::ON_ACCENT):theme::color(mode?theme::SLATE:theme::MUTED);
+  auto *icon=lv_obj_get_child(p,0),*word=lv_obj_get_child(p,1);
+  set_font(icon,glyphs);label(icon,k.icon);set_color(icon,LV_STYLE_TEXT_COLOR,ink);
+  const bool with_word=words&&mode;
+  const std::string name=with_word?tile_controls::climate_mode_text(k.arg):"";
+  const int gh=lv_font_get_line_height(glyphs),space=ui::px(ui::large()?6:3),tw=with_word?text_width(name,text)+2:0;
+  const int x0=(r.w-gh-(with_word?space+tw:0))/2;
+  lv_obj_set_pos(icon,x0,(r.h-gh)/2);lv_obj_set_size(icon,gh,gh);lv_obj_set_style_text_align(icon,LV_TEXT_ALIGN_CENTER,0);
+  set_hidden(word,!with_word);
+  if(with_word){
+    set_font(word,text);label(word,name);set_color(word,LV_STYLE_TEXT_COLOR,ink);
+    const int th=lv_font_get_line_height(text);lv_obj_set_pos(word,x0+gh+space,(r.h-th)/2);lv_obj_set_size(word,tw,th);
+  }
+  if(ready)lv_obj_remove_state(p,LV_STATE_DISABLED);else lv_obj_add_state(p,LV_STATE_DISABLED);
 }
 inline cover_tile::Layout cover_tile_layout(const Tile &t,tall_tile::Rect body,int touch,int gap,int caption){
   // Capability, not freshness, decides the layout: while HA reconnects the same keys stay, greyed out (ready below).
@@ -3795,50 +4019,72 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     set_hidden(w.value,true);lv_obj_set_y(w.title,(l.header.h-m.name_h)/2);
   };
   if(d=="climate"&&panel&&w.panel_mode=="setpoint"){
-    // With "Temperature and mode" the mode keys take a row under the setpoint. What gives way when the card is short:
-    // first the measured temperature, then the mode row; the setpoint keeps its touch size.
-    // The keys stand under the setpoint where the card has the height, beside it where it only has the width (a
-    // short, wide card: the CYD's 2 x 2), and not at all where neither fits a finger. How many keys a row holds
-    // follows from its width; Home Assistant's own list of the device's modes decides which they are.
+    // Home Assistant's thermostat in two groups (firmware 0.3.3, climate_tile.h): the number between - and + is the
+    // first thing, the mode bar the second; off is the circle in the head. The big form stands the number large in
+    // the middle with the bar under it, the row form puts a stepper and the bar on one finger's row. Which modes the
+    // bar shows is tile_controls::climate_bar_keys: heat and cool first, the current one always.
     std::array<tile_controls::Key,CLIMATE_MODE_PARTS> modes;
     const bool wanted=tile_controls::climate_modes_selected(t);
-    const int row=touch+gap,below=height-l.body.y,setpoint_min=2*touch+2*gap+ui::px(40);
-    const auto fits=[&](int room){return std::clamp((room+gap)/(touch+gap),0,CLIMATE_MODE_PARTS);};
-    int mode_count=wanted&&below-row>=touch?(int)tile_controls::climate_mode_keys(t,modes,fits(width)):0;
-    const bool under=mode_count>0;
-    if(!under&&wanted&&below>=touch)mode_count=(int)tile_controls::climate_mode_keys(t,modes,fits(width-2*gap-setpoint_min));
-    const bool beside=!under&&mode_count>0,with_modes=under||beside;
-    const int modes_w=mode_count?mode_count*touch+(mode_count-1)*gap:0;
-    int caption=std::isfinite(t.current)?m.state_h+gap:0;
-    if(below-caption-(under?row:0)<touch)caption=0;
-    const int ph=below-caption-(under?row:0),area=beside?width-modes_w-2*gap:width;
-    const int pw=std::min(area,ui::control_max_width()),key=std::min(touch,ph);
-    if(ph>=touch && pw>2*key+2*gap){
-      const std::string target=lv_label_get_text(w.pill_value);
-      const lv_font_t *number=w.title_font;
-      for(const auto *candidate:{setpoint_font,watch_value_font,control_font,w.title_font})
-        if(candidate&&face_covers(candidate,target)&&tall_tile::fits_text({0,0,pw-2*key-2*gap,ph},text_width(target,candidate),lv_font_get_line_height(candidate))){number=candidate;break;}
-      lv_obj_set_pos(w.panel,(area-pw)/2,l.body.y);lv_obj_set_size(w.panel,pw,ph);
-      lv_obj_set_size(w.pill,pw,ph);lv_obj_set_style_bg_opa(w.pill,LV_OPA_TRANSP,0);
-      for(int n=0;n<2;++n){lv_obj_set_size(w.keys[n],key,key);lv_obj_set_pos(w.keys[n],n?pw-key:0,(ph-key)/2);lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],0);lv_obj_set_style_radius(w.keys[n],LV_RADIUS_CIRCLE,0);center_icon(w.key_icons[n]);}
-      set_font(w.pill_value,number);lv_obj_set_pos(w.pill_value,key+gap,(ph-lv_font_get_line_height(number))/2);lv_obj_set_size(w.pill_value,pw-2*key-2*gap,lv_font_get_line_height(number));
-      if(caption)text(0,screen_text::fill(txt::climate_now,"value",screen_text::decimal(t.current,1)+"°"),w.value_font,{0,l.body.y+ph+gap,area,m.state_h},LV_TEXT_ALIGN_CENTER);
-      if(with_modes){
+    const int want=wanted?(int)tile_controls::climate_bar_keys(t,modes):0;
+    const std::string target=lv_label_get_text(w.pill_value);
+    climate_tile::Metrics cm;cm.large=large;cm.touch=touch;cm.gap=gap;cm.max_width=ui::control_max_width();
+    const lv_font_t *faces[climate_tile::FACES]={setpoint_font,watch_value_font,control_font?control_font:w.title_font};
+    for(int f=0;f<climate_tile::FACES;++f){
+      const bool usable=faces[f]&&face_covers(faces[f],target);
+      cm.face_h[f]=usable?lv_font_get_line_height(faces[f]):0;cm.face_w[f]=usable?text_width(target,faces[f])+2:0;
+    }
+    cm.caption_h=m.state_h;
+    const auto cl=climate_tile::layout(cm,width,l.body.y,height,want);
+    if(cl.form!=climate_tile::Form::none){
+      w.hand_r=cl.form==climate_tile::Form::row?1:2;
+      const bool row=cl.form==climate_tile::Form::row;
+      // The big form's number stands taller than its keys and has the "now" line under it: the panel holds all of
+      // them, or the digits are cut at its edge and the line lies under the panel.
+      const int top_y=std::min(cl.minus.y,cl.number.y);
+      const int bottom_y=std::max({cl.minus.bottom(),cl.number.bottom(),cl.caption?cl.caption_box.bottom():0});
+      const auto area=row?cl.stepper:climate_tile::Rect{cl.minus.x,top_y,cl.plus.right()-cl.minus.x,bottom_y-top_y};
+      lv_obj_set_pos(w.panel,area.x,area.y);lv_obj_set_size(w.panel,area.w,area.h);lv_obj_set_size(w.pill,area.w,area.h);
+      for(int n=0;n<2;++n){
+        const auto &k=n?cl.plus:cl.minus;
+        lv_obj_set_size(w.keys[n],k.w,k.h);lv_obj_set_pos(w.keys[n],k.x-area.x,k.y-area.y);
+        lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_style_radius(w.keys[n],LV_RADIUS_CIRCLE,0);
+        lv_obj_set_ext_click_area(w.keys[n],row?cm.inset():0);center_icon(w.key_icons[n]);
+      }
+      const lv_font_t *number=faces[cl.face];
+      set_font(w.pill_value,number);
+      lv_obj_set_pos(w.pill_value,cl.number.x-area.x,cl.number.y-area.y);lv_obj_set_size(w.pill_value,cl.number.w,cl.number.h);
+      // The "now" line lives in the pill beside the number (its fourth child), so the panel is one block.
+      if(lv_obj_get_child_count(w.pill)<4){auto *line=lv_label_create(w.pill);lv_obj_remove_flag(line,LV_OBJ_FLAG_CLICKABLE);
+        lv_label_set_long_mode(line,LV_LABEL_LONG_DOT);lv_obj_set_style_text_align(line,LV_TEXT_ALIGN_CENTER,0);}
+      auto *now_line=lv_obj_get_child(w.pill,3);
+      set_hidden(now_line,!(cl.caption&&std::isfinite(t.current)));
+      if(cl.caption&&std::isfinite(t.current)){
+        set_font(now_line,w.value_font);label(now_line,screen_text::fill(txt::climate_now,"value",screen_text::decimal(t.current,1)+"°"));
+        set_color(now_line,LV_STYLE_TEXT_COLOR,theme::color(theme::MUTED));
+        lv_obj_set_pos(now_line,cl.caption_box.x-area.x,cl.caption_box.y-area.y);lv_obj_set_size(now_line,cl.caption_box.w,cl.caption_box.h);
+      }
+      if(!cl.bar.empty()){
+        const unsigned count=tile_controls::climate_bar_keys(t,modes,cl.room);
+        auto *&track=w.parts[2];
+        if(!track){track=lv_obj_create(w.extra);lv_obj_remove_style_all(track);lv_obj_set_style_bg_opa(track,LV_OPA_COVER,0);
+          lv_obj_set_style_radius(track,LV_RADIUS_CIRCLE,0);lv_obj_remove_flag(track,LV_OBJ_FLAG_CLICKABLE);lv_obj_remove_flag(track,LV_OBJ_FLAG_SCROLLABLE);}
+        lv_obj_set_pos(track,cl.bar.x,cl.bar.y);lv_obj_set_size(track,cl.bar.w,cl.bar.h);lv_obj_remove_flag(track,LV_OBJ_FLAG_HIDDEN);
+        set_color(track,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));
+        const auto seg=climate_tile::segments(cm,cl.bar,(int)count);
+        const lv_font_t *glyphs=mini_icon_font?mini_icon_font:w.icon_font;
+        // Words beside the icons where every segment has room for its own: "Heat", "Cool", "Auto".
+        bool words=count>0;
+        for(unsigned n=0;n<count&&words;++n)
+          words=modes[n].command!=tile_controls::HVAC_MODE||seg[n].w>=lv_font_get_line_height(glyphs)+ui::px(large?26:14)+
+                text_width(tile_controls::climate_mode_text(modes[n].arg),w.value_font);
         const int slot=&w-widgets.data();
         const bool ready=fresh()&&t.available()&&!t.waiting(esphome::millis());
-        const int x0=under?(width-modes_w)/2:width-modes_w,y0=under?height-touch:l.body.y+(ph-touch)/2;
-        for(int n=0;n<mode_count;++n){
-          const auto &k=modes[n];auto &part=w.parts[4+n];
-          part=media_key(w.extra,part,{x0+n*(touch+gap),y0,touch,touch},k.icon,mini_icon_font?mini_icon_font:w.icon_font,
-                         k.checked,false,ready,climate_mode_key_event,(void*)(uintptr_t)slot);
-          lv_obj_set_ext_click_area(part,0);
-          // The active mode in Home Assistant's colour for it, like the mode keys beside the name.
-          if(k.checked)set_color(part,LV_STYLE_BG_COLOR,lv_color_hex(tile_controls::mode_color(k.arg)));
-          lv_obj_remove_flag(part,LV_OBJ_FLAG_HIDDEN);
-        }
+        for(unsigned n=0;n<count;++n)
+          mode_segment(w,4+n,seg[n],modes[n],words,glyphs,w.value_font,ready,slot);
       }
       return true;
     }
+    w.hand_r=0;hide_panel(w);
   }
   if(panel&&w.panel_mode=="toggle"){
     // An on/off card has no value for its body: icon, name, state and the switch stand as one centred stack, the way
@@ -3883,6 +4129,18 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
   return true;
 }
 inline void style_tall(Widgets &w,const Tile &t){
+  // A thermostat's stepper (render_tall, climate_tile.h): a grey pill with white keys on one row, or the keys alone
+  // in grey beside a big number. The number is grey while the thermostat is off.
+  if(t.domain()=="climate"&&w.extra_mode=="tall"&&w.panel_mode=="setpoint"&&w.pill&&(w.hand_r==1||w.hand_r==2)){
+    const bool row=w.hand_r==1;
+    lv_obj_set_style_bg_opa(w.pill,row?LV_OPA_COVER:LV_OPA_TRANSP,0);set_color(w.pill,LV_STYLE_BG_COLOR,theme::color(theme::TRACK));
+    for(int n=0;n<2;++n)if(w.keys[n]){
+      set_color(w.keys[n],LV_STYLE_BG_COLOR,theme::color(row?theme::STEPPER_KEY:theme::TRACK));
+      set_color(w.keys[n],LV_STYLE_BG_COLOR,theme::color(row?theme::STEPPER_KEY_PRESSED:theme::KEY_PRESSED),LV_STATE_PRESSED);
+      if(w.key_icons[n])set_color(w.key_icons[n],LV_STYLE_TEXT_COLOR,theme::color(theme::INK));
+    }
+    set_color(w.pill_value,LV_STYLE_TEXT_COLOR,theme::color(tile_controls::climate_off(t)?theme::MUTED:theme::INK));
+  }
   if(t.row_span()<2||t.full||w.extra_mode!="tall")return;
   const bool photo=tall_art(t)&&w.picture&&!lv_obj_has_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
   const auto ink=theme::color(photo?theme::CAMERA_INK:theme::INK),muted=theme::color(photo?theme::CAMERA_INK:theme::MUTED);
@@ -4069,6 +4327,9 @@ inline void render_slot(size_t slot) {
   // A wide card with a panel says what its control is doing, unless the second line was set by hand.
   if(with_panel && !set_by_hand){std::string status=tile_controls::status_text(t);if(!status.empty()){value=status;value_short.clear();value_tail.clear();}}
   label(w.value, value);
+  // Only a thermostat with controls takes a tap on its circle (climate_circle_event); every other card's circle is
+  // part of the card and the card's own tap.
+  if(d=="climate"&&with_panel)lv_obj_add_flag(w.circle,LV_OBJ_FLAG_CLICKABLE);else lv_obj_remove_flag(w.circle,LV_OBJ_FLAG_CLICKABLE);
   bool mini=t.inline_control=="slider" && !watch && t.available() && !with_panel;
   // The card's size class is the look's, never the cell's momentary height: a class that flips when the rows
   // grow (page buttons off) would reuse a clock's numeral labels as tick lines.
@@ -4323,9 +4584,9 @@ inline void render_slot(size_t slot) {
   if(w.extra_mode!="sunpath")w.fill_color=color;
   // The media tile (firmware 0.2.64+) paints its own parts on every render: keys, the bar and the cover's placeholder
   // in the media colours, not the card's.
-  for(unsigned i=0;i<w.parts.size() && w.extra_mode!="media" && w.extra_mode!="tall" && w.extra_mode!="cover_tilt";++i){
+  for(unsigned i=0;i<w.parts.size() && w.extra_mode!="media" && w.extra_mode!="tall" && w.extra_mode!="cover_tilt" && w.extra_mode!="forecast" && w.extra_mode!="forecast_rows";++i){
     auto *p=w.parts[i];if(!p)continue;
-    bool muted=w.extra_mode=="forecast" ? i>=2 && i%3==2 : w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
+    bool muted=w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : i==16;
     if(lv_obj_check_type(p,&lv_label_class))set_color(p,LV_STYLE_TEXT_COLOR,muted?value_color:title_color);
     else if(w.extra_mode=="sunpath")continue;
     else if(lv_obj_check_type(p,&lv_line_class))set_color(p,LV_STYLE_LINE_COLOR,w.extra_mode=="graph"?color:i==18?lv_color_hex(theme::foreground(theme::ha::ALARM)):i<12?value_color:i==13?icon_color:title_color);

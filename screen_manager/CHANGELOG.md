@@ -1,3 +1,13 @@
+## 0.3.8 (firmware 0.3.3)
+
+Clearer weather and thermostat tiles, and a select card you can read.
+
+- **Weather tile.** The weather now sits in its coloured circle like every other tile, each day's icon has the colour of its weather, the high is bold and the low grey, and the chance of rain shows in blue when it is 30 % or more. Today stands on a light pill with room around its digits. A tile of two rows lists the days under each other, each with a bar from its low to its high on one scale for the whole week, coloured from cold to warm.
+- **Thermostat tile.** A tile of two rows shows the temperature between − and +, and a bar with one segment per mode under it, the active one filled in its colour. An airco shows heat and cool first, the mode it is in is always on the bar, and the rest is behind "…". Off is no longer a mode on the bar: tap the tile's circle to turn the thermostat on or off, as on a Home Assistant tile. A short tile puts the stepper and the bar on one row.
+- The − and + of a double-width thermostat or number tile are round white keys in a grey pill, with the number between them in a larger font where it fits.
+- **Select card.** Tapping a select (a washing machine's programme, a mode) opens a list with a check at the option it is on; a tap chooses another at once. Wide screens use two columns, and options that do not fit go to a next page. A select now brings up to 16 options to the screen instead of 8.
+- Update the firmware of your screens to get the new tiles. With older firmware the app keeps working, and a select shows its first 8 options.
+
 ## 0.3.7 (firmware 0.3.2)
 
 Every page is there the moment you turn to it, and the screen no longer flickers while a picture loads.

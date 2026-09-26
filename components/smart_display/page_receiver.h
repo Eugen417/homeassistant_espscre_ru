@@ -520,8 +520,9 @@ inline std::string receive(const std::string &payload) {
         if(j==24) break; tile.history[j++]=number(value); }
       tile.has_history=j>0;tile.history_hours=std::clamp(root["history"]["hours"].as<unsigned>(),1u,24u);
     } else if (!tile.history.empty()) { tile.history.clear(); tile.history.shrink_to_fit(); }
+    // Sixteen options at most (firmware 0.3.3, eight before): the select card pages through what it cannot show at once.
     if (a["options"].is<JsonArray>()) for(JsonVariant option:a["options"].as<JsonArray>()) {
-      if(next.options.size()==8)break;next.options.push_back(string(option,48)); }
+      if(next.options.size()==16)break;next.options.push_back(string(option,48)); }
     tile.battery=number(a["battery_level"]);tile.volume=number(a["volume_level"]);
     tile.muted=a["is_volume_muted"].is<bool>() && a["is_volume_muted"].as<bool>();
     tile.device_class=string(a["device_class"],24);next.hvac_action=string(a["hvac_action"],24);
