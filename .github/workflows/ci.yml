@@ -47,7 +47,8 @@ jobs:
     name: firmware (${{ matrix.esphome }})
     needs: checks
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Nine boards since 0.3.6: the add-on's ESPHome builds took just under 30 minutes and ran past it on a slow runner.
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:

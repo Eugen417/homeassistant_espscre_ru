@@ -51,7 +51,8 @@ live cameras, cover, vacuum and the sun path. docs/KEPT_PAGES.md describes the d
   Waveshare about 75 KB, CYD 110 to 120 KB). With every page kept the Guition had 5.3 MB of PSRAM free, the Waveshare
   4.9 MB.
 - **Page keys.** The chevron of the first page's Previous key is grey again (LVGL snapshot).
-- **Back to the owner's layouts.** The release firmware went onto the three screens over OTA and each screen's own
+- **Back to the owner's layouts.** The release candidate (this release but for the name font fix above, which came
+  from the host renders afterwards) went onto the three screens over OTA and each screen's own
   layout, saved before the round, was put back through the add-on: the same pages and tiles as before (compared as
   documents), applied in 2.5 to 4 s, and on the Guition its other six pages were prepared in the background at once
   (29 to 39 ms each), with the playing player's cover fetched ahead.
