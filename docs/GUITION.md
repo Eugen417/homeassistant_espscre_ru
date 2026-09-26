@@ -147,26 +147,28 @@ switch:
     restore_mode: RESTORE_DEFAULT_OFF
     pin:
       number: GPIO40
-      inverted: true
+      inverted: false
   - platform: gpio
     id: relay_2
     name: "Relay 2"
     restore_mode: RESTORE_DEFAULT_OFF
     pin:
       number: GPIO2
-      inverted: true
+      inverted: false
   - platform: gpio
     id: relay_3
     name: "Relay 3"
     restore_mode: RESTORE_DEFAULT_OFF
     pin:
       number: GPIO1
-      inverted: true
+      inverted: false
 ```
 
 The pins are the ones on ESPHome's [device page](https://devices.esphome.io/devices/guition-esp32-s3-4848s040/)
-for this board. The one-relay base only has the first. If a relay clicks on while its switch reads off, change
-`inverted` to `false` for that relay. `RESTORE_DEFAULT_OFF` keeps the state a relay had across a restart.
+for this board. The one-relay base only has the first. The relays are active-high, which a three-relay base
+confirmed: with `inverted: true` every switch read the opposite of its relay. If a relay on your base still
+clicks on while its switch reads off, change `inverted` to `true` for that relay. `RESTORE_DEFAULT_OFF` keeps
+the state a relay had across a restart.
 
 Each relay shows up in Home Assistant as a switch on the screen's device (`switch.<screen>_relay_1` and so on),
 so it can go on a tile of the screen like any other switch, or in an automation. A tile switches through Home
