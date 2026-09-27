@@ -2316,6 +2316,8 @@
       },
       "comment_label": "Nota (opcional)",
       "comment_hint": "Não inclua dados pessoais, registos, palavras-passe nem chaves de API.",
+      "report_hint": "Algo para corrigir? Comunique-o no GitHub. Com a sua placa, as versões e um registo, pode ser analisado.",
+      "report_link": "Comunicar no GitHub",
       "add_details": "Acrescentar detalhes",
       "done": "Concluído",
       "settings_title": "Feedback",

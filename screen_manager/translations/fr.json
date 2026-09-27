@@ -2316,6 +2316,8 @@
       },
       "comment_label": "Note (facultatif)",
       "comment_hint": "N'indiquez ni données personnelles, ni journaux, ni mots de passe, ni clés d'API.",
+      "report_hint": "Un problème à corriger ? Signalez-le sur GitHub. Avec votre carte, les versions et un journal, il peut être analysé.",
+      "report_link": "Signaler sur GitHub",
       "add_details": "Ajouter des détails",
       "done": "Terminé",
       "settings_title": "Retour",

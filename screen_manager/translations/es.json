@@ -2316,6 +2316,8 @@
       },
       "comment_label": "Nota (opcional)",
       "comment_hint": "No incluyas datos personales, registros, contraseñas ni claves de API.",
+      "report_hint": "¿Hay algo que arreglar? Infórmalo en GitHub. Con tu placa, las versiones y un registro se puede investigar.",
+      "report_link": "Informar en GitHub",
       "add_details": "Añadir detalles",
       "done": "Listo",
       "settings_title": "Comentarios",

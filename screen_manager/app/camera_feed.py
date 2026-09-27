@@ -77,6 +77,12 @@ CONTENT_TYPE = 'image/bmp'
 # board is in here at all is the question of whether it draws pictures, which does not depend on the way it hangs:
 # a board without them, like the CYD, has no camera either way up, `can_show` is false and a camera tile is refused
 # before it is saved.
+# The largest picture any screen gets, whatever its glass (app 0.4.13, GitHub #68): at most this many pixels either way
+# and this many bytes once the screen has decoded it to RGB565. A 10-inch glass asked for a 1280x800 full screen of
+# 2 MB; a picture over the cap goes out smaller and the screen shows it in the middle. The firmware caps the pictures it
+# sizes itself (a page's atlas) with the same numbers: picture_store::MAX_SIDE and MAX_BYTES (tests/test_camera.py).
+PICTURE_MAX_SIDE = 1024
+PICTURE_MAX_BYTES = 1024 * 640 * 2
 BOXES = {shape['board']: {view: tuple(box) for view, box in shape['camera'].items()}
          for shape in SHAPES.values() if shape.get('camera')}
 
@@ -95,9 +101,17 @@ def boxes(screen):
     return {view: tuple(box) for view, box in found.items()}
 
 
+def capped(size):
+    """`size` (width, height), or the largest size of its proportions within PICTURE_MAX_SIDE and PICTURE_MAX_BYTES."""
+    width, height = size
+    scale = min(1.0, PICTURE_MAX_SIDE / width, PICTURE_MAX_SIDE / height, (PICTURE_MAX_BYTES / (2 * width * height)) ** 0.5)
+    return (width, height) if scale >= 1 else (max(1, int(width * scale)), max(1, int(height * scale)))
+
+
 def box(screen, view):
-    """One of them ('full' or 'thumb'), or None on a screen whose board draws no pictures."""
-    return (boxes(screen) or {}).get(view)
+    """One of them ('full' or 'thumb') within the cap, or None on a screen whose board draws no pictures."""
+    found = (boxes(screen) or {}).get(view)
+    return capped(found) if found else None
 
 
 # Firmware 0.2.103 lays its alert out again for the picture it gets, in that picture's own proportions
@@ -129,7 +143,7 @@ def alert_box(screen, picture):
     else:
         title_line, line = alert_layout.lines(dpi, look)
     card = alert_layout.layout(shape['width'], shape['height'], title_line, line, True, dpi, look, picture[0], picture[1])
-    return (card.image_w, card.image_h) if card.image_w > 0 and card.image_h > 0 else default
+    return capped((card.image_w, card.image_h)) if card.image_w > 0 and card.image_h > 0 else default
 
 
 def picture_size(raw):

@@ -3,6 +3,7 @@
 #include <cassert>
 #include <cstdlib>
 #include <set>
+#include <utility>
 #include <vector>
 
 // LVGL's image descriptor, as far as the store reads it.
@@ -63,5 +64,28 @@ int main() {
   shown.clear();
   store.collect(on_card);
   assert(live == 0 && store.size() == 0);
+
+  // The cap on every picture (GitHub #68): a picture within it keeps its pixels.
+  using picture_store::fit_scale;
+  using picture_store::scaled;
+  assert(fit_scale(480, 480) == picture_store::SCALE_ONE && fit_scale(1024, 600) == picture_store::SCALE_ONE);
+  assert(fit_scale(1024, 640) == picture_store::SCALE_ONE && fit_scale(0, 10) == picture_store::SCALE_ONE);
+  // Three 2x2 cameras on a 10-inch glass: 1248x684, 1.7 MB, comes within both caps.
+  for (auto size : {std::pair<int, int>{1248, 684}, {1280, 800}, {2560, 1440}, {4000, 200}, {200, 4000}}) {
+    const int scale = fit_scale(size.first, size.second);
+    const int w = scaled(size.first, scale), h = scaled(size.second, scale);
+    assert(scale < picture_store::SCALE_ONE && w >= 1 && h >= 1);
+    assert(w <= picture_store::MAX_SIDE && h <= picture_store::MAX_SIDE);
+    assert(size_t(w) * h * 2 <= picture_store::MAX_BYTES);
+    // Not needlessly small: within a few percent of the cap on its tighter side.
+    assert(w >= picture_store::MAX_SIDE * 9 / 10 || h >= picture_store::MAX_SIDE * 9 / 10 ||
+           size_t(w) * h * 2 >= picture_store::MAX_BYTES * 9 / 10);
+  }
+  // Frames side by side stay side by side: rounding down the start and the end of each keeps them apart.
+  const int scale = fit_scale(1248, 684);
+  for (int x = 0; x < 1248; x += 37) assert(scaled(x, scale) <= scaled(x + 1, scale));
+  assert(scaled(0, scale) == 0 && scaled(1248, scale) <= picture_store::MAX_SIDE);
+  // The cap fits the store: whatever the cap lets through, a board's store takes (runtime_tiles.h pictures_kept).
+  assert(picture_store::MAX_BYTES <= size_t(1536u << 10));
   return 0;
 }

@@ -405,6 +405,18 @@ inline void grid_bind(lv_obj_t *container, int margin, int page_bar_height) {
 }
 
 inline void live_place(Widgets &w, const Tile &t, int size, int x, int y);
+// A camera or cover that fills its card but came smaller than the card (the picture cap, GitHub #68): the card behind
+// it is dark, as around a picture full screen, so the white name over it stays readable (firmware 0.9.0+).
+inline bool letterboxed(const Widgets &w) {
+#if LV_USE_IMAGE
+  if (!w.picture || !w.tile || lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN) || lv_obj_get_index(w.picture) != 0) return false;
+  return lv_obj_get_style_width(w.picture, LV_PART_MAIN) < lv_obj_get_width(w.tile) ||
+         lv_obj_get_style_height(w.picture, LV_PART_MAIN) < lv_obj_get_height(w.tile);
+#else
+  (void) w;
+  return false;
+#endif
+}
 inline bool live_waiting(const Tile &t);
 inline bool live_marquee_ready(const Widgets &w, const Tile &t);
 // A picture over the whole card: a media player's cover on a 1x2 or 2x2 tile, dimmed under its track (firmware 0.3.1),
@@ -5928,12 +5940,12 @@ inline void render_slot(size_t slot) {
   // Every card, the one over the whole page too, is white or its own pastel (firmware 0.2.77+): the state shows in the
   // icon and the controls, as on the other sizes. Firmware 0.2.62 to 0.2.76 tinted a full-page card in its state colour
   // while it was on.
-  press_ground(w.tile,lv_color_hex(theme::surface(t.background)));
+  press_ground(w.tile,letterboxed(w)?theme::color(theme::CAMERA_PAGE):lv_color_hex(theme::surface(t.background)));
   set_number(w.tile,LV_STYLE_BORDER_WIDTH,1);
   // "Background: none" hides only the card; geometry and padding stay identical, and the press still shows because
   // it lives on the PRESSED state: a shade of what the finger sees, the page there, the card everywhere else.
   set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(theme::pressed(t.transparent ? theme::hex(theme::PAGE) : theme::surface(t.background))),LV_STATE_PRESSED);
-  set_number(w.tile,LV_STYLE_BG_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
+  set_number(w.tile,LV_STYLE_BG_OPA,t.transparent&&!letterboxed(w) ? LV_OPA_TRANSP : LV_OPA_COVER);
   set_number(w.tile,LV_STYLE_BORDER_OPA,t.transparent ? LV_OPA_TRANSP : LV_OPA_COVER);
   set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));
   set_color(w.circle,LV_STYLE_BG_COLOR,circle_color);
@@ -7363,7 +7375,7 @@ inline void cover_tick(uint32_t now) {
 // board's third online_image; a page of covers alone loads once. It waits for the alert's picture, a cover or the
 // camera full screen: one picture loads at a time. A page turn, a card over the page, another look or another track
 // (the picture's mark in the media state) changes what is wanted: the strip is dropped and asked for again.
-struct LiveWish { std::string entities, grounds, marks, atlas; int size = 0, atlas_x = 0, atlas_y = 0; uint32_t every = 15000; bool cameras = false; };
+struct LiveWish { std::string entities, grounds, marks, atlas; int size = 0, atlas_x = 0, atlas_y = 0, atlas_scale = picture_store::SCALE_ONE; uint32_t every = 15000; bool cameras = false; };
 inline LiveWish live_wish;
 inline camera_view::Feed live;  // entity: the list asked for
 inline std::string live_have;   // the list the strip on screen holds, "" for a tile without a picture
@@ -7404,12 +7416,16 @@ inline LiveWish live_wanted() {
     // The atlas starts at the top left of its pictures, not of the glass: a picture at the bottom right would
     // otherwise bring a canvas of empty pixels with it on every refresh (firmware 0.3.1).
     want.atlas_x=want.atlas_y=INT32_MAX;
+    int right=0,bottom=0;
     for(auto &w:widgets){
       if(!w.tile||lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN)||w.index>=model.count||!model.tiles[w.index].pictured())continue;
       lv_area_t b;lv_obj_get_coords(card_art(model.tiles[w.index])?w.tile:w.circle,&b);
       want.atlas_x=std::min<int>(want.atlas_x,b.x1);want.atlas_y=std::min<int>(want.atlas_y,b.y1);
+      right=std::max<int>(right,b.x2+1);bottom=std::max<int>(bottom,b.y2+1);
     }
     if(want.atlas_x==INT32_MAX)want.atlas_x=want.atlas_y=0;
+    // Pictures over the cap come smaller, each in the middle of its own place (picture_store::MAX_BYTES, GitHub #68).
+    want.atlas_scale=picture_store::fit_scale(right-want.atlas_x,bottom-want.atlas_y);
   }
   for (auto &w : widgets) {
     if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= model.count) continue;
@@ -7418,15 +7434,21 @@ inline LiveWish live_wanted() {
     if (!want.entities.empty()) { want.entities += ','; want.grounds += ','; want.marks += ','; }
     want.entities += t.entity;
     char ground[8];
-    snprintf(ground, sizeof(ground), "%06X", (unsigned) ((t.transparent||card_art(t)) ? theme::hex(theme::PAGE) : theme::surface(t.background)));
+    uint32_t behind=(t.transparent||card_art(t)) ? theme::hex(theme::PAGE) : theme::surface(t.background);
     if(atlas){
       lv_area_t bounds;lv_obj_get_coords(card_art(t)?w.tile:w.circle,&bounds);
+      const int scale=want.atlas_scale,x=bounds.x1-want.atlas_x,y=bounds.y1-want.atlas_y;
       const int width=lv_area_get_width(&bounds),height=lv_area_get_height(&bounds);
       const int radius=card_art(t)?lv_obj_get_style_radius(w.tile,LV_PART_MAIN):width/6;
+      const int fx=picture_store::scaled(x,scale),fy=picture_store::scaled(y,scale);
+      const int fw=std::max(1,picture_store::scaled(x+width,scale)-fx),fh=std::max(1,picture_store::scaled(y+height,scale)-fy);
       char frame[96];snprintf(frame,sizeof(frame),"%s[%d,%d,%d,%d,%d,%d]",want.atlas.size()>1?",":"",
-        (int)bounds.x1-want.atlas_x,(int)bounds.y1-want.atlas_y,width,height,std::min(radius,std::min(width,height)/2),card_art(t)&&!t.live()?170:0);
+        fx,fy,fw,fh,std::min(picture_store::scaled(radius,scale),std::min(fw,fh)/2),card_art(t)&&!t.live()?170:0);
       want.atlas+=frame;
+      // A smaller picture sits on the dark card (live_place), so its rounded corners are rounded over that.
+      if(card_art(t)&&(fw<width||fh<height))behind=theme::hex(theme::CAMERA_PAGE);
     }
+    snprintf(ground, sizeof(ground), "%06X", (unsigned) behind);
     want.grounds += ground;
     if (t.cover_tile()) want.marks += t.extra().media_picture;
     if (!want.size) want.size = lv_obj_get_style_width(w.circle, LV_PART_MAIN);
@@ -7448,10 +7470,13 @@ inline lv_image_dsc_t *live_ready(const std::string &entity, int size, int &squa
   if (pictures_kept()) {
     if (live_wish.atlas.empty() && live_wish.size != size) return nullptr;
     auto *kept = pictures.entry(live_key(live_wish));
-    if (!kept) return nullptr;
-    square = list_index(kept->note, entity);  // the tiles the app answered for, "" where it had no picture
-    if (square < 0) return nullptr;
-    return !live_wish.atlas.empty() || kept->image.header.h >= (square + 1) * size ? &kept->image : nullptr;
+    if (kept) {
+      square = list_index(kept->note, entity);  // the tiles the app answered for, "" where it had no picture
+      if (square < 0) return nullptr;
+      return !live_wish.atlas.empty() || kept->image.header.h >= (square + 1) * size ? &kept->image : nullptr;
+    }
+    // Not kept (no room in the store): the download itself, as on a board without PSRAM, until the page turns
+    // (live_release). Before firmware 0.9.0 such a page showed no picture at all (GitHub #68).
   }
   if (!live.loaded || (live_wish.atlas.empty() && live_wish.size != size)) return nullptr;
   square = list_index(live_have, entity);
@@ -7477,8 +7502,23 @@ inline void live_release() {
   const bool had = live.open();
   live = camera_view::Feed{};
   live_have.clear();
-  // Kept copies stay on their cards (a page that comes back shows them); only the download goes.
-  if (pictures_kept()) { if (had && camera_live.release) camera_live.release(); return; }
+  // Kept copies stay on their cards (a page that comes back shows them); only the download goes, and a card that drew
+  // the download itself because the store had no room for it (live_ready) lets it go first.
+  if (pictures_kept()) {
+#if LV_USE_IMAGE
+    if (auto *download = camera_live.source ? camera_live.source() : nullptr) {
+      each_card([&](Widgets &w) {
+        if (!draws(w.picture, download)) return;
+        lv_image_set_src(w.picture, nullptr);
+        lv_obj_add_flag(w.picture, LV_OBJ_FLAG_HIDDEN);
+        // A card on the glass draws its circle again; a kept page's card when its pictures come again (live_loaded).
+        if (&w >= widgets.data() && &w < widgets.data() + widgets.size() && w.index < model.count) refresh_tile(w.index);
+      });
+    }
+#endif
+    if (had && camera_live.release) camera_live.release();
+    return;
+  }
   for (auto &w : widgets) {
     if (!w.picture || lv_obj_has_flag(w.picture, LV_OBJ_FLAG_HIDDEN)) continue;
 #if LV_USE_IMAGE
@@ -7508,10 +7548,19 @@ inline void live_place(Widgets &w, const Tile &t, int size, int x, int y) {
       const int left=lv_obj_get_style_space_left(w.tile,LV_PART_MAIN),top=lv_obj_get_style_space_top(w.tile,LV_PART_MAIN);
       const int ax=tile.x1+(background?0:left+x)-live_wish.atlas_x,ay=tile.y1+(background?0:top+y)-live_wish.atlas_y;
       const int width=background?lv_obj_get_width(w.tile):size,height=background?lv_obj_get_height(w.tile):size;
-      if(ax<0||ay<0||ax+width>(int)src->header.w||ay+height>(int)src->header.h){lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);return;}
-      lv_image_set_offset_x(w.picture,-ax);lv_image_set_offset_y(w.picture,-ay);
-      lv_obj_set_pos(w.picture,background?-left:x,background?-top:y);lv_obj_set_size(w.picture,width,height);
+      // The frame as live_wanted asked for it; a picture over the cap is smaller and sits in the middle of its place.
+      const int scale=live_wish.atlas_scale,fx=picture_store::scaled(ax,scale),fy=picture_store::scaled(ay,scale);
+      const int fw=std::max(1,picture_store::scaled(ax+width,scale)-fx),fh=std::max(1,picture_store::scaled(ay+height,scale)-fy);
+      if(ax<0||ay<0||fx+fw>(int)src->header.w||fy+fh>(int)src->header.h){lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);return;}
+      lv_image_set_offset_x(w.picture,-fx);lv_image_set_offset_y(w.picture,-fy);
+      lv_obj_set_pos(w.picture,(background?-left:x)+(width-fw)/2,(background?-top:y)+(height-fh)/2);lv_obj_set_size(w.picture,fw,fh);
       if(background)lv_obj_move_to_index(w.picture,0);
+      // The card behind a smaller picture: dark while it is smaller, the card's own colour again once it fills it.
+      if(background){
+        const bool dark=fw<width||fh<height;
+        set_color(w.tile,LV_STYLE_BG_COLOR,dark?theme::color(theme::CAMERA_PAGE):lv_color_hex(theme::surface(t.background)));
+        set_number(w.tile,LV_STYLE_BG_OPA,t.transparent&&!dark?LV_OPA_TRANSP:LV_OPA_COVER);
+      }
     }else{
       lv_image_set_offset_x(w.picture,0);lv_image_set_offset_y(w.picture, -square * size);
       lv_obj_set_pos(w.picture, x, y);lv_obj_set_size(w.picture, size, size);
@@ -7567,7 +7616,7 @@ inline void live_tick(uint32_t now) {
   if (!live_supported()) return;
   LiveWish want = live_wanted();
   if (want.entities != live_wish.entities || want.grounds != live_wish.grounds || want.marks != live_wish.marks || want.size != live_wish.size || want.atlas != live_wish.atlas ||
-      want.atlas_x != live_wish.atlas_x || want.atlas_y != live_wish.atlas_y) {
+      want.atlas_x != live_wish.atlas_x || want.atlas_y != live_wish.atlas_y || want.atlas_scale != live_wish.atlas_scale) {
     live_wish = want;
     live_release();
     // A strip kept from before goes on the tiles at once: covers alone are then done, a camera loads its next picture

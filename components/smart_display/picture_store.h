@@ -10,7 +10,9 @@
 //
 // Pure bookkeeping over an image descriptor with LVGL's fields (header, data_size, data), so tests/test_picture_store.cpp
 // checks it on a PC with a stand-in; runtime_tiles.h uses lv_image_dsc_t and PSRAM.
+#include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -19,6 +21,27 @@
 
 namespace picture_store {
 constexpr size_t ENTRIES = 16;
+
+// The largest picture any screen gets, whatever its glass (firmware 0.9.0+, GitHub #68): at most MAX_SIDE pixels
+// either way and MAX_BYTES decoded (RGB565, two bytes a pixel). The page's pictures of three 2x2 cameras on a 10-inch
+// glass came to a 1248x684 atlas of 1.7 MB, more than the store keeps, and a larger glass would ask more still. A
+// picture over the cap is sent smaller and shown in the middle of its place. 1024x640 keeps every board up to the
+// 7-inch and the 1024x600 glass at its own pixels. ESP Screen Manager caps the pictures it sizes itself with the same
+// numbers (camera_feed.PICTURE_MAX_SIDE and PICTURE_MAX_BYTES, tests/test_camera.py keeps them equal).
+constexpr int MAX_SIDE = 1024;
+constexpr size_t MAX_BYTES = 1024 * 640 * 2;
+// A scale in 1/SCALE_ONE, so the screen and its request round a picture's frames the same way.
+constexpr int SCALE_ONE = 4096;
+// The scale that brings a picture of `width` by `height` within the cap, SCALE_ONE when it fits already.
+inline int fit_scale(int width, int height) {
+  if (width <= 0 || height <= 0) return SCALE_ONE;
+  double scale = std::min({1.0, double(MAX_SIDE) / width, double(MAX_SIDE) / height,
+                           std::sqrt(double(MAX_BYTES) / (2.0 * width * height))});
+  return std::max(1, static_cast<int>(scale * SCALE_ONE));
+}
+// A coordinate at that scale, rounded down: a frame from `x` to `x + w` becomes scaled(x) to scaled(x + w), so frames
+// that did not overlap still do not.
+inline int scaled(int value, int scale) { return static_cast<int>(static_cast<int64_t>(value) * scale / SCALE_ONE); }
 
 template <class Image> struct Store {
   struct Entry {

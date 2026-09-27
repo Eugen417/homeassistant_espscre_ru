@@ -9,6 +9,9 @@ import type { FeedbackAnswer, FeedbackIssue, Screen } from "../types";
 
 const props = defineProps<{ screen: Screen; mode: "card" | "settings" }>();
 const ISSUES: FeedbackIssue[] = ["display", "touch", "connection", "installation", "other"];
+// A problem needs more than an answer here to be fixed (the board, the versions, a log): "Not quite" points to the
+// bug report on GitHub (app 0.4.13). Nothing is sent there; the owner opens it themselves.
+const REPORT = "https://github.com/MaxGramser/homeassistant_espscreen/issues/new?template=bug_report.yml";
 
 const fb = computed(() => props.screen.feedback!);
 // ask: the question; details: what goes wrong, after an answer went out; done: the card has said its thanks.
@@ -127,6 +130,8 @@ const toggle = (issue: FeedbackIssue) => {
             <span>{{ t(`editor.feedback.issues.${issue}`) }}</span>
           </label>
         </div>
+        <p class="fb-report">{{ t("editor.feedback.report_hint") }}
+          <a :href="REPORT" target="_blank" rel="noopener noreferrer">{{ t("editor.feedback.report_link") }}</a></p>
       </template>
       <p v-else class="fb-question" :id="mode === 'card' ? `${uid}-title` : undefined">{{ t("editor.feedback.add_something") }}</p>
       <label class="fb-comment">
@@ -189,6 +194,7 @@ const toggle = (issue: FeedbackIssue) => {
 .fb-link:hover:not(:disabled) { color: var(--ink); }
 .fb-issues { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 6px 0 10px; }
 .fb-issue { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; }
+.fb-report { margin: 0 0 10px; font-size: 12.5px; color: var(--ink-2); max-width: 560px; }
 .fb-comment { display: grid; gap: 4px; font-size: 12.5px; max-width: 560px; }
 .fb-comment textarea { width: 100%; resize: vertical; min-height: 60px; }
 .fb-shared { margin: 4px 0; color: var(--ink-2); }

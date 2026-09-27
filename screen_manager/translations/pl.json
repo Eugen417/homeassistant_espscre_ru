@@ -2316,6 +2316,8 @@
       },
       "comment_label": "Notatka (opcjonalnie)",
       "comment_hint": "Nie podawaj danych osobowych, logów, haseł ani kluczy API.",
+      "report_hint": "Coś do naprawienia? Zgłoś to na GitHubie. Z płytką, wersjami i logiem można to zbadać.",
+      "report_link": "Zgłoś na GitHubie",
       "add_details": "Dodaj szczegóły",
       "done": "Gotowe",
       "settings_title": "Opinia",

@@ -1,3 +1,23 @@
+## 0.4.13 (firmware 0.9.0)
+
+Camera pictures on large screens (GitHub #68, thanks @ivanfmartinez).
+
+- **One cap for every picture.** No picture a screen gets is larger than 1024 pixels either way or 1.25 MB once
+  decoded, whatever the size of its glass. A picture over that comes smaller and sits in the middle of its place, on a
+  card that turns dark around it so the camera's name stays readable. This touches only the 10-inch screens (1280x800)
+  today: a camera full screen there is 1024x640, and a page of large camera tiles gets its pictures a little smaller. Every smaller screen keeps its pictures exactly as they were.
+- **Fixed: three large camera tiles on one page showed no picture at all.** On a 10-inch screen, three 2x2 cameras came
+  to one picture of 1.7 MB, more than the screen keeps for later, and then no tile drew anything. Such a page now fits
+  the cap, and a picture the screen has no room to keep is shown straight from the download.
+- **Feedback:** when you answer "Not quite", the card now points to a bug report on GitHub. The board, the versions and
+  a log there are what it takes to fix a problem.
+- New firmware for every board: update the app, then press **Update** on each screen.
+- Tested: every board builds with ESPHome 2026.9 (the CYD image is 1,671,632 B, 91.1 % of its slot, 704 B more). On a
+  Guition 4 inch with Home Assistant 2026.9, three test cameras as live tiles: with the cap scaled down to that glass
+  and the store made too small on purpose, every page showed its pictures smaller, centred and readable in the light
+  and the dark look, through ten quick page turns without a restart; with the real cap the 4 inch looks exactly as on
+  firmware 0.8.0. Not yet seen on a 10-inch screen.
+
 ## 0.4.12 (firmware 0.8.0)
 
 A bedside clock: the time as large as the page allows, with up to three round keys under it.

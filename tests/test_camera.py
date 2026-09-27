@@ -68,6 +68,29 @@ class Rules(unittest.TestCase):
                     self.assertLessEqual(w, full[0], (board, way, picture))
                     self.assertLessEqual(h, full[1], (board, way, picture))
 
+    def test_every_picture_stays_within_one_cap_whatever_the_glass(self):
+        # GitHub #68: a 10-inch glass asked for pictures of up to 2 MB, more than its store kept. The app and the
+        # firmware cap every picture with the same two numbers, the firmware in picture_store.h.
+        header = (ROOT / 'components/smart_display/picture_store.h').read_text()
+        self.assertIn(f'constexpr int MAX_SIDE = {camera_feed.PICTURE_MAX_SIDE};', header)
+        self.assertEqual(eval(re.search(r'constexpr size_t MAX_BYTES = ([0-9 *]+);', header).group(1)), camera_feed.PICTURE_MAX_BYTES)
+        for board, shape in camera_feed.SHAPES.items():
+            if board != shape.get('board') or 'camera' not in shape:
+                continue
+            for way in ('landscape', 'portrait'):
+                for view in ('full', 'thumb'):
+                    w, h = camera_feed.box({'board': board, 'orientation': way}, view)
+                    self.assertLessEqual(max(w, h), camera_feed.PICTURE_MAX_SIDE, (board, way, view))
+                    self.assertLessEqual(w * h * 2, camera_feed.PICTURE_MAX_BYTES, (board, way, view))
+        # The 10-inch's full screen keeps its proportions; up to the 1024x600 glass every board keeps its own pixels.
+        self.assertEqual(camera_feed.box({'board': 'jc8012p4a1'}, 'full'), (1024, 640))
+        self.assertEqual(camera_feed.box({'board': 'jc1060p470'}, 'full'), (1024, 600))
+        self.assertEqual(camera_feed.box({'board': 'waveshare7'}, 'full'), (800, 480))
+        self.assertEqual(camera_feed.capped((2560, 1440)), (1024, 576))
+        w, h = camera_feed.capped((1248, 684))
+        self.assertLessEqual(w * h * 2, camera_feed.PICTURE_MAX_BYTES)
+        self.assertAlmostEqual(w / h, 1248 / 684, places=2)
+
     @unittest.skipUnless(HAS_PIL, 'needs Pillow')
     def test_a_turned_snapshot_is_measured_the_way_it_is_shown(self):
         from PIL import Image

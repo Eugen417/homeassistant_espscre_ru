@@ -63,7 +63,8 @@ class StateColours(unittest.TestCase):
         # A full-page card is white or its own pastel like every other card (firmware 0.2.77+; 0.2.62-0.2.76 tinted it).
         self.assertNotIn('lights_up()', TILES)
         self.assertNotIn('lights_up', MODEL)
-        self.assertIn('press_ground(w.tile,lv_color_hex(theme::surface(t.background)));', TILES)
+        # A camera whose picture came smaller than its card (the picture cap, firmware 0.9.0) is dark around it instead.
+        self.assertIn('press_ground(w.tile,letterboxed(w)?theme::color(theme::CAMERA_PAGE):lv_color_hex(theme::surface(t.background)));', TILES)
         self.assertIn('const uint32_t fill=slider_on?accent:theme::STATE_OFF;', TILES)
         self.assertNotIn('domain_accent', TILES)
         self.assertIn('frontend src/common/entity/state_active.ts', MODEL)

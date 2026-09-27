@@ -2316,6 +2316,8 @@
       },
       "comment_label": "Toelichting (optioneel)",
       "comment_hint": "Laat persoonsgegevens, logs, wachtwoorden en API-keys weg.",
+      "report_hint": "Moet er iets opgelost worden? Meld het op GitHub. Met je bord, de versies en een log kan het worden uitgezocht.",
+      "report_link": "Meld het op GitHub",
       "add_details": "Details toevoegen",
       "done": "Klaar",
       "settings_title": "Feedback",

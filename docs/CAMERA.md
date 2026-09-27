@@ -123,6 +123,12 @@ and the time the camera takes to answer. On the 4-inch Guition two single tiles 
 50 KB per refresh, and a tile over the whole page about 160 KB. A refresh every 5 seconds works there,
 but the larger the picture and the slower the Wi-Fi, the longer the screen spends reading it.
 
+From app 0.4.13 with firmware 0.9.0 no picture is larger than 1024 pixels either way or 1.25 MB once the
+screen has decoded it, whatever the size of the glass. A page whose pictures would be larger (three
+large cameras on a 10-inch screen) asks for all of them a little smaller, and each sits in the middle
+of its card on a dark ground, so the name under it stays readable. Every screen up to 1024x600 keeps
+its pictures at full size.
+
 A screen with firmware 0.3.3 or newer gets its live pictures in 8-bit colour: a palette of the picture's own
 256 colours, dithered so a shade stays smooth. That is a third of the bytes of a 24-bit BMP (a 2 × 2 card
 on the 4-inch Guition: about 100 KB instead of 300 KB), at about the quality of the screen's own 16-bit
@@ -162,10 +168,14 @@ The screen never talks to Home Assistant about images, and it never holds a Home
 2. The app fetches the snapshot from Home Assistant with its own access (the same pictures the
    Home Assistant frontend shows), and makes it exactly as large as the screen draws it: full screen
    at most the board's canvas (`camera.full` in boards.json: 480×480 on the 4-inch Guition, 800×480 on
-   the Waveshare 4.3 and 7, 1024×600 on the JC1060P470, 1280×800 on the JC8012P4A1), an alert card at
-   its frame (`camera.thumb`, 392×220 on the 4-inch Guition), proportions kept.
+   the Waveshare 4.3 and 7, 1024×600 on the JC1060P470), an alert card at its frame (`camera.thumb`,
+   392×220 on the 4-inch Guition), proportions kept. Neither is ever larger than the cap above
+   (`camera_feed.PICTURE_MAX_SIDE` and `PICTURE_MAX_BYTES`): the JC8012P4A1's 1280×800 canvas gets a
+   full-screen picture of at most 1024×640, shown in the middle.
 3. It serves the result as an uncompressed BMP on **port 8098** under a random link, and sends the
-   link to the screen. ESPHome's `online_image` loads it. The full screen, the alert and the cover are
+   link to the screen. ESPHome's `online_image` loads it. A screen on another network or VLAN than Home
+   Assistant needs to reach this port on Home Assistant's host; without it a camera tile shows its
+   name and state but no picture, and the screen's log says `HTTP Request failed` for the link. The full screen, the alert and the cover are
    24-bit; live tile pictures go to firmware 0.3.3+ in 8-bit (see above).
 
 While a camera is open, the screen loads its link every four seconds, one image at a time. The app

@@ -2316,6 +2316,8 @@
       },
       "comment_label": "Anything else? (optional)",
       "comment_hint": "Please leave out personal details, logs, passwords and API keys.",
+      "report_hint": "Something to fix? Report it on GitHub. With your board, the versions and a log it can be looked into.",
+      "report_link": "Report it on GitHub",
       "add_details": "Add details",
       "done": "Done",
       "settings_title": "Feedback",

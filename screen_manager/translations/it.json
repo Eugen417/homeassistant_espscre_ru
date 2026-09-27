@@ -2316,6 +2316,8 @@
       },
       "comment_label": "Nota (facoltativa)",
       "comment_hint": "Non inserire dati personali, log, password o chiavi API.",
+      "report_hint": "C'è qualcosa da correggere? Segnalalo su GitHub. Con la tua scheda, le versioni e un log si può analizzare.",
+      "report_link": "Segnala su GitHub",
       "add_details": "Aggiungi dettagli",
       "done": "Fatto",
       "settings_title": "Feedback",
