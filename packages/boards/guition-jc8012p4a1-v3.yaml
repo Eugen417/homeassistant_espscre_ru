@@ -30,7 +30,7 @@ packages:
 substitutions:
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "jc8012p4a1v3"
-  SCREEN_FIRMWARE_VERSION: "0.6.1"   # a fix for this board alone (docs/BOARD_RELEASES.md)
+  SCREEN_FIRMWARE_VERSION: "0.6.2"   # a fix for this board alone (docs/BOARD_RELEASES.md)
   DEVICE_NAME: "jc8012p4a1v3-new"
   DEVICE_FRIENDLY_NAME: "My Guition 10 V3"
 
@@ -42,10 +42,9 @@ substitutions:
   DISPLAY_DPI: "149.44920605238187"
   # The LVGL angle that lays this panel out lying down (1280 x 800). Standing up is a quarter further.
   ROTATION_LANDSCAPE: "90"
-  # ESPHome's own preset for this panel (touchscreen: platform: gsl3670, model: GUITION-JC8012P4A1) reads the
-  # glass as the panel is built: turned a quarter against the picture. LVGL then turns picture and touch
-  # together (LVGL_ROTATION), as it does on the CYD.
-  TOUCH_SWAP_XY: "true"
+  # The V3's touch driver (components/gsl3680_v3) reports the panel's own pixels with x running the other way (the
+  # axes are not swapped, the default); LVGL then turns picture and touch together (LVGL_ROTATION), as it does on the
+  # CYD.
   TOUCH_MIRROR_X: "true"
   # The tile grid: columns and rows of cells. The shared tree places every cell from these
   # (runtime_tiles::place_page), so a board with more room states more columns or rows.
@@ -66,10 +65,9 @@ substitutions:
 # ============================================================
 
 esphome:
-  # This board asks for more ESPHome than the packages' own min_version (2026.6.2, packages/core.yaml): its touch
-  # platform (gsl3670) arrived in 2026.7.0 and that platform's `model: GUITION-JC8012P4A1` in 2026.8.0, which is
-  # what packages/hardware/guition-jc8012p4a1.yaml uses. A board file's min_version wins over the core's, so the CYD, the Guition and the
-  # Waveshare keep building on an older ESPHome; only a 10.1-inch screen asks for 2026.8 or newer.
+  # This board asks for more ESPHome than the packages' own min_version (2026.6.2, packages/core.yaml): its display
+  # model, `JC8012P4A1-V2` below, arrived in 2026.8.0. A board file's min_version wins over the core's, so the CYD,
+  # the Guition and the Waveshare keep building on an older ESPHome; only a 10.1-inch screen asks for 2026.8 or newer.
   # docs/RELEASING.md says why the packages stay behind the add-on's ESPHome.
   min_version: 2026.8.0
 

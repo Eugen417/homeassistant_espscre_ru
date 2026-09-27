@@ -91,7 +91,8 @@ def catalog_of(board, values, lying):
     return {'order': list(profiles.CATALOG).index(board), 'name': entry['name'].strip(), 'model': entry['model'].strip(),
             'status': entry['status'],
             'inch': round(math.hypot(lying['width'], lying['height']) / float(values['DISPLAY_DPI']), 1),
-            'touch': touch[1].upper() if touch else '',
+            # the chip, also when a board runs its own copy of a driver (gsl3680_v3 is a GSL3680)
+            'touch': touch[1].split('_')[0].upper() if touch else '',
             'calibrate': any(path.name == 'resistive-touch.yaml' for path in chain),
             'choices': choices}
 

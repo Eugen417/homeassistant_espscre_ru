@@ -28,7 +28,7 @@ How a path is sorted:
 | Changed path | Reaches |
 |---|---|
 | `packages/core.yaml`, `components/smart_display`, `fonts/` | every board |
-| a component under `components/` that some boards load as a platform (`xpt2046`, `mipi_dsi_v3`) | the boards whose entry files load it |
+| a component under `components/` that some boards load as a platform (`xpt2046`, `mipi_dsi_v3`, `gsl3680_v3`) | the boards whose entry files load it |
 | the `screen` section of a file in `screen_manager/translations/` (the texts the firmware compiles in) | every board |
 | a board file under `packages/boards/`, or its entry files `packages/<board>.yaml` and `checkout/<board>.yaml` | that board |
 | a file under `packages/features/`, `looks/`, `hardware/` or `cells/` | exactly the boards whose files include it |

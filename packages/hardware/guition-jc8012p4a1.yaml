@@ -6,9 +6,8 @@
 # driver. Everything else is the same board: the ESP32-P4 and its ESP32-C6 (shared with the 7-inch), and the GSL3680
 # touch panel. The board file adds its display and says which silicon it is built for.
 #
-# Only the V3 includes this file for now. The first build carries the same touch panel and sensor in its own board file:
-# moving them here changes nothing it builds, but it would count as a firmware update for every screen of it
-# (docs/BOARD_RELEASES.md). The next shared release moves them, and the first build includes this file then.
+# Only the V3 includes this file. The first build carries the same touch panel and sensor in its own board file, and
+# keeps them there: its touch runs on ESPHome's own gsl3670, the V3's on components/gsl3680_v3 (below).
 packages:
   hardware: !include guition-esp32p4.yaml
 
@@ -19,16 +18,18 @@ text_sensor:
     update_interval: never
     lambda: 'return {"guition"};'
 
-# ESPHome's own gsl3670 platform (2026.7.0+) drives the GSL3680 on this panel. `model:` brings its pins and
-# the range the panel reports; the transform is the board file's, because the shared tree reads those three names.
-# The driver loads a firmware table into the touch chip at boot, which ESPHome fetches from the release the
-# model points at and keeps in its own cache, so a build needs to reach GitHub once.
+# The GSL3680 on the V3 runs on components/gsl3680_v3, the driver the community configurations for this board use:
+# ESPHome's own gsl3670 loads its firmware without an error and then never reports a touch on the V3 (GitHub #52).
+# The driver starts the chip, loads its firmware table, turns on the pull-up of the interrupt pin itself and reports
+# the panel's own pixels (800 x 1280); the transform is the board file's, because the shared tree reads those three
+# names. The chip does not always interrupt again when the finger lifts, so a contact counts as let go after 50 ms
+# without a report, which is what brings LVGL its release and a tap its click.
 touchscreen:
-  - platform: gsl3670
-    model: GUITION-JC8012P4A1
+  - platform: gsl3680_v3
     id: ts_touch
     i2c_id: touch_bus
     display: my_display
     update_interval: 20ms
     reset_pin: GPIO22
     interrupt_pin: GPIO21
+    touch_timeout: 50ms

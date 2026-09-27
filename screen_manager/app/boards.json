@@ -531,13 +531,13 @@
    "name": "Guition",
    "order": 5,
    "status": "experimental",
-   "touch": "GSL3670"
+   "touch": "GSL3680"
   },
   "chip": "ESP32-P4",
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.6.1",
+  "firmware": "0.6.2",
   "height": 800,
   "hotspot": true,
   "look": "standard",
@@ -1378,13 +1378,13 @@
    "name": "Guition",
    "order": 5,
    "status": "experimental",
-   "touch": "GSL3670"
+   "touch": "GSL3680"
   },
   "chip": "ESP32-P4",
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.6.1",
+  "firmware": "0.6.2",
   "height": 800,
   "hotspot": true,
   "look": "standard",
@@ -1959,13 +1959,13 @@
    "name": "Guition",
    "order": 5,
    "status": "experimental",
-   "touch": "GSL3670"
+   "touch": "GSL3680"
   },
   "chip": "ESP32-P4",
   "columns": 5,
   "dimmable": true,
   "dpi": 149,
-  "firmware": "0.6.1",
+  "firmware": "0.6.2",
   "height": 800,
   "hotspot": true,
   "look": "standard",

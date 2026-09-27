@@ -1,3 +1,14 @@
+## 0.4.9 (firmware 0.6.2 for jc8012p4a1v3)
+
+Touch on the Guition JC8012P4A1 V3 (GitHub #52, thanks @ivanfmartinez).
+
+- **Guition JC8012P4A1 V3** (experimental): the screen started and showed its tiles, but did not react to a finger.
+  ESPHome's touch driver loads the touch chip's firmware and then never hears a touch on this board. The V3 now uses the
+  touch driver that the community configurations for this board run, with the same touch firmware. Update the V3 from
+  ESP Screens; it runs, so the update goes over the air. An Override YAML you added to test touch can be emptied
+  again. docs/JC8012P4A1.md has the details.
+- Other screens get nothing new.
+
 ## 0.4.8 (firmware 0.6.1 for jc8012p4a1v3)
 
 The Guition JC8012P4A1 V3 starts its display (GitHub #52, thanks @ivanfmartinez).
