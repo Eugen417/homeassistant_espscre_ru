@@ -302,10 +302,11 @@ a:hover { text-decoration: underline; }
 .tile .stp { display: flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px; border-radius: 10px; background: #eceef1; font-size: 11px; font-weight: 600; }
 .tile .stp .mdi { font-size: 12px; }
 .tile .run { height: 20px; padding: 0 9px; border-radius: 10px; background: #eceef1; font-size: 11px; font-weight: 600; line-height: 20px; }
-.tile .remove { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; border-radius: 50%; background: #ffffffd9; color: #5a5f66; border: 1px solid #dcdcdc; font-size: 10px; line-height: 1; display: grid; place-items: center; opacity: 0; transition: opacity 0.12s; }
-.tile:hover .remove, .tile:focus-within .remove { opacity: 1; }
-.tile .remove:hover { color: var(--danger); border-color: #e7b4b0; background: #fff; }
-@media (hover: none) { .tile .remove { opacity: 1; } }
+.tile .remove, .round-tile .remove { position: absolute; top: 5px; right: 5px; width: 22px; height: 22px; border-radius: 50%; background: #ffffffd9; color: #5a5f66; border: 1px solid #dcdcdc; font-size: 10px; line-height: 1; display: grid; place-items: center; opacity: 0; transition: opacity 0.12s; }
+/* A tile's own remove key, not those of the keys drawn on it (a bedside clock's round keys have their own). */
+.tile:hover > .remove, .tile:focus-within > .remove, .round-tile:hover > .remove, .round-tile:focus-within > .remove { opacity: 1; }
+.tile .remove:hover, .round-tile .remove:hover { color: var(--danger); border-color: #e7b4b0; background: #fff; }
+@media (hover: none) { .tile .remove, .round-tile .remove { opacity: 1; } }
 .tile .clockface { width: 46px; height: 46px; margin: auto; }
 .tile.wide .clockface { margin: 0; flex: none; }
 .cell { min-height: 0; border: 1px dashed #cfd4da; border-radius: 12px; background: transparent; color: #a3abb5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; font-weight: 500; cursor: pointer; padding: 6px; }

@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Clock",
+        "nightstand": "Bedside clock",
         "page": "Go to page {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Size and place",
         "controls": "Controls",
         "style": "Icon and color"
+      },
+      "keys": {
+        "hint": "Drag a lamp, a temperature or a lock onto the round places under the time, or tap a place and pick one. They are tiles: tap one to set it up.",
+        "under": "Under the bedside clock: a tile in its round form. A tap does what it does on a tile, and holding it opens its card."
       }
     },
     "tile_card": {

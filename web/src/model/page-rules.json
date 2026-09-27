@@ -364,5 +364,40 @@
     "window-closed-variant",
     "window-shutter",
     "window-shutter-open"
+  ],
+  "builtins": [
+    "clock",
+    "nightstand",
+    "settings"
+  ],
+  "keyHolders": {
+    "screen.nightstand": 3
+  },
+  "keyDomains": [
+    "alarm_control_panel",
+    "automation",
+    "binary_sensor",
+    "button",
+    "climate",
+    "cover",
+    "fan",
+    "input_boolean",
+    "input_button",
+    "input_number",
+    "input_select",
+    "light",
+    "lock",
+    "media_player",
+    "number",
+    "person",
+    "scene",
+    "script",
+    "select",
+    "sensor",
+    "sun",
+    "switch",
+    "timer",
+    "vacuum",
+    "weather"
   ]
 }

@@ -59,6 +59,10 @@ const sizeHint = computed(() => ["tall", "square"].includes(String(props.tile.op
 const caps = computed(() => state.capabilities[props.tile.entity]);
 const current = (key: string, fallback: unknown) => props.tile.options?.[key] ?? fallback;
 const clock = computed(() => props.tile.entity === "screen.clock");
+// The bedside clock (app 0.4.12): always the whole page, with no face to pick. Its keys are tiles of their own, set here
+// like any tile but for what their clock decides for them: their size, their page and their card's colour.
+const bedside = computed(() => props.tile.entity === "screen.nightstand");
+const key = computed(() => props.tile.in !== undefined);
 // The settings card has no face to pick: the screen draws it as a plain card whatever it carries (GitHub #47).
 const display = computed(() => props.tile.entity === "screen.settings" ? "standard" : current("display", clock.value ? "digital" : "standard") as string);
 // The add-on's own table of displays per domain (page-rules.json), so the editor never offers one it refuses to save:
@@ -214,7 +218,7 @@ const crumbs = computed(() => [
 ]);
 // The sizes as the shape they take on the grid, so the choice reads at a glance.
 const SHAPES: Record<string, [number, number]> = { single: [1, 1], wide: [2, 1], tall: [1, 2], square: [2, 2], full: [2, 2] };
-const lookShown = computed(() => !goesTo.value && (props.tile.entity !== "screen.settings" || display.value === "live" || domain.value === "sensor"));
+const lookShown = computed(() => !goesTo.value && !bedside.value && !key.value && (props.tile.entity !== "screen.settings" || display.value === "live" || domain.value === "sensor"));
 const controlsShown = computed(() => (domain.value !== "screen" && !goesTo.value) || Boolean(catalogue.value && ["wide", "tall", "square", "full"].includes(size.value) && !goesTo.value) || (showSlider.value && !goesTo.value));
 const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.options?.background || "auto"]?.label || "");
 </script>
@@ -241,6 +245,9 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
       </div>
     </Section>
 
+    <p v-if="bedside" class="hint">{{ t("editor.tile.keys.hint") }}</p>
+    <p v-if="key" class="hint">{{ t("editor.tile.keys.under") }}</p>
+
     <Section v-if="lookShown" :title="t('editor.tile.sections.look')" icon="eye-outline">
       <div v-if="tile.entity !== 'screen.settings'" class="f">
         <span class="f-label">{{ t("editor.tile.display.label") }}<HelpTip v-if="displayHint && !displayWarns" :text="displayHint" /></span>
@@ -265,8 +272,8 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
       </div>
     </Section>
 
-    <Section :title="t('editor.tile.sections.place')" icon="resize">
-      <div class="f">
+    <Section v-if="!key" :title="t('editor.tile.sections.place')" icon="resize">
+      <div v-if="!bedside" class="f">
         <span class="f-label">{{ t("editor.tile.size.label") }}<HelpTip v-if="sizeHint" :text="sizeHint" /></span>
         <Segmented :choices="sizes" :value="size" :shapes="SHAPES" @pick="(v) => setTileOption(tile, 'size', v)" />
       </div>
@@ -299,7 +306,7 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
       </div>
       <SwitchRow v-if="offerTilt" class="tilt-choice" :label="t('editor.tile.controls.tilt')" :description="t('editor.tile.controls.tilt_hint')"
         :model-value="tiltSelected" @update:model-value="(on) => setTileOption(tile, 'controls', withCoverTilt(primaryControl, on))" />
-      <SwitchRow v-if="showSlider && !goesTo" class="slider-choice" :label="t('editor.tile.slider.label')"
+      <SwitchRow v-if="showSlider && !goesTo && !key" class="slider-choice" :label="t('editor.tile.slider.label')"
         :model-value="inline === 'slider'" @update:model-value="(on) => setTileOption(tile, 'inline', on ? 'slider' : 'none')">
         <small v-if="sliderWarn" class="warn">{{ t("editor.tile.slider.nothing") }}</small>
       </SwitchRow>
@@ -310,7 +317,7 @@ const backgroundName = computed(() => state.inventory.backgrounds?.[props.tile.o
         :auto-label="t(fromHA ? 'editor.tile.icon.auto_ha' : 'editor.tile.icon.auto_default')"
         :note="supports(0, 2, 18) ? '' : t('editor.tile.icon.needs_firmware')"
         @pick="(n) => setTileOption(tile, 'icon', n)" />
-      <div class="f">
+      <div v-if="!key" class="f">
         <span class="f-label">{{ t("editor.tile.background.label") }} <span class="f-value">{{ backgroundName }}</span></span>
         <div class="sw">
           <button v-for="[key, choice] in backgrounds" :key="key" type="button" :aria-label="t('editor.tile.background.aria', { name: choice.label })" :title="choice.label"

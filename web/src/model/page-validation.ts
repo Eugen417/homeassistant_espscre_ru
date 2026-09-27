@@ -48,7 +48,7 @@ export function validatePageShape(layout: PageLayout) {
       seen.add(key);
     }
     for (const tile of page.tiles) {
-      fields(tile, ['id', 'content', 'placement', 'appearance', 'interaction']);
+      fields(tile, ['id', 'content', 'placement', 'appearance', 'interaction', 'children'], ['id', 'content', 'placement', 'appearance', 'interaction']);
       fields(tile.placement, ['row', 'column', 'columns', 'rows']);
       fields(tile.appearance, ['label', 'presentation', 'display', 'icon', 'background', 'historyHours', 'refresh', 'subtitle', 'fit', 'overlay'], ['label']);
       fields(tile.interaction, ['tap', 'inline', 'controls', 'action', 'guard'], []);
@@ -59,12 +59,25 @@ export function validatePageShape(layout: PageLayout) {
         if (!entity(content.entityId, rules.domains)) throw new Error(t('addon.errors.layout.unsupported'));
       } else if (content.kind === 'builtin') {
         fields(content, ['kind', 'name']);
-        if (!['clock', 'settings'].includes(content.name)) fail();
+        if (!rules.builtins.includes(content.name)) fail();
       } else if (content.kind === 'navigation') {
         fields(content, ['kind', 'target']);
         fields(content.target, content.target?.kind === 'home' ? ['kind'] : ['kind', 'pageId']);
         if (!['home', 'page'].includes(content.target.kind)) fail();
       } else fail();
+      // A bedside clock's keys (app 0.4.12): tiles without a place, at most three, only under the bedside clock.
+      if (tile.children !== undefined) {
+        const holds = content.kind === 'builtin' ? (rules.keyHolders as Record<string, number>)[`screen.${content.name}`] : undefined;
+        if (!Array.isArray(tile.children) || !holds || tile.children.length > holds) fail();
+        for (const child of tile.children) {
+          fields(child, ['id', 'content', 'appearance', 'interaction']);
+          fields(child.content, ['kind', 'entityId']);
+          fields(child.appearance, ['label', 'icon'], ['label']);
+          fields(child.interaction, ['tap', 'action', 'guard'], []);
+          if (child.content.kind !== 'entity' || !entity(child.content.entityId, rules.keyDomains))
+            throw new Error(t('addon.errors.layout.unsupported'));
+        }
+      }
     }
   }
 }

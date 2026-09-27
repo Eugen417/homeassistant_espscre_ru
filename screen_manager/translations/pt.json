@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Relógio",
+        "nightstand": "Relógio de cabeceira",
         "page": "Ir para a página {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Tamanho e lugar",
         "controls": "Controlos",
         "style": "Ícone e cor"
+      },
+      "keys": {
+        "hint": "Arraste uma lâmpada, uma temperatura ou uma fechadura para os lugares redondos por baixo da hora, ou toque num lugar e escolha. São mosaicos: toque num para o configurar.",
+        "under": "Por baixo do relógio de cabeceira: um mosaico na sua forma redonda. Um toque faz o mesmo que num mosaico, e mantê-lo premido abre o seu cartão."
       }
     },
     "tile_card": {

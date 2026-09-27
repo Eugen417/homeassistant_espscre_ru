@@ -66,7 +66,12 @@ export function retargetedPage(id: string, to: (page: number) => number) {
   const moved = target ? to(target) : 0;
   return moved !== target && moved >= 1 && moved <= FIRMWARE_MAX_PAGES ? `screen.page_${moved}` : id;
 }
-export const entriesOf = (layout: Layout): Entry[] => layout.tiles.map((tile) => ({ tile, slot: tile.slot }));
+// A key of a bedside clock has no cell; its clock's card draws it.
+export const isKey = (tile: Tile) => tile.in !== undefined;
+export const entriesOf = (layout: Layout): Entry[] => layout.tiles.filter((tile) => !isKey(tile)).map((tile) => ({ tile, slot: tile.slot }));
+/** The keys under a tile, in their order. */
+export const keysOf = (layout: Layout | null | undefined, holder: Tile) =>
+  (layout?.tiles || []).filter((tile) => tile.in === holder.entity).sort((a, b) => (a.key ?? 0) - (b.key ?? 0));
 
 /** A document-owned view of placement rules. Reading a new shape is synchronous. */
 export function createLayout(shape: () => PageGrid) {
@@ -103,17 +108,19 @@ export function createLayout(shape: () => PageGrid) {
     });
   }
 
+  // Keys of a bedside clock have no cell, so they are never packed (app 0.4.12).
   function hasGaps(tiles: Tile[]) {
-    const packed = packSlots(tiles);
-    return tiles.some((tile, i) => tile.slot !== packed[i]);
+    const placed = tiles.filter((tile) => !isKey(tile)), packed = packSlots(placed);
+    return placed.some((tile, i) => tile.slot !== packed[i]);
   }
   // Every tile gets a position (older layouts pack in order) and the list stays in reading order.
   function normalize(layout: Layout) {
-    if (layout.tiles.some((t) => !Number.isInteger(t.slot))) {
-      const packed = packSlots(layout.tiles);
-      layout.tiles.forEach((t, i) => (t.slot = packed[i]));
+    const placed = layout.tiles.filter((tile) => !isKey(tile)), keys = layout.tiles.filter(isKey);
+    if (placed.some((t) => !Number.isInteger(t.slot))) {
+      const packed = packSlots(placed);
+      placed.forEach((t, i) => (t.slot = packed[i]));
     }
-    layout.tiles.sort((a, b) => a.slot - b.slot);
+    layout.tiles = [...placed.sort((a, b) => a.slot - b.slot), ...keys];
   }
   function occupied(entries: Entry[]) {
     const taken = new Set<number>();
@@ -231,6 +238,8 @@ export function defaultOptions(id: string): Partial<Tile> {
   // The clock is the one built-in card with a face; the settings card is a plain card, as the screen draws it (GitHub #47).
   // A new clock starts with the calm dial (app 0.3.12): it reads well on every size of card.
   if (id === "screen.clock") return { options: { display: "dial", size: "wide" } };
+  // The bedside clock is the whole page, always, and starts without a card: its digits on the dark page (app 0.4.12).
+  if (id === "screen.nightstand") return { options: { size: "full", background: "none" } };
   return {};
 }
 export const newTile = (id: string): Tile => ({ entity: id, name: "", slot: -1, ...defaultOptions(id) } as Tile);

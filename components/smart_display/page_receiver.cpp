@@ -188,7 +188,10 @@ std::string receive(const std::string &payload) {
       for (JsonVariant item : tiles) {
         const unsigned index = item["i"].as<unsigned>();
         auto &tile = model.tiles[index];
-        tile.name = string(item["name"], 80);
+        const std::string name = string(item["name"], 80);
+        // A key's name stands under it on its clock, which draws it (firmware 0.8.0+).
+        if (tile.is_key() && name != tile.name) refresh_tile(tile.parent);
+        tile.name = name;
         const std::string background = string(item["background"], 16);
         tile.background = tile_palette::color(background);
         tile.transparent = tile_palette::transparent(background);
@@ -274,6 +277,12 @@ std::string receive(const std::string &payload) {
       if (transfer.active && model.ready()) {
         last_received = esphome::millis(); result = "Synced"; return true;
       }
+      // Every key stands under a bedside clock of this layout (firmware 0.8.0+): a key of anything else has no place.
+      for (size_t i = 0; i < model.count; ++i)
+        if (model.tiles[i].is_key() && (static_cast<size_t>(model.tiles[i].parent) >= model.count ||
+                                        !model.tiles[model.tiles[i].parent].is_bedside() || !model.tiles[model.tiles[i].parent].full)) {
+          result = "Error: incomplete layout"; return false;
+        }
       if (!transfer.commit()) { result = "Error: incomplete layout"; return false; }
       model.configured = true;
       if (shown_page) *shown_page = model.page_data.restore(previous_page_id, had_previous_page);
@@ -422,15 +431,28 @@ std::string receive(const std::string &payload) {
     const unsigned index = root["i"].as<unsigned>();
     const std::string entity = string(root["entity"], 120);
     if (initial) {
+      // A key of a bedside clock (firmware 0.8.0+) names its clock ("in") and its place under it ("k") instead of a
+      // slot. It is a tile in every other way: its state, its tap, its hold and its card are a tile's.
+      const bool key = root["in"].is<unsigned>();
       if (transfer.active || index >= model.count || model.tiles[index].received || !valid_entity(entity) ||
-          !root["slot"].is<unsigned>() || !root["o"].is<JsonObject>()) return false;
+          !(key ? root["k"].is<unsigned>() : root["slot"].is<unsigned>()) || !root["o"].is<JsonObject>()) return false;
       const std::string size = string(root["o"]["size"]);
-      if (!page_protocol::accepts_size(size, grid.columns, grid.rows)) return false;
-      if (!model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", size == "wide" || size == "square", (size == "tall" || size == "square") ? 2 : 1)) return false;
-      if (page_entity(entity) && static_cast<unsigned>(entity[12] - '0') > model.pages) return false;
+      if (key) {
+        const unsigned parent = root["in"].as<unsigned>(), place = root["k"].as<unsigned>();
+        if (parent >= model.count || parent == index || place >= BEDSIDE_KEYS || !size.empty() || page_entity(entity) ||
+            entity.rfind("screen.", 0) == 0) return false;
+        for (size_t i = 0; i < model.count; ++i)
+          if (i != index && model.tiles[i].received && model.tiles[i].parent == static_cast<int16_t>(parent) && model.tiles[i].key == place) return false;
+        model.tiles[index].parent = static_cast<int16_t>(parent);
+        model.tiles[index].key = static_cast<uint8_t>(place);
+      } else {
+        if (!page_protocol::accepts_size(size, grid.columns, grid.rows)) return false;
+        if (!model.valid_placement(index, root["slot"].as<unsigned>(), size == "full", size == "wide" || size == "square", (size == "tall" || size == "square") ? 2 : 1)) return false;
+        if (page_entity(entity) && static_cast<unsigned>(entity[12] - '0') > model.pages) return false;
+        model.slots[index] = root["slot"].as<unsigned>();
+      }
       if (!page_entity(entity)) for (size_t i = 0; i < model.count; ++i)
         if (i != index && model.tiles[i].received && model.tiles[i].entity == entity) return false;
-      model.slots[index] = root["slot"].as<unsigned>();
       model.tiles[index].entity = entity;
     } else if (!root["o"].isNull() || !root["slot"].isNull() || !model.accepts(index, entity)) {
       result = "Error: outdated tile or configuration in state"; return false;
@@ -544,7 +566,9 @@ std::string receive(const std::string &payload) {
     next.media_duration=extra["dur"].is<unsigned>()?extra["dur"].as<uint32_t>():0;
     next.media_position=extra["pos"].is<unsigned>()?extra["pos"].as<uint32_t>():0;
     next.media_position_at=extra["at"].is<unsigned>()?extra["at"].as<uint32_t>():0;
-    tile.name = string(root["name"], 80);
+    const std::string name = string(root["name"], 80);
+    if (!initial && tile.is_key() && name != tile.name) refresh_tile(tile.parent);
+    tile.name = name;
     const std::string before = tile.state;
     tile.state = string(root["state"], 160);
     if (!initial && tile.received && before != tile.state) tile.changed_at = std::max<uint32_t>(1, esphome::millis());

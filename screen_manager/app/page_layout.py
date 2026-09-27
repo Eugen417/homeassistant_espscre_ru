@@ -12,7 +12,7 @@ import re
 import secrets
 
 from i18n import t
-from core import Grid, header_items, page_target, tile_size, validate_header, validate_layout
+from core import KEY_HOLDERS, Grid, is_key, placed, header_items, page_target, tile_size, validate_header, validate_layout
 
 FORMAT = "pages-v2"
 PAGE_ID = re.compile(r"[0-9a-f]{16}\Z")
@@ -69,7 +69,7 @@ def legacy_edit(record, data):
     before = legacy_projection(record, require_representable=False)
     grid = grid_of_record(record)
     after = validate_layout(data, grid=grid)
-    structure = lambda value: [(tile["entity"], tile["slot"]) for tile in value["tiles"]]
+    structure = lambda value: [(tile["entity"], tile.get("slot"), tile.get("in"), tile.get("key")) for tile in value["tiles"]]
     if structure(after) != structure(before) or after.get("pages", before["pages"]) != before["pages"]:
         raise LayoutError(t('addon.errors.editor_reload'))
     for field in ("header", "page_titles"):
@@ -78,14 +78,15 @@ def legacy_edit(record, data):
     result = deepcopy(record["layout"])
     result["title"] = after["title"]
     page_ids = [page["id"] for page in result["pages"]]
-    for wire in after["tiles"]:
+    children = [child for page in result["pages"] for tile in page["tiles"] for child in tile.get("children", ())]
+    for wire in placed(after["tiles"]):
         page = result["pages"][wire["slot"] // grid.slots]
         local = wire["slot"] % grid.slots
         saved = next(tile for tile in page["tiles"] if
                      tile["placement"]["row"] * grid.columns + tile["placement"]["column"] == local)
         changed = tile_from_fields(wire, grid, page_ids, lambda: saved["id"])
         for key in ("appearance", "interaction", "placement"): saved[key] = changed[key]
-    return validate_document(result, grid)
+    return validate_document(attach_keys(result, [tile for tile in after["tiles"] if is_key(tile)], previous=children), grid)
 
 
 def replace_tiles(record, flat):
@@ -97,6 +98,8 @@ def replace_tiles(record, flat):
     """
     grid = grid_of_record(record)
     flat = validate_layout(flat, grid=grid)
+    keys, flat = [tile for tile in flat['tiles'] if is_key(tile)], {**flat, 'tiles': placed(flat['tiles'])}
+    children = [child for page in record['layout']['pages'] for tile in page['tiles'] for child in tile.get('children', ())]
     result = deepcopy(record['layout'])
     used = max((tile['slot'] + grid.cells(tile_size(tile)) for tile in flat['tiles']), default=0)
     count = max(1, flat.get('pages', 1), (used + grid.slots - 1) // grid.slots)
@@ -106,7 +109,7 @@ def replace_tiles(record, flat):
     indexes = {page['id']: i for i, page in enumerate(result['pages'])}
     for p, page in enumerate(result['pages']):
         for tile in page['tiles']:
-            existing.append((tile, _tile(tile, p, grid, indexes, result['homePageId'], set())))
+            existing.append((tile, _tile(tile, p, grid, indexes, result['homePageId'], set())[0]))
         page['tiles'] = []
     page_ids = [page['id'] for page in result['pages']]
     incoming = [(wire['slot'] // grid.slots, tile_from_fields(wire, grid, page_ids), wire) for wire in flat['tiles']]
@@ -130,7 +133,7 @@ def replace_tiles(record, flat):
             if old['content'] == {'kind': 'navigation', 'target': {'kind': 'home'}}:
                 tile['content'] = deepcopy(old['content'])
         result['pages'][p]['tiles'].append(tile)
-    return validate_document(result, grid)
+    return validate_document(attach_keys(result, keys, previous=children), grid)
 
 
 def _object(value, allowed, required=()):
@@ -171,7 +174,7 @@ def _entity(content, page_indexes, home):
         return entity
     if content["kind"] == "builtin":
         _object(content, {"kind", "name"}, {"kind", "name"})
-        if content["name"] not in ("clock", "settings"):
+        if content["name"] not in ("clock", "nightstand", "settings"):
             raise LayoutError(t('addon.errors.layout.unsupported'))
         return "screen." + content["name"]
     if content["kind"] == "navigation":
@@ -210,8 +213,65 @@ def footprint_size(columns, rows, grid, presentation=None):
     raise LayoutError(t('addon.errors.pages.footprint'))
 
 
+KEY_APPEARANCE = {"icon": "icon"}
+KEY_INTERACTION = {"tap": "tap", "action": "action", "guard": "guard"}
+
+
+def _keys(tile, entity, seen):
+    """A bedside clock's keys (app 0.4.12) as the tiles they are: each has a tile's fields but a placement, and in the
+    compiled tiles it names the tile it stands under (`in`) and its place there (`key`) instead of a slot. Only a tile
+    that holds keys (KEY_HOLDERS) has children; the legacy validator checks what each key sets, as for any tile."""
+    children = tile.get("children")
+    if children is None:
+        return []
+    if entity not in KEY_HOLDERS or not isinstance(children, list) or len(children) > KEY_HOLDERS[entity]:
+        raise LayoutError(t('addon.errors.pages.fields'))
+    keys = []
+    for place, child in enumerate(children):
+        _object(child, {"id", "content", "appearance", "interaction"}, {"id", "content", "appearance", "interaction"})
+        _identity(child["id"], seen)
+        content = _object(child["content"], {"kind", "entityId"}, {"kind", "entityId"})
+        if content["kind"] != "entity" or not isinstance(content["entityId"], str) or content["entityId"].startswith("screen."):
+            raise LayoutError(t('addon.errors.layout.unsupported'))
+        appearance = _object(child["appearance"], {"label", *KEY_APPEARANCE}, {"label"})
+        interaction = _object(child["interaction"], KEY_INTERACTION)
+        options = {wire: deepcopy(appearance[name]) for name, wire in KEY_APPEARANCE.items() if name in appearance}
+        options.update({wire: deepcopy(interaction[name]) for name, wire in KEY_INTERACTION.items() if name in interaction})
+        keys.append({"entity": content["entityId"], "name": appearance["label"], "in": entity, "key": place,
+                     **({"options": options} if options else {})})
+    return keys
+
+
+def child_from_key(key, id_factory):
+    """A key tile back as the child of its clock in the page document."""
+    options = key.get("options", {})
+    return {"id": id_factory(), "content": {"kind": "entity", "entityId": key["entity"]},
+            "appearance": {"label": key.get("name", ""), **{name: deepcopy(options[wire]) for name, wire in KEY_APPEARANCE.items() if wire in options}},
+            "interaction": {name: deepcopy(options[wire]) for name, wire in KEY_INTERACTION.items() if wire in options}}
+
+
+def attach_keys(layout, keys, id_factory=None, previous=None):
+    """Put key tiles under the tiles they name, in their order, in place of the children those had. A key keeps its id
+    while its clock keeps that entity as a key (`previous`: the children before), so an edit is not a new key."""
+    id_factory = id_factory or new_id
+    old = {child["content"]["entityId"]: child["id"] for child in previous or ()}
+    holders = {}
+    for p, page in enumerate(layout["pages"]):
+        for tile in page["tiles"]:
+            entity = _entity(tile["content"], {page["id"]: i for i, page in enumerate(layout["pages"])}, layout["homePageId"])
+            tile.pop("children", None)
+            holders[entity] = tile
+    for key in sorted(keys, key=lambda key: key["key"]):
+        holder = holders.get(key["in"])
+        if holder is None:
+            raise LayoutError(t('addon.errors.layout.position'))
+        known = old.get(key["entity"])
+        holder.setdefault("children", []).append(child_from_key(key, (lambda: known) if known else id_factory))
+    return layout
+
+
 def _tile(tile, page_index, grid, page_indexes, home, seen):
-    _object(tile, {"id", "content", "placement", "appearance", "interaction"},
+    _object(tile, {"id", "content", "placement", "appearance", "interaction", "children"},
             {"id", "content", "placement", "appearance", "interaction"})
     _identity(tile["id"], seen)
     placement = _object(tile["placement"], {"row", "column", "columns", "rows"}, {"row", "column", "columns", "rows"})
@@ -228,12 +288,13 @@ def _tile(tile, page_index, grid, page_indexes, home, seen):
     options.update({wire: deepcopy(interaction[key]) for key, wire in INTERACTION.items() if key in interaction})
     if size != "single":
         options["size"] = size
+    entity = _entity(tile["content"], page_indexes, home)
     return {
-        "entity": _entity(tile["content"], page_indexes, home),
+        "entity": entity,
         "name": appearance["label"],
         "slot": page_index * grid.slots + row * grid.columns + column,
         **({"options": options} if options else {}),
-    }
+    }, _keys(tile, entity, seen)
 
 
 def tile_from_fields(tile, grid, page_ids, id_factory=new_id):
@@ -274,9 +335,14 @@ def compile_tiles(layout, grid):
     """Compact render/protocol input; all pages keep their full-order indexes."""
     indexes = {page["id"]: i for i, page in enumerate(layout["pages"])}
     seen = set(indexes)
-    return [_tile(tile, i, grid, indexes, layout["homePageId"], seen)
-            for i, page in enumerate(layout["pages"])
-            for tile in sorted(page["tiles"], key=lambda t: (t["placement"]["row"], t["placement"]["column"]))]
+    tiles, keys = [], []
+    for i, page in enumerate(layout["pages"]):
+        for tile in sorted(page["tiles"], key=lambda t: (t["placement"]["row"], t["placement"]["column"])):
+            compiled, under = _tile(tile, i, grid, indexes, layout["homePageId"], seen)
+            tiles.append(compiled)
+            keys += under
+    # The keys follow the placed tiles, so every placed tile keeps its index on the screen.
+    return tiles + keys
 
 
 def validate_document(data, grid):
@@ -348,6 +414,7 @@ def legacy_compatible(layout, grid):
                     and bar_items(page) == items for page in pages)
             and all(footprint_size(tile['placement']['columns'], tile['placement']['rows'], grid, tile['appearance'].get('presentation'))
                     not in ('tall', 'square') and tile['interaction'].get('controls') not in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode')
+                    and not tile.get('children')
                     for page in pages for tile in page['tiles']))
 
 
@@ -408,6 +475,9 @@ def copy_page(layout, page_id, grid, empty=False, id_factory=new_id):
         copied["navigation"]["excludeFromPagination"] = False
     for item in copied["topbar"]["leading"] + copied["topbar"]["trailing"] + copied["tiles"]:
         item["id"] = id_factory()
+    for tile in copied["tiles"]:
+        for child in tile.get("children", ()):
+            child["id"] = id_factory()
     for tile in copied["tiles"]:
         if tile["content"].get("target") == {"kind": "page", "pageId": page_id}:
             tile["content"]["target"]["pageId"] = copied["id"]

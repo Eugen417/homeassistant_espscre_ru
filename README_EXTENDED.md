@@ -45,6 +45,10 @@ on the screen itself, and how updates work.
   the Guition). On a single tile it shows a calendar block next to the dial (weekday, day and month; the
   CYD the day and month); double-width shows the digital time with the date beside it, and a full-page
   clock is the dial alone. Both dials have a red second hand while the screen is awake.
+- **Bedside clock** (app 0.4.12, firmware 0.8.0): a clock over the whole page, the digits as large as the glass
+  allows, with up to three round keys under it, such as a bedside lamp, the front door and the alarm. A key is a tile
+  in its round form: it switches, opens its card and follows its state like its tile would. It starts without a card,
+  so with Dark mode the digits stand on a black page. [Bedside clock](docs/BEDSIDE.md) has the details.
 - **Light control:** brightness, rainbow color, and white temperature according to
   the light's capabilities. Open the detailed control with a long touch.
 - **Effects (firmware 0.2.70+):** a light that offers effects (a WLED, a Hue with

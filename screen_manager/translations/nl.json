@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Klok",
+        "nightstand": "Nachtkastjesklok",
         "page": "Ga naar pagina {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Grootte en plek",
         "controls": "Bediening",
         "style": "Icoon en kleur"
+      },
+      "keys": {
+        "hint": "Sleep een lamp, een temperatuur of een slot naar de ronde plekken onder de tijd, of tik een plek aan en kies er een. Het zijn tegels: tik er een aan om hem in te stellen.",
+        "under": "Onder de nachtkastjesklok: een tegel in zijn ronde vorm. Een tik doet wat hij op een tegel doet, en vasthouden opent zijn kaart."
       }
     },
     "tile_card": {

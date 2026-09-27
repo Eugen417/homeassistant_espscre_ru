@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Reloj",
+        "nightstand": "Reloj de mesita",
         "page": "Ir a la página {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Tamaño y lugar",
         "controls": "Controles",
         "style": "Icono y color"
+      },
+      "keys": {
+        "hint": "Arrastra una lámpara, una temperatura o una cerradura a los huecos redondos bajo la hora, o toca un hueco y elige. Son mosaicos: toca uno para configurarlo.",
+        "under": "Bajo el reloj de mesita: un mosaico en su forma redonda. Un toque hace lo mismo que en un mosaico, y mantenerlo pulsado abre su tarjeta."
       }
     },
     "tile_card": {

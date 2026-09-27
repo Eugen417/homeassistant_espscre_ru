@@ -9,6 +9,9 @@
 #
 # To change a size on every board that has this look, change the number here. docs/PROFILES.md says how the
 # files of a screen fit together.
+packages:
+  bedside: !include shared/bedside.yaml
+
 substitutions:
   LOOK: "compact"
   LOOK_SCALE: ${ (DISPLAY_DPI | float) / 143 }
@@ -52,6 +55,9 @@ substitutions:
   FONT_WATCH_VALUE_SIZE: ${ [8, (22 * LOOK_SCALE | float) | round | int] | max }
   FONT_CLOCK_DIGITS_SIZE: ${ [8, (24 * LOOK_SCALE | float) | round | int] | max }
   FONT_SETPOINT_SIZE: ${ [8, (40 * LOOK_SCALE | float) | round | int] | max }     # the climate card's setpoint
+
+  # Whether a bedside clock's keys have their names under them (looks/shared/bedside.yaml works out its digits).
+  BEDSIDE_WITH_NAMES: "0"   # the compact look keeps the keys without names
   FONT_LABEL_SIZE: ${ [8, (11 * LOOK_SCALE | float) | round | int] | max }        # tile titles
   WIDE_NAME_FONT: "label_wide"    # a tile title with room: 14 px bold (the font at the end of this file)
   FONT_SUBLABEL_SIZE: ${ [8, (11 * LOOK_SCALE | float) | round | int] | max }     # tile values and small text

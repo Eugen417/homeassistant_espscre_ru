@@ -6,7 +6,7 @@ import { andList, editorLanguage, languageMeta, loadLanguage, type NumberMarks, 
 import { entriesOf, effectiveControls, isFull, isWide, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, supportsFirmware as supportsVersion } from "./model/layout";
 import { agoText, barMetricsFor, clockText, dateText, itemKey, type ItemView, whenBarFontsLoad } from "./model/topbar";
 import { createLayout, dimensions, type Size, versionAtLeast } from "./model/layout";
-import type { Capability, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile, PageLayout, PageDocument, PageGrid, PageWorkspace } from "./types";
+import type { Capability, ChildTile, FeedbackView, ChangelogSection, EntityAction, HeaderItem, Inventory, Layout, Screen, Tile, PageLayout, PageDocument, PageGrid, PageWorkspace } from "./types";
 
 import * as pages from "./model/pages";
 import { DraftHistory, type HistoryScope } from './model/draft-history';
@@ -25,7 +25,9 @@ export type Inspector =
 // A whole page on its way to another place in the row (app 0.2.121): where it came from, where it is heading, and
 // the row as it stands while it is in the air (`order[position]` is the page drawn there).
 export type PageDrag = { from: number; to: number; order: number[] };
-export type DragState = { active: boolean; moving: Tile | null; preview: { tile: Tile; slot: number }[] | null; page: PageDrag | null };
+// `key`: the key place under a bedside clock the pointer is on (app 0.4.12), where a drop puts the tile.
+export type DragState = { active: boolean; moving: Tile | null; preview: { tile: Tile; slot: number }[] | null; page: PageDrag | null;
+  key?: { holder: string; key: number } | null };
 // What Home Assistant reports for an entity right now: the state, its word and the attributes a card shows.
 export type Live = { state: string; word?: string | null; a: Record<string, any> };
 
@@ -59,6 +61,8 @@ export const state = reactive({
   actionPickerOpen: false,
   actionSearch: "",
   insertAt: -1,
+  // The key place a click marked under a bedside clock (app 0.4.12): the next tile added from the library goes there.
+  insertKey: null as null | { holder: string; key: number },
   filter: "",
   search: "",
   capabilities: {} as Record<string, Capability | null>,
@@ -362,7 +366,7 @@ export function liveOf(entity: string): Live | null {
 // ---- The overview (app 0.4.0): every screen of the home with its home page, as its mockup draws it ----
 // Nothing selected is the add-on's home. Each screen's home page comes from its own saved document, drawn on its own
 // grid and glass, with what Home Assistant reports right now; a click opens the screen in the editor.
-export type HomeView = { screen: Screen; tiles: { tile: Tile; slot: number }[]; grid: { columns: number; rows: number; slots: number };
+export type HomeView = { screen: Screen; tiles: { tile: Tile; slot: number }[]; keys: Tile[]; grid: { columns: number; rows: number; slots: number };
   shape: NonNullable<Screen["shape"]>; title: string; items: HeaderItem[]; style: Record<string, string>; compact: boolean };
 const OVERVIEW_SIDE = 300;
 export function homeView(screen: Screen): HomeView | null {
@@ -374,11 +378,13 @@ export function homeView(screen: Screen): HomeView | null {
   const page = record.layout.pages[index];
   if (!page) return null;
   const view = pages.projectLayout(record.layout, source);
-  const tiles = view.tiles.filter((tile) => Math.floor(tile.slot / slots) === index).map((tile) => ({ tile, slot: tile.slot }));
+  const tiles = view.tiles.filter((tile) => tile.in === undefined && Math.floor(tile.slot / slots) === index).map((tile) => ({ tile, slot: tile.slot }));
+  // The keys of a bedside clock on that page, which its card draws under the time (app 0.4.12).
+  const keys = view.tiles.filter((tile) => tile.in !== undefined && tiles.some(({ tile: clock }) => clock.entity === tile.in));
   // The same proportions as the editor's mockup (deviceStyle), at a size that lets several stand side by side.
   const width = shape.width >= shape.height ? Math.min(560, (OVERVIEW_SIDE * shape.width) / shape.height) : OVERVIEW_SIDE;
   return {
-    screen, tiles, grid: { columns: source.columns, rows: source.rows, slots }, shape: shape as NonNullable<Screen["shape"]>,
+    screen, tiles, keys, grid: { columns: source.columns, rows: source.rows, slots }, shape: shape as NonNullable<Screen["shape"]>,
     title: page.topbar.title.source === "text" ? page.topbar.title.text : record.layout.title,
     items: page.topbar.trailing,
     compact: shape.look ? shape.look === "compact" : Math.min(shape.width, shape.height) < 300,
@@ -393,7 +399,7 @@ export async function loadOverview() {
   overviewFlight = true;
   try {
     const views = state.inventory.screens.map(homeView).filter((view): view is HomeView => Boolean(view));
-    const entities = [...new Set(views.flatMap((view) => view.tiles.map(({ tile }) => tile.entity)).filter((id) => !id.startsWith("screen.")))];
+    const entities = [...new Set(views.flatMap((view) => [...view.tiles.map(({ tile }) => tile.entity), ...view.keys.map((tile) => tile.entity)]).filter((id) => !id.startsWith("screen.")))];
     for (let i = 0; i < entities.length; i += 60) {
       const values = await getJson(`states?${entities.slice(i, i + 60).map((id) => `entity=${encodeURIComponent(id)}`).join("&")}`);
       Object.assign(state.liveStates, values.states || {});
@@ -600,6 +606,16 @@ export function placeTile(tile: Tile, target: number) {
 export function addTile(id: string) {
   const layout = state.layout;
   if (!layout || (!repeatable(id) && layout.tiles.some((t) => t.entity === id)) || layout.tiles.length >= tileLimit.value) return;
+  if (state.insertKey) {
+    const { holder, key } = state.insertKey;
+    state.insertKey = null;
+    const clock = layout.tiles.find((item) => item.id === holder);
+    if (clock && placeKey(newTile(id), clock, key)) {
+      const added = state.layout!.tiles.find((item) => item.entity === id && item.in === clock.entity);
+      if (added) openTile(added);
+    }
+    return;
+  }
   const tile = newTile(id);
   const page = Math.max(0, state.document!.pages.findIndex((page) => page.id === state.selectedPageId));
   const target = state.insertAt >= 0 ? state.insertAt : firstFree(occupied(entriesOf(layout)), sizeOf(tile), page * grid.slots);
@@ -613,7 +629,16 @@ export function addTile(id: string) {
 }
 export function removeTile(tile: Tile) {
   if (!tile.id) return;
-  if (editDocument((draft) => { for (const page of draft.pages) page.tiles = page.tiles.filter((item) => item.id !== tile.id); }))
+  if (editDocument((draft) => {
+    for (const page of draft.pages) {
+      page.tiles = page.tiles.filter((item) => item.id !== tile.id);
+      // A key goes from under its clock; a clock takes its keys with it.
+      for (const item of page.tiles) if (item.children) {
+        item.children = item.children.filter((child) => child.id !== tile.id);
+        if (!item.children.length) delete item.children;
+      }
+    }
+  }))
     toast(t("editor.layout.removed", { name: tile.name || entityName(tile.entity) }), { label: t("editor.common.undo"), run: undo });
 }
 export function addPage(bar?: PageLayout["pages"][number]["topbar"]) {
@@ -835,14 +860,58 @@ export function setTileAction(tile: Tile, action: { action: string; data?: Recor
   }, field);
 }
 export function setTileName(tile: Tile, value: string) {
-  editDocument((draft) => { const found = draft.pages.flatMap((page) => page.tiles).find((item) => item.id === tile.id); if (found) found.appearance.label = value; }, `tile:${tile.id}`);
+  editDocument((draft) => {
+    const tiles = draft.pages.flatMap((page) => page.tiles);
+    const found = tiles.find((item) => item.id === tile.id) || tiles.flatMap((item) => item.children || []).find((child) => child.id === tile.id);
+    if (found) found.appearance.label = value;
+  }, `tile:${tile.id}`);
+}
+/** A key dragged onto an empty cell becomes a tile there, the same tile: its id, name, icon and tap go along. */
+export function keyToCell(tile: Tile, slot: number) {
+  if (!tile.id || !state.documentGrid) return false;
+  const cells = state.documentGrid.columns * state.documentGrid.rows, columns = state.documentGrid.columns;
+  return editDocument((draft) => {
+    let child: ChildTile | undefined;
+    for (const page of draft.pages) for (const item of page.tiles) if (item.children) {
+      const found = item.children.find((c) => c.id === tile.id);
+      if (found) { child = found; item.children = item.children.filter((c) => c !== found); if (!item.children.length) delete item.children; }
+    }
+    const page = draft.pages[Math.floor(slot / cells)];
+    if (!child || !page) return;
+    page.tiles.push({ id: child.id, content: child.content, appearance: { ...child.appearance }, interaction: { ...child.interaction },
+      placement: { row: Math.floor((slot % cells) / columns), column: slot % columns, columns: 1, rows: 1 } });
+  });
+}
+/** Put a tile on a key place under a bedside clock (app 0.4.12): a new entity takes the place, a key from another place
+ * trades places with what stands there, and a tile from the grid moves off its cell to become that key. Only what a
+ * key keeps of a tile goes along: its name, icon and tap. */
+export function placeKey(tile: Tile, holder: Tile, key: number) {
+  return editDocument((draft) => {
+    const tiles = draft.pages.flatMap((page) => page.tiles), clock = tiles.find((item) => item.id === holder.id);
+    if (!clock) return;
+    const children = clock.children || [];
+    const from = tile.id ? children.findIndex((child) => child.id === tile.id) : -1;
+    if (from >= 0) {
+      const to = Math.min(key, children.length - 1);
+      [children[from], children[to]] = [children[to], children[from]];
+    } else {
+      if (tile.id) for (const page of draft.pages) {
+        page.tiles = page.tiles.filter((item) => item.id !== tile.id);
+        for (const item of page.tiles) if (item !== clock && item.children) item.children = item.children.filter((child) => child.id !== tile.id);
+      }
+      const child = pages.childOf(tile, tile.id || pages.instanceId());
+      if (key < children.length) children[key] = child; else children.push(child);
+    }
+    clock.children = children;
+  });
 }
 
 // ---- Inspector (the drawer) ----
 export function openTile(tile: Tile) {
   if (!isSelected(tile)) { state.iconPickerOpen = false; state.actionPickerOpen = false; state.actionSearch = ""; }
   state.selectedTile = tile;
-  state.selectedPageId = state.document?.pages.find((page) => page.tiles.some((item) => item.id === tile.id))?.id || state.selectedPageId;
+  state.selectedPageId = state.document?.pages.find((page) => page.tiles.some((item) => item.id === tile.id ||
+    item.children?.some((child) => child.id === tile.id)))?.id || state.selectedPageId;
   state.inspector = { kind: "tile" };
   loadCapabilities([tile.entity]);
 }

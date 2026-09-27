@@ -78,6 +78,19 @@ function placed(tile: Tile) {
 }
 
 describe("TileCard", () => {
+  it("draws a bedside clock's keys round, each with the tile's own remove key (app 0.4.12)", async () => {
+    seedLayout({ title: "Bedroom", tiles: [
+      { entity: "screen.nightstand", name: "", slot: 0, options: { size: "full", background: "none" } },
+      { entity: "light.bedside", name: "Lamp", slot: -1, in: "screen.nightstand", key: 0 },
+      { entity: "lock.front", name: "Front door", slot: -1, in: "screen.nightstand", key: 1 }] });
+    const clock = state.layout!.tiles[0];
+    const card = mount(TileCard, { props: { tile: clock, slot: 0 } });
+    expect(card.findAll(".round-tile")).toHaveLength(2);
+    expect(card.findAll(".key-empty")).toHaveLength(1);
+    await card.findAll(".round-tile .remove")[0].trigger("click");
+    expect(state.layout!.tiles.map((tile) => tile.entity)).toEqual(["screen.nightstand", "lock.front"]);
+    expect(state.document!.pages[0].tiles[0].children?.map((child) => child.content.entityId)).toEqual(["lock.front"]);
+  });
   it('keeps the cover primary control when slats are selected or the tile shrinks', async () => {
     state.inventory.controls!.cover = { default: 'buttons', choices: [
       { key: 'buttons', label: 'Open, stop, close' }, { key: 'position', label: 'Position' },

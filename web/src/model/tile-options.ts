@@ -61,7 +61,7 @@ function cardOf(tile: Tile, options: TileOptions): PageTile {
   const interaction: PageTile["interaction"] = {};
   for (const key of INTERACTION) if (options[key] !== undefined) Object.assign(interaction, { [key]: options[key] });
   const content: PageTile["content"] = pageTile(tile.entity) ? { kind: "navigation", target: { kind: "home" } }
-    : tile.entity === "screen.clock" || tile.entity === "screen.settings" ? { kind: "builtin", name: tile.entity.slice(7) as "clock" | "settings" }
+    : tile.entity === "screen.clock" || tile.entity === "screen.nightstand" || tile.entity === "screen.settings" ? { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" }
     : { kind: "entity", entityId: tile.entity };
   return { id: tile.id || "trial", content, appearance, interaction, placement: { row: 0, column: 0, columns: 1, rows: 1 } };
 }

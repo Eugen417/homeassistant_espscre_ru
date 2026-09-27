@@ -14,7 +14,7 @@ import tile_icons
 DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image alarm_control_panel lock automation'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them. The names in English: a screen gets them in
 # its language and the editor in its own (builtin_name, app 0.2.90).
-BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
+BUILTIN = {'screen.clock': 'Clock', 'screen.nightstand': 'Bedside clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
 # A navigation tile (firmware 0.2.62+): screen.page_<n> goes to page n. Firmware 0.2.65+ takes the same one on several
 # pages (a "Back to page 1" on every page); every other entity still appears once on a screen.
 PAGE_TILE = 'screen.page_'
@@ -30,6 +30,8 @@ def builtin_name(entity, text=screen_t):
     if page:
         return text('addon.screen.builtin.page', page=page)
     # The settings tile is named like the settings page it opens.
+    if entity == 'screen.nightstand':
+        return text('addon.screen.builtin.nightstand')
     return text('screen.settings.title' if entity == 'screen.settings' else 'addon.screen.builtin.clock')
 NEW_DOMAINS = frozenset('sun timer person screen'.split())
 # A camera or an image entity opens full screen on a Guition with firmware 0.2.57+ (camera_feed.py).
@@ -47,6 +49,27 @@ COVER_TILE_MIN_FIRMWARE = (0, 2, 78)
 # with one is sent as it is; the editor says so.
 CLOCK_FACES_MIN_FIRMWARE = (0, 3, 6)
 CLOCK_DEFAULT_DISPLAY = 'dial'
+# The bedside clock (firmware 0.8.0+): a clock that always takes the whole page, digits as large as the page allows and
+# up to three keys under them, each a tile of its own (a lamp, a temperature, a lock). It starts without a card behind
+# it, so the digits stand on the dark page at night; any background can still be chosen.
+NIGHTSTAND = 'screen.nightstand'
+NIGHTSTAND_MIN_FIRMWARE = (0, 8, 0)
+NIGHTSTAND_KEYS = 3
+# A key is a tile without a cell of its own (app 0.4.12): in the compiled tiles it names the tile it stands under
+# (`in`, that tile's entity, which is on a screen once) and its place there (`key`, from 0), and it follows the placed
+# tiles. The tiles that hold keys and how many each holds; a key takes a tile's own settings but its size, and any
+# domain but a picture, which has no round form.
+KEY_HOLDERS = {NIGHTSTAND: NIGHTSTAND_KEYS}
+KEY_OPTIONS = ('icon', 'tap', 'action', 'guard')
+KEY_DOMAINS = frozenset(DOMAINS - {'screen', 'camera', 'image'})
+
+def is_key(tile):
+    """A key of a bedside clock: a tile that stands under another instead of in a cell."""
+    return 'in' in tile
+
+def placed(tiles):
+    """The tiles that have a cell: every tile but the keys."""
+    return [tile for tile in tiles if 'in' not in tile]
 
 # The media card with its cover (app 0.2.77): firmware from here draws it and asks for the cover.
 COVER_MIN_FIRMWARE = (0, 2, 64)
@@ -63,7 +86,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.7.0'
+FIRMWARE_VERSION = '0.8.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -900,6 +923,7 @@ def min_firmware(layout):
         ('alarm_control_panel' in domains, ALARM_MIN_FIRMWARE),
         ('lock' in domains, LOCK_MIN_FIRMWARE),
         ('automation' in domains, AUTOMATION_MIN_FIRMWARE),
+        (any(t['entity'] == NIGHTSTAND or is_key(t) for t in tiles), NIGHTSTAND_MIN_FIRMWARE),
         (repeated_page_tiles(tiles), PAGE_TILE_REPEAT_MIN_FIRMWARE),
         (len(tiles) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in tiles), FULL_PAGE_MIN_FIRMWARE),
         (any(o.get('display') == 'cover' for o in options), COVER_TILE_MIN_FIRMWARE),
@@ -1110,6 +1134,22 @@ def pack_page(tiles, page, grid=DEFAULT_GRID):
         tile['slot'] = page * grid.slots + slot
 
 def run_tile_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID):
+    """run_tile_event for the placed tiles; the keys of a bedside clock stay where they are (app 0.4.12). An event may
+    remove a key, like any tile; it cannot place one, since a key has no cell: the editor puts them under their clock."""
+    keys = [dict(tile) for tile in layout.get('tiles', []) if is_key(tile)]
+    entity = str(data.get('entity') or '').strip()
+    key = next((tile for tile in keys if tile['entity'] == entity), None)
+    if key is not None:
+        if action != 'remove':
+            raise ValueError(t('addon.errors.layout.once'))
+        return {**layout, 'tiles': [tile for tile in layout['tiles'] if tile.get('entity') != entity or not is_key(tile)]}, key
+    result, found = run_placed_event({**layout, 'tiles': placed(layout.get('tiles', []))}, action, data, repeat_pages, grid)
+    # A key whose clock went goes with it.
+    there = {tile['entity'] for tile in result['tiles']}
+    result['tiles'] = result['tiles'] + [tile for tile in keys if tile['in'] in there]
+    return result, found
+
+def run_placed_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID):
     """(layout, tile): the layout after one tile event and the tile it placed, changed, moved or removed (None for an
     order), on the screen's own grid. Raises ValueError with the sentence the log and the answer show.
 
@@ -1244,8 +1284,14 @@ def layout_snapshot(screen, layout, grid=None):
     column is `left` or `right` on a two-column screen and the column's number, counted from 1, on any other."""
     grid = grid or grid_of(screen)
     tiles = []
-    for tile in sorted(layout.get('tiles', []), key=lambda item: item.get('slot', 0)):
-        slot, options = tile.get('slot', 0), tile.get('options', {})
+    holders = {tile['entity']: tile.get('slot', 0) for tile in placed(layout.get('tiles', []))}
+    for tile in sorted(placed(layout.get('tiles', [])), key=lambda item: item.get('slot', 0)) + [t for t in layout.get('tiles', []) if is_key(t)]:
+        slot, options = holders.get(tile['in'], 0) if is_key(tile) else tile.get('slot', 0), tile.get('options', {})
+        if is_key(tile):
+            # A key has no spot of its own: it names the tile it stands under and its place there, counted from 1.
+            tiles.append({'entity': tile['entity'], 'name': tile.get('name') or '', 'page': grid.page_of(slot) + 1,
+                          'under': tile['in'], 'key': tile['key'] + 1, 'tap': options.get('tap', 'auto')})
+            continue
         tiles.append({'entity': tile['entity'], 'name': tile.get('name') or '',
                       'page': grid.page_of(slot) + 1, 'row': grid.row_of(slot), 'column': grid.column_word(slot), 'slot': slot,
                       'size': options.get('size', 'single'), 'controls': options.get('controls', ''),
@@ -1331,6 +1377,11 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             raise ValueError(t('addon.errors.layout.tile_name'))
         seen.add(tile['entity'])
         item = {'entity': tile['entity'], 'name': name.strip()}
+        if is_key(tile):
+            if not isinstance(tile['in'], str) or type(tile.get('key')) is not int or 'slot' in tile or \
+                    tile['entity'].split('.')[0] not in KEY_DOMAINS:
+                raise ValueError(t('addon.errors.layout.unsupported'))
+            item.update({'in': tile['in'], 'key': tile['key']})
         if stored and 'options' in tile:
             try:
                 validate_layout({'title': 'stored', 'tiles': [{'entity': tile['entity'], 'options': tile['options']}]})
@@ -1353,6 +1404,13 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             if 'icon' in options and not (options['icon'] == 'auto' or isinstance(options['icon'], str) and options['icon'] in tile_icons.ICONS):
                 raise ValueError(t('addon.errors.choose_icon'))
             domain = tile['entity'].split('.')[0]
+            # The bedside clock is the whole page, always, and the only tile with keys.
+            if tile['entity'] == NIGHTSTAND:
+                options = {k: v for k, v in options.items() if k not in ('display', 'inline', 'controls', 'history_hours', 'sub')}
+                options['size'] = 'full'
+            # A key takes what a tile of its own takes, but no size, face or control: its clock decides its shape.
+            if is_key(tile) and set(options) - set(KEY_OPTIONS):
+                raise ValueError(t('addon.errors.layout.unknown_settings'))
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
             # Run its actions on a tap (firmware 0.7.0+) is an automation's alone.
             taps = ('auto', 'detail', 'toggle', 'none', 'action') + (('run',) if domain == 'automation' else ())
@@ -1422,8 +1480,19 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                     raise ValueError(t('addon.errors.layout.no_direct_control'))
             item['options'] = dict(options)
         clean.append(item)
-    # Positions: every tile or none (an older editor sends none and keeps its order).
-    given = [tile.get('slot') for tile in tiles]
+    # The keys stand under a tile that holds keys (KEY_HOLDERS), each on a place of its own there; they follow the
+    # placed tiles, in their holder's order and their own.
+    keys = [item for item in clean if is_key(item)]
+    clean = placed(clean)
+    holders = {item['entity']: n for n, item in enumerate(clean) if item['entity'] in KEY_HOLDERS}
+    places = set()
+    for item in keys:
+        if item['in'] not in holders or not 0 <= item['key'] < KEY_HOLDERS[item['in']] or (item['in'], item['key']) in places:
+            raise ValueError(t('addon.errors.layout.position'))
+        places.add((item['in'], item['key']))
+    keys.sort(key=lambda item: (holders[item['in']], item['key']))
+    # Positions: every placed tile or none (an older editor sends none and keeps its order).
+    given = [tile.get('slot') for tile in placed(tiles)]
     if any(slot is not None for slot in given):
         occupied = set()
         for item, slot in zip(clean, given):
@@ -1447,7 +1516,11 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
     else:
         for item, slot in zip(clean, packed_slots(clean, grid or DEFAULT_GRID)):
             item['slot'] = slot
-    result = {'title': title.strip(), 'tiles': clean}
+    if keys:
+        # The holders' order is the placed order now, which the sort above may have changed.
+        order = {item['entity']: n for n, item in enumerate(clean)}
+        keys.sort(key=lambda item: (order[item['in']], item['key']))
+    result = {'title': title.strip(), 'tiles': clean + keys}
     # Pages kept on purpose, empty ones included; the screen shows at least what the tiles need.
     if 'pages' in data:
         pages = grid.pages if grid else FIRMWARE_MAX_PAGES

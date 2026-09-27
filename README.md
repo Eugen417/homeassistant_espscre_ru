@@ -125,6 +125,13 @@ home fits on one page.
 </p>
 <p align="center"><sub>The weather with the coming days, and on a bigger tile the whole week with a bar from each day's low to its high. A thermostat has its − / + and a bar with a key per mode; an airco shows heat and cool first and the rest behind "…". A live camera on a taller tile fills the card with its picture and its name, or shows the whole picture. Your alarm is a tile in Home Assistant's colours, with a key for every mode and Home Assistant's keypad when the panel asks for a code; someone coming in wakes every screen with the keypad to disarm. A lock locks with one tap and asks for a second one before it unlocks; its card has Open door where the lock can open its latch, and Home Assistant's keypad when the lock asks for a code. A select, such as a washing machine's programme, opens a list with a check at the one it is on. On every screen with the memory for it, every page is built ahead and kept, so the next one is there the moment you turn to it. Rendered from the firmware's own LVGL code with a demo home.</sub></p>
 
+## A clock beside your bed
+
+<p align="center">
+  <img src="docs/images/guition-bedside.png" width="49%" alt="The bedside clock on the 4-inch Guition in dark mode: 23:47 in large grey digits on a black page, and under it three round keys: the bedside lamp on in amber, the front door locked in green and the alarm armed for the night in green">
+</p>
+<p align="center"><sub>The bedside clock takes a whole page: the time as large as the glass allows, with up to three round keys under it for what you reach for at night. A key is a tile in its round form and does what its tile does: the lamp switches with a tap, the front door asks for a second tap before it unlocks, and the alarm shows how it is armed. With Dark mode and the screen's night hours the page is black and the backlight dims. Rendered from the firmware's own LVGL code with a demo home.</sub></p>
+
 ## On the screen
 
 <p align="center">

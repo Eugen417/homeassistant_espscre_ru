@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Horloge",
+        "nightstand": "Horloge de chevet",
         "page": "Aller à la page {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Taille et place",
         "controls": "Commandes",
         "style": "Icône et couleur"
+      },
+      "keys": {
+        "hint": "Glissez une lampe, une température ou une serrure sur les emplacements ronds sous l'heure, ou touchez un emplacement et choisissez. Ce sont des tuiles : touchez-en une pour la régler.",
+        "under": "Sous l'horloge de chevet : une tuile sous sa forme ronde. Un appui fait ce qu'il fait sur une tuile, et un appui long ouvre sa carte."
       }
     },
     "tile_card": {

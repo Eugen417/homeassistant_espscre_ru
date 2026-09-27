@@ -89,6 +89,8 @@ inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
 inline const lv_font_t *clock_font = nullptr;
 // The climate card's setpoint, big enough to read across the room (FONT_SETPOINT_SIZE in the board file).
 inline const lv_font_t *setpoint_font = nullptr;
+// The bedside clock's digits (firmware 0.8.0+), the largest the board's page takes (FONT_BEDSIDE_SIZE, looks/shared/bedside.yaml).
+inline const lv_font_t *bedside_font = nullptr;
 // Text in the -/+ pill and the run key of direct controls; the board profile sets it.
 inline const lv_font_t *control_font = nullptr;
 // The smallest regular text (sublabel): axis labels and the legend of the history card.
@@ -309,6 +311,9 @@ struct Widgets {
   // Wide cards span both columns; custom cards (clock, forecast, graph) draw into `extra`.
   // Full (firmware 0.2.62+) takes the whole page: the double-width card's head on top, a control at the bottom.
   bool wide=false, full=false; int base_width=0, base_height=0; const lv_font_t *title_font{};
+  // A key of a bedside clock (firmware 0.8.0+): the card is the round key itself, `key_size` across, in the place its
+  // clock gives it (place_page). The card, circle, icon and colours are a tile's; only the shape is the key's.
+  bool key=false; int key_size=0;
   // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
   // `base_circle`: the board's icon circle (TILE_ICON_SIZE), the one size of the head a board states.
   int base_circle=0;
@@ -2193,7 +2198,9 @@ inline uint8_t alarm_tile_looks[CELLS_MAX]{};
 inline uint32_t alarm_tile_marks[CELLS_MAX]{};
 inline void alarm_tile_look(size_t slot,const Tile *t){
   if(slot>=widgets.size()||!widgets[slot].circle)return;
-  lv_obj_t *circle=widgets[slot].circle;
+  // A key of a bedside clock is its circle (render_slot): the ring grows out of the round card, since the card cuts off
+  // what its children draw past its edge, and a circle as large as the card has no room inside it.
+  lv_obj_t *circle=widgets[slot].key?widgets[slot].tile:widgets[slot].circle;
   // A lock's circle moves the same way (firmware 0.5.0+): it beats while the lock moves or waits for its second tap,
   // and beats once and springs when it locks.
   const bool lock=t&&t->domain()=="lock";
@@ -3962,7 +3969,7 @@ inline void begin_extra(Widgets &w,const char *mode,int width,int height) {
   lv_obj_set_pos(w.extra,0,0);lv_obj_set_size(w.extra,width,height);
   // A clock face may use the card's padding (firmware 0.3.6+): a dial or flip blocks reach nearer the card's edge
   // on a one-row card, and a big font's letters below the line (a date's y and p) are not cut off.
-  const bool face=w.extra_mode=="calm"||w.extra_mode=="flip"||w.extra_mode=="digital";
+  const bool face=w.extra_mode=="calm"||w.extra_mode=="flip"||w.extra_mode=="digital"||w.extra_mode=="bedside";
   if(face!=lv_obj_has_flag(w.extra,LV_OBJ_FLAG_OVERFLOW_VISIBLE)){
     if(face)lv_obj_add_flag(w.extra,LV_OBJ_FLAG_OVERFLOW_VISIBLE);else lv_obj_remove_flag(w.extra,LV_OBJ_FLAG_OVERFLOW_VISIBLE);
   }
@@ -4251,6 +4258,127 @@ inline void paint_face(Widgets &w,lv_color_t ink,lv_color_t muted,lv_color_t acc
     // (dark on a light card, light on a dark one), so it stands out instead of fading into the card.
     if(lv_obj_check_type(p,&lv_line_class))set_color(p,LV_STYLE_LINE_COLOR,i==18?lv_color_hex(theme::foreground(theme::ha::ALARM)):i==13?accent:card);
     else set_color(p,LV_STYLE_BG_COLOR,i==19?ink:i==14?accent:muted);
+  }
+}
+// ---- The bedside clock (firmware 0.8.0+) ----
+// A clock over the whole page: the time as large as the page allows, and up to three round keys, each a tile of its
+// own (runtime_model.h, Tile::parent). The keys stand in a row under the time; on a card too low for that, in a
+// column beside it; on a card too narrow, under the hours stacked over the minutes. The room above the time, between
+// the time and the keys and below the keys is the same, and the middle stops growing at 14 mm, so on a large glass
+// the group stays together in the middle. The board's digits (FONT_BEDSIDE_SIZE) are the largest one of these fits
+// in both orientations, so the same font serves the glass lying down and standing up.
+// The keys a bedside clock's page has cards for: the cells its clock covers but its own (place_page).
+static_assert(CELLS_MAX > BEDSIDE_KEYS, "a bedside clock's keys take the cards of the cells its page leaves free");
+inline unsigned bedside_key_room(){return std::min<unsigned>(BEDSIDE_KEYS,std::min<unsigned>(widgets.size(),grid.slots())-1);}
+struct BedsideLayout {
+  enum Mode : uint8_t { ROW, COLUMN, STACK } mode = ROW;
+  int digits_y = 0, digits_x = 0, digits_w = 0, digit_h = 0, line_gap = 0;  // content coordinates of the card
+  int key = 0; unsigned keys = 0; bool names = false, fits = true; int name_h = 0, name_gap = 0;
+  std::array<int, BEDSIDE_KEYS> key_x{}, key_y{};  // each key's top-left corner, content coordinates
+  std::array<int, BEDSIDE_KEYS> name_x{}, name_y{}, name_w{};
+};
+inline const lv_font_t *bedside_digits(){return bedside_font?bedside_font:setpoint_font?setpoint_font:clock_font;}
+// `pad`: the card's own padding, so the room above the time counts from the card's edge as it looks.
+inline BedsideLayout bedside_layout(int w,int h,int pad,const std::vector<std::string> &names_in){
+  BedsideLayout l;
+  const lv_font_t *font=bedside_digits();
+  const lv_font_t *small=small_font?small_font:font;
+  int top;digit_box(font,top,l.digit_h);
+  l.line_gap=l.digit_h/6;
+  l.keys=std::min<unsigned>(names_in.size(),BEDSIDE_KEYS);
+  // Names under the keys in the standard look; the compact look (a CYD) keeps the keys alone, its smallest letters
+  // would be under the size the owner reads in the dark.
+  l.names=l.keys && ui::large();
+  l.name_h=l.names?lv_font_get_line_height(small):0;l.name_gap=l.names?ui::px(8):0;
+  int name_w=0;if(l.names)for(unsigned i=0;i<l.keys;++i)name_w=std::max(name_w,text_width(names_in[i],small));
+  // A long name ends in dots rather than push the keys apart: a third of the card, about five letters and a half of
+  // the name's size (the looks size FONT_BEDSIDE_SIZE with the same limit).
+  name_w=std::min({name_w,w/3,(int)lv_font_get_line_height(small)*47/10});
+  const int card_h=h+2*pad,least=std::max(ui::px(8),card_h*7/100),touch=ui::touch_min();
+  const int time_w=text_width("00:00",font),pair_w=text_width("00",font);
+  auto key_size=[&](int room){return std::max(touch,std::min<int>(ui::mm(12),room*28/100));};
+  // What each arrangement needs; the first that fits is taken.
+  int d=key_size(h);
+  int kg=std::max({ui::px(16),d/2,l.names?name_w-d+ui::px(12):0});
+  if(l.keys && (int)l.keys*d+((int)l.keys-1)*kg>w)d=std::max(touch,(w-((int)l.keys-1)*kg)/(int)l.keys);
+  const int band=l.keys?d+l.name_gap+l.name_h:0;
+  const bool row=time_w<=w && l.digit_h+band+(l.keys?3:2)*least<=card_h;
+  const int vg=ui::px(12),col_d=std::max(touch,std::min(d,(h-2*vg)/3));
+  const int col_w=col_d+(l.names?ui::px(12)+name_w:0);
+  const bool column=!row && l.keys && time_w<=w-col_w-ui::px(28) && (int)l.keys*col_d+((int)l.keys-1)*vg<=h;
+  const bool stack=!row && !column && pair_w<=w && 2*l.digit_h+l.line_gap+band+(l.keys?3:2)*least<=card_h;
+  l.mode=row?BedsideLayout::ROW:column?BedsideLayout::COLUMN:stack?BedsideLayout::STACK:BedsideLayout::ROW;
+  // The board's digits (FONT_BEDSIDE_SIZE, looks/shared/bedside.yaml) are sized for one of the three to fit; the self test fails a
+  // board where none does, instead of the time running into its keys.
+  l.fits=row||column||stack;
+  if(l.mode==BedsideLayout::COLUMN){
+    l.key=col_d;
+    const int area=w-col_w-ui::px(28);
+    l.digits_x=0;l.digits_w=area;l.digits_y=(h-l.digit_h)/2;
+    const int y0=(h-((int)l.keys*col_d+((int)l.keys-1)*vg))/2,x=w-col_w;
+    for(unsigned i=0;i<l.keys;++i){
+      l.key_x[i]=x;l.key_y[i]=y0+i*(col_d+vg);
+      l.name_x[i]=x+col_d+ui::px(12);l.name_y[i]=l.key_y[i]+(col_d-l.name_h)/2;l.name_w[i]=std::max(1,w-l.name_x[i]);
+    }
+    return l;
+  }
+  l.key=d;
+  const int tall=l.mode==BedsideLayout::STACK?2*l.digit_h+l.line_gap:l.digit_h;
+  // Equal room above, between and below, measured from the card's edge; the middle stops at 14 mm.
+  const int free=card_h-tall-band;
+  const int mid=l.keys?std::min(free/3,ui::mm(14)):0,edge=(free-mid)/2;
+  l.digits_x=0;l.digits_w=w;l.digits_y=edge-pad;
+  const int keys_y=l.digits_y+tall+mid,x0=(w-((int)l.keys*d+((int)l.keys-1)*kg))/2;
+  for(unsigned i=0;i<l.keys;++i){
+    l.key_x[i]=x0+i*(d+kg);l.key_y[i]=keys_y;
+    // A name may be wider than its key, never wider than the card: the outer ones stay inside it.
+    const int nw=std::min(w,d+kg-ui::px(4));
+    l.name_x[i]=std::clamp(l.key_x[i]+d/2-nw/2,0,w-nw);l.name_y[i]=keys_y+d+l.name_gap;l.name_w[i]=nw;
+  }
+  return l;
+}
+// The names of a bedside clock's keys, in their order (the tiles that name `index` as their clock).
+inline std::vector<std::string> bedside_names(size_t index){
+  std::vector<std::string> names;
+  for(unsigned k=0;k<bedside_key_room();++k)for(size_t i=0;i<model.count;++i){
+    const auto &t=model.tiles[i];
+    if(t.is_key() && (size_t)t.parent==index && t.key==k){names.push_back(t.name.empty()?t.entity:t.name);break;}
+  }
+  return names;
+}
+// Parts: 0 the time (the hours when stacked), 1 the minutes when stacked, 2 AM/PM, 3-5 the keys' names.
+inline void render_bedside(Widgets &w,const Tile &t,int width,int height){
+  begin_extra(w,"bedside",width,height);
+  auto now=now_time?now_time():esphome::ESPTime{};
+  const int pad=lv_obj_get_style_space_top(w.tile,LV_PART_MAIN);
+  const auto names=bedside_names(w.index);
+  const auto l=bedside_layout(width,height,pad,names);
+  const lv_font_t *font=bedside_digits(),*small=small_font?small_font:w.value_font;
+  const std::string time=time_text(now),ampm=am_pm(now);
+  const auto ink=theme::color(theme::BEDSIDE),muted=theme::color(theme::MUTED);
+  if(l.mode==BedsideLayout::STACK){
+    const size_t colon=time.find(':');
+    digit_label(w,0,font,l.digits_x,l.digits_y,l.digits_w,LV_TEXT_ALIGN_CENTER,time.substr(0,colon));
+    digit_label(w,1,font,l.digits_x,l.digits_y+l.digit_h+l.line_gap,l.digits_w,LV_TEXT_ALIGN_CENTER,colon==std::string::npos?"":time.substr(colon+1));
+    set_hidden(w.parts[1],false);
+  }else{
+    digit_label(w,0,font,l.digits_x,l.digits_y,l.digits_w,LV_TEXT_ALIGN_CENTER,time);
+    if(w.parts[1])set_hidden(w.parts[1],true);
+  }
+  set_color(w.parts[0],LV_STYLE_TEXT_COLOR,ink);if(w.parts[1])set_color(w.parts[1],LV_STYLE_TEXT_COLOR,ink);
+  // AM or PM after the time, on its baseline, when the screen shows 12 hours.
+  if(!ampm.empty()){
+    const int tw=text_width(l.mode==BedsideLayout::STACK?time.substr(time.find(':')+1):time,font);
+    int stop,sh;digit_box(small,stop,sh);
+    const int last=l.mode==BedsideLayout::STACK?l.digits_y+2*l.digit_h+l.line_gap:l.digits_y+l.digit_h;
+    auto *p=digit_label(w,2,small,l.digits_x+(l.digits_w+tw)/2+ui::px(6),last-sh,text_width(ampm,small)+2,LV_TEXT_ALIGN_LEFT,ampm);
+    set_color(p,LV_STYLE_TEXT_COLOR,muted);set_hidden(p,false);
+  }else if(w.parts[2])set_hidden(w.parts[2],true);
+  for(unsigned i=0;i<BEDSIDE_KEYS;++i){
+    if(i<l.keys && l.names){
+      auto *p=part_label(w,3+i,small,l.name_x[i],l.name_y[i],l.name_w[i],l.mode==BedsideLayout::COLUMN?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,names[i]);
+      lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);set_color(p,LV_STYLE_TEXT_COLOR,muted);set_hidden(p,false);
+    }else if(w.parts[3+i])set_hidden(w.parts[3+i],true);
   }
 }
 inline void render_clock(Widgets &w,const Tile &t,bool large,int width,int height) {
@@ -5436,6 +5564,23 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
 }
 // One card: name, status, icon, layout and palette. Everything reads the model; nothing is created
 // unless the card's custom parts or controls change kind.
+// A key that shows its value instead of an icon (firmware 0.8.0+): what is read, not switched, such as a temperature.
+inline bool key_shows_value(const Tile &t){
+  const std::string d=t.domain();
+  if(d=="weather")return std::isfinite(t.current);
+  return (d=="sensor"||d=="number"||d=="input_number") && !t.state.empty() && t.state!="unknown";
+}
+// The value in a key: a temperature as its number and degree sign ("19,5°"), a percentage with its sign, any other
+// number alone; the name under the key says what it is.
+inline std::string key_value(const Tile &t){
+  if(t.domain()=="weather")return screen_text::decimal(t.current,1)+"°";
+  char *end=nullptr;const float number=strtof(t.state.c_str(),&end);
+  if(!end||*end||!std::isfinite(number))return t.state;
+  const std::string text=screen_text::localize(t.state);
+  if(t.unit.rfind("°",0)==0)return text+"°";
+  if(t.unit=="%")return screen_text::percent((int)std::lround(number));
+  return text;
+}
 inline void render_slot(size_t slot) {
   swipe_profile::SlotTimer slot_timer(slot);
   swipe_profile::Lap lap;
@@ -5532,10 +5677,11 @@ inline void render_slot(size_t slot) {
   bool large_tile=ui::large();
   lap(swipe_profile::TEXT);
   // Cards that replace the name/status layout entirely.
+  bool bedside=t.is_bedside() && w.full;
   bool clock=t.is_clock(), forecast=d=="weather" && t.display=="forecast" && w.wide && t.extra().forecast.size()>0 && fresh() && t.available();
   bool sunpath=d=="sun" && t.display=="sunpath" && w.wide && !t.extra().sunrise.empty() && !t.extra().sunset.empty() && fresh() && t.available();
   bool graph=d=="sensor" && t.display=="graph" && t.has_history && !clock;
-  bool custom=clock||forecast||sunpath;
+  bool custom=clock||forecast||sunpath||bedside;
   if(!large_tile)pad_vertical(w.tile,watch||custom||graph?2:4);
   // A big value that stepped up to the setpoint's digits (the watch block below) keeps them until that block
   // decides again, so a card is not restyled twice a render.
@@ -5551,13 +5697,31 @@ inline void render_slot(size_t slot) {
   set_busy(w,w.busy_drawn,large_tile);
   lap(swipe_profile::BUSY);
   for(auto *o:{w.title,w.value,w.circle,w.unit})set_hidden(o,custom);  // a big-value card on a short cell hides its circle again below
+  if(!w.key)set_hidden(w.icon,false);  // a key that showed a value hid its icon
   if(custom && w.picture)lv_obj_add_flag(w.picture,LV_OBJ_FLAG_HIDDEN);
-  if(t.live()&&render_camera_card(w,t,content_w,content_h)){
+  if(w.key){
+    // A key of a bedside clock: the card is the key, round, with the tile's icon in the middle, or its value where
+    // the value is what it is for (a temperature). Its name stands under it, drawn by its clock (render_bedside).
+    lv_obj_add_flag(w.slider,LV_OBJ_FLAG_HIDDEN);hide_panel(w);hide_extra(w);
+    for(auto *o:{w.title,w.unit})set_hidden(o,true);
+    const int d=std::max(1,std::min(content_w,content_h));
+    lv_obj_set_size(w.circle,d,d);lv_obj_set_pos(w.circle,(content_w-d)/2,(content_h-d)/2);set_hidden(w.circle,false);
+    std::string shown;
+    if(fresh() && t.available() && key_shows_value(t))shown=key_value(t);
+    set_hidden(w.icon,!shown.empty());set_hidden(w.value,shown.empty());
+    if(shown.empty()){if(lv_obj_get_style_text_font(w.icon,LV_PART_MAIN)!=w.icon_font)set_font(w.icon,w.icon_font);center_icon(w.icon);}
+    else{
+      const lv_font_t *face=control_font && text_width(shown,control_font)<=d-ui::px(8)?control_font:w.value_font;
+      set_font(w.value,face);set_text_align(w.value,LV_TEXT_ALIGN_CENTER);label(w.value,shown);
+      const int vh=lv_font_get_line_height(face);lv_obj_set_size(w.value,d,vh);lv_obj_set_pos(w.value,(content_w-d)/2,(content_h-vh)/2);
+    }
+    lap(swipe_profile::GEOMETRY);
+  }else if(t.live()&&render_camera_card(w,t,content_w,content_h)){
     lap(swipe_profile::GEOMETRY);
   }else if((taller||(w.full&&(tile_controls::cover_tilt_selected(t)||tile_controls::climate_modes_selected(t))))&&!custom&&!watch&&!graph&&
      render_tall(w,t,with_panel,content_w,content_h)){
     lap(swipe_profile::GEOMETRY);
-  }else if(w.full){
+  }else if(w.full && !bedside){
     lap(swipe_profile::GEOMETRY);
     render_full(w,t,custom,clock,sunpath,graph,mini,with_panel,large_tile,value,unit,content_w,content_h);
     lap(swipe_profile::CUSTOM);
@@ -5583,7 +5747,8 @@ inline void render_slot(size_t slot) {
     // centred tall card) stays on it for the next tile to inherit (firmware 0.3.2).
     set_font(w.title,w.title_font);set_text_align(w.title,LV_TEXT_ALIGN_LEFT);set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
     lap(swipe_profile::GEOMETRY);
-    if(clock)render_clock(w,t,large_tile,content_w,content_h);
+    if(bedside)render_bedside(w,t,content_w,content_h);
+    else if(clock)render_clock(w,t,large_tile,content_w,content_h);
     else if(sunpath)render_sunpath(w,t,large_tile,content_w,content_h);
     else render_forecast(w,t,large_tile,content_w,content_h);
     lap(swipe_profile::CUSTOM);
@@ -5773,8 +5938,14 @@ inline void render_slot(size_t slot) {
   set_color(w.tile,LV_STYLE_BORDER_COLOR,lv_color_hex(theme::outline(t.background)));
   set_color(w.circle,LV_STYLE_BG_COLOR,circle_color);
   set_color(w.icon,LV_STYLE_TEXT_COLOR,icon_color);
+  // A key is its circle: the card takes the circle's colour and its press, with no border (firmware 0.8.0+).
+  if(w.key){
+    set_color(w.tile,LV_STYLE_BG_COLOR,circle_color);
+    set_color(w.tile,LV_STYLE_BG_COLOR,lv_color_hex(theme::pressed(available?theme::tint(state_color,38):theme::hex(theme::TRACK))),LV_STATE_PRESSED);
+    set_number(w.tile,LV_STYLE_BG_OPA,LV_OPA_COVER);set_number(w.tile,LV_STYLE_BORDER_OPA,LV_OPA_TRANSP);
+  }
   auto title_color=theme::color(theme::INK);
-  auto value_color=theme::color(t.background ? theme::SLATE : theme::MUTED);
+  auto value_color=theme::color(w.key ? theme::INK : t.background ? theme::SLATE : theme::MUTED);
   set_color(w.unit,LV_STYLE_TEXT_COLOR,theme::color(t.is_page()?theme::CHEVRON:theme::SLATE));
   set_color(w.title,LV_STYLE_TEXT_COLOR,title_color);
   set_color(w.value,LV_STYLE_TEXT_COLOR,value_color);
@@ -5788,7 +5959,8 @@ inline void render_slot(size_t slot) {
   if(w.extra_mode!="sunpath")w.fill_color=color;
   // The media tile (firmware 0.2.64+) paints its own parts on every render: keys, the bar and the cover's placeholder
   // in the media colours, not the card's.
-  if(w.extra_mode=="calm"||w.extra_mode=="flip")paint_face(w,title_color,value_color,icon_color);
+  if(w.extra_mode=="bedside"){}  // render_bedside paints its own parts
+  else if(w.extra_mode=="calm"||w.extra_mode=="flip")paint_face(w,title_color,value_color,icon_color);
   else for(unsigned i=0;i<w.parts.size() && w.extra_mode!="media" && w.extra_mode!="tall" && w.extra_mode!="cover_tilt" && w.extra_mode!="forecast" && w.extra_mode!="forecast_rows";++i){
     auto *p=w.parts[i];if(!p)continue;
     bool muted=w.extra_mode=="sunpath" ? i>=1 : w.extra_mode=="calendar" ? i==15||i==17 : w.extra_mode=="digital" ? i==16||i==17 : i==16;
@@ -5812,7 +5984,7 @@ inline bool dirty_time=false;
 // its entity, which Home Assistant updates on its own.
 inline bool shows_time(const Tile &t) {
   const std::string d=t.domain();
-  return t.is_clock() || t.display=="graph" || t.extra().subtitle_at || d=="timer" || d=="sun" ||
+  return t.is_clock() || t.is_bedside() || t.display=="graph" || t.extra().subtitle_at || d=="timer" || d=="sun" ||
          (d=="media_player" && media_card::playing(t.state)) ||
          d=="script" || d=="scene" || d=="button" || d=="input_button" || d=="automation";
 }
@@ -5939,7 +6111,7 @@ inline uint16_t prepare_joke(int page) {
     if (index < 0) continue;
     const auto &t = model.tiles[index];
     const std::string d = t.domain();
-    if (t.is_clock()) return txt::preparing_clock;
+    if (t.is_clock() || t.is_bedside()) return txt::preparing_clock;
     if (d == "light") return txt::preparing_light;
     if (d == "media_player") return txt::preparing_media;
     if (d == "camera" || d == "image") return txt::preparing_camera;
@@ -6049,6 +6221,12 @@ inline bool check_tile_geometry() {
     }
     for(const auto &other:widgets) if(other.tile && other.tile!=w.tile && !lv_obj_has_flag(other.tile,LV_OBJ_FLAG_HIDDEN)){
       lv_area_t a,b;lv_obj_get_coords(w.tile,&a);lv_obj_get_coords(other.tile,&b);
+      // A bedside clock's keys lie on its card (firmware 0.8.0+): inside it, never over each other.
+      if((w.key&&other.full)||(w.full&&other.key)){
+        const lv_area_t &key=w.key?a:b,&clock=w.key?b:a;
+        if(key.x1<clock.x1||key.x2>clock.x2||key.y1<clock.y1||key.y2>clock.y2){fits=false;ESP_LOGE("ui_test","Key outside its clock FAIL slot=%u",(unsigned)(w.key?w.index:other.index));}
+        continue;
+      }
       if(a.x1<=b.x2 && b.x1<=a.x2 && a.y1<=b.y2 && b.y1<=a.y2){
         fits=false;ESP_LOGE("ui_test","Card overlap FAIL slots=%u,%u",(unsigned)w.index,(unsigned)other.index);
       }
@@ -6183,17 +6361,25 @@ inline bool check_tile_geometry() {
     // clock's parts are held to the card's border instead of its content area.
     // The clock's digits are placed by their glyphs (firmware 0.3.6+): the empty top and bottom of a big font's line
     // box may stand in the padding too, the digits themselves stay in the content area.
-    const bool dial=w.extra_mode=="calendar" || w.extra_mode=="analog" || w.extra_mode=="calm" || w.extra_mode=="flip" || w.extra_mode=="digital";
+    const bool dial=w.extra_mode=="calendar" || w.extra_mode=="analog" || w.extra_mode=="calm" || w.extra_mode=="flip" || w.extra_mode=="digital" || w.extra_mode=="bedside";
     lv_area_t card_box;lv_obj_get_coords(w.tile,&card_box);
       for(auto *p:w.parts){
         if(!p || lv_obj_has_flag(p,LV_OBJ_FLAG_HIDDEN))continue;
         lv_area_t part;lv_obj_get_coords(p,&part);
+        // The bedside clock's digits count by their glyphs: a font's line box keeps room above the digits that on a
+        // 350 px face is taller than the card's padding, and nothing is drawn there.
+        if(w.extra_mode=="bedside" && (p==w.parts[0]||p==w.parts[1])){int top,h;digit_box(bedside_digits(),top,h);part.y1+=top;part.y2=part.y1+h-1;}
         const lv_area_t &room=dial?card_box:content;
         bool inside=part.x1>=room.x1 && part.x2<=room.x2 && part.y1>=room.y1 && part.y2<=room.y2;
         if(!inside)ESP_LOGE("ui_test","Part bounds slot=%u mode=%s part=%d,%d..%d,%d room=%d,%d..%d,%d",(unsigned)w.index,w.extra_mode.c_str(),(int)part.x1,(int)part.y1,(int)part.x2,(int)part.y2,(int)room.x1,(int)room.y1,(int)room.x2,(int)room.y2);
         fits=fits && inside;
         if(w.extra_mode=="graph" && !custom)fits=fits && (w.wide && !w.full?part.x1>value.x2:part.y1>value.y2);
       }
+    }
+    // The board's bedside digits fit its page in one of the three arrangements (FONT_BEDSIDE_SIZE, looks/shared/bedside.yaml).
+    if(w.extra_mode=="bedside" && w.index<model.count){
+      const auto l=bedside_layout(content_width(w),content_height(w),lv_obj_get_style_space_top(w.tile,LV_PART_MAIN),bedside_names(w.index));
+      if(!l.fits){fits=false;ESP_LOGE("ui_test","Bedside digits fit FAIL slot=%u",(unsigned)w.index);}
     }
     if(!fits)ESP_LOGE("ui_test","Tile geometry FAIL slot=%u mode=%s wide=%d title_y=%d..%d value_y=%d..%d content_y=%d..%d",(unsigned)w.index,w.extra_mode.c_str(),w.wide,(int)title.y1,(int)title.y2,(int)value.y1,(int)value.y2,(int)content.y1,(int)content.y2);
     if(w.index<model.count && model.tiles[w.index].background){
@@ -6205,6 +6391,8 @@ inline bool check_tile_geometry() {
     if(w.index<model.count){
       bool bare=model.tiles[w.index].transparent;
       bool opa_ok=(lv_obj_get_style_bg_opa(w.tile,LV_PART_MAIN)==LV_OPA_TRANSP)==bare && (lv_obj_get_style_border_opa(w.tile,LV_PART_MAIN)==LV_OPA_TRANSP)==bare;
+      // A bedside clock's key is its filled circle, without a border (firmware 0.8.0+).
+      if(w.key)opa_ok=lv_obj_get_style_bg_opa(w.tile,LV_PART_MAIN)==LV_OPA_COVER && lv_obj_get_style_border_opa(w.tile,LV_PART_MAIN)==LV_OPA_TRANSP;
       if(!opa_ok)ESP_LOGE("ui_test","Tile background FAIL slot=%u transparent=%d",(unsigned)w.index,bare);
       fits=fits && opa_ok;
     }
@@ -6241,6 +6429,51 @@ inline lv_obj_t *nav_glyph(lv_obj_t *key) {
   }
   return nullptr;
 }
+// A card turns into a bedside clock's key and back (firmware 0.8.0+): out of the grid, round and without padding, so
+// the card is the key; back in the grid with the card's own shape from its styles.
+inline void key_shape(Widgets &w,bool key){
+  if(key){
+    // Out of the grid's stretch first: LVGL keeps a size a layout gave (it marks it) until a layout gives another, so
+    // the grid places the card once more without stretching it, and place_keys then takes it out of the grid.
+    lv_obj_set_grid_cell(w.tile,LV_GRID_ALIGN_START,0,1,LV_GRID_ALIGN_START,0,1);
+    set_number(w.tile,LV_STYLE_RADIUS,LV_RADIUS_CIRCLE);
+    for(auto prop:{LV_STYLE_PAD_LEFT,LV_STYLE_PAD_RIGHT,LV_STYLE_PAD_TOP,LV_STYLE_PAD_BOTTOM})set_number(w.tile,prop,0);
+  }else{
+    lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_IGNORE_LAYOUT);
+    for(auto prop:{LV_STYLE_RADIUS,LV_STYLE_PAD_LEFT,LV_STYLE_PAD_RIGHT,LV_STYLE_PAD_TOP,LV_STYLE_PAD_BOTTOM})
+      lv_obj_remove_local_style_prop(w.tile,prop,LV_PART_MAIN);
+    // Everything the key's round form set, back to the card's own: its circle, its icon and its value line.
+    const int circle=w.base_circle>0?w.base_circle:ui::px(ui::large()?54:36);
+    lv_obj_set_size(w.circle,circle,circle);set_hidden(w.icon,false);
+    if(w.icon_font)set_font(w.icon,w.icon_font);
+    if(w.value_font)set_font(w.value,w.value_font);
+    set_text_align(w.value,LV_TEXT_ALIGN_LEFT);
+    w.key_size=0;
+  }
+  // The heartbeat of an alarm or a lock moves from the circle to the card or back (alarm_tile_look): the old one stands
+  // still, the next render starts it on the new one.
+  alarm_still(key?w.circle:w.tile);
+  if(const size_t slot=&w-widgets.data();slot<CELLS_MAX){alarm_tile_looks[slot]=LOOK_NONE;alarm_tile_marks[slot]=0;}
+  w.key=key;w.cached_active=-1;
+}
+// The keys of the bedside clock on this page where its layout puts them, once the grid has placed the clock's card.
+inline void place_keys(){
+  auto &clock=widgets[0];
+  if(!clock.tile||clock.index>=model.count||!model.tiles[clock.index].is_bedside()||!clock.full)return;
+  const int pad=lv_obj_get_style_space_top(clock.tile,LV_PART_MAIN);
+  const auto l=bedside_layout(content_width(clock),content_height(clock),pad,bedside_names(clock.index));
+  const int x0=lv_obj_get_x(clock.tile)+lv_obj_get_style_space_left(clock.tile,LV_PART_MAIN);
+  const int y0=lv_obj_get_y(clock.tile)+pad;
+  for(size_t slot=1;slot<widgets.size();++slot){
+    auto &w=widgets[slot];
+    if(!w.key||!w.tile||w.index>=model.count)continue;
+    const unsigned k=model.tiles[w.index].key;
+    if(k>=l.keys){lv_obj_add_flag(w.tile,LV_OBJ_FLAG_HIDDEN);continue;}
+    w.key_size=l.key;
+    lv_obj_add_flag(w.tile,LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_set_pos(w.tile,x0+l.key_x[k],y0+l.key_y[k]);lv_obj_set_size(w.tile,l.key,l.key);
+  }
+}
 // Slot assignment plus card places, sizes and visibility for a page; contents are untouched. `kept`: the cards already
 // show this page (kept_pages.h), so a card that keeps its tile keeps what it knows about its own colours too.
 inline int place_page(int page, bool kept = false) {
@@ -6262,14 +6495,23 @@ inline int place_page(int page, bool kept = false) {
   }
   std::array<size_t,CELLS_MAX> shown;shown.fill(grid.max_tiles());
   for(size_t i=0;model.configured && i<model.count;++i)if(placement[i].page==page && placement[i].slot<shown.size())shown[placement[i].slot]=i;
+  // A bedside clock takes the whole page; its keys take the cards of the cells it covers (firmware 0.8.0+).
+  if(model.configured && shown[0]<model.count && model.tiles[shown[0]].is_bedside() && model.tiles[shown[0]].full)
+    for(size_t i=0;i<model.count;++i){
+      const auto &k=model.tiles[i];
+      if(k.is_key() && (size_t)k.parent==shown[0] && k.key<bedside_key_room())shown[1+k.key]=i;
+    }
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];
     if(!kept || w.index!=shown[slot])w.cached_active=-1;
     w.index=shown[slot];
     w.wide=w.index<model.count && model.tiles[w.index].wide;w.full=w.index<model.count && model.tiles[w.index].full;
+    const bool key=w.index<model.count && model.tiles[w.index].is_key();
+    if(w.tile && key!=w.key)key_shape(w,key);
   }
   for(size_t slot=0;slot<widgets.size();++slot){
     auto &w=widgets[slot];if(!w.tile)continue;
+    if(w.key){lv_obj_remove_flag(w.tile,LV_OBJ_FLAG_HIDDEN);continue;}  // placed by place_keys below
     if(slot<grid.slots() && w.index<model.count){
       // A wide card takes two cells of its row (one on a single-column board), a full card the whole page.
       const int32_t column=w.full?0:(int32_t)(slot%grid.columns),row=w.full?0:(int32_t)(slot/grid.columns);
@@ -6303,6 +6545,10 @@ inline int place_page(int page, bool kept = false) {
   if(sequential && nav_number)settings_screen::page_dots(nav_number,model.page_data.ordinal(page),sequential_count,ui::large());
   // The cards are drawn from the sizes the grid gives them, so it lays out before anything reads one.
   if(tile_grid)lv_obj_update_layout(tile_grid);
+  if(widgets[0].tile && widgets[0].index<model.count && model.tiles[widgets[0].index].is_bedside()){
+    place_keys();
+    if(tile_grid)lv_obj_update_layout(tile_grid);
+  }
   lap(swipe_profile::PLACE);
   return page;
 }
@@ -6741,7 +6987,7 @@ inline void tick() {
     for(size_t slot=0;slot<grid.slots();++slot){
       auto &w=widgets[slot];if(!w.tile || w.index>=model.count || lv_obj_has_flag(w.tile,LV_OBJ_FLAG_HIDDEN))continue;
       const auto &t=model.tiles[w.index];
-      if((t.is_clock() && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
+      if(((t.is_clock() || t.is_bedside()) && new_minute) || (t.domain()=="timer" && t.state=="active") || (t.domain()=="sun" && second%60==0))card(w.index);
       // An alarm's delay counts down on its tile; its heartbeat stops while the screen sleeps and starts when it wakes.
       if(t.domain()=="alarm_control_panel"){if(alarm_left(t))card(w.index);alarm_tile_look(slot,&t);}
       if(t.domain()=="lock")alarm_tile_look(slot,&t);

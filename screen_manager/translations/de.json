@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Uhr",
+        "nightstand": "Nachttischuhr",
         "page": "Zu Seite {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Größe und Platz",
         "controls": "Bedienung",
         "style": "Symbol und Farbe"
+      },
+      "keys": {
+        "hint": "Ziehe eine Lampe, eine Temperatur oder ein Schloss auf die runden Plätze unter der Uhrzeit, oder tippe auf einen Platz und wähle eine aus. Es sind Kacheln: Tippe eine an, um sie einzurichten.",
+        "under": "Unter der Nachttischuhr: eine Kachel in ihrer runden Form. Ein Tippen tut, was es auf einer Kachel tut, und Halten öffnet ihre Karte."
       }
     },
     "tile_card": {

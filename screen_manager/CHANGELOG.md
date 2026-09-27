@@ -1,3 +1,23 @@
+## 0.4.12 (firmware 0.8.0)
+
+A bedside clock: the time as large as the page allows, with up to three round keys under it.
+
+- **Bedside clock** in the library: a tile that always takes a whole page, digits as large as the glass allows on
+  every screen, lying down and standing up. Under the time are up to three round places for what you reach for at
+  night: drag a lamp, a temperature or a lock onto one. A key is a tile in its round form, so it does what its tile
+  does: a tap switches or opens, holding it opens the card, a lock asks for a second tap, and its colour follows the
+  state. Tap a key in the editor to set it up like any tile. The clock starts without a card, so with Dark mode and
+  the night hours the page is black at night. docs/BEDSIDE.md has the details.
+- New firmware for every board: update the app, then press **Update** on each screen. A layout with a bedside clock
+  waits for firmware 0.8.0.
+- For contributors: a tile can hold other tiles without a cell of their own (`in` and `key` in the compiled tiles,
+  `children` in the page document), and the render check draws the bedside clock on every board.
+- Tested: every board builds with ESPHome 2026.9 (the CYD image is 1,670,928 B, 91.1 % of its slot, 16.8 KB more:
+  13.5 KB for the bedside digits and the rest for the clock and its keys; the Hosyond 4 inch is at 93.0 % for its
+  larger digits; both accepted by the owner). The keys were driven
+  by a virtual finger on the host firmware, and a Guition 4 inch and a CYD showed a bedside clock with a lamp, a lock and
+  an alarm panel as keys on a Home Assistant 2026.9. docs/TEST_RESULTS_0412.md has the details.
+
 ## 0.4.11 (firmware 0.7.0)
 
 Automations on every screen (GitHub #62, thanks @Crazyraf87).

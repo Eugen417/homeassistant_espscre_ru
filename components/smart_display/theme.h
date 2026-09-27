@@ -51,6 +51,7 @@ enum Role : uint8_t {
   MUTED,                // secondary words: states, times beside a value
   SUBTLE,               // quiet words: axis labels, notes, "Target"
   SLATE,                // the top bar, units, a value on a coloured card, mode key icons
+  BEDSIDE,              // the bedside clock's digits: ink by day, a soft grey beside a bed at night (firmware 0.8.0)
   ROW_ICON,             // icons at the start of a settings row
   CHEVRON,              // the arrow at the end of a settings row
   OFF,                  // something that is off: its icon, its circle and the fill of its slider
@@ -124,6 +125,7 @@ inline constexpr Pair ROLES[ROLE_COUNT] = {
   /* MUTED */                    {0x616161, 0x999999},
   /* SUBTLE */                   {0x6B6B6B, 0x8A8A8A},
   /* SLATE */                    {0x46525E, 0x9AA6B2},
+  /* BEDSIDE */                  {0x303030, 0x888888},
   /* ROW_ICON */                 {0x4A4A4A, 0xB8B8B8},
   /* CHEVRON */                  {0xB0B0B0, 0x5A5A5A},
   /* OFF */                      {0x9E9E9E, 0x787878},

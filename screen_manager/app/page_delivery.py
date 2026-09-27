@@ -8,6 +8,7 @@ import asyncio
 from copy import deepcopy
 import json
 
+from core import NIGHTSTAND_MIN_FIRMWARE, is_key
 from page_layout import compile_tiles, fingerprint, grid_of_record, new_id
 from i18n import english
 
@@ -55,6 +56,13 @@ def appearance_configuration(record, region, initial_tiles):
             background = tile['appearance'].pop('background', 'auto')
             appearance['tiles'].append({'i': index, 'name': initial_tiles[index]['name'], 'background': background})
             index += 1
+    # The keys of a bedside clock follow the placed tiles, in the order compile_tiles gives them: a name is paint too.
+    for page in layout['pages']:
+        for tile in sorted(page['tiles'], key=lambda tile: (tile['placement']['row'], tile['placement']['column'])):
+            for child in tile.get('children', ()):
+                child['appearance'].pop('label')
+                appearance['tiles'].append({'i': index, 'name': initial_tiles[index]['name'], 'background': 'auto'})
+                index += 1
     return fingerprint({'layout': layout, 'grid': record['sourceGrid'], 'region': region}), appearance
 
 
@@ -67,11 +75,17 @@ def page_message(page, index, items, *, initial):
     return message
 
 
-def tile_message(message, tile, *, initial):
+def tile_message(message, tile, *, initial, holders=None):
+    """A key of a bedside clock (firmware 0.8.0+) is a tile without a cell: its first message names its clock by index
+    (`in`, from `holders`, the placed tiles' indexes by entity) and its place under it (`k`) instead of a slot."""
     message = deepcopy(message)
     message.pop("v", None)
     if initial:
-        message.update(op="tile", slot=tile["slot"])
+        if is_key(tile):
+            message.update(op="tile")
+            message["in"], message["k"] = holders[tile["in"]], tile["key"]
+        else:
+            message.update(op="tile", slot=tile["slot"])
         message.setdefault("o", {})
     else:
         message["op"] = "state"
@@ -114,7 +128,8 @@ def prepare(inbox, record, region, values, bars):
     pages = record["layout"]["pages"]
     if len(values) != len(tiles) or len(bars) != len(pages):
         raise Refused(english('addon.errors.pages.fields'))
-    initial_tiles = [tile_message(value, tile, initial=True) for value, tile in zip(values, tiles)]
+    holders = {tile["entity"]: i for i, tile in enumerate(tiles) if not is_key(tile)}
+    initial_tiles = [tile_message(value, tile, initial=True, holders=holders) for value, tile in zip(values, tiles)]
     initial_bars = [page_message(page, i, bar, initial=True) for i, (page, bar) in enumerate(zip(pages, bars))]
     live_values = [tile_message(value, tile, initial=False) for value, tile in zip(values, tiles)]
     begin = {"op": "begin", "inbox": inbox, "title": record["layout"]["title"], "pages": len(pages),
@@ -150,6 +165,7 @@ class Sender:
         self.bar_values = False
         self.appearance_updates = False
         self.group_lamps = False
+        self.tile_keys = False
         self.structure, self.appearance = None, None
 
     def disconnected(self):
@@ -158,6 +174,7 @@ class Sender:
         self.bar_values = False
         self.appearance_updates = False
         self.group_lamps = False
+        self.tile_keys = False
         self.structure, self.appearance = None, None
         self.phase = "waiting"
         self.failed_revision = self.failure = None
@@ -178,6 +195,8 @@ class Sender:
             self.bar_values = answer.get("bar_values") == 1
             self.appearance_updates = answer.get("appearance_updates") == 1
             self.group_lamps = answer.get("group_lamps") == 1
+            # Tiles without a place, the keys of a bedside clock (firmware 0.8.0+).
+            self.tile_keys = answer.get("tile_keys") == 1
             return PROTOCOL
         # This is an answer from the running old firmware, not cached registry metadata.
         if isinstance(answer, dict) and answer.get("protocol") in (None, 1) and answer.get("status") == "Error: protocol version":
@@ -255,6 +274,8 @@ class Sender:
                         raise Refused(english('editor.pages.update_notice'))
                     if any(message["o"].get("size", "single") not in self.tile_sizes for message in initial_tiles):
                         raise Refused(english('addon.errors.pages.update_tall'))
+                    if not self.tile_keys and any("in" in message for message in initial_tiles):
+                        raise Refused(english('addon.errors.layout.firmware_first', version='.'.join(map(str, NIGHTSTAND_MIN_FIRMWARE))))
                     current()
                     answer = await self._packet(begin, revision)
                     self.revision = revision

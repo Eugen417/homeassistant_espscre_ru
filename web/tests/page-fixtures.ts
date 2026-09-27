@@ -1,6 +1,6 @@
 /** Compact test fixtures for the page API. This is not an application importer. */
 import type { Layout, PageDocument, PageGrid, PageTile, Screen, Tile } from "../src/types";
-import { clone, emptyLayout, emptyPage, instanceId } from "../src/model/pages";
+import { childOf, clone, emptyLayout, emptyPage, instanceId } from "../src/model/pages";
 import { state } from "../src/store";
 
 export const testGrid: PageGrid = { columns: 2, rows: 3 };
@@ -18,11 +18,12 @@ export function documentFixture(view: Layout, grid = testGrid): PageDocument {
   for (const tile of view.tiles) {
     // Give renderer fixtures an ID too, so selection has the same contract as the API.
     tile.id ||= instanceId();
+    if (tile.in !== undefined) continue;  // a bedside clock's key goes under its clock below
     const o = tile.options || {}, destination = /^screen\.page_(\d+)$/.exec(tile.entity);
     const content: PageTile["content"] = destination
       ? { kind: "navigation", target: { kind: "page", pageId: layout.pages[Number(destination[1]) - 1].id } }
-      : tile.entity === "screen.clock" || tile.entity === "screen.settings"
-        ? { kind: "builtin", name: tile.entity.slice(7) as "clock" | "settings" }
+      : tile.entity === "screen.clock" || tile.entity === "screen.settings" || tile.entity === "screen.nightstand"
+        ? { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" }
         : { kind: "entity", entityId: tile.entity };
     const appearance: PageTile["appearance"] = { label: tile.name }, interaction: PageTile["interaction"] = {};
     if (o.size === "wide" || o.size === "full") appearance.presentation = o.size;
@@ -33,6 +34,11 @@ export function documentFixture(view: Layout, grid = testGrid): PageDocument {
       placement: { row: Math.floor(tile.slot % cells / grid.columns), column: tile.slot % grid.columns,
         columns: o.size === "full" ? grid.columns : ["wide", "square"].includes(o.size || "") ? Math.min(2, grid.columns) : 1,
         rows: o.size === "full" ? grid.rows : ["tall", "square"].includes(o.size || "") ? 2 : 1 } });
+  }
+  // Keys under the clock they name, in their order, as the page document keeps them.
+  for (const key of view.tiles.filter((tile) => tile.in !== undefined).sort((a, b) => (a.key ?? 0) - (b.key ?? 0))) {
+    const holder = layout.pages.flatMap((page) => page.tiles).find((tile) => tile.content.kind === "builtin" && `screen.${tile.content.name}` === key.in);
+    if (holder) (holder.children ||= []).push(childOf(key, key.id!));
   }
   return { format: "pages-v2", revision: instanceId(), sourceGrid: clone(grid), layout,
     workspace: { revision: instanceId(), positions: {} } };

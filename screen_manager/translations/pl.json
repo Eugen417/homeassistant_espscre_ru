@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Zegar",
+        "nightstand": "Zegar przy łóżku",
         "page": "Przejdź do strony {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Rozmiar i miejsce",
         "controls": "Sterowanie",
         "style": "Ikona i kolor"
+      },
+      "keys": {
+        "hint": "Przeciągnij lampę, temperaturę lub zamek na okrągłe miejsca pod godziną albo dotknij miejsca i wybierz. To kafelki: dotknij jednego, aby go ustawić.",
+        "under": "Pod zegarem przy łóżku: kafelek w okrągłej formie. Dotknięcie działa jak na kafelku, a przytrzymanie otwiera jego kartę."
       }
     },
     "tile_card": {

@@ -590,6 +590,25 @@ class Run:
                 await self.render(f'{size}-{page + 1}')
         return checks
 
+    async def bedside_clock(self, grid):
+        """The bedside clock over its page with three keys (firmware 0.8.0+), on every board and both orientations: its
+        digits come from a size the looks work out from the glass (FONT_BEDSIDE_SIZE), and the self test fails a board
+        where they fit in no arrangement or a key falls outside its clock. A key is a tile without a cell (`in`)."""
+        states = {**send_layout.demo_states(MOMENT), **send_layout.controls_states(MOMENT),
+                  'lock.demo_front': {'state': 'locked', 'attributes': {'friendly_name': 'Front door'}}}
+        tiles = [dict(entity='screen.nightstand', name='', slot=0, options={'size': 'full', 'background': 'none'}),
+                 *(dict(entity=entity, name=name, key=place, **{'in': 'screen.nightstand'}) for place, (entity, name) in
+                   enumerate([('light.demo', 'Lamp'), ('sensor.demo_temperature', 'Bedroom'), ('lock.demo_front', 'Front door')]))]
+        record = send_layout.migrate_legacy(dict(title='Bedroom', tiles=tiles), grid)
+        values = [send_layout.state_message(i, tile, states) for i, tile in enumerate(send_layout.compile_tiles(record['layout'], grid))]
+        region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
+        await self.sender.synchronize(self.inbox.object_id, record, region, values, [[{'k': 'clock'}]])
+        checks = await self.self_test()
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        await self.render('bedside')
+        return checks
+
     async def alarm_probe(self):
         start = len(self.lines)
         await self.call('render_alarm')
@@ -1232,6 +1251,8 @@ class Run:
             return 1, await self.lock_panel(grid)
         if self.only == 'automation':
             return 1, await self.automation_panel(grid)
+        if self.only == 'bedside':
+            return 1, await self.bedside_clock(grid)
         checks = await self.self_test()
         await self.moments(pages)
         for page in range(pages):
@@ -1262,6 +1283,7 @@ class Run:
         await self.appearance_edits(grid)
         checks += await self.detail_navigation(grid, entities)
         checks += await self.rectangular_tiles(grid)
+        checks += await self.bedside_clock(grid)
         checks += await self.alarm_panel(grid)
         return pages, checks
 
@@ -1318,7 +1340,7 @@ def main():
     parser.add_argument('--out', type=Path, default=REPO / '.esphome' / 'render' / 'out')
     parser.add_argument('--work', type=Path, help='where the host builds go (default: .esphome/render/build)')
     parser.add_argument('--camera', default='960x540', help='the camera picture of the camera alert, WxH')
-    parser.add_argument('--only', choices=['alarm', 'lock', 'automation'], help='after the demo layout arrives, run only this stage')
+    parser.add_argument('--only', choices=['alarm', 'lock', 'automation', 'bedside'], help='after the demo layout arrives, run only this stage')
     parser.add_argument('--port-base', type=int, help='the first API port (default host.PORT_BASE); another worktree may use it')
     args = parser.parse_args()
     # The programs write their pictures from their own folder, so every path they get is absolute.

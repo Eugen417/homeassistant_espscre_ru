@@ -11,18 +11,28 @@ export type TileOptions = {
   action?: { action: string; data?: Record<string, unknown> };
   [key: string]: unknown;
 };
-export type Tile = { id?: string; entity: string; name: string; slot: number; options?: TileOptions };
+// A key as the page document keeps it: a tile without a place of its own.
+export type ChildTile = {
+  id: string;
+  content: { kind: "entity"; entityId: string };
+  appearance: { label: string; icon?: string };
+  interaction: { tap?: string; action?: TileOptions["action"]; guard?: string };
+};
+// A key of a bedside clock (app 0.4.12) is a tile like any other without a cell: it names the tile it stands under
+// (`in`, that tile's entity) and its place there (`key`, from 0), and its slot is -1.
+export type Tile = { id?: string; entity: string; name: string; slot: number; options?: TileOptions; in?: string; key?: number };
 export type HeaderItem = { id?: string; type: string; entity?: string; content?: string; icon?: string; show?: string };
 export type PageGrid = Readonly<{ columns: number; rows: number }>;
 export type PageTarget = { kind: "page"; pageId: string } | { kind: "home" };
 export type PageTile = {
   id: string;
-  content: { kind: "entity"; entityId: string } | { kind: "builtin"; name: "clock" | "settings" } | { kind: "navigation"; target: PageTarget };
+  content: { kind: "entity"; entityId: string } | { kind: "builtin"; name: "clock" | "nightstand" | "settings" } | { kind: "navigation"; target: PageTarget };
   // A footprint is a rectangle. The renderer's capabilities decide which
   // rectangles it supports; the page's grid is never user-overridable.
   placement: { row: number; column: number; columns: number; rows: number };
   appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full"; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string };
   interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string };
+  children?: ChildTile[];
 };
 export type Page = {
   id: string;

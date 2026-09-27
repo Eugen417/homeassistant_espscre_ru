@@ -48,6 +48,8 @@ namespace runtime_tiles {
 // while a screen holds 48 tiles, so a state for tile 33 to 48 redrew the whole page. 0 beyond them: draw everything.
 // This is the ceiling on a screen whatever its grid, so it sizes the arrays that hold one entry per tile.
 constexpr size_t TILES_MAX = 64;
+// The keys under a bedside clock's time (firmware 0.8.0+).
+constexpr unsigned BEDSIDE_KEYS = 3;
 // Explicit grid positions (0.2.26+) address at most eight pages.
 constexpr size_t PAGES_MAX = 8;
 // The bigger of the two grids: what the cards, the page's own arrays and the grid descriptors are sized for. A
@@ -107,7 +109,7 @@ inline bool valid_entity(const std::string &entity) {
   // screen.* are built-in cards without a Home Assistant entity behind them; screen.page_<n> (firmware 0.2.62+)
   // only goes to page n. Several pages may each carry the same one (firmware 0.2.65+, Model::set_layout).
   if (domain == "screen") {
-    if (entity == "screen.clock" || entity == "screen.settings") return true;
+    if (entity == "screen.clock" || entity == "screen.settings" || entity == "screen.nightstand") return true;
     return page_entity(entity) && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + grid.pages());
   }
   for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "automation", "sun", "timer", "person", "camera", "image", "alarm_control_panel", "lock"})
@@ -326,6 +328,11 @@ struct Tile {
   // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
   bool wide = false, full = false;
   uint8_t height = 1;  // Row span; independent of the card design and page height.
+  // A key of a bedside clock (firmware 0.8.0+): a tile without a place of its own. `parent` is its clock's index, -1
+  // for a tile that has a place; `key` is where it stands under the time, counted from 0.
+  int16_t parent = -1;
+  uint8_t key = 0;
+  bool is_key() const { return parent >= 0; }
   // Direct control set on a wide card (firmware 0.2.19+); empty keeps the plain card.
   std::string controls, device_class;
   bool muted = false;
@@ -447,6 +454,8 @@ struct Tile {
   // Two built-in cards, and only one of them is a clock that has to be redrawn every minute.
   bool is_clock() const { return entity == "screen.clock"; }
   bool is_settings() const { return entity == "screen.settings"; }
+  // The bedside clock (firmware 0.8.0+): the time as large as the page allows, with its keys under it.
+  bool is_bedside() const { return entity == "screen.nightstand"; }
   // A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it goes to, counted from one.
   bool is_page() const { return page_entity(entity); }
   int page_target() const { return is_page() ? entity[12] - '0' : 0; }
@@ -569,7 +578,7 @@ struct Model {
     const unsigned x = slot % grid.columns, y = slot % grid.slots() / grid.columns;
     if (!rows || index >= count || slot >= pages * grid.slots() || (full && slot % grid.slots()) ||
         x + columns > grid.columns || y + rows > grid.rows) return false;
-    for (size_t i = 0; i < count; ++i) if (i != index && tiles[i].received && slots[i] / grid.slots() == slot / grid.slots()) {
+    for (size_t i = 0; i < count; ++i) if (i != index && tiles[i].received && !tiles[i].is_key() && slots[i] / grid.slots() == slot / grid.slots()) {
       const unsigned other_x = slots[i] % grid.columns, other_y = slots[i] % grid.slots() / grid.columns;
       if (x < other_x + tiles[i].column_span() && other_x < x + columns &&
           y < other_y + tiles[i].row_span() && other_y < y + rows) return false;
@@ -588,12 +597,17 @@ struct Model {
 inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out) {
   unsigned last = 0;
   for (size_t i = 0; i < m.count && i < grid.max_tiles(); ++i) {
+    // A key has no cell: it is on its clock's page (below), where runtime_tiles::place_page gives it a card.
+    if (m.tiles[i].is_key()) { out[i] = {0xFF, 0xFF}; continue; }
     unsigned slot = m.slots[i];
     if (m.tiles[i].full) slot -= slot % grid.slots();
     else if (m.tiles[i].wide && !grid.wide_fits(slot)) --slot;
     out[i] = {static_cast<uint8_t>(slot / grid.slots()), static_cast<uint8_t>(slot % grid.slots())};
     last = std::max(last, slot + (m.tiles[i].row_span() - 1) * static_cast<unsigned>(grid.columns) + m.tiles[i].column_span());
   }
+  // A key is on the page of its clock, so a kept page knows when one of its keys changed (kept_pages.h).
+  for (size_t i = 0; i < m.count && i < grid.max_tiles(); ++i)
+    if (m.tiles[i].is_key() && static_cast<size_t>(m.tiles[i].parent) < m.count) out[i].page = out[m.tiles[i].parent].page;
   unsigned pages = (last + grid.slots() - 1) / grid.slots();
   return std::max({pages, 1u, std::min<unsigned>(m.pages, grid.pages())});
 }

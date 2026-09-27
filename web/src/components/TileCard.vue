@@ -7,7 +7,7 @@ const { grid: editorGrid } = editorLayout;
 import { computed, nextTick, ref, watch } from "vue";
 import { vDrag } from "../drag";
 import { numberText, t, te } from "../i18n";
-import { dimensions, sizeOf, inlineControlKind, displayName, effectiveControls, isFull, isWide, pageTarget } from "../model/layout";
+import { dimensions, sizeOf, inlineControlKind, displayName, effectiveControls, isFull, isWide, keysOf, pageTarget } from "../model/layout";
 import { clockText, glyph } from "../model/topbar";
 import { clock24, entityName, isSelected, liveOf, numberMarks, openTile, placeTile, removeTile, screenBuiltinName, screenText, state, tileIconCp, toast, unitSuffix } from "../store";
 import { tilePalette, tileActive } from "../model/tile-palette";
@@ -18,10 +18,14 @@ import { coverPrimary, hasCoverTilt } from "../model/tall-controls";
 import CoverTilePreview from "./CoverTilePreview.vue";
 import MarqueeText from "./MarqueeText.vue";
 import SensorHistory from './SensorHistory.vue';
+import rules from "../model/page-rules.json";
 
 // `grid`: another screen's grid, for a card of that screen's home page on the overview (app 0.4.0); the editor's own
 // screen otherwise.
-const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean; preview?: boolean; grid?: { columns: number; rows: number; slots: number } }>();
+// `round`: a key of a bedside clock (app 0.4.12), the same card in its round form. `keys`: a clock's keys where the card
+// is drawn outside the editor's own layout (the overview).
+const props = defineProps<{ tile: Tile; slot: number; placeholder?: boolean; preview?: boolean; grid?: { columns: number; rows: number; slots: number };
+  round?: boolean; keys?: Tile[] }>();
 const grid = computed(() => props.grid ?? editorGrid);
 // A card of another screen, on the overview: drawn only, never picked up, focused or opened.
 const foreign = computed(() => Boolean(props.grid));
@@ -42,6 +46,20 @@ const goesTo = computed(() => pageTarget(props.tile.entity));
 const background = computed(() => state.inventory.backgrounds?.[props.tile.options?.background || ""]?.color);
 const bare = computed(() => props.tile.options?.background === "none");
 // A settings card stays a plain card, as the screen draws it, even when an older layout gave it a clock face (GitHub #47).
+// The bedside clock (app 0.4.12): big digits over its three key places, as the screen draws it.
+const bedside = computed(() => props.tile.entity === "screen.nightstand");
+const bedsideKeys = computed(() => props.keys ?? keysOf(state.layout, props.tile));
+// As many places as the add-on lets this clock hold (page-rules.json, keyHolders).
+const keyPlaces = computed(() => Array.from({ length: (rules.keyHolders as Record<string, number>)[props.tile.entity] || 0 }, (_, key) =>
+  ({ key, tile: bedsideKeys.value.find((tile) => tile.key === key) }))
+  .filter((place) => place.tile || !props.preview));
+function markKey(key: number) {
+  const marked = state.insertKey?.holder === props.tile.id && state.insertKey?.key === key;
+  state.insertKey = marked ? null : { holder: props.tile.id!, key };
+  if (state.insertKey) document.querySelector<HTMLInputElement>("#search")?.focus();
+}
+// What a key shows in its circle: its value where that is what it is for (a temperature), else its icon.
+const roundValue = computed(() => ["sensor", "number", "input_number"].includes(domain.value) && current.value && !gone.value ? bigValue.value + ((unit.value || "").startsWith("°") ? "°" : unit.value === "%" ? "%" : "") : "");
 const display = computed(() => props.tile.entity === "screen.settings" ? "standard" : props.tile.options?.display || "standard");
 const note = computed(() => (display.value !== "standard" ? displayName(display.value) : ""));
 const controls = computed(() => {
@@ -213,11 +231,33 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, photo: artworkLoaded && !!artwork, camera: cameraCard && cameraLoaded, bare, placeholder: placeholder || (!live && !foreign), chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
+  <span v-if="round" class="round-tile" :class="{ chosen, placeholder: placeholder || (!live && !foreign) }" :data-tile-id="tile.id"
+    :style="{ '--tile-icon': palette.icon, '--tile-circle': palette.circle }">
+    <button type="button" class="round-key" :aria-label="name" :disabled="preview && !live"
+      v-drag="preview || foreign ? null : { kind: 'tile', tile }" @click.stop="activate">
+      <span class="disc" :class="{ lit: isOn }"><span v-if="roundValue" class="value">{{ roundValue }}</span><span v-else class="mdi">{{ glyph(tileIconCp(tile)) }}</span></span>
+      <span class="kn">{{ name }}</span>
+    </button>
+    <!-- The same remove key as on a tile, at the circle's corner. -->
+    <button v-if="live && !preview" type="button" class="remove" :title="t('editor.tile_card.remove')" :aria-label="t('editor.tile_card.remove_named', { name })" @click.stop="removeTile(tile)">✕</button>
+  </span>
+  <div v-else class="tile" :class="{ wide, full, tall, 'tall-action': tallAction || tallStack, photo: artworkLoaded && !!artwork, camera: cameraCard && cameraLoaded, bare, placeholder: placeholder || (!live && !foreign), chosen }" :data-slot="slot" :data-tile-id="tile.id" :data-columns="shape.columns" :data-rows="shape.rows"
     :style="{ gridColumn: `${slot % grid.columns + 1} / span ${shape.columns}`, gridRow: `${Math.floor(slot % grid.slots / grid.columns) + 1} / span ${shape.rows}`, ...(background && !bare ? { backgroundColor: background } : {}), '--tile-icon': palette.icon, '--tile-circle': palette.circle, '--tile-accent': palette.accent }"
     :tabindex="!foreign && (preview ? goesTo : live) ? 0 : -1" :role="!foreign && (preview ? goesTo : live) ? 'button' : undefined" :aria-label="live ? label : undefined"
     v-drag="preview || foreign ? null : { kind: 'tile', tile }" @click="activate" @keydown="live && onKey($event)">
-    <template v-if="display === 'analog'">
+    <template v-if="bedside">
+      <span class="bedside-clock">
+        <span class="big">{{ clockText(clock24, now) }}</span>
+        <span v-if="keyPlaces.length" class="keys">
+          <span v-for="place in keyPlaces" :key="place.key" class="key-place" :data-key="preview ? undefined : place.key" :data-holder="preview ? undefined : tile.id"
+            :class="{ 'insert-here': state.insertKey?.holder === tile.id && state.insertKey?.key === place.key, over: state.drag.key?.holder === tile.id && state.drag.key?.key === place.key }">
+            <TileCard v-if="place.tile" :tile="place.tile" :slot="-1" round :preview="preview" />
+            <button v-else type="button" class="key-empty" :title="t('editor.page.cell.title')" @click.stop="markKey(place.key)"><span>+</span></button>
+          </span>
+        </span>
+      </span>
+    </template>
+    <template v-else-if="display === 'analog'">
       <svg class="clockface" viewBox="0 0 60 60" aria-hidden="true">
         <circle cx="30" cy="30" r="27" fill="#fff" stroke="#c9ccd1" />
         <line v-for="a in [0, 90, 180, 270]" :key="a" x1="30" y1="5" x2="30" y2="9" stroke="#1b1b1b" stroke-width="1.5" :transform="`rotate(${a} 30 30)`" />
@@ -368,6 +408,20 @@ async function onKey(e: KeyboardEvent) {
 .face-clock .blocks { display: flex; align-items: baseline; gap: 3px; }
 .face-clock .block { background: #f1f1f1; border-radius: 4px; padding: 1px 5px; font-size: 24px; font-weight: 500; line-height: 1.25; background-image: linear-gradient(transparent calc(50% - .5px), #fff calc(50% - .5px), #fff calc(50% + .5px), transparent calc(50% + .5px)); }
 .face-clock .blocks small { font-size: 9px; margin-left: 2px; }
+.bedside-clock { display: flex; flex-direction: column; align-items: center; justify-content: space-evenly; width: 100%; height: 100%; min-width: 0; }
+.bedside-clock .big { font-size: 64px; font-weight: 400; line-height: 1; letter-spacing: -1px; }
+.bedside-clock .keys { display: flex; gap: 14px; }
+.key-place { display: grid; place-items: center; width: 64px; min-height: 52px; border-radius: 12px; }
+.key-place.over, .key-place.insert-here { outline: 2px dashed var(--accent, #2196f3); outline-offset: 2px; }
+.key-empty { width: 36px; height: 36px; border-radius: 50%; border: 1px dashed currentColor; background: transparent; color: inherit; opacity: .45; cursor: pointer; }
+.round-tile { position: relative; display: grid; justify-items: center; min-width: 0; max-width: 64px; }
+.round-key { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; max-width: 64px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; font: inherit; }
+.round-tile .remove { top: -6px; right: 4px; }
+.round-tile .disc { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: var(--tile-circle); color: var(--tile-icon); font-size: 19px; }
+.round-tile .disc .value { font-size: 10px; color: var(--ink, inherit); }
+.round-tile .kn { font-size: 9px; opacity: .7; max-width: 64px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.round-tile.chosen .disc { outline: 2px solid var(--accent, #2196f3); outline-offset: 2px; }
+.round-tile.placeholder { opacity: .4; }
 .digital-clock { display: grid; gap: 3px; align-content: center; text-align: center; min-width: 0; width: 100%; height: 100%; }
 .digital-clock .big { font-size: 28px; font-weight: 400; }
 .digital-clock .st { font-size: 9px; }

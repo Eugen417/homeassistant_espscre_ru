@@ -5,7 +5,7 @@ import { t } from "../i18n";
  * consume a derived view with stable instance IDs. Only the persistence and
  * delivery boundaries translate to another format.
  */
-import type { HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
+import type { ChildTile, HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
 
 import { dimensions, SIZES, type Size } from "./layout";
 import { validateCardOptions, validatePageShape } from './page-validation';
@@ -156,6 +156,21 @@ export function entityOf(layout: PageLayout, tile: PageTile): string {
   if (index < 0) throw new Error(t("addon.errors.pages.page_missing"));
   return `screen.page_${index + 1}`;
 }
+/** A bedside clock's key (app 0.4.12) as the tile it is, and back as the child its clock keeps in the document. */
+const KEY_APPEARANCE = ["icon"] as const, KEY_INTERACTION = ["tap", "action", "guard"] as const;
+export function keyTile(child: ChildTile, holder: string, key: number): Tile {
+  const options: TileOptions = {};
+  for (const field of KEY_APPEARANCE) if (child.appearance[field] !== undefined) options[field] = clone(child.appearance[field]);
+  for (const field of KEY_INTERACTION) if (child.interaction[field] !== undefined) Object.assign(options, { [field]: clone(child.interaction[field]) });
+  return { id: child.id, entity: child.content.entityId, name: child.appearance.label, slot: -1, in: holder, key,
+    ...(Object.keys(options).length ? { options } : {}) };
+}
+export function childOf(tile: Tile, id: string): ChildTile {
+  const options = tile.options || {}, appearance: ChildTile["appearance"] = { label: tile.name ?? "" }, interaction: ChildTile["interaction"] = {};
+  for (const field of KEY_APPEARANCE) if (options[field] !== undefined) Object.assign(appearance, { [field]: clone(options[field]) });
+  for (const field of KEY_INTERACTION) if (options[field] !== undefined) Object.assign(interaction, { [field]: clone(options[field]) });
+  return { id, content: { kind: "entity", entityId: tile.entity }, appearance, interaction };
+}
 const appearanceKeys = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay" } as const;
 
 /** A render view, never a second saved or editable layout. */
@@ -175,7 +190,8 @@ export function projectLayout(layout: PageLayout, grid: PageGrid): Layout {
       return { id: tile.id, entity: entityOf(layout, tile), name: tile.appearance.label,
         slot: index * grid.columns * grid.rows + tile.placement.row * grid.columns + tile.placement.column,
         ...(Object.keys(options).length ? { options } : {}) };
-    })).sort((a, b) => a.slot - b.slot),
+    })).sort((a, b) => a.slot - b.slot).concat(layout.pages.flatMap((page) => page.tiles.flatMap((tile) =>
+      (tile.children || []).map((child, key) => keyTile(child, entityOf(layout, tile), key))))),
   };
 }
 
@@ -219,6 +235,12 @@ export function validatePages(layout: PageLayout, grid: PageGrid): PageLayout {
       if (tile.content.kind !== "navigation") {
         if (entities.has(entity)) throw new Error(t("addon.errors.layout.once"));
         entities.add(entity);
+      }
+      // A key is a tile on the screen too: its own id, and its entity once on the screen (app 0.4.12).
+      for (const child of tile.children || []) {
+        identity(child.id);
+        if (entities.has(child.content.entityId)) throw new Error(t("addon.errors.layout.once"));
+        entities.add(child.content.entityId);
       }
     }
   }
@@ -285,6 +307,9 @@ export function replaceBar(layout: PageLayout, grid: PageGrid, source: string, t
 export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile: Tile; slot: number }[]) {
   return changePages(layout, grid, (draft) => {
     const cells = grid.columns * grid.rows, existing = new Map(draft.pages.flatMap((page) => page.tiles.map((tile) => [tile.id, tile] as const)));
+    // Keys have no cell: they go back under their clock below. A holder whose keys are not among the entries keeps them.
+    const keys = entries.filter(({ tile }) => tile.in !== undefined).map(({ tile }) => tile);
+    entries = entries.filter(({ tile }) => tile.in === undefined);
     const returned = new Set(entries.map(({ tile }) => tile.id).filter(Boolean));
     if ([...existing.keys()].some((id) => !returned.has(id))) throw new Error(t("addon.errors.pages.arrangement"));
     const required = Math.max(draft.pages.length, ...entries.map(({ slot }) => Math.floor(slot / cells) + 1));
@@ -302,8 +327,8 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
         if (!page) throw new Error(t("addon.errors.pages.page_missing"));
         content = old?.content.kind === "navigation" && old.content.target.kind === "home" && entityOf(layout, old) === tile.entity
           ? clone(old.content) : { kind: "navigation", target: { kind: "page", pageId: page.id } };
-      } else if (tile.entity === "screen.clock" || tile.entity === "screen.settings") {
-        content = { kind: "builtin", name: tile.entity.slice(7) as "clock" | "settings" };
+      } else if (tile.entity === "screen.clock" || tile.entity === "screen.nightstand" || tile.entity === "screen.settings") {
+        content = { kind: "builtin", name: tile.entity.slice(7) as "clock" | "nightstand" | "settings" };
       } else content = { kind: "entity", entityId: tile.entity };
       const size = options.size ?? "single";
       if (!SIZES.includes(size as Size)) throw new Error(t("addon.errors.pages.size"));
@@ -316,7 +341,11 @@ export function arrangeTiles(layout: PageLayout, grid: PageGrid, entries: { tile
       for (const key of ["tap", "inline", "controls", "action", "guard"] as const) {
         if (options[key] !== undefined) Object.assign(interaction, { [key]: clone(options[key]) });
       }
+      // A key keeps its id: an edit of one key is not a new key.
+      const mine = keys.filter((key) => key.in === tile.entity).sort((a, b) => (a.key ?? 0) - (b.key ?? 0));
+      const children = mine.length ? mine.map((key) => childOf(key, key.id || instanceId())) : old?.children;
       draft.pages[Math.floor(slot / cells)].tiles.push({ id: old?.id || instanceId(), content, appearance, interaction,
+        ...(children?.length ? { children: clone(children) } : {}),
         placement: { row: Math.floor((slot % cells) / grid.columns), column: slot % grid.columns,
           ...dimensions(size as Size, grid) } });
     }
@@ -331,6 +360,7 @@ export function remapLayout(layout: PageLayout, grid: PageGrid) {
     page.topbar = copyBar(page.topbar);
     for (const tile of page.tiles) {
       tile.id = instanceId();
+      for (const child of tile.children || []) child.id = instanceId();
       if (tile.content.kind === "navigation" && tile.content.target.kind === "page") {
         const id = ids.get(tile.content.target.pageId);
         if (!id) throw new Error(t("addon.errors.pages.page_missing"));

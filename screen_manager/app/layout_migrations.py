@@ -6,9 +6,9 @@ changing normal saves, state delivery or the firmware.
 """
 from copy import deepcopy
 
-from core import header_items, page_target, tile_size, validate_layout
+from core import header_items, is_key, page_target, placed, tile_size, validate_layout
 from i18n import screen_t, t
-from page_layout import APPEARANCE, INTERACTION, FORMAT, LayoutError, _object, new_id, tile_from_fields, validate_document
+from page_layout import APPEARANCE, INTERACTION, FORMAT, LayoutError, _object, attach_keys, new_id, tile_from_fields, validate_document
 
 
 def _recover_tiles(raw, grid):
@@ -69,9 +69,9 @@ def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
     if not isinstance(raw["tiles"], list):
         raise LayoutError(t('addon.errors.layout.invalid'))
     for tile in raw["tiles"]:
-        _object(tile, {"entity", "name", "slot", "options"}, {"entity"})
+        _object(tile, {"entity", "name", "slot", "options", "in", "key"}, {"entity"})
     legacy = validate_layout(deepcopy(raw), stored=recover, grid=grid)
-    used = max((tile["slot"] + grid.cells(tile_size(tile)) for tile in legacy["tiles"]), default=0)
+    used = max((tile["slot"] + grid.cells(tile_size(tile)) for tile in placed(legacy["tiles"])), default=0)
     count = max(1, legacy.get("pages", 1), (used + grid.slots - 1) // grid.slots)
     if recover:
         count = max(count, max((page_target(tile['entity']) for tile in legacy['tiles']), default=0))
@@ -90,9 +90,10 @@ def migrate_legacy(raw, grid, id_factory=new_id, *, recover=False):
                 "trailing": [{"id": id_factory(), **deepcopy(item)} for item in header_items(legacy)],
             }, "tiles": [],
         })
-    for tile in legacy["tiles"]:
+    for tile in placed(legacy["tiles"]):
         pages[tile["slot"] // grid.slots]["tiles"].append(tile_from_fields(tile, grid, ids, id_factory))
-    layout = validate_document({"title": legacy["title"], "homePageId": ids[0], "pages": pages}, grid)
+    document = {"title": legacy["title"], "homePageId": ids[0], "pages": pages}
+    layout = validate_document(attach_keys(document, [tile for tile in legacy["tiles"] if is_key(tile)], id_factory), grid)
     record = {"format": FORMAT, "sourceGrid": {"columns": grid.columns, "rows": grid.rows}, "layout": layout}
     if "settings" in legacy:
         record["settings"] = deepcopy(legacy["settings"])

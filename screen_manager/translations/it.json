@@ -1106,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Orologio",
+        "nightstand": "Orologio da comodino",
         "page": "Vai alla pagina {page}"
       },
       "identify": {
@@ -1625,6 +1626,10 @@
         "place": "Dimensione e posizione",
         "controls": "Comandi",
         "style": "Icona e colore"
+      },
+      "keys": {
+        "hint": "Trascina una lampada, una temperatura o una serratura sui posti rotondi sotto l'ora, oppure tocca un posto e scegli. Sono riquadri: toccane uno per impostarlo.",
+        "under": "Sotto l'orologio da comodino: un riquadro nella sua forma rotonda. Un tocco fa ciò che fa su un riquadro, e tenerlo premuto apre la sua scheda."
       }
     },
     "tile_card": {

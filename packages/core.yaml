@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.7.0"
+  SCREEN_FIRMWARE_VERSION: "0.8.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -119,6 +119,7 @@ esphome:
           runtime_tiles::watch_value_font = id(watch_value)->get_lv_font();
           runtime_tiles::watch_icon_font = id(watch_icon)->get_lv_font();
           runtime_tiles::clock_font = id(clock_digits)->get_lv_font();
+          runtime_tiles::bedside_font = id(bedside_digits)->get_lv_font();
           runtime_tiles::brand_font = id(brand_wordmark)->get_lv_font();
           runtime_tiles::brand_mark = id(tessera_mark)->get_lv_image_dsc();
           runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
@@ -552,6 +553,8 @@ api:
                     root["appearance_updates"] = 1;
                     // A light group's lamps in its state message (firmware 0.3.9+, app 0.3.16+).
                     root["group_lamps"] = 1;
+                    // Tiles without a place of their own, the keys of a bedside clock (firmware 0.8.0+, app 0.4.12+).
+                    root["tile_keys"] = 1;
                     auto sizes = root["tile_sizes"].to<JsonArray>();
                     for (const auto &size : page_protocol::TILE_SIZES)
                       if (size.fits(runtime_tiles::grid.columns, runtime_tiles::grid.rows)) sizes.add(size.name);
@@ -755,6 +758,14 @@ font:
     size: ${FONT_CLOCK_DIGITS_SIZE}
     bpp: 4
     glyphs: [':','-','0','1','2','3','4','5','6','7','8','9']
+
+  # The bedside clock's digits (firmware 0.8.0+): the largest the board's page takes in both orientations
+  # (FONT_BEDSIDE_SIZE, packages/looks/shared/bedside.yaml); only the digits and the colon.
+  - file: "${FONT_DIR}/Roboto-400.ttf"
+    id: bedside_digits
+    size: ${FONT_BEDSIDE_SIZE}
+    bpp: 4
+    glyphs: [':','0','1','2','3','4','5','6','7','8','9']
 
   # The climate card's setpoint, large enough to read across the room.
   - file: "${FONT_DIR}/Roboto-400.ttf"
