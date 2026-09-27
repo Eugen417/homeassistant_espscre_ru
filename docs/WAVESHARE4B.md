@@ -7,8 +7,12 @@ Physical acceptance has not been performed.
 
 Up to firmware 0.3.9 this board started without its tiles: a light page with only the page buttons, and every save
 answered with "Use the Easy Setup profile". Its board file had a boot step of its own that replaced the shared boot
-steps (docs/PROFILES.md, "Which value wins"). Firmware 0.3.10 removes it; ESPHome prepares the panel's setup lines by
-itself. Update such a screen to 0.3.10 or later.
+steps (docs/PROFILES.md, "Which value wins"). Firmware 0.3.10 removed that step, and from then until 0.6.1 the panel
+only drew after a restart that kept the board powered: after a cold start the backlight lit a black screen while touch
+worked. ESPHome's software SPI claims the panel's setup lines before the expander starts, and the expander starts with
+every line an input, so the setup never reached the panel (ESPHome issue #11748). Firmware 0.6.1 parks those lines
+with three outputs that start after the expander and before the display, and keeps the shared boot steps. Update such
+a screen to 0.6.1 or later.
 
 ## Install
 

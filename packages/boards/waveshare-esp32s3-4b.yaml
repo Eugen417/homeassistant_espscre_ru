@@ -27,6 +27,7 @@ packages:
 substitutions:
   # The key of this board file; the firmware reports it so ESP Screens knows what board a screen is.
   BOARD_ID: "waveshare4b"
+  SCREEN_FIRMWARE_VERSION: "0.6.1"   # a fix for this board alone (docs/BOARD_RELEASES.md)
   DEVICE_NAME: "waveshare4b-new"
   DEVICE_FRIENDLY_NAME: "My Waveshare 4B"
 
@@ -71,19 +72,18 @@ pca9554:
     i2c_id: touch_bus
 
 # The ST7701S takes its setup over three-wire SPI, and on this board those wires are expander lines, so the bus is
-# ESPHome's software SPI on them. It runs once, at boot; the picture itself goes over the RGB pins below. ESPHome parks
-# the lines itself before the setup goes out: the bus sets up the clock and data lines, and the display raises its select
-# line when it joins the bus. A board file has no `esphome: on_boot:` of its own (tools/check_packages.py): a list there
-# replaced the core's whole boot block, so up to firmware 0.3.9 this board never took its tiles.
+# ESPHome's software SPI on them. It runs once, at boot; the picture itself goes over the RGB pins below.
 spi:
   id: lcd
   interface: software
   clk_pin:
     pca9554: expander
     number: 2
+    allow_other_uses: true
   mosi_pin:
     pca9554: expander
     number: 1
+    allow_other_uses: true
 
 output:
   # A PWM pin of the chip itself, low for full light (inverted). 5 kHz is what the community configuration runs.
@@ -92,6 +92,31 @@ output:
     id: gpio_backlight_pwm
     frequency: ${BACKLIGHT_FREQUENCY}
     inverted: true
+  # The panel's setup lines, parked before the setup goes out: select high (idle), data and clock low (ESPHome issue
+  # #11748). The SPI bus claims its lines before the expander starts, and the expander starts with every line an input,
+  # so after a cold start the setup never reached the panel: the backlight lit a black screen, while a restart that
+  # kept the expander powered drew fine. These outputs start after the expander and before the display. They replace
+  # the `esphome: on_boot:` step of the community configuration, which a board file may not have
+  # (tools/check_packages.py): a list there replaced the core's whole boot block (firmware 0.3.9 and before).
+  - platform: gpio
+    id: lcd_select_idle
+    pin:
+      pca9554: expander
+      number: 0
+      allow_other_uses: true
+    inverted: true
+  - platform: gpio
+    id: lcd_data_idle
+    pin:
+      pca9554: expander
+      number: 1
+      allow_other_uses: true
+  - platform: gpio
+    id: lcd_clock_idle
+    pin:
+      pca9554: expander
+      number: 2
+      allow_other_uses: true
 
 # The GT911 has no reset or interrupt line wired to anything the firmware drives; it reports pixels of the panel.
 touchscreen:
@@ -113,6 +138,7 @@ display:
     cs_pin:
       pca9554: expander
       number: 0
+      allow_other_uses: true
     data_rate: 1MHz
     dimensions:
       width: ${PANEL_W}

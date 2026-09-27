@@ -1,3 +1,13 @@
+## 0.4.10 (firmware 0.6.1 for waveshare4b)
+
+The Waveshare ESP32-S3-Touch-LCD-4B draws after a cold start.
+
+- **Waveshare 4B** (experimental): after the update to 0.3.10 the screen showed its tiles, but once it lost power it
+  started with the backlight on and a black screen, while touch kept working. The panel's setup travels over lines of
+  the board's IO expander, and after a cold start those lines were never driven (ESPHome issue #11748). The board now
+  prepares them before the display starts. Update the 4B from Tessera; it runs, so the update goes over the air.
+- Other screens get nothing new.
+
 ## 0.4.9 (firmware 0.6.2 for jc8012p4a1v3)
 
 Touch on the Guition JC8012P4A1 V3 (GitHub #52, thanks @ivanfmartinez).

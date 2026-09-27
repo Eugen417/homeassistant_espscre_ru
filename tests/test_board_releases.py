@@ -163,7 +163,9 @@ class TheReleasePlan(unittest.TestCase):
         self.assertNotIn('--firmware --board', text)
 
     def test_one_board_gets_its_own_number_and_its_own_build(self):
-        board = 'waveshare4b'
+        # A board that is not ahead of the core, so its next number is the core's plus one revision.
+        board = next(key for key, path in profiles.BOARDS.items()
+                     if 'SCREEN_FIRMWARE_VERSION' not in profiles.substitutions_of(path))
         path = str(profiles.BOARDS[board].relative_to(ROOT))
         text = affected_boards.plan(reach(path))
         self.assertIn(f'Firmware for {board} alone', text)
