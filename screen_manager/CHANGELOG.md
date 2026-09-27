@@ -1,3 +1,16 @@
+## 0.4.14 (firmware 0.9.0)
+
+A new board, experimental: the Waveshare ESP32-S3-Touch-LCD-7B (GitHub #25).
+
+- **Waveshare 7B** in New screen, as **Waveshare · 7 inch** (ESP32-S3-Touch-LCD-7B): 1024 x 600, four by four tiles
+  lying down and two by seven standing up, at the tile size of the 4-inch Guition. Its backlight dims, so brightness,
+  standby and night mode are all there. It needs ESPHome 2026.7.0 or newer, which ESP Screen Manager already builds
+  with. docs/WAVESHARE7B.md has the details and what to report.
+- Nothing changes for a screen you have: no firmware update.
+- Tested: the board builds with ESPHome 2026.9 (2,345,616 B, 28.9 % of its 8 MB slot) and with 2026.7.1, and its
+  render check passes lying down and standing up. Not yet seen on the glass of a 7B: the pins, the timings and the
+  backlight follow Waveshare's pin table and demo and ESPHome's component for the board's expander.
+
 ## 0.4.13 (firmware 0.9.0)
 
 Camera pictures on large screens (GitHub #68, thanks @ivanfmartinez).

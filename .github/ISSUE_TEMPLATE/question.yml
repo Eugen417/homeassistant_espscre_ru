@@ -27,6 +27,7 @@ body:
         - Guition (JC1060P470 V2)
         - Hosyond (ESP32-32E E32R40T)
         - Guition (JC3248W535)
+        - Waveshare (ESP32-S3-Touch-LCD-7B)
         - Other / not listed here
         - Not board-specific
     validations:

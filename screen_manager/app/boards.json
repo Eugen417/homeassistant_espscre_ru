@@ -846,6 +846,80 @@
   "rows": 4,
   "width": 800
  },
+ "checkout/waveshare7b.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "waveshare7b",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "ESP32-S3-Touch-LCD-7B",
+   "name": "Waveshare",
+   "order": 13,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "chip": "ESP32-S3",
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "firmware": "0.9.0",
+  "height": 600,
+  "hotspot": true,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
+ },
  "cyd": {
   "alert": {
    "line": 16,
@@ -2274,6 +2348,80 @@
   "rows": 4,
   "width": 800
  },
+ "packages/waveshare7b.yaml": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "waveshare7b",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "ESP32-S3-Touch-LCD-7B",
+   "name": "Waveshare",
+   "order": 13,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "chip": "ESP32-S3",
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "firmware": "0.9.0",
+  "height": 600,
+  "hotspot": true,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
+ },
  "waveshare35": {
   "alert": {
    "line": 23,
@@ -2539,5 +2687,79 @@
   },
   "rows": 4,
   "width": 800
+ },
+ "waveshare7b": {
+  "alert": {
+   "line": 25,
+   "title_line": 32
+  },
+  "board": "waveshare7b",
+  "camera": {
+   "full": [
+    1024,
+    600
+   ],
+   "thumb": [
+    392,
+    220
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 7.0,
+   "model": "ESP32-S3-Touch-LCD-7B",
+   "name": "Waveshare",
+   "order": 13,
+   "status": "experimental",
+   "touch": "GT911"
+  },
+  "chip": "ESP32-S3",
+  "columns": 4,
+  "dimmable": true,
+  "dpi": 170,
+  "firmware": "0.9.0",
+  "height": 600,
+  "hotspot": true,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1024,
+      600
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 4,
+    "height": 600,
+    "rotation": 0,
+    "rows": 4,
+    "width": 1024
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      600,
+      1024
+     ],
+     "thumb": [
+      392,
+      220
+     ]
+    },
+    "columns": 2,
+    "height": 1024,
+    "rotation": 90,
+    "rows": 7,
+    "width": 600
+   }
+  },
+  "rows": 4,
+  "width": 1024
  }
 }

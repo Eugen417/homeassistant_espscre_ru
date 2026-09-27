@@ -2,7 +2,7 @@
 
 Added in ESP Screen Manager 0.2.110, firmware 0.2.94, for [issue #22](https://github.com/MaxGramser/homeassistant_espscreen/issues/22).
 This is the **800 x 480 ESP32-S3-Touch-LCD-7**, with GT911 capacitive touch, 8 MB octal PSRAM and 8 or 16 MB flash.
-It is not the 7B, 7C or the version without touch. Physical acceptance has not been performed.
+It is not the 7B ([its own page](WAVESHARE7B.md)), the 7C or the version without touch. Physical acceptance has not been performed.
 
 ## Install
 

@@ -100,3 +100,9 @@ jc3248w535:
   name: Guition
   model: JC3248W535
   status: new
+
+waveshare7b:
+  file: waveshare-esp32s3-7b.yaml
+  name: Waveshare
+  model: ESP32-S3-Touch-LCD-7B
+  status: experimental
