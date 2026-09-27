@@ -24,12 +24,13 @@ function inventory(): Inventory {
       { id: "cover.c", name: "Blind", state: "open", area: "" }, { id: "media_player.m", name: "Speaker", state: "playing", area: "" },
       { id: "climate.c", name: "Heating", state: "heat", area: "" }, { id: "scene.s", name: "Evening", state: "", area: "" },
       { id: "switch.s", name: "Fan", state: "off", area: "" }, { id: "number.n", name: "Volume", state: "3", area: "" },
+      { id: "automation.a", name: "Curtains at sunset", state: "on", area: "" },
     ],
     builtin: [],
     icons: { groups: [], weather: { partlycloudy: "F0595", sunny: "F0599" }, sun: { below_horizon: "F0594" }, defaults: {}, fallback: "F0335", builtin: {}, controls: {} },
     backgrounds: { auto: { label: "Default" } },
     controls: Object.fromEntries(Object.entries({ light: ["toggle", "brightness"], cover: ["buttons", "position"], media_player: ["volume", "playback"],
-      climate: ["setpoint", "mode", "setpoint_mode"], switch: ["toggle"], scene: ["run"], number: ["stepper", "slider"] })
+      climate: ["setpoint", "mode", "setpoint_mode"], switch: ["toggle"], scene: ["run"], number: ["stepper", "slider"], automation: ["toggle", "run"] })
       .map(([domain, keys]) => [domain, { default: keys[0], choices: [...keys, "none"].map((key) => ({ key, label: key })) }])),
   } as unknown as Inventory;
 }
@@ -116,6 +117,29 @@ describe("the tile panel", () => {
     expect(current(tile)!.options?.action).toBeUndefined();
   });
 
+  it("offers an automation On / off or Run automation actions, and says what holding it does (GitHub #62)", async () => {
+    const tile: Tile = { entity: "automation.a", name: "", slot: 0 };
+    appendTiles(tile);
+    state.inventory.screens[0].firmware = "0.7.0";
+    let panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    const tap = () => panel.findAll(".f").find((f) => f.text().startsWith("On tap"))!;
+    expect(tap().findAll(".seg button").map((b) => b.text())).toEqual(["On / off", "Run automation actions", "View only", "Perform action"]);
+    expect(tap().find(".seg button[aria-pressed='true']").text()).toBe("On / off");
+    await tap().findAll(".seg button").find((b) => b.text() === "Run automation actions")!.trigger("click");
+    expect(state.toast).toBeNull();
+    expect(current(tile)!.options?.tap).toBe("run");
+    expect(() => validatePages(state.document!, state.documentGrid!)).not.toThrow();
+    panel.unmount();
+    panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    expect(tap().find(".seg button[aria-pressed='true']").text()).toBe("Run automation actions");
+    expect(panel.find(".warn").exists()).toBe(false);
+    // Older firmware refuses the domain: the panel says so before a save would.
+    state.inventory.screens[0].firmware = "0.6.0";
+    panel.unmount();
+    panel = mount(TileInspector, { props: { tile: current(tile)! } });
+    expect(tap().find(".warn").text()).toContain("0.7.0");
+  });
+
   const kinds: Tile[] = [
     { entity: "light.a", name: "", slot: 0 }, { entity: "light.a", name: "", slot: 0, options: { size: "wide" } },
     { entity: "light.a", name: "", slot: 0, options: { size: "tall" } }, { entity: "sensor.t", name: "", slot: 0 },
@@ -124,7 +148,8 @@ describe("the tile panel", () => {
     { entity: "climate.c", name: "", slot: 0, options: { size: "tall" } }, { entity: "scene.s", name: "", slot: 0 },
     { entity: "switch.s", name: "", slot: 0, options: { size: "wide" } }, { entity: "number.n", name: "", slot: 0 },
     { entity: "screen.clock", name: "", slot: 0, options: { size: "wide" } }, { entity: "screen.settings", name: "", slot: 0 },
-    { entity: "screen.page_2", name: "", slot: 0 },
+    { entity: "screen.page_2", name: "", slot: 0 }, { entity: "automation.a", name: "", slot: 0 },
+    { entity: "automation.a", name: "", slot: 0, options: { size: "wide", tap: "run" } },
   ];
   it.each(kinds.map((tile) => [`${tile.entity} ${tile.options?.size || "single"}`, tile] as const))("saves every choice it shows: %s", async (_, kind) => {
     const tile: Tile = JSON.parse(JSON.stringify(kind));

@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "Przełącznik wł./wył."
         },
+        "automation": {
+          "toggle": "Przełącznik wł./wył.",
+          "run": "Przycisk Uruchom"
+        },
         "light": {
           "toggle": "Przełącznik wł./wył.",
           "brightness": "Suwak jasności"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "Stan",
         "button": "Akcje",
         "script": "Skrypty",
+        "automation": "Automatyzacje",
         "fan": "Wentylatory",
         "cover": "Osłony",
         "scene": "Sceny",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "Stan",
       "switch": "Przełącznik",
       "input_boolean": "Przełącznik",
+      "automation": "Automatyzacja",
       "scene": "Scena",
       "script": "Skrypt",
       "weather": "Pogoda",
@@ -1567,10 +1573,14 @@
         "detail": "Otwórz sterowanie",
         "none": "Tylko podgląd",
         "toggle": "Włącz / wyłącz",
+        "run": "Uruchom akcje automatyzacji",
         "action": "Wykonaj akcję",
         "no_toggle": "Home Assistant nie może tego włączać ani wyłączać, więc dotknięcie nic nie robi. Wybierz inną opcję.",
         "toggle_needs_firmware": "Włączanie i wyłączanie dotknięciem działa od wersji firmware 0.2.58: naciśnij „Aktualizuj” przy tym ekranie. Do tego czasu dotknięcie otwiera kartę.",
-        "hold": "Przytrzymaj kafelek, aby otworzyć jego kartę."
+        "automation_needs_firmware": "Automatyzacje wymagają firmware ekranu 0.7.0: najpierw naciśnij „Aktualizuj” przy tym ekranie.",
+        "hold": "Przytrzymaj kafelek, aby otworzyć jego kartę.",
+        "hold_run": "Przytrzymaj kafelek, aby uruchomić jego akcje.",
+        "hold_toggle": "Przytrzymaj kafelek, aby ją włączyć lub wyłączyć."
       },
       "guard": {
         "label": "Odblokowanie tutaj",

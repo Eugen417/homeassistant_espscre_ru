@@ -110,7 +110,7 @@ inline bool valid_entity(const std::string &entity) {
     if (entity == "screen.clock" || entity == "screen.settings") return true;
     return page_entity(entity) && entity[12] >= '1' && entity[12] <= static_cast<char>('0' + grid.pages());
   }
-  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "sun", "timer", "person", "camera", "image", "alarm_control_panel", "lock"})
+  for (const auto *allowed : {"light", "switch", "input_boolean", "scene", "script", "climate", "vacuum", "fan", "cover", "sensor", "binary_sensor", "input_select", "select", "number", "input_number", "weather", "media_player", "button", "input_button", "automation", "sun", "timer", "person", "camera", "image", "alarm_control_panel", "lock"})
     if (domain == allowed) return true;
   return false;
 }
@@ -345,8 +345,10 @@ struct Tile {
   unsigned history_hours = 24;
   std::vector<float> history;
   bool has_history = false;
-  // When a scene, script or button last ran (unix time), pre-computed by the manager.
+  // When a scene, script, automation or button last ran (unix time), pre-computed by the manager.
   uint32_t last_run = 0;
+  // An automation whose actions run right now (Home Assistant's `current` above 0, firmware 0.7.0+).
+  bool running = false;
   float battery = NAN, volume = NAN;
   uint32_t supported = 0, background = 0;
   bool transparent = false;  // "Background: none": card fill and border hidden, contents unchanged.
@@ -374,7 +376,10 @@ struct Tile {
   }
   Choice *choice(char kind) { return extra_box.ptr ? extra_box.ptr->choice(kind) : nullptr; }
   const Choice *choice(char kind) const { for (auto &c : extra().choices) if (c.kind == kind) return &c; return nullptr; }
-  bool is_switch() const { return domain()=="switch" || domain()=="input_boolean"; }
+  bool is_switch() const { return domain()=="switch" || domain()=="input_boolean" || domain()=="automation"; }
+  // An automation tile set to run its actions on a tap (the tap option "run", firmware 0.7.0+): it looks like a script's
+  // button, and holding it switches the automation on or off. Set to anything else, a tap switches and holding runs.
+  bool runs() const { return tap == "run" && domain() == "automation"; }
   // Waiting for Home Assistant. It answered in 342-599 ms for every command measured on a real installation, so the
   // tile draws nothing for the first 400 ms: a command that lands looks instant (firmware 0.2.59+). After that the busy
   // sheet shows until the new state arrives, Home Assistant refuses, its "it worked" answer has stood for a moment
@@ -467,6 +472,8 @@ struct Tile {
     if (!received || state.empty() || state == "unavailable") return false;
     auto d = domain();
     if (d == "scene" || d == "button" || d == "input_button" || d == "image") return true;
+    // An automation that runs on a tap is a script's button: coloured while its actions run, whether it is on or off.
+    if (runs()) return running;
     if (state == "unknown" || state == "off") return false;
     if (d == "cover") return state != "closed";
     if (d == "person") return state != "not_home";

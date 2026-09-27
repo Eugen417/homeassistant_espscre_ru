@@ -2776,6 +2776,9 @@ def create_app(manager, development=False):
                     if isinstance(value, (str, int, float)):
                         attributes[key] = value
                 attributes['artwork_mark'] = (media_extras(state.get('attributes', {})) or {}).get('pic', '')
+            if eid.startswith('automation.') and isinstance(state.get('attributes', {}).get('current'), int):
+                # How many runs go on right now: a tile set to run its actions is coloured while they do.
+                attributes['current'] = state['attributes']['current']
             result[eid] = {'state': message['state'], 'a': attributes,
                            'word': state_word(eid, state.get('state'), state.get('attributes'), entry, getattr(manager.ha, 'state_words', None))}
         return web.json_response({'states': result})

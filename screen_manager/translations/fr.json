@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "Interrupteur marche/arrêt"
         },
+        "automation": {
+          "toggle": "Interrupteur marche/arrêt",
+          "run": "Bouton Exécuter"
+        },
         "light": {
           "toggle": "Interrupteur marche/arrêt",
           "brightness": "Curseur de luminosité"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "État",
         "button": "Actions",
         "script": "Scripts",
+        "automation": "Automatisations",
         "fan": "Ventilateurs",
         "cover": "Ouvertures",
         "scene": "Scènes",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "État",
       "switch": "Interrupteur",
       "input_boolean": "Interrupteur",
+      "automation": "Automatisation",
       "scene": "Scène",
       "script": "Script",
       "weather": "Météo",
@@ -1567,10 +1573,14 @@
         "detail": "Ouvrir les commandes",
         "none": "Affichage seul",
         "toggle": "Allumer / éteindre",
+        "run": "Exécuter les actions de l'automatisation",
         "action": "Effectuer une action",
         "no_toggle": "Home Assistant ne peut pas allumer ni éteindre ceci : toucher la tuile ne fait donc rien. Choisissez une autre option.",
         "toggle_needs_firmware": "L'écran allume et éteint ceci à partir du firmware 0.2.58 : appuyez sur Mettre à jour pour cet écran. D'ici là, toucher la tuile ouvre sa carte.",
-        "hold": "Maintenez le doigt sur la tuile pour ouvrir sa carte."
+        "automation_needs_firmware": "Les automatisations demandent le firmware 0.7.0 de l'écran : appuyez d'abord sur Mettre à jour pour cet écran.",
+        "hold": "Maintenez le doigt sur la tuile pour ouvrir sa carte.",
+        "hold_run": "Maintenez le doigt sur la tuile pour exécuter ses actions.",
+        "hold_toggle": "Maintenez le doigt sur la tuile pour l'activer ou la désactiver."
       },
       "guard": {
         "label": "Déverrouiller ici",

@@ -11,12 +11,14 @@ const hex = (color: number) => `#${color.toString(16).padStart(6, "0")}`;
 const mix = (a: number, b: number, weight: number) => [16, 8, 0].reduce((out, shift) =>
   out | Math.floor((((a >> shift) & 255) * weight + ((b >> shift) & 255) * (255 - weight)) / 255) << shift, 0);
 
-/** Mirrors Tile::active and tile_controls::accent, with paints read from theme.h. */
-export function tileActive(entity: string, value: Value) {
+/** Mirrors Tile::active and tile_controls::accent, with paints read from theme.h. `runs`: an automation whose tap runs
+ * its actions (Tile::runs), coloured only while they run, like a script. */
+export function tileActive(entity: string, value: Value, runs = false) {
   const domain = entity.split(".")[0], state = value?.state;
   if (domain === "screen") return true;
   if (!state || state === "unavailable") return false;
   if (["scene", "button", "input_button", "image"].includes(domain)) return true;
+  if (runs && domain === "automation") return Number(value?.a?.current) > 0;
   if (["unknown", "off"].includes(state)) return false;
   if (domain === "cover") return state !== "closed";
   if (domain === "person") return state !== "not_home";
@@ -37,7 +39,7 @@ function accent(entity: string, value: Value) {
     const channel = (n: number) => { const k = (n + hue / 60) % 6; return Math.round(255 * (1 - saturation * Math.max(0, Math.min(k, 4 - k, 1)))); };
     return (channel(5) << 16) | (channel(3) << 8) | channel(1);
   }
-  if (["light", "switch", "input_boolean", "script", "timer", "camera"].includes(domain)) return c.AMBER;
+  if (["light", "switch", "input_boolean", "script", "automation", "timer", "camera"].includes(domain)) return c.AMBER;
   if (domain === "climate") return modes[state] || c.AMBER;
   if (domain === "vacuum") return state === "error" ? c.RED : c.TEAL;
   if (domain === "fan") return c.CYAN;
@@ -60,10 +62,10 @@ function accent(entity: string, value: Value) {
   }
   return c.BLUE;
 }
-export function tilePalette(entity: string, value: Value) {
+export function tilePalette(entity: string, value: Value, runs = false) {
   const available = entity.startsWith("screen.") || Boolean(value?.state && !["unknown", "unavailable"].includes(value.state));
   // A locked lock is inactive in Home Assistant and still green (--state-lock-locked-color), as on the screen.
-  const color = accent(entity, value), active = tileActive(entity, value) || (entity.startsWith("lock.") && available), state = active ? color : c.GREY;
+  const color = accent(entity, value), active = tileActive(entity, value, runs) || (entity.startsWith("lock.") && available), state = active ? color : c.GREY;
   const fill = available && (entity.startsWith("cover.") || active) ? color : c.GREY;
   return {
     icon: hex(available ? mix(state, theme.iconBase, theme.iconWeight) : theme.roles.OFF.light),

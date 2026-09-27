@@ -11,7 +11,7 @@ import secrets
 from i18n import english, screen_t, t
 import tile_icons
 
-DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image alarm_control_panel lock'.split())
+DOMAINS = frozenset('light switch input_boolean scene script climate vacuum fan cover sensor binary_sensor input_select select number input_number weather media_player button input_button sun timer person screen camera image alarm_control_panel lock automation'.split())
 # Built-in cards without a Home Assistant entity; firmware 0.2.14+ renders them. The names in English: a screen gets them in
 # its language and the editor in its own (builtin_name, app 0.2.90).
 BUILTIN = {'screen.clock': 'Clock', 'screen.settings': 'Settings', **{f'screen.page_{n}': f'Go to page {n}' for n in range(1, 9)}}
@@ -63,7 +63,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.6.0'
+FIRMWARE_VERSION = '0.7.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -88,6 +88,9 @@ ALARM_MIN_FIRMWARE = (0, 3, 3)
 LOCK_MIN_FIRMWARE = (0, 5, 0)
 # How far a lock's tile may go (the `guard` option): unlock after a second tap, or lock only.
 LOCK_GUARDS = ('confirm', 'lock_only')
+# An automation as a tile (GitHub #62): a tap switches it on or off and holding runs its actions, or with the tap option
+# `run` the other way round. Older firmware refuses the domain, so a layout with one waits for the update.
+AUTOMATION_MIN_FIRMWARE = (0, 7, 0)
 ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by assumed_state'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted', 'code_arm_required', 'assumed_state'])
@@ -311,6 +314,7 @@ CONTROLS = {
     'climate': (('setpoint', 'Temperature − / +'), ('mode', 'Mode keys'), ('setpoint_mode', 'Temperature − / + and mode keys')),
     'switch': (('toggle', 'On/off switch'),),
     'input_boolean': (('toggle', 'On/off switch'),),
+    'automation': (('toggle', 'On/off switch'), ('run', 'Run button')),
     'light': (('toggle', 'On/off switch'), ('brightness', 'Brightness slider')),
     'fan': (('toggle', 'On/off switch'), ('speed', 'Speed slider')),
     'vacuum': (('buttons', 'Start, stop, dock'),),
@@ -895,6 +899,7 @@ def min_firmware(layout):
         (any(o.get('controls') in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode') for o in options), (0, 3, 1)),
         ('alarm_control_panel' in domains, ALARM_MIN_FIRMWARE),
         ('lock' in domains, LOCK_MIN_FIRMWARE),
+        ('automation' in domains, AUTOMATION_MIN_FIRMWARE),
         (repeated_page_tiles(tiles), PAGE_TILE_REPEAT_MIN_FIRMWARE),
         (len(tiles) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in tiles), FULL_PAGE_MIN_FIRMWARE),
         (any(o.get('display') == 'cover' for o in options), COVER_TILE_MIN_FIRMWARE),
@@ -1349,7 +1354,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 raise ValueError(t('addon.errors.choose_icon'))
             domain = tile['entity'].split('.')[0]
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
-            choices = {'tap': ('auto', 'detail', 'toggle', 'none', 'action'), 'display': displays, 'inline': ('none', 'slider'), 'size': TILE_SIZES_ON_SCREEN}
+            # Run its actions on a tap (firmware 0.7.0+) is an automation's alone.
+            taps = ('auto', 'detail', 'toggle', 'none', 'action') + (('run',) if domain == 'automation' else ())
+            choices = {'tap': taps, 'display': displays, 'inline': ('none', 'slider'), 'size': TILE_SIZES_ON_SCREEN}
             # A lock's tile (firmware 0.5.0+) unlocks after a second tap or only locks; no other tile has the choice.
             if 'guard' in options:
                 if domain != 'lock' or options['guard'] not in LOCK_GUARDS:
@@ -1754,6 +1761,10 @@ def extras(tile, states, forecast=None, tz=None, hourly=None, now=None, device=N
         # an image entity (when its picture last changed).
         last = epoch(attrs.get('last_triggered') if domain == 'script' else states.get(tile['entity'], {}).get('state'))
         return {'last': last} if last else None
+    if domain == 'automation':
+        # When it last ran, and whether its actions run right now: Home Assistant counts the runs in `current`.
+        last, running = epoch(attrs.get('last_triggered')), isinstance(attrs.get('current'), int) and attrs['current'] > 0
+        return {**({'last': last} if last else {}), **({'run': True} if running else {})} or None
     if domain == 'sun':
         rise, down = local_clock(attrs.get('next_rising'), tz), local_clock(attrs.get('next_setting'), tz)
         return {'rise': rise, 'set': down} if rise or down else None

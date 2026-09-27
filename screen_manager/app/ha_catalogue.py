@@ -32,6 +32,7 @@ CONTROLS = {
     'climate': {'setpoint': (('climate.set_temperature', None),), 'mode': (('climate.set_hvac_mode', None),)},
     'switch': {'toggle': (('switch.toggle', None),)},
     'input_boolean': {'toggle': (('input_boolean.toggle', None),)},
+    'automation': {'toggle': (('automation.toggle', None),), 'run': (('automation.trigger', None),)},
     'light': {'toggle': (('light.toggle', None),), 'brightness': INLINE['light']},
     'fan': {'toggle': (('fan.toggle', None),), 'speed': INLINE['fan']},
     'vacuum': {'buttons': tuple((action, None) for action in ('vacuum.start', 'vacuum.pause', 'vacuum.stop', 'vacuum.return_to_base', 'vacuum.turn_on'))},

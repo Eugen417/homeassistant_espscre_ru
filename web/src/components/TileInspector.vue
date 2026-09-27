@@ -134,6 +134,12 @@ watch(() => props.tile.id, () => { choosingAction.value = false; });
 const tap = computed(() => choosingAction.value ? "action" : current("tap", "auto") as string);
 watch(() => props.tile.options?.tap, (stored) => { if (stored === "action") choosingAction.value = false; });
 const taps = computed(() => {
+  // An automation (firmware 0.7.0+): switch it on or off, or run its actions; holding the tile does the other one.
+  if (domain.value === "automation") {
+    const keys = ["auto", "run", "none", "action"];
+    if (!keys.includes(tap.value)) keys.splice(2, 0, tap.value);
+    return offer("tap", keys.map((key) => [key, t(key === "auto" ? "editor.tile.tap.toggle" : `editor.tile.tap.${key}`)] as [string, string]), tap.value);
+  }
   const keys = ["auto", "detail", "none"];
   // On / off where Home Assistant can toggle the entity, such as a cover; a speaker without on and off gets none.
   if ((caps.value ? caps.value.toggle : TOGGLE_BEFORE.includes(domain.value)) || tap.value === "toggle") keys.push("toggle");
@@ -149,6 +155,9 @@ function pickTap(value: string) {
 const guard = computed(() => current("guard", "confirm") as string);
 const guards = computed(() => offer("guard", ["confirm", "lock_only"].map((key) => [key, t(`editor.tile.guard.${key}`)] as [string, string]), guard.value));
 const tapHint = computed(() => {
+  if (domain.value === "automation" && !supports(0, 7, 0)) return { text: t("editor.tile.tap.automation_needs_firmware"), warn: true };
+  if (domain.value === "automation" && ["auto", "toggle", "run"].includes(tap.value))
+    return { text: t(tap.value === "run" ? "editor.tile.tap.hold_toggle" : "editor.tile.tap.hold_run"), warn: false };
   if (tap.value === "toggle" && caps.value && !caps.value.toggle) return { text: t("editor.tile.tap.no_toggle"), warn: true };
   if (tap.value === "toggle" && !TOGGLE_BEFORE.includes(domain.value) && !supports(0, 2, 58)) return { text: t("editor.tile.tap.toggle_needs_firmware"), warn: false };
   if (tap.value === "toggle") return { text: t("editor.tile.tap.hold"), warn: false };

@@ -331,6 +331,48 @@ int main() {
     assert(accent(make("lock.a", "locked")) == theme::ha::GREEN && accent(make("lock.a", "unlocking")) == theme::ha::ORANGE &&
            accent(make("lock.a", "jammed")) == theme::ha::RED && accent(make("lock.a", "open")) == theme::ha::RED);
   }
+  // An automation (firmware 0.7.0, GitHub #62): a tap switches it on or off and holding runs its actions (Home Assistant's
+  // Run actions, automation.trigger); set to "run" the other way round. Coloured as Home Assistant does: amber while on,
+  // grey while off; a run button only while its actions run, whether the automation is on or off.
+  {
+    Tile automation = make("automation.curtains", "on");
+    assert(runtime_tiles::valid_entity("automation.curtains"));
+    Tap tap = tap_route(automation, false), held = tap_route(automation, true);
+    assert(tap.route == TapRoute::ACTION && tap.service == "automation.toggle");
+    assert(held.route == TapRoute::ACTION && held.service == "automation.trigger");
+    automation.tap = "toggle";
+    assert(tap_route(automation, false).service == "automation.toggle" && tap_route(automation, true).service == "automation.trigger");
+    automation.tap = "run";
+    tap = tap_route(automation, false); held = tap_route(automation, true);
+    assert(tap.route == TapRoute::ACTION && tap.service == "automation.trigger");
+    assert(held.route == TapRoute::ACTION && held.service == "automation.toggle");
+    automation.tap = "none";
+    assert(tap_route(automation, false).route == TapRoute::NONE && tap_route(automation, true).route == TapRoute::NONE);
+    automation.tap = "detail";
+    assert(tap_route(automation, false).route == TapRoute::CARD && tap_route(automation, true).route == TapRoute::CARD);
+    automation.tap = "action";
+    automation.edit_extra().action = "automation.turn_off";
+    assert(tap_route(automation, false).route == TapRoute::CUSTOM && tap_route(automation, true).service == "automation.trigger");
+    // "run" is an automation's alone: a script set to it (a stored value it never gets) taps as before.
+    Tile script = make("script.x", "off"); script.tap = "run";
+    assert(!script.runs() && tap_route(script, false).service == "script.turn_on");
+    // The keys of a wide or tall card: the switch and the run button.
+    Tile on = make("automation.a", "on"), off = make("automation.a", "off");
+    assert(key_action(on, TOGGLE).service == "automation.turn_off" && key_action(off, TOGGLE).service == "automation.turn_on");
+    assert(key_action(on, RUN).service == "automation.trigger" && key_action(on, RUN).key.empty());
+    assert(!strcmp(run_label("automation"), "Run"));
+    on.controls = "toggle"; assert(panel_available(on));
+    on.controls = "run"; assert(panel_available(on));
+    // Colours: on amber, off grey, unavailable grey.
+    assert(on.active() && !off.active() && !make("automation.a", "unavailable").active());
+    assert(accent(on) == theme::ha::AMBER);
+    Tile button = make("automation.a", "on"); button.tap = "run";
+    assert(button.runs() && !button.active());
+    button.running = true; assert(button.active());
+    Tile idle_off = make("automation.a", "off"); idle_off.tap = "run"; idle_off.running = true;
+    assert(idle_off.active());
+    idle_off.running = false; assert(!idle_off.active());
+  }
   assert(runtime_tiles::valid_action("cover.toggle") && runtime_tiles::valid_action("sonos.snapshot") && runtime_tiles::valid_action("homeassistant.turn_on"));
   assert(!runtime_tiles::valid_action("cover") && !runtime_tiles::valid_action("Cover.toggle") && !runtime_tiles::valid_action("a.b.c") &&
          !runtime_tiles::valid_action(".toggle") && !runtime_tiles::valid_action("cover.") && !runtime_tiles::valid_action("cover.to ggle"));

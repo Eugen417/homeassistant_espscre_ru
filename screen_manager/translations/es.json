@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "Interruptor"
         },
+        "automation": {
+          "toggle": "Interruptor",
+          "run": "Botón Ejecutar"
+        },
         "light": {
           "toggle": "Interruptor",
           "brightness": "Control deslizante de brillo"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "Estado",
         "button": "Acciones",
         "script": "Scripts",
+        "automation": "Automatizaciones",
         "fan": "Ventiladores",
         "cover": "Persianas",
         "scene": "Escenas",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "Estado",
       "switch": "Interruptor",
       "input_boolean": "Interruptor",
+      "automation": "Automatización",
       "scene": "Escena",
       "script": "Script",
       "weather": "Clima",
@@ -1567,10 +1573,14 @@
         "detail": "Abrir control",
         "none": "Solo ver",
         "toggle": "Encender / apagar",
+        "run": "Ejecutar acciones de la automatización",
         "action": "Realizar una acción",
         "no_toggle": "Home Assistant no puede encender y apagar esto, así que un toque no hace nada. Elige otra opción.",
         "toggle_needs_firmware": "La pantalla lo enciende y apaga a partir del firmware 0.2.58: pulsa Actualizar en la lista de pantallas. Hasta entonces, un toque abre su tarjeta.",
-        "hold": "Mantén pulsado el mosaico para abrir su tarjeta."
+        "automation_needs_firmware": "Las automatizaciones necesitan el firmware 0.7.0 de la pantalla: pulsa primero Actualizar en la lista de pantallas.",
+        "hold": "Mantén pulsado el mosaico para abrir su tarjeta.",
+        "hold_run": "Mantén pulsado el mosaico para ejecutar sus acciones.",
+        "hold_toggle": "Mantén pulsado el mosaico para activarla o desactivarla."
       },
       "guard": {
         "label": "Desbloquear aquí",

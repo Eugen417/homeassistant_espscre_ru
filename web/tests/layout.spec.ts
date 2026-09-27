@@ -293,3 +293,17 @@ describe("the alarm panel's colours (app 0.3.8)", () => {
     expect(accent("disarmed")).toBe("#9e9e9e");
   });
 });
+
+describe("an automation's colours (GitHub #62)", () => {
+  it("paints it as Home Assistant does: on amber, off grey; a run button only while its actions run", async () => {
+    const { tilePalette, tileActive } = await import("../src/model/tile-palette");
+    expect(tilePalette("automation.a", { state: "on" }).accent).toBe(tilePalette("switch.a", { state: "on" }).accent);
+    expect(tileActive("automation.a", { state: "on" })).toBe(true);
+    expect(tileActive("automation.a", { state: "off" })).toBe(false);
+    expect(tilePalette("automation.a", { state: "off" }).accent).toBe("#9e9e9e");
+    expect(tileActive("automation.a", { state: "on", a: {} }, true)).toBe(false);
+    expect(tileActive("automation.a", { state: "on", a: { current: 1 } }, true)).toBe(true);
+    expect(tileActive("automation.a", { state: "off", a: { current: 1 } }, true)).toBe(true);
+    expect(tilePalette("automation.a", { state: "on", a: {} }, true).accent).toBe("#9e9e9e");
+  });
+});

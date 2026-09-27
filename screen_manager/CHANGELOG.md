@@ -1,3 +1,26 @@
+## 0.4.11 (firmware 0.7.0)
+
+Automations on every screen (GitHub #62, thanks @Crazyraf87).
+
+- **Automations.** An `automation` entity is now a tile, in Home Assistant's colours and icons: amber with a robot
+  while it is on, grey with a crossed-out robot while it is off. A tap turns it on or off. Holding the tile runs its
+  actions right away, the way **Run actions** does in Home Assistant (`automation.trigger`, conditions skipped).
+- **Run automation actions.** For an automation you mostly start by hand, choose **On tap: Run automation actions**.
+  A tap then runs it and holding the tile turns it on or off. That tile looks like a script's button: grey at rest
+  with when it last ran, amber with "Running..." while its actions run, and Off while nothing starts it on its own
+  (a tap still runs it then). A double-width tile carries the on/off switch or a Run key beside the name.
+- The top bar can show an automation too, amber while it is on.
+- New firmware for every board: update the app, then press **Update** on each screen. A layout with an automation
+  waits for firmware 0.7.0. The own fixes of the Guition JC8012P4A1 V3 (0.6.2) and the
+  Waveshare 4B (0.6.1) are in it.
+- Tested: every board builds with ESPHome 2026.9 (the CYD image is 1,653,680 B, 90.1 % of its slot, 3.7 KB more for
+  the automations and their robot icons). The firmware's own tap and hold routes on every kind of automation tile, drawn and driven by a virtual finger
+  on the Guition, the CYD and the Waveshare 4.3 (lying down and standing up). On a Guition 4 inch with a Home
+  Assistant 2026.9: tap switches, hold runs, a run button runs also while the automation is off, holding it switches,
+  and "Running..." shows for as long as the actions run.
+>>>>>>> ac5c271 (Release 0.4.10 (firmware 0.7.0): automations on every screen (GitHub #62))
+
+<<<<<<< HEAD
 ## 0.4.10 (firmware 0.6.1 for waveshare4b)
 
 The Waveshare ESP32-S3-Touch-LCD-4B draws after a cold start.
@@ -7,7 +30,7 @@ The Waveshare ESP32-S3-Touch-LCD-4B draws after a cold start.
   the board's IO expander, and after a cold start those lines were never driven (ESPHome issue #11748). The board now
   prepares them before the display starts. Update the 4B from Tessera; it runs, so the update goes over the air.
 - Other screens get nothing new.
-
+=======
 ## 0.4.9 (firmware 0.6.2 for jc8012p4a1v3)
 
 Touch on the Guition JC8012P4A1 V3 (GitHub #52, thanks @ivanfmartinez).

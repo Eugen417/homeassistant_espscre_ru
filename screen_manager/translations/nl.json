@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "Aan/uit-schakelaar"
         },
+        "automation": {
+          "toggle": "Aan/uit-schakelaar",
+          "run": "Knop Uitvoeren"
+        },
         "light": {
           "toggle": "Aan/uit-schakelaar",
           "brightness": "Helderheidsslider"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "Status",
         "button": "Acties",
         "script": "Scripts",
+        "automation": "Automatiseringen",
         "fan": "Ventilatoren",
         "cover": "Raambekleding",
         "scene": "Scènes",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "Status",
       "switch": "Schakelaar",
       "input_boolean": "Schakelaar",
+      "automation": "Automatisering",
       "scene": "Scène",
       "script": "Script",
       "weather": "Weer",
@@ -1567,10 +1573,14 @@
         "detail": "Bediening openen",
         "none": "Alleen bekijken",
         "toggle": "Aan / uit",
+        "run": "Acties van automatisering uitvoeren",
         "action": "Actie uitvoeren",
         "no_toggle": "Home Assistant kan dit niet aan- en uitzetten, dus een tik doet niets. Kies een andere optie.",
         "toggle_needs_firmware": "Het scherm schakelt dit vanaf firmware 0.2.58: druk bij het scherm op Bijwerken. Tot dan opent een tik de kaart.",
-        "hold": "Houd de tegel vast om de kaart te openen."
+        "automation_needs_firmware": "Automatiseringen hebben schermfirmware 0.7.0 nodig: druk eerst bij het scherm op Bijwerken.",
+        "hold": "Houd de tegel vast om de kaart te openen.",
+        "hold_run": "Houd de tegel vast om de acties uit te voeren.",
+        "hold_toggle": "Houd de tegel vast om hem aan of uit te zetten."
       },
       "guard": {
         "label": "Ontgrendelen hier",

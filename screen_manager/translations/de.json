@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "Ein/Aus-Schalter"
         },
+        "automation": {
+          "toggle": "Ein/Aus-Schalter",
+          "run": "Taste „Ausführen“"
+        },
         "light": {
           "toggle": "Ein/Aus-Schalter",
           "brightness": "Helligkeitsregler"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "Status",
         "button": "Aktionen",
         "script": "Skripte",
+        "automation": "Automationen",
         "fan": "Ventilatoren",
         "cover": "Abdeckungen",
         "scene": "Szenen",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "Status",
       "switch": "Schalter",
       "input_boolean": "Schalter",
+      "automation": "Automation",
       "scene": "Szene",
       "script": "Skript",
       "weather": "Wetter",
@@ -1567,10 +1573,14 @@
         "detail": "Steuerung öffnen",
         "none": "Nur anzeigen",
         "toggle": "Ein / Aus",
+        "run": "Aktionen der Automation ausführen",
         "action": "Aktion ausführen",
         "no_toggle": "Home Assistant kann dies nicht ein- und ausschalten, daher bewirkt ein Tippen nichts. Wähle eine andere Option.",
         "toggle_needs_firmware": "Ab Firmware 0.2.58 schaltet der Bildschirm das ein und aus: Drücke beim Bildschirm auf „Aktualisieren“. Bis dahin öffnet ein Tippen die Karte.",
-        "hold": "Halte die Kachel gedrückt, um ihre Karte zu öffnen."
+        "automation_needs_firmware": "Automationen brauchen die Bildschirm-Firmware 0.7.0: Drücke zuerst beim Bildschirm auf „Aktualisieren“.",
+        "hold": "Halte die Kachel gedrückt, um ihre Karte zu öffnen.",
+        "hold_run": "Halte die Kachel gedrückt, um ihre Aktionen auszuführen.",
+        "hold_toggle": "Halte die Kachel gedrückt, um sie ein- oder auszuschalten."
       },
       "guard": {
         "label": "Hier entriegeln",

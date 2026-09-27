@@ -457,6 +457,29 @@ PROBES = '''    - action: render_finger
               out += runtime_tiles::model.tiles[w.index].entity + "@" + std::to_string((a.x1 + a.x2) / 2) + "," + std::to_string((a.y1 + a.y2) / 2) + ";";
             }
             ESP_LOGI("render", "slots %s", out.c_str());
+    # What each card on the glass says and how it is coloured, read back from its labels (a moment, not a picture):
+    # entity|second line|icon codepoint|icon colour|circle colour|the card's box.
+    - action: render_cards
+      then:
+        - lambda: |-
+            lv_obj_update_layout(lv_screen_active());
+            std::string out;
+            for (size_t slot = 0; slot < runtime_tiles::widgets.size(); ++slot) {
+              auto &w = runtime_tiles::widgets[slot];
+              if (!w.tile || lv_obj_has_flag(w.tile, LV_OBJ_FLAG_HIDDEN) || w.index >= runtime_tiles::model.count) continue;
+              const char *value = w.value ? lv_label_get_text(w.value) : "";
+              const std::string icon = w.icon ? lv_label_get_text(w.icon) : "";
+              size_t i = 0;
+              const uint32_t cp = icon.empty() ? 0 : header_bar::next_codepoint(icon, i);
+              lv_area_t box; lv_obj_get_coords(w.tile, &box);
+              char tail[96];
+              snprintf(tail, sizeof(tail), "|%05X|%06X|%06X|%d,%d,%d,%d;", (unsigned) cp,
+                       (unsigned) (w.icon ? lv_color_to_u32(lv_obj_get_style_text_color(w.icon, LV_PART_MAIN)) & 0xFFFFFF : 0),
+                       (unsigned) (w.circle ? lv_color_to_u32(lv_obj_get_style_bg_color(w.circle, LV_PART_MAIN)) & 0xFFFFFF : 0),
+                       (int) box.x1, (int) box.y1, (int) box.x2, (int) box.y2);
+              out += runtime_tiles::model.tiles[w.index].entity + "|" + (value ? value : "") + tail;
+            }
+            ESP_LOGI("render", "cards %s", out.c_str());
     - action: render_problem
       then:
         - lambda: |-

@@ -1,6 +1,7 @@
 {
   "domains": [
     "alarm_control_panel",
+    "automation",
     "binary_sensor",
     "button",
     "camera",
@@ -29,6 +30,7 @@
   ],
   "headerDomains": [
     "alarm_control_panel",
+    "automation",
     "binary_sensor",
     "button",
     "climate",
@@ -125,6 +127,10 @@
     ],
     "input_boolean": [
       "toggle"
+    ],
+    "automation": [
+      "toggle",
+      "run"
     ],
     "light": [
       "toggle",

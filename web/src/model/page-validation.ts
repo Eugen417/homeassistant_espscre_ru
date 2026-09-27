@@ -78,7 +78,7 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
   const displays = (rules.displays as Record<string, string[]>)[domain] || ['standard', 'watch'];
   const controls = ['none', ...((rules.controls as Record<string, string[]>)[domain] || [])];
   for (const [value, choices] of [[a.display, displays], [a.background, rules.backgrounds], [a.historyHours, [1, 6, 24]],
-    [i.tap, ['auto', 'detail', 'toggle', 'none', 'action']], [i.inline, ['none', 'slider']], [i.controls, controls],
+    [i.tap, ['auto', 'detail', 'toggle', 'none', 'action', ...(domain === 'automation' ? ['run'] : [])]], [i.inline, ['none', 'slider']], [i.controls, controls],
     [i.guard, domain === 'lock' ? ['confirm', 'lock_only'] : []]] as [any, any[]][])
     if (value !== undefined && !choices.includes(value)) fail();
   if (a.icon !== undefined && !icon(a.icon)) fail();

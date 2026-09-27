@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "Interruptor"
         },
+        "automation": {
+          "toggle": "Interruptor",
+          "run": "Botão Executar"
+        },
         "light": {
           "toggle": "Interruptor",
           "brightness": "Controlo deslizante de brilho"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "Estado",
         "button": "Ações",
         "script": "Scripts",
+        "automation": "Automatizações",
         "fan": "Ventoinhas",
         "cover": "Coberturas",
         "scene": "Cenas",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "Estado",
       "switch": "Interruptor",
       "input_boolean": "Interruptor",
+      "automation": "Automatização",
       "scene": "Cena",
       "script": "Script",
       "weather": "Clima",
@@ -1567,10 +1573,14 @@
         "detail": "Abrir controlo",
         "none": "Só ver",
         "toggle": "Ligar / desligar",
+        "run": "Executar ações da automatização",
         "action": "Executar ação",
         "no_toggle": "O Home Assistant não consegue ligar e desligar isto, por isso um toque não faz nada. Escolha outra opção.",
         "toggle_needs_firmware": "O ecrã liga e desliga isto a partir do firmware 0.2.58: prima Atualizar na lista de ecrãs. Até lá, um toque abre o respetivo cartão.",
-        "hold": "Mantenha o mosaico premido para abrir o respetivo cartão."
+        "automation_needs_firmware": "As automatizações precisam do firmware 0.7.0 do ecrã: prima primeiro Atualizar na lista de ecrãs.",
+        "hold": "Mantenha o mosaico premido para abrir o respetivo cartão.",
+        "hold_run": "Mantenha o mosaico premido para executar as respetivas ações.",
+        "hold_toggle": "Mantenha o mosaico premido para a ativar ou desativar."
       },
       "guard": {
         "label": "Destrancar aqui",

@@ -155,7 +155,8 @@ inline uint32_t accent(const Tile &t) {
   using namespace theme::ha;
   const auto d = t.domain();
   if (d == "binary_sensor") return alarm_class(t.device_class) ? RED : AMBER;
-  if (d == "light" || d == "switch" || d == "input_boolean" || d == "script" || d == "timer" || d == "camera") return AMBER;
+  // An automation has no colour of its own in Home Assistant: on (or running, when a tap runs it) is --state-active-color.
+  if (d == "light" || d == "switch" || d == "input_boolean" || d == "script" || d == "automation" || d == "timer" || d == "camera") return AMBER;
   if (d == "climate") { const uint32_t c = mode_color(t.state); return c == GREY ? AMBER : c; }
   if (d == "vacuum") return t.state == "error" ? RED : TEAL;
   if (d == "fan") return CYAN;
@@ -582,7 +583,7 @@ inline std::string neighbour_option(const Tile &t, int direction) {
 }
 inline const char *run_label(const std::string &domain) {
   if (domain == "scene") return screen_text::tr(screen_text::txt::ha_button_activate);
-  if (domain == "script") return screen_text::tr(screen_text::txt::ha_button_run);
+  if (domain == "script" || domain == "automation") return screen_text::tr(screen_text::txt::ha_button_run);
   return screen_text::tr(screen_text::txt::ha_button_press);
 }
 // The Home Assistant action behind a key. STEP_* are handled locally (debounced) and return nothing.
@@ -618,9 +619,12 @@ inline Action key_action(const Tile &t, int command, const std::string &arg = ""
     case RUN:
       if (d == "scene" || d == "script") return {d + ".turn_on", "", ""};
       if (d == "button" || d == "input_button") return {d + ".press", "", ""};
+      // Home Assistant's own Run actions (more-info-automation.ts): automation.trigger, whose skip_condition is true
+      // unless asked otherwise, so only the entity goes along.
+      if (d == "automation") return {"automation.trigger", "", ""};
       return {};
     case TOGGLE:
-      if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan") return {d + (t.state == "on" ? ".turn_off" : ".turn_on"), "", ""};
+      if (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation") return {d + (t.state == "on" ? ".turn_off" : ".turn_on"), "", ""};
       return {};
     default: return {};
   }
@@ -756,8 +760,8 @@ inline bool panel_available(const Tile &t) {
   if(mode=="volume")return domain=="media_player"&&(t.supported&(feature::MEDIA_VOLUME_SET|feature::MEDIA_VOLUME_MUTE));
   if(mode=="setpoint")return domain=="climate"&&(t.supported&1); // single target, not a heat/cool range
   if(mode=="slider"||mode=="stepper")return domain=="number"||domain=="input_number";
-  if(mode=="toggle")return domain=="light"||domain=="switch"||domain=="input_boolean"||domain=="fan";
-  if(mode=="run")return domain=="scene"||domain=="script"||domain=="button"||domain=="input_button";
+  if(mode=="toggle")return domain=="light"||domain=="switch"||domain=="input_boolean"||domain=="fan"||domain=="automation";
+  if(mode=="run")return domain=="scene"||domain=="script"||domain=="button"||domain=="input_button"||domain=="automation";
   return false;
 }
 
@@ -767,6 +771,9 @@ inline Tap tap_route(const Tile &t, bool hold) {
   // A tile whose action didn't arrive (an app before 0.2.67) taps automatically, as older firmware does.
   if (!hold && t.tap == "action" && !t.extra().action.empty()) return {TapRoute::CUSTOM, t.extra().action};
   if (!hold && t.tap == "toggle") return {TapRoute::ACTION, d + ".toggle"};
+  // An automation (firmware 0.7.0+): a tap switches it on or off and holding runs its actions, or the other way round
+  // when the tile is set to run (Tile::runs). Home Assistant's tile card toggles it too (DOMAINS_TOGGLE).
+  if (d == "automation" && t.tap != "detail") return {TapRoute::ACTION, hold != t.runs() ? "automation.trigger" : "automation.toggle"};
   // A lock opens its card when held or set to; a tap locks or asks for the second tap that unlocks.
   if (d == "lock") return hold || t.tap == "detail" ? Tap{TapRoute::CARD, "", false} : Tap{TapRoute::LOCK, "", false};
   bool open = hold || t.tap == "detail" || d == "vacuum" || d == "cover";

@@ -519,6 +519,8 @@ std::string receive(const std::string &payload) {
       h.time = string(hour["t"], 5); h.condition = string(hour["c"], 20); h.temp = number(hour["h"]); h.rain = number(hour["p"]); h.mm = number(hour["r"]);
     }
     tile.last_run = extra["last"].is<unsigned>() ? extra["last"].as<uint32_t>() : 0;
+    // An automation whose actions run right now (firmware 0.7.0+).
+    tile.running = extra["run"].as<bool>();
     next.sunrise = string(extra["rise"], 5); next.sunset = string(extra["set"], 5);
     next.timer_end = extra["end"].is<unsigned>() ? extra["end"].as<uint32_t>() : 0;
     next.duration = string(extra["dur"], 16); next.remaining = string(extra["rem"], 16);

@@ -144,6 +144,12 @@ on the screen itself, and how updates work.
     **Code format** field. Home Assistant checks the code for locking, unlocking and opening alike, so the screen asks
     for it every time. If you set a **Default code** in the lock's entity settings, Home Assistant fills it in and
     no screen asks for a code any more.
+- **Automation** (firmware 0.7.0, GitHub #62): an automation is a tile in Home Assistant's colours and icons, amber
+  with a robot while it is on, grey with a crossed-out robot while it is off. A tap turns it on or off, and holding the
+  tile runs its actions right away, the way **Run actions** does in Home Assistant: `automation.trigger`, conditions
+  skipped. For an automation you mostly run by hand, set **On tap** to **Run automation actions**: then a tap runs it and holding
+  the tile turns it on or off. That tile looks like a script's button: grey at rest with when it last ran, amber while
+  its actions run, and Off while nothing starts it on its own. A double-width tile carries a switch or a Run key.
 - **Direct control on double-width tiles** (firmware 0.2.19+), like the rows in
   Home Assistant: temperature − / + or mode buttons (climate), a toggle (switch,
   light, fan), start/stop/dock (vacuum), open/stop/close or a

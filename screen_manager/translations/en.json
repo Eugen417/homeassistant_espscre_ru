@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "On/off switch"
         },
+        "automation": {
+          "toggle": "On/off switch",
+          "run": "Run button"
+        },
         "light": {
           "toggle": "On/off switch",
           "brightness": "Brightness slider"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "Status",
         "button": "Actions",
         "script": "Scripts",
+        "automation": "Automations",
         "fan": "Fans",
         "cover": "Covers",
         "scene": "Scenes",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "Status",
       "switch": "Switch",
       "input_boolean": "Switch",
+      "automation": "Automation",
       "scene": "Scene",
       "script": "Script",
       "weather": "Weather",
@@ -1567,10 +1573,14 @@
         "detail": "Open control",
         "none": "View only",
         "toggle": "On / off",
+        "run": "Run automation actions",
         "action": "Perform action",
         "no_toggle": "Home Assistant can't turn this on and off, so a tap does nothing. Choose another option.",
         "toggle_needs_firmware": "The screen switches this from firmware 0.2.58: press Update on the screen. Until then a tap opens its card.",
-        "hold": "Hold the tile to open its card."
+        "automation_needs_firmware": "Automations need screen firmware 0.7.0: press Update on the screen first.",
+        "hold": "Hold the tile to open its card.",
+        "hold_run": "Hold the tile to run its actions.",
+        "hold_toggle": "Hold the tile to switch it on or off."
       },
       "guard": {
         "label": "Unlocking here",

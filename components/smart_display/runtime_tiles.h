@@ -3481,6 +3481,9 @@ inline const char *icon_for(const Tile &tile) {
   if (d == "fan") return "\U000F0210";
   if (d == "cover") return "\U000F111C";
   if (d == "scene" || d == "script") return "\U000F04B9";
+  // Home Assistant's automation icons (automation/icons.json): a robot, crossed out while off.
+  if (d == "automation" && tile.state == "off") return "\U000F16A7";
+  if (d == "automation") return "\U000F06A9";
   if (d == "weather") return tile.available() ? weather_icon(tile.state) : "\U000F0595";
   if (d == "sensor" || d == "binary_sensor") return "\U000F029A";
   if (d == "sun") return tile.state == "above_horizon" ? "\U000F059B" : "\U000F059C";
@@ -3600,7 +3603,7 @@ inline void event(lv_event_t *event) {
   switch (tap.route) {
     case tile_controls::TapRoute::ACTION:
       // On / off shows the new stand at once, as Home Assistant's switch does; other actions have nothing to show yet.
-      if (tap.service == d + ".toggle" && (d == "light" || d == "switch" || d == "input_boolean" || d == "fan"))
+      if (tap.service == d + ".toggle" && (d == "light" || d == "switch" || d == "input_boolean" || d == "fan" || d == "automation"))
         tile.optimistic(tile.state != "on");
       action(tap.service, tile.entity, "", "", true);
       return;
@@ -5469,6 +5472,9 @@ inline void render_slot(size_t slot) {
   else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0,true)+" - "+screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0,true) : tr(t.state=="above_horizon"?txt::ha_sun_above_horizon:txt::ha_sun_below_horizon);
   else if (d == "timer") value = timer_text(t);
   else if (d == "script" || d == "scene" || d == "button" || d == "input_button") value = t.state == "on" ? std::string(tr(txt::script_running)) : last_run_text(t.last_run);
+  // An automation that runs on a tap says what a script's button says, and Off while it is switched off: its actions
+  // still run on a tap then, but nothing starts them on their own (firmware 0.7.0+).
+  else if (t.runs()) value = t.running ? std::string(tr(txt::script_running)) : t.state == "off" ? std::string(tr(txt::ha_off)) : last_run_text(t.last_run);
   else if (d == "camera") value = tr(t.state == "streaming" ? txt::camera_live : t.state == "recording" ? txt::camera_recording : txt::camera_tap_to_view);
   else if (d == "image") value = tr(t.last_run ? txt::camera_tap_to_view : txt::camera_no_image_yet);
   else if (d == "binary_sensor" && (value == "on" || value == "off")) value = tile_controls::binary_state_text(t.device_class, value == "on");
@@ -5492,6 +5498,7 @@ inline void render_slot(size_t slot) {
   // end that must stay readable whatever happens to the words in front of it.
   std::string value_short,value_tail;
   if((d=="script"||d=="scene"||d=="button"||d=="input_button") && t.state!="on")value_short=last_run_text(t.last_run,true);
+  if(t.runs() && !t.running && t.state=="on")value_short=last_run_text(t.last_run,true);
   // A lock-only tile's word where the whole of it does not fit.
   if(d=="lock"&&lock_noting(t))value_short=tr(txt::lock_lock_only_short);
   if(d=="vacuum" && std::isfinite(t.battery)){value_tail=" / "+screen_text::percent((int)t.battery);value+=value_tail;}

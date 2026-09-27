@@ -970,6 +970,222 @@ class Run:
         self.warnings.append(f'lock: tile ask, unlock, lock, lock-only, card open/lock/jammed, keypad; {len(calls)} calls')
         return 1
 
+    async def cards(self):
+        """What every card on the glass says and how it is coloured, read back from its labels (render_cards)."""
+        start = len(self.lines)
+        await self.call('render_cards')
+        line = await self.until(lambda l: 'cards ' in l, 10, 'render_cards', start)
+        found = {}
+        for item in line.split('cards ', 1)[1].strip().split(';'):
+            if '|' in item:
+                entity, value, icon, ink, circle, box = item.split('|')
+                found[entity] = {'value': value, 'icon': icon, 'ink': ink, 'circle': circle,
+                                 'box': tuple(int(n) for n in box.split(','))}
+        return found
+
+    async def automation_panel(self, grid):
+        """An automation (firmware 0.7.0, GitHub #62) the way it is used: a tap switches it on or off and holding runs its
+        actions; a tile set to run does it the other way round and looks like a script's button, coloured only while
+        the actions run. Home Assistant's answers and states come back through the add-on's own messages (core.extras
+        sends when it last ran and whether it runs now)."""
+        from core import extras, state_message
+        calls = []
+        self.client.subscribe_service_calls(calls.append)
+        def automation(state, name, current=0, last='2026-09-15T07:30:00+00:00'):
+            return {'state': state, 'attributes': {'friendly_name': name, 'current': current, 'last_triggered': last,
+                                                   'mode': 'single', 'id': name.lower()},
+                    'last_changed': MOMENT.isoformat()}
+        states = {'automation.curtains': automation('on', 'Curtains'),
+                  'automation.holiday': automation('off', 'Holiday lights'),
+                  'automation.doorbell': automation('on', 'Doorbell chime'),
+                  'automation.night': automation('off', 'Night mode'),
+                  'automation.garden': automation('unavailable', 'Garden'),
+                  'automation.away': automation('on', 'Away')}
+        order = list(states)
+        tiles_in = [dict(entity=e, name=states[e]['attributes']['friendly_name'], slot=i) for i, e in enumerate(order)]
+        tiles_in[2]['options'] = {'tap': 'run'}
+        tiles_in[3]['options'] = {'tap': 'run'}
+        record = send_layout.migrate_legacy(dict(title='Automations', tiles=tiles_in[:grid.columns * grid.rows]), grid)
+        tiles = send_layout.compile_tiles(record['layout'], grid)
+        region = dict(keepalive=120, clock_24h=True, numbers='point', group_min=1, percent_space=False)
+        bars = [[{'k': 'clock'}] for _ in record['layout']['pages']]
+        shown = {'record': record, 'tiles': tiles, 'bars': bars}
+        async def push():
+            values = [state_message(index, tile, states, extras(tile, states)) for index, tile in enumerate(shown['tiles'])]
+            await self.sender.synchronize(self.inbox.object_id, shown['record'], region, values, shown['bars'])
+        await push()
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        faults = []
+        async def call_for(service, since):
+            end = time.monotonic() + 8
+            while time.monotonic() < end:
+                found = [c for c in calls[since:] if c.service == service]
+                if found:
+                    return found[-1]
+                await asyncio.sleep(0.05)
+            raise RuntimeError(f'automation: the screen never sent {service}: {[c.service for c in calls[since:]]}')
+        def answer(sent, ok=True):
+            self.client.send_homeassistant_action_response(sent.call_id, ok, '', b'')
+        def sent_only(sent, entity):
+            if dict(sent.data) != {'entity_id': entity}:
+                faults.append(f'{sent.service} went out as {dict(sent.data)}')
+        async def expect(entity, value=None, lit=None, icon=None, where=''):
+            card = (await self.cards()).get(entity)
+            if card is None:
+                faults.append(f'{where}: {entity} is not on the glass')
+                return
+            if value is not None and card['value'] != value:
+                faults.append(f'{where}: {entity} says "{card["value"]}", not "{value}"')
+            if icon is not None and card['icon'] != icon:
+                faults.append(f'{where}: {entity} draws icon {card["icon"]}, not {icon}')
+            if lit is not None and (card['circle'] != grey) == (not lit):
+                faults.append(f'{where}: {entity} is {"grey" if card["circle"] == grey else "coloured"} ({card["circle"]}), expected {"coloured" if lit else "grey"}')
+            return card
+        await asyncio.sleep(1.6)
+        await self.render('automation-tiles')
+        spots = await self.slots()
+        start = await self.cards()
+        grey = start['automation.holiday']['circle']
+        await expect('automation.curtains', 'On', True, 'F06A9', 'start')
+        await expect('automation.holiday', 'Off', False, 'F16A7', 'start')
+        # A run button: grey at rest although the automation is on, and when it last ran under its name.
+        await expect('automation.doorbell', lit=False, icon='F06A9', where='start')
+        if start['automation.doorbell']['value'] in ('On', 'Off', ''):
+            faults.append(f'start: the run button says "{start["automation.doorbell"]["value"]}" instead of when it last ran')
+        # A run button of an automation that is off says so: a tap still runs it, nothing starts it on its own.
+        await expect('automation.night', 'Off', False, 'F16A7', 'start')
+        # Unavailable: in the unavailable grey, not the colour of an automation that is on, and taps send nothing.
+        if 'automation.garden' in start and start['automation.garden']['circle'] == start['automation.curtains']['circle']:
+            faults.append('start: an unavailable automation is coloured like one that is on')
+        # Tap on an automation that switches: it turns off at once (optimistic) and automation.toggle goes out.
+        since = len(calls)
+        await self.tap(*spots['automation.curtains'])
+        sent = await call_for('automation.toggle', since)
+        sent_only(sent, 'automation.curtains')
+        await asyncio.sleep(0.1)
+        await expect('automation.curtains', 'Off', False, where='right after the tap')
+        await self.snapshot(self.out / 'automation-toggle-tapped.png')
+        answer(sent)
+        states['automation.curtains'] = automation('off', 'Curtains')
+        await push()
+        await asyncio.sleep(0.6)
+        await expect('automation.curtains', 'Off', False, 'F16A7', 'after Home Assistant')
+        # Tap again: back on.
+        since = len(calls)
+        await self.tap(*spots['automation.curtains'])
+        sent = await call_for('automation.toggle', since)
+        answer(sent)
+        states['automation.curtains'] = automation('on', 'Curtains')
+        await push()
+        await asyncio.sleep(0.6)
+        await expect('automation.curtains', 'On', True, 'F06A9', 'switched back on')
+        # Hold it: its actions run (automation.trigger with the entity alone) and it stays on.
+        since = len(calls)
+        await self.hold(*spots['automation.curtains'])
+        sent = await call_for('automation.trigger', since)
+        sent_only(sent, 'automation.curtains')
+        if [c for c in calls[since:] if c.service == 'automation.toggle']:
+            faults.append('holding a switching tile also switched it')
+        answer(sent)
+        await asyncio.sleep(0.4)
+        await expect('automation.curtains', 'On', True, where='after holding')
+        # The run button: a tap runs its actions; while they run it is coloured and says so.
+        since = len(calls)
+        await self.tap(*spots['automation.doorbell'])
+        sent = await call_for('automation.trigger', since)
+        sent_only(sent, 'automation.doorbell')
+        if [c for c in calls[since:] if c.service.endswith(('.toggle', '.turn_on', '.turn_off'))]:
+            faults.append('a tap on a run button also switched it')
+        answer(sent)
+        states['automation.doorbell'] = automation('on', 'Doorbell chime', current=1, last='2026-09-15T08:08:00+00:00')
+        await push()
+        await asyncio.sleep(0.6)
+        await expect('automation.doorbell', 'Running...', True, where='while its actions run')
+        await self.render('automation-running')
+        states['automation.doorbell'] = automation('on', 'Doorbell chime', current=0, last='2026-09-15T08:08:00+00:00')
+        await push()
+        await asyncio.sleep(0.6)
+        done = await expect('automation.doorbell', lit=False, where='after its actions ran')
+        if done and done['value'] in ('Running...', 'On', 'Off'):
+            faults.append(f'after its actions ran the run button says "{done["value"]}"')
+        # Hold the run button: it switches off, at once, and says Off.
+        since = len(calls)
+        await self.hold(*spots['automation.doorbell'])
+        sent = await call_for('automation.toggle', since)
+        sent_only(sent, 'automation.doorbell')
+        if [c for c in calls[since:] if c.service == 'automation.trigger']:
+            faults.append('holding a run button also ran it')
+        await expect('automation.doorbell', 'Off', False, where='right after holding the run button')
+        answer(sent)
+        states['automation.doorbell'] = automation('off', 'Doorbell chime', last='2026-09-15T08:08:00+00:00')
+        await push()
+        await asyncio.sleep(0.6)
+        await expect('automation.doorbell', 'Off', False, 'F16A7', 'run button switched off')
+        await self.render('automation-run-off')
+        # A run button of an automation that is off still runs on a tap.
+        since = len(calls)
+        await self.tap(*spots['automation.night'])
+        sent = await call_for('automation.trigger', since)
+        answer(sent)
+        # Unavailable: nothing goes out.
+        if 'automation.garden' in spots:
+            since = len(calls)
+            await self.tap(*spots['automation.garden'])
+            await self.hold(*spots['automation.garden'])
+            await asyncio.sleep(0.4)
+            if [c for c in calls[since:] if c.service.startswith('automation.')]:
+                faults.append('an unavailable automation sent an action')
+        await asyncio.sleep(1.6)
+        await self.render('automation-tiles-end')
+        # Double-width cards carry the switch (the default control) beside the name; the run button's switch switches
+        # it while a tap on the card runs it.
+        wide_in = [dict(entity='automation.curtains', name='Curtains', options={'size': 'wide'}),
+                   dict(entity='automation.doorbell', name='Doorbell chime', options={'size': 'wide', 'tap': 'run'}),
+                   dict(entity='automation.away', name='Away', options={'size': 'wide', 'controls': 'run'})][:grid.rows]
+        for row, tile in enumerate(wide_in):
+            tile['slot'] = row * grid.columns
+        shown['record'] = send_layout.migrate_legacy(dict(title='Automations', tiles=wide_in), grid)
+        shown['tiles'] = send_layout.compile_tiles(shown['record']['layout'], grid)
+        shown['bars'] = [[{'k': 'clock'}] for _ in shown['record']['layout']['pages']]
+        await push()
+        await self.call('render_page', page=0)
+        await self.page_done(0)
+        await asyncio.sleep(1.6)
+        await self.render('automation-wide')
+        # The control at the right end of a double-width card: its switch switches, its Run key runs, and a tap on
+        # the card itself does what the tile's tap says.
+        wide = await self.cards()
+        def control(entity):
+            x1, y1, x2, y2 = wide[entity]['box']
+            return x2 - (y2 - y1) * 2 // 5, (y1 + y2) // 2
+        since = len(calls)
+        await self.tap(*control('automation.curtains'))
+        sent = await call_for('automation.turn_off', since)
+        sent_only(sent, 'automation.curtains')
+        answer(sent)
+        if len(wide_in) > 2:
+            since = len(calls)
+            await self.tap(*control('automation.away'))
+            sent = await call_for('automation.trigger', since)
+            sent_only(sent, 'automation.away')
+            answer(sent)
+            if [c for c in calls[since:] if c.service != 'automation.trigger']:
+                faults.append(f'the Run key also sent {[c.service for c in calls[since:]]}')
+        since = len(calls)
+        x1, y1, x2, y2 = wide['automation.doorbell']['box']
+        await self.tap(x1 + (x2 - x1) // 3, (y1 + y2) // 2)
+        sent = await call_for('automation.trigger', since)
+        answer(sent)
+        await asyncio.sleep(2)
+        since = len(calls)
+        await self.tap(*control('automation.doorbell'))
+        sent = await call_for('automation.turn_on', since)
+        answer(sent)
+        self.failures += [f'automation: {f}' for f in faults]
+        self.warnings.append(f'automation: tap/hold on a switching tile and a run button, running, off, unavailable; {len(calls)} calls')
+        return 1
+
     async def drive(self):
         self.client = APIClient('127.0.0.1', self.item.port, None)
         for _ in range(240):
@@ -1014,6 +1230,8 @@ class Run:
             return 1, await self.alarm_panel(grid)
         if self.only == 'lock':
             return 1, await self.lock_panel(grid)
+        if self.only == 'automation':
+            return 1, await self.automation_panel(grid)
         checks = await self.self_test()
         await self.moments(pages)
         for page in range(pages):
@@ -1100,7 +1318,7 @@ def main():
     parser.add_argument('--out', type=Path, default=REPO / '.esphome' / 'render' / 'out')
     parser.add_argument('--work', type=Path, help='where the host builds go (default: .esphome/render/build)')
     parser.add_argument('--camera', default='960x540', help='the camera picture of the camera alert, WxH')
-    parser.add_argument('--only', choices=['alarm', 'lock'], help='after the demo layout arrives, run only this stage')
+    parser.add_argument('--only', choices=['alarm', 'lock', 'automation'], help='after the demo layout arrives, run only this stage')
     parser.add_argument('--port-base', type=int, help='the first API port (default host.PORT_BASE); another worktree may use it')
     args = parser.parse_args()
     # The programs write their pictures from their own folder, so every path they get is absolute.

@@ -103,10 +103,12 @@ const clockDate = computed(() => screenText('screen.date.full', {
 
 // ---- Live values ----
 const current = computed(() => (domain.value === "screen" ? null : liveOf(props.tile.entity)));
-const palette = computed(() => tilePalette(props.tile.entity, current.value));
+// An automation set to run on a tap looks like a script's button (firmware 0.7.0+, Tile::runs): coloured while it runs.
+const runs = computed(() => domain.value === "automation" && props.tile.options?.tap === "run");
+const palette = computed(() => tilePalette(props.tile.entity, current.value, runs.value));
 const gone = computed(() => !current.value || ["unavailable", "unknown", ""].includes(current.value.state));
-const on = computed(() => tileActive(props.tile.entity, current.value));
-const isOn = computed(() => ["light", "switch", "input_boolean", "fan"].includes(domain.value) && current.value?.state === "on");
+const on = computed(() => tileActive(props.tile.entity, current.value, runs.value));
+const isOn = computed(() => (["light", "switch", "input_boolean", "fan"].includes(domain.value) || domain.value === "automation" && !runs.value) && current.value?.state === "on");
 const unit = computed(() => current.value?.a?.unit_of_measurement as string | undefined);
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1).replace(/_/g, " ");
 // Numbers as the screens write them, "1,234.5" or "1.234,5" (app 0.2.90): a state only with a unit, or of an entity
@@ -131,6 +133,8 @@ const NO_STATUS = ["scene", "script", "button", "input_button"];
 const status = computed(() => {
   const c = current.value;
   if (!c || NO_STATUS.includes(domain.value)) return note.value;
+  // A run button says Running while its actions run and Off while nothing starts it on its own, as on the screen.
+  if (runs.value && !gone.value) return Number(c.a?.current) > 0 ? screenText("screen.script.running") : c.state === "off" ? screenText("screen.ha.off") : note.value;
   if (gone.value) return screenText(c.state === "unknown" ? "editor.mockup.unknown" : "screen.ha.unavailable");
   const a = c.a || {};
   const word = c.word || haWord(c) || capital(c.state);
@@ -160,7 +164,7 @@ const fill = computed(() => {
   return 0;
 });
 // The key on a scene, script or button, and the page a navigation tile opens, as the screen labels them.
-const runText = computed(() => screenText(`screen.ha.button.${({ scene: "activate", script: "run" } as Record<string, string>)[domain.value] || "press"}`));
+const runText = computed(() => screenText(`screen.ha.button.${({ scene: "activate", script: "run", automation: "run" } as Record<string, string>)[domain.value] || "press"}`));
 const pageLink = computed(() => `${screenText("screen.tile.page", { n: goesTo.value })} ›`);
 const sliderStyle = computed(() => ({ background: `linear-gradient(to right, ${palette.value.accent} ${fill.value}%, ${palette.value.track} ${fill.value}%)` }));
 const volumeStyle = sliderStyle;

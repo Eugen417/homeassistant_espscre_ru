@@ -47,8 +47,8 @@ export function availableControl(domain: string, kind: string | null, state: str
   if (kind === 'volume') return domain === 'media_player' && f & 12 ? kind : '';
   if (kind === 'setpoint' || kind === 'setpoint_mode') return domain === 'climate' && f & 1 ? kind : '';
   if (kind === 'stepper' || kind === 'slider') return ['number', 'input_number'].includes(domain) ? kind : '';
-  if (kind === 'toggle') return ['light', 'switch', 'input_boolean', 'fan'].includes(domain) ? kind : '';
-  if (kind === 'run') return ['scene', 'script', 'button', 'input_button'].includes(domain) ? kind : '';
+  if (kind === 'toggle') return ['light', 'switch', 'input_boolean', 'automation', 'fan'].includes(domain) ? kind : '';
+  if (kind === 'run') return ['scene', 'script', 'button', 'input_button', 'automation'].includes(domain) ? kind : '';
   return '';
 }
 

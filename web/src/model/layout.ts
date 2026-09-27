@@ -266,7 +266,7 @@ export const supportsFirmware = (firmware: string | undefined | null, major: num
 export const DISPLAYS = ["standard", "watch", "forecast", "graph", "digital", "analog", "dial", "flip", "sunpath", "live", "cover"];
 export const displayName = (display: string) => (DISPLAYS.includes(display) ? t(`editor.displays.${display}`) : display);
 export const sizeName = (size: string | undefined) => t(`editor.sizes.${SIZES.includes(size as Size) ? size : "single"}`);
-export const TOGGLE_BEFORE = ["light", "switch", "input_boolean", "fan", "media_player", "climate"];
+export const TOGGLE_BEFORE = ["light", "switch", "input_boolean", "automation", "fan", "media_player", "climate"];
 const SLIDER_CONTROLS: Record<string, string> = { light: 'brightness', fan: 'speed', cover: 'position', media_player: 'volume', number: 'slider', input_number: 'slider' };
 export const SLIDER_DOMAINS = Object.keys(SLIDER_CONTROLS);
 export const inlineControlKind = (domain: string) => SLIDER_CONTROLS[domain] || '';
@@ -283,6 +283,7 @@ export const domains: Record<string, [string, string, string]> = {
   binary_sensor: ["◈", "#ad7600", "#fff3d3"],
   switch: ["⏻", "#ad7600", "#fff3d3"],
   input_boolean: ["⏻", "#ad7600", "#fff3d3"],
+  automation: ["⚙", "#ad7600", "#fff3d3"],
   scene: ["✦", "#8053af", "#eee5f8"],
   script: ["▷", "#8053af", "#eee5f8"],
   weather: ["☁", "#007cad", "#def2fc"],

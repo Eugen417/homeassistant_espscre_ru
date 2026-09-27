@@ -782,6 +782,10 @@
         "input_boolean": {
           "toggle": "Interruttore acceso/spento"
         },
+        "automation": {
+          "toggle": "Interruttore acceso/spento",
+          "run": "Pulsante Esegui"
+        },
         "light": {
           "toggle": "Interruttore acceso/spento",
           "brightness": "Cursore della luminosità"
@@ -1408,6 +1412,7 @@
         "binary_sensor": "Stato",
         "button": "Azioni",
         "script": "Script",
+        "automation": "Automazioni",
         "fan": "Ventilatori",
         "cover": "Coperture",
         "scene": "Scene",
@@ -1446,6 +1451,7 @@
       "binary_sensor": "Stato",
       "switch": "Interruttore",
       "input_boolean": "Interruttore",
+      "automation": "Automazione",
       "scene": "Scena",
       "script": "Script",
       "weather": "Meteo",
@@ -1567,10 +1573,14 @@
         "detail": "Apri i controlli",
         "none": "Solo visualizzazione",
         "toggle": "Accendi / spegni",
+        "run": "Esegui azioni dell'automazione",
         "action": "Esegui azione",
         "no_toggle": "Home Assistant non può accendere e spegnere questa entità, quindi un tocco non fa nulla. Scegli un'altra opzione.",
         "toggle_needs_firmware": "Lo schermo accende e spegne questa entità a partire dal firmware 0.2.58: premi Aggiorna per questo schermo. Fino ad allora un tocco apre la sua scheda.",
-        "hold": "Tieni premuto il riquadro per aprire la sua scheda."
+        "automation_needs_firmware": "Le automazioni richiedono il firmware 0.7.0 dello schermo: premi prima Aggiorna per questo schermo.",
+        "hold": "Tieni premuto il riquadro per aprire la sua scheda.",
+        "hold_run": "Tieni premuto il riquadro per eseguirne le azioni.",
+        "hold_toggle": "Tieni premuto il riquadro per attivarla o disattivarla."
       },
       "guard": {
         "label": "Sblocco qui",
