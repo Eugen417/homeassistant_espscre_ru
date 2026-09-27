@@ -2,14 +2,17 @@
 import asyncio
 from collections import Counter
 import contextlib
+import ipaddress
 import json
 import logging
 import os
 from pathlib import Path
 import secrets
+import socket
 import time
 from datetime import datetime, timedelta, timezone
 import math
+from urllib.parse import urlsplit
 import camera_feed
 import claude_skill
 import screen_labels
@@ -118,6 +121,41 @@ def rounded(value):
 
 class HomeAssistant:
     registry_interval = 600
+
+    @staticmethod
+    def _is_private_host(host):
+        """Whether a host should be blocked for remote media requests; Home Assistant's own media proxies are allowed."""
+        if not host or host == 'localhost':
+            return True
+        try:
+            ip = ipaddress.ip_address(host)
+            return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified
+        except ValueError:
+            try:
+                for family, _, _, _, sockaddr in socket.getaddrinfo(host, None):
+                    addr = sockaddr[0]
+                    if addr and addr != 'localhost':
+                        ip = ipaddress.ip_address(addr)
+                        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified:
+                            return True
+            except (socket.gaierror, OSError, TypeError, ValueError):
+                return True
+        return False
+
+    @staticmethod
+    def _allow_media_url(url):
+        """Only accept local Home Assistant routes or non-private remote URLs with a clear scheme."""
+        parsed = urlsplit(url)
+        if parsed.scheme not in ('http', 'https'):
+            return False
+        host = (parsed.hostname or '').lower()
+        if not host:
+            return False
+        if parsed.hostname and host in ('localhost', '127.0.0.1', '::1'):
+            return False
+        if HomeAssistant._is_private_host(host):
+            return False
+        return True
 
     def __init__(self, session, base, token):
         self.session, self.base, self.token = session, base.rstrip('/'), token
@@ -503,19 +541,25 @@ class HomeAssistant:
         return picture if isinstance(picture, str) and picture else ''
 
     async def media_image(self, entity):
-        """The cover of a media player (app 0.2.77), fetched where its state points: Home Assistant's own proxy
-        with this app's token (`/api/media_player_proxy/...`), or a picture on the internet as it is."""
+        """The cover of a media player (app 0.2.77), fetched only from trusted Home Assistant local routes or from a
+        non-private external URL. We do not follow redirects, and we reject private/loopback addresses and path traversal."""
         picture = self.media_picture(entity)
         if not picture:
             raise ValueError('no picture')
         root = self.base[:-4] if self.base.endswith('/api') else self.base
         if picture.startswith('/'):
+            parsed = urlsplit(picture)
+            if parsed.path != f'/api/media_player_proxy/{entity}':
+                raise ValueError('unsafe picture address')
             url, headers = f'{root}{picture}', {'Authorization': 'Bearer ' + self.token}
         elif picture.startswith(('http://', 'https://')):
+            if not self._allow_media_url(picture):
+                raise ValueError('unsafe picture address')
             url, headers = picture, {}
         else:
             raise ValueError('unknown picture address')
-        async with self.session.get(url, headers=headers, timeout=ClientTimeout(total=camera_feed.FETCH_SECONDS)) as response:
+        async with self.session.get(url, headers=headers, timeout=ClientTimeout(total=camera_feed.FETCH_SECONDS),
+                                   allow_redirects=False) as response:
             response.raise_for_status()
             if (response.content_length or 0) > camera_feed.MAX_SNAPSHOT_BYTES:
                 raise ValueError('picture too large')

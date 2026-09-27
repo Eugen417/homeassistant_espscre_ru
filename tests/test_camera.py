@@ -185,6 +185,28 @@ class Rules(unittest.TestCase):
         self.assertNotIn('Loading image', TILES)
 
 
+@unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
+class MediaFetchSecurity(unittest.IsolatedAsyncioTestCase):
+    async def test_local_media_urls_must_be_the_entity_proxy_route(self):
+        ha = HomeAssistant(None, 'http://ha/api', 'token')
+        ha.states = {'media_player.office': {'attributes': {'entity_picture': '/api/states'}}}
+        with self.assertRaisesRegex(ValueError, 'unsafe picture address'):
+            await ha.media_image('media_player.office')
+
+        ha.states['media_player.office']['attributes']['entity_picture'] = (
+            '/api/media_player_proxy/media_player.office/../../states'
+        )
+        with self.assertRaisesRegex(ValueError, 'unsafe picture address'):
+            await ha.media_image('media_player.office')
+
+    async def test_remote_media_urls_cannot_target_private_hosts(self):
+        ha = HomeAssistant(None, 'http://ha/api', 'token')
+        for url in ('http://127.0.0.1/admin', 'http://169.254.169.254/latest/meta-data/'):
+            ha.states = {'media_player.office': {'attributes': {'entity_picture': url}}}
+            with self.subTest(url=url), self.assertRaisesRegex(ValueError, 'unsafe picture address'):
+                await ha.media_image('media_player.office')
+
+
 @unittest.skipUnless(HAS_PIL, 'Pillow comes with ESPHome in the add-on image')
 class Encoding(unittest.TestCase):
     def test_every_snapshot_becomes_a_bmp_that_fits(self):
