@@ -8,9 +8,11 @@ import importlib.util
 import io
 from pathlib import Path
 import re
+import socket
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'tools'))
@@ -205,6 +207,83 @@ class MediaFetchSecurity(unittest.IsolatedAsyncioTestCase):
             ha.states = {'media_player.office': {'attributes': {'entity_picture': url}}}
             with self.subTest(url=url), self.assertRaisesRegex(ValueError, 'unsafe picture address'):
                 await ha.media_image('media_player.office')
+
+    async def test_a_host_in_front_of_the_proxy_path_is_no_proxy(self):
+        ha = HomeAssistant(None, 'http://ha/api', 'token')
+        ha.states = {'media_player.office': {'attributes': {
+            'entity_picture': '//elsewhere/api/media_player_proxy/media_player.office?token=abc'}}}
+        with self.assertRaisesRegex(ValueError, 'unsafe picture address'):
+            await ha.media_image('media_player.office')
+
+    async def test_home_assistant_proxy_goes_first(self):
+        session = RecordingSession()
+        ha = HomeAssistant(session, 'http://ha/api', 'token')
+        proxy = '/api/media_player_proxy/media_player.office?token=abc&cache=123'
+        # A player whose picture lies elsewhere (Cast, HEOS, WiiM) hands out that address and Home Assistant's proxy
+        # beside it: the picture comes through the proxy, a picture in the house too, with the token for the proxy only.
+        for elsewhere in ('http://192.168.1.20/art.jpg', 'https://i.scdn.co/image/x'):
+            ha.states = {'media_player.office': {'attributes': {'entity_picture': elsewhere, 'entity_picture_local': proxy}}}
+            self.assertEqual(await ha.media_image('media_player.office'), b'picture')
+            self.assertEqual(session.calls[-1], ('http://ha' + proxy, 'Bearer token', False))
+        # A universal media player hands out its child's proxy as its picture and its own proxy beside it.
+        own = '/api/media_player_proxy/media_player.living_room?token=def&cache=456'
+        ha.states = {'media_player.living_room': {'attributes': {
+            'entity_picture': '/api/media_player_proxy/media_player.sonos?token=abc&cache=123', 'entity_picture_local': own}}}
+        self.assertEqual(await ha.media_image('media_player.living_room'), b'picture')
+        self.assertEqual(session.calls[-1], ('http://ha' + own, 'Bearer token', False))
+        # Without a proxy a picture on the internet comes as it is, without the token.
+        ha.states = {'media_player.office': {'attributes': {'entity_picture': 'https://8.8.8.8/art.jpg'}}}
+        self.assertEqual(await ha.media_image('media_player.office'), b'picture')
+        self.assertEqual(session.calls[-1], ('https://8.8.8.8/art.jpg', None, False))
+
+    async def test_a_name_is_looked_up_without_holding_the_app(self):
+        answers = {'art.example.com': '93.184.216.34', 'nas.example.com': '192.168.1.20'}
+
+        async def getaddrinfo(host, port, *args, **kwargs):
+            await asyncio.sleep(0)
+            if host not in answers:
+                raise socket.gaierror('unknown')
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', (answers[host], 0))]
+
+        session = RecordingSession()
+        ha = HomeAssistant(session, 'http://ha/api', 'token')
+        with mock.patch.object(asyncio.get_running_loop(), 'getaddrinfo', getaddrinfo), \
+                mock.patch.object(socket, 'getaddrinfo', side_effect=AssertionError('blocking lookup')):
+            ha.states = {'media_player.office': {'attributes': {'entity_picture': 'https://art.example.com/x.jpg'}}}
+            self.assertEqual(await ha.media_image('media_player.office'), b'picture')
+            for host in ('nas.example.com', 'nowhere.example.com'):
+                ha.states = {'media_player.office': {'attributes': {'entity_picture': f'http://{host}/x.jpg'}}}
+                with self.subTest(host=host), self.assertRaisesRegex(ValueError, 'unsafe picture address'):
+                    await ha.media_image('media_player.office')
+        self.assertEqual(len(session.calls), 1)
+
+
+class RecordingSession:
+    """An aiohttp session that answers every GET with the same small body and keeps what it was asked."""
+
+    def __init__(self):
+        self.calls = []
+
+    def get(self, url, headers=None, timeout=None, allow_redirects=True):
+        self.calls.append((url, (headers or {}).get('Authorization'), allow_redirects))
+
+        class Response:
+            content_length = 7
+
+            class content:
+                @staticmethod
+                async def iter_chunked(size):
+                    yield b'picture'
+
+            def raise_for_status(self):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *error):
+                return False
+        return Response()
 
 
 @unittest.skipUnless(HAS_PIL, 'Pillow comes with ESPHome in the add-on image')

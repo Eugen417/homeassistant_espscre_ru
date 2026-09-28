@@ -46,8 +46,14 @@ what plays, with the title, the artist and the album, a progress bar and the key
 
 - The screen asks ESP Screen Manager for the cover with the size it draws it at and the colour
   behind it (the event `esphome.screen_camera` with `size` and `bg`). The app fetches the
-  picture where Home Assistant's state points (`entity_picture`), cuts it square, sizes it,
-  rounds the corners over that colour and serves it on port 8098 as a BMP, like a camera image.
+  picture through Home Assistant's own proxy for the player (`/api/media_player_proxy/...`), cuts
+  it square, sizes it, rounds the corners over that colour and serves it on port 8098 as a BMP,
+  like a camera image.
+- Home Assistant's token goes to that proxy only (app 0.4.15). A player whose picture lies on the
+  internet or on a server in the house hands out the picture's own address and the proxy beside
+  it, and the app takes the proxy, so Home Assistant fetches the picture itself. A player that
+  hands out an address without a proxy gets its picture fetched from the internet only, never from
+  an address in the house, and without following a redirect.
 - A cover is fetched once per picture: the state carries a short mark of the picture, and the
   screen asks again only when the mark changes (a new track), when the card opens again or
   when the page turns back to a full-page media tile. Nothing polls.

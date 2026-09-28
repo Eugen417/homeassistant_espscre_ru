@@ -13,7 +13,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'screen_manager/app'))
 import camera_feed  # noqa: E402
-from core import COVER_MIN_FIRMWARE, extras, media_extras, state_message  # noqa: E402
+from core import COVER_MIN_FIRMWARE, extras, media_cover, media_extras, state_message  # noqa: E402
 
 HAS_PIL = importlib.util.find_spec('PIL') is not None
 HAS_AIOHTTP = importlib.util.find_spec('aiohttp') is not None
@@ -80,6 +80,18 @@ class Extras(unittest.TestCase):
         extra = media_extras({'media_artist': 'x' * 200, 'entity_picture_local': '/api/media_player_proxy/a?token=b'})
         self.assertEqual(len(extra['artist']), 80)
         self.assertIn('pic', extra)
+
+    def test_the_cover_comes_through_home_assistant_when_it_can(self):
+        proxy = '/api/media_player_proxy/media_player.office?token=abc&cache=123'
+        # A player whose picture lies elsewhere hands out Home Assistant's proxy beside it: the proxy goes first.
+        self.assertEqual(media_cover({'entity_picture': 'https://i.scdn.co/image/x', 'entity_picture_local': proxy}), proxy)
+        self.assertEqual(media_cover({'entity_picture': proxy}), proxy)
+        self.assertEqual(media_cover({'entity_picture': 'https://example.com/x.jpg', 'entity_picture_local': None}),
+                         'https://example.com/x.jpg')
+        self.assertEqual(media_cover({'entity_picture': 42}), '')
+        # The mark the screen watches follows the same address.
+        self.assertEqual(media_extras({'entity_picture': 'https://i.scdn.co/image/x', 'entity_picture_local': proxy})['pic'],
+                         media_extras({'entity_picture': proxy})['pic'])
 
     def test_the_state_message_carries_them_and_stays_small(self):
         states = {'media_player.office': {'state': 'playing', 'attributes': SONOS}}

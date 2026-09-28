@@ -1,3 +1,29 @@
+## 0.4.15 (firmware 0.9.0)
+
+Safer album covers (GitHub #77, thanks @EmanueleBenedettini).
+
+- **Home Assistant's token goes to one address only.** ESP Screen Manager fetches a media player's cover with Home
+  Assistant's token only from Home Assistant's own proxy for that same player. Any other address on Home Assistant,
+  such as a camera's proxy or a path that walks out of the player's proxy, is refused. Until now a media player whose
+  state named such an address could have the app fetch it with the token. Contributed by
+  [@EmanueleBenedettini](https://github.com/EmanueleBenedettini) in
+  [#77](https://github.com/MaxGramser/homeassistant_espscreen/pull/77).
+- **Covers come through Home Assistant.** A player whose picture lies on the internet or on a server in the house
+  (Cast, HEOS or WiiM, for example) hands out Home Assistant's proxy beside the picture's own address, and the app now
+  takes the proxy: Home Assistant fetches the picture itself, and the app only talks to Home Assistant. A universal
+  media player keeps its cover the same way.
+- **A picture address without a proxy** is fetched from the internet only: an address in the house, on the add-on's
+  own machine or link-local is refused, and a redirect is not followed (#77). No media player built into Home
+  Assistant hands out such an address; a custom integration that does shows the player's icon instead of its cover.
+  The name in such an address is looked up without holding up the app.
+- Nothing changes for a screen you have: no firmware update.
+- Tested: tools/check.sh (882 Python tests, 33 C++ tests, the editor). With the add-on on Home Assistant 2026.9.4, the
+  editor's cover of a demo player, of a universal media player over it, of a player whose picture lies on a server in
+  the house and of one behind a redirect all came through Home Assistant's proxy. Against a stand-in Home Assistant
+  over real HTTP, a camera's proxy, a path out of the player's proxy, a proxy path behind another host and a picture in
+  the house without a proxy were refused, and a name lookup that took 1.5 s held up the app for 22 ms instead of 1.5 s.
+  Not looked at on a screen's glass: a screen asks for its cover through the same fetch as the editor.
+
 ## 0.4.14 (firmware 0.9.0)
 
 A new board, experimental: the Waveshare ESP32-S3-Touch-LCD-7B (GitHub #25).

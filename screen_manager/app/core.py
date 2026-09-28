@@ -1741,6 +1741,17 @@ def vacuum_extras(tile, states, device):
         result['room'] = short(room, 32)
     return result or None
 
+def media_cover(attrs):
+    """The address a media player's cover is fetched from, or '' without one. Home Assistant's own proxy for the player
+    (`entity_picture_local`) goes first (app 0.4.15, GitHub #77): a player whose picture lies elsewhere, on the internet
+    or on a server in the house, hands out that address as `entity_picture` and the proxy beside it, and through the
+    proxy Home Assistant fetches the picture itself, so this app only ever talks to Home Assistant."""
+    for name in ('entity_picture_local', 'entity_picture'):
+        picture = attrs.get(name)
+        if isinstance(picture, str) and picture:
+            return picture
+    return ''
+
 def media_extras(attrs):
     """The media card (app 0.2.77, firmware 0.2.64+): the artist and the album, the track's length and where it was
     when Home Assistant last said so (seconds; that moment as an epoch), and a short mark of the cover picture. The
@@ -1765,8 +1776,8 @@ def media_extras(attrs):
             result['at'] = int(parsed.timestamp())
         except ValueError:
             pass
-    picture = attrs.get('entity_picture') or attrs.get('entity_picture_local')
-    if isinstance(picture, str) and picture:
+    picture = media_cover(attrs)
+    if picture:
         # Without Home Assistant's access token (app 0.3.7): it changes every few minutes on its own while the picture
         # stays, and each new token made every screen fetch the same cover again. The link's `cache` part is the
         # picture's own hash, so the mark still changes with the picture.

@@ -25,7 +25,7 @@ import tile_icons
 from updates import Updater
 
 from aiohttp import ClientError, ClientSession, ClientTimeout, WSMsgType, web
-from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
+from core import alarm_extras, lock_extras, ALERT_EVENT, board_of, BROADCAST_EVENTS, BROADCAST_SHOW, BUILTIN, CAMERA_DOMAINS, entity_id, SETTINGS_BESIDE_BLOCK, TILE_EVENTS, TILE_RESULT_EVENT, layout_snapshot, match_screen, HEADER_MIN_FIRMWARE, NAME_TILE_SETTINGS, TRANSPORT_MIN_FIRMWARE, alert_action, alert_camera, alert_choice, alert_data, choice_service, ALERT_CHOICE_ACTION, ALERT_CHOICE_MIN_FIRMWARE, parse_firmware, alert_reference, alert_screen_choice, alert_screen_names, alert_service, alert_targets, backgrounds, builtin_name, controls_catalogue, device_prefixes, discover, discover_screens, encode, entity_slug, extras, media_cover, media_extras, forecast_kinds, header_items, inbox_prefix, message_action, min_firmware, name_clash, packets, revision, screen_items, state_message, validate_header, validate_layout, validate_settings
 from core import calibrate_entity, can_standby, dimmable, SETTING_ENTITIES, SETTING_RULES, STANDBY_KEYS, setting_action, setting_entities, setting_from_state, state_word
 from core import BOARD_KEYS
 from core import (Grid, page_target, PAGE_TILE_REPEAT_MIN_FIRMWARE, ROTATION_MIN_FIRMWARE, SHAPES, firmware_features, grid_of, orientation_at,
@@ -123,8 +123,9 @@ class HomeAssistant:
     registry_interval = 600
 
     @staticmethod
-    def _is_private_host(host):
-        """Whether a host should be blocked for remote media requests; Home Assistant's own media proxies are allowed."""
+    async def _is_private_host(host):
+        """Whether a host should be blocked for remote media requests; Home Assistant's own media proxies are allowed.
+        A name is looked up through the event loop (app 0.4.15), so a slow DNS server holds up this picture only."""
         if not host or host == 'localhost':
             return True
         try:
@@ -132,7 +133,7 @@ class HomeAssistant:
             return ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_unspecified
         except ValueError:
             try:
-                for family, _, _, _, sockaddr in socket.getaddrinfo(host, None):
+                for family, _, _, _, sockaddr in await asyncio.get_running_loop().getaddrinfo(host, None):
                     addr = sockaddr[0]
                     if addr and addr != 'localhost':
                         ip = ipaddress.ip_address(addr)
@@ -143,7 +144,7 @@ class HomeAssistant:
         return False
 
     @staticmethod
-    def _allow_media_url(url):
+    async def _allow_media_url(url):
         """Only accept local Home Assistant routes or non-private remote URLs with a clear scheme."""
         parsed = urlsplit(url)
         if parsed.scheme not in ('http', 'https'):
@@ -153,7 +154,7 @@ class HomeAssistant:
             return False
         if parsed.hostname and host in ('localhost', '127.0.0.1', '::1'):
             return False
-        if HomeAssistant._is_private_host(host):
+        if await HomeAssistant._is_private_host(host):
             return False
         return True
 
@@ -535,25 +536,26 @@ class HomeAssistant:
             return bytes(raw)
 
     def media_picture(self, entity):
-        """The address of a media player's cover as its state carries it right now, or '' without one."""
-        attrs = self.states.get(entity, {}).get('attributes', {})
-        picture = attrs.get('entity_picture') or attrs.get('entity_picture_local')
-        return picture if isinstance(picture, str) and picture else ''
+        """The address of a media player's cover as its state carries it right now (core.media_cover: Home Assistant's
+        own proxy first), or '' without one."""
+        return media_cover(self.states.get(entity, {}).get('attributes', {}))
 
     async def media_image(self, entity):
         """The cover of a media player (app 0.2.77), fetched only from trusted Home Assistant local routes or from a
-        non-private external URL. We do not follow redirects, and we reject private/loopback addresses and path traversal."""
+        non-private external URL. We do not follow redirects, and we reject private/loopback addresses and path traversal
+        (app 0.4.15, GitHub #77, thanks @EmanueleBenedettini). Home Assistant's proxy comes first (media_cover), so a
+        picture on the internet or in the house reaches the screen through Home Assistant, which fetches it itself."""
         picture = self.media_picture(entity)
         if not picture:
             raise ValueError('no picture')
         root = self.base[:-4] if self.base.endswith('/api') else self.base
         if picture.startswith('/'):
             parsed = urlsplit(picture)
-            if parsed.path != f'/api/media_player_proxy/{entity}':
+            if parsed.netloc or parsed.path != f'/api/media_player_proxy/{entity}':
                 raise ValueError('unsafe picture address')
             url, headers = f'{root}{picture}', {'Authorization': 'Bearer ' + self.token}
         elif picture.startswith(('http://', 'https://')):
-            if not self._allow_media_url(picture):
+            if not await self._allow_media_url(picture):
                 raise ValueError('unsafe picture address')
             url, headers = picture, {}
         else:
