@@ -2398,6 +2398,34 @@
       "group_ha": "Ligado ao computador do Home Assistant",
       "group_here": "Ligado a este computador",
       "group_wifi": "Por Wi-Fi"
+    },
+    "preview": {
+      "type": "Tipo de novo ecrã",
+      "physical": "Ecrã físico",
+      "virtual": "Pré-visualização virtual",
+      "intro": "Crie um ecrã com entidades do Home Assistant sem emparelhar hardware. As pré-visualizações são guardadas neste navegador. Na pré-visualização do firmware, os toques só chegam ao Home Assistant se o ativar.",
+      "profile": "Placa / perfil",
+      "design_only": "Apenas um perfil de pré-visualização. Não adiciona suporte de firmware para esta placa física.",
+      "override": "Alterar resolução ou grelha",
+      "width": "Largura (píxeis)",
+      "height": "Altura (píxeis)",
+      "columns": "Colunas",
+      "rows": "Linhas",
+      "name": "Nome da pré-visualização",
+      "name_placeholder": "Pré-visualização Waveshare 4B",
+      "create": "Criar dispositivo virtual",
+      "created": "Dispositivo virtual \"{name}\" criado.",
+      "invalid_shape": "Escolha um nome, um perfil suportado, uma grelha de 1–8 colunas/linhas e uma área de 160–2560 píxeis.",
+      "canvas": "Pré-visualização do firmware LVGL",
+      "packet_error": "O firmware rejeitou um pacote de pré-visualização: {message}",
+      "stopped": "Pré-visualização do firmware parada: {message}",
+      "action_error": "O comando do Home Assistant falhou: {message}",
+      "remove": "A pré-visualização e a sua disposição guardada neste navegador.",
+      "save": "Guardar pré-visualização",
+      "saved": "Guardado neste navegador",
+      "hint": "O próprio firmware do ecrã, desenhado a partir do layout que está a editar. Toque, mantenha premido e deslize como no ecrã. Nada é guardado.",
+      "control": "Os toques controlam dispositivos",
+      "control_hint": "Ligado: um toque num mosaico executa a sua ação no Home Assistant, como no ecrã. Desligado: a pré-visualização mostra apenas o que um toque faz."
     }
   }
 }

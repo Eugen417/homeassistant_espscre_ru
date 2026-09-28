@@ -2398,6 +2398,34 @@
       "group_ha": "Aangesloten op de Home Assistant-machine",
       "group_here": "Aangesloten op deze computer",
       "group_wifi": "Via wifi"
+    },
+    "preview": {
+      "type": "Type nieuw scherm",
+      "physical": "Fysiek scherm",
+      "virtual": "Virtueel voorbeeld",
+      "intro": "Ontwerp een scherm met Home Assistant-entiteiten zonder hardware te koppelen. Voorbeelden worden in deze browser opgeslagen. In het firmwarevoorbeeld bereiken tikken Home Assistant alleen als je dat aanzet.",
+      "profile": "Bord / profiel",
+      "design_only": "Alleen een voorbeeldprofiel. Dit voegt geen ondersteuning voor fysieke firmware voor dit bord toe.",
+      "override": "Resolutie of raster aanpassen",
+      "width": "Breedte (pixels)",
+      "height": "Hoogte (pixels)",
+      "columns": "Kolommen",
+      "rows": "Rijen",
+      "name": "Naam van voorbeeld",
+      "name_placeholder": "Waveshare 4B-voorbeeld",
+      "create": "Virtueel apparaat maken",
+      "created": "Virtueel apparaat \"{name}\" gemaakt.",
+      "invalid_shape": "Kies een naam, een ondersteund profiel, een raster van 1–8 kolommen/rijen en een canvas van 160–2560 pixels.",
+      "canvas": "LVGL-firmwarevoorbeeld",
+      "packet_error": "Firmware heeft een voorbeeldpakket geweigerd: {message}",
+      "stopped": "Firmwarevoorbeeld gestopt: {message}",
+      "action_error": "Home Assistant-opdracht mislukt: {message}",
+      "remove": "Het voorbeeld en de opgeslagen indeling in deze browser.",
+      "save": "Voorbeeld opslaan",
+      "saved": "Opgeslagen in deze browser",
+      "hint": "De eigen firmware van het scherm, getekend uit de indeling die je bewerkt. Tik, houd vast en veeg zoals op het scherm. Er wordt niets opgeslagen.",
+      "control": "Tikken bedienen apparaten",
+      "control_hint": "Aan: een tik op een tegel voert zijn actie uit in Home Assistant, net als op het scherm. Uit: het voorbeeld laat alleen zien wat een tik doet."
     }
   }
 }

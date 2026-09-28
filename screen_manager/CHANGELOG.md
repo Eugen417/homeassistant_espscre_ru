@@ -1,3 +1,30 @@
+## 0.4.19 (firmware 0.11.0)
+
+See your screens as they really are: the editor runs the screen's own firmware in the browser (GitHub #74 and #81,
+thanks @woozer).
+
+- **Your screens, drawn by their firmware.** The home page of the editor shows every screen's home page as its own
+  firmware draws it: the real cards, fonts, icons, top bar and page dots, with live states from Home Assistant. It is a
+  picture, not a remote control: a click still opens the screen in the editor. A board the preview does not know yet
+  keeps the drawn mockup.
+- **Preview runs the firmware.** **Preview** in the layout editor opens the layout you are editing in the firmware
+  itself, so you can tap, hold and swipe through pages, detail views and album art exactly as on the glass, before
+  saving anything. Taps stay in the preview until you switch on **Taps control devices**; then a tile does what it
+  does on the screen.
+- **Virtual screens.** **New screen → Virtual preview** designs a screen for a board you don't have yet, kept in your
+  browser, with the same editor and the same preview.
+- How it works: the shared firmware and LVGL are compiled to WebAssembly and ship with the add-on, fed the same packets
+  a screen gets. Built by [@woozer](https://github.com/woozer) in
+  [#74](https://github.com/MaxGramser/homeassistant_espscreen/pull/74) (virtual screens and the browser firmware) and
+  [#81](https://github.com/MaxGramser/homeassistant_espscreen/pull/81) (album art and live updates); this release
+  brings it up to firmware 0.11.0 (the Tessera logo in the top bar now shows in the preview too), onto the home page and
+  into Preview, and in Hungarian.
+- New firmware number for every board, but nothing changes on a screen: the firmware's files were only rearranged so the
+  browser can build them. Updating a screen is optional.
+- For developers: GitHub rebuilds the browser firmware by itself whenever the firmware changes
+  (`.github/workflows/preview.yml`, docs/RELEASING.md). The renders no longer run in CI; `tools/check.sh --render` runs
+  them locally.
+
 ## 0.4.18 (firmware 0.10.0)
 
 The home button in the top bar is the Tessera logo, and the starting screen says which firmware a screen runs.

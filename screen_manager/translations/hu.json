@@ -2398,6 +2398,34 @@
       "group_ha": "A Home Assistant-géphez csatlakoztatva",
       "group_here": "Ehhez a számítógéphez csatlakoztatva",
       "group_wifi": "Wi-Fi-n keresztül"
+    },
+    "preview": {
+      "type": "Új kijelző típusa",
+      "physical": "Fizikai kijelző",
+      "virtual": "Virtuális előnézet",
+      "intro": "Tervezz kijelzőt Home Assistant entitásokkal, hardver párosítása nélkül. Az előnézetek ebben a böngészőben mentődnek. A firmware-előnézetben a koppintások csak akkor érik el a Home Assistantet, ha ezt bekapcsolod.",
+      "profile": "Kártya / profil",
+      "design_only": "Csak előnézeti profil. Ez nem ad fizikai firmware-támogatást ehhez a kártyához.",
+      "override": "Felbontás vagy rács felülírása",
+      "width": "Szélesség (pixel)",
+      "height": "Magasság (pixel)",
+      "columns": "Oszlopok",
+      "rows": "Sorok",
+      "name": "Előnézet neve",
+      "name_placeholder": "Waveshare 4B előnézet",
+      "create": "Virtuális eszköz létrehozása",
+      "created": "A(z) \"{name}\" virtuális eszköz létrejött.",
+      "invalid_shape": "Válassz nevet, támogatott profilt, 1–8 oszlopos/soros rácsot és 160–2560 pixeles vásznat.",
+      "canvas": "LVGL firmware-előnézet",
+      "packet_error": "A firmware elutasított egy előnézeti csomagot: {message}",
+      "stopped": "A firmware-előnézet leállt: {message}",
+      "action_error": "A Home Assistant parancs sikertelen: {message}",
+      "remove": "Az előnézet és a böngészőben mentett elrendezése.",
+      "save": "Előnézet mentése",
+      "saved": "Mentve ebben a böngészőben",
+      "hint": "A kijelző saját firmware-e, a szerkesztett elrendezésből rajzolva. Koppints, tartsd lenyomva és húzd, mint a kijelzőn. Semmi nem mentődik.",
+      "control": "A koppintások vezérlik az eszközöket",
+      "control_hint": "Bekapcsolva: egy csempére koppintás végrehajtja a műveletét a Home Assistantben, mint a kijelzőn. Kikapcsolva: az előnézet csak megmutatja, mit tenne a koppintás."
     }
   }
 }

@@ -2398,6 +2398,34 @@
       "group_ha": "Conectada al equipo de Home Assistant",
       "group_here": "Conectada a este ordenador",
       "group_wifi": "Por wifi"
+    },
+    "preview": {
+      "type": "Tipo de pantalla nueva",
+      "physical": "Pantalla física",
+      "virtual": "Vista previa virtual",
+      "intro": "Diseña una pantalla con entidades de Home Assistant sin vincular hardware. Las vistas previas se guardan en este navegador. En la vista previa del firmware, los toques solo llegan a Home Assistant si lo activas.",
+      "profile": "Placa / perfil",
+      "design_only": "Solo es un perfil de vista previa. No añade compatibilidad con el firmware físico de esta placa.",
+      "override": "Modificar resolución o cuadrícula",
+      "width": "Ancho (píxeles)",
+      "height": "Alto (píxeles)",
+      "columns": "Columnas",
+      "rows": "Filas",
+      "name": "Nombre de la vista previa",
+      "name_placeholder": "Vista previa Waveshare 4B",
+      "create": "Crear dispositivo virtual",
+      "created": "Dispositivo virtual \"{name}\" creado.",
+      "invalid_shape": "Elige un nombre, un perfil compatible, una cuadrícula de 1–8 columnas/filas y un lienzo de 160–2560 píxeles.",
+      "canvas": "Vista previa del firmware LVGL",
+      "packet_error": "El firmware rechazó un paquete de vista previa: {message}",
+      "stopped": "Vista previa del firmware detenida: {message}",
+      "action_error": "Falló el comando de Home Assistant: {message}",
+      "remove": "La vista previa y su diseño guardado en este navegador.",
+      "save": "Guardar vista previa",
+      "saved": "Guardado en este navegador",
+      "hint": "El propio firmware de la pantalla, dibujado a partir del diseño que estás editando. Toca, mantén pulsado y desliza como en la pantalla. No se guarda nada.",
+      "control": "Los toques controlan dispositivos",
+      "control_hint": "Activado: un toque en un mosaico ejecuta su acción en Home Assistant, como en la pantalla. Desactivado: la vista previa solo muestra lo que hace un toque."
     }
   }
 }

@@ -2398,6 +2398,34 @@
       "group_ha": "Plugged into the Home Assistant machine",
       "group_here": "Plugged into this computer",
       "group_wifi": "Over Wi-Fi"
+    },
+    "preview": {
+      "type": "New screen type",
+      "physical": "Physical screen",
+      "virtual": "Virtual preview",
+      "intro": "Design a screen using Home Assistant entities without pairing hardware. Previews are saved in this browser. In the firmware preview, taps reach Home Assistant only when you switch that on.",
+      "profile": "Board / profile",
+      "design_only": "Preview profile only. This does not add physical firmware support for this board.",
+      "override": "Override resolution or grid",
+      "width": "Width (pixels)",
+      "height": "Height (pixels)",
+      "columns": "Columns",
+      "rows": "Rows",
+      "name": "Preview name",
+      "name_placeholder": "Waveshare 4B preview",
+      "create": "Create virtual device",
+      "created": "Virtual device \"{name}\" created.",
+      "invalid_shape": "Choose a name, a supported profile, a 1–8 column/row grid and a 160–2560 pixel canvas.",
+      "canvas": "LVGL firmware preview",
+      "packet_error": "Firmware rejected a preview packet: {message}",
+      "stopped": "Firmware preview stopped: {message}",
+      "action_error": "Home Assistant command failed: {message}",
+      "remove": "The preview and its saved layout in this browser.",
+      "save": "Save preview",
+      "saved": "Saved in this browser",
+      "hint": "The screen's own firmware, drawn from the layout you are editing. Tap, hold and swipe as on the screen. Nothing is saved.",
+      "control": "Taps control devices",
+      "control_hint": "When on, a tap on a tile runs its action in Home Assistant, as on the screen. When off, the preview only shows what a tap does."
     }
   }
 }

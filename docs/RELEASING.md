@@ -36,9 +36,12 @@
    `--firmware --affected` (the boards `tools/affected_boards.py` finds) or `--firmware --board <key>`
    (docs/BOARD_RELEASES.md). `tools/check.sh --render` builds every board as a program for
    this computer (tools/render/run.py, needs SDL2): its self test must pass lying down and standing up, and it saves
-   what every board draws under `.esphome/render/out`. CI (`.github/workflows/render.yml`) runs the same script on every
-   push and pull request to main and every night, and compares the renders with the commit before (the `renders`
-   artifact: the pictures, a sheet, and a before/after/difference picture of every render that changed).
+   what every board draws under `.esphome/render/out`. Run it by hand when a change reaches what a screen draws; CI does
+   not run it (a run took up to four hours, and the next push nearly always cancelled it).
+   **Firmware preview.** The editor's preview is the shared firmware compiled to WebAssembly (web/wasm/README.md), and
+   `tools/check.sh` fails when it is older than the firmware sources, which every firmware number bump makes it. Push a
+   firmware change to its own branch first: `.github/workflows/preview.yml` rebuilds the preview there and commits it
+   (a few minutes); pull that commit, then push to main. Locally, `sh web/wasm/build.sh` with Emscripten does the same.
    docs/TESTING.md describes the levels of testing, up to the whole chain through a real Home Assistant. Compile sequentially: profiles with the same `DEVICE_NAME` share one build folder,
    and a parallel build can make an upload pick the wrong `firmware.bin` (the check builds are called `check-cyd` and
    `check-guition` and build under `.esphome/check`, apart from the bench profiles). Check that no secrets are in Git.
