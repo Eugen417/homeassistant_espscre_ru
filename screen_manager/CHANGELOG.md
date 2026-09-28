@@ -1,3 +1,21 @@
+## 0.4.17 (firmware 0.9.0)
+
+ESP Screens speaks Hungarian (GitHub #69, thanks @webguruadam).
+
+- **Magyar.** The screens, the editor and the app's messages in Hungarian, translated by hand by
+  [@webguruadam](https://github.com/webguruadam) in [#69](https://github.com/MaxGramser/homeassistant_espscreen/pull/69):
+  all texts, with the terms of Home Assistant's own Hungarian and the calendar and numbers as Hungary writes them
+  (`szept. 27., V`, `12 345,6`). The words for states (on, off, heating, the weather) are Home Assistant's own, and the
+  thirteen texts added after the pull request was made (automation tiles, the bedside clock, reporting a problem) were
+  drafted by Claude and wait for a Hungarian speaker to check them.
+- The fonts already carry every Hungarian letter, ő and ű included, on every board.
+- A Home Assistant in Hungarian picks it up by itself, or choose **Magyar** under **Settings → Language & region**. The
+  editor shows it at once; each screen is offered an update that brings its texts in Hungarian. Screens in another
+  language get nothing new.
+- A new language is no firmware for the screens you have: `tools/affected_boards.py` now says so, as it does for a new
+  board.
+- Tested: TESTED_PLACEHOLDER
+
 ## 0.4.15 (firmware 0.9.0)
 
 Safer album covers (GitHub #77, thanks @EmanueleBenedettini).

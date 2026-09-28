@@ -235,7 +235,7 @@ home fits on one page.
 <p align="center"><sub>The same home in German, French and Polish. The screens follow your Home Assistant: its language, its words for a light or a robot, and how your country writes a date, a time and a number: 75 % in German and French, 75% in Polish and English.</sub></p>
 
 The screens, the editor and its messages speak **English (US and UK), Nederlands, Deutsch, Français, Italiano,
-Español, Português and Polski**. Nothing to set up: ESP Screens takes the language of your Home Assistant.
+Español, Português, Polski and Magyar**. Nothing to set up: ESP Screens takes the language of your Home Assistant.
 
 <p align="center">
   <img src="docs/images/editor-language.png" width="36%" alt="Language and region in ESP Screens: the screen language set to Home Assistant's language, the time format and the number format, each following the language">

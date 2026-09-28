@@ -305,7 +305,7 @@
         "cool": "Hűtés",
         "heat_cool": "Fűtés/Hűtés",
         "auto": "Automatikus",
-        "dry": "Szárítás",
+        "dry": "Párátlanítás",
         "fan_only": "Csak ventilátor"
       },
       "hvac_action": {
@@ -313,22 +313,22 @@
         "cooling": "Hűtés",
         "idle": "Tétlen",
         "off": "Ki",
-        "drying": "Szárítás",
+        "drying": "Párátlanítás",
         "fan": "Ventilátor",
-        "preheating": "Előfűtés",
+        "preheating": "Előmelegítés",
         "defrosting": "Leolvasztás"
       },
       "cover": {
         "open": "Nyitva",
         "closed": "Zárva",
-        "opening": "Nyitás",
-        "closing": "Zárás"
+        "opening": "Nyílik",
+        "closing": "Záródik"
       },
       "media": {
         "playing": "Lejátszás",
-        "paused": "Szüneteltetve",
+        "paused": "Szünetel",
         "idle": "Tétlen",
-        "standby": "Készenlét"
+        "standby": "Készenlétben"
       },
       "person": {
         "home": "Otthon",
@@ -341,23 +341,23 @@
       "vacuum": {
         "docked": "Dokkolva",
         "cleaning": "Takarítás",
-        "paused": "Szüneteltetve",
-        "returning": "Visszatérés a dokkolóhoz",
+        "paused": "Szünetel",
+        "returning": "Dokkolás folyamatban",
         "idle": "Tétlen"
       },
       "weather": {
         "sunny": "Napos",
-        "clear_night": "Tiszta éjszaka",
+        "clear_night": "Csillagos",
         "cloudy": "Felhős",
         "partlycloudy": "Részben felhős",
         "rainy": "Esős",
-        "pouring": "Zuhogó eső",
-        "snowy": "Havazás",
-        "snowy_rainy": "Havas eső",
-        "fog": "Köd",
-        "hail": "Jégeső",
-        "lightning": "Villámlás",
-        "lightning_rainy": "Zivatar",
+        "pouring": "Szakadó esős",
+        "snowy": "Havas",
+        "snowy_rainy": "Havas, esős",
+        "fog": "Ködös",
+        "hail": "Jégesős",
+        "lightning": "Viharos",
+        "lightning_rainy": "Viharos, esős",
         "windy": "Szeles",
         "exceptional": "Rendkívüli"
       },
@@ -365,12 +365,12 @@
         "battery_on": "Alacsony",
         "battery_off": "Normál",
         "battery_charging_on": "Töltés",
-        "battery_charging_off": "Nem tölt",
+        "battery_charging_off": "Nem töltődik",
         "carbon_monoxide_on": "Észlelve",
         "carbon_monoxide_off": "Nincs észlelés",
         "cold_on": "Hideg",
         "cold_off": "Normál",
-        "connectivity_on": "Csatlakoztatva",
+        "connectivity_on": "Kapcsolódva",
         "connectivity_off": "Leválasztva",
         "door_on": "Nyitva",
         "door_off": "Zárva",
@@ -382,14 +382,14 @@
         "heat_off": "Normál",
         "light_on": "Fény észlelve",
         "light_off": "Nincs fény",
-        "lock_on": "Kinyitva",
-        "lock_off": "Bezárva",
+        "lock_on": "Feloldva",
+        "lock_off": "Zárolt",
         "moisture_on": "Nedves",
         "moisture_off": "Száraz",
         "motion_on": "Észlelve",
         "motion_off": "Nincs észlelés",
-        "moving_on": "Mozgásban",
-        "moving_off": "Nem mozog",
+        "moving_on": "Mozgás",
+        "moving_off": "Nincs mozgás",
         "occupancy_on": "Észlelve",
         "occupancy_off": "Nincs észlelés",
         "opening_on": "Nyitva",
@@ -402,8 +402,8 @@
         "presence_off": "Távol",
         "problem_on": "Probléma",
         "problem_off": "OK",
-        "running_on": "Fut",
-        "running_off": "Nem fut",
+        "running_on": "Működik",
+        "running_off": "Kikapcsolva",
         "safety_on": "Nem biztonságos",
         "safety_off": "Biztonságos",
         "smoke_on": "Észlelve",
@@ -421,8 +421,8 @@
       },
       "button": {
         "activate": "Aktiválás",
-        "run": "Futtatás",
-        "press": "Megnyomás"
+        "run": "Mehet",
+        "press": "Mehet"
       },
       "climate_fan": {
         "auto": "Automatikus",
@@ -430,9 +430,9 @@
         "medium": "Közepes",
         "high": "Magas",
         "middle": "Középső",
-        "focus": "Fókuszált",
-        "diffuse": "Szórt",
-        "top": "Legfelső",
+        "focus": "Fókusz",
+        "diffuse": "Diffúz",
+        "top": "Felső",
         "on": "Be",
         "off": "Ki"
       },
@@ -445,48 +445,48 @@
       },
       "alarm": {
         "disarmed": "Hatástalanítva",
-        "armed_home": "Élesítve (otthon)",
-        "armed_away": "Élesítve (távol)",
-        "armed_night": "Élesítve (éjszaka)",
-        "armed_vacation": "Élesítve (szabadság)",
-        "armed_custom_bypass": "Élesítve (egyéni)",
+        "armed_home": "Élesítve otthoni",
+        "armed_away": "Élesítve távoli",
+        "armed_night": "Élesítve éjszakai",
+        "armed_vacation": "Élesítve vakáció",
+        "armed_custom_bypass": "Élesítve áthidalással",
         "pending": "Függőben",
         "arming": "Élesítés",
         "disarming": "Hatástalanítás",
-        "triggered": "Riasztás"
+        "triggered": "Riasztva"
       },
       "lock": {
-        "locked": "Bezárva",
-        "unlocked": "Kinyitva",
-        "locking": "Bezárás",
-        "unlocking": "Kinyitás",
+        "locked": "Zárolt",
+        "unlocked": "Feloldva",
+        "locking": "Zárás",
+        "unlocking": "Feloldás",
         "open": "Nyitva",
-        "opening": "Nyitás",
-        "jammed": "Beragadt"
+        "opening": "Nyílik",
+        "jammed": "Elakadt"
       },
       "alarm_mode": {
         "armed_home": "Otthon",
         "armed_away": "Távol",
         "armed_night": "Éjszaka",
-        "armed_vacation": "Szabadság",
+        "armed_vacation": "Vakáció",
         "armed_custom_bypass": "Egyéni",
         "disarmed": "Hatástalanítva"
       },
       "alarm_action": {
-        "disarm": "Hatástalanítás",
-        "arm_home": "Élesítés (otthon)",
-        "arm_away": "Élesítés (távol)",
-        "arm_night": "Élesítés (éjszaka)",
-        "arm_vacation": "Élesítés (szabadság)",
-        "arm_custom_bypass": "Egyéni kiiktatás",
+        "disarm": "Hatástalanít",
+        "arm_home": "Élesít (otthon)",
+        "arm_away": "Élesít távol",
+        "arm_night": "Élesít (éjszakai)",
+        "arm_vacation": "Élesít (vakáció)",
+        "arm_custom_bypass": "Élesít áthidalással",
         "enter_code": "Kód megadása"
       },
       "lock_action": {
-        "lock": "Bezárás",
-        "unlock": "Kinyitás",
-        "open": "Nyitás",
+        "lock": "Bezár",
+        "unlock": "Kinyit",
+        "open": "Megnyit",
         "open_door": "Ajtónyitás",
-        "open_door_confirm": "Biztosan kinyitod?"
+        "open_door_confirm": "Valóban kinyitja?"
       }
     },
     "navigation": {
@@ -781,6 +781,10 @@
         },
         "input_boolean": {
           "toggle": "Be/ki kapcsoló"
+        },
+        "automation": {
+          "toggle": "Be/ki kapcsoló",
+          "run": "Futtatás gomb"
         },
         "light": {
           "toggle": "Be/ki kapcsoló",
@@ -1102,6 +1106,7 @@
     "screen": {
       "builtin": {
         "clock": "Óra",
+        "nightstand": "Éjjeliszekrény-óra",
         "page": "Ugrás: {page}. oldal"
       },
       "identify": {
@@ -1408,6 +1413,7 @@
         "binary_sensor": "Állapot",
         "button": "Műveletek",
         "script": "Szkriptek",
+        "automation": "Automatizmusok",
         "fan": "Ventilátorok",
         "cover": "Árnyékolók",
         "scene": "Jelenetek",
@@ -1446,6 +1452,7 @@
       "binary_sensor": "Állapot",
       "switch": "Kapcsoló",
       "input_boolean": "Kapcsoló",
+      "automation": "Automatizmus",
       "scene": "Jelenet",
       "script": "Szkript",
       "weather": "Időjárás",
@@ -1567,10 +1574,14 @@
         "detail": "Vezérlő megnyitása",
         "none": "Csak megtekintés",
         "toggle": "Be / ki",
+        "run": "Az automatizmus műveleteinek futtatása",
         "action": "Művelet végrehajtása",
         "no_toggle": "A Home Assistant ezt nem tudja be- és kikapcsolni, így a koppintás semmit sem csinál. Válassz másik lehetőséget.",
         "toggle_needs_firmware": "A kijelző a 0.2.58-as firmware-től kapcsolja ezt: nyomd meg a Frissítés gombot a kijelzőnél. Addig koppintásra a kártyája nyílik meg.",
-        "hold": "Tartsd nyomva a csempét a kártyája megnyitásához."
+        "automation_needs_firmware": "Az automatizmusokhoz 0.7.0-s firmware kell: előbb nyomd meg a Frissítés gombot a kijelzőnél.",
+        "hold": "Tartsd nyomva a csempét a kártyája megnyitásához.",
+        "hold_run": "Tartsd nyomva a csempét a műveletei futtatásához.",
+        "hold_toggle": "Tartsd nyomva a csempét a be- vagy kikapcsolásához."
       },
       "guard": {
         "label": "Kinyitás innen",
@@ -1615,6 +1626,10 @@
         "place": "Méret és hely",
         "controls": "Vezérlők",
         "style": "Ikon és szín"
+      },
+      "keys": {
+        "hint": "Húzz egy lámpát, hőmérsékletet vagy zárat az óra alatti kerek helyekre, vagy koppints egy helyre, és válassz egyet. Ezek csempék: koppints egyre a beállításához.",
+        "under": "Az éjjeliszekrény-óra alatt: egy csempe kerek formában. Koppintásra ugyanazt teszi, mint csempeként, nyomva tartva pedig megnyitja a kártyáját."
       }
     },
     "tile_card": {
@@ -2301,6 +2316,8 @@
       },
       "comment_label": "Van még valami? (nem kötelező)",
       "comment_hint": "Kérjük, ne írj bele személyes adatokat, naplókat, jelszavakat vagy API-kulcsokat.",
+      "report_hint": "Valamit javítani kellene? Jelentsd a GitHubon. A kijelződ típusával, a verziókkal és egy naplóval utána lehet járni.",
+      "report_link": "Jelentsd a GitHubon",
       "add_details": "Részletek hozzáadása",
       "done": "Kész",
       "settings_title": "Visszajelzés",

@@ -86,11 +86,13 @@ def screen_texts(text):
 
 
 def translation_reaches_screens(path, base):
-    """Whether a translation file's `screen` section, the part the firmware compiles in, differs from the base."""
+    """Whether a translation file's `screen` section, the part the firmware compiles in, differs from the base. A new
+    language reaches no screen: none speaks it yet, and one that is set to it is offered its update because it speaks
+    another language than Language & region says (updates.language_due), not by a firmware number."""
     try:
         before = git('show', f'{base}:{path}')
     except subprocess.CalledProcessError:
-        before = '{}'
+        return False
     now = (ROOT / path).read_text() if (ROOT / path).exists() else '{}'
     return screen_texts(before) != screen_texts(now)
 

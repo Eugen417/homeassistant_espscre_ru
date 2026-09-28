@@ -216,7 +216,7 @@ objects again - the day rows of a page, not the cards around them.
 centring, the two-column split and `touchable()` are there so that a new card inherits the rules
 instead of restating them. A fix that belongs to all cards belongs in that file, once.
 
-**Text is not a fixed width.** The firmware speaks nine languages, and a German or Polish label is
+**Text is not a fixed width.** The firmware speaks ten languages, and a German or Polish label is
 often half again as long as its English original ("Standby" against "Bereitschaftsmodus"). So: never
 size a column to an English word, ask the font for the line height instead of assuming one
 (`lv_font_get_line_height`), give every label a long mode (dots or scroll) and enough room that the

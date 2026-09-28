@@ -107,6 +107,12 @@ class WhatAChangeReaches(unittest.TestCase):
         with mock.patch.object(affected_boards, 'git', return_value=screen_too):
             self.assertEqual(reach(name)[name], EVERY)
 
+    def test_a_new_language_reaches_no_screen(self):
+        """No screen speaks a language the base has no file for; one set to it is offered an update for its language."""
+        name = 'screen_manager/translations/nl.json'
+        with mock.patch.object(affected_boards, 'git', side_effect=affected_boards.subprocess.CalledProcessError(128, 'git')):
+            self.assertEqual(reach(name)[name], set())
+
 
 CORE = tuple(map(int, FIRMWARE_VERSION.split('.')))
 # Two boards that build the shared firmware today, for the examples that need a board with no fix of its own (a board
