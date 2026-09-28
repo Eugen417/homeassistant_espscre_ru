@@ -16,6 +16,20 @@ ESP Screens speaks Hungarian (GitHub #69, thanks @webguruadam).
   board.
 - Tested: TESTED_PLACEHOLDER
 
+## 0.4.16 (firmware 0.9.1 for guition)
+
+Touch on the Guition 4 inch lands where you tap on every panel (GitHub #78, thanks @andrewradin).
+
+- **Fixed: touches drifting towards the top left corner.** Some Guition ESP32-S3-4848S040 panels come with a touch chip
+  that names a resolution of 1024 x 600 instead of 480 x 480. The firmware took that at its word, so the further a tap was
+  from the top left corner, the further from your finger it landed. The Guition's firmware now sets the range itself.
+  Nothing changes on a panel that already worked, and a `touchscreen:` calibration in an override YAML can go.
+- New firmware for the Guition 4 inch only: update the app, then press **Update** on each Guition screen. Every other
+  screen gets nothing new.
+- Tested: the Guition builds with ESPHome 2026.9 (2,208,800 B, 27.2 % of its slot) and 2026.6.2, and its build sets
+  the touch range to 0 to 480. The same range in an override YAML fixed the reporter's panel. Not yet seen on the
+  glass of a Guition with this firmware.
+
 ## 0.4.15 (firmware 0.9.0)
 
 Safer album covers (GitHub #77, thanks @EmanueleBenedettini).
