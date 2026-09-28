@@ -14,7 +14,10 @@ ESP Screens speaks Hungarian (GitHub #69, thanks @webguruadam).
   language get nothing new.
 - A new language is no firmware for the screens you have: `tools/affected_boards.py` now says so, as it does for a new
   board.
-- Tested: TESTED_PLACEHOLDER
+- Tested: tools/check.sh (883 Python tests, 33 C++ tests, the editor) and `tools/i18n.py check` with no problems. On a
+  Guition 4848S040 with Home Assistant 2026.9.4: the app lists Magyar and choosing it offered the screen its language
+  update; built from the packages in Hungarian, the screen came back on firmware 0.9.1 reporting Hungarian. Five pages of lights, locks, climate, covers,
+  a vacuum, an alarm panel, media and the weather were looked at on the glass, every letter drawn.
 
 ## 0.4.16 (firmware 0.9.1 for guition)
 
