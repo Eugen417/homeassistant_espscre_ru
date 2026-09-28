@@ -1,3 +1,12 @@
+## 0.4.21 (firmware 0.12.0)
+
+- **The top bar sits as far from the top as from the sides.** There was more room above the top bar than beside it
+  (24 against 16 pixels on a Guition 4848S040, 13 against 11 on a CYD). The bar now keeps the same margin all round,
+  and the tiles start that much higher, so every tile gets a little taller. This holds on every board, whatever its
+  density.
+- Tested: tools/check.sh, and the host renders of the Guition 4848S040, the CYD, the Waveshare 4.3 and the Waveshare 7:
+  every self test passes and the top bar's margin above equals the one at the sides (16, 11, 20 and 13 pixels).
+
 ## 0.4.20 (firmware 0.11.0)
 
 - **Preview fits its screen again.** The Preview dialog took a style meant for another part of the editor, so on a

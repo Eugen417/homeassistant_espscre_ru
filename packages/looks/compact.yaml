@@ -17,8 +17,8 @@ substitutions:
   LOOK_SCALE: ${ (DISPLAY_DPI | float) / 143 }
 
   # The page: where the tiles start, the top bar, and the strip whose hold opens the settings
-  SCROLL_Y: ${ (40 * LOOK_SCALE | float) | round | int }
-  HEADER_Y: ${ (14 * LOOK_SCALE | float) | round | int }
+  SCROLL_Y: ${ (38 * LOOK_SCALE | float) | round | int }
+  HEADER_Y: ${ (12 * LOOK_SCALE | float) | round | int }
   HEADER_INSET: ${ (11 * LOOK_SCALE | float) | round | int }   # the room name and the clock from the glass edge
   SETTINGS_HOLD_DRIFT_PX: ${ (24 * LOOK_SCALE | float) | round | int }
   # The tile grid around the cells (not scaled: the grid of each board was chosen with these)
