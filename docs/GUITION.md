@@ -93,6 +93,11 @@ existing firmware if you might need it later. Keep binaries and logs local.
 The GT911 reports pixels directly. Usually no calibration is needed; a wrong
 rotation/transform should not be papered over with the CYD affine wizard.
 
+The board file fixes the GT911's range at 0 to 480 (firmware 0.9.1). Without it ESPHome reads
+the range from the chip's own configuration, and some panels ship with a generic 1024 x 600
+there: every touch then lands too far towards the top left corner, and the bottom right corner
+reads as about 224, 383.
+
 With a working Wi-Fi/API connection:
 
 ```sh
