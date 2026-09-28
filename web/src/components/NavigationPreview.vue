@@ -47,7 +47,7 @@ onMounted(() => dialog.value?.showModal());
 onBeforeUnmount(() => previouslyFocused?.focus());
 </script>
 <template>
-  <dialog ref="dialog" class="navigation-preview" :class="{ live: live && !failed }" @cancel.prevent="emit('close')">
+  <dialog ref="dialog" class="navigation-preview" :class="{ running: live && !failed }" @cancel.prevent="emit('close')">
     <div class="preview-heading"><b><Icon name="play" />{{ t(live && !failed ? 'editor.pages.preview' : 'editor.pages.try_navigation') }}</b><button class="icon-btn" :aria-label="t('editor.common.close')" @click="emit('close')"><Icon name="close" /></button></div>
     <template v-if="live && !failed">
       <p>{{ t('editor.preview.hint') }}</p>
@@ -78,7 +78,7 @@ onBeforeUnmount(() => previouslyFocused?.focus());
 .preview-heading, .preview-swipes { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
 .preview-screen { display: flex; justify-content: center; margin: 18px 0; touch-action: pan-y; }
 p { max-width: 480px; font-size: 13px; color: var(--muted); }
-.navigation-preview.live p { max-width: none; width: 0; min-width: 100%; }
+.navigation-preview.running p { max-width: none; width: 0; min-width: 100%; }
 .preview-route { overflow-wrap: anywhere; }
 .preview-live { margin: 16px auto; border-radius: 6px; overflow: hidden; box-shadow: 0 1px 3px rgba(20, 24, 40, 0.18); }
 .preview-controls { max-width: 420px; }

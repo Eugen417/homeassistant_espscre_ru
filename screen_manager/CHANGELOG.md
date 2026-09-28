@@ -1,3 +1,11 @@
+## 0.4.20 (firmware 0.11.0)
+
+- **Preview fits its screen again.** The Preview dialog took a style meant for another part of the editor, so on a
+  tall window it stretched to the full height with empty space between its parts and the close button next to the
+  title. It now sizes to the screen it shows. Nothing changes on a screen.
+- Tested: tools/check.sh, and the add-on on a Home Assistant bench: Preview opened on a Guition 4848S040 at a tall
+  window size.
+
 ## 0.4.19 (firmware 0.11.0)
 
 See your screens as they really are: the editor runs the screen's own firmware in the browser (GitHub #74 and #81,
