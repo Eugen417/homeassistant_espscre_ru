@@ -24,6 +24,12 @@ thanks @woozer).
 - For developers: GitHub rebuilds the browser firmware by itself whenever the firmware changes
   (`.github/workflows/preview.yml`, docs/RELEASING.md). The renders no longer run in CI; `tools/check.sh --render` runs
   them locally.
+- Tested: tools/check.sh (891 Python tests, 33 C++ tests, 384 editor tests, the WebAssembly firmware's own tests, types
+  and build). Every board built on ESPHome 2026.9.0 and on the oldest ESPHome it asks for; the CYD stays at 91.2 % of its
+  flash. The preview workflow rebuilt the browser firmware for 0.11.0 and the editor built from it matches a local
+  build. On a Home Assistant bench with a Guition 4848S040: the home page drawn by the firmware, Preview with swipes
+  between pages, and a tap with device control off that sent nothing to Home Assistant. Not looked at on other boards
+  in the browser.
 
 ## 0.4.18 (firmware 0.10.0)
 
