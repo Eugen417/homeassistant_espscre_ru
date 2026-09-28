@@ -9,6 +9,7 @@ import {
 } from "../store";
 import type { Screen } from "../types";
 import Icon from "./ui/Icon.vue";
+import TesseraMark from "./TesseraMark.vue";
 
 const hostFor = ref<string | null>(null);
 const host = ref("");
@@ -77,12 +78,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
 <template>
   <aside class="side">
     <button type="button" class="brand" :aria-label="t('editor.sidebar.home')" :title="t('editor.sidebar.home')" :aria-current="!state.selected && route === '' ? 'page' : undefined" @click="goHome">
-      <svg class="mark" viewBox="0 0 100 100" aria-hidden="true">
-        <rect x="4" y="4" width="43" height="43" rx="11" fill="#FFC107" />
-        <path d="M63 4h22a11 11 0 0 1 11 11v36a11 11 0 0 1-11 11H73c-7 0-8-7-13-10-5-3-8-5-8-12V15A11 11 0 0 1 63 4Z" fill="#009FE3" />
-        <path d="M15 52h30c10 0 17 7 17 17v16a11 11 0 0 1-11 11H15A11 11 0 0 1 4 85V63a11 11 0 0 1 11-11Z" fill="#926BC7" />
-        <rect x="67" y="67" width="29" height="29" rx="10" fill="#4CAF50" />
-      </svg>
+      <TesseraMark class="mark" />
       <span>Tessera</span>
     </button>
     <span v-if="!state.reachable || !state.connected" id="connection" class="conn" role="status">

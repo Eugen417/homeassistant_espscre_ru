@@ -18,6 +18,7 @@ import type { HeaderItem } from "../types";
 import IconPicker from "./IconPicker.vue";
 import Segmented from "./Segmented.vue";
 import TopbarSvg from "./TopbarSvg.vue";
+import TesseraMark from "./TesseraMark.vue";
 import CopyPageBar from './CopyPageBar.vue';
 import Icon from './ui/Icon.vue';
 import InspectorHead from './ui/InspectorHead.vue';
@@ -154,7 +155,7 @@ function onKey(e: KeyboardEvent, i: number) {
 
     <Section :title="t('editor.topbar.left')" icon="format-title">
       <button type="button" class="nav-row" :disabled="!pageId" @click="toPage">
-        <Icon v-if="homeKeyShown(page)" name="home" class="nav-row-lead" />
+        <TesseraMark v-if="homeKeyShown(page)" class="nav-row-lead" />
         <span class="tx"><b>{{ pageTitleShown(page) || screenText("editor.mockup.home") }}</b><small>{{ t('editor.topbar.left_hint') }}</small></span>
         <Icon name="chevron-right" class="nav-row-chevron" />
       </button>

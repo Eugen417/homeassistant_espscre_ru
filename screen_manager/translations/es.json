@@ -1740,7 +1740,7 @@
         "none_found": "No se han encontrado entidades."
       },
       "left": "Izquierda",
-      "left_hint": "Título y casa: en los ajustes de la página"
+      "left_hint": "Título y botón de inicio: en los ajustes de la página"
     },
     "screen_settings": {
       "groups": {
@@ -2300,7 +2300,7 @@
         "title": "Título",
         "navigation": "Navegación"
       },
-      "home_hint": "La tecla de casa y deslizar hacia arriba llevan aquí.",
+      "home_hint": "El botón de inicio y deslizar hacia arriba llevan aquí.",
       "bar_entities": "También a la derecha"
     },
     "feedback": {

@@ -437,10 +437,10 @@ PROBES = '''    - action: render_finger
             };
             const auto tile = center(runtime_tiles::widgets[0].tile), prev = center(id(page_prev)),
                        header = center(runtime_tiles::header_renderer.leading_target());
-            lv_font_glyph_dsc_t house{}, chevron{};
-            lv_font_get_glyph_dsc(runtime_tiles::header_home_font, &house, 0xF02DC, 0);
+            lv_font_glyph_dsc_t chevron{};
             lv_font_get_glyph_dsc(runtime_tiles::header_back_font, &chevron, 0xF0141, 0);
-            ESP_LOGI("render", "leading heights home=%u back=%u", (unsigned) house.box_h, (unsigned) chevron.box_h);
+            const auto *mark = static_cast<const lv_image_dsc_t *>(runtime_tiles::header_home_mark);
+            ESP_LOGI("render", "leading heights home=%u back=%u", mark ? (unsigned) mark->header.h : 0u, (unsigned) chevron.box_h);
             ESP_LOGI("render", "navigation page=%d footer=%d back=%d grid_height=%d tile=%d,%d prev=%d,%d header=%d,%d",
                      (int) id(tile_page), (int) runtime_tiles::applied_bar, (int) runtime_tiles::header_back(),
                      (int) lv_obj_get_height(id(tile_scroll)), (int) tile.x, (int) tile.y,

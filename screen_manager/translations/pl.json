@@ -1740,7 +1740,7 @@
         "none_found": "Nie znaleziono encji."
       },
       "left": "Lewa strona",
-      "left_hint": "Tytuł i domek: w ustawieniach strony"
+      "left_hint": "Tytuł i przycisk strony głównej: w ustawieniach strony"
     },
     "screen_settings": {
       "groups": {
@@ -2300,7 +2300,7 @@
         "title": "Tytuł",
         "navigation": "Nawigacja"
       },
-      "home_hint": "Przycisk domu i przesunięcie w górę prowadzą tutaj.",
+      "home_hint": "Przycisk strony głównej i przesunięcie w górę prowadzą tutaj.",
       "bar_entities": "Także po prawej"
     },
     "feedback": {

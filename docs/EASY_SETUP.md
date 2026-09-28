@@ -254,11 +254,11 @@ buttons** in the **Screen settings** tab takes them away on a screen with more p
 then only swiping and *Go to page* tiles change the page, and the editor says which pages
 that leaves out of reach.
 
-Every page carries a house at the far left of the top bar (firmware 0.2.100+): one tap and the
-screen is back on its Home page, from wherever it stands. It stands on the baseline of the page title
-and is a third taller than the bar's own icons, the page title moves behind it with the same
-air between them as between the house and the edge of the glass, and the items on the right of
-the bar keep every pixel they had. **Show home button** in the **Screen settings** tab, and on
+Every page carries a home button at the far left of the top bar (firmware 0.2.100+): one tap and the
+screen is back on its Home page, from wherever it stands. Since firmware 0.10.0 it is the Tessera logo
+in its own colours (a house before that). It stands on the baseline of the page title, the page title
+moves behind it with the same air between them as between the logo and the edge of the glass, and the
+items on the right of the bar keep every pixel they had. **Show home button** in the **Screen settings** tab, and on
 the screen's own settings page, takes it away.
 The default standby time is ten minutes. For offline devices, the screen blocks
 actions. If the connection to Home Assistant drops, the screen immediately shows
@@ -424,7 +424,7 @@ device in Home Assistant ([SETTINGS.md](SETTINGS.md)).
 | Also on standby | Standby goes back to the Home page too (it always closes an open card) | Off |
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |
 | Page buttons | Off: no buttons under the tiles, the tiles take their room, firmware 0.2.69+ | On |
-| Show home button | A house at the far left of the top bar; tapping it goes back to the Home page, firmware 0.2.100+ | On |
+| Show home button | The Tessera logo at the far left of the top bar; tapping it goes back to the Home page, firmware 0.2.100+ (a house before firmware 0.10.0) | On |
 | Rotation | 0° or 180°, and also 90° and 270° on a square screen; every board from firmware 0.2.80 | 0° |
 
 The Waveshare 4.3-inch and 7-inch have a backlight that is only on or off and no standby, so they show no

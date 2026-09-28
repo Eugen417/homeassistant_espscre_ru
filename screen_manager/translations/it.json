@@ -1740,7 +1740,7 @@
         "none_found": "Nessuna entità trovata."
       },
       "left": "Sinistra",
-      "left_hint": "Titolo e casa: nelle impostazioni della pagina"
+      "left_hint": "Titolo e pulsante Home: nelle impostazioni della pagina"
     },
     "screen_settings": {
       "groups": {
@@ -2300,7 +2300,7 @@
         "title": "Titolo",
         "navigation": "Navigazione"
       },
-      "home_hint": "Il tasto casa e lo scorrimento verso l’alto portano qui.",
+      "home_hint": "Il pulsante Home e lo scorrimento verso l’alto portano qui.",
       "bar_entities": "Anche a destra"
     },
     "feedback": {

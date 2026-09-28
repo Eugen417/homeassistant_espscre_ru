@@ -367,7 +367,7 @@ export function liveOf(entity: string): Live | null {
 // Nothing selected is the add-on's home. Each screen's home page comes from its own saved document, drawn on its own
 // grid and glass, with what Home Assistant reports right now; a click opens the screen in the editor.
 export type HomeView = { screen: Screen; tiles: { tile: Tile; slot: number }[]; keys: Tile[]; grid: { columns: number; rows: number; slots: number };
-  shape: NonNullable<Screen["shape"]>; title: string; items: HeaderItem[]; style: Record<string, string>; compact: boolean };
+  shape: NonNullable<Screen["shape"]>; title: string; items: HeaderItem[]; home: boolean; style: Record<string, string>; compact: boolean };
 const OVERVIEW_SIDE = 300;
 export function homeView(screen: Screen): HomeView | null {
   const record = screen.page_document;
@@ -387,6 +387,8 @@ export function homeView(screen: Screen): HomeView | null {
     screen, tiles, keys, grid: { columns: source.columns, rows: source.rows, slots }, shape: shape as NonNullable<Screen["shape"]>,
     title: page.topbar.title.source === "text" ? page.topbar.title.text : record.layout.title,
     items: page.topbar.trailing,
+    // The home key on the home page too, as the screen draws it there (homeKeyShown for the screen in the editor).
+    home: supportsVersion(firmwareVersion(screen), 0, 2, 100) && screen.settings?.values?.home_button !== false && page.topbar.leading.length > 0,
     compact: shape.look ? shape.look === "compact" : Math.min(shape.width, shape.height) < 300,
     style: { "--screen-aspect": `${shape.width} / ${shape.height}`, "--screen-columns": String(source.columns), "--screen-rows": String(source.rows),
       "--screen-wide-span": String(Math.min(2, source.columns)), "--mockup-width": `${Math.round(width * 10) / 10}px` },
@@ -1358,7 +1360,8 @@ export function settingValues(): Record<string, any> {
   for (const [key, edit] of Object.entries(state.settingEdits)) values[key] = edit.value;
   return values;
 }
-// The house in the top bar of the mockup (app 0.2.122, firmware 0.2.100+): on every page, as on the screen, unless
+// The home key in the top bar of the mockup (app 0.2.122, firmware 0.2.100+), the Tessera mark since firmware 0.10.0:
+// on every page, as on the screen, unless
 // the screen's Show home button is off. A screen whose value nobody can read right now (offline) is drawn as set.
 export const homeKeyShown = (page = state.barPage) => supports(0, 2, 100) && settingValues().home_button !== false && Boolean(pageAt(page)?.topbar.leading.length);
 // The same steps as settings_screen.h: seconds low down, quarters of an hour up top; times by the quarter,

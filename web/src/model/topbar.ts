@@ -54,16 +54,17 @@ export function agoText(then: number, now = Math.floor(Date.now() / 1000), local
 }
 
 // `inset` is the margin the board keeps from the edge of the glass: the bar starts there, and the home key keeps
-// the same distance to the page title (firmware 0.2.100+).
-export type BarMetrics = { width: number; top: number; name: number; text: number; icon: number; inset: number };
+// the same distance to the page title (firmware 0.2.100+). `mark` is the home key's side, the Tessera mark
+// (firmware 0.10.0+): 17 of the 24 units of FONT_ICON_HOME_SIZE, the house that stood there before.
+export type BarMetrics = { width: number; top: number; name: number; text: number; icon: number; inset: number; mark: number };
 // The bar of each look at the look's own density, across the canvas it was drawn on (480 and 320 wide): the fonts of
 // the page title, the values and the icons (FONT_HEADLINE_SIZE, FONT_SUBLABEL_BIG_SIZE, FONT_ICON_MINI_SIZE) and the
 // margin from the glass (HEADER_INSET) of packages/looks/, which tests/test_header_bar.py keeps equal. `top` is where
 // the mockup puts the page title's baseline.
 export type Look = "standard" | "compact";
 export const LOOK_BARS: Record<Look, BarMetrics & { dpi: number }> = {
-  standard: { width: 448, top: 36, name: 27, text: 21, icon: 26, inset: 16, dpi: 170 },
-  compact: { width: 298, top: 24, name: 18, text: 14, icon: 18, inset: 11, dpi: 143 },
+  standard: { width: 448, top: 36, name: 27, text: 21, icon: 26, inset: 16, mark: 24, dpi: 170 },
+  compact: { width: 298, top: 24, name: 18, text: 14, icon: 18, inset: 11, mark: 18, dpi: 143 },
 };
 export type ShapeLike = { width: number; look?: string; dpi?: number };
 // The bar for a screen of this shape: the look's sizes scaled to the screen's density, the way the firmware scales
@@ -73,7 +74,7 @@ export function barMetricsFor(shape: ShapeLike): BarMetrics {
   const f = (shape.dpi && shape.dpi > 0 ? shape.dpi : base.dpi) / base.dpi;
   const px = (n: number) => Math.round(n * f);
   return { width: shape.width - 2 * px(base.inset), top: px(base.top), name: px(base.name), text: px(base.text),
-           icon: px(base.icon), inset: px(base.inset) };
+           icon: px(base.icon), inset: px(base.inset), mark: px(base.mark) };
 }
 export type ItemView = { icon?: string | null; text?: string; color?: string | null; shown: boolean; analog?: boolean; loading?: boolean };
 type Ink = { left: number; right: number; top: number; bottom: number; advance: number };
@@ -112,9 +113,10 @@ export type BarPart = {
 };
 export type BarLayout = ReturnType<typeof barLayout>;
 // The parts per item with their ink widths, the placement, and which items fall off.
-// mdi:home, the key at the far left of the bar (firmware 0.2.100+). The screens draw it as tall as the capitals of
-// the page title, on the same baseline, with the same air between it and the name as between it and the edge.
-export const HOME_GLYPH = "F02DC";
+// The home key at the far left of the bar (firmware 0.2.100+), the Tessera mark since firmware 0.10.0. The screens
+// stand it on the baseline of the page title, with the same air between it and the name as between it and the edge.
+// Back (mdi:chevron-left) takes the mark's slot.
+export const BACK_GLYPH = "F0141";
 export function barLayout(items: HeaderItem[], metrics: BarMetrics, nameText: string, viewOf: (item: HeaderItem) => ItemView,
                           home = false, back = false) {
   const fonts = barFonts(metrics);
@@ -134,9 +136,8 @@ export function barLayout(items: HeaderItem[], metrics: BarMetrics, nameText: st
   });
   const shown = parts.filter((p) => p.shown);
   // The home key takes the name's place and the name moves behind it; the items on the right keep every pixel.
-  const leading = back ? 'F0141' : HOME_GLYPH;
-  const key = home || back ? { glyph: glyph(leading), ink: inkOf(glyph(leading), fonts.icon) } : null;
-  const homeShift = key ? Math.round(key.ink.right - key.ink.left) + metrics.inset : 0;
+  const key = home || back ? { mark: !back, size: metrics.mark, glyph: glyph(BACK_GLYPH), ink: inkOf(glyph(BACK_GLYPH), fonts.icon) } : null;
+  const homeShift = key ? key.size + metrics.inset : 0;
   const width = Math.max(0, metrics.width - homeShift);
   const natural = inkOf(nameText, fonts.name).advance;
   const minName = Math.min(natural, Math.floor((width * 35) / 100));

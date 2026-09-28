@@ -16,7 +16,7 @@
 # fonts/materialdesignicons-webfont.ttf (Apache 2.0, github.com/Templarian/MaterialDesign-Webfont).
 ############################################################
 substitutions:
-  SCREEN_FIRMWARE_VERSION: "0.9.0"
+  SCREEN_FIRMWARE_VERSION: "0.10.0"
   DASHBOARD_INBOX_INTERNAL: "false"
   CALIBRATION_ON_BOOT: "false"                     # a bench build: start on the touch test page
   ROOM_NAME: ""                                    # top left until ESP Screens sends the screen name
@@ -122,6 +122,7 @@ esphome:
           runtime_tiles::bedside_font = id(bedside_digits)->get_lv_font();
           runtime_tiles::brand_font = id(brand_wordmark)->get_lv_font();
           runtime_tiles::brand_mark = id(tessera_mark)->get_lv_image_dsc();
+          runtime_tiles::firmware_version = "${SCREEN_FIRMWARE_VERSION}";
           runtime_tiles::now_time = []() { return id(homeassistant_time).now(); };
           runtime_tiles::screen_awake = []() { return !id(display_dimmed); };
           runtime_tiles::mini_icon_font = id(materialdesign_icons_mini)->get_lv_font();
@@ -134,7 +135,7 @@ esphome:
           // label lends its margin and drawing order and stays hidden in runtime mode.
           runtime_tiles::header_text_font = id(sublabel_big)->get_lv_font();
           runtime_tiles::header_icon_font = id(materialdesign_icons_mini)->get_lv_font();
-          runtime_tiles::header_home_font = id(materialdesign_icons_home)->get_lv_font();
+          runtime_tiles::header_home_mark = id(tessera_mark_bar)->get_lv_image_dsc();
           runtime_tiles::header_back_font = id(materialdesign_icons_back)->get_lv_font();
           runtime_tiles::time_label = id(lbl_time);
           runtime_tiles::enabled = true;
@@ -710,6 +711,13 @@ image:
     type: RGB565
     transparency: alpha_channel
     resize: ${BRAND_MARK_SIZE}x${BRAND_MARK_SIZE}
+  # The home key at the far left of the top bar (firmware 0.10.0+): the same mark as tall as the house that stood there
+  # before, a house of Material Design Icons at FONT_ICON_HOME_SIZE (17 of its 24 units), about a kilobyte per board.
+  - id: tessera_mark_bar
+    file: "${FONT_DIR}/tessera-mark.png"
+    type: RGB565
+    transparency: alpha_channel
+    resize: ${ ((FONT_ICON_HOME_SIZE | int) * 17 / 24) | round | int }x${ ((FONT_ICON_HOME_SIZE | int) * 17 / 24) | round | int }
 
 font:
   - file: "${FONT_DIR}/Roboto-500.ttf"
@@ -1164,21 +1172,11 @@ font:
     bpp: 4
     glyphs: *tile_icons
 
-  # The home key at the far left of the top bar (firmware 0.2.100+). One glyph at a size of its own, a third above
-  # the bar's icons: a house drawn at the bar's size has the same ink box as the capitals of the page title, but the
-  # top third of it is the point of the roof and carries almost no ink, so it reads smaller than the name beside it.
-  # One glyph costs well under a kilobyte, which is what lets every board have it.
-  - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
-    id: materialdesign_icons_home
-    size: ${FONT_ICON_HOME_SIZE}
-    bpp: 4
-    glyphs: ["\U000F02DC"]
-
-  # MDI Home has 363 units of outline height, chevron-left 256. Match their
-  # visible height at build time, without a runtime image-scaling buffer.
+  # Back in the home key's place, as tall as the Tessera mark (tessera_mark_bar): chevron-left is 12 of the font's 24
+  # units tall, so a font of twice the mark's side draws it at the mark's height, without a runtime image-scaling buffer.
   - file: "${FONT_DIR}/materialdesignicons-webfont.ttf"
     id: materialdesign_icons_back
-    size: ${ (FONT_ICON_HOME_SIZE | int * 363 / 256) | round | int }
+    size: ${ (((FONT_ICON_HOME_SIZE | int) * 17 / 24) | round | int) * 2 }
     bpp: 4
     glyphs: ["\U000F0141"]
 

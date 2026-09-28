@@ -36,7 +36,7 @@ onMounted(loadOverview);
           <span v-if="view" class="home-glass" :style="{ zoom: scale(view.style, view.shape) }" aria-hidden="true">
             <span class="page home-page" :style="view.style">
               <span class="device" :class="{ compact: view.compact }">
-                <TopbarSvg :items="view.items" :name-text="view.title" :metrics="barMetricsFor(view.shape)" />
+                <TopbarSvg :items="view.items" :name-text="view.title" :home="view.home" :metrics="barMetricsFor(view.shape)" />
                 <span class="tiles">
                   <TileCard v-for="entry in view.tiles" :key="entry.tile.id" :tile="entry.tile" :slot="entry.slot" :grid="view.grid" preview
                     :keys="view.keys.filter((key) => key.in === entry.tile.entity)" />

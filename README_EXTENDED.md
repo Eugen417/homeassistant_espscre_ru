@@ -222,7 +222,7 @@ on the screen itself, and how updates work.
   night hours, **Dark mode** (firmware 0.2.54+), 24- or 12-hour clock, back to page 1 by itself
   and on standby, optional swiping between pages, **Page buttons** (firmware 0.2.69+): switched
   off, the bar under the tiles goes and the tiles take its room, and **Show home button**
-  (firmware 0.2.100+): a house at the far left of the top bar that takes the screen back to page 1. Change them in ESP Screens, where
+  (firmware 0.2.100+): the Tessera logo at the far left of the top bar (a house before firmware 0.10.0) that takes the screen back to page 1. Change them in ESP Screens, where
   they apply at once, or on the screen itself. With firmware 0.2.49+ the screen keeps them, and every one of them is also an
   entity in Home Assistant, so an automation can switch **Night mode** or **Auto standby**
   (firmware 0.2.41+), for example to keep a screen on while someone is home, turn **Dark mode**

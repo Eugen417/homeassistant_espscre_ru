@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // A setting that is on or off: what it is and the switch on the right. The label flips it; what it does, where that
-// isn't plain from the words, is a tooltip beside the label rather than another line of text.
+// isn't plain from the words, is a tooltip beside the label rather than another line of text. The `icon` slot takes a
+// picture that is not one of the editor's icons (the home key's Tessera mark).
 import { useId } from "vue";
 import type { IconName } from "../../model/ui-icons";
 import Icon from "./Icon.vue";
@@ -13,7 +14,7 @@ const id = useId();
 
 <template>
   <div class="switch-row" :class="{ disabled }">
-    <span v-if="icon" class="sr-icon"><Icon :name="icon" /></span>
+    <span v-if="icon || $slots.icon" class="sr-icon"><slot name="icon"><Icon v-if="icon" :name="icon" /></slot></span>
     <span class="sr-text">
       <span class="sr-label"><label :for="id">{{ label }}</label><HelpTip v-if="description" :text="description" /></span>
       <slot />

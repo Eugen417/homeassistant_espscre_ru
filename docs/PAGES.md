@@ -30,7 +30,7 @@ editor's own controls are Material Design Icons, listed in `web/src/model/ui-ico
 
 ## Home and detail pages
 
-Choose any page as Home. Home controls, automatic return and return on standby use that destination. Existing Home settings and entity identifiers stay compatible. The **Back to Home** setting (internally still named "Back to page 1") returns to the configured Home page, and so do the house in the top bar and a swipe up from the bottom edge; existing entity names and IDs are retained so automations keep working.
+Choose any page as Home. Home controls, automatic return and return on standby use that destination. Existing Home settings and entity identifiers stay compatible. The **Back to Home** setting (internally still named "Back to page 1") returns to the configured Home page, and so do the home button in the top bar (the Tessera logo) and a swipe up from the bottom edge; existing entity names and IDs are retained so automations keep working.
 
 Every page initially participates in the bottom paginator and sequential swipes. Turn off **Show in page dots and swipe navigation** to opt a page out. Links and the existing numeric Show page action can still open it. Numeric actions follow the current editor order; links stored in the layout follow stable page IDs.
 

@@ -1740,7 +1740,7 @@
         "none_found": "Geen entiteiten gevonden."
       },
       "left": "Links",
-      "left_hint": "Titel en huisje: in de pagina-instellingen"
+      "left_hint": "Titel en thuisknop: in de pagina-instellingen"
     },
     "screen_settings": {
       "groups": {
@@ -2300,7 +2300,7 @@
         "title": "Titel",
         "navigation": "Navigatie"
       },
-      "home_hint": "Het huisje en omhoog vegen leiden hierheen.",
+      "home_hint": "De thuisknop en omhoog vegen leiden hierheen.",
       "bar_entities": "Ook rechts in de balk"
     },
     "feedback": {

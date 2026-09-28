@@ -16,7 +16,9 @@ namespace page_header {
 enum class Leading { none, home, back };
 struct Surface {
   lv_obj_t *title, *clock_anchor, *grid, *hold_area;
-  const lv_font_t *text_font, *icon_font, *home_font;
+  const lv_font_t *text_font, *icon_font;
+  // The home key's picture, the Tessera mark (an lv_image_dsc_t); without one the icon font's house stands there.
+  const void *home_mark;
   const lv_font_t *back_font = nullptr;
 };
 struct View {
@@ -47,19 +49,17 @@ class Renderer {
   std::array<HeaderSlot, header_bar::MAX_ITEMS> header_slots{};
   lv_point_precise_t header_points[4]{};
   int header_dial_key = -1;
-  // The home key at the far left of the top bar (firmware 0.2.100+): the house of Material Design Icons, as tall as
-  // the capitals of the page title and standing on the same baseline. It stands on every page, the way the logo in a
-  // website's header does, and goes to the designated Home. With the bottom bar
+  // The home key at the far left of the top bar (firmware 0.2.100+): since firmware 0.10.0 the Tessera mark in its own
+  // colours, the way the logo in a website's header or the start button of a desktop takes you home. It is as tall
+  // as the house that stood there before (packages/core.yaml sizes it) and stands on the baseline of the page title.
+  // It stands on every page and goes to the designated Home. With the bottom bar
   // hidden, a detail page replaces it with Back, independent of the Home setting.
-  // `header_home_tap` is the area a finger gets, wider than the glyph; its action is supplied by the caller.
-  // The key's own font: the house alone at a size of its own (firmware 0.2.100+). A house drawn at the bar's icon
-  // size has the same ink box as the capitals beside it, but its top third is the point of the roof and carries
-  // almost no ink, so it reads smaller than the name. A size above the bar's icons gives it the weight of the text.
-  // Without one the bar's icon font draws it.
-  lv_obj_t *header_home_icon = nullptr, *header_home_tap = nullptr;
+  // `header_home_tap` is the area a finger gets, wider than the key; its action is supplied by the caller.
+  // `header_home_icon` draws Back, and the house where a build has no mark.
+  lv_obj_t *header_home_icon = nullptr, *header_home_mark = nullptr, *header_home_tap = nullptr;
   lv_obj_t *header_name_owner = nullptr;
   int header_name_left = 0;
-  // mdi:home, in every board's icon font already (the tile icons); the key needs no font of its own.
+  // mdi:home, in every board's icon font already (the tile icons): the key without a mark.
   static constexpr uint32_t HOME_GLYPH = 0xF02DC;
   void set_visible(lv_obj_t *obj, bool visible) {
     if (lv_obj_has_flag(obj, LV_OBJ_FLAG_HIDDEN) != visible) return;
@@ -102,7 +102,7 @@ public:
   void draw(const Surface &surface, const View &view, void (*on_leading)()) {
     auto *room_label = surface.title, *time_label = surface.clock_anchor, *tile_grid = surface.grid;
     const auto *header_text_font = surface.text_font, *header_icon_font = surface.icon_font;
-    const auto *header_home_font = surface.home_font;
+    const auto *home_mark = static_cast<const lv_image_dsc_t *>(surface.home_mark);
     const auto &header_name = view.title;
     const auto &bar = view.bar;
     const auto &now = view.now;
@@ -126,6 +126,14 @@ public:
         lv_obj_set_style_text_font(slot.text, header_text_font, 0);
       }
       header_home_icon = header_part(header_root);
+#if LV_USE_IMAGE
+      if (home_mark) {
+        header_home_mark = lv_image_create(header_root);
+        lv_image_set_src(header_home_mark, home_mark);
+        lv_obj_remove_flag(header_home_mark, LV_OBJ_FLAG_CLICKABLE);
+        lv_obj_add_flag(header_home_mark, LV_OBJ_FLAG_HIDDEN);
+      }
+#endif
       // The finger's area, over the glyph and bigger than it: an empty object that only takes taps. It sits on the
       // page itself, one place above the strip that opens the settings page on a long press, so a tap on the house
       // is the house's; the cards and the alert stay above it and keep every tap of their own.
@@ -207,44 +215,55 @@ public:
     left = header_name_left;
     // The name may already stand behind the key from the last draw: the room is measured from the profile's own margin.
     width = std::max(0, page_w + static_cast<int>(lv_obj_get_style_x(time_label, LV_PART_MAIN)) - left);
-    bool home_on = false;
-    lv_font_glyph_dsc_t house;
+    bool home_on = false, mark_on = false;
     const bool back = view.leading == Leading::back;
+    // The key's slot: the mark's picture, or the house of the icon font. Back takes the same slot, so the title and
+    // the finger's area stay where they are when a detail page swaps the key for a chevron.
+    int slot_w = 0, slot_h = 0;
+    lv_font_glyph_dsc_t house;
+    if (header_home_mark) { slot_w = home_mark->header.w; slot_h = home_mark->header.h; }
+    else if (lv_font_get_glyph_dsc(header_icon_font, &house, HOME_GLYPH, 0)) { slot_w = house.box_w; slot_h = house.box_h; }
+    const bool draw_mark = header_home_mark && !back;
     const uint32_t leading_glyph = back ? 0xF0141 : HOME_GLYPH;
-    const lv_font_t *house_font = header_home_font ? header_home_font : header_icon_font;
-    const lv_font_t *leading_font = back ? (surface.back_font ? surface.back_font : header_icon_font) : house_font;
-    lv_font_glyph_dsc_t leading;
-    if (view.leading != Leading::none && lv_font_get_glyph_dsc(house_font, &house, HOME_GLYPH, 0) && house.box_w &&
-        lv_font_get_glyph_dsc(leading_font, &leading, leading_glyph, 0) && leading.box_w) {
-      // On the baseline of the name, not centred on it: the house stands on the line the capitals stand on and grows
+    const lv_font_t *leading_font = back && surface.back_font ? surface.back_font : header_icon_font;
+    lv_font_glyph_dsc_t leading{};
+    if (view.leading != Leading::none && slot_w && slot_h &&
+        (draw_mark || (lv_font_get_glyph_dsc(leading_font, &leading, leading_glyph, 0) && leading.box_w))) {
+      // On the baseline of the name, not centred on it: the key stands on the line the capitals stand on and grows
       // upward from there, the way a taller letter would. Centring it would hang it below the line by half of what it
       // is taller, which is exactly the half pixel you see. Without a capital to measure, the digits of the bar.
       lv_font_glyph_dsc_t cap;
       const int ink_bottom = lv_font_get_glyph_dsc(name_font, &cap, 'H', 0) && cap.box_h ? baseline - cap.ofs_y
-                                                                                         : (middle2 + house.box_h) / 2;
-      const int ink_top = ink_bottom - leading.box_h;
-      // Its own font, or the bar's; without either LVGL draws the missing-glyph box.
-      set_font(header_home_icon, leading_font);
-      label(header_home_icon, tile_icon::utf8(leading_glyph));
-      // Back replaces Home inside the same ink slot. Keep the title and touch
-      // target fixed even though a chevron is naturally narrower than a house.
-      lv_obj_set_pos(header_home_icon, left + (house.box_w - leading.box_w) / 2 - leading.ofs_x,
-                     ink_top - ((leading_font->line_height - leading_font->base_line) - leading.box_h - leading.ofs_y));
-      // The finger gets the whole height of the bar and a little air either side of the glyph, so a tap near the
-      // house is a tap on it; the glyph itself is only a dozen pixels.
+                                                                                         : (middle2 + slot_h) / 2;
+      if (draw_mark) {
+        lv_obj_set_pos(header_home_mark, left, ink_bottom - slot_h);
+        mark_on = true;
+      } else {
+        const int ink_top = ink_bottom - leading.box_h;
+        // Its own font, or the bar's; without either LVGL draws the missing-glyph box.
+        set_font(header_home_icon, leading_font);
+        label(header_home_icon, tile_icon::utf8(leading_glyph));
+        // Back replaces Home inside the same slot. Keep the title and touch
+        // target fixed even though a chevron is naturally narrower than the mark.
+        lv_obj_set_pos(header_home_icon, left + (slot_w - leading.box_w) / 2 - leading.ofs_x,
+                       ink_top - ((leading_font->line_height - leading_font->base_line) - leading.box_h - leading.ofs_y));
+      }
+      // The finger gets the whole height of the bar and a little air either side of the key, so a tap near the
+      // key is a tap on it; the key itself is only a couple of dozen pixels.
       const int pad = gaps.item / 2;
       // The band above the tiles, which the board states as the grid's own y; without it the name's line.
       const int band = tile_grid && lv_obj_get_y(tile_grid) > 0 ? lv_obj_get_y(tile_grid) : baseline + name_font->line_height;
       lv_obj_set_pos(header_home_tap, std::max(0, left - pad), 0);
-      lv_obj_set_size(header_home_tap, house.box_w + 2 * pad, band);
+      lv_obj_set_size(header_home_tap, slot_w + 2 * pad, band);
       // The same air on both sides of the key: the margin the board keeps from the edge of the glass stands between
       // the key and the name as well, measured ink to ink like every other gap in this bar.
-      const int shift = house.box_w + header_name_left;
+      const int shift = slot_w + header_name_left;
       left += shift;
       width -= shift;
       home_on = true;
     }
-    set_visible(header_home_icon, home_on);
+    set_visible(header_home_icon, home_on && !mark_on);
+    if (header_home_mark) set_visible(header_home_mark, mark_on);
     set_visible(header_home_tap, home_on);
     // The name's own left bearing, so the gap to the key is the gap the bar draws everywhere else.
     lv_obj_set_x(room_label, home_on ? left - text_ink(name_font, header_name.c_str()).left : left);

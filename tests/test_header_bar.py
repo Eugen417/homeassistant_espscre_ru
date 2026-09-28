@@ -276,7 +276,11 @@ class ParityTests(unittest.TestCase):
         self.assertIn('boot_spinner = spinner_create(boot_panel,', boot)
         # Under the tiles, the cards and an alert, in the name's place.
         self.assertIn('lv_obj_move_to_index(boot_panel, lv_obj_get_index(room_label));', boot)
+        # Firmware 0.10.0+: the firmware number small at the foot, whatever the text above says.
+        self.assertIn('lv_label_set_text_fmt(boot_version, "v%s", firmware_version);', boot)
+        self.assertIn('lv_obj_align(boot_version, LV_ALIGN_BOTTOM_MID,', boot)
         for name in PROFILES:
+            self.assertIn('runtime_tiles::firmware_version = "${SCREEN_FIRMWARE_VERSION}";', profiles.text(name), name)
             self.assertNotIn('Choose tiles in HA', profiles.text(name), name)
 
     def test_second_hand_runs_only_while_the_screen_is_awake(self):
@@ -384,6 +388,9 @@ class EditorBar(unittest.TestCase):
             self.assertEqual((bar['name'], bar['text'], bar['icon'], bar['inset'], bar['dpi']),
                              (int(values['FONT_HEADLINE_SIZE']), int(values['FONT_SUBLABEL_BIG_SIZE']),
                               int(values['FONT_ICON_MINI_SIZE']), int(values['HEADER_INSET']), round(float(values['DISPLAY_DPI']))), look)
+            # The home key's Tessera mark (firmware 0.10.0+), sized as packages/core.yaml sizes tessera_mark_bar.
+            self.assertEqual(bar['mark'], round(int(values['FONT_ICON_HOME_SIZE']) * 17 / 24), look)
+            self.assertIn("resize: ${ ((FONT_ICON_HOME_SIZE | int) * 17 / 24) | round | int }x", (ROOT / "packages/core.yaml").read_text(), look)
             self.assertEqual(bar['width'], int(values['PANEL_W' if int(values.get('ROTATION_LANDSCAPE', '0')) % 180 == 0 else 'PANEL_H']) - 2 * bar['inset'], look)
 
 if __name__ == '__main__':

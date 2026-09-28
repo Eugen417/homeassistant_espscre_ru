@@ -1740,7 +1740,7 @@
         "none_found": "No entities found."
       },
       "left": "Left",
-      "left_hint": "Title and house key: in the page settings"
+      "left_hint": "Title and home button: in the page settings"
     },
     "screen_settings": {
       "groups": {
@@ -2300,7 +2300,7 @@
         "title": "Title",
         "navigation": "Navigation"
       },
-      "home_hint": "The house key and a swipe up lead here.",
+      "home_hint": "The home button and a swipe up lead here.",
       "bar_entities": "Also on the right"
     },
     "feedback": {

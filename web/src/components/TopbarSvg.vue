@@ -4,6 +4,7 @@ import { computed } from "vue";
 import { t } from "../i18n";
 import { barLayout, dotted, inkOf, type BarMetrics, type BarPart } from "../model/topbar";
 import { barMetrics, state, topbarView } from "../store";
+import TesseraMark from "./TesseraMark.vue";
 
 // `metrics`: another screen's bar, for that screen's home page on the overview (app 0.4.0).
 const props = defineProps<{ items: any[]; nameText?: string; single?: boolean; home?: boolean; back?: boolean; metrics?: BarMetrics }>();
@@ -28,9 +29,12 @@ const viewBox = computed(() => (props.single
   ? `-2 0 ${Math.max(1, parts.value[0]?.width || 1) + 4} ${height.value}`
   : `0 0 ${m.value.width} ${height.value}`));
 const capMiddle = computed(() => baseline.value + (lay.value.zero.top + lay.value.zero.bottom) / 2);
-// The home key sits on the capitals of the name, not on the digits of the items: the screens place it that way.
+// The home key stands on the capitals' baseline of the name, not on the digits of the items: the screens place it
+// that way. Back's chevron sits in the middle of the same slot.
 const nameCap = computed(() => inkOf("H", lay.value.fonts.name));
-const homeY = computed(() => baseline.value + (nameCap.value.top + nameCap.value.bottom) / 2 - (lay.value.key!.ink.top + lay.value.key!.ink.bottom) / 2);
+const markY = computed(() => baseline.value + nameCap.value.bottom - lay.value.key!.size);
+const backY = computed(() => baseline.value + nameCap.value.bottom - lay.value.key!.ink.bottom);
+const backX = computed(() => (lay.value.key!.size - (lay.value.key!.ink.right - lay.value.key!.ink.left)) / 2 - lay.value.key!.ink.left);
 const name = computed(() => dotted(lay.value.nameText, lay.value.fonts.name, Math.min(lay.value.natural, lay.value.nameRoom)));
 const now = computed(() => new Date(state.now));
 function hands(d: number) {
@@ -49,7 +53,8 @@ defineExpose({ lay });
 
 <template>
   <svg :viewBox="viewBox" role="img" :aria-label="single ? t('editor.topbar.live.looks') : t('editor.topbar.aria', { name: lay.nameText })" :style="single ? { width: singleWidth } : undefined">
-    <text v-if="lay.key" :x="-lay.key.ink.left" :y="homeY" fill="#46525e" :style="{ font: lay.fonts.icon }">{{ lay.key.glyph }}</text>
+    <TesseraMark v-if="lay.key?.mark" x="0" :y="markY" :width="lay.key.size" :height="lay.key.size" />
+    <text v-else-if="lay.key" :x="backX" :y="backY" fill="#46525e" :style="{ font: lay.fonts.icon }">{{ lay.key.glyph }}</text>
     <text v-if="!single" :x="lay.homeShift" :y="m.top" fill="#1b1b1b" :style="{ font: lay.fonts.name }">{{ name }}</text>
     <g>
       <template v-for="p in parts" :key="p.index">

@@ -1,3 +1,30 @@
+## 0.4.18 (firmware 0.10.0)
+
+The home button in the top bar is the Tessera logo, and the starting screen says which firmware a screen runs.
+
+- **The Tessera logo takes you home.** The key at the far left of the top bar is now the Tessera logo in its own
+  colours instead of a house, the way a start button or the logo in a website's header takes you home. It is as tall
+  as the house was, stands on the baseline of the page title and goes to the Home page as before. The page title gets
+  a few pixels more room, and on a detail page Back takes the same place at the same height.
+- **The editor shows it everywhere the screen does**: the page mockups, the preview, the home pages on **Your screens**,
+  the top bar settings and **Add page**. The texts that spoke of a house now say home button, in every language.
+- **Firmware number on the starting screen.** Small and centred at the foot of the page with the Tessera logo, under
+  whatever it says: connecting, waiting for tiles, preparing pages or a message that the app and the screen don't match.
+- **The editor says what holding a tile does** (GitHub #67). Under **On tap**, a tile whose tap does something else now
+  names its hold: brightness and colour for a light, speed for a fan, history for a switch, cancel for a timer, the card
+  for the rest. **Open control** on a light, fan or switch says the tap no longer switches it.
+- The screens no longer carry a font for the house alone; with the logo in its place the firmware grows by 928 bytes on
+  the CYD (91.1 % of its flash, as before).
+- New firmware for every board: update the app, then press **Update** on each screen. Until then a screen keeps its
+  house; **Show home button** in **Screen settings** still switches it off.
+- Tested: tools/check.sh (883 Python tests, 33 C++ tests, 367 editor tests, types and build). Every board built on
+  ESPHome 2026.9.0 and on the oldest ESPHome it asks for (2026.6.2, 2026.7.1 or 2026.8.0). Nine boards and shapes ran as
+  host programs (tools/render/run.py: CYD lying and standing, Guition, Waveshare 3.5, 4.3 lying and standing and 7 inch,
+  Hosyond 4 inch, JC8012P4A1): every self test passed, the logo stands in the top bar in light and dark, a tap on it goes
+  home, and Back is as tall as the logo within a pixel. The editor was clicked through on a demo home. With the firmware
+  number added, tools/check.sh passed again and the Guition built and ran as a host program, its starting screen showing
+  v0.10.0 at the foot. Not yet looked at on a physical screen.
+
 ## 0.4.17 (firmware 0.9.0)
 
 ESP Screens speaks Hungarian (GitHub #69, thanks @webguruadam).

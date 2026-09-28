@@ -10,6 +10,7 @@ import CheckRow from './ui/CheckRow.vue';
 import rules from '../model/page-rules.json';
 import Icon from './ui/Icon.vue';
 import SwitchRow from './ui/SwitchRow.vue';
+import TesseraMark from './TesseraMark.vue';
 
 const emit = defineEmits<{ close: [] }>();
 const dialog = ref<HTMLDialogElement>();
@@ -59,7 +60,7 @@ onMounted(() => dialog.value?.showModal());
       <div v-if="!pageReady" class="notice warn"><Icon name="alert-circle-outline" /><span class="notice-text">{{ t('editor.pages.shared_bar') }}</span></div>
       <div v-if="pageReady" class="wizard-group">
         <h3>{{ t('editor.topbar.title') }}</h3>
-        <SwitchRow class="bar-choice home-choice" icon="home-outline" :label="t('editor.pages.home_control')" v-model="home" />
+        <SwitchRow class="bar-choice home-choice" :label="t('editor.pages.home_control')" v-model="home"><template #icon><TesseraMark /></template></SwitchRow>
         <SwitchRow class="bar-choice clock-choice" icon="clock-outline" :label="t('editor.pages.clock_control')" :disabled="!clock && count >= topbarMax()" v-model="clock" />
       </div>
       <div v-if="pageReady" class="f">

@@ -6018,7 +6018,10 @@ inline void refresh_all() { mark_all(); if(refresh)refresh(); }
 // Above the text stands the Tessera lockup (firmware 0.3.8+): the mosaic mark beside the name, as the website draws it.
 inline const lv_font_t *brand_font = nullptr;
 inline const void *brand_mark = nullptr;  // the image's lv_image_dsc_t, from the YAML
-inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr, *boot_brand = nullptr;
+// The firmware number, small at the foot of the page whatever the screen says (firmware 0.10.0+).
+inline const char *firmware_version = nullptr;
+inline lv_obj_t *boot_panel = nullptr, *boot_text = nullptr, *boot_spinner = nullptr, *boot_brand = nullptr,
+                *boot_version = nullptr;
 // The mark and the name side by side in one box, sized to what they hold. Null where the build has neither.
 inline lv_obj_t *boot_brand_create(lv_obj_t *parent) {
   if (!brand_font && !brand_mark) return nullptr;
@@ -6082,6 +6085,13 @@ inline void boot_status(lv_obj_t *page, const char *text, bool waiting = true, b
     lv_label_set_long_mode(boot_text, LV_LABEL_LONG_WRAP);
     lv_obj_set_width(boot_text, text_width);
     boot_spinner = spinner_create(boot_panel, ring, ui::px(large ? 5 : 4));
+    if (firmware_version) {
+      boot_version = lv_label_create(boot_panel);
+      lv_obj_add_style(boot_version, theme::style(theme::Paint::subtle), 0);
+      if (small_font) lv_obj_set_style_text_font(boot_version, small_font, 0);
+      lv_label_set_text_fmt(boot_version, "v%s", firmware_version);
+      lv_obj_align(boot_version, LV_ALIGN_BOTTOM_MID, 0, -ui::px(large ? 16 : 8));
+    }
   }
   // A protocol mismatch is a clear, blocking message, also when an older
   // sender connects after a valid layout. Do not leave stale tiles underneath
@@ -6161,7 +6171,7 @@ inline void render(lv_obj_t *room) {
   if (!model.configured && !model.refusal.empty()) boot_status(lv_obj_get_parent(room), tr(txt::tile_refused), false);
   else if (!model.configured) boot_status(lv_obj_get_parent(room), tr(!ha_connected() ? txt::status_connecting : transfer.begun ? txt::status_loading_tiles : txt::status_waiting));
   else if (preparing.foreground) prepare_status();
-  else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = boot_brand = nullptr; }
+  else if (boot_panel) { lv_obj_delete(boot_panel); boot_panel = boot_text = boot_spinner = boot_brand = boot_version = nullptr; }
   name_label(room, !model.configured ? std::string() : !model.ready() ? tr(txt::status_loading_tiles) : !ha_connected() ? tr(txt::status_ha_not_connected) : !feed_alive() ? tr(txt::status_manager_not_active) : model.title_of(applied_page));
   render_header();
   lap(swipe_profile::HEADER);
@@ -6182,7 +6192,7 @@ inline void render(lv_obj_t *room) {
 }
 
 // The page owns the header data; this adapter resolves navigation and settings.
-inline const lv_font_t *header_home_font = nullptr;
+inline const void *header_home_mark = nullptr;  // the Tessera mark of the home key, an lv_image_dsc_t
 inline const lv_font_t *header_back_font = nullptr;
 inline std::function<void()> back_home;
 inline page_header::Renderer header_renderer;
@@ -6195,7 +6205,7 @@ inline void draw_header(bool live) {
   const auto leading = !record ? Leading::none : header_back() ? Leading::back
                      : record->home_control && settings_screen::home_button ? Leading::home : Leading::none;
   header_renderer.draw({room_label, time_label, tile_grid, settings_screen::hold_area,
-                        header_text_font, header_icon_font, header_home_font, header_back_font},
+                        header_text_font, header_icon_font, header_home_mark, header_back_font},
                        {record ? record->bar : empty, header_name, now_time ? now_time() : esphome::ESPTime{},
                         now_epoch(), leading, live, screen_settings::current.clock_24h != 0}, []() {
     // The leading key keeps its existing place in the shared action guard.
