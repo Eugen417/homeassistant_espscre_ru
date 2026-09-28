@@ -38,6 +38,7 @@ lvgl = source('lvgl', '9.5.0', 'https://github.com/lvgl/lvgl/archive/refs/tags/v
 arduino = Path(os.environ['ARDUINO_JSON']) if 'ARDUINO_JSON' in os.environ else source(
     'ArduinoJson', '7.4.3', 'https://github.com/bblanchon/ArduinoJson/archive/refs/tags/v7.4.3.tar.gz')
 run([sys.executable, ROOT / 'web/wasm/generate_host_ui.py'])
+run([sys.executable, ROOT / 'web/wasm/generate_image_decoder.py'])
 run([sys.executable, ROOT / 'web/wasm/generate_renderer_manifest.py', ROOT])
 flags = ['-O2', '-DESP_SCREEN_HOST', '-DUSE_API_HOMEASSISTANT_ACTION_RESPONSES', '-DGRID_COLS=8', '-DGRID_ROWS=8',
          '-DLV_CONF_INCLUDE_SIMPLE', '-DLV_FONT_FMT_TXT_LARGE=1']
@@ -62,11 +63,14 @@ with ThreadPoolExecutor(max_workers=4) as pool:
     compiled = list(pool.map(compile_c, sources))
 for name, source_path in [('adapter', ROOT / 'web/wasm/firmware_preview.cpp'),
                           ('font', ROOT / 'web/wasm/generated/font.cpp'),
+                          ('bmp_decoder', ROOT / 'web/wasm/generated/image/bmp_decoder.cpp'),
+                          ('image_decoder', ROOT / 'web/wasm/generated/image/image_decoder.cpp'),
                           ('receiver', ROOT / 'components/smart_display/page_receiver.cpp')]:
     obj = objects / f'{name}.o'
     run(['em++', *flags, '-std=c++17', '-c', source_path, '-o', obj])
     compiled.append(obj)
 exports = ['init', 'receive', 'next_action', 'action_response', 'time', 'touch', 'cancel', 'render', 'frame', 'page', 'diagnostics']
+exports += ['next_image', 'image_buffer', 'image_ready']
 import json
 out = ROOT / 'web/src/wasm'
 out.mkdir(exist_ok=True)

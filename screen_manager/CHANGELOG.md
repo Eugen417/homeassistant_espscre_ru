@@ -1,3 +1,12 @@
+## 0.4.19 (firmware 0.7.0)
+
+Album artwork and live updates in the browser firmware preview.
+
+- The preview handles the firmware's image requests through the existing image preparation service. The pinned ESPHome BMP decoder and LVGL draw album covers and camera images; the browser only transports bytes and displays the framebuffer.
+- Home Assistant state changes refresh preview packets immediately, including track titles and artwork, without waiting for the polling interval or resetting the current page.
+- Image links stay behind authenticated ingress. Discarded image downloads cannot attach to a new view or layout.
+- This changes the browser preview and add-on transport. Physical firmware is unchanged from the preceding preview revision.
+
 ## 0.4.9 (firmware 0.7.0)
 
 Design and try a screen before pairing hardware.

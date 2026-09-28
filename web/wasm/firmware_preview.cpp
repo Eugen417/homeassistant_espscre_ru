@@ -10,6 +10,7 @@
 #include "generated/firmware_renderer_manifest.h"
 #include "generated/profiles.h"
 #include "generated/text.h"
+#include "image_transport.h"
 
 static_assert(ESP_SCREEN_RENDERER_ABI == 3, "Update the host adapter for the renderer ABI change");
 
@@ -71,6 +72,7 @@ int preview_init(int w, int h, int display_dpi, int columns, int rows) {
   runtime_tiles::grid = {size_t(columns), size_t(rows)};
   ui::configure(display_dpi, firmware.look);
   firmware.bind();
+  preview_images::bind();
   for (size_t i = 0; i < runtime_tiles::grid.slots(); ++i) firmware.cell(i);
   runtime_tiles::room_label = firmware.room;
   runtime_tiles::time_label = firmware.time;
@@ -101,6 +103,8 @@ int preview_init(int w, int h, int display_dpi, int columns, int rows) {
 
 const char *preview_receive(const char *message) {
   last_result = runtime_tiles::receive(message ? message : "");
+  // A browser has no HA inbox entity, but firmware image events need an address.
+  runtime_tiles::inbox = "preview";
   dirty = true;
   return last_result.c_str();
 }
@@ -136,6 +140,10 @@ void preview_cancel() {
 }
 void preview_render() {
   runtime_tiles::tick();
+  static uint32_t image_tick = 0;
+  if (esphome::millis() - image_tick >= 250) {
+    image_tick = esphome::millis(); runtime_tiles::camera_tick();
+  }
   if (dirty) { dirty = false; runtime_tiles::render(firmware.room); }
   lv_timer_handler();
   lv_refr_now(display);
@@ -177,6 +185,18 @@ const char *preview_diagnostics() {
     for (uint32_t i = 0; i < lv_obj_get_child_count(object); ++i) inspect(lv_obj_get_child(object, i));
   };
   inspect(lv_screen_active());
+  auto images = doc["images"].to<JsonArray>();
+  std::function<void(lv_obj_t *)> inspect_images = [&](lv_obj_t *object) {
+    if (!lv_obj_is_visible(object)) return;
+    if (lv_obj_check_type(object, &lv_image_class)) {
+      auto item = images.add<JsonObject>();
+      lv_area_t bounds; lv_obj_get_coords(object, &bounds);
+      item["x"] = bounds.x1; item["y"] = bounds.y1;
+      item["width"] = lv_obj_get_width(object); item["height"] = lv_obj_get_height(object);
+    }
+    for (uint32_t i = 0; i < lv_obj_get_child_count(object); ++i) inspect_images(lv_obj_get_child(object, i));
+  };
+  inspect_images(lv_screen_active());
   diagnostics.clear(); serializeJson(doc, diagnostics);
   return diagnostics.c_str();
 }

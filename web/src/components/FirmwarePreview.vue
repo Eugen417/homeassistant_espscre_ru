@@ -4,7 +4,7 @@ import createModule, { type FirmwarePreviewModule } from "../wasm/firmware_previ
 import wasmUrl from "../wasm/firmware_preview.wasm?url";
 import { state } from "../store";
 import { t } from "../i18n";
-import { send } from "../api";
+import { api, send } from "../api";
 import type { Tile } from "../types";
 
 const props = defineProps<{ width: number; height: number; dpi?: number; columns: number; rows: number; pages?: number; tiles?: Tile[] }>();
@@ -18,6 +18,9 @@ let lastLayout = "", lastMessages = new Map<string, string>();
 let session = "", sequence = 0;
 let sendingActions = false;
 let liveRefresh: ReturnType<typeof setTimeout> | undefined;
+let events: EventSource | null = null;
+let fetchingImage = false;
+const downloads = new AbortController();
 
 function time() {
   const now = new Date();
@@ -71,6 +74,7 @@ function draw() {
     time();
     module._preview_render();
     void sendActions();
+    void fetchImages();
     const start = module._preview_frame();
     const pixels = module.HEAPU8.subarray(start, start + props.width * props.height * 4);
     canvas.value.getContext("2d")?.putImageData(new ImageData(new Uint8ClampedArray(pixels), props.width, props.height), 0, 0);
@@ -88,6 +92,10 @@ async function sendActions() {
       const encoded = module.ccall("preview_next_action", "string", [], []);
       if (!encoded) break;
       const request = JSON.parse(encoded);
+      if (request.event && request.service === 'esphome.screen_camera') {
+        void requestImage(request); // A slow artwork source must not block play/pause.
+        continue;
+      }
       let success = true, message = "";
       try {
         await send("firmware-preview/action", "POST", request);
@@ -106,9 +114,68 @@ async function sendActions() {
   } finally { sendingActions = false; }
 }
 
+async function requestImage(request: Record<string, unknown>) {
+  try {
+    const packet = await send<Record<string, unknown>>('firmware-preview/image', 'POST', {
+      request, shape: { width: props.width, height: props.height },
+    }, { signal: downloads.signal });
+    // The real decoder also guards the image view counter. Keep an old
+    // layout/session response out of the current protocol sequence.
+    if (!disposed && module && packet.session === session && packet.rev === lastLayout) {
+      time();
+      module.ccall('preview_receive', 'string', ['string'], [JSON.stringify({ ...packet, v: 2, seq: ++sequence })]);
+    }
+  } catch { /* Firmware image timeouts keep the placeholder and retry. */ }
+}
+
+async function fetchImages() {
+  if (fetchingImage || !module || disposed) return;
+  fetchingImage = true;
+  try {
+    while (!disposed && module) {
+      const encoded = module.ccall('preview_next_image', 'string', [], []);
+      if (!encoded) break;
+      const request = JSON.parse(encoded);
+      try {
+        const path = /^http:\/\/firmware-preview\.invalid\/([A-Za-z0-9_-]{16,64}\.bmp)$/.exec(request.url);
+        if (!path) throw new Error('Invalid preview image link');
+        const response = await api(`firmware-preview/images/${path[1]}`, { signal: downloads.signal });
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (disposed || !module) break;
+        const buffer = module._preview_image_buffer(request.id, bytes.length);
+        if (buffer) {
+          module.HEAPU8.set(bytes, buffer);
+          time(); module._preview_image_ready(request.id, 1);
+        } else module._preview_image_ready(request.id, 0);
+      } catch {
+        if (!disposed && module) { time(); module._preview_image_ready(request.id, 0); }
+      }
+    }
+  } finally { fetchingImage = false; }
+}
+
 function refreshLiveState() {
   clearTimeout(liveRefresh);
   liveRefresh = setTimeout(receive, 100);
+}
+
+function entityQuery() {
+  const entities = new Set<string>();
+  for (const page of state.document?.pages ?? []) {
+    for (const tile of page.tiles) if (tile.content.kind === 'entity') entities.add(tile.content.entityId);
+    for (const item of page.topbar.trailing) if (item.entity) entities.add(item.entity);
+  }
+  return [...entities].sort().map(entity => `entity=${encodeURIComponent(entity)}`).join('&');
+}
+
+function listen() {
+  events?.close(); events = null;
+  const query = entityQuery();
+  if (!module || disposed || !query || typeof EventSource === 'undefined') return;
+  const stream = new EventSource(`api/firmware-preview/events?${query}`);
+  events = stream;
+  stream.onmessage = () => { if (events === stream) refreshLiveState(); };
+  // EventSource reconnects itself. The normal ten-second refresh remains a fallback.
 }
 
 function contact(event: PointerEvent) {
@@ -139,13 +206,17 @@ onMounted(async () => {
       throw new Error(t("editor.preview.invalid_shape"));
     }
     await receive();
+    listen();
     draw();
   } catch (e) { if (!disposed) error.value = e instanceof Error ? e.message : String(e); }
 });
 watch(() => state.document, receive, { deep: true });
+watch(entityQuery, listen);
 watch(() => (props.tiles ?? state.layout?.tiles ?? []).map(tile => state.liveStates[tile.entity]), refreshLiveState, { deep: true });
 onBeforeUnmount(() => {
   disposed = true; generation++;
+  events?.close(); events = null;
+  downloads.abort();
   if (raf !== null) cancelAnimationFrame(raf);
   raf = null;
   clearTimeout(refreshTimer); clearTimeout(liveRefresh); cancel(); module = null;

@@ -2,18 +2,18 @@ import { flushPromises, mount, type VueWrapper } from "@vue/test-utils";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import FirmwarePreview from "../src/components/FirmwarePreview.vue";
 import createModule from "../src/wasm/firmware_preview.js";
-import { send } from "../src/api";
+import { api, send } from "../src/api";
 import { state } from "../src/store";
 
 vi.mock("../src/wasm/firmware_preview.js", () => ({ default: vi.fn() }));
-vi.mock("../src/api", () => ({ send: vi.fn() }));
+vi.mock("../src/api", () => ({ api: vi.fn(), send: vi.fn() }));
 vi.mock("../src/store", async () => {
   const { reactive } = await import("vue");
   return { state: reactive({ document: { title: "Test panel", pages: [] }, liveStates: {} }) };
 });
 const bundle = () => ({ revision: "1111111111111111", configuration: [{ op: "begin" }, { op: "commit" }], values: [{ op: "state", i: 0, state: "on" }] });
 function response(name: string, _result?: unknown, _types?: unknown, args?: unknown[]) {
-  if (name === "preview_next_action") return "";
+  if (name === "preview_next_action" || name === "preview_next_image") return "";
   if (name === "preview_receive" && JSON.parse(String(args?.[0])).op === "hello") return "Session:2222222222222222";
   return "Synced";
 }
@@ -22,6 +22,7 @@ const firmware = {
   HEAPU8: new Uint8Array(800 * 800 * 4),
   _preview_init: vi.fn(() => 1), _preview_time: vi.fn(),
   _preview_render: vi.fn(), _preview_frame: vi.fn(() => 0),
+  _preview_image_buffer: vi.fn(() => 128), _preview_image_ready: vi.fn(() => 1),
   _preview_touch: vi.fn(), _preview_cancel: vi.fn(), ccall: vi.fn(response),
 };
 let wrapper: VueWrapper | undefined;
@@ -54,6 +55,41 @@ async function preview(width = 720, height = 720) {
 }
 
 describe("Firmware preview transport", () => {
+  it('delivers firmware image events and pixels without invoking HA actions or drawing images in Vue', async () => {
+    const request = { service: 'esphome.screen_camera', event: true, data: { entity: 'media_player.test', view: '1' } };
+    const packet = { op: 'camera', t: 'cover', e: 'media_player.test', view: 1,
+      session: '2222222222222222', rev: '1111111111111111', u: 'http://firmware-preview.invalid/abcdefghijklmnop.bmp' };
+    let queued = true, download = true;
+    firmware.ccall.mockImplementation((name, result, types, args) => {
+      if (name === 'preview_next_action') { if (!queued) return ''; queued = false; return JSON.stringify(request); }
+      if (name === 'preview_next_image') { if (!download) return ''; download = false; return JSON.stringify({ id: 7, url: packet.u }); }
+      return response(name, result, types, args);
+    });
+    vi.mocked(send).mockImplementation(async path => (path === 'firmware-preview/image' ? packet : bundle()) as any);
+    vi.mocked(api).mockResolvedValue(new Response(new Uint8Array([66, 77, 1, 2])));
+    await preview();
+    expect(send).toHaveBeenCalledWith('firmware-preview/image', 'POST',
+      { request, shape: { width: 720, height: 720 } }, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(vi.mocked(send).mock.calls.some(([path]) => path === 'firmware-preview/action')).toBe(false);
+    expect(firmware.ccall).toHaveBeenCalledWith('preview_receive', 'string', ['string'],
+      [JSON.stringify({ ...packet, v: 2, seq: 5 })]);
+    expect(api).toHaveBeenCalledWith('firmware-preview/images/abcdefghijklmnop.bmp', expect.any(Object));
+    expect(firmware._preview_image_buffer).toHaveBeenCalledWith(7, 4);
+    expect([...firmware.HEAPU8.subarray(128, 132)]).toEqual([66, 77, 1, 2]);
+    expect(firmware._preview_image_ready).toHaveBeenCalledWith(7, 1);
+    expect(putImageData).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects arbitrary image URLs and tells the firmware that loading failed', async () => {
+    let queued = true;
+    firmware.ccall.mockImplementation((name, result, types, args) => {
+      if (name === 'preview_next_image' && queued) { queued = false; return JSON.stringify({ id: 9, url: 'https://example.com/image.bmp' }); }
+      return response(name, result, types, args);
+    });
+    await preview();
+    expect(api).not.toHaveBeenCalled();
+    expect(firmware._preview_image_ready).toHaveBeenCalledWith(9, 0);
+  });
   it("forwards touch coordinates and layout updates to the same firmware instance", async () => {
     const editor = await preview();
     const canvas = editor.get("canvas").element;
@@ -79,6 +115,41 @@ describe("Firmware preview transport", () => {
     expect(packets.map(packet => packet.op)).toEqual(["hello", "begin", "commit", "state", "ping", "ping"]);
     expect(packets.slice(1).map(packet => packet.seq)).toEqual([1, 2, 3, 4, 5]);
     expect(packets.slice(1).every(packet => packet.v === 2 && packet.session === "2222222222222222")).toBe(true);
+  });
+
+  it('receives delayed track metadata from HA events without waiting for the poll or resetting the page', async () => {
+    const streams: { url: string; onmessage: (() => void) | null; close: ReturnType<typeof vi.fn> }[] = [];
+    vi.stubGlobal('EventSource', class {
+      onmessage = null;
+      close = vi.fn();
+      constructor(public url: string) { streams.push(this); }
+    });
+    state.document = { title: 'Music', pages: [{ tiles: [{ content: { kind: 'entity', entityId: 'media_player.test' } }],
+      topbar: { trailing: [{ type: 'entity', entity: 'sensor.temperature' }] } }] } as any;
+    let track = 'First track';
+    vi.mocked(send).mockImplementation(async () => ({ ...bundle(), values: [
+      { op: 'state', i: 0, state: 'playing', a: { media_title: track }, x: { pic: track } },
+    ] }) as any);
+    await preview();
+    expect(streams[0].url).toBe('api/firmware-preview/events?entity=media_player.test&entity=sensor.temperature');
+    // The command has returned while HA still has the old metadata. Its later
+    // state_changed event must reach the native decoder with title and picture.
+    track = 'Next track';
+    streams[0].onmessage!(); streams[0].onmessage!();
+    await vi.advanceTimersByTimeAsync(100);
+    const packets = firmware.ccall.mock.calls.filter(([name]) => name === 'preview_receive')
+      .map(([, , , args]) => JSON.parse(String(args?.[0])));
+    expect(packets.filter(packet => packet.op === 'state').at(-1)).toMatchObject({
+      a: { media_title: 'Next track' }, x: { pic: 'Next track' }, session: '2222222222222222',
+    });
+    expect(packets.filter(packet => packet.op === 'hello')).toHaveLength(1);
+    expect(vi.mocked(send).mock.calls.filter(([path]) => path === 'firmware-preview')).toHaveLength(2);
+    state.document!.pages[0].tiles[0].content = { kind: 'entity', entityId: 'media_player.other' };
+    await flushPromises();
+    expect(streams[0].close).toHaveBeenCalledOnce();
+    expect(streams[1].url).toContain('entity=media_player.other');
+    wrapper!.unmount(); wrapper = undefined;
+    expect(streams[1].close).toHaveBeenCalledOnce();
   });
 
   it.each([true, false])("relays firmware commands and returns Home Assistant's result (success=%s)", async (success) => {

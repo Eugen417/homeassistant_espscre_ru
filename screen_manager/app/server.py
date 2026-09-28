@@ -39,6 +39,8 @@ from page_layout import (FORMAT as PAGE_FORMAT, LayoutError, compile_tiles, grid
 from layout_migrations import migrate_legacy
 import page_delivery
 import page_service
+import preview_images
+import preview_events
 from page_capabilities import CapabilityCache, identity as page_identity
 
 
@@ -129,6 +131,7 @@ class HomeAssistant:
         self.registry, self.devices, self.areas = [], [], []
         self.online = False
         self.changed = asyncio.Event()
+        self.state_events = preview_events.Changes()
         # Entity ids the manager cares about; None wakes it for every state change.
         self.relevant = None
         # Entity ids whose state changed since the manager last looked; it only rebuilds those tiles.
@@ -217,6 +220,8 @@ class HomeAssistant:
                         self.states[eid] = body['new_state']
                     else:
                         self.states.pop(eid, None)
+                    # Unsaved/virtual previews also follow entities not used by a physical screen.
+                    self.state_events.notify(eid)
                     if self.relevant is None or eid in self.relevant:
                         self.dirty.add(eid)
                         self.changed.set()
@@ -409,6 +414,7 @@ class HomeAssistant:
                     await self.refresh_services()
                     self.online = True
                     self.changed.set()
+                    self.state_events.notify()
                     connected = time.monotonic()
                     LOG.info('Home Assistant connected')
                     # Refresh the registry when HA reports a change (debounced), with a slow
@@ -2805,6 +2811,17 @@ def create_app(manager, development=False):
             'values': [*states, *[page_delivery.page_message(page, index, items, initial=False)
                 for index, (page, items) in enumerate(zip(record['layout']['pages'], bars))]]})
 
+    async def firmware_preview_image(request):
+        return web.json_response(await preview_images.answer(manager, await request.json()))
+
+    async def firmware_preview_events(request):
+        return await preview_events.stream(manager.ha.state_events, request)
+
+    async def firmware_preview_pixels(request):
+        status, body, tag = await manager.camera.serve(request.match_info['token'])
+        return web.Response(status=status, body=body, content_type=camera_feed.CONTENT_TYPE,
+                            headers={'Cache-Control': 'no-store', **({'ETag': tag} if tag else {})})
+
     async def firmware_preview_action(request):
         """Relay the firmware's ESPHome service request through this manager's HA connection."""
         data = await request.json()
@@ -2991,6 +3008,9 @@ def create_app(manager, development=False):
     app.router.add_post('/api/firmware-preview', firmware_preview)
     app.router.add_post('/api/firmware-preview/import', import_document)
     app.router.add_post('/api/firmware-preview/action', firmware_preview_action)
+    app.router.add_post('/api/firmware-preview/image', firmware_preview_image)
+    app.router.add_get('/api/firmware-preview/events', firmware_preview_events)
+    app.router.add_get(r'/api/firmware-preview/images/{token:[A-Za-z0-9_-]{16,64}}.bmp', firmware_preview_pixels)
     app.router.add_post('/api/screens/{inbox}/identify', identify)
     app.router.add_post('/api/screens/{inbox}/calibrate', calibrate)
     app.router.add_post('/api/alerts/test', test_alert)

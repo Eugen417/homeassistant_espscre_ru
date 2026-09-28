@@ -1,13 +1,13 @@
 // Exercise the production decoder through its session-based page protocol.
 import assert from 'node:assert/strict';
 
-export function connection(module) {
+export function connection(module, request = '1111111111111111', revision = '2222222222222222') {
   const raw = packet => module.ccall('preview_receive', 'string', ['string'], [JSON.stringify(packet)]);
-  const granted = raw({ v: 2, op: 'hello', request: '1111111111111111' });
+  const granted = raw({ v: 2, op: 'hello', request });
   assert.match(granted, /^Session:[0-9a-f]{16}$/);
   let seq = 0;
   return packet => {
-    const result = raw({ ...packet, v: 2, session: granted.slice(8), seq: ++seq, rev: '2222222222222222' });
+    const result = raw({ ...packet, v: 2, session: granted.slice(8), seq: ++seq, rev: revision });
     assert.ok(['Synced', 'Loading tiles'].includes(result), `${packet.op}: ${result}`);
     return result;
   };

@@ -13,6 +13,18 @@ and the ESPHome API transport. The preview endpoint uses the manager's regular
 negotiates a protocol 2 session with the real firmware decoder and forwards the
 same page transaction and value updates as a physical device.
 
+An ingress event stream subscribes to the draft's tile and top-bar entities on
+the manager's existing Home Assistant connection. A state change prompts a fresh
+read of those firmware packets, so track changes do not wait for a polling cycle.
+The ten-second refresh remains a fallback if the stream is unavailable.
+
+Images use the firmware's `esphome.screen_camera` requests and existing image hooks.
+The manager's regular cover/strip preparation supplies the same BMP bytes as for a
+device, through authenticated ingress. `generate_image_decoder.py` compiles the
+pinned ESPHome BMP decoder with a host RGB565 buffer; LVGL and the firmware place
+the image. Browser code only transports bytes, including in the expanded media
+player. Track changes and discarded downloads follow the firmware's image lifetime.
+
 Resolution and grid are runtime inputs (160–2560 pixels per axis, 1–8 columns and
 rows, at most 64 cells). Font/style densities come from the shared board catalog,
 plus a 254 dpi profile for the 720 × 720 Waveshare ESP32-P4-WIFI6-Touch-LCD-4B design
@@ -36,6 +48,7 @@ PyYAML and Jinja2, plus Emscripten on PATH:
 PYTHON=/path/to/venv/bin/python sh web/wasm/build.sh
 node web/wasm/test_runtime.mjs
 node web/wasm/test_profiles.mjs
+node web/wasm/test_images.mjs
 PREVIEW_WIDTH=720 PREVIEW_HEIGHT=720 PREVIEW_DPI=254 node web/wasm/test_runtime.mjs
 PREVIEW_WIDTH=800 PREVIEW_HEIGHT=480 PREVIEW_COLUMNS=3 node web/wasm/test_runtime.mjs
 cd web
@@ -62,7 +75,7 @@ Home Assistant connected to Screen Manager. Its normal action responses and upda
 entity states drive the firmware's confirmation/refusal behaviour. Taps can therefore
 operate real devices connected to that instance.
 
-Hardware, persistent device settings, camera/image transport, ESPHome event requests
+Hardware, persistent device settings, non-image ESPHome event requests
 (history/options/settings) and custom actions with data templates are not emulated. Runtime
 detail screens such as the weather card are firmware-rendered; board/YAML-specific
 overlays such as the light colour picker are not yet connected. This is a UI runtime,

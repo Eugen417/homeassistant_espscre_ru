@@ -164,6 +164,126 @@ class Endpoints(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self.client.get('/api/camera-preview?entity=media_player.test')).status, 404)
         self.assertEqual((await self.client.get('/api/camera-preview?entity=camera.unknown')).status, 404)
 
+    async def test_firmware_preview_stream_follows_only_its_entities_and_cleans_up(self):
+        import asyncio
+        from preview_events import Changes
+        self.ha.state_events = Changes()
+        response = await self.client.get('/api/firmware-preview/events?entity=media_player.test&entity=sensor.t')
+        self.assertEqual(response.status, 200)
+        self.assertIn('text/event-stream', response.headers['Content-Type'])
+        async def event():
+            return await asyncio.wait_for(response.content.readuntil(b'\n\n'), 1)
+        self.assertEqual(await event(), b'data: {}\n\n', 'initial and reconnect invalidation, no raw HA data')
+        pending = asyncio.create_task(event())
+        self.ha.state_events.notify('light.other')
+        await asyncio.sleep(.02)
+        self.assertFalse(pending.done(), 'unrelated entities must not rebuild the preview')
+        self.ha.state_events.notify('media_player.test')
+        self.assertEqual(await pending, b'data: {}\n\n')
+        self.ha.state_events.notify('sensor.t')
+        self.assertEqual(await event(), b'data: {}\n\n', 'top-bar entities also wake the preview')
+        self.ha.state_events.notify()
+        self.assertEqual(await event(), b'data: {}\n\n', 'HA reconnect refreshes every subscriber')
+        response.close()
+        for _ in range(30):
+            self.ha.state_events.notify()
+            await asyncio.sleep(.01)
+            if not self.ha.state_events.listeners: break
+        self.assertFalse(self.ha.state_events.listeners)
+        self.assertEqual(self.ha.calls, [])
+        for query in ('', '?entity=bad', '?' + '&'.join(['entity=light.a'] * 129)):
+            self.assertEqual((await self.client.get('/api/firmware-preview/events' + query)).status, 400)
+
+    async def test_ha_changes_wake_unsaved_previews_outside_physical_screen_filter(self):
+        import asyncio
+        from types import SimpleNamespace
+        from aiohttp import WSMsgType
+        from server import HomeAssistant
+        ha = HomeAssistant(None, 'http://ha/api', 'unused')
+        ha.relevant = {'light.physical'}
+        wake = asyncio.Event()
+        ha.state_events.listeners[wake] = frozenset({'media_player.test'})
+        class Events:
+            def __init__(self, state): self.state = state
+            async def __aiter__(self):
+                yield SimpleNamespace(type=WSMsgType.TEXT, json=lambda: {
+                    'type': 'event', 'event': {'event_type': 'state_changed',
+                    'data': {'entity_id': 'media_player.test', 'new_state': self.state}}})
+        for state in ({'state': 'playing', 'attributes': {'media_title': 'Next track'}}, None):
+            wake.clear()
+            ha.ws = Events(state)
+            with self.assertRaises(ConnectionError): await ha.read()
+            self.assertTrue(wake.is_set())
+            self.assertEqual(ha.states.get('media_player.test'), state)
+            self.assertFalse(ha.changed.is_set(), 'physical-screen filtering stays unchanged')
+
+    async def test_firmware_image_transport_uses_device_cover_bytes(self):
+        import io
+        from PIL import Image
+        from unittest.mock import AsyncMock
+        self.ha.states['media_player.test'] = {'state': 'playing', 'attributes': {'entity_picture': '/private?token=secret'}}
+        self.manager.camera.picture = lambda entity: '/private?token=secret'
+        source = io.BytesIO()
+        Image.new('RGB', (160, 80), (220, 30, 70)).save(source, 'PNG')
+        self.manager.camera.fetch_cover = AsyncMock(return_value=source.getvalue())
+        command = {'service': 'esphome.screen_camera', 'event': True, 'data': {
+            'entity': 'media_player.test', 'size': '120', 'bg': '123456',
+            'session': '1111111111111111', 'rev': '2222222222222222', 'view': '3'}}
+        body = {'request': command, 'shape': {'width': 720, 'height': 720}}
+        self.assertEqual((await self.client.post('/api/firmware-preview/image', json=body)).status, 403)
+        response = await self.client.post('/api/firmware-preview/image', json=body, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        packet = await response.json()
+        self.assertEqual((packet['op'], packet['t'], packet['view']), ('camera', 'cover', 3))
+        self.assertEqual(packet['session'], command['data']['session'])
+        self.assertNotIn('secret', str(packet))
+        self.assertNotIn('/private', str(packet))
+        token = packet['u'].rsplit('/', 1)[1]
+        pixels = await self.client.get('/api/firmware-preview/images/' + token)
+        self.assertEqual(pixels.status, 200)
+        expected = await self.manager.camera.cover('media_player.test', 120, 0x123456)
+        raw = await pixels.read()
+        self.assertEqual(raw, expected[1], 'the preview transports the device bytes without a second image renderer')
+        with Image.open(io.BytesIO(raw)) as image:
+            self.assertEqual(image.size, (120, 120))
+            self.assertEqual(image.getpixel((0, 0)), (0x12, 0x34, 0x56))
+        self.assertEqual(self.ha.calls, [])
+        self.assertFalse(self.manager.layouts)
+        for change in [{'size': '10000'}, {'entity': 'light.a'}, {'entity': 'media_player.unknown'},
+                       {'url': 'http://example.com'}, {'view': '-1'}, {'session': 'bad'}, {'bg': 'white'}]:
+            invalid = {**body, 'request': {**command, 'data': {**command['data'], **change}}}
+            response = await self.client.post('/api/firmware-preview/image', json=invalid, headers=self.headers)
+            self.assertEqual(response.status, 400, await response.text())
+        self.assertEqual((await self.client.get('/api/firmware-preview/images/abcdefghijklmnop.bmp')).status, 404)
+
+    async def test_firmware_cover_strip_uses_the_shared_atlas_and_missing_art_placeholder(self):
+        import io
+        import json
+        from PIL import Image
+        from unittest.mock import AsyncMock
+        self.ha.states['media_player.test'] = {'state': 'playing', 'attributes': {}}
+        self.manager.camera.picture = lambda entity: '/private'
+        source = io.BytesIO()
+        Image.new('RGB', (160, 80), (50, 120, 200)).save(source, 'PNG')
+        self.manager.camera.fetch_cover = AsyncMock(return_value=source.getvalue())
+        fields = {'tiles': 'media_player.test', 'size': '64', 'bg': '123456', 'session': '1111111111111111',
+                  'rev': '2222222222222222', 'view': '4', 'atlas': json.dumps([[0, 0, 120, 80, 8, 0]])}
+        body = {'request': {'service': 'esphome.screen_camera', 'event': True, 'data': fields},
+                'shape': {'width': 720, 'height': 720}}
+        response = await self.client.post('/api/firmware-preview/image', json=body, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        packet = await response.json()
+        self.assertEqual((packet['t'], packet['e']), ('live', 'media_player.test'))
+        pixels = await self.client.get('/api/firmware-preview/images/' + packet['u'].rsplit('/', 1)[1])
+        with Image.open(io.BytesIO(await pixels.read())) as image:
+            self.assertEqual(image.size, (120, 80))
+        self.manager.camera.picture = lambda entity: ''
+        body['request']['data'] = {'entity': 'media_player.test', 'size': '120', 'bg': '123456',
+                                  'session': '1111111111111111', 'rev': '2222222222222222', 'view': '5'}
+        response = await self.client.post('/api/firmware-preview/image', json=body, headers=self.headers)
+        self.assertEqual(response.status, 200, await response.text())
+        self.assertEqual((await response.json())['u'], '')
+
     async def test_states_give_the_value_word_and_attributes_per_entity(self):
         response = await self.client.get('/api/states?entity=light.a&entity=sensor.t&entity=light.nope&entity=screen.clock')
         states = (await response.json())['states']
