@@ -7213,6 +7213,7 @@ inline bool picture_shown(const lv_image_dsc_t *image) {
   auto on = [&](lv_obj_t *obj) { if (draws(obj, image)) shown = true; };
   each_card([&](Widgets &w) { on(w.picture); if (w.extra_mode == "media") on(w.parts[MEDIA_PICTURE]); });
   on(media_detail_picture);
+  on(camera_picture);
   return shown;
 #else
   (void) image;
@@ -7719,11 +7720,16 @@ inline void camera_release() {
   if (camera_full.release) camera_full.release();
 }
 
+// The camera full screen's copy in the store (camera_loaded).
+inline std::string camera_key(const std::string &entity) { return "camera|" + entity; }
+
 inline void camera_close() {
   if (!camera_root) return;
   lv_obj_delete(camera_root);
   camera_root = camera_picture = camera_note = camera_back = camera_title = camera_spinner = nullptr;
   camera_release_due = true;
+  // Its copy goes with it, on the next tick (pictures_collect), as the download's buffer does.
+  pictures.retire(camera_key(camera.entity));
   ESP_LOGI("camera", "closed %s", camera.entity.c_str());
   camera = camera_view::Feed{};
 }
@@ -7979,9 +7985,19 @@ inline void camera_loaded(bool thumb, bool cached) {
   cover_in_flight.clear();      // the buffer is the camera's now: whatever lands next is not that cover
   if (!camera.loading) return;  // a cover's download that ended after the camera opened: not this camera's picture
   camera.finish(esphome::millis(), true);
-  if (auto *shown = camera_full.source()) picture_memory("after", "camera", shown->header.w * shown->header.h);
+  lv_image_dsc_t *src = camera_full.source();
+  if (src) picture_memory("after", "camera", src->header.w * src->header.h);
+  // Drawn from the store's copy, never from the download (firmware 0.13.0+). A download that breaks off halfway (Home
+  // Assistant or ESP Screens restarting) makes online_image free its buffer while the view still shows it: the glass
+  // kept the old picture, but every part of it drawn again after that, a tile changing underneath, came out black. The
+  // copy stays whole until the next picture is. An unchanged picture (304) has its copy already. Without room in the
+  // store the view draws the download, as a board without PSRAM does.
+  if (!cached && pictures_kept() && src && src->data) {
+    if (auto *kept = pictures.put(camera_key(camera.entity), *src, esphome::millis())) src = kept;
+    else ESP_LOGW("camera", "no room to keep the picture of %s", camera.entity.c_str());
+  }
   const bool first = camera_picture == nullptr;
-  camera_show(camera_root, camera_picture, camera_full.source(), !cached);
+  camera_show(camera_root, camera_picture, src, !cached);
   if (first && camera_picture) {
     camera_note_text("");
     lv_obj_move_foreground(camera_back);

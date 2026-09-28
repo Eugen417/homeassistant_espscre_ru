@@ -186,6 +186,25 @@ class Rules(unittest.TestCase):
         self.assertIn('lv_obj_delete(camera_spinner);', note)
         self.assertNotIn('Loading image', TILES)
 
+    def test_the_full_screen_draws_a_copy_a_broken_download_cannot_take_away(self):
+        # Firmware 0.13.0: a download that broke off halfway made online_image free the buffer the view still drew, and
+        # every part of the glass drawn again after that (a tile below going unavailable) came out black. The view draws
+        # the store's copy, which the store keeps while it is on the glass and lets go of once the view closes.
+        loaded = TILES.split('inline void camera_loaded(bool thumb, bool cached) {', 1)[1].split('\n}\n', 1)[0]
+        full = loaded.split('if (!camera.loading) return;', 1)[1]
+        self.assertIn('if (!cached && pictures_kept() && src && src->data) {', full)
+        self.assertIn('if (auto *kept = pictures.put(camera_key(camera.entity), *src, esphome::millis())) src = kept;', full)
+        # A picture the store has no room for is drawn from the download, and says so in the log.
+        self.assertIn('ESP_LOGW("camera", "no room to keep the picture of %s"', full)
+        self.assertIn('camera_show(camera_root, camera_picture, src, !cached);', full)
+        self.assertNotIn('camera_show(camera_root, camera_picture, camera_full.source()', TILES)
+        shown = TILES.split('inline bool picture_shown(const lv_image_dsc_t *image) {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('on(camera_picture);', shown)
+        closed = TILES.split('inline void camera_close() {', 1)[1].split('\n}\n', 1)[0]
+        self.assertIn('pictures.retire(camera_key(camera.entity));', closed)
+        # Retired before the camera is forgotten, or the key would name no camera.
+        self.assertLess(closed.index('pictures.retire('), closed.index('camera = camera_view::Feed{};'))
+
 
 @unittest.skipUnless(HAS_AIOHTTP, 'Run using .venv-portal/bin/python for server tests')
 class MediaFetchSecurity(unittest.IsolatedAsyncioTestCase):

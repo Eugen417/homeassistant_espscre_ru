@@ -1,3 +1,19 @@
+## 0.4.22 (firmware 0.13.0)
+
+- **A camera on full screen stays whole when Home Assistant or ESP Screens restarts.** A picture that broke off halfway
+  through its download made the screen let go of the picture it was showing. The old picture stayed on the glass, but
+  every part of it drawn again after that came out black: when the tiles below went unavailable, their icons and
+  states showed through the camera as black blocks. The full screen now draws a copy of its own, as album covers and
+  live camera tiles already did, so a broken download leaves the last picture as it was until the next one arrives.
+  While the camera is open this costs one more picture in PSRAM (from 300 KB on a Guition JC3248W535 to 1.25 MB on
+  the 10-inch), which is freed again when it closes; the memory inside the chip is not touched.
+- Tested: tools/check.sh, and every board built on ESPHome 2026.9.0 and on the oldest ESPHome it asks for (the CYD
+  stays at 91.2 % of its flash). On a Guition 4848S040 with a Home Assistant bench, the add-on was stopped halfway
+  through a picture of an open camera: with the camera alone, over a page with a live camera tile and an album cover,
+  and over a camera alert. Each time the picture stayed, only the download's own memory was freed, and new pictures
+  came once the add-on was back. A camera alert over an open camera closes it and frees its memory, and ten opens and
+  closes in a row started from the same free PSRAM within 20 bytes.
+
 ## 0.4.21 (firmware 0.12.0)
 
 - **The top bar sits as far from the top as from the sides.** There was more room above the top bar than beside it
