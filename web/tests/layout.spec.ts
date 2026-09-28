@@ -1,10 +1,11 @@
 // The grid rules: the same ones the add-on applies (core.pack_slots, validate_layout) and the firmware draws.
 import { describe, expect, it } from "vitest";
-import { createLayout, controlsLabel, defaultOptions, effectiveControls, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, versionAtLeast } from "../src/model/layout";
+import { ACTS_ON_TAP, createLayout, controlsLabel, holdHintKey, defaultOptions, effectiveControls, newTile, pageOrder, pagePlaces, pageTarget, reorderTitles, retargetedPage, sizeOf, versionAtLeast } from "../src/model/layout";
 let shape = { columns: 2, rows: 3 };
 const setGrid = (columns = 2, rows = 3) => { shape = { columns, rows }; };
 const { arrange, cellsOf, firstFree, fits, grid, hasGaps, nearestFree, normalize, occupied, packSlots, pageCount, pageStart, reorderPages, rowStart, spanOf, strandedPages, tileLimit } = createLayout(() => shape);
 import type { Inventory, Layout, Tile } from "../src/types";
+import { readdirSync, readFileSync } from "node:fs";
 
 const tile = (entity: string, slot: number, options: Tile["options"] = {}): Tile => ({ entity, name: "", slot, options });
 const entries = (tiles: Tile[]) => tiles.map((t) => ({ tile: t, slot: t.slot }));
@@ -305,5 +306,20 @@ describe("an automation's colours (GitHub #62)", () => {
     expect(tileActive("automation.a", { state: "on", a: { current: 1 } }, true)).toBe(true);
     expect(tileActive("automation.a", { state: "off", a: { current: 1 } }, true)).toBe(true);
     expect(tilePalette("automation.a", { state: "on", a: {} }, true).accent).toBe("#9e9e9e");
+  });
+});
+
+describe("the hold hint under On tap (GitHub #67)", () => {
+  it("names what holding opens, in every language", () => {
+    expect(holdHintKey("light")).toBe("editor.tile.tap.hold_light");
+    expect(holdHintKey("switch")).toBe("editor.tile.tap.hold_history");
+    expect(holdHintKey("scene")).toBe("editor.tile.tap.hold");
+    const dir = "../screen_manager/translations";
+    for (const file of readdirSync(dir).filter((f) => f.endsWith(".json") && f !== "en-GB.json")) {
+      const texts = JSON.parse(readFileSync(`${dir}/${file}`, "utf8"));
+      const at = (key: string) => key.split(".").reduce((o, k) => o?.[k], texts);
+      for (const key of [...ACTS_ON_TAP.map(holdHintKey), "editor.tile.tap.detail_no_toggle"]) expect(at(key), `${file} ${key}`).toBeTypeOf("string");
+      expect(at("editor.tile.tap.detail_no_toggle"), file).toContain("{auto}");
+    }
   });
 });

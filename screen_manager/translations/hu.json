@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Az automatizmusokhoz 0.7.0-s firmware kell: előbb nyomd meg a Frissítés gombot a kijelzőnél.",
         "hold": "Tartsd nyomva a csempét a kártyája megnyitásához.",
         "hold_run": "Tartsd nyomva a csempét a műveletei futtatásához.",
-        "hold_toggle": "Tartsd nyomva a csempét a be- vagy kikapcsolásához."
+        "hold_toggle": "Tartsd nyomva a csempét a be- vagy kikapcsolásához.",
+        "hold_light": "Tartsd nyomva a csempét a fényerőhöz és a színhez, amennyiben a lámpa támogatja.",
+        "hold_fan": "Tartsd nyomva a csempét a sebességhez, ha a ventilátornak van ilyen.",
+        "hold_history": "Tartsd nyomva a csempét az előzményeihez.",
+        "hold_timer": "Tartsd nyomva a csempét az időzítő megszakításához.",
+        "detail_no_toggle": "Egy koppintás megnyitja a kártyát, és már nem kapcsol be vagy ki. {auto} beállítással egy koppintás be- vagy kikapcsol, a nyomva tartás pedig megnyitja a kártyát."
       },
       "guard": {
         "label": "Kinyitás innen",

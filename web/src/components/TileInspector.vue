@@ -7,7 +7,7 @@ import { tileSizeChoices } from "../store";
 import { computed, ref, toRaw, watch } from "vue";
 import { t } from "../i18n";
 import { beginFieldEdit, endFieldEdit } from '../store';
-import { domainInfo, entriesOf, inlineControlKind, pageTarget, SLIDER_DOMAINS, TOGGLE_BEFORE } from "../model/layout";
+import { ACTS_ON_TAP, domainInfo, entriesOf, holdHintKey, inlineControlKind, pageTarget, SLIDER_DOMAINS, SWITCHES_ON_TAP, TOGGLE_BEFORE } from "../model/layout";
 import { glyph } from "../model/topbar";
 import { currentScreen, automaticIcon, entityName, openPage, fullPage, loadSubtitleValues, setTileName, moveTileToPage, pictures, removeTile, retargetPageTile, setTileOption, state, supports, tileIconCp } from "../store";
 import type { Tile } from "../types";
@@ -164,7 +164,11 @@ const tapHint = computed(() => {
     return { text: t(tap.value === "run" ? "editor.tile.tap.hold_toggle" : "editor.tile.tap.hold_run"), warn: false };
   if (tap.value === "toggle" && caps.value && !caps.value.toggle) return { text: t("editor.tile.tap.no_toggle"), warn: true };
   if (tap.value === "toggle" && !TOGGLE_BEFORE.includes(domain.value) && !supports(0, 2, 58)) return { text: t("editor.tile.tap.toggle_needs_firmware"), warn: false };
-  if (tap.value === "toggle") return { text: t("editor.tile.tap.hold"), warn: false };
+  if (tap.value === "detail" && SWITCHES_ON_TAP.includes(domain.value))
+    return { text: t("editor.tile.tap.detail_no_toggle", { auto: t("editor.tile.tap.auto") }), warn: false };
+  // A camera opens full screen either way; every other tile opens its card when held.
+  if ((tap.value === "auto" && ACTS_ON_TAP.includes(domain.value)) || ((tap.value === "toggle" || tap.value === "action") && !["camera", "image"].includes(domain.value)))
+    return { text: t(holdHintKey(domain.value)), warn: false };
   return null;
 });
 // ---- The second line (app 0.2.105, firmware 0.2.90+) ----

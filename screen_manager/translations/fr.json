@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Les automatisations demandent le firmware 0.7.0 de l'écran : appuyez d'abord sur Mettre à jour pour cet écran.",
         "hold": "Maintenez le doigt sur la tuile pour ouvrir sa carte.",
         "hold_run": "Maintenez le doigt sur la tuile pour exécuter ses actions.",
-        "hold_toggle": "Maintenez le doigt sur la tuile pour l'activer ou la désactiver."
+        "hold_toggle": "Maintenez le doigt sur la tuile pour l'activer ou la désactiver.",
+        "hold_light": "Maintenez le doigt sur la tuile pour la luminosité et la couleur, selon ce que la lampe propose.",
+        "hold_fan": "Maintenez le doigt sur la tuile pour la vitesse, si le ventilateur en a une.",
+        "hold_history": "Maintenez le doigt sur la tuile pour son historique.",
+        "hold_timer": "Maintenez le doigt sur la tuile pour annuler le minuteur.",
+        "detail_no_toggle": "Toucher la tuile ouvre la carte et n'allume ni n'éteint plus. Avec {auto}, toucher la tuile allume ou éteint, et maintenir le doigt dessus ouvre la carte."
       },
       "guard": {
         "label": "Déverrouiller ici",

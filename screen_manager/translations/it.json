@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Le automazioni richiedono il firmware 0.7.0 dello schermo: premi prima Aggiorna per questo schermo.",
         "hold": "Tieni premuto il riquadro per aprire la sua scheda.",
         "hold_run": "Tieni premuto il riquadro per eseguirne le azioni.",
-        "hold_toggle": "Tieni premuto il riquadro per attivarla o disattivarla."
+        "hold_toggle": "Tieni premuto il riquadro per attivarla o disattivarla.",
+        "hold_light": "Tieni premuto il riquadro per luminosità e colore, per quanto la luce li supporti.",
+        "hold_fan": "Tieni premuto il riquadro per la velocità, se il ventilatore ne ha una.",
+        "hold_history": "Tieni premuto il riquadro per la sua cronologia.",
+        "hold_timer": "Tieni premuto il riquadro per annullare il timer.",
+        "detail_no_toggle": "Un tocco apre la scheda e non accende né spegne più. Con {auto}, un tocco accende o spegne e tenere premuto apre la scheda."
       },
       "guard": {
         "label": "Sblocco qui",

@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Automatyzacje wymagają firmware ekranu 0.7.0: najpierw naciśnij „Aktualizuj” przy tym ekranie.",
         "hold": "Przytrzymaj kafelek, aby otworzyć jego kartę.",
         "hold_run": "Przytrzymaj kafelek, aby uruchomić jego akcje.",
-        "hold_toggle": "Przytrzymaj kafelek, aby ją włączyć lub wyłączyć."
+        "hold_toggle": "Przytrzymaj kafelek, aby ją włączyć lub wyłączyć.",
+        "hold_light": "Przytrzymaj kafelek, aby ustawić jasność i kolor, o ile światło je obsługuje.",
+        "hold_fan": "Przytrzymaj kafelek, aby ustawić prędkość, jeśli wentylator ją ma.",
+        "hold_history": "Przytrzymaj kafelek, aby zobaczyć jego historię.",
+        "hold_timer": "Przytrzymaj kafelek, aby anulować minutnik.",
+        "detail_no_toggle": "Dotknięcie otwiera kartę i już nie włącza ani nie wyłącza. Przy opcji {auto} dotknięcie włącza lub wyłącza, a przytrzymanie otwiera kartę."
       },
       "guard": {
         "label": "Odblokowanie tutaj",

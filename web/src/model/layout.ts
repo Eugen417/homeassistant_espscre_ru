@@ -276,6 +276,13 @@ export const DISPLAYS = ["standard", "watch", "forecast", "graph", "digital", "a
 export const displayName = (display: string) => (DISPLAYS.includes(display) ? t(`editor.displays.${display}`) : display);
 export const sizeName = (size: string | undefined) => t(`editor.sizes.${SIZES.includes(size as Size) ? size : "single"}`);
 export const TOGGLE_BEFORE = ["light", "switch", "input_boolean", "automation", "fan", "media_player", "climate"];
+// What holding a tile opens, as tile_controls::tap_route routes it: said in the editor because nothing on the screen
+// shows that a hold exists (GitHub #67). ACTS_ON_TAP are the domains whose Automatic tap does something other than
+// open the card; SWITCHES_ON_TAP those that stop switching when the tap opens the card instead.
+export const ACTS_ON_TAP = ["light", "fan", "switch", "input_boolean", "timer", "scene", "script", "button", "input_button", "lock"];
+export const SWITCHES_ON_TAP = ["light", "fan", "switch", "input_boolean"];
+const HOLD_HINTS: Record<string, string> = { light: "hold_light", fan: "hold_fan", switch: "hold_history", input_boolean: "hold_history", timer: "hold_timer" };
+export const holdHintKey = (domain: string) => `editor.tile.tap.${HOLD_HINTS[domain] ?? "hold"}`;
 const SLIDER_CONTROLS: Record<string, string> = { light: 'brightness', fan: 'speed', cover: 'position', media_player: 'volume', number: 'slider', input_number: 'slider' };
 export const SLIDER_DOMAINS = Object.keys(SLIDER_CONTROLS);
 export const inlineControlKind = (domain: string) => SLIDER_CONTROLS[domain] || '';

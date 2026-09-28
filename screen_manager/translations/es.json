@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Las automatizaciones necesitan el firmware 0.7.0 de la pantalla: pulsa primero Actualizar en la lista de pantallas.",
         "hold": "Mantén pulsado el mosaico para abrir su tarjeta.",
         "hold_run": "Mantén pulsado el mosaico para ejecutar sus acciones.",
-        "hold_toggle": "Mantén pulsado el mosaico para activarla o desactivarla."
+        "hold_toggle": "Mantén pulsado el mosaico para activarla o desactivarla.",
+        "hold_light": "Mantén pulsado el mosaico para el brillo y el color, según lo que tenga la luz.",
+        "hold_fan": "Mantén pulsado el mosaico para la velocidad, si el ventilador la tiene.",
+        "hold_history": "Mantén pulsado el mosaico para ver su historial.",
+        "hold_timer": "Mantén pulsado el mosaico para cancelar el temporizador.",
+        "detail_no_toggle": "Un toque abre la tarjeta y ya no enciende ni apaga. Con {auto}, un toque enciende o apaga y mantener pulsado abre la tarjeta."
       },
       "guard": {
         "label": "Desbloquear aquí",

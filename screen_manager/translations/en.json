@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Automations need screen firmware 0.7.0: press Update on the screen first.",
         "hold": "Hold the tile to open its card.",
         "hold_run": "Hold the tile to run its actions.",
-        "hold_toggle": "Hold the tile to switch it on or off."
+        "hold_toggle": "Hold the tile to switch it on or off.",
+        "hold_light": "Hold the tile for brightness and color, as far as the light has them.",
+        "hold_fan": "Hold the tile for its speed, if the fan has one.",
+        "hold_history": "Hold the tile for its history.",
+        "hold_timer": "Hold the tile to cancel the timer.",
+        "detail_no_toggle": "A tap opens the card and no longer switches on or off. With {auto}, a tap switches and holding the tile opens the card."
       },
       "guard": {
         "label": "Unlocking here",

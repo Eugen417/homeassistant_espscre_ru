@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "As automatizações precisam do firmware 0.7.0 do ecrã: prima primeiro Atualizar na lista de ecrãs.",
         "hold": "Mantenha o mosaico premido para abrir o respetivo cartão.",
         "hold_run": "Mantenha o mosaico premido para executar as respetivas ações.",
-        "hold_toggle": "Mantenha o mosaico premido para a ativar ou desativar."
+        "hold_toggle": "Mantenha o mosaico premido para a ativar ou desativar.",
+        "hold_light": "Mantenha o mosaico premido para o brilho e a cor, conforme o que a luz suporta.",
+        "hold_fan": "Mantenha o mosaico premido para a velocidade, se a ventoinha a tiver.",
+        "hold_history": "Mantenha o mosaico premido para ver o histórico.",
+        "hold_timer": "Mantenha o mosaico premido para cancelar o temporizador.",
+        "detail_no_toggle": "Um toque abre o cartão e já não liga nem desliga. Com {auto}, um toque liga ou desliga e manter premido abre o cartão."
       },
       "guard": {
         "label": "Destrancar aqui",

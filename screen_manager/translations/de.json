@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Automationen brauchen die Bildschirm-Firmware 0.7.0: Drücke zuerst beim Bildschirm auf „Aktualisieren“.",
         "hold": "Halte die Kachel gedrückt, um ihre Karte zu öffnen.",
         "hold_run": "Halte die Kachel gedrückt, um ihre Aktionen auszuführen.",
-        "hold_toggle": "Halte die Kachel gedrückt, um sie ein- oder auszuschalten."
+        "hold_toggle": "Halte die Kachel gedrückt, um sie ein- oder auszuschalten.",
+        "hold_light": "Halte die Kachel gedrückt für Helligkeit und Farbe, soweit die Lampe sie hat.",
+        "hold_fan": "Halte die Kachel gedrückt für die Geschwindigkeit, wenn der Ventilator eine hat.",
+        "hold_history": "Halte die Kachel gedrückt für ihren Verlauf.",
+        "hold_timer": "Halte die Kachel gedrückt, um den Timer abzubrechen.",
+        "detail_no_toggle": "Ein Tippen öffnet die Karte und schaltet nicht mehr ein oder aus. Mit {auto} schaltet ein Tippen, und Gedrückthalten öffnet die Karte."
       },
       "guard": {
         "label": "Hier entriegeln",

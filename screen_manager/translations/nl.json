@@ -1581,7 +1581,12 @@
         "automation_needs_firmware": "Automatiseringen hebben schermfirmware 0.7.0 nodig: druk eerst bij het scherm op Bijwerken.",
         "hold": "Houd de tegel vast om de kaart te openen.",
         "hold_run": "Houd de tegel vast om de acties uit te voeren.",
-        "hold_toggle": "Houd de tegel vast om hem aan of uit te zetten."
+        "hold_toggle": "Houd de tegel vast om hem aan of uit te zetten.",
+        "hold_light": "Houd de tegel vast voor helderheid en kleur, voor zover de lamp die heeft.",
+        "hold_fan": "Houd de tegel vast voor de snelheid, als de ventilator die heeft.",
+        "hold_history": "Houd de tegel vast voor de geschiedenis.",
+        "hold_timer": "Houd de tegel vast om de timer te annuleren.",
+        "detail_no_toggle": "Een tik opent de kaart en zet niets meer aan of uit. Met {auto} zet een tik aan of uit en opent vasthouden de kaart."
       },
       "guard": {
         "label": "Ontgrendelen hier",
