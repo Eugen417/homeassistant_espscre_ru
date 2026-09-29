@@ -1045,5 +1045,57 @@ class LiveApp(unittest.IsolatedAsyncioTestCase):
             self.assertIn('no image', logs.output[-1])
 
 
+@unittest.skipUnless(HAS_AIOHTTP, 'aiohttp')
+class PublishedPort(unittest.IsolatedAsyncioTestCase):
+    """GitHub #84: an owner who publishes 8098 as 8099 on Home Assistant OS gets links on 8099."""
+
+    def setUp(self):
+        camera_feed.base_url.__defaults__[0].clear()
+
+    async def base(self, info, env):
+        from unittest import mock
+
+        class Response:
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *exc):
+                return False
+            async def json(self):
+                if isinstance(info, Exception):
+                    raise info
+                return info
+
+        class Session:
+            def __init__(self, *a, **k):
+                pass
+            async def __aenter__(self):
+                return self
+            async def __aexit__(self, *exc):
+                return False
+            def get(self, url, **kwargs):
+                assert url == 'http://supervisor/addons/self/info'
+                return Response()
+
+        async def request(kind, **data):
+            return {'adapters': [{'default': True, 'ipv4': [{'address': '192.168.1.5'}]}]}
+
+        with mock.patch.dict('os.environ', env, clear=True), mock.patch('aiohttp.ClientSession', Session):
+            return await camera_feed.base_url(request)
+
+    async def test_the_link_carries_the_port_the_supervisor_published(self):
+        info = {'result': 'ok', 'data': {'network': {'8098/tcp': 8099}}}
+        self.assertEqual(await self.base(info, {'SUPERVISOR_TOKEN': 't'}), 'http://192.168.1.5:8099')
+
+    async def test_8098_when_the_supervisor_says_nothing_usable(self):
+        for info in ({'data': {'network': {'8098/tcp': None}}}, {'data': {}}, ConnectionError('x')):
+            camera_feed.base_url.__defaults__[0].clear()
+            self.assertEqual(await self.base(info, {'SUPERVISOR_TOKEN': 't'}), 'http://192.168.1.5:8098')
+
+    async def test_docker_keeps_its_own_setting(self):
+        info = {'data': {'network': {'8098/tcp': 8099}}}
+        self.assertEqual(await self.base(info, {}), 'http://192.168.1.5:8098')
+        camera_feed.base_url.__defaults__[0].clear()
+        self.assertEqual(await self.base(info, {'SUPERVISOR_TOKEN': 't', 'SCREEN_CAMERA_PORT': '9000'}), 'http://192.168.1.5:9000')
+
 if __name__ == '__main__':
     unittest.main()

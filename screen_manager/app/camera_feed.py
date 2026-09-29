@@ -672,6 +672,27 @@ def port():
     return value if 0 < value < 65536 else PORT
 
 
+async def published_port():
+    """The host port screens reach this app on (GitHub #84): on Home Assistant OS the owner may publish 8098 under
+    another port in the app's network settings, and the app still listens on 8098 inside its container. The
+    Supervisor says which (`network` of /addons/self/info); SCREEN_CAMERA_PORT, or no Supervisor, keeps port()."""
+    token = os.environ.get('SUPERVISOR_TOKEN', '')
+    if 'SCREEN_CAMERA_PORT' in os.environ or not token:
+        return port()
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async with session.get('http://supervisor/addons/self/info', headers={'Authorization': f'Bearer {token}'},
+                                   timeout=aiohttp.ClientTimeout(total=10)) as response:
+                info = await response.json()
+        value = int(((info.get('data') or {}).get('network') or {}).get(f'{PORT}/tcp'))
+        if 0 < value < 65536:
+            return value
+    except Exception as error:
+        LOG.info('Reading the published camera port failed (%s)', type(error).__name__)
+    return port()
+
+
 async def base_url(request, cache={}):
     """http://<address>:<port> where screens reach this app: SCREEN_CAMERA_URL when set, else Home Assistant's
     own LAN address (the add-on's port is published on the host). `request` is HomeAssistant.request."""
@@ -699,5 +720,5 @@ async def base_url(request, cache={}):
             LOG.info('Reading the internal URL failed (%s)', type(error).__name__)
     if not host:
         return None
-    cache.update(url=f'http://{host}:{port()}', at=now)
+    cache.update(url=f'http://{host}:{await published_port()}', at=now)
     return cache['url']

@@ -1,3 +1,14 @@
+## 0.4.24 (firmware 0.14.0)
+
+- **Album covers, station logos and camera pictures follow the app's port** (GitHub #84). Home Assistant OS lets you
+  publish the app's picture port 8098 under another number in its network settings, for example when another app
+  already uses 8098. The screens were still sent links on 8098, so they asked the other app for their pictures and
+  showed none. The app now asks the Supervisor which port it published and puts that one in the links. Docker keeps
+  `SCREEN_CAMERA_PORT` and `SCREEN_CAMERA_URL` as before.
+- Tested: tools/check.sh, with new tests for a port published as 8099, a Supervisor that answers nothing usable
+  (8098 as before) and Docker's own setting. On a Home Assistant OS bench with the port published as 8099 (8098
+  closed), a camera alert on a Guition 4848S040 showed its picture.
+
 ## 0.4.23 (firmware 0.14.0)
 
 - **Taller tiles on every screen.** Less of the glass goes to space around the tiles, and more to the tiles
