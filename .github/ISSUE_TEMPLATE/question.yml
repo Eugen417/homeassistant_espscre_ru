@@ -28,6 +28,7 @@ body:
         - Hosyond (ESP32-32E E32R40T)
         - Guition (JC3248W535)
         - Waveshare (ESP32-S3-Touch-LCD-7B)
+        - Sunton (ESP32-8048S070)
         - Other / not listed here
         - Not board-specific
     validations:

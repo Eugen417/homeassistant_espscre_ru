@@ -49,7 +49,7 @@ def _grids():
     return '; '.join(f'{columns} × {rows} on {_and(boards)}' for (columns, rows), boards in grids.items())
 
 NAMES = list(dict.fromkeys(SHAPES[board].get('catalog', {}).get('name', board) for board in BOARD_KEYS))
-DESCRIPTION = (f'ESP Screens ({_and(NAMES)} screens run from Home Assistant): put, move or order tiles on a '
+DESCRIPTION = (f'ESP Screens ({_and(NAMES)} screens in Home Assistant): put, move or order tiles on a '
                'screen, show an alert or open a page on it, and wake, sleep or keep a screen awake.')
 TYPES = {'string': 'text', 'int': 'number', 'bool': 'on/off'}
 
@@ -58,9 +58,9 @@ def skill_dir(config=None):
     return Path(config or os.environ.get('HA_CONFIG', '/homeassistant')) / '.claude' / 'skills' / NAME
 
 def _limit(name, kind):
-    """The bytes a text field holds on each look, with the boards that have it ("CYD 48 · Guition and Waveshare 64 bytes")."""
+    """The bytes a text field holds on each look, with the boards that have it ("CYD and Hosyond 48 · Guition, Waveshare and Sunton 64 bytes")."""
     boards = limit_boards()
-    parts = [f"{' and '.join(boards[look])} {values[name]}" for look, values in ALERT_LIMITS.items() if name in values and boards.get(look)]
+    parts = [f"{_and(boards[look])} {values[name]}" for look, values in ALERT_LIMITS.items() if name in values and boards.get(look)]
     if parts:
         return ' · '.join(parts) + ' bytes'
     return f'0 to {ALERT_MAX_TIMEOUT} s' if kind == 'int' else ''

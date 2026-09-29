@@ -106,3 +106,9 @@ waveshare7b:
   name: Waveshare
   model: ESP32-S3-Touch-LCD-7B
   status: experimental
+
+sunton8048s070:
+  file: sunton-8048s070.yaml
+  name: Sunton
+  model: ESP32-8048S070
+  status: experimental

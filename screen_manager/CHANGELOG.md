@@ -1,3 +1,15 @@
+## 0.4.28 (firmware 0.17.0)
+
+A new board, experimental: the Sunton ESP32-8048S070 (GitHub #94).
+
+- **Sunton 8048S070** in New screen, as **Sunton · 7 inch** (ESP32-8048S070): 800 x 480, four by four tiles lying down
+  and two by seven standing up, at the tile size of the 7-inch Waveshare. Its backlight dims, so brightness, standby and
+  night mode are all there. docs/SUNTON8048S070.md has the details and what to report.
+- Nothing changes for a screen you have: no firmware update.
+- Tested: the board builds with ESPHome 2026.9 (2,138,128 B, 26.3 % of its 8 MB slot) and with 2026.6.2, and its render
+  check passes lying down and standing up. Not yet seen on the glass of this board by the project: the panel is
+  ESPHome's own ESP32-8048S070 model, the touch bus and backlight pin follow a configuration a board owner ran.
+
 ## 0.4.27 (firmware 0.17.0)
 
 - **A lamp, a switch, a script or a scene two cells high is one big key.** On a tile of 2 x 2 or 1 x 2 cells the card
