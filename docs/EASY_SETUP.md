@@ -181,8 +181,9 @@ colored icons, a room filter, and **Hide placed**. You can add one tile for ever
 48 on a CYD, a 4-inch Guition or the experimental Waveshare 4B (firmware 0.2.62+; see below for older firmware).
 The screen preview shows their placement on the screen's own grid, lying down: two columns of three on a CYD, a 4-inch Guition,
 the Waveshare 4B or the Hosyond 4-inch, two by two on the Waveshare 3.5-inch and the 3.5-inch Guition, three by three on the Waveshare 4.3-inch,
-four by four on the [experimental Waveshare 7-inch](WAVESHARE7.md), the [experimental Waveshare 7B](WAVESHARE7B.md), the [experimental Sunton 7-inch](SUNTON8048S070.md) and the 7-inch Guition, and five by four on the
-10.1-inch Guition; up to eight pages and 64 tiles. Every tile has a fixed slot that only changes if
+four by four on the [experimental Waveshare 7-inch](WAVESHARE7.md), the [experimental Waveshare 7B](WAVESHARE7B.md), the [experimental Sunton 7-inch](SUNTON8048S070.md) and the 7-inch Guition, and five by five on the
+10.1-inch Guition, either way up (firmware 0.18.0; five by four before, and a saved layout moves on by itself); up to
+eight pages and 64 tiles. Every tile has a fixed slot that only changes if
 you drag it; empty slots stay empty, wherever you leave them. Drag a tile
 onto an empty slot and it stays there; drag it onto another tile and the two
 swap (the other tile takes the freed-up slot, or otherwise the nearest free
@@ -243,9 +244,10 @@ Click **Save & send** to send your changes.
   shows 1, 6, or 24 hours.
 - Select/input_select: tap for a list of its options with a check at the current one (firmware 0.3.3+).
 
-From firmware 0.2.62, one tile fits in every cell of up to eight pages (48 on a CYD or a 4-inch Guition, 63 over
-seven pages on the Waveshare 4.3-inch, 60 over three on the 10.1-inch Guition). The experimental Waveshare 7-inch
-holds 64 over four pages lying down, or 56 over four standing up (firmware 0.2.94+). Firmware 0.2.7 to
+From firmware 0.2.62, one tile fits in every cell of up to eight pages, 64 tiles at most (48 on a CYD or a 4-inch
+Guition). From firmware 0.18.0 every screen has all eight pages and a page need not be full; before, a bigger grid had
+as many pages as 64 tiles fill (seven on the Waveshare 4.3-inch, four on the 7-inch boards, three on the 10.1-inch
+Guition). Firmware 0.2.7 to
 0.2.61 keeps the limit of twenty (four pages) and older firmware ten, until you
 update. In the **Screen settings** tab, **Swipe between pages** turns on swiping.
 On a board with capacitive touch (every board but the CYD and the Hosyond, firmware 0.2.24+), you then swipe inward from the left or right

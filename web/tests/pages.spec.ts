@@ -46,12 +46,13 @@ describe("page-owned document operations", () => {
     expect(source.pages[0]).toEqual(before.pages[0]);
     expect(adapted.pages[1].navigation.excludeFromPagination).toBe(true);
   });
-  it('refuses a grid adaptation that would lose tiles or increase the page capacity', () => {
+  it('refuses a grid adaptation that would lose tiles, and keeps every page on any grid', () => {
     const layout = emptyLayout('Full page');
     const full = arrangeTiles(layout, grid, Array.from({ length: 6 }, (_, slot) => ({ tile: { entity: `sensor.a${slot}`, name: '', slot }, slot })));
     expect(() => adaptGrid(full, grid, { columns: 1, rows: 4 })).toThrow('No tiles were removed');
+    // Every grid has eight pages (firmware 0.18.0+), so a grid of nine cells keeps all eight.
     const eight = fixture(); while (eight.pages.length < 8) eight.pages.push(emptyPage());
-    expect(() => adaptGrid(eight, grid, { columns: 3, rows: 3 })).toThrow('more pages');
+    expect(adaptGrid(eight, grid, { columns: 3, rows: 3 }).pages).toHaveLength(8);
   });
   it('copies items without renaming pages, and whole bars only when explicitly chosen', () => {
     const layout = fixture(), [first, second, third] = layout.pages;
@@ -203,7 +204,7 @@ describe("page-owned document operations", () => {
     const layout = fixture(), view = projectLayout(layout, grid);
     expect(() => arrangeTiles(layout, grid, view.tiles.map((tile) => ({ tile, slot: 0 })))).toThrow("same spot");
     for (const board of [grid, { columns: 3, rows: 3 }]) {
-      const full = emptyLayout("Capacity"), limit = Math.min(8, Math.floor(64 / (board.columns * board.rows)));
+      const full = emptyLayout("Capacity"), limit = 8;
       while (full.pages.length < limit) full.pages.push(emptyPage());
       expect(validatePages(full, board)).toBe(full);
       expect(() => duplicatePage(full, board, full.homePageId, true)).toThrow("no room");

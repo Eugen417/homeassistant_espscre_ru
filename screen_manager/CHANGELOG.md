@@ -1,3 +1,20 @@
+## 0.4.30 (firmware 0.18.0)
+
+- **Every screen has eight pages, and a page need not be full.** A screen holds 64 tiles over up to eight pages, on
+  every board. Before, a bigger grid had fewer pages: as many as 64 tiles fill, so three on the 10.1-inch Guition and
+  seven on the Waveshare 4.3-inch. A page with a few tiles is fine now. A screen on older firmware keeps its old limit
+  until it is updated, and the editor offers it no more pages than it takes.
+- **The 10.1-inch Guition is five by five**, lying down and standing up (all three: JC8012P4A1, V2 and V3). Before it
+  was five by four lying down and four by five standing up.
+- **A saved layout moves on to a bigger grid by itself.** When a screen reports more rows or columns than its layout
+  was made for, ESP Screen Manager moves the layout to the new grid: every tile keeps its page, its row and its
+  column, and the new cells stay empty. Before, the screen waited for someone to review the change in the editor. A
+  grid that gets smaller still asks for that review.
+- Tested: tools/check.sh with new tests (the page limit per firmware in the add-on, the editor and the firmware, a grid
+  that grows, delivery to firmware that does not take the pages yet), the firmware of every board on ESPHome 2026.9.0
+  and 2026.6.2, and the 10.1-inch Guition rendered lying down and standing up. Not yet seen on the glass of a
+  10.1-inch screen.
+
 ## 0.4.29 (firmware 0.17.0)
 
 A new board, experimental: the Guition JC8012P4A1 V2 (GitHub #92).

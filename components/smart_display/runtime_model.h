@@ -50,7 +50,9 @@ namespace runtime_tiles {
 constexpr size_t TILES_MAX = 64;
 // The keys under a bedside clock's time (firmware 0.8.0+).
 constexpr unsigned BEDSIDE_KEYS = 3;
-// Explicit grid positions (0.2.26+) address at most eight pages.
+// Explicit grid positions (0.2.26+) address at most eight pages. Every grid has all eight (firmware 0.18.0+): a page
+// need not be full, so the pages no longer follow from the cells, only the tiles of the whole screen (TILES_MAX) do.
+// Before, a grid had 64 / cells pages, three on a 5 x 4 grid, and a grid that grew lost the pages of a saved layout.
 constexpr size_t PAGES_MAX = 8;
 // The bigger of the two grids: what the cards, the page's own arrays and the grid descriptors are sized for. A
 // CYD carries six cards and shows four of them standing up; nothing is allocated twice.
@@ -67,6 +69,9 @@ constexpr size_t dim_max(size_t a, size_t b, size_t c, size_t d) {
 constexpr size_t DIM_MAX = dim_max(GRID_COLS, GRID_ROWS, GRID_COLS_PORTRAIT, GRID_ROWS_PORTRAIT);
 static_assert(GRID_COLS >= 1 && GRID_ROWS >= 1 && GRID_COLS_PORTRAIT >= 1 && GRID_ROWS_PORTRAIT >= 1, "a grid needs a cell");
 static_assert(CELLS_MAX <= TILES_MAX, "a page holds at most as many cells as a screen holds tiles");
+// A slot (page * cells + cell) is kept in 16 bits (Model::slots): eight pages of a big grid pass 256, 512 on the
+// preview's eight by eight. Within its page (Placement) a cell still fits a byte.
+static_assert(PAGES_MAX * CELLS_MAX <= 65536, "every slot of every page fits in Model::slots");
 
 // The cells of one page, and everything that follows from them. ESP Screens counts with the same object
 // (screen_manager/app/core.py, class Grid), method for method, so a slot number means the same thing on both
@@ -75,9 +80,9 @@ struct Grid {
   size_t columns = GRID_COLS;
   size_t rows = GRID_ROWS;
   constexpr size_t slots() const { return columns * rows; }
-  constexpr size_t pages() const { return TILES_MAX / slots() < PAGES_MAX ? TILES_MAX / slots() : PAGES_MAX; }
+  constexpr size_t pages() const { return PAGES_MAX; }
   constexpr size_t max_slots() const { return pages() * slots(); }
-  constexpr size_t max_tiles() const { return max_slots(); }
+  constexpr size_t max_tiles() const { return max_slots() < TILES_MAX ? max_slots() : TILES_MAX; }
   // A wide card takes the cell beside it, or the only cell there is on a single-column screen.
   constexpr size_t wide_span() const { return columns > 1 ? 2 : 1; }
   // Whether a wide card started here would still stand in the row it starts in.
@@ -538,7 +543,7 @@ inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out);
 struct Model {
   TileList tiles;
   // Absolute grid slot per tile: gaps and page ownership stay unchanged.
-  std::array<uint8_t, TILES_MAX> slots{};
+  std::array<uint16_t, TILES_MAX> slots{};
   // Pages the manager wants shown even when the last ones are still empty (0.2.26+).
   uint8_t pages = 1;
   size_t count = 0;

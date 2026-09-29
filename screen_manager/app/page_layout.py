@@ -196,6 +196,26 @@ def _entity(content, page_indexes, home):
     raise LayoutError(t('addon.errors.layout.unsupported'))
 
 
+def grown(layout, source, target):
+    """The layout of a grid that only grew (as many columns or more, as many rows or more) on the bigger grid, or None
+    for any other change. Every tile keeps its page, its row and its column, so nothing moves and nothing is lost: a
+    page gains empty cells, and a tile over the whole page covers the whole new one. The editor's adaptGrid gives the
+    same result for such a grid, which is why the app may take it without asking (a 10.1-inch screen went from 5 x 4
+    to 5 x 5 in firmware 0.18.0). A grid that shrank, or grew one way and shrank the other, still waits for a review."""
+    if target == source or target.columns < source.columns or target.rows < source.rows:
+        return None
+    layout = deepcopy(layout)
+    sizes = {"single": (1, 1), "wide": (target.wide_span, 1), "tall": (1, 2), "square": (2, 2), "full": (target.columns, target.rows)}
+    for page in layout["pages"]:
+        for tile in page["tiles"]:
+            placement, appearance = tile["placement"], tile["appearance"]
+            size = footprint_size(placement["columns"], placement["rows"], source, appearance.get("presentation"))
+            placement["columns"], placement["rows"] = sizes[size]
+            if size != "single":
+                appearance["presentation"] = size
+    return validate_document(layout, target)
+
+
 def footprint_size(columns, rows, grid, presentation=None):
     """Current rendering capability, separate from the persistent rectangle.
 

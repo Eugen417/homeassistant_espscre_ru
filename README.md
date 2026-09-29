@@ -64,7 +64,7 @@ https://github.com/user-attachments/assets/f9f6a933-d388-4c8b-9c9a-011dfa37617b
 ## Five screens supported, 2.8 to 10.1 inch
 
 One home, five panels. A screen is built for the glass it runs on: it measures its own canvas at boot and gives a page
-the cells that board has, six tiles on the 2.8-inch CYD and twenty on the 10.1-inch Guition, while a tile stays about
+the cells that board has, six tiles on the 2.8-inch CYD and twenty-five on the 10.1-inch Guition, while a tile stays about
 the same size in millimetres. The same tiles, the same cards, the same editor; the bigger the glass, the more of your
 home fits on one page.
 
@@ -283,9 +283,9 @@ while it keeps your country's clock and numbers.
 | [Waveshare ESP32-S3-Touch-LCD-3.5](https://tessera-maxgramser.on-forge.com/screens/waveshare35) (new) | 480 × 320, 2 × 2 tiles | ST7796 SPI / capacitive FT6336; dimmable backlight, no camera pictures ([details](docs/WAVESHARE35.md)) |
 | [Hosyond ESP32-32E](https://tessera-maxgramser.on-forge.com/screens/hosyond40), 4 inch (experimental) | 480 × 320, 2 × 3 tiles | ST7796 SPI / resistive XPT2046; dimmable backlight, no camera pictures, hardware acceptance pending ([details](docs/HOSYOND40.md)) |
 | [Guition JC3248W535](docs/JC3248W535.md), 3.5 inch (new) | 480 × 320, 2 × 2 tiles | AXS15231B QSPI / capacitive AXS15231B; dimmable backlight, camera pictures |
-| [Guition JC8012P4A1](https://tessera-maxgramser.on-forge.com/screens/jc8012p4a1), 10.1 inch | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) ([details](docs/JC8012P4A1.md)) |
-| Guition JC8012P4A1 V2, 10.1 inch (experimental) | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, early ESP32-P4 with the newer LCD; hardware acceptance pending ([details](docs/JC8012P4A1.md)) |
-| Guition JC8012P4A1 V3, 10.1 inch (experimental) | 1280 × 800, 5 × 4 tiles | MIPI-DSI JD9365 / capacitive GSL3680, rev3 ESP32-P4; hardware acceptance pending ([details](docs/JC8012P4A1.md)) |
+| [Guition JC8012P4A1](https://tessera-maxgramser.on-forge.com/screens/jc8012p4a1), 10.1 inch | 1280 × 800, 5 × 5 tiles | MIPI-DSI JD9365 / capacitive GSL3680, ESP32-P4 (new) ([details](docs/JC8012P4A1.md)) |
+| Guition JC8012P4A1 V2, 10.1 inch (experimental) | 1280 × 800, 5 × 5 tiles | MIPI-DSI JD9365 / capacitive GSL3680, early ESP32-P4 with the newer LCD; hardware acceptance pending ([details](docs/JC8012P4A1.md)) |
+| Guition JC8012P4A1 V3, 10.1 inch (experimental) | 1280 × 800, 5 × 5 tiles | MIPI-DSI JD9365 / capacitive GSL3680, rev3 ESP32-P4; hardware acceptance pending ([details](docs/JC8012P4A1.md)) |
 | Guition [JC1060P470](https://tessera-maxgramser.on-forge.com/screens/jc1060p470) and [JC1060P470 V2](https://tessera-maxgramser.on-forge.com/screens/jc1060p470v2), 7 inch (experimental) | 1024 × 600, 4 × 4 tiles | MIPI-DSI JD9165 / capacitive GT911, ESP32-P4; hardware acceptance pending ([details](docs/JC1060P470.md)) |
 
 Each screen links to its page on the [Tessera website](https://tessera-maxgramser.on-forge.com/screens), with what owners report about it.

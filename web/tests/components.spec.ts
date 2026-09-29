@@ -914,7 +914,7 @@ describe("the orientation of a new screen", () => {
     // Each glass in its own proportions with the cells of one page lying down.
     const glass = (key: string) => view.find(`input[value="${key}"]`).element.closest("label")!.querySelector(".orient-glass") as HTMLElement;
     expect(glass("jc8012p4a1").getAttribute("style")).toContain("1280 / 800");
-    expect(glass("jc8012p4a1").querySelectorAll(".orient-cells i")).toHaveLength(20);
+    expect(glass("jc8012p4a1").querySelectorAll(".orient-cells i")).toHaveLength(25);
     expect(glass("guition").getAttribute("style")).toContain("480 / 480");
     // The first board is chosen to begin with, with what it can do; the CYD asks for a touch calibration first.
     expect((rows[0].find("input").element as HTMLInputElement).checked).toBe(true);

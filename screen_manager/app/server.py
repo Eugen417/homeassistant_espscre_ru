@@ -777,6 +777,21 @@ class Manager:
         legacy screen therefore uses 2x3 once it appears in HA's registry.
         An absent screen still waits for discovery rather than being guessed.
         """
+        screen = self._discovered(inbox)
+        if screen is None:
+            return None
+        reported = self.reported_grid(inbox)
+        if reported is not None:
+            return reported
+        profile = self.built_as(screen)
+        if profile.get('package') and board_of({**screen, 'package': profile['package']}) in SHAPES:
+            return self.grid_of(screen)
+        if board_of(screen) in SHAPES:
+            return self.grid_of(screen)
+        return Grid(2, 3)
+
+    def _discovered(self, inbox):
+        """The screen as discovery sees it now, or None while it is not in Home Assistant's registry."""
         # Discovery is pure here: following renames can write storage, so it must
         # not run recursively from the store's migration callback.
         ha = self.ha
@@ -785,18 +800,15 @@ class Manager:
         if key != self._verified_screens_key:
             self._verified_screens_key = key
             self._verified_screens = {item['id']: item for item in discover_screens(items, ha.states, ha.devices, ha.areas)}
-        screen = self._verified_screens.get(inbox)
-        if screen is None:
-            return None
-        shape = screen.get('shape')
+        return self._verified_screens.get(inbox)
+
+    def reported_grid(self, inbox):
+        """The grid the screen reports itself ("Screen layout", firmware 0.2.77+), or None when it says nothing.
+        verified_grid takes this one first; only this one may move a saved layout to a new grid on its own."""
+        shape = (self._discovered(inbox) or {}).get('shape')
         if isinstance(shape, dict) and all(type(shape.get(k)) is int and shape[k] > 0 for k in ('columns', 'rows')):
             return Grid(shape['columns'], shape['rows'])
-        profile = self.built_as(screen)
-        if profile.get('package') and board_of({**screen, 'package': profile['package']}) in SHAPES:
-            return self.grid_of(screen)
-        if board_of(screen) in SHAPES:
-            return self.grid_of(screen)
-        return Grid(2, 3)
+        return None
 
     def refresh_page_records(self):
         """Online metadata completes pending migrations without a browser Save."""
@@ -1530,7 +1542,8 @@ class Manager:
             raise ValueError(t('addon.errors.not_paired'))
         # Every position on the grid of this screen's pages: two by three on the first boards, whatever a newer
         # screen reports or its profile builds from (Manager.grid_of).
-        grid = self.grid_of(screen)
+        # With the pages its firmware takes: eight from 0.18.0, as many as 64 tiles fill before.
+        grid = self.grid_of(screen).for_firmware(self.firmware_version(inbox, screen))
         layout = validate_layout(data, grid=grid)
         # A CYD has no memory for camera images, whatever its firmware; say so before asking for an update.
         if any(t['entity'].split('.')[0] in CAMERA_DOMAINS for t in layout['tiles']) and board_of(screen) not in camera_feed.BOXES:
@@ -2346,7 +2359,7 @@ class Manager:
         # screen keeps one per page a navigation tile goes to, and one of everything else.
         firmware = self.firmware_version(inbox, screen) or (0, 0, 0)
         layout, tile = run_tile_event(self.layouts.get(inbox) or {'title': screen['name'], 'tiles': []}, TILE_EVENTS[event_type], data,
-                                      firmware >= PAGE_TILE_REPEAT_MIN_FIRMWARE, self.grid_of(screen),
+                                      firmware >= PAGE_TILE_REPEAT_MIN_FIRMWARE, self.grid_of(screen).for_firmware(firmware),
                                       firmware >= ENTITY_REPEAT_MIN_FIRMWARE)
         await self.check_supported(inbox, layout)
         record = self.store.get(inbox)
@@ -2388,7 +2401,7 @@ class Manager:
             layout, node = self.layouts.get(inbox), screen.get('node')
             if not layout or not node:
                 continue
-            snapshot = layout_snapshot(screen, layout, self.grid_of(screen))
+            snapshot = layout_snapshot(screen, layout, self.grid_of(screen).for_firmware(self.firmware_version(inbox, screen)))
             if self.published.get(inbox) == snapshot:
                 continue
             try:

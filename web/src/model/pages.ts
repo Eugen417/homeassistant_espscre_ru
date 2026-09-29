@@ -13,7 +13,9 @@ import rules from './page-rules.json';
 
 export const clone = <T>(value: T): T => JSON.parse(JSON.stringify(value));
 export const instanceId = () => [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, "0")).join("");
-export const pageLimit = (grid: PageGrid) => Math.min(8, Math.floor(64 / (grid.columns * grid.rows)));
+// Eight pages on every grid (firmware 0.18.0+); a screen with older firmware has a lower limit, which the store checks
+// against the screen's own page_limit.
+export const pageLimit = (_grid: PageGrid) => 8;
 export const sameGrid = (a: PageGrid, b: PageGrid) => a.columns === b.columns && a.rows === b.rows;
 const byteLength = (value: string) => new TextEncoder().encode(value).length;
 

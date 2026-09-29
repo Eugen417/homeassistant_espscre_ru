@@ -234,7 +234,7 @@ export const roomyNames = computed(() => {
   const cell = (shape.width - 18 - (columns - 1) * 8) / columns - 2 * pad - 2;
   return cell >= Math.floor((shape.dpi * 30 + 12) / 25);
 });
-export const editorLayout = createLayout(() => state.documentGrid ?? screenShape.value);
+export const editorLayout = createLayout(() => state.documentGrid ?? screenShape.value, () => currentScreen.value?.page_limit);
 export const grid = editorLayout.grid;
 const { arrange, cellsOf, firstFree, fits, nearestFree, normalize, occupied, pageCount, pageOf, reorderPages, rowStart, startOf, strandedPages, tileLimit: limitFor } = editorLayout;
 export const currentTile = computed<Tile | undefined>(() => state.selectedTile?.id
@@ -642,7 +642,7 @@ export function commitArrangement(result: { tile: Tile; slot: number }[], field?
     // page, in the same undo operation as its navigation tile.
     const draft = pages.clone(state.document);
     const count = Math.max(draft.pages.length, ...result.filter(({ tile }) => !tile.id).map(({ tile }) => pageTarget(tile.entity)));
-    if (count > pages.pageLimit(state.documentGrid)) throw new Error(t("addon.errors.pages.pages_full"));
+    if (count > editorLayout.grid.pages) throw new Error(t("addon.errors.pages.pages_full"));
     while (draft.pages.length < count) draft.pages.push(pages.emptyPage(draft.pages.at(-1)!.topbar));
     const arranged = pages.arrangeTiles(draft, state.documentGrid, result);
     const existing = new Set(state.document.pages.map(page => page.id));
@@ -1232,7 +1232,9 @@ function adopt(record: PageDocument, message: string) {
 export const gridChanged = computed(() => !!state.documentGrid && !!currentScreen.value?.shape &&
   !pages.sameGrid(state.documentGrid, currentScreen.value.shape));
 function reviewGrid(record: PageDocument, target: PageGrid, copy: boolean, message = '') {
-  try { state.gridReview = { record: pages.clone(record), layout: pages.adaptGrid(record.layout, record.sourceGrid, target),
+  try {
+    if (record.layout.pages.length > editorLayout.grid.pages) throw new Error(t("addon.errors.pages.adapt_pages"));
+    state.gridReview = { record: pages.clone(record), layout: pages.adaptGrid(record.layout, record.sourceGrid, target),
     target: { columns: target.columns, rows: target.rows }, copy, message }; }
   catch (error: any) { toast(error.message); }
 }

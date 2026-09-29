@@ -23,6 +23,9 @@ PAGE_TILE_REPEAT_MIN_FIRMWARE = (0, 2, 65)
 ENTITY_REPEAT_MIN_FIRMWARE = (0, 16, 0)
 # A screen without a title (firmware 0.17.0+): the top bar shows its home key alone. Older firmware said "Home" instead.
 NO_TITLE_MIN_FIRMWARE = (0, 17, 0)
+# Eight pages on every grid (firmware 0.18.0+), at most 64 tiles over all of them; older firmware had 64 / cells pages
+# (Grid.legacy_pages), three on a 5 x 4 grid. It says so in its hello (`free_pages`, page_delivery.Sender).
+FREE_PAGES_MIN_FIRMWARE = (0, 18, 0)
 
 def page_target(entity):
     """The page a navigation tile opens, counted from one; 0 for any other entity."""
@@ -91,7 +94,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.17.0'
+FIRMWARE_VERSION = '0.18.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -159,21 +162,28 @@ WIDE_ONLY = ('forecast', 'sunpath')
 # cell (page * cells + row * columns + column); a wide tile starts in a column that has a cell to its right and
 # covers both; a full tile (firmware 0.2.62+) starts a page and covers every cell of it. Empty cells are allowed.
 #
-# The rules are the firmware's (components/smart_display/runtime_model.h): at most eight pages, and never more
-# than 64 tiles on one screen (one dirty bit each), so a page of nine cells gives seven pages. Everything that
+# The rules are the firmware's (components/smart_display/runtime_model.h): eight pages whatever the grid, and never more
+# than 64 tiles on one screen (one dirty bit each), so a page need not be full (firmware 0.18.0+). Older firmware had
+# as many pages as 64 tiles fill (legacy_pages): seven of nine cells, three of twenty. Everything that
 # counts cells, rows, pages or tiles goes through the screen's Grid (`grid_of(screen)`); DEFAULT_GRID is the two
 # by three of the first boards, which is also what every layout stored before app 0.2.94 was made on.
 FIRMWARE_MAX_PAGES = 8
 FIRMWARE_MAX_TILES = 64
 
 class Grid:
-    __slots__ = ('columns', 'rows')
+    __slots__ = ('columns', 'rows', 'page_cap')
 
-    def __init__(self, columns=2, rows=3):
+    def __init__(self, columns=2, rows=3, pages=FIRMWARE_MAX_PAGES):
         columns, rows = int(columns), int(rows)
         if columns < 1 or rows < 1 or columns * rows > FIRMWARE_MAX_TILES:
             raise ValueError(f'no screen holds a page of {columns} x {rows} cells')
         self.columns, self.rows = columns, rows
+        # The pages the screen's firmware takes (for_firmware); the cells alone say nothing about them any more.
+        self.page_cap = max(1, min(FIRMWARE_MAX_PAGES, int(pages)))
+
+    def for_firmware(self, version):
+        """The same cells with the pages firmware `version` takes (page_limit): eight from 0.18.0, fewer before."""
+        return Grid(self.columns, self.rows, page_limit(version, Grid(self.columns, self.rows)))
 
     def __eq__(self, other):
         return isinstance(other, Grid) and (self.columns, self.rows) == (other.columns, other.rows)
@@ -191,13 +201,20 @@ class Grid:
 
     @property
     def pages(self):
+        return self.page_cap
+
+    @property
+    def legacy_pages(self):
+        """The pages firmware before 0.18.0 takes on this grid: as many as 64 tiles fill, eight at most."""
         return min(FIRMWARE_MAX_PAGES, FIRMWARE_MAX_TILES // self.slots)
 
     @property
     def max_slots(self):
         return self.pages * self.slots
 
-    max_tiles = max_slots
+    @property
+    def max_tiles(self):
+        return min(FIRMWARE_MAX_TILES, self.max_slots)
 
     @property
     def wide_span(self):
@@ -629,18 +646,24 @@ def version_text(version):
     """"0.2.65" for (0, 2, 65); None for None."""
     return '.'.join(str(part) for part in version) if version else None
 
+def page_limit(version, grid=DEFAULT_GRID):
+    """How many pages firmware `version` (a tuple, or None when unknown) takes on a screen with this grid: eight from
+    firmware 0.18.0, as many as 64 tiles fill before."""
+    return grid.pages if (version or (0, 0, 0)) >= FREE_PAGES_MIN_FIRMWARE else grid.legacy_pages
+
 def tile_limit(version, grid=DEFAULT_GRID):
-    """How many tiles firmware `version` (a tuple, or None when unknown) takes on a screen with this grid: one per
-    cell of its pages (firmware 0.2.62+), twenty from 0.2.7, ten before."""
+    """How many tiles firmware `version` (a tuple, or None when unknown) takes on a screen with this grid: 64 over its
+    pages (firmware 0.18.0+), one per cell of its pages (0.2.62+), twenty from 0.2.7, ten before."""
     version = version or (0, 0, 0)
-    return grid.max_tiles if version >= FULL_PAGE_MIN_FIRMWARE else LEGACY_MAX_TILES if version >= TWENTY_TILES_MIN_FIRMWARE else FIRST_MAX_TILES
+    if version >= FREE_PAGES_MIN_FIRMWARE: return grid.max_tiles
+    return grid.legacy_pages * grid.slots if version >= FULL_PAGE_MIN_FIRMWARE else LEGACY_MAX_TILES if version >= TWENTY_TILES_MIN_FIRMWARE else FIRST_MAX_TILES
 
 def firmware_features(version, grid=DEFAULT_GRID):
     """What the editor may offer a screen with firmware `version` (a tuple, or None): the tile limit, full-page and
     navigation tiles, the same navigation tile on several pages, any entity on several tiles and a screen without a
     title."""
     version = version or (0, 0, 0)
-    return {'tile_limit': tile_limit(version, grid), 'full_page': version >= FULL_PAGE_MIN_FIRMWARE,
+    return {'tile_limit': tile_limit(version, grid), 'page_limit': page_limit(version, grid), 'full_page': version >= FULL_PAGE_MIN_FIRMWARE,
             'page_tiles_repeat': version >= PAGE_TILE_REPEAT_MIN_FIRMWARE,
             'entity_tiles_repeat': version >= ENTITY_REPEAT_MIN_FIRMWARE, 'no_title': version >= NO_TITLE_MIN_FIRMWARE}
 
