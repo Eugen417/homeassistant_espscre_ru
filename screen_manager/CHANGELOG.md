@@ -1,3 +1,28 @@
+## 0.4.26 (firmware 0.16.0)
+
+- **One entity on several tiles** (GitHub #83). A light can now be a small tile on page 1 and a tile with its slider on
+  page 3, a camera can be on two pages, and a whole page can be copied with its tiles. Every copy has its own name,
+  icon, colour, size and tap. The library keeps offering an entity that is already on the screen and marks it with a
+  check, or with how often it is there. Only the bedside clock is on a screen once. It needs firmware 0.16.0; an older
+  screen asks for its update first.
+- On firmware 0.16.0 a lock's "tap again to unlock" counts only on the tile you tapped, an alarm going off opens its
+  card once, and each copy of a camera on a page gets its own picture and its own fit.
+- A lock or alarm panel no longer keeps a pulsing ring after it settled while its page was out of view. The ring stayed
+  with the place on the screen instead of the tile, so a page that came back could show the old animation.
+- `esp_screens_add_tile` now always puts a new tile on the screen, also when the entity is there already. To change a
+  tile through an event, remove it and add it again. On firmware older than 0.16.0 it works as before.
+- Tested: tools/check.sh with new tests for copies (validation, tile events, delivery to old and new firmware, live
+  pictures by tile, page copies, the editor's library and page menu). On a Guition 4848S040 with firmware 0.16.0 and a
+  Home Assistant OS bench: a lamp, a lock, an alarm panel and a camera on several pages, a whole page copied in the
+  editor, and a page with the same camera twice. A lamp switched in Home Assistant changed on every copy, also on a page
+  that was not on screen; tapping one lock copy and then another did not unlock, and each copy kept its own "unlock
+  never" setting; the alarm going off opened its card once; each camera copy and each album cover copy showed its own
+  fit, name and tile colour. A screen put back on firmware 0.13.0 was asked to update first and got nothing, then took
+  the layout with copies once it ran 0.16.0 again. Checked by hand on the Guition and on a CYD ESP32-2432S028R: lamp
+  copies switch together, a lock opens only on two taps on the same copy, the card and the effects page of a copy carry
+  its name, and an alarm going off opens its card once on each screen. Every board builds; the CYD firmware is 16 bytes smaller
+  than 0.4.25's (91.2 % of its slot).
+
 ## 0.4.25 (firmware 0.15.0)
 
 - **The top bar lines up with its logo, and its text no longer touches the tiles** (GitHub #90). Since 0.4.23 the
