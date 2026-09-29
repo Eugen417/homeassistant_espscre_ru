@@ -1,3 +1,16 @@
+## 0.4.29 (firmware 0.17.0)
+
+A new board, experimental: the Guition JC8012P4A1 V2 (GitHub #92).
+
+- **Guition JC8012P4A1 V2** in New screen, as **Guition · 10.1 inch** (JC8012P4A1 V2): the 10.1-inch Guition with the
+  first build's early ESP32-P4 and the newer LCD of the V3 (a label saying V2, a case number of 2628 or higher). On the
+  first build's firmware this LCD showed a washed-out picture with a coloured line across it, and the V3's firmware does
+  not start on this chip. The V2 runs the V3's LCD table and touch driver on the first build's chip, with ESPHome's own
+  display driver. docs/JC8012P4A1.md says how to tell the three builds apart and what to report.
+- Nothing changes for a screen you have: no firmware update.
+- Tested: the board builds with ESPHome 2026.9 (2,672,528 B, 32.9 % of its 8 MB slot) and with 2026.8.0, the oldest it
+  asks for, and its render check passes lying down and standing up. Not yet seen on the glass of a V2.
+
 ## 0.4.28 (firmware 0.17.0)
 
 A new board, experimental: the Sunton ESP32-8048S070 (GitHub #94).

@@ -506,6 +506,80 @@
   "rows": 4,
   "width": 1280
  },
+ "checkout/jc8012p4a1v2.yaml": {
+  "alert": {
+   "line": 21,
+   "title_line": 28
+  },
+  "board": "jc8012p4a1v2",
+  "camera": {
+   "full": [
+    1280,
+    800
+   ],
+   "thumb": [
+    343,
+    193
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 10.1,
+   "model": "JC8012P4A1 V2",
+   "name": "Guition",
+   "order": 15,
+   "status": "experimental",
+   "touch": "GSL3680"
+  },
+  "chip": "ESP32-P4",
+  "columns": 5,
+  "dimmable": true,
+  "dpi": 149,
+  "firmware": "0.17.0",
+  "height": 800,
+  "hotspot": true,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1280,
+      800
+     ],
+     "thumb": [
+      343,
+      193
+     ]
+    },
+    "columns": 5,
+    "height": 800,
+    "rotation": 90,
+    "rows": 4,
+    "width": 1280
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      800,
+      1280
+     ],
+     "thumb": [
+      343,
+      193
+     ]
+    },
+    "columns": 4,
+    "height": 1280,
+    "rotation": 180,
+    "rows": 5,
+    "width": 800
+   }
+  },
+  "rows": 4,
+  "width": 1280
+ },
  "checkout/jc8012p4a1v3.yaml": {
   "alert": {
    "line": 21,
@@ -1501,6 +1575,80 @@
   "rows": 4,
   "width": 1280
  },
+ "jc8012p4a1v2": {
+  "alert": {
+   "line": 21,
+   "title_line": 28
+  },
+  "board": "jc8012p4a1v2",
+  "camera": {
+   "full": [
+    1280,
+    800
+   ],
+   "thumb": [
+    343,
+    193
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 10.1,
+   "model": "JC8012P4A1 V2",
+   "name": "Guition",
+   "order": 15,
+   "status": "experimental",
+   "touch": "GSL3680"
+  },
+  "chip": "ESP32-P4",
+  "columns": 5,
+  "dimmable": true,
+  "dpi": 149,
+  "firmware": "0.17.0",
+  "height": 800,
+  "hotspot": true,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1280,
+      800
+     ],
+     "thumb": [
+      343,
+      193
+     ]
+    },
+    "columns": 5,
+    "height": 800,
+    "rotation": 90,
+    "rows": 4,
+    "width": 1280
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      800,
+      1280
+     ],
+     "thumb": [
+      343,
+      193
+     ]
+    },
+    "columns": 4,
+    "height": 1280,
+    "rotation": 180,
+    "rows": 5,
+    "width": 800
+   }
+  },
+  "rows": 4,
+  "width": 1280
+ },
  "jc8012p4a1v3": {
   "alert": {
    "line": 21,
@@ -2034,6 +2182,80 @@
    "order": 4,
    "status": "new",
    "touch": "GSL3670"
+  },
+  "chip": "ESP32-P4",
+  "columns": 5,
+  "dimmable": true,
+  "dpi": 149,
+  "firmware": "0.17.0",
+  "height": 800,
+  "hotspot": true,
+  "look": "standard",
+  "orientations": {
+   "landscape": {
+    "camera": {
+     "full": [
+      1280,
+      800
+     ],
+     "thumb": [
+      343,
+      193
+     ]
+    },
+    "columns": 5,
+    "height": 800,
+    "rotation": 90,
+    "rows": 4,
+    "width": 1280
+   },
+   "portrait": {
+    "camera": {
+     "full": [
+      800,
+      1280
+     ],
+     "thumb": [
+      343,
+      193
+     ]
+    },
+    "columns": 4,
+    "height": 1280,
+    "rotation": 180,
+    "rows": 5,
+    "width": 800
+   }
+  },
+  "rows": 4,
+  "width": 1280
+ },
+ "packages/jc8012p4a1v2.yaml": {
+  "alert": {
+   "line": 21,
+   "title_line": 28
+  },
+  "board": "jc8012p4a1v2",
+  "camera": {
+   "full": [
+    1280,
+    800
+   ],
+   "thumb": [
+    343,
+    193
+   ]
+  },
+  "can_standby": true,
+  "catalog": {
+   "calibrate": false,
+   "choices": {},
+   "inch": 10.1,
+   "model": "JC8012P4A1 V2",
+   "name": "Guition",
+   "order": 15,
+   "status": "experimental",
+   "touch": "GSL3680"
   },
   "chip": "ESP32-P4",
   "columns": 5,
