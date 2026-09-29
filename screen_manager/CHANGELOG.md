@@ -1,3 +1,36 @@
+## 0.4.27 (firmware 0.17.0)
+
+- **A lamp, a switch, a script or a scene two cells high is one big key.** On a tile of 2 x 2 or 1 x 2 cells the card
+  shows a large circle, the name and the state, like the tile over a whole page, and the whole card is what you tap. A
+  tile with a control on it (a dimmer, the volume, a vacuum's keys) keeps its controls as before.
+- **The flip clock fills a wide card.** On a card as wide as the page and two rows high, or a whole page, the two blocks
+  share the width and the day and AM or PM stand on one line under them: a bedside clock of your own, with tiles under it.
+- **The bedside clock** (GitHub #93):
+  - AM or PM stands under the end of the time. Beside it, a time from 10:00 to 12:59 ran off the glass.
+  - The keys under the clock open their own settings and drag to another place or to an empty cell. A click on a key or
+    an empty place opened the clock instead, and dragging a key dragged the whole clock.
+  - **Name under the key** can be turned off per key; the circle then stands alone.
+- **A screen can do without a title.** Leave the screen title empty and the top bar shows only the logo. Pages with a
+  title of their own still show it.
+- **Download screen files.** A screen's details in the sidebar download its ESPHome YAML, its Override YAML and a
+  `secrets.yaml` with only the secrets they use, to build the screen with ESPHome on your own computer.
+- A tile's new background shows on the screen straight away. A change of background alone waited for the entity's next
+  state, so an idle timer, or any tile whose state stood still, kept its old colour.
+- Dragging a tile that fills a page shows where it can go: a page that has tiles says it has no room, and a drop tells
+  you so, instead of nothing happening.
+- **One fixed set of font sizes.** Every board renders the same short list of text, digit and icon steps, and a new card
+  takes the largest step that fits instead of bringing a size of its own. The flip clock and the bedside clock share the
+  large digits, so the bedside digits are a little smaller on the 4-inch Guition (164 to 153 px) and the CYD (81 to 73
+  px); larger screens keep theirs. A tile name with room on the CYD is no longer bold. The CYD firmware is 19.5 KB
+  smaller (90.1 % of its slot).
+- The editor's mockup draws all of this as the screen does, a script tile says "Never run" and "Running" in the screen's
+  language instead of a text key, and a change to a key under the bedside clock keeps its panel open.
+- Tested: tools/check.sh with new tests (the font set, the big key, the flip and bedside layouts, key names in the add-on
+  and the editor, the empty title, the screen files, the paint repaint, dragging a key). Every design rendered from the
+  firmware's own code on eight boards before it was built; on a Guition 4848S040 and a CYD ESP32-2432S028R with firmware
+  0.17.0 and a Home Assistant OS bench: a timer's new background, the empty title, the flip clock and the big key on the
+  glass, and the screen files built with ESPHome on a Mac.
+
 ## 0.4.26 (firmware 0.16.0)
 
 - **One entity on several tiles** (GitHub #83). A light can now be a small tile on page 1 and a tile with its slider on

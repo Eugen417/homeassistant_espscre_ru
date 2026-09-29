@@ -21,6 +21,8 @@ BUILTIN = {'screen.clock': 'Clock', 'screen.nightstand': 'Bedside clock', 'scree
 PAGE_TILE = 'screen.page_'
 PAGE_TILE_REPEAT_MIN_FIRMWARE = (0, 2, 65)
 ENTITY_REPEAT_MIN_FIRMWARE = (0, 16, 0)
+# A screen without a title (firmware 0.17.0+): the top bar shows its home key alone. Older firmware said "Home" instead.
+NO_TITLE_MIN_FIRMWARE = (0, 17, 0)
 
 def page_target(entity):
     """The page a navigation tile opens, counted from one; 0 for any other entity."""
@@ -62,7 +64,8 @@ NIGHTSTAND_KEYS = 3
 # tiles. The tiles that hold keys and how many each holds; a key takes a tile's own settings but its size, and any
 # domain but a picture, which has no round form.
 KEY_HOLDERS = {NIGHTSTAND: NIGHTSTAND_KEYS}
-KEY_OPTIONS = ('icon', 'tap', 'action', 'guard')
+# A key's name under its circle can be hidden (`overlay`: "none", firmware 0.17.0+), as a picture's name on it can.
+KEY_OPTIONS = ('icon', 'tap', 'action', 'guard', 'overlay')
 KEY_DOMAINS = frozenset(DOMAINS - {'screen', 'camera', 'image'})
 
 def is_key(tile):
@@ -88,7 +91,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.16.0'
+FIRMWARE_VERSION = '0.17.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -634,11 +637,12 @@ def tile_limit(version, grid=DEFAULT_GRID):
 
 def firmware_features(version, grid=DEFAULT_GRID):
     """What the editor may offer a screen with firmware `version` (a tuple, or None): the tile limit, full-page and
-    navigation tiles, the same navigation tile on several pages and any entity on several tiles."""
+    navigation tiles, the same navigation tile on several pages, any entity on several tiles and a screen without a
+    title."""
     version = version or (0, 0, 0)
     return {'tile_limit': tile_limit(version, grid), 'full_page': version >= FULL_PAGE_MIN_FIRMWARE,
             'page_tiles_repeat': version >= PAGE_TILE_REPEAT_MIN_FIRMWARE,
-            'entity_tiles_repeat': version >= ENTITY_REPEAT_MIN_FIRMWARE}
+            'entity_tiles_repeat': version >= ENTITY_REPEAT_MIN_FIRMWARE, 'no_title': version >= NO_TITLE_MIN_FIRMWARE}
 
 def entity_slug(name):
     """The end of an entity id Home Assistant derives from an entity name (ASCII names)."""
@@ -934,6 +938,7 @@ def min_firmware(layout):
         (any(t['entity'] == NIGHTSTAND or is_key(t) for t in tiles), NIGHTSTAND_MIN_FIRMWARE),
         (repeated_page_tiles(tiles), PAGE_TILE_REPEAT_MIN_FIRMWARE),
         (repeated_entities(tiles), ENTITY_REPEAT_MIN_FIRMWARE),
+        (layout.get('title') == '', NO_TITLE_MIN_FIRMWARE),
         (len(tiles) > LEGACY_MAX_TILES or any(is_full(t) or page_target(t['entity']) for t in tiles), FULL_PAGE_MIN_FIRMWARE),
         (any(o.get('display') == 'cover' for o in options), COVER_TILE_MIN_FIRMWARE),
         (any(o.get('display') == 'live' for o in options), LIVE_MIN_FIRMWARE),
@@ -1385,7 +1390,8 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
         raise ValueError(t('addon.errors.layout.invalid'))
     title, tiles = data.get('title'), data.get('tiles')
     most = grid.max_tiles if grid else FIRMWARE_MAX_TILES
-    if not isinstance(title, str) or not title.strip() or len(title.encode()) > 96:
+    # An empty title is a screen without one (firmware 0.17.0+, min_firmware): its top bar shows the home key alone.
+    if not isinstance(title, str) or len(title.encode()) > 96:
         raise ValueError(t('addon.errors.layout.title'))
     if not isinstance(tiles, list) or len(tiles) > most:
         raise ValueError(t('addon.errors.layout.tiles_max', n=most))
@@ -1495,6 +1501,11 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                     if key in options and options[key] not in allowed:
                         raise ValueError(t('addon.errors.layout.invalid_setting', setting=key))
                 options = {key: value for key, value in options.items() if key not in PICTURE_OPTIONS or value != PICTURE_OPTIONS[key][0]}
+            elif is_key(tile) and 'overlay' in options:
+                if options['overlay'] not in PICTURE_OPTIONS['overlay']:
+                    raise ValueError(t('addon.errors.layout.invalid_setting', setting='overlay'))
+                if options['overlay'] == PICTURE_OPTIONS['overlay'][0]:
+                    options = {key: value for key, value in options.items() if key != 'overlay'}
             elif set(options) & {'refresh', *PICTURE_OPTIONS}:
                 options = {key: value for key, value in options.items() if key not in ('refresh', *PICTURE_OPTIONS)}
             if options.get('display') == 'watch' and options.get('inline') == 'slider':

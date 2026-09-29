@@ -2,6 +2,7 @@
 import asyncio
 from collections import deque
 import glob
+import io
 import json
 import logging
 import os
@@ -11,6 +12,7 @@ import shutil
 import signal
 import time
 import yaml
+import zipfile
 from core import BOARD_KEYS, ORIENTATIONS, REPO, SHAPES, installation_yaml
 from i18n import t
 
@@ -430,6 +432,34 @@ class Firmware:
             if protected:
                 raise ValueError(t('addon.errors.firmware.substitutions_managed', names=', '.join(protected)))
         return content if content.endswith('\n') else content + '\n'
+
+    def files(self, name):
+        """A screen's files to build it with ESPHome on your own computer, as a zip: its YAML as this app keeps it,
+        its Override YAML, and a secrets.yaml with only the secrets the two name (normally the Wi-Fi), never the rest
+        of Home Assistant's shared secrets file. Like the YAML itself, it holds the screen's keys and the Wi-Fi
+        password, so it is handed out over ingress only, as the factory image is."""
+        profile, override = self._override_path(name)
+        text = profile.read_text()
+        local = override.read_text() if override.exists() else '{}\n'
+        wanted = sorted(set(re.findall(r'!secret\s+([A-Za-z0-9_]+)', text + '\n' + local)))
+        secrets = {}
+        path = self.root / 'secrets.yaml'
+        if wanted and path.is_file() and not path.is_symlink():
+            try:
+                values = yaml.safe_load(path.read_text())
+            except (OSError, yaml.YAMLError, UnicodeError):
+                values = None
+            if isinstance(values, dict):
+                secrets = {key: values[key] for key in wanted if key in values}
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, 'w', zipfile.ZIP_DEFLATED) as bundle:
+            for file, content in ((profile.name, text), (override.name, local),
+                                  ('secrets.yaml', yaml.safe_dump(secrets, width=4096, allow_unicode=True) if secrets else '{}\n')):
+                entry = zipfile.ZipInfo(f'{profile.stem}/{file}', date_time=time.localtime()[:6])
+                entry.compress_type = zipfile.ZIP_DEFLATED
+                entry.external_attr = 0o600 << 16
+                bundle.writestr(entry, content)
+        return buffer.getvalue(), f'{profile.stem}.zip'
 
     def override(self, name):
         profile, path = self._override_path(name)

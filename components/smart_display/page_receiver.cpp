@@ -181,7 +181,7 @@ std::string receive(const std::string &payload) {
         seen_tiles |= uint64_t{1} << index;
       }
       const std::string title = string(root["title"], 96);
-      model.title = title.empty() ? tr(txt::status_home) : title;
+      model.title = title;
       for (JsonVariant item : pages) model.page_data.records[item["p"].as<unsigned>()].title = string(item["title"], 96);
       transfer.revision = revision;
       layout_rev = protocol_key(revision);

@@ -158,7 +158,7 @@ export function entityOf(layout: PageLayout, tile: PageTile): string {
   return `screen.page_${index + 1}`;
 }
 /** A bedside clock's key (app 0.4.12) as the tile it is, and back as the child its clock keeps in the document. */
-const KEY_APPEARANCE = ["icon"] as const, KEY_INTERACTION = ["tap", "action", "guard"] as const;
+const KEY_APPEARANCE = ["icon", "overlay"] as const, KEY_INTERACTION = ["tap", "action", "guard"] as const;
 export function keyTile(child: ChildTile, holder: string, key: number): Tile {
   const options: TileOptions = {};
   for (const field of KEY_APPEARANCE) if (child.appearance[field] !== undefined) options[field] = clone(child.appearance[field]);

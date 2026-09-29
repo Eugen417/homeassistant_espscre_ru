@@ -156,6 +156,9 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
             <small v-else-if="updateState(screen)!.kind !== 'running'" :class="{ failed: updateState(screen)!.kind === 'failed' }">{{ updateState(screen)!.text }}</small>
           </div>
           <button v-if="screen.api_key" type="button" class="btn link mini copy-key" @click="copyText(screen.api_key!)">{{ t("editor.sidebar.copy_api_key") }}</button>
+          <!-- The screen's YAML, Override YAML and the secrets they use, to build it with ESPHome on your own computer. -->
+          <a v-if="screen.update?.profile" class="btn link mini screen-files" :href="`api/firmware/profiles/${encodeURIComponent(screen.update.profile)}/files`" download
+            :title="t('editor.sidebar.files_hint')">{{ t("editor.sidebar.files") }}</a>
           <form v-if="renameFor === screen.id" class="rename-screen" @submit.prevent="saveName(screen)">
             <input v-model="newName" :placeholder="screen.ha_name" maxlength="40" :aria-label="t('editor.sidebar.rename.label')" autofocus @keydown.esc="renameFor = null" />
             <div class="screen-actions">
@@ -179,6 +182,7 @@ const pendingText = (p: { installed?: boolean; downloaded?: boolean; file: strin
           <summary>{{ t("editor.installer.key_more") }}</summary>
           <button type="button" class="btn link mini copy-key" @click="copyText(p.api_key!)">{{ t("editor.sidebar.copy_api_key") }}</button>
         </details>
+        <a class="btn link mini screen-files" :href="`api/firmware/profiles/${encodeURIComponent(p.file)}/files`" download :title="t('editor.sidebar.files_hint')">{{ t("editor.sidebar.files") }}</a>
       </div>
     </div>
     <button id="new-screen" type="button" class="nav-item ghost" :aria-current="route === '#new-screen' ? 'true' : 'false'" @click="go('#new-screen')">

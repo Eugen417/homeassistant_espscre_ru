@@ -1257,6 +1257,8 @@
         "not_flashed": "Nog niet in Home Assistant. Al geflasht? Voeg het ESPHome-apparaat toe onder Instellingen → Apparaten & diensten en sta daarna bij Configureren de Home Assistant-acties toe. Nog niet geflasht? Firmware & USB → {file}."
       },
       "copy_api_key": "API-sleutel kopiëren",
+      "files": "Schermbestanden downloaden",
+      "files_hint": "De ESPHome-YAML van het scherm met zijn sleutels, de Override YAML en een secrets.yaml met de wifi, om het scherm zelf met ESPHome op je computer te bouwen.",
       "details": {
         "room": "Ruimte",
         "firmware": "Firmware",
@@ -1636,7 +1638,9 @@
       },
       "keys": {
         "hint": "Sleep een lamp, een temperatuur of een slot naar de ronde plekken onder de tijd, of tik een plek aan en kies er een. Het zijn tegels: tik er een aan om hem in te stellen.",
-        "under": "Onder de nachtkastjesklok: een tegel in zijn ronde vorm. Een tik doet wat hij op een tegel doet, en vasthouden opent zijn kaart."
+        "under": "Onder de nachtkastjesklok: een tegel in zijn ronde vorm. Een tik doet wat hij op een tegel doet, en vasthouden opent zijn kaart.",
+        "name_shown": "Naam onder de knop",
+        "name_shown_hint": "Uit toont alleen het rondje."
       }
     },
     "tile_card": {
@@ -1693,6 +1697,7 @@
       "name_placeholder": "Bijvoorbeeld: Woonkamer",
       "screen_name": "Titel van het scherm",
       "screen_name_hint": "Elke pagina zonder eigen titel zegt dit.",
+      "no_title_hint": "Laat leeg om alleen het logo te tonen.",
       "right": "Rechts: tijd, sensoren of een klok",
       "item_label": "{name}, plek {slot}. Enter: instellen, pijltjes: verplaatsen",
       "remove_named": "{name} uit de bovenbalk halen",

@@ -1257,6 +1257,8 @@
         "not_flashed": "Pas encore dans Home Assistant. Firmware déjà installé ? Ajoutez l'appareil ESPHome dans Paramètres → Appareils et services, puis autorisez les actions Home Assistant sous Configurer. Pas encore installé ? Firmware et USB → {file}."
       },
       "copy_api_key": "Copier la clé API",
+      "files": "Télécharger les fichiers de l'écran",
+      "files_hint": "Le YAML ESPHome de l'écran avec ses clés, son Override YAML et un secrets.yaml avec le Wi-Fi, pour le compiler avec ESPHome sur votre ordinateur.",
       "details": {
         "room": "Pièce",
         "firmware": "Firmware",
@@ -1636,7 +1638,9 @@
       },
       "keys": {
         "hint": "Glissez une lampe, une température ou une serrure sur les emplacements ronds sous l'heure, ou touchez un emplacement et choisissez. Ce sont des tuiles : touchez-en une pour la régler.",
-        "under": "Sous l'horloge de chevet : une tuile sous sa forme ronde. Un appui fait ce qu'il fait sur une tuile, et un appui long ouvre sa carte."
+        "under": "Sous l'horloge de chevet : une tuile sous sa forme ronde. Un appui fait ce qu'il fait sur une tuile, et un appui long ouvre sa carte.",
+        "name_shown": "Nom sous la touche",
+        "name_shown_hint": "Désactivé, seul le cercle reste."
       }
     },
     "tile_card": {
@@ -1693,6 +1697,7 @@
       "name_placeholder": "Par exemple : Salon",
       "screen_name": "Titre de l'écran",
       "screen_name_hint": "Chaque page sans titre propre affiche celui-ci.",
+      "no_title_hint": "Laissez vide pour n'afficher que le logo.",
       "right": "Droite : heure, capteurs ou horloge",
       "item_label": "{name}, emplacement {slot}. Enter : configurer, flèches : déplacer",
       "remove_named": "Retirer {name} de la barre supérieure",

@@ -1257,6 +1257,8 @@
         "not_flashed": "Not yet in Home Assistant. Already flashed? Add the ESPHome device under Settings → Devices & services, then allow the Home Assistant actions under Configure. Not flashed yet? Firmware & USB → {file}."
       },
       "copy_api_key": "Copy API key",
+      "files": "Download screen files",
+      "files_hint": "The screen's ESPHome YAML with its keys, its Override YAML and a secrets.yaml with its Wi-Fi, to build it with ESPHome on your own computer.",
       "details": {
         "room": "Room",
         "firmware": "Firmware",
@@ -1636,7 +1638,9 @@
       },
       "keys": {
         "hint": "Drag a lamp, a temperature or a lock onto the round places under the time, or tap a place and pick one. They are tiles: tap one to set it up.",
-        "under": "Under the bedside clock: a tile in its round form. A tap does what it does on a tile, and holding it opens its card."
+        "under": "Under the bedside clock: a tile in its round form. A tap does what it does on a tile, and holding it opens its card.",
+        "name_shown": "Name under the key",
+        "name_shown_hint": "Off shows the circle alone."
       }
     },
     "tile_card": {
@@ -1693,6 +1697,7 @@
       "name_placeholder": "For example: Living room",
       "screen_name": "Screen title",
       "screen_name_hint": "Every page without a title of its own says this.",
+      "no_title_hint": "Leave it empty to show only the logo.",
       "right": "Right: time, sensors, or a clock",
       "item_label": "{name}, slot {slot}. Enter: configure, arrows: move",
       "remove_named": "Remove {name} from the top bar",

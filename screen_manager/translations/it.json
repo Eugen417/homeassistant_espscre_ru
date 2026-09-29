@@ -1257,6 +1257,8 @@
         "not_flashed": "Non ancora in Home Assistant. Firmware già installato? Aggiungi il dispositivo ESPHome in Impostazioni → Dispositivi e servizi, poi consenti le azioni di Home Assistant in Configura. Non ancora installato? Firmware e USB → {file}."
       },
       "copy_api_key": "Copia chiave API",
+      "files": "Scarica i file dello schermo",
+      "files_hint": "Lo YAML ESPHome dello schermo con le sue chiavi, l'Override YAML e un secrets.yaml con il Wi-Fi, per compilarlo con ESPHome sul tuo computer.",
       "details": {
         "room": "Area",
         "firmware": "Firmware",
@@ -1636,7 +1638,9 @@
       },
       "keys": {
         "hint": "Trascina una lampada, una temperatura o una serratura sui posti rotondi sotto l'ora, oppure tocca un posto e scegli. Sono riquadri: toccane uno per impostarlo.",
-        "under": "Sotto l'orologio da comodino: un riquadro nella sua forma rotonda. Un tocco fa ciò che fa su un riquadro, e tenerlo premuto apre la sua scheda."
+        "under": "Sotto l'orologio da comodino: un riquadro nella sua forma rotonda. Un tocco fa ciò che fa su un riquadro, e tenerlo premuto apre la sua scheda.",
+        "name_shown": "Nome sotto il tasto",
+        "name_shown_hint": "Spento mostra solo il cerchio."
       }
     },
     "tile_card": {
@@ -1693,6 +1697,7 @@
       "name_placeholder": "Per esempio: Soggiorno",
       "screen_name": "Titolo dello schermo",
       "screen_name_hint": "Ogni pagina senza un titolo proprio mostra questo.",
+      "no_title_hint": "Lascia vuoto per mostrare solo il logo.",
       "right": "Destra: ora, sensori o orologio",
       "item_label": "{name}, spazio {slot}. Enter: configura, frecce: sposta",
       "remove_named": "Rimuovi {name} dalla barra superiore",

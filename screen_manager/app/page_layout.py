@@ -215,7 +215,7 @@ def footprint_size(columns, rows, grid, presentation=None):
     raise LayoutError(t('addon.errors.pages.footprint'))
 
 
-KEY_APPEARANCE = {"icon": "icon"}
+KEY_APPEARANCE = {"icon": "icon", "overlay": "overlay"}
 KEY_INTERACTION = {"tap": "tap", "action": "action", "guard": "guard"}
 
 

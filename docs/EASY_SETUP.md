@@ -122,6 +122,13 @@ computer**. From the browser, Firmware & USB writes the firmware without erasing
 so the screen keeps its settings and touch calibration. That also rescues a screen that keeps
 restarting and so never comes online for an update over Wi-Fi.
 
+**Build it yourself.** To build a screen with ESPHome on your own computer instead, choose the screen
+in the sidebar, open its details with the arrow at its right and use **Download screen files** (a
+screen that isn't in Home Assistant yet has it under its API key). The zip holds the screen's own
+YAML, its Override YAML and a `secrets.yaml` with only the secrets the two use, normally the Wi-Fi.
+Unpack it and run `esphome run <name>.yaml` in that folder. Like the firmware file, it holds your
+Wi-Fi password and the screen's keys.
+
 **CYD:** calibration appears on first boot. Calmly tap the visible crosshair
 three times, hold each tap briefly, and follow each next crosshair in turn.
 There are five positions. The center checks accuracy. On a failed
@@ -165,7 +172,9 @@ under `wifi:` in the screen's own ESPHome YAML still wins.
 Select your screen, tap the bar at the top of a page to give the screen its name,
 and search for entities in the **Library** on the right. With more than one page that bar asks
 two things: the **Screen title**, which every page without a title of its own shows, and the
-**Title above page N** of the page you tapped, which belongs to that page and travels with it. It has domain filters with
+**Title above page N** of the page you tapped, which belongs to that page and travels with it. From
+firmware 0.17.0 the screen title may be empty: the top bar then shows only the logo, and a page with a
+title of its own still shows that. It has domain filters with
 colored icons, a room filter, and **Hide placed**. You can add one tile for every cell of the screen's pages,
 48 on a CYD, a 4-inch Guition or the experimental Waveshare 4B (firmware 0.2.62+; see below for older firmware).
 The screen preview shows their placement on the screen's own grid, lying down: two columns of three on a CYD, a 4-inch Guition,
@@ -419,7 +428,7 @@ device in Home Assistant ([SETTINGS.md](SETTINGS.md)).
 | Night mode | On/off; applies during standby | On |
 | Starts / Ends | Night hours, hour and minute, can span midnight | 22:00–07:00 |
 | Night brightness | 0–100%, capped at normal brightness | 10% |
-| Clock | 24 or 12 hour, the same on every screen: Settings → Language & region in ESP Screens (firmware 0.2.76+); the Simple dial and Flip clock faces show AM or PM beside the time (firmware 0.3.6+) | Follows the language |
+| Clock | 24 or 12 hour, the same on every screen: Settings → Language & region in ESP Screens (firmware 0.2.76+); the Simple dial shows AM or PM beside the time (firmware 0.3.6+); the Flip clock on a card as wide as the page and the bedside clock put it under the time (firmware 0.17.0+) | Follows the language |
 | Back to Home | Closes an open card and goes back to the Home page after 30 seconds to 60 minutes without a touch, firmware 0.2.44+ | On, 2 minutes |
 | Also on standby | Standby goes back to the Home page too (it always closes an open card) | Off |
 | Swipe between pages | Native horizontal swipe, firmware 0.2.7+ | Off |

@@ -1257,6 +1257,8 @@
         "not_flashed": "Noch nicht in Home Assistant. Schon geflasht? Füge das ESPHome-Gerät unter Einstellungen → Geräte & Dienste hinzu und erlaube dann unter „Konfigurieren“ die Home Assistant-Aktionen. Noch nicht geflasht? Firmware & USB → {file}."
       },
       "copy_api_key": "API-Schlüssel kopieren",
+      "files": "Bildschirmdateien herunterladen",
+      "files_hint": "Die ESPHome-YAML des Bildschirms mit seinen Schlüsseln, die Override-YAML und eine secrets.yaml mit dem WLAN, um ihn mit ESPHome auf dem eigenen Computer zu bauen.",
       "details": {
         "room": "Bereich",
         "firmware": "Firmware",
@@ -1636,7 +1638,9 @@
       },
       "keys": {
         "hint": "Ziehe eine Lampe, eine Temperatur oder ein Schloss auf die runden Plätze unter der Uhrzeit, oder tippe auf einen Platz und wähle eine aus. Es sind Kacheln: Tippe eine an, um sie einzurichten.",
-        "under": "Unter der Nachttischuhr: eine Kachel in ihrer runden Form. Ein Tippen tut, was es auf einer Kachel tut, und Halten öffnet ihre Karte."
+        "under": "Unter der Nachttischuhr: eine Kachel in ihrer runden Form. Ein Tippen tut, was es auf einer Kachel tut, und Halten öffnet ihre Karte.",
+        "name_shown": "Name unter der Taste",
+        "name_shown_hint": "Aus zeigt nur den Kreis."
       }
     },
     "tile_card": {
@@ -1693,6 +1697,7 @@
       "name_placeholder": "Zum Beispiel: Wohnzimmer",
       "screen_name": "Titel des Bildschirms",
       "screen_name_hint": "Jede Seite ohne eigenen Titel zeigt diesen.",
+      "no_title_hint": "Leer lassen, um nur das Logo zu zeigen.",
       "right": "Rechts: Uhrzeit, Sensoren oder eine Uhr",
       "item_label": "{name}, Platz {slot}. Enter: einstellen, Pfeile: verschieben",
       "remove_named": "{name} aus der Kopfleiste entfernen",

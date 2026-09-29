@@ -30,7 +30,7 @@ export type Inspector =
 export type PageDrag = { from: number; to: number; order: number[] };
 // `key`: the key place under a bedside clock the pointer is on (app 0.4.12), where a drop puts the tile.
 export type DragState = { active: boolean; moving: Tile | null; preview: { tile: Tile; slot: number }[] | null; page: PageDrag | null;
-  key?: { holder: string; key: number } | null };
+  key?: { holder: string; key: number } | null; refused?: number | null };
 // What Home Assistant reports for an entity right now: the state, its word and the attributes a card shows.
 export type Live = { state: string; word?: string | null; a: Record<string, any> };
 
@@ -140,7 +140,7 @@ export function createVirtualScreen(name: string, profile: PreviewProfile) {
   const screen: Screen = {
     id, name: name.trim(), online: false, virtual: true, board, orientation,
     firmware: renderer.firmware, firmware_known: renderer.firmware, tile_limit: 64, full_page: true,
-    page_tiles_repeat: true, entity_tiles_repeat: true, in_sync: true, shape, layout: { title: name.trim(), tiles: [], pages: 1 },
+    page_tiles_repeat: true, entity_tiles_repeat: true, no_title: true, in_sync: true, shape, layout: { title: name.trim(), tiles: [], pages: 1 },
     source_grid: sourceGrid, page_document: document, page_capability: 'ready',
     tile_sizes: ['single', 'wide', 'full', 'tall', 'square'],
   };
@@ -176,6 +176,11 @@ export const pageTilesRepeat = computed(() => {
 export const entityTilesRepeat = computed(() => {
   const repeat = currentScreen.value?.entity_tiles_repeat;
   return typeof repeat === "boolean" ? repeat : supports(0, 16, 0);
+});
+// A screen without a title, its top bar showing the home key alone (firmware 0.17.0).
+export const noTitle = computed(() => {
+  const allowed = currentScreen.value?.no_title;
+  return typeof allowed === "boolean" ? allowed : supports(0, 17, 0);
 });
 export const repeatable = (id: string) => pageTarget(id) > 0 ? pageTilesRepeat.value : entityTilesRepeat.value && !(id in pageRules.keyHolders);
 // Whether the screen's board draws pictures (camera tiles, an album cover): the add-on says so per screen from the
@@ -524,7 +529,9 @@ function applyDocument(next: PageLayout, remember = true, nextGrid = state.docum
   if (state.editorMode === "advanced" || Object.keys(positions).length) initializeWorkspace();
   if (state.selectedPageId && !ids.has(state.selectedPageId)) state.selectedPageId = next.homePageId;
   if (state.focusedPageId && !ids.has(state.focusedPageId)) state.focusedPageId = null;
-  if (state.selectedTile?.id && !next.pages.some((page) => page.tiles.some((tile) => tile.id === state.selectedTile!.id))) closeInspector();
+  // A key under a bedside clock is a child of its clock: a change to it keeps it open like any tile.
+  if (state.selectedTile?.id && !next.pages.some((page) => page.tiles.some((tile) => tile.id === state.selectedTile!.id
+    || tile.children?.some((child) => child.id === state.selectedTile!.id)))) closeInspector();
   markDirty();
   loadTopbarPreview();
   return true;
@@ -893,7 +900,7 @@ export function setTileOption(tile: Tile, key: string, value: unknown, field?: s
     else { tile.options.size = wasSize; toast(t("editor.layout.no_room", { page: pageOf(tile.slot) + 1 })); return; }
   }
   // What the add-on would still change is never stored (its canonical form): a default, a stale action or picture setting.
-  tile.options = canonicalOptions(tile.entity, tile.options);
+  tile.options = canonicalOptions(tile.entity, tile.options, tile.in !== undefined);
   normalize(layout);
   commitArrangement(layout.tiles.map((item) => ({ tile: item, slot: item.slot })), field);
 }

@@ -576,7 +576,8 @@ struct Model {
     slots.fill(0);
     count = tile_count;
     pages = page_count;
-    title = name.empty() ? screen_text::tr(screen_text::txt::status_home) : name;
+    // An empty title stays empty (firmware 0.17.0+): the top bar then shows its home key alone. Before, it said "Home".
+    title = name;
     refusal.clear();
     return true;
   }

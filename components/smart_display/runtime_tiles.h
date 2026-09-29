@@ -92,8 +92,10 @@ inline const lv_font_t *watch_value_font = nullptr, *watch_icon_font = nullptr;
 inline const lv_font_t *clock_font = nullptr;
 // The climate card's setpoint, big enough to read across the room (FONT_SETPOINT_SIZE in the board file).
 inline const lv_font_t *setpoint_font = nullptr;
-// The bedside clock's digits (firmware 0.8.0+), the largest the board's page takes (FONT_BEDSIDE_SIZE, looks/shared/bedside.yaml).
+// The bedside clock's own digit step (firmware 0.8.0+), where the board has one (FONT_BEDSIDE_SIZE, looks/shared/digits.yaml).
 inline const lv_font_t *bedside_font = nullptr;
+// The display step (firmware 0.17.0+, packages/looks/shared/digits.yaml): digits as large as half a page's width.
+inline const lv_font_t *display_font = nullptr;
 // Text in the -/+ pill and the run key of direct controls; the board profile sets it.
 inline const lv_font_t *control_font = nullptr;
 // The smallest regular text (sublabel): axis labels and the legend of the history card.
@@ -321,6 +323,10 @@ struct Widgets {
   // (alarm_tile_look). They belong to the card, not to the slot: a kept page's cards leave the glass with their
   // animation and come back with it (firmware 0.16.0+; before, a ring kept beating on a card whose lock had settled).
   uint8_t alarm_look=0; uint32_t alarm_mark=0;
+  // The card's paint the colours were last drawn for (its background, bit 24 for "none"), next to `cached_active`: a
+  // tile whose background alone changed repaints too (firmware 0.17.0+; before, it waited for the entity's next state,
+  // which an idle timer never sends).
+  uint32_t cached_paint=UINT32_MAX;
   // `extra_full`: the size the parts were built for; a slot that changes between full and double width rebuilds them.
   // `base_circle`: the board's icon circle (TILE_ICON_SIZE), the one size of the head a board states.
   int base_circle=0;
@@ -3742,8 +3748,8 @@ inline int content_width(const Widgets &w) {
 }
 // The name of a plain card. The compact look draws it in small letters for a cell of two columns (a CYD lying down);
 // a card whose name has more room than that (one column standing up, a double-width card, a 4-inch glass) gets the
-// same bold letters a little larger (label_wide in looks/compact.yaml), so the words are not small in a wide empty
-// card (GitHub #50). The standard look keeps one size. The room is the name's own, after a panel or a graph took
+// L step of the text set a little larger (WIDE_NAME_FONT in looks/compact.yaml; a bold 14 of its own before firmware
+// 0.17.0), so the words are not small in a wide empty card (GitHub #50). The standard look keeps one size. The room is the name's own, after a panel or a graph took
 // theirs.
 inline const lv_font_t *wide_name_font = nullptr;
 inline int wide_name_room() { return ui::mm(30); }
@@ -4202,6 +4208,31 @@ inline void render_calm_dial(Widgets &w,const Tile &t,bool large,int width,int h
   second_hand(w,now);
   if(new_hand)lv_obj_move_to_index(w.parts[18],lv_obj_get_index(w.parts[14]));
 }
+// The digit steps, largest first (packages/looks/shared/digits.yaml): the display step, the setpoint's and the clock
+// card's. A card takes the largest one that fits (largest_digits) and never brings a size of its own
+// (tests/test_font_set.py).
+inline std::array<const lv_font_t *,3> digit_steps(){return {display_font,setpoint_font,clock_font};}
+// The largest digit step whose digits are at most `height` tall and whose `text` is at most `width` wide; null if none.
+inline const lv_font_t *largest_digits(const char *text,int width,int height){
+  for(const lv_font_t *f:digit_steps()){
+    if(!f)continue;int top,h;digit_box(f,top,h);
+    if(h<=height && text_width(text,f)<=width)return f;
+  }
+  return nullptr;
+}
+// The bedside clock's digits: its own step where the board has one (a page a fifth larger than the display step), else
+// the display step; the 8 px place holder a board without its own step keeps is never drawn.
+inline const lv_font_t *bedside_digits(){
+  if(bedside_font && (!display_font || lv_font_get_line_height(bedside_font)>lv_font_get_line_height(display_font)))return bedside_font;
+  return display_font?display_font:setpoint_font?setpoint_font:clock_font;
+}
+// A card that only switches (a lamp, a switch, a fan) or only runs (a script, a scene, a button), with no other control
+// chosen: two rows tall, one column or two, it is one big key (firmware 0.17.0+), as the same card over a whole page is.
+inline bool big_key(const Tile &t){
+  const auto d=t.domain();
+  return (d=="light"||d=="switch"||d=="input_boolean"||d=="fan"||d=="script"||d=="scene"||d=="button"||d=="input_button") && t.inline_control!="slider" &&
+         (t.controls.empty()||t.controls=="toggle"||t.controls=="run"||t.controls=="none"||t.controls=="auto");
+}
 inline void render_flip(Widgets &w,const Tile &t,bool large,int width,int height){
   begin_extra(w,"flip",width,height);
   auto now=now_time?now_time():esphome::ESPTime{};
@@ -4215,6 +4246,32 @@ inline void render_flip(Widgets &w,const Tile &t,bool large,int width,int height
   const lv_font_t *fonts[]={setpoint_font,clock_font,watch_value_font,watch_font,w.value_font};
   int stop,sh;digit_box(small,stop,sh);
   const int aw=ampm.empty()?0:text_width(ampm,small);
+  // A card as wide as two columns and two rows or more, or a whole page (firmware 0.17.0+): the two blocks share its
+  // width, and one line under them carries the day at the left and AM or PM at the right. The digits are the board's
+  // display step (looks/shared/digits.yaml), else the largest digit step that fits a block.
+  if(w.full || (w.wide && t.row_span()>=2)){
+    // The blocks keep room above them and under the day's line, so on a low card (a compact look) they never touch its
+    // edge: at least 6 px, a twentieth of the card on a taller one.
+    const int line_gap=ui::px(large?12:6),gb=std::max(ui::px(6),width/36),bw=(width-gb)/2,air=std::max(ui::px(6),height/20);
+    const int bh=std::min(height-2*air-line_gap-sh,bw*92/100);
+    const lv_font_t *font=largest_digits("88",bw*88/100,bh*72/100);int dh=0;
+    if(font){int top;digit_box(font,top,dh);}
+    for(unsigned q=0;q<7;++q)if(w.parts[q])set_hidden(w.parts[q],!font);
+    if(!font){hide_face_text(w);return;}
+    const int radius=std::max(ui::px(4),bh/12),seam=std::max(1,bh/60);
+    const int by=(height-(bh+line_gap+sh))/2;
+    for(int b=0;b<2;++b){
+      const int x=b*(bw+gb);
+      part_rect(w,b,x,by,bw,bh,radius);
+      digit_label(w,2+b,font,x,by+(bh-dh)/2,bw,LV_TEXT_ALIGN_CENTER,b?mm:hh);
+      part_rect(w,4+b,x,by+bh/2-seam/2,bw,seam,0);
+    }
+    const std::string day=weekday_text(now)+" "+fill(fill(txt::date_day_month,"day",now.is_valid()?std::to_string(now.day_of_month):"--"),"month",month_short(now));
+    digit_label(w,16,small,0,by+bh+line_gap,std::max(1,width-aw-ui::px(8)),LV_TEXT_ALIGN_LEFT,day);set_hidden(w.parts[16],false);
+    digit_label(w,6,small,width-aw-2,by+bh+line_gap,aw+2,LV_TEXT_ALIGN_RIGHT,ampm);set_hidden(w.parts[6],ampm.empty());
+    if(w.parts[15])set_hidden(w.parts[15],true);if(w.parts[17])set_hidden(w.parts[17],true);
+    return;
+  }
   // The blocks: the largest digits whose blocks fit. A block is as tall as the room allows (a one-row card: the
   // card, into its padding; a page: a bit over half of it) and a little wider than tall. A card that is not a page
   // takes the two blocks side by side or one over the other, whichever gives the bigger blocks.
@@ -4316,7 +4373,6 @@ struct BedsideLayout {
   std::array<int, BEDSIDE_KEYS> key_x{}, key_y{};  // each key's top-left corner, content coordinates
   std::array<int, BEDSIDE_KEYS> name_x{}, name_y{}, name_w{};
 };
-inline const lv_font_t *bedside_digits(){return bedside_font?bedside_font:setpoint_font?setpoint_font:clock_font;}
 // `pad`: the card's own padding, so the room above the time counts from the card's edge as it looks.
 inline BedsideLayout bedside_layout(int w,int h,int pad,const std::vector<std::string> &names_in){
   BedsideLayout l;
@@ -4327,7 +4383,7 @@ inline BedsideLayout bedside_layout(int w,int h,int pad,const std::vector<std::s
   l.keys=std::min<unsigned>(names_in.size(),BEDSIDE_KEYS);
   // Names under the keys in the standard look; the compact look (a CYD) keeps the keys alone, its smallest letters
   // would be under the size the owner reads in the dark.
-  l.names=l.keys && ui::large();
+  l.names=l.keys && ui::large() && std::any_of(names_in.begin(),names_in.begin()+l.keys,[](const std::string &n){return !n.empty();});
   l.name_h=l.names?lv_font_get_line_height(small):0;l.name_gap=l.names?ui::px(8):0;
   int name_w=0;if(l.names)for(unsigned i=0;i<l.keys;++i)name_w=std::max(name_w,text_width(names_in[i],small));
   // A long name ends in dots rather than push the keys apart: a third of the card, about five letters and a half of
@@ -4347,7 +4403,7 @@ inline BedsideLayout bedside_layout(int w,int h,int pad,const std::vector<std::s
   const bool column=!row && l.keys && time_w<=w-col_w-ui::px(28) && (int)l.keys*col_d+((int)l.keys-1)*vg<=h;
   const bool stack=!row && !column && pair_w<=w && 2*l.digit_h+l.line_gap+band+(l.keys?3:2)*least<=card_h;
   l.mode=row?BedsideLayout::ROW:column?BedsideLayout::COLUMN:stack?BedsideLayout::STACK:BedsideLayout::ROW;
-  // The board's digits (FONT_BEDSIDE_SIZE, looks/shared/bedside.yaml) are sized for one of the three to fit; the self test fails a
+  // The board's digits (bedside_digits, looks/shared/digits.yaml) are sized for one of the three to fit; the self test fails a
   // board where none does, instead of the time running into its keys.
   l.fits=row||column||stack;
   if(l.mode==BedsideLayout::COLUMN){
@@ -4381,7 +4437,8 @@ inline std::vector<std::string> bedside_names(size_t index){
   std::vector<std::string> names;
   for(unsigned k=0;k<bedside_key_room();++k)for(size_t i=0;i<model.count;++i){
     const auto &t=model.tiles[i];
-    if(t.is_key() && (size_t)t.parent==index && t.key==k){names.push_back(t.name.empty()?t.entity:t.name);break;}
+    // A key whose name is hidden (overlay "none", firmware 0.17.0+) keeps its place with an empty name.
+    if(t.is_key() && (size_t)t.parent==index && t.key==k){names.push_back(!t.overlay?std::string():t.name.empty()?t.entity:t.name);break;}
   }
   return names;
 }
@@ -4405,16 +4462,17 @@ inline void render_bedside(Widgets &w,const Tile &t,int width,int height){
     if(w.parts[1])set_hidden(w.parts[1],true);
   }
   set_color(w.parts[0],LV_STYLE_TEXT_COLOR,ink);if(w.parts[1])set_color(w.parts[1],LV_STYLE_TEXT_COLOR,ink);
-  // AM or PM after the time, on its baseline, when the screen shows 12 hours.
+  // AM or PM under the end of the time when the screen shows 12 hours (firmware 0.17.0+): beside it, "10:08" already
+  // fills the width the digits were sized for and the letters ran off the glass (GitHub #93).
   if(!ampm.empty()){
     const int tw=text_width(l.mode==BedsideLayout::STACK?time.substr(time.find(':')+1):time,font);
-    int stop,sh;digit_box(small,stop,sh);
     const int last=l.mode==BedsideLayout::STACK?l.digits_y+2*l.digit_h+l.line_gap:l.digits_y+l.digit_h;
-    auto *p=digit_label(w,2,small,l.digits_x+(l.digits_w+tw)/2+ui::px(6),last-sh,text_width(ampm,small)+2,LV_TEXT_ALIGN_LEFT,ampm);
+    const int aw=text_width(ampm,small)+2,end=l.digits_x+(l.digits_w+tw)/2;
+    auto *p=digit_label(w,2,small,end-aw,last+ui::px(10),aw,LV_TEXT_ALIGN_LEFT,ampm);
     set_color(p,LV_STYLE_TEXT_COLOR,muted);set_hidden(p,false);
   }else if(w.parts[2])set_hidden(w.parts[2],true);
   for(unsigned i=0;i<BEDSIDE_KEYS;++i){
-    if(i<l.keys && l.names){
+    if(i<l.keys && l.names && !names[i].empty()){
       auto *p=part_label(w,3+i,small,l.name_x[i],l.name_y[i],l.name_w[i],l.mode==BedsideLayout::COLUMN?LV_TEXT_ALIGN_LEFT:LV_TEXT_ALIGN_CENTER,names[i]);
       lv_label_set_long_mode(p,LV_LABEL_LONG_DOT);set_color(p,LV_STYLE_TEXT_COLOR,muted);set_hidden(p,false);
     }else if(w.parts[3+i])set_hidden(w.parts[3+i],true);
@@ -5333,6 +5391,26 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       return true;
     }
   }
+  // An on/off or run card two rows tall is one big key (firmware 0.17.0+, big_key): a large circle, the name in the
+  // page's headline size and the state under it, and no switch or run key: the whole card is what you tap.
+  if(t.row_span()>=2&&!w.full&&big_key(t)){
+    hide_panel(w);hide_extra(w);
+    // The page's headline size for the name when the whole name fits the card, else the tile's own title size.
+    const lv_font_t *name_font=room_label?lv_obj_get_style_text_font(room_label,LV_PART_MAIN):w.title_font;
+    if(text_width(lv_label_get_text(w.title),name_font)>width)name_font=w.title_font;
+    const int name_h=lv_font_get_line_height(name_font),side=std::min(width,height)*44/100;
+    const auto a=tall_tile::action(width,height,side,lv_font_get_line_height(w.icon_font),name_h,l.state?m.state_h:0,gap);
+    if(a.fits){
+      const lv_font_t *icon_font=big_icon_font&&font_has(big_icon_font,icon_for(t))&&a.icon.w>=ui::px(96)?big_icon_font:w.icon_font;
+      lv_obj_set_size(w.circle,a.icon.w,a.icon.h);lv_obj_set_pos(w.circle,a.icon.x,a.icon.y);
+      set_font(w.icon,icon_font);center_icon(w.icon);
+      set_font(w.title,name_font);set_text_align(w.title,LV_TEXT_ALIGN_CENTER);lv_obj_set_pos(w.title,a.title.x,a.title.y);lv_obj_set_size(w.title,a.title.w,a.title.h);
+      set_text_align(w.value,LV_TEXT_ALIGN_CENTER);lv_obj_set_pos(w.value,a.state.x,a.state.y);lv_obj_set_size(w.value,a.state.w,std::max(1,a.state.h));
+      set_hidden(w.value,a.state.empty());
+      live_place(w,t,a.icon.w,a.icon.x,a.icon.y);
+    }
+    return true;
+  }
   int circle=std::min({w.base_circle,l.header.h,width/3});
   const lv_font_t *heading_font=heading_icon(w,circle,l.header.h,width);
   const int tx=circle+gap,tw=std::max(1,width-tx),lines=m.name_h+(l.state?m.state_h:0);
@@ -5945,8 +6023,9 @@ inline void render_slot(size_t slot) {
                     (lock_tile&&lock_asking(t,false)?16:0)|(lock_tile?(int)(lock_panel::color(t.state)&0xFF)<<8:0);
   // An alarm panel's circle beats while it counts down or goes off, and springs once when it arms or disarms.
   if (d == "alarm_control_panel" || d == "lock" || w.alarm_look || w.alarm_mark) alarm_tile_look(slot, &t);
-  if (w.cached_active == palette_state && !w.panel_dirty) { style_tall(w,t);lap(swipe_profile::GEOMETRY); return; }
-  w.cached_active = palette_state;w.panel_dirty=false;
+  const uint32_t paint=t.background|(t.transparent?1u<<24:0);
+  if (w.cached_active == palette_state && w.cached_paint == paint && !w.panel_dirty) { style_tall(w,t);lap(swipe_profile::GEOMETRY); return; }
+  w.cached_active = palette_state;w.cached_paint=paint;w.panel_dirty=false;
   // Home Assistant's colour for the state (tile_controls::accent), and a lamp's own colour while it is on.
   uint32_t accent=lock_tile?lock_accent(t):tile_controls::accent(t);
   // A lamp's own colour goes through Home Assistant's contrast rule before it reaches the glass
@@ -6426,7 +6505,7 @@ inline bool check_tile_geometry() {
         if(w.extra_mode=="graph" && !custom)fits=fits && (w.wide && !w.full?part.x1>value.x2:part.y1>value.y2);
       }
     }
-    // The board's bedside digits fit its page in one of the three arrangements (FONT_BEDSIDE_SIZE, looks/shared/bedside.yaml).
+    // The board's bedside digits fit its page in one of the three arrangements (bedside_digits, looks/shared/digits.yaml).
     if(w.extra_mode=="bedside" && w.index<model.count){
       const auto l=bedside_layout(content_width(w),content_height(w),lv_obj_get_style_space_top(w.tile,LV_PART_MAIN),bedside_names(w.index));
       if(!l.fits){fits=false;ESP_LOGE("ui_test","Bedside digits fit FAIL slot=%u w=%d h=%d pad=%d digit_h=%d key=%d names=%d",(unsigned)w.index,

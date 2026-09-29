@@ -15,7 +15,7 @@ export type TileOptions = {
 export type ChildTile = {
   id: string;
   content: { kind: "entity"; entityId: string };
-  appearance: { label: string; icon?: string };
+  appearance: { label: string; icon?: string; overlay?: string };
   interaction: { tap?: string; action?: TileOptions["action"]; guard?: string };
 };
 // A key of a bedside clock (app 0.4.12) is a tile like any other without a cell: it names the tile it stands under
@@ -126,7 +126,7 @@ export type Screen = {
   api_key?: string | null;
   // What the add-on reads from the firmware (app 0.2.78): its X.Y.Z (null when unknown), how many tiles it holds,
   // whether it draws full-page tiles, and whether it takes several tiles that go to the same page.
-  firmware_known?: string | null; tile_limit?: number; full_page?: boolean; page_tiles_repeat?: boolean; entity_tiles_repeat?: boolean;
+  firmware_known?: string | null; tile_limit?: number; full_page?: boolean; page_tiles_repeat?: boolean; entity_tiles_repeat?: boolean; no_title?: boolean;
   // The language its firmware was built in (app 0.2.90); null for older firmware, which is English.
   language?: string | null;
   // What the screen looks like (app 0.2.94): the glass it draws on, the cells of one page, its density and its look,

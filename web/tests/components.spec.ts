@@ -594,6 +594,26 @@ describe("Sidebar", () => {
     await item.find(".nav-item").trigger("click");
     expect(item.classes()).toContain("open");
   });
+  it("downloads a screen's files, to build it with ESPHome on your own computer", async () => {
+    Object.assign(state.inventory.screens[0], { update: { profile: "living room.yaml" } });
+    state.inventory.pending = [{ file: "hall.yaml", friendly: "Hall", api_key: "key" } as any];
+    const sidebar = mount(Sidebar);
+    const item = sidebar.find("#screens .screen-item");
+    await item.find(".nav-item").trigger("click");
+    if (!item.classes().includes("open")) await item.find(".details-toggle").trigger("click");
+    const own = item.find("a.screen-files");
+    expect(own.attributes("href")).toBe("api/firmware/profiles/living%20room.yaml/files");
+    expect(own.attributes("download")).toBeDefined();
+    // A screen that isn't in Home Assistant yet has it in sight, not behind its API key.
+    const pending = sidebar.find("#pending a.screen-files");
+    expect(pending.attributes("href")).toBe("api/firmware/profiles/hall.yaml/files");
+    expect(pending.element.closest("details")).toBeNull();
+    // Without a profile the add-on has no files to give.
+    Object.assign(state.inventory.screens[0], { update: { profile: null } });
+    await nextTick();
+    expect(item.find("a.screen-files").exists()).toBe(false);
+    state.inventory.pending = [];
+  });
   it("opens the details of a chosen screen with an update waiting (app 0.4.0)", async () => {
     Object.assign(state.inventory.screens[0], { update: { available: true, target: "0.4.0", profile: "living.yaml" } });
     const sidebar = mount(Sidebar);

@@ -1257,6 +1257,8 @@
         "not_flashed": "Aún no está en Home Assistant. ¿Ya has instalado el firmware? Añade el dispositivo ESPHome en Configuración → Dispositivos y servicios y luego permite las acciones de Home Assistant en Configurar. ¿Todavía no? Firmware y USB → {file}."
       },
       "copy_api_key": "Copiar clave API",
+      "files": "Descargar archivos de la pantalla",
+      "files_hint": "El YAML de ESPHome de la pantalla con sus claves, su Override YAML y un secrets.yaml con el Wi-Fi, para compilarla con ESPHome en tu ordenador.",
       "details": {
         "room": "Habitación",
         "firmware": "Firmware",
@@ -1636,7 +1638,9 @@
       },
       "keys": {
         "hint": "Arrastra una lámpara, una temperatura o una cerradura a los huecos redondos bajo la hora, o toca un hueco y elige. Son mosaicos: toca uno para configurarlo.",
-        "under": "Bajo el reloj de mesita: un mosaico en su forma redonda. Un toque hace lo mismo que en un mosaico, y mantenerlo pulsado abre su tarjeta."
+        "under": "Bajo el reloj de mesita: un mosaico en su forma redonda. Un toque hace lo mismo que en un mosaico, y mantenerlo pulsado abre su tarjeta.",
+        "name_shown": "Nombre bajo la tecla",
+        "name_shown_hint": "Desactivado muestra solo el círculo."
       }
     },
     "tile_card": {
@@ -1693,6 +1697,7 @@
       "name_placeholder": "Por ejemplo: Salón",
       "screen_name": "Título de la pantalla",
       "screen_name_hint": "Cada página sin título propio muestra este.",
+      "no_title_hint": "Déjalo vacío para mostrar solo el logotipo.",
       "right": "Derecha: hora, sensores o un reloj",
       "item_label": "{name}, hueco {slot}. Enter: configurar; flechas: mover",
       "remove_named": "Eliminar {name} de la barra superior",

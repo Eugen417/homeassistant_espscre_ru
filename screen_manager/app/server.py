@@ -2999,6 +2999,11 @@ def create_app(manager, development=False):
         path, name = manager.firmware.image(request.match_info['file'])
         return web.FileResponse(path, headers={'Content-Type': 'application/octet-stream',
                                                'Content-Disposition': f'attachment; filename="{name}"'})
+    async def firmware_files(request):
+        """A screen's menu → Download screen files: its YAML, Override YAML and the secrets they use, as a zip, to
+        build the screen with ESPHome on your own computer."""
+        body, name = manager.firmware.files(request.match_info['file'])
+        return web.Response(body=body, content_type='application/zip', headers={'Content-Disposition': f'attachment; filename="{name}"'})
     async def firmware_flashed(request):
         """New screen and Firmware & USB → This computer (browser): the page wrote the image it downloaded onto a
         screen over Web Serial, so the screen list nudges pairing as for one flashed from Home Assistant's own USB port."""
@@ -3062,6 +3067,7 @@ def create_app(manager, development=False):
     app.router.add_get('/api/firmware/profiles/{file}/override', firmware_override)
     app.router.add_put('/api/firmware/profiles/{file}/override', firmware_override_save)
     app.router.add_get('/api/firmware/profiles/{file}/download', firmware_download)
+    app.router.add_get('/api/firmware/profiles/{file}/files', firmware_files)
     app.router.add_post('/api/firmware/profiles/{file}/flashed', firmware_flashed)
     app.router.add_post('/api/firmware/profiles', firmware_create)
     app.router.add_get('/', index)
