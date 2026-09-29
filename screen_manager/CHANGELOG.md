@@ -1,3 +1,17 @@
+## 0.4.25 (firmware 0.15.0)
+
+- **The top bar lines up with its logo, and its text no longer touches the tiles** (GitHub #90). Since 0.4.23 the
+  page's name and the items on the right stood on the logo's bottom line, so they looked low next to it, and on the
+  compact look (the CYD and the Hosyond 4.0) the tail of a g, p or y touched the first row of tiles. Now the name, the
+  words and icons on the right and the analog clock all share the logo's middle line, and the tiles start one row gap
+  below the lowest a title can reach, never closer than 1.5 mm. The room follows from the fonts, so it is the same on
+  every page, in every language and on every board. The tiles keep all their height on the larger screens compared
+  with 0.4.22 and before; on the compact look they give back about 2 pixels of what 0.4.23 took from under the text.
+- Tested: tools/check.sh, and the host renders of the Hosyond 4.0, the CYD, the Guition 4848S040 and the Waveshare 4.3
+  with a temperature, the date and the clock in the top bar: every self test passes, the name, the clock and the
+  icons sit within 1.5 pixels of the logo's middle, and 9 to 14 pixels stay free under the tail of a g. A Guition
+  4848S040 runs it with its own layout. The CYD firmware is 336 bytes smaller than 0.4.23's.
+
 ## 0.4.24 (firmware 0.14.0)
 
 - **Album covers, station logos and camera pictures follow the app's port** (GitHub #84). Home Assistant OS lets you

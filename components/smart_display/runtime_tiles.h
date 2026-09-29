@@ -6425,6 +6425,16 @@ inline bool check_tile_geometry() {
     }
     ok=ok && fits;
   }
+  // The tiles start below the top bar with room to spare (firmware 0.15.0+, GitHub #90): the tail of a g in the
+  // page's name, the lowest any title can reach in its font, stays at least a pixel clear of the tile area.
+  if(room_label && tile_grid && !lv_obj_has_flag(room_label,LV_OBJ_FLAG_HIDDEN)){
+    const lv_font_t *font=lv_obj_get_style_text_font(room_label,LV_PART_MAIN);lv_font_glyph_dsc_t tail;
+    if(font && lv_font_get_glyph_dsc(font,&tail,'g',0) && tail.box_h){
+      const int baseline=lv_obj_get_y(room_label)+(font->line_height-font->base_line);
+      const int lowest=baseline-tail.ofs_y,grid_top=lv_obj_get_y(tile_grid);
+      if(grid_top<=lowest){ok=false;ESP_LOGE("ui_test","Top bar clear FAIL tail=%d grid=%d",lowest,grid_top);}
+    }
+  }
   return ok;
 }
 
