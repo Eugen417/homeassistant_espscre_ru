@@ -200,6 +200,9 @@ struct Extra {
   std::vector<Lamp> lamps;
   // Climate: the modes as JSON lists, the current fan and swing mode, and what it is doing now.
   std::string hvac_modes, fan_modes, swing_modes, fan_mode, swing_mode, hvac_action;
+  // The range a thermostat keeps the room in (target_temp_low and target_temp_high, firmware 0.19.0), where it has
+  // one instead of a single temperature: heat_cool, and auto on some.
+  float target_low = NAN, target_high = NAN;
   // A select's options, at most eight.
   std::vector<std::string> options;
   // Weather: up to five days and eight hours.
@@ -249,7 +252,7 @@ struct Extra {
   Choice *choice(char kind) { for (auto &c : choices) if (c.kind == kind) return &c; return nullptr; }
   bool empty() const {
     return hvac_modes.empty() && fan_modes.empty() && swing_modes.empty() && fan_mode.empty() && swing_mode.empty() &&
-           hvac_action.empty() && options.empty() && forecast.empty() && hours.empty() && std::isnan(wind) &&
+           hvac_action.empty() && std::isnan(target_low) && std::isnan(target_high) && options.empty() && forecast.empty() && hours.empty() && std::isnan(wind) &&
            std::isnan(feels) && wind_unit.empty() && sunrise.empty() && sunset.empty() && duration.empty() &&
            remaining.empty() && !timer_end && media_title.empty() && media_artist.empty() && media_album.empty() &&
            media_picture.empty() && !media_duration && !media_position && !media_position_at && fan_speeds.empty() && fan_speed.empty() &&
@@ -335,6 +338,8 @@ struct Tile {
   // Double width takes a row; full (firmware 0.2.62+) takes the whole page, all six slots, and is also wide.
   bool wide = false, full = false;
   uint8_t height = 1;  // Row span; independent of the card design and page height.
+  // The columns of a span ("3x2", firmware 0.19.0); 0 for the five names, whose width `wide` and `full` say.
+  uint8_t span = 0;
   // A key of a bedside clock (firmware 0.8.0+): a tile without a place of its own. `parent` is its clock's index, -1
   // for a tile that has a place; `key` is where it stands under the time, counted from 0.
   int16_t parent = -1;
@@ -346,6 +351,8 @@ struct Tile {
   // A -/+ edit shows at once and is sent as one call after a short pause; the
   // value stays until Home Assistant reports it (or a timeout clears it).
   float edit_value = NAN; uint32_t edit_since = 0; bool edit_sent = false;
+  // A thermostat set to a range (firmware 0.19.0): edit_value is the low end then, and this the high end.
+  float edit_high = NAN;
   // Knob position a toggle shows while its command is under way.
   bool optimistic_on = false;
   // A slider the finger let go stays where it was put while the light fades towards it (firmware 0.2.60+): the value
@@ -473,7 +480,7 @@ struct Tile {
   bool is_page() const { return page_entity(entity); }
   int page_target() const { return is_page() ? entity[12] - '0' : 0; }
   // Slots a tile takes: one, a row of two, or the six of a page.
-  unsigned column_span() const { return full ? grid.columns : wide ? grid.wide_span() : 1u; }
+  unsigned column_span() const { return full ? grid.columns : span ? span : wide ? grid.wide_span() : 1u; }
   unsigned row_span() const { return full ? grid.rows : height; }
   unsigned cells() const { return column_span() * row_span(); }
   // A scene, button or input button that never ran is "unknown" in Home Assistant, which still lets you press it
@@ -586,8 +593,8 @@ struct Model {
     refusal.clear();
     return true;
   }
-  bool valid_placement(unsigned index, unsigned slot, bool full, bool wide, unsigned height = 1) const {
-    const unsigned columns = full ? grid.columns : wide ? grid.wide_span() : 1;
+  bool valid_placement(unsigned index, unsigned slot, bool full, bool wide, unsigned height = 1, unsigned span = 0) const {
+    const unsigned columns = full ? grid.columns : span ? span : wide ? grid.wide_span() : 1;
     const unsigned rows = full ? grid.rows : height;
     const unsigned x = slot % grid.columns, y = slot % grid.slots() / grid.columns;
     if (!rows || index >= count || slot >= pages * grid.slots() || (full && slot % grid.slots()) ||
@@ -615,7 +622,7 @@ inline unsigned place(const Model &m, std::array<Placement, TILES_MAX> &out) {
     if (m.tiles[i].is_key()) { out[i] = {0xFF, 0xFF}; continue; }
     unsigned slot = m.slots[i];
     if (m.tiles[i].full) slot -= slot % grid.slots();
-    else if (m.tiles[i].wide && !grid.wide_fits(slot)) --slot;
+    else if (m.tiles[i].wide && !m.tiles[i].span && !grid.wide_fits(slot)) --slot;
     out[i] = {static_cast<uint8_t>(slot / grid.slots()), static_cast<uint8_t>(slot % grid.slots())};
     last = std::max(last, slot + (m.tiles[i].row_span() - 1) * static_cast<unsigned>(grid.columns) + m.tiles[i].column_span());
   }

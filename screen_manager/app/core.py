@@ -94,7 +94,7 @@ REF = 'main'
 # The shared firmware of this app release: packages/core.yaml's SCREEN_FIRMWARE_VERSION, what every board builds
 # unless its own board file went ahead with a fix for that board alone (firmware_target, docs/BOARD_RELEASES.md). The
 # middle number is the core: the feature gates below name a shared X.Y.0, so a feature always ships with a new core.
-FIRMWARE_VERSION = '0.18.0'
+FIRMWARE_VERSION = '0.19.0'
 # The Auto standby switch a screen offers Home Assistant automations.
 AUTO_STANDBY_MIN_FIRMWARE = '0.2.41'
 # The settings page the screen opens itself, and the screen.settings tile that opens it.
@@ -122,7 +122,7 @@ LOCK_GUARDS = ('confirm', 'lock_only')
 # An automation as a tile (GitHub #62): a tap switches it on or off and holding runs its actions, or with the tap option
 # `run` the other way round. Older firmware refuses the domain, so a layout with one waits for the update.
 AUTOMATION_MIN_FIRMWARE = (0, 7, 0)
-ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by assumed_state'.split())
+ATTRS = frozenset('brightness percentage current_position current_tilt_position current_temperature temperature target_temp_low target_temp_high current_humidity min_temp max_temp target_temp_step supported_color_modes hvac_modes hvac_action hs_color color_temp_kelvin min_color_temp_kelvin max_color_temp_kelvin fan_speed_list unit_of_measurement battery_level fan_speed volume_level is_volume_muted media_title options min max step temperature_unit supported_features device_class next_rising next_setting finishes_at duration remaining humidity wind_speed wind_speed_unit apparent_temperature fan_modes swing_modes fan_mode swing_mode effect code_format code_arm_required changed_by assumed_state'.split())
 # Attributes whose boolean value the screen needs; every other bool stays behind.
 BOOL_ATTRS = frozenset(['is_volume_muted', 'code_arm_required', 'assumed_state'])
 
@@ -227,6 +227,8 @@ class Grid:
         if size in ('wide', True): return self.wide_span, 1
         if size == 'tall': return 1, 2
         if size == 'square': return 2, 2
+        span = span_of(size)
+        if span: return span
         return 1, 1
 
     def cells(self, size):
@@ -310,11 +312,37 @@ MAX_SLOTS = DEFAULT_GRID.max_slots
 MAX_TILES = DEFAULT_GRID.max_tiles
 
 TILE_SIZES_ON_SCREEN = ('single', 'wide', 'tall', 'square', 'full')
+# A span (app 0.4.32, firmware 0.19.0): "CxR", a tile of C columns and R rows, set with the tile's handles. The five
+# names keep their sizes; a span is every other rectangle smaller than the grid, and a screen says in its hello which
+# of them its grid takes (tile_sizes), so an older screen is never sent one.
+SPAN = re.compile(r'^([1-9])x([1-9])$')
+
+def span_of(size):
+    """(columns, rows) of a span such as "3x2", or None for a name or anything else."""
+    found = SPAN.match(size) if isinstance(size, str) else None
+    return (int(found[1]), int(found[2])) if found else None
+
+def span_offered(columns, rows, grid):
+    """Whether a grid takes this rectangle as a span: smaller than the grid, and more than the names say (2 x 2)."""
+    return columns <= grid.columns and rows <= grid.rows and (columns, rows) != (grid.columns, grid.rows) and (columns > 2 or rows > 2)
+
+def is_size(size):
+    return size in TILE_SIZES_ON_SCREEN or span_of(size) is not None
+
+def size_rows(size):
+    """How many rows a size is high, apart from the whole page: tall and square two, a span its own."""
+    span = span_of(size)
+    return span[1] if span else 2 if size in ('tall', 'square') else 1
+
+def size_columns(size):
+    """How many columns a size is wide, apart from the whole page and a wide tile's grid: a span its own."""
+    span = span_of(size)
+    return span[0] if span else 2 if size in ('wide', 'square') else 1
 
 def tile_size(tile):
     """The symbolic presentation size; dimensions are resolved by the screen's grid."""
     size = tile.get('options', {}).get('size', 'single')
-    return size if size in TILE_SIZES_ON_SCREEN else 'single'
+    return size if is_size(size) else 'single'
 
 def is_wide(tile):
     """Double width or the whole page: the card spans two columns."""
@@ -389,10 +417,11 @@ def resolve_controls(tile):
     options = tile.get('options', {})
     domain = tile['entity'].split('.')[0]
     # The album cover in the icon's place (app 0.2.92) is the standard layout with a picture: the controls stay.
-    if domain not in CONTROLS or options.get('size') not in ('wide', 'tall', 'square', 'full') or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
+    if domain not in CONTROLS or options.get('size') not in ('wide', 'tall', 'square', 'full') and span_of(options.get('size')) is None or options.get('display', 'standard') not in ('standard', 'cover') or options.get('inline') == 'slider':
         return None
     # A full-page card is one big button unless a control was chosen for it; a wide card shows its usual one.
-    choice = options.get('controls', 'none' if options.get('size') in ('tall', 'full') else CONTROLS[domain][0][0])
+    # A span one column wide is a taller tall card, one of several columns a larger square: the same defaults.
+    choice = options.get('controls', 'none' if options.get('size') in ('tall', 'full') or (span_of(options.get('size')) or (0,))[0] == 1 else CONTROLS[domain][0][0])
     if domain == 'cover' and options.get('size') == 'wide':
         choice = 'none' if choice == 'tilt' else choice.removesuffix('_tilt')
     # A card one row high has room for one group: the setpoint (firmware 0.3.1 draws both on 1 x 2, 2 x 2 and full).
@@ -1002,7 +1031,7 @@ TILE_EVENT_OPTIONS = {'size': 'size', 'controls': 'controls', 'display': 'displa
                       'history_hours': 'history_hours', 'refresh': 'refresh', 'fit': 'fit', 'overlay': 'overlay'}
 TILE_SIZES = {'full': 'full', 'fullscreen': 'full', 'full screen': 'full', 'full-screen': 'full', 'page': 'full', 'whole page': 'full',
               'wide': 'wide', 'double': 'wide', 'large': 'wide', 'big': 'wide',
-              'single': 'single', 'small': 'single', 'normal': 'single'}
+              'single': 'single', 'small': 'single', 'normal': 'single', 'tall': 'tall', 'high': 'tall', 'square': 'square'}
 
 def loose(text):
     """A name as people write it: case, spaces, dashes and underscores don't matter."""
@@ -1094,9 +1123,34 @@ def tile_options(data, current=None):
         options['action'] = {'action': str(data['action']).strip(), **({'data': data['data']} if isinstance(data.get('data'), dict) and data['data'] else {})}
         if data.get('tap') in (None, ''):
             options['tap'] = 'action'
-    if (options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY) and options.get('size') not in ('tall', 'square', 'full'):
+    if (options.get('controls', 'none') != 'none' or options.get('display') in WIDE_ONLY) and options.get('size') not in ('tall', 'square', 'full') and span_of(options.get('size')) is None:
         options['size'] = 'wide'
     return {key: value for key, value in options.items() if value not in (None, '')}
+
+EVENT_SPAN = re.compile(r'^([1-9])\s*[x×*]\s*([1-9])$')
+
+def sizes_of(grid):
+    """Every size this grid takes: the names that fit it, then its spans (app 0.4.32)."""
+    names = ['single', 'wide', *(['tall'] if grid.rows > 1 else []), *(['square'] if grid.rows > 1 and grid.columns > 1 else []), 'full']
+    return names + [f'{c}x{r}' for r in range(1, grid.rows + 1) for c in range(1, grid.columns + 1) if span_offered(c, r, grid)]
+
+def event_size(size, grid=DEFAULT_GRID):
+    """The size an event asks for on this grid (app 0.4.32): a name, or columns x rows as "3x2". A rectangle a name
+    already says is that name ("2x2" is square, the whole grid full); one the grid does not take is refused, naming
+    the sizes it does take."""
+    if size in TILE_SIZES_ON_SCREEN:
+        return size  # where it goes is checked when it is placed
+    found = EVENT_SPAN.match(loose(size))
+    if found:
+        columns, rows = int(found[1]), int(found[2])
+        if (columns, rows) == (grid.columns, grid.rows):
+            return 'full'
+        named = {(1, 1): 'single', (2, 1): 'wide', (1, 2): 'tall', (2, 2): 'square'}.get((columns, rows))
+        if named and columns <= grid.columns and rows <= grid.rows:
+            return named
+        if span_offered(columns, rows, grid):
+            return f'{columns}x{rows}'
+    raise ValueError(t('addon.errors.events.size', size=size, sizes=', '.join(sizes_of(grid))))
 
 def event_page(data, grid=DEFAULT_GRID):
     """The page an event names, counted from one as people do; None when it doesn't name one."""
@@ -1295,6 +1349,8 @@ def run_placed_event(layout, action, data, repeat_pages=False, grid=DEFAULT_GRID
             chosen = found is not None
         was_size, had_slot = tile_size(found) if found else 'single', (found or {}).get('slot')
         options = tile_options(data, (found or {}).get('options'))
+        if 'size' in options:
+            options['size'] = event_size(options['size'], grid)
         # A new clock starts with the calm dial, as in the editor (app 0.3.12); an older screen draws it as the digital clock.
         if found is None and entity == 'screen.clock' and 'display' not in options:
             options['display'] = CLOCK_DEFAULT_DISPLAY
@@ -1473,7 +1529,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
             displays = DISPLAYS.get(domain, ('standard', 'watch'))
             # Run its actions on a tap (firmware 0.7.0+) is an automation's alone.
             taps = ('auto', 'detail', 'toggle', 'none', 'action') + (('run',) if domain == 'automation' else ())
-            choices = {'tap': taps, 'display': displays, 'inline': ('none', 'slider'), 'size': TILE_SIZES_ON_SCREEN}
+            choices = {'tap': taps, 'display': displays, 'inline': ('none', 'slider')}
+            if 'size' in options and not is_size(options['size']):
+                raise ValueError(t('addon.errors.layout.invalid_setting', setting='size'))
             # A lock's tile (firmware 0.5.0+) unlocks after a second tap or only locks; no other tile has the choice.
             if 'guard' in options:
                 if domain != 'lock' or options['guard'] not in LOCK_GUARDS:
@@ -1502,7 +1560,7 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 if sub == 'auto':
                     options = {k: v for k, v in options.items() if k != 'sub'}
             # The five-day strip and the sun path only fit a double-width card (or the whole page).
-            if options.get('display') in WIDE_ONLY and options.get('size') not in ('wide', 'square', 'full'):
+            if options.get('display') in WIDE_ONLY and options.get('size') not in ('wide', 'square', 'full') and size_columns(options.get('size')) < 2:
                 options = {**options, 'size': 'wide'}
             # On / off sends <domain>.toggle. Whether Home Assistant offers that for the entity is checked when saving
             # (Manager.check_supported, app 0.2.67); the built-in cards have nothing to switch.
@@ -1570,6 +1628,9 @@ def validate_layout(data, stored=False, grid=DEFAULT_GRID):
                 raise ValueError(t('addon.errors.layout.full_page_top'))
             if size == 'wide' and not grid.wide_fits(slot):
                 raise ValueError(t('addon.errors.layout.wide_left'))
+            # A span must be one this grid takes: a rectangle the names already say, or the whole page, is refused.
+            if span_of(size) and not span_offered(*span_of(size), grid):
+                raise ValueError(t('addon.errors.layout.position'))
             if not grid.fits(slot, size):
                 raise ValueError(t('addon.errors.layout.position'))
             for cell in grid.footprint(slot, size):
@@ -2002,7 +2063,7 @@ def attribute_word(entity_id, attribute, value, attributes, entry, words):
         return None
     return ha_word(entity_id, f'state_attributes.{attribute}.state.{value}', attributes, entry, words)
 
-def state_message(index, tile, states, extra=None, precision=None, entry=None):
+def state_message(index, tile, states, extra=None, precision=None, entry=None, units=None):
     if tile['entity'] in BUILTIN:
         message = {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
                    'name': short(tile['name'] or builtin_name(tile['entity']), 80), 'state': 'ok', 'a': {}}
@@ -2035,6 +2096,10 @@ def state_message(index, tile, states, extra=None, precision=None, entry=None):
             limit = 2 if key == 'hs_color' else 4 if key == 'fan_speed_list' else 16 if key == 'options' else 8
             bounded[key] = [short(v, 48) if isinstance(v, str) else v for v in value[:limit]
                             if isinstance(v, str) or isinstance(v, (float, int)) and math.isfinite(v) and abs(v) <= 1000000]
+    # A thermostat without a step of its own steps as Home Assistant's own controls step it: 1 degree in Fahrenheit,
+    # half a degree otherwise (hui-target-temperature-card-feature), which also decides the decimals it shows.
+    if tile['entity'].startswith('climate.') and 'target_temp_step' not in bounded and units is not None:
+        bounded['target_temp_step'] = 1 if units.get('temperature') == '°F' else 0.5
     options = screen_options(tile, attrs, state.get('state'), entry)
     return {'v': 1, 'op': 'state', 'i': index, 'entity': tile['entity'],
             'name': short(tile['name'] or attrs.get('friendly_name') or tile['entity'], 80),
@@ -2437,9 +2502,10 @@ def installation_yaml(data):
     key, ota = base64.b64encode(secrets.token_bytes(32)).decode(), secrets.token_urlsafe(24)
     # The Wi-Fi fallback hotspot and its captive portal, where the board has room for them (boards.json `hotspot`,
     # app 0.4.5+): a board with 4 MB of flash leaves both out, some 90 KB of its 1.75 MB update slot. A screen whose
-    # Wi-Fi changed is then installed again over USB (docs/EASY_SETUP.md).
+    # Wi-Fi changed is then installed again over USB (docs/EASY_SETUP.md). A network name holds at most 32 characters,
+    # so a long device name is cut to leave room for " Setup" (app 0.4.32): ESPHome refuses the build otherwise.
     hotspot = (f'''  ap:
-    ssid: {quote(name + ' Setup')}
+    ssid: {quote(name[:26] + ' Setup')}
     password: {quote(secrets.token_urlsafe(12))}
 captive_portal:
 ''' if SHAPES[board].get('hotspot', True) else '')

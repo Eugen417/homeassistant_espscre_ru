@@ -163,6 +163,27 @@ function haWord(c: { state: string; a: Record<string, any> }) {
   if (HA_WORDS[domain.value]) return key(`${HA_WORDS[domain.value]}.${value}`) || (["on", "off"].includes(value) ? key(value) : "");
   return ["on", "off"].includes(value) ? key(value) : "";
 }
+// A thermostat set to a range (firmware 0.19.0), decided as Home Assistant's thermostat card decides it: a single target
+// it supports and reports comes first, else a range it supports with both ends. Each end in the step's decimals, and the
+// step Home Assistant's own (target_temp_step, which the app fills in as Home Assistant's controls do).
+const climateRange = computed(() => {
+  const a = current.value?.a || {}, f = Number(a.supported_features || 0);
+  if (domain.value !== "climate" || (f & 1 && a.temperature != null) || !(f & 2) || a.target_temp_low == null || a.target_temp_high == null) return "";
+  const digits = Number(a.target_temp_step || 0.5) >= 1 ? 0 : 1;
+  // Home Assistant's thermostat card writes a range this small as "20 · 24", without the unit.
+  return `${num(Number(a.target_temp_low).toFixed(digits))} · ${num(Number(a.target_temp_high).toFixed(digits))}`;
+});
+// A thermostat's line as the screen writes it: with a control on the tile, what it is doing and the room's temperature
+// (tile_controls::status_text); without one the temperature it is set to, and otherwise Home Assistant's own tile line,
+// its state and the room's temperature (runtime_tiles' value line). The room's temperature as Home Assistant sends it.
+function climateLine(c: { state: string; a?: Record<string, any> }, word: string) {
+  const a = c.a || {};
+  const now = a.current_temperature != null ? ` · ${num(String(a.current_temperature))}°` : "";
+  const doing = te(`screen.ha.hvac_action.${a.hvac_action}`) ? screenText(`screen.ha.hvac_action.${a.hvac_action}`) : "";
+  if (controls.value && controls.value !== "none") return `${doing || word}${now}`;
+  if (c.state !== "off" && a.temperature != null) return `${num(Number(a.temperature).toFixed(1))}°`;
+  return `${word}${now}`;
+}
 // A scene, script or button has no state worth a word: its state is the moment it last ran.
 const NO_STATUS = ["scene", "script", "button", "input_button"];
 // The text under the name: Home Assistant's word where it has one, the value with its unit for a sensor.
@@ -174,7 +195,7 @@ const status = computed(() => {
   if (gone.value) return screenText(c.state === "unknown" ? "editor.mockup.unknown" : "screen.ha.unavailable");
   const a = c.a || {};
   const word = c.word || haWord(c) || capital(c.state);
-  if (domain.value === "climate") return `${a.current_temperature !== undefined ? `${num(a.current_temperature)}° · ` : ""}${word}`;
+  if (domain.value === "climate") return climateLine(c, word);
   if (domain.value === "weather") return `${word}${a.temperature !== undefined ? ` · ${num(a.temperature)}°` : ""}`;
   if (domain.value === "cover" && a.current_position !== undefined && a.current_position > 0 && a.current_position < 100) return `${word} · ${a.current_position}${unitSuffix("%")}`;
   if (domain.value === "media_player" && a.media_title) return `${word} · ${a.media_title}`;
@@ -223,6 +244,7 @@ const features = computed(() => Number(current.value?.a?.supported_features || 0
 const FILLS_CELL = ["brightness", "speed", "position", "slider", "volume", "setpoint"];
 const fillsCell = computed(() => FILLS_CELL.includes(controls.value || "") || (controls.value === "stepper" && !domain.value.endsWith("select")));
 const setpoint = computed(() => {
+  if (climateRange.value) return climateRange.value;
   const temperature = current.value?.a?.temperature;
   return temperature !== undefined && temperature !== null ? `${num(temperature)}°` : "—";
 });
@@ -230,6 +252,8 @@ const setpoint = computed(() => {
 async function onKey(e: KeyboardEvent) {
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); activate(); return; }
   if (props.preview) return;
+  // Delete or Backspace removes the focused card (app 0.4.32); Undo brings it back.
+  if ((e.key === "Delete" || e.key === "Backspace") && live.value) { e.preventDefault(); removeTile(props.tile); return; }
   // Up and down are a row of the screen's grid, whatever its columns; left and right one cell.
   const step = ({ ArrowLeft: -1, ArrowRight: 1, ArrowUp: -grid.value.columns, ArrowDown: grid.value.columns } as Record<string, number>)[e.key];
   if (!step) return;
@@ -333,7 +357,7 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
       <span v-if="controls" class="ctl">
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="controls === 'setpoint'" class="stp"><span v-if="!climateRange" class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span v-if="!climateRange" class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'volume'"><span class="range" :style="volumeStyle"></span><span class="key mdi">{{ key("volume-high") }}</span></template>
         <template v-else-if="controls === 'playback'"><span class="key mdi">{{ key("skip-previous") }}</span><span class="key mdi">{{ key(on ? "pause" : "play") || key("play") }}</span><span class="key mdi">{{ key("skip-next") }}</span></template>
         <template v-else-if="controls === 'buttons' && domain === 'cover'"><span class="key mdi">{{ key("arrow-expand-horizontal") }}</span><span class="key mdi">{{ key("stop") }}</span><span class="key mdi">{{ key("arrow-collapse-horizontal") }}</span></template>
@@ -390,7 +414,7 @@ async function onKey(e: KeyboardEvent) {
       <span v-if="tile.options?.inline === 'slider'" class="mini-slider" :style="sliderStyle"></span>
       <span v-if="controls" class="ctl" :class="{ fill: fillsCell }">
         <span v-if="controls === 'toggle'" class="tog" :class="{ off: !on }"></span>
-        <span v-else-if="controls === 'setpoint'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
+        <span v-else-if="controls === 'setpoint'" class="stp"><span v-if="!climateRange" class="mdi">{{ key("minus") || "−" }}</span><b>{{ setpoint }}</b><span v-if="!climateRange" class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'stepper' && domain.endsWith('select')"><span class="key mdi">{{ key("chevron-left") }}</span><span class="key mdi">{{ key("chevron-right") }}</span></template>
         <span v-else-if="controls === 'stepper'" class="stp"><span class="mdi">{{ key("minus") || "−" }}</span><b>{{ bigValue }}</b><span class="mdi">{{ key("plus") || "+" }}</span></span>
         <template v-else-if="controls === 'mode'"><span class="key mdi">{{ key("power") }}</span><span class="key mdi">{{ key("fire") }}</span><span class="key mdi">{{ key("snowflake") }}</span></template>

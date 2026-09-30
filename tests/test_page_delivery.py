@@ -197,7 +197,7 @@ class DeliveryTests(unittest.IsolatedAsyncioTestCase):
         tile['placement']['rows'] = 2
         tile['appearance']['presentation'] = 'square'
         self.values[0]['o']['size'] = 'square'
-        with self.assertRaisesRegex(Refused, 'taller tiles'):
+        with self.assertRaisesRegex(Refused, 'these tile sizes'):
             await self.sync()
         self.assertEqual([message['op'] for message in self.screen.messages], ['hello'])
 

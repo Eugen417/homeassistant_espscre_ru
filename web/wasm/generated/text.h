@@ -1,4 +1,4 @@
-static_assert(screen_text::KEYS_HASH == 0x883B3A2Du && screen_text::KEY_COUNT == 388,
+static_assert(screen_text::KEYS_HASH == 0x6831FA4Bu && screen_text::KEY_COUNT == 391,
               "screen_text_keys.h does not match screen_manager/translations/en.json: run tools/i18n.py header");
 const char *const screen_text::TABLE[] = {
     ".",
@@ -85,6 +85,9 @@ const char *const screen_text::TABLE[] = {
     "No network",
     "Configuration problem.\012Update add-on.",
     "Configuration problem.\012Check screen and add-on versions.",
+    "Wi-Fi connection problem",
+    "Connect to hotspot {name} to fix this.\012Password: {password}",
+    "Check the Wi-Fi name and password, then install this screen again over USB.",
     "Arranging your tiles",
     "Peeking at your lights",
     "Dusting off the album covers",

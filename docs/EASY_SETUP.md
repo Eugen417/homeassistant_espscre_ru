@@ -55,24 +55,27 @@ Use the GitHub version for updates; a local test add-on is a separate app.
 1. Connect the screen with a **USB data cable** to the machine running Home
    Assistant. With multiple boards: connect them one at a time for the first
    installation, or check which port belongs to this screen.
-2. Click **New screen** in the sidebar of ESP Screens, under your screens. Under
-   **Which screen do you have?** pick the board; a board that can hang both ways also asks
-   **Which way will it hang?** (**Lying down** or **Standing up**, fixed when the screen is built),
-   and a CYD asks for its **Display controller**. Give the screen a name, for example `Kitchen`. The device name
-   (`kitchen`) follows from that; use **customize** to choose a different one.
+2. Click the **+** beside **Screens** in the sidebar of ESP Screens. New screen walks you through three steps.
+   **Screen**: under **Which screen do you have?** pick your board. Type its brand, size or what is printed on
+   it to find it, or narrow the list by size. **Set up**: give the screen a name, for example `Kitchen`, and watch
+   it appear on the drawing of your screen. A board that can hang both ways asks **Which way will it hang?**
+   (**Lying down** or **Standing up**, fixed when the screen is built), and a CYD asks for its **Display
+   controller**. The device name (`kitchen`) follows from the name; **Advanced** shows it, lets you choose a
+   different one, and lists what the board can and cannot do.
 3. Wi-Fi: if `wifi_ssid` and `wifi_password` are already in the ESPHome `secrets.yaml`,
    the screen uses them automatically. If they're missing, or the file doesn't
-   exist yet, the window asks for them once and ESP Screens only adds the
+   exist yet, the Set up step asks for them once and ESP Screens only adds the
    missing lines to `secrets.yaml`; comments and other secrets are left
    alone. If `secrets.yaml` isn't valid YAML, fix that yourself first.
-4. Under **Install via**, choose this screen's USB port and click
+4. **Install**: choose **USB on Home Assistant** (the port it found has a green light) and click
    **Install**. ESP Screens stores the profile (`kitchen.yaml`, with unique
    API and OTA keys) in the ESPHome folder, builds the firmware, and writes it
-   over USB. The ESPHome log and the current phase (building, writing) are in the same
-   window; a first build takes a few minutes on a Raspberry Pi. You can close the
-   window: the installation keeps running and picks back up when you reopen it.
-5. After **Done**, the window shows the API key with a copy button and the
-   pairing steps from chapter 3. If the build fails, the log stays open and
+   over USB. The page follows it in steps (getting ready, building the firmware, putting it on the screen,
+   starting up), each with how far it is, while the drawing of your screen fills in. **Show details** opens
+   ESPHome's own log. A first build takes a few minutes on a Raspberry Pi. You can close the
+   page: the installation keeps running and picks back up when you reopen it.
+5. When it is done, the page shows what comes next: the pairing steps from chapter 3, with the API key behind
+   **Show the API key**. If the build fails, the step it stopped in turns red, the log opens and
    you can **Retry**.
 
 Every screen gets its own profile: four screens means going through **New
@@ -172,7 +175,8 @@ do this by themselves; an older screen gets it with its next **Update**. A `powe
 under `wifi:` in the screen's own ESPHome YAML still wins.
 
 Select your screen, tap the bar at the top of a page to give the screen its name,
-and search for entities in the **Library** on the right. With more than one page that bar asks
+and search for entities in the **Library** along the bottom: its head folds it away, and its top edge drags it taller.
+With more than one page that bar asks
 two things: the **Screen title**, which every page without a title of its own shows, and the
 **Title above page N** of the page you tapped, which belongs to that page and travels with it. From
 firmware 0.17.0 the screen title may be empty: the top bar then shows only the logo, and a page with a

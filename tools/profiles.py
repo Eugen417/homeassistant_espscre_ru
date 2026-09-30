@@ -31,6 +31,14 @@ BOARDS = {board: ROOT / 'packages/boards' / file for board, file, _ in BOARD_TAB
 PROFILES = tuple(profile for _, _, profile in BOARD_TABLE)
 PACKAGES = tuple(f'packages/{board}.yaml' for board, _, _ in BOARD_TABLE)
 NAMES = PROFILES + PACKAGES
+
+# The boards a check builds instead of all of them (app 0.4.32): the list keeps growing, and most boards share the same
+# code. Four that differ where a build can break: the CYD (ESP32, 4 MB without a hotspot, SPI glass and the tightest
+# flash budget) and the Guition 4848S040 (ESP32-S3, square RGB glass, the bench board) always, then the 10.1-inch Guition
+# (ESP32-P4, MIPI-DSI, the largest glass and grid) and the 7-inch Waveshare (ESP32-S3 with a 4 MB app slot, 800 x 480).
+SAMPLE = ('cyd', 'guition', 'jc8012p4a1', 'waveshare7')
+# The boards a render check draws the UI on: the smallest glass, one in the middle and the largest.
+RENDER_SAMPLE = ('cyd', 'guition', 'jc8012p4a1')
 ENTRIES = {**{profile: board for board, _, profile in BOARD_TABLE},
            **{f'packages/{board}.yaml': board for board, _, _ in BOARD_TABLE}}
 

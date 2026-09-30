@@ -166,6 +166,24 @@ int main() {
   assert(set.service == "climate.set_temperature" && set.key == "temperature" && set.value == "21");
   assert(edit_action(ac, 20.5f).value == "20.5");
 
+  // A thermostat set to a range (firmware 0.19.0), decided as Home Assistant's thermostat card decides it: a single target
+  // it supports and reports first, else a range with both ends. A -/+ edit of one end sends both.
+  Tile ecobee = make("climate.ecobee", "heat_cool", 442); ecobee.step = 1;
+  assert(!climate_range(ecobee));
+  ecobee.edit_extra().target_low = 20; ecobee.edit_extra().target_high = 24;
+  assert(climate_range(ecobee) && range_end(ecobee, RANGE_LOW) == 20 && range_end(ecobee, RANGE_HIGH) == 24);
+  ecobee.edit_high = 25;
+  assert(range_end(ecobee, RANGE_HIGH) == 25 && range_end(ecobee, RANGE_LOW) == 20);
+  Action range = edit_action(ecobee, ecobee.edit_value);
+  assert(range.service == "climate.set_temperature" && range.key == "target_temp_low" && range.value == "20" &&
+         range.key2 == "target_temp_high" && range.value2 == "25");
+  ecobee.edit_value = 21.5f; assert(edit_action(ecobee, ecobee.edit_value).value == "21.5");
+  Tile both = ecobee; both.supported = 3; assert(climate_range(both));
+  both.target = 22; assert(!climate_range(both));           // a single target it reports comes first
+  Tile single = ecobee; single.supported = 385; assert(!climate_range(single));
+  // The room's temperature as Home Assistant sends it, not always with one decimal.
+  assert(temperature_text(73) == "73°" && temperature_text(21.5f) == "21.5°" && temperature_text(21.25f) == "21.25°");
+
   // Numbers edit their own state; selects step through their options with wrap-around.
   Tile number = make("number.target", "55"); number.minimum = 0; number.maximum = 100; number.step = 5;
   assert(edit_target(number) == 55 && edit_action(number, step_value(55, 5, 0, 100, -1)).value == "50");

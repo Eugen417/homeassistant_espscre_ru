@@ -30,7 +30,7 @@ export type PageTile = {
   // A footprint is a rectangle. The renderer's capabilities decide which
   // rectangles it supports; the page's grid is never user-overridable.
   placement: { row: number; column: number; columns: number; rows: number };
-  appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full"; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string };
+  appearance: { label: string; presentation?: "single" | "wide" | "tall" | "square" | "full" | `${number}x${number}`; display?: string; icon?: string; background?: string; historyHours?: number; refresh?: number; subtitle?: string; fit?: string; overlay?: string };
   interaction: { tap?: string; inline?: string; controls?: string; action?: TileOptions["action"]; guard?: string };
   children?: ChildTile[];
 };
@@ -90,6 +90,8 @@ export type BoardChoice = BoardCatalog & {
   width: number; height: number; dpi: number; look?: string; camera: boolean; dimmable: boolean; can_standby: boolean;
   // The chip its firmware is built for, as esptool names it ("ESP32-S3"): the browser flasher checks the board on the cable.
   chip?: string | null;
+  // Whether it opens a Wi-Fi hotspot when its network is gone (app 0.4.32; 4 MB boards have no room for it).
+  hotspot?: boolean;
 };
 // Does this screen work as you expect (app 0.3.10): what the add-on says about the board's shared answer. The key and
 // the revision never reach the page; the add-on keeps them.
@@ -163,7 +165,8 @@ export type Inventory = {
   screens: Screen[];
   entities: Entity[];
   builtin?: Entity[];
-  pending?: { friendly: string; file: string; installed?: boolean; downloaded?: boolean; api_key?: string }[];
+  // `seen`: Home Assistant found it on the network, waiting to be paired (app 0.4.32).
+  pending?: { friendly: string; file: string; node?: string; installed?: boolean; downloaded?: boolean; api_key?: string; seen?: boolean }[];
   updates?: { target: string; busy?: boolean; pending?: number; auto?: boolean };
   // The CHANGELOG by release, newest first: only in the full inventory, not in the live payload (app 0.2.78).
   changelog?: ChangelogSection[];

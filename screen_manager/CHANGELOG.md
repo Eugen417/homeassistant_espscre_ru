@@ -1,3 +1,94 @@
+## 0.4.32 (firmware 0.19.0)
+
+The editor, calmer and quicker to use, and a screen that says what is wrong when it cannot reach its Wi-Fi.
+
+- **A screen without its Wi-Fi says so on its glass** (firmware 0.19.0). Once its fallback hotspot is up, the loading
+  screen reads "Wi-Fi connection problem" with the hotspot's name and password to join from a phone and pick the right
+  network. A board without a hotspot (the CYD and the other boards with 4 MB of flash) says it after a minute, with the
+  way back: check the Wi-Fi name and password and install the screen again over USB. When the Wi-Fi is back, so are
+  the pages.
+- **New screen follows the screen onto your Wi-Fi.** After the firmware is on it, the page waits for Home Assistant to
+  find the screen on the network and says when it did. After three minutes without it, it says the Wi-Fi is the likely
+  cause and what fixes it, with the right network and the installation again in one form.
+- **Another network**: when Wi-Fi is already set up, New screen can still take another name and password. They go into
+  ESPHome's secrets.yaml, so screens you already have take them at their next update.
+- A long device name no longer makes a hotspot name ESPHome refuses (over 32 characters).
+- **A screen that never got its firmware can be removed** (GitHub #114): when New screen's build was cancelled or failed, the
+  screen waiting in the list has Remove, which takes its profile and what it built out of the ESPHome folder.
+
+- **The library is a drawer along the bottom.** Folded it is one line with the search. Start typing anywhere on the
+  page and it glides open on what you typed; the arrow keys walk the results, Enter adds the one in focus, Escape
+  clears the search and then folds the drawer. Drag its top edge to make it taller; the editor remembers both.
+- **Entities stand under their room**, with the screen's own cards last. The kinds and the rooms are one column on the
+  left, each with how many it holds. A search ranks what it finds, names that start with your words first.
+- **Shorter names**: an entity no longer repeats its device's name. "Bedroom screen Night mode" reads "Night mode", with
+  "Bedroom screen" under it, as on the device's card in Home Assistant.
+- **The settings of what you select have a column of their own on the right**, gliding in and out. They never cover
+  the pages or the library.
+- **A choice shows on the tile before you pick it.** Rest the pointer on a display, a second line, a control, an icon or
+  a colour and the tile in the page draws it.
+- **Each setting is one row**: what it is on the left, the current choice on the right. A label with more to say is
+  underlined with dots; point at it to read it. What holding the tile does stands under the tap choice.
+- **A tile's settings no longer ask which page it is on**: drag it there, as you would anyway.
+- **The tile's name is edited in the title** of its settings. Read current data and Remove moved into the ··· menu,
+  and Delete or Backspace removes the selected tile (Undo brings it back).
+- **You see at once what is open**: the head of the settings is black for a tile, blue for a page and white for the top
+  bar, with its word over the title, and the ring around it in the pages follows.
+- **A tile is sized with its handles, to any rectangle** (firmware 0.19.0). Drag its right or bottom edge: besides
+  the sizes there were, it takes 3 x 2, 2 x 3 and every other rectangle smaller than the page, and the whole page
+  too. The size choice left the tile's settings. A screen says which rectangles its grid takes, so an older screen
+  keeps the five sizes it knows until it is updated.
+- **A calmer sidebar.** Each screen is one line, its name in full. The update's button is a small icon on its row
+  (its version in the tooltip), and a screen that is away says Offline there. The details fold out from the chevron:
+  the room, firmware and board, what's new as a few headlines, then Rename, Download screen files and Remove as the
+  rows of a menu. New screen is the + beside Screens; Refresh comes beside it under the pointer. Search is a row like
+  the others.
+- **New screen is a setup assistant in three steps.** Screen: every board drawn as it hangs and to scale against the
+  others, found by brand, size or what is printed on it, or narrowed by size. Set up: the name appears on the drawing
+  of your screen as you type it, beside which way it hangs and the board's own choices; the device name and what the
+  board can do are under Advanced. Install: USB on Home Assistant (a port it found has a green light), this
+  computer, a file, or later. A preview screen is one link on the first step.
+- **The installation shows how far it is.** Getting ready, building the firmware, putting it on the screen and
+  starting up, each with its percentage from ESPHome's own count, one bar for all of it and the time so far, while
+  the drawing of the screen fills in tile by tile. Show details opens ESPHome's log in a terminal with a copy button.
+  When it is done, what comes next; when it fails, the step it stopped in in red and Retry.
+- Escape closes only the innermost thing open: a list of choices closes and the settings under it stay.
+- A preview screen saved in the browser by an older app, that this one cannot read, is left out with a word about it,
+  and no longer keeps the editor or the other preview screens from loading.
+- Calmer greys, thinner lines and smaller corners throughout.
+- **An automation or assistant can ask for any size too**: `esp_screens_add_tile` takes `size: 1x3` and the like. A
+  rectangle a name already says becomes that name (`2x3` on a screen two by three is the whole page), and a size the
+  screen does not take is refused with the sizes it does take, where it used to say the page was full.
+- A screen that is not ready for a tile size now says "Update the screen to use these tile sizes", not "taller tiles".
+- New screen's hint under USB on Home Assistant points to "From this computer", as the card is now called.
+- The drawing of the new screen ends a long name with dots, as the screen does, instead of cutting it off.
+- The screen's log says when it shows the Wi-Fi message and when the pages come back (firmware 0.19.0).
+- **A thermostat that keeps the room between two temperatures works** (firmware 0.19.0), such as one in Heat/Cool. Its
+  tile no longer shows the raw `heat_cool`: as on Home Assistant's own tile it says its state and the room's
+  temperature, "Heat/Cool · 22°". Its card shows both ends side by side, as Home Assistant's thermostat card does: tap
+  one and - and + move it, and both go to Home Assistant together. The - and + on a wide tile, which sent a single
+  temperature such a thermostat cannot take, make way for both ends, "20 · 24", and a tap opens the card. A thermostat
+  with a single temperature is unchanged; one that has both follows Home Assistant and uses the single one when it
+  reports it.
+- A thermostat's temperatures read as Home Assistant writes them: 22° and 21.5°, no longer 22.0°. One that names no
+  step moves as Home Assistant's own controls move it, a whole degree in Fahrenheit and half a degree otherwise.
+- A thermostat in a mode without a temperature to reach, such as dry or fan only, says that mode and the room's
+  temperature instead of the raw state.
+- Tested: tools/check.sh (with the new layout audit), the firmware of the CYD, the 4-inch Guition, the 10.1-inch Guition
+  and the 7-inch Waveshare with ESPHome 2026.9.0 and 2026.6.2 (CYD 90.5 %, 6.6 KB more than 0.4.31). On a Guition and a
+  CYD with a Home Assistant of their own: app 0.4.31 with firmware 0.18 and eight full pages, then this app (the
+  layouts unchanged to the byte), then this firmware over the air (the same layouts back, and the new sizes offered);
+  spans saved from the editor's handles and through the tile events, 40 saves in a row, saves to both screens at once,
+  and the app, both screens and Home Assistant restarted during a delivery, each ending with the last layout on the
+  glass. A wrong Wi-Fi password on both: the CYD says so after a minute, the Guition when its hotspot opens, neither
+  restarts.
+  Thermostats on the Guition's glass (a range-only one, one with both, one with a single temperature) and a range set
+  through the firmware preview's card: the high end up two and the low end down one reached Home Assistant as both ends.
+- For developers: tests/test_layout_audit.py lays out every kind of card at every size on every board's glass, lying
+  down and standing up, with the firmware's own code (the WebAssembly preview) and checks the geometry without a
+  picture: nothing leaves its card, no text runs over another or is cut without dots or a marquee, texts keep a margin
+  from the edge, and full pages of cards never overlap. About 3,100 layouts in under a minute, part of tools/check.sh.
+
 ## 0.4.31 (firmware 0.18.1 for guition)
 
 - **Four rows on the 4-inch Guition, as a choice.** New screen asks how many tiles go on a page: two columns of three,

@@ -42,7 +42,7 @@ enum Command {
   OPEN_CARD  // "…": the modes that did not fit are on the card (firmware 0.3.1+)
 };
 struct Key { const char *icon = ""; int command = NONE; std::string arg; bool checked = false, disabled = false; };
-struct Action { std::string service, key, value; bool valid() const { return !service.empty(); } };
+struct Action { std::string service, key, value; std::string key2 = {}, value2 = {}; bool valid() const { return !service.empty(); } };
 using runtime_tiles::Tile;
 
 // Panel kinds: keys (a row of pill buttons), stepper (-/+ pill), slider, toggle, run.
@@ -205,6 +205,20 @@ inline float numeric_state(const Tile &t) {
 }
 // Value the -/+ pill edits: the climate setpoint or the number itself.
 inline float edit_target(const Tile &t) { return t.domain() == "climate" ? t.target : numeric_state(t); }
+// A thermostat that keeps the room between two temperatures (firmware 0.19.0), decided as Home Assistant's thermostat
+// card decides it (ha-state-control-climate-temperature): a single target it supports and reports comes first; else a
+// range it supports (feature 2) with both ends reported.
+inline bool climate_range(const Tile &t) {
+  if (t.domain() != "climate" || ((t.supported & 1) && std::isfinite(t.target))) return false;
+  return (t.supported & 2) && std::isfinite(t.extra().target_low) && std::isfinite(t.extra().target_high);
+}
+// Which end of the range the climate card's -/+ moves.
+constexpr uint8_t RANGE_LOW = 1, RANGE_HIGH = 2;
+// An end of the range as the screen shows it: what the finger set while it is on its way, else what Home Assistant says.
+inline float range_end(const Tile &t, uint8_t end) {
+  if (end == RANGE_HIGH) return std::isfinite(t.edit_high) ? t.edit_high : t.extra().target_high;
+  return std::isfinite(t.edit_value) ? t.edit_value : t.extra().target_low;
+}
 inline float edit_step(const Tile &t) {
   float step = t.step;
   if (!std::isfinite(step) || step <= 0) step = t.domain() == "climate" ? 0.5f : 1.0f;
@@ -225,6 +239,13 @@ inline float step_value(float current, float step, float minimum, float maximum,
 inline std::string format_value(float value, float step, const char *suffix) {
   if (!std::isfinite(value)) return "--";
   return screen_text::decimal(value, step >= 1 ? 0 : 1) + suffix;
+}
+// A temperature a thermostat reports, written as Home Assistant writes the number it sends: 73°, 21.5°, 21.25°
+// (firmware 0.19.0; before, always one decimal, "73.0°").
+inline std::string temperature_text(float value) {
+  int digits = 0;
+  for (float scaled = value; digits < 2 && std::fabs(scaled - std::round(scaled)) > 0.01f; scaled *= 10) ++digits;
+  return screen_text::decimal(value, digits) + "°";
 }
 // Home Assistant's word for a climate fan ('f') or swing ('s') setting that Home Assistant names itself ("low" is
 // "Laag" in Dutch); an integration's own mode reads as its name ("fan_only" -> "Fan only").
@@ -351,7 +372,7 @@ inline std::string climate_card_status(const Tile &t, bool brief = false) {
                                       : std::string(climate_action_text(lower_case(t.extra().hvac_action)));
   if (status.empty()) status = climate_mode_text(lower_case(t.state));
   if (std::isfinite(t.current)) {
-    const std::string value = screen_text::decimal(t.current, 1) + "°";
+    const std::string value = temperature_text(t.current);
     status += " · " + (brief ? value : screen_text::fill(screen_text::txt::climate_now, "value", value));
   }
   if (!brief && std::isfinite(t.humidity)) status += " · " + screen_text::percent(static_cast<int>(std::lround(t.humidity)));
@@ -420,7 +441,7 @@ inline std::string status_text(const Tile &t) {
   if (d == "climate") {
     std::string text = climate_action_text(t.extra().hvac_action);
     if (text.empty()) text = climate_mode_text(t.state);
-    if (std::isfinite(t.current)) text += " · " + screen_text::decimal(t.current, 1) + "°";
+    if (std::isfinite(t.current)) text += " · " + temperature_text(t.current);
     return text;
   }
   if (d == "cover") {
@@ -698,14 +719,25 @@ inline Action choice_action(const Tile &t, char kind, const std::string &value) 
   return {"select.select_option", "option", value};
 }
 
-// The debounced -/+ edit lands as one service call.
-inline Action edit_action(const Tile &t, float value) {
-  if (!std::isfinite(value)) return {};
+// A value as a service call takes it: a point, and no trailing zeros ("21.5", "70").
+inline std::string format_number(float value) {
   char b[24]; snprintf(b, sizeof(b), "%.2f", value);
   std::string text = b;
   while (text.size() > 1 && text.back() == '0') text.pop_back();
   if (text.back() == '.') text.pop_back();
+  return text;
+}
+// The debounced -/+ edit lands as one service call.
+inline Action edit_action(const Tile &t, float value) {
+  if (!std::isfinite(value) && !climate_range(t)) return {};
+  const std::string text = std::isfinite(value) ? format_number(value) : std::string();
   auto d = t.domain();
+  // A range goes out whole, both ends, as Home Assistant asks for it.
+  if (climate_range(t)) {
+    const float low = range_end(t, RANGE_LOW), high = range_end(t, RANGE_HIGH);
+    if (!std::isfinite(low) || !std::isfinite(high)) return {};
+    return {"climate.set_temperature", "target_temp_low", format_number(low), "target_temp_high", format_number(high)};
+  }
   if (d == "climate") return {"climate.set_temperature", "temperature", text};
   if (d == "number" || d == "input_number") return {d + ".set_value", "value", text};
   return {};

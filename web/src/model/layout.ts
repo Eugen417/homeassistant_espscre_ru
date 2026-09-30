@@ -8,6 +8,7 @@
 // Grid-dependent operations belong to an explicit layout instance. Its shape is read
 // directly from the owning document, without a watcher or mutable module-global grid.
 import { t } from "../i18n";
+import { NAMED_SIZES, isSize, isWideSize, spanOf, type Size } from "./sizes";
 import type { Inventory, Layout, Tile, PageGrid } from "../types";
 
 // The firmware's own caps (components/smart_display/runtime_model.h): eight pages whatever the grid, and never more than
@@ -20,20 +21,23 @@ export const DEFAULT_GRID = { columns: 2, rows: 3 };
 /** The pages firmware before 0.18.0 takes on a grid: as many as 64 tiles fill, eight at most. */
 export const legacyPages = (grid: PageGrid) => Math.min(FIRMWARE_MAX_PAGES, Math.floor(FIRMWARE_MAX_TILES / (grid.columns * grid.rows)));
 export type Entry = { tile: Tile; slot: number };
-// Dimensions are resolved on the screen's grid; `true` still means wide.
-export type Size = "single" | "wide" | "tall" | "square" | "full";
-export const SIZES: Size[] = ["single", "wide", "tall", "square", "full"];
+// Dimensions are resolved on the screen's grid; `true` still means wide. A span ("3x2", app 0.4.32) is its own
+// rectangle (model/sizes.ts).
+export type { Size } from "./sizes";
+export const SIZES: Size[] = [...NAMED_SIZES];
 type SizeLike = Size | boolean;
 const asSize = (size: SizeLike): Size => (size === true ? "wide" : size === false ? "single" : size);
 
 // A navigation tile (screen.page_<n>, firmware 0.2.62+) and the page it opens; 0 for any other entity.
 export const pageTarget = (id: string) => (/^screen\.page_[1-8]$/.test(id) ? Number(id.slice(-1)) : 0);
-export const sizeOf = (tile: Tile): Size => (SIZES.includes(tile.options?.size as Size) ? (tile.options!.size as Size) : "single");
-export const isWide = (tile: Tile) => ["wide", "square", "full"].includes(sizeOf(tile));
+export const sizeOf = (tile: Tile): Size => (isSize(tile.options?.size) ? (tile.options!.size as Size) : "single");
+export const isWide = (tile: Tile) => isWideSize(sizeOf(tile));
 export const isFull = (tile: Tile) => sizeOf(tile) === "full";
 // Wide spans at most two columns; full spans the complete supplied grid.
 export function dimensions(size: SizeLike, shape: PageGrid = DEFAULT_GRID) {
   const value = asSize(size);
+  const span = spanOf(value);
+  if (span) return span;
   return value === "full" ? { columns: shape.columns, rows: shape.rows }
     : value === "square" ? { columns: 2, rows: 2 }
     : value === "tall" ? { columns: 1, rows: 2 }
@@ -252,8 +256,9 @@ export const newTile = (id: string): Tile => ({ entity: id, name: "", slot: -1, 
 // without a choice the domain's first control set applies to a wide card, none to a full one.
 export function effectiveControls(tile: Tile, inventory: Inventory): string | null {
   const domain = tile.entity.split(".")[0], catalogue = inventory.controls?.[domain], o = tile.options || {};
-  if (!catalogue || !["wide", "tall", "square", "full"].includes(o.size as string) || !["standard", "cover"].includes((o.display || "standard") as string) || o.inline === "slider") return null;
-  const choice = o.controls ?? (["tall", "full"].includes(o.size as string) ? "none" : catalogue.default);
+  if (!catalogue || !isSize(o.size) || o.size === "single" || !["standard", "cover"].includes((o.display || "standard") as string) || o.inline === "slider") return null;
+  // A span one column wide is a taller tall card, as the add-on reads it.
+  const choice = o.controls ?? (["tall", "full"].includes(o.size as string) || (spanOf(o.size)?.columns === 1) ? "none" : catalogue.default);
   return choice === "none" ? null : choice;
 }
 export function controlsLabel(tile: Tile, inventory: Inventory) {

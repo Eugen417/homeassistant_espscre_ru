@@ -148,7 +148,7 @@ function onKey(e: KeyboardEvent, i: number) {
 </script>
 
 <template>
-  <InspectorHead :title="item ? (item.type === 'entity' ? entityName(item.entity!) : topbarLabel(item)) : t('editor.topbar.title')"
+  <InspectorHead kind="bar" :title="item ? (item.type === 'entity' ? entityName(item.entity!) : topbarLabel(item)) : t('editor.topbar.title')"
     :code="item ? iconOf(item) || 'F0150' : undefined" :icon="item ? undefined : 'page-layout-header'" :crumbs="crumbs" />
   <div class="dr-body">
     <div v-if="!pageReady" class="notice warn"><Icon name="alert-circle-outline" /><span class="notice-text">{{ t('editor.pages.shared_bar') }}</span></div>

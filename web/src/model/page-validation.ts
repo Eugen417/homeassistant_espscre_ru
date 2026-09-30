@@ -2,6 +2,7 @@
  * shared conformance fixtures keep the two document boundaries aligned.
  */
 import { t } from '../i18n';
+import { isWideSize } from './sizes';
 import rules from './page-rules.json';
 import type { PageLayout, PageTile } from '../types';
 
@@ -96,7 +97,7 @@ export function validateCardOptions(tile: PageTile, entityId: string, size: stri
     [i.guard, domain === 'lock' ? ['confirm', 'lock_only'] : []]] as [any, any[]][])
     if (value !== undefined && !choices.includes(value)) fail();
   if (a.icon !== undefined && !icon(a.icon)) fail();
-  if (rules.wideOnly.includes(a.display || '') && !['wide', 'square', 'full'].includes(size)) fail('normalization');
+  if (rules.wideOnly.includes(a.display || '') && !isWideSize(size)) fail('normalization');
   if (tile.content.kind === 'navigation' && (size === 'full' || a.display !== undefined || i.inline !== undefined ||
       i.controls !== undefined || a.historyHours !== undefined)) fail('normalization');
   if (i.tap === 'toggle' && domain === 'screen') fail();

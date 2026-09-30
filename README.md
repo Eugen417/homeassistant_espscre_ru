@@ -355,8 +355,8 @@ For Home Assistant OS with Apps/Add-ons on **aarch64 or amd64**:
 2. Install **ESP Screen Manager**, start the app, and open **ESP Screens**.
    ESPHome Device Builder is optional: the ESPHome CLI is already in this app.
 3. Connect the screen with a USB data cable to the **Home Assistant machine**
-   and choose **New screen** in the sidebar: your board, which way it hangs, a name, the USB port, and
-   **Install**. If Wi-Fi is missing from the ESPHome `secrets.yaml`, the window
+   and click **+** beside Screens in the sidebar: pick your board, name it and choose which way it hangs, then
+   **Install** over USB. If Wi-Fi is missing from the ESPHome `secrets.yaml`, the window
    asks for it once and ESP Screens only adds the missing lines. The profile
    with unique API and OTA keys goes into the ESPHome folder; the build
    and flash run in the same window (a first build takes a few minutes on a

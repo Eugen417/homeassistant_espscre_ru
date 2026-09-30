@@ -43,7 +43,7 @@ const tiles = computed(() => page.value?.tiles.length || 0);
 
 <template>
   <template v-if="page">
-    <InspectorHead :title="t('editor.page.label', { page: index + 1 })" :icon="home ? 'home' : 'view-column-outline'"
+    <InspectorHead kind="page" :title="t('editor.page.label', { page: index + 1 })" :icon="home ? 'home' : 'view-column-outline'"
       :crumbs="[{ text: currentScreen?.name || '' }, { text: name(id) }]" />
     <div class="dr-body">
       <Section :title="t('editor.pages.sections.title')" icon="format-title">

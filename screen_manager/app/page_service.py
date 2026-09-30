@@ -76,7 +76,9 @@ def save_pages(manager, inbox, data):
             except LayoutError:
                 raise LayoutError(t('editor.pages.update_notice')) from None
     flat = legacy_projection(candidate, require_representable=False)
-    required_sizes = {tile.get('options', {}).get('size', 'single') for tile in flat['tiles']} & {'tall', 'square'}
+    # Every size but the three every screen takes needs the screen to have said it takes it: tall and square (0.3.1),
+    # a span such as 3x2 (firmware 0.19.0).
+    required_sizes = {tile.get('options', {}).get('size', 'single') for tile in flat['tiles']} - {'single', 'wide', 'full'}
     supported_sizes = getattr(sender, 'tile_sizes' if sender.protocol is not None else 'last_tile_sizes', set()) if sender else set()
     if required_sizes and not required_sizes <= supported_sizes:
         raise LayoutError(t('addon.errors.pages.update_tall'))

@@ -74,7 +74,9 @@ def _board_choice(shape):
     return {'square': shape['width'] == shape['height'], 'orientations': shape.get('orientations', {}),
             'width': shape['width'], 'height': shape['height'], 'dpi': shape.get('dpi'), 'look': shape.get('look', 'standard'),
             'camera': bool(shape.get('camera')), 'dimmable': shape.get('dimmable', True),
-            'can_standby': shape.get('can_standby', True), 'chip': shape.get('chip'), **shape.get('catalog', {})}
+            'can_standby': shape.get('can_standby', True), 'chip': shape.get('chip'),
+            # Whether it opens a Wi-Fi hotspot when it cannot reach its network (app 0.4.32): New screen says what to do.
+            'hotspot': shape.get('hotspot', True), **shape.get('catalog', {})}
 
 BOARD_CHOICES = {board: _board_choice(SHAPES[board]) for board in BOARD_KEYS}
 
@@ -214,6 +216,34 @@ class Firmware:
         check = yaml.safe_load(text)
         if not isinstance(check, dict) or any(check.get(key) != value for key, value in values.items()):
             raise ValueError(t('addon.errors.firmware.wifi_not_set'))
+        path.write_text(text)
+
+    def change_wifi(self, data):
+        """Another network or password (app 0.4.32): both lines in secrets.yaml replaced in place, every other line and
+        comment kept. A file that is not valid YAML is left alone, as store_wifi leaves it."""
+        wifi = self.wifi_status()
+        if wifi['state'] == 'invalid':
+            raise ValueError(t('addon.errors.firmware.secrets_invalid'))
+        ssid, password = data.get('wifi_ssid'), data.get('wifi_password')
+        if not isinstance(ssid, str) or not ssid.strip() or not isinstance(password, str):
+            raise ValueError(t('addon.errors.firmware.wifi_needed'))
+        path = self.root / 'secrets.yaml'
+        text = path.read_text() if path.exists() else ''
+        for key, value in (('wifi_ssid', ssid), ('wifi_password', password)):
+            line = yaml.safe_dump({key: value}, width=4096).strip()
+            pattern = re.compile(rf'^{key}\s*:.*$', re.M)
+            if pattern.search(text):
+                text = pattern.sub(lambda match: line, text, count=1)
+            else:
+                text = text + ('' if not text or text.endswith('\n') else '\n') + line + '\n'
+        check = yaml.safe_load(text)
+        if not isinstance(check, dict) or check.get('wifi_ssid') != ssid or check.get('wifi_password') != password:
+            raise ValueError(t('addon.errors.firmware.wifi_not_set'))
+        if not path.exists():
+            with path.open('x') as f:
+                os.chmod(path, 0o600)
+                f.write(text)
+            return
         path.write_text(text)
 
     def create(self, data):

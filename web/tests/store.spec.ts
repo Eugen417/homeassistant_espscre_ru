@@ -173,6 +173,20 @@ describe("live values", () => {
       expect(vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith("firmware-preview/import"))).toHaveLength(1);
     } else expect(stored.page_document).toBeUndefined();
   });
+  it("leaves out a stored preview screen it cannot read, says so, and loads the rest (app 0.4.32)", async () => {
+    const good = createVirtualScreen("Good preview", customPreview);
+    const stored = JSON.parse(localStorage.getItem("esp-screens.virtual-screens")!);
+    const broken = { ...structuredClone(stored[0]), id: "virtual.broken", name: "Broken preview" };
+    broken.page_document.layout.pages[0].tiles = [{ id: "a".repeat(16), content: { kind: "entity", entityId: "light.b" },
+      placement: { row: 0, column: 0, columns: 9, rows: 9 }, appearance: { label: "" }, interaction: {} }];
+    localStorage.setItem("esp-screens.virtual-screens", JSON.stringify([...stored, broken, { nonsense: true }]));
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ screens: [] }), { status: 200 })));
+    await refresh(false);
+    await new Promise((done) => setTimeout(done, 0));
+    expect(state.inventory.screens.map((screen) => screen.id)).toContain(good.id);
+    expect(state.inventory.screens.map((screen) => screen.id)).not.toContain("virtual.broken");
+    expect(state.toast?.message).toContain("Broken preview");
+  });
   it("keeps the virtual screen and catalogue through a light inventory poll", async () => {
     const virtual = createVirtualScreen("Panel preview", customPreview);
     const entities = state.inventory.entities;

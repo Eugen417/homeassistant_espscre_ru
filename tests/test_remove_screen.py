@@ -187,6 +187,26 @@ class RemoveScreenTests(unittest.IsolatedAsyncioTestCase):
                 after = await (await client.get('/api/inventory?light=1')).json()
                 self.assertEqual(after['screens'], [])
 
+    async def test_a_screen_that_never_got_its_firmware_can_be_removed_and_a_paired_one_cannot_this_way(self):
+        # GitHub #114: New screen wrote a profile, the build was cancelled, and the sidebar kept it waiting.
+        with tempfile.TemporaryDirectory() as tmp:
+            manager = self.manager(tmp, {INBOX: LAYOUT})
+            self.profile(manager)   # Office 1, paired
+            manager.firmware.create({'board': 'cyd', 'name': 'kitchen-2', 'friendly_name': 'Kitchen 2',
+                                     'wifi_ssid': 'ssid', 'wifi_password': 'password'})
+            async with TestClient(TestServer(create_app(manager, True))) as client:
+                first = await (await client.get('/api/inventory?light=1')).json()
+                self.assertEqual([p['file'] for p in first['pending']], ['kitchen-2.yaml'])
+                headers = {'X-Screen-CSRF': first['csrf']}
+                paired = await client.delete('/api/firmware/profiles/office-1.yaml', headers=headers)
+                self.assertEqual(paired.status, 400)
+                self.assertTrue((manager.firmware.root / 'office-1.yaml').is_file())
+                answer = await client.delete('/api/firmware/profiles/kitchen-2.yaml', headers=headers)
+                self.assertEqual(answer.status, 200)
+                self.assertFalse((manager.firmware.root / 'kitchen-2.yaml').exists())
+                after = await (await client.get('/api/inventory?light=1')).json()
+                self.assertEqual(after['pending'], [])
+
 
 if __name__ == '__main__':
     unittest.main()

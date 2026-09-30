@@ -6,6 +6,7 @@ import { t } from "../i18n";
  * delivery boundaries translate to another format.
  */
 import type { ChildTile, HeaderItem, Layout, Page, PageGrid, PageLayout, PageTarget, PageTile, Tile, TileOptions } from "../types";
+import { spanOf, spanOffered } from "./sizes";
 
 import { dimensions, SIZES, type Size } from "./layout";
 import { validateCardOptions, validatePageShape } from './page-validation';
@@ -103,6 +104,12 @@ export function footprintSize(tile: PageTile, grid: PageGrid): Size {
   const { columns, rows } = tile.placement;
   const presentation = tile.appearance.presentation;
   if (presentation) {
+    // A span is its own rectangle, one the grid takes (app 0.4.32).
+    const span = spanOf(presentation);
+    if (span) {
+      if (span.columns !== columns || span.rows !== rows || !spanOffered(columns, rows, grid)) throw new Error(t("addon.errors.pages.footprint"));
+      return presentation;
+    }
     const sizes = { single: [1, 1], wide: [Math.min(2, grid.columns), 1], tall: [1, 2], square: [2, 2], full: [grid.columns, grid.rows] };
     const size = sizes[presentation];
     if (!size || size[0] !== columns || size[1] !== rows) throw new Error(t("addon.errors.pages.footprint"));
@@ -113,6 +120,7 @@ export function footprintSize(tile: PageTile, grid: PageGrid): Size {
   if (columns === grid.columns && rows === grid.rows) return "full";
   if (columns === 1 && rows === 2) return "tall";
   if (columns === 2 && rows === 2) return "square";
+  if (spanOffered(columns, rows, grid)) return `${columns}x${rows}` as Size;
   throw new Error(t("addon.errors.pages.footprint"));
 }
 /** An explicit review proposal. It never changes page membership, drops a tile,

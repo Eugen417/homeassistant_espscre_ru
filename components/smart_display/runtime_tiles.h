@@ -33,6 +33,7 @@
 #include "history_view.h"
 #include "camera_view.h"
 #include "kept_pages.h"
+#include "wifi_status.h"
 #include "picture_store.h"
 #include "media_card.h"
 #include "light_card.h"
@@ -574,16 +575,19 @@ inline void send_action(esphome::api::HomeassistantActionRequest &request, const
 #endif
   esphome::api::global_api_server->send_homeassistant_action(request);
 }
-inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=true) {
+// `key2` and `value2`: a second field, for a thermostat's range (both ends in one call, firmware 0.19.0).
+inline void action(const std::string &service, const std::string &entity, const std::string &key="", const std::string &value="", bool watch=true,
+                   const std::string &key2="", const std::string &value2="") {
   if (!fresh() || !valid_entity(entity)) return;
   esphome::api::HomeassistantActionRequest request;
   request.service = esphome::StringRef(service);
-  request.data.init(key.empty() ? 1 : 2);
+  request.data.init(1 + !key.empty() + !key2.empty());
   esphome::api::HomeassistantServiceMap entry;
   entry.key = esphome::StringRef("entity_id");
   entry.value = esphome::StringRef(entity);
   request.data.push_back(entry);
   if(!key.empty()) {esphome::api::HomeassistantServiceMap param;param.key=esphome::StringRef(key);param.value=esphome::StringRef(value);request.data.push_back(param);}
+  if(!key2.empty()) {esphome::api::HomeassistantServiceMap param;param.key=esphome::StringRef(key2);param.value=esphome::StringRef(value2);request.data.push_back(param);}
   send_action(request, entity, watch);
   ESP_LOGI("runtime_action","Sent service=%s entity=%s",service.c_str(),entity.c_str());
 }
@@ -1911,12 +1915,37 @@ inline std::string climate_number_text(const Tile &t){
   const float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
   return tile_controls::format_value(shown,tile_controls::edit_step(t),"°");
 }
+// A range (firmware 0.19.0): its two ends side by side in the number's place, as on Home Assistant's thermostat card.
+// A tap picks the end the -/+ moves (the low one first, as there); that one is drawn in full, the other at 70 %.
+inline uint8_t climate_end=tile_controls::RANGE_LOW;
+inline lv_obj_t *climate_ends[2]={nullptr,nullptr};
+inline void climate_paint_ends(const Tile &t){
+  for(uint8_t i=0;i<2;++i){
+    if(!climate_ends[i])continue;
+    const uint8_t end=i?tile_controls::RANGE_HIGH:tile_controls::RANGE_LOW;
+    label(climate_ends[i],tile_controls::format_value(tile_controls::range_end(t,end),tile_controls::edit_step(t),"°"));
+    lv_obj_set_style_text_opa(climate_ends[i],end==climate_end?LV_OPA_COVER:LV_OPA_70,0);
+  }
+}
+inline void climate_end_event(lv_event_t *e){
+  climate_end=(uint8_t)(uintptr_t)lv_event_get_user_data(e);
+  if(detail_index<model.count)climate_paint_ends(model.tiles[detail_index]);
+}
 // A -/+ tap: the number follows the finger at once, tick() sends the last value after a short pause, exactly
-// as the -/+ pill on a wide tile does.
+// as the -/+ pill on a wide tile does. On a range it moves the chosen end, never past the other one.
 inline void climate_step(Tile &t,int direction){
   const uint32_t now=esphome::millis();
+  const float step=tile_controls::edit_step(t);
+  if(tile_controls::climate_range(t)){
+    const float low=tile_controls::range_end(t,tile_controls::RANGE_LOW),high=tile_controls::range_end(t,tile_controls::RANGE_HIGH);
+    if(climate_end==tile_controls::RANGE_HIGH)t.edit_high=tile_controls::step_value(high,step,low,t.maximum,direction);
+    else t.edit_value=tile_controls::step_value(low,step,t.minimum,high,direction);
+    t.edit_since=now;t.edit_sent=false;
+    climate_paint_ends(t);
+    return;
+  }
   const float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
-  t.edit_value=tile_controls::step_value(current,tile_controls::edit_step(t),t.minimum,t.maximum,direction);
+  t.edit_value=tile_controls::step_value(current,step,t.minimum,t.maximum,direction);
   t.edit_since=now;t.edit_sent=false;
   if(climate_number)label(climate_number,climate_number_text(t));
 }
@@ -1955,13 +1984,36 @@ inline void render_climate_detail(Tile &t,bool large,int width,int height,int co
   auto *down=climate_round_key(l.minus,tile_controls::glyph::MINUS,key_icons,theme::TRACK,theme::INK,CLIMATE_DOWN);
   auto *up=climate_round_key(l.plus,tile_controls::glyph::PLUS,key_icons,theme::TRACK,theme::INK,CLIMATE_UP);
   const float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
-  if(known&&std::isfinite(shown)){
+  if(known&&std::isfinite(shown)&&!tile_controls::climate_range(t)){   // a range stops at the other end in climate_step
     if(shown<=t.minimum)lv_obj_add_state(down,LV_STATE_DISABLED);
     if(shown>=t.maximum)lv_obj_add_state(up,LV_STATE_DISABLED);
   }
   for(lv_obj_t *key:{down,up})lv_obj_add_event_cb(key,climate_hold,LV_EVENT_LONG_PRESSED_REPEAT,(void*)(intptr_t)(key==up?1:-1));
-  climate_number=detail_text(detail_root,climate_number_text(t),l.number.x,l.number.y,l.number.w,
-                             l.small_number?(watch_font?watch_font:number_font):number_font,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
+  const lv_font_t *face=l.small_number?(watch_font?watch_font:number_font):number_font;
+  if(tile_controls::climate_range(t)){
+    // Both ends in the number's place, as Home Assistant's thermostat card draws a range: two numbers, the one the -/+
+    // moves in full and the other faded (ha-state-control-climate-temperature, "dual"). The largest face both fit in.
+    const float step=tile_controls::edit_step(t);
+    const std::string low=tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_LOW),step,"°"),
+                      high=tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_HIGH),step,"°");
+    const int gap=ui::px(large?16:8);
+    for(const lv_font_t *candidate:{face,watch_font,detail_font}){
+      if(!candidate)continue;
+      face=candidate;
+      if(face_covers(candidate,low+high)&&std::max(text_width(low,candidate),text_width(high,candidate))*2+gap<=l.number.w)break;
+    }
+    const int half=(l.number.w-gap)/2;
+    for(uint8_t i=0;i<2;++i){
+      auto *end=detail_text(detail_root,"",l.number.x+(i?half+gap:0),l.number.y,half,face,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
+      lv_obj_add_flag(end,LV_OBJ_FLAG_CLICKABLE);
+      lv_obj_set_ext_click_area(end,gap/2);
+      lv_obj_add_event_cb(end,climate_end_event,LV_EVENT_SHORT_CLICKED,(void*)(uintptr_t)(i?tile_controls::RANGE_HIGH:tile_controls::RANGE_LOW));
+      climate_ends[i]=end;
+    }
+    climate_paint_ends(t);
+  }else{
+    climate_number=detail_text(detail_root,climate_number_text(t),l.number.x,l.number.y,l.number.w,face,LV_TEXT_ALIGN_CENTER,off?theme::OFF:theme::INK);
+  }
   // The word under the number, or what the thermostat is doing when the glass had no room for a line of its own.
   if(!l.caption.empty()){
     auto *caption=detail_text(detail_root,l.caption_is_status?card_status(t,true):std::string(tr(txt::climate_target)),
@@ -3395,6 +3447,7 @@ inline void show_detail(unsigned index){
   // A card that opens starts on a day (an hour for a tile whose graph shows one); switching ranges keeps it open.
   if(!detail_root||lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN)||detail_index!=index){
     history_hours=model.tiles[index].history_hours==1?1:24;history_asked_entity.clear();weather_page=0;select_page=0;
+    climate_end=tile_controls::RANGE_LOW;   // a range's card starts on its low end, as Home Assistant's does
   }
   detail_index=index;auto &t=model.tiles[index];
   if(!detail_font)detail_font=lv_obj_get_style_text_font(widgets[0].title,LV_PART_MAIN);
@@ -3410,7 +3463,7 @@ inline void show_detail(unsigned index){
   }
   lv_obj_set_style_bg_color(detail_backdrop,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_backdrop,LV_OPA_COVER,0);
   lv_obj_remove_flag(detail_backdrop,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_backdrop);
-  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
+  detail_action_count=0;detail_status=nullptr;detail_badge_status=nullptr;detail_switch=nullptr;climate_number=nullptr;climate_ends[0]=climate_ends[1]=nullptr;detail_placed=false;detail_status_brief=false;history_forget();
   alarm_forget_widgets();media_progress_fill=nullptr;media_elapsed_label=nullptr;media_detail_picture=nullptr;weather_days_card=nullptr;weather_dots=nullptr;weather_chevron[0]=weather_chevron[1]=nullptr;light_value=nullptr;lv_obj_clean(detail_root);lv_obj_remove_flag(detail_root,LV_OBJ_FLAG_HIDDEN);lv_obj_move_foreground(detail_root);
   lv_obj_set_style_bg_color(detail_root,theme::color(theme::PAGE),0);lv_obj_set_style_bg_opa(detail_root,LV_OPA_COVER,0);
   // The card's room: capped to what a hand spans and centred, unless it shows a picture (the media card's
@@ -4845,18 +4898,24 @@ inline lv_obj_t *panel_icon(Widgets &w,unsigned n,const lv_font_t *font) {
 // The - and + keys of a stepper as round keys inside its grey pill (firmware 0.3.3), with the number between them
 // in the largest face that fits: the value is what the stepper is for, the keys only change it. The keys keep a
 // finger's reach through their click area, which covers the pill's inset.
-inline void stepper_keys(Widgets &w,int width,int height,const lv_font_t *text_font){
-  const int in=std::max(2,ui::px(ui::large()?4:3)),d=std::max(1,height-2*in);
+// `keys` false: a thermostat's range, whose two ends take the pill's width and whose card a tap on the tile opens, as its
+// -/+ would (firmware 0.19.0).
+inline void stepper_keys(Widgets &w,int width,int height,const lv_font_t *text_font,bool keys=true){
+  const int in=std::max(2,ui::px(ui::large()?4:3)),d=keys?std::max(1,height-2*in):0;
   for(int n=0;n<2;++n){
     if(!w.keys[n])continue;
+    set_hidden(w.keys[n],!keys);
+    if(!keys)continue;
     lv_obj_set_size(w.keys[n],d,d);lv_obj_set_pos(w.keys[n],n?width-in-d:in,in);
     lv_obj_set_style_bg_opa(w.keys[n],LV_OPA_COVER,0);lv_obj_set_ext_click_area(w.keys[n],in);center_icon(w.key_icons[n]);
   }
   // Measured with a digit to spare, so the number a tap on + makes still fits the face chosen here.
-  const std::string widest=std::string(lv_label_get_text(w.pill_value))+"8";
+  const std::string widest=std::string(lv_label_get_text(w.pill_value))+(keys?"8":"");
   const int room=width-2*(d+in)-ui::px(4);
+  // A thermostat's range is two numbers: the small face before it gives up (never dots: LVGL writes them into the text
+  // measured here, lvgl-dots-in-label-text).
   const lv_font_t *face=text_font;
-  for(const auto *candidate:{watch_value_font,text_font})
+  for(const auto *candidate:{watch_value_font,text_font,small_font})
     if(candidate&&face_covers(candidate,widest)&&(int)lv_font_get_line_height(candidate)<=height&&text_width(widest,candidate)<=room){face=candidate;break;}
   set_font(w.pill_value,face);
   const int lh=lv_font_get_line_height(face);
@@ -4970,9 +5029,14 @@ inline int layout_panel(Widgets &w,const Tile &t,bool large,int content_w,int co
   }else if(mode=="setpoint"||mode=="stepper"){
     float shown=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
     std::string suffix=d=="climate"?"°":screen_text::unit_suffix(t.unit);
-    label(w.pill_value,tile_controls::format_value(shown,tile_controls::edit_step(t),suffix.c_str()));
+    // A range shows both ends as Home Assistant's thermostat card writes them small, "20 · 24" without the unit; its -/+
+    // opens the card, where a tap picks the end they move (firmware 0.19.0).
+    const float step=tile_controls::edit_step(t);
+    label(w.pill_value,tile_controls::climate_range(t)
+      ?tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_LOW),step,"")+" · "+tile_controls::format_value(tile_controls::range_end(t,tile_controls::RANGE_HIGH),step,"")
+      :tile_controls::format_value(shown,step,suffix.c_str()));
     panel_w=fill;panel_h=m.key_h+2;
-    if(!taller)stepper_keys(w,fill,panel_h,text_font);
+    if(!taller)stepper_keys(w,fill,panel_h,text_font,!tile_controls::climate_range(t));
   }else if(tile_controls::is_slider(mode)){
     bool has_slider=mode!="volume" || (t.supported & tile_controls::feature::MEDIA_VOLUME_SET);
     if(has_slider){
@@ -5053,6 +5117,8 @@ inline void control_event(lv_event_t *e) {
   else if(step){ if(!screen_input::touch_guard.accept_repeat(now,400+slot*16+n)){ESP_LOGI("touch","tap on control %u ignored: %s",(unsigned)slot,screen_input::touch_guard.reason().c_str());return;} }
   else if(!allowed(now,400+slot*16+n,"control "+std::to_string(slot)))return;
   if(!t.available())return;
+  // A range has two ends and a tile's -/+ one number: the card, where a tap picks the end, moves it (firmware 0.19.0).
+  if(step&&tile_controls::climate_range(t)){active_index=w.index;show_detail(w.index);return;}
   if(step){
     // Local at once, tap after tap; tick() sends the last value after a short pause.
     float current=std::isfinite(t.edit_value)?t.edit_value:tile_controls::edit_target(t);
@@ -5490,7 +5556,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
       auto *now_line=lv_obj_get_child(w.pill,3);
       set_hidden(now_line,!(cl.caption&&std::isfinite(t.current)));
       if(cl.caption&&std::isfinite(t.current)){
-        set_font(now_line,w.value_font);label(now_line,screen_text::fill(txt::climate_now,"value",screen_text::decimal(t.current,1)+"°"));
+        set_font(now_line,w.value_font);label(now_line,screen_text::fill(txt::climate_now,"value",tile_controls::temperature_text(t.current)));
         set_color(now_line,LV_STYLE_TEXT_COLOR,theme::color(theme::MUTED));
         lv_obj_set_pos(now_line,cl.caption_box.x-area.x,cl.caption_box.y-area.y);lv_obj_set_size(now_line,cl.caption_box.w,cl.caption_box.h);
       }
@@ -5548,7 +5614,7 @@ inline bool render_tall(Widgets &w,const Tile &t,bool selected,int width,int hei
     if(secondary)text(1,artist,w.value_font,{0,y+fh+gap/2,width,m.state_h},LV_TEXT_ALIGN_LEFT);
   }else if(d=="climate"&&std::isfinite(t.current)){
     const auto *font=watch_value_font&&lv_font_get_line_height(watch_value_font)<=body.h?watch_value_font:w.value_font;
-    text(0,screen_text::decimal(t.current,1)+"°",font,{0,body.y+std::max(0,(body.h-static_cast<int>(lv_font_get_line_height(font)))/2),width,body.h},LV_TEXT_ALIGN_CENTER);
+    text(0,tile_controls::temperature_text(t.current),font,{0,body.y+std::max(0,(body.h-static_cast<int>(lv_font_get_line_height(font)))/2),width,body.h},LV_TEXT_ALIGN_CENTER);
   }else if(!t.builtin() && fresh() && t.available()){
     const std::string value=d=="light"?light_value_text(t):card_status(t,true);
     const lv_font_t *font=w.value_font;
@@ -5670,7 +5736,7 @@ inline void render_full(Widgets &w,const Tile &t,bool custom,bool clock,bool sun
   // The large value font carries digits, the degree sign and the percent sign; the clock font only digits and a colon.
   std::string middle;const lv_font_t *mid_font=watch_value_font?watch_value_font:w.value_font;
   auto d=t.domain();
-  if(d=="climate" && std::isfinite(t.current))middle=screen_text::decimal(t.current,1)+"°";
+  if(d=="climate" && std::isfinite(t.current))middle=tile_controls::temperature_text(t.current);
   else if(d=="cover" && std::isfinite(t.position)){middle=screen_text::percent(static_cast<int>(std::lround(t.position)));}
   else if(d=="media_player" && !t.extra().media_title.empty()){middle=t.extra().media_title;mid_font=room_label?lv_obj_get_style_text_font(room_label,LV_PART_MAIN):w.title_font;}
   int mid_font_h=lv_font_get_line_height(mid_font);
@@ -5728,8 +5794,11 @@ inline void render_slot(size_t slot) {
   else if (d == "light" && t.state == "on" && std::isfinite(t.brightness)) value = screen_text::percent(static_cast<int>(std::lround(std::clamp(t.brightness, 0.0f, 255.0f) * 100 / 255)));
   // An airco that is off says so, with the room's temperature when it knows it, as Home Assistant's tile does
   // (firmware 0.2.71+); while it runs, the tile shows the temperature it is set to.
-  else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) value += " · " + screen_text::decimal(t.current, 1) + "°"; }
+  else if (d == "climate" && t.state == "off") { value = tile_controls::climate_mode_text(t.state); if (std::isfinite(t.current)) value += " · " + tile_controls::temperature_text(t.current); }
   else if (d == "climate" && std::isfinite(t.target)) value = screen_text::decimal(t.target, 1) + "°";
+  // Without one temperature to reach (a range, dry, fan only) the line is Home Assistant's own tile line for a
+  // thermostat, its state and the room's temperature (state-display: climate ["state", "current_temperature"]).
+  else if (d == "climate") { value = tile_controls::climate_mode_text(tile_controls::lower_case(t.state)); if (std::isfinite(t.current)) value += " · " + tile_controls::temperature_text(t.current); }
   else if (d == "person") value = t.state=="home"?tr(txt::ha_person_home):t.state=="not_home"?tr(txt::ha_person_not_home):t.state;
   else if (d == "sun") value = !t.extra().sunrise.empty() && !t.extra().sunset.empty() ? screen_text::clock_text(t.extra().sunrise,screen_settings::current.clock_24h!=0,true)+" - "+screen_text::clock_text(t.extra().sunset,screen_settings::current.clock_24h!=0,true) : tr(t.state=="above_horizon"?txt::ha_sun_above_horizon:txt::ha_sun_below_horizon);
   else if (d == "timer") value = timer_text(t);
@@ -6265,10 +6334,22 @@ inline void prepare_status() {
                            "\n" + tr(next >= 0 ? prepare_joke(next) : txt::preparing_default);
   boot_status(lv_obj_get_parent(room_label), text.c_str(), true, true);
 }
+// A network the screen cannot reach, said on the loading screen over everything (firmware 0.19.0, wifi_status.h): what is
+// wrong, then what fixes it, the hotspot to join with its password or, without one, the way over USB.
+inline std::string wifi_problem_text(const wifi_status::Problem &wifi) {
+  const std::string fix = wifi.hotspot
+      ? fill(fill(std::string(tr(txt::status_wifi_hotspot)), "name", wifi.ssid), "password", wifi.password)
+      : std::string(tr(txt::status_wifi_usb));
+  return std::string(tr(txt::status_wifi_problem)) + "\n\n" + fix;
+}
 // Before the first layout the screen is starting: HA connects, then ESP Screens sends the tiles.
 inline void render(lv_obj_t *room) {
   if (!enabled) return;
   room_label=room; swipe_profile::Lap lap;
+  if (const auto wifi = wifi_status::problem(); wifi.shown) {
+    boot_status(lv_obj_get_parent(room), wifi_problem_text(wifi).c_str(), false, true);
+    return;
+  }
   if (protocol_problem != ProtocolProblem::none) {
     boot_status(lv_obj_get_parent(room), tr(protocol_problem == ProtocolProblem::old_addon
         ? txt::status_configuration_problem : txt::status_configuration_version), false);
@@ -7065,6 +7146,14 @@ inline uint32_t last_live_second=0;
 inline int last_clock_minute=-2;
 inline bool was_fresh=false;
 inline void tick() {
+  // The network lost or found again changes the whole glass: the Wi-Fi message over everything, or the pages back.
+  static bool wifi_shown = false;
+  if (const bool shown = wifi_status::problem().shown; shown != wifi_shown) {
+    wifi_shown = shown;
+    if (shown) ESP_LOGW("wifi_status", "No Wi-Fi: the glass says how to fix it");
+    else ESP_LOGI("wifi_status", "Wi-Fi back: the pages again");
+    if (room_label) { mark_all(); render(room_label); } else refresh_all();
+  }
   if(detail_root && !lv_obj_has_flag(detail_root,LV_OBJ_FLAG_HIDDEN) && detail_index<model.count){
     auto &t=model.tiles[detail_index];bool waiting=t.loading(esphome::millis());
     // The history the card waits for: drawn once it is here (a finger on the screen holds that back), asked for
@@ -7114,13 +7203,13 @@ inline void tick() {
   }
   // A -/+ edit goes out as one call once the finger rests; a value HA never reports is dropped after a while.
   for(size_t i=0;i<model.count;++i){
-    auto &t=model.tiles[i];if(!std::isfinite(t.edit_value))continue;
+    auto &t=model.tiles[i];if(!std::isfinite(t.edit_value)&&!std::isfinite(t.edit_high))continue;
     uint32_t now=esphome::millis();
     if(!t.edit_sent){
       if(now-t.edit_since<700 || t.waiting(now))continue;
       auto a=tile_controls::edit_action(t,t.edit_value);
-      if(a.valid()){t.edit_sent=true;t.edit_since=now;action(a.service,t.entity,a.key,a.value);}else t.edit_value=NAN;
-    }else if(now-t.edit_since>10000){t.edit_value=NAN;card(i);}
+      if(a.valid()){t.edit_sent=true;t.edit_since=now;action(a.service,t.entity,a.key,a.value,true,a.key2,a.value2);}else{t.edit_value=NAN;t.edit_high=NAN;}
+    }else if(now-t.edit_since>10000){t.edit_value=NAN;t.edit_high=NAN;card(i);}
   }
   // Running timers advance once per second without any HA traffic; clocks show hours and minutes,
   // so they are drawn again only when the minute (or the time's validity) changes.

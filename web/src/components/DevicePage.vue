@@ -7,7 +7,7 @@ import { computed, nextTick, onBeforeUnmount } from "vue";
 import { vDrag } from "../drag";
 import { t } from "../i18n";
 import { sizeOf } from "../model/layout";
-import { deviceStyle, homeKeyShown, isCompact, movePage, navigationSettings, openBar, pageAt, pageReady, pageTitleShown, roomyNames, screenText, setHomePage, state, topbarItems } from "../store";
+import { deviceStyle, homeKeyShown, isCompact, movePage, navigationSettings, openBar, pageAt, pageReady, pageTitleShown, previewed, roomyNames, screenText, setHomePage, state, topbarItems } from "../store";
 import type { Tile } from "../types";
 import TileCard from "./TileCard.vue";
 import TopbarSvg from "./TopbarSvg.vue";
@@ -68,7 +68,7 @@ async function onKey(e: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="page" :class="{ carried, refused: state.drag.refused === page }" :style="deviceStyle" :data-page-id="owned?.id">
+  <div class="page" :class="{ carried, refused: state.drag.refused === page, chosen: !preview && !!owned && state.selectedPageId === owned.id && state.inspector?.kind === 'page' }" :style="deviceStyle" :data-page-id="owned?.id">
     <div v-if="!preview" class="page-head" :class="{ selected: state.selectedPageId === owned?.id && state.inspector?.kind === 'page' }">
       <button v-if="movable" type="button" class="grab" :data-page="page" v-drag="{ kind: 'page', page }"
         :title="t('editor.page.move_title')" :aria-label="t('editor.page.move_aria', { page: page + 1 })" @keydown="onKey">
@@ -93,7 +93,7 @@ async function onKey(e: KeyboardEvent) {
       </div>
       <div class="tiles">
         <template v-for="slot in cells" :key="slot">
-          <TileCard v-if="bySlot.get(slot)" :tile="bySlot.get(slot)!.tile" :slot="slot" :placeholder="bySlot.get(slot)!.tile === moving" :preview="preview" @navigate="emit('navigate', { kind: 'tile', tileId: $event })" />
+          <TileCard v-if="bySlot.get(slot)" :tile="preview ? bySlot.get(slot)!.tile : previewed(bySlot.get(slot)!.tile)" :slot="slot" :placeholder="bySlot.get(slot)!.tile === moving" :preview="preview" @navigate="emit('navigate', { kind: 'tile', tileId: $event })" />
           <span v-else-if="preview" class="cell preview-empty" :style="cellStyle(slot)"></span>
           <button v-else type="button" class="cell" :style="cellStyle(slot)" :class="{ 'insert-here': state.insertAt === slot }" :data-slot="slot"
             :title="t('editor.page.cell.title')"

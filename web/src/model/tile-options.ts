@@ -6,13 +6,14 @@
  * the same card check the save runs (validateCardOptions). Both ask here, so a choice that shows is a choice that saves.
  */
 import rules from "./page-rules.json";
+import { isTallSize, isWideSize } from "./sizes";
 import { validateCardOptions } from "./page-validation";
 import type { PageTile, Tile, TileOptions } from "../types";
 
 const APPEARANCE = { display: "display", icon: "icon", background: "background", historyHours: "history_hours", refresh: "refresh", subtitle: "sub", fit: "fit", overlay: "overlay" } as const;
 const INTERACTION = ["tap", "inline", "controls", "action"] as const;
 const PICTURE_OWN = ["refresh", ...Object.keys(rules.picture)];
-const TALLER = ["tall", "square"];
+
 // What a choice that asks a second step stands for while the inspector tries it: Perform action asks which action,
 // a value of the entity which value, words of your own the words. The step itself is checked when it is taken.
 const SAMPLE_ACTION = { action: "homeassistant.turn_on" };
@@ -37,7 +38,7 @@ export function canonicalOptions(entity: string, options: TileOptions = {}, key 
   for (const [key, value] of Object.entries(DEFAULTS)) if (out[key] === value) delete out[key];
   // A Go to page tile has a name, an icon, a colour and a width, nothing else.
   if (pageTile(entity)) for (const key of ["display", "inline", "controls", "history_hours"]) delete out[key];
-  if (rules.wideOnly.includes(String(out.display)) && !["wide", "square", "full"].includes(String(out.size ?? "single"))) out.size = "wide";
+  if (rules.wideOnly.includes(String(out.display)) && !isWideSize(out.size ?? "single")) out.size = "wide";
   return out;
 }
 
@@ -48,7 +49,7 @@ export function coupledOptions(options: TileOptions = {}, key: string, value: un
   const size = String(out.size ?? "single");
   if (key === "display" && value === "watch") { out.inline = "none"; if (controlled) out.controls = "none"; }
   if (key === "inline" && value === "slider") { out.display = "standard"; if (controlled) out.controls = "none"; }
-  if (key === "controls" && value === "none" && TALLER.includes(size)) out.inline = "none";
+  if (key === "controls" && value === "none" && isTallSize(size)) out.inline = "none";
   if (key === "controls" && value !== "none") { if (out.display !== "cover") out.display = "standard"; out.inline = "none"; }
   // Choosing an action is choosing Perform action.
   if (key === "action") out.tap = "action";

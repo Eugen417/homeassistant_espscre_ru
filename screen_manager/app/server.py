@@ -596,6 +596,18 @@ class HomeAssistant:
         entries = await self.request('config_entries/get', domain='esphome')
         return {entry['entry_id']: entry for entry in entries or [] if isinstance(entry, dict) and entry.get('entry_id')}
 
+    async def discovered_esphome(self):
+        """The ESPHome devices Home Assistant found on the network and has not paired yet (app 0.4.32): a screen that
+        was just flashed shows up here once it is on the Wi-Fi, so New screen can say it arrived, or that it did not."""
+        flows = await self.request('config_entries/flow/progress')
+        names = set()
+        for flow in flows or []:
+            if isinstance(flow, dict) and flow.get('handler') == 'esphome':
+                name = ((flow.get('context') or {}).get('title_placeholders') or {}).get('name')
+                if isinstance(name, str) and name:
+                    names.add(name.lower())
+        return names
+
     async def delete_config_entry(self, entry_id):
         """Remove one integration with its device and its entities, the way Home Assistant's own Delete does
         (app 0.2.112). ESPHome answers `supports_remove_device: false`: one node is one entry, so the entry
@@ -1749,7 +1761,8 @@ class Manager:
         if tile['entity'].startswith('vacuum.'):
             ha_catalogue.chip_words(extra,tile['entity'],self.ha.states,device,getattr(self.ha,'state_words',None))
         message=state_message(index,tile,self.ha.states,extra,
-                              precision=header_bar.precision_of(entry) if tile['entity'].startswith('sensor.') else None,entry=entry)
+                              precision=header_bar.precision_of(entry) if tile['entity'].startswith('sensor.') else None,entry=entry,
+                              units=getattr(self.ha,'units',None))
         # Home Assistant's word where the screen would show the raw state (firmware 0.2.58+ shows it).
         state=self.ha.states.get(tile['entity'],{})
         word=ha_catalogue.screen_word(tile['entity'],message['state'],state.get('attributes'),entry,getattr(self.ha,'state_words',None))
@@ -2591,12 +2604,24 @@ def create_app(manager, development=False):
                 'pending': manager.pending_profiles(screens, profiles),
                 'updates': manager.updates.summary(screens, profiles),
                 'language': manager.region.view()}
+    async def seen_pending(payload):
+        """Marks each screen that waits for pairing that Home Assistant has found on the network (`seen`); the rest is
+        not on the Wi-Fi (yet). Nothing is marked while Home Assistant cannot be asked."""
+        if not payload.get('pending'):
+            return payload
+        try:
+            names = await asyncio.wait_for(manager.ha.discovered_esphome(), 4)
+        except Exception:  # noqa: BLE001 - the list is a help, never a reason for the inventory to fail
+            return payload
+        for entry in payload['pending']:
+            entry['seen'] = str(entry.get('node') or '').lower() in names
+        return payload
     async def inventory(request):
         if request.query.get('light') == '1':
             # The page polls the light form; entities, backgrounds and icons (~100 KB) only on demand.
-            return web.json_response(light_payload())
+            return web.json_response(await seen_pending(light_payload()))
         screens, entities = manager.inventory()
-        payload = light_payload(screens)
+        payload = await seen_pending(light_payload(screens))
         payload['entities'] = entities
         # Labels and help in the editor's language (app 0.2.90); ids and keys stay as they are.
         payload['backgrounds'] = backgrounds()
@@ -2856,7 +2881,8 @@ def create_app(manager, development=False):
             state = manager.ha.states.get(eid, {})
             entry = index.get(eid)
             message = state_message(0, {'entity': eid, 'name': ''}, manager.ha.states,
-                                    precision=header_bar.precision_of(entry) if eid.startswith('sensor.') else None)
+                                    precision=header_bar.precision_of(entry) if eid.startswith('sensor.') else None,
+                                    units=getattr(manager.ha, 'units', None))
             attributes = dict(message['a'])
             if eid.startswith('media_player.'):
                 for key in ('media_title', 'media_artist', 'media_album_name', 'media_duration', 'media_position'):
@@ -3009,6 +3035,14 @@ def create_app(manager, development=False):
             if clash:
                 raise ValueError(clash)
         return web.json_response(manager.firmware.install(data))
+    async def firmware_wifi(request):
+        """New screen → Wi-Fi: another network or password in ESPHome's secrets.yaml (app 0.4.32), for a screen that did
+        not come online. Every screen builds with these two lines, so each takes them at its next update."""
+        data = await request.json()
+        if not isinstance(data, dict):
+            raise ValueError(t('addon.errors.firmware.wifi_needed'))
+        manager.firmware.change_wifi(data)
+        return web.json_response(manager.firmware.wifi_status())
     async def firmware_download(request):
         """New screen and Firmware & USB → Download: the factory image this app just built, for ESPHome Web on
         the owner's own computer. Like the profile it came from, it holds the Wi-Fi password and the screen's keys."""
@@ -3020,6 +3054,15 @@ def create_app(manager, development=False):
         build the screen with ESPHome on your own computer."""
         body, name = manager.firmware.files(request.match_info['file'])
         return web.Response(body=body, content_type='application/zip', headers={'Content-Disposition': f'attachment; filename="{name}"'})
+    async def firmware_forget(request):
+        """A screen that never got its firmware (GitHub #114, app 0.4.32): New screen wrote its profile, the build was
+        cancelled or failed, and the sidebar kept it waiting. Only such a profile goes, one no paired screen builds from;
+        a paired screen leaves through its own Remove, which takes it out of Home Assistant too."""
+        file = request.match_info['file']
+        waiting = {p['file'] for p in manager.pending_profiles(manager.screens(), manager.firmware.profile_names())}
+        if file not in waiting:
+            raise LayoutError(t('addon.errors.firmware.profile_missing'))
+        return web.json_response({'removed': await manager.firmware.delete_profile(file)})
     async def firmware_flashed(request):
         """New screen and Firmware & USB → This computer (browser): the page wrote the image it downloaded onto a
         screen over Web Serial, so the screen list nudges pairing as for one flashed from Home Assistant's own USB port."""
@@ -3085,7 +3128,9 @@ def create_app(manager, development=False):
     app.router.add_get('/api/firmware/profiles/{file}/download', firmware_download)
     app.router.add_get('/api/firmware/profiles/{file}/files', firmware_files)
     app.router.add_post('/api/firmware/profiles/{file}/flashed', firmware_flashed)
+    app.router.add_delete('/api/firmware/profiles/{file}', firmware_forget)
     app.router.add_post('/api/firmware/profiles', firmware_create)
+    app.router.add_put('/api/firmware/wifi', firmware_wifi)
     app.router.add_get('/', index)
     app.router.add_get('/api/inventory', inventory)
     app.router.add_get('/api/capabilities', capabilities)

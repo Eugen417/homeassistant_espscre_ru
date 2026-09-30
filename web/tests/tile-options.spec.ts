@@ -122,7 +122,7 @@ describe("the tile panel", () => {
     appendTiles(tile);
     state.inventory.screens[0].firmware = "0.7.0";
     let panel = mount(TileInspector, { props: { tile: current(tile)! } });
-    const tap = () => panel.findAll(".f").find((f) => f.text().startsWith("On tap"))!;
+    const tap = () => panel.findAll(".prop").find((f) => f.text().replace(/^[^\p{L}\d]+/u, "").startsWith("On tap"))!;
     expect(tap().findAll(".seg button").map((b) => b.text())).toEqual(["On / off", "Run automation actions", "View only", "Perform action"]);
     expect(tap().find(".seg button[aria-pressed='true']").text()).toBe("On / off");
     await tap().findAll(".seg button").find((b) => b.text() === "Run automation actions")!.trigger("click");
@@ -197,13 +197,13 @@ describe("the tile panel", () => {
   it.each(kinds.map((tile) => [`${tile.entity} ${tile.options?.size || "single"}`, tile] as const))("saves every choice it shows: %s", async (_, kind) => {
     const tile: Tile = JSON.parse(JSON.stringify(kind));
     appendTiles(tile);
-    const fields = () => mount(TileInspector, { props: { tile: current(tile)! } }).findAll(".f");
+    const fields = () => mount(TileInspector, { props: { tile: current(tile)! } }).findAll(".prop");
     const count = fields().length;
     for (let f = 0; f < count; f++) {
       const labels = fields()[f]?.findAll(".seg button").map((b) => b.text()) || [];
       for (const label of labels) {
         const panel = mount(TileInspector, { props: { tile: current(tile)! } });
-        const button = panel.findAll(".f")[f]?.findAll(".seg button").find((b) => b.text() === label);
+        const button = panel.findAll(".prop")[f]?.findAll(".seg button").find((b) => b.text() === label);
         if (!button || button.attributes("disabled") !== undefined) continue;
         state.toast = null;
         await button.trigger("click");

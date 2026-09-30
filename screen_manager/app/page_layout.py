@@ -12,7 +12,7 @@ import re
 import secrets
 
 from i18n import t
-from core import KEY_HOLDERS, Grid, is_key, placed, header_items, page_target, tile_size, validate_header, validate_layout
+from core import KEY_HOLDERS, Grid, is_key, span_of, span_offered, placed, header_items, page_target, tile_size, validate_header, validate_layout
 
 FORMAT = "pages-v2"
 PAGE_ID = re.compile(r"[0-9a-f]{16}\Z")
@@ -210,7 +210,8 @@ def grown(layout, source, target):
         for tile in page["tiles"]:
             placement, appearance = tile["placement"], tile["appearance"]
             size = footprint_size(placement["columns"], placement["rows"], source, appearance.get("presentation"))
-            placement["columns"], placement["rows"] = sizes[size]
+            # A span keeps its own rectangle on the bigger grid (app 0.4.32).
+            placement["columns"], placement["rows"] = sizes.get(size) or span_of(size)
             if size != "single":
                 appearance["presentation"] = size
     return validate_document(layout, target)
@@ -224,6 +225,12 @@ def footprint_size(columns, rows, grid, presentation=None):
     """
     if presentation is not None:
         supported = {"single": (1, 1), "wide": (grid.wide_span, 1), "tall": (1, 2), "square": (2, 2), "full": (grid.columns, grid.rows)}
+        # A span ("3x2", app 0.4.32) is its own rectangle, one the grid takes.
+        span = span_of(presentation)
+        if span:
+            if span != (columns, rows) or not span_offered(columns, rows, grid):
+                raise LayoutError(t('addon.errors.pages.footprint'))
+            return presentation
         if not isinstance(presentation, str) or presentation not in supported or supported[presentation] != (columns, rows):
             raise LayoutError(t('addon.errors.pages.footprint'))
         return presentation
@@ -232,6 +239,7 @@ def footprint_size(columns, rows, grid, presentation=None):
     if (columns, rows) == (grid.columns, grid.rows): return "full"
     if (columns, rows) == (1, 2): return "tall"
     if (columns, rows) == (2, 2): return "square"
+    if span_offered(columns, rows, grid): return f"{columns}x{rows}"
     raise LayoutError(t('addon.errors.pages.footprint'))
 
 
@@ -438,7 +446,8 @@ def legacy_compatible(layout, grid):
             and all(not page['navigation']['excludeFromPagination'] and page['topbar']['leading']
                     and bar_items(page) == items for page in pages)
             and all(footprint_size(tile['placement']['columns'], tile['placement']['rows'], grid, tile['appearance'].get('presentation'))
-                    not in ('tall', 'square') and tile['interaction'].get('controls') not in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode')
+                    not in ('tall', 'square') and not span_of(footprint_size(tile['placement']['columns'], tile['placement']['rows'], grid, tile['appearance'].get('presentation')))
+                    and tile['interaction'].get('controls') not in ('tilt', 'buttons_tilt', 'position_tilt', 'setpoint_mode')
                     and not tile.get('children')
                     for page in pages for tile in page['tiles']))
 
